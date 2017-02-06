@@ -1,0 +1,19 @@
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: #123456;
+  color: #ffffff;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  align-content: center;
+  justify-content: center;
+  text-align: center;
+}
