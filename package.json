@@ -1,8 +1,8 @@
 {
   "scripts": {
     "build": "flow check && webpack --config webpack.config.js",
-    "lint": "flow check && eslint . --ext .js --ext .jsx",
-    "test": "flow check && eslint . --ext .js --ext .jsx && karma start --single-run",
+    "lint": "flow check && eslint . --ext .js --ext .jsx && stylelint .",
+    "test": "karma start --single-run",
     "t": "karma start",
     "d": "webpack-dev-server --progress --colors"
   },
@@ -42,6 +42,8 @@
     "precss": "^1.4.0",
     "react-addons-test-utils": "^15.4.2",
     "style-loader": "^0.13.1",
+    "stylelint": "^7.8.0",
+    "stylelint-config-standard": "^16.0.0",
     "webpack": "^2.2.1",
     "webpack-dev-server": "^2.3.0"
   }

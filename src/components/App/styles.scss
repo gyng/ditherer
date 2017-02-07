@@ -1,9 +1,9 @@
 .robot {
   align-self: center;
+  animation: spin 60s linear infinite;
   border-radius: 50%;
   height: auto;
   width: 500px;
-  animation: spin 60s linear infinite;
 }
 
-@keyframes spin { 100% { transform:rotate(360deg); } }
+@keyframes spin { 100% { transform: rotate(360deg); } }

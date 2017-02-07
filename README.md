@@ -6,13 +6,13 @@ A personal JavaScript boilerplate for frontend applications.
 
 This boilerplate contains:
 
-|              |                                         |
-|--------------|-----------------------------------------|
-| Presentation | React, CSS Modules                      |
-| Store        | Redux*                                  |
-| Test         | Karma, Enzyme, Chai, ESLint, Travis     |
-| Build        | Webpack, Babel, Yarn, Flow              |
-| Deploy       | Docker?*                                |
+|              |                                                |
+|--------------|------------------------------------------------|
+| Presentation | React, CSS Modules                             |
+| Store        | Redux*                                         |
+| Test         | Karma, Enzyme, Chai, ESLint, Travis, Stylelint |
+| Build        | Webpack, Babel, Yarn, Flow                     |
+| Deploy       | Docker?*                                       |
 
 *to be implemented
 
