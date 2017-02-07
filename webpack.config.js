@@ -43,6 +43,15 @@ module.exports = {
   },
 
   plugins: [
+    new webpack.EnvironmentPlugin({
+      NODE_ENV: 'development', // defaults to development
+    }),
+
+    new webpack.LoaderOptionsPlugin({
+      minimize: process.env.NODE_ENV === 'production',
+      debug: process.env.NODE_ENV !== 'production',
+    }),
+
     new webpack.optimize.CommonsChunkPlugin({
       filename: 'commons.js',
       minChunks: 2,
@@ -56,6 +65,10 @@ module.exports = {
       },
       template: './index.html',
     }),
+
+    (process.env.NODE_ENV === 'production'
+      ? new webpack.optimize.UglifyJsPlugin()
+      : new webpack.BannerPlugin({ banner: 'run with NODE_ENV=production to minify' })),
   ],
 
   devtool: 'cheap-eval-source-map',

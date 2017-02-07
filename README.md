@@ -21,7 +21,7 @@ This boilerplate contains:
 ### Build
 
     yarn install
-    yarn run build
+    NODE_ENV=production yarn run build  # minifies in production
 
 ### Test
 
