@@ -45,7 +45,7 @@ module.exports = (config) => {
     },
 
     mochaReporter: {
-      // output: 'minimal'
+      output: 'minimal',
       // showDiff: true
     },
   });

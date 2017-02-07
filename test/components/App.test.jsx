@@ -1,9 +1,9 @@
 import React from 'react';
 import { shallow } from 'enzyme';
-import App from '../../src/components/App/App';
-import Echo from '../../src/components/Echo/Echo';
+import App from 'components/App';
+import Echo from 'components/Echo';
 
-describe('self torture', () => {
+describe('App', () => {
   it('is a horrible tooling ecosystem', () => {
     const wrapper = shallow(<App />);
     const echoes = wrapper.find(Echo);

@@ -1,14 +1,19 @@
 {
   "scripts": {
     "build": "flow check && webpack --config webpack.config.js",
-    "lint": "flow check && eslint . --ext .js --ext .jsx && stylelint .",
+    "lint": "flow check && eslint . --ext .js --ext .jsx && stylelint '**/*.scss'",
     "test": "karma start --single-run",
-    "t": "karma start",
+    "test:watch": "karma start",
+    "flow": "flow check",
+    "eslint": "eslint . --ext .js --ext .jsx",
+    "stylelint": "stylelint '**/*.scss'",
     "d": "webpack-dev-server --progress --colors"
   },
   "dependencies": {
     "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "react-dom": "^15.4.2",
+    "react-redux": "^5.0.2",
+    "redux": "^3.6.0"
   },
   "devDependencies": {
     "autoprefixer": "^6.7.2",
@@ -21,6 +26,7 @@
     "enzyme": "^2.7.1",
     "eslint": "^3.15.0",
     "eslint-config-airbnb": "^14.1.0",
+    "eslint-import-resolver-webpack": "^0.8.1",
     "eslint-plugin-flowtype": "^2.30.0",
     "eslint-plugin-import": "^2.2.0",
     "eslint-plugin-jsx-a11y": "^4.0.0",
