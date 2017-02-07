@@ -1,5 +1,10 @@
 {
-  "extends": "airbnb",
+  "parser": "babel-eslint",
+
+  "extends": [
+    "airbnb",
+    "plugin:flowtype/recommended"
+  ],
 
   "env": {
     "browser": true,
@@ -7,6 +12,11 @@
   },
 
   "plugins": [
-    "mocha"
-  ]
+    "mocha",
+    "flowtype"
+  ],
+
+  "rules": {
+    "flowtype/define-flow-type": 1
+  }
 }

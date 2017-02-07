@@ -1,7 +1,9 @@
+/* @flow */
+
 import React from 'react';
 import { render } from 'react-dom';
 
-import App from './components/App';
-import './styles/style.scss';
+import App from './components/App/App';
+import s from './styles/style.scss';
 
-render(<App />, document.getElementById('app'));
+render(<App className={s.app} />, document.getElementById('app'));

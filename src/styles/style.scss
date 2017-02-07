@@ -1,4 +1,4 @@
-html, body, #app {
+html, body, .app {
   height: 100%;
   width: 100%;
   padding: 0;
@@ -10,7 +10,7 @@ body {
   color: #ffffff;
 }
 
-#app {
+.app {
   display: flex;
   flex-direction: column;
   align-content: center;

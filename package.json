@@ -1,11 +1,10 @@
 {
   "scripts": {
-    "build": "webpack --config webpack.config.js",
-    "lint": "eslint . --ext .js --ext .jsx",
-    "test": "karma start --single-run",
+    "build": "flow check && webpack --config webpack.config.js",
+    "lint": "flow check && eslint . --ext .js --ext .jsx",
+    "test": "flow check && eslint . --ext .js --ext .jsx && karma start --single-run",
     "t": "karma start",
-    "w": "webpack --progress --watch",
-    "d": "webpack-dev-server --open"
+    "d": "webpack-dev-server --progress --colors"
   },
   "dependencies": {
     "react": "^15.4.2",
@@ -14,6 +13,7 @@
   "devDependencies": {
     "autoprefixer": "^6.7.2",
     "babel-core": "^6.22.1",
+    "babel-eslint": "^7.1.1",
     "babel-loader": "^6.2.10",
     "babel-preset-airbnb": "^2.2.3",
     "chai": "^3.5.0",
@@ -21,10 +21,13 @@
     "enzyme": "^2.7.1",
     "eslint": "^3.15.0",
     "eslint-config-airbnb": "^14.1.0",
+    "eslint-plugin-flowtype": "^2.30.0",
     "eslint-plugin-import": "^2.2.0",
     "eslint-plugin-jsx-a11y": "^4.0.0",
     "eslint-plugin-mocha": "^4.8.0",
     "eslint-plugin-react": "^6.9.0",
+    "file-loader": "^0.10.0",
+    "flow-bin": "^0.38.0",
     "html-webpack-plugin": "^2.28.0",
     "karma": "^1.4.1",
     "karma-chai": "^0.1.0",

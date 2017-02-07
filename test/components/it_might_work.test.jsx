@@ -1,7 +1,7 @@
 import React from 'react';
 import { shallow } from 'enzyme';
-import App from '../../src/components/App';
-import Echo from '../../src/components/Echo';
+import App from '../../src/components/App/App';
+import Echo from '../../src/components/Echo/Echo';
 
 describe('self torture', () => {
   it('is a horrible tooling ecosystem', () => {

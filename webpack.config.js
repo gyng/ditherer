@@ -13,14 +13,25 @@ module.exports = {
 
   output: {
     filename: '[name].bundle.js',
-    path: path.resolve(__dirname, './dist'),
+    path: path.resolve(__dirname, './build'),
   },
 
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.(css|scss)$/,
-        use: ['style-loader', 'css-loader?importLoaders=1', 'postcss-loader'],
+        use: [
+          'style-loader',
+          'css-loader?modules&importLoaders=1',
+          'postcss-loader?sourceMap=inline',
+        ],
+      },
+      {
+        test: /\.(jpg|png|gif|mp4|webm|mp3|ogg)$/,
+        loader: 'file-loader',
+        options: {
+          name: './f/[path][name].[hash].[ext]',
+        },
       },
       {
         exclude: /\/node_modules\//,
@@ -47,7 +58,7 @@ module.exports = {
     }),
   ],
 
-  devtool: 'inline-source-map',
+  devtool: 'cheap-eval-source-map',
 
   externals: {
     cheerio: 'window',

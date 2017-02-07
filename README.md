@@ -8,10 +8,10 @@ This boilerplate contains:
 
 |              |                                         |
 |--------------|-----------------------------------------|
-| Presentation | React, CSS modules*                     |
+| Presentation | React, CSS Modules                      |
 | Store        | Redux*                                  |
 | Test         | Karma, Enzyme, Chai, ESLint, Travis     |
-| Build        | Webpack, Babel, Yarn, TypeScript/Flow?* |
+| Build        | Webpack, Babel, Yarn, Flow              |
 | Deploy       | Docker?*                                |
 
 *to be implemented
@@ -31,7 +31,6 @@ This boilerplate contains:
 ### Develop
 
     yarn run t  # runs tests using karma in watch mode
-    yarn run w  # runs webpack in watch mode
     yarn run d  # runs webpack-dev-server
 
 ### Deploy
