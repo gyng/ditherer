@@ -8,51 +8,55 @@ module.exports = {
   target: 'web',
 
   entry: {
-    app: './index.js',
+    app: './index.jsx',
   },
 
   output: {
     filename: '[name].bundle.js',
-    path: path.resolve(__dirname, './dist')
+    path: path.resolve(__dirname, './dist'),
   },
 
   module: {
     loaders: [
       {
         test: /\.(css|scss)$/,
-        use: ['style-loader', 'css-loader?importLoaders=1', 'postcss-loader']
+        use: ['style-loader', 'css-loader?importLoaders=1', 'postcss-loader'],
       },
       {
         exclude: /\/node_modules\//,
         loader: 'babel-loader',
         query: { presets: ['airbnb'] },
-        test: /\.(js|jsx)$/
-      }
-    ]
+        test: /\.(js|jsx)$/,
+      },
+    ],
   },
 
   plugins: [
     new webpack.optimize.CommonsChunkPlugin({
       filename: 'commons.js',
       minChunks: 2,
-      name: 'commons'
+      name: 'commons',
     }),
 
     new HtmlWebpackPlugin({
       files: {
         css: ['style.css'],
-        js: ['[name].bundle.js', 'commons.js']
+        js: ['[name].bundle.js', 'commons.js'],
       },
-      template: './index.html'
-    })
+      template: './index.html',
+    }),
   ],
 
   devtool: 'inline-source-map',
 
   externals: {
-    'cheerio': 'window',
+    cheerio: 'window',
     'react/addons': true,
     'react/lib/ExecutionEnvironment': true,
-    'react/lib/ReactContext': true
-  }
-}
+    'react/lib/ReactContext': true,
+  },
+
+  resolve: {
+    extensions: ['.js', '.jsx'],
+  },
+};

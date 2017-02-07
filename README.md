@@ -28,7 +28,7 @@ This boilerplate contains:
 
 ### Develop
 
-    not implemented
+    yarn run watch
 
 ### Deploy
 

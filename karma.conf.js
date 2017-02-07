@@ -1,13 +1,13 @@
-var path = require("path");
-
 const baseConfig = require('./webpack.config.js');
+
 const testConfig = {
   devtool: baseConfig.devtool,
+  externals: baseConfig.externals,
   module: baseConfig.module,
-  externals: baseConfig.externals
-}
+  resolve: baseConfig.resolve,
+};
 
-module.exports = function(config) {
+module.exports = (config) => {
   config.set({
     browsers: ['Nightmare'],
 
@@ -16,35 +16,37 @@ module.exports = function(config) {
     reporters: ['mocha'],
 
     plugins: [
-      require('karma-chai'),
-      require('karma-mocha'),
-      require('karma-mocha-reporter'),
-      require('karma-nightmare'),
-      require('karma-sourcemap-loader'),
-      require('karma-webpack'),
+      'karma-chai',
+      'karma-mocha',
+      'karma-mocha-reporter',
+      'karma-nightmare',
+      'karma-sourcemap-loader',
+      'karma-webpack',
     ],
 
     files: [
-      { pattern: 'test/**/*_test.js', watched: false }
+      'test/**/*.test.js',
+      'test/**/*.test.jsx',
     ],
 
     preprocessors: {
-      'test/**/*_test.js': ['webpack', 'sourcemap']
+      'test/**/*.test.js': ['webpack', 'sourcemap'],
+      'test/**/*.test.jsx': ['webpack', 'sourcemap'],
     },
 
     webpack: testConfig,
 
     webpackMiddleware: {
-      stats: 'errors-only'
+      stats: 'errors-only',
     },
 
     nightmareOptions: {
-      show: false
+      show: false,
     },
 
     mochaReporter: {
       // output: 'minimal'
       // showDiff: true
-    }
+    },
   });
 };
