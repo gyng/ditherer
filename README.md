@@ -1,5 +1,7 @@
 # jsapp-boilerplate
 
+[![Build Status](https://travis-ci.org/gyng/jsapp-boilerplate.svg?branch=master)](https://travis-ci.org/gyng/jsapp-boilerplate)
+
 A personal JavaScript boilerplate for frontend applications.
 
 This boilerplate contains:
@@ -8,7 +10,7 @@ This boilerplate contains:
 |--------------|-----------------------------------------|
 | Presentation | React, CSS modules*                     |
 | Store        | Redux*                                  |
-| Test         | Karma, Enzyme, Chai, ESLint             |
+| Test         | Karma, Enzyme, Chai, ESLint, Travis     |
 | Build        | Webpack, Babel, Yarn, TypeScript/Flow?* |
 | Deploy       | Docker?*                                |
 
