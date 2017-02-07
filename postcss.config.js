@@ -1,7 +1,9 @@
+/* eslint-disable global-require, import/no-extraneous-dependencies */
+
 module.exports = {
   plugins: [
-    'autoprefixer',
-    'postcss-smart-import',
-    'precss',
+    require('postcss-smart-import'),
+    require('precss'),
+    require('autoprefixer'),
   ],
 };

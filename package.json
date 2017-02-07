@@ -3,7 +3,9 @@
     "build": "webpack --config webpack.config.js",
     "lint": "eslint . --ext .js --ext .jsx",
     "test": "karma start --single-run",
-    "watch": "karma start"
+    "t": "karma start",
+    "w": "webpack --progress --watch",
+    "d": "webpack-dev-server --open"
   },
   "dependencies": {
     "react": "^15.4.2",
@@ -37,6 +39,7 @@
     "precss": "^1.4.0",
     "react-addons-test-utils": "^15.4.2",
     "style-loader": "^0.13.1",
-    "webpack": "^2.2.1"
+    "webpack": "^2.2.1",
+    "webpack-dev-server": "^2.3.0"
   }
 }

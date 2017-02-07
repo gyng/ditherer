@@ -30,7 +30,9 @@ This boilerplate contains:
 
 ### Develop
 
-    yarn run watch
+    yarn run t  # runs tests using karma in watch mode
+    yarn run w  # runs webpack in watch mode
+    yarn run d  # runs webpack-dev-server
 
 ### Deploy
 
