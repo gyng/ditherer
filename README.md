@@ -2,7 +2,9 @@
 
 [![Build Status](https://travis-ci.org/gyng/jsapp-boilerplate.svg?branch=master)](https://travis-ci.org/gyng/jsapp-boilerplate)
 
-A personal JavaScript boilerplate for frontend applications for near-production use.
+A personal JavaScript boilerplate for frontend applications for near-production use. Production deployment will require additional work depending on where and how you plan to deploy your application.
+
+The stack is somewhat similar to [generator-react-webpack-redux](https://github.com/stylesuxx/generator-react-webpack-redux), but adds linting, flow, enzyme, and some basic deployment niceties.
 
 This boilerplate contains:
 
@@ -28,6 +30,8 @@ This boilerplate contains:
 
 ## Usage
 
+Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](doc/customization.md)
+
 ### Build
 
     yarn install
@@ -49,31 +53,4 @@ This boilerplate contains:
 ### Deploy
 
     docker-compose up    # runs http-server at port 8080 on a production build in a container
-
-### Removing bits and pieces
-
-#### Flow
-
-* Remove `src/types`, `.flowconfig`, `flow`
-* Remove scripts from `package.json`
-* Remove type imports from components and modules
-
-#### Redux
-
-* Remove `src/actions`, `src/constants`, `src/containers`, `src/reducers` and any other Redux-related modules
-* Remove Redux-related imports from `src/index.jsx`
-* Remove packages `react-redux`, `redux`: `yarn remove redux react-redux`
-* Unwrap `App` from `<Provider>` in `src/index.jsx`
-
-#### Travis
-
-* Remove `.travis.yml` and badge from `README.md`
-
-#### Docker
-
-* Remove `Dockerfile`, `docker-compose.yml`
-
-#### CSS Modules
-
-* Remove `modules` from `css-loader` in `webpack.config.js`
 
