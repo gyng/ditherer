@@ -1,0 +1,10 @@
+version: '2'
+services:
+  app:
+    build:
+      context: .
+      args:
+        NODE_ENV: production
+    restart: always
+    ports:
+      - 8080:8080
