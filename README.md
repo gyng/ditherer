@@ -6,13 +6,25 @@ A personal JavaScript boilerplate for frontend applications.
 
 This boilerplate contains:
 
-|              |                                                |
-|--------------|------------------------------------------------|
-| Presentation | React, CSS Modules                             |
-| Store        | Redux                                          |
-| Test         | Karma, Enzyme, Chai, ESLint, Travis, Stylelint |
-| Build        | Webpack, Babel, Yarn, Flow                     |
-| Deploy       | Docker?*                                       |
+| **Presentation, state**                                                   |                         |
+|---------------------------------------------------------------------------|-------------------------|
+| [react](https://facebook.github.io/react/docs/hello-world.html)           | ui framework            |
+| [redux](http://redux.js.org/)                                             | state management        |
+| [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration |
+| [css modules](https://github.com/css-modules/css-modules)                 | modular css             |
+| **Testing, linting**                                                      |                         |
+| [mocha](https://mochajs.org/#getting-started)                             | test framework          |
+| [chai](http://chaijs.com/guide/styles/)                                   | test assertions         |
+| [enzyme](http://airbnb.io/enzyme/index.html)                              | react test library      |
+| [flow](https://flowtype.org/docs/getting-started.html)                    | type checking           |
+| [eslint](http://eslint.org/docs/rules/)                                   | javascript linting      |
+| [stylelint](https://stylelint.io/user-guide/)                             | css linting             |
+| [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner             |
+| **Building, CI, deploying**                                               |                         |
+| [webpack](https://webpack.js.org/concepts/)                               | javascript bundler      |
+| [docker*](https://docs.docker.com/engine/reference/builder/)              | container               |
+| [docker-compose*](https://docs.docker.com/compose/compose-file/)          | multi-container         |
+| [travis](https://docs.travis-ci.com/user/customizing-the-build)           | ci                      |
 
 *to be implemented
 
@@ -40,6 +52,7 @@ This boilerplate contains:
 ### Deploy
 
     not implemented
+
 
 ## Removing bits and pieces
 
