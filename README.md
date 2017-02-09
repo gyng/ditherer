@@ -13,6 +13,7 @@ This boilerplate contains:
 | [react](https://facebook.github.io/react/docs/hello-world.html)           | ui framework            |
 | [redux](http://redux.js.org/)                                             | state management        |
 | [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration |
+| [react-router-redux](https://github.com/reactjs/react-router-redux)       | routing                 |
 | [css modules](https://github.com/css-modules/css-modules)                 | modular css             |
 | **Testing, linting**                                                      |                         |
 | [mocha](https://mochajs.org/#getting-started)                             | test framework          |

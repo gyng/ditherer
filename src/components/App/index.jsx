@@ -31,5 +31,5 @@ App.propTypes = {
 };
 
 App.defaultProps = {
-  className: '',
+  className: s.app,
 };

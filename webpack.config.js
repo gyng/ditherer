@@ -73,6 +73,8 @@ module.exports = {
 
   devtool: 'cheap-eval-source-map',
 
+  devServer: { stats: 'minimal' },
+
   externals: {
     cheerio: 'window',
     'react/addons': true,

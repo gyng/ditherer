@@ -3,20 +3,30 @@
 
 import React from 'react';
 import { render } from 'react-dom';
-import { createStore } from 'redux';
+import { createStore, combineReducers } from 'redux';
 import { Provider } from 'react-redux';
-import App from './components/App';
+import { Router, Route, browserHistory } from 'react-router';
+import { syncHistoryWithStore, routerReducer } from 'react-router-redux';
+import App from 'components/App';
+import reducers from 'reducers';
+
 import s from './styles/style.scss';
-import reducer from './reducers';
 
 const store = createStore(
-  reducer,
+  combineReducers({
+    routing: routerReducer,
+    ...reducers,
+  }),
   window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__(),
 );
 
+const history = syncHistoryWithStore(browserHistory, store);
+
 render(
   <Provider store={store}>
-    <App className={s.app} />
+    <Router history={history}>
+      <Route path="/" component={App} className={s.app} />
+    </Router>
   </Provider>,
-  document.getElementById('app'),
+  document.getElementById('root'),
 );
