@@ -41,17 +41,18 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 ### Test
 
     yarn run test
-    yarn run lint       # runs flow, eslint, stylelint
+    yarn run lint                       # runs flow, eslint, stylelint
     yarn run eslint
     yarn run stylelint
     yarn run flow
 
 ### Develop
 
-    yarn run test:watch  # runs tests using karma in watch mode
-    yarn run d           # runs webpack-dev-server
+    yarn run flow-typed install
+    yarn run test:watch                 # runs tests using karma in watch mode
+    yarn run d                          # runs webpack-dev-server
 
 ### Deploy
 
-    docker-compose up    # runs http-server at port 8080 on a production build in a container
+    docker-compose up                   # runs http-server at port 8080 on a production build in a container
 

@@ -26,9 +26,7 @@
 
 5. Shared flow type definitions are in [`src/types/index.js`](/src/types/index.js) and [`flow/*.js.flow`](/flow) (for webpack)
 
-   Redux type definitions are imported from `node_modules` in [`.flowconfig`](/.flowconfig), and will only work after a `yarn install`
-
-   Add `// @flow` to all files which need checking.
+   Installed (via `yarn run flow-typed install`) type definitions are in `/flow-typed`.  Add `// @flow` to all files which need checking.
 
 6. Check out the tests in [`test`](/test). Note that test files are not checked by flow.
 

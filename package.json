@@ -37,6 +37,7 @@
     "eslint-plugin-react": "^6.9.0",
     "file-loader": "^0.10.0",
     "flow-bin": "^0.38.0",
+    "flow-typed": "^2.0.0",
     "html-webpack-plugin": "^2.28.0",
     "karma": "^1.4.1",
     "karma-chai": "^0.1.0",

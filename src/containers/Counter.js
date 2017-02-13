@@ -7,7 +7,7 @@ import type { State } from 'types';
 
 const mapStateToProps = (state: State) => ({ value: state.counters.value });
 
-const mapDispatchToProps = dispatch => ({
+const mapDispatchToProps = (dispatch: Dispatch) => ({
   onIncrementClick: () => dispatch(increment()),
   onDecrementClick: () => dispatch(decrement()),
 });
