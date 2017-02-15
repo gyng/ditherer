@@ -31,7 +31,8 @@ This boilerplate contains:
 
 ## Usage
 
-Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](doc/customization.md)
+Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](doc/customization.md),
+[Running tests in a Docker Container](doc/docker_tests.md)
 
 ### Build
 
