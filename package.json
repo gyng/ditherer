@@ -2,7 +2,7 @@
   "license": "MIT",
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "lint": "flow check && eslint . --ext .js --ext .jsx && stylelint '**/*.scss'",
+    "lint": "yarn run flow && yarn run eslint && yarn run stylelint",
     "test": "karma start --single-run",
     "test:watch": "karma start",
     "flow": "flow check",
