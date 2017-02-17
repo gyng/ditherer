@@ -1,5 +1,6 @@
-node_modules
-build
-yarn-error.log
-set_config_folder_dir
 .git
+build
+node_modules
+npm-debug.log
+set_config_folder_dir
+yarn-error.log

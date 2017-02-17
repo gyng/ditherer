@@ -46,9 +46,11 @@
 
 10. Check out the [webpack configuration](/webpack.config.js). `src` is added as a module directory under `resolve.modules` to eliminate clunky imports.
 
-11. Try running the [Docker image](/Dockerfile) with Docker Compose ([compose configuration](/docker-compose.yml))
+11. Check out the [postcss configuration](/postcss.config.js). Installed PostCSS plugins are listed here.
+
+12. Try running the [Docker image](/Dockerfile) with Docker Compose ([compose configuration](/docker-compose.yml))
     ```
     docker-compose up
     ```
 
-12. Remove demo-related things from `doc`, `src` and `test`, and start developing!
+13. Remove demo-related things from `doc`, `src` and `test`, and start developing! (Or just keep them for reference for now.)

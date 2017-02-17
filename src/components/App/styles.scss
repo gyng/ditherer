@@ -15,7 +15,11 @@
   animation: spin 60s linear infinite;
   border-radius: 50%;
   height: auto;
-  width: 300px;
+  width: 200px;
 }
 
-@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes spin {
+  100% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+  }
+}

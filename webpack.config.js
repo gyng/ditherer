@@ -12,7 +12,7 @@ module.exports = {
   },
 
   output: {
-    filename: '[name].bundle.js',
+    filename: '[name].[hash].bundle.js',
     path: path.resolve(__dirname, './build'),
   },
 
@@ -73,7 +73,11 @@ module.exports = {
 
   devtool: 'cheap-eval-source-map',
 
-  devServer: { stats: 'minimal' },
+  devServer: {
+    contentBase: 'app/ui/www',
+    historyApiFallback: true,
+    stats: 'minimal',
+  },
 
   externals: {
     cheerio: 'window',
