@@ -2,8 +2,11 @@
 
 module.exports = {
   plugins: [
+    require('stylelint'),
     require('postcss-smart-import'),
+    require('postcss-cssnext'),
     require('precss'),
-    require('autoprefixer'),
+    require('postcss-browser-reporter'),
+    require('postcss-reporter'),
   ],
 };

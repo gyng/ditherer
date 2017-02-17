@@ -1,3 +1,9 @@
+/* You can place your global styles here */
+
+/* A postcss-import import */
+@import "./typography.css";
+
+/* Element rules work globally, so use .class selectors when using in React components */
 html,
 body {
   height: 100%;
@@ -6,7 +12,14 @@ body {
   margin: 0;
 }
 
+/* precss variable + cssnext hsl() function */
+$bg-color: hsl(220, 25%, 25%);
+
 body {
-  background: #123456;
+  background: $bg-color;
+  color: #fff;
+}
+
+a {
   color: #fff;
 }

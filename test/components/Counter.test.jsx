@@ -6,7 +6,7 @@ describe('Counter', () => {
   let render;
 
   before(() => {
-    render = shallow(<Counter value={0} onIncrementClick={() => {}} />);
+    render = shallow(<Counter value={0} onIncrementClick={() => {}} onDecrementClick={() => {}} />);
   });
 
   it('renders the value', () => {
@@ -17,5 +17,10 @@ describe('Counter', () => {
   it('renders the increment button', () => {
     const incrementEl = render.find('button .increment');
     expect(incrementEl).to.have.length(1);
+  });
+
+  it('renders the decrement button', () => {
+    const decrementEl = render.find('button .decrement');
+    expect(decrementEl).to.have.length(1);
   });
 });

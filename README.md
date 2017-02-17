@@ -8,26 +8,26 @@ The stack is somewhat similar to [generator-react-webpack-redux](https://github.
 
 This boilerplate contains:
 
-| **Presentation, state**                                                   |                         |
-|---------------------------------------------------------------------------|-------------------------|
-| [react](https://facebook.github.io/react/docs/hello-world.html)           | ui framework            |
-| [redux](http://redux.js.org/)                                             | state management        |
-| [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration |
-| [react-router-redux](https://github.com/reactjs/react-router-redux)       | routing                 |
-| [css modules](https://github.com/css-modules/css-modules)                 | modular css             |
-| **Testing, linting**                                                      |                         |
-| [mocha](https://mochajs.org/#getting-started)                             | test framework          |
-| [chai](http://chaijs.com/guide/styles/)                                   | test assertions         |
-| [enzyme](http://airbnb.io/enzyme/index.html)                              | react test library      |
-| [flow](https://flowtype.org/docs/getting-started.html)                    | type checking           |
-| [eslint](http://eslint.org/docs/rules/)                                   | javascript linting      |
-| [stylelint](https://stylelint.io/user-guide/)                             | css linting             |
-| [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner             |
-| **Building, CI, deploying**                                               |                         |
-| [webpack](https://webpack.js.org/concepts/)                               | javascript bundler      |
-| [docker](https://docs.docker.com/engine/reference/builder/)               | container               |
-| [docker-compose](https://docs.docker.com/compose/compose-file/)           | multi-container         |
-| [travis](https://docs.travis-ci.com/user/customizing-the-build)           | ci                      |
+| **Presentation, state**                                                   |                              |
+|---------------------------------------------------------------------------|------------------------------|
+| [react](https://facebook.github.io/react/docs/hello-world.html)           | ui framework                 |
+| [redux](http://redux.js.org/)                                             | state management             |
+| [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration      |
+| [react-router-redux](https://github.com/reactjs/react-router-redux)       | routing                      |
+| [postcss](https://github.com/postcss/postcss)                             | css modules, cssnext, precss |
+| **Testing, linting**                                                      |                              |
+| [mocha](https://mochajs.org/#getting-started)                             | test framework               |
+| [chai](http://chaijs.com/guide/styles/)                                   | test assertions              |
+| [enzyme](http://airbnb.io/enzyme/index.html)                              | react test library           |
+| [flow](https://flowtype.org/docs/getting-started.html)                    | type checking                |
+| [eslint](http://eslint.org/docs/rules/)                                   | javascript linting           |
+| [stylelint](https://stylelint.io/user-guide/)                             | css linting                  |
+| [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner                  |
+| **Building, CI, deploying**                                               |                              |
+| [webpack](https://webpack.js.org/concepts/)                               | javascript bundler           |
+| [docker](https://docs.docker.com/engine/reference/builder/)               | container                    |
+| [docker-compose](https://docs.docker.com/compose/compose-file/)           | multi-container              |
+| [travis](https://docs.travis-ci.com/user/customizing-the-build)           | ci                           |
 
 ## Usage
 
