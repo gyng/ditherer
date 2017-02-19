@@ -18,7 +18,7 @@ export default class App extends React.Component {
     return (
       <div className={this.props.className}>
         <img className={s.robot} src={hello} alt="Cute robot?" />
-        <Echo text="Hello, world! Find me in App.jsx!" />
+        <Echo text="Hello, world! Find me in src/components/App/index.jsx!" />
 
         <div style={{ border: 'solid 1px grey' }}>
           <p>This is a child container for nested routes</p>
