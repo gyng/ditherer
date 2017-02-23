@@ -9,6 +9,8 @@
 
     "max-line-length": 120,
     "max-nesting-depth": 3,
-    "selector-max-compound-selectors": 4
+    "selector-max-compound-selectors": 4,
+
+    "property-no-unknown": [true, { "ignoreProperties": ["composes"] }]
   }
 }

@@ -23,3 +23,8 @@ body {
 a {
   color: #fff;
 }
+
+/* PostCSS composes direct from file */
+.example-compose {
+  composes: someclass from 'styles/variables.scss';
+}
