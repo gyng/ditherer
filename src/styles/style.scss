@@ -1,7 +1,11 @@
-/* You can place your global styles here */
+/* A postcss-import import, relative resolution */
+@import './typography.css';
 
-/* A postcss-import import */
-@import "./typography.css";
+/* Imported values, resolving from src/ (configured in postcss.config.js) */
+@import 'styles/example.scss';
+
+/* Using imported precss SCSS-style variables from example.scss */
+$local-var: $external-var;
 
 /* Element rules work globally, so use .class selectors when using in React components */
 html,
@@ -24,7 +28,17 @@ a {
   color: #fff;
 }
 
-/* PostCSS composes direct from file */
 .example-compose {
-  composes: someclass from 'styles/variables.scss';
+  /* PreCSS SASS-style nesting */
+  > .example-nesting {
+    color: $bg-color;
+  }
+
+  /* CSS Modules composes direct from file */
+  composes: s from 'styles/example.scss';
+}
+
+.example-compose-2 {
+  /* CSS Modules composes from local class */
+  composes: example-compose;
 }

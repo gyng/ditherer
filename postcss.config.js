@@ -1,12 +1,10 @@
-/* eslint-disable global-require, import/no-extraneous-dependencies */
-
 module.exports = {
-  plugins: [
-    require('stylelint'),
-    require('postcss-smart-import'),
-    require('postcss-cssnext'),
-    require('precss'),
-    require('postcss-browser-reporter'),
-    require('postcss-reporter'),
-  ],
+  plugins: {
+    stylelint: {},
+    'postcss-import': { addModulesDirectories: ['src'] },
+    'postcss-cssnext': {},
+    precss: {},
+    'postcss-browser-reporter': {},
+    'postcss-reporter': {},
+  },
 };
