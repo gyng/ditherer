@@ -60,7 +60,7 @@ module.exports = {
 
     new HtmlWebpackPlugin({
       files: {
-        css: ['style.css'],
+        css: [],
         js: ['[name].bundle.js', 'commons.js'],
       },
       template: './index.html',
