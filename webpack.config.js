@@ -12,7 +12,7 @@ module.exports = {
   },
 
   output: {
-    filename: '[name].[hash].bundle.js',
+    filename: '[name].[hash:7].js',
     path: path.resolve(__dirname, './build'),
   },
 
@@ -61,7 +61,7 @@ module.exports = {
     new HtmlWebpackPlugin({
       files: {
         css: [],
-        js: ['[name].bundle.js', 'commons.js'],
+        js: ['[name].js', 'commons.js'],
       },
       template: './index.html',
     }),
