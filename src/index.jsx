@@ -2,36 +2,48 @@
 /* eslint-disable no-underscore-dangle */
 
 import React from 'react';
-import { render } from 'react-dom';
-import { createStore, combineReducers } from 'redux';
+// import _ from 'lodash';
+import ReactDOM from 'react-dom';
+import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
 import { Provider } from 'react-redux';
-import { Router, Route, browserHistory } from 'react-router';
-import { syncHistoryWithStore, routerReducer } from 'react-router-redux';
+// import thunkMiddleware from 'redux-thunk';
+
+import createHistory from 'history/createBrowserHistory';
+import { Route } from 'react-router';
+import { ConnectedRouter, routerReducer, routerMiddleware } from 'react-router-redux';
 
 import App from 'components/App';
-import Counter from 'containers/Counter';
 import reducers from 'reducers';
 
 import s from 'styles/style.scss';
 
+// Redux devtools are still enabled in production!
+const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
+  ? window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__({
+    actionsBlacklist: ['VIEWPORT_CHANGE', 'HOVER_CELL', 'DRILL_CELL'],
+  })
+  : compose;
+
+const appReducer = combineReducers({
+  ...reducers,
+  router: routerReducer,
+});
+
+const history = createHistory();
+const middleware = [routerMiddleware(history)];
+
 const store = createStore(
-  combineReducers({
-    routing: routerReducer,
-    ...reducers,
-  }),
-  // Redux devtools are still enabled in production!
-  window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__(),
+  appReducer,
+  composeEnhancers(applyMiddleware(...middleware)),
 );
 
-const history = syncHistoryWithStore(browserHistory, store);
-
-render(
+ReactDOM.render(
   <Provider store={store}>
-    <Router history={history}>
-      <Route path="/" component={App} className={s.app}>
-        <Route path="/nested" component={Counter} />
-      </Route>
-    </Router>
+    <ConnectedRouter history={history}>
+      <div>
+        <Route path="/" component={App} className={s.app} />
+      </div>
+    </ConnectedRouter>
   </Provider>,
   document.getElementById('root'),
 );

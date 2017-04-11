@@ -1,6 +1,7 @@
 // @flow
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 export default class Counter extends React.Component {
   render() {
@@ -15,7 +16,7 @@ export default class Counter extends React.Component {
 }
 
 Counter.propTypes = {
-  value: React.PropTypes.number.isRequired,
-  onIncrementClick: React.PropTypes.func.isRequired,
-  onDecrementClick: React.PropTypes.func.isRequired,
+  value: PropTypes.number.isRequired,
+  onIncrementClick: PropTypes.func.isRequired,
+  onDecrementClick: PropTypes.func.isRequired,
 };
