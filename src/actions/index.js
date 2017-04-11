@@ -12,3 +12,7 @@ export const decrement = (value: number = 1) => ({
   type: types.DECREMENT,
   value,
 });
+
+export const incrementAsync = (value: number = 1, delay: number = 1000) =>
+  (dispatch: Dispatch) =>
+    setTimeout(() => dispatch(increment(value)), delay);

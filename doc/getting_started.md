@@ -6,6 +6,8 @@
 
    Optionally, you will need [Docker](https://docs.docker.com/engine/installation/) and [Docker Compose](https://docs.docker.com/compose/install/) to run the provided docker image.
 
+   You want to have an understanding of [React](https://facebook.github.io/react/tutorial/tutorial.html#what-is-react) and [Redux](http://redux.js.org/#the-gist) before you start.
+
 2. Check out this repo and [change the remotes to your own repository](https://help.github.com/articles/changing-a-remote-s-url/)
     ```
     git clone git@github.com:gyng/jsapp-boilerplate.git

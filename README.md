@@ -14,6 +14,7 @@ This boilerplate contains:
 | [redux](http://redux.js.org/)                                             | state management             |
 | [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration      |
 | [react-router-redux](https://github.com/reactjs/react-router-redux)       | routing                      |
+| [redux-thunk](https://github.com/gaearon/redux-thunk)                     | async actions                |
 | [postcss](https://github.com/postcss/postcss)                             | css modules, cssnext, precss |
 | **Testing, linting**                                                      |                              |
 | [mocha](https://mochajs.org/#getting-started)                             | test framework               |

@@ -10,8 +10,9 @@
 
 * Remove `src/actions`, `src/constants`, `src/containers`, `src/reducers` and any other Redux-related modules
 * Remove Redux-related imports from `src/index.jsx`
-* Remove packages `react-redux`, `redux`: `yarn remove redux react-redux`
+* Remove packages `react-redux`, `redux`: `yarn remove redux react-redux redux-thunk`
 * Unwrap `App` from `<Provider>` in `src/index.jsx`
+* Replace `react-router-redux` with vanilla `react-router`
 
 ## Travis
 

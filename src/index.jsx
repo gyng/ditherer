@@ -2,11 +2,10 @@
 /* eslint-disable no-underscore-dangle */
 
 import React from 'react';
-// import _ from 'lodash';
 import ReactDOM from 'react-dom';
 import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
 import { Provider } from 'react-redux';
-// import thunkMiddleware from 'redux-thunk';
+import thunkMiddleware from 'redux-thunk';
 
 import createHistory from 'history/createBrowserHistory';
 import { Route } from 'react-router';
@@ -30,7 +29,7 @@ const appReducer = combineReducers({
 });
 
 const history = createHistory();
-const middleware = [routerMiddleware(history)];
+const middleware = [thunkMiddleware, routerMiddleware(history)];
 
 const store = createStore(
   appReducer,
