@@ -19,7 +19,7 @@ import s from 'styles/style.scss';
 // Redux devtools are still enabled in production!
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
   ? window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__({
-    actionsBlacklist: ['VIEWPORT_CHANGE', 'HOVER_CELL', 'DRILL_CELL'],
+    actionsBlacklist: [],
   })
   : compose;
 
