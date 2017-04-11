@@ -3,7 +3,7 @@ const path = require('path');
 const webpack = require('webpack');
 
 module.exports = {
-  context: path.resolve(__dirname, './src'),
+  context: path.resolve(__dirname, 'src'),
 
   target: 'web',
 
@@ -13,7 +13,7 @@ module.exports = {
 
   output: {
     filename: '[name].[hash:7].js',
-    path: path.resolve(__dirname, './build'),
+    path: path.resolve(__dirname, 'build'),
   },
 
   module: {
@@ -88,6 +88,6 @@ module.exports = {
 
   resolve: {
     extensions: ['.js', '.jsx'],
-    modules: ['node_modules', 'src'],
+    modules: ['node_modules', path.resolve(__dirname, 'src')],
   },
 };
