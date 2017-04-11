@@ -20,10 +20,19 @@ module.exports = {
     rules: [
       {
         test: /\.(css|scss)$/,
-        use: [
+        loaders: [
           'style-loader',
-          'css-loader?modules&importLoaders=1',
-          'postcss-loader?sourceMap=inline',
+          { loader: 'css-loader', options: { modules: true, importLoaders: 1 } },
+          { loader: 'postcss-loader', options: { sourceMap: 'inline' } },
+        ],
+      },
+      // Escape hatch for CSS module classname mangling
+      {
+        test: /\.legacy\.(css|scss)$/,
+        include: path.resolve(__dirname, 'src'),
+        loaders: [
+          'style-loader',
+          { loader: 'css-loader', options: { importLoaders: 1 } },
         ],
       },
       {
@@ -34,10 +43,12 @@ module.exports = {
         },
       },
       {
+        test: /\.(js|jsx)$/,
         exclude: /\/node_modules\//,
         loader: 'babel-loader',
-        query: { presets: ['airbnb'] },
-        test: /\.(js|jsx)$/,
+        options: {
+          presets: ['airbnb'],
+        },
       },
     ],
   },
