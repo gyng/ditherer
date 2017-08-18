@@ -1,20 +1,20 @@
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const path = require('path');
-const webpack = require('webpack');
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const path = require("path");
+const webpack = require("webpack");
 
 module.exports = {
-  context: path.resolve(__dirname, 'src'),
+  context: path.resolve(__dirname, "src"),
 
-  target: 'web',
+  target: "web",
 
   entry: {
-    app: './index.jsx',
+    app: "./index.jsx"
   },
 
   output: {
-    filename: '[name].[hash:7].js',
-    path: path.resolve(__dirname, 'build'),
-    publicPath: '/',
+    filename: "[name].[hash:7].js",
+    path: path.resolve(__dirname, "build"),
+    publicPath: "/"
   },
 
   module: {
@@ -22,84 +22,89 @@ module.exports = {
       {
         test: /\.(css|scss)$/,
         loaders: [
-          'style-loader',
-          { loader: 'css-loader', options: { modules: true, importLoaders: 1 } },
-          { loader: 'postcss-loader', options: { sourceMap: 'inline' } },
-        ],
+          "style-loader",
+          {
+            loader: "css-loader",
+            options: { modules: true, importLoaders: 1 }
+          },
+          { loader: "postcss-loader", options: { sourceMap: "inline" } }
+        ]
       },
       // Escape hatch for CSS module classname mangling
       {
         test: /\.legacy\.(css|scss)$/,
-        include: path.resolve(__dirname, 'src'),
+        include: path.resolve(__dirname, "src"),
         loaders: [
-          'style-loader',
-          { loader: 'css-loader', options: { importLoaders: 1 } },
-        ],
+          "style-loader",
+          { loader: "css-loader", options: { importLoaders: 1 } }
+        ]
       },
       {
         test: /\.(jpg|png|gif|mp4|webm|mp3|ogg)$/,
-        loader: 'file-loader',
+        loader: "file-loader",
         options: {
-          name: './f/[path][name].[hash].[ext]',
-        },
+          name: "./f/[path][name].[hash].[ext]"
+        }
       },
       {
         test: /\.(js|jsx)$/,
         exclude: /\/node_modules\//,
-        loader: 'babel-loader',
+        loader: "babel-loader",
         options: {
-          presets: ['airbnb'],
-        },
-      },
-    ],
+          presets: ["airbnb"]
+        }
+      }
+    ]
   },
 
   plugins: [
     new webpack.EnvironmentPlugin({
-      NODE_ENV: 'development', // defaults to development
+      NODE_ENV: "development" // defaults to development
     }),
 
     new webpack.LoaderOptionsPlugin({
-      minimize: process.env.NODE_ENV === 'production',
-      debug: process.env.NODE_ENV !== 'production',
+      minimize: process.env.NODE_ENV === "production",
+      debug: process.env.NODE_ENV !== "production"
     }),
 
     new webpack.optimize.CommonsChunkPlugin({
-      filename: 'commons.js',
+      filename: "commons.js",
       minChunks: 2,
-      name: 'commons',
+      name: "commons"
     }),
 
     new HtmlWebpackPlugin({
       files: {
         css: [],
-        js: ['[name].js', 'commons.js'],
+        js: ["[name].js", "commons.js"]
       },
-      template: './index.html',
+      template: "./index.html"
     }),
 
-    (process.env.NODE_ENV === 'production'
+    process.env.NODE_ENV === "production"
       ? new webpack.optimize.UglifyJsPlugin()
-      : new webpack.BannerPlugin({ banner: 'run with NODE_ENV=production to minify' })),
+      : new webpack.BannerPlugin({
+          banner: "run with NODE_ENV=production to minify"
+        })
   ],
 
-  devtool: 'cheap-eval-source-map',
+  devtool: "cheap-eval-source-map",
 
   devServer: {
-    contentBase: 'app/ui/www',
+    contentBase: "app/ui/www",
     historyApiFallback: true,
-    stats: 'minimal',
+    stats: "minimal"
   },
 
   externals: {
-    cheerio: 'window',
-    'react/addons': true,
-    'react/lib/ExecutionEnvironment': true,
-    'react/lib/ReactContext': true,
+    cheerio: "window",
+    "react/addons": true,
+    "react/lib/ExecutionEnvironment": true,
+    "react/lib/ReactContext": true
   },
 
   resolve: {
-    extensions: ['.js', '.jsx'],
-    modules: ['node_modules', path.resolve(__dirname, 'src')],
-  },
+    extensions: [".js", ".jsx"],
+    modules: ["node_modules", path.resolve(__dirname, "src")]
+  }
 };

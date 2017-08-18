@@ -1,52 +1,49 @@
-const baseConfig = require('./webpack.config.js');
+const baseConfig = require("./webpack.config.js");
 
 const testConfig = {
   devtool: baseConfig.devtool,
   externals: baseConfig.externals,
   module: baseConfig.module,
-  resolve: baseConfig.resolve,
+  resolve: baseConfig.resolve
 };
 
-module.exports = (config) => {
+module.exports = config => {
   config.set({
-    browsers: ['Nightmare'],
+    browsers: ["Nightmare"],
 
-    frameworks: ['mocha', 'chai'],
+    frameworks: ["mocha", "chai"],
 
-    reporters: ['mocha'],
+    reporters: ["mocha"],
 
     plugins: [
-      'karma-chai',
-      'karma-mocha',
-      'karma-mocha-reporter',
-      'karma-nightmare',
-      'karma-sourcemap-loader',
-      'karma-webpack',
+      "karma-chai",
+      "karma-mocha",
+      "karma-mocha-reporter",
+      "karma-nightmare",
+      "karma-sourcemap-loader",
+      "karma-webpack"
     ],
 
-    files: [
-      'test/**/*.test.js',
-      'test/**/*.test.jsx',
-    ],
+    files: ["test/**/*.test.js", "test/**/*.test.jsx"],
 
     preprocessors: {
-      'test/**/*.test.js': ['webpack', 'sourcemap'],
-      'test/**/*.test.jsx': ['webpack', 'sourcemap'],
+      "test/**/*.test.js": ["webpack", "sourcemap"],
+      "test/**/*.test.jsx": ["webpack", "sourcemap"]
     },
 
     webpack: testConfig,
 
     webpackMiddleware: {
-      stats: 'errors-only',
+      stats: "errors-only"
     },
 
     nightmareOptions: {
-      show: false,
+      show: false
     },
 
     mochaReporter: {
-      output: 'minimal',
+      output: "minimal"
       // showDiff: true
-    },
+    }
   });
 };
