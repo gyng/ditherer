@@ -4,7 +4,7 @@ const getBufferIndex = (x: number, y: number, width: number) =>
   (x + width * y) * 4;
 
 const fillBufferPixel = (
-  buf: Uint8ClampedArray,
+  buf: Uint8ClampedArray | Array<number>,
   i: number,
   r: number,
   g: number,
@@ -18,7 +18,7 @@ const fillBufferPixel = (
 };
 
 const addBufferPixel = (
-  buf: Uint8ClampedArray,
+  buf: Uint8ClampedArray | Array<number>,
   i: number,
   r: number,
   g: number,
@@ -74,29 +74,40 @@ export const binarize = (input: HTMLCanvasElement, threshold: number = 127) => {
   return output;
 };
 
-export const floydSteinberg = (input: HTMLCanvasElement) => {
-  const getColor = (i: number) => (i > 127 ? 255 : 0);
+export const floydSteinberg = (
+  input: HTMLCanvasElement,
+  options: { levels: number } = { levels: 2 }
+) => {
+  const getColor = (i: number, levels: number) => {
+    // Special case: Slightly improve speed when levels == 2
+    if (levels === 2) {
+      return i >= 127.5 ? 255 : 0;
+    }
+
+    const step = 255 / (levels - 1);
+    const bucket = Math.round(i / step);
+    return Math.round(bucket * step);
+  };
 
   const output = cloneCanvas(input, true);
   const outputCtx = output.getContext("2d");
-  if (!outputCtx) return;
+  if (!outputCtx) return null;
 
-  let buf = outputCtx.getImageData(0, 0, input.width, input.height).data;
-  if (!buf) return;
-//   buf = Array.from(buf);
+  const buf = outputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (!buf) return null;
+  // Increase precision over u8 (from getImageData) for error diffusion
+  const errBuf = Array.from(buf);
 
   for (let x = 0; x < output.width; x += 1) {
     for (let y = 0; y < output.height; y += 1) {
       const i = getBufferIndex(x, y, output.width);
 
-      // Should not happen
-      if (buf.length < i + 3) return;
-
-      const intensity = (buf[i] + buf[i + 1] + buf[i + 2] + buf[i + 3]) / 4;
-      const color = getColor(intensity);
+      // Ignore alpha channel when calculating error
+      const intensity = (errBuf[i] + errBuf[i + 1] + errBuf[i + 2]) / 3;
+      const color = getColor(intensity, options.levels);
       const error = intensity - color;
-      fillBufferPixel(buf, i, color, color, color, color);
-    //   debugger
+      // Copy alpha value from input
+      fillBufferPixel(buf, i, color, color, color, buf[i + 3]);
 
       // Diffuse error down diagonally right, following for loops
       // [_,    *,    7/16]
@@ -105,28 +116,22 @@ export const floydSteinberg = (input: HTMLCanvasElement) => {
 
       const a = getBufferIndex(x + 1, y, output.width);
       const aError = error * errorMatrix[0][2];
-      addBufferPixel(buf, a, aError, aError, aError, aError);
+      addBufferPixel(errBuf, a, aError, aError, aError, 0);
 
       const b = getBufferIndex(x - 1, y + 1, output.width);
       const bError = error * errorMatrix[1][0];
-      addBufferPixel(buf, b, bError, bError, bError, bError);
+      addBufferPixel(errBuf, b, bError, bError, bError, 0);
 
       const c = getBufferIndex(x, y + 1, output.width);
       const cError = error * errorMatrix[1][1];
-      addBufferPixel(buf, c, cError, cError, cError, cError);
+      addBufferPixel(errBuf, c, cError, cError, cError, 0);
 
       const d = getBufferIndex(x + 1, y + 1, output.width);
       const dError = error * errorMatrix[1][2];
-      addBufferPixel(buf, d, dError, dError, dError, dError);
+      addBufferPixel(errBuf, d, dError, dError, dError, 0);
     }
   }
 
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
-
-//   x = input.getContext("2d").getImageData(0, 0, input.width, input.height);
-//   y = outputCtx.getImageData(0, 0, output.width, output.height);
-
-//   console.log(x, y, buf)
-
   return output;
 };
