@@ -15,7 +15,7 @@ import {
   routerMiddleware
 } from "react-router-redux";
 
-import App from "components/App";
+import App from "containers/App";
 import reducers from "reducers";
 
 import s from "styles/style.scss";

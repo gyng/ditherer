@@ -2,6 +2,9 @@
 /* eslint-disable import/prefer-default-export */
 
 import * as types from "constants/actionTypes";
+import * as filters from "filters";
+
+import type Filter from "types";
 
 export const increment = (value: number = 1) => ({
   type: types.INCREMENT,
@@ -16,3 +19,40 @@ export const decrement = (value: number = 1) => ({
 export const incrementAsync = (value: number = 1, delay: number = 1000) => (
   dispatch: Dispatch
 ) => setTimeout(() => dispatch(increment(value)), delay);
+
+export const loadImage = (image: HTMLImageElement) => ({
+  type: types.LOAD_IMAGE,
+  image
+});
+
+export const loadImageAsync = (file: Blob) => (dispatch: Dispatch) => {
+  const reader = new FileReader();
+  const image = new Image();
+
+  reader.onload = event => {
+    image.onload = () => {
+      dispatch(loadImage(image));
+    };
+    image.src = event.target.result;
+  };
+
+  reader.readAsDataURL(file);
+};
+
+export const filterImage = (image: HTMLImageElement) => ({
+  type: types.FILTER_IMAGE,
+  image
+});
+
+export const filterImageAsync = (input: HTMLCanvasElement, _filter: Filter) => (
+  dispatch: Dispatch
+) => {
+  const output = filters.floydSteinberg(input);
+
+  const outputImage = new Image();
+  outputImage.src = output.toDataURL("image/png");
+
+  outputImage.onload = () => {
+    dispatch(filterImage(outputImage));
+  };
+};

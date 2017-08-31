@@ -1,19 +1,19 @@
 // @flow
 
-import { INCREMENT, DECREMENT } from "constants/actionTypes";
+import { LOAD_IMAGE, FILTER_IMAGE } from "constants/actionTypes";
 import type { Action, CountersState } from "types";
 
 export default (state: CountersState = { value: 0 }, action: Action) => {
   switch (action.type) {
-    case INCREMENT:
+    case LOAD_IMAGE:
       return {
         ...state,
-        value: state.value + action.value
+        inputImage: action.image
       };
-    case DECREMENT:
+    case FILTER_IMAGE:
       return {
         ...state,
-        value: state.value - action.value
+        outputImage: action.image
       };
     default:
       return state;
