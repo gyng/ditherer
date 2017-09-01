@@ -6,7 +6,6 @@ import PropTypes from "prop-types";
 
 import Echo from "components/Echo";
 
-import hello from "./hello.jpg";
 import s from "./styles.scss";
 
 export default class App extends React.Component {
