@@ -9,3 +9,5 @@ export type Filter = (input: HTMLCanvasElement) => HTMLCanvasElement;
 export type Action =
   | { type: "INCREMENT", value: number }
   | { type: "DECREMENT", value: number };
+
+export type ColorRGBA = [number, number, number, number];

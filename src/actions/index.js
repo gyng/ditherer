@@ -2,7 +2,7 @@
 /* eslint-disable import/prefer-default-export */
 
 import * as types from "constants/actionTypes";
-import * as filters from "filters";
+import { floydSteinberg, grayscale } from "filters";
 
 import type Filter from "types";
 
@@ -47,7 +47,8 @@ export const filterImage = (image: HTMLImageElement) => ({
 export const filterImageAsync = (input: HTMLCanvasElement, _filter: Filter) => (
   dispatch: Dispatch
 ) => {
-  const output = filters.floydSteinberg(input);
+  const output = floydSteinberg(grayscale(input));
+  if (!output) return { type: types.ERROR, message: "Error filtering" };
 
   const outputImage = new Image();
   outputImage.src = output.toDataURL("image/png");
@@ -55,4 +56,6 @@ export const filterImageAsync = (input: HTMLCanvasElement, _filter: Filter) => (
   outputImage.onload = () => {
     dispatch(filterImage(outputImage));
   };
+
+  return null;
 };
