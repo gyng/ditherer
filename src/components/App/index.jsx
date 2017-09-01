@@ -4,8 +4,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-import Echo from "components/Echo";
-
 import s from "./styles.scss";
 
 export default class App extends React.Component {
