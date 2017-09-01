@@ -1,6 +1,14 @@
 # ditherer
 
+![screenshot](screenshot.png)
+
 WIP. For all your online dithering needs.
+
+#### TODO
+
+* Tests
+* UI for options
+* Actual site design
 
 #### References
 
