@@ -46,7 +46,7 @@ export const optionTypes = {
 const scaleMatrix = (mat: Array<Array<number>>, scale: number) =>
   mat.map(row => row.map(col => col * scale));
 
-// map[x][y]
+// map[y][x]
 const thresholdMaps = {
   [BAYER_2X2]: {
     width: 2,
@@ -95,7 +95,7 @@ const ordered = (
     ty: number,
     threshold: [number[]]
   ): ColorRGBA => {
-    const thresholdValue = threshold[tx][ty];
+    const thresholdValue = threshold[ty][tx];
     const step = 255 / (levels - 1);
 
     // $FlowFixMe
