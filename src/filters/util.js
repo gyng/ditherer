@@ -25,6 +25,22 @@ export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
   a
 ];
 
+// Gets nearest color
+export const quantize = (color: ColorRGBA, levels: number) => {
+  const step = 255 / (levels - 1);
+
+  return color.map(c => {
+    const bucket = Math.round(c / step);
+    return Math.round(bucket * step);
+  });
+};
+
+export const quantizeValue = (value: number, levels: number) => {
+  const step = 255 / (levels - 1);
+  const bucket = Math.round(value / step);
+  return Math.round(bucket * step);
+};
+
 export const add = (a: ColorRGBA, b: ColorRGBA): ColorRGBA => [
   a[0] + b[0],
   a[1] + b[1],

@@ -11,7 +11,8 @@ import {
   getBufferIndex,
   rgba,
   sub,
-  scale
+  scale,
+  quantize
 } from "./util";
 
 export const optionTypes = {
@@ -22,16 +23,6 @@ const floydSteinberg = (
   input: HTMLCanvasElement,
   options: { levels: number } = { levels: optionTypes.levels.default }
 ): HTMLCanvasElement => {
-  const getColor = (color: ColorRGBA, levels: number): ColorRGBA => {
-    const step = 255 / (levels - 1);
-
-    // $FlowFixMe
-    return color.map(c => {
-      const bucket = Math.round(c / step);
-      return Math.round(bucket * step);
-    });
-  };
-
   const output = cloneCanvas(input, true);
   const outputCtx = output.getContext("2d");
   if (!outputCtx) return input;
@@ -53,7 +44,7 @@ const floydSteinberg = (
         errBuf[i + 2],
         errBuf[i + 3]
       );
-      const color = getColor(pixel, options.levels);
+      const color = quantize(pixel, options.levels);
       const error = sub(pixel, color);
 
       // Copy alpha value from input
