@@ -36,6 +36,13 @@ export const quantize = (color: ColorRGBA, levels: number): ColorRGBA => {
   });
 };
 
+// Preserves nulls
+export const scaleMatrix = (
+  mat: Array<Array<?number>>,
+  scale: number
+): Array<Array<?number>> =>
+  mat.map(row => row.map(col => (col ? col * scale : col)));
+
 export const quantizeValue = (value: number, levels: number): number => {
   const step = 255 / (levels - 1);
   const bucket = Math.round(value / step);

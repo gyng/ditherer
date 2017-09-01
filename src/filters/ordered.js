@@ -4,7 +4,13 @@ import { ENUM, RANGE } from "constants/controlTypes";
 
 import type { ColorRGBA } from "types";
 
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "./util";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  scaleMatrix
+} from "./util";
 
 const BAYER_2X2 = "BAYER_2X2";
 const BAYER_3X3 = "BAYER_3X3";
@@ -42,9 +48,6 @@ export const optionTypes = {
     default: BAYER_4X4
   }
 };
-
-const scaleMatrix = (mat: Array<Array<number>>, scale: number) =>
-  mat.map(row => row.map(col => col * scale));
 
 // map[y][x]
 const thresholdMaps = {
