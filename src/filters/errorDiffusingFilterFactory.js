@@ -11,7 +11,7 @@ import {
   quantize
 } from "./util";
 
-export const makeErrorDiffusingFilter = (
+export const errorDiffusingFilter = (
   errorMatrix: {
     offset: [number, number],
     kernel: Array<Array<?number>>
@@ -81,4 +81,4 @@ export const makeErrorDiffusingFilter = (
   return filter;
 };
 
-export default makeErrorDiffusingFilter;
+export default errorDiffusingFilter;
