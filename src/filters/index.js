@@ -4,6 +4,7 @@ import binarize, { optionTypes as binarizeOptions } from "./binarize";
 import grayscale, { optionTypes as grayscaleOptions } from "./grayscale";
 import ordered, { optionTypes as orderedOptions } from "./ordered";
 import random, { optionTypes as randomOptions } from "./random";
+import halftone, { optionTypes as halftoneOptions } from "./halftone";
 import quantize, { optionTypes as quantizeOptions } from "./quantize";
 import {
   atkinson,
@@ -18,6 +19,7 @@ import {
 export { default as binarize } from "./binarize";
 export { default as grayscale } from "./grayscale";
 export { default as ordered } from "./ordered";
+export { default as halftone } from "./halftone";
 export { default as quantize } from "./quantize";
 export {
   atkinson,
@@ -31,6 +33,7 @@ export {
 export const filterList = [
   { name: "Grayscale", filter: grayscale, options: grayscaleOptions },
   { name: "Random", filter: random, options: randomOptions },
+  { name: "Halftone", filter: halftone, options: halftoneOptions },
   { name: "Binarize", filter: binarize, options: binarizeOptions },
   { name: "Quantize", filter: quantize, options: quantizeOptions },
   { name: "Ordered (Windows)", filter: ordered, options: orderedOptions },
