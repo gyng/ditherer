@@ -1,5 +1,7 @@
 // @flow
 
+import { RANGE } from "constants/controlTypes";
+
 import type { ColorRGBA } from "types";
 
 import {
@@ -12,9 +14,13 @@ import {
   scale
 } from "./util";
 
+export const optionTypes = {
+  levels: { type: RANGE, range: [0, 255], default: 2 }
+};
+
 const floydSteinberg = (
   input: HTMLCanvasElement,
-  options: { levels: number } = { levels: 2 }
+  options: { levels: number } = { levels: optionTypes.levels.default }
 ): HTMLCanvasElement => {
   const getColor = (color: ColorRGBA, levels: number): ColorRGBA => {
     const step = 255 / (levels - 1);

@@ -1,8 +1,13 @@
 // @flow
 
-export type CountersState = { value: number };
+export type AppState = {
+  convertGrayscale: boolean,
+  selectedFilter: string,
+  inputImage: ?HTMLCanvasElement,
+  outputImage: ?HTMLCanvasElement
+};
 
-export type State = { counters: CountersState };
+export type State = { counters: AppState };
 
 export type Filter = (input: HTMLCanvasElement) => HTMLCanvasElement;
 

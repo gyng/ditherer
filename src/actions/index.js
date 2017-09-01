@@ -2,9 +2,8 @@
 /* eslint-disable import/prefer-default-export */
 
 import * as types from "constants/actionTypes";
-import { floydSteinberg, grayscale } from "filters";
 
-import type Filter from "types";
+import type { Filter } from "types";
 
 export const increment = (value: number = 1) => ({
   type: types.INCREMENT,
@@ -39,15 +38,25 @@ export const loadImageAsync = (file: Blob) => (dispatch: Dispatch) => {
   reader.readAsDataURL(file);
 };
 
+export const setConvertGrayscale = (value: boolean) => ({
+  type: types.SET_GRAYSCALE,
+  value
+});
+
+export const selectFilter = (name: string) => ({
+  type: types.SELECT_FILTER,
+  name
+});
+
 export const filterImage = (image: HTMLImageElement) => ({
   type: types.FILTER_IMAGE,
   image
 });
 
-export const filterImageAsync = (input: HTMLCanvasElement, _filter: Filter) => (
+export const filterImageAsync = (input: HTMLCanvasElement, filter: Filter) => (
   dispatch: Dispatch
 ) => {
-  const output = floydSteinberg(grayscale(input));
+  const output = filter(input);
   if (!output) return { type: types.ERROR, message: "Error filtering" };
 
   const outputImage = new Image();
