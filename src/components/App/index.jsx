@@ -80,7 +80,7 @@ export default class App extends React.Component {
           />
 
           <canvas
-            style={{ border: "solid 1px red"}}
+            style={{ border: "solid 1px red" }}
             ref={c => {
               this.outputCanvas = c;
             }}
