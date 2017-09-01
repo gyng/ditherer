@@ -1,7 +1,7 @@
-import reducer from "reducers/counters";
+import reducer from "reducers/filters";
 import { increment, decrement } from "actions";
 
-describe("counter reducer", () => {
+describe("filters reducer", () => {
   it("should return the initial state", () => {
     const prevState = {};
     const nextState = reducer(undefined, prevState);

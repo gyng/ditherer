@@ -12,11 +12,11 @@ import type { State } from "types";
 import { filterList, grayscale } from "filters";
 
 const mapStateToProps = (state: State) => ({
-  inputImage: state.counters.inputImage,
-  outputImage: state.counters.outputImage,
+  inputImage: state.filters.inputImage,
+  outputImage: state.filters.outputImage,
   availableFilters: filterList,
-  selectedFilter: state.counters.selectedFilter,
-  convertGrayscale: state.counters.convertGrayscale
+  selectedFilter: state.filters.selectedFilter,
+  convertGrayscale: state.filters.convertGrayscale
 });
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({

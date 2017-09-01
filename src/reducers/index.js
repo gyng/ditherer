@@ -1,5 +1,5 @@
 // @flow
 
-import counters from "./counters";
+import filters from "./filters";
 
-export default { counters };
+export default { filters };

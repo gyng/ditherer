@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 
 import s from "./styles.scss";
 
-export default class App extends React.Component {
+export default class App extends React.Component<*, *, *> {
   static defaultProps: {
     className: string
   };

@@ -9,17 +9,3 @@
   text-align: center;
   width: 100%;
 }
-
-.robot {
-  align-self: center;
-  animation: spin 60s linear infinite;
-  border-radius: 50%;
-  height: auto;
-  width: 200px;
-}
-
-@keyframes spin {
-  100% {
-    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
-  }
-}

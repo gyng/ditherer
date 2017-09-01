@@ -7,7 +7,7 @@ export type AppState = {
   outputImage: ?HTMLCanvasElement
 };
 
-export type State = { counters: AppState };
+export type State = { filters: AppState };
 
 export type Filter = (input: HTMLCanvasElement) => HTMLCanvasElement;
 
