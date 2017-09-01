@@ -95,6 +95,19 @@ export default class App extends React.Component<*, *, *> {
         >
           F I L T E R - - T H I S - - I F - - Y O U - - C A N
         </button>
+        <button
+          onClick={() => {
+            if (this.outputCanvas) {
+              const image = new Image();
+              image.src = this.outputCanvas.toDataURL("image/png");
+              image.onload = () => {
+                this.props.onSetInput(image);
+              };
+            }
+          }}
+        >
+          {"<< Copy output to input"}
+        </button>
         <div style={{ border: "solid 1px grey" }}>
           <canvas
             style={{ border: "solid 1px green" }}
@@ -126,7 +139,8 @@ App.propTypes = {
   selectedFilter: PropTypes.string,
   onSelectFilter: PropTypes.func,
   convertGrayscale: PropTypes.bool,
-  onConvertGrayscale: PropTypes.func
+  onConvertGrayscale: PropTypes.func,
+  onSetInput: PropTypes.func
 };
 
 App.defaultProps = {
@@ -141,5 +155,6 @@ App.defaultProps = {
   selectedFilter: null,
   onSelectFilter: () => {},
   convertGrayscale: false,
-  onConvertGrayscale: () => {}
+  onConvertGrayscale: () => {},
+  onSetInput: () => {}
 };

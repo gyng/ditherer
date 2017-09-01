@@ -2,6 +2,7 @@
 
 import { connect } from "react-redux";
 import {
+  loadImage,
   loadImageAsync,
   filterImageAsync,
   selectFilter,
@@ -27,9 +28,9 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
       : filter;
     dispatch(filterImageAsync(input, combinedFilter));
   },
-
   onSelectFilter: name => dispatch(selectFilter(name)),
-  onConvertGrayscale: val => dispatch(setConvertGrayscale(val))
+  onConvertGrayscale: val => dispatch(setConvertGrayscale(val)),
+  onSetInput: image => dispatch(loadImage(image))
 });
 
 const ContainedApp = connect(mapStateToProps, mapDispatchToProps)(App);
