@@ -1,8 +1,9 @@
 // @flow
 
-import { ENUM, RANGE } from "constants/controlTypes";
+import { ENUM, RANGE, PALETTE } from "constants/controlTypes";
+import { nearest } from "palettes";
 
-import type { ColorRGBA } from "types";
+import type { ColorRGBA, Palette } from "types";
 
 import {
   cloneCanvas,
@@ -18,36 +19,6 @@ const BAYER_4X4 = "BAYER_4X4";
 const BAYER_8X8 = "BAYER_8X8";
 
 export type Threshold = "BAYER_2X2" | "BAYER_3X3" | "BAYER_4X4" | "BAYER_8X8";
-
-export const optionTypes = {
-  levels: {
-    type: RANGE,
-    range: [0, 255],
-    default: 2
-  },
-  size: {
-    type: ENUM,
-    options: [
-      {
-        name: "Bayer 2×2",
-        value: BAYER_2X2
-      },
-      {
-        name: "Bayer 3×3",
-        value: BAYER_3X3
-      },
-      {
-        name: "Bayer 4×4",
-        value: BAYER_4X4
-      },
-      {
-        name: "Bayer 8×8",
-        value: BAYER_8X8
-      }
-    ],
-    default: BAYER_4X4
-  }
-};
 
 // map[y][x]
 const thresholdMaps = {
@@ -84,30 +55,64 @@ const thresholdMaps = {
   }
 };
 
+const getOrderedColor = (
+  color: ColorRGBA,
+  levels: number,
+  tx: number,
+  ty: number,
+  threshold: [number[]]
+): ColorRGBA => {
+  const thresholdValue = threshold[ty][tx];
+  const step = 255 / (levels - 1);
+
+  // $FlowFixMe
+  return color.map(c => {
+    const newColor = c + step * (thresholdValue - 0.5);
+    const bucket = Math.round(newColor / step);
+    return Math.round(bucket * step);
+  });
+};
+
+export const optionTypes = {
+  thresholdMap: {
+    type: ENUM,
+    options: [
+      {
+        name: "Bayer 2×2",
+        value: BAYER_2X2
+      },
+      {
+        name: "Bayer 3×3",
+        value: BAYER_3X3
+      },
+      {
+        name: "Bayer 4×4",
+        value: BAYER_4X4
+      },
+      {
+        name: "Bayer 8×8",
+        value: BAYER_8X8
+      }
+    ],
+    default: BAYER_4X4
+  },
+  palette: { type: PALETTE, default: nearest }
+};
+
+const defaults = {
+  thresholdMap: optionTypes.thresholdMap.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 2 } }
+};
+
 const ordered = (
   input: HTMLCanvasElement,
-  options: { thresholdMap: Threshold, levels: number } = {
-    thresholdMap: optionTypes.size.default,
-    levels: optionTypes.levels.default
-  }
+  options: {
+    thresholdMap: Threshold,
+    palette: Palette
+  } = defaults
 ): HTMLCanvasElement => {
-  const getColor = (
-    color: ColorRGBA,
-    levels: number,
-    tx: number,
-    ty: number,
-    threshold: [number[]]
-  ): ColorRGBA => {
-    const thresholdValue = threshold[ty][tx];
-    const step = 255 / (levels - 1);
-
-    // $FlowFixMe
-    return color.map(c => {
-      const newColor = c + step * (thresholdValue - 0.5);
-      const bucket = Math.round(newColor / step);
-      return Math.round(bucket * step);
-    });
-  };
+  const { palette, thresholdMap } = options;
+  const levels = palette.options.levels || 2;
 
   const output = cloneCanvas(input, false);
 
@@ -120,7 +125,7 @@ const ordered = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const threshold = thresholdMaps[options.thresholdMap];
+  const threshold = thresholdMaps[thresholdMap];
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
@@ -130,13 +135,15 @@ const ordered = (
 
       // Ignore alpha channel when calculating error
       const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-      const color = getColor(
+      const orderedColor = getOrderedColor(
         pixel,
-        options.levels,
+        levels,
         tix,
         tiy,
         threshold.thresholdMap
       );
+      const color = palette.getColor(orderedColor, palette.options);
+
       fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }

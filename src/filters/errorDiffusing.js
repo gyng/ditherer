@@ -1,16 +1,17 @@
 // @flow
 
-import { RANGE } from "constants/controlTypes";
-
-import { errorDiffusingFilter } from "./errorDiffusingFilterFactory";
+import { PALETTE } from "constants/controlTypes";
+import * as palettes from "palettes";
 import { scaleMatrix } from "utils";
 
+import { errorDiffusingFilter } from "./errorDiffusingFilterFactory";
+
 export const optionTypes = {
-  levels: { type: RANGE, range: [0, 255], default: 2 }
+  palette: { type: PALETTE, default: palettes.nearest }
 };
 
 const defaults = {
-  levels: optionTypes.levels.default
+  palette: optionTypes.palette.default
 };
 
 // https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering

@@ -2,17 +2,6 @@
 
 import type { ColorRGBA } from "types";
 
-// Gets nearest color
-export const quantize = (color: ColorRGBA, levels: number): ColorRGBA => {
-  const step = 255 / (levels - 1);
-
-  // $FlowFixMe
-  return color.map(c => {
-    const bucket = Math.round(c / step);
-    return Math.round(bucket * step);
-  });
-};
-
 export const quantizeValue = (value: number, levels: number): number => {
   const step = 255 / (levels - 1);
   const bucket = Math.round(value / step);

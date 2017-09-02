@@ -1,22 +1,24 @@
 // @flow
 
-import { RANGE } from "constants/controlTypes";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  quantize as quantizeColor
-} from "utils";
+import { PALETTE } from "constants/controlTypes";
+import { nearest } from "palettes";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+
+import type { Palette } from "types";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [0, 255], default: 8 }
+  palette: { type: PALETTE, default: nearest }
+};
+
+const defaults = {
+  palette: { ...optionTypes.palette.default, options: { levels: 7 } }
 };
 
 const quanitze = (
   input: HTMLCanvasElement,
-  options: { levels: number } = { levels: optionTypes.levels.default }
+  options: { palette: Palette } = defaults
 ): HTMLCanvasElement => {
+  const { palette } = options;
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -32,7 +34,7 @@ const quanitze = (
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);
       const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-      const color = quantizeColor(pixel, options.levels);
+      const color = palette.getColor(pixel, palette.options);
       fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }

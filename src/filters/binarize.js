@@ -1,16 +1,24 @@
 // @flow
 
-import { RANGE } from "constants/controlTypes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
+import { RANGE, PALETTE } from "constants/controlTypes";
+import * as palettes from "palettes";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+
+import type { Palette } from "types";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 255], default: 127.5 }
+  threshold: { type: RANGE, range: [0, 255], default: 127.5 },
+  palette: { type: PALETTE, default: palettes.nearest }
 };
 
 const binarize = (
   input: HTMLCanvasElement,
-  options: { threshold: number } = { threshold: optionTypes.threshold.default }
+  options: { threshold: number, palette: Palette } = {
+    threshold: optionTypes.threshold.default,
+    palette: optionTypes.palette.default
+  }
 ): HTMLCanvasElement => {
+  const { threshold, palette } = options;
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -26,8 +34,10 @@ const binarize = (
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);
       const intensity = (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
-      const grey = intensity > options.threshold ? 255 : 0;
-      fillBufferPixel(buf, i, grey, grey, grey, buf[i + 3]);
+      const raw = intensity > threshold ? 255 : 0;
+      const prePaletteCol = rgba(raw, raw, raw, buf[i + 3]);
+      const col = palette.getColor(prePaletteCol, palette.options);
+      fillBufferPixel(buf, i, col[0], col[1], col[2], buf[i + 3]);
     }
   }
 

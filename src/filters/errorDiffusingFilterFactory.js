@@ -7,8 +7,7 @@ import {
   getBufferIndex,
   rgba,
   sub,
-  scale,
-  quantize
+  scale
 } from "utils";
 
 export const errorDiffusingFilter = (
@@ -22,6 +21,8 @@ export const errorDiffusingFilter = (
     input: HTMLCanvasElement,
     options: any = defaultOptions
   ): HTMLCanvasElement => {
+    const { palette } = options;
+
     const output = cloneCanvas(input, true);
     const outputCtx = output.getContext("2d");
     if (!outputCtx) return input;
@@ -43,7 +44,7 @@ export const errorDiffusingFilter = (
           errBuf[i + 2],
           errBuf[i + 3]
         );
-        const color = quantize(pixel, options.levels);
+        const color = palette.getColor(pixel, palette.options);
         const error = sub(pixel, color);
 
         // Copy alpha value from input

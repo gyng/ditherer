@@ -2,12 +2,13 @@
 
 import { BOOL, RANGE } from "constants/controlTypes";
 
+import { nearest } from "palettes";
+
 import {
   cloneCanvas,
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  quantize,
   quantizeValue
 } from "utils";
 
@@ -49,7 +50,9 @@ const random = (
         const r = buf[i] + (Math.random() - 0.5) * 255;
         const g = buf[i + 1] + (Math.random() - 0.5) * 255;
         const b = buf[i + 2] + (Math.random() - 0.5) * 255;
-        const color = quantize(rgba(r, g, b, buf[i + 3]), options.levels);
+        const color = nearest.getColor(rgba(r, g, b, buf[i + 3]), {
+          levels: options.levels
+        });
         fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
       }
     }

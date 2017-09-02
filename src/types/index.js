@@ -16,3 +16,10 @@ export type Action =
   | { type: "DECREMENT", value: number };
 
 export type ColorRGBA = [number, number, number, number];
+
+export type Palette = {
+  getColor: (input: ColorRGBA, options: any) => ColorRGBA,
+  defaults: any,
+  optionTypes: any,
+  options?: any
+};
