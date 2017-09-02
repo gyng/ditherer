@@ -1,7 +1,7 @@
 // @flow
 
 import { RANGE } from "constants/controlTypes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex } from "./util";
+import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], default: 127.5 }

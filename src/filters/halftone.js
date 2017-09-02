@@ -1,7 +1,7 @@
 // @flow
 
 import { RANGE, STRING } from "constants/controlTypes";
-import { cloneCanvas, getBufferIndex, rgba, quantize } from "./util";
+import { cloneCanvas, getBufferIndex, rgba, quantize } from "util";
 
 export const optionTypes = {
   size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter

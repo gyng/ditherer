@@ -3,7 +3,7 @@
 import { RANGE } from "constants/controlTypes";
 
 import { errorDiffusingFilter } from "./errorDiffusingFilterFactory";
-import { scaleMatrix } from "./util";
+import { scaleMatrix } from "utils";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [0, 255], default: 2 }

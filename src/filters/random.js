@@ -9,7 +9,7 @@ import {
   rgba,
   quantize,
   quantizeValue
-} from "./util";
+} from "utils";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [0, 255], default: 2 },

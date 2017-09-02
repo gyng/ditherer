@@ -1,6 +1,6 @@
 // @flow
 
-import { cloneCanvas, fillBufferPixel, getBufferIndex } from "./util";
+import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
 
 export const optionTypes = {};
 

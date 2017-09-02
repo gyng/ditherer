@@ -10,7 +10,7 @@ import {
   getBufferIndex,
   rgba,
   scaleMatrix
-} from "./util";
+} from "utils";
 
 const BAYER_2X2 = "BAYER_2X2";
 const BAYER_3X3 = "BAYER_3X3";

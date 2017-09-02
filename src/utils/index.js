@@ -2,6 +2,23 @@
 
 import type { ColorRGBA } from "types";
 
+// Gets nearest color
+export const quantize = (color: ColorRGBA, levels: number): ColorRGBA => {
+  const step = 255 / (levels - 1);
+
+  // $FlowFixMe
+  return color.map(c => {
+    const bucket = Math.round(c / step);
+    return Math.round(bucket * step);
+  });
+};
+
+export const quantizeValue = (value: number, levels: number): number => {
+  const step = 255 / (levels - 1);
+  const bucket = Math.round(value / step);
+  return Math.round(bucket * step);
+};
+
 export const uniqueColors = (buf: Uint8ClampedArray): number => {
   const seen = {};
 
@@ -25,29 +42,12 @@ export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
   a
 ];
 
-// Gets nearest color
-export const quantize = (color: ColorRGBA, levels: number): ColorRGBA => {
-  const step = 255 / (levels - 1);
-
-  // $FlowFixMe
-  return color.map(c => {
-    const bucket = Math.round(c / step);
-    return Math.round(bucket * step);
-  });
-};
-
 // Preserves nulls
 export const scaleMatrix = (
   mat: Array<Array<?number>>,
   scale: number
 ): Array<Array<?number>> =>
   mat.map(row => row.map(col => (col ? col * scale : col)));
-
-export const quantizeValue = (value: number, levels: number): number => {
-  const step = 255 / (levels - 1);
-  const bucket = Math.round(value / step);
-  return Math.round(bucket * step);
-};
 
 export const add = (a: ColorRGBA, b: ColorRGBA): ColorRGBA => [
   a[0] + b[0],

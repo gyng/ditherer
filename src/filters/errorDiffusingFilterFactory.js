@@ -9,7 +9,7 @@ import {
   sub,
   scale,
   quantize
-} from "./util";
+} from "utils";
 
 export const errorDiffusingFilter = (
   errorMatrix: {
