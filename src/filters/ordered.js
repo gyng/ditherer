@@ -1,7 +1,7 @@
 // @flow
 
 import { ENUM, RANGE, PALETTE } from "constants/controlTypes";
-import { nearest } from "palettes";
+import { nearest, ega } from "palettes";
 
 import type { ColorRGBA, Palette } from "types";
 

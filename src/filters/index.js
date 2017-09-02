@@ -5,7 +5,10 @@ import grayscale, { optionTypes as grayscaleOptions } from "./grayscale";
 import ordered, { optionTypes as orderedOptions } from "./ordered";
 import random, { optionTypes as randomOptions } from "./random";
 import halftone, { optionTypes as halftoneOptions } from "./halftone";
-import quantize, { optionTypes as quantizeOptions } from "./quantize";
+import quantize, {
+  quantizeTestEGA,
+  optionTypes as quantizeOptions
+} from "./quantize";
 import {
   atkinson,
   floydSteinberg,
@@ -36,6 +39,11 @@ export const filterList = [
   { name: "Halftone", filter: halftone, options: halftoneOptions },
   { name: "Binarize", filter: binarize, options: binarizeOptions },
   { name: "Quantize", filter: quantize, options: quantizeOptions },
+  {
+    name: "Quantize (EGA test)",
+    filter: quantizeTestEGA,
+    options: quantizeOptions
+  },
   { name: "Ordered (Windows)", filter: ordered, options: orderedOptions },
   {
     name: "Floyd-Steinberg",

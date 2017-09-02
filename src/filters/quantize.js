@@ -1,7 +1,8 @@
 // @flow
 
 import { PALETTE } from "constants/controlTypes";
-import { nearest } from "palettes";
+import { nearest, user } from "palettes";
+import { THEMES } from "palettes/user";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 
 import type { Palette } from "types";
@@ -14,7 +15,7 @@ const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 7 } }
 };
 
-const quanitze = (
+const quantize = (
   input: HTMLCanvasElement,
   options: { palette: Palette } = defaults
 ): HTMLCanvasElement => {
@@ -43,4 +44,12 @@ const quanitze = (
   return output;
 };
 
-export default quanitze;
+export const quantizeTestEGA = (input: HTMLCanvasElement) =>
+  quantize(input, {
+    palette: {
+      ...user,
+      options: { colors: THEMES.EGA.MODE4.PALETTE1.LOW }
+    }
+  });
+
+export default quantize;
