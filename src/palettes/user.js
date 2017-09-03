@@ -72,8 +72,23 @@ const defaults = { colors: optionTypes.palette.default };
 
 // https://en.wikipedia.org/wiki/Color_difference
 // Simple Euclidian distance
-const colorDistance = (a: ColorRGBA, b: ColorRGBA): number =>
-  Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
+// const colorDistance = (a: ColorRGBA, b: ColorRGBA): number =>
+//   Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
+
+// TODO: Use LAB?
+// Approximation given on Wiki page
+const colorDistance = (a: ColorRGBA, b: ColorRGBA): number => {
+  const r = (a[0] + b[0]) / 2;
+  const dR = a[0] - b[0];
+  const dG = a[1] - b[1];
+  const dB = a[2] - b[2];
+
+  const dRc = (2 + r / 256) * dR ** 2;
+  const dGc = 4 * dG ** 2 + (2 + (255 - r) / 256);
+  const dBc = dB ** 2;
+
+  return Math.sqrt(dRc + dGc + dBc);
+};
 
 // Gets nearest color
 const getColor = (
