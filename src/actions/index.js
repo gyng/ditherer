@@ -43,9 +43,10 @@ export const setConvertGrayscale = (value: boolean) => ({
   value
 });
 
-export const selectFilter = (name: string) => ({
+export const selectFilter = (name: string, filter: Filter) => ({
   type: types.SELECT_FILTER,
-  name
+  name,
+  filter
 });
 
 export const filterImage = (image: HTMLImageElement) => ({

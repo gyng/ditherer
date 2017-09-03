@@ -51,10 +51,6 @@ export default class App extends React.Component<*, *> {
   outputCanvas: ?HTMLCanvasElement;
 
   render() {
-    const currentFilter = this.props.availableFilters.find(
-      f => f.name === this.props.selectedFilter
-    );
-
     return (
       <div>
         <input
@@ -64,8 +60,14 @@ export default class App extends React.Component<*, *> {
           onChange={this.props.onLoadImage}
         />
         <select
-          onChange={e => this.props.onSelectFilter(e.target.value)}
-          value={this.props.selectedFilter}
+          onChange={e => {
+            const name = e.target.value;
+            const filter = this.props.availableFilters.find(
+              f => f.name === name
+            );
+            this.props.onSelectFilter(name, filter);
+          }}
+          value={this.props.selectedFilter.name}
         >
           {this.props.availableFilters.map(f =>
             <option key={f.name} value={f.name}>
@@ -75,7 +77,7 @@ export default class App extends React.Component<*, *> {
         </select>
         <span>
           Options:
-          {JSON.stringify(currentFilter.optionTypes)}
+          {JSON.stringify(this.props.selectedFilter.filter.optionTypes)}
         </span>
         Convert to grayscale:
         <input
@@ -88,8 +90,8 @@ export default class App extends React.Component<*, *> {
           onClick={() => {
             this.props.onFilterImage(
               this.inputCanvas,
-              currentFilter.filter.filter,
-              currentFilter.options,
+              this.props.selectedFilter.filter.filter,
+              this.props.selectedFilter.filter.options,
               this.props.convertGrayscale
             );
           }}

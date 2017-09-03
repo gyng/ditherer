@@ -43,44 +43,52 @@ export const filterList = [
   },
   {
     name: "Quantize (No dithering, EGA test)",
-    filter: quantize,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.EGA.MODE4.PALETTE1.LOW }
+    filter: {
+      ...quantize,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.EGA.MODE4.PALETTE1.LOW }
+        }
       }
     }
   },
   {
     name: "Quantize (No dithering, sepia test)",
-    filter: quantize,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.SEPIA }
+    filter: {
+      ...quantize,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.SEPIA }
+        }
       }
     }
   },
   {
     name: "Quantize (No dithering, vaporwave test)",
-    filter: quantize,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.VAPORWAVE }
+    filter: {
+      ...quantize,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.VAPORWAVE }
+        }
       }
     }
   },
   { name: "Ordered (Windows)", filter: ordered },
   {
     name: "Ordered (Windows 16-color)",
-    filter: ordered,
-    options: {
-      levels: 16,
-      thresholdMap: BAYER_4X4,
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.CGA }
+    filter: {
+      ...ordered,
+      options: {
+        levels: 16,
+        thresholdMap: BAYER_4X4,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.CGA }
+        }
       }
     }
   },
@@ -90,41 +98,49 @@ export const filterList = [
   },
   {
     name: "Floyd-Steinberg (EGA test)",
-    filter: floydSteinberg,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.EGA.MODE4.PALETTE1.HIGH }
+    filter: {
+      ...floydSteinberg,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.EGA.MODE4.PALETTE1.HIGH }
+        }
       }
     }
   },
   {
     name: "Floyd-Steinberg (CGA test)",
-    filter: floydSteinberg,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.CGA }
+    filter: {
+      ...floydSteinberg,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.CGA }
+        }
       }
     }
   },
   {
     name: "Floyd-Steinberg (Sepia test)",
-    filter: floydSteinberg,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.SEPIA }
+    filter: {
+      ...floydSteinberg,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.SEPIA }
+        }
       }
     }
   },
   {
     name: "Floyd-Steinberg (Vaporwave test)",
-    filter: floydSteinberg,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.VAPORWAVE }
+    filter: {
+      ...floydSteinberg,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.VAPORWAVE }
+        }
       }
     }
   },
@@ -135,11 +151,13 @@ export const filterList = [
   },
   {
     name: "Atkinson (Macintosh II color test)",
-    filter: atkinson,
-    options: {
-      palette: {
-        ...palettes.user,
-        options: { colors: THEMES.MAC2 }
+    filter: {
+      ...atkinson,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.MAC2 }
+        }
       }
     }
   },

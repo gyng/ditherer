@@ -9,10 +9,12 @@ export type AppState = {
 
 export type State = { filters: AppState };
 
-export type Filter = (
-  input: HTMLCanvasElement,
-  options: ?any
-) => HTMLCanvasElement;
+export type Filter = {
+  filter: (input: HTMLCanvasElement, options: ?any) => HTMLCanvasElement,
+  defaults: any,
+  optionTypes: any,
+  options?: ?any
+};
 
 export type Action =
   | { type: "INCREMENT", value: number }

@@ -7,10 +7,15 @@ import {
   SET_GRAYSCALE
 } from "constants/actionTypes";
 
+import { floydSteinberg } from "filters/errorDiffusing";
+
 import type { Action, AppState } from "types";
 
 const initialState = {
-  selectedFilter: "Floyd-Steinberg",
+  selected: {
+    name: "Floyd-Steinberg",
+    filter: floydSteinberg
+  },
   convertGrayscale: false,
   inputImage: null,
   outputImage: null
@@ -31,7 +36,10 @@ export default (state: AppState = initialState, action: Action) => {
     case SELECT_FILTER:
       return {
         ...state,
-        selectedFilter: action.name
+        selected: {
+          name: action.name,
+          filter: action.filter.filter
+        }
       };
     case FILTER_IMAGE:
       return {

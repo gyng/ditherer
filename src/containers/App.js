@@ -16,7 +16,7 @@ const mapStateToProps = (state: State) => ({
   inputImage: state.filters.inputImage,
   outputImage: state.filters.outputImage,
   availableFilters: filterList,
-  selectedFilter: state.filters.selectedFilter,
+  selectedFilter: state.filters.selected,
   convertGrayscale: state.filters.convertGrayscale
 });
 
@@ -28,7 +28,7 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
       : filter;
     dispatch(filterImageAsync(input, combinedFilter, options));
   },
-  onSelectFilter: name => dispatch(selectFilter(name)),
+  onSelectFilter: (name, filter) => dispatch(selectFilter(name, filter)),
   onConvertGrayscale: val => dispatch(setConvertGrayscale(val)),
   onSetInput: image => dispatch(loadImage(image))
 });
