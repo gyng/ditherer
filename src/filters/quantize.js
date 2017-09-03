@@ -43,4 +43,8 @@ const quantize = (
   return output;
 };
 
-export default quantize;
+export default {
+  filter: quantize,
+  optionTypes,
+  defaults
+};

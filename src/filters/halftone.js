@@ -14,6 +14,14 @@ export const optionTypes = {
   background: { type: STRING, default: "transparent" }
 };
 
+export const defaults = {
+  size: optionTypes.size.default,
+  offset: optionTypes.offset.default,
+  levels: optionTypes.levels.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 8 } },
+  background: optionTypes.background.default
+};
+
 const halftone = (
   input: HTMLCanvasElement,
   options: {
@@ -22,13 +30,7 @@ const halftone = (
     levels: number,
     palette: Palette,
     background: string
-  } = {
-    size: optionTypes.size.default,
-    offset: optionTypes.offset.default,
-    levels: optionTypes.levels.default,
-    palette: { ...optionTypes.palette.default, options: { levels: 8 } },
-    background: optionTypes.background.default
-  }
+  } = defaults
 ): HTMLCanvasElement => {
   const getOffset = (
     radians: number,
@@ -107,4 +109,8 @@ const halftone = (
   return output;
 };
 
-export default halftone;
+export default {
+  filter: halftone,
+  optionTypes,
+  defaults
+};

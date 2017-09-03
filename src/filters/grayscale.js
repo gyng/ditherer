@@ -4,6 +4,8 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
 
 export const optionTypes = {};
 
+export const defaults = {};
+
 const grayscale = (input: HTMLCanvasElement): HTMLCanvasElement => {
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -25,4 +27,8 @@ const grayscale = (input: HTMLCanvasElement): HTMLCanvasElement => {
   return output;
 };
 
-export default grayscale;
+export default {
+  filter: grayscale,
+  optionTypes,
+  defaults
+};

@@ -17,12 +17,14 @@ export const optionTypes = {
   grayscale: { type: BOOL, default: false }
 };
 
+export const defaults = {
+  levels: optionTypes.levels.default,
+  grayscale: optionTypes.grayscale.default
+};
+
 const random = (
   input: HTMLCanvasElement,
-  options: { levels: number, grayscale: boolean } = {
-    levels: optionTypes.levels.default,
-    grayscale: optionTypes.grayscale.default
-  }
+  options: { levels: number, grayscale: boolean } = defaults
 ): HTMLCanvasElement => {
   const output = cloneCanvas(input, false);
 
@@ -62,4 +64,8 @@ const random = (
   return output;
 };
 
-export default random;
+export default {
+  filter: random,
+  optionTypes,
+  defaults
+};

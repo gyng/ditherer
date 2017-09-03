@@ -11,12 +11,14 @@ export const optionTypes = {
   palette: { type: PALETTE, default: palettes.nearest }
 };
 
+export const defaults = {
+  threshold: optionTypes.threshold.default,
+  palette: optionTypes.palette.default
+};
+
 const binarize = (
   input: HTMLCanvasElement,
-  options: { threshold: number, palette: Palette } = {
-    threshold: optionTypes.threshold.default,
-    palette: optionTypes.palette.default
-  }
+  options: { threshold: number, palette: Palette } = defaults
 ): HTMLCanvasElement => {
   const { threshold, palette } = options;
   const output = cloneCanvas(input, false);
@@ -45,4 +47,8 @@ const binarize = (
   return output;
 };
 
-export default binarize;
+export default {
+  filter: binarize,
+  optionTypes,
+  defaults
+};

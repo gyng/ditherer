@@ -10,6 +10,17 @@ import {
   scale
 } from "utils";
 
+import { PALETTE } from "constants/controlTypes";
+import * as palettes from "palettes";
+
+export const optionTypes = {
+  palette: { type: PALETTE, default: palettes.nearest }
+};
+
+export const defaults = {
+  palette: optionTypes.palette.default
+};
+
 export const errorDiffusingFilter = (
   errorMatrix: {
     offset: [number, number],
@@ -79,7 +90,11 @@ export const errorDiffusingFilter = (
     return output;
   };
 
-  return filter;
+  return {
+    filter,
+    optionTypes,
+    defaults: defaultOptions
+  };
 };
 
 export default errorDiffusingFilter;

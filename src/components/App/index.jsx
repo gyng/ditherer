@@ -88,7 +88,7 @@ export default class App extends React.Component<*, *> {
           onClick={() => {
             this.props.onFilterImage(
               this.inputCanvas,
-              currentFilter.filter,
+              currentFilter.filter.filter,
               currentFilter.options,
               this.props.convertGrayscale
             );

@@ -159,4 +159,8 @@ const ordered = (
   return output;
 };
 
-export default ordered;
+export default {
+  filter: ordered,
+  optionTypes,
+  defaults
+};

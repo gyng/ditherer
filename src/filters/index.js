@@ -3,20 +3,19 @@
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
-import binarize, { optionTypes as binarizeOptions } from "./binarize";
-import grayscale, { optionTypes as grayscaleOptions } from "./grayscale";
-import ordered, { BAYER_4X4, optionTypes as orderedOptions } from "./ordered";
-import random, { optionTypes as randomOptions } from "./random";
-import halftone, { optionTypes as halftoneOptions } from "./halftone";
-import quantize, { optionTypes as quantizeOptions } from "./quantize";
+import binarize from "./binarize";
+import grayscale from "./grayscale";
+import ordered, { BAYER_4X4 } from "./ordered";
+import random from "./random";
+import halftone from "./halftone";
+import quantize from "./quantize";
 import {
   atkinson,
   floydSteinberg,
   sierra,
   sierra2,
   sierraLite,
-  jarvis,
-  optionTypes as errorDiffusingOptions
+  jarvis
 } from "./errorDiffusing";
 
 export { default as binarize } from "./binarize";
@@ -34,14 +33,13 @@ export {
 } from "./errorDiffusing";
 
 export const filterList = [
-  { name: "Grayscale", filter: grayscale, optionTypes: grayscaleOptions },
-  { name: "Random", filter: random, optionTypes: randomOptions },
-  { name: "Halftone", filter: halftone, optionTypes: halftoneOptions },
-  { name: "Binarize", filter: binarize, optionTypes: binarizeOptions },
+  { name: "Grayscale", filter: grayscale },
+  { name: "Random", filter: random },
+  { name: "Halftone", filter: halftone },
+  { name: "Binarize", filter: binarize },
   {
     name: "Quantize (No dithering)",
-    filter: quantize,
-    optionTypes: quantizeOptions
+    filter: quantize
   },
   {
     name: "Quantize (No dithering, EGA test)",
@@ -51,8 +49,7 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.EGA.MODE4.PALETTE1.LOW }
       }
-    },
-    optionTypes: quantizeOptions
+    }
   },
   {
     name: "Quantize (No dithering, sepia test)",
@@ -62,8 +59,7 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.SEPIA }
       }
-    },
-    optionTypes: quantizeOptions
+    }
   },
   {
     name: "Quantize (No dithering, vaporwave test)",
@@ -73,10 +69,9 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.VAPORWAVE }
       }
-    },
-    optionTypes: quantizeOptions
+    }
   },
-  { name: "Ordered (Windows)", filter: ordered, optionTypes: orderedOptions },
+  { name: "Ordered (Windows)", filter: ordered },
   {
     name: "Ordered (Windows 16-color)",
     filter: ordered,
@@ -87,13 +82,11 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.CGA }
       }
-    },
-    optionTypes: orderedOptions
+    }
   },
   {
     name: "Floyd-Steinberg",
-    filter: floydSteinberg,
-    optionTypes: errorDiffusingOptions
+    filter: floydSteinberg
   },
   {
     name: "Floyd-Steinberg (EGA test)",
@@ -103,8 +96,7 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.EGA.MODE4.PALETTE1.HIGH }
       }
-    },
-    optionTypes: errorDiffusingOptions
+    }
   },
   {
     name: "Floyd-Steinberg (CGA test)",
@@ -114,8 +106,7 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.CGA }
       }
-    },
-    optionTypes: errorDiffusingOptions
+    }
   },
   {
     name: "Floyd-Steinberg (Sepia test)",
@@ -125,8 +116,7 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.SEPIA }
       }
-    },
-    optionTypes: errorDiffusingOptions
+    }
   },
   {
     name: "Floyd-Steinberg (Vaporwave test)",
@@ -136,14 +126,12 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.VAPORWAVE }
       }
-    },
-    optionTypes: errorDiffusingOptions
+    }
   },
-  { name: "Jarvis", filter: jarvis, optionTypes: errorDiffusingOptions },
+  { name: "Jarvis", filter: jarvis },
   {
     name: "Atkinson (Mac)",
-    filter: atkinson,
-    optionTypes: errorDiffusingOptions
+    filter: atkinson
   },
   {
     name: "Atkinson (Macintosh II color test)",
@@ -153,18 +141,15 @@ export const filterList = [
         ...palettes.user,
         options: { colors: THEMES.MAC2 }
       }
-    },
-    optionTypes: errorDiffusingOptions
+    }
   },
-  { name: "Sierra (full)", filter: sierra, optionTypes: errorDiffusingOptions },
+  { name: "Sierra (full)", filter: sierra },
   {
     name: "Sierra (two-row)",
-    filter: sierra2,
-    optionTypes: errorDiffusingOptions
+    filter: sierra2
   },
   {
     name: "Sierra (lite)",
-    filter: sierraLite,
-    optionTypes: errorDiffusingOptions
+    filter: sierraLite
   }
 ];
