@@ -5,20 +5,6 @@ import * as types from "constants/actionTypes";
 
 import type { Filter } from "types";
 
-export const increment = (value: number = 1) => ({
-  type: types.INCREMENT,
-  value
-});
-
-export const decrement = (value: number = 1) => ({
-  type: types.DECREMENT,
-  value
-});
-
-export const incrementAsync = (value: number = 1, delay: number = 1000) => (
-  dispatch: Dispatch
-) => setTimeout(() => dispatch(increment(value)), delay);
-
 export const loadImage = (image: HTMLImageElement) => ({
   type: types.LOAD_IMAGE,
   image
@@ -43,11 +29,13 @@ export const setConvertGrayscale = (value: boolean) => ({
   value
 });
 
-export const selectFilter = (name: string, filter: Filter) => ({
-  type: types.SELECT_FILTER,
-  name,
-  filter
-});
+export const selectFilter = (name: string, filter: Filter) => {
+  return {
+    type: types.SELECT_FILTER,
+    name,
+    filter
+  };
+};
 
 export const filterImage = (image: HTMLImageElement) => ({
   type: types.FILTER_IMAGE,

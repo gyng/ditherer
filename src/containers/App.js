@@ -22,11 +22,11 @@ const mapStateToProps = (state: State) => ({
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onLoadImage: e => dispatch(loadImageAsync(e.target.files[0])),
-  onFilterImage: (input, filter, options, convertGrayscale = false) => {
-    const combinedFilter = convertGrayscale
-      ? (i, o) => filter(grayscale(i), o)
-      : filter;
-    dispatch(filterImageAsync(input, combinedFilter, options));
+  onFilterImage: (input, filter, convertGrayscale = false) => {
+    const filterFunc = convertGrayscale
+      ? (i, o) => filter.func(grayscale.func(i), o)
+      : filter.func;
+    dispatch(filterImageAsync(input, filterFunc, filter.options));
   },
   onSelectFilter: (name, filter) => dispatch(selectFilter(name, filter)),
   onConvertGrayscale: val => dispatch(setConvertGrayscale(val)),

@@ -44,7 +44,8 @@ const quantize = (
 };
 
 export default {
-  filter: quantize,
+  func: quantize,
+  options: defaults,
   optionTypes,
   defaults
 };

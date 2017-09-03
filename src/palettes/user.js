@@ -156,7 +156,9 @@ const getColor = (
 };
 
 export default {
+  name: "User",
   getColor,
+  options: defaults,
   optionTypes,
   defaults
 };

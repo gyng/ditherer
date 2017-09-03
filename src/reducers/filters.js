@@ -14,7 +14,10 @@ import type { Action, AppState } from "types";
 const initialState = {
   selected: {
     name: "Floyd-Steinberg",
-    filter: floydSteinberg
+    filter: {
+      ...floydSteinberg,
+      options: floydSteinberg.defaults
+    }
   },
   convertGrayscale: false,
   inputImage: null,

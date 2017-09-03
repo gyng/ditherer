@@ -110,7 +110,8 @@ const halftone = (
 };
 
 export default {
-  filter: halftone,
+  func: halftone,
+  options: defaults,
   optionTypes,
   defaults
 };

@@ -48,7 +48,8 @@ const binarize = (
 };
 
 export default {
-  filter: binarize,
+  func: binarize,
   optionTypes,
+  options: defaults,
   defaults
 };

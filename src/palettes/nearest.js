@@ -27,7 +27,9 @@ const getColor = (
 };
 
 export default {
+  name: "nearest",
   getColor,
+  options: defaults,
   optionTypes,
   defaults
 };

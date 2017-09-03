@@ -91,8 +91,9 @@ export const errorDiffusingFilter = (
   };
 
   return {
-    filter,
+    func: filter,
     optionTypes,
+    options: defaults,
     defaults: defaultOptions
   };
 };

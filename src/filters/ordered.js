@@ -160,7 +160,8 @@ const ordered = (
 };
 
 export default {
-  filter: ordered,
+  func: ordered,
+  options: defaults,
   optionTypes,
   defaults
 };

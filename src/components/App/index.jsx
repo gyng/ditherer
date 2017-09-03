@@ -4,6 +4,8 @@
 import React from "react";
 import PropTypes from "prop-types";
 
+import Controls from "components/controls";
+
 import s from "./styles.scss";
 
 export default class App extends React.Component<*, *> {
@@ -76,10 +78,12 @@ export default class App extends React.Component<*, *> {
           )}
         </select>
         <span>
-          Options:
-          {JSON.stringify(this.props.selectedFilter.filter.optionTypes)}
+          <Controls
+            optionTypes={this.props.selectedFilter.filter.optionTypes}
+            options={this.props.selectedFilter.filter.options}
+          />
         </span>
-        Convert to grayscale:
+        Pre-convert to grayscale:
         <input
           name="convertGrayscale"
           type="checkbox"
@@ -90,8 +94,7 @@ export default class App extends React.Component<*, *> {
           onClick={() => {
             this.props.onFilterImage(
               this.inputCanvas,
-              this.props.selectedFilter.filter.filter,
-              this.props.selectedFilter.filter.options,
+              this.props.selectedFilter.filter,
               this.props.convertGrayscale
             );
           }}
@@ -139,7 +142,7 @@ App.propTypes = {
   inputImage: PropTypes.object,
   outputImage: PropTypes.object,
   availableFilters: PropTypes.arrayOf(PropTypes.object),
-  selectedFilter: PropTypes.string,
+  selectedFilter: PropTypes.object,
   onSelectFilter: PropTypes.func,
   convertGrayscale: PropTypes.bool,
   onConvertGrayscale: PropTypes.func,
