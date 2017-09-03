@@ -53,10 +53,12 @@ export const filterImage = (image: HTMLImageElement) => ({
   image
 });
 
-export const filterImageAsync = (input: HTMLCanvasElement, filter: Filter) => (
-  dispatch: Dispatch
-) => {
-  const output = filter(input);
+export const filterImageAsync = (
+  input: HTMLCanvasElement,
+  filter: Filter,
+  options: ?any
+) => (dispatch: Dispatch) => {
+  const output = filter(input, options);
   if (!output) return { type: types.ERROR, message: "Error filtering" };
 
   const outputImage = new Image();

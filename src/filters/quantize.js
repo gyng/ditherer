@@ -1,8 +1,7 @@
 // @flow
 
 import { PALETTE } from "constants/controlTypes";
-import { nearest, user } from "palettes";
-import { THEMES } from "palettes/user";
+import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 
 import type { Palette } from "types";
@@ -43,13 +42,5 @@ const quantize = (
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };
-
-export const quantizeTestEGA = (input: HTMLCanvasElement) =>
-  quantize(input, {
-    palette: {
-      ...user,
-      options: { colors: THEMES.EGA.MODE4.PALETTE1.LOW }
-    }
-  });
 
 export default quantize;

@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 
 import s from "./styles.scss";
 
-export default class App extends React.Component<*, *, *> {
+export default class App extends React.Component<*, *> {
   static defaultProps: {
     className: string
   };
@@ -75,7 +75,7 @@ export default class App extends React.Component<*, *, *> {
         </select>
         <span>
           Options:
-          {JSON.stringify(currentFilter.options)}
+          {JSON.stringify(currentFilter.optionTypes)}
         </span>
         Convert to grayscale:
         <input
@@ -89,6 +89,7 @@ export default class App extends React.Component<*, *, *> {
             this.props.onFilterImage(
               this.inputCanvas,
               currentFilter.filter,
+              currentFilter.options,
               this.props.convertGrayscale
             );
           }}
