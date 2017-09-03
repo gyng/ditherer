@@ -58,6 +58,42 @@ export const THEMES = {
     cga.BMAGENTA,
     cga.BYELLOW,
     cga.BWHITE
+  ],
+  MAC2: [
+    rgba(255, 255, 255, 255), // white
+    rgba(255, 255, 0, 255), // yellow
+    rgba(255, 102, 0, 255), // orange
+    rgba(221, 0, 0, 255), // red
+    rgba(255, 0, 153, 255), // magenta
+    rgba(51, 0, 153, 255), // purple
+    rgba(0, 0, 204, 255), // blue
+    rgba(0, 153, 255, 255), // cyan
+    rgba(0, 170, 0, 255), // green
+    rgba(0, 102, 0, 255), // dark green
+    rgba(102, 51, 0, 255), // brown
+    rgba(153, 102, 51, 255), // tan
+    rgba(187, 187, 187, 255), // light grey
+    rgba(136, 136, 136, 255), // medium grey
+    rgba(68, 68, 68, 255), // dark grey
+    rgba(0, 0, 0, 255) // black
+  ],
+  SEPIA: [
+    rgba(8, 8, 0, 255),
+    rgba(39, 34, 24, 255),
+    rgba(70, 63, 48, 255),
+    rgba(101, 93, 72, 255),
+    rgba(132, 122, 96, 255),
+    rgba(163, 152, 120, 255),
+    rgba(194, 182, 145, 255),
+    rgba(225, 211, 169, 255)
+  ],
+  VAPORWAVE: [
+    // modified http://www.colourlovers.com/palette/3636765/seapunk_vaporwave
+    rgba(255, 106, 213, 255),
+    rgba(199, 116, 232, 255),
+    rgba(173, 140, 255, 255),
+    rgba(135, 149, 232, 255),
+    rgba(148, 208, 255, 255)
   ]
 };
 

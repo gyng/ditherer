@@ -1,7 +1,7 @@
 // @flow
 
 import { ENUM, RANGE, PALETTE } from "constants/controlTypes";
-import { nearest, ega } from "palettes";
+import { nearest } from "palettes";
 
 import type { ColorRGBA, Palette } from "types";
 
@@ -13,10 +13,10 @@ import {
   scaleMatrix
 } from "utils";
 
-const BAYER_2X2 = "BAYER_2X2";
-const BAYER_3X3 = "BAYER_3X3";
-const BAYER_4X4 = "BAYER_4X4";
-const BAYER_8X8 = "BAYER_8X8";
+export const BAYER_2X2 = "BAYER_2X2";
+export const BAYER_3X3 = "BAYER_3X3";
+export const BAYER_4X4 = "BAYER_4X4";
+export const BAYER_8X8 = "BAYER_8X8";
 
 export type Threshold = "BAYER_2X2" | "BAYER_3X3" | "BAYER_4X4" | "BAYER_8X8";
 
@@ -74,6 +74,11 @@ const getOrderedColor = (
 };
 
 export const optionTypes = {
+  levels: {
+    type: RANGE,
+    range: [1, 256],
+    default: 2
+  },
   thresholdMap: {
     type: ENUM,
     options: [
@@ -100,6 +105,7 @@ export const optionTypes = {
 };
 
 const defaults = {
+  levels: optionTypes.levels.default,
   thresholdMap: optionTypes.thresholdMap.default,
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
@@ -107,12 +113,13 @@ const defaults = {
 const ordered = (
   input: HTMLCanvasElement,
   options: {
+    levels: number,
     thresholdMap: Threshold,
     palette: Palette
   } = defaults
 ): HTMLCanvasElement => {
   const { palette, thresholdMap } = options;
-  const levels = palette.options.levels || 2;
+  const levels = (palette.options && palette.options.levels) || 2;
 
   const output = cloneCanvas(input, false);
 

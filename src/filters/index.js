@@ -5,7 +5,7 @@ import { THEMES } from "palettes/user";
 
 import binarize, { optionTypes as binarizeOptions } from "./binarize";
 import grayscale, { optionTypes as grayscaleOptions } from "./grayscale";
-import ordered, { optionTypes as orderedOptions } from "./ordered";
+import ordered, { BAYER_4X4, optionTypes as orderedOptions } from "./ordered";
 import random, { optionTypes as randomOptions } from "./random";
 import halftone, { optionTypes as halftoneOptions } from "./halftone";
 import quantize, { optionTypes as quantizeOptions } from "./quantize";
@@ -54,7 +54,42 @@ export const filterList = [
     },
     optionTypes: quantizeOptions
   },
+  {
+    name: "Quantize (No dithering, sepia test)",
+    filter: quantize,
+    options: {
+      palette: {
+        ...palettes.user,
+        options: { colors: THEMES.SEPIA }
+      }
+    },
+    optionTypes: quantizeOptions
+  },
+  {
+    name: "Quantize (No dithering, vaporwave test)",
+    filter: quantize,
+    options: {
+      palette: {
+        ...palettes.user,
+        options: { colors: THEMES.VAPORWAVE }
+      }
+    },
+    optionTypes: quantizeOptions
+  },
   { name: "Ordered (Windows)", filter: ordered, optionTypes: orderedOptions },
+  {
+    name: "Ordered (Windows 16-color)",
+    filter: ordered,
+    options: {
+      levels: 16,
+      thresholdMap: BAYER_4X4,
+      palette: {
+        ...palettes.user,
+        options: { colors: THEMES.CGA }
+      }
+    },
+    optionTypes: orderedOptions
+  },
   {
     name: "Floyd-Steinberg",
     filter: floydSteinberg,
@@ -82,10 +117,43 @@ export const filterList = [
     },
     optionTypes: errorDiffusingOptions
   },
+  {
+    name: "Floyd-Steinberg (Sepia test)",
+    filter: floydSteinberg,
+    options: {
+      palette: {
+        ...palettes.user,
+        options: { colors: THEMES.SEPIA }
+      }
+    },
+    optionTypes: errorDiffusingOptions
+  },
+  {
+    name: "Floyd-Steinberg (Vaporwave test)",
+    filter: floydSteinberg,
+    options: {
+      palette: {
+        ...palettes.user,
+        options: { colors: THEMES.VAPORWAVE }
+      }
+    },
+    optionTypes: errorDiffusingOptions
+  },
   { name: "Jarvis", filter: jarvis, optionTypes: errorDiffusingOptions },
   {
     name: "Atkinson (Mac)",
     filter: atkinson,
+    optionTypes: errorDiffusingOptions
+  },
+  {
+    name: "Atkinson (Macintosh II color test)",
+    filter: atkinson,
+    options: {
+      palette: {
+        ...palettes.user,
+        options: { colors: THEMES.MAC2 }
+      }
+    },
     optionTypes: errorDiffusingOptions
   },
   { name: "Sierra (full)", filter: sierra, optionTypes: errorDiffusingOptions },
