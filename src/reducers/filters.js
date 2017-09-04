@@ -6,7 +6,8 @@ import {
   SELECT_FILTER,
   SET_GRAYSCALE,
   SET_FILTER_OPTION,
-  SET_FILTER_PALETTE_OPTION
+  SET_FILTER_PALETTE_OPTION,
+  ADD_PALETTE_COLOR
 } from "constants/actionTypes";
 
 import { floydSteinberg } from "filters/errorDiffusing";
@@ -74,6 +75,29 @@ export default (state: AppState = initialState, action: Action) => {
                 options: {
                   ...state.selected.filter.options.palette.options,
                   [action.optionName]: action.value
+                }
+              }
+            }
+          }
+        }
+      };
+    case ADD_PALETTE_COLOR:
+      return {
+        ...state,
+        selected: {
+          ...state.selected,
+          filter: {
+            ...state.selected.filter,
+            options: {
+              ...state.selected.filter.options,
+              palette: {
+                ...state.selected.filter.options.palette,
+                options: {
+                  ...state.selected.filter.options.palette.options,
+                  colors: [
+                    ...state.selected.filter.options.palette.options.colors,
+                    action.color
+                  ]
                 }
               }
             }

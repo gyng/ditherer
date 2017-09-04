@@ -4,7 +4,7 @@
 import * as types from "constants/actionTypes";
 import { paletteList } from "palettes";
 
-import type { Filter } from "types";
+import type { ColorRGBA, Filter } from "types";
 
 export const loadImage = (image: HTMLImageElement) => ({
   type: types.LOAD_IMAGE,
@@ -60,6 +60,11 @@ export const filterImageAsync = (
 
   return null;
 };
+
+export const addPaletteColor = (color: ColorRGBA) => ({
+  type: types.ADD_PALETTE_COLOR,
+  color
+});
 
 export const setFilterOption = (optionName: string, value: any) => {
   const paletteObject = paletteList.find(p => p.name === value);

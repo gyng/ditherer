@@ -42,6 +42,7 @@ const Controls = (props: any) => {
                 types={oType}
                 value={props.options[name]}
                 options={props.options[name].options}
+                onAddPaletteColor={props.onAddPaletteColor}
                 onSetFilterOption={props.onSetFilterOption}
                 onSetPaletteOption={props.onSetPaletteOption}
               />
@@ -54,6 +55,7 @@ const Controls = (props: any) => {
                 value={props.options.colors}
                 onSetFilterOption={props.onSetFilterOption}
                 onSetPaletteOption={props.onSetPaletteOption}
+                onAddPaletteColor={props.onAddPaletteColor}
               />
             );
           case STRING:

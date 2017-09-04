@@ -1,7 +1,11 @@
 // @flow
 
 import { connect } from "react-redux";
-import { setFilterOption, setFilterPaletteOption } from "actions";
+import {
+  addPaletteColor,
+  setFilterOption,
+  setFilterPaletteOption
+} from "actions";
 import Controls from "components/controls";
 import type { State } from "types";
 
@@ -13,7 +17,8 @@ const mapStateToProps = (state: State) => ({
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onSetFilterOption: (name, value) => dispatch(setFilterOption(name, value)),
   onSetPaletteOption: (name, value) =>
-    dispatch(setFilterPaletteOption(name, value))
+    dispatch(setFilterPaletteOption(name, value)),
+  onAddPaletteColor: color => dispatch(addPaletteColor(color))
 });
 
 const ContainedControls = connect(mapStateToProps, mapDispatchToProps)(

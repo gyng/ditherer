@@ -86,7 +86,8 @@ export const THEMES = {
     rgba(173, 140, 255, 255),
     rgba(135, 149, 232, 255),
     rgba(148, 208, 255, 255)
-  ]
+  ],
+  EMPTY: []
 };
 
 const optionTypes = {
