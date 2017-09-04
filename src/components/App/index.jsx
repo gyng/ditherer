@@ -212,8 +212,8 @@ export default class App extends React.Component<*, *, *> {
         <div className={s.chrome}>
           <h1>ＤＩＴＨＥＲＥＲ ▓▒░</h1>
           {loadImageSection}
-          {filterButtonSection}
           {filterOptionsSection}
+          {filterButtonSection}
           <div className={s.github}>
             <a href="https://github.com/gyng/ditherer/">GitHub</a>
           </div>
