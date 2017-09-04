@@ -4,19 +4,22 @@
 
 import React from "react";
 
+import s from "./styles.scss";
+
 const Bool = (props: {
   name: string,
   value: boolean,
   onSetFilterOption: (string, boolean) => {}
 }) =>
   <div>
-    {props.name}
     <input
       type="checkbox"
       checked={props.value}
       onChange={e => props.onSetFilterOption(props.name, e.target.checked)}
     />
-    {props.value}
+    <span className={s.label}>
+      {props.name}
+    </span>
   </div>;
 
 export default Bool;
