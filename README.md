@@ -2,13 +2,16 @@
 
 ![screenshot](screenshot.png)
 
-WIP. For all your online dithering needs.
+For all your online dithering needs.
 
 #### TODO
 
 * Tests
-* UI for options
-* Actual site design
+* Cleanup
+* Adaptive palette
+* Palette saving
+* Image resize
+* More filters
 
 #### References
 

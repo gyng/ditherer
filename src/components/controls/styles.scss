@@ -1,0 +1,129 @@
+$gray: #bfbfbf;
+$light-gray: #bfbfbf;
+$beautiful-blue: #000080;
+
+.controls {
+  display: flex;
+  flex-direction: column;
+}
+
+.control {
+  border: 1px outset #fff;
+  background: $light-gray;
+  padding: 3px;
+}
+
+.group {
+  .name {
+    background-color: $light-gray;
+    padding: 0 3px;
+    position: relative;
+    top: -9px;
+  }
+
+  border: 2px groove $gray;
+  padding: 0 3px 3px;
+  margin-top: 10px;
+}
+
+.enum {
+  width: 100%;
+  padding: 5px;
+}
+
+.colorArray {
+  display: flex;
+  flex-flow: row wrap;
+  max-width: 100%;
+  padding: 5px 0;
+}
+
+.range {
+  .rangeGroup {
+    display: flex;
+    flex-direction: row;
+
+    > input[type=range] {
+      margin: 0;
+    }
+  }
+
+  .value {
+    text-align: right;
+    min-width: 30px;
+  }
+
+  margin-top: 5px;
+}
+
+.file {
+  width: 100%;
+  background-color: white;
+  border: 1px inset #ccc;
+}
+
+.name {
+  text-transform: capitalize;
+  background: grey;
+  width: 100%;
+  user-select: none;
+}
+
+.label {
+  text-transform: capitalize;
+  margin-bottom: 1px;
+  user-select: none;
+}
+
+input[type=text],
+input[type=select],
+.input {
+  border: 2px inset #ccc;
+  padding: 5px;
+}
+
+button,
+.button {
+  background-color: $light-gray;
+  border-left: 2px outset white;
+  border-top: 2px outset white;
+  border-bottom: 1px outset $gray;
+  border-right: 1px outset $gray;
+  box-shadow: 1px 1px 0 black;
+  padding: 3px 6px;
+  margin: 1px;
+  outline: none;
+  user-select: none;
+
+  &:active {
+    border: 2px inset $gray;
+    border-bottom: 1px outset $gray;
+    border-right: 1px outset $gray;
+  }
+
+  &:focus {
+    outline: 1px dotted black;
+    outline-offset: -5px;
+    box-shadow: 2px 0 black, 0 2px black, 2px 2px black;
+  }
+}
+
+.titleBar {
+  background: linear-gradient(90deg, $beautiful-blue, #1c85ce);
+  align-items: center;
+  display: flex;
+  padding: 2px 6px;
+  flex: 1;
+  color: white;
+  font-weight: bold;
+  user-select: none;
+  margin: 1px 2px;
+  cursor: default;
+}
+
+.window {
+  border-left: 2px outset white;
+  border-top: 2px outset white;
+  border-bottom: 1px outset $gray;
+  border-right: 1px outset $gray;
+}

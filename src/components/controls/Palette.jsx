@@ -9,6 +9,8 @@ import { paletteList } from "palettes";
 
 import type { ColorRGBA, Palette as PaletteType } from "types";
 
+import s from "./styles.scss";
+
 const Palette = (props: {
   name: string,
   value: PaletteType,
@@ -17,10 +19,13 @@ const Palette = (props: {
   onSetPaletteOption: (string, any) => {},
   onAddPaletteColor: ColorRGBA => {}
 }) =>
-  <div>
-    {props.name}
+  <div className={s.group}>
+    <span className={s.name}>
+      {props.name}
+    </span>
 
     <select
+      className={s.enum}
       value={props.value.name}
       onChange={e => props.onSetFilterOption(props.name, e.target.value)}
     >

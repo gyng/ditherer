@@ -43,7 +43,7 @@ const store = createStore(
 ReactDOM.render(
   <Provider store={store}>
     <ConnectedRouter history={history}>
-      <div>
+      <div style={{ height: "100%" }}>
         <Route path="/" component={App} className={s.app} />
       </div>
     </ConnectedRouter>

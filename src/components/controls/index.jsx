@@ -22,6 +22,8 @@ import Range from "./Range";
 import Stringly from "./Stringly";
 import ColorArray from "./ColorArray";
 
+import s from "./styles.scss";
+
 const Controls = (props: {
   options: { [string]: any },
   optionTypes: OptionTypes,
@@ -29,7 +31,7 @@ const Controls = (props: {
   onSetFilterOption: (string, any) => {},
   onSetPaletteOption: (string, any) => {}
 }) =>
-  <div>
+  <div className={s.controls}>
     {Object.entries(props.optionTypes).map(e => {
       const [name, oType] = e;
 

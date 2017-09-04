@@ -3,9 +3,11 @@
 
 import React from "react";
 import PropTypes from "prop-types";
+import Draggable from "react-draggable";
 
 import Controls from "containers/Controls";
 
+import controls from "components/controls/styles.scss";
 import s from "./styles.scss";
 
 export default class App extends React.Component<*, *, *> {
@@ -16,6 +18,8 @@ export default class App extends React.Component<*, *, *> {
   constructor(props: any) {
     super(props);
     this.inputCanvas = null;
+    this.outputCanvas = null;
+    this.zIndex = 0;
   }
 
   componentWillUpdate(nextProps: any) {
@@ -51,41 +55,77 @@ export default class App extends React.Component<*, *, *> {
 
   inputCanvas: ?HTMLCanvasElement;
   outputCanvas: ?HTMLCanvasElement;
+  zIndex: number;
 
   render() {
-    return (
-      <div>
+    const loadImageSection = (
+      <div className={s.section}>
+        <h2>Load image</h2>
         <input
+          className={controls.file}
           type="file"
           id="imageLoader"
           name="imageLoader"
           onChange={this.props.onLoadImage}
         />
-        <select
-          onChange={e => {
-            const name = e.target.value;
-            const filter = this.props.availableFilters.find(
-              f => f.displayName === name
-            );
-            this.props.onSelectFilter(name, filter);
-          }}
-          value={this.props.selectedFilter.displayName}
-        >
-          {this.props.availableFilters.map(f =>
-            <option key={f.displayName} value={f.displayName}>
-              {f.displayName}
-            </option>
-          )}
-        </select>
-        <Controls />
-        Pre-convert to grayscale:
-        <input
-          name="convertGrayscale"
-          type="checkbox"
-          checked={this.props.convertGrayscale}
-          onChange={e => this.props.onConvertGrayscale(e.target.checked)}
-        />
+      </div>
+    );
+
+    const filterOptionsSection = (
+      <div className={s.section}>
+        <h2>Algorithm</h2>
+        <div className={s.filterOptions}>
+          <select
+            className={controls.enum}
+            onChange={e => {
+              const name = e.target.value;
+              const filter = this.props.availableFilters.find(
+                f => f.displayName === name
+              );
+              this.props.onSelectFilter(name, filter);
+            }}
+            value={this.props.selectedFilter.displayName}
+          >
+            {this.props.availableFilters.map(f =>
+              <option key={f.displayName} value={f.displayName}>
+                {f.displayName}
+              </option>
+            )}
+          </select>
+          <div className={controls.group}>
+            <span className={controls.name}>Options</span>
+            <Controls />
+            Pre-convert to grayscale:
+            <input
+              name="convertGrayscale"
+              type="checkbox"
+              checked={this.props.convertGrayscale}
+              onChange={e => this.props.onConvertGrayscale(e.target.checked)}
+            />
+          </div>
+          <button
+            className={s.copyButton}
+            onClick={() => {
+              if (this.outputCanvas) {
+                const image = new Image();
+                image.src = this.outputCanvas.toDataURL("image/png");
+                image.onload = () => {
+                  this.props.onSetInput(image);
+                };
+              }
+            }}
+          >
+            {"<< Copy output to input"}
+          </button>
+        </div>
+      </div>
+    );
+
+    const filterButtonSection = (
+      <div className={s.section}>
+        <h2>Filter</h2>
         <button
+          className={s.filterButton}
           onClick={() => {
             this.props.onFilterImage(
               this.inputCanvas,
@@ -94,36 +134,65 @@ export default class App extends React.Component<*, *, *> {
             );
           }}
         >
-          F I L T E R - - T H I S - - I F - - Y O U - - C A N
+          Filter
         </button>
-        <button
-          onClick={() => {
-            if (this.outputCanvas) {
-              const image = new Image();
-              image.src = this.outputCanvas.toDataURL("image/png");
-              image.onload = () => {
-                this.props.onSetInput(image);
-              };
-            }
-          }}
-        >
-          {"<< Copy output to input"}
-        </button>
-        <div style={{ border: "solid 1px grey" }}>
-          <canvas
-            style={{ border: "solid 1px green" }}
-            ref={c => {
-              this.inputCanvas = c;
-            }}
-          />
+      </div>
+    );
 
-          <canvas
-            style={{ border: "solid 1px red" }}
-            ref={c => {
-              this.outputCanvas = c;
-            }}
-          />
+    const bringToTop = e => {
+      this.zIndex += 1;
+      e.currentTarget.style.zIndex = `${this.zIndex}`;
+    };
+
+    const canvases = (
+      <div className={s.canvases}>
+        <Draggable handle=".handle">
+          <div role="presentation" onMouseDownCapture={bringToTop}>
+            <div className={controls.window}>
+              <div className={["handle", controls.titleBar].join(" ")}>
+                Input
+              </div>
+              <canvas
+                className={s.canvas}
+                ref={c => {
+                  this.inputCanvas = c;
+                }}
+              />
+            </div>
+          </div>
+        </Draggable>
+
+        <Draggable handle=".handle">
+          <div role="presentation" onMouseDownCapture={bringToTop}>
+            <div className={controls.window}>
+              <div className={["handle", controls.titleBar].join(" ")}>
+                Output
+              </div>
+              <canvas
+                className={s.canvas}
+                ref={c => {
+                  this.outputCanvas = c;
+                }}
+              />
+            </div>
+          </div>
+        </Draggable>
+      </div>
+    );
+
+    return (
+      <div className={s.app}>
+        <div className={s.chrome}>
+          <h1>ＤＩＴＨＥＲＥＲ ▓▒░</h1>
+          {loadImageSection}
+          {filterButtonSection}
+          {filterOptionsSection}
+          <div className={s.github}>
+            <a href="https://github.com/gyng/ditherer/">GitHub</a>
+          </div>
         </div>
+
+        {canvases}
       </div>
     );
   }

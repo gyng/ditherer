@@ -1,11 +1,53 @@
+$light-gray: #bfbfbf;
+
 .app {
-  align-content: center;
+  align-content: flex-start;
   display: flex;
-  flex-direction: column;
-  height: 100%;
-  justify-content: center;
+  flex-direction: row;
+  min-height: 100%;
+  justify-content: flex-start;
   margin: 0;
   padding: 0;
-  text-align: center;
   width: 100%;
+}
+
+.chrome {
+  display: flex;
+  flex-direction: column;
+  background: $light-gray;
+  min-width: 210px;
+  width: 10vw;
+  padding: 15px;
+
+  .filterButton {
+    padding: 20px;
+    width: 100%;
+  }
+
+  .copyButton {
+    margin-top: 10px;
+  }
+
+  .section:not(:first-child) {
+    margin-top: 20px;
+  }
+
+  .github {
+    margin-top: auto;
+  }
+}
+
+.canvases {
+  display: flex;
+  flex-flow: row wrap;
+
+  > div {
+    margin: 10px;
+    display: table;
+    background-color: $light-gray;
+  }
+
+  .canvas {
+    display: block;
+  }
 }

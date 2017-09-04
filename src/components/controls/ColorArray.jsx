@@ -9,6 +9,8 @@ import { rgba } from "utils";
 
 import type { ColorRGBA } from "types";
 
+import s from "./styles.scss";
+
 const convertCsvToColor = (csv: string): ?ColorRGBA => {
   const tokens = csv.split(",");
 
@@ -35,21 +37,11 @@ const ColorArray = (props: {
   const currentThemeName = currentTheme ? currentTheme[0] : customThemeName;
 
   return (
-    <div style={{ display: "flex", flexDirection: "row" }}>
-      {props.value.map(c =>
-        <div
-          key={c}
-          style={{
-            minHeight: "16px",
-            minWidth: "16px",
-            backgroundColor: `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`
-          }}
-        />
-      )}
-
+    <div>
       <div>
-        Pick theme:{" "}
+        Theme
         <select
+          className={s.enum}
           value={currentThemeName}
           onChange={e =>
             props.onSetPaletteOption("colors", THEMES[e.target.value])}
@@ -68,22 +60,33 @@ const ColorArray = (props: {
         </select>
       </div>
 
-      <div>
-        <button
-          onClick={() => {
-            const colorString = prompt(
-              'Add a color: "r,g,b,a" (0-255 for each, eg. 255,0,0,255 for red)'
-            );
-            const color = convertCsvToColor(colorString);
-
-            if (color) {
-              props.onAddPaletteColor(color);
-            }
-          }}
-        >
-          Add color
-        </button>
+      <div className={s.colorArray}>
+        {props.value.map(c =>
+          <div
+            key={c}
+            style={{
+              minHeight: "16px",
+              minWidth: "16px",
+              backgroundColor: `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`
+            }}
+          />
+        )}
       </div>
+
+      <button
+        onClick={() => {
+          const colorString = prompt(
+            'Add a color: "r,g,b,a" (0-255 for each, eg. 255,0,0,255 for red)'
+          );
+          const color = convertCsvToColor(colorString);
+
+          if (color) {
+            props.onAddPaletteColor(color);
+          }
+        }}
+      >
+        Add color
+      </button>
     </div>
   );
 };

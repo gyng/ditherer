@@ -2,6 +2,8 @@
 
 import React from "react";
 
+import s from "./styles.scss";
+
 const Stringly = (props: {
   name: string,
   value: string,
@@ -9,7 +11,9 @@ const Stringly = (props: {
 }) => {
   return (
     <div>
-      {props.name}
+      <div className={s.label}>
+        {props.name}
+      </div>
       <input
         type="text"
         value={props.value}
