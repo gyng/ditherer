@@ -31,6 +31,7 @@ const Controls = (props: any) => {
                 name={name}
                 types={oType}
                 value={props.options[name]}
+                onSetFilterOption={props.onSetFilterOption}
               />
             );
           case PALETTE:
@@ -41,6 +42,8 @@ const Controls = (props: any) => {
                 types={oType}
                 value={props.options[name]}
                 options={props.options[name].options}
+                onSetFilterOption={props.onSetFilterOption}
+                onSetPaletteOption={props.onSetPaletteOption}
               />
             );
           case COLOR_ARRAY:
@@ -54,6 +57,7 @@ const Controls = (props: any) => {
                 name={name}
                 types={oType}
                 value={props.options[name]}
+                onSetFilterOption={props.onSetFilterOption}
               />
             );
           case BOOL:
@@ -63,9 +67,9 @@ const Controls = (props: any) => {
                 name={name}
                 types={oType}
                 value={props.options[name]}
+                onSetFilterOption={props.onSetFilterOption}
               />
             );
-
           case ENUM:
             return (
               <Enum
@@ -73,6 +77,7 @@ const Controls = (props: any) => {
                 name={name}
                 types={oType}
                 value={props.options[name]}
+                onSetFilterOption={props.onSetFilterOption}
               />
             );
           default:

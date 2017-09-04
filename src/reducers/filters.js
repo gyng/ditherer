@@ -4,7 +4,9 @@ import {
   LOAD_IMAGE,
   FILTER_IMAGE,
   SELECT_FILTER,
-  SET_GRAYSCALE
+  SET_GRAYSCALE,
+  SET_FILTER_OPTION,
+  SET_FILTER_PALETTE_OPTION
 } from "constants/actionTypes";
 
 import { floydSteinberg } from "filters/errorDiffusing";
@@ -42,6 +44,40 @@ export default (state: AppState = initialState, action: Action) => {
         selected: {
           name: action.name,
           filter: action.filter.filter
+        }
+      };
+    case SET_FILTER_OPTION:
+      return {
+        ...state,
+        selected: {
+          ...state.selected,
+          filter: {
+            ...state.selected.filter,
+            options: {
+              ...state.selected.filter.options,
+              [action.optionName]: action.value
+            }
+          }
+        }
+      };
+    case SET_FILTER_PALETTE_OPTION:
+      return {
+        ...state,
+        selected: {
+          ...state.selected,
+          filter: {
+            ...state.selected.filter,
+            options: {
+              ...state.selected.filter.options,
+              palette: {
+                ...state.selected.filter.options.palette,
+                options: {
+                  ...state.selected.filter.options.palette.options,
+                  [action.optionName]: action.value
+                }
+              }
+            }
+          }
         }
       };
     case FILTER_IMAGE:

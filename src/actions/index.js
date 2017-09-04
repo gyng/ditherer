@@ -2,6 +2,7 @@
 /* eslint-disable import/prefer-default-export */
 
 import * as types from "constants/actionTypes";
+import { paletteList } from "palettes";
 
 import type { Filter } from "types";
 
@@ -59,3 +60,19 @@ export const filterImageAsync = (
 
   return null;
 };
+
+export const setFilterOption = (optionName: string, value: any) => {
+  const paletteObject = paletteList.find(p => p.name === value);
+
+  return {
+    type: types.SET_FILTER_OPTION,
+    optionName,
+    value: paletteObject ? paletteObject.palette : value
+  };
+};
+
+export const setFilterPaletteOption = (optionName: string, value: any) => ({
+  type: types.SET_FILTER_PALETTE_OPTION,
+  optionName,
+  value
+});

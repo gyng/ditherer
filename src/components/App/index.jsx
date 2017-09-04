@@ -4,7 +4,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-import Controls from "components/controls";
+import Controls from "containers/Controls";
 
 import s from "./styles.scss";
 
@@ -77,12 +77,7 @@ export default class App extends React.Component<*, *> {
             </option>
           )}
         </select>
-        <span>
-          <Controls
-            optionTypes={this.props.selectedFilter.filter.optionTypes}
-            options={this.props.selectedFilter.filter.options}
-          />
-        </span>
+        <Controls />
         Pre-convert to grayscale:
         <input
           name="convertGrayscale"

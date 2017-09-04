@@ -11,7 +11,10 @@ const Palette = (props: any) => {
     <div>
       {props.name}
 
-      <select value={props.value.name}>
+      <select
+        value={props.value.name}
+        onChange={e => props.onSetFilterOption(props.name, e.target.value)}
+      >
         {paletteList.map(p =>
           <option key={p.name} name={p.name}>
             {p.name}
@@ -19,7 +22,11 @@ const Palette = (props: any) => {
         )}
       </select>
 
-      <Controls optionTypes={props.value.optionTypes} options={props.options} />
+      <Controls
+        optionTypes={props.value.optionTypes}
+        options={props.options}
+        onSetFilterOption={props.onSetPaletteOption}
+      />
     </div>
   );
 };
