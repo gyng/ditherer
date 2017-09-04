@@ -48,7 +48,13 @@ const Controls = (props: any) => {
             );
           case COLOR_ARRAY:
             return (
-              <ColorArray key={name} name={name} value={props.options.colors} />
+              <ColorArray
+                key={name}
+                name={name}
+                value={props.options.colors}
+                onSetFilterOption={props.onSetFilterOption}
+                onSetPaletteOption={props.onSetPaletteOption}
+              />
             );
           case STRING:
             return (

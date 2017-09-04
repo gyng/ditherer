@@ -25,6 +25,7 @@ const Palette = (props: any) => {
       <Controls
         optionTypes={props.value.optionTypes}
         options={props.options}
+        onSetPaletteOption={props.onSetPaletteOption}
         onSetFilterOption={props.onSetPaletteOption}
       />
     </div>

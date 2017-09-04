@@ -12,7 +12,8 @@ const mapStateToProps = (state: State) => ({
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onSetFilterOption: (name, value) => dispatch(setFilterOption(name, value)),
-  onSetPaletteOption: (name, value) => dispatch(setFilterPaletteOption(name, value))
+  onSetPaletteOption: (name, value) =>
+    dispatch(setFilterPaletteOption(name, value))
 });
 
 const ContainedControls = connect(mapStateToProps, mapDispatchToProps)(

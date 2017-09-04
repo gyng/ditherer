@@ -48,7 +48,7 @@ export const filterList = [
       options: {
         palette: {
           ...palettes.user,
-          options: { colors: THEMES.EGA.MODE4.PALETTE1.LOW }
+          options: { colors: THEMES.EGA_MODE4_PALETTE1_LOW }
         }
       }
     }
@@ -103,7 +103,7 @@ export const filterList = [
       options: {
         palette: {
           ...palettes.user,
-          options: { colors: THEMES.EGA.MODE4.PALETTE1.HIGH }
+          options: { colors: THEMES.EGA_MODE4_PALETTE1_HIGH }
         }
       }
     }

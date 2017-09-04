@@ -29,18 +29,10 @@ const cga = {
 };
 
 export const THEMES = {
-  EGA: {
-    MODE4: {
-      PALETTE1: {
-        LOW: [cga.BLACK, cga.WHITE, cga.MAGENTA, cga.CYAN],
-        HIGH: [cga.BLACK, cga.WHITE, cga.BMAGENTA, cga.BCYAN]
-      },
-      PALETTE2: {
-        LOW: [cga.BLACK, cga.GREEN, cga.RED, cga.YELLOW],
-        HIGH: [cga.BLACK, cga.BGREEN, cga.BRED, cga.BYELLOW]
-      }
-    }
-  },
+  EGA_MODE4_PALETTE1_LOW: [cga.BLACK, cga.WHITE, cga.MAGENTA, cga.CYAN],
+  EGA_MODE4_PALETTE1_HIGH: [cga.BLACK, cga.WHITE, cga.BMAGENTA, cga.BCYAN],
+  EGA_MODE4_PALETTE2_LOW: [cga.BLACK, cga.GREEN, cga.RED, cga.YELLOW],
+  EGA_MODE4_PALETTE2_HIGH: [cga.BLACK, cga.BGREEN, cga.BRED, cga.BYELLOW],
   CGA: [
     cga.BLACK,
     cga.BLUE,
