@@ -79,3 +79,8 @@ export const setFilterPaletteOption = (optionName: string, value: any) => ({
   optionName,
   value
 });
+
+export const setScale = (scale: number) => ({
+  type: types.SET_SCALE,
+  scale
+});

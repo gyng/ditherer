@@ -6,7 +6,8 @@ import {
   loadImageAsync,
   filterImageAsync,
   selectFilter,
-  setConvertGrayscale
+  setConvertGrayscale,
+  setScale
 } from "actions";
 import App from "components/App";
 import type { State } from "types";
@@ -17,7 +18,8 @@ const mapStateToProps = (state: State) => ({
   outputImage: state.filters.outputImage,
   availableFilters: filterList,
   selectedFilter: state.filters.selected,
-  convertGrayscale: state.filters.convertGrayscale
+  convertGrayscale: state.filters.convertGrayscale,
+  scale: state.filters.scale
 });
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
@@ -30,7 +32,8 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   },
   onSelectFilter: (name, filter) => dispatch(selectFilter(name, filter)),
   onConvertGrayscale: val => dispatch(setConvertGrayscale(val)),
-  onSetInput: image => dispatch(loadImage(image))
+  onSetInput: image => dispatch(loadImage(image)),
+  onSetScale: scale => dispatch(setScale(scale))
 });
 
 const ContainedApp = connect(mapStateToProps, mapDispatchToProps)(App);

@@ -44,13 +44,14 @@ $beautiful-blue: #000080;
     flex-direction: row;
 
     > input[type=range] {
+      flex: 1;
       margin: 0;
     }
   }
 
   .value {
     text-align: right;
-    min-width: 30px;
+    min-width: 35px;
   }
 
   margin-top: 5px;

@@ -5,6 +5,7 @@ import {
   FILTER_IMAGE,
   SELECT_FILTER,
   SET_GRAYSCALE,
+  SET_SCALE,
   SET_FILTER_OPTION,
   SET_FILTER_PALETTE_OPTION,
   ADD_PALETTE_COLOR
@@ -17,6 +18,7 @@ import type { Action, AppState } from "types";
 const initialState = {
   selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
   convertGrayscale: false,
+  scale: 1,
   inputImage: null,
   outputImage: null
 };
@@ -32,6 +34,11 @@ export default (state: AppState = initialState, action: Action) => {
       return {
         ...state,
         convertGrayscale: action.value
+      };
+    case SET_SCALE:
+      return {
+        ...state,
+        scale: action.scale
       };
     case SELECT_FILTER:
       return {

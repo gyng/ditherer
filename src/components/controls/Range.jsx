@@ -21,7 +21,6 @@ const Range = (props: {
         max={props.types.range[1]}
         value={props.value}
         onChange={e => props.onSetFilterOption(props.name, e.target.value)}
-        list="tickmarks"
       />
 
       <span className={s.value}>

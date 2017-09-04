@@ -10,8 +10,8 @@ For all your online dithering needs.
 * Cleanup
 * Adaptive palette
 * Palette saving
-* Image resize
 * More filters
+* Better UI/UX
 
 #### Deploying
 

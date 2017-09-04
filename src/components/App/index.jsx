@@ -25,23 +25,26 @@ export default class App extends React.Component<*, *, *> {
   componentWillUpdate(nextProps: any) {
     const drawToCanvas = (
       canvas: HTMLCanvasElement,
-      image: HTMLImageElement
+      image: HTMLImageElement,
+      scale: number
     ) => {
-      canvas.width = image.width; // eslint-disable-line
-      canvas.height = image.height; // eslint-disable-line
+      const finalWidth = image.width * scale;
+      const finalHeight = image.height * scale;
+
+      canvas.width = finalWidth; // eslint-disable-line
+      canvas.height = finalHeight; // eslint-disable-line
       const ctx = canvas.getContext("2d");
 
       if (ctx) {
-        ctx.drawImage(image, 0, 0);
+        ctx.drawImage(image, 0, 0, finalWidth, finalHeight);
       }
     };
 
-    if (
-      this.inputCanvas &&
-      nextProps.inputImage &&
-      nextProps.inputImage !== this.props.inputImage
-    ) {
-      drawToCanvas(this.inputCanvas, nextProps.inputImage);
+    const newInput = nextProps.inputImage !== this.props.inputImage;
+    const newScale = nextProps.scale !== this.props.scale;
+
+    if (this.inputCanvas && nextProps.inputImage && (newInput || newScale)) {
+      drawToCanvas(this.inputCanvas, nextProps.inputImage, nextProps.scale);
     }
 
     if (
@@ -49,7 +52,7 @@ export default class App extends React.Component<*, *, *> {
       nextProps.outputImage &&
       nextProps.outputImage !== this.props.outputImage
     ) {
-      drawToCanvas(this.outputCanvas, nextProps.outputImage);
+      drawToCanvas(this.outputCanvas, nextProps.outputImage, 1);
     }
   }
 
@@ -68,6 +71,25 @@ export default class App extends React.Component<*, *, *> {
           name="imageLoader"
           onChange={this.props.onLoadImage}
         />
+
+        {/* TODO: make controls more generic and take in onchange functions */}
+        <div className={controls.range}>
+          <div className={controls.label}>Scale</div>
+          <div className={controls.rangeGroup}>
+            <input
+              type="range"
+              min={10}
+              max={400}
+              step={10}
+              value={this.props.scale * 100}
+              onChange={e =>
+                this.props.onSetScale(parseInt(e.target.value, 10) / 100)}
+            />
+            <div className={controls.value}>
+              {Math.round(this.props.scale * 100)}%
+            </div>
+          </div>
+        </div>
       </div>
     );
 
@@ -204,32 +226,36 @@ export default class App extends React.Component<*, *, *> {
 }
 
 App.propTypes = {
-  className: PropTypes.string,
-  match: PropTypes.object,
-  onLoadImage: PropTypes.func,
-  onFilterImage: PropTypes.func,
-  inputImage: PropTypes.object,
-  outputImage: PropTypes.object,
   availableFilters: PropTypes.arrayOf(PropTypes.object),
-  selectedFilter: PropTypes.object,
-  onSelectFilter: PropTypes.func,
+  className: PropTypes.string,
   convertGrayscale: PropTypes.bool,
+  inputImage: PropTypes.object,
+  match: PropTypes.object,
   onConvertGrayscale: PropTypes.func,
-  onSetInput: PropTypes.func
+  onFilterImage: PropTypes.func,
+  onLoadImage: PropTypes.func,
+  onSelectFilter: PropTypes.func,
+  onSetInput: PropTypes.func,
+  onSetScale: PropTypes.func,
+  outputImage: PropTypes.object,
+  scale: PropTypes.number,
+  selectedFilter: PropTypes.object
 };
 
 App.defaultProps = {
+  availableFilters: [],
   children: null,
   className: s.app,
-  match: { url: "unknown" },
-  onLoadImage: () => {},
-  onFilterImage: () => {},
-  inputImage: null,
-  outputImage: null,
-  availableFilters: [],
-  selectedFilter: null,
-  onSelectFilter: () => {},
   convertGrayscale: false,
+  inputImage: null,
+  match: { url: "unknown" },
   onConvertGrayscale: () => {},
-  onSetInput: () => {}
+  onFilterImage: () => {},
+  onLoadImage: () => {},
+  onSelectFilter: () => {},
+  onSetInput: () => {},
+  onSetScale: () => {},
+  outputImage: null,
+  scale: 1,
+  selectedFilter: null
 };
