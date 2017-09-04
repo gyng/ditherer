@@ -65,6 +65,7 @@ const random = (
 };
 
 export default {
+  name: "Random",
   func: random,
   options: defaults,
   optionTypes,

@@ -48,6 +48,7 @@ const binarize = (
 };
 
 export default {
+  name: "Binarize",
   func: binarize,
   optionTypes,
   options: defaults,

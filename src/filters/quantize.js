@@ -44,6 +44,7 @@ const quantize = (
 };
 
 export default {
+  name: "Quantize",
   func: quantize,
   options: defaults,
   optionTypes,

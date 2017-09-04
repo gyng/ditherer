@@ -28,6 +28,7 @@ const grayscale = (input: HTMLCanvasElement): HTMLCanvasElement => {
 };
 
 export default {
+  name: "Grayscale",
   func: grayscale,
   options: defaults,
   optionTypes,

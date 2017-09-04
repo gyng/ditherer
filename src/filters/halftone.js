@@ -110,6 +110,7 @@ const halftone = (
 };
 
 export default {
+  name: "Halftone",
   func: halftone,
   options: defaults,
   optionTypes,

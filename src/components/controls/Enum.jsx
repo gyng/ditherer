@@ -2,7 +2,12 @@
 
 import React from "react";
 
-const Enum = (props: any) => {
+const Enum = (props: {
+  name: string,
+  value: string,
+  types: { options: Array<{ name: string, value: string }> },
+  onSetFilterOption: (string, any) => {}
+}) => {
   return (
     <div>
       {props.name}

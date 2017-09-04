@@ -4,7 +4,7 @@
 import * as types from "constants/actionTypes";
 import { paletteList } from "palettes";
 
-import type { ColorRGBA, Filter } from "types";
+import type { ColorRGBA, Filter, FilterFunc } from "types";
 
 export const loadImage = (image: HTMLImageElement) => ({
   type: types.LOAD_IMAGE,
@@ -30,13 +30,11 @@ export const setConvertGrayscale = (value: boolean) => ({
   value
 });
 
-export const selectFilter = (name: string, filter: Filter) => {
-  return {
-    type: types.SELECT_FILTER,
-    name,
-    filter
-  };
-};
+export const selectFilter = (name: string, filter: Filter) => ({
+  type: types.SELECT_FILTER,
+  name,
+  filter
+});
 
 export const filterImage = (image: HTMLImageElement) => ({
   type: types.FILTER_IMAGE,
@@ -45,7 +43,7 @@ export const filterImage = (image: HTMLImageElement) => ({
 
 export const filterImageAsync = (
   input: HTMLCanvasElement,
-  filter: Filter,
+  filter: FilterFunc,
   options: ?any
 ) => (dispatch: Dispatch) => {
   const output = filter(input, options);

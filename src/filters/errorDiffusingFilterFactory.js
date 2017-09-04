@@ -22,6 +22,7 @@ export const defaults = {
 };
 
 export const errorDiffusingFilter = (
+  name: string,
   errorMatrix: {
     offset: [number, number],
     kernel: Array<Array<?number>>
@@ -91,6 +92,7 @@ export const errorDiffusingFilter = (
   };
 
   return {
+    name,
     func: filter,
     optionTypes,
     options: defaults,

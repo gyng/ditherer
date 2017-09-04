@@ -21,7 +21,9 @@ export const BAYER_8X8 = "BAYER_8X8";
 export type Threshold = "BAYER_2X2" | "BAYER_3X3" | "BAYER_4X4" | "BAYER_8X8";
 
 // map[y][x]
-const thresholdMaps = {
+const thresholdMaps: {
+  [Threshold]: { width: number, thresholdMap: Array<Array<?number>> }
+} = {
   [BAYER_2X2]: {
     width: 2,
     thresholdMap: scaleMatrix([[0, 2], [3, 1]], 1 / 4)
@@ -60,9 +62,14 @@ const getOrderedColor = (
   levels: number,
   tx: number,
   ty: number,
-  threshold: [number[]]
+  threshold: Array<Array<?number>>
 ): ColorRGBA => {
   const thresholdValue = threshold[ty][tx];
+
+  if (!thresholdValue) {
+    return rgba(255, 255, 0, 255); // error colour
+  }
+
   const step = 255 / (levels - 1);
 
   // $FlowFixMe
@@ -160,6 +167,7 @@ const ordered = (
 };
 
 export default {
+  name: "Ordered",
   func: ordered,
   options: defaults,
   optionTypes,

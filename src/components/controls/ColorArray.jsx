@@ -1,6 +1,6 @@
 // @flow
 
-/* eslint-disable no-alert */
+/* eslint-disable no-alert, react/no-unused-prop-types, react/prop-types */
 
 import React from "react";
 
@@ -25,7 +25,11 @@ const convertCsvToColor = (csv: string): ?ColorRGBA => {
   return rgba(channels[0], channels[1], channels[2], channels[3]);
 };
 
-const ColorArray = (props: any) => {
+const ColorArray = (props: {
+  value: { [string]: any },
+  onSetPaletteOption: (string, any) => {},
+  onAddPaletteColor: ColorRGBA => {}
+}) => {
   const currentTheme = Object.entries(THEMES).find(e => e[1] === props.value);
   const customThemeName = "Custom";
   const currentThemeName = currentTheme ? currentTheme[0] : customThemeName;

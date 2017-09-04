@@ -15,13 +15,7 @@ import { floydSteinberg } from "filters/errorDiffusing";
 import type { Action, AppState } from "types";
 
 const initialState = {
-  selected: {
-    name: "Floyd-Steinberg",
-    filter: {
-      ...floydSteinberg,
-      options: floydSteinberg.defaults
-    }
-  },
+  selected: { name: "Floyd-Steinberg", filter: floydSteinberg },
   convertGrayscale: false,
   inputImage: null,
   outputImage: null
@@ -62,6 +56,14 @@ export default (state: AppState = initialState, action: Action) => {
         }
       };
     case SET_FILTER_PALETTE_OPTION:
+      if (
+        !state.selected.filter.options ||
+        !state.selected.filter.options.palette
+      ) {
+        console.warn("Tried to set option on null palette", state); // eslint-disable-line
+        return state;
+      }
+
       return {
         ...state,
         selected: {
@@ -82,6 +84,14 @@ export default (state: AppState = initialState, action: Action) => {
         }
       };
     case ADD_PALETTE_COLOR:
+      if (
+        !state.selected.filter.options ||
+        !state.selected.filter.options.palette
+      ) {
+        console.warn("Tried to add color to null palette", state); // eslint-disable-line
+        return state;
+      }
+
       return {
         ...state,
         selected: {

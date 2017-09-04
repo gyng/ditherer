@@ -1,8 +1,14 @@
 // @flow
 
+/* eslint-disable react/no-unused-prop-types */
+
 import React from "react";
 
-const Bool = (props: any) =>
+const Bool = (props: {
+  name: string,
+  value: boolean,
+  onSetFilterOption: (string, boolean) => {}
+}) =>
   <div>
     {props.name}
     <input

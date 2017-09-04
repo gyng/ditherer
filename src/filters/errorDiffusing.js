@@ -11,7 +11,11 @@ const fsKernel = {
   offset: [-1, 0], // x, y
   kernel: [[null, null, 7 / 16], [3 / 16, 5 / 16, 1 / 16]]
 };
-export const floydSteinberg = errorDiffusingFilter(fsKernel, defaults);
+export const floydSteinberg = errorDiffusingFilter(
+  "Floyd-Steinberg",
+  fsKernel,
+  defaults
+);
 
 // http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/
 //         *   5   3
@@ -25,7 +29,7 @@ const sierra3kernel = {
     1 / 32
   )
 };
-export const sierra = errorDiffusingFilter(sierra3kernel, defaults);
+export const sierra = errorDiffusingFilter("Sierra", sierra3kernel, defaults);
 
 //         X   4   3
 // 1   2   3   2   1
@@ -34,7 +38,11 @@ export const sierra2kernel = {
   offset: [-2, 0], // x, y
   kernel: scaleMatrix([[null, null, null, 4, 3], [1, 2, 3, 2, 1]], 1 / 16)
 };
-export const sierra2 = errorDiffusingFilter(sierra2kernel, defaults);
+export const sierra2 = errorDiffusingFilter(
+  "Sierra 2-row",
+  sierra2kernel,
+  defaults
+);
 
 //     X   2
 // 1   1
@@ -43,7 +51,11 @@ export const sierraLiteKernel = {
   offset: [-1, 0], // x, y
   kernel: scaleMatrix([[null, null, 2], [1, 1, null]], 1 / 4)
 };
-export const sierraLite = errorDiffusingFilter(sierraLiteKernel, defaults);
+export const sierraLite = errorDiffusingFilter(
+  "Sierra lite",
+  sierraLiteKernel,
+  defaults
+);
 
 // http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/
 //     X   1   1
@@ -57,7 +69,11 @@ const atkinsonKernel = {
     1 / 8
   )
 };
-export const atkinson = errorDiffusingFilter(atkinsonKernel, defaults);
+export const atkinson = errorDiffusingFilter(
+  "Atkinson",
+  atkinsonKernel,
+  defaults
+);
 
 // http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/
 //         X   7   5
@@ -71,4 +87,4 @@ const jarvisKernel = {
     1 / 48
   )
 };
-export const jarvis = errorDiffusingFilter(jarvisKernel, defaults);
+export const jarvis = errorDiffusingFilter("Jarvis", jarvisKernel, defaults);

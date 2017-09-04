@@ -2,7 +2,12 @@
 
 import React from "react";
 
-const Range = (props: any) => {
+const Range = (props: {
+  name: string,
+  types: { range: [number, number] },
+  value: number,
+  onSetFilterOption: (string, any) => {}
+}) => {
   return (
     <div>
       {props.name}

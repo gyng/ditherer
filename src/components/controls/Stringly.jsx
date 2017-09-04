@@ -2,7 +2,11 @@
 
 import React from "react";
 
-const Stringly = (props: any) => {
+const Stringly = (props: {
+  name: string,
+  value: string,
+  onSetFilterOption: (string, any) => {}
+}) => {
   return (
     <div>
       {props.name}

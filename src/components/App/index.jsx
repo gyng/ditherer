@@ -8,7 +8,7 @@ import Controls from "containers/Controls";
 
 import s from "./styles.scss";
 
-export default class App extends React.Component<*, *> {
+export default class App extends React.Component<*, *, *> {
   static defaultProps: {
     className: string
   };
