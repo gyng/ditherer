@@ -13,6 +13,18 @@ For all your online dithering needs.
 * Image resize
 * More filters
 
+#### Deploying
+
+```
+NODE_ENV=production yarn build
+git checkout gh-pages
+rm commons.js index.html app.*.js
+mv build/* .
+git add .
+git commit
+git push origin gh-pages
+```
+
 #### References
 
 1. http://www.efg2.com/Lab/Library/ImageProcessing/DHALF.TXT
