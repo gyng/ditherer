@@ -65,15 +65,15 @@ export default class App extends React.Component<*, *, *> {
           onChange={e => {
             const name = e.target.value;
             const filter = this.props.availableFilters.find(
-              f => f.name === name
+              f => f.displayName === name
             );
             this.props.onSelectFilter(name, filter);
           }}
-          value={this.props.selectedFilter.name}
+          value={this.props.selectedFilter.displayName}
         >
           {this.props.availableFilters.map(f =>
-            <option key={f.name} value={f.name}>
-              {f.name}
+            <option key={f.displayName} value={f.displayName}>
+              {f.displayName}
             </option>
           )}
         </select>

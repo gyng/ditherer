@@ -15,7 +15,7 @@ import { floydSteinberg } from "filters/errorDiffusing";
 import type { Action, AppState } from "types";
 
 const initialState = {
-  selected: { name: "Floyd-Steinberg", filter: floydSteinberg },
+  selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
   convertGrayscale: false,
   inputImage: null,
   outputImage: null

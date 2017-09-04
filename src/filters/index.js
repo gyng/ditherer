@@ -33,16 +33,16 @@ export {
 } from "./errorDiffusing";
 
 export const filterList = [
-  { name: "Grayscale", filter: grayscale },
-  { name: "Random", filter: random },
-  { name: "Halftone", filter: halftone },
-  { name: "Binarize", filter: binarize },
+  { displayName: "Grayscale", filter: grayscale },
+  { displayName: "Random", filter: random },
+  { displayName: "Halftone", filter: halftone },
+  { displayName: "Binarize", filter: binarize },
   {
-    name: "Quantize (No dithering)",
+    displayName: "Quantize (No dithering)",
     filter: quantize
   },
   {
-    name: "Quantize (No dithering, EGA test)",
+    displayName: "Quantize (No dithering, EGA test)",
     filter: {
       ...quantize,
       options: {
@@ -54,7 +54,7 @@ export const filterList = [
     }
   },
   {
-    name: "Quantize (No dithering, sepia test)",
+    displayName: "Quantize (No dithering, sepia test)",
     filter: {
       ...quantize,
       options: {
@@ -66,7 +66,7 @@ export const filterList = [
     }
   },
   {
-    name: "Quantize (No dithering, vaporwave test)",
+    displayName: "Quantize (No dithering, vaporwave test)",
     filter: {
       ...quantize,
       options: {
@@ -77,9 +77,9 @@ export const filterList = [
       }
     }
   },
-  { name: "Ordered (Windows)", filter: ordered },
+  { displayName: "Ordered (Windows)", filter: ordered },
   {
-    name: "Ordered (Windows 16-color)",
+    displayName: "Ordered (Windows 16-color)",
     filter: {
       ...ordered,
       options: {
@@ -93,11 +93,11 @@ export const filterList = [
     }
   },
   {
-    name: "Floyd-Steinberg",
+    displayName: "Floyd-Steinberg",
     filter: floydSteinberg
   },
   {
-    name: "Floyd-Steinberg (EGA test)",
+    displayName: "Floyd-Steinberg (EGA test)",
     filter: {
       ...floydSteinberg,
       options: {
@@ -109,7 +109,7 @@ export const filterList = [
     }
   },
   {
-    name: "Floyd-Steinberg (CGA test)",
+    displayName: "Floyd-Steinberg (CGA test)",
     filter: {
       ...floydSteinberg,
       options: {
@@ -121,7 +121,7 @@ export const filterList = [
     }
   },
   {
-    name: "Floyd-Steinberg (Sepia test)",
+    displayName: "Floyd-Steinberg (Sepia test)",
     filter: {
       ...floydSteinberg,
       options: {
@@ -133,7 +133,7 @@ export const filterList = [
     }
   },
   {
-    name: "Floyd-Steinberg (Vaporwave test)",
+    displayName: "Floyd-Steinberg (Vaporwave test)",
     filter: {
       ...floydSteinberg,
       options: {
@@ -144,13 +144,13 @@ export const filterList = [
       }
     }
   },
-  { name: "Jarvis", filter: jarvis },
+  { displayName: "Jarvis", filter: jarvis },
   {
-    name: "Atkinson (Mac)",
+    displayName: "Atkinson (Mac)",
     filter: atkinson
   },
   {
-    name: "Atkinson (Macintosh II color test)",
+    displayName: "Atkinson (Macintosh II color test)",
     filter: {
       ...atkinson,
       options: {
@@ -161,13 +161,13 @@ export const filterList = [
       }
     }
   },
-  { name: "Sierra (full)", filter: sierra },
+  { displayName: "Sierra (full)", filter: sierra },
   {
-    name: "Sierra (two-row)",
+    displayName: "Sierra (two-row)",
     filter: sierra2
   },
   {
-    name: "Sierra (lite)",
+    displayName: "Sierra (lite)",
     filter: sierraLite
   }
 ];
