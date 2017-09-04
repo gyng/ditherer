@@ -1,5 +1,6 @@
 [ignore]
 <PROJECT_ROOT>/node_modules/stylelint/.*
+<PROJECT_ROOT>/node_modules/react-draggable/.*
 
 [include]
 
