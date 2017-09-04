@@ -87,6 +87,12 @@ export const THEMES = {
     rgba(135, 149, 232, 255),
     rgba(148, 208, 255, 255)
   ],
+  WIREDSOUND: [
+    // https://fauux.neocities.org
+    rgba(210, 115, 138, 255),
+    rgba(0, 0, 0, 255),
+    rgba(193, 180, 146, 255)
+  ],
   EMPTY: []
 };
 
