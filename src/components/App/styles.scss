@@ -39,7 +39,7 @@ $light-gray: #bfbfbf;
 
 .canvases {
   display: flex;
-  flex-flow: row wrap;
+  flex-flow: row;
 
   > div {
     margin: 10px;

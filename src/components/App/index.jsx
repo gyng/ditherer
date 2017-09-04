@@ -146,7 +146,7 @@ export default class App extends React.Component<*, *, *> {
 
     const canvases = (
       <div className={s.canvases}>
-        <Draggable handle=".handle">
+        <Draggable bounds={{ top: 0, left: 0 }}>
           <div role="presentation" onMouseDownCapture={bringToTop}>
             <div className={controls.window}>
               <div className={["handle", controls.titleBar].join(" ")}>
@@ -162,7 +162,12 @@ export default class App extends React.Component<*, *, *> {
           </div>
         </Draggable>
 
-        <Draggable handle=".handle">
+        <Draggable
+          bounds={{
+            top: 0,
+            left: (this.inputCanvas && -this.inputCanvas.width) || -300
+          }}
+        >
           <div role="presentation" onMouseDownCapture={bringToTop}>
             <div className={controls.window}>
               <div className={["handle", controls.titleBar].join(" ")}>
