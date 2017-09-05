@@ -15,7 +15,7 @@ import { floydSteinberg } from "filters/errorDiffusing";
 
 import type { Action, AppState } from "types";
 
-const initialState = {
+export const initialState = {
   selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
   convertGrayscale: false,
   scale: 1,

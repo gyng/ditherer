@@ -1,54 +1,65 @@
 import * as actions from "actions";
 import * as types from "constants/actionTypes";
-import thunk from "redux-thunk";
-import configureMockStore from "redux-mock-store";
 
-const middlewares = [thunk];
-const mockStore = configureMockStore(middlewares);
+import { paletteList } from "palettes";
 
 describe("actions", () => {
-  it("should create an action to increment the counter", () => {
-    const action = actions.increment();
-    expect(action.value).to.equal(1);
+  it("should create an action to load an Image", () => {
+    const action = actions.loadImage("image");
+    expect(action.type).to.equal(types.LOAD_IMAGE);
+    expect(action.image).to.equal("image");
   });
 
-  it("should create an action with a custom increment value", () => {
-    const action = actions.increment(2);
-    expect(action.value).to.equal(2);
+  it("should create an action to set the preconvert grayscale setting", () => {
+    const action = actions.setConvertGrayscale(true);
+    expect(action.type).to.equal(types.SET_GRAYSCALE);
+    expect(action.value).to.equal(true);
   });
 
-  it("should create an action to decrement the counter", () => {
-    const action = actions.decrement();
-    expect(action.value).to.equal(1);
+  it("should create an action to select a filter", () => {
+    const action = actions.selectFilter("name", "someFilter");
+    expect(action.type).to.equal(types.SELECT_FILTER);
+    expect(action.filter).to.equal("someFilter");
   });
 
-  it("should create an action with a custom decrement value", () => {
-    const action = actions.decrement(2);
-    expect(action.value).to.equal(2);
+  it("should create an action to filter an image", () => {
+    const action = actions.filterImage("image");
+    expect(action.type).to.equal(types.FILTER_IMAGE);
+    expect(action.image).to.equal("image");
   });
 
-  describe("async", () => {
-    let timeout;
+  it("should create an action to add a colour to the palette", () => {
+    const action = actions.addPaletteColor("pink");
+    expect(action.type).to.equal(types.ADD_PALETTE_COLOR);
+    expect(action.color).to.equal("pink");
+  });
 
-    beforeEach(() => {
-      timeout = window.setTimeout;
-      window.setTimeout = f => f();
-    });
+  it("should create an action to set a filter option", () => {
+    const action = actions.setFilterOption("optionName", "optionValue");
+    expect(action.type).to.equal(types.SET_FILTER_OPTION);
+    expect(action.optionName).to.equal("optionName");
+    expect(action.value).to.equal("optionValue");
+  });
 
-    afterEach(() => {
-      window.setTimeout = timeout;
-    });
+  // This action is fishy: why is it finding by name? Potential to unintentionally
+  // overwrite legit values here.
+  xit("should create an action to set a palette for a filter", () => {
+    const action = actions.setFilterOption("myPalette", paletteList[0].palette);
+    expect(action.type).to.equal(types.SET_FILTER_OPTION);
+    expect(action.optionName).to.equal("myPalette");
+    expect(action.value).to.equal(paletteList[0].palette);
+  });
 
-    it("should create an action to increment async", () => {
-      const store = mockStore({});
-      const action = actions.incrementAsync(2, 0);
-      const expectedActions = [{ type: types.INCREMENT, value: 2 }];
+  it("should create an action to set a palette option", () => {
+    const action = actions.setFilterPaletteOption("name", "value");
+    expect(action.type).to.equal(types.SET_FILTER_PALETTE_OPTION);
+    expect(action.optionName).to.equal("name");
+    expect(action.value).to.equal("value");
+  });
 
-      return Promise.resolve(store.dispatch(action)).then(() => {
-        const dispatched = store.getActions();
-        expect(dispatched).to.have.length(1);
-        expect(dispatched).to.eql(expectedActions);
-      });
-    });
+  it("should create an action to set the scale", () => {
+    const action = actions.setScale(120);
+    expect(action.type).to.equal(types.SET_SCALE);
+    expect(action.scale).to.equal(120);
   });
 });

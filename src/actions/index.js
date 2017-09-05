@@ -64,6 +64,7 @@ export const addPaletteColor = (color: ColorRGBA) => ({
   color
 });
 
+// FIXME: Why is it finding by name here? Fishy, potential problem when value is a valid palette name
 export const setFilterOption = (optionName: string, value: any) => {
   const paletteObject = paletteList.find(p => p.name === value);
 

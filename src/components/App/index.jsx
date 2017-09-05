@@ -96,21 +96,23 @@ export default class App extends React.Component<*, *, *> {
     const filterOptionsSection = (
       <div className={s.section}>
         <h2>Algorithm</h2>
-        <div className={s.filterOptions}>
+        <div className={["filterOptions", s.filterOptions].join(" ")}>
           <select
             className={controls.enum}
             onChange={e => {
               const name = e.target.value;
               const filter = this.props.availableFilters.find(
-                f => f.displayName === name
+                f => f && f.displayName === name
               );
               this.props.onSelectFilter(name, filter);
             }}
-            value={this.props.selectedFilter.displayName}
+            value={
+              this.props.selectedFilter && this.props.selectedFilter.displayName
+            }
           >
             {this.props.availableFilters.map(f =>
-              <option key={f.displayName} value={f.displayName}>
-                {f.displayName}
+              <option key={f && f.displayName} value={f && f.displayName}>
+                {f && f.displayName}
               </option>
             )}
           </select>

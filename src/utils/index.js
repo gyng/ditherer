@@ -8,20 +8,20 @@ export const quantizeValue = (value: number, levels: number): number => {
   return Math.round(bucket * step);
 };
 
-export const uniqueColors = (buf: Uint8ClampedArray): number => {
+export const uniqueColors = (buf: Uint8ClampedArray): { [string]: number } => {
   const seen = {};
 
-  for (let i = 0; i < buf.length / 4; i += 4) {
+  for (let i = 0; i < buf.length; i += 4) {
     const key = `${buf[i]}-${buf[i + 1]}-${buf[i + 2]}-${buf[i + 3]}`;
 
     if (typeof seen[key] === "number") {
       seen[key] += 1;
     } else {
-      seen[key] = 0;
+      seen[key] = 1;
     }
   }
 
-  return seen.keys;
+  return seen;
 };
 
 export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
@@ -62,6 +62,7 @@ export const scale = (a: ColorRGBA, scalar: number): ColorRGBA => [
 export const getBufferIndex = (x: number, y: number, width: number): number =>
   (x + width * y) * 4;
 
+// FIXME: Make signature consistent with addBufferPixel
 export const fillBufferPixel = (
   buf: Uint8ClampedArray | Array<number>,
   i: number,

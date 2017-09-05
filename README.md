@@ -1,12 +1,13 @@
 # ditherer
 
+[![Build Status](https://travis-ci.org/gyng/ditherer.svg?branch=master)](https://travis-ci.org/gyng/ditherer)
+
 ![screenshot](screenshot.png)
 
 For all your online dithering needs.
 
 #### TODO
 
-* Tests
 * Cleanup
 * Adaptive palette
 * Palette saving
