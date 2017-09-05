@@ -54,6 +54,7 @@ $beautiful-blue: #000080;
   .value {
     text-align: right;
     min-width: 35px;
+    user-select: none;
   }
 
   margin-top: 5px;

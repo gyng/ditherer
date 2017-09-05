@@ -119,13 +119,15 @@ export default class App extends React.Component<*, *, *> {
           <div className={controls.group}>
             <span className={controls.name}>Options</span>
             <Controls inputCanvas={this.inputCanvas} />
-            <input
-              name="convertGrayscale"
-              type="checkbox"
-              checked={this.props.convertGrayscale}
-              onChange={e => this.props.onConvertGrayscale(e.target.checked)}
-            />
-            Pre-convert to grayscale
+            <div>
+              <input
+                name="convertGrayscale"
+                type="checkbox"
+                checked={this.props.convertGrayscale}
+                onChange={e => this.props.onConvertGrayscale(e.target.checked)}
+              />
+              <span className={controls.label}>Pre-convert to grayscale</span>
+            </div>
           </div>
           <button
             className={s.copyButton}
