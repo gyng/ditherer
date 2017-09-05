@@ -18,6 +18,9 @@ import {
 import App from "containers/App";
 import reducers from "reducers";
 
+import { THEMES } from "palettes/user";
+import { PALETTE } from "constants/optionTypes";
+
 import s from "styles/style.scss";
 
 // Redux devtools are still enabled in production!
@@ -39,6 +42,21 @@ const store = createStore(
   appReducer,
   composeEnhancers(applyMiddleware(...middleware))
 );
+
+// Load localStorage
+Object.values(localStorage).forEach(json => {
+  try {
+    if (typeof json !== "string") return;
+    const option = JSON.parse(json);
+    if (!option || !option.type) return;
+
+    if (option.type === PALETTE) {
+      THEMES[option.name] = option.colors;
+    }
+  } catch (e) {
+    // console.log("Not an option", json); // eslint-disable-line
+  }
+});
 
 ReactDOM.render(
   <Provider store={store}>

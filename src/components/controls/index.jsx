@@ -27,9 +27,11 @@ import s from "./styles.scss";
 const Controls = (props: {
   options: { [string]: any },
   optionTypes: OptionTypes,
+  inputCanvas: ?HTMLCanvasElement,
   onAddPaletteColor: ColorRGBA => {},
   onSetFilterOption: (string, any) => {},
-  onSetPaletteOption: (string, any) => {}
+  onSetPaletteOption: (string, any) => {},
+  onSaveColorPalette: (string, Array<ColorRGBA>) => {}
 }) =>
   <div className={s.controls}>
     {Object.entries(props.optionTypes).map(e => {
@@ -59,6 +61,8 @@ const Controls = (props: {
               onAddPaletteColor={props.onAddPaletteColor}
               onSetFilterOption={props.onSetFilterOption}
               onSetPaletteOption={props.onSetPaletteOption}
+              onSaveColorPalette={props.onSaveColorPalette}
+              inputCanvas={props.inputCanvas}
             />
           );
         case COLOR_ARRAY:
@@ -67,9 +71,11 @@ const Controls = (props: {
               key={name}
               name={name}
               value={props.options.colors}
+              onAddPaletteColor={props.onAddPaletteColor}
               onSetFilterOption={props.onSetFilterOption}
               onSetPaletteOption={props.onSetPaletteOption}
-              onAddPaletteColor={props.onAddPaletteColor}
+              onSaveColorPalette={props.onSaveColorPalette}
+              inputCanvas={props.inputCanvas}
             />
           );
         case STRING:

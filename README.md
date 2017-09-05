@@ -10,7 +10,6 @@ For all your online dithering needs.
 
 * Cleanup
 * Adaptive palette
-* Palette saving
 * More filters
 * Better UI/UX
 

@@ -154,10 +154,17 @@ const getColor = (
   return !min ? color : min;
 };
 
-export default {
+const user = {
   name: "User",
   getColor,
   options: defaults,
   optionTypes,
   defaults
 };
+
+export default user;
+
+export const createPalette = (colors: Array<ColorRGBA>) => ({
+  ...user,
+  options: { ...user.options, colors, defaults: colors }
+});

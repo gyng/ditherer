@@ -5,7 +5,7 @@
 import React from "react";
 
 import { THEMES } from "palettes/user";
-import { rgba } from "utils";
+import { rgba, uniqueColors } from "utils";
 
 import type { ColorRGBA } from "types";
 
@@ -27,41 +27,46 @@ const convertCsvToColor = (csv: string): ?ColorRGBA => {
   return rgba(channels[0], channels[1], channels[2], channels[3]);
 };
 
-const ColorArray = (props: {
+type Props = {
   value: { [string]: any },
+  inputCanvas: ?HTMLCanvasElement,
   onSetPaletteOption: (string, any) => {},
-  onAddPaletteColor: ColorRGBA => {}
-}) => {
-  const currentTheme = Object.entries(THEMES).find(e => e[1] === props.value);
-  const customThemeName = "Custom";
-  const currentThemeName = currentTheme ? currentTheme[0] : customThemeName;
+  onAddPaletteColor: ColorRGBA => {},
+  onSaveColorPalette: (string, Array<ColorRGBA>) => {}
+};
 
-  return (
-    <div>
-      <div>
-        Theme
-        <select
-          className={s.enum}
-          value={currentThemeName}
-          onChange={e =>
-            props.onSetPaletteOption("colors", THEMES[e.target.value])}
-        >
-          {Object.entries(THEMES).map(e => {
-            const [key, val] = e;
-            return (
-              <option key={key} name={key} data-colors={val}>
-                {key}
-              </option>
-            );
-          })}
-          <option key={customThemeName} name={customThemeName} disabled>
-            Custom
-          </option>
-        </select>
-      </div>
+export default class ColorArray extends React.Component<*, Props, *> {
+  render() {
+    const currentTheme = Object.entries(THEMES).find(
+      e => e[1] === this.props.value
+    );
+    const customThemeName = "Custom";
+    const currentThemeName = currentTheme ? currentTheme[0] : customThemeName;
 
+    const themePicker = (
+      <select
+        className={s.enum}
+        value={currentThemeName}
+        onChange={e =>
+          this.props.onSetPaletteOption("colors", THEMES[e.target.value])}
+      >
+        {Object.entries(THEMES).map(e => {
+          const [key, val] = e;
+          return (
+            <option key={key} name={key} data-colors={val}>
+              {key}
+            </option>
+          );
+        })}
+        <option key={customThemeName} name={customThemeName} disabled>
+          Custom
+        </option>
+      </select>
+    );
+
+    const colorSwatch = (
       <div className={s.colorArray}>
-        {props.value.map(c =>
+        {this.props.value.map(c =>
           <div
             key={c}
             style={{
@@ -72,7 +77,9 @@ const ColorArray = (props: {
           />
         )}
       </div>
+    );
 
+    const onAddColorButton = (
       <button
         onClick={() => {
           const colorString = prompt(
@@ -81,14 +88,72 @@ const ColorArray = (props: {
           const color = convertCsvToColor(colorString);
 
           if (color) {
-            props.onAddPaletteColor(color);
+            this.props.onAddPaletteColor(color);
           }
         }}
       >
         Add color
       </button>
-    </div>
-  );
-};
+    );
 
-export default ColorArray;
+    const extractColorsButton = (
+      <button
+        onClick={() => {
+          const ctx =
+            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+          if (ctx) {
+            const topN = parseInt(prompt("Take the top n colors", 64), 10);
+
+            const colors = uniqueColors(
+              ctx.getImageData(
+                0,
+                0,
+                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
+                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
+              ).data,
+              topN
+            );
+            this.props.onSetPaletteOption("colors", colors);
+          }
+        }}
+      >
+        Extract colors from input
+      </button>
+    );
+
+    const savePaletteButton = (
+      <button
+        onClick={() => {
+          const name = prompt("Save current palette as");
+          const savedName = `🎨 ${name}`;
+
+          if (!name || THEMES[savedName]) {
+            alert(
+              "Could not save: name taken or invalid. Use a different name. "
+            );
+          } else {
+            // $FlowFixMe
+            this.props.onSaveColorPalette(savedName, this.props.value);
+            this.forceUpdate();
+          }
+        }}
+      >
+        Save theme locally
+      </button>
+    );
+
+    return (
+      <div>
+        <div>
+          <div className={s.label}>Theme</div>
+          {themePicker}
+        </div>
+
+        {colorSwatch}
+        {onAddColorButton}
+        {extractColorsButton}
+        {!currentTheme ? savePaletteButton : null}
+      </div>
+    );
+  }
+}

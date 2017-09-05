@@ -2,7 +2,9 @@
 /* eslint-disable import/prefer-default-export */
 
 import * as types from "constants/actionTypes";
+import * as optionTypes from "constants/optionTypes";
 import { paletteList } from "palettes";
+import { THEMES } from "palettes/user";
 
 import type { ColorRGBA, Filter, FilterFunc } from "types";
 
@@ -85,3 +87,20 @@ export const setScale = (scale: number) => ({
   type: types.SET_SCALE,
   scale
 });
+
+export const saveCurrentColorPalette = (
+  name: string,
+  colors: Array<ColorRGBA>
+) => {
+  window.localStorage.setItem(
+    `_palette_${name.replace(" ", "")}`,
+    JSON.stringify({ type: optionTypes.PALETTE, name, colors })
+  );
+
+  THEMES[name] = colors;
+
+  return {
+    type: types.SAVE_CURRENT_COLOR_PALETTE,
+    name
+  };
+};

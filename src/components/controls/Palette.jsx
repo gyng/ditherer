@@ -14,7 +14,9 @@ import s from "./styles.scss";
 const Palette = (props: {
   name: string,
   value: PaletteType,
+  inputCanvas: ?HTMLCanvasElement,
   paletteOptions: { [string]: any },
+  onSaveColorPalette: (string, Array<ColorRGBA>) => {},
   onSetFilterOption: (string, PaletteType) => {},
   onSetPaletteOption: (string, any) => {},
   onAddPaletteColor: ColorRGBA => {}
@@ -37,11 +39,13 @@ const Palette = (props: {
     </select>
 
     <Controls
+      inputCanvas={props.inputCanvas}
       optionTypes={props.value.optionTypes}
       options={props.paletteOptions}
       onAddPaletteColor={props.onAddPaletteColor}
       onSetPaletteOption={props.onSetPaletteOption}
       onSetFilterOption={props.onSetPaletteOption}
+      onSaveColorPalette={props.onSaveColorPalette}
     />
   </div>;
 

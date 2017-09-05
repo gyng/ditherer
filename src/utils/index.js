@@ -8,28 +8,58 @@ export const quantizeValue = (value: number, levels: number): number => {
   return Math.round(bucket * step);
 };
 
-export const uniqueColors = (buf: Uint8ClampedArray): { [string]: number } => {
-  const seen = {};
-
-  for (let i = 0; i < buf.length; i += 4) {
-    const key = `${buf[i]}-${buf[i + 1]}-${buf[i + 2]}-${buf[i + 3]}`;
-
-    if (typeof seen[key] === "number") {
-      seen[key] += 1;
-    } else {
-      seen[key] = 1;
-    }
-  }
-
-  return seen;
-};
-
 export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
   r,
   g,
   b,
   a
 ];
+
+export const uniqueColors = (
+  buf: Uint8ClampedArray | Uint8Array,
+  limit: ?number
+): Array<ColorRGBA> => {
+  const seen: { [string]: { count: number, color: ColorRGBA } } = {};
+
+  for (let i = 0; i < buf.length; i += 4) {
+    const key = `${buf[i]}-${buf[i + 1]}-${buf[i + 2]}-${buf[i + 3]}`;
+
+    if (seen[key] && seen[key].count) {
+      seen[key].count += 1;
+    } else {
+      seen[key] = {
+        count: 1,
+        color: rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3])
+      };
+    }
+  }
+
+  if (limit) {
+    return (
+      Object.values(seen)
+        .sort((a, b) => {
+          if (
+            !a ||
+            !b ||
+            typeof a.count !== "number" ||
+            typeof b.count !== "number"
+          ) {
+            return 0;
+          }
+
+          if (a.count < b.count) return -1;
+          if (a.count > b.count) return 1;
+          return 0;
+        })
+        .slice(0, limit)
+        // $FlowFixMe
+        .map(c => c.color)
+    );
+  }
+
+  // $FlowFixMe
+  return Object.values(seen).map(c => c.color);
+};
 
 // Preserves nulls
 export const scaleMatrix = (

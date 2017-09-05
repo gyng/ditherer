@@ -118,7 +118,7 @@ export default class App extends React.Component<*, *, *> {
           </select>
           <div className={controls.group}>
             <span className={controls.name}>Options</span>
-            <Controls />
+            <Controls inputCanvas={this.inputCanvas} />
             <input
               name="convertGrayscale"
               type="checkbox"

@@ -8,26 +8,6 @@ describe("utils", () => {
     expect(utils.quantizeValue(127.4, 4)).to.equal(85);
   });
 
-  it("counts unique 4-tuples in a Uint8ClampedArray", () => {
-    const input = new Uint8ClampedArray(12);
-    input[0] = 1;
-    input[1] = 1;
-    input[2] = 1;
-    input[3] = 1;
-
-    input[4] = 1;
-    input[5] = 1;
-    input[6] = 1;
-    input[7] = 1;
-
-    input[8] = 2;
-    input[9] = 2;
-    input[10] = 2;
-    input[11] = 2;
-
-    expect(utils.uniqueColors(input)).to.eql({ "1-1-1-1": 2, "2-2-2-2": 1 });
-  });
-
   it("scales a 2d array, ignoring null values", () => {
     const input = [[1, 2], [null, 4]];
     const expected = [[2, 4], [null, 8]];
