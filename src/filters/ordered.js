@@ -66,14 +66,15 @@ const getOrderedColor = (
 ): ColorRGBA => {
   const thresholdValue = threshold[ty][tx];
 
-  if (!thresholdValue) {
+  if (thresholdValue == null) {
     return rgba(255, 255, 0, 255); // error colour
   }
 
   const step = 255 / (levels - 1);
 
   // $FlowFixMe
-  return color.map(c => {
+  return color.map((c, i) => {
+    if (i === 3) return c; // alpha channel
     const newColor = c + step * (thresholdValue - 0.5);
     const bucket = Math.round(newColor / step);
     return Math.round(bucket * step);
