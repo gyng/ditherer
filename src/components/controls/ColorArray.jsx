@@ -66,16 +66,21 @@ export default class ColorArray extends React.Component<*, Props, *> {
 
     const colorSwatch = (
       <div className={s.colorArray}>
-        {this.props.value.map(c =>
-          <div
-            key={c}
-            style={{
-              minHeight: "16px",
-              minWidth: "16px",
-              backgroundColor: `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`
-            }}
-          />
-        )}
+        {this.props.value.map(c => {
+          const color = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`;
+
+          return (
+            <div
+              key={c}
+              title={color}
+              style={{
+                minHeight: "16px",
+                minWidth: "16px",
+                backgroundColor: color
+              }}
+            />
+          );
+        })}
       </div>
     );
 
