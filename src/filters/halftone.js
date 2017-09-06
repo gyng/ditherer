@@ -1,24 +1,28 @@
 // @flow
 
-import { PALETTE, RANGE, STRING } from "constants/controlTypes";
+import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba } from "utils";
 
 import type { Palette } from "types";
 
 export const optionTypes = {
-  size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter
-  offset: { type: RANGE, range: [0, Infinity], default: 0.33 },
+  size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter of input
+  sizeMultiplier: { type: RANGE, range: [0, 5], step: 0.1, default: 1 }, // diameter of output
+  offset: { type: RANGE, range: [0, 3], step: 0.1, default: 0.3 },
   levels: { type: RANGE, range: [0, 255], default: 32 }, // no. of circle sizes
   palette: { type: PALETTE, default: nearest },
+  squareDots: { type: BOOL, default: false },
   background: { type: STRING, default: "transparent" }
 };
 
 export const defaults = {
   size: optionTypes.size.default,
+  sizeMultiplier: optionTypes.sizeMultiplier.default,
   offset: optionTypes.offset.default,
   levels: optionTypes.levels.default,
   palette: { ...optionTypes.palette.default, options: { levels: 8 } },
+  squareDots: optionTypes.squareDots.default,
   background: optionTypes.background.default
 };
 
@@ -26,9 +30,11 @@ const halftone = (
   input: HTMLCanvasElement,
   options: {
     size: number,
+    sizeMultiplier: number,
     offset: number,
     levels: number,
     palette: Palette,
+    squareDots: boolean,
     background: string
   } = defaults
 ): HTMLCanvasElement => {
@@ -42,7 +48,8 @@ const halftone = (
     const y = y0 + radius * Math.sin(radians);
     return [x, y];
   };
-  const { background, size, palette } = options;
+  const { background, palette } = options;
+  const size = parseInt(options.size, 10);
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -79,7 +86,9 @@ const halftone = (
       // FIXME: this is wrong(?), should apply nearest here and palette later in colors
       // rgba(255, 0, 0) should be matched to red?
       const quantizedColor = palette.getColor(meanColor, palette.options);
-      const radii = quantizedColor.map(c => c * (size / 2 / 255));
+      const radii = quantizedColor.map(
+        c => c * (size / 2 / 255) * options.sizeMultiplier
+      );
 
       const colors = [
         `rgba(255, 0, 0, ${meanColor[3] / 255}`,
@@ -97,10 +106,16 @@ const halftone = (
       ];
 
       for (let c = 0; c < 3; c += 1) {
-        outputCtx.beginPath();
-        outputCtx.arc(centers[c][0], centers[c][1], radii[c], 0, Math.PI * 2);
-        outputCtx.fillStyle = colors[c];
-        outputCtx.fill();
+        if (options.squareDots) {
+          outputCtx.fillStyle = colors[c];
+          outputCtx.fillRect(centers[c][0], centers[c][1], radii[c], radii[c]);
+        } else {
+          // Circle
+          outputCtx.beginPath();
+          outputCtx.arc(centers[c][0], centers[c][1], radii[c], 0, Math.PI * 2);
+          outputCtx.fillStyle = colors[c];
+          outputCtx.fill();
+        }
       }
     }
   }
