@@ -137,6 +137,7 @@ export default class App extends React.Component<*, *, *> {
                 image.src = this.outputCanvas.toDataURL("image/png");
                 image.onload = () => {
                   this.props.onSetInput(image);
+                  this.props.onSetScale(1);
                 };
               }
             }}
