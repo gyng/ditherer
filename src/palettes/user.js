@@ -86,6 +86,12 @@ export const THEMES = {
     rgba(194, 182, 145, 255),
     rgba(225, 211, 169, 255)
   ],
+  GAMEBOY: [
+    rgba(155, 188, 15, 255),
+    rgba(139, 172, 15, 255),
+    rgba(48, 98, 48, 255),
+    rgba(15, 56, 15, 255)
+  ],
   VAPORWAVE: [
     // modified http://www.colourlovers.com/palette/3636765/seapunk_vaporwave
     rgba(255, 106, 213, 255),
