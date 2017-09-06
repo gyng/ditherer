@@ -13,7 +13,7 @@ export const optionTypes = {
   levels: { type: RANGE, range: [0, 255], default: 32 }, // no. of circle sizes
   palette: { type: PALETTE, default: nearest },
   squareDots: { type: BOOL, default: false },
-  background: { type: STRING, default: "transparent" }
+  background: { type: STRING, default: "black" }
 };
 
 export const defaults = {
