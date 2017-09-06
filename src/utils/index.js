@@ -8,12 +8,36 @@ export const quantizeValue = (value: number, levels: number): number => {
   return Math.round(bucket * step);
 };
 
+export const clamp = (min: number, max: number, value: number): number =>
+  Math.max(min, Math.min(max, value));
+
 export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
   r,
   g,
   b,
   a
 ];
+
+// mutates input
+export const equalize = (
+  input: Array<number> | Uint8ClampedArray | Uint8Array
+): any => {
+  let min = input[0];
+  let max = input[0];
+
+  for (let i = 1; i < input.length; i += 1) {
+    const val = input[i];
+    if (i < min) min = val;
+    if (i > max) max = val;
+  }
+
+  const range = max - min;
+  const factor = 256 / range;
+
+  for (let i = 0; i < input.length; i += 1) {
+    input[i] = input[i] - min * factor; // eslint-disable-line
+  }
+};
 
 export const uniqueColors = (
   buf: Uint8ClampedArray | Uint8Array,

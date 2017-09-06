@@ -3,6 +3,7 @@
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
+import convolve from "./convolve";
 import binarize from "./binarize";
 import grayscale from "./grayscale";
 import ordered, { BAYER_4X4 } from "./ordered";
@@ -20,6 +21,7 @@ import {
   verticalStripe
 } from "./errorDiffusing";
 
+export { default as convolve } from "./convolve";
 export { default as binarize } from "./binarize";
 export { default as grayscale } from "./grayscale";
 export { default as ordered } from "./ordered";
@@ -31,10 +33,13 @@ export {
   sierra,
   sierra2,
   sierraLite,
-  jarvis
+  jarvis,
+  horizontalStripe,
+  verticalStripe
 } from "./errorDiffusing";
 
 export const filterList = [
+  { displayName: "Convolve", filter: convolve },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
