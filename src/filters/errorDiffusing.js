@@ -88,3 +88,29 @@ const jarvisKernel = {
   )
 };
 export const jarvis = errorDiffusingFilter("Jarvis", jarvisKernel, defaults);
+
+// Weird kernels
+//   X
+//   1
+//   X
+//   1
+//   (1/4)
+const horizontalStripeKernel = {
+  offset: [0, 0], // x, y
+  kernel: scaleMatrix([[null], [1], [null], [1]], 1 / 4)
+};
+export const horizontalStripe = errorDiffusingFilter(
+  "Stripe (Horizontal)",
+  horizontalStripeKernel,
+  defaults
+);
+
+const verticalStripeKernel = {
+  offset: [0, 0], // x, y
+  kernel: scaleMatrix([[null, 1, null, 1]], 1 / 4)
+};
+export const verticalStripe = errorDiffusingFilter(
+  "Stripe (Vertical)",
+  verticalStripeKernel,
+  defaults
+);

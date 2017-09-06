@@ -15,7 +15,9 @@ import {
   sierra,
   sierra2,
   sierraLite,
-  jarvis
+  jarvis,
+  horizontalStripe,
+  verticalStripe
 } from "./errorDiffusing";
 
 export { default as binarize } from "./binarize";
@@ -40,42 +42,6 @@ export const filterList = [
   {
     displayName: "Quantize (No dithering)",
     filter: quantize
-  },
-  {
-    displayName: "Quantize (No dithering, EGA test)",
-    filter: {
-      ...quantize,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.EGA_MODE4_PALETTE1_LOW }
-        }
-      }
-    }
-  },
-  {
-    displayName: "Quantize (No dithering, sepia test)",
-    filter: {
-      ...quantize,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.SEPIA }
-        }
-      }
-    }
-  },
-  {
-    displayName: "Quantize (No dithering, vaporwave test)",
-    filter: {
-      ...quantize,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.VAPORWAVE }
-        }
-      }
-    }
   },
   { displayName: "Ordered (Windows)", filter: ordered },
   {
@@ -169,5 +135,13 @@ export const filterList = [
   {
     displayName: "Sierra (lite)",
     filter: sierraLite
+  },
+  {
+    displayName: "Stripe (horizontal)",
+    filter: horizontalStripe
+  },
+  {
+    displayName: "Stripe (vertical)",
+    filter: verticalStripe
   }
 ];
