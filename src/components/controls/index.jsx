@@ -47,6 +47,7 @@ const Controls = (props: {
               name={name}
               types={oType}
               value={props.options[name]}
+              step={oType.step}
               onSetFilterOption={props.onSetFilterOption}
             />
           );

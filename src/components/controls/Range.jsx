@@ -8,6 +8,7 @@ const Range = (props: {
   name: string,
   types: { range: [number, number] },
   value: number,
+  step: ?number,
   onSetFilterOption: (string, any) => {}
 }) =>
   <div className={s.range}>
@@ -20,6 +21,7 @@ const Range = (props: {
         min={props.types.range[0]}
         max={props.types.range[1]}
         value={props.value}
+        step={props.step || 1}
         onChange={e => props.onSetFilterOption(props.name, e.target.value)}
       />
 
