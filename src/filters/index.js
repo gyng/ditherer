@@ -3,13 +3,14 @@
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
-import convolve from "./convolve";
 import binarize from "./binarize";
+import convolve from "./convolve";
 import grayscale from "./grayscale";
-import ordered, { BAYER_4X4 } from "./ordered";
-import random from "./random";
 import halftone from "./halftone";
+import invert from "./invert";
+import ordered, { BAYER_4X4 } from "./ordered";
 import quantize from "./quantize";
+import random from "./random";
 import {
   atkinson,
   floydSteinberg,
@@ -21,11 +22,12 @@ import {
   verticalStripe
 } from "./errorDiffusing";
 
-export { default as convolve } from "./convolve";
 export { default as binarize } from "./binarize";
+export { default as convolve } from "./convolve";
 export { default as grayscale } from "./grayscale";
-export { default as ordered } from "./ordered";
 export { default as halftone } from "./halftone";
+export { default as invert } from "./invert";
+export { default as ordered } from "./ordered";
 export { default as quantize } from "./quantize";
 export {
   atkinson,
@@ -40,6 +42,7 @@ export {
 
 export const filterList = [
   { displayName: "Convolve", filter: convolve },
+  { displayName: "Invert", filter: invert },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
