@@ -28,9 +28,9 @@ describe("utils", () => {
     expect(actual).to.eql(expected);
   });
 
-  it("scales a 4-tuple by a number", () => {
+  it("scales a 4-tuple by a number, ignoring alpha channel by default", () => {
     const actual = utils.scale([1, 2, 3, 4], 2);
-    const expected = [2, 4, 6, 8];
+    const expected = [2, 4, 6, 4];
     expect(actual).to.eql(expected);
   });
 
