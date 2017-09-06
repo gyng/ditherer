@@ -29,6 +29,13 @@ const cga = {
 };
 
 export const THEMES = {
+  CMYK: [
+    rgba(0, 255, 255, 255), // cyan
+    rgba(255, 0, 255, 255), // magenta
+    rgba(255, 255, 0, 255), // yellow
+    rgba(0, 0, 0, 255), // black
+    rgba(255, 255, 255, 255)
+  ],
   EGA_MODE4_PALETTE1_LOW: [cga.BLACK, cga.WHITE, cga.MAGENTA, cga.CYAN],
   EGA_MODE4_PALETTE1_HIGH: [cga.BLACK, cga.WHITE, cga.BMAGENTA, cga.BCYAN],
   EGA_MODE4_PALETTE2_LOW: [cga.BLACK, cga.GREEN, cga.RED, cga.YELLOW],
