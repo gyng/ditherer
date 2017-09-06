@@ -15,6 +15,7 @@ import {
 export const SHARPEN_3X3 = "SHARPEN_3X3";
 export const UNSHARP_5X5 = "UNSHARP_5X5";
 export const GAUSSIAN_3X3 = "GAUSSIAN_3X3";
+export const GAUSSIAN_3X3_WEAK = "GAUSSIAN_3X3_WEAK";
 export const GAUSSIAN_5X5 = "GAUSSIAN_5X5";
 export const EMBOSS_3X3 = "EMBOSS_3X3";
 export const LAPLACIAN_3X3 = "LAPLACIAN_3X3";
@@ -30,6 +31,7 @@ export type Kernel =
   | "BRIGHTEN_2X"
   | "EMBOSS_3X3"
   | "GAUSSIAN_3X3"
+  | "GAUSSIAN_3X3_WEAK"
   | "GAUSSIAN_5X5"
   | "LAPLACIAN_3X3"
   | "LAPLACIAN_5X5"
@@ -41,7 +43,7 @@ export type Kernel =
 
 // https://en.wikipedia.org/wiki/Kernel_(image_processing)
 // map[y][x]
-const kernels: {
+export const kernels: {
   [Kernel]: { width: number, matrix: Array<Array<?number>> }
 } = {
   [SHARPEN_3X3]: {
@@ -64,6 +66,10 @@ const kernels: {
   [GAUSSIAN_3X3]: {
     width: 3,
     matrix: scaleMatrix([[1, 2, 1], [2, 4, 2], [1, 2, 1]], 1 / 16)
+  },
+  [GAUSSIAN_3X3_WEAK]: {
+    width: 3,
+    matrix: scaleMatrix([[0.5, 1, 0.5], [1, 10, 1], [0.5, 1, 0.5]], 1 / 16)
   },
   [GAUSSIAN_5X5]: {
     width: 5,
@@ -159,6 +165,10 @@ export const optionTypes = {
         value: GAUSSIAN_3X3
       },
       {
+        name: "Gaussian blur 3×3 (weak)",
+        value: GAUSSIAN_3X3_WEAK
+      },
+      {
         name: "Gaussian blur 5×5",
         value: GAUSSIAN_5X5
       },
@@ -181,7 +191,7 @@ export const optionTypes = {
   }
 };
 
-const defaults = {
+export const defaults = {
   kernel: optionTypes.kernel.default,
   strength: optionTypes.strength.default
 };

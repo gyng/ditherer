@@ -106,11 +106,54 @@ export const sub = (a: ColorRGBA, b: ColorRGBA): ColorRGBA => [
   a[3] - b[3]
 ];
 
-export const scale = (a: ColorRGBA, scalar: number): ColorRGBA => [
+export const scale = (
+  a: ColorRGBA,
+  scalar: number,
+  alpha: boolean = false
+): ColorRGBA => [
   scalar * a[0],
   scalar * a[1],
   scalar * a[2],
-  scalar * a[3]
+  alpha ? scalar * a[3] : a[3]
+];
+
+// contrast factor 0-1 ideally
+export const contrast = (color: ColorRGBA, factor: number) => {
+  // normalise to [-1, 1]
+  const nC = [
+    color[0] / 255 - 0.5,
+    color[1] / 255 - 0.5,
+    color[2] / 255 - 0.5,
+    color[3]
+  ];
+
+  // color - _Contrast * (color - 1.0) * color *(color - 0.5);
+
+  return [
+    (nC[0] - factor * (nC[0] - 1.0) * nC[0] * (nC[0] - 0.5) + 0.5) * 255,
+    (nC[1] - factor * (nC[1] - 1.0) * nC[1] * (nC[1] - 0.5) + 0.5) * 255,
+    (nC[2] - factor * (nC[2] - 1.0) * nC[2] * (nC[2] - 0.5) + 0.5) * 255,
+    color[3]
+  ];
+
+  // return [
+  //   ((nC[0] - 0.5) * Math.max(factor, 0) + 0.5 + 0.5) * 255,
+  //   ((nC[1] - 0.5) * Math.max(factor, 0) + 0.5 + 0.5) * 255,
+  //   ((nC[2] - 0.5) * Math.max(factor, 0) + 0.5 + 0.5) * 255,
+  //   color[3]
+  // ];
+};
+
+// factor 0-255, exposure ideally 0-2 (small number)
+export const brightness = (
+  color: ColorRGBA,
+  factor: number,
+  exposure: number = 1
+) => [
+  color[0] * exposure + factor,
+  color[1] * exposure + factor,
+  color[2] * exposure + factor,
+  color[3]
 ];
 
 export const getBufferIndex = (x: number, y: number, width: number): number =>

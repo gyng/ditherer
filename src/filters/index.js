@@ -4,6 +4,7 @@ import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
 import binarize from "./binarize";
+import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
 import grayscale from "./grayscale";
 import halftone from "./halftone";
@@ -12,6 +13,7 @@ import ordered, { BAYER_4X4 } from "./ordered";
 import quantize from "./quantize";
 import random from "./random";
 import scanline from "./scanline";
+import rgbStripe from "./rgbstripe";
 import {
   atkinson,
   floydSteinberg,
@@ -24,6 +26,7 @@ import {
 } from "./errorDiffusing";
 
 export { default as binarize } from "./binarize";
+export { default as brightnessContrast } from "./brightnessContrast";
 export { default as convolve } from "./convolve";
 export { default as grayscale } from "./grayscale";
 export { default as halftone } from "./halftone";
@@ -31,6 +34,7 @@ export { default as invert } from "./invert";
 export { default as ordered } from "./ordered";
 export { default as quantize } from "./quantize";
 export { default as scanline } from "./scanline";
+export { default as rgbStripe } from "./rgbstripe";
 export {
   atkinson,
   floydSteinberg,
@@ -53,6 +57,22 @@ export const filterList = [
   },
   { displayName: "Invert", filter: invert },
   {
+    displayName: "Brightness/Contrast",
+    filter: {
+      ...brightnessContrast,
+      options: {
+        ...brightnessContrast.options,
+        palette: {
+          ...brightnessContrast.options.palette,
+          options: {
+            ...brightnessContrast.options.palette.options,
+            levels: 256
+          }
+        }
+      }
+    }
+  },
+  {
     displayName: "Scanline",
     filter: {
       ...scanline,
@@ -63,6 +83,22 @@ export const filterList = [
           options: {
             ...scanline.options.palette.options,
             levels: 256
+          }
+        }
+      }
+    }
+  },
+  {
+    displayName: "RGB stripe (CRT emulation)",
+    filter: {
+      ...rgbStripe,
+      options: {
+        ...rgbStripe.options,
+        palette: {
+          ...rgbStripe.options.palette,
+          options: {
+            ...rgbStripe.options.palette.options,
+            levels: 32
           }
         }
       }
