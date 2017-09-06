@@ -11,6 +11,7 @@ import invert from "./invert";
 import ordered, { BAYER_4X4 } from "./ordered";
 import quantize from "./quantize";
 import random from "./random";
+import scanline from "./scanline";
 import {
   atkinson,
   floydSteinberg,
@@ -29,6 +30,7 @@ export { default as halftone } from "./halftone";
 export { default as invert } from "./invert";
 export { default as ordered } from "./ordered";
 export { default as quantize } from "./quantize";
+export { default as scanline } from "./scanline";
 export {
   atkinson,
   floydSteinberg,
@@ -50,6 +52,22 @@ export const filterList = [
     }
   },
   { displayName: "Invert", filter: invert },
+  {
+    displayName: "Scanline",
+    filter: {
+      ...scanline,
+      options: {
+        ...scanline.options,
+        palette: {
+          ...scanline.options.palette,
+          options: {
+            ...scanline.options.palette.options,
+            levels: 256
+          }
+        }
+      }
+    }
+  },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
