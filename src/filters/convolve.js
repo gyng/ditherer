@@ -1,6 +1,6 @@
 // @flow
 
-import { ENUM } from "constants/controlTypes";
+import { ENUM, RANGE } from "constants/controlTypes";
 
 import {
   cloneCanvas,
@@ -172,20 +172,29 @@ export const optionTypes = {
       }
     ],
     default: GAUSSIAN_3X3
+  },
+  strength: {
+    type: RANGE,
+    range: [-10, 10],
+    step: 0.1,
+    default: 1
   }
 };
 
 const defaults = {
-  kernel: optionTypes.kernel.default
+  kernel: optionTypes.kernel.default,
+  strength: optionTypes.strength.default
 };
 
 const convolve = (
   input: HTMLCanvasElement,
   options: {
-    kernel: Kernel
+    kernel: Kernel,
+    strength: number
   } = defaults
 ): HTMLCanvasElement => {
   const kernel = kernels[options.kernel];
+  const matrix = scaleMatrix(kernel.matrix, options.strength);
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -216,7 +225,7 @@ const convolve = (
             buf[ki + 2] || 0,
             buf[ki + 3] || 0
           );
-          const kfactor = kernel.matrix[ky][kx];
+          const kfactor = matrix[ky][kx];
 
           color = add(color, scale(kpx, kfactor || 0));
         }
