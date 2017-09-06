@@ -7,20 +7,35 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 import type { Palette } from "types";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 255], default: 127.5 },
+  thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
+  thresholdG: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
+  thresholdB: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
+  thresholdA: { type: RANGE, range: [0, 255], step: 0.5, default: 0 },
   palette: { type: PALETTE, default: palettes.nearest }
 };
 
 export const defaults = {
-  threshold: optionTypes.threshold.default,
+  thresholdR: optionTypes.thresholdR.default,
+  thresholdG: optionTypes.thresholdG.default,
+  thresholdB: optionTypes.thresholdB.default,
+  thresholdA: optionTypes.thresholdA.default,
   palette: optionTypes.palette.default
 };
 
 const binarize = (
   input: HTMLCanvasElement,
-  options: { threshold: number, palette: Palette } = defaults
+  options: {
+    thresholdR: number,
+    thresholdG: number,
+    thresholdB: number,
+    thresholdA: number,
+    palette: Palette
+  } = defaults
 ): HTMLCanvasElement => {
-  const { threshold, palette } = options;
+  const getColor = (val: number, threshold: number): number =>
+    val > threshold ? 255 : 0;
+
+  const { thresholdR, thresholdG, thresholdB, thresholdA, palette } = options;
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -35,11 +50,14 @@ const binarize = (
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);
-      const intensity = (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
-      const raw = intensity > threshold ? 255 : 0;
-      const prePaletteCol = rgba(raw, raw, raw, buf[i + 3]);
+      const prePaletteCol = rgba(
+        getColor(buf[i], thresholdR),
+        getColor(buf[i + 1], thresholdG),
+        getColor(buf[i + 2], thresholdB),
+        getColor(buf[i + 3], thresholdA)
+      );
       const col = palette.getColor(prePaletteCol, palette.options);
-      fillBufferPixel(buf, i, col[0], col[1], col[2], buf[i + 3]);
+      fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }
 
