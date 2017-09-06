@@ -17,8 +17,14 @@ export const BAYER_2X2 = "BAYER_2X2";
 export const BAYER_3X3 = "BAYER_3X3";
 export const BAYER_4X4 = "BAYER_4X4";
 export const BAYER_8X8 = "BAYER_8X8";
+export const SQUARE_5X5 = "SQUARE_5X5";
 
-export type Threshold = "BAYER_2X2" | "BAYER_3X3" | "BAYER_4X4" | "BAYER_8X8";
+export type Threshold =
+  | "BAYER_2X2"
+  | "BAYER_3X3"
+  | "BAYER_4X4"
+  | "BAYER_8X8"
+  | "SQUARE_5X5";
 
 // map[y][x]
 const thresholdMaps: {
@@ -54,6 +60,19 @@ const thresholdMaps: {
       ],
       1 / 64
     )
+  },
+  [SQUARE_5X5]: {
+    width: 5,
+    thresholdMap: scaleMatrix(
+      [
+        [40, 60, 150, 90, 10],
+        [80, 170, 240, 200, 110],
+        [140, 210, 250, 220, 130],
+        [120, 190, 230, 180, 70],
+        [20, 100, 160, 50, 30]
+      ],
+      1 / 255
+    )
   }
 };
 
@@ -82,11 +101,6 @@ const getOrderedColor = (
 };
 
 export const optionTypes = {
-  levels: {
-    type: RANGE,
-    range: [1, 256],
-    default: 2
-  },
   thresholdMap: {
     type: ENUM,
     options: [
@@ -105,6 +119,10 @@ export const optionTypes = {
       {
         name: "Bayer 8×8",
         value: BAYER_8X8
+      },
+      {
+        name: "Digital Halftone 5×8",
+        value: SQUARE_5X5
       }
     ],
     default: BAYER_4X4
@@ -113,7 +131,6 @@ export const optionTypes = {
 };
 
 const defaults = {
-  levels: optionTypes.levels.default,
   thresholdMap: optionTypes.thresholdMap.default,
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
@@ -121,7 +138,6 @@ const defaults = {
 const ordered = (
   input: HTMLCanvasElement,
   options: {
-    levels: number,
     thresholdMap: Threshold,
     palette: Palette
   } = defaults
