@@ -4,7 +4,7 @@ import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
 import binarize from "./binarize";
-import convolve from "./convolve";
+import convolve, { LAPLACIAN_3X3 } from "./convolve";
 import grayscale from "./grayscale";
 import halftone from "./halftone";
 import invert from "./invert";
@@ -42,6 +42,13 @@ export {
 
 export const filterList = [
   { displayName: "Convolve", filter: convolve },
+  {
+    displayName: "Convolve (edge detection)",
+    filter: {
+      ...convolve,
+      options: { ...convolve.options, kernel: LAPLACIAN_3X3 }
+    }
+  },
   { displayName: "Invert", filter: invert },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
@@ -71,18 +78,6 @@ export const filterList = [
     filter: floydSteinberg
   },
   {
-    displayName: "Floyd-Steinberg (EGA test)",
-    filter: {
-      ...floydSteinberg,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.EGA_MODE4_PALETTE1_HIGH }
-        }
-      }
-    }
-  },
-  {
     displayName: "Floyd-Steinberg (CGA test)",
     filter: {
       ...floydSteinberg,
@@ -90,18 +85,6 @@ export const filterList = [
         palette: {
           ...palettes.user,
           options: { colors: THEMES.CGA }
-        }
-      }
-    }
-  },
-  {
-    displayName: "Floyd-Steinberg (Sepia test)",
-    filter: {
-      ...floydSteinberg,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.SEPIA }
         }
       }
     }
