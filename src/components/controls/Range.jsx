@@ -22,7 +22,8 @@ const Range = (props: {
         max={props.types.range[1]}
         value={props.value}
         step={props.step || 1}
-        onChange={e => props.onSetFilterOption(props.name, e.target.value)}
+        onChange={e =>
+          props.onSetFilterOption(props.name, parseFloat(e.target.value))}
       />
 
       <span className={s.value}>
