@@ -1,6 +1,6 @@
 // @flow
 
-import { BOOL, RANGE, PALETTE } from "constants/controlTypes";
+import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
   cloneCanvas,
@@ -19,6 +19,56 @@ import convolve, {
   defaults as convolveDefaults
 } from "./convolve";
 
+export const VERTICAL = "VERTICAL";
+export const STAGGERED = "STAGGERED";
+export const LADDER = "LADDER";
+export const TILED = "TILED";
+
+export type Mask = "VERTICAL" | "STAGGERED" | "LADDER" | "TILED";
+
+const masks: { [Mask]: (e: number) => Array<Array<Array<number>>> } = {
+  // R G B
+  [VERTICAL]: e => [[[1, e, e, 1], [e, 1, e, 1], [e, e, 1, 1]]],
+  // R_G_B_
+  // _B_R_G
+  [STAGGERED]: e => {
+    const r = [0.9, e, e, 1];
+    const r2 = [0.8, e, e, 1];
+    const g = [e, 1, e, 1];
+    const b = [e, e, 1, 1];
+    const k = [e, e, e, 1];
+
+    return [[r, k, g, k, b, k], [k, b, k, r2, k, g]];
+  },
+  // G B R
+  // B R G
+  // R G B
+  [LADDER]: e => {
+    const r = [1, e, e, 1];
+    const g = [e, 1, e, 1];
+    const b = [e, e, 1, 1];
+
+    return [[r, g, b], [g, b, r], [b, r, g]];
+  },
+  // R G B R G B
+  // R G B _ _ _
+  // R G B R G B
+  // _ _ _ R G B
+  [TILED]: e => {
+    const r = [1, e, e, 1];
+    const g = [e, 1, e, 1];
+    const b = [e, e, 1, 1];
+    const k = [e, e, e, 1];
+
+    return [
+      [r, g, b, r, g, b],
+      [r, g, b, k, k, k],
+      [r, g, b, r, g, b],
+      [k, k, k, r, g, b]
+    ];
+  }
+};
+
 export const optionTypes = {
   contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: -5 },
   strength: { type: RANGE, range: [-1, 1], step: 0.1, default: 0.6 },
@@ -26,6 +76,16 @@ export const optionTypes = {
   exposure: { type: RANGE, range: [0, 4], step: 0.1, default: 1.4 },
   includeScanline: { type: BOOL, default: true },
   scanlineStrength: { type: RANGE, range: [-2, 2], step: 0.05, default: 0.5 },
+  shadowMask: {
+    type: ENUM,
+    options: [
+      { name: "Vertical", value: VERTICAL },
+      { name: "Staggered", value: STAGGERED },
+      { name: "Ladder", value: LADDER },
+      { name: "Tiled", value: TILED }
+    ],
+    default: VERTICAL
+  },
   blur: { type: BOOL, default: true },
   palette: { type: PALETTE, default: palettes.nearest }
 };
@@ -37,6 +97,7 @@ export const defaults = {
   exposure: optionTypes.exposure.default,
   includeScanline: optionTypes.includeScanline.default,
   scanlineStrength: optionTypes.scanlineStrength.default,
+  shadowMask: optionTypes.shadowMask.default,
   blur: optionTypes.blur.default,
   palette: optionTypes.palette.default
 };
@@ -50,6 +111,7 @@ const rgbStripe = (
     contrast: number,
     includeScanline: boolean,
     scanlineStrength: 0.5,
+    shadowMask: Mask,
     blur: boolean,
     palette: Palette
   } = defaults
@@ -57,6 +119,7 @@ const rgbStripe = (
   const {
     includeScanline,
     scanlineStrength,
+    shadowMask,
     brightness,
     contrast,
     exposure,
@@ -76,22 +139,19 @@ const rgbStripe = (
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
   const outputBuf = new Uint8ClampedArray(buf);
   const effect = 1 - strength;
-  const mask = [
-    [1, effect, effect, 1],
-    [effect, 1, effect, 1],
-    [effect, effect, 1, 1]
-  ];
+  const mask = masks[shadowMask](effect);
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);
 
       // Mask R/G/B alternating
-      const maskIdx = x % 3;
+      const maskxIdx = x % mask[0].length;
+      const maskyIdx = y % mask.length;
       const masked = rgba(
-        buf[i] * mask[maskIdx][0],
-        buf[i + 1] * mask[maskIdx][1],
-        buf[i + 2] * mask[maskIdx][2],
+        buf[i] * mask[maskyIdx][maskxIdx][0],
+        buf[i + 1] * mask[maskyIdx][maskxIdx][1],
+        buf[i + 2] * mask[maskyIdx][maskxIdx][2],
         buf[i + 3]
       );
 

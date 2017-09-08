@@ -89,7 +89,7 @@ export const filterList = [
     }
   },
   {
-    displayName: "RGB stripe (CRT emulation)",
+    displayName: "CRT emulation",
     filter: {
       ...rgbStripe,
       options: {
