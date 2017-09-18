@@ -17,6 +17,7 @@ import rgbStripe from "./rgbstripe";
 import {
   atkinson,
   floydSteinberg,
+  falseFloydSteinberg,
   sierra,
   sierra2,
   sierraLite,
@@ -38,6 +39,7 @@ export { default as rgbStripe } from "./rgbstripe";
 export {
   atkinson,
   floydSteinberg,
+  falseFloydSteinberg,
   sierra,
   sierra2,
   sierraLite,
@@ -154,6 +156,10 @@ export const filterList = [
         }
       }
     }
+  },
+  {
+    displayName: "False Floyd-Steinberg",
+    filter: falseFloydSteinberg
   },
   { displayName: "Jarvis", filter: jarvis },
   {

@@ -17,6 +17,16 @@ export const floydSteinberg = errorDiffusingFilter(
   defaults
 );
 
+const falseFsKernel = {
+  offset: [0, 0], // x, y
+  kernel: scaleMatrix([[null, 3], [3, 2]], 1 / 8)
+};
+export const falseFloydSteinberg = errorDiffusingFilter(
+  "False Floyd-Steinberg",
+  falseFsKernel,
+  defaults
+);
+
 // http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/
 //         *   5   3
 // 2   4   5   4   2
