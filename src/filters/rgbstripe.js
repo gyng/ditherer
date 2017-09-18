@@ -23,8 +23,9 @@ export const VERTICAL = "VERTICAL";
 export const STAGGERED = "STAGGERED";
 export const LADDER = "LADDER";
 export const TILED = "TILED";
+export const HEX_GAP = "HEX_GAP";
 
-export type Mask = "VERTICAL" | "STAGGERED" | "LADDER" | "TILED";
+export type Mask = "VERTICAL" | "STAGGERED" | "LADDER" | "TILED" | "HEX_GAP";
 
 const masks: { [Mask]: (e: number) => Array<Array<Array<number>>> } = {
   // R G B
@@ -66,25 +67,37 @@ const masks: { [Mask]: (e: number) => Array<Array<Array<number>>> } = {
       [r, g, b, r, g, b],
       [k, k, k, r, g, b]
     ];
+  },
+  // R G B _ R G B _
+  // B _ R G B _ R G
+  // R G B _ R G B _
+  [HEX_GAP]: e => {
+    const r = [1, e, e, 1];
+    const g = [e, 1, e, 1];
+    const b = [e, e, 1, 1];
+    const k = [e, e, e, 1];
+
+    return [[r, g, b, k], [b, k, r, g]];
   }
 };
 
 export const optionTypes = {
   contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: -5 },
   strength: { type: RANGE, range: [-1, 1], step: 0.1, default: 0.6 },
-  brightness: { type: RANGE, range: [-255, 255], step: 1, default: 35 },
-  exposure: { type: RANGE, range: [0, 4], step: 0.1, default: 1.4 },
+  brightness: { type: RANGE, range: [-255, 255], step: 1, default: 40 },
+  exposure: { type: RANGE, range: [0, 4], step: 0.1, default: 1.9 },
   includeScanline: { type: BOOL, default: true },
-  scanlineStrength: { type: RANGE, range: [-2, 2], step: 0.05, default: 0.5 },
+  scanlineStrength: { type: RANGE, range: [-2, 2], step: 0.05, default: 0.75 },
   shadowMask: {
     type: ENUM,
     options: [
       { name: "Vertical", value: VERTICAL },
       { name: "Staggered", value: STAGGERED },
       { name: "Ladder", value: LADDER },
-      { name: "Tiled", value: TILED }
+      { name: "Tiled", value: TILED },
+      { name: "Hex", value: HEX_GAP }
     ],
-    default: VERTICAL
+    default: HEX_GAP
   },
   blur: { type: BOOL, default: true },
   palette: { type: PALETTE, default: palettes.nearest }
