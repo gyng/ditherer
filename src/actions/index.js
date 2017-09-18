@@ -104,3 +104,13 @@ export const saveCurrentColorPalette = (
     name
   };
 };
+
+export const deleteCurrentColorPalette = (name: string) => {
+  window.localStorage.removeItem(`_palette_${name.replace(" ", "")}`);
+  delete THEMES[name];
+
+  return {
+    type: types.DELETE_CURRENT_COLOR_PALETTE,
+    name
+  };
+};

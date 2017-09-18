@@ -1,6 +1,6 @@
 // @flow
 
-/* eslint-disable no-alert, react/no-unused-prop-types, react/prop-types */
+/* eslint-disable no-alert, react/no-unused-prop-types, react/prop-types, jsx-a11y/accessible-emoji */
 
 import React from "react";
 
@@ -32,7 +32,8 @@ type Props = {
   inputCanvas: ?HTMLCanvasElement,
   onSetPaletteOption: (string, any) => {},
   onAddPaletteColor: ColorRGBA => {},
-  onSaveColorPalette: (string, Array<ColorRGBA>) => {}
+  onSaveColorPalette: (string, Array<ColorRGBA>) => {},
+  onDeleteColorPalette: string => {}
 };
 
 export default class ColorArray extends React.Component<*, Props, *> {
@@ -143,7 +144,22 @@ export default class ColorArray extends React.Component<*, Props, *> {
           }
         }}
       >
-        Save theme locally
+        🎨 Save theme locally
+      </button>
+    );
+
+    const deletePaletteButton = (
+      <button
+        onClick={() => {
+          if (!currentTheme || !currentTheme[0]) {
+            return;
+          }
+
+          this.props.onDeleteColorPalette(currentTheme[0]);
+          this.forceUpdate();
+        }}
+      >
+        🎨 Delete theme
       </button>
     );
 
@@ -158,6 +174,9 @@ export default class ColorArray extends React.Component<*, Props, *> {
         {onAddColorButton}
         {extractColorsButton}
         {!currentTheme ? savePaletteButton : null}
+        {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ") // Hack!
+          ? deletePaletteButton
+          : null}
       </div>
     );
   }

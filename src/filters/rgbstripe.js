@@ -123,7 +123,7 @@ const rgbStripe = (
     exposure: number,
     contrast: number,
     includeScanline: boolean,
-    scanlineStrength: 0.5,
+    scanlineStrength: number,
     shadowMask: Mask,
     blur: boolean,
     palette: Palette

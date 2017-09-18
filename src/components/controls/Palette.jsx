@@ -17,6 +17,7 @@ const Palette = (props: {
   inputCanvas: ?HTMLCanvasElement,
   paletteOptions: { [string]: any },
   onSaveColorPalette: (string, Array<ColorRGBA>) => {},
+  onDeleteColorPalette: string => {},
   onSetFilterOption: (string, PaletteType) => {},
   onSetPaletteOption: (string, any) => {},
   onAddPaletteColor: ColorRGBA => {}
@@ -46,6 +47,7 @@ const Palette = (props: {
       onSetPaletteOption={props.onSetPaletteOption}
       onSetFilterOption={props.onSetPaletteOption}
       onSaveColorPalette={props.onSaveColorPalette}
+      onDeleteColorPalette={props.onDeleteColorPalette}
     />
   </div>;
 

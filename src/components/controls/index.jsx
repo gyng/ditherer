@@ -31,7 +31,8 @@ const Controls = (props: {
   onAddPaletteColor: ColorRGBA => {},
   onSetFilterOption: (string, any) => {},
   onSetPaletteOption: (string, any) => {},
-  onSaveColorPalette: (string, Array<ColorRGBA>) => {}
+  onSaveColorPalette: (string, Array<ColorRGBA>) => {},
+  onDeleteColorPalette: string => {}
 }) =>
   <div className={s.controls}>
     {Object.entries(props.optionTypes).map(e => {
@@ -64,6 +65,7 @@ const Controls = (props: {
               onSetFilterOption={props.onSetFilterOption}
               onSetPaletteOption={props.onSetPaletteOption}
               onSaveColorPalette={props.onSaveColorPalette}
+              onDeleteColorPalette={props.onDeleteColorPalette}
               inputCanvas={props.inputCanvas}
             />
           );
@@ -77,6 +79,7 @@ const Controls = (props: {
               onSetFilterOption={props.onSetFilterOption}
               onSetPaletteOption={props.onSetPaletteOption}
               onSaveColorPalette={props.onSaveColorPalette}
+              onDeleteColorPalette={props.onDeleteColorPalette}
               inputCanvas={props.inputCanvas}
             />
           );

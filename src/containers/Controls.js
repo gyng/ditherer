@@ -5,7 +5,8 @@ import {
   addPaletteColor,
   setFilterOption,
   setFilterPaletteOption,
-  saveCurrentColorPalette
+  saveCurrentColorPalette,
+  deleteCurrentColorPalette
 } from "actions";
 import Controls from "components/controls";
 import type { State } from "types";
@@ -25,7 +26,8 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
     dispatch(setFilterPaletteOption(name, value)),
   onAddPaletteColor: color => dispatch(addPaletteColor(color)),
   onSaveColorPalette: (name, colors) =>
-    dispatch(saveCurrentColorPalette(name, colors))
+    dispatch(saveCurrentColorPalette(name, colors)),
+  onDeleteColorPalette: name => dispatch(deleteCurrentColorPalette(name))
 });
 
 const ContainedControls = connect(mapStateToProps, mapDispatchToProps)(
