@@ -18,13 +18,15 @@ export const BAYER_3X3 = "BAYER_3X3";
 export const BAYER_4X4 = "BAYER_4X4";
 export const BAYER_8X8 = "BAYER_8X8";
 export const SQUARE_5X5 = "SQUARE_5X5";
+export const DISPERSED_DOT_3X3 = "DISPERSED_DOT_3X3";
 
 export type Threshold =
   | "BAYER_2X2"
   | "BAYER_3X3"
   | "BAYER_4X4"
   | "BAYER_8X8"
-  | "SQUARE_5X5";
+  | "SQUARE_5X5"
+  | "DISPERSED_DOT_3X3";
 
 // map[y][x]
 const thresholdMaps: {
@@ -73,6 +75,10 @@ const thresholdMaps: {
       ],
       1 / 255
     )
+  },
+  [DISPERSED_DOT_3X3]: {
+    width: 3,
+    thresholdMap: scaleMatrix([[0, 6, 3], [4, 7, 2], [5, 1, 8]], 1 / 9)
   }
 };
 
@@ -123,6 +129,10 @@ export const optionTypes = {
       {
         name: "Digital Halftone 5×8",
         value: SQUARE_5X5
+      },
+      {
+        name: "Dispersed Dot 3×3",
+        value: DISPERSED_DOT_3X3
       }
     ],
     default: BAYER_4X4
