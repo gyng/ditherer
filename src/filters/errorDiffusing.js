@@ -99,6 +99,26 @@ const jarvisKernel = {
 };
 export const jarvis = errorDiffusingFilter("Jarvis", jarvisKernel, defaults);
 
+//         *   8   4
+// 2   4   8   4   2
+// 1   2   4   2   1   (1/42)
+const stuckiKernel = {
+  offset: [-2, 0],
+  kernel: scaleMatrix(
+    [[null, null, null, 8, 4], [2, 4, 8, 4, 2], [1, 2, 4, 2, 1]],
+    1 / 42
+  )
+};
+export const stucki = errorDiffusingFilter("Stucki", stuckiKernel, defaults);
+
+// *   8   4             The Burkes filter
+// 2   4   8   4   2   (1/32)
+const burkesKernel = {
+  offset: [-2, 0],
+  kernel: scaleMatrix([[null, null, null, 8, 4], [2, 4, 8, 4, 2]], 1 / 32)
+};
+export const burkes = errorDiffusingFilter("Burkes", burkesKernel, defaults);
+
 // Weird kernels
 //   X
 //   1

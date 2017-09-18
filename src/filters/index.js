@@ -16,11 +16,13 @@ import scanline from "./scanline";
 import rgbStripe from "./rgbstripe";
 import {
   atkinson,
+  burkes,
   floydSteinberg,
   falseFloydSteinberg,
   sierra,
   sierra2,
   sierraLite,
+  stucki,
   jarvis,
   horizontalStripe,
   verticalStripe
@@ -38,11 +40,13 @@ export { default as scanline } from "./scanline";
 export { default as rgbStripe } from "./rgbstripe";
 export {
   atkinson,
+  burkes,
   floydSteinberg,
   falseFloydSteinberg,
   sierra,
   sierra2,
   sierraLite,
+  stucki,
   jarvis,
   horizontalStripe,
   verticalStripe
@@ -162,6 +166,14 @@ export const filterList = [
     filter: falseFloydSteinberg
   },
   { displayName: "Jarvis", filter: jarvis },
+  {
+    displayName: "Stucki",
+    filter: stucki
+  },
+  {
+    displayName: "Burkes",
+    filter: burkes
+  },
   {
     displayName: "Atkinson (Mac)",
     filter: atkinson
