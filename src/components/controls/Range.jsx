@@ -10,11 +10,9 @@ const Range = (props: {
   value: number,
   step: ?number,
   onSetFilterOption: (string, any) => {}
-}) =>
+}) => (
   <div className={s.range}>
-    <div className={s.label}>
-      {props.name}
-    </div>
+    <div className={s.label}>{props.name}</div>
     <div className={s.rangeGroup}>
       <input
         type="range"
@@ -26,10 +24,9 @@ const Range = (props: {
           props.onSetFilterOption(props.name, parseFloat(e.target.value))}
       />
 
-      <span className={s.value}>
-        {props.value}
-      </span>
+      <span className={s.value}>{props.value}</span>
     </div>
-  </div>;
+  </div>
+);
 
 export default Range;

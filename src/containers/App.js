@@ -10,8 +10,10 @@ import {
   setScale
 } from "actions";
 import App from "components/App";
-import type { State } from "types";
 import { filterList, grayscale } from "filters";
+
+import type { State } from "types";
+import type { Dispatch } from "redux";
 
 const mapStateToProps = (state: State) => ({
   inputImage: state.filters.inputImage,
@@ -23,11 +25,13 @@ const mapStateToProps = (state: State) => ({
 });
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
+  // $FlowFixMe
   onLoadImage: e => dispatch(loadImageAsync(e.target.files[0])),
   onFilterImage: (input, filter, convertGrayscale = false) => {
     const filterFunc = convertGrayscale
       ? (i, o) => filter.func(grayscale.func(i), o)
       : filter.func;
+    // $FlowFixMe
     dispatch(filterImageAsync(input, filterFunc, filter.options));
   },
   onSelectFilter: (name, filter) => dispatch(selectFilter(name, filter)),

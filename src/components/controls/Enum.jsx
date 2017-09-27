@@ -9,23 +9,22 @@ const Enum = (props: {
   value: string,
   types: { options: Array<{ name: string, value: string }> },
   onSetFilterOption: (string, any) => {}
-}) =>
+}) => (
   <div>
-    <div className={s.label}>
-      {props.name}
-    </div>
+    <div className={s.label}>{props.name}</div>
 
     <select
       className={s.enum}
       value={props.value}
       onChange={e => props.onSetFilterOption(props.name, e.target.value)}
     >
-      {props.types.options.map(p =>
+      {props.types.options.map(p => (
         <option key={p.value} name={p.value}>
           {p.value}
         </option>
-      )}
+      ))}
     </select>
-  </div>;
+  </div>
+);
 
 export default Enum;

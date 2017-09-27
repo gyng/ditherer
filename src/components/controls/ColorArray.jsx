@@ -36,7 +36,7 @@ type Props = {
   onDeleteColorPalette: string => {}
 };
 
-export default class ColorArray extends React.Component<*, Props, *> {
+export default class ColorArray extends React.Component<*, Props> {
   render() {
     const currentTheme = Object.entries(THEMES).find(
       e => e[1] === this.props.value

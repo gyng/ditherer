@@ -33,7 +33,7 @@ const Controls = (props: {
   onSetPaletteOption: (string, any) => {},
   onSaveColorPalette: (string, Array<ColorRGBA>) => {},
   onDeleteColorPalette: string => {}
-}) =>
+}) => (
   <div className={s.controls}>
     {Object.entries(props.optionTypes).map(e => {
       const [name, oType] = e;
@@ -118,6 +118,7 @@ const Controls = (props: {
           return <div>Unknown setting type</div>;
       }
     })}
-  </div>;
+  </div>
+);
 
 export default Controls;

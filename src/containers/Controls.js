@@ -9,7 +9,9 @@ import {
   deleteCurrentColorPalette
 } from "actions";
 import Controls from "components/controls";
+
 import type { State } from "types";
+import type { Dispatch } from "redux";
 
 const mapStateToProps = (
   state: State,

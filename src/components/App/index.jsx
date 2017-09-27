@@ -10,7 +10,7 @@ import Controls from "containers/Controls";
 import controls from "components/controls/styles.scss";
 import s from "./styles.scss";
 
-export default class App extends React.Component<*, *, *> {
+export default class App extends React.Component<*> {
   static defaultProps: {
     className: string
   };
@@ -110,11 +110,11 @@ export default class App extends React.Component<*, *, *> {
               this.props.selectedFilter && this.props.selectedFilter.displayName
             }
           >
-            {this.props.availableFilters.map(f =>
+            {this.props.availableFilters.map(f => (
               <option key={f && f.displayName} value={f && f.displayName}>
                 {f && f.displayName}
               </option>
-            )}
+            ))}
           </select>
           <div className={controls.group}>
             <span className={controls.name}>Options</span>

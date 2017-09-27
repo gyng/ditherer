@@ -10,7 +10,7 @@ const Bool = (props: {
   name: string,
   value: boolean,
   onSetFilterOption: (string, boolean) => {}
-}) =>
+}) => (
   <div className={s.checkbox}>
     <input
       type="checkbox"
@@ -24,6 +24,7 @@ const Bool = (props: {
     >
       {props.name}
     </span>
-  </div>;
+  </div>
+);
 
 export default Bool;

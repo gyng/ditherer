@@ -21,22 +21,20 @@ const Palette = (props: {
   onSetFilterOption: (string, PaletteType) => {},
   onSetPaletteOption: (string, any) => {},
   onAddPaletteColor: ColorRGBA => {}
-}) =>
+}) => (
   <div className={s.group}>
-    <span className={s.name}>
-      {props.name}
-    </span>
+    <span className={s.name}>{props.name}</span>
 
     <select
       className={s.enum}
       value={props.value.name}
       onChange={e => props.onSetFilterOption(props.name, e.target.value)}
     >
-      {paletteList.map(p =>
+      {paletteList.map(p => (
         <option key={p.name} name={p.name}>
           {p.name}
         </option>
-      )}
+      ))}
     </select>
 
     <Controls
@@ -49,6 +47,7 @@ const Palette = (props: {
       onSaveColorPalette={props.onSaveColorPalette}
       onDeleteColorPalette={props.onDeleteColorPalette}
     />
-  </div>;
+  </div>
+);
 
 export default Palette;
