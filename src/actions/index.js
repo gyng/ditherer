@@ -2,6 +2,7 @@
 /* eslint-disable import/prefer-default-export */
 
 import * as types from "constants/actionTypes";
+import type { Dispatch } from "redux";
 
 export const increment = (value: number = 1) => ({
   type: types.INCREMENT,
@@ -14,5 +15,5 @@ export const decrement = (value: number = 1) => ({
 });
 
 export const incrementAsync = (value: number = 1, delay: number = 1000) => (
-  dispatch: Dispatch
+  dispatch: Dispatch<*>
 ) => setTimeout(() => dispatch(increment(value)), delay);

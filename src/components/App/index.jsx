@@ -11,7 +11,7 @@ import Echo from "components/Echo";
 import hello from "./hello.jpg";
 import s from "./styles.scss";
 
-export default class App extends React.Component {
+export default class App extends React.Component<*> {
   static defaultProps: {
     className: string
   };
@@ -26,11 +26,12 @@ export default class App extends React.Component {
           <Route
             exact
             path={this.props.match.url}
-            render={() =>
+            render={() => (
               <Link to="/counter">
                 Link to /counter. Click to show counter. Back/Forward buttons
                 work.
-              </Link>}
+              </Link>
+            )}
           />
           <Route path="/counter" component={Counter} />
         </div>
