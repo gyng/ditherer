@@ -1,6 +1,9 @@
 import React from "react";
-import { shallow } from "enzyme";
+import Enzyme, { shallow } from "enzyme";
+import Adapter from 'enzyme-adapter-react-16';
 import Counter from "components/Counter";
+
+Enzyme.configure({ adapter: new Adapter() });
 
 describe("Counter", () => {
   let render;
@@ -10,6 +13,7 @@ describe("Counter", () => {
       <Counter
         value={0}
         onIncrementClick={() => {}}
+        onIncrementClickAsync={() => {}}
         onDecrementClick={() => {}}
       />
     );

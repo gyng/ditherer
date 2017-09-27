@@ -1,6 +1,9 @@
 import React from "react";
-import { shallow } from "enzyme";
+import Enzyme, { shallow } from "enzyme";
+import Adapter from 'enzyme-adapter-react-16';
 import Echo from "components/Echo";
+
+Enzyme.configure({ adapter: new Adapter() });
 
 describe("Echo", () => {
   it("renders the text", () => {
