@@ -46,7 +46,6 @@ App.propTypes = {
 };
 
 App.defaultProps = {
-  children: null,
   className: s.app,
   match: { url: "unknown" }
 };
