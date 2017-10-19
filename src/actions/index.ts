@@ -1,19 +1,16 @@
-// @flow
-/* eslint-disable import/prefer-default-export */
-
-import * as types from "constants/actionTypes";
-import type { Dispatch } from "redux";
+import { ActionTypes, IncrementAction } from "@src/types";
+import { Dispatch } from "redux";
 
 export const increment = (value: number = 1) => ({
-  type: types.INCREMENT,
+  type: ActionTypes.INCREMENT,
   value
 });
 
 export const decrement = (value: number = 1) => ({
-  type: types.DECREMENT,
+  type: ActionTypes.DECREMENT,
   value
 });
 
 export const incrementAsync = (value: number = 1, delay: number = 1000) => (
-  dispatch: Dispatch<*>
+  dispatch: Dispatch<IncrementAction>
 ) => setTimeout(() => dispatch(increment(value)), delay);

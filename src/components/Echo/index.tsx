@@ -1,8 +1,6 @@
-// @flow
+import * as React from "react";
 
-import React from "react";
-
-import s from "./styles.scss";
+const s = require("./styles.scss");
 
 const Echo = (props: { text: string }) => (
   <p className={s.text}>{props.text}</p>

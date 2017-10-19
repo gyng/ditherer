@@ -1,24 +1,32 @@
 // @flow
 /* eslint-disable no-underscore-dangle */
 
-import React from "react";
-import ReactDOM from "react-dom";
-import { createStore, combineReducers, applyMiddleware, compose } from "redux";
+import * as React from "react";
+import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
+import { applyMiddleware, combineReducers, compose, createStore } from "redux";
 import thunkMiddleware from "redux-thunk";
 
 import createHistory from "history/createBrowserHistory";
-import { Route } from "react-router-dom";
+import { Route, RouteProps } from "react-router-dom";
 import {
   ConnectedRouter,
-  routerReducer,
-  routerMiddleware
+  routerMiddleware,
+  routerReducer
 } from "react-router-redux";
 
-import App from "components/App";
-import reducers from "reducers";
+import App from "@src/components/App";
+import reducers from "@src/reducers";
 
-import s from "styles/style.scss";
+// Skip TypeScript (use Webpack directly) for relative files
+const s = require("./styles/style.scss");
+
+// Extend window for TypeScript
+declare global {
+  interface Window {
+    __REDUX_DEVTOOLS_EXTENSION_COMPOSE__: any;
+  }
+}
 
 // Redux devtools are still enabled in production!
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
@@ -40,11 +48,17 @@ const store = createStore(
   composeEnhancers(applyMiddleware(...middleware))
 );
 
+// Example of extending extra props on library components
+interface MyRouteProps extends RouteProps {
+  className: string;
+}
+class MyRoute extends Route<MyRouteProps> {}
+
 ReactDOM.render(
   <Provider store={store}>
     <ConnectedRouter history={history}>
       <div>
-        <Route path="/" component={App} className={s.app} />
+        <MyRoute path="/" component={App} className={s.app} />
       </div>
     </ConnectedRouter>
   </Provider>,

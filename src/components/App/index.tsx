@@ -1,22 +1,25 @@
-// @flow
-/* eslint-disable react/prefer-stateless-function, react/forbid-prop-types */
+import * as React from "react";
+import { Link, Route } from "react-router-dom";
 
-import React from "react";
-import PropTypes from "prop-types";
-import { Route, Link } from "react-router-dom";
+import Echo from "@src/components/Echo";
+import Counter from "@src/containers/Counter";
 
-import Counter from "containers/Counter";
-import Echo from "components/Echo";
+// Let webpack instead of ts handle these imports
+const hello = require("./hello.jpg");
+const s = require("./styles.scss");
 
-import hello from "./hello.jpg";
-import s from "./styles.scss";
+export interface AppProps {
+  className: string;
+  match: { url: string };
+}
 
-export default class App extends React.Component<*> {
-  static defaultProps: {
-    className: string
+export default class App extends React.Component<AppProps, {}> {
+  public static defaultProps: {
+    className: string;
+    match: { url: string };
   };
 
-  render() {
+  public render() {
     return (
       <div className={this.props.className}>
         <img className={s.robot} src={hello} alt="Cute robot?" />
@@ -39,11 +42,6 @@ export default class App extends React.Component<*> {
     );
   }
 }
-
-App.propTypes = {
-  className: PropTypes.string,
-  match: PropTypes.object
-};
 
 App.defaultProps = {
   className: s.app,

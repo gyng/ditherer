@@ -1,11 +1,14 @@
-// @flow
-/* eslint-disable react/prefer-stateless-function */
+import * as React from "react";
 
-import React from "react";
-import PropTypes from "prop-types";
+export interface CounterProps {
+  value: number;
+  onIncrementClick: () => void;
+  onIncrementClickAsync: () => void;
+  onDecrementClick: () => void;
+}
 
-export default class Counter extends React.Component<*> {
-  render() {
+export default class Counter extends React.Component<CounterProps, {}> {
+  public render() {
     return (
       <div>
         <div className="value">{this.props.value}</div>
@@ -25,10 +28,3 @@ export default class Counter extends React.Component<*> {
     );
   }
 }
-
-Counter.propTypes = {
-  value: PropTypes.number.isRequired,
-  onIncrementClick: PropTypes.func.isRequired,
-  onIncrementClickAsync: PropTypes.func.isRequired,
-  onDecrementClick: PropTypes.func.isRequired
-};

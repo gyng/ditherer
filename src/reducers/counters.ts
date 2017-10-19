@@ -1,16 +1,13 @@
-// @flow
-
-import { INCREMENT, DECREMENT } from "constants/actionTypes";
-import type { Action, CountersState } from "types";
+import { Action, ActionTypes, CountersState } from "@src/types";
 
 export default (state: CountersState = { value: 0 }, action: Action) => {
   switch (action.type) {
-    case INCREMENT:
+    case ActionTypes.INCREMENT:
       return {
         ...state,
         value: state.value + action.value
       };
-    case DECREMENT:
+    case ActionTypes.DECREMENT:
       return {
         ...state,
         value: state.value - action.value

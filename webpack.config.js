@@ -1,3 +1,4 @@
+const { CheckerPlugin } = require("awesome-typescript-loader");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const path = require("path");
 const webpack = require("webpack");
@@ -8,7 +9,7 @@ module.exports = {
   target: "web",
 
   entry: {
-    app: "./index.jsx"
+    app: "./index.tsx"
   },
 
   output: {
@@ -53,6 +54,15 @@ module.exports = {
         options: {
           presets: ["airbnb"]
         }
+      },
+      {
+        test: /\.tsx?$/,
+        loader: "awesome-typescript-loader"
+      },
+      {
+        enforce: "pre",
+        test: /\.js$/,
+        loader: "source-map-loader"
       }
     ]
   },
@@ -81,6 +91,11 @@ module.exports = {
       template: "./index.html"
     }),
 
+    // awesome-typescript-loader async error reporting
+    process.env.NODE_ENV === "development"
+      ? new CheckerPlugin()
+      : new webpack.BannerPlugin({ banner: "" }),
+
     process.env.NODE_ENV === "production"
       ? new webpack.optimize.UglifyJsPlugin()
       : new webpack.BannerPlugin({
@@ -104,7 +119,10 @@ module.exports = {
   },
 
   resolve: {
-    extensions: [".js", ".jsx"],
-    modules: ["node_modules", path.resolve(__dirname, "src")]
+    extensions: [".js", ".jsx", ".ts", ".tsx"],
+    modules: ["node_modules", path.resolve(__dirname, "src")],
+    alias: {
+      "@src": path.resolve(__dirname, "src")
+    }
   }
 };

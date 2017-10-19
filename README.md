@@ -4,7 +4,8 @@
 
 A personal JavaScript boilerplate for frontend applications for near-production use. Production deployment will require additional work depending on where and how you plan to deploy your application.
 
-The stack is somewhat similar to [generator-react-webpack-redux](https://github.com/stylesuxx/generator-react-webpack-redux), but adds linting, flow, enzyme, and some basic deployment niceties.
+The stack is somewhat similar to [generator-react-webpack-redux](https://github.com/stylesuxx/generator-react-webpack-redux), but adds linting, typescript, enzyme, and some basic deployment niceties.
+Code uses TypeScript for bug-catching, but tests use unchecked Javascript for easier test-writing.
 
 This boilerplate contains:
 
@@ -20,11 +21,12 @@ This boilerplate contains:
 | [mocha](https://mochajs.org/#getting-started)                             | test framework               |
 | [chai](http://chaijs.com/guide/styles/)                                   | test assertions              |
 | [enzyme](http://airbnb.io/enzyme/index.html)                              | react test library           |
-| [flow](https://flowtype.org/docs/getting-started.html)                    | type checking                |
+| [typescript](https://www.typescriptlang.org/docs/home.html)               | type checking                |
 | [eslint](http://eslint.org/docs/rules/)                                   | javascript linting           |
-| [prettier](https://github.com/prettier/prettier/)                         | javascript formatting        |
+| [tslint](https://palantir.github.io/tslint/rules/)                        | typescript linting           |
+| [prettier](https://github.com/prettier/prettier/)                         | (type|java)script formatting |
 | [stylelint](https://stylelint.io/user-guide/)                             | css linting                  |
-| [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner                  |
+| [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner (with electron)  |
 | **Building, CI, deploying**                                               |                              |
 | [webpack](https://webpack.js.org/concepts/)                               | javascript bundler           |
 | [docker](https://docs.docker.com/engine/reference/builder/)               | container                    |
@@ -44,17 +46,17 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 ### Test
 
     yarn test
-    yarn lint                       # runs flow, eslint, stylelint
+    yarn lint                       # runs tslint, eslint, stylelint
+    yarn tslint
+    yarn tslint:fix
     yarn eslint
     yarn eslint:fix
-    yarn prettier                   # prettier style enforced by eslint
+    yarn prettier                   # prettier style enforced by eslint/tslint
     yarn prettier:fix
     yarn stylelint
-    yarn flow
 
 ### Develop
 
-    yarn flow-typed install
     yarn test:watch                 # runs tests using karma in watch mode
     yarn d                          # runs webpack-dev-server
 
@@ -62,3 +64,7 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 
     docker-compose up               # runs http-server at port 8080 on a production build in a container
 
+### Future
+
+* Combine TSLint and ESLint to use just ESLint once ESLint support for TypeScript is mature enough
+* Figure out how to deal with CSS nicely

@@ -1,15 +1,14 @@
-// @flow
-
 import { connect } from "react-redux";
-import { increment, decrement, incrementAsync } from "actions";
-import Counter from "components/Counter";
-import type { State } from "types";
+
+import { decrement, increment, incrementAsync } from "@src/actions";
+import Counter from "@src/components/Counter";
+import { State } from "@src/types";
 
 const mapStateToProps = (state: State) => ({ value: state.counters.value });
 
 const mapDispatchToProps = (dispatch: any) => ({
-  onIncrementClick: () => dispatch(increment()),
   onDecrementClick: () => dispatch(decrement()),
+  onIncrementClick: () => dispatch(increment()),
   onIncrementClickAsync: () => dispatch(incrementAsync())
 });
 

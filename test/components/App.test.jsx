@@ -1,8 +1,8 @@
 import React from "react";
 import Enzyme, { shallow } from "enzyme";
 import Adapter from "enzyme-adapter-react-16";
-import App from "components/App";
-import Echo from "components/Echo";
+import App from "@src/components/App";
+import Echo from "@src/components/Echo";
 
 Enzyme.configure({ adapter: new Adapter() });
 

@@ -1,0 +1,17 @@
+{
+  "extends": [
+    "tslint:latest",
+    "tslint-react",
+    "tslint-eslint-rules",
+    "tslint-plugin-prettier",
+    "tslint-config-prettier"
+  ],
+  "rules": {
+    "no-submodule-imports": false,
+    "jsx-no-lambda": false,
+    "jsx-boolean-value": false,
+    "prettier": true,
+    "interface-name": false,
+    "no-var-requires": false
+  }
+}

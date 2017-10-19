@@ -1,5 +1,6 @@
 import * as actions from "actions";
-import * as types from "constants/actionTypes";
+import { ActionTypes } from "@src/types";
+
 import thunk from "redux-thunk";
 import configureMockStore from "redux-mock-store";
 
@@ -42,7 +43,7 @@ describe("actions", () => {
     it("should create an action to increment async", () => {
       const store = mockStore({});
       const action = actions.incrementAsync(2, 0);
-      const expectedActions = [{ type: types.INCREMENT, value: 2 }];
+      const expectedActions = [{ type: ActionTypes.INCREMENT, value: 2 }];
 
       return Promise.resolve(store.dispatch(action)).then(() => {
         const dispatched = store.getActions();
