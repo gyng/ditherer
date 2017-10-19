@@ -2,7 +2,7 @@
 If you want to run the tests in a Docker Container, you should consider modifying the `Dockerfile`.
 
 ## Base Image
-You might want to change the base image to `node:7.5.0` which is based off `Ubuntu` rather than `Alpine`.
+You might want to change the base image to `node:8.7.0` which is based off `Ubuntu` rather than `Alpine`.
 
 Primarily, many binaries used in the test (such as Electron, and Flow) are linked against `glibc` rather than
 `musl` which is what Alpine includes.
@@ -21,9 +21,9 @@ You will have to install additional dependencies as required by Electron.
 ## Example Dockerfile
 
 ```dockerfile
-FROM node:7.5.0
+FROM node:8.7.0
 
-ARG YARN_VERSION=0.20.3
+ARG YARN_VERSION=1.2.1
 # These depdendencies below are installed for Electron which is used by Nightmare
 RUN set -ex \
     && apt-get update \

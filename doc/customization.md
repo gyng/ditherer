@@ -1,11 +1,5 @@
 # Removing bits and pieces
 
-## Flow
-
-* Remove `src/types`, `.flowconfig`, `flow`
-* Remove scripts from `package.json`
-* Remove type imports from components and modules
-
 ## Redux
 
 * Remove `src/actions`, `src/constants`, `src/containers`, `src/reducers` and any other Redux-related modules
