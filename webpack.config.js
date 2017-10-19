@@ -1,4 +1,3 @@
-const { CheckerPlugin } = require("awesome-typescript-loader");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const path = require("path");
 const webpack = require("webpack");
@@ -90,11 +89,6 @@ module.exports = {
       },
       template: "./index.html"
     }),
-
-    // awesome-typescript-loader async error reporting
-    process.env.NODE_ENV === "development"
-      ? new CheckerPlugin()
-      : new webpack.BannerPlugin({ banner: "" }),
 
     process.env.NODE_ENV === "production"
       ? new webpack.optimize.UglifyJsPlugin()
