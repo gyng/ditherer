@@ -24,7 +24,7 @@ This boilerplate contains:
 | [typescript](https://www.typescriptlang.org/docs/home.html)               | type checking                |
 | [eslint](http://eslint.org/docs/rules/)                                   | javascript linting           |
 | [tslint](https://palantir.github.io/tslint/rules/)                        | typescript linting           |
-| [prettier](https://github.com/prettier/prettier/)                         | (type|java)script formatting |
+| [prettier](https://github.com/prettier/prettier/)                         | (type/java)script formatting |
 | [stylelint](https://stylelint.io/user-guide/)                             | css linting                  |
 | [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner (with electron)  |
 | **Building, CI, deploying**                                               |                              |
