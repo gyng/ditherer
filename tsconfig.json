@@ -6,8 +6,6 @@
     "module": "commonjs",
     "target": "es5",
     "jsx": "react",
-    "useBabel": true,
-    "useCache": true,
     "baseUrl": "./",
     "paths": {
       "@src/*": ["src/*"]
