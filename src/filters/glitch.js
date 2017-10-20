@@ -58,7 +58,7 @@ export const optionTypes = {
   errRepeat: { type: BOOL, default: false },
   errBtoa: { type: BOOL, default: false },
   errSubstitute: { type: BOOL, default: true },
-  jpegQuality: { type: RANGE, range: [0, 1], step: 0.01, default: 1 }
+  jpegQuality: { type: RANGE, range: [0, 1], step: 0.01, default: 0.92 }
 };
 
 const defaults = {
