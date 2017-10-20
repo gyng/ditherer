@@ -53,7 +53,7 @@ export const optionTypes = {
     ],
     default: IMAGE_JPEG
   },
-  errors: { type: RANGE, range: [0, 1000], step: 1, default: 30 },
+  errors: { type: RANGE, range: [0, 300], step: 1, default: 30 },
   errTranspose: { type: BOOL, default: true },
   errRepeat: { type: BOOL, default: false },
   errBtoa: { type: BOOL, default: false },
