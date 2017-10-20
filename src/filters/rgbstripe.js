@@ -82,7 +82,7 @@ const masks: { [Mask]: (e: number) => Array<Array<Array<number>>> } = {
 };
 
 export const optionTypes = {
-  contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: -5 },
+  contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 4 },
   strength: { type: RANGE, range: [-1, 1], step: 0.1, default: 0.6 },
   brightness: { type: RANGE, range: [-255, 255], step: 1, default: 40 },
   exposure: { type: RANGE, range: [0, 4], step: 0.1, default: 1.9 },
