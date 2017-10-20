@@ -19,25 +19,11 @@ module.exports = {
 
   module: {
     rules: [
-      {
-        test: /\.(css|scss)$/,
-        loaders: [
-          "style-loader",
-          {
-            loader: "css-loader",
-            options: { modules: true, importLoaders: 1 }
-          },
-          { loader: "postcss-loader", options: { sourceMap: "inline" } }
-        ]
-      },
       // Escape hatch for CSS module classname mangling
       {
-        test: /\.legacy\.(css|scss)$/,
+        test: /\.legacy\.css$/,
         include: path.resolve(__dirname, "src"),
-        loaders: [
-          "style-loader",
-          { loader: "css-loader", options: { importLoaders: 1 } }
-        ]
+        loaders: ["style-loader", "css-loader"]
       },
       {
         test: /\.(jpg|png|gif|mp4|webm|mp3|ogg)$/,
@@ -46,6 +32,7 @@ module.exports = {
           name: "./f/[path][name].[hash].[ext]"
         }
       },
+      // Mostly for tests, but legacy JS in source too
       {
         test: /\.(js|jsx)$/,
         exclude: /\/node_modules\//,

@@ -16,7 +16,8 @@ This boilerplate contains:
 | [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration      |
 | [react-router-redux](https://github.com/reactjs/react-router-redux)       | routing                      |
 | [redux-thunk](https://github.com/gaearon/redux-thunk)                     | async actions                |
-| [postcss](https://github.com/postcss/postcss)                             | css modules, cssnext, precss |
+| [emotion](https://github.com/emotion-js/emotion)                          | css-in-javascript, styling   |
+| [plain css](https://developer.mozilla.org/en-US/docs/Web/CSS)             | legacy css escape hatch      |
 | **Testing, linting**                                                      |                              |
 | [mocha](https://mochajs.org/#getting-started)                             | test framework               |
 | [chai](http://chaijs.com/guide/styles/)                                   | test assertions              |
@@ -26,7 +27,7 @@ This boilerplate contains:
 | [eslint](http://eslint.org/docs/rules/)                                   | javascript linting           |
 | [tslint](https://palantir.github.io/tslint/rules/)                        | typescript linting           |
 | [prettier](https://github.com/prettier/prettier/)                         | (type/java)script formatting |
-| [stylelint](https://stylelint.io/user-guide/)                             | css linting                  |
+| [stylelint](https://stylelint.io/user-guide/)                             | legacy css linting           |
 | [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner (with electron)  |
 | **Building, CI, deploying**                                               |                              |
 | [webpack](https://webpack.js.org/concepts/)                               | javascript bundler           |
@@ -71,4 +72,5 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 ### Future
 
 * Combine TSLint and ESLint to use just ESLint once ESLint support for TypeScript is mature enough
-* Figure out how to deal with CSS nicely
+* Add stylelint for emotion (once available)
+* Update `src/index.tsx` to incorporate `emotion-theming` once TypeScript bug is fixed (#429)

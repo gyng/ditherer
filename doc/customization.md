@@ -16,9 +16,13 @@
 
 * Remove `Dockerfile`, `docker-compose.yml`
 
-## CSS Modules
+## Emotion
 
-* Remove `modules` from `css-loader` in `webpack.config.js`
+* Remove `yarn remove emotion react-emotion emotion-theming`
+* Remove usages of emotion in example components
+* Use `.legacy.css` for all styling
+* Change `.legacy.css` to `.css` in `webpack.config.js`
+* Install `sass-loader` and `node-sass`, add to `webpack.config.js` if you want SCSS/SASS
 
 ## Functional tests
 

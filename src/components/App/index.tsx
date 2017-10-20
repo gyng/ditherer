@@ -1,4 +1,5 @@
 import * as React from "react";
+import styled, { keyframes } from "react-emotion";
 import { Link, Route } from "react-router-dom";
 
 import Echo from "@src/components/Echo";
@@ -6,25 +7,40 @@ import Counter from "@src/containers/Counter";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");
-const s = require("./styles.scss");
+
+// Legacy CSS are supported
+const legacyCss = require("./styles.legacy.css");
+
+const spin = keyframes`
+  100% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+  }
+`;
+
+const ImgRobot = styled("img")`
+  align-self: center;
+  animation: ${spin} 60s linear infinite;
+  border-radius: 50%;
+  height: auto;
+  width: 200px;
+`;
 
 export interface AppProps {
-  className: string;
   match: { url: string };
 }
 
 export default class App extends React.Component<AppProps, {}> {
   public static defaultProps: {
-    className: string;
     match: { url: string };
   };
 
   public render() {
     return (
-      <div className={this.props.className}>
-        <img className={s.robot} src={hello} alt="Cute robot?" />
+      <div className="app">
+        <ImgRobot src={hello} alt="Cute robot?" />
         <Echo text="Hello, world! Find me in src/components/App/index.jsx!" />
 
+        {/* React style prop is still available */}
         <div style={{ border: "solid 1px grey" }}>
           <Route
             exact
@@ -44,6 +60,5 @@ export default class App extends React.Component<AppProps, {}> {
 }
 
 App.defaultProps = {
-  className: s.app,
   match: { url: "unknown" }
 };

@@ -18,8 +18,12 @@ import {
 import App from "@src/components/App";
 import reducers from "@src/reducers";
 
-// Skip TypeScript (use Webpack directly) for relative files
-const s = require("./styles/style.scss");
+// CSS escape hatch: name files with myfile.legacy.css
+const legacyCss = require("./styles/style.legacy.css");
+
+// https://github.com/emotion-js/emotion/pull/419
+// import { ThemeProvider } from "emotion-theming";
+import styled from "react-emotion";
 
 // Extend window for TypeScript
 declare global {
@@ -50,7 +54,7 @@ const store = createStore(
 
 // Example of extending extra props on library components
 interface MyRouteProps extends RouteProps {
-  className: string;
+  unusedProp: string;
 }
 class MyRoute extends Route<MyRouteProps> {}
 
@@ -58,7 +62,7 @@ ReactDOM.render(
   <Provider store={store}>
     <ConnectedRouter history={history}>
       <div>
-        <MyRoute path="/" component={App} className={s.app} />
+        <MyRoute path="/" component={App} unusedProp="unused" />
       </div>
     </ConnectedRouter>
   </Provider>,

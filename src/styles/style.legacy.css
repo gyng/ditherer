@@ -1,0 +1,35 @@
+/* This is an example of the escape hatch for emotion CSS-in-JS.
+ * Ideally you want to avoid using this as much as possible, and use the
+ * ThemeProvider styling provided by emotion-theming.
+ *
+ * However, there *are* cases where legacy libraries can only be styled through
+ * unmangled class names, and this mechanism allows for that.
+ *
+ * Or, if you're plain uncomfortable with CSS-in-JS, emotion can be ignored entirely (and
+ * all styling done through vanilla CSS as provided through webpack's css-loader)
+*/
+
+/* Relative path resolution */
+@import "./typography.legacy.css";
+
+:root {
+  --bg-color: hsl(220, 25%, 25%);
+}
+
+/* Global HTML rules */
+html,
+body {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-color);
+  color: #fff;
+}
+
+a {
+  color: #fff;
+}

@@ -1,9 +1,11 @@
 import * as React from "react";
+import styled from "react-emotion";
 
-const s = require("./styles.scss");
+const EchoP = styled("p")`
+  font-style: italic;
+  text-align: center;
+`;
 
-const Echo = (props: { text: string }) => (
-  <p className={s.text}>{props.text}</p>
-);
+const Echo = (props: { text: string }) => <EchoP>{props.text}</EchoP>;
 
 export default Echo;
