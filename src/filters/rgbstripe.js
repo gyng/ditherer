@@ -9,7 +9,8 @@ import {
   rgba,
   scale,
   contrast as contrastFunc,
-  brightness as brightnessFunc
+  brightness as brightnessFunc,
+  gamma as gammaFunc
 } from "utils";
 
 import type { Palette } from "types";
@@ -83,9 +84,10 @@ const masks: { [Mask]: (e: number) => Array<Array<Array<number>>> } = {
 
 export const optionTypes = {
   contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 4 },
-  strength: { type: RANGE, range: [-1, 1], step: 0.1, default: 0.6 },
+  strength: { type: RANGE, range: [-1, 1], step: 0.05, default: 0.7 },
   brightness: { type: RANGE, range: [-255, 255], step: 1, default: 40 },
-  exposure: { type: RANGE, range: [0, 4], step: 0.1, default: 1.9 },
+  exposure: { type: RANGE, range: [0, 4], step: 0.05, default: 1.5 },
+  gamma: { type: RANGE, range: [0, 4], step: 0.05, default: 2.2 },
   includeScanline: { type: BOOL, default: true },
   scanlineStrength: { type: RANGE, range: [-2, 2], step: 0.05, default: 0.75 },
   shadowMask: {
@@ -108,6 +110,7 @@ export const defaults = {
   contrast: optionTypes.contrast.default,
   brightness: optionTypes.brightness.default,
   exposure: optionTypes.exposure.default,
+  gamma: optionTypes.gamma.default,
   includeScanline: optionTypes.includeScanline.default,
   scanlineStrength: optionTypes.scanlineStrength.default,
   shadowMask: optionTypes.shadowMask.default,
@@ -121,6 +124,7 @@ const rgbStripe = (
     strength: number,
     brightness: number,
     exposure: number,
+    gamma: number,
     contrast: number,
     includeScanline: boolean,
     scanlineStrength: number,
@@ -136,6 +140,7 @@ const rgbStripe = (
     brightness,
     contrast,
     exposure,
+    gamma,
     strength,
     blur,
     palette
@@ -171,11 +176,12 @@ const rgbStripe = (
       // Bring up brightness as we've masked off too much
       const brightnessAdjusted = brightnessFunc(masked, brightness, exposure);
       const contrastAdjusted = contrastFunc(brightnessAdjusted, contrast);
+      const gammaAdjusted = gammaFunc(contrastAdjusted, gamma);
 
       // Manually scanline if needed
       const scanlineScale =
         includeScanline && y % 3 === 0 ? scanlineStrength : 1;
-      const scanlined = scale(contrastAdjusted, scanlineScale);
+      const scanlined = scale(gammaAdjusted, scanlineScale);
 
       const color = palette.getColor(scanlined, palette.options);
 

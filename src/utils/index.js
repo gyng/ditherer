@@ -257,6 +257,13 @@ export const brightness = (
   color[3]
 ];
 
+export const gamma = (color: ColorRGBA, g: number) => [
+  255 * (color[0] / 255) ** (1 / g),
+  255 * (color[1] / 255) ** (1 / g),
+  255 * (color[2] / 255) ** (1 / g),
+  color[3]
+];
+
 export const getBufferIndex = (x: number, y: number, width: number): number =>
   (x + width * y) * 4;
 

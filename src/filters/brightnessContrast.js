@@ -8,7 +8,8 @@ import {
   getBufferIndex,
   rgba,
   contrast as contrastFunc,
-  brightness as brightnessFunc
+  brightness as brightnessFunc,
+  gamma as gammaFunc
 } from "utils";
 
 import type { Palette } from "types";
@@ -17,13 +18,15 @@ export const optionTypes = {
   brightness: { type: RANGE, range: [-255, 255], step: 1, default: 0 },
   contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 0 },
   exposure: { type: RANGE, range: [-4, 4], step: 0.1, default: 1 },
+  gamma: { type: RANGE, range: [-1.5, 7.5], step: 0.1, default: 1 },
   palette: { type: PALETTE, default: palettes.nearest }
 };
 
 export const defaults = {
-  contrast: optionTypes.contrast.default,
   brightness: optionTypes.brightness.default,
+  contrast: optionTypes.contrast.default,
   exposure: optionTypes.exposure.default,
+  gamma: optionTypes.gamma.default,
   palette: optionTypes.palette.default
 };
 
@@ -31,12 +34,13 @@ const brightnessContrast = (
   input: HTMLCanvasElement,
   options: {
     brightness: number,
-    exposure: number,
     contrast: number,
+    exposure: number,
+    gamma: number,
     palette: Palette
   } = defaults
 ): HTMLCanvasElement => {
-  const { brightness, contrast, exposure, palette } = options;
+  const { brightness, contrast, exposure, gamma, palette } = options;
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -52,13 +56,16 @@ const brightnessContrast = (
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);
-      const newColor = contrastFunc(
-        brightnessFunc(
-          rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]),
-          brightness,
-          exposure
+      const newColor = gammaFunc(
+        contrastFunc(
+          brightnessFunc(
+            rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]),
+            brightness,
+            exposure
+          ),
+          contrast
         ),
-        contrast
+        gamma
       );
 
       const col = palette.getColor(newColor, palette.options);
