@@ -4,8 +4,8 @@
 
 A personal JavaScript boilerplate for frontend applications for near-production use. Production deployment will require additional work depending on where and how you plan to deploy your application.
 
-The stack is somewhat similar to [generator-react-webpack-redux](https://github.com/stylesuxx/generator-react-webpack-redux), but adds linting, typescript, enzyme, and some basic deployment niceties.
-Code uses TypeScript for bug-catching, but tests use unchecked Javascript for easier test-writing.
+The stack is somewhat similar to [generator-react-webpack-redux](https://github.com/stylesuxx/generator-react-webpack-redux), but adds linting, TypeScript, testing, and some basic deployment niceties.
+Code uses TypeScript for bug-catching, but tests use vanilla JavaScript for easier test-writing.
 
 This boilerplate contains:
 
@@ -21,6 +21,7 @@ This boilerplate contains:
 | [mocha](https://mochajs.org/#getting-started)                             | test framework               |
 | [chai](http://chaijs.com/guide/styles/)                                   | test assertions              |
 | [enzyme](http://airbnb.io/enzyme/index.html)                              | react test library           |
+| [nightmare](https://github.com/segmentio/nightmare)                       | browser automation test lib  |
 | [typescript](https://www.typescriptlang.org/docs/home.html)               | type checking                |
 | [eslint](http://eslint.org/docs/rules/)                                   | javascript linting           |
 | [tslint](https://palantir.github.io/tslint/rules/)                        | typescript linting           |
@@ -41,11 +42,14 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 ### Build
 
     yarn install
-    NODE_ENV=production yarn run build  # minifies in production
+    NODE_ENV=production yarn build  # minifies in production
 
 ### Test
 
-    yarn test
+    yarn test                       # runs unit tests once
+    yarn test:functional            # runs functional tests (nightmare browser tests)
+    yarn test:full                  # runs unit tests and functional tests
+    yarn test:watch                 # runs unit tests using karma in watch mode
     yarn lint                       # runs tslint, eslint, stylelint
     yarn tslint
     yarn tslint:fix
@@ -57,7 +61,7 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 
 ### Develop
 
-    yarn test:watch                 # runs tests using karma in watch mode
+    yarn test:watch                 # runs unit tests using karma in watch mode
     yarn d                          # runs webpack-dev-server
 
 ### Deploy

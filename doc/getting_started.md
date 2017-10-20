@@ -26,12 +26,13 @@
 
    The main component in `index.jsx` is [`App`](/src/components/App/index.jsx).
 
-5. Check out the tests in [`test`](/test). Note that test files are not TypeScript.
+5. Check out the tests in [`test`](/test). Note that test files are not TypeScript. Functional tests are in [`test/functional`](/test/functional).
 
 6. Try out some of the scripts defined in [`package.json`](/package.json)
     ```
     yarn run lint
     yarn run test
+    yarn run test:functional
     ```
 
 7. For development, the watchers can be run. `yarn run d` starts a development webpack server.
@@ -51,4 +52,4 @@
     docker-compose up
     ```
 
-12. Remove demo-related things from `doc`, `src` and `test`, and start developing! (Or just keep them for reference for now.)
+12. Remove demo-related things from `doc`, `src`, `test` (and `test/functional`), and start developing! (Or just keep them for reference for now.)

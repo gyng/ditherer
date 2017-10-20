@@ -4743,7 +4743,7 @@ negotiator@0.6.1:
   version "0.6.1"
   resolved "https://registry.yarnpkg.com/negotiator/-/negotiator-0.6.1.tgz#2b327184e8992101177b28563fb5e7102acd0ca9"
 
-"nightmare@git+https://github.com/bokuweb/nightmare#master":
+nightmare@^2.10.0, "nightmare@git+https://github.com/bokuweb/nightmare#master":
   version "2.10.0"
   resolved "git+https://github.com/bokuweb/nightmare#7d1b8a40b6f5857a06e7f20440fc4f416c54e9a1"
   dependencies:

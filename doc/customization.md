@@ -19,3 +19,9 @@
 ## CSS Modules
 
 * Remove `modules` from `css-loader` in `webpack.config.js`
+
+## Functional tests
+
+* `yarn remove nightmare`
+* Remove `tests/functional`
+* Remove references to `test:functional` and `test:full`
