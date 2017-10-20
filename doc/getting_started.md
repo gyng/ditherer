@@ -22,9 +22,9 @@
 
 4. …and take a quick tour of the repository!
 
-   The entrypoint is [`src/index.html`](/src/index.html). An index component [`src/index.jsx`](/src/index.jsx) is injected into the html file on build.
+   The entrypoint is [`src/index.html`](/src/index.html). An index component [`src/index.tsx`](/src/index.tsx) is injected into the html file on build.
 
-   The main component in `index.jsx` is [`App`](/src/components/App/index.jsx).
+   The main component in the index component is [`App`](/src/components/App/index.tsx).
 
 5. Check out the tests in [`test`](/test). Note that test files are not TypeScript. Functional tests are in [`test/functional`](/test/functional).
 
@@ -43,7 +43,7 @@
 
 8. [Remove the bits you do not want](customization.md#removing-bits-and-pieces), if you wish
 
-9. Check out the [webpack configuration](/webpack.config.js). `src` is added as a module directory under `resolve.modules` to eliminate clunky imports.
+9. Check out the [webpack configuration](/webpack.config.js).
 
 10. Check out the styling options [emotion JS-in-CSS](/src/components/App/index.tsx) and [CSS escape hatch](/src/styles/style.legacy.css). Styling is intended to be done through emotion, but the escape hatch is available for   legacy libraries and manual control. Legacy styles need to have a filename ending in `.legacy.css`, and are included using `require` instead of `import`.
 
