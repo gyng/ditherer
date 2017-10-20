@@ -48,15 +48,17 @@ export const filterImageAsync = (
   filter: FilterFunc,
   options: ?any
 ) => (dispatch: Dispatch) => {
-  const output = filter(input, options);
+  const output = filter(input, options, dispatch);
   if (!output) return { type: types.ERROR, message: "Error filtering" };
 
-  const outputImage = new Image();
-  outputImage.src = output.toDataURL("image/png");
+  if (output instanceof HTMLCanvasElement) {
+    const outputImage = new Image();
+    outputImage.src = output.toDataURL("image/png");
 
-  outputImage.onload = () => {
-    dispatch(filterImage(outputImage));
-  };
+    outputImage.onload = () => {
+      dispatch(filterImage(outputImage));
+    };
+  }
 
   return null;
 };

@@ -13,3 +13,5 @@ export const DELETE_CURRENT_COLOR_PALETTE = "DELETE_CURRENT_COLOR_PALETTE";
 export const SET_GRAYSCALE = "SET_GRAYSCALE";
 export const SET_SCALE = "SET_SCALE";
 export const ERROR = "ERROR";
+
+export const ASYNC_FILTER = "ASYNC_FILTER";

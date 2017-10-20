@@ -7,8 +7,9 @@ export type OptionTypes = {
 
 export type FilterFunc = (
   input: HTMLCanvasElement,
-  options?: ?any
-) => HTMLCanvasElement;
+  options?: ?any,
+  dispatch?: ?Dispatch
+) => HTMLCanvasElement | "ASYNC_FILTER";
 
 export type Filter = {
   name: string,
