@@ -8,5 +8,5 @@ export { default as user } from "./user";
 
 export const paletteList = [
   { name: "Nearest", palette: nearest },
-  { name: "User", palette: user }
+  { name: "User/Adaptive", palette: user }
 ];

@@ -5,7 +5,7 @@
 import React from "react";
 
 import { THEMES } from "palettes/user";
-import { rgba, uniqueColors } from "utils";
+import { rgba, uniqueColors, medianCutPalette } from "utils";
 
 import type { ColorRGBA } from "types";
 
@@ -65,6 +65,7 @@ export default class ColorArray extends React.Component<*, Props> {
       </select>
     );
 
+    let i = 0;
     const colorSwatch = (
       <div className={s.colorArray}>
         {this.props.value.map(c => {
@@ -72,7 +73,7 @@ export default class ColorArray extends React.Component<*, Props> {
 
           return (
             <div
-              key={c}
+              key={`${c}-${i++}`} // eslint-disable-line
               title={color}
               style={{
                 minHeight: "16px",
@@ -98,7 +99,7 @@ export default class ColorArray extends React.Component<*, Props> {
           }
         }}
       >
-        Add color
+        🖌 Add color
       </button>
     );
 
@@ -123,7 +124,94 @@ export default class ColorArray extends React.Component<*, Props> {
           }
         }}
       >
-        Extract colors from input
+        🖼️ Top
+      </button>
+    );
+
+    const extractAdaptiveColorsPalette = (
+      <button
+        onClick={() => {
+          const ctx =
+            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+          if (ctx) {
+            const topN = parseInt(prompt("Take the top 2^n colors", 4), 10);
+
+            const colors = medianCutPalette(
+              ctx.getImageData(
+                0,
+                0,
+                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
+                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
+              ).data,
+              topN,
+              true,
+              "MID"
+            );
+            this.props.onSetPaletteOption("colors", colors);
+          }
+        }}
+      >
+        🖼️ Adapt
+      </button>
+    );
+
+    const extractAdaptiveColorsPaletteAverage = (
+      <button
+        onClick={() => {
+          const ctx =
+            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+          if (ctx) {
+            const topN = parseInt(
+              prompt("Take the top 2^n colors (averaged)", 4),
+              10
+            );
+
+            const colors = medianCutPalette(
+              ctx.getImageData(
+                0,
+                0,
+                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
+                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
+              ).data,
+              topN,
+              true,
+              "AVERAGE"
+            );
+            this.props.onSetPaletteOption("colors", colors, true);
+          }
+        }}
+      >
+        🖼️ Adapt avg.
+      </button>
+    );
+
+    const extractAdaptiveColorsPaletteFirst = (
+      <button
+        onClick={() => {
+          const ctx =
+            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+          if (ctx) {
+            const topN = parseInt(
+              prompt("Take the top 2^n colors (averaged)", 4),
+              10
+            );
+
+            const colors = medianCutPalette(
+              ctx.getImageData(
+                0,
+                0,
+                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
+                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
+              ).data,
+              topN,
+              true,
+              "FIRST"
+            );
+            this.props.onSetPaletteOption("colors", colors, true);
+          }
+        }}
+      >
+        🖼️ Adapt edge
       </button>
     );
 
@@ -173,6 +261,9 @@ export default class ColorArray extends React.Component<*, Props> {
         {colorSwatch}
         {onAddColorButton}
         {extractColorsButton}
+        {extractAdaptiveColorsPalette}
+        {extractAdaptiveColorsPaletteAverage}
+        {extractAdaptiveColorsPaletteFirst}
         {!currentTheme ? savePaletteButton : null}
         {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ") // Hack!
           ? deletePaletteButton

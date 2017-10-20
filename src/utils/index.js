@@ -39,6 +39,102 @@ export const equalize = (
   }
 };
 
+export type AdaptMode = "AVERAGE" | "MID" | "FIRST";
+export const medianCutPalette = (
+  buf: Uint8ClampedArray | Uint8Array,
+  limit: number,
+  ignoreAlpha: boolean,
+  adaptMode: AdaptMode
+): Array<ColorRGBA> => {
+  const range = {
+    r: { min: buf[0], max: buf[0] },
+    g: { min: buf[0], max: buf[0] },
+    b: { min: buf[0], max: buf[0] },
+    a: { min: buf[0], max: buf[0] }
+  };
+
+  const pixels = [];
+
+  for (let i = 0; i < buf.length; i += 4) {
+    const r = buf[i];
+    const g = buf[i + 1];
+    const b = buf[i + 2];
+    const a = buf[i + 3];
+
+    range.r.min = r < range.r.min ? r : range.r.min;
+    range.r.max = r > range.r.max ? r : range.r.max;
+
+    range.g.min = g < range.g.min ? g : range.g.min;
+    range.g.max = g > range.g.max ? g : range.g.max;
+
+    range.b.min = b < range.b.min ? b : range.b.min;
+    range.b.max = b > range.b.max ? b : range.b.max;
+
+    range.a.min = a < range.a.min ? a : range.a.min;
+    range.a.max = a > range.a.max ? a : range.a.max;
+
+    pixels.push(rgba(r, g, b, a));
+  }
+
+  const channelsByRange = [
+    { channel: "r", range: range.r.max - range.r.min },
+    { channel: "g", range: range.g.max - range.g.min },
+    { channel: "b", range: range.b.max - range.b.min },
+    { channel: "a", range: range.a.max - range.a.min }
+  ].sort((a, b) => b.range - a.range);
+
+  const medianCut = (
+    bucket: Array<ColorRGBA>,
+    channelSequence: Array<{ channel: string, range: number }>,
+    remaining: number,
+    iterations: number,
+    ignAlpha: boolean,
+    adptMode: string
+  ): Array<ColorRGBA> => {
+    const channel = channelSequence[iterations % (ignAlpha ? 3 : 4)];
+    // $FlowFixMe
+    bucket.sort((a, b) => b[channel.channel] - a[channel.channel]);
+    const midIdx = Math.floor(bucket.length / 2);
+
+    if (remaining <= 0) {
+      switch (adaptMode) {
+        case "AVERAGE": {
+          const acc = [0, 0, 0, 0];
+          bucket.forEach(c => {
+            acc[0] += c[0] / bucket.length;
+            acc[1] += c[1] / bucket.length;
+            acc[2] += c[2] / bucket.length;
+            acc[3] += c[3] / bucket.length;
+          });
+          // $FlowFixMe
+          return [acc.map(ch => Math.floor(ch))];
+        }
+        case "FIRST":
+          return [bucket[0]];
+        default:
+        case "MID":
+          return [bucket[midIdx]];
+      }
+    }
+
+    // Subsort recursively, cycling through channels
+    return [bucket.slice(0, midIdx), bucket.slice(midIdx, bucket.length)]
+      .map(g =>
+        medianCut(
+          g,
+          channelSequence,
+          remaining - 1,
+          iterations + 1,
+          ignAlpha,
+          adptMode
+        )
+      )
+      .reduce((a, b) => a.concat(b), []);
+  };
+
+  return medianCut(pixels, channelsByRange, limit, 0, ignoreAlpha, adaptMode);
+};
+
 export const uniqueColors = (
   buf: Uint8ClampedArray | Uint8Array,
   limit: ?number
@@ -46,14 +142,19 @@ export const uniqueColors = (
   const seen: { [string]: { count: number, color: ColorRGBA } } = {};
 
   for (let i = 0; i < buf.length; i += 4) {
-    const key = `${buf[i]}-${buf[i + 1]}-${buf[i + 2]}-${buf[i + 3]}`;
+    const r = buf[i];
+    const g = buf[i + 1];
+    const b = buf[i + 2];
+    const a = buf[i + 3];
+
+    const key = `${r}-${g}-${b}-${a}`;
 
     if (seen[key] && seen[key].count) {
       seen[key].count += 1;
     } else {
       seen[key] = {
         count: 1,
-        color: rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3])
+        color: rgba(r, g, b, a)
       };
     }
   }
@@ -130,9 +231,9 @@ export const contrast = (color: ColorRGBA, factor: number) => {
   // color - _Contrast * (color - 1.0) * color *(color - 0.5);
 
   return [
-    (nC[0] - factor * (nC[0] - 1.0) * nC[0] * (nC[0] - 0.5) + 0.5) * 255,
-    (nC[1] - factor * (nC[1] - 1.0) * nC[1] * (nC[1] - 0.5) + 0.5) * 255,
-    (nC[2] - factor * (nC[2] - 1.0) * nC[2] * (nC[2] - 0.5) + 0.5) * 255,
+    (nC[0] + factor * (nC[0] - 1.0) * nC[0] * (nC[0] - 0.5) + 0.5) * 255,
+    (nC[1] + factor * (nC[1] - 1.0) * nC[1] * (nC[1] - 0.5) + 0.5) * 255,
+    (nC[2] + factor * (nC[2] - 1.0) * nC[2] * (nC[2] - 0.5) + 0.5) * 255,
     color[3]
   ];
 

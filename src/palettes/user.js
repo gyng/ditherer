@@ -169,7 +169,7 @@ const getColor = (
 };
 
 const user = {
-  name: "User",
+  name: "User/Adaptive",
   getColor,
   options: defaults,
   optionTypes,
