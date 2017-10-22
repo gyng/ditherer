@@ -4,6 +4,7 @@ import { ASYNC_FILTER } from "constants/actionTypes";
 
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { deflate, inflate, inflateRaw } from "pako";
 
 export const IMAGE_JPEG = "IMAGE_JPEG";
 export const IMAGE_PNG = "IMAGE_PNG";
@@ -150,29 +151,32 @@ const transformRepeat = (header: number, input: Uint8Array, map: Uint32Array): U
   return newOut;
 }
 
-const findSubstring = (needle: Uint8Array, haystack: Uint8Array, startAt: number): number => {
-  let searchPos = startAt;
-  let foundPos = -1;
-  
-  while (true) {
-    let searchState = 0;
-    let newPos = haystack.indexOf(needle[0], searchPos);
-    if (newPos < 0) {
-      return -1;
-    }
-    searchPos = newPos + 1;
-
-    let found = true;
-    for (let i = 1; i < needle.length; i += 1) {
-      if (haystack[newPos + i] != needle[i]) {
-        found = false;
+const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
+  function buildCRC32Table(poly) {
+    let table = new Uint32Array(256);
+    for (var n = 0; n < 256; n += 1) {
+      var c = n;
+      for (var k = 0; k < 8; k += 1) {
+        if (c & 1) {
+          c = poly ^ (c >>> 1);
+        } else {
+          c = c >>> 1;
+        }
       }
+      table[n] = c >>> 0;
     }
-    if (found) {
-      return newPos;
-    }
+    return table
   }
-  throw 'Unreachable';
+
+  let table = buildCRC32Table(0xEDB88320);
+  let crc = 0xFFFFFFFF;
+  for (i = 0; i < data.length; i += 1) {
+    crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
+    // let tidx = (crc & 0xFF) ^ data[i];
+    // crc = 0xFFFFFFFF & ((crc >> 8) ^ table[tidx]);
+  }
+  crc ^= 0xFFFFFFFF;
+  setU32(crcBuf, crc);
 }
 
 const asHex = (crcBuf: Uint8Array) => {
@@ -202,8 +206,66 @@ const getU32 = (data: Uint8Array) => {
   return new DataView(tmpBuf).getUint32(0);
 }
 
-const getCorruptableBytesPNG = (buffer: Uint8Array): Uint32Array => {
+type PNGContext = {
+  filter: Uint8Array,
+  skipped_before_idat: Uint8Array,
+  skipped_after_idat: Uint8Array,
+};
+
+const postprocessPNG = (ctx: PNGContext): Uint8Array => {
+  const CHUNK_SIZE = 8192;
+  const pngHeader = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+
+  let outSize = pngHeader.length;
+  let filterDeflate = deflate(ctx.filter)
+
+  for (let i = 0; i < ctx.skipped_before_idat.length; i += 1) {
+    outSize += ctx.skipped_before_idat[i].length;
+  }
+  for (let s = 0; s < filterDeflate.length; s += CHUNK_SIZE) {
+    outSize += filterDeflate.subarray(s, s + CHUNK_SIZE).length + 12;
+  }
+  for (let i = 0; i < ctx.skipped_after_idat.length; i += 1) {
+    outSize += ctx.skipped_after_idat[i].length;
+  }
+
+  let out = new Uint8Array(outSize);
+  let outOff = 0;
+  out.set(pngHeader, outOff);
+  outOff += pngHeader.length;
+  for (let i = 0; i < ctx.skipped_before_idat.length; i += 1) {
+    out.set(ctx.skipped_before_idat[i], outOff);
+    outOff += ctx.skipped_before_idat[i].length;
+  }
+  
+  
+  for (let s = 0; s < filterDeflate.length; s += CHUNK_SIZE) {
+    let data = filterDeflate.subarray(s, s + CHUNK_SIZE);
+    let chunkTmp = new Uint8Array(data.length + 12);
+    setU32(chunkTmp.subarray(0, 4), data.length);
+    chunkTmp[4+0] = 73
+    chunkTmp[4+1] = 68
+    chunkTmp[4+2] = 65
+    chunkTmp[4+3] = 84
+    let chunkOffset = 8;
+    chunkTmp.set(data, chunkOffset);
+    chunkOffset += data.length 
+    computeCrc(chunkTmp.subarray(4, chunkOffset), chunkTmp.subarray(chunkOffset, chunkOffset + 4));
+    chunkOffset += 4;
+    out.set(chunkTmp.subarray(0, chunkOffset), outOff);
+    outOff += chunkOffset;
+  }
+  for (let i = 0; i < ctx.skipped_after_idat.length; i += 1) {
+    out.set(ctx.skipped_after_idat[i], outOff);
+    outOff += ctx.skipped_after_idat[i].length;
+  }
+  return out
+}
+
+const preprocessPNG = (buffer: Uint8Array): PNGContext => {
   let offset = 0;
+  let skipped_before_idat = [];
+  let skipped_after_idat = [];
   let pngHeader = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
   for (; offset < pngHeader.length; offset += 1) {
     if (buffer[offset] != pngHeader[offset]) {
@@ -211,7 +273,6 @@ const getCorruptableBytesPNG = (buffer: Uint8Array): Uint32Array => {
       return null;
     }
   }
-
   let dataBytes = 0;
   // measure.
   while (true) {
@@ -230,7 +291,6 @@ const getCorruptableBytesPNG = (buffer: Uint8Array): Uint32Array => {
       return null;
     }
     var headerType = String.fromCharCode.apply(null, buffer.subarray(offset, offset + 4));
-    // console.log("chunk = { length: ", length, ", type: ", headerType, "}");
     offset += 4;
     
     dataBytes += length;
@@ -239,140 +299,65 @@ const getCorruptableBytesPNG = (buffer: Uint8Array): Uint32Array => {
     var crc = getU32(buffer.subarray(offset, offset + 4));
     offset += 4;
     if (headerType == "IEND") {
-      // console.log("IEND hit");
       break;
     }
   }
 
   offset = 0;
-  let out = new Uint32Array(dataBytes);
+  let filterDeflated = new Uint8Array(dataBytes);
   let outPos = 0;
+  let beforeIdat = true;
   for (; offset < pngHeader.length; offset += 1) {
     if (buffer[offset] != pngHeader[offset]) {
       // not a PNG
       return null;
     }
   }
-
-  // copy.
   while (true) {
     if (buffer.length < (offset + 4)) {
       // not a valid PNG
       return null;
     }
+    
+    let chunkStart = offset;
     var length = getU32(buffer.subarray(offset, offset + 4));
     offset += 4;
     if (length < 0) {
       return null;
     }
-
     if (buffer.length < (offset + length + 4)) {
       // not a valid PNG
       return null;
     }
     var headerType = String.fromCharCode.apply(null, buffer.subarray(offset, offset + 4));
+    offset += 4;
+    if (headerType == "IDAT") {
+      for (let i = 0; i < length; i += 1) {
+        filterDeflated[outPos] = buffer[offset + i];
+        outPos += 1;
+      }
+      beforeIdat = false;
+    }
+    offset += length;
     offset += 4;
     
-    for (let i = 0; i < length; i += 1) {
-      out[outPos] = offset + i;
-      outPos += 1;
-    }
-    offset += length;
-
-    var crc = getU32(buffer.subarray(offset, offset + 4));
-    offset += 4;
-    if (headerType == "IEND") {
-      break;
-    }
-  }
-  console.log("", buffer.length, "byte PNG datamap is", out.length, "elements long");
-  return out;
-};
-
-const applyFixupPNG = (buffer: Uint8Array) => {
-  const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
-    function buildCRC32Table(poly) {
-      let table = new Uint32Array(256);
-      for (var n = 0; n < 256; n += 1) {
-        var c = n;
-        for (var k = 0; k < 8; k += 1) {
-          if (c & 1) {
-            c = poly ^ (c >>> 1);
-          } else {
-            c = c >>> 1;
-          }
-        }
-        table[n] = c >>> 0;
+    if (headerType != "IDAT") {
+      let chunk = buffer.subarray(chunkStart, offset);
+      if (beforeIdat) {
+        skipped_before_idat.push(chunk);
+      } else {
+        skipped_after_idat.push(chunk);
       }
-      return table
     }
-
-    let table = buildCRC32Table(0xEDB88320);
-    let crc = 0xFFFFFFFF;
-    for (i = 0; i < data.length; i += 1) {
-      crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
-      // let tidx = (crc & 0xFF) ^ data[i];
-      // crc = 0xFFFFFFFF & ((crc >> 8) ^ table[tidx]);
-    }
-    crc ^= 0xFFFFFFFF;
-    setU32(crcBuf, crc);
-  }
-
-  let offset = 0;
-  let pngHeader = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-  for (; offset < pngHeader.length; offset += 1) {
-    if (buffer[offset] != pngHeader[offset]) {
-      // not a PNG
-      return null;
-    }
-  }
-
-  let dataBytes = 0;
-  // measure.
-  while (true) {
-    if (buffer.length < (offset + 4)) {
-      // not a valid PNG
-      return null;
-    }
-    var length = getU32(buffer.subarray(offset, offset + 4));
-    if (length < 0) {
-      return null;
-    }
-    offset += 4;
-
-    if (buffer.length < (offset + length + 4)) {
-      // not a valid PNG
-      return null;
-    }
-    var headerType = String.fromCharCode.apply(null, buffer.subarray(offset, offset + 4));
-    // console.log("chunk = { length: ", length, ", type: ", headerType, "}");
-    let data = buffer.subarray(offset, offset + length + 4);
-    offset += 4;
-    offset += length;
-
-    var prevCrc = getU32(buffer.subarray(offset, offset + 4));
-    computeCrc(data, buffer.subarray(offset, offset + 4));
-    var nextCrc = getU32(buffer.subarray(offset, offset + 4));
-
-    // console.log(headerType, " CRC(", prevCrc, " -> ", nextCrc, ")");
-
-    offset += 4;
     if (headerType == "IEND") {
-      // console.log("IEND hit");
       break;
     }
   }
-}
-
-const fixupMap: { [Format]: Any } = {
-  [IMAGE_PNG]: applyFixupPNG,
-};
-
-const applyFixup = (format: Format, corrupted: Uint8Buffer) => {
-  let fixer = fixupMap[format]
-  if (fixer != null) {
-    fixer(corrupted);
-  }
+  return {
+    filter: inflate(filterDeflated),
+    skipped_before_idat: skipped_before_idat,
+    skipped_after_idat: skipped_after_idat,
+  };
 }
 
 const glitchblob = (
@@ -409,24 +394,25 @@ const glitchblob = (
   }
 
   const corruptThis = (image: Image, format: Format): Promise<Blob> => {
-    // applyFixup(format, corrupted)
     const retry = (limit: number, promiseChainFactory): Promise => {
       return promiseChainFactory().catch((e) => {
         if (limit == 0) {
           throw e;
         }
-        console.log("retrying ...");
         retry(limit - 1, promiseChainFactory)
       })
     }
 
     const corruptor = (corrupted: Uint8Buffer): Uint8Buffer => {
-      let corruptMap = undefined;
+      let context = undefined;
+      let header = Math.round(Math.min(100, 0.9 * corrupted.length));
+
       if (format == IMAGE_PNG) {
-        corruptMap = getCorruptableBytesPNG(corrupted);
+        context = preprocessPNG(corrupted);
+        corrupted = context.filter;
+        header = 0;
       }
 
-      const header = Math.round(Math.min(100, 0.9 * corrupted.length));
       const corruptors = [];
 
       if (errTranspose) {
@@ -444,24 +430,19 @@ const glitchblob = (
       if (corruptors.length > 0) {
         for (let i = 0; i < errors; i += 1) {
           let cIdx = Math.floor(Math.random() * corruptors.length);
-          corrupted = corruptors[cIdx](header, corrupted, corruptMap);
+          corrupted = corruptors[cIdx](header, corrupted);
         }
       }
-      if (getCorruptableBytesPNG(corrupted) == null) {
-        console.log("corrupted!");
+      if (format == IMAGE_PNG && context != null) {
+        corrupted = postprocessPNG(context)
       }
-
-
       return corrupted;
     }
 
     return retry(10, () => imageToBlob(image, format)
       .then(blobToUint8Array)
       .then(corruptor)
-      .then((u8a) => {
-        applyFixup(format, u8a);
-        return new Blob([u8a], {type: formatMap[format]});
-      })
+      .then((u8a) => new Blob([u8a], {type: formatMap[format]}))
       .then(blobToImage));
   };
 
