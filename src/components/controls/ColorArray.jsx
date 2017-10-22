@@ -196,7 +196,7 @@ export default class ColorArray extends React.Component<Props, State> {
         {
           // $FlowFixMe
           <Enum
-            name="Extract palette from input"
+            name="Algorithm"
             value={this.state.extractMode}
             types={{
               options: [
@@ -263,13 +263,15 @@ export default class ColorArray extends React.Component<Props, State> {
     );
 
     return (
-      <div className={s.group}>
-        <span className={s.name}>Theme</span>
+      <div>
+        <div className={s.label}>Theme</div>
         {themePicker}
-
         {colorSwatch}
         {onAddColorButton}
-        {extractOptions}
+        <div className={s.group}>
+          <span className={s.name}>Extract from input</span>
+          {extractOptions}
+        </div>
         {!currentTheme ? savePaletteButton : null}
         {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ") // Hack!
           ? deletePaletteButton
