@@ -243,7 +243,38 @@ export default class ColorArray extends React.Component<Props, State> {
           }
         }}
       >
-        🎨 Save theme locally
+        🎨 Save locally
+      </button>
+    );
+
+    const exportPaletteButton = (
+      <button
+        onClick={() => {
+          const w = window.open("");
+          w.document.write(
+            `Copy this:
+            <textarea>${JSON.stringify(this.props.value)}</textarea>
+            <hr>
+            Dev:
+            <textarea>${this.props.value
+              .map(c => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`)
+              .join(",\n")}</textarea>`
+          );
+        }}
+      >
+        🎨 Export
+      </button>
+    );
+
+    const importPaletteButton = (
+      <button
+        onClick={() => {
+          const json = window.prompt("Paste theme JSON");
+          const imported = JSON.parse(json);
+          this.props.onSetPaletteOption("colors", imported);
+        }}
+      >
+        🎨 Import
       </button>
     );
 
@@ -258,7 +289,7 @@ export default class ColorArray extends React.Component<Props, State> {
           this.forceUpdate();
         }}
       >
-        🎨 Delete theme
+        🎨 Delete
       </button>
     );
 
@@ -273,6 +304,9 @@ export default class ColorArray extends React.Component<Props, State> {
           {extractOptions}
         </div>
         {!currentTheme ? savePaletteButton : null}
+
+        {importPaletteButton}
+        {!currentTheme ? exportPaletteButton : null}
         {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ") // Hack!
           ? deletePaletteButton
           : null}
