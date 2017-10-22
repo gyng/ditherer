@@ -16,5 +16,5 @@ export const COLOR_DISTANCE_ALGORITHM = {
     { name: "RGB (perceptual approx.)", value: RGB_APPROX },
     { name: "Lab", value: LAB_NEAREST }
   ],
-  default: LAB_NEAREST
+  default: RGB_APPROX
 };
