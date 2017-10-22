@@ -8,8 +8,26 @@ import { THEMES } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
 
 import type { ColorRGBA } from "types";
+import type { AdaptMode, ColorMode } from "utils";
 
+import Enum from "./Enum";
 import s from "./styles.scss";
+
+export const TOP = "TOP";
+export const RGB_ADAPT_MID = "RGB_ADAPT_MID";
+export const RGB_ADAPT_AVERAGE = "RGB_ADAPT_AVERAGE";
+export const RGB_ADAPT_FIRST = "RGB_ADAPT_FIRST";
+export const LAB_ADAPT_MID = "LAB_ADAPT_MID";
+export const LAB_ADAPT_AVERAGE = "LAB_ADAPT_AVERAGE";
+export const LAB_ADAPT_FIRST = "LAB_ADAPT_FIRST";
+export const modeMap = {
+  [RGB_ADAPT_MID]: { colorMode: "RGB", adaptMode: "MID" },
+  [RGB_ADAPT_AVERAGE]: { colorMode: "RGB", adaptMode: "AVERAGE" },
+  [RGB_ADAPT_FIRST]: { colorMode: "RGB", adaptMode: "FIRST" },
+  [LAB_ADAPT_MID]: { colorMode: "LAB", adaptMode: "MID" },
+  [LAB_ADAPT_AVERAGE]: { colorMode: "LAB", adaptMode: "AVERAGE" },
+  [LAB_ADAPT_FIRST]: { colorMode: "LAB", adaptMode: "FIRST" }
+};
 
 const convertCsvToColor = (csv: string): ?ColorRGBA => {
   const tokens = csv.split(",");
@@ -36,7 +54,19 @@ type Props = {
   onDeleteColorPalette: string => {}
 };
 
-export default class ColorArray extends React.Component<*, Props> {
+type State = {
+  extractMode: string
+};
+
+export default class ColorArray extends React.Component<Props, State> {
+  constructor() {
+    super();
+
+    this.state = {
+      extractMode: TOP
+    };
+  }
+
   render() {
     const currentTheme = Object.entries(THEMES).find(
       e => e[1] === this.props.value
@@ -103,7 +133,7 @@ export default class ColorArray extends React.Component<*, Props> {
       </button>
     );
 
-    const extractColorsButton = (
+    const extractTopButton = (
       <button
         onClick={() => {
           const ctx =
@@ -124,11 +154,16 @@ export default class ColorArray extends React.Component<*, Props> {
           }
         }}
       >
-        🖼️ Top
+        🖼️ Extract TOP
       </button>
     );
 
-    const extractAdaptiveColorsPalette = (
+    const extractAdaptiveButton = (
+      name: string,
+      ignoreAlpha: boolean,
+      colorMode: ColorMode,
+      adaptMode: AdaptMode
+    ) => (
       <button
         onClick={() => {
           const ctx =
@@ -144,165 +179,51 @@ export default class ColorArray extends React.Component<*, Props> {
                 (this.props.inputCanvas && this.props.inputCanvas.height) || 0
               ).data,
               topN,
-              true,
-              "MID"
+              ignoreAlpha,
+              adaptMode,
+              colorMode
             );
             this.props.onSetPaletteOption("colors", colors);
           }
         }}
       >
-        🖼️ Adapt
+        🖼️ {`Extract ${name}`}
       </button>
     );
 
-    const extractAdaptiveColorsPaletteLab = (
-      <button
-        onClick={() => {
-          const ctx =
-            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-          if (ctx) {
-            const topN = parseInt(prompt("Take the top 2^n colors", 4), 10);
+    const extractOptions = (
+      <div>
+        {
+          // $FlowFixMe
+          <Enum
+            name="Extract palette from input"
+            value={this.state.extractMode}
+            types={{
+              options: [
+                { name: "Top", value: TOP },
+                { name: "RGB Adaptive (mid)", value: RGB_ADAPT_MID },
+                { name: "RGB Adaptive (average)", value: RGB_ADAPT_AVERAGE },
+                { name: "RGB Adaptive (first)", value: RGB_ADAPT_FIRST },
+                { name: "LAB Adaptive (mid)", value: LAB_ADAPT_MID },
+                { name: "LAB Adaptive (average)", value: LAB_ADAPT_AVERAGE },
+                { name: "LAB Adaptive (first)", value: LAB_ADAPT_FIRST }
+              ]
+            }}
+            onSetFilterOption={(name: string, value: any) => {
+              this.setState({ extractMode: value });
+            }}
+          />
+        }
 
-            const colors = medianCutPalette(
-              ctx.getImageData(
-                0,
-                0,
-                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
-                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
-              ).data,
-              topN,
+        {this.state.extractMode === TOP
+          ? extractTopButton
+          : extractAdaptiveButton(
+              this.state.extractMode,
               true,
-              "MID",
-              "LAB"
-            );
-            this.props.onSetPaletteOption("colors", colors);
-          }
-        }}
-      >
-        🖼️ Adapt (Lab)
-      </button>
-    );
-
-    const extractAdaptiveColorsPaletteAverage = (
-      <button
-        onClick={() => {
-          const ctx =
-            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-          if (ctx) {
-            const topN = parseInt(
-              prompt("Take the top 2^n colors (averaged)", 4),
-              10
-            );
-
-            const colors = medianCutPalette(
-              ctx.getImageData(
-                0,
-                0,
-                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
-                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
-              ).data,
-              topN,
-              true,
-              "AVERAGE"
-            );
-            this.props.onSetPaletteOption("colors", colors, true);
-          }
-        }}
-      >
-        🖼️ Adapt avg.
-      </button>
-    );
-
-    const extractAdaptiveColorsPaletteAverageLab = (
-      <button
-        onClick={() => {
-          const ctx =
-            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-          if (ctx) {
-            const topN = parseInt(
-              prompt("Take the top 2^n colors (averaged)", 4),
-              10
-            );
-
-            const colors = medianCutPalette(
-              ctx.getImageData(
-                0,
-                0,
-                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
-                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
-              ).data,
-              topN,
-              true,
-              "AVERAGE",
-              "LAB"
-            );
-            this.props.onSetPaletteOption("colors", colors, true);
-          }
-        }}
-      >
-        🖼️ Adapt avg. (Lab)
-      </button>
-    );
-
-    const extractAdaptiveColorsPaletteFirst = (
-      <button
-        onClick={() => {
-          const ctx =
-            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-          if (ctx) {
-            const topN = parseInt(
-              prompt("Take the top 2^n colors (averaged)", 4),
-              10
-            );
-
-            const colors = medianCutPalette(
-              ctx.getImageData(
-                0,
-                0,
-                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
-                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
-              ).data,
-              topN,
-              true,
-              "FIRST"
-            );
-            this.props.onSetPaletteOption("colors", colors, true);
-          }
-        }}
-      >
-        🖼️ Adapt edge
-      </button>
-    );
-
-    const extractAdaptiveColorsPaletteFirstLab = (
-      <button
-        onClick={() => {
-          const ctx =
-            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-          if (ctx) {
-            const topN = parseInt(
-              prompt("Take the top 2^n colors (averaged)", 4),
-              10
-            );
-
-            const colors = medianCutPalette(
-              ctx.getImageData(
-                0,
-                0,
-                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
-                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
-              ).data,
-              topN,
-              true,
-              "FIRST",
-              "LAB"
-            );
-            this.props.onSetPaletteOption("colors", colors, true);
-          }
-        }}
-      >
-        🖼️ Adapt edge (Lab)
-      </button>
+              modeMap[this.state.extractMode].colorMode,
+              modeMap[this.state.extractMode].adaptMode
+            )}
+      </div>
     );
 
     const savePaletteButton = (
@@ -342,21 +263,13 @@ export default class ColorArray extends React.Component<*, Props> {
     );
 
     return (
-      <div>
-        <div>
-          <div className={s.label}>Theme</div>
-          {themePicker}
-        </div>
+      <div className={s.group}>
+        <span className={s.name}>Theme</span>
+        {themePicker}
 
         {colorSwatch}
         {onAddColorButton}
-        {extractColorsButton}
-        {extractAdaptiveColorsPalette}
-        {extractAdaptiveColorsPaletteLab}
-        {extractAdaptiveColorsPaletteAverage}
-        {extractAdaptiveColorsPaletteAverageLab}
-        {extractAdaptiveColorsPaletteFirst}
-        {extractAdaptiveColorsPaletteFirstLab}
+        {extractOptions}
         {!currentTheme ? savePaletteButton : null}
         {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ") // Hack!
           ? deletePaletteButton
