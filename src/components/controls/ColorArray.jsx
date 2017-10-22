@@ -104,10 +104,20 @@ export default class ColorArray extends React.Component<Props, State> {
           return (
             <div
               key={`${c}-${i++}`} // eslint-disable-line
-              title={color}
+              className={s.color}
+              data-idx={i}
+              title={`${color} - click to remove`}
+              role="button"
+              tabIndex="0"
+              onClick={e => {
+                this.props.onSetPaletteOption(
+                  "colors",
+                  this.props.value.filter(
+                    (_, idx) => idx !== parseInt(e.target.dataset.idx, 10) - 1
+                  )
+                );
+              }}
               style={{
-                minHeight: "16px",
-                minWidth: "16px",
                 backgroundColor: color
               }}
             />
