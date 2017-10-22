@@ -155,6 +155,34 @@ export default class ColorArray extends React.Component<*, Props> {
       </button>
     );
 
+    const extractAdaptiveColorsPaletteLab = (
+      <button
+        onClick={() => {
+          const ctx =
+            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+          if (ctx) {
+            const topN = parseInt(prompt("Take the top 2^n colors", 4), 10);
+
+            const colors = medianCutPalette(
+              ctx.getImageData(
+                0,
+                0,
+                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
+                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
+              ).data,
+              topN,
+              true,
+              "MID",
+              "LAB"
+            );
+            this.props.onSetPaletteOption("colors", colors);
+          }
+        }}
+      >
+        🖼️ Adapt (Lab)
+      </button>
+    );
+
     const extractAdaptiveColorsPaletteAverage = (
       <button
         onClick={() => {
@@ -185,6 +213,37 @@ export default class ColorArray extends React.Component<*, Props> {
       </button>
     );
 
+    const extractAdaptiveColorsPaletteAverageLab = (
+      <button
+        onClick={() => {
+          const ctx =
+            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+          if (ctx) {
+            const topN = parseInt(
+              prompt("Take the top 2^n colors (averaged)", 4),
+              10
+            );
+
+            const colors = medianCutPalette(
+              ctx.getImageData(
+                0,
+                0,
+                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
+                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
+              ).data,
+              topN,
+              true,
+              "AVERAGE",
+              "LAB"
+            );
+            this.props.onSetPaletteOption("colors", colors, true);
+          }
+        }}
+      >
+        🖼️ Adapt avg. (Lab)
+      </button>
+    );
+
     const extractAdaptiveColorsPaletteFirst = (
       <button
         onClick={() => {
@@ -212,6 +271,37 @@ export default class ColorArray extends React.Component<*, Props> {
         }}
       >
         🖼️ Adapt edge
+      </button>
+    );
+
+    const extractAdaptiveColorsPaletteFirstLab = (
+      <button
+        onClick={() => {
+          const ctx =
+            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+          if (ctx) {
+            const topN = parseInt(
+              prompt("Take the top 2^n colors (averaged)", 4),
+              10
+            );
+
+            const colors = medianCutPalette(
+              ctx.getImageData(
+                0,
+                0,
+                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
+                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
+              ).data,
+              topN,
+              true,
+              "FIRST",
+              "LAB"
+            );
+            this.props.onSetPaletteOption("colors", colors, true);
+          }
+        }}
+      >
+        🖼️ Adapt edge (Lab)
       </button>
     );
 
@@ -262,8 +352,11 @@ export default class ColorArray extends React.Component<*, Props> {
         {onAddColorButton}
         {extractColorsButton}
         {extractAdaptiveColorsPalette}
+        {extractAdaptiveColorsPaletteLab}
         {extractAdaptiveColorsPaletteAverage}
+        {extractAdaptiveColorsPaletteAverageLab}
         {extractAdaptiveColorsPaletteFirst}
+        {extractAdaptiveColorsPaletteFirstLab}
         {!currentTheme ? savePaletteButton : null}
         {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ") // Hack!
           ? deletePaletteButton

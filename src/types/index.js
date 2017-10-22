@@ -34,6 +34,7 @@ export type Action =
   | { type: "DECREMENT", value: number };
 
 export type ColorRGBA = [number, number, number, number];
+export type ColorLabA = ColorRGBA;
 
 export type Palette = {
   name: string,
@@ -47,3 +48,8 @@ export type PaletteOption = {
   name: string,
   value: Palette
 };
+
+export type ColorDistanceAlgorithm =
+  | "RGB_NEAREST"
+  | "RGB_APPROX"
+  | "LAB_NEAREST";

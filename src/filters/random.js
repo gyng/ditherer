@@ -1,6 +1,7 @@
 // @flow
 
-import { BOOL, RANGE } from "constants/controlTypes";
+import { BOOL, RANGE, COLOR_DISTANCE_ALGORITHM } from "constants/controlTypes";
+import { RGB_NEAREST } from "constants/color";
 
 import { nearest } from "palettes";
 
@@ -12,19 +13,27 @@ import {
   quantizeValue
 } from "utils";
 
+import type { ColorDistanceAlgorithm } from "types";
+
 export const optionTypes = {
   levels: { type: RANGE, range: [0, 255], default: 2 },
-  grayscale: { type: BOOL, default: false }
+  grayscale: { type: BOOL, default: false },
+  colorDistanceAlgorithm: COLOR_DISTANCE_ALGORITHM
 };
 
 export const defaults = {
   levels: optionTypes.levels.default,
-  grayscale: optionTypes.grayscale.default
+  grayscale: optionTypes.grayscale.default,
+  colorDistanceAlgorithm: RGB_NEAREST
 };
 
 const random = (
   input: HTMLCanvasElement,
-  options: { levels: number, grayscale: boolean } = defaults
+  options: {
+    levels: number,
+    grayscale: boolean,
+    colorDistanceAlgorithm: ColorDistanceAlgorithm
+  } = defaults
 ): HTMLCanvasElement => {
   const output = cloneCanvas(input, false);
 
@@ -53,7 +62,8 @@ const random = (
         const g = buf[i + 1] + (Math.random() - 0.5) * 255;
         const b = buf[i + 2] + (Math.random() - 0.5) * 255;
         const color = nearest.getColor(rgba(r, g, b, buf[i + 3]), {
-          levels: options.levels
+          levels: options.levels,
+          colorDistanceAlgorithm: options.colorDistanceAlgorithm
         });
         fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
       }

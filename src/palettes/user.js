@@ -1,10 +1,10 @@
 // @flow
 
-import { COLOR_ARRAY } from "constants/controlTypes";
+import { COLOR_ARRAY, COLOR_DISTANCE_ALGORITHM } from "constants/controlTypes";
 
-import { rgba } from "utils";
+import { rgba, colorDistance } from "utils";
 
-import type { ColorRGBA } from "types";
+import type { ColorRGBA, ColorDistanceAlgorithm } from "types";
 
 // https://en.wikipedia.org/wiki/List_of_8-bit_computer_hardware_palettes
 // https://en.wikipedia.org/wiki/Color_Graphics_Adapter
@@ -114,37 +114,23 @@ const optionTypes = {
   palette: {
     type: COLOR_ARRAY,
     default: THEMES.CGA
-  }
+  },
+  colorDistanceAlgorithm: COLOR_DISTANCE_ALGORITHM
 };
 
-const defaults = { colors: optionTypes.palette.default };
-
-// https://en.wikipedia.org/wiki/Color_difference
-// Simple Euclidian distance
-// const colorDistance = (a: ColorRGBA, b: ColorRGBA): number =>
-//   Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
-
-// TODO: Use LAB?
-// Approximation given on Wiki page
-const colorDistance = (a: ColorRGBA, b: ColorRGBA): number => {
-  const r = (a[0] + b[0]) / 2;
-  const dR = a[0] - b[0];
-  const dG = a[1] - b[1];
-  const dB = a[2] - b[2];
-
-  const dRc = (2 + r / 256) * dR ** 2;
-  const dGc = 4 * dG ** 2 + (2 + (255 - r) / 256);
-  const dBc = dB ** 2;
-
-  return Math.sqrt(dRc + dGc + dBc);
+const defaults = {
+  colors: optionTypes.palette.default,
+  colorDistanceAlgorithm: optionTypes.colorDistanceAlgorithm.default
 };
 
-// Gets nearest color
 const getColor = (
   color: ColorRGBA,
-  options: { colors: Array<ColorRGBA> } = defaults
+  options: {
+    colors: Array<ColorRGBA>,
+    colorDistanceAlgorithm: ColorDistanceAlgorithm
+  } = defaults
 ): ColorRGBA => {
-  const { colors } = options;
+  const { colors, colorDistanceAlgorithm } = options;
 
   if (!colors) {
     return color;
@@ -154,7 +140,7 @@ const getColor = (
   let minDistance = 0;
 
   colors.forEach(pc => {
-    const distance = Math.abs(colorDistance(pc, color));
+    const distance = colorDistance(pc, color, colorDistanceAlgorithm);
 
     if (min === null) {
       min = pc;
