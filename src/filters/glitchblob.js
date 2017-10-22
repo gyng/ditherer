@@ -142,7 +142,7 @@ const transformRepeat = (header: number, input: Uint8Array, map: Uint32Array): U
     repeatedBuf[i] = by;
   }
 
-  let newOut = new ArrayBuffer(input.length + repeatedBuf.length - 1);
+  let newOut = new Uint8Array(input.length + repeatedBuf.length - 1);
   newOut.set(input.subarray(0, idx), 0);
   let wrote = idx;
   newOut.set(repeatedBuf, wrote);
