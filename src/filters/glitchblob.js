@@ -1,4 +1,5 @@
 // @flow
+/* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
 /* eslint-disable no-param-reassign, no-bitwise */ // lots of mutation
 
 import { filterImage } from "actions";
@@ -118,7 +119,11 @@ const blobToUint8Array = (blob: Blob): Promise<Uint8Array> =>
     fileReader.readAsArrayBuffer(blob);
   });
 
-const transformTranspose = (header: number, input: Uint8Array): Uint8Array => {
+const transformTranspose = (
+  header: number,
+  input: Uint8Array,
+  ..._rest: any
+): Uint8Array => {
   const idx = header + Math.floor(Math.random() * (input.length - header - 1));
   const tmp = input[idx];
   input[idx] = input[idx + 1];
@@ -126,14 +131,22 @@ const transformTranspose = (header: number, input: Uint8Array): Uint8Array => {
   return input;
 };
 
-const transformSubstitute = (header: number, input: Uint8Array): Uint8Array => {
+const transformSubstitute = (
+  header: number,
+  input: Uint8Array,
+  ..._rest: any
+): Uint8Array => {
   const by = Math.floor(Math.random() * 256);
   const idx = header + Math.floor(Math.random() * (input.length - header));
   input[idx] = by;
   return input;
 };
 
-const transformRepeat = (header: number, input: Uint8Array): Uint8Array => {
+const transformRepeat = (
+  header: number,
+  input: Uint8Array,
+  ..._rest: any
+): Uint8Array => {
   const idx = header + Math.floor(Math.random() * (input.length - header));
   const by = input[idx];
 
@@ -280,7 +293,7 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
     }
     const length = getU32(buffer.subarray(offset, offset + 4));
     if (length < 0) {
-      throw "Unreachable?";
+      throw new Error("Unreachable?");
     }
     offset += 4;
 
@@ -323,7 +336,7 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
     const length = getU32(buffer.subarray(offset, offset + 4));
     offset += 4;
     if (length < 0) {
-      throw "Unreachable?";
+      throw new Error("Unreachable?");
     }
     if (buffer.length < offset + length + 4) {
       // not a valid PNG
@@ -432,7 +445,16 @@ const glitchblob = (
       if (corruptors.length > 0) {
         for (let i = 0; i < errors; i += 1) {
           const cIdx = Math.floor(Math.random() * corruptors.length);
-          corrupted = corruptors[cIdx](header, corrupted);
+          const currentX = cIdx % input.width;
+          const currentY = Math.floor(cIdx / input.width);
+          corrupted = corruptors[cIdx](
+            header,
+            corrupted,
+            input.width,
+            input.height,
+            currentX,
+            currentY
+          );
         }
       }
 
