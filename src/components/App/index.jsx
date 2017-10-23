@@ -10,7 +10,11 @@ import Controls from "containers/Controls";
 import controls from "components/controls/styles.scss";
 import s from "./styles.scss";
 
-export default class App extends React.Component<*> {
+type State = {
+  dropping: boolean
+};
+
+export default class App extends React.Component<*, State> {
   static defaultProps: {
     className: string
   };
@@ -20,6 +24,7 @@ export default class App extends React.Component<*> {
     this.inputCanvas = null;
     this.outputCanvas = null;
     this.zIndex = 0;
+    this.state = { dropping: false };
   }
 
   componentWillUpdate(nextProps: any) {
@@ -56,20 +61,36 @@ export default class App extends React.Component<*> {
     }
   }
 
+  dropping: boolean;
   inputCanvas: ?HTMLCanvasElement;
   outputCanvas: ?HTMLCanvasElement;
   zIndex: number;
 
   render() {
     const loadImageSection = (
-      <div className={s.section}>
-        <h2>Load image</h2>
+      <div>
+        <h2>Load image (pick or drag)</h2>
         <input
-          className={controls.file}
+          className={[
+            controls.file,
+            this.state.dropping ? controls.dropping : null
+          ].join(" ")}
           type="file"
           id="imageLoader"
           name="imageLoader"
           onChange={this.props.onLoadImage}
+          onDragLeave={() => {
+            this.setState({ dropping: false });
+          }}
+          onDragOver={e => {
+            this.setState({ dropping: true });
+          }}
+          onDragEnter={() => {
+            this.setState({ dropping: true });
+          }}
+          onDrop={() => {
+            this.setState({ dropping: false });
+          }}
         />
 
         {/* TODO: make controls more generic and take in onchange functions */}

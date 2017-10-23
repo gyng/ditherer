@@ -70,6 +70,7 @@ $beautiful-blue: #000080;
     text-align: right;
     min-width: 35px;
     user-select: none;
+    cursor: default;
   }
 
   margin-top: 5px;
@@ -79,6 +80,10 @@ $beautiful-blue: #000080;
   width: 100%;
   background-color: white;
   border: 1px inset #ccc;
+}
+
+.dropping {
+  outline: 2px solid $beautiful-blue;
 }
 
 .checkbox {
@@ -92,12 +97,14 @@ $beautiful-blue: #000080;
   background: grey;
   width: 100%;
   user-select: none;
+  cursor: default;
 }
 
 .label {
   text-transform: capitalize;
   margin-bottom: 1px;
   user-select: none;
+  cursor: default;
 }
 
 input[type=text],
