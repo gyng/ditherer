@@ -82,7 +82,7 @@ export default class App extends React.Component<*, State> {
           onDragLeave={() => {
             this.setState({ dropping: false });
           }}
-          onDragOver={e => {
+          onDragOver={() => {
             this.setState({ dropping: true });
           }}
           onDragEnter={() => {
@@ -180,7 +180,7 @@ export default class App extends React.Component<*, State> {
       <div className={s.section}>
         <h2>Filter</h2>
         <button
-          className={s.filterButton}
+          className={[s.filterButton, s.waitButton].join(" ")}
           onClick={() => {
             this.props.onFilterImage(
               this.inputCanvas,

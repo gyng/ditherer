@@ -1,5 +1,21 @@
 $light-gray: #bfbfbf;
 
+@keyframes timer {
+  0% { content: "🕛"; }
+  8.333% { content: "🕐"; }
+  16.666% { content: "🕑"; }
+  25% { content: "🕒"; }
+  33.333% { content: "🕓"; }
+  33.333% { content: "🕔"; }
+  41.666% { content: "🕕"; }
+  50% { content: "🕖"; }
+  58.333% { content: "🕗"; }
+  66.666% { content: "🕘"; }
+  75% { content: "🕙"; }
+  91.666% { content: "🕚"; }
+  100% { content: "🕛"; }
+}
+
 .app {
   align-content: flex-start;
   display: flex;
@@ -22,6 +38,15 @@ $light-gray: #bfbfbf;
   .filterButton {
     padding: 20px;
     width: 100%;
+  }
+
+  .waitButton {
+    &:active::after {
+      position: absolute;
+      transform: translateX(-25px) translateY(-2px);
+      content: "🕛";
+      animation: timer 0.5s linear infinite;
+    }
   }
 
   .copyButton {
