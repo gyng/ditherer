@@ -64,4 +64,43 @@ describe("utils", () => {
     expect(buf[3]).to.equal(9);
     expect(buf[4]).to.equal(11);
   });
+
+  describe("Lab <> RGB color conversion", () => {
+    it("lab converts to rgb and back losslessly", () => {
+      const color = [127, 127, 127, 127];
+      const lab = utils.rgba2laba(color, utils.referenceTable.CIE_1931.D65);
+      const rgb = utils.laba2rgba(lab, utils.referenceTable.CIE_1931.D65);
+      expect(lab).to.not.eql(color);
+      expect(rgb).to.eql(color);
+    });
+  });
+
+  describe("medianCut", () => {
+    // prettier-ignore
+    const input = new Uint8ClampedArray([
+      0, 0, 0, 0,
+      127, 127, 127, 127,
+      255, 255, 255, 255
+    ]);
+
+    it("returns an array of colours", () => {
+      const palette = utils.medianCutPalette(input, 1, true, "MID", "RGB");
+      expect(palette[0]).to.eql([255, 255, 255, 255]);
+      expect(palette[1]).to.eql([0, 0, 0, 0]);
+    });
+
+    it("returns an up to the color limit", () => {
+      const palette = utils.medianCutPalette(input, 0, true, "MID", "RGB");
+      expect(palette).to.have.length(1);
+      expect(palette[0]).to.eql([127, 127, 127, 127]);
+    });
+
+    it("returns maximum of number of colors in source image", () => {
+      const palette = utils.medianCutPalette(input, 10, true, "MID", "RGB");
+      expect(palette).to.have.length(3);
+      expect(palette[0]).to.eql([255, 255, 255, 255]);
+      expect(palette[1]).to.eql([127, 127, 127, 127]);
+      expect(palette[2]).to.eql([0, 0, 0, 0]);
+    });
+  });
 });
