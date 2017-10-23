@@ -1,4 +1,6 @@
 // @flow
+/* eslint-disable no-param-reassign, no-bitwise */ // lots of mutation
+
 import { filterImage } from "actions";
 import { ASYNC_FILTER } from "constants/actionTypes";
 
@@ -81,15 +83,15 @@ const canvasToBlob = (
   image: HTMLCanvasElement,
   format: Format
 ): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    const data = image.toBlob(blob => {
+  new Promise((resolve, _reject) => {
+    image.toBlob(blob => {
       resolve(blob);
     }, formatMap[format]);
   });
 
 const blobToImage = (blob: Blob): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
-    const corruptedImage = new HTMLImageElement();
+    const corruptedImage = new Image();
     corruptedImage.onload = () => {
       resolve(corruptedImage);
     };
@@ -99,16 +101,17 @@ const blobToImage = (blob: Blob): Promise<HTMLImageElement> =>
     corruptedImage.src = URL.createObjectURL(blob);
   });
 
-const blobToUint8Array = (blob: Blob): Promise<Uint8Array> => new Promise(function(resolve, reject) {
-    var fileReader = new FileReader();
-    fileReader.onload = function(event) {
-      if (blob.size == event.target.result.byteLength) {
+const blobToUint8Array = (blob: Blob): Promise<Uint8Array> =>
+  new Promise((resolve, reject) => {
+    const fileReader = new FileReader();
+    fileReader.onload = event => {
+      if (blob.size === event.target.result.byteLength) {
         resolve(new Uint8Array(event.target.result));
       } else {
         reject("I've lost my mind");
       }
     };
-    fileReader.onerror = function(e) {
+    fileReader.onerror = e => {
       reject(e);
     };
 
@@ -116,8 +119,8 @@ const blobToUint8Array = (blob: Blob): Promise<Uint8Array> => new Promise(functi
   });
 
 const transformTranspose = (header: number, input: Uint8Array): Uint8Array => {
-  let idx = header + Math.floor(Math.random() * (input.length - header - 1));
-  let tmp = input[idx];
+  const idx = header + Math.floor(Math.random() * (input.length - header - 1));
+  const tmp = input[idx];
   input[idx] = input[idx + 1];
   input[idx + 1] = tmp;
   return input;
@@ -134,12 +137,12 @@ const transformRepeat = (header: number, input: Uint8Array): Uint8Array => {
   const idx = header + Math.floor(Math.random() * (input.length - header));
   const by = input[idx];
 
-  let repeatedBuf = new Uint8Array(Math.floor(Math.random() * 10));
+  const repeatedBuf = new Uint8Array(Math.floor(Math.random() * 10));
   for (let i = 0; i < repeatedBuf.length; i += 1) {
     repeatedBuf[i] = by;
   }
 
-  let newOut = new Uint8Array(input.length + repeatedBuf.length - 1);
+  const newOut = new Uint8Array(input.length + repeatedBuf.length - 1);
   newOut.set(input.subarray(0, idx), 0);
   let wrote = idx;
   newOut.set(repeatedBuf, wrote);
@@ -148,17 +151,34 @@ const transformRepeat = (header: number, input: Uint8Array): Uint8Array => {
   return newOut;
 };
 
-/*eslint no-bitwise: "off"*/
+const setU32 = (data: Uint8Array, value: number) => {
+  const tmpBuf = new ArrayBuffer(4);
+  new DataView(tmpBuf).setUint32(0, value);
+  data[0] = new Uint8Array(tmpBuf)[0];
+  data[1] = new Uint8Array(tmpBuf)[1];
+  data[2] = new Uint8Array(tmpBuf)[2];
+  data[3] = new Uint8Array(tmpBuf)[3];
+};
+
+const getU32 = (data: Uint8Array) => {
+  const tmpBuf = new ArrayBuffer(4);
+  new Uint8Array(tmpBuf)[0] = data[0];
+  new Uint8Array(tmpBuf)[1] = data[1];
+  new Uint8Array(tmpBuf)[2] = data[2];
+  new Uint8Array(tmpBuf)[3] = data[3];
+  return new DataView(tmpBuf).getUint32(0);
+};
+
 const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
   function buildCRC32Table(poly) {
-    let table = new Uint32Array(256);
-    for (var n = 0; n < 256; n += 1) {
-      var c = n;
-      for (var k = 0; k < 8; k += 1) {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+      let c = n;
+      for (let k = 0; k < 8; k += 1) {
         if (c & 1) {
           c = poly ^ (c >>> 1);
         } else {
-          c = c >>> 1;
+          c >>>= 1;
         }
       }
       table[n] = c >>> 0;
@@ -166,7 +186,7 @@ const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
     return table;
   }
 
-  let table = buildCRC32Table(0xedb88320);
+  const table = buildCRC32Table(0xedb88320);
   let crc = 0xffffffff;
   for (let i = 0; i < data.length; i += 1) {
     crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
@@ -175,72 +195,51 @@ const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
   setU32(crcBuf, crc);
 };
 
-const setU32 = (data: Uint8Array, value: number) => {
-  var tmpBuf = new ArrayBuffer(4);
-  new DataView(tmpBuf).setUint32(0, value);
-  data[0] = new Uint8Array(tmpBuf)[0];
-  data[1] = new Uint8Array(tmpBuf)[1];
-  data[2] = new Uint8Array(tmpBuf)[2];
-  data[3] = new Uint8Array(tmpBuf)[3];
-};
-const getU32 = (data: Uint8Array) => {
-  var tmpBuf = new ArrayBuffer(4);
-  new Uint8Array(tmpBuf)[0] = data[0];
-  new Uint8Array(tmpBuf)[1] = data[1];
-  new Uint8Array(tmpBuf)[2] = data[2];
-  new Uint8Array(tmpBuf)[3] = data[3];
-  return new DataView(tmpBuf).getUint32(0);
-};
-
 type PNGContext = {
   filter: Uint8Array,
-  skipped_before_idat: Array<Uint8Array>,
-  skipped_after_idat: Array<Uint8Array>
+  skippedBeforeIdat: Array<Uint8Array>,
+  skippedAfterIdat: Array<Uint8Array>
 };
 
 const postprocessPNG = (ctx: PNGContext): Uint8Array => {
   const CHUNK_SIZE = 8192;
-  const pngHeader = new Uint8Array([
-    0x89,
-    0x50,
-    0x4e,
-    0x47,
-    0x0d,
-    0x0a,
-    0x1a,
-    0x0a
-  ]);
+  // prettier-ignore
+  const pngHeader = new Uint8Array([ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
   let outSize = pngHeader.length;
   const filterDeflate = deflate(ctx.filter);
 
-  for (let i = 0; i < ctx.skipped_before_idat.length; i += 1) {
-    outSize += ctx.skipped_before_idat[i].length;
+  for (let i = 0; i < ctx.skippedBeforeIdat.length; i += 1) {
+    outSize += ctx.skippedBeforeIdat[i].length;
   }
+
   for (let s = 0; s < filterDeflate.length; s += CHUNK_SIZE) {
     outSize += filterDeflate.subarray(s, s + CHUNK_SIZE).length + 12;
   }
-  for (let i = 0; i < ctx.skipped_after_idat.length; i += 1) {
-    outSize += ctx.skipped_after_idat[i].length;
+
+  for (let i = 0; i < ctx.skippedAfterIdat.length; i += 1) {
+    outSize += ctx.skippedAfterIdat[i].length;
   }
 
-  let out = new Uint8Array(outSize);
+  const out = new Uint8Array(outSize);
   let outOff = 0;
   out.set(pngHeader, outOff);
   outOff += pngHeader.length;
-  for (let i = 0; i < ctx.skipped_before_idat.length; i += 1) {
-    out.set(ctx.skipped_before_idat[i], outOff);
-    outOff += ctx.skipped_before_idat[i].length;
+  for (let i = 0; i < ctx.skippedBeforeIdat.length; i += 1) {
+    out.set(ctx.skippedBeforeIdat[i], outOff);
+    outOff += ctx.skippedBeforeIdat[i].length;
   }
 
   for (let s = 0; s < filterDeflate.length; s += CHUNK_SIZE) {
-    let data = filterDeflate.subarray(s, s + CHUNK_SIZE);
-    let chunkTmp = new Uint8Array(data.length + 12);
+    const data = filterDeflate.subarray(s, s + CHUNK_SIZE);
+    const chunkTmp = new Uint8Array(data.length + 12);
+
     setU32(chunkTmp.subarray(0, 4), data.length);
     chunkTmp[4 + 0] = 73;
     chunkTmp[4 + 1] = 68;
     chunkTmp[4 + 2] = 65;
     chunkTmp[4 + 3] = 84;
+
     let chunkOffset = 8;
     chunkTmp.set(data, chunkOffset);
     chunkOffset += data.length;
@@ -252,27 +251,22 @@ const postprocessPNG = (ctx: PNGContext): Uint8Array => {
     out.set(chunkTmp.subarray(0, chunkOffset), outOff);
     outOff += chunkOffset;
   }
-  for (let i = 0; i < ctx.skipped_after_idat.length; i += 1) {
-    out.set(ctx.skipped_after_idat[i], outOff);
-    outOff += ctx.skipped_after_idat[i].length;
+
+  for (let i = 0; i < ctx.skippedAfterIdat.length; i += 1) {
+    out.set(ctx.skippedAfterIdat[i], outOff);
+    outOff += ctx.skippedAfterIdat[i].length;
   }
+
   return out;
 };
 
 const preprocessPNG = (buffer: Uint8Array): PNGContext => {
   let offset = 0;
-  let skipped_before_idat = [];
-  let skipped_after_idat = [];
-  let pngHeader = new Uint8Array([
-    0x89,
-    0x50,
-    0x4e,
-    0x47,
-    0x0d,
-    0x0a,
-    0x1a,
-    0x0a
-  ]);
+  const skippedBeforeIdat = [];
+  const skippedAfterIdat = [];
+
+  // prettier-ignore
+  const pngHeader = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   for (; offset < pngHeader.length; offset += 1) {
     if (buffer[offset] !== pngHeader[offset]) {
       throw PngError("invalid magic");
@@ -280,11 +274,11 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
   }
   let dataBytes = 0;
   // measure.
-  while (true) {
+  for (;;) {
     if (buffer.length < offset + 4) {
       throw PngError("truncated");
     }
-    var length = getU32(buffer.subarray(offset, offset + 4));
+    const length = getU32(buffer.subarray(offset, offset + 4));
     if (length < 0) {
       throw "Unreachable?";
     }
@@ -294,7 +288,7 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
       // not a valid PNG
       throw PngError("truncated");
     }
-    var headerType = String.fromCharCode.apply(
+    const headerType = String.fromCharCode.apply(
       null,
       buffer.subarray(offset, offset + 4)
     );
@@ -310,7 +304,7 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
   }
 
   offset = 0;
-  let filterDeflated = new Uint8Array(dataBytes);
+  const filterDeflated = new Uint8Array(dataBytes);
   let outPos = 0;
   let beforeIdat = true;
   for (; offset < pngHeader.length; offset += 1) {
@@ -319,14 +313,14 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
       throw PngError("invalid magic");
     }
   }
-  while (true) {
+  for (;;) {
     if (buffer.length < offset + 4) {
       // not a valid PNG
       throw PngError("truncated");
     }
 
-    let chunkStart = offset;
-    var length = getU32(buffer.subarray(offset, offset + 4));
+    const chunkStart = offset;
+    const length = getU32(buffer.subarray(offset, offset + 4));
     offset += 4;
     if (length < 0) {
       throw "Unreachable?";
@@ -335,7 +329,7 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
       // not a valid PNG
       throw PngError("truncated");
     }
-    var headerType = String.fromCharCode.apply(
+    const headerType = String.fromCharCode.apply(
       null,
       buffer.subarray(offset, offset + 4)
     );
@@ -353,9 +347,9 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
     if (headerType !== "IDAT") {
       const chunk = buffer.subarray(chunkStart, offset);
       if (beforeIdat) {
-        skipped_before_idat.push(chunk);
+        skippedBeforeIdat.push(chunk);
       } else {
-        skipped_after_idat.push(chunk);
+        skippedAfterIdat.push(chunk);
       }
     }
     if (headerType === "IEND") {
@@ -364,8 +358,8 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
   }
   return {
     filter: inflate(filterDeflated),
-    skipped_before_idat: skipped_before_idat,
-    skipped_after_idat: skipped_after_idat
+    skippedBeforeIdat,
+    skippedAfterIdat
   };
 };
 
@@ -381,14 +375,7 @@ const glitchblob = (
   } = defaults,
   dispatch: Dispatch
 ): HTMLCanvasElement | "ASYNC_FILTER" => {
-  const {
-    errRepeat,
-    errSubstitute,
-    errTranspose,
-    errors,
-    format,
-    jpegQuality
-  } = options;
+  const { errRepeat, errSubstitute, errTranspose, errors, format } = options;
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -400,29 +387,29 @@ const glitchblob = (
 
   const corruptThis = (
     image: HTMLCanvasElement,
-    format: Format
+    fmt: Format
   ): Promise<HTMLImageElement> => {
     const retry = <T>(
       limit: number,
       promiseChainFactory: () => Promise<T>
-    ): Promise<T> => {
-      return promiseChainFactory().catch(e => {
-        return new Promise((reso, rej) => {
-          if (limit == 0) {
-            rej(e);
-          } else {
-            reso(retry(limit - 1, promiseChainFactory));
-          }
-        });
-      });
-    };
+    ): Promise<T> =>
+      promiseChainFactory().catch(
+        e =>
+          new Promise((reso, rej) => {
+            if (limit === 0) {
+              rej(e);
+            } else {
+              reso(retry(limit - 1, promiseChainFactory));
+            }
+          })
+      );
 
-    const corruptor = (corrupted_arg: Uint8Array): Uint8Array => {
-      let corrupted = corrupted_arg;
+    const corruptor = (corruptedArg: Uint8Array): Uint8Array => {
+      let corrupted = corruptedArg;
       let context;
       let header = Math.round(Math.min(100, 0.9 * corrupted.length));
 
-      if (format === IMAGE_PNG) {
+      if (fmt === IMAGE_PNG) {
         context = preprocessPNG(corrupted);
         corrupted = context.filter;
         header = 0;
@@ -448,7 +435,8 @@ const glitchblob = (
           corrupted = corruptors[cIdx](header, corrupted);
         }
       }
-      if (format === IMAGE_PNG && context != null) {
+
+      if (fmt === IMAGE_PNG && context != null) {
         corrupted = postprocessPNG(context);
       }
       return corrupted;
