@@ -8,6 +8,7 @@ import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
 import grayscale from "./grayscale";
 import glitch from "./glitch";
+import glitchblob from "./glitchblob";
 import halftone from "./halftone";
 import invert from "./invert";
 import ordered, { BAYER_4X4 } from "./ordered";
@@ -34,6 +35,7 @@ export { default as brightnessContrast } from "./brightnessContrast";
 export { default as convolve } from "./convolve";
 export { default as grayscale } from "./grayscale";
 export { default as glitch } from "./glitch";
+export { default as glitchblob } from "./glitchblob";
 export { default as halftone } from "./halftone";
 export { default as invert } from "./invert";
 export { default as ordered } from "./ordered";
@@ -113,6 +115,7 @@ export const filterList = [
     }
   },
   { displayName: "Glitch", filter: glitch },
+  { displayName: "Glitch (with CRC fix)", filter: glitchblob },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
