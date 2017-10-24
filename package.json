@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "emotion": "^8.0.8",
+    "emotion-theming": "^8.0.9",
     "history": "^4.7.2",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",

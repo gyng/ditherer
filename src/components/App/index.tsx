@@ -1,9 +1,13 @@
+import { ThemeProvider } from "emotion-theming";
 import * as React from "react";
 import styled, { keyframes } from "react-emotion";
 import { Link, Route } from "react-router-dom";
 
 import Echo from "@src/components/Echo";
 import Counter from "@src/containers/Counter";
+
+// emotion-theming theme to be passed to <ThemeProvider>
+import theme from "@src/styles/theme";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");
@@ -25,6 +29,12 @@ const ImgRobot = styled("img")`
   width: 200px;
 `;
 
+// Can compose, or access theme using props
+const ThemedDiv = styled("div")`
+  ${theme.someCssStyle};
+  border-radius: ${p => p.theme.someThemeStyle.borderRadius};
+`;
+
 export interface AppProps {
   match: { url: string };
 }
@@ -36,25 +46,31 @@ export default class App extends React.Component<AppProps, {}> {
 
   public render() {
     return (
-      <div className="app">
-        <ImgRobot src={hello} alt="Cute robot?" />
-        <Echo text="Hello, world! Find me in src/components/App/index.jsx!" />
+      <ThemeProvider theme={theme}>
+        <div className="app">
+          <ImgRobot src={hello} alt="Cute robot?" />
+          <Echo text="Hello, world! Find me in src/components/App/index.jsx!" />
 
-        {/* React style prop is still available */}
-        <div style={{ border: "solid 1px grey" }}>
-          <Route
-            exact
-            path={this.props.match.url}
-            render={() => (
-              <Link to="/counter">
-                Link to /counter. Click to show counter. Back/Forward buttons
-                work.
-              </Link>
-            )}
-          />
-          <Route path="/counter" component={Counter} />
+          {/* React style prop is still available */}
+          <div style={{ border: "solid 1px grey" }}>
+            <Route
+              exact
+              path={this.props.match.url}
+              render={() => (
+                <Link to="/counter">
+                  Link to /counter. Click to show counter. Back/Forward buttons
+                  work.
+                </Link>
+              )}
+            />
+            <Route path="/counter" component={Counter} />
+          </div>
+
+          <ThemedDiv style={{ border: "solid 1px grey" }}>
+            This div is themed using emotion and emotion-theming
+          </ThemedDiv>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 }
