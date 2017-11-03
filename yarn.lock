@@ -622,15 +622,15 @@ babel-plugin-check-es2015-constants@^6.22.0:
   dependencies:
     babel-runtime "^6.22.0"
 
-babel-plugin-emotion@^8.0.6:
-  version "8.0.6"
-  resolved "https://registry.yarnpkg.com/babel-plugin-emotion/-/babel-plugin-emotion-8.0.6.tgz#f86c6065378defd0f6adaacedab45858b2ca6091"
+babel-plugin-emotion@^8.0.9:
+  version "8.0.9"
+  resolved "https://registry.yarnpkg.com/babel-plugin-emotion/-/babel-plugin-emotion-8.0.9.tgz#65a9ead1e9a574fa1b0390ebcea942739761713c"
   dependencies:
     babel-generator "^6.26.0"
     babel-macros "^1.0.2"
     babel-plugin-syntax-jsx "^6.18.0"
     convert-source-map "^1.5.0"
-    emotion-utils "^8.0.6"
+    emotion-utils "^8.0.9"
     source-map "^0.5.7"
     touch "^1.0.0"
 
@@ -2381,16 +2381,16 @@ emotion-theming@^8.0.9:
   dependencies:
     hoist-non-react-statics "^2.3.1"
 
-emotion-utils@^8.0.6:
-  version "8.0.6"
-  resolved "https://registry.yarnpkg.com/emotion-utils/-/emotion-utils-8.0.6.tgz#23dc1bc63711f86d074b4199b918580f3f2d7855"
+emotion-utils@^8.0.9:
+  version "8.0.9"
+  resolved "https://registry.yarnpkg.com/emotion-utils/-/emotion-utils-8.0.9.tgz#458c7676de2f5206b0b796f7c96c53a5970ed9f2"
 
-emotion@^8.0.8:
-  version "8.0.8"
-  resolved "https://registry.yarnpkg.com/emotion/-/emotion-8.0.8.tgz#d898dd6a4262937bbe0427cb3b4f6c8bcb6582ec"
+emotion@^8.0.9:
+  version "8.0.9"
+  resolved "https://registry.yarnpkg.com/emotion/-/emotion-8.0.9.tgz#788cf2c3ccd59becbd3e78eb01bef22ff20cf381"
   dependencies:
-    babel-plugin-emotion "^8.0.6"
-    emotion-utils "^8.0.6"
+    babel-plugin-emotion "^8.0.9"
+    emotion-utils "^8.0.9"
     stylis "^3.3.2"
     stylis-rule-sheet "^0.0.5"
 
@@ -5806,12 +5806,12 @@ react-dom@^16.0.0:
     object-assign "^4.1.1"
     prop-types "^15.6.0"
 
-react-emotion@^8.0.8:
-  version "8.0.8"
-  resolved "https://registry.yarnpkg.com/react-emotion/-/react-emotion-8.0.8.tgz#91acb5dcade0e29046880f993d558f4902d23423"
+react-emotion@^8.0.9:
+  version "8.0.9"
+  resolved "https://registry.yarnpkg.com/react-emotion/-/react-emotion-8.0.9.tgz#6fbaacf3387a61f1f754fea08006972ea2953ee3"
   dependencies:
-    babel-plugin-emotion "^8.0.6"
-    emotion-utils "^8.0.6"
+    babel-plugin-emotion "^8.0.9"
+    emotion-utils "^8.0.9"
 
 react-redux@^5.0.6:
   version "5.0.6"
