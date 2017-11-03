@@ -12,6 +12,7 @@
     "jsx-boolean-value": false,
     "prettier": true,
     "interface-name": false,
-    "no-var-requires": false
+    "no-var-requires": false,
+    "no-implicit-dependencies": false
   }
 }
