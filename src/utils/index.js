@@ -58,7 +58,7 @@ export const referenceTable: {
 
 // https://stackoverflow.com/questions/7880264/convert-lab-color-to-rgb
 // Convert RGB > XYZ > CIE Lab, copying alpha channel
-export const rgba2laba = (
+export let rgba2laba = (
   input: ColorRGBA,
   ref: ReferenceValue = referenceTable.CIE_1931.D65
 ): ColorLabA => {
@@ -93,6 +93,14 @@ export const rgba2laba = (
 
   return [outL, outA, outB, input[3]];
 };
+
+const wasm = require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.js");
+require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm");
+
+  wasm.then(func => {
+    rgba2laba = func;
+    console.log("override");
+  });
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (
