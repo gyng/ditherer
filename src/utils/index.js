@@ -56,15 +56,10 @@ export const referenceTable: {
   }
 };
 
-// https://stackoverflow.com/questions/7880264/convert-lab-color-to-rgb
-// Convert RGB > XYZ > CIE Lab, copying alpha channel
-export let rgba2laba = (
-  input: ColorRGBA,
-  ref: ReferenceValue = referenceTable.CIE_1931.D65
-): ColorLabA => {
-  let r = input[0] / 255;
-  let g = input[1] / 255;
-  let b = input[2] / 255;
+let rgba2labaInner = (r, g, b, a, rx, ry, rz) => {
+  r = r / 255;
+  g = g / 255;
+  b = b / 255;
 
   r = r > 0.04045 ? ((r + 0.055) / 1.055) ** 2.4 : r / 12.92;
   g = g > 0.04045 ? ((g + 0.055) / 1.055) ** 2.4 : g / 12.92;
@@ -75,13 +70,13 @@ export let rgba2laba = (
   b *= 100;
 
   // Observer= 2° (Only use CIE 1931!)
-  let x = r * 0.4124 + g * 0.3576 + b * 0.1805;
-  let y = r * 0.2126 + g * 0.7152 + b * 0.0722;
-  let z = r * 0.0193 + g * 0.1192 + b * 0.9505;
+  x = r * 0.4124 + g * 0.3576 + b * 0.1805;
+  y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  z = r * 0.0193 + g * 0.1192 + b * 0.9505;
 
-  x /= ref.x;
-  y /= ref.y;
-  z /= ref.z;
+  x /= rx;
+  y /= ry;
+  z /= rz;
 
   x = x > 0.008856 ? x ** (1 / 3) : x * 7.787 + 16 / 116;
   y = y > 0.008856 ? y ** (1 / 3) : y * 7.787 + 16 / 116;
@@ -91,16 +86,25 @@ export let rgba2laba = (
   const outA = 500 * (x - y);
   const outB = 200 * (y - z);
 
-  return [outL, outA, outB, input[3]];
+  return [r, g, b, a];
+};
+
+// https://stackoverflow.com/questions/7880264/convert-lab-color-to-rgb
+// Convert RGB > XYZ > CIE Lab, copying alpha channel
+export let rgba2laba = (
+  input: ColorRGBA,
+  ref: ReferenceValue = referenceTable.CIE_1931.D65
+): ColorLabA => {
+  return rgba2labaInner(input[0], input[1], input[2], input[3], ref.x, ref.y, ref.z);
 };
 
 const wasm = require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.js");
 require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm");
 
-  wasm.then(func => {
-    rgba2laba = func;
-    console.log("override");
-  });
+  // wasm.then(obj => {
+  //   rgba2labaInner = obj.rgba2laba;
+  //   console.log(obj, "override");
+  // });
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (

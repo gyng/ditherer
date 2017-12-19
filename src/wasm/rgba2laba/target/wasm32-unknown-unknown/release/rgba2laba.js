@@ -40,8 +40,8 @@ if( typeof Rust === 'undefined' ) {
             "__extjs_d8a439451216bbc6cd9f3012f189d2ad6a2e9459": function($0) {
                 Module.STDWEB.decrement_refcount( $0 );
             },
-            "__extjs_609d1f6ea941e0eb470f546d98f8b86b8e7f6827": function($0, $1, $2) {
-                Module.STDWEB.from_js($0, (function(){Module.exports.rgba2laba = Module.STDWEB.to_js($1); global.pow = Module.STDWEB.to_js($2)})());
+            "__extjs_528d62ebd32e480ee62d8abe4d2d58cba4b81c0a": function($0, $1) {
+                Module.STDWEB.from_js($0, (function(){Module.exports.rgba2laba = Module.STDWEB.to_js($1);})());
             },
             "__extjs_d0f9580b9cfe82e2ee67d3707e52d87bbabe59f2": function() {
                 Module.STDWEB = {};
