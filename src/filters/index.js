@@ -58,7 +58,7 @@ export {
   verticalStripe
 } from "./errorDiffusing";
 
-export const filterList = [
+export const filterList: Array<{ displayName: string, filter: any }> = [
   {
     displayName: "Program",
     filter: {

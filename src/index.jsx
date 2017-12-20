@@ -58,13 +58,48 @@ Object.values(localStorage).forEach(json => {
   }
 });
 
-ReactDOM.render(
-  <Provider store={store}>
-    <ConnectedRouter history={history}>
-      <div style={{ height: "100%" }}>
-        <Route path="/" component={App} className={s.app} />
-      </div>
-    </ConnectedRouter>
-  </Provider>,
-  document.getElementById("root")
-);
+// Check for params
+import { filterList } from "filters";
+import { selectFilter, loadImageURLAsync } from "actions";
+import type { Filter } from "types";
+
+if (URLSearchParams && window.location.search) {
+  const params = new URLSearchParams(window.location.search);
+
+  // Algorithm
+  const alg = params.get("alg");
+  let filters = filterList;
+  const selectedFilterOption = filters.find(
+    f => f && f.displayName && f.displayName === alg
+  );
+  const selectedFilter = selectedFilterOption;
+  if (alg && selectedFilter != null) {
+    // $FlowFixMe
+    store.dispatch(selectFilter(alg, selectedFilterOption));
+  }
+
+  // Image from URL
+  const src = params.get("src");
+  try {
+    if (src != null) {
+      new URL(src);
+      loadImageURLAsync(src)(store.dispatch);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+const root = document.getElementById("root");
+if (root != null) {
+  ReactDOM.render(
+    <Provider store={store}>
+      <ConnectedRouter history={history}>
+        <div style={{ height: "100%" }}>
+          <Route path="/" component={App} className={s.app} />
+        </div>
+      </ConnectedRouter>
+    </Provider>,
+    root
+  );
+}

@@ -128,7 +128,9 @@ export default class App extends React.Component<*, State> {
               this.props.onSelectFilter(name, filter);
             }}
             value={
-              this.props.selectedFilter && this.props.selectedFilter.displayName
+              this.props.selectedFilter &&
+              (this.props.selectedFilter.displayName ||
+                this.props.selectedFilter.name)
             }
           >
             {this.props.availableFilters.map(f => (
