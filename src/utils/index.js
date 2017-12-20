@@ -1,7 +1,12 @@
 // @flow
 
 import { RGB_NEAREST, RGB_APPROX, LAB_NEAREST } from "constants/color";
-import type { ColorRGBA, ColorLabA, ColorDistanceAlgorithm } from "types";
+import type {
+  ColorRGBA,
+  ColorLabA,
+  ColorHSVA,
+  ColorDistanceAlgorithm
+} from "types";
 
 // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 // TODO: make formula an enum
@@ -63,6 +68,47 @@ export const referenceTable: {
     // 10° (CIE 1964)
     D65: { x: 94.811, y: 100, z: 107.304 }
   }
+};
+
+// 0-360, 0-1, 0-1, 0-1
+export const rgba2hsva = (input: ColorRGBA): ColorHSVA => {
+  const r = input[0] / 255;
+  const g = input[1] / 255;
+  const b = input[2] / 255;
+  const a = input[3] / 255;
+
+  let h;
+  let s;
+
+  const min = Math.min(r, g, b);
+  const max = Math.max(r, g, b);
+  const delta = max - min;
+
+  const v = max;
+
+  if (max > 0) {
+    s = delta / max;
+  } else {
+    s = 0;
+    h = 0;
+    return [h, s, v, a];
+  }
+
+  if (r === max) {
+    h = (g - b) / delta;
+  } else if (g === max) {
+    h = 2 + (b - r) / delta;
+  } else {
+    h = 4 + (r - g) / delta;
+  }
+
+  h *= 60;
+
+  if (h < 0) {
+    h += 360;
+  }
+
+  return [h, s, v, a];
 };
 
 // https://stackoverflow.com/questions/7880264/convert-lab-color-to-rgb

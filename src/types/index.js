@@ -35,6 +35,7 @@ export type Action =
 
 export type ColorRGBA = [number, number, number, number];
 export type ColorLabA = ColorRGBA;
+export type ColorHSVA = ColorRGBA;
 
 export type Palette = {
   name: string,
