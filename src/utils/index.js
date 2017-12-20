@@ -3,6 +3,15 @@
 import { RGB_NEAREST, RGB_APPROX, LAB_NEAREST } from "constants/color";
 import type { ColorRGBA, ColorLabA, ColorDistanceAlgorithm } from "types";
 
+// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
+// TODO: make formula an enum
+export const luminanceItuBt709 = (c: ColorRGBA) =>
+  0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] * (c[3] / 255);
+
+// ITU BT.601
+export const luminance = (c: ColorRGBA) =>
+  0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2] * (c[3] / 255);
+
 export const quantizeValue = (value: number, levels: number): number => {
   const step = 255 / (levels - 1);
   const bucket = Math.round(value / step);

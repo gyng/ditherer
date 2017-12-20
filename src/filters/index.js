@@ -8,6 +8,7 @@ import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
 import grayscale from "./grayscale";
+import pixelsort from "./pixelsort";
 import glitchblob from "./glitchblob";
 import halftone from "./halftone";
 import invert from "./invert";
@@ -35,6 +36,7 @@ export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
 export { default as convolve } from "./convolve";
 export { default as grayscale } from "./grayscale";
+export { default as pixelsort } from "./pixelsort";
 export { default as glitchblob } from "./glitchblob";
 export { default as halftone } from "./halftone";
 export { default as invert } from "./invert";
@@ -131,6 +133,22 @@ export const filterList = [
     }
   },
   { displayName: "Glitch", filter: glitchblob },
+  {
+    displayName: "Pixelsort",
+    filter: {
+      ...pixelsort,
+      options: {
+        ...pixelsort.options,
+        palette: {
+          ...pixelsort.options.palette,
+          options: {
+            ...pixelsort.options.palette.options,
+            levels: 256
+          }
+        }
+      }
+    }
+  },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
