@@ -166,15 +166,27 @@ export const optionTypes = {
   },
   minIntervalLuminosityThreshold: {
     type: RANGE,
-    range: [-1, 256],
+    range: [0, 255],
     step: 0.5,
-    default: -1
+    default: 0
   },
   maxIntervalLuminosityThreshold: {
     type: RANGE,
-    range: [-1, 256],
+    range: [0, 255],
     step: 0.5,
-    default: 256
+    default: 255
+  },
+  minIntervalLuminosityDelta: {
+    type: RANGE,
+    range: [-255, 255],
+    step: 1,
+    default: -255
+  },
+  maxIntervalLuminosityDelta: {
+    type: RANGE,
+    range: [-255, 255],
+    step: 1,
+    default: 255
   },
   randomness: {
     type: RANGE,
@@ -194,6 +206,8 @@ export const defaults = {
     optionTypes.minIntervalLuminosityThreshold.default,
   maxIntervalLuminosityThreshold:
     optionTypes.maxIntervalLuminosityThreshold.default,
+  minIntervalLuminosityDelta: optionTypes.minIntervalLuminosityDelta.default,
+  maxIntervalLuminosityDelta: optionTypes.maxIntervalLuminosityDelta.default,
   randomness: optionTypes.randomness.default
 };
 
@@ -205,6 +219,8 @@ const programFilter = (
     mode: Mode,
     minIntervalLuminosityThreshold: number,
     maxIntervalLuminosityThreshold: number,
+    minIntervalLuminosityDelta: number,
+    maxIntervalLuminosityDelta: number,
     randomness: number,
     palette: Palette
   } = defaults
@@ -215,6 +231,8 @@ const programFilter = (
     mode,
     minIntervalLuminosityThreshold,
     maxIntervalLuminosityThreshold,
+    minIntervalLuminosityDelta,
+    maxIntervalLuminosityDelta,
     randomness,
     palette
   } = options;
@@ -263,6 +281,7 @@ const programFilter = (
     interval = [];
   };
 
+  let lastLum = null;
   for (let i = 0; i < maxSecondary; i += 1) {
     intervalStartPrimaryIdx = 0;
 
@@ -273,10 +292,14 @@ const programFilter = (
       const idx = getBufferIndex(x, y, input.width);
       const pixel = rgba(buf[idx], buf[idx + 1], buf[idx + 2], buf[idx + 3]);
       const lum = luminance(pixel);
+      let lumDelta = lastLum != null ? lastLum - lum : 0;
+      lastLum = lum;
 
       if (
         (lum >= minIntervalLuminosityThreshold &&
-          lum <= maxIntervalLuminosityThreshold) ||
+          lum <= maxIntervalLuminosityThreshold &&
+          lumDelta >= minIntervalLuminosityDelta &&
+          lumDelta <= maxIntervalLuminosityDelta) ||
         Math.random() < randomness
       ) {
         if (!intervalStartPrimaryIdx) {
