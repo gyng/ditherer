@@ -23,6 +23,9 @@ import { PALETTE } from "constants/optionTypes";
 
 import s from "styles/style.scss";
 
+import { filterList } from "filters";
+import { selectFilter } from "actions";
+
 // Redux devtools are still enabled in production!
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
   ? window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__({
@@ -59,16 +62,12 @@ Object.values(localStorage).forEach(json => {
 });
 
 // Check for params
-import { filterList } from "filters";
-import { selectFilter, loadImageURLAsync } from "actions";
-import type { Filter } from "types";
-
 if (URLSearchParams && window.location.search) {
   const params = new URLSearchParams(window.location.search);
 
   // Algorithm
   const alg = params.get("alg");
-  let filters = filterList;
+  const filters = filterList;
   const selectedFilterOption = filters.find(
     f => f && f.displayName && f.displayName === alg
   );
@@ -76,17 +75,6 @@ if (URLSearchParams && window.location.search) {
   if (alg && selectedFilter != null) {
     // $FlowFixMe
     store.dispatch(selectFilter(alg, selectedFilterOption));
-  }
-
-  // Image from URL
-  const src = params.get("src");
-  try {
-    if (src != null) {
-      new URL(src);
-      loadImageURLAsync(src)(store.dispatch);
-    }
-  } catch (e) {
-    console.error(e);
   }
 }
 
