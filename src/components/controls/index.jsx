@@ -10,6 +10,7 @@ import {
   ENUM,
   COLOR_ARRAY,
   STRING,
+  TEXT,
   PALETTE
 } from "constants/controlTypes";
 
@@ -20,6 +21,7 @@ import Palette from "./Palette";
 import Bool from "./Bool";
 import Range from "./Range";
 import Stringly from "./Stringly";
+import Textly from "./Textly";
 import ColorArray from "./ColorArray";
 
 import s from "./styles.scss";
@@ -86,6 +88,16 @@ const Controls = (props: {
         case STRING:
           return (
             <Stringly
+              key={name}
+              name={name}
+              types={oType}
+              value={props.options[name]}
+              onSetFilterOption={props.onSetFilterOption}
+            />
+          );
+        case TEXT:
+          return (
+            <Textly
               key={name}
               name={name}
               types={oType}

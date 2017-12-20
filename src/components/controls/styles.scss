@@ -109,9 +109,15 @@ $beautiful-blue: #000080;
 
 input[type=text],
 input[type=select],
+textarea,
 .input {
   border: 2px inset #ccc;
   padding: 5px;
+}
+
+textarea {
+  width: 90%;
+  min-height: 200px;
 }
 
 button,

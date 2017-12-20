@@ -4,6 +4,7 @@ import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
 import binarize from "./binarize";
+import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
 import grayscale from "./grayscale";
@@ -30,6 +31,7 @@ import {
 } from "./errorDiffusing";
 
 export { default as binarize } from "./binarize";
+export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
 export { default as convolve } from "./convolve";
 export { default as grayscale } from "./grayscale";
@@ -55,6 +57,22 @@ export {
 } from "./errorDiffusing";
 
 export const filterList = [
+  {
+    displayName: "Program",
+    filter: {
+      ...program,
+      options: {
+        ...program.options,
+        palette: {
+          ...program.options.palette,
+          options: {
+            ...program.options.palette.options,
+            levels: 256
+          }
+        }
+      }
+    }
+  },
   { displayName: "Convolve", filter: convolve },
   {
     displayName: "Convolve (edge detection)",
