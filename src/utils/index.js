@@ -101,10 +101,10 @@ export let rgba2laba = (
 const wasm = require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.js");
 require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm");
 
-  // wasm.then(obj => {
-  //   rgba2labaInner = obj.rgba2laba;
-  //   console.log(obj, "override");
-  // });
+// wasm.then(obj => {
+//   rgba2labaInner = obj.rgba2laba;
+//   console.log(obj, "override");
+// });
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (
