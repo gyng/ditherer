@@ -26,9 +26,10 @@ export const optionTypes = {
 // w, h, x, y
 // const p ([r, g, b, a]),
 // const i (index),
-// input, output
+// buf (pixel array)
+// palette
 
-r = r * 0.5;
+r = buf[i + 17];
 g = b;
 b = i % 255;
 a = 255;`
