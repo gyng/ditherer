@@ -27,6 +27,18 @@ export const loadImageAsync = (file: Blob) => (dispatch: Dispatch) => {
   reader.readAsDataURL(file);
 };
 
+export const loadImageURLAsync = (url: string) => (dispatch: Dispatch) => {
+  try {
+    const image = new Image();
+    image.onload = () => {
+      dispatch(loadImage(image));
+    };
+    image.src = url;
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 export const setConvertGrayscale = (value: boolean) => ({
   type: types.SET_GRAYSCALE,
   value
