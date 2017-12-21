@@ -13,10 +13,12 @@
     "eslint": "eslint . --ext .js --ext .jsx",
     "eslint:fix": "eslint . --ext .js --ext .jsx --fix",
     "stylelint": "stylelint '**/*.scss'",
+    "deploy": "rm -rf build && yarn build && gh-pages --dist build",
     "d": "webpack-dev-server --progress --colors"
   },
   "dependencies": {
     "history": "^4.7.2",
+    "pako": "1.0.6",
     "prop-types": "^15.6.0",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
@@ -26,8 +28,7 @@
     "react-router-dom": "^4.2.2",
     "react-router-redux": "next",
     "redux": "^3.7.2",
-    "redux-thunk": "^2.2.0",
-    "pako": "1.0.6"
+    "redux-thunk": "^2.2.0"
   },
   "devDependencies": {
     "autoprefixer": "^7.1.4",
@@ -55,6 +56,7 @@
     "file-loader": "^0.11.1",
     "flow-bin": "^0.55.0",
     "flow-typed": "^2.1.5",
+    "gh-pages": "^1.1.0",
     "html-webpack-plugin": "^2.30.1",
     "karma": "^1.7.1",
     "karma-chai": "^0.1.0",

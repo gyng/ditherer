@@ -16,6 +16,12 @@ For all your online dithering needs.
 #### Deploying
 
 ```
+NODE_ENV=production yarn deploy
+```
+
+or
+
+```
 NODE_ENV=production yarn build
 git checkout gh-pages
 rm commons.js index.html app.*.js
