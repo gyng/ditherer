@@ -15,7 +15,7 @@ const Textly = (props: {
       type="text"
       value={props.value}
       wrap="off"
-      spellcheck="false"
+      spellCheck="false"
       onChange={e => props.onSetFilterOption(props.name, e.target.value)}
     />
   </div>

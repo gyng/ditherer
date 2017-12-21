@@ -292,7 +292,7 @@ const programFilter = (
       const idx = getBufferIndex(x, y, input.width);
       const pixel = rgba(buf[idx], buf[idx + 1], buf[idx + 2], buf[idx + 3]);
       const lum = luminance(pixel);
-      let lumDelta = lastLum != null ? lastLum - lum : 0;
+      const lumDelta = lastLum != null ? lastLum - lum : 0;
       lastLum = lum;
 
       if (
