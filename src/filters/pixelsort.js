@@ -16,7 +16,9 @@ import type { ColorRGBA, Palette } from "types";
 
 export const COLUMN = "COLUMN";
 export const ROW = "ROW";
-export type Direction = "ROW" | "COLUMN";
+export const SPIRAL = "SPIRAL";
+export const SPIRAL_CUT = "SPIRAL_CUT";
+export type Direction = "ROW" | "COLUMN" | "SPIRAL" | "SPIRAL_CUT";
 
 export const ASCENDING = "ASCENDING";
 export const DESCENDING = "DESCENDING";
@@ -134,10 +136,192 @@ export const SORTS: {
   }
 };
 
+export type Iterator = (
+  init: any
+) => () => ?{
+  x: number,
+  y: number,
+  i: number,
+  w: number,
+  h: number,
+  wrapX: boolean,
+  wrapY: boolean,
+  endInterval: boolean
+};
+
+const spiralIterator = endIntervalOnTurn => init => {
+  let { x, y, i } = init;
+  const { w, h } = init;
+  x += Math.floor(w / 2);
+  y += Math.floor(h / 2);
+  i = getBufferIndex(x, y, w);
+
+  let end = false;
+  let endInterval = false;
+
+  const DIR = {
+    N: "N",
+    S: "S",
+    E: "E",
+    W: "W"
+  };
+  let dir = DIR.S;
+  const lengths = {
+    [DIR.N]: { cur: 0, max: 2 },
+    [DIR.S]: { cur: 0, max: 1 },
+    [DIR.E]: { cur: 0, max: 1 },
+    [DIR.W]: { cur: 0, max: 2 }
+  };
+
+  return () => {
+    // debugger;
+
+    if (end) {
+      return null;
+    }
+
+    const nextResult = {
+      x,
+      y,
+      i,
+      w,
+      h,
+      wrapX: false,
+      wrapY: false,
+      endInterval
+    };
+
+    // Allow fallthrough logic!
+    switch (dir) {
+      case DIR.N:
+        if (lengths[dir].cur >= lengths[dir].max || (y === 0 && x > 0)) {
+          lengths[dir].cur = 0;
+          lengths[dir].max += 2;
+          dir = DIR.W;
+          endInterval = endIntervalOnTurn;
+        } else {
+          lengths[dir].cur += 1;
+          y -= 1;
+          endInterval = false;
+          break;
+        }
+      case DIR.W: // eslint-disable-line no-fallthrough
+        if (lengths[dir].cur >= lengths[dir].max || (x === 0 && y < h)) {
+          lengths[dir].cur = 0;
+          lengths[dir].max += 2;
+          dir = DIR.S;
+          endInterval = endIntervalOnTurn;
+        } else {
+          lengths[dir].cur += 1;
+          x -= 1;
+          endInterval = false;
+          break;
+        }
+      case DIR.S: // eslint-disable-line no-fallthrough
+        if (lengths[dir].cur >= lengths[dir].max || (y === h - 1 && x < h)) {
+          lengths[dir].cur = 0;
+          lengths[dir].max += 2;
+          dir = DIR.E;
+          endInterval = endIntervalOnTurn;
+        } else {
+          lengths[dir].cur += 1;
+          y += 1;
+          endInterval = false;
+          break;
+        }
+      case DIR.E: // eslint-disable-line no-fallthrough
+        if (lengths[dir].cur >= lengths[dir].max || (x === w - 1 && y > 0)) {
+          lengths[dir].cur = 0;
+          lengths[dir].max += 2;
+          dir = DIR.N;
+          endInterval = endIntervalOnTurn;
+          break;
+        } else {
+          lengths[dir].cur += 1;
+          x += 1;
+          endInterval = false;
+          break;
+        }
+      default:
+        // last pixel
+        end = true;
+        break;
+    }
+
+    i = getBufferIndex(x, y, w);
+    end = end || i >= w * h * 4; // or oob, somehow
+    // FIXME: Shouldn't end at (0, 0) but at correct corner
+    if (x === 0 && y === 0) {
+      return null;
+    }
+
+    return nextResult;
+  };
+};
+
+// Returns buffer indices
+export const ITERATORS: { [string]: Iterator } = {
+  [ROW]: init => {
+    let { x, y, i } = init;
+    const { w, h } = init;
+    let end = false;
+
+    return () => {
+      if (end) {
+        return null;
+      }
+
+      const wrapX = x === w;
+      const endInterval = wrapX; // Terminate intervals at end
+      const nextResult = { x, y, i, w, h, wrapX, wrapY: false, endInterval };
+
+      i = getBufferIndex(x, y, w) + 4;
+      end = i >= w * h * 4;
+
+      x = x === w ? 0 : x + 1;
+      y = x === w ? y + 1 : y;
+      end = y >= h;
+
+      return nextResult;
+    };
+  },
+  [COLUMN]: init => {
+    let { x, y, i } = init;
+    const { w, h } = init;
+    let end = false;
+
+    return () => {
+      if (end) {
+        return null;
+      }
+
+      const wrapY = y === h;
+      const endInterval = wrapY; // Terminate intervals at end
+      const nextResult = { x, y, i, w, h, wrapX: false, wrapY, endInterval };
+
+      i = getBufferIndex(x, y, w) + 4;
+      end = i >= w * h * 4;
+
+      x = y === h ? x + 1 : x;
+      y = y === h ? 0 : y + 1;
+      end = x >= w;
+
+      return nextResult;
+    };
+  },
+  [SPIRAL_CUT]: spiralIterator(true),
+  [SPIRAL]: spiralIterator(false)
+};
+
 export const optionTypes = {
   direction: {
     type: ENUM,
-    options: [{ name: "Row", value: ROW }, { name: "Column", value: COLUMN }],
+    options: [
+      { name: "Row", value: ROW },
+      { name: "Column", value: COLUMN },
+      { name: "Spiral", value: SPIRAL },
+      { name: "Spiral (non-continuous)", value: SPIRAL_CUT }
+    ],
     default: COLUMN
   },
   sortDirection: {
@@ -164,31 +348,31 @@ export const optionTypes = {
     ],
     default: SORT_LUMINANCE
   },
-  minIntervalLuminosityThreshold: {
+  sortPixelLuminanceAbove: {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
     default: 0
   },
-  maxIntervalLuminosityThreshold: {
+  sortPixelLuminanceBelow: {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
     default: 255
   },
-  minIntervalLuminosityDelta: {
+  sortPixelLuminanceChangeAbove: {
     type: RANGE,
     range: [-255, 255],
     step: 1,
     default: -255
   },
-  maxIntervalLuminosityDelta: {
+  sortPixelLuminanceChangeBelow: {
     type: RANGE,
     range: [-255, 255],
     step: 1,
     default: 255
   },
-  randomness: {
+  extraIntervalStartChance: {
     type: RANGE,
     range: [0, 1],
     step: 0.01,
@@ -202,26 +386,26 @@ export const defaults = {
   sortDirection: optionTypes.sortDirection.default,
   mode: optionTypes.mode.default,
   palette: optionTypes.palette.default,
-  minIntervalLuminosityThreshold:
-    optionTypes.minIntervalLuminosityThreshold.default,
-  maxIntervalLuminosityThreshold:
-    optionTypes.maxIntervalLuminosityThreshold.default,
-  minIntervalLuminosityDelta: optionTypes.minIntervalLuminosityDelta.default,
-  maxIntervalLuminosityDelta: optionTypes.maxIntervalLuminosityDelta.default,
-  randomness: optionTypes.randomness.default
+  sortPixelLuminanceAbove: optionTypes.sortPixelLuminanceAbove.default,
+  sortPixelLuminanceBelow: optionTypes.sortPixelLuminanceBelow.default,
+  sortPixelLuminanceChangeAbove:
+    optionTypes.sortPixelLuminanceChangeAbove.default,
+  sortPixelLuminanceChangeBelow:
+    optionTypes.sortPixelLuminanceChangeBelow.default,
+  extraIntervalStartChance: optionTypes.extraIntervalStartChance.default
 };
 
-const programFilter = (
+const pixelsortFilter = (
   input: HTMLCanvasElement,
   options: {
     direction: Direction,
     sortDirection: SortDirection,
     mode: Mode,
-    minIntervalLuminosityThreshold: number,
-    maxIntervalLuminosityThreshold: number,
-    minIntervalLuminosityDelta: number,
-    maxIntervalLuminosityDelta: number,
-    randomness: number,
+    sortPixelLuminanceAbove: number,
+    sortPixelLuminanceBelow: number,
+    sortPixelLuminanceChangeAbove: number,
+    sortPixelLuminanceChangeBelow: number,
+    extraIntervalStartChance: number,
     palette: Palette
   } = defaults
 ): HTMLCanvasElement => {
@@ -229,11 +413,11 @@ const programFilter = (
     direction,
     sortDirection,
     mode,
-    minIntervalLuminosityThreshold,
-    maxIntervalLuminosityThreshold,
-    minIntervalLuminosityDelta,
-    maxIntervalLuminosityDelta,
-    randomness,
+    sortPixelLuminanceAbove,
+    sortPixelLuminanceBelow,
+    sortPixelLuminanceChangeAbove,
+    sortPixelLuminanceChangeBelow,
+    extraIntervalStartChance,
     palette
   } = options;
   const output = cloneCanvas(input, false);
@@ -247,74 +431,71 @@ const programFilter = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  let maxPrimary;
-  let maxSecondary;
+  const newInterval = () => ({ trail: [], pixels: [] });
+  let interval = newInterval();
 
-  if (direction === ROW) {
-    maxSecondary = input.height;
-    maxPrimary = input.width;
-  } else {
-    maxSecondary = input.width;
-    maxPrimary = input.height;
-  }
+  const fillInterval = () => {
+    interval.pixels.sort((a, b) => SORTS[mode](a, b, sortDirection));
 
-  let intervalStartPrimaryIdx = 0;
-  let interval = [];
-
-  const fillInterval = (secondaryIdx: number) => {
-    interval.sort((a, b) => SORTS[mode](a, b, sortDirection));
-
-    if (intervalStartPrimaryIdx) {
-      for (let k = 0; k < interval.length; k += 1) {
-        const pixel = interval[k];
-        const primaryIdx = k + intervalStartPrimaryIdx;
-
-        const idx =
-          direction === COLUMN
-            ? getBufferIndex(secondaryIdx, primaryIdx, input.width)
-            : getBufferIndex(primaryIdx, secondaryIdx, input.width);
-        const col = palette.getColor(pixel, palette.options);
-        fillBufferPixel(buf, idx, col[0], col[1], col[2], col[3]);
-      }
+    for (let i = 0; i < interval.trail.length; i += 1) {
+      const bufIdx = interval.trail[i];
+      const pixel = interval.pixels[i];
+      const col = palette.getColor(pixel, palette.options);
+      fillBufferPixel(buf, bufIdx, col[0], col[1], col[2], col[3]);
     }
 
-    interval = [];
+    interval = newInterval();
   };
 
   let lastLum = null;
-  for (let i = 0; i < maxSecondary; i += 1) {
-    intervalStartPrimaryIdx = 0;
+  let cur;
+  const iterator = ITERATORS[direction]({
+    i: 0,
+    x: 0,
+    y: 0,
+    w: input.width,
+    h: input.height
+  });
 
-    for (let j = 0; j < maxPrimary; j += 1) {
-      const x = direction === ROW ? j : i;
-      const y = direction === ROW ? i : j;
+  /* eslint-disable */
+  while ((cur = iterator())) {
+    /* eslint-enable */
+    const pixel = rgba(
+      buf[cur.i],
+      buf[cur.i + 1],
+      buf[cur.i + 2],
+      buf[cur.i + 3]
+    );
+    const lum = luminance(pixel);
+    const lumDelta = lastLum != null ? lastLum - lum : 0;
+    lastLum = lum;
 
-      const idx = getBufferIndex(x, y, input.width);
-      const pixel = rgba(buf[idx], buf[idx + 1], buf[idx + 2], buf[idx + 3]);
-      const lum = luminance(pixel);
-      const lumDelta = lastLum != null ? lastLum - lum : 0;
-      lastLum = lum;
+    const inLuminosityWindow =
+      lum >= sortPixelLuminanceAbove && lum <= sortPixelLuminanceBelow;
 
-      if (
-        (lum >= minIntervalLuminosityThreshold &&
-          lum <= maxIntervalLuminosityThreshold &&
-          lumDelta >= minIntervalLuminosityDelta &&
-          lumDelta <= maxIntervalLuminosityDelta) ||
-        Math.random() < randomness
-      ) {
-        if (!intervalStartPrimaryIdx) {
-          intervalStartPrimaryIdx = j;
-        }
-        interval.push(pixel);
-      } else if (interval.length > 0) {
-        fillInterval(i);
-        intervalStartPrimaryIdx = 0;
+    const enoughLuminosityDelta =
+      lumDelta >= sortPixelLuminanceChangeAbove &&
+      lumDelta <= sortPixelLuminanceChangeBelow;
+
+    if (
+      (inLuminosityWindow && enoughLuminosityDelta) ||
+      Math.random() < extraIntervalStartChance
+    ) {
+      interval.pixels.push(pixel);
+      interval.trail.push(cur.i);
+
+      // If iterator forces an end of an interval (eg. x wrapped around)
+      if (cur.endInterval) {
+        fillInterval();
       }
+    } else if (interval.trail.length > 0) {
+      fillInterval();
     }
+  }
 
-    if (interval.length > 0) {
-      fillInterval(i);
-    }
+  // Clean up any remaining interval
+  if (interval.trail.length > 0) {
+    fillInterval();
   }
 
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
@@ -322,8 +503,8 @@ const programFilter = (
 };
 
 export default {
-  name: "Program",
-  func: programFilter,
+  name: "Pixelsort",
+  func: pixelsortFilter,
   optionTypes,
   options: defaults,
   defaults
