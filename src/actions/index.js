@@ -52,7 +52,7 @@ export const loadVideoAsync = (file: File) => (dispatch: Dispatch) => {
     const loadFrame = () => {
       URL.revokeObjectURL(i.src);
 
-      if (!video.paused) {
+      if (!video.paused && video.src !== "") {
         i.width = video.videoWidth;
         i.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
@@ -60,7 +60,7 @@ export const loadVideoAsync = (file: File) => (dispatch: Dispatch) => {
           if (blob) {
             i.src = URL.createObjectURL(blob);
             i.onload = () => {
-              if (!video.paused) {
+              if (!video.paused && video.src !== "") {
                 requestAnimationFrame(loadFrame);
                 dispatch(loadImage(i, video.currentTime, video, dispatch));
               }

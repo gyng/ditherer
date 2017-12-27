@@ -37,8 +37,14 @@ export default (state: AppState = initialState, action: Action) => {
         inputCanvas: action.canvas
       };
     case LOAD_IMAGE: // eslint-disable-line
-      if (!action.video && state.video) {
+      // Image or new video
+      if (
+        state.video != null &&
+        (!action.video || action.video !== state.video)
+      ) {
         state.video.pause();
+        // $FlowFixMe
+        state.video.src = ""; // eslint-disable-line
       }
 
       const newState = {
