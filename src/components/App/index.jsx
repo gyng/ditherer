@@ -239,16 +239,38 @@ export default class App extends React.Component<*, State> {
               this.props.onSetRealTimeFiltering(e.target.checked);
             }}
           />
-          <span className={s.label}>Realtime filtering (videos)</span>
+          <span className={controls.label}>Realtime filtering (videos)</span>
         </div>
 
         <div className={s.captureSection}>
           <button
+            title="Audio capture requires Chrome"
             id="captureButton"
             disabled={!this.props.realtimeFiltering}
             onClick={() => {
               if (!this.state.capturing && this.outputCanvas) {
                 this.stream = this.outputCanvas.captureStream(25);
+
+                // Mux audio + video tracks together
+                if (this.stream && this.props.inputVideo) {
+                  const vid = this.props.inputVideo;
+                  let streams;
+                  // Audio capture doesn't work on Firefox 57
+                  if (vid.mozCaptureStream) {
+                    streams = vid.mozCaptureStream(25);
+                  } else if (vid.captureStream) {
+                    streams = vid.captureStream(25);
+                  }
+
+                  if (streams && this.stream) {
+                    const audioTracks = streams.getAudioTracks();
+                    audioTracks.forEach(t => {
+                      // $FlowFixMe
+                      this.stream.addTrack(t);
+                    });
+                  }
+                }
+
                 this.captureVideo.srcObject = this.stream;
 
                 // $FlowFixMe
@@ -374,20 +396,21 @@ App.propTypes = {
   className: PropTypes.string,
   convertGrayscale: PropTypes.bool,
   inputImage: PropTypes.object,
+  inputVideo: PropTypes.object,
   match: PropTypes.object,
-  time: PropTypes.number,
   onConvertGrayscale: PropTypes.func,
   onFilterImage: PropTypes.func,
   onLoadImage: PropTypes.func,
   onSelectFilter: PropTypes.func,
   onSetInput: PropTypes.func,
-  onSetRealTimeFiltering: PropTypes.func,
   onSetInputCanvas: PropTypes.func,
+  onSetRealTimeFiltering: PropTypes.func,
   onSetScale: PropTypes.func,
   outputImage: PropTypes.object,
   realtimeFiltering: PropTypes.bool,
   scale: PropTypes.number,
-  selectedFilter: PropTypes.object
+  selectedFilter: PropTypes.object,
+  time: PropTypes.number
 };
 
 App.defaultProps = {
@@ -396,18 +419,19 @@ App.defaultProps = {
   className: s.app,
   convertGrayscale: false,
   inputImage: null,
+  inputVideo: null,
   match: { url: "unknown" },
-  time: null,
   onConvertGrayscale: () => {},
   onFilterImage: () => {},
   onLoadImage: () => {},
   onSelectFilter: () => {},
   onSetInput: () => {},
-  onSetRealTimeFiltering: () => {},
   onSetInputCanvas: () => {},
+  onSetRealTimeFiltering: () => {},
   onSetScale: () => {},
   outputImage: null,
   realtimeFiltering: false,
   scale: 1,
-  selectedFilter: null
+  selectedFilter: null,
+  time: null
 };

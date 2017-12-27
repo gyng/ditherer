@@ -25,6 +25,7 @@ const mapStateToProps = (state: State) => ({
   convertGrayscale: state.filters.convertGrayscale,
   scale: state.filters.scale,
   time: state.filters.time,
+  inputVideo: state.filters.video,
   realtimeFiltering: state.filters.realtimeFiltering
 });
 
