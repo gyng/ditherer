@@ -282,7 +282,7 @@ export default class App extends React.Component<*, State> {
                 };
                 // $FlowFixMe
                 this.mediaRecorder.onstop = () => {
-                  const blob = new Blob(this.chunks);
+                  const blob = new Blob(this.chunks, { type: "video/webm" });
                   this.chunks = [];
                   const dataUrl = URL.createObjectURL(blob);
                   this.captureVideo.srcObject = null;
