@@ -32,7 +32,7 @@ export const loadImageAsync = (file: File) => (dispatch: Dispatch) => {
 
   reader.onload = event => {
     image.onload = () => {
-      dispatch(loadImage(image));
+      dispatch(loadImage(image, null, null, dispatch));
     };
     image.src = event.target.result;
   };
@@ -62,7 +62,7 @@ export const loadVideoAsync = (file: File) => (dispatch: Dispatch) => {
             i.onload = () => {
               if (!video.paused) {
                 requestAnimationFrame(loadFrame);
-                dispatch(loadImage(i, video.currentTime, video));
+                dispatch(loadImage(i, video.currentTime, video, dispatch));
               }
             };
           }
