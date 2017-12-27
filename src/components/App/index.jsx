@@ -252,71 +252,75 @@ export default class App extends React.Component<*, State> {
             }}
           />
           <span className={controls.label}>Realtime filtering (videos)</span>
-        </div>
 
-        <div className={s.captureSection}>
-          <button
-            title="Audio capture requires Chrome"
-            id="captureButton"
-            disabled={!this.props.realtimeFiltering}
-            onClick={() => {
-              if (!this.state.capturing && this.outputCanvas) {
-                this.stream = this.outputCanvas.captureStream(25);
+          <div className={s.captureSection}>
+            <button
+              id="captureButton"
+              style={{ margin: "5px 0" }}
+              disabled={!this.props.realtimeFiltering}
+              onClick={() => {
+                if (!this.state.capturing && this.outputCanvas) {
+                  this.stream = this.outputCanvas.captureStream(25);
 
-                // Mux audio + video tracks together
-                if (this.stream && this.props.inputVideo) {
-                  const vid = this.props.inputVideo;
-                  let streams;
-                  // Audio capture doesn't work on Firefox 57
-                  // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/captureStream
-                  // if (vid.mozCaptureStream) {
-                  //   streams = vid.mozCaptureStream(25);
-                  // } else if (vid.captureStream) {
-                  //   streams = vid.captureStream(25);
-                  // }
+                  // Mux audio + video tracks together
+                  if (this.stream && this.props.inputVideo) {
+                    const vid = this.props.inputVideo;
+                    let streams;
+                    // Audio capture doesn't work on Firefox 57
+                    // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/captureStream
+                    // if (vid.mozCaptureStream) {
+                    //   streams = vid.mozCaptureStream(25);
+                    // } else if (vid.captureStream) {
+                    //   streams = vid.captureStream(25);
+                    // }
 
-                  if (vid.captureStream) {
-                    streams = vid.captureStream(25);
+                    if (vid.captureStream) {
+                      streams = vid.captureStream(25);
+                    }
+
+                    if (streams && this.stream) {
+                      const audioTracks = streams.getAudioTracks();
+                      audioTracks.forEach(t => {
+                        // $FlowFixMe
+                        this.stream.addTrack(t.clone());
+                      });
+                    }
                   }
 
-                  if (streams && this.stream) {
-                    const audioTracks = streams.getAudioTracks();
-                    audioTracks.forEach(t => {
-                      // $FlowFixMe
-                      this.stream.addTrack(t.clone());
-                    });
-                  }
+                  this.captureVideo.srcObject = this.stream;
+
+                  // $FlowFixMe
+                  this.mediaRecorder = new MediaRecorder(this.stream);
+                  this.mediaRecorder.start();
+                  // $FlowFixMe
+                  this.mediaRecorder.ondataavailable = e => {
+                    this.chunks.push(e.data);
+                  };
+                  // $FlowFixMe
+                  this.mediaRecorder.onstop = () => {
+                    const blob = new Blob(this.chunks, { type: "video/webm" });
+                    this.chunks = [];
+                    const dataUrl = URL.createObjectURL(blob);
+                    this.captureVideo.srcObject = null;
+                    this.captureVideo.src = dataUrl;
+                  };
+                  this.setState({ capturing: true, hasCapture: true });
+                } else if (this.stream) {
+                  // $FlowFixMe
+                  this.stream.getTracks().forEach(track => track.stop());
+                  // $FlowFixMe
+                  this.mediaRecorder.stop();
+                  this.setState({ capturing: false });
                 }
+              }}
+            >
+              {this.state.capturing ? "Stop capture" : "Capture output video"}
+            </button>
 
-                this.captureVideo.srcObject = this.stream;
-
-                // $FlowFixMe
-                this.mediaRecorder = new MediaRecorder(this.stream);
-                this.mediaRecorder.start();
-                // $FlowFixMe
-                this.mediaRecorder.ondataavailable = e => {
-                  this.chunks.push(e.data);
-                };
-                // $FlowFixMe
-                this.mediaRecorder.onstop = () => {
-                  const blob = new Blob(this.chunks, { type: "video/webm" });
-                  this.chunks = [];
-                  const dataUrl = URL.createObjectURL(blob);
-                  this.captureVideo.srcObject = null;
-                  this.captureVideo.src = dataUrl;
-                };
-                this.setState({ capturing: true, hasCapture: true });
-              } else if (this.stream) {
-                // $FlowFixMe
-                this.stream.getTracks().forEach(track => track.stop());
-                // $FlowFixMe
-                this.mediaRecorder.stop();
-                this.setState({ capturing: false });
-              }
-            }}
-          >
-            {this.state.capturing ? "Stop capture" : "Capture output video"}
-          </button>
+            <div className={controls.unselectable}>
+              Audio capture requires Chrome
+            </div>
+          </div>
         </div>
       </div>
     );
