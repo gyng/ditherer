@@ -352,7 +352,45 @@ export const ITERATORS: { [string]: Iterator } = {
     };
   },
   [DIRECTION.SPIRAL_CUT]: spiralIterator(true),
-  [DIRECTION.SPIRAL]: spiralIterator(false)
+  [DIRECTION.SPIRAL]: spiralIterator(false),
+  [DIRECTION.DIAGONAL_TOP_RIGHT]: init => {
+    let { x, y, i } = init;
+    const { w, h } = init;
+    let end = false;
+    let startX = x;
+    let startY = y;
+
+    return () => {
+      if (end) {
+        return null;
+      }
+
+      const wrapY = y === 0;
+      const wrapX = x === w - 1;
+      const endInterval = wrapY || wrapX;
+      const nextResult = { x, y, i, w, h, wrapX, wrapY, endInterval };
+
+      if (x === w - 1 || y === 0) {
+        if (startY >= h - 1) {
+          startX += 1;
+          x = startX;
+          y = h - 1;
+        } else {
+          startY += 1;
+          y = startY;
+          x = 0;
+        }
+      } else {
+        x += 1;
+        y -= 1;
+      }
+
+      i = getBufferIndex(x, y, w);
+      end = x === w - 1 && y === h - 1;
+
+      return nextResult;
+    };
+  }
 };
 
 export const optionTypes = {
@@ -362,7 +400,8 @@ export const optionTypes = {
       { name: "Row", value: DIRECTION.ROW },
       { name: "Column", value: DIRECTION.COLUMN },
       { name: "Spiral", value: DIRECTION.SPIRAL },
-      { name: "Spiral (non-continuous)", value: DIRECTION.SPIRAL_CUT }
+      { name: "Spiral (non-continuous)", value: DIRECTION.SPIRAL_CUT },
+      { name: "Diagonal (top-right)", value: DIRECTION.DIAGONAL_TOP_RIGHT }
     ],
     default: DIRECTION.COLUMN
   },
