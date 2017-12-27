@@ -6,10 +6,22 @@
 
 For all your online dithering needs.
 
+* Dithering algorithms (Ordered, error-diffusing, and more)
+* Video support
+* Video recording support
+* Colour palette
+* Adaptive colour palette
+* Palette extraction
+* Pixel sorting
+* (Real) glitching
+* Convolve
+* CRT emulation
+* Brightness/contrast
+* Bunch more other filters and features
+
 #### TODO
 
-* Cleanup
-* Adaptive palette
+* Cleanup (especially how realtime filtering is handled)
 * More filters
 * Better UI/UX
 
