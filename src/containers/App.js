@@ -24,7 +24,8 @@ const mapStateToProps = (state: State) => ({
   selectedFilter: state.filters.selected,
   convertGrayscale: state.filters.convertGrayscale,
   scale: state.filters.scale,
-  time: state.filters.time
+  time: state.filters.time,
+  realtimeFiltering: state.filters.realtimeFiltering
 });
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({

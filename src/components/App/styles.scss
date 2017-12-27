@@ -16,6 +16,12 @@ $light-gray: #bfbfbf;
   100% { content: "🕛"; }
 }
 
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
 .app {
   align-content: flex-start;
   display: flex;
@@ -57,9 +63,26 @@ $light-gray: #bfbfbf;
     margin-top: 20px;
   }
 
+  .captureSection {
+    max-width: 210px;
+  }
+
   .github {
     margin-top: auto;
   }
+}
+
+.hide {
+  display: none !important;
+}
+
+.rec {
+  animation: blink 1.5s steps(5, start) infinite;
+  font-weight: bold;
+  color: red;
+  position: absolute;
+  right: 8px;
+  top: 32px;
 }
 
 .canvases {

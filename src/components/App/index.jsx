@@ -11,7 +11,9 @@ import controls from "components/controls/styles.scss";
 import s from "./styles.scss";
 
 type State = {
-  dropping: boolean
+  dropping: boolean,
+  capturing: boolean,
+  hasCapture: boolean
 };
 
 export default class App extends React.Component<*, State> {
@@ -23,12 +25,28 @@ export default class App extends React.Component<*, State> {
     super(props);
     this.inputCanvas = null;
     this.outputCanvas = null;
+    this.chunks = [];
+    this.mediaRecorder = null;
+    this.captureVideo = document.createElement("video");
+    this.captureVideo.controls = true;
+    this.captureVideo.autoplay = true;
+    this.captureVideo.loop = true;
     this.zIndex = 0;
-    this.state = { dropping: false };
+    this.stream = null;
+    this.state = { dropping: false, capturing: false, hasCapture: false };
   }
 
   componentDidMount() {
     this.props.onSetInputCanvas(this.inputCanvas);
+
+    if (document.body && this.captureVideo) {
+      const captureOutputContainer = document.body.querySelector(
+        "#captureOutput"
+      );
+      if (captureOutputContainer) {
+        captureOutputContainer.appendChild(this.captureVideo);
+      }
+    }
   }
 
   componentWillUpdate(nextProps: any) {
@@ -70,12 +88,22 @@ export default class App extends React.Component<*, State> {
     }
   }
 
+  capturing: boolean;
+  captureVideo: HTMLVideoElement;
   dropping: boolean;
+  stream: ?any;
+  chunks: Array<any>;
+  mediaRecorder: ?any;
   inputCanvas: ?HTMLCanvasElement;
   outputCanvas: ?HTMLCanvasElement;
   zIndex: number;
 
   render() {
+    const bringToTop = e => {
+      this.zIndex += 1;
+      e.currentTarget.style.zIndex = `${this.zIndex}`;
+    };
+
     const loadImageSection = (
       <div>
         <h2>Load image or video</h2>
@@ -203,22 +231,56 @@ export default class App extends React.Component<*, State> {
           Filter
         </button>
 
-        <div>
+        <div className={s.section}>
+          <h2>Video</h2>
           <input
             type="checkbox"
             onChange={e => {
               this.props.onSetRealTimeFiltering(e.target.checked);
             }}
           />
-          Realtime filtering (videos)
+          <span className={s.label}>Realtime filtering (videos)</span>
+        </div>
+
+        <div className={s.captureSection}>
+          <button
+            id="captureButton"
+            disabled={!this.props.realtimeFiltering}
+            onClick={() => {
+              if (!this.state.capturing && this.outputCanvas) {
+                this.stream = this.outputCanvas.captureStream(25);
+                this.captureVideo.srcObject = this.stream;
+
+                // $FlowFixMe
+                this.mediaRecorder = new MediaRecorder(this.stream);
+                this.mediaRecorder.start();
+                // $FlowFixMe
+                this.mediaRecorder.ondataavailable = e => {
+                  this.chunks.push(e.data);
+                };
+                // $FlowFixMe
+                this.mediaRecorder.onstop = () => {
+                  const blob = new Blob(this.chunks);
+                  this.chunks = [];
+                  const dataUrl = URL.createObjectURL(blob);
+                  this.captureVideo.srcObject = null;
+                  this.captureVideo.src = dataUrl;
+                };
+                this.setState({ capturing: true, hasCapture: true });
+              } else if (this.stream) {
+                // $FlowFixMe
+                this.stream.getTracks().forEach(track => track.stop());
+                // $FlowFixMe
+                this.mediaRecorder.stop();
+                this.setState({ capturing: false });
+              }
+            }}
+          >
+            {this.state.capturing ? "Stop capture" : "Capture output video"}
+          </button>
         </div>
       </div>
     );
-
-    const bringToTop = e => {
-      this.zIndex += 1;
-      e.currentTarget.style.zIndex = `${this.zIndex}`;
-    };
 
     const canvases = (
       <div className={s.canvases}>
@@ -255,6 +317,34 @@ export default class App extends React.Component<*, State> {
                   this.outputCanvas = c;
                 }}
               />
+            </div>
+          </div>
+        </Draggable>
+
+        <Draggable
+          bounds={{
+            top: 0,
+            left: ((this.inputCanvas && -this.inputCanvas.width) || -300) * 2
+          }}
+        >
+          <div
+            role="presentation"
+            onMouseDownCapture={bringToTop}
+            id="captureWindow"
+            className={this.state.hasCapture ? "" : s.hide}
+          >
+            <div className={controls.window}>
+              <div className={["handle", controls.titleBar].join(" ")}>
+                Capture
+              </div>
+              <div id="captureOutput" />
+              <div
+                className={[s.rec, !this.state.capturing ? s.hide : ""].join(
+                  " "
+                )}
+              >
+                ● REC
+              </div>
             </div>
           </div>
         </Draggable>
@@ -295,6 +385,7 @@ App.propTypes = {
   onSetInputCanvas: PropTypes.func,
   onSetScale: PropTypes.func,
   outputImage: PropTypes.object,
+  realtimeFiltering: PropTypes.bool,
   scale: PropTypes.number,
   selectedFilter: PropTypes.object
 };
@@ -316,6 +407,7 @@ App.defaultProps = {
   onSetInputCanvas: () => {},
   onSetScale: () => {},
   outputImage: null,
+  realtimeFiltering: false,
   scale: 1,
   selectedFilter: null
 };
