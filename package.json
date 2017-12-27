@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "scripts": {
     "build": "webpack --progress --config webpack.config.js",
+    "clean": "rm -rf build",
     "lint": "yarn run flow && yarn run eslint && yarn run stylelint",
     "prettier": "echo '💈 Listing files to format. Run yarn prettier:write to write.\n' && prettier --list-different src/**/*.js src/**/*.jsx test/**/*.js test/**/*.jsx *.config.js",
     "prettier:write": "prettier --write src/**/*.js src/**/*.jsx test/**/*.js test/**/*.jsx *.config.js",
@@ -14,6 +15,7 @@
     "eslint:fix": "eslint . --ext .js --ext .jsx --fix",
     "stylelint": "stylelint '**/*.scss'",
     "deploy": "rm -rf build && yarn build && gh-pages --dist build",
+    "deploy:prebuilt": "gh-pages --dist build",
     "d": "webpack-dev-server --progress --colors"
   },
   "dependencies": {
