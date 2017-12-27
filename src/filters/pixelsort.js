@@ -14,44 +14,58 @@ import {
 
 import type { ColorRGBA, Palette } from "types";
 
-export const COLUMN = "COLUMN";
-export const ROW = "ROW";
-export const SPIRAL = "SPIRAL";
-export const SPIRAL_CUT = "SPIRAL_CUT";
-export type Direction = "ROW" | "COLUMN" | "SPIRAL" | "SPIRAL_CUT";
+export const DIRECTION = {
+  COLUMN: "COLUMN",
+  ROW: "ROW",
+  SPIRAL: "SPIRAL",
+  SPIRAL_CUT: "SPIRAL_CUT",
+  DIAGONAL_TOP_RIGHT: "DIAGONAL_TOP_RIGHT"
+};
+export type Direction =
+  | "ROW"
+  | "COLUMN"
+  | "DIAGONAL_TOPRIGHT"
+  | "SPIRAL"
+  | "SPIRAL_CUT";
 
-export const ASCENDING = "ASCENDING";
-export const DESCENDING = "DESCENDING";
+export const SORT_DIRECTION = {
+  ASCENDING: "ASCENDING",
+  DESCENDING: "DESCENDING"
+};
+
 export type SortDirection = "ASCENDING" | "DESCENDING";
 
-export const SORT_LUMINANCE = "SORT_LUMINANCE";
-export const SORT_RGBA = "SORT_RGBA";
-export const SORT_GBRA = "SORT_GBRA";
-export const SORT_BGRA = "SORT_BGRA";
-export const SORT_HSVA = "SORT_HSVA";
-export const SORT_VSHA = "SORT_VSHA";
-export const SORT_SVHA = "SORT_SVHA";
-export const SORT_LABA = "SORT_LABA";
-export const SORT_ABLA = "SORT_ABLA";
-export const SORT_BALA = "SORT_BALA";
-export type Mode =
-  | "SORT_RGBA"
-  | "SORT_GBRA"
-  | "SORT_BGRA"
-  | "SORT_LUMINANCE"
-  | "SORT_HSVA"
-  | "SORT_SVHA"
-  | "SORT_VSHA"
-  | "SORT_LABA"
-  | "SORT_ABLA"
-  | "SORT_BALA";
+export const COMPARATOR = {
+  LUMINANCE: "LUMINANCE",
+  RGBA: "RGBA",
+  GBRA: "GBRA",
+  BGRA: "BGRA",
+  HSVA: "HSVA",
+  VSHA: "VSHA",
+  SVHA: "SVHA",
+  LABA: "LABA",
+  ABLA: "ABLA",
+  BALA: "BALA"
+};
+
+export type Comparator =
+  | "RGBA"
+  | "GBRA"
+  | "BGRA"
+  | "LUMINANCE"
+  | "HSVA"
+  | "SVHA"
+  | "VSHA"
+  | "LABA"
+  | "ABLA"
+  | "BALA";
 
 const compareQuadlet = (
   a: [number, number, number, number],
   b: [number, number, number, number],
   dir: SortDirection
 ): number => {
-  const dirMul = dir === ASCENDING ? 1 : -1;
+  const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
   const rd = (a[0] - b[0]) * dirMul;
   if (rd !== 0) {
     return rd;
@@ -72,64 +86,92 @@ const compareQuadlet = (
 };
 
 export const SORTS: {
-  [Mode]: (ColorRGBA, ColorRGBA, SortDirection) => number
+  [Comparator]: (ColorRGBA, ColorRGBA, SortDirection) => number
 } = {
-  [SORT_RGBA]: compareQuadlet,
-  [SORT_GBRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.RGBA]: compareQuadlet,
+  [COMPARATOR.GBRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [SORT_BGRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.BGRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [SORT_HSVA]: (aRgba: ColorRGBA, bRgba: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.HSVA]: (
+    aRgba: ColorRGBA,
+    bRgba: ColorRGBA,
+    dir: SortDirection
+  ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
     return compareQuadlet(a, b, dir);
   },
-  [SORT_HSVA]: (aRgba: ColorRGBA, bRgba: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.HSVA]: (
+    aRgba: ColorRGBA,
+    bRgba: ColorRGBA,
+    dir: SortDirection
+  ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
     return compareQuadlet(a, b, dir);
   },
-  [SORT_SVHA]: (aRgba: ColorRGBA, bRgba: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.SVHA]: (
+    aRgba: ColorRGBA,
+    bRgba: ColorRGBA,
+    dir: SortDirection
+  ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [SORT_VSHA]: (aRgba: ColorRGBA, bRgba: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.VSHA]: (
+    aRgba: ColorRGBA,
+    bRgba: ColorRGBA,
+    dir: SortDirection
+  ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [SORT_LABA]: (aRgba: ColorRGBA, bRgba: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.LABA]: (
+    aRgba: ColorRGBA,
+    bRgba: ColorRGBA,
+    dir: SortDirection
+  ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
     return compareQuadlet(a, b, dir);
   },
-  [SORT_ABLA]: (aRgba: ColorRGBA, bRgba: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.ABLA]: (
+    aRgba: ColorRGBA,
+    bRgba: ColorRGBA,
+    dir: SortDirection
+  ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [SORT_BALA]: (aRgba: ColorRGBA, bRgba: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.BALA]: (
+    aRgba: ColorRGBA,
+    bRgba: ColorRGBA,
+    dir: SortDirection
+  ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [SORT_LUMINANCE]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
-    const dirMul = dir === ASCENDING ? 1 : -1;
+  [COMPARATOR.LUMINANCE]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+    const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
     const lumA = luminance(a);
     const lumB = luminance(b);
     return (lumA - lumB) * dirMul;
@@ -261,7 +303,7 @@ const spiralIterator = endIntervalOnTurn => init => {
 
 // Returns buffer indices
 export const ITERATORS: { [string]: Iterator } = {
-  [ROW]: init => {
+  [DIRECTION.ROW]: init => {
     let { x, y, i } = init;
     const { w, h } = init;
     let end = false;
@@ -285,7 +327,7 @@ export const ITERATORS: { [string]: Iterator } = {
       return nextResult;
     };
   },
-  [COLUMN]: init => {
+  [DIRECTION.COLUMN]: init => {
     let { x, y, i } = init;
     const { w, h } = init;
     let end = false;
@@ -309,44 +351,44 @@ export const ITERATORS: { [string]: Iterator } = {
       return nextResult;
     };
   },
-  [SPIRAL_CUT]: spiralIterator(true),
-  [SPIRAL]: spiralIterator(false)
+  [DIRECTION.SPIRAL_CUT]: spiralIterator(true),
+  [DIRECTION.SPIRAL]: spiralIterator(false)
 };
 
 export const optionTypes = {
   direction: {
     type: ENUM,
     options: [
-      { name: "Row", value: ROW },
-      { name: "Column", value: COLUMN },
-      { name: "Spiral", value: SPIRAL },
-      { name: "Spiral (non-continuous)", value: SPIRAL_CUT }
+      { name: "Row", value: DIRECTION.ROW },
+      { name: "Column", value: DIRECTION.COLUMN },
+      { name: "Spiral", value: DIRECTION.SPIRAL },
+      { name: "Spiral (non-continuous)", value: DIRECTION.SPIRAL_CUT }
     ],
-    default: COLUMN
+    default: DIRECTION.COLUMN
   },
   sortDirection: {
     type: ENUM,
     options: [
-      { name: "Ascending", value: ASCENDING },
-      { name: "Descending", value: DESCENDING }
+      { name: "Ascending", value: SORT_DIRECTION.ASCENDING },
+      { name: "Descending", value: SORT_DIRECTION.DESCENDING }
     ],
-    default: ASCENDING
+    default: SORT_DIRECTION.ASCENDING
   },
-  mode: {
+  comparator: {
     type: ENUM,
     options: [
-      { name: "RGBA", value: SORT_RGBA },
-      { name: "GBRA", value: SORT_GBRA },
-      { name: "BGRA", value: SORT_BGRA },
-      { name: "HSVA", value: SORT_HSVA },
-      { name: "SVHA", value: SORT_SVHA },
-      { name: "VSHA", value: SORT_VSHA },
-      { name: "LABA", value: SORT_LABA },
-      { name: "ABLA", value: SORT_ABLA },
-      { name: "BALA", value: SORT_BALA },
-      { name: "Luminance", value: SORT_LUMINANCE }
+      { name: "RGBA", value: COMPARATOR.RGBA },
+      { name: "GBRA", value: COMPARATOR.GBRA },
+      { name: "BGRA", value: COMPARATOR.BGRA },
+      { name: "HSVA", value: COMPARATOR.HSVA },
+      { name: "SVHA", value: COMPARATOR.SVHA },
+      { name: "VSHA", value: COMPARATOR.VSHA },
+      { name: "LABA", value: COMPARATOR.LABA },
+      { name: "ABLA", value: COMPARATOR.ABLA },
+      { name: "BALA", value: COMPARATOR.BALA },
+      { name: "Luminance", value: COMPARATOR.LUMINANCE }
     ],
-    default: SORT_LUMINANCE
+    default: COMPARATOR.LUMINANCE
   },
   sortPixelLuminanceAbove: {
     type: RANGE,
@@ -384,7 +426,7 @@ export const optionTypes = {
 export const defaults = {
   direction: optionTypes.direction.default,
   sortDirection: optionTypes.sortDirection.default,
-  mode: optionTypes.mode.default,
+  comparator: optionTypes.comparator.default,
   palette: optionTypes.palette.default,
   sortPixelLuminanceAbove: optionTypes.sortPixelLuminanceAbove.default,
   sortPixelLuminanceBelow: optionTypes.sortPixelLuminanceBelow.default,
@@ -400,7 +442,7 @@ const pixelsortFilter = (
   options: {
     direction: Direction,
     sortDirection: SortDirection,
-    mode: Mode,
+    comparator: Comparator,
     sortPixelLuminanceAbove: number,
     sortPixelLuminanceBelow: number,
     sortPixelLuminanceChangeAbove: number,
@@ -412,7 +454,7 @@ const pixelsortFilter = (
   const {
     direction,
     sortDirection,
-    mode,
+    comparator,
     sortPixelLuminanceAbove,
     sortPixelLuminanceBelow,
     sortPixelLuminanceChangeAbove,
@@ -435,7 +477,7 @@ const pixelsortFilter = (
   let interval = newInterval();
 
   const fillInterval = () => {
-    interval.pixels.sort((a, b) => SORTS[mode](a, b, sortDirection));
+    interval.pixels.sort((a, b) => SORTS[comparator](a, b, sortDirection));
 
     for (let i = 0; i < interval.trail.length; i += 1) {
       const bufIdx = interval.trail[i];
