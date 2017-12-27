@@ -14,6 +14,7 @@ import {
 } from "constants/actionTypes";
 
 import { floydSteinberg } from "filters/errorDiffusing";
+import { grayscale } from "filters";
 
 import type { Action, AppState } from "types";
 
@@ -55,11 +56,17 @@ export default (state: AppState = initialState, action: Action) => {
       };
 
       if (state.realtimeFiltering && state.inputCanvas) {
-        const output = state.selected.filter.func(
-          state.inputCanvas,
-          state.selected.filter.options,
-          action.dispatch
-        );
+        const output = state.convertGrayscale
+          ? state.selected.filter.func(
+              grayscale.func(state.inputCanvas),
+              state.selected.filter.options,
+              action.dispatch
+            )
+          : state.selected.filter.func(
+              state.inputCanvas,
+              state.selected.filter.options,
+              action.dispatch
+            );
         if (output instanceof HTMLCanvasElement) {
           newState.outputImage = output;
         }
