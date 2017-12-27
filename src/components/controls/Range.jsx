@@ -24,7 +24,20 @@ const Range = (props: {
           props.onSetFilterOption(props.name, parseFloat(e.target.value))}
       />
 
-      <span className={s.value}>{props.value}</span>
+      <span
+        role="button"
+        tabIndex="0"
+        className={[s.value, s.clickable].join(" ")}
+        onClick={() => {
+          const newValue = window.prompt("Value"); // eslint-disable-line
+          const parsed = parseFloat(newValue);
+          if (parsed) {
+            props.onSetFilterOption(props.name, parsed);
+          }
+        }}
+      >
+        {props.value}
+      </span>
     </div>
   </div>
 );

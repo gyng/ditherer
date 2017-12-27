@@ -143,7 +143,19 @@ export default class App extends React.Component<*, State> {
               onChange={e =>
                 this.props.onSetScale(parseInt(e.target.value, 10) / 100)}
             />
-            <div className={controls.value}>
+            <div
+              role="button"
+              tabIndex="0"
+              className={[controls.value, controls.clickable].join(" ")}
+              onClick={() => {
+                const newScale = window.prompt("Scale in percentage (%)"); // eslint-disable-line
+                const parsed = parseFloat(newScale);
+
+                if (parsed) {
+                  this.props.onSetScale(parsed / 100);
+                }
+              }}
+            >
               {Math.round(this.props.scale * 100)}%
             </div>
           </div>
