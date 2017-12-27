@@ -245,13 +245,16 @@ export default class App extends React.Component<*, State> {
 
         <div className={s.section}>
           <h2>Video</h2>
-          <input
-            type="checkbox"
-            onChange={e => {
-              this.props.onSetRealTimeFiltering(e.target.checked);
-            }}
-          />
-          <span className={controls.label}>Realtime filtering (videos)</span>
+          <label className={controls.label}>
+            <input
+              type="checkbox"
+              onChange={e => {
+                this.props.onSetRealTimeFiltering(e.target.checked);
+              }}
+              checked={this.props.realtimeFiltering}
+            />
+            Realtime filtering (videos)
+          </label>
 
           <div className={s.captureSection}>
             <button

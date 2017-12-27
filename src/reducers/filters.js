@@ -52,7 +52,8 @@ export default (state: AppState = initialState, action: Action) => {
         ...state,
         inputImage: action.image,
         time: action.time || 0,
-        video: action.video || null
+        video: action.video || null,
+        realtimeFiltering: action.video && state.realtimeFiltering
       };
 
       if (state.realtimeFiltering && state.inputCanvas) {
