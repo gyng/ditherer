@@ -567,7 +567,7 @@ const pixelsortFilter = (
       lumDelta >= sortPixelLuminanceChangeAbove &&
       lumDelta <= sortPixelLuminanceChangeBelow;
 
-    if (interval.trail.length > maxIntervalSize) {
+    if (interval.trail.length > maxIntervalSize && maxIntervalSize > 0) {
       fillInterval();
     }
 
