@@ -459,6 +459,12 @@ export const optionTypes = {
     step: 0.01,
     default: 0
   },
+  maxIntervalSize: {
+    type: RANGE,
+    range: [0, 5000],
+    step: 1,
+    default: 0
+  },
   palette: { type: PALETTE, default: palettes.nearest }
 };
 
@@ -473,7 +479,8 @@ export const defaults = {
     optionTypes.sortPixelLuminanceChangeAbove.default,
   sortPixelLuminanceChangeBelow:
     optionTypes.sortPixelLuminanceChangeBelow.default,
-  extraIntervalStartChance: optionTypes.extraIntervalStartChance.default
+  extraIntervalStartChance: optionTypes.extraIntervalStartChance.default,
+  maxIntervalSize: optionTypes.maxIntervalSize.default
 };
 
 const pixelsortFilter = (
@@ -487,6 +494,7 @@ const pixelsortFilter = (
     sortPixelLuminanceChangeAbove: number,
     sortPixelLuminanceChangeBelow: number,
     extraIntervalStartChance: number,
+    maxIntervalSize: number,
     palette: Palette
   } = defaults
 ): HTMLCanvasElement => {
@@ -499,6 +507,7 @@ const pixelsortFilter = (
     sortPixelLuminanceChangeAbove,
     sortPixelLuminanceChangeBelow,
     extraIntervalStartChance,
+    maxIntervalSize,
     palette
   } = options;
   const output = cloneCanvas(input, false);
@@ -557,6 +566,10 @@ const pixelsortFilter = (
     const enoughLuminosityDelta =
       lumDelta >= sortPixelLuminanceChangeAbove &&
       lumDelta <= sortPixelLuminanceChangeBelow;
+
+    if (interval.trail.length > maxIntervalSize) {
+      fillInterval();
+    }
 
     if (
       (inLuminosityWindow && enoughLuminosityDelta) ||
