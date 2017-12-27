@@ -27,6 +27,10 @@ export default class App extends React.Component<*, State> {
     this.state = { dropping: false };
   }
 
+  componentDidMount() {
+    this.props.onSetInputCanvas(this.inputCanvas);
+  }
+
   componentWillUpdate(nextProps: any) {
     const drawToCanvas = (
       canvas: HTMLCanvasElement,
@@ -47,8 +51,13 @@ export default class App extends React.Component<*, State> {
 
     const newInput = nextProps.inputImage !== this.props.inputImage;
     const newScale = nextProps.scale !== this.props.scale;
+    const newTime = nextProps.time !== this.props.time;
 
-    if (this.inputCanvas && nextProps.inputImage && (newInput || newScale)) {
+    if (
+      this.inputCanvas &&
+      nextProps.inputImage &&
+      (newTime || newInput || newScale)
+    ) {
       drawToCanvas(this.inputCanvas, nextProps.inputImage, nextProps.scale);
     }
 
@@ -69,7 +78,7 @@ export default class App extends React.Component<*, State> {
   render() {
     const loadImageSection = (
       <div>
-        <h2>Load image (pick or drag)</h2>
+        <h2>Load image or video</h2>
         <input
           className={[
             controls.file,
@@ -193,6 +202,16 @@ export default class App extends React.Component<*, State> {
         >
           Filter
         </button>
+
+        <div>
+          <input
+            type="checkbox"
+            onChange={e => {
+              this.props.onSetRealTimeFiltering(e.target.checked);
+            }}
+          />
+          Realtime filtering (videos)
+        </div>
       </div>
     );
 
@@ -266,11 +285,14 @@ App.propTypes = {
   convertGrayscale: PropTypes.bool,
   inputImage: PropTypes.object,
   match: PropTypes.object,
+  time: PropTypes.number,
   onConvertGrayscale: PropTypes.func,
   onFilterImage: PropTypes.func,
   onLoadImage: PropTypes.func,
   onSelectFilter: PropTypes.func,
   onSetInput: PropTypes.func,
+  onSetRealTimeFiltering: PropTypes.func,
+  onSetInputCanvas: PropTypes.func,
   onSetScale: PropTypes.func,
   outputImage: PropTypes.object,
   scale: PropTypes.number,
@@ -284,11 +306,14 @@ App.defaultProps = {
   convertGrayscale: false,
   inputImage: null,
   match: { url: "unknown" },
+  time: null,
   onConvertGrayscale: () => {},
   onFilterImage: () => {},
   onLoadImage: () => {},
   onSelectFilter: () => {},
   onSetInput: () => {},
+  onSetRealTimeFiltering: () => {},
+  onSetInputCanvas: () => {},
   onSetScale: () => {},
   outputImage: null,
   scale: 1,

@@ -5,6 +5,8 @@ import {
   FILTER_IMAGE,
   SELECT_FILTER,
   SET_GRAYSCALE,
+  SET_REAL_TIME_FILTERING,
+  SET_INPUT_CANVAS,
   SET_SCALE,
   SET_FILTER_OPTION,
   SET_FILTER_PALETTE_OPTION,
@@ -19,21 +21,54 @@ export const initialState = {
   selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
   convertGrayscale: false,
   scale: 1,
+  inputCanvas: null,
   inputImage: null,
-  outputImage: null
+  outputImage: null,
+  realtimeFiltering: false,
+  time: null,
+  video: null
 };
 
 export default (state: AppState = initialState, action: Action) => {
   switch (action.type) {
-    case LOAD_IMAGE:
+    case SET_INPUT_CANVAS:
       return {
         ...state,
-        inputImage: action.image
+        inputCanvas: action.canvas
       };
+    case LOAD_IMAGE: // eslint-disable-line
+      if (!action.video && state.video) {
+        state.video.pause();
+      }
+
+      const newState = {
+        ...state,
+        inputImage: action.image,
+        time: action.time || 0,
+        video: action.video || null
+      };
+
+      if (state.realtimeFiltering && state.inputCanvas) {
+        const output = state.selected.filter.func(
+          state.inputCanvas,
+          state.selected.filter.options,
+          action.dispatch
+        );
+        if (output instanceof HTMLCanvasElement) {
+          newState.outputImage = output;
+        }
+      }
+
+      return newState;
     case SET_GRAYSCALE:
       return {
         ...state,
         convertGrayscale: action.value
+      };
+    case SET_REAL_TIME_FILTERING:
+      return {
+        ...state,
+        realtimeFiltering: action.enabled
       };
     case SET_SCALE:
       return {

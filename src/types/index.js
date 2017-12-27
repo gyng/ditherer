@@ -24,7 +24,11 @@ export type AppState = {
   scale: ?number,
   selected: { displayName: string, filter: Filter },
   inputImage: ?HTMLCanvasElement,
-  outputImage: ?HTMLCanvasElement
+  outputImage: ?HTMLCanvasElement,
+  realtimeFiltering: boolean,
+  video: ?HTMLVideoElement,
+  time: ?number,
+  inputCanvas: ?HTMLCanvasElement
 };
 
 export type State = { filters: AppState };

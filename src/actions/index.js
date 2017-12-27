@@ -8,12 +8,25 @@ import { THEMES } from "palettes/user";
 
 import type { ColorRGBA, Filter, FilterFunc } from "types";
 
-export const loadImage = (image: HTMLImageElement) => ({
-  type: types.LOAD_IMAGE,
-  image
+export const setInputCanvas = (canvas: HTMLCanvasElement) => ({
+  type: types.SET_INPUT_CANVAS,
+  canvas
 });
 
-export const loadImageAsync = (file: Blob) => (dispatch: Dispatch) => {
+export const loadImage = (
+  image: HTMLImageElement,
+  time: ?number = 0,
+  video: ?HTMLVideoElement,
+  dispatch: ?any
+) => ({
+  type: types.LOAD_IMAGE,
+  image,
+  time,
+  video,
+  dispatch
+});
+
+export const loadImageAsync = (file: File) => (dispatch: Dispatch) => {
   const reader = new FileReader();
   const image = new Image();
 
@@ -25,6 +38,63 @@ export const loadImageAsync = (file: Blob) => (dispatch: Dispatch) => {
   };
 
   reader.readAsDataURL(file);
+};
+
+export const loadVideoAsync = (file: File) => (dispatch: Dispatch) => {
+  const reader = new FileReader();
+  const video = document.createElement("video");
+
+  reader.onload = event => {
+    const i = new Image();
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const loadFrame = () => {
+      URL.revokeObjectURL(i.src);
+
+      if (!video.paused) {
+        i.width = video.videoWidth;
+        i.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob(blob => {
+          if (blob) {
+            i.src = URL.createObjectURL(blob);
+            i.onload = () => {
+              if (!video.paused) {
+                requestAnimationFrame(loadFrame);
+                dispatch(loadImage(i, video.currentTime, video));
+              }
+            };
+          }
+        });
+      }
+    };
+
+    let firstPlay = true;
+    video.onplaying = () => {
+      if (firstPlay) {
+        firstPlay = false;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        requestAnimationFrame(loadFrame);
+      }
+    };
+
+    const blob = new Blob([event.target.result]);
+    video.src = URL.createObjectURL(blob);
+    video.loop = true;
+    video.autoplay = true;
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+
+export const loadMediaAsync = (file: File) => {
+  if (file.type.startsWith("video/")) {
+    return loadVideoAsync(file);
+  }
+
+  return loadImageAsync(file);
 };
 
 export const setConvertGrayscale = (value: boolean) => ({
@@ -88,6 +158,11 @@ export const setFilterPaletteOption = (optionName: string, value: any) => ({
 export const setScale = (scale: number) => ({
   type: types.SET_SCALE,
   scale
+});
+
+export const setRealtimeFiltering = (enabled: boolean) => ({
+  type: types.SET_REAL_TIME_FILTERING,
+  enabled
 });
 
 export const saveCurrentColorPalette = (

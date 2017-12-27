@@ -11,7 +11,12 @@ describe("filters reducer", () => {
   it("should handle LOAD_IMAGE", () => {
     const prevState = { otherStuff: "foo" };
     const nextState = reducer(prevState, actions.loadImage("testImage"));
-    const expected = { otherStuff: "foo", inputImage: "testImage" };
+    const expected = {
+      otherStuff: "foo",
+      inputImage: "testImage",
+      time: 0,
+      video: null
+    };
     expect(nextState).to.eql(expected);
   });
 
@@ -19,6 +24,13 @@ describe("filters reducer", () => {
     const prevState = { otherStuff: "foo" };
     const nextState = reducer(prevState, actions.setConvertGrayscale(false));
     const expected = { otherStuff: "foo", convertGrayscale: false };
+    expect(nextState).to.eql(expected);
+  });
+
+  it("should handle SET_REAL_TIME_FILTERING", () => {
+    const prevState = { otherStuff: "foo" };
+    const nextState = reducer(prevState, actions.setRealtimeFiltering(true));
+    const expected = { otherStuff: "foo", realtimeFiltering: true };
     expect(nextState).to.eql(expected);
   });
 

@@ -3,10 +3,12 @@
 import { connect } from "react-redux";
 import {
   loadImage,
-  loadImageAsync,
+  loadMediaAsync,
   filterImageAsync,
   selectFilter,
   setConvertGrayscale,
+  setRealtimeFiltering,
+  setInputCanvas,
   setScale
 } from "actions";
 import App from "components/App";
@@ -21,12 +23,13 @@ const mapStateToProps = (state: State) => ({
   availableFilters: filterList,
   selectedFilter: state.filters.selected,
   convertGrayscale: state.filters.convertGrayscale,
-  scale: state.filters.scale
+  scale: state.filters.scale,
+  time: state.filters.time
 });
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   // $FlowFixMe
-  onLoadImage: e => dispatch(loadImageAsync(e.target.files[0])),
+  onLoadImage: e => dispatch(loadMediaAsync(e.target.files[0])),
   onFilterImage: (input, filter, convertGrayscale = false) => {
     const filterFunc = convertGrayscale
       ? (i, o) => filter.func(grayscale.func(i), o)
@@ -37,7 +40,9 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onSelectFilter: (name, filter) => dispatch(selectFilter(name, filter)),
   onConvertGrayscale: val => dispatch(setConvertGrayscale(val)),
   onSetInput: image => dispatch(loadImage(image)),
-  onSetScale: scale => dispatch(setScale(scale))
+  onSetScale: scale => dispatch(setScale(scale)),
+  onSetRealTimeFiltering: enabled => dispatch(setRealtimeFiltering(enabled)),
+  onSetInputCanvas: canvas => dispatch(setInputCanvas(canvas))
 });
 
 const ContainedApp = connect(mapStateToProps, mapDispatchToProps)(App);
