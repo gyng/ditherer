@@ -163,7 +163,7 @@ export const filterList: Array<{ displayName: string, filter: any }> = [
     filter: {
       ...ordered,
       options: {
-        levels: 16,
+        ...ordered.options,
         thresholdMap: BAYER_4X4,
         palette: {
           ...palettes.user,

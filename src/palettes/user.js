@@ -292,7 +292,9 @@ const getColor = (
     colorDistanceAlgorithm: ColorDistanceAlgorithm
   } = defaults
 ): ColorRGBA => {
-  const { colors, colorDistanceAlgorithm } = options;
+  const { colors } = options;
+  const colorDistanceAlgorithm =
+    options.colorDistanceAlgorithm || defaults.colorDistanceAlgorithm;
 
   if (!colors) {
     return color;
