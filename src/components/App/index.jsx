@@ -256,9 +256,14 @@ export default class App extends React.Component<*, State> {
                   const vid = this.props.inputVideo;
                   let streams;
                   // Audio capture doesn't work on Firefox 57
-                  if (vid.mozCaptureStream) {
-                    streams = vid.mozCaptureStream(25);
-                  } else if (vid.captureStream) {
+                  // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/captureStream
+                  // if (vid.mozCaptureStream) {
+                  //   streams = vid.mozCaptureStream(25);
+                  // } else if (vid.captureStream) {
+                  //   streams = vid.captureStream(25);
+                  // }
+
+                  if (vid.captureStream) {
                     streams = vid.captureStream(25);
                   }
 
@@ -266,7 +271,7 @@ export default class App extends React.Component<*, State> {
                     const audioTracks = streams.getAudioTracks();
                     audioTracks.forEach(t => {
                       // $FlowFixMe
-                      this.stream.addTrack(t);
+                      this.stream.addTrack(t.clone());
                     });
                   }
                 }
