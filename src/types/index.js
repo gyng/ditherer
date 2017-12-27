@@ -27,6 +27,7 @@ export type AppState = {
   outputImage: ?HTMLCanvasElement,
   realtimeFiltering: boolean,
   video: ?HTMLVideoElement,
+  videoVolume: number,
   time: ?number,
   inputCanvas: ?HTMLCanvasElement
 };

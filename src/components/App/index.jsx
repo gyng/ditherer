@@ -115,7 +115,7 @@ export default class App extends React.Component<*, State> {
           type="file"
           id="imageLoader"
           name="imageLoader"
-          onChange={this.props.onLoadImage}
+          onChange={e => this.props.onLoadImage(e, this.props.inputVideoVolume)}
           onDragLeave={() => {
             this.setState({ dropping: false });
           }}
@@ -245,16 +245,34 @@ export default class App extends React.Component<*, State> {
 
         <div className={s.section}>
           <h2>Video</h2>
-          <label className={controls.label}>
-            <input
-              type="checkbox"
-              onChange={e => {
-                this.props.onSetRealTimeFiltering(e.target.checked);
-              }}
-              checked={this.props.realtimeFiltering}
-            />
-            Realtime filtering (videos)
-          </label>
+
+          <div className={controls.label}>
+            <label>
+              <input
+                type="checkbox"
+                checked={this.props.inputVideoVolume === 0}
+                onChange={() => {
+                  this.props.onSetInputVolume(
+                    this.props.inputVideoVolume > 0 ? 0 : 1
+                  );
+                }}
+              />
+              Mute video
+            </label>
+          </div>
+
+          <div className={controls.label}>
+            <label>
+              <input
+                type="checkbox"
+                onChange={e => {
+                  this.props.onSetRealTimeFiltering(e.target.checked);
+                }}
+                checked={this.props.realtimeFiltering}
+              />
+              Realtime filtering (videos)
+            </label>
+          </div>
 
           <div className={s.captureSection}>
             <button
@@ -281,7 +299,11 @@ export default class App extends React.Component<*, State> {
                       streams = vid.captureStream(25);
                     }
 
-                    if (streams && this.stream) {
+                    if (
+                      streams &&
+                      this.stream &&
+                      this.props.inputVideoVolume > 0
+                    ) {
                       const audioTracks = streams.getAudioTracks();
                       audioTracks.forEach(t => {
                         // $FlowFixMe
@@ -421,12 +443,14 @@ App.propTypes = {
   convertGrayscale: PropTypes.bool,
   inputImage: PropTypes.object,
   inputVideo: PropTypes.object,
+  inputVideoVolume: PropTypes.number,
   match: PropTypes.object,
   onConvertGrayscale: PropTypes.func,
   onFilterImage: PropTypes.func,
   onLoadImage: PropTypes.func,
   onSelectFilter: PropTypes.func,
   onSetInput: PropTypes.func,
+  onSetInputVolume: PropTypes.func,
   onSetInputCanvas: PropTypes.func,
   onSetRealTimeFiltering: PropTypes.func,
   onSetScale: PropTypes.func,
@@ -444,12 +468,14 @@ App.defaultProps = {
   convertGrayscale: false,
   inputImage: null,
   inputVideo: null,
+  inputVideoVolume: 1,
   match: { url: "unknown" },
   onConvertGrayscale: () => {},
   onFilterImage: () => {},
   onLoadImage: () => {},
   onSelectFilter: () => {},
   onSetInput: () => {},
+  onSetInputVolume: () => {},
   onSetInputCanvas: () => {},
   onSetRealTimeFiltering: () => {},
   onSetScale: () => {},

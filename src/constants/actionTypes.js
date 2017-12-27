@@ -14,6 +14,7 @@ export const SET_GRAYSCALE = "SET_GRAYSCALE";
 export const SET_SCALE = "SET_SCALE";
 export const SET_REAL_TIME_FILTERING = "SET_REAL_TIME_FILTERING";
 export const SET_INPUT_CANVAS = "SET_INPUT_CANVAS";
+export const SET_INPUT_VOLUME = "SET_INPUT_VOLUME";
 export const ERROR = "ERROR";
 
 export const ASYNC_FILTER = "ASYNC_FILTER";

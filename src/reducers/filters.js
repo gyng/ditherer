@@ -7,6 +7,7 @@ import {
   SET_GRAYSCALE,
   SET_REAL_TIME_FILTERING,
   SET_INPUT_CANVAS,
+  SET_INPUT_VOLUME,
   SET_SCALE,
   SET_FILTER_OPTION,
   SET_FILTER_PALETTE_OPTION,
@@ -27,7 +28,8 @@ export const initialState = {
   outputImage: null,
   realtimeFiltering: false,
   time: null,
-  video: null
+  video: null,
+  videoVolume: 1
 };
 
 export default (state: AppState = initialState, action: Action) => {
@@ -36,6 +38,15 @@ export default (state: AppState = initialState, action: Action) => {
       return {
         ...state,
         inputCanvas: action.canvas
+      };
+    case SET_INPUT_VOLUME:
+      if (state.video) {
+        state.video.volume = action.volume;
+      }
+
+      return {
+        ...state,
+        videoVolume: action.volume
       };
     case LOAD_IMAGE: // eslint-disable-line
       // Image or new video

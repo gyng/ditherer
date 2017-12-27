@@ -9,6 +9,7 @@ import {
   setConvertGrayscale,
   setRealtimeFiltering,
   setInputCanvas,
+  setInputVolume,
   setScale
 } from "actions";
 import App from "components/App";
@@ -26,12 +27,14 @@ const mapStateToProps = (state: State) => ({
   scale: state.filters.scale,
   time: state.filters.time,
   inputVideo: state.filters.video,
+  inputVideoVolume: state.filters.videoVolume,
   realtimeFiltering: state.filters.realtimeFiltering
 });
 
 const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
-  // $FlowFixMe
-  onLoadImage: e => dispatch(loadMediaAsync(e.target.files[0])),
+  onLoadImage: (e, volume: number = 1) =>
+    // $FlowFixMe
+    dispatch(loadMediaAsync(e.target.files[0], volume)),
   onFilterImage: (input, filter, convertGrayscale = false) => {
     const filterFunc = convertGrayscale
       ? (i, o) => filter.func(grayscale.func(i), o)
@@ -44,7 +47,8 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onSetInput: image => dispatch(loadImage(image)),
   onSetScale: scale => dispatch(setScale(scale)),
   onSetRealTimeFiltering: enabled => dispatch(setRealtimeFiltering(enabled)),
-  onSetInputCanvas: canvas => dispatch(setInputCanvas(canvas))
+  onSetInputCanvas: canvas => dispatch(setInputCanvas(canvas)),
+  onSetInputVolume: volume => dispatch(setInputVolume(volume))
 });
 
 const ContainedApp = connect(mapStateToProps, mapDispatchToProps)(App);

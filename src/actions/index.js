@@ -8,6 +8,11 @@ import { THEMES } from "palettes/user";
 
 import type { ColorRGBA, Filter, FilterFunc } from "types";
 
+export const setInputVolume = (volume: number) => ({
+  type: types.SET_INPUT_VOLUME,
+  volume
+});
+
 export const setInputCanvas = (canvas: HTMLCanvasElement) => ({
   type: types.SET_INPUT_CANVAS,
   canvas
@@ -40,7 +45,9 @@ export const loadImageAsync = (file: File) => (dispatch: Dispatch) => {
   reader.readAsDataURL(file);
 };
 
-export const loadVideoAsync = (file: File) => (dispatch: Dispatch) => {
+export const loadVideoAsync = (file: File, volume: number = 1) => (
+  dispatch: Dispatch
+) => {
   const reader = new FileReader();
   const video = document.createElement("video");
 
@@ -89,9 +96,9 @@ export const loadVideoAsync = (file: File) => (dispatch: Dispatch) => {
   reader.readAsArrayBuffer(file);
 };
 
-export const loadMediaAsync = (file: File) => {
+export const loadMediaAsync = (file: File, volume: number = 1) => {
   if (file.type.startsWith("video/")) {
-    return loadVideoAsync(file);
+    return loadVideoAsync(file, volume);
   }
 
   return loadImageAsync(file);
