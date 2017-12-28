@@ -18,6 +18,13 @@ export const BAYER_3X3 = "BAYER_3X3";
 export const BAYER_4X4 = "BAYER_4X4";
 export const BAYER_8X8 = "BAYER_8X8";
 export const SQUARE_5X5 = "SQUARE_5X5";
+export const CORNER_4X4 = "CORNER_4X4";
+export const BLOCK_VERTICAL_4X4 = "BLOCK_VERTICAL_4X4";
+export const BLOCK_HORIZONTAL_4X4 = "BLOCK_HORIZONTAL_4X4";
+export const HATCH_2X2 = "HATCH_2X2";
+export const HATCH_3X3 = "HATCH_3X3";
+export const HATCH_4X4 = "HATCH_4X4";
+export const ALTERNATE_3X3 = "ALTERNATE_3X3";
 export const DISPERSED_DOT_3X3 = "DISPERSED_DOT_3X3";
 
 export type Threshold =
@@ -26,7 +33,14 @@ export type Threshold =
   | "BAYER_4X4"
   | "BAYER_8X8"
   | "SQUARE_5X5"
-  | "DISPERSED_DOT_3X3";
+  | "DISPERSED_DOT_3X3"
+  | "CORNER_4X4"
+  | "BLOCK_VERTICAL_4X4"
+  | "BLOCK_HORIZONTAL_4X4"
+  | "HATCH_2X2"
+  | "HATCH_3X3"
+  | "HATCH_4X4"
+  | "ALTERNATE_3X3";
 
 // map[y][x]
 const thresholdMaps: {
@@ -79,6 +93,52 @@ const thresholdMaps: {
   [DISPERSED_DOT_3X3]: {
     width: 3,
     thresholdMap: scaleMatrix([[0, 6, 3], [4, 7, 2], [5, 1, 8]], 1 / 9)
+  },
+  [CORNER_4X4]: {
+    width: 4,
+    thresholdMap: scaleMatrix(
+      [[0, 2, 5, 9], [1, 4, 8, 12], [3, 7, 11, 14], [6, 10, 13, 15]],
+      1 / 16
+    )
+  },
+  [BLOCK_VERTICAL_4X4]: {
+    width: 4,
+    thresholdMap: scaleMatrix(
+      [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]],
+      1 / 4
+    ),
+    levels: 4
+  },
+  [BLOCK_HORIZONTAL_4X4]: {
+    width: 4,
+    thresholdMap: scaleMatrix(
+      [[0, 0, 0, 0], [1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3]],
+      1 / 4
+    ),
+    levels: 4
+  },
+  [HATCH_2X2]: {
+    width: 2,
+    thresholdMap: scaleMatrix([[0, 1], [1, 0]], 1 / 2),
+    levels: 2
+  },
+  [HATCH_3X3]: {
+    width: 3,
+    thresholdMap: scaleMatrix([[0, 1, 2], [1, 2, 1], [2, 1, 0]], 1 / 3),
+    levels: 3
+  },
+  [HATCH_4X4]: {
+    width: 4,
+    thresholdMap: scaleMatrix(
+      [[0, 1, 2, 3], [1, 2, 3, 2], [2, 3, 2, 1], [3, 2, 1, 0]],
+      1 / 4
+    ),
+    levels: 4
+  },
+  [ALTERNATE_3X3]: {
+    width: 3,
+    thresholdMap: scaleMatrix([[0, 5, 1], [6, 2, 7], [3, 8, 4]], 1 / 9),
+    levels: 9
   }
 };
 
@@ -127,12 +187,40 @@ export const optionTypes = {
         value: BAYER_8X8
       },
       {
+        name: "Dispersed Dot 3×3",
+        value: DISPERSED_DOT_3X3
+      },
+      {
         name: "Digital Halftone 5×8",
         value: SQUARE_5X5
       },
       {
-        name: "Dispersed Dot 3×3",
-        value: DISPERSED_DOT_3X3
+        name: "Corner 4×4",
+        value: CORNER_4X4
+      },
+      {
+        name: "Block Vertical 4×4",
+        value: BLOCK_VERTICAL_4X4
+      },
+      {
+        name: "Block Horizontal 4×4",
+        value: BLOCK_HORIZONTAL_4X4
+      },
+      {
+        name: "Hatch 2×2",
+        value: HATCH_2X2
+      },
+      {
+        name: "Hatch 3×3",
+        value: HATCH_3X3
+      },
+      {
+        name: "Hatch 4×4",
+        value: HATCH_4X4
+      },
+      {
+        name: "Alternate 3×3",
+        value: ALTERNATE_3X3
       }
     ],
     default: BAYER_4X4
@@ -154,7 +242,9 @@ const ordered = (
 ): HTMLCanvasElement => {
   const { palette, thresholdMap } = options;
   const levels =
-    thresholdMap.length > 0 ? thresholdMap.length * thresholdMap[0].length : 4;
+    thresholdMap.levels || thresholdMap.length > 0
+      ? thresholdMap.length * thresholdMap[0].length
+      : 4;
 
   const output = cloneCanvas(input, false);
 

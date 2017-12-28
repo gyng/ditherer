@@ -88,6 +88,7 @@ export const loadVideoAsync = (file: File, volume: number = 1) => (
     };
 
     const blob = new Blob([event.target.result]);
+    video.volume = volume;
     video.src = URL.createObjectURL(blob);
     video.loop = true;
     video.autoplay = true;

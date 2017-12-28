@@ -41,7 +41,7 @@ export default (state: AppState = initialState, action: Action) => {
       };
     case SET_INPUT_VOLUME:
       if (state.video) {
-        state.video.volume = action.volume;
+        state.video.volume = action.volume; // eslint-disable-line
       }
 
       return {

@@ -246,9 +246,10 @@ export default class App extends React.Component<*, State> {
         <div className={s.section}>
           <h2>Video</h2>
 
-          <div className={controls.label}>
-            <label>
+          <div>
+            <label className={controls.label} htmlFor="mute">
               <input
+                id="mute"
                 type="checkbox"
                 checked={this.props.inputVideoVolume === 0}
                 onChange={() => {
@@ -261,9 +262,10 @@ export default class App extends React.Component<*, State> {
             </label>
           </div>
 
-          <div className={controls.label}>
-            <label>
+          <div>
+            <label className={controls.label} htmlFor="realtimeFiltering">
               <input
+                id="realtimeFiltering"
                 type="checkbox"
                 onChange={e => {
                   this.props.onSetRealTimeFiltering(e.target.checked);
