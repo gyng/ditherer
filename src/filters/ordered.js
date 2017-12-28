@@ -153,7 +153,8 @@ const ordered = (
   } = defaults
 ): HTMLCanvasElement => {
   const { palette, thresholdMap } = options;
-  const levels = (palette.options && palette.options.levels) || 2;
+  const levels =
+    thresholdMap.length > 0 ? thresholdMap.length * thresholdMap[0].length : 4;
 
   const output = cloneCanvas(input, false);
 
