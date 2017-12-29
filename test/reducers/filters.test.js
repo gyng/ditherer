@@ -14,6 +14,7 @@ describe("filters reducer", () => {
     const expected = {
       otherStuff: "foo",
       inputImage: "testImage",
+      realtimeFiltering: undefined,
       time: 0,
       video: null
     };
@@ -31,6 +32,13 @@ describe("filters reducer", () => {
     const prevState = { otherStuff: "foo" };
     const nextState = reducer(prevState, actions.setRealtimeFiltering(true));
     const expected = { otherStuff: "foo", realtimeFiltering: true };
+    expect(nextState).to.eql(expected);
+  });
+
+  it("should handle SET_INPUT_VOLUME", () => {
+    const prevState = { otherStuff: "foo" };
+    const nextState = reducer(prevState, actions.setInputVolume(0.5));
+    const expected = { otherStuff: "foo", videoVolume: 0.5 };
     expect(nextState).to.eql(expected);
   });
 
