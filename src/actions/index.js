@@ -8,11 +8,6 @@ import { THEMES } from "palettes/user";
 
 import type { ColorRGBA, Filter, FilterFunc } from "types";
 
-export const exportState = (format: string) => ({
-  type: types.EXPORT_STATE,
-  format
-});
-
 export const importState = (json: string) => {
   const deserialized = JSON.parse(json);
   return {

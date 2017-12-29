@@ -2,7 +2,6 @@
 
 import { connect } from "react-redux";
 import {
-  exportState,
   importState,
   loadImage,
   loadMediaAsync,
@@ -37,7 +36,6 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onLoadImage: (e, volume: number = 1) =>
     // $FlowFixMe
     dispatch(loadMediaAsync(e.target.files[0], volume)),
-  onExportState: format => dispatch(exportState(format)),
   onFilterImage: (input, filter, convertGrayscale = false) => {
     const filterFunc = convertGrayscale
       ? (i, o) => filter.func(grayscale.func(i), o)

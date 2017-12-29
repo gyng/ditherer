@@ -1,7 +1,6 @@
 // @flow
 
 import {
-  EXPORT_STATE,
   LOAD_IMAGE,
   LOAD_STATE,
   FILTER_IMAGE,
@@ -37,32 +36,6 @@ export const initialState = {
 
 export default (state: AppState = initialState, action: Action) => {
   switch (action.type) {
-    case EXPORT_STATE:
-      const json = JSON.stringify(
-        {
-          selected: state.selected,
-          convertGrayscale: state.convertGrayscale
-        },
-        (k, v) => {
-          if (
-            k === "defaults" ||
-            k === "optionTypes" ||
-            typeof v === "function"
-          ) {
-            return undefined;
-          }
-
-          return v;
-        }
-      );
-
-      if (action.format === "json") {
-        window.open(`data:application/json,${encodeURI(json)}`);
-      } else {
-        const base = `${window.location.origin}${window.location.pathname}`;
-        prompt("URL", `${base}?state=${encodeURI(btoa(json))}`); // eslint-disable-line
-      }
-      return state;
     case LOAD_STATE:
       const localFilter = filterIndex[action.data.selected.filter.name];
       const deserializedFilter = {

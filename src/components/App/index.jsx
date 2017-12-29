@@ -6,6 +6,7 @@ import PropTypes from "prop-types";
 import Draggable from "react-draggable";
 
 import Controls from "containers/Controls";
+import Exporter from "containers/Exporter";
 
 import controls from "components/controls/styles.scss";
 import s from "./styles.scss";
@@ -209,28 +210,7 @@ export default class App extends React.Component<*, State> {
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              this.props.onExportState("uri");
-            }}
-          >
-            ⇧ URL
-          </button>
-          <button
-            onClick={() => {
-              this.props.onExportState("json");
-            }}
-          >
-            ⇧ JSON
-          </button>
-          <button
-            onClick={() => {
-              const json = prompt("Paste JSON"); // eslint-disable-line
-              this.props.onImportState(json);
-            }}
-          >
-            Import
-          </button>
+          <Exporter />
         </div>
       </div>
     );
@@ -481,8 +461,6 @@ App.propTypes = {
   onSetInputCanvas: PropTypes.func,
   onSetRealTimeFiltering: PropTypes.func,
   onSetScale: PropTypes.func,
-  onImportState: PropTypes.func,
-  onExportState: PropTypes.func,
   outputImage: PropTypes.object,
   realtimeFiltering: PropTypes.bool,
   scale: PropTypes.number,
@@ -508,8 +486,6 @@ App.defaultProps = {
   onSetInputCanvas: () => {},
   onSetRealTimeFiltering: () => {},
   onSetScale: () => {},
-  onImportState: () => {},
-  onExportState: () => {},
   outputImage: null,
   realtimeFiltering: false,
   scale: 1,
