@@ -59,7 +59,8 @@ export default (state: AppState = initialState, action: Action) => {
       if (action.format === "json") {
         window.open(`data:application/json,${encodeURI(json)}`);
       } else {
-        prompt("URL", `${window.location}?state=${encodeURI(btoa(json))}`); // eslint-disable-line
+        const base = `${window.location.origin}${window.location.pathname}`;
+        prompt("URL", `${base}?state=${encodeURI(btoa(json))}`); // eslint-disable-line
       }
       return state;
     case LOAD_STATE:
