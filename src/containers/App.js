@@ -2,6 +2,8 @@
 
 import { connect } from "react-redux";
 import {
+  exportState,
+  importState,
   loadImage,
   loadMediaAsync,
   filterImageAsync,
@@ -35,6 +37,7 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onLoadImage: (e, volume: number = 1) =>
     // $FlowFixMe
     dispatch(loadMediaAsync(e.target.files[0], volume)),
+  onExportState: format => dispatch(exportState(format)),
   onFilterImage: (input, filter, convertGrayscale = false) => {
     const filterFunc = convertGrayscale
       ? (i, o) => filter.func(grayscale.func(i), o)
@@ -48,7 +51,8 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onSetScale: scale => dispatch(setScale(scale)),
   onSetRealTimeFiltering: enabled => dispatch(setRealtimeFiltering(enabled)),
   onSetInputCanvas: canvas => dispatch(setInputCanvas(canvas)),
-  onSetInputVolume: volume => dispatch(setInputVolume(volume))
+  onSetInputVolume: volume => dispatch(setInputVolume(volume)),
+  onImportState: json => dispatch(importState(json))
 });
 
 const ContainedApp = connect(mapStateToProps, mapDispatchToProps)(App);

@@ -208,20 +208,28 @@ export default class App extends React.Component<*, State> {
               </span>
             </div>
           </div>
+
           <button
-            className={s.copyButton}
             onClick={() => {
-              if (this.outputCanvas) {
-                const image = new Image();
-                image.src = this.outputCanvas.toDataURL("image/png");
-                image.onload = () => {
-                  this.props.onSetInput(image);
-                  this.props.onSetScale(1);
-                };
-              }
+              this.props.onExportState("uri");
             }}
           >
-            {"<< Copy output to input"}
+            ⇧ URL
+          </button>
+          <button
+            onClick={() => {
+              this.props.onExportState("json");
+            }}
+          >
+            ⇧ JSON
+          </button>
+          <button
+            onClick={() => {
+              const json = prompt("Paste JSON"); // eslint-disable-line
+              this.props.onImportState(json);
+            }}
+          >
+            Import
           </button>
         </div>
       </div>
@@ -241,6 +249,23 @@ export default class App extends React.Component<*, State> {
           }}
         >
           Filter
+        </button>
+
+        <button
+          style={{ marginLeft: "auto" }}
+          className={s.copyButton}
+          onClick={() => {
+            if (this.outputCanvas) {
+              const image = new Image();
+              image.src = this.outputCanvas.toDataURL("image/png");
+              image.onload = () => {
+                this.props.onSetInput(image);
+                this.props.onSetScale(1);
+              };
+            }
+          }}
+        >
+          {"<< Copy output to input"}
         </button>
 
         <div className={s.section}>
@@ -456,6 +481,8 @@ App.propTypes = {
   onSetInputCanvas: PropTypes.func,
   onSetRealTimeFiltering: PropTypes.func,
   onSetScale: PropTypes.func,
+  onImportState: PropTypes.func,
+  onExportState: PropTypes.func,
   outputImage: PropTypes.object,
   realtimeFiltering: PropTypes.bool,
   scale: PropTypes.number,
@@ -481,6 +508,8 @@ App.defaultProps = {
   onSetInputCanvas: () => {},
   onSetRealTimeFiltering: () => {},
   onSetScale: () => {},
+  onImportState: () => {},
+  onExportState: () => {},
   outputImage: null,
   realtimeFiltering: false,
   scale: 1,

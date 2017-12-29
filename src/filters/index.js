@@ -58,6 +58,37 @@ export {
   verticalStripe
 } from "./errorDiffusing";
 
+export const filterIndex = [
+  binarize,
+  program,
+  brightnessContrast,
+  convolve,
+  grayscale,
+  pixelsort,
+  glitchblob,
+  halftone,
+  invert,
+  ordered,
+  quantize,
+  scanline,
+  rgbStripe,
+  atkinson,
+  burkes,
+  floydSteinberg,
+  falseFloydSteinberg,
+  sierra,
+  sierra2,
+  sierraLite,
+  stucki,
+  jarvis,
+  horizontalStripe,
+  verticalStripe
+].reduce((acc, cur) => {
+  acc[cur.name] = cur;
+  return acc;
+}, {});
+
+// Presets
 export const filterList: Array<{ displayName: string, filter: any }> = [
   {
     displayName: "Program",

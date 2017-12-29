@@ -2,7 +2,9 @@
 
 export const INCREMENT = "INCREMENT";
 export const DECREMENT = "DECREMENT";
+export const EXPORT_STATE = "EXPORT_STATE";
 export const LOAD_IMAGE = "LOAD_IMAGE";
+export const LOAD_STATE = "LOAD_STATE";
 export const FILTER_IMAGE = "FILTER_IMAGE";
 export const SELECT_FILTER = "SELECT_FILTER";
 export const SET_FILTER_OPTION = "SET_FILTER_OPTION";

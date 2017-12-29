@@ -5,8 +5,11 @@ import type {
   ColorRGBA,
   ColorLabA,
   ColorHSVA,
-  ColorDistanceAlgorithm
+  ColorDistanceAlgorithm,
+  AppState
 } from "types";
+
+export const serializeState = (state: AppState) => JSON.stringify(state);
 
 // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 // TODO: make formula an enum

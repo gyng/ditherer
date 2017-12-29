@@ -24,7 +24,7 @@ import { PALETTE } from "constants/optionTypes";
 import s from "styles/style.scss";
 
 import { filterList } from "filters";
-import { selectFilter } from "actions";
+import { selectFilter, importState } from "actions";
 
 // Redux devtools are still enabled in production!
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
@@ -75,6 +75,16 @@ if (URLSearchParams && window.location.search) {
   if (alg && selectedFilter != null) {
     // $FlowFixMe
     store.dispatch(selectFilter(alg, selectedFilterOption));
+  }
+
+  const state = params.get("state");
+  try {
+    const decoded = window.atob(state);
+    if (state && decoded) {
+      store.dispatch(importState(decoded));
+    }
+  } catch (e) {
+    console.warn("Invalid state:", e); // eslint-disable-line
   }
 }
 

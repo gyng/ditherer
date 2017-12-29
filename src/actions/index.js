@@ -8,6 +8,19 @@ import { THEMES } from "palettes/user";
 
 import type { ColorRGBA, Filter, FilterFunc } from "types";
 
+export const exportState = (format: string) => ({
+  type: types.EXPORT_STATE,
+  format
+});
+
+export const importState = (json: string) => {
+  const deserialized = JSON.parse(json);
+  return {
+    type: types.LOAD_STATE,
+    data: deserialized
+  };
+};
+
 export const setInputVolume = (volume: number) => ({
   type: types.SET_INPUT_VOLUME,
   volume

@@ -1,7 +1,9 @@
 // @flow
 
 import {
+  EXPORT_STATE,
   LOAD_IMAGE,
+  LOAD_STATE,
   FILTER_IMAGE,
   SELECT_FILTER,
   SET_GRAYSCALE,
@@ -15,7 +17,8 @@ import {
 } from "constants/actionTypes";
 
 import { floydSteinberg } from "filters/errorDiffusing";
-import { grayscale } from "filters";
+import { grayscale, filterIndex } from "filters";
+import { paletteList } from "palettes";
 
 import type { Action, AppState } from "types";
 
@@ -34,6 +37,59 @@ export const initialState = {
 
 export default (state: AppState = initialState, action: Action) => {
   switch (action.type) {
+    case EXPORT_STATE:
+      const json = JSON.stringify(
+        {
+          selected: state.selected,
+          convertGrayscale: state.convertGrayscale
+        },
+        (k, v) => {
+          if (
+            k === "defaults" ||
+            k === "optionTypes" ||
+            typeof v === "function"
+          ) {
+            return undefined;
+          }
+
+          return v;
+        }
+      );
+
+      if (action.format === "json") {
+        window.open(`data:application/json,${encodeURI(json)}`);
+      } else {
+        prompt("URL", `${window.location}?state=${encodeURI(btoa(json))}`); // eslint-disable-line
+      }
+      return state;
+    case LOAD_STATE:
+      const localFilter = filterIndex[action.data.selected.filter.name];
+      const deserializedFilter = {
+        ...localFilter,
+        options: action.data.selected.filter.options
+      };
+
+      if (deserializedFilter.options.palette != null) {
+        const localPalette = paletteList.find(
+          p => p.palette.name === deserializedFilter.options.palette.name
+        );
+
+        if (localPalette) {
+          deserializedFilter.options.palette = {
+            ...localPalette.palette,
+            options: deserializedFilter.options.palette.options
+          };
+        }
+      }
+
+      return {
+        ...state,
+        selected: {
+          ...action.data.selected,
+          filter: deserializedFilter
+        },
+        convertGrayscale: action.data.convertGrayscale
+      };
     case SET_INPUT_CANVAS:
       return {
         ...state,

@@ -25,6 +25,7 @@
     "react/jsx-indent": 0,
     "react/jsx-indent-props": 0,
     "react/jsx-closing-bracket-location": 0,
+    "no-case-declarations": 0,
     "prettier/prettier": "error"
   },
 

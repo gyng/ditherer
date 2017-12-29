@@ -284,7 +284,7 @@ export default class ColorArray extends React.Component<Props, State> {
           this.props.onSetPaletteOption("colors", imported);
         }}
       >
-        🎨 Import
+        🎨 Import palette
       </button>
     );
 
