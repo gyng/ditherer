@@ -3,6 +3,7 @@
 import {
   RGB_NEAREST,
   RGB_APPROX,
+  HSV_NEAREST,
   LAB_NEAREST,
   WASM_LAB_NEAREST
 } from "constants/color";
@@ -94,7 +95,7 @@ export const rgba2hsva = (input: ColorRGBA): ColorHSVA => {
 
   const v = max;
 
-  if (max > 0) {
+  if (delta > 0) {
     s = delta / max;
   } else {
     s = 0;
@@ -256,16 +257,16 @@ export const colorDistance = (
 ): number => {
   switch (colorDistanceAlgorithm) {
     case RGB_NEAREST:
-      return (
-        Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])
+      return Math.sqrt(
+        (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
       );
     case LAB_NEAREST: {
       const aLab = rgba2laba(a);
       const bLab = rgba2laba(b);
-      return (
-        Math.abs(bLab[0] - aLab[0]) +
-        Math.abs(bLab[1] - aLab[1]) +
-        Math.abs(bLab[2] - aLab[2])
+      return Math.sqrt(
+        (bLab[0] - aLab[0]) ** 2 +
+          (bLab[1] - aLab[1]) ** 2 +
+          (bLab[2] - aLab[2]) ** 2
       );
     }
     case WASM_LAB_NEAREST: {
@@ -282,6 +283,19 @@ export const colorDistance = (
       const dBc = dB ** 2;
 
       return Math.sqrt(dRc + dGc + dBc);
+    }
+    case HSV_NEAREST: {
+      const aHsv = rgba2hsva(a);
+      const bHsv = rgba2hsva(b);
+      const dH =
+        Math.min(
+          Math.abs(bHsv[0] - aHsv[0]),
+          360 - Math.abs(bHsv[0] - aHsv[0])
+        ) / 180.0;
+      const dS = Math.abs(bHsv[1] - aHsv[1]);
+      const dV = Math.abs(bHsv[2] - aHsv[2]) / 255.0;
+
+      return Math.sqrt(dH ** 2 + dS ** 2 + dV ** 2);
     }
     default:
       return -1;
