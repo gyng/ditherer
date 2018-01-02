@@ -27,6 +27,8 @@ export const HATCH_3X3 = "HATCH_3X3";
 export const HATCH_4X4 = "HATCH_4X4";
 export const ALTERNATE_3X3 = "ALTERNATE_3X3";
 export const DISPERSED_DOT_3X3 = "DISPERSED_DOT_3X3";
+export const HATCH_2X2_X2 = "HATCH_2X2_X2";
+export const PATTERN_5X5 = "PATTERN_5X5";
 
 export type Threshold =
   | "BAYER_2X2"
@@ -42,7 +44,9 @@ export type Threshold =
   | "HATCH_2X2"
   | "HATCH_3X3"
   | "HATCH_4X4"
-  | "ALTERNATE_3X3";
+  | "ALTERNATE_3X3"
+  | "HATCH_2X2_X2"
+  | "PATTERN_5X5";
 
 // map[y][x]
 const thresholdMaps: {
@@ -162,10 +166,32 @@ const thresholdMaps: {
     ),
     levels: 4
   },
+  [HATCH_2X2_X2]: {
+    width: 4,
+    thresholdMap: scaleMatrix(
+      [[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, 0]],
+      1 / 2
+    ),
+    levels: 2
+  },
   [ALTERNATE_3X3]: {
     width: 3,
     thresholdMap: scaleMatrix([[0, 5, 1], [6, 2, 7], [3, 8, 4]], 1 / 9),
     levels: 9
+  },
+  [PATTERN_5X5]: {
+    width: 5,
+    thresholdMap: scaleMatrix(
+      [
+        [2, 4, 2, 4, 2],
+        [4, 1, 3, 1, 4],
+        [2, 3, 0, 3, 2],
+        [4, 1, 3, 1, 4],
+        [2, 4, 2, 4, 2]
+      ],
+      1 / 5
+    ),
+    levels: 5
   }
 };
 
@@ -250,8 +276,16 @@ export const optionTypes = {
         value: HATCH_4X4
       },
       {
+        name: "Hatch 2×2 ×2",
+        value: HATCH_2X2_X2
+      },
+      {
         name: "Alternate 3×3",
         value: ALTERNATE_3X3
+      },
+      {
+        name: "Hatch 2×2 ×3",
+        value: PATTERN_5X5
       }
     ],
     default: HATCH_2X2
