@@ -1,6 +1,6 @@
 // @flow
 
-import { ENUM, PALETTE } from "constants/controlTypes";
+import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 
 import type { ColorRGBA, Palette } from "types";
@@ -27,7 +27,6 @@ export const HATCH_3X3 = "HATCH_3X3";
 export const HATCH_4X4 = "HATCH_4X4";
 export const ALTERNATE_3X3 = "ALTERNATE_3X3";
 export const DISPERSED_DOT_3X3 = "DISPERSED_DOT_3X3";
-export const HATCH_2X2_X2 = "HATCH_2X2_X2";
 export const PATTERN_5X5 = "PATTERN_5X5";
 
 export type Threshold =
@@ -45,7 +44,6 @@ export type Threshold =
   | "HATCH_3X3"
   | "HATCH_4X4"
   | "ALTERNATE_3X3"
-  | "HATCH_2X2_X2"
   | "PATTERN_5X5";
 
 // map[y][x]
@@ -166,14 +164,6 @@ const thresholdMaps: {
     ),
     levels: 4
   },
-  [HATCH_2X2_X2]: {
-    width: 4,
-    thresholdMap: scaleMatrix(
-      [[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, 0]],
-      1 / 2
-    ),
-    levels: 2
-  },
   [ALTERNATE_3X3]: {
     width: 3,
     thresholdMap: scaleMatrix([[0, 5, 1], [6, 2, 7], [3, 8, 4]], 1 / 9),
@@ -193,6 +183,33 @@ const thresholdMaps: {
     ),
     levels: 5
   }
+};
+
+const scaleThresholdMap = (
+  map: Array<Array<?number>>,
+  timesX: number,
+  timesY: number
+): Array<Array<?number>> => {
+  if (timesX === 1 && timesY === 1) {
+    return map;
+  }
+
+  const out = [];
+
+  for (let i = 0; i < map.length; i += 1) {
+    for (let y = 0; y < timesY; y += 1) {
+      const row = [];
+
+      for (let j = 0; j < map[i].length; j += 1) {
+        for (let x = 0; x < timesX; x += 1) {
+          row.push(map[i][j]);
+        }
+      }
+      out.push(row);
+    }
+  }
+
+  return out;
 };
 
 const getOrderedColor = (
@@ -276,10 +293,6 @@ export const optionTypes = {
         value: HATCH_4X4
       },
       {
-        name: "Hatch 2×2 ×2",
-        value: HATCH_2X2_X2
-      },
-      {
         name: "Alternate 3×3",
         value: ALTERNATE_3X3
       },
@@ -290,11 +303,15 @@ export const optionTypes = {
     ],
     default: HATCH_2X2
   },
+  thresholdMapScaleX: { type: RANGE, range: [1, 5], step: 1, default: 1 },
+  thresholdMapScaleY: { type: RANGE, range: [1, 5], step: 1, default: 1 },
   palette: { type: PALETTE, default: nearest }
 };
 
 const defaults = {
   thresholdMap: optionTypes.thresholdMap.default,
+  thresholdMapScaleX: optionTypes.thresholdMapScaleX.default,
+  thresholdMapScaleY: optionTypes.thresholdMapScaleY.default,
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
@@ -302,10 +319,17 @@ const ordered = (
   input: HTMLCanvasElement,
   options: {
     thresholdMap: Threshold,
+    thresholdMapScaleX: number,
+    thresholdMapScaleY: number,
     palette: Palette
   } = defaults
 ): HTMLCanvasElement => {
-  const { palette, thresholdMap } = options;
+  const {
+    palette,
+    thresholdMap,
+    thresholdMapScaleX,
+    thresholdMapScaleY
+  } = options;
   const levels =
     thresholdMap.levels || thresholdMap.length > 0
       ? thresholdMap.length * thresholdMap[0].length
@@ -323,11 +347,18 @@ const ordered = (
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
   const threshold = thresholdMaps[thresholdMap];
+  const thresholdMapScaled = scaleThresholdMap(
+    threshold.thresholdMap,
+    thresholdMapScaleX,
+    thresholdMapScaleY
+  );
+  const thresholdMapWidth = threshold.width * thresholdMapScaleX;
+  const thresholdMapHeight = threshold.width * thresholdMapScaleY;
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
-      const tix = x % threshold.width;
-      const tiy = y % threshold.width;
+      const tix = x % thresholdMapWidth;
+      const tiy = y % thresholdMapHeight;
       const i = getBufferIndex(x, y, input.width);
 
       // Ignore alpha channel when calculating error
@@ -337,7 +368,7 @@ const ordered = (
         levels,
         tix,
         tiy,
-        threshold.thresholdMap
+        thresholdMapScaled
       );
       const color = palette.getColor(orderedColor, palette.options);
 
