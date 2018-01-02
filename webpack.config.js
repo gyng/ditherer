@@ -47,8 +47,15 @@ module.exports = {
         }
       },
       {
+        test: /\.(wasm)$/,
+        loader: "file-loader",
+        options: {
+          name: "./[name].[ext]"
+        }
+      },
+      {
         test: /\.(js|jsx)$/,
-        exclude: /\/node_modules\//,
+        exclude: /(\/node_modules\/)/,
         loader: "babel-loader",
         options: {
           presets: ["airbnb"]
@@ -100,11 +107,13 @@ module.exports = {
     cheerio: "window",
     "react/addons": true,
     "react/lib/ExecutionEnvironment": true,
-    "react/lib/ReactContext": true
+    "react/lib/ReactContext": true,
+    fs: "commonjs fs",
+    path: "commonjs path"
   },
 
   resolve: {
-    extensions: [".js", ".jsx"],
+    extensions: [".js", ".jsx", ".wasm"],
     modules: ["node_modules", path.resolve(__dirname, "src")]
   }
 };

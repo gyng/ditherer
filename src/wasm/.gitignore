@@ -1,0 +1,6 @@
+**/target/debug
+**/target/release
+**/wasm32-unknown-unknown/release
+!**/wasm32-unknown-unknown/release/*.js
+!**/wasm32-unknown-unknown/release/*.wasm
+**/wasm32-unknown-unknown/debug

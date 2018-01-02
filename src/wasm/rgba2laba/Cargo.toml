@@ -1,0 +1,10 @@
+[package]
+name = "rgba2laba"
+version = "0.1.0"
+authors = ["Ng Guoyou <ng.guoyou@gmail.com>"]
+
+[dependencies]
+stdweb = "0.3.0"
+
+[profile.release]
+lto = true

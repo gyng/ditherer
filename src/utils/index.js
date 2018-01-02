@@ -1,6 +1,11 @@
 // @flow
 
-import { RGB_NEAREST, RGB_APPROX, LAB_NEAREST } from "constants/color";
+import {
+  RGB_NEAREST,
+  RGB_APPROX,
+  LAB_NEAREST,
+  WASM_LAB_NEAREST
+} from "constants/color";
 import type {
   ColorRGBA,
   ColorLabA,
@@ -152,6 +157,35 @@ export const rgba2laba = (
   return [outL, outA, outB, input[3]];
 };
 
+let wasmRgba2labaInner = (a, b, c, d, e, f, g) => {
+  console.error("WASM module not loaded!", a, b, c, d, e, f, g); // eslint-disable-line
+  return [0, 0, 0, 0];
+};
+
+export const wasmRgba2laba = (
+  input: ColorRGBA,
+  ref: ReferenceValue = referenceTable.CIE_1931.D65
+): ColorLabA =>
+  // $FlowFixMe
+  wasmRgba2labaInner(
+    input[0],
+    input[1],
+    input[2],
+    input[3],
+    ref.x,
+    ref.y,
+    ref.z
+  );
+
+const wasm = require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.js");
+// $FlowFixMe
+require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm");
+
+wasm.then(obj => {
+  wasmRgba2labaInner = obj.rgba2laba;
+  // console.log(obj, "override");
+});
+
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (
   input: ColorLabA,
@@ -203,6 +237,15 @@ export const colorDistance = (
     case LAB_NEAREST: {
       const aLab = rgba2laba(a);
       const bLab = rgba2laba(b);
+      return Math.sqrt(
+        (aLab[0] - bLab[0]) ** 2 +
+          (aLab[1] - bLab[1]) ** 2 +
+          (aLab[2] - bLab[2]) ** 2
+      );
+    }
+    case WASM_LAB_NEAREST: {
+      const aLab = wasmRgba2laba(a);
+      const bLab = wasmRgba2laba(b);
       return Math.sqrt(
         (aLab[0] - bLab[0]) ** 2 +
           (aLab[1] - bLab[1]) ** 2 +
