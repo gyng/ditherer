@@ -7,20 +7,29 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 import type { Palette } from "types";
 
 export const optionTypes = {
-  scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.33 },
+  scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25 },
+  scaleXOverride: { type: RANGE, range: [0, 1], step: 0.01, default: 0 },
+  scaleYOverride: { type: RANGE, range: [0, 1], step: 0.01, default: 0 },
   palette: { type: PALETTE, default: nearest }
 };
 
 export const defaults = {
   scale: optionTypes.scale.default,
+  scaleXOverride: optionTypes.scaleXOverride.default,
+  scaleYOverride: optionTypes.scaleYOverride.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
 const pixelate = (
   input: HTMLCanvasElement,
-  options: { scale: number, palette: Palette }
+  options: {
+    scale: number,
+    scaleXOverride: number,
+    scaleYOverride: number,
+    palette: Palette
+  }
 ): HTMLCanvasElement => {
-  const { scale, palette } = options;
+  const { scale, scaleXOverride, scaleYOverride, palette } = options;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -29,11 +38,17 @@ const pixelate = (
   if (!inputCtx || !outputCtx) return input;
 
   const temp = document.createElement("canvas");
-  temp.width = input.width * scale;
-  temp.height = input.height * scale;
+  temp.width = input.width * (scaleXOverride || scale);
+  temp.height = input.height * (scaleYOverride || scale);
   const tempCtx = temp.getContext("2d");
   tempCtx.imageSmoothingEnabled = false;
-  tempCtx.drawImage(input, 0, 0, input.width * scale, input.height * scale);
+  tempCtx.drawImage(
+    input,
+    0,
+    0,
+    input.width * (scaleXOverride || scale),
+    input.height * (scaleYOverride || scale)
+  );
 
   const buf = tempCtx.getImageData(0, 0, temp.width, temp.height).data;
   for (let x = 0; x < temp.width; x += 1) {
