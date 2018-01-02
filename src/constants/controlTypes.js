@@ -8,6 +8,8 @@ import {
   WASM_LAB_NEAREST
 } from "constants/color";
 
+import { SCALING_ALGORITHM } from "constants/optionTypes";
+
 export const BOOL = "BOOL";
 export const ENUM = "ENUM";
 export const RANGE = "RANGE";
@@ -26,4 +28,13 @@ export const COLOR_DISTANCE_ALGORITHM = {
     { name: "Lab (wasm)", value: WASM_LAB_NEAREST }
   ],
   default: RGB_APPROX
+};
+
+export const SCALING_ALGORITHM_OPTIONS = {
+  type: ENUM,
+  options: [
+    { name: "Auto", value: SCALING_ALGORITHM.AUTO },
+    { name: "Pixelated", value: SCALING_ALGORITHM.PIXELATED }
+  ],
+  default: SCALING_ALGORITHM.AUTO
 };

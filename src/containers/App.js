@@ -11,7 +11,8 @@ import {
   setRealtimeFiltering,
   setInputCanvas,
   setInputVolume,
-  setScale
+  setScale,
+  setScalingAlgorithm
 } from "actions";
 import App from "components/App";
 import { filterList, grayscale } from "filters";
@@ -26,6 +27,7 @@ const mapStateToProps = (state: State) => ({
   selectedFilter: state.filters.selected,
   convertGrayscale: state.filters.convertGrayscale,
   scale: state.filters.scale,
+  scalingAlgorithm: state.filters.scalingAlgorithm,
   time: state.filters.time,
   inputVideo: state.filters.video,
   inputVideoVolume: state.filters.videoVolume,
@@ -50,7 +52,9 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onSetRealTimeFiltering: enabled => dispatch(setRealtimeFiltering(enabled)),
   onSetInputCanvas: canvas => dispatch(setInputCanvas(canvas)),
   onSetInputVolume: volume => dispatch(setInputVolume(volume)),
-  onImportState: json => dispatch(importState(json))
+  onImportState: json => dispatch(importState(json)),
+  onSetScalingAlgorithm: (name, algorithm) =>
+    dispatch(setScalingAlgorithm(algorithm))
 });
 
 const ContainedApp = connect(mapStateToProps, mapDispatchToProps)(App);

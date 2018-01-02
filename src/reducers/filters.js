@@ -12,8 +12,11 @@ import {
   SET_SCALE,
   SET_FILTER_OPTION,
   SET_FILTER_PALETTE_OPTION,
-  ADD_PALETTE_COLOR
+  ADD_PALETTE_COLOR,
+  SET_SCALING_ALGORITHM
 } from "constants/actionTypes";
+
+import { SCALING_ALGORITHM } from "constants/optionTypes";
 
 import { floydSteinberg } from "filters/errorDiffusing";
 import { grayscale, filterIndex } from "filters";
@@ -31,7 +34,8 @@ export const initialState = {
   realtimeFiltering: false,
   time: null,
   video: null,
-  videoVolume: 1
+  videoVolume: 1,
+  scalingAlgorithm: SCALING_ALGORITHM.AUTO
 };
 
 export default (state: AppState = initialState, action: Action) => {
@@ -64,6 +68,28 @@ export default (state: AppState = initialState, action: Action) => {
         },
         convertGrayscale: action.data.convertGrayscale
       };
+    case SET_SCALING_ALGORITHM: {
+      if (state.inputCanvas) {
+        const context = state.inputCanvas.getContext("2d");
+
+        if (context && state.inputImage) {
+          const smoothingEnabled = action.algorithm === SCALING_ALGORITHM.AUTO;
+          context.imageSmoothingEnabled = smoothingEnabled;
+          context.drawImage(
+            state.inputImage,
+            0,
+            0,
+            state.inputImage.width * (state.scale || 1),
+            state.inputImage.height * (state.scale || 1)
+          );
+        }
+      }
+
+      return {
+        ...state,
+        scalingAlgorithm: action.algorithm
+      };
+    }
     case SET_INPUT_CANVAS:
       return {
         ...state,

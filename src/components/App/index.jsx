@@ -1,12 +1,17 @@
 // @flow
 /* eslint-disable react/prefer-stateless-function, react/forbid-prop-types */
 
+import { SCALING_ALGORITHM } from "constants/optionTypes";
+
 import React from "react";
 import PropTypes from "prop-types";
 import Draggable from "react-draggable";
 
 import Controls from "containers/Controls";
 import Exporter from "containers/Exporter";
+
+import Enum from "components/controls/Enum";
+import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 
 import controls from "components/controls/styles.scss";
 import s from "./styles.scss";
@@ -62,6 +67,8 @@ export default class App extends React.Component<*, State> {
       canvas.width = finalWidth; // eslint-disable-line
       canvas.height = finalHeight; // eslint-disable-line
       const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled =
+        nextProps.scalingAlgorithm === SCALING_ALGORITHM.AUTO;
 
       if (ctx) {
         ctx.drawImage(image, 0, 0, finalWidth, finalHeight);
@@ -353,6 +360,16 @@ export default class App extends React.Component<*, State> {
               Audio capture requires Chrome
             </div>
           </div>
+
+          <div className={s.section}>
+            <h2>Others</h2>
+            <Enum
+              name="Scaling algorithm"
+              onSetFilterOption={this.props.onSetScalingAlgorithm}
+              value={this.props.scalingAlgorithm}
+              types={SCALING_ALGORITHM_OPTIONS}
+            />
+          </div>
         </div>
       </div>
     );
@@ -366,7 +383,7 @@ export default class App extends React.Component<*, State> {
                 Input
               </div>
               <canvas
-                className={s.canvas}
+                className={[s.canvas, s[this.props.scalingAlgorithm]].join(" ")}
                 ref={c => {
                   this.inputCanvas = c;
                 }}
@@ -461,9 +478,11 @@ App.propTypes = {
   onSetInputCanvas: PropTypes.func,
   onSetRealTimeFiltering: PropTypes.func,
   onSetScale: PropTypes.func,
+  onSetScalingAlgorithm: PropTypes.func,
   outputImage: PropTypes.object,
   realtimeFiltering: PropTypes.bool,
   scale: PropTypes.number,
+  scalingAlgorithm: PropTypes.string,
   selectedFilter: PropTypes.object,
   time: PropTypes.number
 };
@@ -486,9 +505,11 @@ App.defaultProps = {
   onSetInputCanvas: () => {},
   onSetRealTimeFiltering: () => {},
   onSetScale: () => {},
+  onSetScalingAlgorithm: () => {},
   outputImage: null,
   realtimeFiltering: false,
   scale: 1,
+  scalingAlgorithm: SCALING_ALGORITHM.AUTO,
   selectedFilter: null,
   time: null
 };

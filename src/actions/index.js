@@ -26,6 +26,11 @@ export const setInputCanvas = (canvas: HTMLCanvasElement) => ({
   canvas
 });
 
+export const setScalingAlgorithm = (algorithm: string) => ({
+  type: types.SET_SCALING_ALGORITHM,
+  algorithm
+});
+
 export const loadImage = (
   image: HTMLImageElement,
   time: ?number = 0,
