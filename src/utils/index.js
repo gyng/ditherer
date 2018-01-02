@@ -34,12 +34,32 @@ export const quantizeValue = (value: number, levels: number): number => {
 export const clamp = (min: number, max: number, value: number): number =>
   Math.max(min, Math.min(max, value));
 
-export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
-  r,
-  g,
-  b,
-  a
-];
+const rgbaPool = [];
+
+export const rgba = (
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  pool: boolean = false
+): ColorRGBA => {
+  if (!pool) {
+    return [r, g, b, a];
+  }
+
+  if (rgbaPool.length === 0) {
+    const newRgba = [r, g, b, a];
+    newRgba.free = () => rgbaPool.push(newRgba);
+    return newRgba;
+  }
+
+  const newRgba = rgbaPool.pop();
+  newRgba[0] = r;
+  newRgba[1] = g;
+  newRgba[2] = b;
+  newRgba[3] = a;
+  return newRgba;
+};
 
 // mutates input
 export const equalize = (
@@ -154,7 +174,7 @@ export const rgba2laba = (
   const outA = 500 * (x - y);
   const outB = 200 * (y - z);
 
-  return [outL, outA, outB, input[3]];
+  return rgba(outL, outA, outB, input[3], true);
 };
 
 let wasmRgba2labaInner = (a, b, c, d, e, f, g) => {
@@ -231,17 +251,23 @@ export const colorDistance = (
 ): number => {
   switch (colorDistanceAlgorithm) {
     case RGB_NEAREST:
-      return Math.sqrt(
-        (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
-      );
+      return
+        Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])
+      ;
     case LAB_NEAREST: {
       const aLab = rgba2laba(a);
       const bLab = rgba2laba(b);
-      return Math.sqrt(
-        (aLab[0] - bLab[0]) ** 2 +
-          (aLab[1] - bLab[1]) ** 2 +
-          (aLab[2] - bLab[2]) ** 2
-      );
+      const diff =
+        Math.abs(aLab[0] - bLab[0]) +
+        Math.abs(aLab[1] - bLab[1]) +
+        Math.abs(aLab[2] - bLab[2]);
+
+      if (aLab.free && bLab.free) {
+        aLab.free();
+        bLab.free();
+      }
+
+      return diff;
     }
     case WASM_LAB_NEAREST: {
       const aLab = wasmRgba2laba(a);
@@ -459,13 +485,15 @@ export const sub = (a: ColorRGBA, b: ColorRGBA): ColorRGBA => [
 export const scale = (
   a: ColorRGBA,
   scalar: number,
-  alpha: boolean = false
-): ColorRGBA => [
+  alpha: boolean = false,
+  pool: boolean = false
+): ColorRGBA => rgba(
   scalar * a[0],
   scalar * a[1],
   scalar * a[2],
-  alpha ? scalar * a[3] : a[3]
-];
+  alpha ? scalar * a[3] : a[3],
+  pool
+);
 
 // contrast factor 0-1 ideally
 export const contrast = (color: ColorRGBA, factor: number) => {

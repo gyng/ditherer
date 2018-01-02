@@ -54,10 +54,12 @@ export const errorDiffusingFilter = (
           errBuf[i],
           errBuf[i + 1],
           errBuf[i + 2],
-          errBuf[i + 3]
+          errBuf[i + 3],
+          true
         );
         const color = palette.getColor(pixel, palette.options);
         const error = sub(pixel, color);
+        pixel.free();
 
         // Copy alpha value from input
         fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
@@ -75,8 +77,9 @@ export const errorDiffusingFilter = (
                 y + h + errorMatrix.offset[1],
                 output.width
               );
-              const toDiffuse = scale(error, weight);
+              const toDiffuse = scale(error, weight, false, true);
               addBufferPixel(errBuf, targetIdx, toDiffuse);
+              toDiffuse.free();
             }
           }
         }

@@ -303,7 +303,8 @@ const getColor = (
   let min = null;
   let minDistance = 0;
 
-  colors.forEach(pc => {
+  for (let i = 0; i < colors.length; i += 1) {
+    const pc = colors[i];
     const distance = colorDistance(pc, color, colorDistanceAlgorithm);
 
     if (min === null) {
@@ -313,7 +314,7 @@ const getColor = (
       min = pc;
       minDistance = distance;
     }
-  });
+  }
 
   return !min ? color : min;
 };
