@@ -188,7 +188,7 @@ export const filterList: Array<{ displayName: string, filter: any }> = [
     displayName: "Quantize (No dithering)",
     filter: quantize
   },
-  { displayName: "Ordered (Windows)", filter: ordered },
+  { displayName: "Ordered", filter: ordered },
   {
     displayName: "Ordered (Windows 16-color)",
     filter: {
@@ -199,6 +199,19 @@ export const filterList: Array<{ displayName: string, filter: any }> = [
         palette: {
           ...palettes.user,
           options: { colors: THEMES.CGA }
+        }
+      }
+    }
+  },
+  {
+    displayName: "Ordered (Gameboy)",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.GAMEBOY }
         }
       }
     }

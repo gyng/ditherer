@@ -254,7 +254,7 @@ export const optionTypes = {
         value: ALTERNATE_3X3
       }
     ],
-    default: BAYER_4X4
+    default: HATCH_2X2
   },
   palette: { type: PALETTE, default: nearest }
 };
