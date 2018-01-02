@@ -10,6 +10,7 @@ import {
   SET_INPUT_CANVAS,
   SET_INPUT_VOLUME,
   SET_SCALE,
+  SET_OUTPUT_SCALE,
   SET_FILTER_OPTION,
   SET_FILTER_PALETTE_OPTION,
   ADD_PALETTE_COLOR,
@@ -28,6 +29,7 @@ export const initialState = {
   selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
   convertGrayscale: false,
   scale: 1,
+  outputScale: 1,
   inputCanvas: null,
   inputImage: null,
   outputImage: null,
@@ -35,7 +37,7 @@ export const initialState = {
   time: null,
   video: null,
   videoVolume: 1,
-  scalingAlgorithm: SCALING_ALGORITHM.AUTO
+  scalingAlgorithm: SCALING_ALGORITHM.PIXELATED
 };
 
 export default (state: AppState = initialState, action: Action) => {
@@ -155,6 +157,11 @@ export default (state: AppState = initialState, action: Action) => {
       return {
         ...state,
         scale: action.scale
+      };
+    case SET_OUTPUT_SCALE:
+      return {
+        ...state,
+        outputScale: action.scale
       };
     case SELECT_FILTER:
       return {

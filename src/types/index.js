@@ -22,6 +22,7 @@ export type Filter = {
 export type AppState = {
   convertGrayscale: boolean,
   scale: ?number,
+  outputScale: ?number,
   selected: { displayName: string, filter: Filter },
   inputImage: ?HTMLCanvasElement,
   outputImage: ?HTMLCanvasElement,

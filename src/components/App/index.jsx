@@ -92,7 +92,11 @@ export default class App extends React.Component<*, State> {
       nextProps.outputImage &&
       nextProps.outputImage !== this.props.outputImage
     ) {
-      drawToCanvas(this.outputCanvas, nextProps.outputImage, 1);
+      drawToCanvas(
+        this.outputCanvas,
+        nextProps.outputImage,
+        nextProps.outputScale
+      );
     }
   }
 
@@ -140,7 +144,7 @@ export default class App extends React.Component<*, State> {
 
         {/* TODO: make controls more generic and take in onchange functions */}
         <div className={controls.range}>
-          <div className={controls.label}>Scale</div>
+          <div className={controls.label}>Input scale</div>
           <div className={controls.rangeGroup}>
             <input
               type="range"
@@ -369,6 +373,38 @@ export default class App extends React.Component<*, State> {
               value={this.props.scalingAlgorithm}
               types={SCALING_ALGORITHM_OPTIONS}
             />
+
+            <div className={controls.label}>Output scale</div>
+            <div className={controls.range}>
+              <div className={controls.rangeGroup}>
+                <input
+                  type="range"
+                  min={10}
+                  max={400}
+                  step={10}
+                  value={this.props.outputScale * 100}
+                  onChange={e =>
+                    this.props.onSetOutputScale(
+                      parseInt(e.target.value, 10) / 100
+                    )}
+                />
+                <div
+                  role="button"
+                  tabIndex="0"
+                  className={[controls.value, controls.clickable].join(" ")}
+                  onClick={() => {
+                    const newScale = window.prompt("Scale in percentage (%)"); // eslint-disable-line
+                    const parsed = parseFloat(newScale);
+
+                    if (parsed) {
+                      this.props.onSetScale(parsed / 100);
+                    }
+                  }}
+                >
+                  {Math.round(this.props.outputScale * 100)}%
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -478,10 +514,12 @@ App.propTypes = {
   onSetInputCanvas: PropTypes.func,
   onSetRealTimeFiltering: PropTypes.func,
   onSetScale: PropTypes.func,
+  onSetOutputScale: PropTypes.func,
   onSetScalingAlgorithm: PropTypes.func,
   outputImage: PropTypes.object,
   realtimeFiltering: PropTypes.bool,
   scale: PropTypes.number,
+  outputScale: PropTypes.number,
   scalingAlgorithm: PropTypes.string,
   selectedFilter: PropTypes.object,
   time: PropTypes.number
@@ -505,10 +543,12 @@ App.defaultProps = {
   onSetInputCanvas: () => {},
   onSetRealTimeFiltering: () => {},
   onSetScale: () => {},
+  onSetOutputScale: () => {},
   onSetScalingAlgorithm: () => {},
   outputImage: null,
   realtimeFiltering: false,
   scale: 1,
+  outputScale: 1,
   scalingAlgorithm: SCALING_ALGORITHM.AUTO,
   selectedFilter: null,
   time: null

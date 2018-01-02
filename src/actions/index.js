@@ -181,6 +181,11 @@ export const setScale = (scale: number) => ({
   scale
 });
 
+export const setOutputScale = (scale: number) => ({
+  type: types.SET_OUTPUT_SCALE,
+  scale
+});
+
 export const setRealtimeFiltering = (enabled: boolean) => ({
   type: types.SET_REAL_TIME_FILTERING,
   enabled

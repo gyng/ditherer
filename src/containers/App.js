@@ -12,6 +12,7 @@ import {
   setInputCanvas,
   setInputVolume,
   setScale,
+  setOutputScale,
   setScalingAlgorithm
 } from "actions";
 import App from "components/App";
@@ -27,6 +28,7 @@ const mapStateToProps = (state: State) => ({
   selectedFilter: state.filters.selected,
   convertGrayscale: state.filters.convertGrayscale,
   scale: state.filters.scale,
+  outputScale: state.filters.outputScale,
   scalingAlgorithm: state.filters.scalingAlgorithm,
   time: state.filters.time,
   inputVideo: state.filters.video,
@@ -49,6 +51,7 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onConvertGrayscale: val => dispatch(setConvertGrayscale(val)),
   onSetInput: image => dispatch(loadImage(image)),
   onSetScale: scale => dispatch(setScale(scale)),
+  onSetOutputScale: scale => dispatch(setOutputScale(scale)),
   onSetRealTimeFiltering: enabled => dispatch(setRealtimeFiltering(enabled)),
   onSetInputCanvas: canvas => dispatch(setInputCanvas(canvas)),
   onSetInputVolume: volume => dispatch(setInputVolume(volume)),
