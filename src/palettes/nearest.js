@@ -17,6 +17,10 @@ const getColor = (
   color: ColorRGBA,
   options: { levels: number } = defaults
 ): ColorRGBA => {
+  if (options.levels >= 256) {
+    return color;
+  }
+
   const step = 255 / (options.levels - 1);
 
   // $FlowFixMe
