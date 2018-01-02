@@ -162,6 +162,30 @@ let wasmRgba2labaInner = (a, b, c, d, e, f, g) => {
   return [0, 0, 0, 0];
 };
 
+let wasmRgbaLabaDistanceInner = (a, b, c, d, e, f, g, h, i, j, k) => {
+  console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k); // eslint-disable-line
+  return 0;
+};
+
+export const wasmRgbaLabaDistance = (
+  a: ColorRGBA,
+  b: ColorRGBA,
+  ref: ReferenceValue = referenceTable.CIE_1931.D65
+): number =>
+  wasmRgbaLabaDistanceInner(
+    a[0],
+    a[1],
+    a[2],
+    a[3],
+    b[0],
+    b[1],
+    b[2],
+    b[3],
+    ref.x,
+    ref.y,
+    ref.z
+  );
+
 export const wasmRgba2laba = (
   input: ColorRGBA,
   ref: ReferenceValue = referenceTable.CIE_1931.D65
@@ -183,6 +207,7 @@ require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm");
 
 wasm.then(obj => {
   wasmRgba2labaInner = obj.rgba2laba;
+  wasmRgbaLabaDistanceInner = obj.rgbaLabaDistance;
   // console.log(obj, "override");
 });
 
@@ -231,26 +256,20 @@ export const colorDistance = (
 ): number => {
   switch (colorDistanceAlgorithm) {
     case RGB_NEAREST:
-      return Math.sqrt(
-        (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
+      return (
+        Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])
       );
     case LAB_NEAREST: {
       const aLab = rgba2laba(a);
       const bLab = rgba2laba(b);
-      return Math.sqrt(
-        (aLab[0] - bLab[0]) ** 2 +
-          (aLab[1] - bLab[1]) ** 2 +
-          (aLab[2] - bLab[2]) ** 2
+      return (
+        Math.abs(bLab[0] - aLab[0]) +
+        Math.abs(bLab[1] - aLab[1]) +
+        Math.abs(bLab[2] - aLab[2])
       );
     }
     case WASM_LAB_NEAREST: {
-      const aLab = wasmRgba2laba(a);
-      const bLab = wasmRgba2laba(b);
-      return Math.sqrt(
-        (aLab[0] - bLab[0]) ** 2 +
-          (aLab[1] - bLab[1]) ** 2 +
-          (aLab[2] - bLab[2]) ** 2
-      );
+      return wasmRgbaLabaDistance(a, b);
     }
     case RGB_APPROX: {
       const r = (a[0] + b[0]) / 2;
