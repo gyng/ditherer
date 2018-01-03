@@ -4,7 +4,7 @@ extern crate stdweb;
 // use stdweb::unstable::TryFrom;
 // use stdweb::unstable::TryInto;
 
-fn rgba2laba_inner(r: f64, g: f64, b: f64, a: f64, ref_x: f64, ref_y: f64, ref_z: f64) -> Vec<f64> {
+fn rgba2laba_inner(r: f64, g: f64, b: f64, a: f64, ref_x: f64, ref_y: f64, ref_z: f64) -> (f64, f64, f64, f64) {
     let mut r = r / 255.0;
     let mut g = g / 255.0;
     let mut b = b / 255.0;
@@ -35,17 +35,18 @@ fn rgba2laba_inner(r: f64, g: f64, b: f64, a: f64, ref_x: f64, ref_y: f64, ref_z
     let out_a = 500.0 * (x - y);
     let out_b = 200.0 * (y - z);
 
-    vec![out_l, out_a, out_b, a]
+    (out_l, out_a, out_b, a)
 }
 
 fn rgba2laba(r: f64, g: f64, b: f64, a: f64, ref_x: f64, ref_y: f64, ref_z: f64) -> stdweb::Value {
-    rgba2laba_inner(r, g, b, a, ref_x, ref_y, ref_z).into()
+    let tuple = rgba2laba_inner(r, g, b, a, ref_x, ref_y, ref_z);
+    vec![tuple.0, tuple.1, tuple.2, tuple.3].into()
 }
 
 fn rgba_laba_distance(r1: f64, g1: f64, b1: f64, a1: f64, r2: f64, g2: f64, b2: f64, a2: f64, ref_x: f64, ref_y: f64, ref_z: f64) -> stdweb::Number {
     let left = rgba2laba_inner(r1, g1, b1, a1, ref_x, ref_y, ref_z);
     let right = rgba2laba_inner(r2, g2, b2, a2, ref_x, ref_y, ref_z);
-    let dist = (right[0] - left[0]).abs() + (right[1] - left[1]).abs() + (right[2] - left[2]).abs();
+    let dist = (right.0 - left.0).abs() + (right.1 - left.1).abs() + (right.2 - left.2).abs();
 
     stdweb::Number::from(dist)
 }
