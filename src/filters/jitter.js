@@ -7,26 +7,31 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 import type { Palette } from "types";
 
 export const optionTypes = {
-  jitterX: { type: RANGE, range: [0, 100], default: 5 },
-  jitterY: { type: RANGE, range: [0, 100], default: 5 },
+  jitterX: { type: RANGE, range: [0, 100], default: 4 },
+  jitterXSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1 },
+  jitterY: { type: RANGE, range: [0, 100], default: 0 },
+  jitterYSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1 },
   palette: { type: PALETTE, default: nearest }
 };
 
 export const defaults = {
   jitterX: optionTypes.jitterX.default,
+  jitterXSpread: optionTypes.jitterXSpread.default,
   jitterY: optionTypes.jitterY.default,
+  jitterYSpread: optionTypes.jitterYSpread.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const channelSeparation = (
+const jittter = (
   input: HTMLCanvasElement,
   options: {
     jitterX: number,
+    jitterXSpread: number,
     jitterY: number,
     palette: Palette
   } = defaults
 ): HTMLCanvasElement => {
-  const { jitterX, jitterY, palette } = options;
+  const { jitterX, jitterXSpread, jitterY, jitterYSpread, palette } = options;
 
   const output = cloneCanvas(input, false);
 
@@ -39,21 +44,31 @@ const channelSeparation = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const jitterXMap = [];
   const jitterYMap = [];
+  const jitterXMap = [];
+
+  let jitterFactor = 0;
   for (let i = 0; i < input.width; i += 1) {
-    jitterXMap.push(Math.round(Math.random() * jitterX));
+    const jitter = Math.random() * jitterY;
+    jitterFactor += jitter;
+    jitterYMap.push(Math.round(jitterFactor));
+    jitterFactor *= jitterYSpread;
   }
-  for (let i = 0; i < input.height; i += 1) {
-    jitterYMap.push(Math.round(Math.random() * jitterY));
+
+  jitterFactor = 0;
+  for (let i = 0; i < input.width; i += 1) {
+    const jitter = Math.random() * jitterX;
+    jitterFactor += jitter;
+    jitterXMap.push(Math.round(jitterFactor));
+    jitterFactor *= jitterXSpread;
   }
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);
       const jI = getBufferIndex(
-        x + jitterXMap[x],
-        y + jitterYMap[y],
+        (x + jitterYMap[x]) % input.width,
+        (y + jitterXMap[y]) % input.height,
         input.width
       );
 
@@ -68,8 +83,8 @@ const channelSeparation = (
 };
 
 export default {
-  name: "Channel separation",
-  func: channelSeparation,
+  name: "Jitter",
+  func: jittter,
   options: defaults,
   optionTypes,
   defaults
