@@ -38,7 +38,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const colorOffset = (
+const channelSeparation = (
   input: HTMLCanvasElement,
   options: {
     rOffsetX: number,
@@ -121,8 +121,8 @@ const colorOffset = (
 };
 
 export default {
-  name: "ColorOffset",
-  func: colorOffset,
+  name: "Channel separation",
+  func: channelSeparation,
   options: defaults,
   optionTypes,
   defaults

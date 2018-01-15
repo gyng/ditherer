@@ -4,7 +4,7 @@ import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
 import binarize from "./binarize";
-import colorOffset from "./colorOffset";
+import channelSeparation from "./channelSeparation";
 import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
@@ -33,7 +33,7 @@ import {
   verticalStripe
 } from "./errorDiffusing";
 
-export { default as colorOffset } from "./colorOffset";
+export { default as channelSeparation } from "./channelSeparation";
 export { default as binarize } from "./binarize";
 export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
@@ -64,7 +64,7 @@ export {
 
 export const filterIndex = [
   binarize,
-  colorOffset,
+  channelSeparation,
   program,
   brightnessContrast,
   convolve,
@@ -186,7 +186,7 @@ export const filterList: Array<{ displayName: string, filter: any }> = [
     }
   },
   { displayName: "Pixelate", filter: pixelate },
-  { displayName: "Color offset", filter: colorOffset },
+  { displayName: "Channel separation", filter: channelSeparation },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
