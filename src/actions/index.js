@@ -21,6 +21,11 @@ export const setInputVolume = (volume: number) => ({
   volume
 });
 
+export const setInputPlaybackRate = (rate: number) => ({
+  type: types.SET_INPUT_PLAYBACK_RATE,
+  rate
+});
+
 export const setInputCanvas = (canvas: HTMLCanvasElement) => ({
   type: types.SET_INPUT_CANVAS,
   canvas
@@ -58,9 +63,11 @@ export const loadImageAsync = (file: File) => (dispatch: Dispatch) => {
   reader.readAsDataURL(file);
 };
 
-export const loadVideoAsync = (file: File, volume: number = 1) => (
-  dispatch: Dispatch
-) => {
+export const loadVideoAsync = (
+  file: File,
+  volume: number = 1,
+  playbackRate: number = 1
+) => (dispatch: Dispatch) => {
   const reader = new FileReader();
   const video = document.createElement("video");
 
@@ -103,6 +110,7 @@ export const loadVideoAsync = (file: File, volume: number = 1) => (
     const blob = new Blob([event.target.result]);
     video.volume = volume;
     video.src = URL.createObjectURL(blob);
+    video.playbackRate = playbackRate;
     video.loop = true;
     video.autoplay = true;
   };
@@ -110,9 +118,13 @@ export const loadVideoAsync = (file: File, volume: number = 1) => (
   reader.readAsArrayBuffer(file);
 };
 
-export const loadMediaAsync = (file: File, volume: number = 1) => {
+export const loadMediaAsync = (
+  file: File,
+  volume: number = 1,
+  playbackRate: number = 1
+) => {
   if (file.type.startsWith("video/")) {
-    return loadVideoAsync(file, volume);
+    return loadVideoAsync(file, volume, playbackRate);
   }
 
   return loadImageAsync(file);

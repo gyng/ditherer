@@ -10,6 +10,7 @@ import Draggable from "react-draggable";
 import Controls from "containers/Controls";
 import Exporter from "containers/Exporter";
 
+import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 
@@ -127,7 +128,12 @@ export default class App extends React.Component<*, State> {
           type="file"
           id="imageLoader"
           name="imageLoader"
-          onChange={e => this.props.onLoadImage(e, this.props.inputVideoVolume)}
+          onChange={e =>
+            this.props.onLoadImage(
+              e,
+              this.props.inputVideoVolume,
+              this.props.inputVideoPlaybackRate
+            )}
           onDragLeave={() => {
             this.setState({ dropping: false });
           }}
@@ -290,6 +296,18 @@ export default class App extends React.Component<*, State> {
               />
               Realtime filtering (videos)
             </label>
+          </div>
+
+          <div>
+            <Range
+              name={"Video Playback Rate"}
+              types={{ range: [0, 2] }}
+              step={0.05}
+              onSetFilterOption={(_: string, value: any) => {
+                this.props.onSetInputPlaybackRate(value);
+              }}
+              value={this.props.inputVideoPlaybackRate}
+            />
           </div>
 
           <div className={s.captureSection}>
@@ -504,6 +522,7 @@ App.propTypes = {
   inputImage: PropTypes.object,
   inputVideo: PropTypes.object,
   inputVideoVolume: PropTypes.number,
+  inputVideoPlaybackRate: PropTypes.number,
   match: PropTypes.object,
   onConvertGrayscale: PropTypes.func,
   onFilterImage: PropTypes.func,
@@ -511,6 +530,7 @@ App.propTypes = {
   onSelectFilter: PropTypes.func,
   onSetInput: PropTypes.func,
   onSetInputVolume: PropTypes.func,
+  onSetInputPlaybackRate: PropTypes.func,
   onSetInputCanvas: PropTypes.func,
   onSetRealTimeFiltering: PropTypes.func,
   onSetScale: PropTypes.func,
@@ -532,6 +552,7 @@ App.defaultProps = {
   convertGrayscale: false,
   inputImage: null,
   inputVideo: null,
+  inputVideoPlaybackRate: 1,
   inputVideoVolume: 1,
   match: { url: "unknown" },
   onConvertGrayscale: () => {},
@@ -539,6 +560,7 @@ App.defaultProps = {
   onLoadImage: () => {},
   onSelectFilter: () => {},
   onSetInput: () => {},
+  onSetInputPlaybackRate: () => {},
   onSetInputVolume: () => {},
   onSetInputCanvas: () => {},
   onSetRealTimeFiltering: () => {},

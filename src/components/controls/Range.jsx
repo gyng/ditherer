@@ -9,7 +9,7 @@ const Range = (props: {
   types: { range: [number, number] },
   value: number,
   step: ?number,
-  onSetFilterOption: (string, any) => {}
+  onSetFilterOption: (string, any) => void
 }) => (
   <div className={s.range}>
     <div className={s.label}>{props.name}</div>

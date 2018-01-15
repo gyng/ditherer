@@ -9,6 +9,7 @@ import {
   SET_REAL_TIME_FILTERING,
   SET_INPUT_CANVAS,
   SET_INPUT_VOLUME,
+  SET_INPUT_PLAYBACK_RATE,
   SET_SCALE,
   SET_OUTPUT_SCALE,
   SET_FILTER_OPTION,
@@ -37,6 +38,7 @@ export const initialState = {
   time: null,
   video: null,
   videoVolume: 1,
+  videoPlaybackRate: 1,
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED
 };
 
@@ -105,6 +107,15 @@ export default (state: AppState = initialState, action: Action) => {
       return {
         ...state,
         videoVolume: action.volume
+      };
+    case SET_INPUT_PLAYBACK_RATE:
+      if (state.video) {
+        state.video.playbackRate = action.rate; // eslint-disable-line
+      }
+
+      return {
+        ...state,
+        videoPlaybackRate: action.rate
       };
     case LOAD_IMAGE: // eslint-disable-line
       // Image or new video

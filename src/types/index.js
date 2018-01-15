@@ -31,7 +31,8 @@ export type AppState = {
   videoVolume: number,
   time: ?number,
   inputCanvas: ?HTMLCanvasElement,
-  scalingAlgorithm: string
+  scalingAlgorithm: string,
+  videoPlaybackRate: number
 };
 
 export type State = { filters: AppState };
