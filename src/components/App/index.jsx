@@ -148,36 +148,15 @@ export default class App extends React.Component<*, State> {
           }}
         />
 
-        {/* TODO: make controls more generic and take in onchange functions */}
-        <div className={controls.range}>
-          <div className={controls.label}>Input scale</div>
-          <div className={controls.rangeGroup}>
-            <input
-              type="range"
-              min={10}
-              max={400}
-              step={10}
-              value={this.props.scale * 100}
-              onChange={e =>
-                this.props.onSetScale(parseInt(e.target.value, 10) / 100)}
-            />
-            <div
-              role="button"
-              tabIndex="0"
-              className={[controls.value, controls.clickable].join(" ")}
-              onClick={() => {
-                const newScale = window.prompt("Scale in percentage (%)"); // eslint-disable-line
-                const parsed = parseFloat(newScale);
-
-                if (parsed) {
-                  this.props.onSetScale(parsed / 100);
-                }
-              }}
-            >
-              {Math.round(this.props.scale * 100)}%
-            </div>
-          </div>
-        </div>
+        <Range
+          name={"Input Scale"}
+          types={{ range: [0.1, 4] }}
+          step={0.1}
+          onSetFilterOption={(_: string, value: any) => {
+            this.props.onSetScale(value);
+          }}
+          value={this.props.scale}
+        />
       </div>
     );
 
@@ -392,37 +371,15 @@ export default class App extends React.Component<*, State> {
               types={SCALING_ALGORITHM_OPTIONS}
             />
 
-            <div className={controls.label}>Output scale</div>
-            <div className={controls.range}>
-              <div className={controls.rangeGroup}>
-                <input
-                  type="range"
-                  min={10}
-                  max={400}
-                  step={10}
-                  value={this.props.outputScale * 100}
-                  onChange={e =>
-                    this.props.onSetOutputScale(
-                      parseInt(e.target.value, 10) / 100
-                    )}
-                />
-                <div
-                  role="button"
-                  tabIndex="0"
-                  className={[controls.value, controls.clickable].join(" ")}
-                  onClick={() => {
-                    const newScale = window.prompt("Scale in percentage (%)"); // eslint-disable-line
-                    const parsed = parseFloat(newScale);
-
-                    if (parsed) {
-                      this.props.onSetScale(parsed / 100);
-                    }
-                  }}
-                >
-                  {Math.round(this.props.outputScale * 100)}%
-                </div>
-              </div>
-            </div>
+            <Range
+              name={"Output Scale"}
+              types={{ range: [0.1, 4] }}
+              step={0.1}
+              onSetFilterOption={(_: string, value: any) => {
+                this.props.onSetOutputScale(value);
+              }}
+              value={this.props.outputScale}
+            />
           </div>
         </div>
       </div>
