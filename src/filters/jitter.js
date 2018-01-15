@@ -28,6 +28,7 @@ const jittter = (
     jitterX: number,
     jitterXSpread: number,
     jitterY: number,
+    jitterYSpread: number,
     palette: Palette
   } = defaults
 ): HTMLCanvasElement => {
