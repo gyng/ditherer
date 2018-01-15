@@ -5,6 +5,7 @@ import { THEMES } from "palettes/user";
 
 import binarize from "./binarize";
 import channelSeparation from "./channelSeparation";
+import jitter from "./jitter";
 import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
@@ -34,6 +35,7 @@ import {
 } from "./errorDiffusing";
 
 export { default as channelSeparation } from "./channelSeparation";
+export { default as jitter } from "./jitter";
 export { default as binarize } from "./binarize";
 export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
@@ -73,6 +75,7 @@ export const filterIndex = [
   glitchblob,
   halftone,
   invert,
+  jitter,
   ordered,
   quantize,
   scanline,
@@ -187,6 +190,7 @@ export const filterList: Array<{ displayName: string, filter: any }> = [
   },
   { displayName: "Pixelate", filter: pixelate },
   { displayName: "Channel separation", filter: channelSeparation },
+  { displayName: "Jitter", filter: jitter },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
