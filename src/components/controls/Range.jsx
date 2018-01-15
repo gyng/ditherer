@@ -31,7 +31,7 @@ const Range = (props: {
         onClick={() => {
           const newValue = window.prompt("Value"); // eslint-disable-line
           const parsed = parseFloat(newValue);
-          if (parsed) {
+          if (parsed || parsed === 0) {
             props.onSetFilterOption(props.name, parsed);
           }
         }}
