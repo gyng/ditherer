@@ -6,6 +6,7 @@ import { THEMES } from "palettes/user";
 import binarize from "./binarize";
 import channelSeparation from "./channelSeparation";
 import jitter from "./jitter";
+import vhs from "./vhs";
 import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
@@ -36,6 +37,7 @@ import {
 
 export { default as channelSeparation } from "./channelSeparation";
 export { default as jitter } from "./jitter";
+export { default as vhs } from "./vhs";
 export { default as binarize } from "./binarize";
 export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
@@ -90,7 +92,8 @@ export const filterIndex = [
   stucki,
   jarvis,
   horizontalStripe,
-  verticalStripe
+  verticalStripe,
+  vhs
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -191,6 +194,7 @@ export const filterList: Array<{ displayName: string, filter: any }> = [
   { displayName: "Pixelate", filter: pixelate },
   { displayName: "Channel separation", filter: channelSeparation },
   { displayName: "Jitter", filter: jitter },
+  { displayName: "VHS emulation", filter: vhs },
   { displayName: "Grayscale", filter: grayscale },
   { displayName: "Random", filter: random },
   { displayName: "Halftone", filter: halftone },
