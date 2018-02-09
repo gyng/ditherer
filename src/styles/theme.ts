@@ -5,8 +5,9 @@ import { css } from "emotion";
 
 export default {
   someCssStyle: css`
-    color: var(--teal-50);
-    padding: var(--m-m);
+    color: var(--teal-40);
+    padding: var(--m-l);
+    align-self: center;
     transition: border-radius 0.3s ease-in;
 
     &:hover {
@@ -14,7 +15,7 @@ export default {
 
       .sub {
         color: red;
-        font-style: underline !important;
+        text-decoration: underline;
       }
     }
 

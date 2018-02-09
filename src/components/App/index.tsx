@@ -53,25 +53,27 @@ export default class App extends React.Component<AppProps, {}> {
         <div
           className="app"
           style={{
+            display: "grid",
+            gridGap: "var(--m-l)",
+            gridTemplateColumns: "1fr 1fr 1fr",
             margin: "0 auto",
             maxWidth: "calc(var(--m) * 240)"
           }}
         >
-          <ImgRobot src={hello} alt="Cute robot?" />
-
-          <h1>jsapp-boilerplate</h1>
-
-          <Echo text="Hello, world!" />
-          <div>
-            Find me in{" "}
-            <span style={{ fontFamily: "monospace" }}>
-              src/components/App/index.tsx
-            </span>
+          <div style={{ gridColumn: "1 / 4", marginBottom: "72px" }}>
+            <h1>jsapp-boilerplate</h1>
+            <div>
+              Find me in{" "}
+              <span style={{ fontFamily: "monospace" }}>
+                src/components/App/index.tsx
+              </span>
+            </div>
           </div>
 
           {/* React style prop is still available */}
           <div
             style={{
+              alignSelf: "center",
               border: "solid 1px grey",
               borderRadius: "var(--curve)",
               margin: "var(--m-m) 0",
@@ -90,6 +92,11 @@ export default class App extends React.Component<AppProps, {}> {
                 )}
               />
             </Switch>
+          </div>
+
+          <div style={{ alignSelf: "center" }}>
+            <ImgRobot src={hello} alt="Cute robot?" />
+            <Echo text="Hello, world!" />
           </div>
 
           <ThemedDiv
