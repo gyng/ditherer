@@ -1,7 +1,7 @@
 import { ThemeProvider } from "emotion-theming";
 import * as React from "react";
 import styled, { keyframes } from "react-emotion";
-import { Link, Route } from "react-router-dom";
+import { Link, Route, Switch } from "react-router-dom";
 
 import Echo from "@src/components/Echo";
 import Counter from "@src/containers/Counter";
@@ -23,16 +23,19 @@ const spin = keyframes`
 
 const ImgRobot = styled("img")`
   align-self: center;
-  animation: ${spin} 60s linear infinite;
+  animation: ${spin} 60s ease-in-out infinite;
   border-radius: 50%;
   height: auto;
   width: 200px;
+  margin-bottom: var(--m-l);
 `;
 
 // Can compose, or access theme using props
 const ThemedDiv = styled("div")`
   ${theme.someCssStyle};
   border-radius: ${p => p.theme.someThemeStyle.borderRadius};
+  margin: "10px 0";
+  padding: "10px";
 `;
 
 export interface AppProps {
@@ -47,27 +50,56 @@ export default class App extends React.Component<AppProps, {}> {
   public render() {
     return (
       <ThemeProvider theme={theme}>
-        <div className="app">
+        <div
+          className="app"
+          style={{
+            margin: "0 auto",
+            maxWidth: "calc(var(--m) * 240)"
+          }}
+        >
           <ImgRobot src={hello} alt="Cute robot?" />
-          <Echo text="Hello, world! Find me in src/components/App/index.jsx!" />
 
-          {/* React style prop is still available */}
-          <div style={{ border: "solid 1px grey" }}>
-            <Route
-              exact
-              path={this.props.match.url}
-              render={() => (
-                <Link to="/counter">
-                  Link to /counter. Click to show counter. Back/Forward buttons
-                  work.
-                </Link>
-              )}
-            />
-            <Route path="/counter" component={Counter} />
+          <h1>jsapp-boilerplate</h1>
+
+          <Echo text="Hello, world!" />
+          <div>
+            Find me in{" "}
+            <span style={{ fontFamily: "monospace" }}>
+              src/components/App/index.tsx
+            </span>
           </div>
 
-          <ThemedDiv style={{ border: "solid 1px grey" }}>
-            This div is themed using emotion and emotion-theming
+          {/* React style prop is still available */}
+          <div
+            style={{
+              border: "solid 1px grey",
+              borderRadius: "var(--curve)",
+              margin: "var(--m-m) 0",
+              padding: "var(--m-m)"
+            }}
+          >
+            <Switch>
+              <Route path="/counter" component={Counter} />
+              <Route
+                path="/"
+                render={() => (
+                  <Link to="/counter">
+                    Link to /counter. Click to show counter. Back/Forward
+                    buttons work.
+                  </Link>
+                )}
+              />
+            </Switch>
+          </div>
+
+          <ThemedDiv
+            style={{
+              border: "solid 1px grey"
+            }}
+          >
+            This div is themed using <span className="sub">emotion</span>,{" "}
+            <span className="sub">emotion-theming</span>, and{" "}
+            <span className="sub">React's style prop</span>
           </ThemedDiv>
         </div>
       </ThemeProvider>

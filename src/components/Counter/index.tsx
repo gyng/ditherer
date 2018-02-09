@@ -24,6 +24,12 @@ export default class Counter extends React.Component<CounterProps, {}> {
         >
           INCREMENT AFTER 1 SECOND
         </button>
+        <div style={{ fontFamily: "monospace" }}>
+          components/Counter/index.tsx
+        </div>
+        <div style={{ fontFamily: "monospace" }}>
+          containers/Counter/index.tsx
+        </div>
       </div>
     );
   }

@@ -2,12 +2,31 @@
  * Note that this is a plain old CSS file
  */
 
+:root {
+  --blue-40: #45a1ff;
+  --blue-50: #0a84ff;
+  --blue-60: #0a84ff;
+  --blue-70: #003eaa;
+  --blue-80: #002275;
+  --blue-90: #000f40;
+  --teal-40: #00feff;
+  --teal-50: #00c8d7;
+  --teal-60: #008ea4;
+  --teal-70: #005a71;
+  --teal-80: #002d3e;
+  --m: 4px;
+  --m-s: calc(var(--m) * 2);
+  --m-m: calc(var(--m) * 4);
+  --m-l: calc(var(--m) * 8);
+  --m-xl: calc(var(--m) * 16);
+  --curve: 2px;
+}
+
 html {
   font-size: 1em;
 }
 
 body {
-  background-color: white;
   font-family: Arial, sans-serif;
   font-weight: 400;
   line-height: 1.45;

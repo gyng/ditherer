@@ -13,7 +13,7 @@
 @import "./typography.legacy.css";
 
 :root {
-  --bg-color: hsl(220, 25%, 25%);
+  --font-color-override: hsl(0, 0%, 95%);
 }
 
 /* Global HTML rules */
@@ -26,10 +26,10 @@ body {
 }
 
 body {
-  background: var(--bg-color);
-  color: #fff;
+  background-color: rgb(38, 38, 38);
+  color: var(--font-color-override);
 }
 
 a {
-  color: #fff;
+  color: var(--blue-40);
 }
