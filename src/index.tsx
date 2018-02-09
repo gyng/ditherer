@@ -25,13 +25,7 @@ const legacyCss = require("./styles/style.legacy.css");
 // import { ThemeProvider } from "emotion-theming";
 import styled from "react-emotion";
 
-// Extend window for TypeScript
-declare global {
-  interface Window {
-    __REDUX_DEVTOOLS_EXTENSION_COMPOSE__: any;
-  }
-}
-
+// TypeScript definitions for devtools in /my-globals/index.d.ts
 // Redux devtools are still enabled in production!
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
   ? window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__({
