@@ -967,12 +967,6 @@ babel-loader@^8.0.0-beta.2:
     loader-utils "^1.0.2"
     mkdirp "^0.5.1"
 
-babel-macros@^1.2.0:
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/babel-macros/-/babel-macros-1.2.0.tgz#39e47ed6d286d4a98f1948d8bab45dac17e4e2d4"
-  dependencies:
-    cosmiconfig "3.1.0"
-
 babel-messages@^6.23.0:
   version "6.23.0"
   resolved "https://registry.yarnpkg.com/babel-messages/-/babel-messages-6.23.0.tgz#f3cdf4703858035b2a2951c6ec5edf6c62f2630e"
@@ -985,18 +979,24 @@ babel-plugin-check-es2015-constants@^6.22.0:
   dependencies:
     babel-runtime "^6.22.0"
 
-babel-plugin-emotion@^8.0.12:
-  version "8.0.12"
-  resolved "https://registry.yarnpkg.com/babel-plugin-emotion/-/babel-plugin-emotion-8.0.12.tgz#2ed844001416b0ae2ff787a06b1804ec5f531c89"
+babel-plugin-emotion@^9.0.1:
+  version "9.0.1"
+  resolved "https://registry.yarnpkg.com/babel-plugin-emotion/-/babel-plugin-emotion-9.0.1.tgz#1c1ec14a5d6f40c64bd68e805f074fea60a580a7"
   dependencies:
     "@babel/helper-module-imports" "7.0.0-beta.32"
-    babel-macros "^1.2.0"
+    babel-plugin-macros "^2.0.0"
     babel-plugin-syntax-jsx "^6.18.0"
     convert-source-map "^1.5.0"
-    emotion-utils "^8.0.12"
+    emotion-utils "^9.0.1"
     find-root "^1.1.0"
     source-map "^0.5.7"
     touch "^1.0.0"
+
+babel-plugin-macros@^2.0.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/babel-plugin-macros/-/babel-plugin-macros-2.2.0.tgz#31fc16748d6480697a517f692dc4421cb7bff0cc"
+  dependencies:
+    cosmiconfig "^4.0.0"
 
 babel-plugin-syntax-async-functions@^6.8.0:
   version "6.13.0"
@@ -2586,15 +2586,6 @@ core-util-is@1.0.2, core-util-is@~1.0.0:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/core-util-is/-/core-util-is-1.0.2.tgz#b5fd54220aa2bc5ab57aab7140c940754503c1a7"
 
-cosmiconfig@3.1.0:
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/cosmiconfig/-/cosmiconfig-3.1.0.tgz#640a94bf9847f321800403cd273af60665c73397"
-  dependencies:
-    is-directory "^0.3.1"
-    js-yaml "^3.9.0"
-    parse-json "^3.0.0"
-    require-from-string "^2.0.1"
-
 cosmiconfig@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/cosmiconfig/-/cosmiconfig-4.0.0.tgz#760391549580bbd2df1e562bc177b13c290972dc"
@@ -2610,6 +2601,20 @@ create-ecdh@^4.0.0:
   dependencies:
     bn.js "^4.1.0"
     elliptic "^6.0.0"
+
+create-emotion-styled@^9.0.1:
+  version "9.0.1"
+  resolved "https://registry.yarnpkg.com/create-emotion-styled/-/create-emotion-styled-9.0.1.tgz#70be09fcd0735ec88459ffbfc8128eb3f5690341"
+  dependencies:
+    emotion-utils "^9.0.1"
+
+create-emotion@^9.0.2:
+  version "9.0.2"
+  resolved "https://registry.yarnpkg.com/create-emotion/-/create-emotion-9.0.2.tgz#a8680b9f02f736112b68b9e9b47401dfbb4d9260"
+  dependencies:
+    emotion-utils "^9.0.1"
+    stylis "^3.3.2"
+    stylis-rule-sheet "^0.0.5"
 
 create-hash@^1.1.0, create-hash@^1.1.2:
   version "1.1.3"
@@ -3273,24 +3278,22 @@ emojis-list@^2.0.0:
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/emojis-list/-/emojis-list-2.1.0.tgz#4daa4d9db00f9819880c79fa457ae5b09a1fd389"
 
-emotion-theming@^8.0.9:
-  version "8.0.12"
-  resolved "https://registry.yarnpkg.com/emotion-theming/-/emotion-theming-8.0.12.tgz#7773fc448d717cc39d6eddb458d31fad39703d00"
+emotion-theming@^9.0.0:
+  version "9.0.0"
+  resolved "https://registry.yarnpkg.com/emotion-theming/-/emotion-theming-9.0.0.tgz#3b7dd07ceae70aab98280e81df8bfd7f9254d5c3"
   dependencies:
     hoist-non-react-statics "^2.3.1"
 
-emotion-utils@^8.0.12:
-  version "8.0.12"
-  resolved "https://registry.yarnpkg.com/emotion-utils/-/emotion-utils-8.0.12.tgz#5e0fd72db3008f26ce4f80b1972df08841df2168"
+emotion-utils@^9.0.1:
+  version "9.0.1"
+  resolved "https://registry.yarnpkg.com/emotion-utils/-/emotion-utils-9.0.1.tgz#db1034410d8ac4e399845d346471c3f2db5124d7"
 
-emotion@^8.0.9:
-  version "8.0.12"
-  resolved "https://registry.yarnpkg.com/emotion/-/emotion-8.0.12.tgz#03de11ce26b1b2401c334b94d438652124c514c6"
+emotion@^9.0.2:
+  version "9.0.2"
+  resolved "https://registry.yarnpkg.com/emotion/-/emotion-9.0.2.tgz#a40d28fd330562a42012a2cb17168b41b7caec94"
   dependencies:
-    babel-plugin-emotion "^8.0.12"
-    emotion-utils "^8.0.12"
-    stylis "^3.3.2"
-    stylis-rule-sheet "^0.0.5"
+    babel-plugin-emotion "^9.0.1"
+    create-emotion "^9.0.2"
 
 encodeurl@~1.0.1, encodeurl@~1.0.2:
   version "1.0.2"
@@ -7085,12 +7088,6 @@ parse-json@^2.2.0:
   dependencies:
     error-ex "^1.2.0"
 
-parse-json@^3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/parse-json/-/parse-json-3.0.0.tgz#fa6f47b18e23826ead32f263e744d0e1e847fb13"
-  dependencies:
-    error-ex "^1.3.1"
-
 parse-json@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/parse-json/-/parse-json-4.0.0.tgz#be35f5425be1f7f6c747184f98a788cb99477ee0"
@@ -7902,12 +7899,12 @@ react-dom@^16.0.0:
     object-assign "^4.1.1"
     prop-types "^15.6.0"
 
-react-emotion@^8.0.9:
-  version "8.0.12"
-  resolved "https://registry.yarnpkg.com/react-emotion/-/react-emotion-8.0.12.tgz#3dd94c151197e2e3399e34e3e118df141b5ebb7b"
+react-emotion@^9.0.2:
+  version "9.0.2"
+  resolved "https://registry.yarnpkg.com/react-emotion/-/react-emotion-9.0.2.tgz#99ec26cb9ad671fff393338354543ff7c2540ae1"
   dependencies:
-    babel-plugin-emotion "^8.0.12"
-    emotion-utils "^8.0.12"
+    babel-plugin-emotion "^9.0.1"
+    create-emotion-styled "^9.0.1"
 
 react-reconciler@^0.7.0:
   version "0.7.0"
