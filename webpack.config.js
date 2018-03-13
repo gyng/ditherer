@@ -1,8 +1,10 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const path = require("path");
-const webpack = require("webpack");
 
 module.exports = {
+  // Defaults to development, pass --mode production to override
+  mode: "development",
+
   context: path.resolve(__dirname, "src"),
 
   target: "web",
@@ -44,46 +46,38 @@ module.exports = {
       {
         test: /\.tsx?$/,
         loader: "awesome-typescript-loader"
-      },
-      {
-        enforce: "pre",
-        test: /\.js$/,
-        exclude: /\/node_modules\//,
-        loader: "source-map-loader"
       }
+      // {
+      //   enforce: "pre",
+      //   test: /\.js$/,
+      //   exclude: /\/node_modules\//,
+      //   loader: "source-map-loader"
+      // }
     ]
   },
 
   plugins: [
-    new webpack.EnvironmentPlugin({
-      NODE_ENV: "development" // defaults to development
-    }),
-
-    new webpack.LoaderOptionsPlugin({
-      minimize: process.env.NODE_ENV === "production",
-      debug: process.env.NODE_ENV !== "production"
-    }),
-
-    new webpack.optimize.CommonsChunkPlugin({
-      filename: "commons.js",
-      minChunks: 2,
-      name: "commons"
-    }),
-
     new HtmlWebpackPlugin({
       files: {
         css: [],
         js: ["[name].js", "commons.js"]
       },
       template: "./index.html"
-    }),
-
-    process.env.NODE_ENV === "production"
-      ? new webpack.optimize.UglifyJsPlugin()
-      : new webpack.BannerPlugin({
-          banner: "run with NODE_ENV=production to minify"
-        })
+    })
   ],
+
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        commons: {
+          test: /[\\/]node_modules[\\/]/,
+          filename: "commons.js",
+          name: "commons",
+          chunks: "all"
+        }
+      }
+    }
+  },
 
   devtool: "cheap-eval-source-map",
 

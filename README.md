@@ -43,7 +43,8 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 ### Build
 
     yarn install
-    NODE_ENV=production yarn build  # minifies in production
+    yarn build                      # runs webpack in development mode
+    yarn build:prod                 # runs webpack in production mode
 
 ### Test
 
