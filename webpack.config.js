@@ -36,23 +36,21 @@ module.exports = {
       },
       // Mostly for tests, but legacy JS in source too
       {
-        test: /\.(js|jsx)$/,
+        test: /\.jsx?$/,
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
-          presets: ["airbnb"]
+          presets: ["@babel/stage-3", "@babel/react"]
         }
       },
       {
         test: /\.tsx?$/,
-        loader: "awesome-typescript-loader"
+        exclude: /\/node_modules\//,
+        loader: "babel-loader",
+        options: {
+          presets: ["@babel/react", "@babel/preset-typescript"]
+        }
       }
-      // {
-      //   enforce: "pre",
-      //   test: /\.js$/,
-      //   exclude: /\/node_modules\//,
-      //   loader: "source-map-loader"
-      // }
     ]
   },
 
