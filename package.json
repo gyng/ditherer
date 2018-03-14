@@ -18,7 +18,8 @@
     "tslint": "tslint -c tslint.json src/**/*.ts src/**/*.tsx",
     "tslint:fix": "tslint -c tslint.json src/**/*.ts src/**/*.tsx --fix",
     "stylelint": "stylelint '**/*.css'",
-    "d": "webpack-dev-server --progress --colors"
+    "d": "yarn dev",
+    "dev": "webpack-dev-server --progress --colors"
   },
   "dependencies": {
     "emotion": "^9.0.2",
