@@ -40,6 +40,7 @@ module.exports = {
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
+          plugins: ["@babel/proposal-object-rest-spread"],
           presets: ["@babel/stage-3", "@babel/react"]
         }
       },
@@ -48,6 +49,7 @@ module.exports = {
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
+          plugins: ["@babel/proposal-object-rest-spread"], // Needed for jsx interop
           presets: ["@babel/react", "@babel/preset-typescript"]
         }
       }
