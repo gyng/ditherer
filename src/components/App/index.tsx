@@ -34,7 +34,7 @@ const ImgRobot = styled("img")`
 const ThemedDiv = styled("div")`
   ${theme.someCssStyle};
   border-radius: ${p => p.theme.someThemeStyle.borderRadius};
-  margin: "10px 0";
+  margin: "10px 0px";
   padding: "10px";
 `;
 

@@ -73,5 +73,3 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 ### Future
 
 * Combine TSLint and ESLint to use just ESLint once ESLint support for TypeScript is mature enough
-* Add stylelint for emotion (once available)
-* Remove custom emotion-theming .ts module def when they fix the definitions
