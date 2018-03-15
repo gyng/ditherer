@@ -68,22 +68,26 @@ module.exports = {
         }
       },
       {
-        test: /\.(js|jsx)$/,
-        exclude: /(\/node_modules\/)/,
-        loader: "babel-loader",
-        options: {
-          presets: ["airbnb"]
-        }
-      },
-      {
-        test: /\.tsx?$/,
+        test: /\.jsx?$/,
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
-          plugins: ["@babel/proposal-object-rest-spread"], // Needed for jsx interop
-          presets: ["@babel/react", "@babel/preset-typescript"]
+          plugins: [
+            "@babel/transform-flow-strip-types", // needed for Flowtype
+            "@babel/proposal-object-rest-spread"
+          ],
+          presets: ["@babel/stage-3", "@babel/react"]
         }
       }
+      // {
+      //   test: /\.tsx?$/,
+      //   exclude: /\/node_modules\//,
+      //   loader: "babel-loader",
+      //   options: {
+      //     plugins: ["@babel/proposal-object-rest-spread"], // Needed for jsx interop
+      //     presets: ["@babel/react", "@babel/preset-typescript"]
+      //   }
+      // }
     ]
   },
 

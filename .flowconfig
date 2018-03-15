@@ -1,4 +1,6 @@
 [ignore]
+<PROJECT_ROOT>/node_modules/editions/.*
+<PROJECT_ROOT>/node_modules/webpack-cli/.*
 <PROJECT_ROOT>/node_modules/stylelint/.*
 <PROJECT_ROOT>/node_modules/react-draggable/.*
 
