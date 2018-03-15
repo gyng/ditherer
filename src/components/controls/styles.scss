@@ -13,6 +13,14 @@ $beautiful-blue: #000080;
   padding: 3px;
 }
 
+.name {
+  text-transform: capitalize;
+  background: grey;
+  width: 100%;
+  user-select: none;
+  cursor: default;
+}
+
 .group {
   .name {
     background-color: $light-gray;
@@ -90,14 +98,6 @@ $beautiful-blue: #000080;
   margin: 3px 0;
   display: flex;
   align-items: center;
-}
-
-.name {
-  text-transform: capitalize;
-  background: grey;
-  width: 100%;
-  user-select: none;
-  cursor: default;
 }
 
 .label {
