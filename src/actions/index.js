@@ -113,6 +113,7 @@ export const loadVideoAsync = (
     video.playbackRate = playbackRate;
     video.loop = true;
     video.autoplay = true;
+    video.play();
   };
 
   reader.readAsArrayBuffer(file);
