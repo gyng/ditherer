@@ -62,7 +62,7 @@ Object.values(localStorage).forEach(json => {
 });
 
 // Check for params
-if (URLSearchParams && window.location.search) {
+if (window.URLSearchParams && window.location.search) {
   const params = new URLSearchParams(window.location.search);
 
   // Algorithm
