@@ -1,8 +1,10 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const path = require("path");
-const webpack = require("webpack");
 
 module.exports = {
+  // Defaults to development, pass --mode production to override
+  mode: "development",
+
   context: path.resolve(__dirname, "src"),
 
   target: "web",
@@ -18,6 +20,18 @@ module.exports = {
   },
 
   module: {
+    // Exclude file-loaded WASM blowing up with webpack 4 (for now)
+    // https://github.com/webpack/webpack/issues/6725
+    defaultRules: [
+      {
+        type: "javascript/auto",
+        resolve: {}
+      },
+      {
+        test: /\.json$/i,
+        type: "json"
+      }
+    ],
     rules: [
       {
         test: /\.(css|scss)$/,
@@ -60,40 +74,41 @@ module.exports = {
         options: {
           presets: ["airbnb"]
         }
+      },
+      {
+        test: /\.tsx?$/,
+        exclude: /\/node_modules\//,
+        loader: "babel-loader",
+        options: {
+          plugins: ["@babel/proposal-object-rest-spread"], // Needed for jsx interop
+          presets: ["@babel/react", "@babel/preset-typescript"]
+        }
       }
     ]
   },
 
   plugins: [
-    new webpack.EnvironmentPlugin({
-      NODE_ENV: "development" // defaults to development
-    }),
-
-    new webpack.LoaderOptionsPlugin({
-      minimize: process.env.NODE_ENV === "production",
-      debug: process.env.NODE_ENV !== "production"
-    }),
-
-    new webpack.optimize.CommonsChunkPlugin({
-      filename: "commons.js",
-      minChunks: 2,
-      name: "commons"
-    }),
-
     new HtmlWebpackPlugin({
       files: {
         css: [],
         js: ["[name].js", "commons.js"]
       },
       template: "./index.html"
-    }),
-
-    process.env.NODE_ENV === "production"
-      ? new webpack.optimize.UglifyJsPlugin()
-      : new webpack.BannerPlugin({
-          banner: "run with NODE_ENV=production to minify"
-        })
+    })
   ],
+
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        commons: {
+          test: /[\\/]node_modules[\\/]/,
+          filename: "commons.js",
+          name: "commons",
+          chunks: "all"
+        }
+      }
+    }
+  },
 
   devtool: "cheap-eval-source-map",
 
@@ -108,12 +123,14 @@ module.exports = {
     "react/addons": true,
     "react/lib/ExecutionEnvironment": true,
     "react/lib/ReactContext": true,
-    fs: "commonjs fs",
-    path: "commonjs path"
+    fs: "commonjs fs" // required for rustc generated JS-WASM loader
   },
 
   resolve: {
-    extensions: [".js", ".jsx", ".wasm"],
-    modules: ["node_modules", path.resolve(__dirname, "src")]
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".wasm"],
+    modules: ["node_modules", path.resolve(__dirname, "src")],
+    alias: {
+      "@src": path.resolve(__dirname, "src")
+    }
   }
 };

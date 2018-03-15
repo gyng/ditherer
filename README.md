@@ -28,13 +28,20 @@ For all your online dithering needs.
 #### Deploying
 
 ```
-NODE_ENV=production yarn deploy
+NODE_ENV=production  yarn deploy
 ```
 
 or
 
 ```
-NODE_ENV=production yarn build
+NODE_ENV=production yarn build:prod
+yarn deploy:prebuilt
+```
+
+or
+
+```
+NODE_ENV=production  yarn build:prod
 git checkout gh-pages
 rm commons.js index.html app.*.js
 mv build/* .
