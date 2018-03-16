@@ -1,6 +1,7 @@
 const baseConfig = require("./webpack.config.js");
 
 const testConfig = {
+  mode: "development",
   devtool: baseConfig.devtool,
   externals: baseConfig.externals,
   module: baseConfig.module,

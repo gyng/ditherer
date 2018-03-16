@@ -34,11 +34,11 @@
     "redux-thunk": "^2.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.0.0-beta.41",
-    "@babel/plugin-proposal-object-rest-spread": "^7.0.0-beta.41",
-    "@babel/plugin-transform-flow-strip-types": "^7.0.0-beta.41",
-    "@babel/preset-react": "^7.0.0-beta.41",
-    "@babel/preset-stage-3": "^7.0.0-beta.41",
+    "@babel/core": "^7.0.0-beta.42",
+    "@babel/plugin-proposal-object-rest-spread": "^7.0.0-beta.42",
+    "@babel/plugin-transform-flow-strip-types": "^7.0.0-beta.42",
+    "@babel/preset-react": "^7.0.0-beta.42",
+    "@babel/preset-stage-3": "^7.0.0-beta.42",
     "autoprefixer": "^8.1.0",
     "babel-eslint": "^8.0.1",
     "babel-loader": "^8.0.0-beta.2",

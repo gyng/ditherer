@@ -202,15 +202,20 @@ export const wasmRgba2laba = (
     ref.z
   );
 
-const wasm = require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.js");
-// $FlowFixMe
-require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm");
+let wasm;
+try {
+  wasm = require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.js"); // eslint-disable-line
+  // $FlowFixMe
+  require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm"); // eslint-disable-line
 
-wasm.then(obj => {
-  wasmRgba2labaInner = obj.rgba2laba;
-  wasmRgbaLabaDistanceInner = obj.rgbaLabaDistance;
-  // console.log(obj, "override");
-});
+  wasm.then(obj => {
+    wasmRgba2labaInner = obj.rgba2laba;
+    wasmRgbaLabaDistanceInner = obj.rgbaLabaDistance;
+    // console.log(obj, "override");
+  });
+} catch (e) {
+  console.log(e, "Failed to load WASM"); // eslint-disable-line
+}
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (
