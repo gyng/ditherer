@@ -22,9 +22,9 @@
   "dependencies": {
     "history": "^4.7.2",
     "pako": "1.0.6",
-    "prop-types": "^15.6.0",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "prop-types": "^15.6.1",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0",
     "react-draggable": "^3.0.3",
     "react-redux": "^5.0.6",
     "react-router": "^4.2.0",
