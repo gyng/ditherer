@@ -4,6 +4,14 @@ import React from "react";
 
 import s from "./styles.scss";
 
+const onManualValue = props => {
+  const newValue = window.prompt("Value"); // eslint-disable-line
+  const parsed = parseFloat(newValue);
+  if (parsed || parsed === 0) {
+    props.onSetFilterOption(props.name, parsed);
+  }
+};
+
 const Range = (props: {
   name: string,
   types: { range: [number, number] },
@@ -21,18 +29,18 @@ const Range = (props: {
         value={props.value}
         step={props.step || 1}
         onChange={e =>
-          props.onSetFilterOption(props.name, parseFloat(e.target.value))}
+          props.onSetFilterOption(props.name, parseFloat(e.target.value))
+        }
       />
 
       <span
         role="button"
         tabIndex="0"
         className={[s.value, s.clickable].join(" ")}
-        onClick={() => {
-          const newValue = window.prompt("Value"); // eslint-disable-line
-          const parsed = parseFloat(newValue);
-          if (parsed || parsed === 0) {
-            props.onSetFilterOption(props.name, parsed);
+        onClick={() => onManualValue(props)}
+        onKeyPress={e => {
+          if (e.key === "Enter") {
+            onManualValue(props);
           }
         }}
       >

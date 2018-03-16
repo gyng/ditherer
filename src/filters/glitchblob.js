@@ -109,7 +109,7 @@ const blobToUint8Array = (blob: Blob): Promise<Uint8Array> =>
       if (blob.size === event.target.result.byteLength) {
         resolve(new Uint8Array(event.target.result));
       } else {
-        reject("I've lost my mind");
+        reject(new Error("I've lost my mind"));
       }
     };
     fileReader.onerror = e => {
@@ -167,22 +167,27 @@ const transformRepeat = (
 const setU32 = (data: Uint8Array, value: number) => {
   const tmpBuf = new ArrayBuffer(4);
   new DataView(tmpBuf).setUint32(0, value);
+  /* eslint-disable */
   data[0] = new Uint8Array(tmpBuf)[0];
   data[1] = new Uint8Array(tmpBuf)[1];
   data[2] = new Uint8Array(tmpBuf)[2];
   data[3] = new Uint8Array(tmpBuf)[3];
+  /* eslint-enable */
 };
 
 const getU32 = (data: Uint8Array) => {
   const tmpBuf = new ArrayBuffer(4);
+  /* eslint-disable */
   new Uint8Array(tmpBuf)[0] = data[0];
   new Uint8Array(tmpBuf)[1] = data[1];
   new Uint8Array(tmpBuf)[2] = data[2];
   new Uint8Array(tmpBuf)[3] = data[3];
+  /* eslint-enable */
   return new DataView(tmpBuf).getUint32(0);
 };
 
 const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
+  /* eslint-disable */
   function buildCRC32Table(poly) {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n += 1) {
@@ -205,6 +210,7 @@ const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
     crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
   }
   crc ^= 0xffffffff;
+  /* eslint-enable */
   setU32(crcBuf, crc);
 };
 

@@ -133,7 +133,8 @@ export default class App extends React.Component<*, State> {
               e,
               this.props.inputVideoVolume,
               this.props.inputVideoPlaybackRate
-            )}
+            )
+          }
           onDragLeave={() => {
             this.setState({ dropping: false });
           }}
@@ -149,7 +150,7 @@ export default class App extends React.Component<*, State> {
         />
 
         <Range
-          name={"Input Scale"}
+          name="Input Scale"
           types={{ range: [0.1, 4] }}
           step={0.1}
           onSetFilterOption={(_: string, value: any) => {
@@ -198,7 +199,8 @@ export default class App extends React.Component<*, State> {
               <span
                 role="presentation"
                 onClick={() =>
-                  this.props.onConvertGrayscale(!this.props.convertGrayscale)}
+                  this.props.onConvertGrayscale(!this.props.convertGrayscale)
+                }
                 className={controls.label}
               >
                 Pre-convert to grayscale
@@ -279,7 +281,7 @@ export default class App extends React.Component<*, State> {
 
           <div>
             <Range
-              name={"Video Playback Rate"}
+              name="Video Playback Rate"
               types={{ range: [0, 2] }}
               step={0.05}
               onSetFilterOption={(_: string, value: any) => {
@@ -372,7 +374,7 @@ export default class App extends React.Component<*, State> {
             />
 
             <Range
-              name={"Output Scale"}
+              name="Output Scale"
               types={{ range: [0.1, 4] }}
               step={0.1}
               onSetFilterOption={(_: string, value: any) => {
@@ -504,7 +506,6 @@ App.propTypes = {
 
 App.defaultProps = {
   availableFilters: [],
-  children: null,
   className: s.app,
   convertGrayscale: false,
   inputImage: null,

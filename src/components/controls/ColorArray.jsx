@@ -58,6 +58,15 @@ type State = {
   extractMode: string
 };
 
+const onDeleteColor = (e, props) => {
+  props.onSetPaletteOption(
+    "colors",
+    props.value.filter(
+      (_, idx) => idx !== parseInt(e.target.dataset.idx, 10) - 1
+    )
+  );
+};
+
 export default class ColorArray extends React.Component<Props, State> {
   constructor() {
     super();
@@ -79,7 +88,8 @@ export default class ColorArray extends React.Component<Props, State> {
         className={s.enum}
         value={currentThemeName}
         onChange={e =>
-          this.props.onSetPaletteOption("colors", THEMES[e.target.value])}
+          this.props.onSetPaletteOption("colors", THEMES[e.target.value])
+        }
       >
         {Object.entries(THEMES).map(e => {
           const [key, val] = e;
@@ -109,13 +119,13 @@ export default class ColorArray extends React.Component<Props, State> {
               title={`${color} - click to remove`}
               role="button"
               tabIndex="0"
+              onKeyPress={e => {
+                if (e.key === "Enter") {
+                  onDeleteColor(e, this.props);
+                }
+              }}
               onClick={e => {
-                this.props.onSetPaletteOption(
-                  "colors",
-                  this.props.value.filter(
-                    (_, idx) => idx !== parseInt(e.target.dataset.idx, 10) - 1
-                  )
-                );
+                onDeleteColor(e, this.props);
               }}
               style={{
                 backgroundColor: color
