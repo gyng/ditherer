@@ -2,15 +2,16 @@
  * Ideally you want to avoid using this as much as possible, and use the
  * ThemeProvider styling provided by emotion-theming.
  *
- * However, there *are* cases where legacy libraries can only be styled through
- * unmangled class names, and this mechanism allows for that.
+ * However, there *are* cases where vanilla CSS is more appropriate
+ * so this is still provided as a fallback.
  *
  * Or, if you're plain uncomfortable with CSS-in-JS, emotion can be ignored entirely (and
  * all styling done through vanilla CSS as provided through webpack's css-loader)
 */
 
 /* Relative path resolution */
-@import "./typography.legacy.css";
+@import "./variables.css";
+@import "./typography.css";
 
 :root {
   --font-color-override: hsl(0, 0%, 95%);

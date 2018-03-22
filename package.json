@@ -17,7 +17,7 @@
     "eslint:fix": "eslint . --ext .js --ext .jsx --fix",
     "tslint": "tslint -c tslint.json src/**/*.ts src/**/*.tsx",
     "tslint:fix": "tslint -c tslint.json src/**/*.ts src/**/*.tsx --fix",
-    "stylelint": "stylelint '**/*.css' '**/*.tsx' '**/*.jsx' '**/*theme.ts'",
+    "stylelint": "stylelint --config .stylelintrc-noprocessor '**/*.css' && stylelint '**/*.tsx' '**/*.jsx' '**/*theme.ts'",
     "d": "yarn dev",
     "dev": "webpack-dev-server --progress --colors"
   },

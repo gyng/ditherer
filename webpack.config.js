@@ -21,9 +21,9 @@ module.exports = {
 
   module: {
     rules: [
-      // Escape hatch for CSS module classname mangling
+      // Vanilla CSS
       {
-        test: /\.legacy\.css$/,
+        test: /\.css$/,
         include: path.resolve(__dirname, "src"),
         loaders: ["style-loader", "css-loader"]
       },

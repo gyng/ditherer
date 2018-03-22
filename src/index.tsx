@@ -18,8 +18,8 @@ import {
 import App from "@src/components/App";
 import reducers from "@src/reducers";
 
-// CSS escape hatch: name files with myfile.legacy.css
-const legacyCss = require("./styles/style.legacy.css");
+// Include vanila CSS
+const rootCss = require("./styles/root.css");
 
 // https://github.com/emotion-js/emotion/pull/419
 // import { ThemeProvider } from "emotion-theming";
