@@ -10,6 +10,10 @@ export default {
     align-self: center;
     transition: border-radius 0.3s ease-in;
 
+    .sub {
+      font-style: italic;
+    }
+
     &:hover {
       border-radius: var(--curve);
 
@@ -17,10 +21,6 @@ export default {
         color: red;
         text-decoration: underline;
       }
-    }
-
-    .sub {
-      font-style: italic;
     }
   `,
   someThemeStyle: {

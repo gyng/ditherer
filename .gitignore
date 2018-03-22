@@ -3,3 +3,4 @@ node_modules/
 npm-debug.log
 set_config_folder_dir
 yarn-error.log
+.DS_Store
