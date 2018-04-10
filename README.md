@@ -68,6 +68,7 @@ Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](
 
 ### Deploy
 
+    yarn deploy:github              # deploys a production build to GitHub pages
     docker-compose up               # runs http-server at port 8080 on a production build in a container
 
 ### Future

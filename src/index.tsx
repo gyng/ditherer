@@ -56,8 +56,14 @@ ReactDOM.render(
   <Provider store={store}>
     <ConnectedRouter history={history}>
       <div>
-        <MyRoute exact path="/" component={App} unusedProp="unused" />
         <MyRoute path="/counter" component={App} unusedProp="unused" />
+        <MyRoute
+          path="/jsapp-boilerplate"
+          exact
+          component={App}
+          unusedProp="unused"
+        />
+        <MyRoute path="/" exact component={App} unusedProp="unused" />
       </div>
     </ConnectedRouter>
   </Provider>,

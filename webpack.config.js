@@ -16,7 +16,7 @@ module.exports = {
   output: {
     filename: "[name].[hash:7].js",
     path: path.resolve(__dirname, "build"),
-    publicPath: "/"
+    publicPath: process.env.NODE_ENV === "production" ? "./" : "/"
   },
 
   module: {
