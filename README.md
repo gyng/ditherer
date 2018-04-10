@@ -35,10 +35,11 @@ This boilerplate contains:
 | [docker-compose](https://docs.docker.com/compose/compose-file/)           | multi-container              |
 | [travis](https://docs.travis-ci.com/user/customizing-the-build)           | ci                           |
 
+[Ditherer](https://github.com/gyng/ditherer) is a project built using an older version of this boilerplate.
+
 ## Usage
 
-Also see: [Getting started](doc/getting_started.md), [Removing bits and pieces](doc/customization.md),
-[Running tests in a Docker Container](doc/docker_tests.md)
+Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker Container](doc/docker_tests.md)
 
 ### Build
 
