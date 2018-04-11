@@ -12,7 +12,6 @@
     "test:full": "yarn test && yarn test:functional",
     "test:functional": "mocha test/functional/*.functional.jsx",
     "test:watch": "karma start",
-    "flow": "flow check",
     "eslint": "eslint . --ext .js --ext .jsx",
     "eslint:fix": "eslint . --ext .js --ext .jsx --fix",
     "tslint": "tslint -c tslint.json src/**/*.ts src/**/*.tsx",
