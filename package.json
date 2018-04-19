@@ -17,7 +17,7 @@
     "prettier": "echo '💈 Listing files to format. Run yarn prettier:write to write.\n' && prettier --list-different src/**/*.js src/**/*.jsx src/**/*.ts src/**/*.tsx  test/**/*.js test/**/*.jsx *.config.js",
     "stylelint": "stylelint --config .stylelintrc-noprocessor '**/*.css' && stylelint '**/*.tsx' '**/*.jsx' '**/*theme.ts'",
     "test:full": "yarn test && yarn test:functional",
-    "test:functional": "mocha test/functional/*.functional.jsx",
+    "test:functional": "mocha test/functional/*.functional.{js,jsx}",
     "test:watch": "karma start",
     "test": "karma start --single-run",
     "tslint:fix": "tslint -c tslint.json src/**/*.ts src/**/*.tsx --fix",

@@ -1,42 +1,17 @@
-/* eslint-disable no-console */
-
-const WebpackDevServer = require("webpack-dev-server");
-const webpack = require("webpack");
-const config = require("../../webpack.config.js");
 const Nightmare = require("nightmare");
 const { expect } = require("chai");
-
-let server;
-let url;
+const { setup, teardown, url } = require("./helpers");
 
 describe("Functional tests", function funcTest() {
   // Required for async mocha tests, adjust as needed
   this.timeout(15000);
 
   before(() => {
-    const compiler = webpack(config);
-    server = new WebpackDevServer(
-      compiler,
-      Object.assign(config.devServer, {
-        quiet: true,
-        headers: { Connection: null } // Disable Connection: Keep-Alive
-      })
-    );
-    server.listen(49999, "localhost");
-
-    url = "http://localhost:49999";
-    console.log(`Started webpack-dev-server at ${url}`);
+    setup();
   });
 
   after(() => {
-    server.close(() => {
-      process.exit();
-    });
-    console.log("Closed webpack-dev-server");
-    setTimeout(() => {
-      console.log("Forced abort after 5000ms");
-      process.exit();
-    }, 5000);
+    teardown();
   });
 
   // Simplest example functional test
