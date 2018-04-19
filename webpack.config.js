@@ -16,6 +16,7 @@ module.exports = {
   output: {
     filename: "[name].[hash:7].js",
     path: path.resolve(__dirname, "build"),
+    // ./ is used when hosting in a subdirectory (eg. GitHub pages)
     publicPath: process.env.NODE_ENV === "production" ? "./" : "/"
   },
 
@@ -58,10 +59,6 @@ module.exports = {
 
   plugins: [
     new HtmlWebpackPlugin({
-      files: {
-        css: [],
-        js: ["[name].js", "commons.js"]
-      },
       template: "./index.html"
     })
   ],
@@ -69,10 +66,10 @@ module.exports = {
   optimization: {
     splitChunks: {
       cacheGroups: {
-        commons: {
-          test: /[\\/]node_modules[\\/]/,
-          filename: "commons.js",
-          name: "commons",
+        vendors: {
+          test: /\/node_modules\//,
+          filename: "vendors.js",
+          name: "vendors",
           chunks: "all"
         }
       }
