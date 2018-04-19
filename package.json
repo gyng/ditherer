@@ -3,8 +3,9 @@
   "name": "jsapp-boilerplate",
   "version": "0.0.1",
   "scripts": {
-    "build:prod": "rm -rf build && webpack --progress --config webpack.config.js --mode production",
-    "build": "rm -rf build && webpack --progress --config webpack.config.js",
+    "build:prod": "webpack --progress --config webpack.config.js --mode production",
+    "build": "webpack --progress --config webpack.config.js",
+    "clean": "rm -rf build",
     "d": "yarn dev",
     "deploy:github:prebuilt": "gh-pages --dist build",
     "deploy:github": "rm -rf build && NODE_ENV=production yarn build:prod && yarn deploy:github:prebuilt",
