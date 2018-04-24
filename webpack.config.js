@@ -1,4 +1,5 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const WebpackShellPlugin = require("webpack-shell-plugin");
 const path = require("path");
 
 module.exports = {
@@ -58,6 +59,10 @@ module.exports = {
   },
 
   plugins: [
+    new WebpackShellPlugin({
+      onBuildEnd: ["yarn --silent tsc:check:no-error"],
+      dev: false
+    }),
     new HtmlWebpackPlugin({
       template: "./index.html"
     })

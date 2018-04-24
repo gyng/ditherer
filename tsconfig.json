@@ -11,7 +11,8 @@
     "paths": {
       "@src/*": ["src/*"]
     },
-    "typeRoots": ["./typings", "./node_modules/@types"]
+    "typeRoots": ["./typings", "./node_modules/@types"],
+    "pretty": true
   },
   "include": ["./src/**/*"]
 }
