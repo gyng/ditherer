@@ -2,7 +2,7 @@
 
 1. This boilerplate depends on [node](https://nodejs.org/en/download/) and [yarn](https://yarnpkg.com/lang/en/docs/install/).
 
-   It also uses [ESLint](http://eslint.org/), [TSLint](https://palantir.github.io/tslint/), [stylelint](https://stylelint.io/), and [TypeScript](https://www.typescriptlang.org/). Linter plugins should be set up in your editor of choice before starting development work.
+   It also uses [ESLint](http://eslint.org/), [TSLint](https://palantir.github.io/tslint/), [stylelint](https://stylelint.io/), [Prettier](https://prettier.io), and [TypeScript](https://www.typescriptlang.org/). Linter plugins should be set up in your editor of choice before starting development work.
 
    Optionally, you will need [Docker](https://docs.docker.com/engine/installation/) and [Docker Compose](https://docs.docker.com/compose/install/) to run the provided docker image.
 
@@ -10,8 +10,8 @@
 
 2. Check out this repo and [change the remotes to your own repository](https://help.github.com/articles/changing-a-remote-s-url/)
     ```
-    git clone git@github.com:gyng/jsapp-boilerplate.git
-    cd jsapp-boilerplate
+    git clone git@github.com:gyng/jsapp-boilerplate.git <YOUR_PROJECT_NAME>
+    cd <YOUR_PROJECT_NAME>
     git remote set-url origin <YOUR_ORIGIN>
     ```
 
@@ -41,15 +41,13 @@
     yarn run d
     ```
 
-8. [Remove the bits you do not want](customization.md#removing-bits-and-pieces), if you wish
+8. Check out the [webpack configuration](/webpack.config.js).
 
-9. Check out the [webpack configuration](/webpack.config.js).
+9. Check out the styling options [emotion JS-in-CSS](/src/components/App/index.tsx) and [CSS escape hatch](/src/styles/root.css). Styling is intended to be done through emotion, but the escape hatch is available for   legacy libraries and manual control. Legacy styles need to have a filename ending in `.css`, and are included using `require` instead of `import`.
 
-10. Check out the styling options [emotion JS-in-CSS](/src/components/App/index.tsx) and [CSS escape hatch](/src/styles/root.css). Styling is intended to be done through emotion, but the escape hatch is available for   legacy libraries and manual control. Legacy styles need to have a filename ending in `.css`, and are included using `require` instead of `import`.
-
-11. Try running the [Docker image](/Dockerfile) with Docker Compose ([compose configuration](/docker-compose.yml))
+10. Try running the [Docker image](/Dockerfile) with Docker Compose ([compose configuration](/docker-compose.yml))
     ```
     docker-compose up
     ```
 
-12. Remove demo-related things from `doc`, `src`, `test` (and `test/functional`), and start developing! (Or just keep them for reference for now.)
+11. Remove demo-related things from `doc`, `src`, `test` (and `test/functional`), and start developing! (Or just keep them for reference for now.)
