@@ -64,8 +64,9 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
 
 ### Develop
 
+    yarn d                          # runs webpack-dev-server (yarn dev) or use
+    yarn d:hot                      # runs webpack-dev-server in hot reload mode (yarn dev:hot)
     yarn test:watch                 # runs unit tests using karma in watch mode
-    yarn d                          # runs webpack-dev-server
 
 ### Deploy
 
