@@ -17,5 +17,5 @@ export const decrement = (value: number = 1): DecrementAction => ({
 });
 
 export const incrementAsync = (value: number = 1, delay: number = 1000) => (
-  dispatch: Dispatch<IncrementAction, State>
+  dispatch: Dispatch<IncrementAction>
 ) => setTimeout(() => dispatch(increment(value)), delay);

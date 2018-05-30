@@ -1,13 +1,22 @@
 # Running Tests in Docker Containers
+
 If you want to run the tests in a Docker Container, you should consider modifying the `Dockerfile`.
 
-## Base Image
-You might want to change the base image to `node:8.7.0` which is based off `Ubuntu` rather than `Alpine`.
+An example `Dockerfile.test.dockerfile` that runs lint checks and all tests is provided and can be run using
 
-Primarily, many binaries used in the test (such as Electron, and Flow) are linked against `glibc` rather than
+```
+docker-compose -f docker-compose.test.yml up --build
+```
+
+## Notes
+
+The base image is changed from Alpine to `node:8.7.0`.
+
+Some binaries used in the test (namely, Electron) are linked against `glibc` rather than
 `musl` which is what Alpine includes.
 
 ## Dependencies
+
 You will have to install additional dependencies as required by Electron.
 
   - xvfb
@@ -17,37 +26,3 @@ You will have to install additional dependencies as required by Electron.
   - libgconf2-4
   - libnss3
   - libasound2
-
-## Example Dockerfile
-
-```dockerfile
-FROM node:8.7.0
-
-ARG YARN_VERSION=1.2.1
-# These depdendencies below are installed for Electron which is used by Nightmare
-RUN set -ex \
-    && apt-get update \
-    && apt-get install -y \
-                          xvfb \
-                          libgtk2.0 \
-                          libxtst6 \
-                          libxss1 \
-                          libgconf2-4 \
-                          libnss3 \
-                          libasound2 \
-    && npm install -g "yarn@${YARN_VERSION}" http-server
-
-WORKDIR /usr/src/app
-
-COPY package.json yarn.lock /usr/src/app/
-RUN yarn install --frozen-lockfile \
-    && yarn check --integrity \
-    && yarn cache clean
-
-ARG NODE_ENV=production
-COPY . /usr/src/app
-RUN yarn build
-
-EXPOSE 8080
-CMD ["http-server", "build"]
-```

@@ -12,6 +12,9 @@ const mapDispatchToProps = (dispatch: any) => ({
   onIncrementClickAsync: () => dispatch(incrementAsync())
 });
 
-const ContainedCounter = connect(mapStateToProps, mapDispatchToProps)(Counter);
+const ContainedCounter = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Counter);
 
 export default ContainedCounter;
