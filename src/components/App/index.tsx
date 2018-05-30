@@ -38,11 +38,11 @@ const ThemedDiv = styled("div")`
   padding: "10px";
 `;
 
-export interface AppProps {
+export interface IAppProps {
   match: { url: string };
 }
 
-export default class App extends React.Component<AppProps, {}> {
+export default class App extends React.Component<IAppProps, {}> {
   public static defaultProps: {
     match: { url: string };
   };

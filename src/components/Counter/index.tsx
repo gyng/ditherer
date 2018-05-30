@@ -1,13 +1,13 @@
 import * as React from "react";
 
-export interface CounterProps {
-  value: number;
+export interface ICounterProps {
+  onDecrementClick: () => void;
   onIncrementClick: () => void;
   onIncrementClickAsync: () => void;
-  onDecrementClick: () => void;
+  value: number;
 }
 
-export default class Counter extends React.Component<CounterProps, {}> {
+export default class Counter extends React.Component<ICounterProps, {}> {
   public render() {
     return (
       <div>

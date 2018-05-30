@@ -1,15 +1,16 @@
-import React from "react";
-import Enzyme, { shallow } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
-import Counter from "components/Counter";
+/* tslint:disable:no-empty */
 
-Enzyme.configure({ adapter: new Adapter() });
+import Counter from "@src/components/Counter";
+import { expect } from "chai";
+import * as Enzyme from "enzyme";
+import * as React from "react";
+require("@test/helpers/enzyme");
 
 describe("Counter", () => {
-  let render;
+  let render: Enzyme.ShallowWrapper;
 
   before(() => {
-    render = shallow(
+    render = Enzyme.shallow(
       <Counter
         value={0}
         onIncrementClick={() => {}}

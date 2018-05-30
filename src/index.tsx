@@ -47,10 +47,10 @@ const store = createStore(
 );
 
 // Example of extending extra props on library components
-interface MyRouteProps extends RouteProps {
+interface IMyRouteProps extends RouteProps {
   unusedProp: string;
 }
-class MyRoute extends Route<MyRouteProps> {}
+class MyRoute extends Route<IMyRouteProps> {}
 
 ReactDOM.render(
   <Provider store={store}>

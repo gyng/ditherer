@@ -1,8 +1,8 @@
-import * as actions from "actions";
+import * as actions from "@src/actions";
 import { ActionTypes } from "@src/types";
-
-import thunk from "redux-thunk";
+import { expect } from "chai";
 import configureMockStore from "redux-mock-store";
+import thunk from "redux-thunk";
 
 const middlewares = [thunk];
 const mockStore = configureMockStore(middlewares);
@@ -29,11 +29,11 @@ describe("actions", () => {
   });
 
   describe("async", () => {
-    let timeout;
+    let timeout: typeof window.setTimeout;
 
     beforeEach(() => {
       timeout = window.setTimeout;
-      window.setTimeout = f => f();
+      window.setTimeout = (f: any) => f();
     });
 
     afterEach(() => {
@@ -45,10 +45,10 @@ describe("actions", () => {
       const action = actions.incrementAsync(2, 0);
       const expectedActions = [{ type: ActionTypes.INCREMENT, value: 2 }];
 
-      return Promise.resolve(store.dispatch(action)).then(() => {
+      Promise.resolve(store.dispatch(action)).then(() => {
         const dispatched = store.getActions();
         expect(dispatched).to.have.length(1);
-        expect(dispatched).to.eql(expectedActions);
+        expect(dispatched).to.deep.equal(expectedActions);
       });
     });
   });

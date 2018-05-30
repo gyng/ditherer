@@ -1,6 +1,6 @@
 const Nightmare = require("nightmare");
 const { expect } = require("chai");
-const { setup, teardown, url } = require("./helpers");
+const { setup, teardown, url } = require("../helpers/functional");
 
 describe("Functional tests", function funcTest() {
   // Required for async mocha tests, adjust as needed

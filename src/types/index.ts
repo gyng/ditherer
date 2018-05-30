@@ -1,9 +1,9 @@
-export interface CountersState {
+export interface ICountersState {
   value: number;
 }
 
-export interface State {
-  counters: CountersState;
+export interface IState {
+  counters: ICountersState;
 }
 
 export enum ActionTypes {
@@ -11,14 +11,14 @@ export enum ActionTypes {
   DECREMENT = "DECREMENT"
 }
 
-export interface IncrementAction {
+export interface IIncrementAction {
   type: ActionTypes.INCREMENT;
   value: number;
 }
 
-export interface DecrementAction {
+export interface IDecrementAction {
   type: ActionTypes.DECREMENT;
   value: number;
 }
 
-export type Action = IncrementAction | DecrementAction;
+export type Action = IIncrementAction | IDecrementAction;

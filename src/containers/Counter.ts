@@ -2,9 +2,10 @@ import { connect } from "react-redux";
 
 import { decrement, increment, incrementAsync } from "@src/actions";
 import Counter from "@src/components/Counter";
-import { State } from "@src/types";
+import { Action, IState } from "@src/types";
+import { Dispatch } from "redux";
 
-const mapStateToProps = (state: State) => ({ value: state.counters.value });
+const mapStateToProps = (state: IState) => ({ value: state.counters.value });
 
 const mapDispatchToProps = (dispatch: any) => ({
   onDecrementClick: () => dispatch(decrement()),
