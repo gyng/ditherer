@@ -51,7 +51,7 @@ module.exports = {
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
-          plugins: ["@babel/proposal-object-rest-spread"], // Needed for jsx interop
+          plugins: ["@babel/proposal-object-rest-spread"],
           presets: ["@babel/react", "@babel/preset-typescript"]
         }
       }
