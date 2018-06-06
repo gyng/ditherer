@@ -1,15 +1,9 @@
-language: node_js
-node_js:
-  - "8.4.0"
-cache: yarn
-addons:
-  apt:
-    packages:
-      - xvfb
-before_script:
-  - export DISPLAY=':99.0'
-  - Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+sudo: required
+
+language: generic
+
+services:
+  - docker
+
 script:
-  - yarn run lint
-  - yarn run test
-  - yarn run test:functional
+  - docker-compose -f docker-compose.test.yml up --build
