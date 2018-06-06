@@ -16,9 +16,9 @@ RUN yarn install --frozen-lockfile \
 
 ARG NODE_ENV=production
 COPY . /usr/src/app
-RUN yarn build
+RUN yarn build:prod
 
 RUN apk del git
 
 EXPOSE 8080
-CMD ["http-server", "dist"]
+CMD ["http-server", "dist", "--gzip"]

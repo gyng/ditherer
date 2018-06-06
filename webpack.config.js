@@ -1,6 +1,6 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
-const BrotliPlugin = require("brotli-webpack-plugin");
+const CompressionPlugin = require("compression-webpack-plugin");
 const path = require("path");
 
 const DEV = process.env.NODE_ENV === "development";
@@ -87,7 +87,9 @@ module.exports = {
       template: "./index.html",
       favicon: "./static/favicon.ico"
     }),
-    ...(PROD ? [new BrotliPlugin()] : [])
+    // Generate .gz for production builds
+    // Consider adding brotli-webpack-plugin if your server supports .br
+    ...(PROD ? [new CompressionPlugin()] : [])
   ],
 
   optimization: {
