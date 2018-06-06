@@ -2,10 +2,7 @@
 
 [![Build Status](https://travis-ci.org/gyng/jsapp-boilerplate.svg?branch=master)](https://travis-ci.org/gyng/jsapp-boilerplate)
 
-A personal JavaScript boilerplate for frontend applications for near-production use. Production deployment will require additional work depending on where and how you plan to deploy your application.
-
-The stack is somewhat similar to [generator-react-webpack-redux](https://github.com/stylesuxx/generator-react-webpack-redux), but adds linting, TypeScript, testing, and some basic deployment niceties.
-Code uses TypeScript for bug-catching, but tests use vanilla JavaScript for easier test-writing.
+A personal JavaScript boilerplate for frontend applications for near-production use. Production deployment will require additional work depending on where and how you plan to deploy your application as this boilerplate only provides deployment to GitHub pages.
 
 This boilerplate contains:
 

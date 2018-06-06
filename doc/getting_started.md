@@ -44,7 +44,7 @@
 
     Alternatively, there is a `Dockerfile.test.dockerfile` that runs tests in a Docker image and can be run using `docker-compose -f docker-compose.test.yml up --build`.
 
-7. For development, the watchers can be run. `yarn d` starts a development webpack server.
+7. For development, the watchers can be run. `yarn d` starts a development webpack server. `yarn d:hot` runs a dev session with hot reload.
     ```
     yarn run test:watch
     yarn run d
@@ -60,3 +60,5 @@
     ```
 
 11. Remove demo-related things from `doc`, `src`, `test` (and `test/functional`), and start developing! (Or just keep them for reference for now.)
+
+12. Deployment to GitHub pages is done using the `gh-pages` package and can be run using `deploy:github`.
