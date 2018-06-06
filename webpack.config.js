@@ -29,7 +29,7 @@ module.exports = {
         loaders: ["style-loader", "css-loader"]
       },
       {
-        test: /\.(jpg|png|gif|mp4|webm|mp3|ogg)$/,
+        test: /\.(jpg|png|gif|mp4|webm|mp3|ogg|svg)$/,
         loader: "file-loader",
         options: {
           name: "./f/[path][name].[hash].[ext]"

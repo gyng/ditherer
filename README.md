@@ -72,7 +72,3 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
 
     yarn deploy:github              # deploys a production build to GitHub pages
     docker-compose up               # runs http-server at port 8080 on a production build in a container
-
-### Future
-
-* Combine TSLint and ESLint to use just ESLint once ESLint support for TypeScript is mature enough
