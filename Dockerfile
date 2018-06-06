@@ -1,4 +1,4 @@
-FROM node:8.7.0-alpine
+FROM node:10.3.0-alpine
 
 ARG YARN_VERSION=1.2.1
 RUN npm install -g "yarn@${YARN_VERSION}" http-server
@@ -21,4 +21,4 @@ RUN yarn build
 RUN apk del git
 
 EXPOSE 8080
-CMD ["http-server", "build"]
+CMD ["http-server", "dist"]

@@ -24,16 +24,9 @@ module.exports = config => {
       "karma-webpack"
     ],
 
-    files: [
-      "test/**/*.test.js",
-      "test/**/*.test.jsx",
-      "test/**/*.test.ts",
-      "test/**/*.test.tsx"
-    ],
+    files: ["test/**/*.test.ts", "test/**/*.test.tsx"],
 
     preprocessors: {
-      "test/**/*.test.js": ["webpack", "sourcemap"],
-      "test/**/*.test.jsx": ["webpack", "sourcemap"],
       "test/**/*.test.ts": ["webpack", "sourcemap"],
       "test/**/*.test.tsx": ["webpack", "sourcemap"]
     },

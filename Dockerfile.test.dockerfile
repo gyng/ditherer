@@ -1,6 +1,6 @@
-FROM node:8.7.0
+FROM node:10.3.0
 
-ARG YARN_VERSION=1.2.1
+ARG YARN_VERSION=1.7.0
 # These depdendencies below are installed for Electron which is used by Nightmare
 RUN set -ex \
     && apt-get update \
@@ -23,7 +23,9 @@ RUN yarn install --frozen-lockfile \
 
 ARG NODE_ENV=production
 COPY . /usr/src/app
+
+# Check that it builds
 RUN yarn build
 
 ARG DISPLAY=':99.0'
-RUN Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & yarn lint && yarn test:full
+RUN yarn test:xvfb & yarn lint && yarn test:full

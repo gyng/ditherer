@@ -16,7 +16,6 @@ module.exports = {
 
   output: {
     filename: "[name].[hash:7].js",
-    path: path.resolve(__dirname, "build"),
     // ./ is used when hosting in a subdirectory (eg. GitHub pages)
     publicPath: process.env.NODE_ENV === "production" ? "./" : "/"
   },
@@ -74,7 +73,7 @@ module.exports = {
       cacheGroups: {
         vendors: {
           test: /\/node_modules\//,
-          filename: "vendors.js",
+          filename: "vendors.[hash:7].js",
           name: "vendors",
           chunks: "all"
         }

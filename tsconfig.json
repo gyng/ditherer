@@ -1,20 +1,23 @@
 {
   "compilerOptions": {
-    "outDir": "./build/",
-    "sourceMap": true,
-    "noImplicitAny": true,
-    "module": "es6",
-    "moduleResolution": "node",
-    "target": "es5",
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": "./",
+    "esModuleInterop": true,
     "jsx": "react",
     "lib": ["es5", "es2015", "dom"],
-    "baseUrl": "./",
+    "module": "es6",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "outDir": "./build/",
     "paths": {
       "@src/*": ["src/*"],
       "@test/*": ["test/*"]
     },
-    "typeRoots": ["./typings", "./node_modules/@types"],
-    "pretty": true
+    "sourceMap": true,
+    "strict": true,
+    "target": "es5",
+    "pretty": true,
+    "typeRoots": ["./typings", "./node_modules/@types"]
   },
   "include": ["./src/**/*", "./test/**/*"]
 }
