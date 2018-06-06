@@ -1,10 +1,19 @@
+const webpack = require("webpack");
 const baseConfig = require("./webpack.config.js");
 
 const testConfig = {
-  devtool: baseConfig.devtool,
   externals: baseConfig.externals,
   module: baseConfig.module,
-  resolve: baseConfig.resolve
+  resolve: baseConfig.resolve,
+  plugins: [
+    // Add this to get karma-sourcemap-loader to pick it up
+    // webpack.devtool seems to be ignored
+    new webpack.SourceMapDevToolPlugin({
+      test: /\.(tsx?|jsx?)($|\?)/i,
+      filename: null, // inlined if null
+      fileContext: "."
+    })
+  ]
 };
 
 module.exports = config => {

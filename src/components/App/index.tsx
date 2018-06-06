@@ -1,6 +1,7 @@
 import { ThemeProvider } from "emotion-theming";
 import * as React from "react";
 import styled, { keyframes } from "react-emotion";
+import { hot } from "react-hot-loader";
 import { Link, Route, Switch } from "react-router-dom";
 
 import Echo from "@src/components/Echo";
@@ -11,6 +12,9 @@ import theme from "@src/styles/theme";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");
+
+// Include vanila CSS
+const rootCss = require("../../styles/root.css");
 
 // Legacy CSS are supported
 const legacyCss = require("./styles.legacy.css");
@@ -42,7 +46,7 @@ export interface IAppProps {
   match: { url: string };
 }
 
-export default class App extends React.Component<IAppProps, {}> {
+class App extends React.Component<IAppProps, {}> {
   public static defaultProps: {
     match: { url: string };
   };
@@ -117,3 +121,7 @@ export default class App extends React.Component<IAppProps, {}> {
 App.defaultProps = {
   match: { url: "unknown" }
 };
+
+export default (process.env.NODE_ENV === "development"
+  ? hot(module)(App)
+  : App);

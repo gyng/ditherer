@@ -18,13 +18,6 @@ import {
 import App from "@src/components/App";
 import reducers from "@src/reducers";
 
-// Include vanila CSS
-const rootCss = require("./styles/root.css");
-
-// https://github.com/emotion-js/emotion/pull/419
-// import { ThemeProvider } from "emotion-theming";
-import styled from "react-emotion";
-
 // TypeScript definitions for devtools in /my-globals/index.d.ts
 // Redux devtools are still enabled in production!
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
@@ -69,7 +62,3 @@ ReactDOM.render(
   </Provider>,
   document.getElementById("root")
 );
-
-if (module.hot) {
-  module.hot.accept();
-}

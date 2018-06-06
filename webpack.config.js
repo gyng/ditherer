@@ -2,6 +2,9 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
 const path = require("path");
 
+const DEV = process.env.NODE_ENV === "development";
+const PROD = process.env.NODE_ENV === "production";
+
 module.exports = {
   // Defaults to development, pass --mode production to override
   mode: "development",
@@ -17,7 +20,7 @@ module.exports = {
   output: {
     filename: "[name].[hash:7].js",
     // ./ is used when hosting in a subdirectory (eg. GitHub pages)
-    publicPath: process.env.NODE_ENV === "production" ? "./" : "/"
+    publicPath: PROD ? "./" : "/"
   },
 
   module: {
@@ -32,7 +35,7 @@ module.exports = {
         test: /\.(jpg|png|gif|mp4|webm|mp3|ogg|svg)$/,
         loader: "file-loader",
         options: {
-          name: "./f/[path][name].[hash].[ext]"
+          name: "./f/[hash:16].[ext]"
         }
       },
       // Mostly for tests, but legacy JS in source too
@@ -41,7 +44,10 @@ module.exports = {
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
-          plugins: ["@babel/proposal-object-rest-spread"],
+          plugins: [
+            "@babel/proposal-object-rest-spread",
+            ...(DEV ? ["react-hot-loader/babel"] : [])
+          ],
           presets: ["@babel/stage-3", "@babel/react"]
         }
       },
@@ -50,7 +56,10 @@ module.exports = {
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
-          plugins: ["@babel/proposal-object-rest-spread"],
+          plugins: [
+            "@babel/proposal-object-rest-spread",
+            ...(DEV ? ["react-hot-loader/babel"] : [])
+          ],
           presets: ["@babel/react", "@babel/preset-typescript"]
         }
       }
@@ -73,17 +82,20 @@ module.exports = {
       cacheGroups: {
         vendors: {
           test: /\/node_modules\//,
-          filename: "vendors.[hash:7].js",
-          name: "vendors",
+          filename: "vendor.[hash:7].js",
+          name: "vendor",
           chunks: "all"
         }
       }
     }
   },
 
-  devtool: "cheap-eval-source-map",
+  // Using cheap-eval-source-map for build times
+  // switch to inline-source-map if detailed debugging needed
+  devtool: PROD ? false : "cheap-eval-source-map",
 
   devServer: {
+    clientLogLevel: "warning",
     contentBase: "app/ui/www",
     historyApiFallback: true,
     stats: "minimal"
