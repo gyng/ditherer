@@ -9,7 +9,7 @@
     "d:hot": "yarn dev:hot",
     "d": "yarn dev",
     "deploy:github:prebuilt": "gh-pages --dist dist",
-    "deploy:github": "rm -rf build && NODE_ENV=production yarn build:prod && yarn deploy:github:prebuilt",
+    "deploy:github": "yarn clean && yarn build:prod && yarn deploy:github:prebuilt",
     "dev:hot": "yarn dev --hot --inline",
     "dev": "webpack-dev-server --progress --colors",
     "eslint:fix": "eslint . --ext .js --ext .jsx --fix",

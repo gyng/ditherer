@@ -8,7 +8,7 @@
     "module": "es6",
     "moduleResolution": "node",
     "noImplicitAny": true,
-    "outDir": "./build/",
+    "outDir": "./dist/",
     "paths": {
       "@src/*": ["src/*"],
       "@test/*": ["test/*"]
