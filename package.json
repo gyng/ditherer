@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "scripts": {
     "build": "webpack --progress --config webpack.config.js",
-    "build:prod": "webpack --progress --config webpack.config.js --mode production",
+    "build:prod": "NODE_ENV=production webpack --progress --config webpack.config.js --mode production",
     "clean": "rm -rf build",
     "lint": "yarn run flow && yarn run eslint && yarn run stylelint",
     "prettier": "echo '💈 Listing files to format. Run yarn prettier:write to write.\n' && prettier --list-different src/**/*.js src/**/*.jsx test/**/*.js test/**/*.jsx *.config.js",
@@ -43,6 +43,7 @@
     "babel-eslint": "^8.2.2",
     "babel-loader": "^8.0.0-beta.2",
     "chai": "^4.1.2",
+    "compression-webpack-plugin": "^1.1.11",
     "css-loader": "^0.28.10",
     "enzyme": "^3.3.0",
     "enzyme-adapter-react-16": "^1.1.1",

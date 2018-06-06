@@ -1,5 +1,8 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const CompressionPlugin = require("compression-webpack-plugin");
 const path = require("path");
+
+const PROD = process.env.NODE_ENV === "production";
 
 module.exports = {
   // Defaults to development, pass --mode production to override
@@ -16,7 +19,7 @@ module.exports = {
   output: {
     filename: "[name].[hash:7].js",
     path: path.resolve(__dirname, "build"),
-    publicPath: process.env.NODE_ENV === "production" ? "./" : "/"
+    publicPath: PROD ? "./" : "/"
   },
 
   module: {
@@ -98,7 +101,8 @@ module.exports = {
         js: ["[name].js", "commons.js"]
       },
       template: "./index.html"
-    })
+    }),
+    ...(PROD ? [new CompressionPlugin()] : [])
   ],
 
   optimization: {
