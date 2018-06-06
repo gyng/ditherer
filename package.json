@@ -3,7 +3,7 @@
   "name": "jsapp-boilerplate",
   "version": "0.0.1",
   "scripts": {
-    "build:prod": "webpack --progress --config webpack.config.js --mode production",
+    "build:prod": "NODE_ENV=production webpack --progress --config webpack.config.js --mode production",
     "build": "webpack --progress --config webpack.config.js",
     "clean": "rm -rf dist",
     "d:hot": "yarn dev:hot",
@@ -45,6 +45,7 @@
   "devDependencies": {
     "@babel/core": "^7.0.0-beta.46",
     "@babel/plugin-proposal-object-rest-spread": "^7.0.0-beta.46",
+    "@babel/preset-env": "^7.0.0-beta.49",
     "@babel/preset-react": "^7.0.0-beta.46",
     "@babel/preset-stage-3": "^7.0.0-beta.46",
     "@babel/preset-typescript": "^7.0.0-beta.46",
@@ -62,7 +63,7 @@
     "autoprefixer": "^8.6.0",
     "babel-eslint": "^8.2.3",
     "babel-loader": "^8.0.0-beta.2",
-    "babel-preset-airbnb": "^2.4.0",
+    "brotli-webpack-plugin": "^1.0.0",
     "chai": "^4.1.2",
     "css-loader": "^0.28.11",
     "enzyme": "^3.1.0",

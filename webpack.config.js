@@ -1,9 +1,19 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
+const BrotliPlugin = require("brotli-webpack-plugin");
 const path = require("path");
 
 const DEV = process.env.NODE_ENV === "development";
 const PROD = process.env.NODE_ENV === "production";
+
+const babelEnvPreset = [
+  "@babel/env",
+  {
+    targets: {
+      browsers: ["last 2 versions", "Firefox ESR", "not dead"]
+    }
+  }
+];
 
 module.exports = {
   // Defaults to development, pass --mode production to override
@@ -45,10 +55,11 @@ module.exports = {
         loader: "babel-loader",
         options: {
           plugins: [
+            "@babel/proposal-class-properties",
             "@babel/proposal-object-rest-spread",
             ...(DEV ? ["react-hot-loader/babel"] : [])
           ],
-          presets: ["@babel/stage-3", "@babel/react"]
+          presets: [babelEnvPreset, "@babel/stage-3", "@babel/react"]
         }
       },
       {
@@ -57,10 +68,11 @@ module.exports = {
         loader: "babel-loader",
         options: {
           plugins: [
+            "@babel/proposal-class-properties",
             "@babel/proposal-object-rest-spread",
             ...(DEV ? ["react-hot-loader/babel"] : [])
           ],
-          presets: ["@babel/react", "@babel/preset-typescript"]
+          presets: [babelEnvPreset, "@babel/typescript", "@babel/react"]
         }
       }
     ]
@@ -74,7 +86,8 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: "./index.html",
       favicon: "./static/favicon.ico"
-    })
+    }),
+    ...(PROD ? [new BrotliPlugin()] : [])
   ],
 
   optimization: {

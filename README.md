@@ -44,8 +44,8 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
 ### Build
 
     yarn install
-    yarn build                      # runs webpack in development mode
-    yarn build:prod                 # runs webpack in production mode
+    yarn build                      # test build, builds in /dist
+    yarn build:prod                 # production build, builds in /dist
 
 ### Test
 
