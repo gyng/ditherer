@@ -18,6 +18,11 @@ const testConfig = {
 
 module.exports = config => {
   config.set({
+    // Chrome/Nightmare refuses to run ts files as it thinks they are video files
+    mime: {
+      "text/x-typescript": ["ts", "tsx"]
+    },
+
     browsers: ["Nightmare"],
 
     frameworks: ["mocha", "chai"],
