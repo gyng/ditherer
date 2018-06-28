@@ -7,3 +7,5 @@ declare module "my-globals" {
     }
   }
 }
+
+declare var __WEBPACK_DEFINE_BASE_PATH__: string;

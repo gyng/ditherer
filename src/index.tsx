@@ -31,7 +31,9 @@ const appReducer = combineReducers({
   router: routerReducer
 });
 
-const history = createHistory();
+const history = createHistory({
+  basename: __WEBPACK_DEFINE_BASE_PATH__
+});
 const middleware = [thunkMiddleware, routerMiddleware(history)];
 
 const store = createStore(
@@ -50,12 +52,6 @@ ReactDOM.render(
     <ConnectedRouter history={history}>
       <div>
         <MyRoute path="/counter" component={App} unusedProp="unused" />
-        <MyRoute
-          path="/jsapp-boilerplate"
-          exact
-          component={App}
-          unusedProp="unused"
-        />
         <MyRoute path="/" exact component={App} unusedProp="unused" />
       </div>
     </ConnectedRouter>

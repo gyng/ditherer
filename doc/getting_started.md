@@ -63,4 +63,4 @@
 
 12. Prepare a build for deployment by running `yarn build:prod`. The output files will be located in `dist/`.
 
-13. Deployment to GitHub pages is done using the `gh-pages` package and can be run using `deploy:github`. This will create a production build and push it to the `gh-pages` branch of the repository on GitHub.
+13. Deployment to GitHub pages is done using the `gh-pages` package and can be run using `deploy:github`. This will create a production build and push it to the `gh-pages` branch of the repository on GitHub. **You will need to change `basePath` in [`webpack.config.js`](/webpack.config.js) to your repository name for routes to work.**

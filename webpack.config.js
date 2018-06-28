@@ -11,6 +11,20 @@ const PROD = process.env.NODE_ENV === "production";
 
 // ./ is used when hosting in a subdirectory (eg. GitHub pages)
 const publicPath = PROD ? "./" : "/";
+// If serving in a directory (GH Pages), prepend routes with this
+// This sets the baseName for createBrowserHistory in react-router.
+const basePaths = {
+  github: "/jsapp-boilerplate",
+  default: "/"
+};
+
+const basePath = basePaths[process.env.DEPLOY_TARGET || "default"];
+if (process.env.DEPLOY_TARGET) {
+  // eslint-disable-next-line
+  console.log(
+    `Deploy target set to ${process.env.DEPLOY_TARGET}, basePath: ${basePath}`
+  );
+}
 
 const babelEnvPreset = [
   "@babel/env",
@@ -85,6 +99,9 @@ module.exports = {
   },
 
   plugins: [
+    new webpack.DefinePlugin({
+      __WEBPACK_DEFINE_BASE_PATH__: JSON.stringify(basePath)
+    }),
     new webpack.NamedModulesPlugin(),
     new WebpackShellPlugin({
       onBuildEnd: ["yarn --silent tsc:check:no-error"],
@@ -129,6 +146,9 @@ module.exports = {
       app.use(HistoryApiFallback());
     },
     clipboard: false,
+    hot: {
+      logLevel: "warn"
+    },
     dev: {
       publicPath,
       stats: "minimal"

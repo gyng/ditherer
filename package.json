@@ -9,7 +9,7 @@
     "d:hot": "webpack-serve",
     "d": "webpack-serve --no-hot",
     "deploy:github:prebuilt": "gh-pages --dist dist",
-    "deploy:github": "yarn clean && yarn build:prod && yarn deploy:github:prebuilt",
+    "deploy:github": "yarn clean && DEPLOY_TARGET=github yarn build:prod && yarn deploy:github:prebuilt",
     "dev:hot": "yarn d:hot",
     "dev": "yarn d",
     "eslint:fix": "eslint . --ext .js --ext .jsx --fix",

@@ -44,6 +44,8 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
     yarn build                      # test build, builds in /dist
     yarn build:prod                 # production build, builds in /dist
 
+Set the environment variable `DEPLOY_TARGET=github` if preparing a prebuilt bundle for GitHub Pages. This sets the basename of react-router for hosting in a subdirectory (GitHub Pages does this). Configure the `basePaths` in [`webpack.config.js`](/webpack.config.js) to point to your repository name. `yarn deploy:github` will set this environment variable for you.
+
 ### Test
 
     yarn test                       # runs unit tests once
