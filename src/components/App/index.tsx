@@ -1,7 +1,8 @@
 import { ThemeProvider } from "emotion-theming";
+import { hot } from "react-hot-loader";
+
 import * as React from "react";
 import styled, { keyframes } from "react-emotion";
-import { hot } from "react-hot-loader";
 import { Link, Route, Switch } from "react-router-dom";
 
 import Echo from "@src/components/Echo";

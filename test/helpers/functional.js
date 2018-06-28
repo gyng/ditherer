@@ -1,35 +1,42 @@
 /* eslint-disable no-console */
 
-const WebpackDevServer = require("webpack-dev-server");
-const webpack = require("webpack");
+const serve = require("webpack-serve");
 const config = require("../../webpack.config.js");
 
 let server;
-const url = "http://localhost:49999";
+const host = "localhost";
+const port = 49999;
+const url = `http://${host}:${port}`;
 
-// Serve the app on webpack-dev-server
+// Serve the app on webpack-serve
 const setup = () => {
-  const compiler = webpack(config);
-  server = new WebpackDevServer(
-    compiler,
-    Object.assign(config.devServer, {
-      quiet: true,
-      headers: { Connection: null } // Disable Connection: Keep-Alive
-    })
-  );
-  server.listen(49999, "localhost");
-  console.log(`Started webpack-dev-server at ${url}`);
+  serve({
+    config: {
+      ...config,
+      serve: {
+        ...config.serve,
+        host,
+        port,
+        on: {
+          listening: appServer => {
+            console.info(`Started webpack-serve at ${url}`);
+            server = appServer;
+          }
+        }
+      }
+    }
+  });
 };
 
 const teardown = () => {
-  server.close(() => {
-    process.exit();
-  });
-  console.log("Closed webpack-dev-server");
   setTimeout(() => {
-    console.log("Forced abort after 5000ms");
+    console.warn("Forced abort after 5000ms");
     process.exit();
   }, 5000);
+
+  server.server.kill();
+  console.info("Closed webpack-serve");
+  process.exit();
 };
 
 module.exports = {

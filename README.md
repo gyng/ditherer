@@ -58,14 +58,16 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
     yarn prettier                   # prettier style enforced by eslint/tslint
     yarn prettier:fix
     yarn stylelint
+    docker-compose -f docker-compose.test.yml up --build
 
 ### Develop
 
-    yarn d                          # runs webpack-dev-server (yarn dev) or use
-    yarn d:hot                      # runs webpack-dev-server in hot reload mode (yarn dev:hot)
+    yarn d                          # runs webpack-serve (yarn dev) or use
+    yarn d:hot                      # runs webpack-serve in hot reload mode (yarn dev:hot)
     yarn test:watch                 # runs unit tests using karma in watch mode
 
 ### Deploy
 
     yarn deploy:github              # deploys a production build to GitHub pages
     docker-compose up               # runs http-server at port 8080 on a production build in a container
+    docker-compose up --build

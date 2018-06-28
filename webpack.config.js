@@ -1,10 +1,16 @@
+const path = require("path");
+const webpack = require("webpack");
+
+const CompressionPlugin = require("compression-webpack-plugin");
+const HistoryApiFallback = require("./webpack-serve/historyApiFallback");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
-const CompressionPlugin = require("compression-webpack-plugin");
-const path = require("path");
 
 const DEV = process.env.NODE_ENV === "development";
 const PROD = process.env.NODE_ENV === "production";
+
+// ./ is used when hosting in a subdirectory (eg. GitHub pages)
+const publicPath = PROD ? "./" : "/";
 
 const babelEnvPreset = [
   "@babel/env",
@@ -19,18 +25,18 @@ module.exports = {
   // Defaults to development, pass --mode production to override
   mode: "development",
 
-  context: path.resolve(__dirname, "src"),
+  context: path.resolve(__dirname),
 
   target: "web",
 
   entry: {
-    app: "./index.tsx"
+    app: "./src/index.tsx"
   },
 
   output: {
     filename: "[name].[hash:7].js",
-    // ./ is used when hosting in a subdirectory (eg. GitHub pages)
-    publicPath: PROD ? "./" : "/"
+    path: path.resolve(__dirname, "dist"),
+    publicPath
   },
 
   module: {
@@ -79,17 +85,24 @@ module.exports = {
   },
 
   plugins: [
+    new webpack.NamedModulesPlugin(),
     new WebpackShellPlugin({
       onBuildEnd: ["yarn --silent tsc:check:no-error"],
       dev: false
     }),
     new HtmlWebpackPlugin({
-      template: "./index.html",
-      favicon: "./static/favicon.ico"
+      template: "./src/index.html",
+      favicon: "./src/static/favicon.ico"
     }),
     // Generate .gz for production builds
     // Consider adding brotli-webpack-plugin if your server supports .br
-    ...(PROD ? [new CompressionPlugin()] : [])
+    ...(PROD
+      ? [
+          new CompressionPlugin({
+            include: /\.(js|html|svg)$/
+          })
+        ]
+      : [])
   ],
 
   optimization: {
@@ -109,11 +122,17 @@ module.exports = {
   // switch to inline-source-map if detailed debugging needed
   devtool: PROD ? false : "cheap-eval-source-map",
 
-  devServer: {
-    clientLogLevel: "warning",
-    contentBase: "app/ui/www",
-    historyApiFallback: true,
-    stats: "minimal"
+  serve: {
+    add: app => {
+      // historyApiFallback: required for redux-router to work on page refresh
+      // a refresh on localhost:8080/counter will go to the counter component defined in the route
+      app.use(HistoryApiFallback());
+    },
+    clipboard: false,
+    dev: {
+      publicPath,
+      stats: "minimal"
+    }
   },
 
   externals: {
