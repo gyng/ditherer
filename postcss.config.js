@@ -1,7 +1,6 @@
 module.exports = {
   syntax: "postcss-scss",
   plugins: {
-    stylelint: {},
     "postcss-import": { addModulesDirectories: ["src"] },
     "postcss-cssnext": {
       // This prints a warning when used with cssnano as both include
@@ -14,7 +13,7 @@ module.exports = {
       }
     },
     precss: {},
-    cssnano: { discardComments: { removeAll: true } },
+    cssnano: {},
     "postcss-reporter": {}
   }
 };
