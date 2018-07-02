@@ -61,6 +61,19 @@ module.exports = {
         include: path.resolve(__dirname, "src"),
         loaders: ["style-loader", "css-loader"]
       },
+      // PostCSS
+      {
+        test: /\.scss$/,
+        include: path.resolve(__dirname, "src"),
+        loaders: [
+          "style-loader",
+          {
+            loader: "css-loader",
+            options: { modules: true, importLoaders: 1 }
+          },
+          "postcss-loader"
+        ]
+      },
       {
         test: /\.(jpg|png|gif|mp4|webm|mp3|ogg|svg)$/,
         loader: "file-loader",

@@ -52,7 +52,7 @@
 
 8. Check out the [webpack configuration](/webpack.config.js).
 
-9. Check out the styling options [emotion JS-in-CSS](/src/components/App/index.tsx) and [CSS escape hatch](/src/styles/root.css). Styling is intended to be done through emotion, but the escape hatch is available for   legacy libraries and manual control. Legacy styles need to have a filename ending in `.css`, and are included using `require` instead of `import`.
+9. Check out the styling options [using PostCSS](/src/components/App/styles.scss) and [CSS escape hatch](/src/styles/root.css). Use `require` to load styles. The escape hatch is available for legacy libraries and manual control. Legacy styles need to have a filename ending in `.css`.
 
 10. Try running the [Docker image](/Dockerfile) with Docker Compose ([compose configuration](/docker-compose.yml))
     ```

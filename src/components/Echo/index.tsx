@@ -1,11 +1,7 @@
 import * as React from "react";
-import styled from "react-emotion";
 
-const EchoP = styled("p")`
-  font-style: italic;
-  text-align: center;
-`;
-
-const Echo = (props: { text: string }) => <EchoP>{props.text}</EchoP>;
+const Echo = (props: { text: string }) => (
+  <p style={{ fontStyle: "italic", textAlign: "center" }}>{props.text}</p>
+);
 
 export default Echo;

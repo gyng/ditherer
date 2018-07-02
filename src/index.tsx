@@ -50,10 +50,10 @@ class MyRoute extends Route<IMyRouteProps> {}
 ReactDOM.render(
   <Provider store={store}>
     <ConnectedRouter history={history}>
-      <div>
+      <>
         <MyRoute path="/counter" component={App} unusedProp="unused" />
         <MyRoute path="/" exact component={App} unusedProp="unused" />
-      </div>
+      </>
     </ConnectedRouter>
   </Provider>,
   document.getElementById("root")

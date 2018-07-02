@@ -13,7 +13,7 @@ This boilerplate contains:
 | [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration      |
 | [react-router-redux](https://github.com/reactjs/react-router-redux)       | routing                      |
 | [redux-thunk](https://github.com/gaearon/redux-thunk)                     | async actions                |
-| [emotion](https://github.com/emotion-js/emotion)                          | css-in-javascript, styling   |
+| [postcss](https://github.com/postcss/postcss)                          | css preprocessing, styling   |
 | [plain css](https://developer.mozilla.org/en-US/docs/Web/CSS)             | legacy css escape hatch      |
 | **Testing, linting**                                                      |                              |
 | [mocha](https://mochajs.org/#getting-started)                             | test framework               |

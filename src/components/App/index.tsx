@@ -1,47 +1,20 @@
-import { ThemeProvider } from "emotion-theming";
 import { hot } from "react-hot-loader";
 
 import * as React from "react";
-import styled, { keyframes } from "react-emotion";
 import { Link, Route, Switch } from "react-router-dom";
 
 import Echo from "@src/components/Echo";
 import Counter from "@src/containers/Counter";
 
-// emotion-theming theme to be passed to <ThemeProvider>
-import theme from "@src/styles/theme";
-
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");
+const styles = require("./styles.scss");
 
-// Include vanila CSS
+// Include global CSS and variables
 const rootCss = require("../../styles/root.css");
 
 // Legacy CSS are supported
 const legacyCss = require("./styles.legacy.css");
-
-const spin = keyframes`
-  100% {
-    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
-  }
-`;
-
-const ImgRobot = styled("img")`
-  align-self: center;
-  animation: ${spin} 60s ease-in-out infinite;
-  border-radius: 50%;
-  height: auto;
-  width: 200px;
-  margin-bottom: var(--m-l);
-`;
-
-// Can compose, or access theme using props
-const ThemedDiv = styled("div")`
-  ${theme.someCssStyle};
-  border-radius: ${p => p.theme.someThemeStyle.borderRadius};
-  margin: "10px 0px";
-  padding: "10px";
-`;
 
 export interface IAppProps {
   match: { url: string };
@@ -54,17 +27,8 @@ class App extends React.Component<IAppProps, {}> {
 
   public render() {
     return (
-      <ThemeProvider theme={theme}>
-        <div
-          className="app"
-          style={{
-            display: "grid",
-            gridGap: "var(--m-l)",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            margin: "0 auto",
-            maxWidth: "calc(var(--m) * 240)"
-          }}
-        >
+      <div className="app">
+        <div className={styles.grid}>
           <div style={{ gridColumn: "1 / 4", marginBottom: "72px" }}>
             <h1>jsapp-boilerplate</h1>
             <div>
@@ -100,21 +64,23 @@ class App extends React.Component<IAppProps, {}> {
           </div>
 
           <div style={{ alignSelf: "center" }}>
-            <ImgRobot src={hello} alt="Cute robot?" />
+            <img className={styles.robot} src={hello} alt="Cute robot?" />
             <Echo text="Hello, world!" />
           </div>
 
-          <ThemedDiv
+          <div
+            className={styles.themedDiv}
             style={{
-              border: "solid 1px grey"
+              border: "solid 1px grey",
+              gridColumn: "3 / 4"
             }}
           >
-            This div is themed using <span className="sub">emotion</span>,{" "}
-            <span className="sub">emotion-theming</span>, and{" "}
-            <span className="sub">React's style prop</span>
-          </ThemedDiv>
+            This div is themed using <span className={styles.sub}>PostCSS</span>{" "}
+            and
+            <span className={styles.sub}>React's style prop</span>
+          </div>
         </div>
-      </ThemeProvider>
+      </div>
     );
   }
 }
