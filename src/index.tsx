@@ -7,7 +7,8 @@ import { Provider } from "react-redux";
 import { applyMiddleware, combineReducers, compose, createStore } from "redux";
 import thunkMiddleware from "redux-thunk";
 
-import createHistory from "history/createBrowserHistory";
+import createBrowserHistory from "history/createBrowserHistory";
+import createHashHistory from "history/createHashHistory";
 import { Route, RouteProps } from "react-router-dom";
 import {
   ConnectedRouter,
@@ -31,10 +32,20 @@ const appReducer = combineReducers({
   router: routerReducer
 });
 
-const history = createHistory({
+// Choose whether to use hash history (app/#counter) or browser history (app/counter)
+// This can be safely set to browser history if not hosting in a subdirectory (GitHub Pages)
+const historyFactories: { [k: string]: (options?: any) => any } = {
+  browser: createBrowserHistory,
+  hash: createHashHistory
+};
+
+const historyFactory = historyFactories[__WEBPACK_DEFINE_HISTORY_TYPE__];
+
+const appHistory = historyFactory({
   basename: __WEBPACK_DEFINE_BASE_PATH__
 });
-const middleware = [thunkMiddleware, routerMiddleware(history)];
+
+const middleware = [thunkMiddleware, routerMiddleware(appHistory)];
 
 const store = createStore(
   appReducer,
@@ -49,7 +60,7 @@ class MyRoute extends Route<IMyRouteProps> {}
 
 ReactDOM.render(
   <Provider store={store}>
-    <ConnectedRouter history={history}>
+    <ConnectedRouter history={appHistory}>
       <>
         <MyRoute path="/counter" component={App} unusedProp="unused" />
         <MyRoute path="/" exact component={App} unusedProp="unused" />

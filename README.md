@@ -13,7 +13,7 @@ This boilerplate contains:
 | [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)        | react-redux integration      |
 | [react-router-redux](https://github.com/reactjs/react-router-redux)       | routing                      |
 | [redux-thunk](https://github.com/gaearon/redux-thunk)                     | async actions                |
-| [postcss](https://github.com/postcss/postcss)                          | css preprocessing, styling   |
+| [postcss](https://github.com/postcss/postcss)                             | css preprocessing, styling   |
 | [plain css](https://developer.mozilla.org/en-US/docs/Web/CSS)             | legacy css escape hatch      |
 | **Testing, linting**                                                      |                              |
 | [mocha](https://mochajs.org/#getting-started)                             | test framework               |
@@ -27,10 +27,12 @@ This boilerplate contains:
 | [stylelint](https://stylelint.io/user-guide/)                             | legacy css linting           |
 | [karma](http://karma-runner.github.io/1.0/config/configuration-file.html) | test runner (with electron)  |
 | **Building, CI, deploying**                                               |                              |
+| [configuration](config/configValues.js)                                   | configuration                |
 | [webpack](https://webpack.js.org/concepts/)                               | javascript bundler           |
-| [docker](https://docs.docker.com/engine/reference/builder/)               | container                    |
 | [docker-compose](https://docs.docker.com/compose/compose-file/)           | multi-container              |
 | [travis](https://docs.travis-ci.com/user/customizing-the-build)           | ci                           |
+| [docker](https://docs.docker.com/engine/reference/builder/)               | ci, production server        |
+| [github pages](https://pages.github.com/)                                 | deployment, online hosting   |
 
 [Ditherer](https://github.com/gyng/ditherer) is a project built using an older version of this boilerplate.
 
@@ -41,10 +43,11 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
 ### Build
 
     yarn install
-    yarn build                      # test build, builds in /dist
-    yarn build:prod                 # production build, builds in /dist
+    yarn build                      # development build, outputs in /dist
+    yarn build:production           # builds for the Docker image in /dist
+    yarn build:github               # builds for GitHub Pages in /dist
 
-Set the environment variable `DEPLOY_TARGET=github` if preparing a prebuilt bundle for GitHub Pages. This sets the basename of react-router for hosting in a subdirectory (GitHub Pages does this). Configure the `basePaths` in [`webpack.config.js`](/webpack.config.js) to point to your repository name. `yarn deploy:github` will set this environment variable for you.
+Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for GitHub Pages. `yarn deploy:github` will set this `APP_ENV` for you and deploy it straight to GitHub Pages.
 
 ### Test
 
@@ -60,7 +63,7 @@ Set the environment variable `DEPLOY_TARGET=github` if preparing a prebuilt bund
     yarn prettier                   # prettier style enforced by eslint/tslint
     yarn prettier:fix
     yarn stylelint
-    docker-compose -f docker-compose.test.yml up --build
+    yarn test:docker                # runs the full test suite in Docker
 
 ### Develop
 
@@ -71,5 +74,4 @@ Set the environment variable `DEPLOY_TARGET=github` if preparing a prebuilt bund
 ### Deploy
 
     yarn deploy:github              # deploys a production build to GitHub pages
-    docker-compose up               # runs http-server at port 8080 on a production build in a container
-    docker-compose up --build
+    yarn docker                     # runs superstatic at port 8080 on a production build in Docker

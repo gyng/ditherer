@@ -61,6 +61,8 @@
 
 11. Remove demo-related things from `doc`, `src`, `test` (and `test/functional`), and start developing! (Or just keep them for reference for now.)
 
-12. Prepare a build for deployment by running `yarn build:prod`. The output files will be located in `dist/`.
+12. Check out the app and build configuration settings in [`config/configValues.js`](/config/configValues.js)
 
-13. Deployment to GitHub pages is done using the `gh-pages` package and can be run using `deploy:github`. This will create a production build and push it to the `gh-pages` branch of the repository on GitHub. **You will need to change `basePath` in [`webpack.config.js`](/webpack.config.js) to your repository name for routes to work.**
+13. Prepare a build for deployment by running `yarn build:prod`. The output files will be located in `dist/`.
+
+14. Deployment to GitHub pages is done using the `gh-pages` package and can be run using `deploy:github`. This will create a production build with `APP_ENV` set to `github` and push it to the `gh-pages` branch of the repository on GitHub.

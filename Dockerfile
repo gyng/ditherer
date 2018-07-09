@@ -1,7 +1,7 @@
 FROM node:10.3.0-alpine
 
 ARG YARN_VERSION=1.2.1
-RUN npm install -g "yarn@${YARN_VERSION}" http-server
+RUN npm install -g "yarn@${YARN_VERSION}" superstatic
 
 RUN apk update \
     && apk upgrade \
@@ -16,9 +16,10 @@ RUN yarn install --frozen-lockfile \
 
 ARG NODE_ENV=production
 COPY . /usr/src/app
-RUN yarn build:prod
+RUN yarn build:production
 
 RUN apk del git
 
+COPY superstatic.json /usr/src/app
 EXPOSE 8080
-CMD ["http-server", "dist", "--gzip"]
+CMD ["superstatic", "dist", "--port", "8080", "--host", "0.0.0.0", "--compression", "-c", "superstatic.json"]

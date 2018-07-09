@@ -6,25 +6,12 @@ const HistoryApiFallback = require("./webpack-serve/historyApiFallback");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
 
+const { config } = require("./config/index");
+
+console.log("CONFIG = ", config); // eslint-disable-line
+
 const DEV = process.env.NODE_ENV === "development";
 const PROD = process.env.NODE_ENV === "production";
-
-// ./ is used when hosting in a subdirectory (eg. GitHub pages)
-const publicPath = PROD ? "./" : "/";
-// If serving in a directory (GH Pages), prepend routes with this
-// This sets the baseName for createBrowserHistory in react-router.
-const basePaths = {
-  github: "/jsapp-boilerplate",
-  default: "/"
-};
-
-const basePath = basePaths[process.env.DEPLOY_TARGET || "default"];
-if (process.env.DEPLOY_TARGET) {
-  // eslint-disable-next-line
-  console.log(
-    `Deploy target set to ${process.env.DEPLOY_TARGET}, basePath: ${basePath}`
-  );
-}
 
 const babelEnvPreset = [
   "@babel/env",
@@ -50,7 +37,7 @@ module.exports = {
   output: {
     filename: "[name].[hash:7].js",
     path: path.resolve(__dirname, "dist"),
-    publicPath
+    publicPath: config.url.publicPath
   },
 
   module: {
@@ -113,7 +100,9 @@ module.exports = {
 
   plugins: [
     new webpack.DefinePlugin({
-      __WEBPACK_DEFINE_BASE_PATH__: JSON.stringify(basePath)
+      __WEBPACK_DEFINE_APP_ENV__: JSON.stringify(config.environment),
+      __WEBPACK_DEFINE_BASE_PATH__: JSON.stringify(config.url.basePath),
+      __WEBPACK_DEFINE_HISTORY_TYPE__: JSON.stringify(config.url.historyType)
     }),
     new webpack.NamedModulesPlugin(),
     new WebpackShellPlugin({
@@ -163,7 +152,7 @@ module.exports = {
       logLevel: "warn"
     },
     dev: {
-      publicPath,
+      publicPath: config.url.publicPath,
       stats: "minimal"
     }
   },
@@ -179,6 +168,7 @@ module.exports = {
     extensions: [".js", ".jsx", ".ts", ".tsx"],
     modules: ["node_modules", path.resolve(__dirname, "src")],
     alias: {
+      "@cfg": path.resolve(__dirname, "config"),
       "@src": path.resolve(__dirname, "src"),
       "@test": path.resolve(__dirname, "test")
     }

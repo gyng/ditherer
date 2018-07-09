@@ -10,6 +10,7 @@
     "noImplicitAny": true,
     "outDir": "./dist/",
     "paths": {
+      "@cfg/*": ["config/*"],
       "@src/*": ["src/*"],
       "@test/*": ["test/*"]
     },
@@ -19,5 +20,5 @@
     "pretty": true,
     "typeRoots": ["./typings", "./node_modules/@types"]
   },
-  "include": ["./src/**/*", "./test/**/*"]
+  "include": ["./src/**/*", "./test/**/*", "./config/**/*"]
 }
