@@ -27,7 +27,7 @@
     "test:watch": "karma start",
     "test:xvfb": "DISPLAY=':99.0' Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &",
     "test": "karma start --single-run",
-    "tsc:check-config": "tsc config/index.js config/configValues.js --noEmit --skipLibCheck --allowJs --checkJs --lib es2016",
+    "tsc:check-config": "tsc config/build.js config/configValues.js --noEmit --skipLibCheck --allowJs --checkJs --lib es2016",
     "tsc:check:no-error": "tsc --noEmit --skipLibCheck || true",
     "tsc:check": "tsc --noEmit --skipLibCheck && yarn tsc:check-config",
     "tslint:fix": "yarn tslint --fix",
