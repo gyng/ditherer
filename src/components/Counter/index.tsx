@@ -24,12 +24,21 @@ export default class Counter extends React.Component<ICounterProps, {}> {
         >
           INCREMENT AFTER 1 SECOND
         </button>
-        <div style={{ fontFamily: "monospace" }}>
-          components/Counter/index.tsx
-        </div>
-        <div style={{ fontFamily: "monospace" }}>
-          containers/Counter/index.tsx
-        </div>
+
+        <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/Counter/index.tsx">
+          <div style={{ fontFamily: "monospace" }}>
+            components/Counter/index.tsx
+          </div>
+        </a>
+        <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/containers/Counter.ts">
+          <div style={{ fontFamily: "monospace" }}>
+            containers/Counter/index.tsx
+          </div>
+        </a>
+
+        <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/reducers/counters.ts">
+          <div style={{ fontFamily: "monospace" }}>reducers/counters.ts</div>
+        </a>
       </div>
     );
   }

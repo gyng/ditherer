@@ -41,7 +41,10 @@ class App extends React.Component<IAppProps, {}> {
           <div>
             <a href="https://github.com/gyng/jsapp-boilerplate">GitHub</a>&nbsp;&middot;&nbsp;
             <span>
-              Find me in <code>src/components/App/index.tsx</code>
+              Find me in{" "}
+              <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/App/index.tsx">
+                <code>src/components/App/index.tsx</code>
+              </a>
             </span>
           </div>
         </div>
