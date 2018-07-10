@@ -7,19 +7,16 @@
 }
 
 .robot {
-  align-self: center;
   animation: spin 60s ease-in-out infinite;
   border-radius: 50%;
   height: auto;
   width: 200px;
-  margin-bottom: var(--m-l);
+  transition: all 1s;
 }
 
 .themedDiv {
   border-radius: calc(var(--curve) * 50);
-  margin: 10px 0;
-  color: var(--teal-40);
-  padding: var(--m-l);
+  color: var(--orange-60);
   align-self: center;
   transition: border-radius 0.3s ease-in;
 
@@ -39,8 +36,44 @@
 
 .grid {
   display: grid;
-  grid-gap: var(--m-l);
+  grid-gap: var(--m-m);
   grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 2fr 2fr;
   margin: 0 auto;
   max-width: calc(var(--m) * 240);
+
+  & .row {
+    grid-column-start: span 3;
+  }
+
+  & .box {
+    width: 100%;
+    height: 100%;
+    outline: solid 2px var(--grey-40);
+    transform-origin: center;
+    transition: all 0.1s ease-in;
+
+    &:hover {
+      outline: solid 5px var(--blue-40);
+      transform: scale(1.05);
+    }
+  }
+
+  & .box > * {
+    width: 90%;
+    height: 90%;
+    margin: 5%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+
+  & .box:nth-child(even) {
+    grid-column: 1 / 2;
+  }
+
+  & .box:nth-child(odd) {
+    grid-column: 2 / 3;
+  }
 }

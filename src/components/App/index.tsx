@@ -23,6 +23,13 @@ export interface IAppProps {
   match: { url: string };
 }
 
+// Example inline functional React component
+const Box: React.SFC<any> = props => (
+  <div className={styles.box} {...props}>
+    {props.children}
+  </div>
+);
+
 class App extends React.Component<IAppProps, {}> {
   public static defaultProps: {
     match: { url: string };
@@ -30,60 +37,64 @@ class App extends React.Component<IAppProps, {}> {
 
   public render() {
     return (
-      <div className="app">
-        <div className={styles.grid}>
-          <div style={{ gridColumn: "1 / 4", marginBottom: "72px" }}>
-            <h1>jsapp-boilerplate</h1>
-            <div>
-              Find me in{" "}
-              <span style={{ fontFamily: "monospace" }}>
-                src/components/App/index.tsx
-              </span>
-            </div>
+      // Example usage of legacy CSS class name mixed with CSS modules
+      <div className={`app ${styles.grid}`}>
+        <div className={styles.row}>
+          <h1>jsapp-boilerplate</h1>
+          <div>
+            <a href="https://github.com/gyng/jsapp-boilerplate">GitHub</a>&nbsp;&middot;&nbsp;
+            <span>
+              Find me in <code>src/components/App/index.tsx</code>
+            </span>
           </div>
+        </div>
 
-          {/* React style prop is still available */}
-          <div
-            style={{
-              alignSelf: "center",
-              border: "solid 1px grey",
-              borderRadius: "var(--curve)",
-              margin: "var(--m-m) 0",
-              padding: "var(--m-m)"
-            }}
-          >
-            <Switch>
-              <Route path="/counter" component={Counter} />
-              <Route
-                path="/"
-                render={() => (
-                  <Link to="/counter">
-                    Link to /counter. Click to show counter. Back/Forward
-                    buttons work.
-                  </Link>
-                )}
-              />
-            </Switch>
-          </div>
+        {/* React style prop is still available */}
+        <Box className={styles.box} style={{ alignSelf: "flex-start" }}>
+          {/* Example usage of switch for routing */}
+          <Switch>
+            <Route path="/counter" component={Counter} />
+            <Route
+              path="/"
+              render={() => (
+                <Link to="/counter">
+                  Link to /counter. Click to show counter. Back/Forward buttons
+                  and page refresh work.
+                </Link>
+              )}
+            />
+          </Switch>
+        </Box>
 
-          <div style={{ alignSelf: "center" }}>
+        <Box>
+          <div>
+            {/* Styling with CSS modules */}
             <img className={styles.robot} src={hello} alt="Cute robot?" />
-            <Echo text="Hello, world!" />
-            <div>Configuration: {JSON.stringify(config)}</div>
-          </div>
 
+            {/* Using other components */}
+            <Echo text="Hello, world!" />
+          </div>
+        </Box>
+
+        {/* Example DOM for nested CSS */}
+        <Box>
           <div
             className={styles.themedDiv}
             style={{
-              border: "solid 1px grey",
-              gridColumn: "3 / 4"
+              border: "solid 1px grey"
             }}
           >
             This div is themed using <span className={styles.sub}>PostCSS</span>{" "}
             and
             <span className={styles.sub}>React's style prop</span>
           </div>
-        </div>
+        </Box>
+
+        <Box>
+          <div>
+            Configuration <pre>{JSON.stringify(config, null, 2)}</pre>
+          </div>
+        </Box>
       </div>
     );
   }

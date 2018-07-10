@@ -18,12 +18,8 @@ const ENVIRONMENT = {
  */
 const getEnvironment = (env = "") => {
   if (Object.keys(ENVIRONMENT).includes(env)) {
-    // eslint-disable-next-line
-    console.log(`APP_ENV = ${env}`);
     return ENVIRONMENT[env];
   }
-  // eslint-disable-next-line
-  console.log(`APP_ENV = ${ENVIRONMENT.development} (default fallback)`);
   return ENVIRONMENT.development;
 };
 

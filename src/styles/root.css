@@ -6,11 +6,10 @@
 */
 
 /* Relative path resolution */
-@import "./variables.css";
 @import "./typography.css";
 
 :root {
-  --font-color-override: hsl(0, 0%, 95%);
+  --font-color-override: hsl(0, 0%, 0%);
 }
 
 /* Global HTML rules */
@@ -23,10 +22,9 @@ body {
 }
 
 body {
-  background-color: rgb(38, 38, 38);
   color: var(--font-color-override);
 }
 
 a {
-  color: var(--blue-40);
+  color: var(--blue-60);
 }
