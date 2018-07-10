@@ -3,6 +3,7 @@ import { hot } from "react-hot-loader";
 import * as React from "react";
 import { Link, Route, Switch } from "react-router-dom";
 
+import { config } from "@cfg";
 import Echo from "@src/components/Echo";
 import Counter from "@src/containers/Counter";
 
@@ -93,12 +94,15 @@ class App extends React.Component<IAppProps, {}> {
         <Box>
           <div style={{ alignItems: "flex-start" }}>
             <div style={{ marginBottom: "var(--m-m)" }}>
-              Config in <code>config/configValues.js</code>
+              Current configuration
             </div>
-            <code>__WEBPACK_DEFINE_CONFIG_JS_OBJ__ = </code>
-            <pre>
-              {JSON.stringify(__WEBPACK_DEFINE_CONFIG_JS_OBJ__, null, 2)}
-            </pre>
+            <pre>{JSON.stringify(config, null, 2)}</pre>
+            <p>
+              Configure in{" "}
+              <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/config/configValues.js">
+                <code>config/configValues.js</code>
+              </a>
+            </p>
           </div>
         </Box>
       </div>

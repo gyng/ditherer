@@ -5,7 +5,7 @@
 const configValues = require("./configValues");
 
 /**
- * @type {import('./index').EnvironmentEnum}
+ * @type {import('./index.d').EnvironmentEnum}
  */
 const ENVIRONMENT = {
   development: "development",
@@ -14,7 +14,7 @@ const ENVIRONMENT = {
 };
 
 /**
- * @type {import('./index').getEnvironment}
+ * @type {import('./index.d').getEnvironment}
  */
 const getEnvironment = (env = "") => {
   if (Object.keys(ENVIRONMENT).includes(env)) {
@@ -26,8 +26,7 @@ const getEnvironment = (env = "") => {
 const environment = getEnvironment(process.env.APP_ENV);
 
 /**
- * @typedef {import('./index').ExportedConfiguration} Config
- * @type Config
+ * @type {import('./index.d').Configuration}
  */
 const config = {
   environment,
@@ -36,6 +35,5 @@ const config = {
 
 module.exports = {
   ENVIRONMENT,
-  getEnvironment,
   config
 };

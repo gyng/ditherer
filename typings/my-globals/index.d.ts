@@ -7,8 +7,3 @@ declare module "my-globals" {
     }
   }
 }
-
-declare var __WEBPACK_DEFINE_APP_ENV__: string;
-declare var __WEBPACK_DEFINE_BASE_PATH__: string;
-declare var __WEBPACK_DEFINE_CONFIG_JS_OBJ__: string;
-declare var __WEBPACK_DEFINE_HISTORY_TYPE__: string;

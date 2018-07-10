@@ -10,7 +10,7 @@
   animation: spin 60s ease-in-out infinite;
   border-radius: 50%;
   height: auto;
-  width: 200px;
+  width: 160px;
   transition: all 1s;
 }
 
@@ -59,12 +59,12 @@
 
     &:hover {
       outline: solid 5px var(--blue-40);
-      transform: scale(1.05);
+      transform: scale(1.025);
     }
 
     &:active {
       transition: transform 0.05s;
-      transform: scale(0.95);
+      transform: scale(0.975);
     }
   }
 
