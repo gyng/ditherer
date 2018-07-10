@@ -5,8 +5,7 @@
 const configValues = require("./configValues");
 
 /**
- * @typedef {"development"|"production"|"github"} Environment
- * @type { { [k in Environment]: Environment} }
+ * @type {import('./index').EnvironmentEnum}
  */
 const ENVIRONMENT = {
   development: "development",
@@ -15,8 +14,7 @@ const ENVIRONMENT = {
 };
 
 /**
- * @param {string} [env]
- * @returns {Environment}
+ * @type {import('./index').getEnvironment}
  */
 const getEnvironment = (env = "") => {
   if (Object.keys(ENVIRONMENT).includes(env)) {
@@ -31,7 +29,10 @@ const getEnvironment = (env = "") => {
 
 const environment = getEnvironment(process.env.APP_ENV);
 
-/** @type { { environment: Environment, url: configValues.IUrlConfig } } */
+/**
+ * @typedef {import('./index').ExportedConfiguration} Config
+ * @type Config
+ */
 const config = {
   environment,
   ...configValues.values[environment]

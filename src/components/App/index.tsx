@@ -1,5 +1,8 @@
 import { hot } from "react-hot-loader";
 
+// Import config to test importing configuration in a .ts file
+import { config } from "@cfg";
+
 import * as React from "react";
 import { Link, Route, Switch } from "react-router-dom";
 
@@ -66,6 +69,7 @@ class App extends React.Component<IAppProps, {}> {
           <div style={{ alignSelf: "center" }}>
             <img className={styles.robot} src={hello} alt="Cute robot?" />
             <Echo text="Hello, world!" />
+            <div>Configuration: {JSON.stringify(config)}</div>
           </div>
 
           <div

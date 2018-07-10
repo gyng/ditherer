@@ -2,10 +2,6 @@
 
 // For your own safety, please do not add logic to this file
 
-// Import for typechecking
-// eslint-disable-next-line
-const config = require("./index");
-
 // `basePath` is used for routing, needed if hosted in a subdirectory
 // This only needs to be set to the subdirectory name if using browser history and not hash history
 
@@ -20,10 +16,9 @@ const config = require("./index");
 // Do a search in the project for `__WEBPACK_DEFINE_APP_ENV__` to see how it's linked up
 
 /**
- * @typedef {"browser" | "hash"} HistoryTypes
- * @typedef {{ basePath: string, publicPath: string, historyType: HistoryTypes }} IUrlConfig
- * @type {{ [k in config.Environment]: { url: IUrlConfig } }}
- * */
+ * @typedef {import('./index').IAppConfig} IAppConfig
+ * @type {import('./index').IConfig<IAppConfig>}
+ */
 const values = {
   development: {
     url: {

@@ -106,7 +106,7 @@ module.exports = {
     }),
     new webpack.NamedModulesPlugin(),
     new WebpackShellPlugin({
-      onBuildEnd: ["yarn --silent tsc:check:no-error"],
+      onBuildEnd: ["yarn --silent tsc:check:no-error --pretty"],
       dev: false
     }),
     new HtmlWebpackPlugin({

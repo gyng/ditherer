@@ -10,6 +10,7 @@
     "noImplicitAny": true,
     "outDir": "./dist/",
     "paths": {
+      "@cfg": ["config"],
       "@cfg/*": ["config/*"],
       "@src/*": ["src/*"],
       "@test/*": ["test/*"]
