@@ -10,21 +10,21 @@ const url = `http://${host}:${port}`;
 
 // Serve the app on webpack-serve
 const setup = () => {
-  serve({
-    config: {
-      ...config,
-      serve: {
-        ...config.serve,
-        host,
-        port,
-        on: {
-          listening: appServer => {
-            console.info(`Started webpack-serve at ${url}`);
-            server = appServer;
-          }
+  serve(
+    {},
+    {
+      config: {
+        ...config,
+        serve: {
+          ...config.serve,
+          host,
+          port
         }
       }
     }
+  ).then(result => {
+    console.info(`Started webpack-serve at ${url}`);
+    server = result.app;
   });
 };
 

@@ -12,7 +12,7 @@ RUN set -ex \
                           libgconf2-4 \
                           libnss3 \
                           libasound2 \
-    && npm install -g "yarn@${YARN_VERSION}" http-server
+    && npm install -g "yarn@${YARN_VERSION}"
 
 WORKDIR /usr/src/app
 

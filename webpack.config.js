@@ -2,9 +2,9 @@ const path = require("path");
 const webpack = require("webpack");
 
 const CompressionPlugin = require("compression-webpack-plugin");
-const HistoryApiFallback = require("./webpack-serve/historyApiFallback");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
+const HistoryApiFallback = require("./webpack-serve/historyApiFallback");
 
 const { config } = require("./config/index");
 
@@ -140,10 +140,10 @@ module.exports = {
       app.use(HistoryApiFallback());
     },
     clipboard: false,
-    hot: {
+    hotClient: {
       logLevel: "warn"
     },
-    dev: {
+    devMiddleware: {
       publicPath: config.url.publicPath,
       stats: "minimal"
     }
