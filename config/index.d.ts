@@ -20,4 +20,6 @@ export interface ExportedConfiguration extends IAppConfig {
   environment: Environment;
 }
 
+export const __WEBPACK_DEFINE_APP_ENV__: string;
+
 export const config: ExportedConfiguration;

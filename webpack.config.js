@@ -93,6 +93,7 @@ module.exports = {
     new webpack.DefinePlugin({
       __WEBPACK_DEFINE_APP_ENV__: JSON.stringify(config.environment),
       __WEBPACK_DEFINE_BASE_PATH__: JSON.stringify(config.url.basePath),
+      __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config),
       __WEBPACK_DEFINE_HISTORY_TYPE__: JSON.stringify(config.url.historyType)
     }),
     new webpack.NamedModulesPlugin(),
