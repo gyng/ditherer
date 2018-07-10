@@ -16,10 +16,9 @@ export type IAppConfig = {
 
 export type IConfig<T> = {[k in Environment]: T};
 
-export interface ExportedConfiguration extends IAppConfig {
+// This is the exported configuration so it's named simply
+export interface Configuration extends IAppConfig {
   environment: Environment;
 }
 
-export const __WEBPACK_DEFINE_APP_ENV__: string;
-
-export const config: ExportedConfiguration;
+export const config: Configuration;

@@ -15,6 +15,7 @@ import {
   routerReducer
 } from "react-router-redux";
 
+import { config } from "@cfg";
 import App from "@src/components/App";
 import reducers from "@src/reducers";
 
@@ -38,10 +39,10 @@ const historyFactories: { [k: string]: (options?: any) => any } = {
   hash: createHashHistory
 };
 
-const historyFactory = historyFactories[__WEBPACK_DEFINE_HISTORY_TYPE__];
+const historyFactory = historyFactories[config.url.historyType];
 
 const appHistory = historyFactory({
-  basename: __WEBPACK_DEFINE_BASE_PATH__
+  basename: config.url.basePath
 });
 
 const middleware = [thunkMiddleware, routerMiddleware(appHistory)];

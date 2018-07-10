@@ -13,7 +13,7 @@
 // visiting mypage/counters.
 
 // These settings are baked into the source using Webpack's DefinePlugin
-// Do a search in the project for `__WEBPACK_DEFINE_APP_ENV__` to see how it's linked up
+// See ./index.ts for details
 
 /**
  * @typedef {import('./index').IAppConfig} IAppConfig

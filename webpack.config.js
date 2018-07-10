@@ -6,7 +6,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
 const HistoryApiFallback = require("./webpack-serve/historyApiFallback");
 
-const { config } = require("./config/index");
+const { config } = require("./config/build");
 
 console.log("CONFIG = ", config); // eslint-disable-line
 
@@ -90,11 +90,9 @@ module.exports = {
   },
 
   plugins: [
+    // Inject app config at build-time: see comments in config/index.ts for details
     new webpack.DefinePlugin({
-      __WEBPACK_DEFINE_APP_ENV__: JSON.stringify(config.environment),
-      __WEBPACK_DEFINE_BASE_PATH__: JSON.stringify(config.url.basePath),
-      __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config),
-      __WEBPACK_DEFINE_HISTORY_TYPE__: JSON.stringify(config.url.historyType)
+      __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config)
     }),
     new webpack.NamedModulesPlugin(),
     new WebpackShellPlugin({
