@@ -6,6 +6,7 @@ const testConfig = {
   module: baseConfig.module,
   resolve: baseConfig.resolve,
   plugins: [
+    ...baseConfig.plugins,
     // Add this to get karma-sourcemap-loader to pick it up
     // webpack.devtool seems to be ignored
     new webpack.SourceMapDevToolPlugin({
