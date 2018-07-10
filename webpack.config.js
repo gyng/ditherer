@@ -13,15 +13,6 @@ console.log("CONFIG = ", config); // eslint-disable-line
 const DEV = process.env.NODE_ENV === "development";
 const PROD = process.env.NODE_ENV === "production";
 
-const babelEnvPreset = [
-  "@babel/env",
-  {
-    targets: {
-      browsers: ["last 2 versions", "Firefox ESR", "not dead"]
-    }
-  }
-];
-
 module.exports = {
   // Defaults to development, pass --mode production to override
   mode: "development",
@@ -79,7 +70,7 @@ module.exports = {
             "@babel/proposal-object-rest-spread",
             ...(DEV ? ["react-hot-loader/babel"] : [])
           ],
-          presets: [babelEnvPreset, "@babel/stage-3", "@babel/react"]
+          presets: ["@babel/env", "@babel/stage-3", "@babel/react"]
         }
       },
       {
@@ -92,7 +83,7 @@ module.exports = {
             "@babel/proposal-object-rest-spread",
             ...(DEV ? ["react-hot-loader/babel"] : [])
           ],
-          presets: [babelEnvPreset, "@babel/typescript", "@babel/react"]
+          presets: ["@babel/env", "@babel/typescript", "@babel/react"]
         }
       }
     ]
