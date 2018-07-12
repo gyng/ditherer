@@ -1,16 +1,22 @@
-import { Action, ActionTypes, ICountersState } from "@src/types";
+import * as actions from "@src/actions";
+import { RootAction } from "@src/types";
+import { getType } from "typesafe-actions";
 
-export default (state: ICountersState = { value: 0 }, action: Action) => {
+export interface ICountersState {
+  value: number;
+}
+
+export default (state: ICountersState = { value: 0 }, action: RootAction) => {
   switch (action.type) {
-    case ActionTypes.INCREMENT:
+    case getType(actions.increment):
       return {
         ...state,
-        value: state.value + action.value
+        value: state.value + action.payload.value
       };
-    case ActionTypes.DECREMENT:
+    case getType(actions.decrement):
       return {
         ...state,
-        value: state.value - action.value
+        value: state.value - action.payload.value
       };
     default:
       return state;

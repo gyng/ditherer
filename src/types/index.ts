@@ -1,24 +1,9 @@
-export interface ICountersState {
-  value: number;
-}
+import * as actions from "@src/actions";
+import rootReducer from "@src/reducers";
+import { LocationChangeAction, RouterAction } from "react-router-redux";
+import { ActionType, StateType } from "typesafe-actions";
 
-export interface IState {
-  counters: ICountersState;
-}
+type ReactRouterAction = RouterAction | LocationChangeAction;
 
-export enum ActionTypes {
-  INCREMENT = "INCREMENT",
-  DECREMENT = "DECREMENT"
-}
-
-export interface IIncrementAction {
-  type: ActionTypes.INCREMENT;
-  value: number;
-}
-
-export interface IDecrementAction {
-  type: ActionTypes.DECREMENT;
-  value: number;
-}
-
-export type Action = IIncrementAction | IDecrementAction;
+export type RootAction = ReactRouterAction | ActionType<typeof actions>;
+export type RootState = StateType<typeof rootReducer>;
