@@ -75,3 +75,11 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
 
     yarn deploy:github              # deploys a production build to GitHub pages
     yarn docker                     # runs superstatic at port 8080 on a production build in Docker
+
+### Update
+
+There isn't a nice solution to this problem. Creating something like create-react-app's eject mechanism is not good enough as it's difficult to both maintain and avoid ejection in any sufficiently complex app. A hackish strategy around this is to add the boilerplate repo as an upstream remote in git, and cherry-pick commits or tags into your application.
+
+    git remote add upstream git@github.com:gyng/jsapp-boilerplate.git
+    git fetch
+    git cherry-pick $START_COMMIT~1..$END_COMMIT
