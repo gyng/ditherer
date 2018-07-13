@@ -17,10 +17,6 @@ const rootCss = require("../../styles/root.css");
 // Legacy CSS are supported
 const legacyCss = require("./styles.legacy.css");
 
-export interface IAppProps {
-  match: { url: string };
-}
-
 // Example inline functional React component
 const Box: React.SFC<any> = props => (
   <div className={styles.box} {...props}>
@@ -28,11 +24,7 @@ const Box: React.SFC<any> = props => (
   </div>
 );
 
-class App extends React.Component<IAppProps, {}> {
-  public static defaultProps: {
-    match: { url: string };
-  };
-
+class App extends React.Component<{}, {}> {
   public render() {
     return (
       // Example usage of legacy CSS class name mixed with CSS modules
@@ -109,10 +101,6 @@ class App extends React.Component<IAppProps, {}> {
     );
   }
 }
-
-App.defaultProps = {
-  match: { url: "unknown" }
-};
 
 export default (process.env.NODE_ENV === "development"
   ? hot(module)(App)

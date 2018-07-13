@@ -1,13 +1,15 @@
 import * as React from "react";
 
 export interface ICounterProps {
-  onDecrementClick: () => void;
-  onIncrementClick: () => void;
-  onIncrementClickAsync: () => void;
-  value: number;
+  onDecrementClick: () => any;
+  onIncrementClick: () => any;
+  onIncrementClickAsync: () => any;
+  value?: number;
 }
 
 export default class Counter extends React.Component<ICounterProps, {}> {
+  public static defaultProps: Partial<ICounterProps> = { value: 0 };
+
   public render() {
     return (
       <div>
