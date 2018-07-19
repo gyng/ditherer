@@ -31,7 +31,7 @@
     "tsc:check:no-error": "tsc --noEmit --skipLibCheck || true",
     "tsc:check": "tsc --noEmit --skipLibCheck && yarn tsc:check-config",
     "tslint:fix": "yarn tslint --fix",
-    "tslint": "tslint -c tslint.json src/**/*.ts src/**/*.tsx"
+    "tslint": "tslint -c tslint.json 'src/**/*.ts' 'src/**/*.tsx' 'test/**/*.ts' 'test/**/*.tsx'"
   },
   "dependencies": {
     "history": "^4.7.2",
