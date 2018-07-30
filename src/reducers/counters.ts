@@ -6,7 +6,10 @@ export interface ICountersState {
   value: number;
 }
 
-export default (state: ICountersState = { value: 0 }, action: RootAction) => {
+export default (
+  state: ICountersState = { value: 0 },
+  action: RootAction
+): ICountersState => {
   switch (action.type) {
     case getType(actions.increment):
       return {

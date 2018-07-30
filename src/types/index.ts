@@ -9,6 +9,5 @@ type ReactRouterAction = RouterAction | LocationChangeAction;
 export type RootAction = ReactRouterAction | ActionType<typeof actions>;
 export type RootState = StateType<typeof rootReducer>;
 
-/* `any` should be RootAction, but that creates a reference loop when defining actions */
-// export type RootThunk = ThunkAction<void, any, null, any>;
+// export type RootThunk = ThunkAction<void, RootState, null, RootAction>;
 export type RootDispatch = ThunkDispatch<RootState, null, RootAction>;

@@ -1,18 +1,22 @@
 import { connect } from "react-redux";
 
 import { decrement, increment, incrementAsync } from "@src/actions";
-import Counter from "@src/components/Counter";
+import Counter, { ICounterProps } from "@src/components/Counter";
+import { ICountersState } from "@src/reducers/counters";
 import { RootDispatch, RootState } from "@src/types";
 
-const mapStateToProps = (state: RootState) => ({ value: state.counters.value });
+const mapStateToProps = (state: RootState): ICountersState => ({
+  value: state.counters.value
+});
 
-const mapDispatchToProps = (dispatch: RootDispatch) => ({
+const mapDispatchToProps = (dispatch: RootDispatch): ICounterProps => ({
   onDecrementClick: () => dispatch(decrement()),
   onIncrementClick: () => dispatch(increment()),
   onIncrementClickAsync: () => dispatch(incrementAsync())
 });
 
-const ContainedCounter = connect(
+// Ignore types for first two generic types of connect for convenience
+const ContainedCounter = connect<{}, {}, ICounterProps, RootState>(
   mapStateToProps,
   mapDispatchToProps
 )(Counter);
