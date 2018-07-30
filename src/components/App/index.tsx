@@ -12,10 +12,10 @@ const hello = require("./hello.jpg");
 const styles = require("./styles.scss");
 
 // Include global CSS and variables
-const rootCss = require("../../styles/root.css");
+require("../../styles/root.css");
 
 // Legacy CSS are supported
-const legacyCss = require("./styles.legacy.css");
+require("./styles.legacy.css");
 
 // Example inline functional React component
 const Box: React.SFC<any> = props => (

@@ -2,7 +2,7 @@ import * as actions from "@src/actions";
 import rootReducer from "@src/reducers";
 import { LocationChangeAction, RouterAction } from "react-router-redux";
 import { ActionType, StateType } from "typesafe-actions";
-import { ThunkAction, ThunkDispatch } from "../../node_modules/redux-thunk";
+import { ThunkDispatch } from "../../node_modules/redux-thunk";
 
 type ReactRouterAction = RouterAction | LocationChangeAction;
 

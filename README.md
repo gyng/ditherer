@@ -39,7 +39,7 @@ This boilerplate contains:
 
 ## Usage
 
-Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker Container](doc/docker_tests.md)
+Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker Container](doc/docker_tests.md). See all available commands in [`package.json`](package.json).
 
 ### Build
 
@@ -56,15 +56,14 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
     yarn test:functional            # runs functional tests (nightmare browser tests)
     yarn test:full                  # runs unit tests and functional tests
     yarn test:watch                 # runs unit tests using karma in watch mode
-    yarn lint                       # runs tslint, eslint, stylelint
-    yarn tslint
-    yarn tslint:fix
-    yarn eslint
-    yarn eslint:fix
-    yarn prettier                   # prettier style enforced by eslint/tslint
-    yarn prettier:fix
-    yarn stylelint
     yarn test:docker                # runs the full test suite in Docker
+    yarn lint                       # runs tslint, eslint, stylelint (prettier enforced by tslint)
+    yarn lint:fix
+    yarn lint:tslint
+    yarn lint:tslint:fix
+    yarn lint:eslint
+    yarn lint:eslint:fix
+    yarn lint:stylelint
 
 ### Develop
 
@@ -79,7 +78,7 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
 
 ### Update
 
-There isn't a nice solution to this problem. Creating something like create-react-app's eject mechanism is not good enough as it's difficult to both maintain and avoid ejection in any sufficiently complex app. A hackish strategy around this is to add the boilerplate repo as an upstream remote in git, and cherry-pick commits or tags into your application.
+I have not found a nice solution to this problem. Creating something like create-react-app's eject mechanism is not good enough as it's difficult to both maintain and avoid ejection in any sufficiently complex app. A hackish strategy around this is to add the boilerplate repo as an upstream remote in git, and cherry-pick commits or tags into your application.
 
     git remote add upstream git@github.com:gyng/jsapp-boilerplate.git
     git fetch
