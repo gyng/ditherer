@@ -11,7 +11,6 @@
     "jsx-no-lambda": false,
     "no-implicit-dependencies": false,
     "no-submodule-imports": false,
-    "no-unused-variable": [true, {"ignore-pattern": "^_"}],
     "no-var-requires": false,
     "prettier": true
   }

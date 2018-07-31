@@ -32,7 +32,8 @@ class App extends React.Component<{}, {}> {
         <div className={styles.row}>
           <h1>jsapp-boilerplate</h1>
           <div>
-            <a href="https://github.com/gyng/jsapp-boilerplate">GitHub</a>&nbsp;&middot;&nbsp;
+            <a href="https://github.com/gyng/jsapp-boilerplate">GitHub</a>
+            &nbsp;&middot;&nbsp;
             <span>
               Find me in{" "}
               <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/App/index.tsx">
