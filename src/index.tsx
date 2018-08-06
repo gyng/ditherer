@@ -6,14 +6,14 @@ import { Provider } from "react-redux";
 import { applyMiddleware, combineReducers, compose, createStore } from "redux";
 import thunkMiddleware from "redux-thunk";
 
+import {
+  ConnectedRouter,
+  connectRouter,
+  routerMiddleware
+} from "connected-react-router";
 import createBrowserHistory from "history/createBrowserHistory";
 import createHashHistory from "history/createHashHistory";
 import { Route, RouteProps } from "react-router-dom";
-import {
-  ConnectedRouter,
-  routerMiddleware,
-  routerReducer
-} from "react-router-redux";
 
 import { config } from "@cfg";
 import App from "@src/components/App";
@@ -26,11 +26,6 @@ const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
       actionsBlacklist: []
     })
   : compose;
-
-const appReducer = combineReducers({
-  ...reducers,
-  router: routerReducer
-});
 
 // Choose whether to use hash history (app/#counter) or browser history (app/counter)
 // This can be safely set to browser history if not hosting in a subdirectory (GitHub Pages)
@@ -45,10 +40,18 @@ const appHistory = historyFactory({
   basename: config.url.basePath
 });
 
+// Add additional reducers as needed here
+const appReducer = combineReducers({
+  ...reducers
+});
+
+// Add router to the state
+const routedAppReducer = connectRouter(appHistory)(appReducer);
+
 const middleware = [thunkMiddleware, routerMiddleware(appHistory)];
 
 const store = createStore(
-  appReducer,
+  routedAppReducer,
   composeEnhancers(applyMiddleware(...middleware))
 );
 
