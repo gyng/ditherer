@@ -9,10 +9,16 @@
    You want to have an understanding of [React](https://facebook.github.io/react/tutorial/tutorial.html#what-is-react) and [Redux](http://redux.js.org/#the-gist) before you start.
 
 2. Check out this repo and [change the remotes to your own repository](https://help.github.com/articles/changing-a-remote-s-url/)
-    ```
+    ```bash
     git clone git@github.com:gyng/jsapp-boilerplate.git <YOUR_PROJECT_NAME>
     cd <YOUR_PROJECT_NAME>
-    git remote set-url origin <YOUR_ORIGIN>
+    git remote set-url origin <YOUR_ORIGIN> # Or rename origin to upstream
+    ```
+
+    You can rename `origin` to `upstream` if you want to cherry-pick commits from the boilerplate later on:
+
+    ```bash
+    git remote rename origin upstream
     ```
 
 3. Install dependencies…
@@ -44,7 +50,7 @@
 
     Alternatively, there is a `Dockerfile.test.dockerfile` that runs tests in a Docker image and can be run using `docker-compose -f docker-compose.test.yml up --build`.
 
-7. For development, the watchers can be run. `yarn d` starts a development webpack server. `yarn d:hot` runs a dev session with hot reload.
+7. For development, the watchers can be run. `yarn d` starts a development webpack server with hot reload. `yarn d:nohot` runs a dev session without hot reload (does full page reloads on update).
     ```
     yarn run test:watch
     yarn run d

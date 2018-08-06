@@ -12,7 +12,7 @@
     "d": "webpack-serve",
     "deploy:github:prebuilt": "gh-pages --dist dist",
     "deploy:github": "yarn clean && yarn build:github && yarn deploy:github:prebuilt",
-    "dev:hot": "yarn d:hot",
+    "dev:nohot": "yarn d:nohot",
     "dev": "yarn d",
     "docker": "docker-compose up --build",
     "lint:eslint:fix": "yarn lint:eslint --fix",
