@@ -26,12 +26,12 @@ describe("Counter", () => {
   });
 
   it("renders the increment buttons", () => {
-    const incrementEl = render.find("button .increment");
+    const incrementEl = render.find("button.increment");
     expect(incrementEl).to.have.length(2);
   });
 
   it("renders the decrement button", () => {
-    const decrementEl = render.find("button .decrement");
+    const decrementEl = render.find("button.decrement");
     expect(decrementEl).to.have.length(1);
   });
 });
