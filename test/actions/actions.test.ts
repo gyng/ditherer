@@ -1,5 +1,4 @@
 import * as actions from "@src/actions";
-import { expect } from "chai";
 import configureMockStore from "redux-mock-store";
 import thunk from "redux-thunk";
 import { getType } from "typesafe-actions";
@@ -10,22 +9,22 @@ const mockStore = configureMockStore(middlewares);
 describe("actions", () => {
   it("should create an action to increment the counter", () => {
     const action = actions.increment();
-    expect(action.payload.value).to.equal(1);
+    expect(action.payload.value).toEqual(1);
   });
 
   it("should create an action with a custom increment value", () => {
     const action = actions.increment(2);
-    expect(action.payload.value).to.equal(2);
+    expect(action.payload.value).toEqual(2);
   });
 
   it("should create an action to decrement the counter", () => {
     const action = actions.decrement();
-    expect(action.payload.value).to.equal(1);
+    expect(action.payload.value).toEqual(1);
   });
 
   it("should create an action with a custom decrement value", () => {
     const action = actions.decrement(2);
-    expect(action.payload.value).to.equal(2);
+    expect(action.payload.value).toEqual(2);
   });
 
   describe("async", () => {

@@ -1,5 +1,3 @@
-const Nightmare = require("nightmare");
-const { expect } = require("chai");
 const { setup, teardown, url } = require("../helpers/functional");
 
 describe("Functional tests", function funcTest() {

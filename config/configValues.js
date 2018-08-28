@@ -40,6 +40,13 @@ const values = {
       publicPath: "./",
       historyType: "browser"
     }
+  },
+  test: {
+    url: {
+      basePath: "/",
+      publicPath: "./",
+      historyType: "hash"
+    }
   }
 };
 

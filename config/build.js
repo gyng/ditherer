@@ -9,8 +9,9 @@ const configValues = require("./configValues");
  */
 const ENVIRONMENT = {
   development: "development",
+  github: "github",
   production: "production",
-  github: "github"
+  test: "test"
 };
 
 /**

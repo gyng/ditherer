@@ -1,5 +1,5 @@
-export type Environment = 'development' | 'github' | 'production';
-export type EnvironmentEnum = {[k in Environment]: k};
+export type Environment = "development" | "github" | "production" | "test";
+export type EnvironmentEnum = { [k in Environment]: k };
 export type getEnvironment = (s: string) => Environment;
 
 export type HistoryType = "browser" | "hash";
@@ -14,7 +14,7 @@ export type IAppConfig = {
   url: IUrlConfig;
 };
 
-export type IConfig<T> = {[k in Environment]: T};
+export type IConfig<T> = { [k in Environment]: T };
 
 // This is the exported configuration so it's named simply
 export interface Configuration extends IAppConfig {
