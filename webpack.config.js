@@ -66,11 +66,11 @@ module.exports = {
         loader: "babel-loader",
         options: {
           plugins: [
-            "@babel/proposal-class-properties",
+            "@babel/plugin-proposal-class-properties",
             "@babel/proposal-object-rest-spread",
             ...(DEV ? ["react-hot-loader/babel"] : [])
           ],
-          presets: ["@babel/env", "@babel/stage-3", "@babel/react"]
+          presets: ["@babel/env", "@babel/react"]
         }
       },
       {
@@ -95,10 +95,12 @@ module.exports = {
       __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config)
     }),
     new webpack.NamedModulesPlugin(),
-    new WebpackShellPlugin({
-      onBuildEnd: ["yarn --silent tsc:check:no-error --pretty"],
-      dev: false
-    }),
+    ...(DEV
+      ? new WebpackShellPlugin({
+          onBuildEnd: ["yarn --silent tsc:check:no-error --pretty"],
+          dev: false
+        })
+      : []),
     new HtmlWebpackPlugin({
       template: "./src/index.html",
       favicon: "./src/static/favicon.ico"

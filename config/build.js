@@ -29,10 +29,11 @@ const environment = getEnvironment(process.env.APP_ENV);
 /**
  * @type {import('./index.d').Configuration}
  */
-const config = {
-  environment,
-  ...configValues.values[environment]
-};
+const config = Object.assign(
+  {},
+  { environment },
+  configValues.values[environment]
+);
 
 module.exports = {
   ENVIRONMENT,
