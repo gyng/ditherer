@@ -27,28 +27,39 @@ describe("actions", () => {
     expect(action.payload.value).toEqual(2);
   });
 
-  // describe("async", () => {
-  //   // let timeout: typeof window.setTimeout;
+  describe("async", () => {
+    let timeout: typeof window.setTimeout;
 
-  //   // beforeEach(() => {
-  //   //   timeout = window.setTimeout;
-  //   //   window.setTimeout = (f: any) => f();
-  //   // });
+    beforeEach(() => {
+      timeout = window.setTimeout;
+      window.setTimeout = (f: any) => f();
+    });
 
-  //   // afterEach(() => {
-  //   //   window.setTimeout = timeout;
-  //   // });
+    afterEach(() => {
+      window.setTimeout = timeout;
+    });
 
-  //   it("should create an action to increment async", async () => {
-  //     const store = mockStore({});
-  //     const action = actions.incrementAsync(2, 0);
-  //     const expectedActions = [{ type: getType(actions.increment), value: 2 }];
+    it("should create an action to increment async", async done => {
+      const store = mockStore({});
+      const action = actions.incrementAsync(2, 0);
+      const expectedActions = [
+        {
+          meta: undefined,
+          payload: {
+            value: 2
+          },
+          type: getType(actions.increment)
+        }
+      ];
 
-  //     const response = await store.dispatch(action);
+      await store.dispatch(action);
 
-  //     const dispatched = store.getActions();
-  //     expect(dispatched).toHaveLength(1);
-  //     expect(dispatched).toEqual(expectedActions);
-  //   });
-  // });
+      window.setTimeout(() => {
+        const dispatched = store.getActions();
+        expect(dispatched).toHaveLength(1);
+        expect(dispatched).toEqual(expectedActions);
+        done();
+      });
+    });
+  });
 });
