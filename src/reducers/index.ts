@@ -1,3 +1,3 @@
-import { counterReducer } from "./counters";
+import { counterReducer } from "./counter";
 
 export const rootReducer = { counters: counterReducer };

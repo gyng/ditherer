@@ -1,5 +1,5 @@
 import { decrement, increment } from "@src/actions";
-import { counterReducer as reducer } from "@src/reducers/counters";
+import { counterReducer as reducer } from "@src/reducers/counter";
 
 describe("counter reducer", () => {
   it("should handle INCREMENT", () => {

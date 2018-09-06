@@ -2,7 +2,7 @@ import { connect } from "react-redux";
 
 import { decrement, increment, incrementAsync } from "@src/actions";
 import { Counter, ICounterProps } from "@src/components/Counter";
-import { ICountersState } from "@src/reducers/counters";
+import { ICountersState } from "@src/reducers/counter";
 import { RootDispatch, RootState } from "@src/types";
 
 const mapStateToProps = (state: RootState): ICountersState => ({
