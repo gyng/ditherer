@@ -6,7 +6,7 @@ export interface ICountersState {
   value: number;
 }
 
-export default (
+export const counterReducer = (
   state: ICountersState = { value: 0 },
   action: RootAction
 ): ICountersState => {

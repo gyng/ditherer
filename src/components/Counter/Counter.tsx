@@ -7,7 +7,7 @@ export interface ICounterProps {
   value?: number;
 }
 
-export default class Counter extends React.Component<ICounterProps, {}> {
+export class Counter extends React.Component<ICounterProps, {}> {
   public static defaultProps: Partial<ICounterProps> = { value: 0 };
 
   public render() {

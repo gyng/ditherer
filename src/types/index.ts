@@ -1,5 +1,5 @@
 import * as actions from "@src/actions";
-import rootReducer from "@src/reducers";
+import { rootReducer } from "@src/reducers";
 import { ActionType, StateType } from "typesafe-actions";
 import { ThunkDispatch } from "../../node_modules/redux-thunk";
 

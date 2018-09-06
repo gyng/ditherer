@@ -17,16 +17,13 @@ This boilerplate contains:
 | [postcss](https://github.com/postcss/postcss)                               | css preprocessing, styling   |
 | [plain css](https://developer.mozilla.org/en-US/docs/Web/CSS)               | legacy css escape hatch      |
 | **Testing, linting**                                                        |                              |
-| [mocha](https://mochajs.org/#getting-started)                               | test framework               |
-| [chai](http://chaijs.com/guide/styles/)                                     | test assertions              |
+| [jest](https://jestjs.io/)                                                  | test framework               |
 | [enzyme](http://airbnb.io/enzyme/index.html)                                | react test library           |
-| [nightmare](https://github.com/segmentio/nightmare)                         | browser automation test lib  |
 | [typescript](https://www.typescriptlang.org/docs/home.html)                 | type checking                |
 | [eslint](http://eslint.org/docs/rules/)                                     | javascript linting           |
 | [tslint](https://palantir.github.io/tslint/rules/)                          | typescript linting           |
 | [prettier](https://github.com/prettier/prettier/)                           | (type/java)script formatting |
 | [stylelint](https://stylelint.io/user-guide/)                               | legacy css linting           |
-| [karma](http://karma-runner.github.io/1.0/config/configuration-file.html)   | test runner (with electron)  |
 | **Building, CI, deploying**                                                 |                              |
 | [configuration](config/configValues.js)                                     | configuration                |
 | [webpack](https://webpack.js.org/concepts/)                                 | javascript bundler           |
@@ -36,6 +33,8 @@ This boilerplate contains:
 | [github pages](https://pages.github.com/)                                   | deployment, online hosting   |
 
 [Ditherer](https://github.com/gyng/ditherer) is a project built using an older version of this boilerplate.
+
+End-to-end/integration/functional testing is intentionally kept separate.
 
 ## Usage
 
@@ -53,9 +52,7 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
 ### Test
 
     yarn test                       # runs unit tests once
-    yarn test:functional            # runs functional tests (nightmare browser tests)
-    yarn test:full                  # runs unit tests and functional tests
-    yarn test:watch                 # runs unit tests using karma in watch mode
+    yarn test:watch                 # runs unit tests using jest in watch mode
     yarn test:docker                # runs the full test suite in Docker
     yarn lint                       # runs tslint, eslint, stylelint (prettier enforced by tslint)
     yarn lint:fix
@@ -64,12 +61,13 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
     yarn lint:eslint
     yarn lint:eslint:fix
     yarn lint:stylelint
+    yarn test:coverage              # generates test coverage report using jest
 
 ### Develop
 
     yarn d                          # runs webpack-serve (yarn dev) or use
     yarn d:hot                      # runs webpack-serve in hot reload mode (yarn dev:hot)
-    yarn test:watch                 # runs unit tests using karma in watch mode
+    yarn test:watch                 # runs unit tests using jest in watch mode
 
 ### Deploy
 

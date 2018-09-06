@@ -1,11 +1,12 @@
-FROM node:10.3.0-alpine
+FROM node:10.9.0-alpine
 
 ARG YARN_VERSION=1.2.1
-RUN npm install -g "yarn@${YARN_VERSION}" superstatic
+RUN yarn global add superstatic
 
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache git
+# If package.json uses git, uncomment this
+# RUN apk update \
+#     && apk upgrade \
+#     && apk add --no-cache git
 
 WORKDIR /usr/src/app
 
@@ -17,8 +18,6 @@ RUN yarn install --frozen-lockfile \
 ARG NODE_ENV=production
 COPY . /usr/src/app
 RUN yarn build:production
-
-RUN apk del git
 
 COPY superstatic.json /usr/src/app
 EXPOSE 8080

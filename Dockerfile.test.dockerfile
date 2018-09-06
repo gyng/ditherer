@@ -1,20 +1,11 @@
-FROM node:10.3.0
-
-ARG YARN_VERSION=1.7.0
-# These depdendencies below are installed for Electron which is used by Nightmare
-RUN set -ex \
-    && apt-get update \
-    && apt-get install -y \
-                          xvfb \
-                          libgtk2.0 \
-                          libxtst6 \
-                          libxss1 \
-                          libgconf2-4 \
-                          libnss3 \
-                          libasound2 \
-    && npm install -g "yarn@${YARN_VERSION}"
+FROM node:10.9.0-alpine
 
 WORKDIR /usr/src/app
+
+# If package.json uses git, uncomment this
+# RUN apk update \
+#     && apk upgrade \
+#     && apk add --no-cache git
 
 COPY package.json yarn.lock /usr/src/app/
 RUN yarn install --frozen-lockfile \
@@ -27,5 +18,4 @@ COPY . /usr/src/app
 # Check that it builds
 RUN yarn build
 
-ARG DISPLAY=':99.0'
-RUN yarn test:xvfb & yarn lint && yarn test:full
+RUN yarn lint && yarn test:coverage

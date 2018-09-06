@@ -1,3 +1,4 @@
+coverage/
 dist/
 node_modules/
 set_config_folder_dir/

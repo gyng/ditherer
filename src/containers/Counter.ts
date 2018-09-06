@@ -1,7 +1,7 @@
 import { connect } from "react-redux";
 
 import { decrement, increment, incrementAsync } from "@src/actions";
-import Counter, { ICounterProps } from "@src/components/Counter";
+import { Counter, ICounterProps } from "@src/components/Counter";
 import { ICountersState } from "@src/reducers/counters";
 import { RootDispatch, RootState } from "@src/types";
 
@@ -16,9 +16,7 @@ const mapDispatchToProps = (dispatch: RootDispatch): ICounterProps => ({
 });
 
 // Ignore types for first two generic types of connect for convenience
-const ContainedCounter = connect<{}, {}, ICounterProps, RootState>(
+export const CounterContainer = connect<{}, {}, ICounterProps, RootState>(
   mapStateToProps,
   mapDispatchToProps
 )(Counter);
-
-export default ContainedCounter;

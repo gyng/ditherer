@@ -1,6 +1,8 @@
+.DS_Store
+config.json
+coverage/
 dist/
 node_modules/
-.DS_Store
 npm-debug.log
 package-lock.json
 yarn-error.log

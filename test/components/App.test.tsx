@@ -1,4 +1,4 @@
-import App from "@src/components/App";
+import { App } from "@src/components/App";
 import { shallow } from "enzyme";
 import * as React from "react";
 

@@ -1,6 +1,6 @@
 /* tslint:disable:no-empty */
 
-import Counter from "@src/components/Counter";
+import { Counter } from "@src/components/Counter";
 import * as Enzyme from "enzyme";
 import * as React from "react";
 

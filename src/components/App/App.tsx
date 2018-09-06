@@ -4,8 +4,8 @@ import * as React from "react";
 import { Link, Route, Switch } from "react-router-dom";
 
 import { config } from "@cfg";
-import Echo from "@src/components/Echo";
-import Counter from "@src/containers/Counter";
+import { Echo } from "@src/components/Echo";
+import { CounterContainer } from "@src/containers/Counter";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");
@@ -24,7 +24,7 @@ const Box: React.SFC<any> = props => (
   </div>
 );
 
-class App extends React.Component<{}, {}> {
+class InnerApp extends React.Component<{}, {}> {
   public render() {
     return (
       // Example usage of legacy CSS class name mixed with CSS modules
@@ -47,7 +47,7 @@ class App extends React.Component<{}, {}> {
         <Box className={styles.box} style={{ alignSelf: "flex-start" }}>
           {/* Example usage of switch for routing */}
           <Switch>
-            <Route path="/counter" component={Counter} />
+            <Route path="/counter" component={CounterContainer} />
             <Route
               path="/"
               render={() => (
@@ -103,6 +103,5 @@ class App extends React.Component<{}, {}> {
   }
 }
 
-export default (process.env.NODE_ENV === "development"
-  ? hot(module)(App)
-  : App);
+export const App =
+  process.env.NODE_ENV === "development" ? hot(module)(InnerApp) : InnerApp;
