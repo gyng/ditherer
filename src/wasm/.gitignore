@@ -1,5 +1,6 @@
 **/target/debug
 **/target/release
+**/target/.rustc_info.json
 **/wasm32-unknown-unknown/release
 !**/wasm32-unknown-unknown/release/*.js
 !**/wasm32-unknown-unknown/release/*.wasm

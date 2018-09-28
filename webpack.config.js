@@ -23,18 +23,6 @@ module.exports = {
   },
 
   module: {
-    // Exclude file-loaded WASM blowing up with webpack 4 (for now)
-    // https://github.com/webpack/webpack/issues/6725
-    defaultRules: [
-      {
-        type: "javascript/auto",
-        resolve: {}
-      },
-      {
-        test: /\.json$/i,
-        type: "json"
-      }
-    ],
     rules: [
       {
         test: /\.(css|scss)$/,
@@ -61,13 +49,6 @@ module.exports = {
         loader: "file-loader",
         options: {
           name: "./f/[path][name].[hash].[ext]"
-        }
-      },
-      {
-        test: /\.(wasm)$/,
-        loader: "file-loader",
-        options: {
-          name: "./[name].[ext]"
         }
       },
       {
@@ -105,18 +86,18 @@ module.exports = {
     ...(PROD ? [new CompressionPlugin()] : [])
   ],
 
-  optimization: {
-    splitChunks: {
-      cacheGroups: {
-        commons: {
-          test: /[\\/]node_modules[\\/]/,
-          filename: "commons.js",
-          name: "commons",
-          chunks: "all"
-        }
-      }
-    }
-  },
+  // optimization: {
+  //   splitChunks: {
+  //     cacheGroups: {
+  //       commons: {
+  //         test: /[\\/]node_modules[\\/]/,
+  //         filename: "commons.js",
+  //         name: "commons",
+  //         chunks: "all"
+  //       }
+  //     }
+  //   }
+  // },
 
   devtool: "cheap-eval-source-map",
 

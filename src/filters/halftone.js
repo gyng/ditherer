@@ -100,8 +100,8 @@ const halftone = (
       const centerY = y + size / 2;
       const offsetDistance = size * options.offset;
       const centers = [
-        getOffset(2 * Math.PI / 3, offsetDistance, centerX, centerY),
-        getOffset(2 * 2 * Math.PI / 3, offsetDistance, centerX, centerY),
+        getOffset((2 * Math.PI) / 3, offsetDistance, centerX, centerY),
+        getOffset((2 * 2 * Math.PI) / 3, offsetDistance, centerX, centerY),
         getOffset(2 * Math.PI, offsetDistance, centerX, centerY)
       ];
 

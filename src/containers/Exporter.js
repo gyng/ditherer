@@ -41,8 +41,9 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onImportState: json => dispatch(importState(json))
 });
 
-const ContainedExporter = connect(mapStateToProps, mapDispatchToProps)(
-  Exporter
-);
+const ContainedExporter = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Exporter);
 
 export default ContainedExporter;

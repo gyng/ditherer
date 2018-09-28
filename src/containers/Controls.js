@@ -32,8 +32,9 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
   onDeleteColorPalette: name => dispatch(deleteCurrentColorPalette(name))
 });
 
-const ContainedControls = connect(mapStateToProps, mapDispatchToProps)(
-  Controls
-);
+const ContainedControls = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Controls);
 
 export default ContainedControls;

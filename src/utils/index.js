@@ -15,6 +15,14 @@ import type {
   AppState
 } from "types";
 
+const rust = import("wasm/rgba2laba/wasm/rgba2laba");
+
+rust.then(obj => {
+  wasmRgba2labaInner = obj.rgba2laba; // eslint-disable-line
+  wasmRgbaLabaDistanceInner = obj.rgba_laba_distance; // eslint-disable-line
+  // wasmRgbaLabaDistanceTransformRInner = obj.rgba_laba_distance_transform_right; // eslint-disable-line
+});
+
 export const serializeState = (state: AppState) => JSON.stringify(state);
 
 // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
@@ -168,6 +176,11 @@ let wasmRgbaLabaDistanceInner = (a, b, c, d, e, f, g, h, i, j, k) => {
   return 0;
 };
 
+// let wasmRgbaLabaDistanceTransformRInner = (a, b, c, d, e, f, g, h, i, j, k) => {
+//   console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k); // eslint-disable-line
+//   return 0;
+// };
+
 export const wasmRgbaLabaDistance = (
   a: ColorRGBA,
   b: ColorRGBA,
@@ -201,21 +214,6 @@ export const wasmRgba2laba = (
     ref.y,
     ref.z
   );
-
-let wasm;
-try {
-  wasm = require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.js"); // eslint-disable-line
-  // $FlowFixMe
-  require("wasm/rgba2laba/target/wasm32-unknown-unknown/release/rgba2laba.wasm"); // eslint-disable-line
-
-  wasm.then(obj => {
-    wasmRgba2labaInner = obj.rgba2laba;
-    wasmRgbaLabaDistanceInner = obj.rgbaLabaDistance;
-    // console.log(obj, "override");
-  });
-} catch (e) {
-  console.log(e, "Failed to load WASM"); // eslint-disable-line
-}
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (

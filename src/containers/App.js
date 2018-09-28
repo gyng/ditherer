@@ -63,6 +63,9 @@ const mapDispatchToProps = (dispatch: Dispatch<*>) => ({
     dispatch(setScalingAlgorithm(algorithm))
 });
 
-const ContainedApp = connect(mapStateToProps, mapDispatchToProps)(App);
+const ContainedApp = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(App);
 
 export default ContainedApp;
