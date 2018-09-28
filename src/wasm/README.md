@@ -6,5 +6,5 @@ $ cargo +nightly build --target wasm32-unknown-unknown --release
 
 # In rgba2laba/
 
-$ wasm-bindgen target/wasm32-unknown-unknown/release/rgba2laba.wasm --out-dir .
+$ wasm-bindgen target/wasm32-unknown-unknown/release/rgba2laba.wasm --out-dir wasm
 ```

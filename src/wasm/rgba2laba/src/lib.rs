@@ -1,7 +1,8 @@
 use wasm_bindgen::prelude::*;
 
 #[rustfmt::skip]
-fn rgba2laba(
+#[wasm_bindgen]
+pub fn rgba2laba(
     r: f64,
     g: f64,
     b: f64,
