@@ -38,17 +38,7 @@
     ```
     yarn run lint
     yarn run test
-    yarn run test:functional
     ```
-
-    If tests do not run (eg. Nightmare fails to start locally on Windows), you need to run `xfvb` locally to get the tests running. (Improve me: this is clunky)
-
-    ```
-    export DISPLAY=':99.0'
-    Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & yarn test:full
-    ```
-
-    Alternatively, there is a `Dockerfile.test.dockerfile` that runs tests in a Docker image and can be run using `docker-compose -f docker-compose.test.yml up --build`.
 
 7. For development, the watchers can be run. `yarn d` starts a development webpack server with hot reload. `yarn d:nohot` runs a dev session without hot reload (does full page reloads on update).
     ```
