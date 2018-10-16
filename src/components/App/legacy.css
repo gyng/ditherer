@@ -1,0 +1,9 @@
+.app {
+  justify-content: flex-start;
+  margin: 0;
+  padding: var(--m-xl);
+}
+
+#root {
+  height: 100%;
+}

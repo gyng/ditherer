@@ -1,3 +1,7 @@
+/* DO NOT @import THIS FILE FROM ANOTHER .scss FILE
+ * DOING SO WILL CREATE DUPLICATE ENTRIES */
+
+/* GLOBAL STYLES */
 html {
   font-size: 1em;
 }
@@ -39,7 +43,6 @@ h4 {
   font-size: 1.333em;
 }
 
-small,
-.font_small {
+small {
   font-size: 0.75em;
 }

@@ -1,4 +1,7 @@
-/* This is an example of the escape hatch for PostCSS.
+/* DO NOT @import THIS FILE FROM ANOTHER .scss FILE
+ * DOING SO WILL CREATE DUPLICATE ENTRIES
+ *
+ * This is an example of the escape hatch for PostCSS.
  * Ideally you want to avoid using this as much as possible.
  *
  * However, there *are* cases where vanilla CSS is more appropriate
@@ -6,23 +9,17 @@
 */
 
 /* Relative path resolution */
-@import "./typography.css";
+@import "./typography.scss";
+@import "./variables.scss";
 
-:root {
-  --font-color-override: hsl(0, 0%, 0%);
-}
-
-/* Global HTML rules */
+/* Global HTML rules
+ * Normalize html, body tags */
 html,
 body {
   height: 100%;
   width: 100%;
   padding: 0;
   margin: 0;
-}
-
-body {
-  color: var(--font-color-override);
 }
 
 a {

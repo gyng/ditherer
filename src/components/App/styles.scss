@@ -1,5 +1,3 @@
-@import "styles/variables.css";
-
 @keyframes spin {
   100% {
     transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
@@ -42,6 +40,11 @@
   margin: 0 auto;
   max-width: calc(var(--m) * 240);
 
+  /* --narrow is defined in customMedia.css */
+  @media (--narrow) {
+    grid-template-columns: 1fr;
+  }
+
   & .row {
     grid-column-start: span 3;
   }
@@ -83,5 +86,10 @@
 
   & .box:nth-child(odd) {
     grid-column: 2 / 3;
+
+    /* --narrow is defined in customMedia.css */
+    @media (--narrow) {
+      grid-column: 1;
+    }
   }
 }
