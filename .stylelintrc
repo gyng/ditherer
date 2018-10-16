@@ -13,5 +13,11 @@
     "max-line-length": 120,
     "max-nesting-depth": 3,
     "selector-max-compound-selectors": 4
-  }
+  },
+  "ignoreFiles": [
+    "**/*.js",
+    "**/*.jsx",
+    "**/*.ts",
+    "**/*.tsx"
+  ]
 }
