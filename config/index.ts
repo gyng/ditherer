@@ -8,7 +8,7 @@
 // Therefore, we inject the selected configuration at build time and isolate the
 // full configuration from prying eyes.
 //
-// See `runtimeExamples/runtime-config.md` for details on how to use a runtime configuration instead
+// See `runtimeExamples/runtime_config.md` for details on how to use a runtime configuration instead
 
 import { Configuration } from "./index.d";
 
