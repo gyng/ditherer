@@ -4,8 +4,8 @@ export const loadConfig = (url: string): Promise<IConfig<any>> =>
   new Promise((resolve, reject) => {
     fetch(url)
       .then(res => res.json())
+      .catch(reject)
       .then(parsedConfig => {
         resolve(parsedConfig);
-      })
-      .catch(reject);
+      });
   });
