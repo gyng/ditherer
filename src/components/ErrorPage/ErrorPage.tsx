@@ -11,6 +11,9 @@ export interface IErrorPageProps {
 // Note that for 404s, this error page will only show up if your
 // server is configured to fallback to root (ie. `/`). Otherwise,
 // your server's 404 will be used instead.
+//
+// The above only applies to browser history type. When using hash history,
+// the Link component will handle the routing back to the index.
 export class ErrorPage extends React.Component<IErrorPageProps, {}> {
   public static defaultProps: Partial<IErrorPageProps> = {
     code: "?",
