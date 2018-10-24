@@ -18,6 +18,7 @@ import { Route, RouteProps } from "react-router-dom";
 import { config } from "@cfg";
 import { App } from "@src/components/App";
 import { rootReducer } from "@src/reducers";
+import { ErrorPage } from "./components/ErrorPage";
 
 const start = () => {
   // TypeScript definitions for devtools in /my-globals/index.d.ts
@@ -56,18 +57,16 @@ const start = () => {
     composeEnhancers(applyMiddleware(...middleware))
   );
 
-  // Example of extending extra props on library components
-  interface IMyRouteProps extends RouteProps {
-    unusedProp: string;
-  }
-  class MyRoute extends Route<IMyRouteProps> {}
-
   ReactDOM.render(
     <Provider store={store}>
       <ConnectedRouter history={appHistory}>
         <>
-          <MyRoute path="/counter" component={App} unusedProp="unused" />
-          <MyRoute path="/" exact component={App} unusedProp="unused" />
+          <Route path="/counter" component={App} />
+          <Route path="/" exact component={App} />
+          <Route
+            path="/"
+            render={() => <ErrorPage code="404" message="Page not found" />}
+          />
         </>
       </ConnectedRouter>
     </Provider>,

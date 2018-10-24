@@ -67,6 +67,7 @@ class InnerApp extends React.Component<{}, {}> {
 
             {/* Using other components */}
             <Echo text="Hello, world!" />
+            <Link to="/no-page-lives-here">Link to example error page</Link>
           </div>
         </Box>
 
