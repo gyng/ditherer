@@ -5,7 +5,8 @@ import {
   RGB_APPROX,
   LAB_NEAREST,
   HSV_NEAREST,
-  WASM_LAB_NEAREST
+  WASM_LAB_NEAREST,
+  WASM_LAB_NEAREST_MEMO_PALETTE
 } from "constants/color";
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
@@ -25,7 +26,11 @@ export const COLOR_DISTANCE_ALGORITHM = {
     { name: "RGB (perceptual approx.)", value: RGB_APPROX },
     { name: "HSV", value: HSV_NEAREST },
     { name: "Lab", value: LAB_NEAREST },
-    { name: "Lab (wasm)", value: WASM_LAB_NEAREST }
+    { name: "Lab (wasm)", value: WASM_LAB_NEAREST },
+    {
+      name: "Lab (wasm, memoized palette)",
+      value: WASM_LAB_NEAREST_MEMO_PALETTE
+    }
   ],
   default: RGB_APPROX
 };

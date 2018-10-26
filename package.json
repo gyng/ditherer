@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "history": "^4.7.2",
+    "lodash.memoize": "^4.1.2",
     "pako": "1.0.6",
     "prop-types": "^15.6.1",
     "react": "^16.2.0",

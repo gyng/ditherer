@@ -5,7 +5,8 @@ import {
   RGB_APPROX,
   HSV_NEAREST,
   LAB_NEAREST,
-  WASM_LAB_NEAREST
+  WASM_LAB_NEAREST,
+  WASM_LAB_NEAREST_MEMO_PALETTE
 } from "constants/color";
 import type {
   ColorRGBA,
@@ -14,6 +15,8 @@ import type {
   ColorDistanceAlgorithm,
   AppState
 } from "types";
+
+import memoize from "lodash.memoize";
 
 const rust = import("wasm/rgba2laba/wasm/rgba2laba");
 
@@ -215,6 +218,8 @@ export const wasmRgba2laba = (
     ref.z
   );
 
+export const wasmRgba2labaMemo = memoize(wasmRgba2laba);
+
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (
   input: ColorLabA,
@@ -253,6 +258,7 @@ export const laba2rgba = (
   return [r, g, b, input[3]];
 };
 
+// a can be assumed to be palette colour
 export const colorDistance = (
   a: ColorRGBA,
   b: ColorRGBA,
@@ -274,6 +280,15 @@ export const colorDistance = (
     }
     case WASM_LAB_NEAREST: {
       return wasmRgbaLabaDistance(a, b);
+    }
+    case WASM_LAB_NEAREST_MEMO_PALETTE: {
+      const aLab = wasmRgba2labaMemo(a);
+      const bLab = rgba2laba(b);
+      return Math.sqrt(
+        (bLab[0] - aLab[0]) ** 2 +
+          (bLab[1] - aLab[1]) ** 2 +
+          (bLab[2] - aLab[2]) ** 2
+      );
     }
     case RGB_APPROX: {
       const r = (a[0] + b[0]) / 2;
