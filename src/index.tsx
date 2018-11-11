@@ -13,7 +13,7 @@ import {
 } from "connected-react-router";
 import createBrowserHistory from "history/createBrowserHistory";
 import createHashHistory from "history/createHashHistory";
-import { Route, RouteProps } from "react-router-dom";
+import { Route, Switch } from "react-router-dom";
 
 import { config } from "@cfg";
 import { App } from "@src/components/App";
@@ -60,14 +60,14 @@ const start = () => {
   ReactDOM.render(
     <Provider store={store}>
       <ConnectedRouter history={appHistory}>
-        <>
+        <Switch>
           <Route path="/counter" component={App} />
           <Route path="/" exact component={App} />
           <Route
             path="/"
             render={() => <ErrorPage code="404" message="Page not found" />}
           />
-        </>
+        </Switch>
       </ConnectedRouter>
     </Provider>,
     document.getElementById("root")
