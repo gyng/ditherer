@@ -3,14 +3,11 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
-import { applyMiddleware, combineReducers, compose, createStore } from "redux";
+import { applyMiddleware, compose, createStore } from "redux";
 import thunkMiddleware from "redux-thunk";
 
-import {
-  ConnectedRouter,
-  connectRouter,
-  routerMiddleware
-} from "connected-react-router";
+import { ConnectedRouter, routerMiddleware } from "connected-react-router";
+import { History } from "history";
 import createBrowserHistory from "history/createBrowserHistory";
 import createHashHistory from "history/createHashHistory";
 import { Route, Switch } from "react-router-dom";
@@ -20,7 +17,23 @@ import { App } from "@src/components/App";
 import { rootReducer } from "@src/reducers";
 import { ErrorPage } from "./components/ErrorPage";
 
-const start = () => {
+const configureHistory = () => {
+  // Choose whether to use hash history (app/#counter) or browser history (app/counter)
+  // This can be safely set to browser history if not hosting in a subdirectory (GitHub Pages)
+  const historyFactories: { [k: string]: (options?: any) => any } = {
+    browser: createBrowserHistory,
+    hash: createHashHistory
+  };
+  const historyFactory = historyFactories[config.url.historyType];
+
+  const appHistory = historyFactory({
+    basename: config.url.basePath
+  });
+
+  return appHistory;
+};
+
+const configureStore = (appHistory: History) => {
   // TypeScript definitions for devtools in /my-globals/index.d.ts
   // Redux devtools are still enabled in production!
   const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
@@ -29,33 +42,23 @@ const start = () => {
       })
     : compose;
 
-  // Choose whether to use hash history (app/#counter) or browser history (app/counter)
-  // This can be safely set to browser history if not hosting in a subdirectory (GitHub Pages)
-  const historyFactories: { [k: string]: (options?: any) => any } = {
-    browser: createBrowserHistory,
-    hash: createHashHistory
-  };
-
-  const historyFactory = historyFactories[config.url.historyType];
-
-  const appHistory = historyFactory({
-    basename: config.url.basePath
-  });
-
-  // Add additional reducers as needed here
-  const appReducer = combineReducers({
-    ...rootReducer
-  });
-
   // Add router to the state
-  const routedAppReducer = connectRouter(appHistory)(appReducer);
+  const routedAppReducer = rootReducer(appHistory);
 
   const middleware = [thunkMiddleware, routerMiddleware(appHistory)];
 
+  // Add reducers in src/reducers/index.ts
   const store = createStore(
     routedAppReducer,
     composeEnhancers(applyMiddleware(...middleware))
   );
+
+  return store;
+};
+
+const start = () => {
+  const appHistory = configureHistory();
+  const store = configureStore(appHistory);
 
   ReactDOM.render(
     <Provider store={store}>
