@@ -60,12 +60,15 @@ module.exports = {
         }
       },
       // Mostly for tests, but legacy JS in source too
+      // This babel config is separate from babel.config.js
+      // babel.config.js is used for jest tests, and should be updated accordingly
       {
         test: /\.jsx?$/,
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
           plugins: [
+            "@babel/plugin-syntax-dynamic-import",
             "@babel/plugin-proposal-class-properties",
             "@babel/proposal-object-rest-spread",
             ...(DEV ? ["react-hot-loader/babel"] : [])
@@ -79,6 +82,7 @@ module.exports = {
         loader: "babel-loader",
         options: {
           plugins: [
+            "@babel/plugin-syntax-dynamic-import",
             "@babel/proposal-class-properties",
             "@babel/proposal-object-rest-spread",
             ...(DEV ? ["react-hot-loader/babel"] : [])
@@ -115,19 +119,6 @@ module.exports = {
         ]
       : [])
   ],
-
-  optimization: {
-    splitChunks: {
-      cacheGroups: {
-        vendors: {
-          test: /\/node_modules\//,
-          filename: "vendor.[hash:7].js",
-          name: "vendor",
-          chunks: "all"
-        }
-      }
-    }
-  },
 
   // Using cheap-eval-source-map for build times
   // switch to inline-source-map if detailed debugging needed

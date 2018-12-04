@@ -13,9 +13,11 @@ import createHashHistory from "history/createHashHistory";
 import { Route, Switch } from "react-router-dom";
 
 import { config } from "@cfg";
-import { App } from "@src/components/App";
+// import { App } from "@src/components/App";
 import { rootReducer } from "@src/reducers";
 import { ErrorPage } from "./components/ErrorPage";
+
+const App = React.lazy(() => import("@src/components/App"));
 
 const configureHistory = () => {
   // Choose whether to use hash history (app/#counter) or browser history (app/counter)
@@ -60,6 +62,12 @@ export const AppConfigContext = React.createContext<typeof config | undefined>(
   undefined
 );
 
+const SuspenseApp = () => (
+  <React.Suspense fallback={<div>Dynamically loading App in index.tsx</div>}>
+    <App />
+  </React.Suspense>
+);
+
 const start = () => {
   const appHistory = configureHistory();
   const store = configureStore(appHistory);
@@ -69,8 +77,8 @@ const start = () => {
       <ConnectedRouter history={appHistory}>
         <AppConfigContext.Provider value={config}>
           <Switch>
-            <Route path="/counter" component={App} />
-            <Route path="/" exact component={App} />
+            <Route path="/counter" render={() => <SuspenseApp />} />
+            <Route path="/" exact render={() => <SuspenseApp />} />
             <Route
               path="/"
               render={() => <ErrorPage code="404" message="Page not found" />}

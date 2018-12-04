@@ -11,7 +11,8 @@ module.exports = {
     "@test/(.*)": "<rootDir>/test/$1"
   },
   setupTestFrameworkScriptFile: "<rootDir>/test/helpers/index.ts",
-  testMatch: ["**/*.test.(ts|tsx|js)"],
+  testMatch: ["**/src/**/*.test.(ts|tsx|js)", "**/src/test/*.test.(ts|tsx|js)"],
+  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
   transform: {
     "^.+\\.(ts|tsx)$": "ts-jest",
     "^.+\\.(css|less|sass|scss|png|jpg|ttf|woff|woff2)$": "jest-transform-stub"
