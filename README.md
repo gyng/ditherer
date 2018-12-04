@@ -46,6 +46,7 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
     yarn build                      # development build, outputs in /dist
     yarn build:production           # builds for the Docker image in /dist
     yarn build:github               # builds for GitHub Pages in /dist
+    yarn analyze:bundle             # runs webpack-bundle-analyzer on an optimized build
 
 Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for GitHub Pages. `yarn deploy:github` will set this `APP_ENV` for you and deploy it straight to GitHub Pages.
 
@@ -65,9 +66,11 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
 
 ### Develop
 
-    yarn d                          # runs webpack-serve (yarn dev) or use
-    yarn d:hot                      # runs webpack-serve in hot reload mode (yarn dev:hot)
+    yarn d                          # runs webpack-serve (yarn dev) in hot reload mode
+    yarn d:nohot                    # runs webpack-serve without hot reload
     yarn test:watch                 # runs unit tests using jest in watch mode
+    yarn t                          # runs tests
+    yarn c                          # runs lint and tests
 
 ### Deploy
 

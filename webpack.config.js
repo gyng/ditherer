@@ -8,7 +8,9 @@ const HistoryApiFallback = require("./webpack-serve/historyApiFallback");
 
 const { config } = require("./config/build");
 
-console.log("CONFIG = ", config); // eslint-disable-line
+if (process.env.HIDE_CONFIG) {
+  console.log("CONFIG = ", config); // eslint-disable-line no-console
+}
 
 const DEV = process.env.NODE_ENV === "development";
 const PROD = process.env.NODE_ENV === "production";
