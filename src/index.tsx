@@ -56,6 +56,10 @@ const configureStore = (appHistory: History) => {
   return store;
 };
 
+export const AppConfigContext = React.createContext<typeof config | undefined>(
+  undefined
+);
+
 const start = () => {
   const appHistory = configureHistory();
   const store = configureStore(appHistory);
@@ -63,14 +67,16 @@ const start = () => {
   ReactDOM.render(
     <Provider store={store}>
       <ConnectedRouter history={appHistory}>
-        <Switch>
-          <Route path="/counter" component={App} />
-          <Route path="/" exact component={App} />
-          <Route
-            path="/"
-            render={() => <ErrorPage code="404" message="Page not found" />}
-          />
-        </Switch>
+        <AppConfigContext.Provider value={config}>
+          <Switch>
+            <Route path="/counter" component={App} />
+            <Route path="/" exact component={App} />
+            <Route
+              path="/"
+              render={() => <ErrorPage code="404" message="Page not found" />}
+            />
+          </Switch>
+        </AppConfigContext.Provider>
       </ConnectedRouter>
     </Provider>,
     document.getElementById("root")
