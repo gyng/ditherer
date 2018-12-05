@@ -16,6 +16,7 @@
       "@test/*": ["test/*"]
     },
     "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "sourceMap": true,
     "strict": true,
     "target": "es5",

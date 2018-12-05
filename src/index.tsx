@@ -13,10 +13,11 @@ import createHashHistory from "history/createHashHistory";
 import { Route, Switch } from "react-router-dom";
 
 import { config } from "@cfg";
-// import { App } from "@src/components/App";
 import { rootReducer } from "@src/reducers";
 import { ErrorPage } from "./components/ErrorPage";
 
+// Dynamically import App for code splitting, remove this if unwanted
+// import { App } from "@src/components/App";
 const App = React.lazy(() => import("@src/components/App"));
 
 const configureHistory = () => {
@@ -62,6 +63,7 @@ export const AppConfigContext = React.createContext<typeof config | undefined>(
   undefined
 );
 
+// Dynamic import: remove if unwanted
 const SuspenseApp = () => (
   <React.Suspense fallback={<div>Dynamically loading App in index.tsx</div>}>
     <App />

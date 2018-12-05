@@ -12,6 +12,13 @@
     "no-implicit-dependencies": false,
     "no-submodule-imports": false,
     "no-var-requires": false,
-    "prettier": true
+    "prettier": true,
+    "variable-name": [
+      true,
+      "allow-leading-underscore",
+      "allow-pascal-case",
+      "ban-keywords",
+      "check-format"
+    ]
   }
 }
