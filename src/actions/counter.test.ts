@@ -52,6 +52,8 @@ describe("actions", () => {
         }
       ];
 
+      // mock store typing does not quite support redux-thunk
+      // @ts-ignore
       await store.dispatch(action);
 
       window.setTimeout(() => {

@@ -25,7 +25,7 @@ describe("Counter", () => {
 
   it("renders the increment buttons", () => {
     const incrementEl = render.find("button.increment");
-    expect(incrementEl).toHaveLength(2);
+    expect(incrementEl).toHaveLength(3);
   });
 
   it("renders the decrement button", () => {

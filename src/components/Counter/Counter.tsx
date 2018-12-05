@@ -1,9 +1,13 @@
+import classNames from "classnames";
 import * as React from "react";
 
+const styles = require("./counter.scss");
+
 export interface ICounterProps {
-  onDecrementClick: () => any;
-  onIncrementClick: () => any;
-  onIncrementClickAsync: () => any;
+  onDecrementClick: () => void;
+  onIncrementClick: () => void;
+  onIncrementClickAsync: () => void;
+  onIncrementClickAsyncPromise: (url: string) => void;
   value?: number;
 }
 
@@ -13,7 +17,10 @@ export class Counter extends React.Component<ICounterProps, {}> {
   public render() {
     return (
       <div>
-        <div className="value">{this.props.value}</div>
+        <div className={classNames(styles.value, "value")}>
+          {this.props.value}
+        </div>
+
         <button className="increment" onClick={this.props.onIncrementClick}>
           INCREMENT
         </button>
@@ -25,6 +32,15 @@ export class Counter extends React.Component<ICounterProps, {}> {
           onClick={this.props.onIncrementClickAsync}
         >
           INCREMENT AFTER 1 SECOND
+        </button>
+
+        <button
+          className="increment"
+          onClick={() => {
+            this.props.onIncrementClickAsyncPromise("/");
+          }}
+        >
+          INCREMENT BY HTTP STATUS OF "/"
         </button>
 
         <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/Counter/index.tsx">
