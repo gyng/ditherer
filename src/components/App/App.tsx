@@ -9,12 +9,12 @@ import { CounterContainer } from "@src/containers/Counter";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");
-const styles = require("./styles.scss");
+const styles = require("./app.scss");
 
-// Include global CSS and variables
-require("../../styles/root.scss");
+// Include global CSS and variables once
+require("@src/styles/root.scss");
 
-// Legacy CSS are supported
+// Legacy CSS is supported
 require("./legacy.css");
 
 // Example inline functional React component
@@ -30,7 +30,7 @@ class InnerApp extends React.Component<{}, {}> {
       // Example usage of legacy CSS class name mixed with CSS modules
       <div className={`app ${styles.grid}`}>
         <div className={styles.row}>
-          <h1>jsapp-boilerplate</h1>
+          <h1 className={styles.title}>jsapp-boilerplate</h1>
           <div>
             <a href="https://github.com/gyng/jsapp-boilerplate">GitHub</a>
             &nbsp;&middot;&nbsp;

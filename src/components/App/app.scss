@@ -32,6 +32,12 @@
   }
 }
 
+.title {
+  /* Use composes for mixing in a bunch of rules
+   * In this case we are giving the title a smaller font size */
+  composes: f3 from "@src/styles/typography.scss";
+}
+
 .grid {
   display: grid;
   grid-gap: var(--m-m);
@@ -40,13 +46,14 @@
   margin: 0 auto;
   max-width: calc(var(--m) * 240);
 
-  /* --narrow is defined in customMedia.css */
-  @media (--narrow) {
+  /* Use mixins to help target specific browsers/viewport sizes */
+  @mixin target-narrow {
     grid-template-columns: 1fr;
   }
 
   & .row {
-    grid-column-start: span 3;
+    grid-column: 1;
+    grid-column-end: -1;
   }
 
   & .box {
@@ -78,18 +85,5 @@
     flex-direction: column;
     width: 90%;
     height: 90%;
-  }
-
-  & .box:nth-child(even) {
-    grid-column: 1 / 2;
-  }
-
-  & .box:nth-child(odd) {
-    grid-column: 2 / 3;
-
-    /* --narrow is defined in customMedia.css */
-    @media (--narrow) {
-      grid-column: 1;
-    }
   }
 }

@@ -1,9 +1,12 @@
 {
-  "extends": [
-    "stylelint-config-standard",
-    "stylelint-config-css-modules"
-  ],
+  "extends": ["stylelint-config-standard", "stylelint-config-css-modules"],
   "rules": {
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": ["mixin", "define-mixin"]
+      }
+    ],
     "at-rule-no-vendor-prefix": true,
     "media-feature-name-no-vendor-prefix": true,
     "property-no-vendor-prefix": true,
@@ -14,10 +17,5 @@
     "max-nesting-depth": 3,
     "selector-max-compound-selectors": 4
   },
-  "ignoreFiles": [
-    "**/*.js",
-    "**/*.jsx",
-    "**/*.ts",
-    "**/*.tsx"
-  ]
+  "ignoreFiles": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"]
 }

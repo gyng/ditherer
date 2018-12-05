@@ -8,8 +8,7 @@ WORKDIR /usr/src/app
 #     && apk add --no-cache git
 
 COPY package.json yarn.lock /usr/src/app/
-RUN yarn --version \
-    && yarn install --frozen-lockfile \
+RUN yarn install --frozen-lockfile \
     && yarn check --integrity \
     && yarn cache clean
 

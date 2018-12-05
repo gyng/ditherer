@@ -1,11 +1,10 @@
 const path = require("path");
 const webpack = require("webpack");
-
 const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const WebpackShellPlugin = require("webpack-shell-plugin");
-const HistoryApiFallback = require("./webpack-serve/historyApiFallback");
+const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack-plugin");
 
+const HistoryApiFallback = require("./webpack-util/historyApiFallback");
 const { config } = require("./config/build");
 
 if (process.env.HIDE_CONFIG) {
@@ -102,11 +101,9 @@ module.exports = {
     }),
     new webpack.NamedModulesPlugin(),
     ...(DEV
-      ? new WebpackShellPlugin({
-          onBuildEnd: ["yarn --silent tsc:check:no-error --pretty"],
-          dev: false
-        })
+      ? [new ShellOnBuildEndPlugin("yarn --silent tsc:check:no-error --pretty")]
       : []),
+
     new HtmlWebpackPlugin({
       template: "./src/index.html",
       favicon: "./src/static/favicon.ico"

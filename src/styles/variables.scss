@@ -56,4 +56,22 @@
   --m-l: calc(var(--m) * 8);
   --m-xl: calc(var(--m) * 16);
   --curve: 2px;
+
+  /* Change the root font-size in root.scss
+   * Avoid using these directly; you want things like line-height, weight, and spacing
+   * The naming here is accordingly annoying long to discourage direct use
+   * Instead, use CSS modules `composes` from typography.scss as such:
+   * ```
+   * .myClass {
+   *   composes: f2 from "@src/styles/typography.scss";
+   * }
+   */
+  --font-size-small: 0.75rem;
+  --font-size-p: 1rem;
+  --font-size-6: 1.25rem;
+  --font-size-5: 1.5rem;
+  --font-size-4: 2.125rem;
+  --font-size-3: 3rem;
+  --font-size-2: 3.75rem;
+  --font-size-1: 6rem;
 }
