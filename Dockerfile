@@ -1,7 +1,4 @@
-FROM node:10.9.0-alpine
-
-ARG YARN_VERSION=1.2.1
-RUN yarn global add superstatic
+FROM node:11.3.0-alpine as builder
 
 # If package.json uses git, uncomment this
 # RUN apk update \
@@ -19,6 +16,15 @@ ARG NODE_ENV=production
 COPY . /usr/src/app
 RUN yarn build:production
 
-COPY superstatic.json /usr/src/app
+
+
+FROM node:11.3.0-alpine as runner
+
+WORKDIR /usr/app
+
+RUN yarn global add superstatic
+COPY superstatic.json /usr/app
+COPY --from=builder /usr/src/app/dist /usr/app
+
 EXPOSE 8080
-CMD ["superstatic", "dist", "--port", "8080", "--host", "0.0.0.0", "--compression", "-c", "superstatic.json"]
+CMD ["superstatic", ".", "--port", "8080", "--host", "0.0.0.0", "--compression", "-c", "superstatic.json"]

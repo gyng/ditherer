@@ -68,14 +68,14 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
 
     yarn d                          # runs webpack-serve (yarn dev) in hot reload mode
     yarn d:nohot                    # runs webpack-serve without hot reload
-    yarn test:watch                 # runs unit tests using jest in watch mode
+    yarn t:w                        # runs unit tests using jest in watch mode
     yarn t                          # runs tests
     yarn c                          # runs lint and tests
 
 ### Deploy
 
     yarn deploy:github              # deploys a production build to GitHub pages
-    yarn docker                     # runs superstatic at port 8080 on a production build in Docker
+    yarn run:docker                 # runs superstatic at port 8080 on a production build in Docker
 
 ### Update
 
