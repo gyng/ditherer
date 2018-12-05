@@ -94,6 +94,7 @@
     "jest-transform-stub": "^1.0.0",
     "koa-connect": "^2.0.1",
     "postcss-loader": "^3.0.0",
+    "postcss-mixins": "^6.2.0",
     "postcss-preset-env": "^6.4.0",
     "postcss-reporter": "^6.0.0",
     "prettier": "^1.15.3",

@@ -1,0 +1,14 @@
+/* Mixin names are derived from the filename.
+ * https://github.com/postcss/postcss-mixins#css-mixin
+ */
+
+@define-mixin example $name {
+  padding: var(--m-m);
+  background-color: black;
+  color: white;
+  text-align: center;
+
+  & ::after {
+    content: $name;
+  }
+}
