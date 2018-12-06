@@ -47,3 +47,19 @@ const { appConfig } = require("./configValues.js");
 
 export const config: IConfig = appConfig;
 ```
+
+## Consul
+
+If you happen to be using Consul, you can use `generateConsulTemplate.js` to generate the template for configuration. This helper will add rudimentary type-checking on your stored values.
+
+1. Add this to `package.json`
+
+  ```
+  "config:generate:template": "node config/generateConsulTemplate.js",
+  ```
+
+2. Change `ENV_VAR`, `ROOT_PATH` or replace `makePath` in `generateConsulTemplate.js`.
+
+3. You will need to fix `require("../configValues");` if you are going to move the script around.
+
+4. Run `config:generate:template > my-template.json`.
