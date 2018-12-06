@@ -103,7 +103,6 @@ module.exports = {
     ...(DEV
       ? [new ShellOnBuildEndPlugin("yarn --silent tsc:check:no-error --pretty")]
       : []),
-
     new HtmlWebpackPlugin({
       template: "./src/index.html",
       favicon: "./src/static/favicon.ico"
