@@ -11,6 +11,7 @@ A semi-curated list of potential addons to this boilerplate you might want. This
 * [immer](https://github.com/mweststrate/immer) for redux + immutable state. Has a nicer API over immutable.js.
 * A form helper in [formik](https://github.com/jaredpalmer/formik) or [redux-form](https://redux-form.com/8.0.4/). I have no real preference for this, but it helps a lot to have one integrated early when dealing with lots of forms.
 * Some sort of SVG loader for icons and the like. Can be done in PostCSS or webpack, depending on how your icons are coded.
+* For fun, WASM! WASM is easy to integrate into this boilerplate. Check out [synthrs-wasm-ts](https://github.com/gyng/synthrs-wasm-ts) for an example on how to do so.
 
 ## Things you might want (which I have no strong opinions on or experience with)
 
