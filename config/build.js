@@ -27,7 +27,7 @@ const getEnvironment = (env = "") => {
 const environment = getEnvironment(process.env.APP_ENV);
 
 /**
- * @type {import('./index.d').Configuration}
+ * @type {import('./index.d').IConfiguration}
  */
 const config = Object.assign(
   {},

@@ -101,7 +101,11 @@ module.exports = {
     }),
     new webpack.NamedModulesPlugin(),
     ...(DEV
-      ? [new ShellOnBuildEndPlugin("yarn --silent tsc:check:no-error --pretty")]
+      ? [
+          new ShellOnBuildEndPlugin({
+            command: "yarn --silent tsc:check:no-error --pretty"
+          })
+        ]
       : []),
     new HtmlWebpackPlugin({
       template: "./src/index.html",

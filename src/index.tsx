@@ -70,14 +70,14 @@ const SuspenseApp = () => (
   </React.Suspense>
 );
 
-const start = () => {
+const start = (cfg: typeof config) => {
   const appHistory = configureHistory();
   const store = configureStore(appHistory);
 
   ReactDOM.render(
     <Provider store={store}>
       <ConnectedRouter history={appHistory}>
-        <AppConfigContext.Provider value={config}>
+        <AppConfigContext.Provider value={cfg}>
           <Switch>
             <Route path="/counter" render={() => <SuspenseApp />} />
             <Route path="/" exact render={() => <SuspenseApp />} />
@@ -93,4 +93,4 @@ const start = () => {
   );
 };
 
-start();
+start(config);

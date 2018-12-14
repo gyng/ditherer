@@ -4,21 +4,21 @@ export type getEnvironment = (s: string) => Environment;
 
 export type HistoryType = "browser" | "hash";
 
-export type IUrlConfig = {
+export interface IUrlConfig {
   basePath: string;
   publicPath: string;
   historyType: HistoryType;
-};
+}
 
-export type IAppConfig = {
+export interface IAppConfig {
   url: IUrlConfig;
-};
+}
 
 export type IConfig<T> = { [k in Environment]: T };
 
 // This is the exported configuration so it's named simply
-export interface Configuration extends IAppConfig {
+export interface IConfiguration extends IAppConfig {
   environment: Environment;
 }
 
-export const config: Configuration;
+export const config: IConfiguration;
