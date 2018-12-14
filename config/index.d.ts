@@ -14,9 +14,16 @@ export interface IAppConfig {
   url: IUrlConfig;
 }
 
-export type IConfig<T> = { [k in Environment]: T };
+/**
+ * `IFullConfiguration describes the complete configuration for *all* environments.
+ */
+export type IFullConfiguration<T> = { [k in Environment]: T };
 
-// This is the exported configuration so it's named simply
+/**
+ * `IConfiguration is the per-environment configuration for the app, and is augmented
+ * to contain the current environment.
+ * It describes the actual app configuration and is not aware of other environments.
+ */
 export interface IConfiguration extends IAppConfig {
   environment: Environment;
 }

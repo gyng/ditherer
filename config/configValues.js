@@ -17,7 +17,7 @@
 
 /**
  * @typedef {import('./index.d').IAppConfig} IAppConfig
- * @type {import('./index.d').IConfig<IAppConfig>}
+ * @type {import('./index.d').IFullConfiguration<IAppConfig>}
  */
 const values = {
   development: {

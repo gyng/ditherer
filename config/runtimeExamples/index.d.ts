@@ -11,4 +11,8 @@ export interface IBuildConfig {
 
 export interface IExampleConfig {} // tslint:disable-line
 
-export interface IConfig extends IUrlConfig, IExampleConfig {}
+/**
+ * `IConfig` is the overall configuration for the app and describes the
+ * shape of the config file that will be loaded at runtime.
+ */
+export interface IConfiguration extends IUrlConfig, IExampleConfig {}

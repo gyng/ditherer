@@ -13,7 +13,7 @@
 // Do not do nesting! Avoid nesting so we don't kill ourselves when generating the template, and configuring on Consul
 
 /**
- * @type {import('./index.d').IConfig}
+ * @type {import('./index.d').IConfiguration}
  */
 const appConfig = {
   url_basePath: "/",

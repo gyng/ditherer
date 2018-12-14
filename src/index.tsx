@@ -12,7 +12,8 @@ import createBrowserHistory from "history/createBrowserHistory";
 import createHashHistory from "history/createHashHistory";
 import { Route, Switch } from "react-router-dom";
 
-import { config } from "@cfg";
+import { config as appConfig } from "@cfg";
+import { IConfiguration } from "@cfg/index.d";
 import { rootReducer } from "@src/reducers";
 import { ErrorPage } from "./components/ErrorPage";
 
@@ -20,7 +21,7 @@ import { ErrorPage } from "./components/ErrorPage";
 // import { App } from "@src/components/App";
 const App = React.lazy(() => import("@src/components/App"));
 
-const configureHistory = () => {
+const configureHistory = (config: IConfiguration) => {
   // Choose whether to use hash history (app/#counter) or browser history (app/counter)
   // This can be safely set to browser history if not hosting in a subdirectory (GitHub Pages)
   const historyFactories: { [k: string]: (options?: any) => any } = {
@@ -59,7 +60,7 @@ const configureStore = (appHistory: History) => {
   return store;
 };
 
-export const AppConfigContext = React.createContext<typeof config | undefined>(
+export const AppConfigContext = React.createContext<IConfiguration | undefined>(
   undefined
 );
 
@@ -70,14 +71,14 @@ const SuspenseApp = () => (
   </React.Suspense>
 );
 
-const start = (cfg: typeof config) => {
-  const appHistory = configureHistory();
+const start = (config: IConfiguration) => {
+  const appHistory = configureHistory(config);
   const store = configureStore(appHistory);
 
   ReactDOM.render(
     <Provider store={store}>
       <ConnectedRouter history={appHistory}>
-        <AppConfigContext.Provider value={cfg}>
+        <AppConfigContext.Provider value={config}>
           <Switch>
             <Route path="/counter" render={() => <SuspenseApp />} />
             <Route path="/" exact render={() => <SuspenseApp />} />
@@ -93,4 +94,4 @@ const start = (cfg: typeof config) => {
   );
 };
 
-start(config);
+start(appConfig);
