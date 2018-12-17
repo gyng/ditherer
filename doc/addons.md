@@ -4,6 +4,8 @@ A semi-curated list of potential addons to this boilerplate you might want. This
 
 ## Things you might want that will probably be helpful
 
+* In a big team, you might want to add typechecking to your CSS modules. See [doc: using typed CSS](./using_typed_css.md)
+* A runtime configuration for more complex deployment environments. See [doc: runtime config](./runtime_config.md)
 * A UI library right from the start if you're working on a big project. Trust me, this will save you and your team members effort in the long run.
 * [date-fns](https://date-fns.org/) for date manipulation over moment. Smaller bundle, functional API vs mutations, better TypeScript support.
 * [lodash-es](https://www.npmjs.com/package/lodash-es) and not plain `lodash` for better tree-shaking. Alternatively, use [Ramda](https://ramdajs.com/) if that floats your boat.
