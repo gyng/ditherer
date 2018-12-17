@@ -7,7 +7,6 @@
     "lib": ["es5", "es2015", "dom"],
     "module": "esNext",
     "moduleResolution": "node",
-    "noImplicitAny": true,
     "outDir": "./dist/",
     "paths": {
       "@cfg": ["config"],
@@ -15,10 +14,10 @@
       "@src/*": ["src/*"],
       "@test/*": ["test/*"]
     },
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "sourceMap": true,
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "target": "es5",
     "pretty": true,
     "typeRoots": ["./typings", "./node_modules/@types"]
