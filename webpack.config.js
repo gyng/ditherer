@@ -7,7 +7,7 @@ const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack
 const HistoryApiFallback = require("./webpack-util/historyApiFallback");
 const { config } = require("./config/build");
 
-if (process.env.HIDE_CONFIG) {
+if (!process.env.HIDE_CONFIG) {
   console.log("CONFIG = ", config); // eslint-disable-line no-console
 }
 
@@ -60,9 +60,7 @@ module.exports = {
           name: "./f/[hash:16].[ext]"
         }
       },
-      // Mostly for tests, but legacy JS in source too
-      // This babel config is separate from babel.config.js
-      // babel.config.js is used for jest tests, and should be updated accordingly
+      // jsx? is for legacy JS and various config/utility files
       {
         test: /\.jsx?$/,
         exclude: /\/node_modules\//,
