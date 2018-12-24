@@ -1,5 +1,3 @@
 // Example, empty custom typing for untyped libraries
 
-declare module "my-custom-typing" {
-
-}
+declare module "my-custom-typing" {}
