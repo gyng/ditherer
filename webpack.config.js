@@ -60,35 +60,12 @@ module.exports = {
           name: "./f/[hash:16].[ext]"
         }
       },
-      // jsx? is for legacy JS and various config/utility files
       {
-        test: /\.jsx?$/,
+        test: /\.(j|t)sx?$/,
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
-          cacheDirectory: true,
-          plugins: [
-            "@babel/plugin-syntax-dynamic-import",
-            "@babel/plugin-proposal-class-properties",
-            "@babel/proposal-object-rest-spread",
-            ...(DEV ? ["react-hot-loader/babel"] : [])
-          ],
-          presets: ["@babel/env", "@babel/react"]
-        }
-      },
-      {
-        test: /\.tsx?$/,
-        exclude: /\/node_modules\//,
-        loader: "babel-loader",
-        options: {
-          cacheDirectory: true,
-          plugins: [
-            "@babel/plugin-syntax-dynamic-import",
-            "@babel/proposal-class-properties",
-            "@babel/proposal-object-rest-spread",
-            ...(DEV ? ["react-hot-loader/babel"] : [])
-          ],
-          presets: ["@babel/env", "@babel/typescript", "@babel/react"]
+          cacheDirectory: true
         }
       }
     ]

@@ -35,4 +35,5 @@ const mapDispatchToProps = (dispatch: RootDispatch): ICounterProps => ({
 export const CounterContainer = connect<{}, {}, ICounterProps, RootState>(
   mapStateToProps,
   mapDispatchToProps
+  // @ts-ignore https://github.com/DefinitelyTyped/DefinitelyTyped/issues/31363
 )(Counter);

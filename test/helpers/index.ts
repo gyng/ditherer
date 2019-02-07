@@ -1,3 +1,4 @@
+import "@babel/polyfill";
 import * as Enzyme from "enzyme";
 import ReactSixteenAdapter from "enzyme-adapter-react-16";
 
