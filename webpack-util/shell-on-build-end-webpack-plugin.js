@@ -1,7 +1,5 @@
 const { exec } = require("child_process");
 
-let ran = false;
-
 /**
  * @typedef {Object} Options
  * @property {string} command - The command to run
@@ -9,16 +7,18 @@ let ran = false;
  * @param options {Options}
  */
 module.exports = function ShellOnBuildEndPlugin(options) {
+  this.run = false;
+
   this.apply = compiler => {
     compiler.hooks.afterEmit.tap("AfterEmitPlugin", () => {
-      if (!ran) {
+      if (!this.ran) {
         exec(options.command, (err, stdout, stderr) => {
           if (stdout) process.stdout.write(stdout);
           if (stderr) process.stderr.write(stderr);
         });
 
         if (options.once) {
-          ran = true;
+          this.ran = true;
         }
       }
     });
