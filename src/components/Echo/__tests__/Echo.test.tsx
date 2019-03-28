@@ -9,4 +9,10 @@ describe("Echo", () => {
     expect(p).toHaveLength(1);
     expect(p.text()).toEqual("Hello, world!");
   });
+
+  it("can do snapshot tests", () => {
+    // You can perform snapshot testing if you so prefer
+    const wrapper = mount(<Echo text="Hello, world!" />);
+    expect(wrapper).toMatchSnapshot();
+  });
 });
