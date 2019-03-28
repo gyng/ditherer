@@ -18,8 +18,12 @@ require("@src/styles/root.scss");
 // Legacy CSS is supported
 require("./legacy.css");
 
+// This is a nice way to define your custom presentational components
+// that just pass down props.
+export interface IBoxProps extends React.HTMLAttributes<HTMLDivElement> {}
+
 // Example inline functional React component
-const Box: React.SFC<any> = props => (
+const Box: React.SFC<IBoxProps> = props => (
   <div className={styles.box} {...props}>
     {props.children}
   </div>
@@ -80,9 +84,7 @@ class InnerApp extends React.Component<{}, {}> {
               border: "solid 1px grey"
             }}
           >
-            This div is themed using <span className={styles.sub}>PostCSS</span>{" "}
-            and
-            <span className={styles.sub}>React's style prop</span>
+            This div is themed using PostCSS and React's style prop
           </div>
         </Box>
 
@@ -106,7 +108,9 @@ class InnerApp extends React.Component<{}, {}> {
     // This is your main App router
     // Typically for more complex apps I create a Routes object in src/routes that looks something like
     //
-    // AppRoutes = { base: () => "/"", counters: (id) => `/counters/${id}` }
+    // `export const AppRoutes = { base: () => "/"", counters: (id) => `/counters/${id}` }`
+    //
+    // And then use it for linking `<Link to={AppRoutes.counters(123)}>Counter 123</Link>`
     return (
       <Switch>
         {/* Quickstart for URL matches

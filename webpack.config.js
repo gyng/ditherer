@@ -99,9 +99,9 @@ module.exports = {
       : [])
   ],
 
-  // Using cheap-eval-source-map for build times
-  // switch to inline-source-map if detailed debugging needed
-  devtool: PROD ? false : "cheap-eval-source-map",
+  // Using inline-source-map for detailed line numbers
+  // Switch to cheap-eval-source-map if build times are too long
+  devtool: PROD ? false : "inline-source-map",
 
   serve: {
     add: app => {
