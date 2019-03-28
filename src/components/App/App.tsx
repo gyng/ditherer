@@ -6,6 +6,7 @@ import { Link, Route, Switch } from "react-router-dom";
 import { config } from "@cfg";
 import { Echo } from "@src/components/Echo";
 import { CounterContainer } from "@src/containers/Counter";
+import { ErrorPage } from "../ErrorPage";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");
@@ -26,8 +27,7 @@ const Box: React.SFC<any> = props => (
 
 class InnerApp extends React.Component<{}, {}> {
   public render() {
-    return (
-      // Example usage of legacy CSS class name mixed with CSS modules
+    const appPage = ( // Example usage of legacy CSS class name mixed with CSS modules
       <div className={`app ${styles.grid}`}>
         <div className={styles.row}>
           <h1 className={styles.title}>jsapp-boilerplate</h1>
@@ -49,6 +49,7 @@ class InnerApp extends React.Component<{}, {}> {
           <Switch>
             <Route path="/counter" component={CounterContainer} />
             <Route
+              exact
               path="/"
               render={() => (
                 <Link to="/counter">
@@ -100,6 +101,34 @@ class InnerApp extends React.Component<{}, {}> {
           </div>
         </Box>
       </div>
+    );
+
+    // This is your main App router
+    // Typically for more complex apps I create a Routes object in src/routes that looks something like
+    //
+    // AppRoutes = { base: () => "/"", counters: (id) => `/counters/${id}` }
+    return (
+      <Switch>
+        {/* Quickstart for URL matches
+
+        // Define your Match props
+        export interface IFooMatch {
+          id: string;
+        }
+
+        // Reference that type in RouteComponentProps when creating your component
+        export class Foo extends React.Component<
+          IFooProps & Partial<RouteComponentProps<IFooMatch>>
+        > { ... }
+
+        // Then add this route into your router. :id will be passed to the Foo component.
+        <Route path="/counters/:id" component={CountersPage} /> */}
+        <Route exact path="/" render={() => appPage} />
+        <Route
+          path="/"
+          render={() => <ErrorPage code="404" message="Page not found" />}
+        />
+      </Switch>
     );
   }
 }

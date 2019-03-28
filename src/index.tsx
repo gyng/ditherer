@@ -15,7 +15,6 @@ import { Route, Switch } from "react-router-dom";
 import { config as appConfig } from "@cfg";
 import { IConfiguration } from "@cfg/index.d";
 import { rootReducer } from "@src/reducers";
-import { ErrorPage } from "./components/ErrorPage";
 
 // Dynamically import App for code splitting, remove this if unwanted
 // import { App } from "@src/components/App";
@@ -79,13 +78,13 @@ const start = (config: IConfiguration) => {
     <Provider store={store}>
       <ConnectedRouter history={appHistory}>
         <AppConfigContext.Provider value={config}>
+          {/* This is an outer routing switch */}
+          {/* You probably want to define your routes on the Switch in App.tsx and not here */}
+          {/* This outer Switch is useful for partially loading large apps, and special routes */}
+          {/* Such as authentication callback routes */}
+          {/* You will know it when you need this. */}
           <Switch>
-            <Route path="/counter" render={() => <SuspenseApp />} />
-            <Route path="/" exact render={() => <SuspenseApp />} />
-            <Route
-              path="/"
-              render={() => <ErrorPage code="404" message="Page not found" />}
-            />
+            <Route path="/" render={() => <SuspenseApp />} />
           </Switch>
         </AppConfigContext.Provider>
       </ConnectedRouter>
