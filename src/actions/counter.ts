@@ -1,6 +1,6 @@
-import { createAction } from "typesafe-actions";
+import { createAction, createAsyncAction } from "typesafe-actions";
 
-import { RootThunk, RootThunkPromise } from "@src/types";
+import { RootThunk } from "@src/types";
 
 export const increment = createAction(
   "INCREMENT",
@@ -22,18 +22,32 @@ export const incrementAsync = (
   setTimeout(() => dispatch(increment(value)), delay);
 };
 
-// This is an async action that returns a Promise.
-// Increase by HTTP status, and return the status in a Promise
-// for downstream consumers of this Promise.
-// Note that in this example we dispatch *and* then return a Promise.
-//
-// Define the return type of the Promise in RootThunkPromise.
-// See the JSDoc for RootThunkPromise for more details.
-export const incrementAsyncPromise = (
-  url: string
-): RootThunkPromise<number> => dispatch => {
-  return fetch(url).then(res => {
-    dispatch(increment(res.status));
-    return res.status;
-  });
-};
+/**
+ * This uses the `createAsyncAction` helper for demonstrating a typical network request.
+ * The three types at the bottom are `<string, number, string>`: are the types for the
+ * action creators `incrementAsyncNetwork.request`, `incrementAsyncNetwork.success`
+ * and `incrementAsyncNetwork.failure`.
+ *
+ * ### Usage
+ *
+ * 1. Dispatch a request action. This is typically used by the reducer to set a loading flag
+ *    or any preprocessing
+ * ```
+ * dispatch(incrementAsyncNetwork.request(url));
+ * ```
+ *
+ * 2. Do your async stuff in your container and dispatch actions for the reducer to handle.
+ *
+ * ```
+ * fetch(url)
+ *  .then(res => dispatch(incrementAsyncNetwork.success(res.status)))
+ *  .catch(res => dispatch(incrementAsyncNetwork.failure(res.toString())))
+ * ```
+ *
+ * See `containers/Counter.ts` for usage.
+ */
+export const incrementAsyncNetwork = createAsyncAction(
+  "FETCH_ASYNC_REQUEST",
+  "FETCH_ASYNC_SUCCESS",
+  "FETCH_ASYNC_FAILURE"
+)<string, number, string>();

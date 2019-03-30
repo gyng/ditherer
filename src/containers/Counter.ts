@@ -4,7 +4,7 @@ import {
   decrement,
   increment,
   incrementAsync,
-  incrementAsyncPromise
+  incrementAsyncNetwork
 } from "@src/actions";
 import { Counter, ICounterProps } from "@src/components/Counter";
 import { ICountersState } from "@src/reducers/counter";
@@ -25,9 +25,18 @@ const mapDispatchToProps = (dispatch: RootDispatch): ICounterProps => ({
     dispatch(incrementAsync(1, 1000));
   },
   onIncrementClickAsyncPromise: (url: string) => {
-    dispatch(incrementAsyncPromise(url)).then(status => {
-      window.alert(`Got status code ${status} for ${url}`);
-    });
+    dispatch(incrementAsyncNetwork.request(url));
+
+    fetch(url)
+      .then(res => {
+        dispatch(incrementAsyncNetwork.success(res.status));
+        dispatch(increment(res.status));
+        window.alert(`Got status code ${status} for ${url}`);
+        return res.status;
+      })
+      .catch(res => {
+        dispatch(incrementAsyncNetwork.failure(res));
+      });
   }
 });
 
