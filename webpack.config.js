@@ -4,7 +4,6 @@ const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack-plugin");
 
-const HistoryApiFallback = require("./webpack-util/historyApiFallback");
 const { config } = require("./config/build");
 
 if (!process.env.HIDE_CONFIG) {
@@ -103,22 +102,6 @@ module.exports = {
   // Switch to cheap-eval-source-map if build times are too long
   devtool: PROD ? false : "inline-source-map",
 
-  serve: {
-    add: app => {
-      // historyApiFallback: required for redux-router to work on page refresh
-      // a refresh on localhost:8080/counter will go to the counter component defined in the route
-      app.use(HistoryApiFallback());
-    },
-    clipboard: false,
-    hotClient: {
-      logLevel: "warn"
-    },
-    devMiddleware: {
-      publicPath: config.url.publicPath,
-      stats: "minimal"
-    }
-  },
-
   externals: {
     cheerio: "window",
     "react/addons": true,
@@ -134,5 +117,10 @@ module.exports = {
       "@src": path.resolve(__dirname, "src"),
       "@test": path.resolve(__dirname, "test")
     }
-  }
+  },
+
+  stats: DEV ? "minimal" : "normal",
+
+  // Used by webpack-serve
+  watch: true
 };

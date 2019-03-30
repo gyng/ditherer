@@ -7,7 +7,7 @@ const { exec } = require("child_process");
  * @param options {Options}
  */
 module.exports = function ShellOnBuildEndPlugin(options) {
-  this.run = false;
+  this.ran = false;
 
   this.apply = compiler => {
     compiler.hooks.afterEmit.tap("AfterEmitPlugin", () => {
