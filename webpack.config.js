@@ -122,5 +122,5 @@ module.exports = {
   stats: DEV ? "minimal" : "normal",
 
   // Used by webpack-serve
-  watch: true
+  watch: DEV
 };
