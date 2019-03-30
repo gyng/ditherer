@@ -7,9 +7,7 @@ import { applyMiddleware, compose, createStore } from "redux";
 import thunkMiddleware from "redux-thunk";
 
 import { ConnectedRouter, routerMiddleware } from "connected-react-router";
-import { History } from "history";
-import createBrowserHistory from "history/createBrowserHistory";
-import createHashHistory from "history/createHashHistory";
+import { createBrowserHistory, createHashHistory, History } from "history";
 import { Route, Switch } from "react-router-dom";
 
 import { config as appConfig } from "@cfg";
