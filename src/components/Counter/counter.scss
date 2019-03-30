@@ -1,7 +1,18 @@
+.container {
+  max-width: 800px;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  flex-direction: column;
+  margin: 0 auto;
+}
+
 .value {
   @mixin example test;
 
   font-size: 200%;
+  margin-bottom: var(--m-m);
 
   @mixin target-ie {
     font-size: 300%;

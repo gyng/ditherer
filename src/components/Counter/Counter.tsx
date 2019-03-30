@@ -16,47 +16,49 @@ export class Counter extends React.Component<ICounterProps, {}> {
 
   public render() {
     return (
-      <div>
+      <div className={styles.container}>
         <div className={classNames(styles.value, "value")}>
           {this.props.value}
         </div>
 
-        <button className="increment" onClick={this.props.onIncrementClick}>
-          INCREMENT
-        </button>
-        <button className="decrement" onClick={this.props.onDecrementClick}>
-          DECREMENT
-        </button>
-        <button
-          className="increment"
-          onClick={this.props.onIncrementClickAsync}
-        >
-          INCREMENT AFTER 1 SECOND
-        </button>
+        <div>
+          <button className="increment" onClick={this.props.onIncrementClick}>
+            INCREMENT
+          </button>
+          <button className="decrement" onClick={this.props.onDecrementClick}>
+            DECREMENT
+          </button>
+          <button
+            className="increment"
+            onClick={this.props.onIncrementClickAsync}
+          >
+            INCREMENT AFTER 1 SECOND
+          </button>
 
-        <button
-          className="increment"
-          onClick={() => {
-            this.props.onIncrementClickAsyncPromise("/");
-          }}
-        >
-          INCREMENT BY HTTP STATUS OF "/"
-        </button>
+          <button
+            className="increment"
+            onClick={() => {
+              this.props.onIncrementClickAsyncPromise("/");
+            }}
+          >
+            INCREMENT BY HTTP STATUS OF "/"
+          </button>
 
-        <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/Counter/index.tsx">
-          <div style={{ fontFamily: "monospace" }}>
-            components/Counter/index.tsx
-          </div>
-        </a>
-        <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/containers/Counter.ts">
-          <div style={{ fontFamily: "monospace" }}>
-            containers/Counter/index.tsx
-          </div>
-        </a>
+          <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/Counter/index.tsx">
+            <div style={{ fontFamily: "monospace" }}>
+              components/Counter/index.tsx
+            </div>
+          </a>
+          <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/containers/Counter.ts">
+            <div style={{ fontFamily: "monospace" }}>
+              containers/Counter/index.tsx
+            </div>
+          </a>
 
-        <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/reducers/counters.ts">
-          <div style={{ fontFamily: "monospace" }}>reducers/counters.ts</div>
-        </a>
+          <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/reducers/counters.ts">
+            <div style={{ fontFamily: "monospace" }}>reducers/counters.ts</div>
+          </a>
+        </div>
       </div>
     );
   }

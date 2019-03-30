@@ -50,19 +50,10 @@ class InnerApp extends React.Component<{}, {}> {
         {/* React style prop is still available */}
         <Box className={styles.box} style={{ alignSelf: "flex-start" }}>
           {/* Example usage of switch for routing */}
-          <Switch>
-            <Route path="/counter" component={CounterContainer} />
-            <Route
-              exact
-              path="/"
-              render={() => (
-                <Link to="/counter">
-                  Link to /counter. Click to show counter. Back/Forward buttons
-                  and page refresh work.
-                </Link>
-              )}
-            />
-          </Switch>
+          <Link to="./counter">
+            Link to /counter. Click to show counter. Back/Forward buttons and
+            page refresh work.
+          </Link>
         </Box>
 
         <Box>
@@ -128,6 +119,7 @@ class InnerApp extends React.Component<{}, {}> {
         // Then add this route into your router. :id will be passed to the Foo component.
         <Route path="/counters/:id" component={CountersPage} /> */}
         <Route exact path="/" render={() => appPage} />
+        <Route path="/counter" component={CounterContainer} />
         <Route
           path="/"
           render={() => <ErrorPage code="404" message="Page not found" />}
