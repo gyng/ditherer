@@ -40,6 +40,7 @@
 }
 
 .grid {
+  padding: var(--m-xl);
   display: grid;
   grid-gap: var(--m-m);
   grid-template-columns: 1fr 1fr;
@@ -49,6 +50,7 @@
 
   /* Use mixins to help target specific browsers/viewport sizes */
   @mixin target-narrow {
+    padding: var(--m-m) var(--m-m);
     grid-template-columns: 1fr;
   }
 
