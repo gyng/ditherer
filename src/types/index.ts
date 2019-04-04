@@ -4,12 +4,9 @@ import { StateType } from "typesafe-actions";
 
 import * as actions from "@src/actions";
 import { rootReducer } from "@src/reducers";
-import { ActionCreatorMap } from "typesafe-actions/dist/type-helpers";
+import { ActionType } from "typesafe-actions/dist/type-helpers";
 
-// RootActionType<T> fixes a breakage in TS 3.4 where the type inference fails to infer `typeof actions`.
-// Try using `RootAction = ActionType<typeof actions>` when it's fixed.
-declare type RootActionType<T> = ActionCreatorMap<T>[keyof T];
-export type RootAction = RootActionType<typeof actions>;
+export type RootAction = ActionType<typeof actions>;
 
 // rootReducer is a function to accomodate connected-react-router so we have to use ReturnType
 export type RootState = StateType<ReturnType<typeof rootReducer>>;

@@ -27,7 +27,7 @@ export class ErrorPage extends React.Component<IErrorPageProps, {}> {
           alignItems: "center",
           display: "flex",
           flexDirection: "column",
-          height: "100vh",
+          height: "100%",
           justifyContent: "center",
           width: "100vw"
         }}
