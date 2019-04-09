@@ -18,13 +18,11 @@ RUN yarn build:production
 
 
 
-FROM node:11.3.0-alpine as runner
+FROM nginx:1.15-alpine as runner
 
 WORKDIR /usr/app
 
-RUN yarn global add superstatic
-COPY superstatic.json /usr/app
+COPY --from=builder /usr/src/app/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /usr/src/app/dist /usr/app
 
-EXPOSE 8080
-CMD ["superstatic", ".", "--port", "8080", "--host", "0.0.0.0", "--compression", "-c", "superstatic.json"]
+CMD ["nginx", "-g", "daemon off;"]

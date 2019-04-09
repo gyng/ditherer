@@ -75,7 +75,7 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
 ### Deploy
 
     yarn deploy:github              # deploys a production build to GitHub pages
-    yarn run:docker                 # runs superstatic at port 8080 on a production build in Docker
+    yarn run:docker                 # runs nginx at port 8080, see nginx.conf
 
 ### Update
 
