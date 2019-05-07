@@ -79,7 +79,8 @@ module.exports = {
     ...(DEV
       ? [
           new ShellOnBuildEndPlugin({
-            command: "yarn --silent tsc:check:no-error --pretty"
+            command: "yarn --silent tsc:check:no-error --pretty",
+            killExisting: true
           })
         ]
       : []),
