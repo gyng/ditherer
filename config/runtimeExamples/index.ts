@@ -1,3 +1,5 @@
+// tslint:disable
+
 // Re-export in typescript for application development and Jest
 // see configValues.js, jest.config.js > moduleNameMapper for details
 

@@ -1,12 +1,16 @@
+import * as actions from "@src/actions/counter";
 import configureMockStore from "redux-mock-store";
 import thunk from "redux-thunk";
 import { getType } from "typesafe-actions";
-import * as actions from "../counter";
-
-const middlewares = [thunk];
-const mockStore = configureMockStore(middlewares);
 
 describe("actions", () => {
+  let mockStore: any;
+
+  beforeEach(() => {
+    const middlewares = [thunk];
+    mockStore = configureMockStore(middlewares);
+  });
+
   it("should create an action to increment the counter", () => {
     const action = actions.increment();
     expect(action.payload.value).toEqual(1);

@@ -1,5 +1,3 @@
-/* eslint-disable no-underscore-dangle */
-
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
@@ -13,7 +11,7 @@ import { Route, Switch } from "react-router-dom";
 import { config as appConfig } from "@cfg";
 import { IConfiguration } from "@cfg/index.d";
 import { rootReducer } from "@src/reducers";
-import { AppRoutes } from "./routes";
+import { AppRoutes } from "@src/routes";
 
 // Dynamically import App for code splitting, remove this if unwanted
 // import { App } from "@src/components/App";
@@ -28,11 +26,9 @@ const configureHistory = (config: IConfiguration) => {
   };
   const historyFactory = historyFactories[config.url.historyType];
 
-  const appHistory = historyFactory({
+  return historyFactory({
     basename: config.url.basePath
   });
-
-  return appHistory;
 };
 
 const configureStore = (appHistory: History) => {
@@ -50,12 +46,10 @@ const configureStore = (appHistory: History) => {
   const middleware = [thunkMiddleware, routerMiddleware(appHistory)];
 
   // Add reducers in src/reducers/index.ts
-  const store = createStore(
+  return createStore(
     routedAppReducer,
     composeEnhancers(applyMiddleware(...middleware))
   );
-
-  return store;
 };
 
 export const AppConfigContext = React.createContext<IConfiguration | undefined>(
@@ -83,7 +77,7 @@ const start = (config: IConfiguration) => {
           {/* Such as authentication callback routes */}
           {/* You will know it when you need this. */}
           <Switch>
-            <Route path={AppRoutes.root()} render={() => <SuspenseApp />} />
+            <Route path={AppRoutes.root()} component={SuspenseApp} />
           </Switch>
         </AppConfigContext.Provider>
       </ConnectedRouter>

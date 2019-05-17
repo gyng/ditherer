@@ -1,5 +1,3 @@
-/* tslint:disable:no-empty */
-
 import { Counter } from "@src/components/Counter";
 import * as Enzyme from "enzyme";
 import * as React from "react";
@@ -11,9 +9,9 @@ describe("Counter", () => {
     render = Enzyme.shallow(
       <Counter
         value={0}
-        onIncrementClick={() => {}}
-        onIncrementClickAsync={() => {}}
-        onDecrementClick={() => {}}
+        onIncrementClick={jest.fn()}
+        onIncrementClickAsync={jest.fn()}
+        onDecrementClick={jest.fn()}
       />
     );
   });

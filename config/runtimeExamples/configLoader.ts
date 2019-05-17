@@ -1,3 +1,5 @@
+// tslint:disable
+
 import { IConfiguration } from "./index.d";
 
 export const loadConfig = (url: string): Promise<IConfiguration> =>

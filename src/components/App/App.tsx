@@ -4,9 +4,9 @@ import { Link, Route, Switch } from "react-router-dom";
 
 import { config } from "@cfg";
 import { Echo } from "@src/components/Echo";
-import { CounterContainer } from "@src/containers/Counter";
+import { ErrorPage } from "@src/components/ErrorPage";
+import { CounterContainer } from "@src/containers/CounterContainer";
 import { AppRoutes } from "@src/routes";
-import { ErrorPage } from "../ErrorPage";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg");

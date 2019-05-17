@@ -1,3 +1,4 @@
+// tslint:disable-next-line: no-relative-imports
 import { App } from "./App";
 
 // Export as default to support webpack dynamic import

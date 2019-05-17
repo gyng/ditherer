@@ -10,6 +10,8 @@
 //
 // See `runtimeExamples/runtime_config.md` for details on how to use a runtime configuration instead
 
+// tslint:disable
+
 import configDef from "./index.d";
 
 declare var __WEBPACK_DEFINE_CONFIG_JS_OBJ__: configDef.IConfiguration;

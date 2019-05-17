@@ -1,4 +1,4 @@
-import { Route } from "./route";
+import { Route } from "@src/routes/route";
 
 export const AppRoutes: { [k in string]: Route } = {
   counter: () => "/counter",

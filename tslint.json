@@ -2,17 +2,22 @@
   "extends": [
     "tslint:latest",
     "tslint-react",
+    "tslint-microsoft-contrib/recommended",
     "tslint-eslint-rules",
     "tslint-plugin-prettier",
     "tslint-config-prettier"
   ],
+  "rulesDirectory": ["node_modules/tslint-microsoft-contrib"],
   "rules": {
+    "export-name": false,
     "jsx-boolean-value": false,
     "jsx-no-lambda": false,
+    "max-func-body-length": 200,
     "no-implicit-dependencies": false,
     "no-submodule-imports": false,
     "no-var-requires": false,
     "prettier": true,
+    "react-this-binding-issue": false,
     "variable-name": [
       true,
       "allow-leading-underscore",
