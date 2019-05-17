@@ -1,5 +1,6 @@
 const path = require("path");
 const webpack = require("webpack");
+const CircularDependencyPlugin = require("circular-dependency-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack-plugin");
@@ -84,6 +85,12 @@ module.exports = {
           })
         ]
       : []),
+    new CircularDependencyPlugin({
+      allowAsyncCycles: false,
+      cwd: process.cwd(),
+      exclude: /node_modules/,
+      failOnError: true
+    }),
     new HtmlWebpackPlugin({
       template: "./src/index.html",
       favicon: "./src/static/favicon.ico"
