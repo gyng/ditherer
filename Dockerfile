@@ -1,4 +1,4 @@
-FROM node:11.3.0-alpine as builder
+FROM node:12.2.0-alpine as builder
 
 # If package.json uses git, uncomment this
 # RUN apk update \
