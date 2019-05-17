@@ -1,11 +1,11 @@
-import { hot } from "react-hot-loader";
-
 import * as React from "react";
+import { hot } from "react-hot-loader";
 import { Link, Route, Switch } from "react-router-dom";
 
 import { config } from "@cfg";
 import { Echo } from "@src/components/Echo";
 import { CounterContainer } from "@src/containers/Counter";
+import { AppRoutes } from "@src/routes";
 import { ErrorPage } from "../ErrorPage";
 
 // Let webpack instead of ts handle these imports
@@ -117,9 +117,13 @@ class InnerApp extends React.Component<{}, {}> {
         > { ... }
 
         // Then add this route into your router. :id will be passed to the Foo component.
-        <Route path="/counters/:id" component={CountersPage} /> */}
-        <Route exact path="/" render={() => appPage} />
-        <Route path="/counter" component={CounterContainer} />
+        <Route path="/counter/:id" component={CountersPage} />
+
+        // In medium-large applications you want to reuse route objects:
+        // in routes/appRoutes.ts a plain function to create a route is defined by us
+        <Route path={AppRoutes.counter(":id")} component={ErrorPage} /> */}
+        <Route exact path={AppRoutes.root()} render={() => appPage} />
+        <Route path={AppRoutes.counter()} component={CounterContainer} />
         <Route
           path="/"
           render={() => <ErrorPage code="404" message="Page not found" />}

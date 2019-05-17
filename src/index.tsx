@@ -13,6 +13,7 @@ import { Route, Switch } from "react-router-dom";
 import { config as appConfig } from "@cfg";
 import { IConfiguration } from "@cfg/index.d";
 import { rootReducer } from "@src/reducers";
+import { AppRoutes } from "./routes";
 
 // Dynamically import App for code splitting, remove this if unwanted
 // import { App } from "@src/components/App";
@@ -82,7 +83,7 @@ const start = (config: IConfiguration) => {
           {/* Such as authentication callback routes */}
           {/* You will know it when you need this. */}
           <Switch>
-            <Route path="/" render={() => <SuspenseApp />} />
+            <Route path={AppRoutes.root()} render={() => <SuspenseApp />} />
           </Switch>
         </AppConfigContext.Provider>
       </ConnectedRouter>
