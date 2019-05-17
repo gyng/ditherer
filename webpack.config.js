@@ -3,6 +3,7 @@ const webpack = require("webpack");
 const CircularDependencyPlugin = require("circular-dependency-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const PreloadWebpackPlugin = require("preload-webpack-plugin");
 const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack-plugin");
 
 const { config } = require("./config/build");
@@ -94,6 +95,17 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: "./src/index.html",
       favicon: "./src/static/favicon.ico"
+    }),
+    // Add resource hints to reduce loadtime
+    // Ignore chunks at top level: if wanted, use the commented config instead
+    // new PreloadWebpackPlugin({
+    //   rel: "preload",
+    //   include: "allChunks"
+    // }),
+    new PreloadWebpackPlugin({
+      rel: "preload",
+      include: "allAssets",
+      fileWhitelist: [/\.(woff|woff2|ttf|svg|eot|otf|json|js)/]
     }),
     // Generate .gz for production builds
     // Consider adding brotli-webpack-plugin if your server supports .br
