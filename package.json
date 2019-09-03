@@ -3,7 +3,7 @@
   "name": "jsapp-boilerplate",
   "version": "0.0.1",
   "scripts": {
-    "analyze:bundle": "cross-env HIDE_CONFIG=true mkdir -p tmp && yarn --silent build:optimized --profile --json > dist/stats.json && webpack-bundle-analyzer dist/stats.json",
+    "analyze:bundle": "cross-env mkdir -p tmp && HIDE_CONFIG=true yarn --silent build:optimized --profile --json > dist/stats.json && webpack-bundle-analyzer dist/stats.json",
     "build:github": "cross-env APP_ENV=github yarn build:optimized",
     "build:optimized": "cross-env NODE_ENV=production webpack --progress --config webpack.config.js --mode production",
     "build:production": "cross-env APP_ENV=production yarn build:optimized",
