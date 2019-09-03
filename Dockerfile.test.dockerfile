@@ -16,6 +16,6 @@ ARG NODE_ENV=production
 COPY . /usr/src/app
 
 # Check that it builds
-RUN yarn build
+RUN yarn build && yarn audit
 
-RUN yarn audit && yarn lint && yarn test:coverage
+RUN yarn lint && yarn test:coverage
