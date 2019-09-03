@@ -40,9 +40,7 @@ const mapDispatchToProps = (dispatch: RootDispatch): ICounterProps => ({
   }
 });
 
-// Ignore types for first two generic types of connect for convenience
-export const CounterContainer = connect<{}, {}, ICounterProps, RootState>(
+export const CounterContainer = connect(
   mapStateToProps,
   mapDispatchToProps
-  // @ts-ignore https://github.com/DefinitelyTyped/DefinitelyTyped/issues/31363
 )(Counter);
