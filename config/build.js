@@ -1,5 +1,7 @@
 // @ts-check
 
+/* eslint-disable prefer-object-spread */
+
 // Please update the typedefs when you add keys in
 
 const configValues = require("./configValues");

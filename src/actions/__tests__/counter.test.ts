@@ -31,19 +31,39 @@ describe("actions", () => {
     expect(action.payload.value).toEqual(2);
   });
 
+  // For async testing, there are a few strategies you can take
   describe("async", () => {
     let timeout: typeof window.setTimeout;
 
     beforeEach(() => {
       timeout = window.setTimeout;
-      window.setTimeout = (f: any) => f();
+      const immediate = (f: any) => f();
+      immediate.__promisify__ = jest.fn();
+      window.setTimeout = immediate;
     });
 
     afterEach(() => {
       window.setTimeout = timeout;
     });
 
-    it("should create an action to increment async", async done => {
+    it("should test an async promise", async () => {
+      const testObject = { foo: "bar" };
+      const response = new Response(JSON.stringify(testObject), {
+        status: 200
+      });
+      const json = await response.json();
+      expect(json).toStrictEqual(testObject);
+    });
+
+    it("should test an async promise with jest's convenience syntax", async () => {
+      const response = new Response("{invalid-json}", {
+        status: 500
+      });
+      return expect(response.json()).rejects.toContain("invalid json");
+      // or, `return expect(response.json()).resolves.toBe(testObject);
+    });
+
+    it("should create an action to increment async with a global timer", async done => {
       const store = mockStore({});
       const action = actions.incrementAsync(2, 0);
       const expectedActions = [
