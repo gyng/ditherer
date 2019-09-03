@@ -18,4 +18,4 @@ COPY . /usr/src/app
 # Check that it builds
 RUN yarn build && yarn audit
 
-RUN yarn lint && yarn test:coverage
+CMD ["/usr/src/app/test/test.sh"]
