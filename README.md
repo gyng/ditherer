@@ -28,8 +28,9 @@ This boilerplate contains:
 | [configuration](config/configValues.js)                                     | configuration                |
 | [webpack](https://webpack.js.org/concepts/)                                 | javascript bundler           |
 | [docker-compose](https://docs.docker.com/compose/compose-file/)             | multi-container              |
-| [travis](https://docs.travis-ci.com/user/customizing-the-build)             | ci                           |
 | [docker](https://docs.docker.com/engine/reference/builder/)                 | ci, production server        |
+| [travis](https://docs.travis-ci.com/user/customizing-the-build)             | ci                           |
+| [github actions](https://github.com/features/actions)                       | ci, cd                       |
 | [github pages](https://pages.github.com/)                                   | deployment, online hosting   |
 
 [Ditherer](https://github.com/gyng/ditherer) is a project built using an older version of this boilerplate.
@@ -47,8 +48,6 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
     yarn build:production           # builds for the Docker image in /dist
     yarn build:github               # builds for GitHub Pages in /dist
     yarn analyze:bundle             # runs webpack-bundle-analyzer on an optimized build
-
-Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for GitHub Pages. `yarn deploy:github` will set this `APP_ENV` for you and deploy it straight to GitHub Pages.
 
 ### Test
 
@@ -73,6 +72,8 @@ Set the environment variable `APP_ENV=github` if preparing a prebuilt bundle for
     yarn c                          # runs lint and tests
 
 ### Deploy
+
+There is a [GitHub action for CD included](.github/workflows/deploy.yml) (set `ACCESS_TOKEN` to a [personal access token with read/write permissions](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line) in `Settings > Secrets`). Alternatively, you can manually deploy from your local machine.
 
     yarn deploy:github              # deploys a production build to GitHub pages
     yarn run:docker                 # runs nginx at port 8080, see nginx.conf
