@@ -65,8 +65,8 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
 
 ### Develop
 
-    yarn d                          # runs webpack-serve (yarn dev) in hot reload mode
-    yarn d:nohot                    # runs webpack-serve without hot reload
+    yarn d                          # runs webpack-dev-server (yarn dev) in hot reload mode
+    yarn d:nohot                    # runs webpack-dev-server without hot reload
     yarn t:w                        # runs unit tests using jest in watch mode
     yarn t                          # runs tests
     yarn c                          # runs lint and tests

@@ -122,6 +122,15 @@ module.exports = {
   // Switch to cheap-eval-source-map if build times are too long
   devtool: PROD ? false : "inline-source-map",
 
+  devServer: {
+    allowedHosts: ["localhost"],
+    clientLogLevel: "warning",
+    historyApiFallback: true,
+    host: "localhost",
+    publicPath: config.url.publicPath,
+    stats: "minimal"
+  },
+
   externals: {
     cheerio: "window",
     "react/addons": true,
@@ -137,10 +146,5 @@ module.exports = {
       "@src": path.resolve(__dirname, "src"),
       "@test": path.resolve(__dirname, "test")
     }
-  },
-
-  stats: DEV ? "minimal" : "normal",
-
-  // Used by webpack-serve
-  watch: DEV
+  }
 };
