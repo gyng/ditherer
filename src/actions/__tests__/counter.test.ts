@@ -33,24 +33,25 @@ describe("actions", () => {
 
   // For async testing, there are a few strategies you can take
   describe("async", () => {
-    let timeout: typeof window.setTimeout;
+    // let timeout: typeof window.setTimeout;
 
-    beforeEach(() => {
-      timeout = window.setTimeout;
-      const immediate = (f: any) => f();
-      immediate.__promisify__ = jest.fn();
-      window.setTimeout = immediate;
-    });
+    // beforeEach(() => {
+    //   timeout = window.setTimeout;
+    //   const immediate = (f: any) => f();
+    //   immediate.__promisify__ = jest.fn();
+    //   window.setTimeout = immediate;
+    // });
 
-    afterEach(() => {
-      window.setTimeout = timeout;
-    });
+    // afterEach(() => {
+    //   window.setTimeout = timeout;
+    // });
 
     it("should test an async promise", async () => {
       const testObject = { foo: "bar" };
       const response = new Response(JSON.stringify(testObject), {
         status: 200
       });
+      // Run the async promise
       const json = await response.json();
       expect(json).toStrictEqual(testObject);
     });
@@ -59,11 +60,11 @@ describe("actions", () => {
       const response = new Response("{invalid-json}", {
         status: 500
       });
-      return expect(response.json()).rejects.toContain("invalid json");
+      return expect(response.json()).rejects.toThrow("invalid json");
       // or, `return expect(response.json()).resolves.toBe(testObject);
     });
 
-    it("should create an action to increment async with a global timer", async done => {
+    it("should create an action to increment async with a global timer", async () => {
       const store = mockStore({});
       const action = actions.incrementAsync(2, 0);
       const expectedActions = [
@@ -76,16 +77,13 @@ describe("actions", () => {
         }
       ];
 
-      // mock store typing does not quite support redux-thunk
-      // @ts-ignore
+      jest.useFakeTimers();
       await store.dispatch(action);
+      jest.runAllTimers();
 
-      window.setTimeout(() => {
-        const dispatched = store.getActions();
-        expect(dispatched).toHaveLength(1);
-        expect(dispatched).toEqual(expectedActions);
-        done();
-      });
+      const dispatched = store.getActions();
+      expect(dispatched).toHaveLength(1);
+      expect(dispatched).toEqual(expectedActions);
     });
   });
 });

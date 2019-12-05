@@ -2,25 +2,14 @@ import { createAction, createAsyncAction } from "typesafe-actions";
 
 import { RootThunk } from "@src/types";
 
-export const increment = createAction(
-  "INCREMENT",
-  resolve => (value: number = 1) => resolve({ value })
-);
-
-export const decrement = createAction(
-  "DECREMENT",
-  resolve => (value: number = 1) => resolve({ value })
-);
-
-// This is an async action that does *not* return a Promise
-// ie. this action is not chainable.
-// Use RootThunk for these types of actions.
-export const incrementAsync = (
-  value: number = 1,
-  delay: number = 1000
-): RootThunk => dispatch => {
-  setTimeout(() => dispatch(increment(value)), delay);
-};
+// This creates a standard flux action with the shape { payload: number }.
+// See: https://github.com/piotrwitek/typesafe-actions#createstandardaction
+export const increment = createAction("INCREMENT", (value: number = 1) => ({
+  value
+}))();
+export const decrement = createAction("DECREMENT", (value: number = 1) => ({
+  value
+}))();
 
 /**
  * This uses the `createAsyncAction` helper for demonstrating a typical network request.
@@ -51,3 +40,15 @@ export const incrementAsyncNetwork = createAsyncAction(
   "FETCH_ASYNC_SUCCESS",
   "FETCH_ASYNC_FAILURE"
 )<string, number, string>();
+
+// This is a *CUSTOM* async action that does *not* return a Promise
+// ie. this action is not chainable.
+// Use RootThunk for these types of actions.
+export const incrementAsync = (
+  value: number = 1,
+  delay: number = 1000
+): RootThunk => dispatch => {
+  setTimeout(() => {
+    dispatch(increment(value));
+  }, delay);
+};
