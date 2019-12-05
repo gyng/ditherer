@@ -133,9 +133,5 @@
     "static": "dist",
     "status": false,
     "waitForBuild": true
-  },
-  "resolutions": {
-    "//": "https://www.npmjs.com/advisories/1012",
-    "set-value": "^3.0.1"
   }
 }
