@@ -9,7 +9,7 @@ import { CounterContainer } from "@src/containers/CounterContainer";
 import { AppRoutes } from "@src/routes";
 
 // Let webpack instead of ts handle these imports
-const hello = require("./hello.jpg");
+const hello = require("./hello.jpg").default;
 const styles = require("./app.scss");
 
 // Include global CSS and variables once

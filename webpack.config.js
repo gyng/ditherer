@@ -55,7 +55,7 @@ module.exports = {
         ]
       },
       {
-        test: /\.(jpg|png|gif|mp4|webm|mp3|ogg|svg)$/,
+        test: /\.(jpg|jpeg|png|gif|mp4|webm|mp3|ogg|svg)$/,
         loader: "file-loader",
         options: {
           name: "./f/[hash:16].[ext]"
@@ -144,7 +144,8 @@ module.exports = {
     alias: {
       "@cfg": path.resolve(__dirname, "config"),
       "@src": path.resolve(__dirname, "src"),
-      "@test": path.resolve(__dirname, "test")
+      "@test": path.resolve(__dirname, "test"),
+      ...(DEV ? { "react-dom": "@hot-loader/react-dom" } : {})
     }
   }
 };

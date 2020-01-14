@@ -1,3 +1,7 @@
+// react-hot-loader has to be imported before react
+// in webpack's entrypoint
+import "react-hot-loader";
+
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
