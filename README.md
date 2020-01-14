@@ -1,7 +1,5 @@
 # jsapp-boilerplate
 
-[![Build Status](https://travis-ci.org/gyng/jsapp-boilerplate.svg?branch=master)](https://travis-ci.org/gyng/jsapp-boilerplate)
-
 A personal JavaScript boilerplate for frontend applications for near-production use. Production deployment will require additional work depending on where and how you plan to deploy your application as this boilerplate only provides deployment to GitHub pages.
 
 This boilerplate contains:
@@ -29,7 +27,6 @@ This boilerplate contains:
 | [webpack](https://webpack.js.org/concepts/)                                 | javascript bundler           |
 | [docker-compose](https://docs.docker.com/compose/compose-file/)             | multi-container              |
 | [docker](https://docs.docker.com/engine/reference/builder/)                 | ci, production server        |
-| [travis](https://docs.travis-ci.com/user/customizing-the-build)             | ci                           |
 | [github actions](https://github.com/features/actions)                       | ci, cd                       |
 | [github pages](https://pages.github.com/)                                   | deployment, online hosting   |
 
