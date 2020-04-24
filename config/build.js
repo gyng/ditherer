@@ -13,7 +13,7 @@ const ENVIRONMENT = {
   development: "development",
   github: "github",
   production: "production",
-  test: "test"
+  test: "test",
 };
 
 /**
@@ -29,7 +29,7 @@ const getEnvironment = (env = "") => {
 const environment = getEnvironment(process.env.APP_ENV);
 
 /**
- * @type {import('./index.d').IConfiguration}
+ * @type {import('./index.d').Configuration}
  */
 const config = Object.assign(
   {},
@@ -39,5 +39,5 @@ const config = Object.assign(
 
 module.exports = {
   ENVIRONMENT,
-  config
+  config,
 };

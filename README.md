@@ -18,9 +18,8 @@ This boilerplate contains:
 | [jest](https://jestjs.io/)                                                  | test framework               |
 | [enzyme](http://airbnb.io/enzyme/index.html)                                | react test library           |
 | [typescript](https://www.typescriptlang.org/docs/home.html)                 | type checking                |
-| [eslint](http://eslint.org/docs/rules/)                                     | javascript linting           |
-| [tslint](https://palantir.github.io/tslint/rules/)                          | typescript linting           |
-| [prettier](https://github.com/prettier/prettier/)                           | (type/java)script formatting |
+| [eslint](http://eslint.org/docs/rules/)                                     | js/ts linting                |
+| [prettier](https://github.com/prettier/prettier/)                           | js/ts formatting             |
 | [stylelint](https://stylelint.io/user-guide/)                               | legacy css linting           |
 | **Building, CI, deploying**                                                 |                              |
 | [configuration](config/configValues.js)                                     | configuration                |
@@ -51,10 +50,8 @@ Also see: [Getting started](doc/getting_started.md), [Running tests in a Docker 
     yarn test                       # runs unit tests once
     yarn test:watch                 # runs unit tests using jest in watch mode
     yarn test:docker                # runs the full test suite in Docker
-    yarn lint                       # runs tslint, eslint, stylelint (prettier enforced by tslint)
+    yarn lint                       # runs eslint, stylelint (prettier enforced by eslint)
     yarn lint:fix
-    yarn lint:tslint
-    yarn lint:tslint:fix
     yarn lint:eslint
     yarn lint:eslint:fix
     yarn lint:stylelint

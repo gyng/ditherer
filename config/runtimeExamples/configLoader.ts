@@ -1,13 +1,11 @@
-// tslint:disable
+import { Configuration } from "./index.d";
 
-import { IConfiguration } from "./index.d";
-
-export const loadConfig = (url: string): Promise<IConfiguration> =>
+export const loadConfig = (url: string): Promise<Configuration> =>
   new Promise((resolve, reject) => {
     fetch(url)
-      .then(res => res.json())
+      .then((res) => res.json())
       .catch(reject)
-      .then(parsedConfig => {
+      .then((parsedConfig) => {
         resolve(parsedConfig);
       });
   });

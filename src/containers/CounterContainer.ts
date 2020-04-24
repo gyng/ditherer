@@ -4,17 +4,17 @@ import {
   decrement,
   increment,
   incrementAsync,
-  incrementAsyncNetwork
+  incrementAsyncNetwork,
 } from "@src/actions";
-import { Counter, ICounterProps } from "@src/components/Counter";
-import { ICountersState } from "@src/reducers/counter";
+import { Counter, CounterProps } from "@src/components/Counter";
+import { CountersState } from "@src/reducers/counter";
 import { RootDispatch, RootState } from "@src/types";
 
-const mapStateToProps = (state: RootState): ICountersState => ({
-  value: state.counters.value
+const mapStateToProps = (state: RootState): CountersState => ({
+  value: state.counters.value,
 });
 
-const mapDispatchToProps = (dispatch: RootDispatch): ICounterProps => ({
+const mapDispatchToProps = (dispatch: RootDispatch): CounterProps => ({
   onDecrementClick: () => {
     dispatch(decrement());
   },
@@ -28,16 +28,16 @@ const mapDispatchToProps = (dispatch: RootDispatch): ICounterProps => ({
     dispatch(incrementAsyncNetwork.request(url));
 
     fetch(url)
-      .then(res => {
+      .then((res) => {
         dispatch(incrementAsyncNetwork.success(res.status));
         dispatch(increment(res.status));
         window.alert(`Got status code ${status} for ${url}`);
         return res.status;
       })
-      .catch(res => {
+      .catch((res) => {
         dispatch(incrementAsyncNetwork.failure(res));
       });
-  }
+  },
 });
 
 export const CounterContainer = connect(

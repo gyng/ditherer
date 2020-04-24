@@ -9,7 +9,7 @@
 //   As an import:
 //     const { generate } = require("generateJson");
 
-const generate = config => JSON.stringify(config, null, 2);
+const generate = (config) => JSON.stringify(config, null, 2);
 
 if (require.main === module) {
   const { appConfig } = require("../configValues"); // eslint-disable-line global-require
@@ -20,7 +20,7 @@ if (require.main === module) {
 
   if (path) {
     const fs = require("fs"); // eslint-disable-line global-require
-    fs.writeFile(path, json, { flag }, err => {
+    fs.writeFile(path, json, { flag }, (err) => {
       if (err) {
         console.error(err); // eslint-disable-line no-console
       }
@@ -31,5 +31,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  generate
+  generate,
 };

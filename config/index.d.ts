@@ -4,28 +4,28 @@ export type getEnvironment = (s: string) => Environment;
 
 export type HistoryType = "browser" | "hash";
 
-export interface IUrlConfig {
+export interface UrlConfig {
   basePath: string;
   publicPath: string;
   historyType: HistoryType;
 }
 
-export interface IAppConfig {
-  url: IUrlConfig;
+export interface AppConfig {
+  url: UrlConfig;
 }
 
 /**
- * `IFullConfiguration describes the complete configuration for *all* environments.
+ * `FullConfiguration describes the complete configuration for *all* environments.
  */
-export type IFullConfiguration<T> = { [k in Environment]: T };
+export type FullConfiguration<T> = { [k in Environment]: T };
 
 /**
- * `IConfiguration is the per-environment configuration for the app, and is augmented
+ * `Configuration is the per-environment configuration for the app, and is augmented
  * to contain the current environment.
  * It describes the actual app configuration and is not aware of other environments.
  */
-export interface IConfiguration extends IAppConfig {
+export interface Configuration extends AppConfig {
   environment: Environment;
 }
 
-export const config: IConfiguration;
+export const config: Configuration;

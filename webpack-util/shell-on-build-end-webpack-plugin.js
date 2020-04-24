@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
 const { spawn } = require("child_process");
 
 /**
@@ -18,7 +20,7 @@ module.exports = function ShellOnBuildEndPlugin(options) {
   this.ran = false;
   this.child = null;
 
-  const debug = message => {
+  const debug = (message) => {
     if (options.debug) {
       process.stdout.write(`ℹ ShellOnBuildPlugin: ${message}\n`);
     }
@@ -31,14 +33,14 @@ module.exports = function ShellOnBuildEndPlugin(options) {
     }
   };
 
-  this.apply = compiler => {
+  this.apply = (compiler) => {
     compiler.hooks.afterEmit.tap("AfterEmitPlugin", () => {
       if (!this.ran) {
         killUnwantedExistingChild();
 
         this.child = spawn(options.command, {
           stdio: "inherit",
-          shell: true
+          shell: true,
         });
 
         this.child.on("close", () => {

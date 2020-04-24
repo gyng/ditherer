@@ -49,7 +49,7 @@ describe("actions", () => {
     it("should test an async promise", async () => {
       const testObject = { foo: "bar" };
       const response = new Response(JSON.stringify(testObject), {
-        status: 200
+        status: 200,
       });
       // Run the async promise
       const json = await response.json();
@@ -58,7 +58,7 @@ describe("actions", () => {
 
     it("should test an async promise with jest's convenience syntax", async () => {
       const response = new Response("{invalid-json}", {
-        status: 500
+        status: 500,
       });
       return expect(response.json()).rejects.toThrow("invalid json");
       // or, `return expect(response.json()).resolves.toBe(testObject);
@@ -71,10 +71,10 @@ describe("actions", () => {
         {
           meta: undefined,
           payload: {
-            value: 2
+            value: 2,
           },
-          type: getType(actions.increment)
-        }
+          type: getType(actions.increment),
+        },
       ];
 
       jest.useFakeTimers();

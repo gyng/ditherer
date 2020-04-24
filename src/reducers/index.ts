@@ -7,5 +7,5 @@ import { counterReducer } from "@src/reducers/counter";
 export const rootReducer = (history: History) =>
   combineReducers({
     counters: counterReducer,
-    router: connectRouter(history)
+    router: connectRouter(history),
   });

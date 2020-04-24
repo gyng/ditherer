@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/camelcase */
 // @ts-check
 
 // This dummy config is used for three purposes:
@@ -13,11 +14,11 @@
 // Do not do nesting! Avoid nesting so we don't kill ourselves when generating the template, and configuring on Consul
 
 /**
- * @type {import('./index.d').IConfiguration}
+ * @type {import('./index.d').Configuration}
  */
 const appConfig = {
   url_basePath: "/",
-  url_historyType: "browser"
+  url_historyType: "browser",
 };
 
 /**
@@ -25,13 +26,13 @@ const appConfig = {
  * This is very basic and has no support for per-environment build configurations.
  * If you find that you need multiple environments, please change the shape of buildConfig
  * and update IBuildConfig. Typing this gives us typechecking in `webpack.config.js`.
- * @type {import('./index.d').IBuildConfig}
+ * @type {import('./index.d').BuildConfig}
  */
 const buildConfig = {
-  url_publicPath: "/"
+  url_publicPath: "/",
 };
 
 module.exports = {
   appConfig,
-  buildConfig
+  buildConfig,
 };

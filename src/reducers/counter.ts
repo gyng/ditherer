@@ -2,24 +2,24 @@ import * as actions from "@src/actions";
 import { RootAction } from "@src/types";
 import { getType } from "typesafe-actions";
 
-export interface ICountersState {
+export interface CountersState {
   value: number;
 }
 
 export const counterReducer = (
-  state: ICountersState = { value: 0 },
+  state: CountersState = { value: 0 },
   action: RootAction
-): ICountersState => {
+): CountersState => {
   switch (action.type) {
     case getType(actions.increment):
       return {
         ...state,
-        value: state.value + action.payload.value
+        value: state.value + action.payload.value,
       };
     case getType(actions.decrement):
       return {
         ...state,
-        value: state.value - action.payload.value
+        value: state.value - action.payload.value,
       };
     default:
       return state;

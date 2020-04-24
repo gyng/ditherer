@@ -16,40 +16,40 @@
 // See ./index.ts for details
 
 /**
- * @typedef {import('./index.d').IAppConfig} IAppConfig
- * @type {import('./index.d').IFullConfiguration<IAppConfig>}
+ * @typedef {import('./index.d').AppConfig} AppConfig
+ * @type {import('./index.d').FullConfiguration<AppConfig>}
  */
 const values = {
   development: {
     url: {
       basePath: "/",
       publicPath: "/",
-      historyType: "browser"
-    }
+      historyType: "browser",
+    },
   },
   github: {
     url: {
       basePath: "/",
       publicPath: "./",
-      historyType: "hash"
-    }
+      historyType: "hash",
+    },
   },
   production: {
     url: {
       basePath: "/",
       publicPath: "./",
-      historyType: "browser"
-    }
+      historyType: "browser",
+    },
   },
   test: {
     url: {
       basePath: "/",
       publicPath: "./",
-      historyType: "hash"
-    }
-  }
+      historyType: "hash",
+    },
+  },
 };
 
 module.exports = {
-  values
+  values,
 };

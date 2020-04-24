@@ -3,7 +3,7 @@ import * as React from "react";
 
 const styles = require("./counter.scss");
 
-export interface ICounterProps {
+export interface CounterProps {
   onDecrementClick: () => void;
   onIncrementClick: () => void;
   onIncrementClickAsync: () => void;
@@ -11,8 +11,8 @@ export interface ICounterProps {
   value?: number;
 }
 
-export class Counter extends React.Component<ICounterProps, {}> {
-  public static defaultProps: Partial<ICounterProps> = { value: 0 };
+export class Counter extends React.Component<CounterProps, {}> {
+  public static defaultProps: Partial<CounterProps> = { value: 0 };
 
   public render() {
     return (
@@ -41,7 +41,7 @@ export class Counter extends React.Component<ICounterProps, {}> {
               this.props.onIncrementClickAsyncPromise("/");
             }}
           >
-            INCREMENT BY HTTP STATUS OF "/"
+            INCREMENT BY HTTP STATUS OF &quot;/&quot;
           </button>
 
           <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/Counter/index.tsx">

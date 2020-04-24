@@ -20,10 +20,10 @@ require("./legacy.css");
 
 // This is a nice way to define your custom presentational components
 // that just pass down props.
-export interface IBoxProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type IBoxProps = React.HTMLAttributes<HTMLDivElement>;
 
 // Example inline functional React component
-const Box: React.SFC<IBoxProps> = props => (
+const Box: React.SFC<IBoxProps> = (props) => (
   <div className={styles.box} {...props}>
     {props.children}
   </div>
@@ -72,10 +72,10 @@ class InnerApp extends React.Component<{}, {}> {
           <div
             className={styles.themedDiv}
             style={{
-              border: "solid 1px grey"
+              border: "solid 1px grey",
             }}
           >
-            This div is themed using PostCSS and React's style prop
+            This div is themed using PostCSS and React&quot;s style prop
           </div>
         </Box>
 

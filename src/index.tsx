@@ -13,7 +13,7 @@ import { createBrowserHistory, createHashHistory, History } from "history";
 import { Route, Switch } from "react-router-dom";
 
 import { config as appConfig } from "@cfg";
-import { IConfiguration } from "@cfg/index.d";
+import { Configuration } from "@cfg/index.d";
 import { rootReducer } from "@src/reducers";
 import { AppRoutes } from "@src/routes";
 
@@ -21,17 +21,17 @@ import { AppRoutes } from "@src/routes";
 // import { App } from "@src/components/App";
 const App = React.lazy(() => import("@src/components/App"));
 
-const configureHistory = (config: IConfiguration) => {
+const configureHistory = (config: Configuration) => {
   // Choose whether to use hash history (app/#counter) or browser history (app/counter)
   // This can be safely set to browser history if not hosting in a subdirectory (GitHub Pages)
   const historyFactories: { [k: string]: (options?: any) => any } = {
     browser: createBrowserHistory,
-    hash: createHashHistory
+    hash: createHashHistory,
   };
   const historyFactory = historyFactories[config.url.historyType];
 
   return historyFactory({
-    basename: config.url.basePath
+    basename: config.url.basePath,
   });
 };
 
@@ -40,7 +40,7 @@ const configureStore = (appHistory: History) => {
   // Redux devtools are still enabled in production!
   const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
     ? window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__({
-        actionsBlacklist: []
+        actionsBlacklist: [],
       })
     : compose;
 
@@ -56,7 +56,7 @@ const configureStore = (appHistory: History) => {
   );
 };
 
-export const AppConfigContext = React.createContext<IConfiguration | undefined>(
+export const AppConfigContext = React.createContext<Configuration | undefined>(
   undefined
 );
 
@@ -67,7 +67,7 @@ const SuspenseApp = () => (
   </React.Suspense>
 );
 
-const start = (config: IConfiguration) => {
+const start = (config: Configuration) => {
   const appHistory = configureHistory(config);
   const store = configureStore(appHistory);
 

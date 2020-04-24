@@ -24,13 +24,13 @@ module.exports = {
   target: "web",
 
   entry: {
-    app: "./src/index.tsx"
+    app: "./src/index.tsx",
   },
 
   output: {
     filename: "[name].[hash:7].js",
     path: path.resolve(__dirname, "dist"),
-    publicPath: config.url.publicPath
+    publicPath: config.url.publicPath,
   },
 
   module: {
@@ -39,7 +39,7 @@ module.exports = {
       {
         test: /\.css$/,
         include: path.resolve(__dirname, "src"),
-        loaders: ["style-loader", "css-loader"]
+        loaders: ["style-loader", "css-loader"],
       },
       // PostCSS
       {
@@ -49,52 +49,52 @@ module.exports = {
           "style-loader",
           {
             loader: "css-loader",
-            options: { modules: true, importLoaders: 1 }
+            options: { modules: true, importLoaders: 1 },
           },
-          "postcss-loader"
-        ]
+          "postcss-loader",
+        ],
       },
       {
         test: /\.(jpg|jpeg|png|gif|mp4|webm|mp3|ogg|svg)$/,
         loader: "file-loader",
         options: {
-          name: "./f/[hash:16].[ext]"
-        }
+          name: "./f/[hash:16].[ext]",
+        },
       },
       {
         test: /\.(j|t)sx?$/,
         exclude: /\/node_modules\//,
         loader: "babel-loader",
         options: {
-          cacheDirectory: true
-        }
-      }
-    ]
+          cacheDirectory: true,
+        },
+      },
+    ],
   },
 
   plugins: [
     // Inject app config at build-time: see comments in config/index.ts for details
     new webpack.DefinePlugin({
-      __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config)
+      __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config),
     }),
     new webpack.NamedModulesPlugin(),
     ...(DEV
       ? [
           new ShellOnBuildEndPlugin({
             command: "yarn --silent tsc:check:no-error --pretty",
-            killExisting: true
-          })
+            killExisting: true,
+          }),
         ]
       : []),
     new CircularDependencyPlugin({
       allowAsyncCycles: false,
       cwd: process.cwd(),
       exclude: /node_modules/,
-      failOnError: true
+      failOnError: true,
     }),
     new HtmlWebpackPlugin({
       template: "./src/index.html",
-      favicon: "./src/static/favicon.ico"
+      favicon: "./src/static/favicon.ico",
     }),
     // Add resource hints to reduce loadtime
     // Ignore chunks at top level: if wanted, use the commented config instead
@@ -105,17 +105,17 @@ module.exports = {
     new PreloadWebpackPlugin({
       rel: "preload",
       include: "allAssets",
-      fileWhitelist: [/\.(woff|woff2|ttf|svg|eot|otf|json|js)/]
+      fileWhitelist: [/\.(woff|woff2|ttf|svg|eot|otf|json|js)/],
     }),
     // Generate .gz for production builds
     // Consider adding brotli-webpack-plugin if your server supports .br
     ...(PROD
       ? [
           new CompressionPlugin({
-            include: /\.(js|html|svg)$/
-          })
+            include: /\.(js|html|svg)$/,
+          }),
         ]
-      : [])
+      : []),
   ],
 
   // Using inline-source-map for detailed line numbers
@@ -128,14 +128,14 @@ module.exports = {
     historyApiFallback: true,
     host: "localhost",
     publicPath: config.url.publicPath,
-    stats: "minimal"
+    stats: "minimal",
   },
 
   externals: {
     cheerio: "window",
     "react/addons": true,
     "react/lib/ExecutionEnvironment": true,
-    "react/lib/ReactContext": true
+    "react/lib/ReactContext": true,
   },
 
   resolve: {
@@ -145,7 +145,7 @@ module.exports = {
       "@cfg": path.resolve(__dirname, "config"),
       "@src": path.resolve(__dirname, "src"),
       "@test": path.resolve(__dirname, "test"),
-      ...(DEV ? { "react-dom": "@hot-loader/react-dom" } : {})
-    }
-  }
+      ...(DEV ? { "react-dom": "@hot-loader/react-dom" } : {}),
+    },
+  },
 };

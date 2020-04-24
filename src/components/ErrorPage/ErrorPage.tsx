@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { config } from "@cfg";
 
-export interface IErrorPageProps {
+export interface ErrorPageProps {
   code?: string;
   message?: string;
 }
@@ -14,10 +14,10 @@ export interface IErrorPageProps {
 //
 // The above only applies to browser history type. When using hash history,
 // the Link component will handle the routing back to the index.
-export class ErrorPage extends React.Component<IErrorPageProps, {}> {
-  public static defaultProps: Partial<IErrorPageProps> = {
+export class ErrorPage extends React.Component<ErrorPageProps, {}> {
+  public static defaultProps: Partial<ErrorPageProps> = {
     code: "?",
-    message: "An error has occurred."
+    message: "An error has occurred.",
   };
 
   public render() {
@@ -29,7 +29,7 @@ export class ErrorPage extends React.Component<IErrorPageProps, {}> {
           flexDirection: "column",
           height: "100%",
           justifyContent: "center",
-          width: "100vw"
+          width: "100vw",
         }}
       >
         <div style={{ fontSize: "25vh" }}>🔥</div>

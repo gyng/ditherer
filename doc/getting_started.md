@@ -2,7 +2,7 @@
 
 1. This boilerplate depends on [node](https://nodejs.org/en/download/) and [yarn](https://yarnpkg.com/lang/en/docs/install/).
 
-   It also uses [ESLint](http://eslint.org/), [TSLint](https://palantir.github.io/tslint/), [stylelint](https://stylelint.io/), [Prettier](https://prettier.io), and [TypeScript](https://www.typescriptlang.org/). Linter plugins should be set up in your editor of choice before starting development work.
+   It also uses [ESLint](http://eslint.org/), [stylelint](https://stylelint.io/), [Prettier](https://prettier.io), and [TypeScript](https://www.typescriptlang.org/). Linter plugins should be set up in your editor of choice before starting development work.
 
    Optionally, you will need [Docker](https://docs.docker.com/engine/installation/) and [Docker Compose](https://docs.docker.com/compose/install/) to run the provided docker image.
 

@@ -101,7 +101,6 @@ And then use the generated `config.json` in `src/index.tsx`:
 +     start(config);
 +   })
 +   .catch(error => {
-+     // tslint:disable-next-line:no-console
 +     console.error("Failed to load config file.", error);
 +     ReactDOM.render(<ErrorPage code="500" />, document.getElementById("root"));
 + });
