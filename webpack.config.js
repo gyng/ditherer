@@ -4,7 +4,6 @@ const CircularDependencyPlugin = require("circular-dependency-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const PreloadWebpackPlugin = require("preload-webpack-plugin");
-const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack-plugin");
 
 const { config } = require("./config/build");
 
@@ -78,14 +77,6 @@ module.exports = {
       __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config),
     }),
     new webpack.NamedModulesPlugin(),
-    ...(DEV
-      ? [
-          new ShellOnBuildEndPlugin({
-            command: "yarn --silent tsc:check:no-error --pretty",
-            killExisting: true,
-          }),
-        ]
-      : []),
     new CircularDependencyPlugin({
       allowAsyncCycles: false,
       cwd: process.cwd(),
