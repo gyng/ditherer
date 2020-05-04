@@ -6,23 +6,18 @@ on:
       - master
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Run test
-        run: docker build . --file Dockerfile.test.dockerfile
-
   build-and-deploy:
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Build and Deploy
+      - name: Run test
+        run: docker build . --file Dockerfile.test.dockerfile
+      - name: Build
+        run: yarn install && yarn build:github && yarn config:generate:github
+      - name: Deploy
         uses: JamesIves/github-pages-deploy-action@releases/v3
         with:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: gh-pages
           FOLDER: dist
-          BUILD_SCRIPT: yarn install && yarn build:github && yarn config:generate:github
