@@ -1,6 +1,3 @@
-// react-hot-loader has to be imported before react
-// in webpack's entrypoint
-import "react-hot-loader";
 import "@babel/polyfill";
 
 import * as React from "react";
@@ -16,11 +13,11 @@ import {
 import { config as appConfig } from "@cfg";
 import { Configuration } from "@cfg/index.d";
 import { store } from "@src/types";
-import { AppRoutes } from "@src/routes";
+import { Routes } from "@src/routes";
 
 // Dynamically import App for code splitting, remove this if unwanted
-// import { App } from "@src/components/App";
 const App = React.lazy(() => import("@src/components/App"));
+// import { App } from "@src/components/App";
 
 const configureRouter = (config: Configuration) => {
   const routers: Record<string, typeof Router> = {
@@ -60,7 +57,7 @@ const start = (config: Configuration) => {
           {/* Such as authentication callback routes */}
           {/* You will know it when you need this. */}
           <Switch>
-            <Route path={AppRoutes.root()} component={SuspenseApp} />
+            <Route path={Routes.root()} component={SuspenseApp} />
           </Switch>
         </AppConfigContext.Provider>
       </routerConfig.Component>

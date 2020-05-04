@@ -1,11 +1,10 @@
 import * as React from "react";
-import { hot } from "react-hot-loader";
 import { Link, Route, Switch } from "react-router-dom";
 
 import { config } from "@cfg";
 import { Echo } from "@src/components/Echo";
 import { ErrorPage } from "@src/components/ErrorPage";
-import { AppRoutes } from "@src/routes";
+import { Routes } from "@src/routes";
 import { CounterContainer } from "@src/features/counter/Counter.container";
 import { BooklistContainer } from "@src/features/booklist/Booklist.container";
 
@@ -30,7 +29,7 @@ const Box: React.SFC<IBoxProps> = (props) => (
   </div>
 );
 
-class InnerApp extends React.Component<{}, {}> {
+export class App extends React.Component<{}, {}> {
   public render() {
     const appPage = ( // Example usage of legacy CSS class name mixed with CSS modules
       <div className={`app ${styles.grid}`}>
@@ -127,9 +126,9 @@ class InnerApp extends React.Component<{}, {}> {
         // In medium-large applications you want to reuse route objects:
         // in routes/appRoutes.ts a plain function to create a route is defined by us
         <Route path={AppRoutes.counter(":id")} component={ErrorPage} /> */}
-        <Route exact path={AppRoutes.root()} render={() => appPage} />
-        <Route path={AppRoutes.counter()} component={CounterContainer} />
-        <Route path={AppRoutes.booklist()} component={BooklistContainer} />
+        <Route exact path={Routes.root()} render={() => appPage} />
+        <Route path={Routes.counter()} component={CounterContainer} />
+        <Route path={Routes.booklist()} component={BooklistContainer} />
         <Route
           path="/"
           render={() => <ErrorPage code="404" message="Page not found" />}
@@ -138,6 +137,3 @@ class InnerApp extends React.Component<{}, {}> {
     );
   }
 }
-
-export const App =
-  process.env.NODE_ENV === "development" ? hot(module)(InnerApp) : InnerApp;

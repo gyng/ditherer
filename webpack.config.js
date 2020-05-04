@@ -4,6 +4,7 @@ const CircularDependencyPlugin = require("circular-dependency-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const PreloadWebpackPlugin = require("preload-webpack-plugin");
+const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin");
 
 const { config } = require("./config/build");
 
@@ -51,7 +52,7 @@ module.exports = {
             options: {
               modules: {
                 localIdentName: DEV
-                  ? "[name]__[local]--[hash:base64:5]"
+                  ? "[name]__[local]--[hash:base64:3]"
                   : "[hash:base64:16]",
               },
               importLoaders: 1,
@@ -114,6 +115,7 @@ module.exports = {
           }),
         ]
       : []),
+    ...(DEV ? [new ReactRefreshWebpackPlugin()] : []),
   ],
 
   // Using inline-source-map for detailed line numbers
