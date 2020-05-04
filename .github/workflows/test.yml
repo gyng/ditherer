@@ -1,23 +1,19 @@
 name: Test CI
 
 on:
-
   pull_request:
     branches:
-    - master
-
-  push:
-    branches:
-    - master
-    - release/*
+      - master
+  # push:
+  #   branches:
+  #     - master
+  #     - release/*
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile.test.dockerfile
+      - uses: actions/checkout@v2
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile.test.dockerfile
