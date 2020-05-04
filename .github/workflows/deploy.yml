@@ -6,12 +6,12 @@ on:
       - master
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Run test
+      - name: Test
         run: docker build . --file Dockerfile.test.dockerfile
       - name: Build
         run: yarn install && yarn build:github && yarn config:generate:github

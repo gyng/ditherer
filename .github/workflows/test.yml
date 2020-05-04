@@ -15,5 +15,5 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Run test
+      - name: Test
         run: docker build . --file Dockerfile.test.dockerfile
