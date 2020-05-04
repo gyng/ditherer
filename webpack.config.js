@@ -157,7 +157,6 @@ module.exports = {
       "@cfg": path.resolve(__dirname, "config"),
       "@src": path.resolve(__dirname, "src"),
       "@test": path.resolve(__dirname, "test"),
-      ...(DEV ? { "react-dom": "@hot-loader/react-dom" } : {}),
     },
   },
 };

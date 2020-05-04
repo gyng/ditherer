@@ -57,7 +57,6 @@
     "@babel/preset-env": "^7.9.6",
     "@babel/preset-react": "^7.9.4",
     "@babel/preset-typescript": "^7.9.0",
-    "@hot-loader/react-dom": "^16.13.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.3.0-beta.5",
     "@types/classnames": "^2.2.10",
     "@types/enzyme": "^3.10.5",
