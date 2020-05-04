@@ -5,7 +5,8 @@
  * @type {import('./index.d').Configuration}
  */
 const appConfig = {
-  url_basePath: "/",
+  // Change this to your repo name
+  url_basePath: "/jsapp-boilerplate/",
   // On GitHub Pages, we need to use hash routing
   url_historyType: "hash",
 };
