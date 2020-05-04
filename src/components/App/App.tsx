@@ -1,12 +1,12 @@
 import * as React from "react";
 import { Link, Route, Switch } from "react-router-dom";
 
-import { config } from "@cfg";
 import { Echo } from "@src/components/Echo";
 import { ErrorPage } from "@src/components/ErrorPage";
 import { Routes } from "@src/routes";
 import { CounterContainer } from "@src/features/counter/Counter.container";
 import { BooklistContainer } from "@src/features/booklist/Booklist.container";
+import { AppConfigContext } from "@src/index";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg").default;
@@ -91,7 +91,9 @@ export class App extends React.Component<{}, {}> {
             <div style={{ marginBottom: "var(--m-m)" }}>
               Current configuration
             </div>
-            <pre>{JSON.stringify(config, null, 2)}</pre>
+            <AppConfigContext.Consumer>
+              {(config) => <pre>{JSON.stringify(config, null, 2)}</pre>}
+            </AppConfigContext.Consumer>
             <p>
               Configure in{" "}
               <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/config/configValues.js">
