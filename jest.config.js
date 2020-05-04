@@ -1,7 +1,8 @@
 module.exports = {
   moduleFileExtensions: ["js", "ts", "tsx"],
   moduleNameMapper: {
-    "@cfg": "<rootDir>/config/configForJest.ts",
+    "@cfg": "<rootDir>/config",
+    "@cfg/(.*)": "<rootDir>/config/$1",
     "@src/(.*)": "<rootDir>/src/$1",
     "@test/(.*)": "<rootDir>/test/$1",
   },

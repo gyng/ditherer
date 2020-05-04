@@ -1,6 +1,4 @@
-type Route = (...args: any[]) => string;
-
-export const Routes: { [k in string]: Route } = {
+export const Routes = {
   booklist: () => "/booklist",
   counter: () => "/counter",
   // Example of using parameters

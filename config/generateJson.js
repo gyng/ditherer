@@ -12,21 +12,22 @@
 const generate = (config) => JSON.stringify(config, null, 2);
 
 if (require.main === module) {
-  const { appConfig } = require("../configValues"); // eslint-disable-line global-require
+  const configFile = process.env.CONFIG_FILE || "./configValues";
+  const { appConfig } = require(configFile);
 
   const path = process.argv[2];
   const flag = process.argv[3] || "wx";
   const json = generate(appConfig);
 
   if (path) {
-    const fs = require("fs"); // eslint-disable-line global-require
+    const fs = require("fs");
     fs.writeFile(path, json, { flag }, (err) => {
       if (err) {
-        console.error(err); // eslint-disable-line no-console
+        console.error(err);
       }
     });
   } else {
-    console.log(json); // eslint-disable-line no-console
+    console.log(json);
   }
 }
 

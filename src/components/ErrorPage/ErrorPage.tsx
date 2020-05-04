@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 
-import { config } from "@cfg";
+import { Routes } from "@src/routes";
 
 export interface ErrorPageProps {
   code?: string;
@@ -40,7 +40,7 @@ export class ErrorPage extends React.Component<ErrorPageProps, {}> {
           The 404 route is defined in <code>index.tsx</code>.
         </p>
 
-        <Link to={config.url.basePath}>Back to index</Link>
+        <Link to={Routes.root()}>Back to index</Link>
       </div>
     );
   }

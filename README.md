@@ -20,7 +20,7 @@ This boilerplate contains:
 | [prettier](https://github.com/prettier/prettier/)                           | formatting                   |
 | [stylelint](https://stylelint.io/user-guide/)                               | legacy css linting           |
 | **Building, CI, deploying**                                                 |                              |
-| [configuration](config/configValues.js)                                     | configuration                |
+| [configuration](config/configValues.js)                                     | run-time configuration       |
 | [webpack](https://webpack.js.org/concepts/)                                 | javascript bundler           |
 | [docker-compose](https://docs.docker.com/compose/compose-file/)             | multi-container              |
 | [docker](https://docs.docker.com/engine/reference/builder/)                 | ci, production server        |

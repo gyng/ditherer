@@ -1,55 +1,38 @@
+/* eslint-disable @typescript-eslint/camelcase */
 // @ts-check
 
-// For your own safety, please do not add logic to this file
+// This dummy config is used for three purposes:
+// 1. Generating `config.json` for local development (re-exported as TS in index.ts)
+//    Using an interface allows the app to typecheck and autocomplete configuraiton variables
+// 2. Generating the Consul template for deployment on Nomad
+// 3. Build-time configuration
+//
+// Doing so allows for type checking via TypeScript, which is *very* nice!
+// We can only do a best-effort runtime check (= lose enum information)
+// for the templates and that is handled in `generateConsulTemplate.js`.
 
-// `basePath` is used for routing, needed if hosted in a subdirectory
-// This only needs to be set to the subdirectory name if using browser history and not hash history
-
-// `publicPath` is used for serving files, needed if hosted in a subdirectory
-// On GitHub Pages, set it to "./"
-
-// `historyType` is used to determine whether to use URL hashes or the HTML history API for routing
-// On GitHub Pages, set it to hash history. this is required because GitHub does not fallback to root when
-// visiting mypage/counters.
-
-// These settings are baked into the source using Webpack's DefinePlugin
-// See ./index.ts for details
+// Do not do nesting! Avoid nesting so we don't kill ourselves when generating the template, and configuring on Consul
 
 /**
- * @typedef {import('./index.d').AppConfig} AppConfig
- * @type {import('./index.d').FullConfiguration<AppConfig>}
+ * @type {import('./index.d').Configuration}
  */
-const values = {
-  development: {
-    url: {
-      basePath: "/",
-      publicPath: "/",
-      historyType: "browser",
-    },
-  },
-  github: {
-    url: {
-      basePath: "/",
-      publicPath: "./",
-      historyType: "hash",
-    },
-  },
-  production: {
-    url: {
-      basePath: "/",
-      publicPath: "./",
-      historyType: "browser",
-    },
-  },
-  test: {
-    url: {
-      basePath: "/",
-      publicPath: "./",
-      historyType: "hash",
-    },
-  },
+const appConfig = {
+  url_basePath: "/",
+  url_historyType: "browser",
+};
+
+/**
+ * Configuration options used by Webpack during build-time.
+ * This is very basic and has no support for per-environment build configurations.
+ * If you find that you need multiple environments, please change the shape of buildConfig
+ * and update IBuildConfig. Typing this gives us typechecking in `webpack.config.js`.
+ * @type {import('./index.d').BuildConfig}
+ */
+const buildConfig = {
+  url_publicPath: "/",
 };
 
 module.exports = {
-  values,
+  appConfig,
+  buildConfig,
 };

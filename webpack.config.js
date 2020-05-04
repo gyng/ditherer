@@ -5,11 +5,12 @@ const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const PreloadWebpackPlugin = require("preload-webpack-plugin");
 const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin");
+const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack-plugin");
 
-const { config } = require("./config/build");
+const { buildConfig } = require("./config/configValues");
 
 if (!process.env.HIDE_CONFIG) {
-  console.log("CONFIG = ", config); // eslint-disable-line no-console
+  console.log("BUILD CONFIG = ", buildConfig);
 }
 
 const DEV = process.env.NODE_ENV === "development";
@@ -30,7 +31,7 @@ module.exports = {
   output: {
     filename: "[name].[hash:7].js",
     path: path.resolve(__dirname, "dist"),
-    publicPath: config.url.publicPath,
+    publicPath: buildConfig.url_publicPath,
   },
 
   module: {
@@ -80,10 +81,6 @@ module.exports = {
   },
 
   plugins: [
-    // Inject app config at build-time: see comments in config/index.ts for details
-    new webpack.DefinePlugin({
-      __WEBPACK_DEFINE_CONFIG_JS_OBJ__: JSON.stringify(config),
-    }),
     new webpack.NamedModulesPlugin(),
     new CircularDependencyPlugin({
       allowAsyncCycles: false,
@@ -115,6 +112,14 @@ module.exports = {
           }),
         ]
       : []),
+    ...(DEV
+      ? [
+          new ShellOnBuildEndPlugin({
+            command: "yarn config:generate:dev",
+            once: true,
+          }),
+        ]
+      : []),
     ...(DEV ? [new ReactRefreshWebpackPlugin()] : []),
   ],
 
@@ -127,7 +132,7 @@ module.exports = {
     clientLogLevel: "warning",
     historyApiFallback: true,
     host: "localhost",
-    publicPath: config.url.publicPath,
+    publicPath: buildConfig.url_publicPath,
     stats: "minimal",
   },
 

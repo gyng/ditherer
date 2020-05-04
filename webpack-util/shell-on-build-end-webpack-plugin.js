@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-
 const { spawn } = require("child_process");
 
 /**
@@ -12,12 +10,16 @@ const { spawn } = require("child_process");
  */
 
 /**
+ * This webpack plugin runs a command whenever a webpack build finishes.
+ * Optionally, have it only run once, or kill previous in-flight runs before rerunning.
+ *
  * @param options {Options}
- * @property {boolean} ran
- * @property {import("child_process").ChildProcess} child
+ * @property {boolean} ranOnce - whether the command has been marked as run,
+ *                               and prevents subsequent runs if options.once is set
+ * @property {import("child_process").ChildProcess} child - the spawned child process
  */
 module.exports = function ShellOnBuildEndPlugin(options) {
-  this.ran = false;
+  this.ranOnce = false;
   this.child = null;
 
   const debug = (message) => {
@@ -35,26 +37,31 @@ module.exports = function ShellOnBuildEndPlugin(options) {
 
   this.apply = (compiler) => {
     compiler.hooks.afterEmit.tap("AfterEmitPlugin", () => {
-      if (!this.ran) {
+      const onceEnabledAndNotRun = options.once && !this.ranOnce;
+      const onceDisabled = !options.once;
+
+      if (onceEnabledAndNotRun || onceDisabled) {
         killUnwantedExistingChild();
 
-        this.child = spawn(options.command, {
-          stdio: "inherit",
-          shell: true,
-        });
+        this.child = spawn(
+          options.command || "echo no command passed to ShellOnBuildEndPlugin",
+          {
+            shell: true,
+          }
+        );
 
+        // child process has ended, we force kill it to mark it as killed
         this.child.on("close", () => {
           killUnwantedExistingChild();
         });
 
         debug(`[${this.child.pid}] ${options.command}`);
 
-        if (options.once) {
-          this.ran = true;
-        }
+        this.ranOnce = true;
       }
     });
 
+    // terminate child process as early as possible to make your computer lag less
     compiler.hooks.beforeRun.tap("BeforeRunPlugin", () => {
       killUnwantedExistingChild();
     });

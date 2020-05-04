@@ -64,7 +64,7 @@
 
 11. Remove demo-related things from `doc` and `src`, and start developing! (Or just keep them for reference for now.)
 
-12. Check out the app and build configuration settings in [`config/configValues.js`](/config/configValues.js)
+12. Check out the app and build configuration settings in [`config/configValues.js`](/config/configValues.js). You can change the default values here.
 
 13. Prepare a build for deployment by running `yarn build:prod`. The output files will be located in `dist/`.
 

@@ -79,7 +79,7 @@ export class App extends React.Component<{}, {}> {
               border: "solid 1px grey",
             }}
           >
-            This div is themed using PostCSS and React&quot;s style prop
+            This div is themed using PostCSS and React&apos;s style prop
           </div>
         </Box>
 

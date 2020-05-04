@@ -10,10 +10,11 @@ import {
   BrowserRouter,
   HashRouter,
 } from "react-router-dom";
-import { config as appConfig } from "@cfg";
+import { ErrorPage } from "./components/ErrorPage";
 import { Configuration } from "@cfg/index.d";
 import { store } from "@src/types";
 import { Routes } from "@src/routes";
+import { loadConfig } from "@src/util/configLoader";
 
 // Dynamically import App for code splitting, remove this if unwanted
 const App = React.lazy(() => import("@src/components/App"));
@@ -26,8 +27,8 @@ const configureRouter = (config: Configuration) => {
   };
 
   return {
-    basename: config.url.basePath,
-    Component: routers[config.url.historyType],
+    basename: config.url_basePath,
+    Component: routers[config.url_historyType],
   };
 };
 
@@ -66,4 +67,12 @@ const start = (config: Configuration) => {
   );
 };
 
-start(appConfig);
+// This is the hardcoded config path
+loadConfig("/config.json")
+  .then((config) => {
+    start(config);
+  })
+  .catch((error) => {
+    console.error("Failed to load config file.", error);
+    ReactDOM.render(<ErrorPage code="500" />, document.getElementById("root"));
+  });
