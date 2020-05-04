@@ -11,8 +11,12 @@ const appConfig = {
   url_historyType: "hash",
 };
 
+/**
+ * @type {import('./index.d').BuildConfig}
+ */
 const buildConfig = {
-  url_publicPath: "/",
+  url_publicPath: "/jsapp-boilerplate/",
+  url_configPath: "/jsapp-boilerplate/config.json",
 };
 
 module.exports = {

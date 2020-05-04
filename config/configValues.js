@@ -30,6 +30,7 @@ const appConfig = {
  */
 const buildConfig = {
   url_publicPath: "/",
+  url_configPath: "/config.json",
 };
 
 module.exports = {

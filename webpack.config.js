@@ -7,7 +7,9 @@ const PreloadWebpackPlugin = require("preload-webpack-plugin");
 const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin");
 const ShellOnBuildEndPlugin = require("./webpack-util/shell-on-build-end-webpack-plugin");
 
-const { buildConfig } = require("./config/configValues");
+const buildConfigPath =
+  process.env.BUILD_CONFIG_FILE || "./config/configValues";
+const { buildConfig } = require(buildConfigPath);
 
 if (!process.env.HIDE_CONFIG) {
   console.log("BUILD CONFIG = ", buildConfig);
@@ -81,6 +83,11 @@ module.exports = {
   },
 
   plugins: [
+    new webpack.DefinePlugin({
+      __WEBPACKDEFINE_APP_CONFIG_PATH__: JSON.stringify(
+        buildConfig.url_configPath
+      ),
+    }),
     new webpack.NamedModulesPlugin(),
     new CircularDependencyPlugin({
       allowAsyncCycles: false,

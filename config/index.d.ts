@@ -7,6 +7,7 @@ export interface UrlConfig {
 
 export interface BuildConfig {
   url_publicPath: string; // Webpack output.publicPath
+  url_configPath: string; // Where to load config.json at runtime
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface

@@ -2,7 +2,9 @@
 
 declare module "my-globals" {
   global {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    interface Window {}
+    interface Window {
+      // Defined in webpack.config.js
+      __WEBPACKDEFINE_APP_CONFIG_PATH__: string;
+    }
   }
 }

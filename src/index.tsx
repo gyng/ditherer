@@ -67,8 +67,8 @@ const start = (config: Configuration) => {
   );
 };
 
-// This is the hardcoded config path
-loadConfig("/config.json")
+// @ts-ignore
+loadConfig(__WEBPACKDEFINE_APP_CONFIG_PATH__)
   .then((config) => {
     start(config);
   })
