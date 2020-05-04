@@ -29,7 +29,7 @@ This boilerplate contains:
 
 [Ditherer](https://github.com/gyng/ditherer) is a project built using an older version of this boilerplate.
 
-End-to-end/integration/functional testing is intentionally kept separate.
+End-to-end/integration/functional testing is intentionally kept separate. You can consider using Cypress or Playwright for this.
 
 ## Usage
 
