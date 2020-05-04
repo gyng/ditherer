@@ -1,70 +1,68 @@
-/** TODO: update this with variables for font shorthand */
+/* font CSS property is a shorthand for
+font-style, font-variant, font-weight, font-stretch,
+font-size, line-height, and font-family */
 
 html {
-  font-size: 14px;
+  font-size: var(--f-s-root);
 
   @mixin target-narrow {
-    font-size: 16px;
+    font-size: var(--f-s-root);
   }
 }
 
 body {
-  font-family: Arial, sans-serif;
-  font-weight: 400;
-  line-height: 1.5rem;
+  font: var(--f-p);
   color: #333;
 }
 
-p,
-.p {
-  font-size: var(--font-size-p);
-  line-height: 1.5rem;
+p {
+  font: var(--f-p);
   margin-bottom: 1.3em;
 }
 
-h1,
-.f1 {
-  margin: 1.414em 0 0.5em;
-  font-size: var(--font-size-1);
-  line-height: var(--font-size-1);
+h1 {
+  font: var(--f-6);
+  margin: 1.1em 0 0.5em;
 }
 
-h2,
-.f2 {
-  margin: 1.414em 0 0.5em;
-  font-size: var(--font-size-2);
-  line-height: var(--font-size-2);
+h2 {
+  font: var(--f-5);
+  margin: 1.2em 0 0.5em;
 }
 
-h3,
-.f3 {
-  margin: 1.414em 0 0.5em;
-  font-size: var(--font-size-3);
-  line-height: 3.125rem;
+h3 {
+  font: var(--f-4);
+  margin: 1.3em 0 0.5em;
 }
 
-h4,
-.f4 {
-  margin: 1.414em 0 0.5em;
-  font-size: var(--font-size-4);
-  line-height: 2.5rem;
+h4 {
+  font: var(--f-3);
+  margin: 1.4em 0 0.5em;
 }
 
-h5,
-.f5 {
-  margin: 1.414em 0 0.5em;
-  font-size: var(--font-size-5);
+h5 {
+  font: var(--f-2);
   line-height: 2rem;
 }
 
-h6,
-.f6 {
+h6 {
+  font: var(--f-1);
   margin: 1.414em 0 0.5em;
-  font-size: var(--font-size-6);
-  line-height: 2rem;
 }
 
-small,
-.small {
-  font-size: var(--font-size-small);
+small {
+  font: var(--f-small);
+}
+
+code {
+  font-family: var(--f-f-mono);
+}
+
+a {
+  color: var(--c-blue-60);
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--c-blue-70);
+  }
 }

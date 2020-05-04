@@ -40,15 +40,18 @@ export class App extends React.Component<{}, {}> {
             &nbsp;&middot;&nbsp;
             <span>
               Find me in{" "}
-              <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/App/index.tsx">
-                <code>src/components/App/index.tsx</code>
+              <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/App/App.tsx">
+                <code>src/components/App/App.tsx</code>
               </a>
             </span>
           </div>
         </div>
 
         {/* React style prop is still available */}
-        <Box className={styles.box} style={{ alignSelf: "flex-start" }}>
+        <Box
+          className={styles.box}
+          style={{ alignSelf: "flex-start", flexDirection: "column" }}
+        >
           {/* Example usage of switch for routing */}
           <Link to="./counter">
             Link to /counter. Click to show counter. Back/Forward buttons and

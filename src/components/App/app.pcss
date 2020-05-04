@@ -14,7 +14,7 @@
 
 .themedDiv {
   border-radius: calc(var(--curve) * 50);
-  color: var(--orange-60);
+  color: var(--c-orange-60);
   align-self: center;
   transition: border-radius 0.3s ease-in;
 
@@ -32,15 +32,8 @@
   }
 }
 
-.title {
-  /* Use composes for mixing in a bunch of rules
-   * ~ makes PostCSS use Webpack to resolve @src
-   * In this case we are giving the title a smaller font size */
-  composes: f3 from "~@src/styles/typography.pcss";
-}
-
 .grid {
-  padding: var(--m-xl);
+  padding: var(--m-m) var(--m-xl);
   display: grid;
   grid-gap: var(--m-m);
   grid-template-columns: 1fr 1fr;
@@ -66,12 +59,12 @@
     width: 100%;
     height: 100%;
     min-height: 300px;
-    outline: solid 2px var(--grey-40);
+    outline: solid 2px var(--c-grey-40);
     transform-origin: center;
     transition: all 0.1s ease-in;
 
     &:hover {
-      outline: solid 5px var(--blue-40);
+      outline: solid 5px var(--c-blue-40);
       transform: scale(1.025);
     }
 
