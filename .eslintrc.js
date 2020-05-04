@@ -4,7 +4,7 @@ module.exports = {
   plugins: ["@typescript-eslint", "jest", "jsx-a11y"],
   env: {
     browser: true,
-    node: true,
+    node: true
   },
   extends: [
     "eslint:recommended",
@@ -14,7 +14,10 @@ module.exports = {
     "plugin:react-hooks/recommended",
     "plugin:jsx-a11y/recommended",
     "plugin:jest/recommended",
-    "plugin:prettier/recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "plugin:import/typescript",
+    "plugin:prettier/recommended"
   ],
   rules: {
     // PostCSS requires require
@@ -34,10 +37,13 @@ module.exports = {
     // Ignore unused variables with leading underscore
     "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    // Force import ordering
+    "import/order": 1
   },
   settings: {
+    "import/resolver": "webpack",
     react: {
-      version: "detect",
-    },
-  },
+      version: "detect"
+    }
+  }
 };

@@ -1,8 +1,8 @@
 import { connect } from "react-redux";
 
-import { RootDispatch, RootState } from "@src/types";
 import { Counter } from "./Counter";
 import { counterDuck } from "./counter.duck";
+import { RootDispatch, RootState } from "@src/types";
 
 const mapStateToProps = (state: RootState) => ({
   // Direct access is acceptable for this, but counterDuck.selectors are recommended for type-safety

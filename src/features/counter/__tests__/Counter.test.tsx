@@ -1,6 +1,6 @@
-import { Counter } from "../Counter";
 import * as Enzyme from "enzyme";
 import * as React from "react";
+import { Counter } from "../Counter";
 
 describe("Counter", () => {
   let render: Enzyme.ShallowWrapper;

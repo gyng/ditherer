@@ -1,6 +1,6 @@
-import { Echo } from "@src/components/Echo";
 import { mount } from "enzyme";
 import * as React from "react";
+import { Echo } from "@src/components/Echo";
 
 describe("Echo", () => {
   it("renders the text", () => {

@@ -1,7 +1,7 @@
-import App from "@src/components/App";
 import { mount } from "enzyme";
 import * as React from "react";
 import { MemoryRouter } from "react-router";
+import App from "@src/components/App";
 
 describe("App", () => {
   it("is a horrible tooling ecosystem", () => {

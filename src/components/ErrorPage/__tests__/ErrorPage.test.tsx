@@ -1,6 +1,6 @@
-import { ErrorPage } from "@src/components/ErrorPage";
 import { shallow } from "enzyme";
 import * as React from "react";
+import { ErrorPage } from "@src/components/ErrorPage";
 
 describe("ErrorPage", () => {
   it("renders", () => {

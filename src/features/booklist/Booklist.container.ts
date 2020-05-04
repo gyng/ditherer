@@ -1,7 +1,7 @@
 import { connect } from "react-redux";
-import { RootDispatch, RootState } from "@src/types";
 import { Booklist } from "./Booklist";
 import { booklistDuck } from "./booklist.duck";
+import { RootDispatch, RootState } from "@src/types";
 import { booksAdapter, Book, booksSlice } from "@src/domains/books.duck";
 
 const mapStateToProps = (state: RootState) => ({

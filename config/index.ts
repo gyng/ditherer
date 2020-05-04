@@ -10,7 +10,7 @@
 //
 // See `runtimeExamples/runtime_config.md` for details on how to use a runtime configuration instead
 
-import configDef from "./index.d";
+import * as configDef from "./index.d";
 
 declare let __WEBPACK_DEFINE_CONFIG_JS_OBJ__: configDef.Configuration;
 

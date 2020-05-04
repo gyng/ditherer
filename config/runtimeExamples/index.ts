@@ -1,7 +1,7 @@
 // Re-export in typescript for application development and Jest
 // see configValues.js, jest.config.js > moduleNameMapper for details
 
-import configDef from "./index.d";
+import * as configDef from "./index.d";
 export { Configuration as IConfiguration } from "./index.d";
 
 const { appConfig } = require("./configValues.js");
