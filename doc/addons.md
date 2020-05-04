@@ -14,13 +14,3 @@ A semi-curated list of potential addons to this boilerplate you might want. This
 * A form helper in [formik](https://github.com/jaredpalmer/formik) or [redux-form](https://redux-form.com/8.0.4/). I have no real preference for this, but it helps a lot to have one integrated early when dealing with lots of forms.
 * Some sort of SVG loader for icons and the like. Can be done in PostCSS or webpack, depending on how your icons are coded.
 * For fun, WASM! WASM is easy to integrate into this boilerplate. Check out [synthrs-wasm-ts](https://github.com/gyng/synthrs-wasm-ts) for an example on how to do so.
-
-## Things you might want (which I have no strong opinions on or experience with)
-
-* [redux-saga](https://github.com/redux-saga/redux-saga) over redux-thunk. It's a lot of extra complexity for what it offers. If your business logic is *that* complicated then you might want to consider this. redux-thunk works fine 90% of the time, though.
-* [normalizr](https://github.com/paularmstrong/normalizr) if your business logic has an easily normalized state. Although, I haven't had to use this.
-* CSS-in-JS library such as [emotion](https://github.com/emotion-js/emotion). This is mostly a matter of preference. I've found that in the teams I've been in CSS-looking things usually work out better.
-
-## Things you might want that I personally dislike
-
-* A selector library such as [reselect](https://github.com/reduxjs/reselect). I find that selectors are a detrimental abstraction over raw state access. They add boilerplate and hide complexity that can be better dealt with utility functions instead.
