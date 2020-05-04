@@ -18,4 +18,4 @@ jobs:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         BRANCH: gh-pages
         FOLDER: dist
-        BUILD_SCRIPT: yarn install && yarn config:generate:github && yarn build:github
+        BUILD_SCRIPT: yarn install && yarn build:github && yarn config:generate:github
