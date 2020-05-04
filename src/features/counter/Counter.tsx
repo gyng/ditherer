@@ -1,13 +1,14 @@
 import classNames from "classnames";
 import * as React from "react";
 
-const styles = require("./counter.scss");
+const styles = require("./counter.pcss");
 
 export interface CounterProps {
   onDecrementClick: () => void;
   onIncrementClick: () => void;
   onIncrementClickAsync: () => void;
   onIncrementClickAsyncPromise: (url: string) => void;
+  onIncrementClickAsyncAwait: (url: string) => void;
   value?: number;
 }
 
@@ -41,7 +42,16 @@ export class Counter extends React.Component<CounterProps, {}> {
               this.props.onIncrementClickAsyncPromise("/");
             }}
           >
-            INCREMENT BY HTTP STATUS OF &quot;/&quot;
+            INCREMENT ASYNC/AWAIT
+          </button>
+
+          <button
+            className="increment"
+            onClick={() => {
+              this.props.onIncrementClickAsyncPromise("www.example.invalidtld");
+            }}
+          >
+            INCREMENT ASYNC PROMISE (404)
           </button>
 
           <a href="https://github.com/gyng/jsapp-boilerplate/blob/master/src/components/Counter/index.tsx">

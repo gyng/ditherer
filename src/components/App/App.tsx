@@ -5,15 +5,16 @@ import { Link, Route, Switch } from "react-router-dom";
 import { config } from "@cfg";
 import { Echo } from "@src/components/Echo";
 import { ErrorPage } from "@src/components/ErrorPage";
-import { CounterContainer } from "@src/containers/CounterContainer";
 import { AppRoutes } from "@src/routes";
+import { CounterContainer } from "@src/features/counter/Counter.container";
+import { BooklistContainer } from "@src/features/booklist/Booklist.container";
 
 // Let webpack instead of ts handle these imports
 const hello = require("./hello.jpg").default;
-const styles = require("./app.scss");
+const styles = require("./app.pcss");
 
 // Include global CSS and variables once
-require("@src/styles/root.scss");
+require("@src/styles/root.pcss");
 
 // Legacy CSS is supported
 require("./legacy.css");
@@ -53,6 +54,10 @@ class InnerApp extends React.Component<{}, {}> {
           <Link to="./counter">
             Link to /counter. Click to show counter. Back/Forward buttons and
             page refresh work.
+          </Link>
+
+          <Link to="./booklist">
+            Link to /booklist. Click to show booklist example.
           </Link>
         </Box>
 
@@ -124,6 +129,7 @@ class InnerApp extends React.Component<{}, {}> {
         <Route path={AppRoutes.counter(":id")} component={ErrorPage} /> */}
         <Route exact path={AppRoutes.root()} render={() => appPage} />
         <Route path={AppRoutes.counter()} component={CounterContainer} />
+        <Route path={AppRoutes.booklist()} component={BooklistContainer} />
         <Route
           path="/"
           render={() => <ErrorPage code="404" message="Page not found" />}

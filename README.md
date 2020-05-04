@@ -7,19 +7,17 @@ This boilerplate contains:
 | **Presentation, state**                                                     |                              |
 |-----------------------------------------------------------------------------|------------------------------|
 | [react](https://facebook.github.io/react/docs/hello-world.html)             | ui framework                 |
-| [redux](http://redux.js.org/)                                               | state management             |
+| [redux, redux-toolkit](http://redux.js.org/)                                | state management             |
 | [react-redux](http://redux.js.org/docs/basics/UsageWithReact.html)          | react-redux integration      |
-| [connected-react-router](https://github.com/reactjs/connected-react-router) | routing                      |
-| [redux-thunk](https://github.com/gaearon/redux-thunk)                       | async actions                |
-| [typesafe-actions](https://github.com/piotrwitek/typesafe-actions)          | typesafe action creator      |
+| [react-router](https://github.com/ReactTraining/react-router)               | routing                      |
 | [postcss](https://github.com/postcss/postcss)                               | css preprocessing, styling   |
 | [plain css](https://developer.mozilla.org/en-US/docs/Web/CSS)               | legacy css escape hatch      |
 | **Testing, linting**                                                        |                              |
 | [jest](https://jestjs.io/)                                                  | test framework               |
 | [enzyme](http://airbnb.io/enzyme/index.html)                                | react test library           |
 | [typescript](https://www.typescriptlang.org/docs/home.html)                 | type checking                |
-| [eslint](http://eslint.org/docs/rules/)                                     | js/ts linting                |
-| [prettier](https://github.com/prettier/prettier/)                           | js/ts formatting             |
+| [eslint](http://eslint.org/docs/rules/)                                     | linting                      |
+| [prettier](https://github.com/prettier/prettier/)                           | formatting                   |
 | [stylelint](https://stylelint.io/user-guide/)                               | legacy css linting           |
 | **Building, CI, deploying**                                                 |                              |
 | [configuration](config/configValues.js)                                     | configuration                |

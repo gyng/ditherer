@@ -10,6 +10,7 @@ module.exports = {
   testPathIgnorePatterns: ["/node_modules/", "/dist/"],
   transform: {
     "^.+\\.(j|t)sx?$": "babel-jest",
-    "^.+\\.(css|less|sass|scss|png|jpg|ttf|woff|woff2)$": "jest-transform-stub",
+    "^.+\\.(css|less|sass|scss|pcss|png|jpg|ttf|woff|woff2)$":
+      "jest-transform-stub",
   },
 };

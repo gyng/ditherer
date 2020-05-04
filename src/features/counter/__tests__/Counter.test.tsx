@@ -1,4 +1,4 @@
-import { Counter } from "@src/components/Counter";
+import { Counter } from "../Counter";
 import * as Enzyme from "enzyme";
 import * as React from "react";
 
@@ -23,7 +23,7 @@ describe("Counter", () => {
 
   it("renders the increment buttons", () => {
     const incrementEl = render.find("button.increment");
-    expect(incrementEl).toHaveLength(3);
+    expect(incrementEl).toHaveLength(4);
   });
 
   it("renders the decrement button", () => {

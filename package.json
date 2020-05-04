@@ -21,7 +21,7 @@
     "lint:eslint": "eslint . --ext .js --ext .jsx --ext .ts --ext .tsx",
     "lint:fix": "yarn lint:eslint:fix && yarn lint:stylelint:fix",
     "lint:stylelint:fix": "yarn lint:stylelint --fix",
-    "lint:stylelint": "stylelint '**/*.css' '**/*.scss'",
+    "lint:stylelint": "stylelint '**/*.css' '**/*.scss' '**/*.pcss'",
     "lint": "yarn lint:eslint && yarn lint:stylelint && yarn tsc:check",
     "run:docker": "docker-compose up --build",
     "t:w": "jest --watch",
@@ -35,17 +35,15 @@
     "tsc:check": "tsc --noEmit --skipLibCheck && yarn tsc:check-config"
   },
   "dependencies": {
+    "@reduxjs/toolkit": "^1.3.5",
     "classnames": "^2.2.6",
-    "connected-react-router": "^6.8.0",
-    "history": "^4.10.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-redux": "^7.2.0",
     "react-router": "^5.1.2",
     "react-router-dom": "^5.1.2",
     "redux": "^4.0.5",
-    "redux-thunk": "^2.2.0",
-    "typesafe-actions": "^5.1.0"
+    "redux-thunk": "^2.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.9.0",

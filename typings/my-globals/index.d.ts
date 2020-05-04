@@ -2,8 +2,7 @@
 
 declare module "my-globals" {
   global {
-    interface Window {
-      __REDUX_DEVTOOLS_EXTENSION_COMPOSE__: any;
-    }
+    // eslint-disable-next-line @typescript-eslint/no-empty-interface
+    interface Window {}
   }
 }

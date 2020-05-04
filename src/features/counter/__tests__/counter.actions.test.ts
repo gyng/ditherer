@@ -1,7 +1,6 @@
-import * as actions from "@src/actions/counter";
+import { actions } from "../counter.duck";
 import configureMockStore from "redux-mock-store";
 import thunk from "redux-thunk";
-import { getType } from "typesafe-actions";
 
 describe("actions", () => {
   let mockStore: any;
@@ -12,23 +11,23 @@ describe("actions", () => {
   });
 
   it("should create an action to increment the counter", () => {
-    const action = actions.increment();
-    expect(action.payload.value).toEqual(1);
+    const action = actions.increment(1);
+    expect(action.payload).toEqual(1);
   });
 
   it("should create an action with a custom increment value", () => {
     const action = actions.increment(2);
-    expect(action.payload.value).toEqual(2);
+    expect(action.payload).toEqual(2);
   });
 
   it("should create an action to decrement the counter", () => {
     const action = actions.decrement();
-    expect(action.payload.value).toEqual(1);
+    expect(action.payload).toEqual({ value: 1 });
   });
 
   it("should create an action with a custom decrement value", () => {
     const action = actions.decrement(2);
-    expect(action.payload.value).toEqual(2);
+    expect(action.payload).toEqual({ value: 2 });
   });
 
   // For async testing, there are a few strategies you can take
@@ -70,10 +69,8 @@ describe("actions", () => {
       const expectedActions = [
         {
           meta: undefined,
-          payload: {
-            value: 2,
-          },
-          type: getType(actions.increment),
+          payload: 2,
+          type: actions.increment.type,
         },
       ];
 

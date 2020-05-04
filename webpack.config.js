@@ -42,7 +42,7 @@ module.exports = {
       },
       // PostCSS
       {
-        test: /\.scss$/,
+        test: /\.(p|s)css$/,
         include: path.resolve(__dirname, "src"),
         loaders: [
           "style-loader",

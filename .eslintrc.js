@@ -29,10 +29,15 @@ module.exports = {
     "react/prop-types": 0,
     // Emoji aren't too bad?
     "jsx-a11y/accessible-emoji": 0,
+    // Used in Redux reducers a lot
+    "no-case-declarations": 0,
+    // Ignore unused variables with leading underscore
+    "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
   },
   settings: {
     react: {
       version: "detect",
-    }
+    },
   },
 };
