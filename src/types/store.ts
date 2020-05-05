@@ -3,6 +3,7 @@ import { configureStore } from "@reduxjs/toolkit";
 
 import { domainReducers } from "@src/domains";
 import { featureReducers } from "@src/features";
+import filtersReducer from "@src/reducers/filters";
 
 const features = combineReducers(featureReducers);
 const domains = combineReducers(domainReducers);
@@ -10,6 +11,7 @@ const domains = combineReducers(domainReducers);
 const rootReducer = combineReducers({
   domains,
   features,
+  filters: filtersReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

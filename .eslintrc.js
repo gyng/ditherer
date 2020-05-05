@@ -38,7 +38,8 @@ module.exports = {
     "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     // Force import ordering
-    "import/order": 1
+    "import/order": 1,
+    "import/named": 0,
   },
   settings: {
     "import/resolver": "webpack",

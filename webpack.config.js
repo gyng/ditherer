@@ -92,7 +92,7 @@ module.exports = {
     new CircularDependencyPlugin({
       allowAsyncCycles: false,
       cwd: process.cwd(),
-      exclude: /node_modules/,
+      exclude: /(node_modules|Palette.tsx)|/,
       failOnError: true,
     }),
     new HtmlWebpackPlugin({
@@ -148,10 +148,11 @@ module.exports = {
     "react/addons": true,
     "react/lib/ExecutionEnvironment": true,
     "react/lib/ReactContext": true,
+    fs: "commonjs fs", // required for rustc generated JS-WASM loader
   },
 
   resolve: {
-    extensions: [".js", ".jsx", ".ts", ".tsx"],
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".wasm"],
     modules: ["node_modules", path.resolve(__dirname, "src")],
     alias: {
       "@cfg": path.resolve(__dirname, "config"),
