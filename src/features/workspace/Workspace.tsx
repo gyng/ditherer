@@ -1,74 +1,116 @@
 import React from "react";
+import { VideoRecorder } from "./VideoRecorder";
 
 const styles = require("./workspace.pcss");
 
-type Pixel = Uint8ClampedArray;
+// type Pixel = Uint8ClampedArray;
 
-enum ColorSpaceTypes {
+enum ImageFormats {
   RGBA = "rgba",
 }
 
-interface ColorSpace {
-  colorSpace: ColorSpaceTypes;
-  pxLen: number;
+interface Colorspace {
+  colorSpace: ImageFormats;
 }
 
-const ColorSpaces: Record<ColorSpaceTypes, ColorSpace> = {
-  [ColorSpaceTypes.RGBA]: { colorSpace: ColorSpaceTypes.RGBA, pxLen: 4 },
+const colorspaceRGB: Colorspace = {
+  colorSpace: ImageFormats.RGBA,
 };
 
-class Surface {
-  public colorspace: ColorSpace;
-  public width: number;
+abstract class BaseSurface<PixelType> {
+  public buffers: Uint8ClampedArray[];
+  public colorspace: Colorspace;
   public height: number;
-  public buffer: Uint8ClampedArray;
+  public width: number;
 
   public constructor(options: {
-    colorSpace?: ColorSpace;
+    buffers: Uint8ClampedArray[];
+    colorspace: Colorspace;
+    height: number;
+    width: number;
+  }) {
+    this.buffers = options.buffers;
+    this.colorspace = options.colorspace;
+    this.height = options.height;
+    this.width = options.width;
+  }
+
+  abstract get(x: number, y: number): PixelType;
+  abstract getMut(x: number, y: number): PixelType;
+  abstract setMut(x: number, y: number, px: PixelType): void;
+  abstract apply(
+    fn: (px: PixelType, x: number, y: number, idx: number) => PixelType
+  ): void;
+  abstract applyMut(
+    fn: (px: PixelType, x: number, y: number, idx: number) => PixelType
+  ): void;
+  abstract toImageData(): ImageData;
+}
+
+class RGBASurface extends BaseSurface<Uint8ClampedArray> {
+  public colorspace: typeof colorspaceRGB;
+  public pixelLength: number;
+
+  public constructor(options: {
     width: number;
     height: number;
     buffer?: Uint8ClampedArray;
   }) {
-    this.colorspace = options.colorSpace ?? ColorSpaces[ColorSpaceTypes.RGBA];
-    this.buffer =
-      options.buffer ||
-      new Uint8ClampedArray(options.width * options.height * 4);
-    this.width = options.width;
-    this.height = options.height;
+    super({
+      buffers: [
+        options.buffer ||
+          new Uint8ClampedArray(options.width * options.height * 4),
+      ],
+      colorspace: colorspaceRGB,
+      height: options.height,
+      width: options.width,
+    });
+
+    this.colorspace = colorspaceRGB;
+    this.pixelLength = 4;
   }
 
   public getBufferIdx(x: number, y: number): number {
     const idx = y * this.width + x;
-    return idx * this.colorspace.pxLen;
+    return idx * this.pixelLength;
   }
 
-  public get(x: number, y: number, pixelLength = 4): Pixel {
+  public get(x: number, y: number): Uint8ClampedArray {
     const idx = this.getBufferIdx(x, y);
-    return this.buffer.slice(idx, idx + pixelLength + 1);
+    return this.buffers[0].slice(idx, idx + this.pixelLength + 1);
   }
 
-  public getMut(x: number, y: number, pixelLength = 4): Pixel {
+  public getMut(x: number, y: number): Uint8ClampedArray {
     const idx = this.getBufferIdx(x, y);
-    return this.buffer.subarray(idx, idx + pixelLength + 1);
+    return this.buffers[0].subarray(idx, idx + this.pixelLength + 1);
   }
 
-  public mut(x: number, y: number, pixel: Pixel) {
+  public setMut(x: number, y: number, pixel: Uint8ClampedArray) {
     const idx = this.getBufferIdx(x, y);
-    this.buffer.set(pixel, idx);
+    this.buffers[0].set(pixel, idx);
   }
 
-  public map(fn: (px: Pixel, x: number, y: number, idx: number) => Pixel) {
+  public apply(
+    fn: (
+      px: Uint8ClampedArray,
+      x: number,
+      y: number,
+      idx: number
+    ) => Uint8ClampedArray
+  ) {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const idx = this.getBufferIdx(x, y);
         const curPx = this.get(x, y);
         const newSlice = fn(curPx, x, y, idx);
-        this.mut(x, y, newSlice);
+        this.setMut(x, y, newSlice);
       }
     }
   }
 
-  public mapMut(fn: (px: Pixel, x: number, y: number, idx: number) => void) {
+  public applyMut(
+    fn: (px: Uint8ClampedArray, x: number, y: number, idx: number) => void
+  ) {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const idx = this.getBufferIdx(x, y);
@@ -88,7 +130,7 @@ class Surface {
   // }
 
   public toImageData(): ImageData {
-    return new ImageData(this.buffer, this.width, this.height);
+    return new ImageData(this.buffers[0], this.width, this.height);
   }
 
   public async toCanvas(
@@ -110,7 +152,7 @@ class Surface {
     ctx.putImageData(data, 0, 0);
   }
 
-  public static fromCanvas(canvas: HTMLCanvasElement): Promise<Surface> {
+  public static fromCanvas(canvas: HTMLCanvasElement): Promise<RGBASurface> {
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
         if (blob) {
@@ -121,7 +163,7 @@ class Surface {
           }
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           resolve(
-            new Surface({
+            new RGBASurface({
               buffer: imageData.data,
               height: canvas.height,
               width: canvas.width,
@@ -140,10 +182,7 @@ interface VideoOptions {
   playbackRate: number;
 }
 
-export const loadImage = (
-  file: File,
-  onLoad: (ev: Event) => void
-): (() => void) => {
+export const loadImage = (file: File, onLoad: (ev: Event) => void) => {
   const reader = new FileReader();
   const image = new Image();
 
@@ -156,8 +195,12 @@ export const loadImage = (
 
   reader.readAsDataURL(file);
 
-  return () => {
-    /* cleanup: noop */
+  return {
+    media: image,
+    image,
+    cleanup: () => {
+      /* cleanup: noop */
+    },
   };
 };
 
@@ -165,7 +208,7 @@ const loadVideo = (
   file: File,
   onLoad: (ev: Event) => void,
   videoOptions: VideoOptions
-): (() => void) => {
+) => {
   const reader = new FileReader();
   const video = document.createElement("video");
 
@@ -174,6 +217,7 @@ const loadVideo = (
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     let firstPlay = true;
+    let lastTime = -1;
 
     const loadFrame = () => {
       URL.revokeObjectURL(img.src);
@@ -193,8 +237,11 @@ const loadVideo = (
         if (blob) {
           img.onload = (ev) => {
             if (!video.paused && video.src) {
+              if (video.currentTime !== lastTime) {
+                lastTime = video.currentTime;
+                onLoad(ev);
+              }
               requestAnimationFrame(loadFrame);
-              onLoad(ev);
             }
           };
           img.src = URL.createObjectURL(blob);
@@ -208,6 +255,7 @@ const loadVideo = (
           firstPlay = false;
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
+          // video.ontimeupdate is fired inconsistently, so we use rAF instead
           requestAnimationFrame(loadFrame);
         }
       };
@@ -224,9 +272,13 @@ const loadVideo = (
 
   reader.readAsArrayBuffer(file);
 
-  return () => {
-    video.pause();
-    URL.revokeObjectURL(video.src);
+  return {
+    media: video,
+    video,
+    cleanup: () => {
+      video.pause();
+      URL.revokeObjectURL(video.src);
+    },
   };
 };
 
@@ -261,31 +313,35 @@ const drawImageToCanvas = (
   }
 };
 
-// Consider mutating inputSurface/have a mutation param
-const filter = (inputSurface: Surface, _options: any): Surface => {
-  // Avg 70FPS
-  // inputSurface.map((px) => {
-  //   return new Uint8ClampedArray([px[1], px[2], px[0], px[3]]);
-  // });
+// const swapFn = (px) => {
+//   return new Uint8ClampedArray([px[1], px[2], px[0], px[3]]);
+// };
 
-  // Avg 120FPS, min 50
-  // inputSurface.mapMut((px) => {
-  //   const tmp = px[0];
-  //   px[0] = px[1];
-  //   px[1] = px[2];
-  //   px[2] = tmp;
-  // });
+const swapFnMut = (px: Uint8ClampedArray) => {
+  const tmp = px[0];
+  px[0] = px[1];
+  px[1] = px[2];
+  px[2] = tmp;
+};
+
+// Consider mutating inputSurface/have a mutation param
+const filter = (inputSurface: RGBASurface, _options: any): RGBASurface => {
+  // Avg 70FPS
+  // inputSurface.apply(swapFn);
+
+  // Avg 100FPS
+  inputSurface.applyMut(swapFnMut);
 
   // Avg 140FPS
-  for (let y = 0; y < inputSurface.height; y++) {
-    for (let x = 0; x < inputSurface.width; x++) {
-      const idx = inputSurface.getBufferIdx(x, y);
-      const tmp = inputSurface.buffer[idx];
-      inputSurface.buffer[idx] = inputSurface.buffer[idx + 1];
-      inputSurface.buffer[idx + 1] = inputSurface.buffer[idx + 2];
-      inputSurface.buffer[idx + 2] = tmp;
-    }
-  }
+  // for (let y = 0; y < inputSurface.height; y++) {
+  //   for (let x = 0; x < inputSurface.width; x++) {
+  //     const idx = inputSurface.getBufferIdx(x, y);
+  //     const tmp = inputSurface.buffers[0][idx];
+  //     inputSurface.buffers[0][idx] = inputSurface.buffers[0][idx + 1];
+  //     inputSurface.buffers[0][idx + 1] = inputSurface.buffers[0][idx + 2];
+  //     inputSurface.buffers[0][idx + 2] = tmp;
+  //   }
+  // }
 
   return inputSurface;
 };
@@ -302,7 +358,7 @@ const applyFilter = async (
   const dst = output;
 
   if (src && dst) {
-    const inputSurface = await Surface.fromCanvas(src);
+    const inputSurface = await RGBASurface.fromCanvas(src);
     // const outputSurface = inputSurface;
     const outputSurface = filter(inputSurface, {});
     await outputSurface.toCanvas(dst, {
@@ -314,7 +370,12 @@ const applyFilter = async (
 export class Workspace extends React.Component<{}, { realtime: boolean }> {
   private inputCanvas = React.createRef<HTMLCanvasElement>();
   private outputCanvas = React.createRef<HTMLCanvasElement>();
-  private cleanUpHandler: null | (() => void) = null;
+  private media: {
+    image?: HTMLImageElement;
+    video?: HTMLVideoElement;
+    media: HTMLImageElement | HTMLVideoElement;
+    cleanup: () => void;
+  } | null = null;
 
   public constructor(props: {}) {
     super(props);
@@ -351,12 +412,12 @@ export class Workspace extends React.Component<{}, { realtime: boolean }> {
             const file = e.target?.files?.[0];
 
             if (file) {
-              if (this.cleanUpHandler) {
-                this.cleanUpHandler();
-                this.cleanUpHandler = null;
+              if (this.media) {
+                this.media.cleanup();
+                this.media = null;
               }
 
-              this.cleanUpHandler = loadMedia(
+              this.media = loadMedia(
                 file,
                 (ev) => {
                   if (this.inputCanvas.current) {
@@ -391,6 +452,12 @@ export class Workspace extends React.Component<{}, { realtime: boolean }> {
           // onDrop={() => {
           //   this.setState({ dropping: false });
           // }}
+        />
+
+        <VideoRecorder
+          captureAudio
+          srcCanvas={this.outputCanvas.current}
+          srcVideo={this.media?.video ?? null}
         />
       </div>
     );
