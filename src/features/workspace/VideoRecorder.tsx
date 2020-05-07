@@ -22,7 +22,9 @@ export class VideoRecorder extends React.Component<
     this.state = { capturing: false };
   }
 
-  private stopCb: any;
+  private stopCb: () => void = () => {
+    /* noop by default*/
+  };
 
   private startCapture(
     srcCanvas: HTMLCanvasElement,
@@ -35,11 +37,7 @@ export class VideoRecorder extends React.Component<
     const _frameRate = frameRate ?? 25;
 
     // @ts-ignore
-    let srcStream: MediaStream = srcCanvas.captureStream(frameRate);
-    console.log("os", srcStream);
-
-    console.log(srcVideo);
-
+    const srcStream: MediaStream = srcCanvas.captureStream(frameRate);
     let vidStream: MediaStream | null = null;
     // @ts-ignore
     if (srcVideo.captureStream) {
@@ -51,11 +49,14 @@ export class VideoRecorder extends React.Component<
       vidStream = srcVideo.mozCaptureStream(_frameRate);
     }
 
-    console.log("vs", vidStream);
-
-    // mux audio
+    // mux audio from original video into captured video, if it has audio tracks
     let muxedStream: MediaStream | null = null;
-    if (srcStream && vidStream && this.props.captureAudio) {
+    if (
+      srcStream &&
+      vidStream &&
+      this.props.captureAudio &&
+      vidStream.getAudioTracks().length > 0
+    ) {
       const newVideoTracks = srcStream.getVideoTracks().map((t) => t.clone());
       const newAudioTracks = vidStream.getAudioTracks().map((t) => t.clone());
       // Have to use new MediaStream to get audio capture to work in FF
@@ -68,8 +69,8 @@ export class VideoRecorder extends React.Component<
     dstVideo.srcObject = muxedStream;
     const mediaRecorder = new MediaRecorder(muxedStream);
     let chunks: Blob[] = [];
+    // autoplay of output video controlled by HTML attributes
     mediaRecorder.start();
-    dstVideo.play();
     mediaRecorder.ondataavailable = (e) => {
       chunks.push(e.data);
     };
@@ -111,7 +112,7 @@ export class VideoRecorder extends React.Component<
               );
               this.setState({ capturing: true });
             } else {
-              this.stopCb?.();
+              this.stopCb();
               this.setState({ capturing: false });
             }
           }}
@@ -119,6 +120,8 @@ export class VideoRecorder extends React.Component<
         <video
           title={`ditherer-capture-${new Date().toISOString()}.webm`}
           controls
+          loop
+          autoPlay
           ref={this.outputVideo}
         ></video>
       </div>

@@ -92,7 +92,7 @@ module.exports = {
     new CircularDependencyPlugin({
       allowAsyncCycles: false,
       cwd: process.cwd(),
-      exclude: /node_modules/,
+      exclude: /node_modules|surface\/.*.ts/,
       failOnError: true,
     }),
     new HtmlWebpackPlugin({
