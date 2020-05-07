@@ -1,5 +1,5 @@
 import React from "react";
-import { VideoRecorder } from "./VideoRecorder";
+import { VideoRecorder, getSupportedMimeTypes, getBestCaptureOption } from "./VideoRecorder";
 import {
   BaseSurface,
   RGBASurface,
@@ -337,6 +337,7 @@ export class Workspace extends React.Component<{}, { realtime: boolean }> {
           captureAudio
           srcCanvas={this.outputCanvas.current}
           srcVideo={this.media?.video ?? null}
+          captureOptions={getBestCaptureOption()}
         />
       </div>
     );
