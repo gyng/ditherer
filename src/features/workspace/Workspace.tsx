@@ -1,5 +1,10 @@
 import React from "react";
-import { VideoRecorder, getSupportedMimeTypes, getBestCaptureOption } from "./VideoRecorder";
+import { Filter, FilterNode, paletteSwap } from "../filter";
+import {
+  VideoRecorder,
+  getSupportedMimeTypes,
+  getBestCaptureOption,
+} from "./VideoRecorder";
 import {
   BaseSurface,
   RGBASurface,
@@ -187,7 +192,7 @@ const filterFinal = (
       )
     );
   };
-  initS.applyMut(convert);
+  initS.applyMut(convert, {});
   return initS;
 
   // const labaS = initS.toSurface(SurfaceClassNames.LabSurface);
@@ -225,9 +230,12 @@ const filterFinal = (
 //   return inputSurface as RGBASurface;
 // };
 
-const applyFilter = async (
+const applyFilterChain = async (
   input: HTMLCanvasElement | null,
-  output: HTMLCanvasElement | null
+  output: HTMLCanvasElement | null,
+  // Can't type last element of array:
+  // https://stackoverflow.com/questions/58373266/typescript-type-for-an-array-where-last-item-can-have-a-different-type
+  filterChain: Array<FilterNode<any>>
 ) => {
   if (!input || !output) {
     return;
@@ -235,11 +243,14 @@ const applyFilter = async (
 
   const src = input;
   const dst = output;
-
   if (src && dst) {
-    const inputSurface = await RGBASurface.fromCanvas(src);
-    // const outputSurface = inputSurface;
-    const outputSurface = filterFinal(inputSurface, {});
+    const surfaceMut = await RGBASurface.fromCanvas(src);
+
+    filterChain.forEach((node) => {
+      node.filter.fnMut(surfaceMut, node.options);
+    });
+
+    const outputSurface = surfaceMut.toRGBASurface();
     await outputSurface.toCanvas(dst, {
       resize: true,
     });
@@ -262,14 +273,46 @@ export class Workspace extends React.Component<{}, { realtime: boolean }> {
   }
 
   render() {
+    const filterChain: FilterNode[] = [
+      {
+        filter: paletteSwap,
+        options: paletteSwap.descriptor().options,
+      },
+      {
+        filter: paletteSwap,
+        // TODO: Better type options, right now options.palette is any
+        options: {
+          ...paletteSwap.descriptor().options,
+          palette: {
+            ...paletteSwap.descriptor().options.palette,
+            value: new Palette([
+              new Uint8ClampedArray([0, 0, 0, 255]),
+              new Uint8ClampedArray([255, 255, 255, 255]),
+            ]),
+          },
+        },
+      },
+    ];
+
     return (
       <div className={styles.container}>
         <canvas ref={this.inputCanvas}></canvas>
         <canvas ref={this.outputCanvas}></canvas>
 
+        <div style={{ maxWidth: "100%", overflow: "auto" }}>
+          Filter chain
+          {filterChain.map((_n, i) => {
+            return <pre key={i}>{JSON.stringify(filterChain)}</pre>;
+          })}
+        </div>
+
         <button
           onClick={() => {
-            applyFilter(this.inputCanvas.current, this.outputCanvas.current);
+            applyFilterChain(
+              this.inputCanvas.current,
+              this.outputCanvas.current,
+              filterChain
+            );
           }}
         >
           transfer once
@@ -303,9 +346,10 @@ export class Workspace extends React.Component<{}, { realtime: boolean }> {
                     const target = ev.target as HTMLImageElement;
                     drawImageToCanvas(this.inputCanvas.current, target, 1);
                     if (this.state.realtime) {
-                      applyFilter(
+                      applyFilterChain(
                         this.inputCanvas.current,
-                        this.outputCanvas.current
+                        this.outputCanvas.current,
+                        filterChain
                       );
                     }
                   }

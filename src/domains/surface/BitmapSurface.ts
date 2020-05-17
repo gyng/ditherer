@@ -1,5 +1,5 @@
 import { TypedArray } from "../color";
-import { BaseSurface } from "./BaseSurface";
+import { BaseSurface, SurfaceApplyMut, SurfaceApply } from "./BaseSurface";
 import { SurfaceDescription } from "./Colorspace";
 import { RGBASurface } from "./RGBASurface";
 
@@ -50,23 +50,23 @@ export abstract class BitmapSurface<
     this.buffers[0].set(pixel, idx);
   }
 
-  public apply(fn: (px: TPixel, x: number, y: number, idx: number) => TPixel) {
+  public apply(fn: SurfaceApply<TPixel>, options: any) {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const idx = this.getBufferIdx(x, y);
         const curPx = this.get(x, y);
-        const newSlice = fn(curPx, x, y, idx);
+        const newSlice = fn(curPx, options, this, x, y, idx);
         this.setMut(x, y, newSlice);
       }
     }
   }
 
-  public applyMut(fn: (px: TPixel, x: number, y: number, idx: number) => void) {
+  public applyMut(fn: SurfaceApplyMut<TPixel>, options: any) {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const idx = this.getBufferIdx(x, y);
         const curPx = this.getMut(x, y);
-        fn(curPx, x, y, idx);
+        fn(curPx, options, this, x, y, idx);
       }
     }
   }
