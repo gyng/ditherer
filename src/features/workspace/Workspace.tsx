@@ -335,8 +335,8 @@ export class Workspace extends React.Component<{}, { realtime: boolean }> {
 
         <VideoRecorder
           captureAudio
-          srcCanvas={this.outputCanvas.current}
-          srcVideo={this.media?.video ?? null}
+          srcVideo={this.outputCanvas.current}
+          srcAudio={this.media?.video ?? null}
           captureOptions={getBestCaptureOption()}
         />
       </div>

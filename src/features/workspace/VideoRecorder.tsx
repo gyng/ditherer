@@ -1,9 +1,17 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 import React from "react";
+import classNames from "classnames";
+
+const styles = require("./videorecorder.pcss");
 
 interface CaptureOptions extends MediaRecorderOptions {
   ext: string;
   weight: number;
+  framerate?: number;
+  once?: {
+    start: number;
+    end: number;
+  };
 }
 
 // https://source.chromium.org/chromium/chromium/src/+/master:third_party/blink/web_tests/fast/mediarecorder/MediaRecorder-isTypeSupported.html?q=MediaRecorder-isTypeSupported&ss=chromium&originalUrl=https:%2F%2Fcs.chromium.org%2Fchromium%2Fsrc%2Fthird_party%2Fblink%2Fweb_tests%2Ffast%2Fmediarecorder%2FMediaRecorder-isTypeSupported.html
@@ -37,6 +45,7 @@ export const getSupportedMimeTypes = (): CaptureOptions[] => {
 const defaultCaptureOptions: CaptureOptions = {
   mimeType: "video/webm",
   ext: "webm",
+  framerate: 25,
   weight: 3,
 };
 
@@ -48,8 +57,12 @@ export const getBestCaptureOption = () =>
 
 export interface VideoRecorderProps {
   captureAudio: boolean;
-  srcCanvas?: HTMLCanvasElement | null;
-  srcVideo?: HTMLVideoElement | null;
+  srcVideo?: HTMLCanvasElement | HTMLMediaElement | null;
+  srcAudio?: HTMLMediaElement | null;
+  srcVideoRef?:
+    | React.RefObject<HTMLMediaElement>
+    | React.RefObject<HTMLCanvasElement>;
+  srcAudioRef?: React.RefObject<HTMLMediaElement>;
   captureOptions: CaptureOptions;
 }
 
@@ -73,53 +86,119 @@ export class VideoRecorder extends React.Component<
   };
 
   private startCapture(
-    srcCanvas: HTMLCanvasElement,
+    srcVideo: HTMLMediaElement | HTMLCanvasElement,
     dstVideo: HTMLVideoElement,
     captureOptions: CaptureOptions,
-    frameRate?: number,
-    srcVideo?: HTMLVideoElement | null,
+    srcAudio?: HTMLMediaElement | null,
     bitsPerSecond?: number
   ) {
     // Getting video FPS is hard
     // https://wiki.whatwg.org/wiki/Video_Metrics#presentedFrames
-    const _frameRate = frameRate ?? 25;
+    const framerate = captureOptions.framerate ?? 25;
 
     // @ts-ignore
-    const srcStream: MediaStream = srcCanvas.captureStream(frameRate);
-    let vidStream: MediaStream | null = null;
-    // @ts-ignore
-    if (srcVideo.captureStream) {
-      // @ts-ignore
-      vidStream = srcVideo.captureStream(_frameRate);
-      // @ts-ignore
-    } else if (srcVideo.mozCaptureStream) {
-      // @ts-ignore
-      vidStream = srcVideo.mozCaptureStream(_frameRate);
+    let srcVideoStream: MediaStream | null = null;
+    let srcAudioStream: MediaStream | null = null;
+
+    if (srcAudio) {
+      if ("captureStream" in srcAudio) {
+        // @ts-ignore
+        srcAudioStream = srcAudio.captureStream(framerate);
+      } else if ("mozCaptureStream" in srcAudio) {
+        // @ts-ignore
+        srcAudioStream = srcAudio.mozCaptureStream(framerate);
+      }
+    }
+
+    if (srcVideo) {
+      if ("captureStream" in srcVideo) {
+        // @ts-ignore
+        srcVideoStream = srcVideo.captureStream(framerate);
+      } else if ("mozCaptureStream" in srcVideo) {
+        // @ts-ignore
+        srcVideoStream = srcVideo.mozCaptureStream(framerate);
+      }
+    }
+
+    if (srcVideoStream === null) {
+      console.warn("cannot get capture stream");
+      return () => {
+        /* noop */
+      };
     }
 
     // mux audio from original video into captured video, if it has audio tracks
-    let muxedStream: MediaStream | null = null;
+    let muxedStream: MediaStream;
     if (
-      srcStream &&
-      vidStream &&
+      srcVideoStream &&
+      srcAudioStream &&
       this.props.captureAudio &&
-      vidStream.getAudioTracks().length > 0
+      srcAudioStream.getAudioTracks().length > 0
     ) {
-      const newVideoTracks = srcStream.getVideoTracks().map((t) => t.clone());
-      const newAudioTracks = vidStream.getAudioTracks().map((t) => t.clone());
+      const newVideoTracks = srcVideoStream
+        .getVideoTracks()
+        .map((t) => t.clone());
+      const newAudioTracks = srcAudioStream
+        .getAudioTracks()
+        .map((t) => t.clone());
       // Have to use new MediaStream to get audio capture to work in FF
       // instead of using addTrack
       muxedStream = new MediaStream([...newVideoTracks, ...newAudioTracks]);
     } else {
-      muxedStream = srcStream;
+      muxedStream = srcVideoStream;
     }
 
+    dstVideo.src = "";
     dstVideo.srcObject = muxedStream;
     const mediaRecorder = new MediaRecorder(muxedStream, {
       mimeType: captureOptions.mimeType,
       bitsPerSecond: bitsPerSecond,
     });
     let chunks: Blob[] = [];
+
+    const stop = () => {
+      if (muxedStream) {
+        // Firefox completely loses the audio from srcStream at this point?
+        // Maybe not necessary
+        muxedStream.getTracks().forEach((track) => {
+          track.stop();
+          muxedStream.removeTrack(track);
+        });
+      }
+      mediaRecorder.stop();
+    };
+
+    // Support capture of a timerange
+    if ("currentTime" in srcVideo && captureOptions.once) {
+      const { start, end } = captureOptions.once;
+      srcVideo.currentTime = start;
+
+      if (srcAudio) {
+        srcAudio.currentTime = start;
+      }
+
+      let maxTime = start;
+      let updateCount = 0;
+
+      const onTimeUpdate = (ev: any) => {
+        maxTime = Math.max(maxTime, ev.currentTarget.currentTime);
+
+        if (
+          ev.currentTarget.currentTime < maxTime || // looped
+          ev.currentTarget.currentTime >= end || // exceeded
+          (ev.currentTarget.currentTime === start && updateCount > 0) // too short to detect
+        ) {
+          stop();
+          ev.currentTarget.removeEventListener("timeupdate", onTimeUpdate);
+          this.setState({ capturing: false });
+        }
+
+        updateCount += 1;
+      };
+
+      srcVideo.addEventListener("timeupdate", onTimeUpdate);
+    }
+
     // autoplay of output video controlled by HTML attributes
     mediaRecorder.start();
     mediaRecorder.ondataavailable = (e) => {
@@ -133,40 +212,29 @@ export class VideoRecorder extends React.Component<
       dstVideo.src = dataUrl;
     };
 
-    // todo: remove me
-    const stop = () => {
-      if (muxedStream) {
-        // Firefox completely loses the audio from srcStream at this point
-        // Maybe not necessary
-        muxedStream.getTracks().forEach((track) => track.stop());
-      }
-
-      console.log(mediaRecorder.videoBitsPerSecond);
-      mediaRecorder.stop();
-    };
     return stop;
   }
 
-  render() {
-    const captureOptions = this.props.captureOptions ?? defaultCaptureOptions;
-
+  public render() {
     return (
-      <div>
+      <div className={styles.recorder}>
+        {JSON.stringify(this.props.captureOptions)}
+
         <button
           onClick={() => {
-            console.log(captureOptions);
+            const captureOptions =
+              this.props.captureOptions ?? defaultCaptureOptions;
+            const srcVidEl =
+              this.props.srcVideoRef?.current ?? this.props.srcVideo;
+            const srcAudEl =
+              this.props.srcAudioRef?.current ?? this.props.srcAudio;
 
-            if (
-              !this.state.capturing &&
-              this.outputVideo.current &&
-              this.props.srcCanvas
-            ) {
+            if (!this.state.capturing && this.outputVideo.current && srcVidEl) {
               this.stopCb = this.startCapture(
-                this.props.srcCanvas,
+                srcVidEl,
                 this.outputVideo.current,
                 captureOptions,
-                25,
-                this.props.srcVideo
+                srcAudEl
               );
               this.setState({ capturing: true });
             } else {
@@ -176,8 +244,11 @@ export class VideoRecorder extends React.Component<
           }}
         >{`${this.state.capturing ? "stop" : "start"} capture`}</button>
         <video
+          className={classNames(styles.outputVideo, {
+            [styles.active]: this.state.capturing,
+          })}
           title={`ditherer-capture-${new Date().toISOString()}.${
-            captureOptions.ext
+            this.props.captureOptions?.ext ?? defaultCaptureOptions.ext
           }`}
           controls
           loop
