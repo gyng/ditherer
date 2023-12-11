@@ -1,8 +1,8 @@
 # ditherer
 
-[![Build Status](https://travis-ci.org/gyng/ditherer.svg?branch=master)](https://travis-ci.org/gyng/ditherer)
-
 ![screenshot](screenshot.png)
+
+More examples below
 
 For all your online dithering needs.
 
@@ -19,13 +19,23 @@ For all your online dithering needs.
 * Brightness/contrast
 * Bunch more other filters and features
 
-#### TODO
+## Examples
+
+https://github.com/gyng/ditherer/assets/370496/a721ceb8-d10b-4650-9db1-850a067d7af4
+
+[vid](https://github.com/gyng/ditherer/assets/370496/ded429eb-d14c-437e-8bbd-ac65e1d05465)
+
+[vid](https://github.com/gyng/ditherer/assets/370496/20e03295-d6f7-4517-bf36-d66f823cbc54)
+
+[vid](https://github.com/gyng/ditherer/assets/370496/cba67de2-8821-4123-98b0-9a71c1fc9bd7)
+
+## TODO
 
 * Cleanup (especially how realtime filtering is handled)
 * More filters
 * Better UI/UX
 
-#### Deploying
+## Deploying
 
 ```
 NODE_ENV=production  yarn deploy
@@ -50,7 +60,7 @@ git commit
 git push origin gh-pages
 ```
 
-#### References
+## References
 
 1. http://www.efg2.com/Lab/Library/ImageProcessing/DHALF.TXT
 2. http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/
