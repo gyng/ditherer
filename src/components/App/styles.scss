@@ -86,13 +86,15 @@ $light-gray: #bfbfbf;
 }
 
 .canvases {
-  display: flex;
-  flex-flow: row;
+  display: grid;
 
   > div {
+    background-color: $light-gray;
+    position: fixed;
     margin: 10px;
     display: table;
-    background-color: $light-gray;
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .canvas {

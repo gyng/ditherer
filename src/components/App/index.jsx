@@ -410,6 +410,7 @@ export default class App extends React.Component<*, State> {
             top: 0,
             left: (this.inputCanvas && -this.inputCanvas.width) || -300
           }}
+          defaultPosition={{ x: 0, y: 200 }}
         >
           <div role="presentation" onMouseDownCapture={bringToTop}>
             <div className={controls.window}>

@@ -13,43 +13,43 @@ module.exports = {
   target: "web",
 
   entry: {
-    app: "./index.jsx"
+    app: "./index.jsx",
   },
 
   output: {
     filename: "[name].[hash:7].js",
     path: path.resolve(__dirname, "build"),
-    publicPath: PROD ? "./" : "/"
+    publicPath: PROD ? "./" : "/",
   },
 
   module: {
     rules: [
       {
         test: /\.(css|scss)$/,
-        loaders: [
+        use: [
           "style-loader",
           {
             loader: "css-loader",
-            options: { modules: true, importLoaders: 1 }
+            options: { modules: true, importLoaders: 1 },
           },
-          { loader: "postcss-loader", options: { sourceMap: "inline" } }
-        ]
+          { loader: "postcss-loader", options: { sourceMap: "inline" } },
+        ],
       },
       // Escape hatch for CSS module classname mangling
       {
         test: /\.legacy\.(css|scss)$/,
         include: path.resolve(__dirname, "src"),
-        loaders: [
+        use: [
           "style-loader",
-          { loader: "css-loader", options: { importLoaders: 1 } }
-        ]
+          { loader: "css-loader", options: { importLoaders: 1 } },
+        ],
       },
       {
         test: /\.(jpg|png|gif|mp4|webm|mp3|ogg)$/,
         loader: "file-loader",
         options: {
-          name: "./f/[path][name].[hash].[ext]"
-        }
+          name: "./f/[path][name].[hash].[ext]",
+        },
       },
       {
         test: /\.jsx?$/,
@@ -57,12 +57,14 @@ module.exports = {
         loader: "babel-loader",
         options: {
           plugins: [
-            "@babel/transform-flow-strip-types", // needed for Flowtype
-            "@babel/proposal-object-rest-spread"
+            "@babel/plugin-syntax-dynamic-import",
+            "@babel/plugin-syntax-import-meta",
+            ["@babel/plugin-proposal-class-properties", { loose: false }],
+            "@babel/plugin-proposal-json-strings",
           ],
-          presets: ["@babel/stage-3", "@babel/react"]
-        }
-      }
+          presets: ["@babel/preset-react", "@babel/preset-flow"],
+        },
+      },
       // {
       //   test: /\.tsx?$/,
       //   exclude: /\/node_modules\//,
@@ -72,18 +74,18 @@ module.exports = {
       //     presets: ["@babel/react", "@babel/preset-typescript"]
       //   }
       // }
-    ]
+    ],
   },
 
   plugins: [
     new HtmlWebpackPlugin({
       files: {
         css: [],
-        js: ["[name].js", "commons.js"]
+        js: ["[name].js", "commons.js"],
       },
-      template: "./index.html"
+      template: "./index.html",
     }),
-    ...(PROD ? [new CompressionPlugin()] : [])
+    ...(PROD ? [new CompressionPlugin()] : []),
   ],
 
   // optimization: {
@@ -99,12 +101,10 @@ module.exports = {
   //   }
   // },
 
-  devtool: "cheap-eval-source-map",
+  devtool: "source-map",
 
   devServer: {
-    contentBase: "app/ui/www",
     historyApiFallback: true,
-    stats: "minimal"
   },
 
   externals: {
@@ -112,14 +112,18 @@ module.exports = {
     "react/addons": true,
     "react/lib/ExecutionEnvironment": true,
     "react/lib/ReactContext": true,
-    fs: "commonjs fs" // required for rustc generated JS-WASM loader
+    fs: "commonjs fs", // required for rustc generated JS-WASM loader
   },
 
   resolve: {
     extensions: [".js", ".jsx", ".ts", ".tsx", ".wasm"],
     modules: ["node_modules", path.resolve(__dirname, "src")],
     alias: {
-      "@src": path.resolve(__dirname, "src")
-    }
-  }
+      "@src": path.resolve(__dirname, "src"),
+    },
+  },
+
+  experiments: {
+    syncWebAssembly: true,
+  },
 };
