@@ -12,7 +12,10 @@ const Palette = (props) => (
     <select
       className={s.enum}
       value={props.value.name}
-      onChange={e => props.onSetFilterOption(props.name, e.target.value)}
+      onChange={e => {
+        const selected = paletteList.find(p => p.name === e.target.value);
+        if (selected) props.onSetFilterOption(props.name, selected.palette);
+      }}
     >
       {paletteList.map(p => (
         <option key={p.name} name={p.name}>
