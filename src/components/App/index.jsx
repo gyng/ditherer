@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import Draggable from "react-draggable";
+import useDraggable from "./useDraggable";
 
 import Controls from "components/controls";
 import Exporter from "components/App/Exporter";
@@ -29,6 +29,9 @@ const App = () => {
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
   const captureDragRef = useRef(null);
+  const inputDrag = useDraggable(inputDragRef);
+  const outputDrag = useDraggable(outputDragRef, { defaultPosition: { x: 0, y: 200 } });
+  const captureDrag = useDraggable(captureDragRef);
 
   // Create capture video element once
   useEffect(() => {
@@ -324,49 +327,37 @@ const App = () => {
 
       {/* Canvases */}
       <div className={s.canvases}>
-        <Draggable nodeRef={inputDragRef} bounds={{ top: 0, left: 0 }}>
-          <div ref={inputDragRef} role="presentation" onMouseDownCapture={bringToTop}>
-            <div className={controls.window}>
-              <div className={["handle", controls.titleBar].join(" ")}>Input</div>
-              <canvas
-                className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
-                ref={inputCanvasRef}
-              />
-            </div>
+        <div ref={inputDragRef} role="presentation" onMouseDown={inputDrag.onMouseDown} onMouseDownCapture={bringToTop}>
+          <div className={controls.window}>
+            <div className={["handle", controls.titleBar].join(" ")}>Input</div>
+            <canvas
+              className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
+              ref={inputCanvasRef}
+            />
           </div>
-        </Draggable>
+        </div>
 
-        <Draggable
-          nodeRef={outputDragRef}
-          bounds={{ top: 0, left: (inputCanvasRef.current && -inputCanvasRef.current.width) || -300 }}
-          defaultPosition={{ x: 0, y: 200 }}
-        >
-          <div ref={outputDragRef} role="presentation" onMouseDownCapture={bringToTop}>
-            <div className={controls.window}>
-              <div className={["handle", controls.titleBar].join(" ")}>Output</div>
-              <canvas className={s.canvas} ref={outputCanvasRef} />
-            </div>
+        <div ref={outputDragRef} role="presentation" onMouseDown={outputDrag.onMouseDown} onMouseDownCapture={bringToTop}>
+          <div className={controls.window}>
+            <div className={["handle", controls.titleBar].join(" ")}>Output</div>
+            <canvas className={s.canvas} ref={outputCanvasRef} />
           </div>
-        </Draggable>
+        </div>
 
-        <Draggable
-          nodeRef={captureDragRef}
-          bounds={{ top: 0, left: ((inputCanvasRef.current && -inputCanvasRef.current.width) || -300) * 2 }}
+        <div
+          ref={captureDragRef}
+          role="presentation"
+          onMouseDown={captureDrag.onMouseDown}
+          onMouseDownCapture={bringToTop}
+          id="captureWindow"
+          className={hasCapture ? "" : s.hide}
         >
-          <div
-            ref={captureDragRef}
-            role="presentation"
-            onMouseDownCapture={bringToTop}
-            id="captureWindow"
-            className={hasCapture ? "" : s.hide}
-          >
-            <div className={controls.window}>
-              <div className={["handle", controls.titleBar].join(" ")}>Capture</div>
-              <div id="captureOutput" />
-              <div className={[s.rec, !capturing ? s.hide : ""].join(" ")}>● REC</div>
-            </div>
+          <div className={controls.window}>
+            <div className={["handle", controls.titleBar].join(" ")}>Capture</div>
+            <div id="captureOutput" />
+            <div className={[s.rec, !capturing ? s.hide : ""].join(" ")}>● REC</div>
           </div>
-        </Draggable>
+        </div>
       </div>
     </div>
   );
