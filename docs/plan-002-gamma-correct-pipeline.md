@@ -2,137 +2,132 @@
 
 ## Problem
 
-The dithering and filtering pipeline operates on raw sRGB pixel values (0-255). This is technically incorrect — sRGB is a non-linear color space with gamma encoding. Operations like color averaging, error diffusion, and distance calculations produce different (and often visually worse) results in non-linear space than in linear space.
+The dithering and filtering pipeline operates on raw sRGB pixel values (0-255). sRGB is a non-linear color space with gamma encoding. Mathematical operations on non-linear values produce incorrect results:
 
-**Example:** Averaging sRGB 0 and sRGB 255 gives 128, but the perceptually correct midpoint in linear light is sRGB 188 (~50% luminance). This bias causes dithering patterns to be too dark and error diffusion to spread errors unevenly.
+- **Averaging:** sRGB `avg(0, 255) = 128`, but the perceptually correct midpoint (50% luminance) is sRGB 188. All dithering is biased dark.
+- **Error diffusion:** Quantization error is computed in non-linear space, so error distribution is unevenly weighted — shadows get too much error, highlights too little.
+- **Thresholding:** Fixed thresholds in sRGB space don't correspond to uniform perceptual intervals.
 
 ## Current State
 
-- `luminance()` and `luminanceItuBt709()` in `src/utils/index.js` were fixed to linearize by default (Phase 1), with a `linear` boolean toggle
-- `linearize()` function exists in utils for sRGB → linear conversion
+- `luminance()` and `luminanceItuBt709()` were fixed to linearize by default, with a `linear` boolean toggle
+- A per-pixel `linearize()` function exists in utils (used by luminance)
 - Pixelsort has a `linearLuminance` UI toggle
-- All other filters operate on raw sRGB values without linearization
-- The WASM Lab color conversion (`rgba2laba`) already linearizes internally (sRGB → XYZ → Lab), so Lab-based distance calculations are correct
+- The WASM Lab conversion (`rgba2laba`) already linearizes internally (sRGB → XYZ → Lab)
+- All other filters operate on raw sRGB values
 
 ## Scope
 
-### Affected filters (operate on pixel values directly)
+### Affected filters
 
-| Filter | Operations affected |
-|--------|-------------------|
-| Error diffusion (11 variants) | Error calculation and distribution |
-| Ordered dithering | Threshold comparison against Bayer matrix |
-| Random dithering | Threshold comparison |
-| Binarize | Threshold comparison |
-| Quantize | Level quantization |
-| Brightness/Contrast | Brightness/contrast math |
-| Halftone | Mean color calculation per grid cell |
-| Pixelate | Mean color calculation per block |
+| Filter | Key operations | Priority | Wrappable? |
+|--------|---------------|----------|------------|
+| Error diffusion (11 variants) | Error subtraction, weighted diffusion | CRITICAL | Yes — factory has single getImageData/putImageData pair |
+| Convolution (blur, sharpen, edge) | Kernel weighted sum/difference | CRITICAL | Yes — uses Array.from(buf), outputBuf |
+| Brightness/Contrast | Brightness/contrast/gamma math | CRITICAL | Yes — uses outputBuf copy |
+| Grayscale | RGB arithmetic mean `(R+G+B)/3` | CRITICAL | Yes |
+| Halftone | Block color averaging | CRITICAL | Partial — reads with getImageData, writes with canvas draw ops. Linearize input buffer only |
+| Ordered dithering | Threshold + quantization | HIGH | Yes |
+| Random dithering | RGB averaging + noise | HIGH | Yes |
+| Quantize | Palette distance lookup | HIGH | Yes |
+| Binarize | Per-channel threshold | MODERATE | Yes |
+| Pixelate | Palette lookup on downsampled pixels | MODERATE | Yes — intermediate buffer only |
 
-### Not affected (already correct or N/A)
+### Not affected
 
 | Filter | Why |
 |--------|-----|
-| Pixelsort | Fixed — `linearLuminance` toggle added |
-| Grayscale | Operates on channel weights (same formula as luminance, could benefit) |
+| Pixelsort | Already has `linearLuminance` toggle |
 | Invert | Pure `255 - x`, linearity doesn't matter |
-| Channel separation | Pure channel manipulation |
-| Glitch | Byte-level corruption, linearity irrelevant |
-| VHS / Scanline / RGB Stripe | CRT emulation effects, artistic |
-| Convolution | Kernel operations — linearizing would change behavior, debatable |
-| Program | User-defined, can't enforce |
+| Channel separation | Pure channel routing |
+| Glitch | Byte-level corruption |
+| VHS / Scanline / RGB Stripe | CRT emulation, artistic intent |
+| Program | User-defined code, can't enforce |
+
+### Special case: Grayscale
+
+Currently uses `(R+G+B)/3` — a naive average that ignores both gamma and human luminance perception. Should be updated to use the existing `luminance()` function (BT.601 weighted average in linear space) as the default, with a toggle for the simple average.
+
+### Special case: Convolution
+
+Linearization is correct for blur (Gaussian, box) and edge detection (Laplacian, Sobel). But for artistic kernels (emboss, sharpen), the non-linear behavior may be part of the expected look. Default to linearized, but the toggle lets users revert.
 
 ## Design
 
-### Option A: Linearize at filter boundaries (recommended)
+### Linearize at filter boundaries with per-filter toggle
 
-Add `linearize`/`delinearize` steps at the entry and exit of each affected filter function:
+Add `linearizeBuffer`/`delinearizeBuffer` calls at the entry and exit of each affected filter:
 
 ```javascript
 const filter = (input, options) => {
-  const buf = getImageData(input);
-  if (options.linearize) linearizeBuffer(buf);  // sRGB → linear
-  // ... existing filter logic unchanged ...
-  if (options.linearize) delinearizeBuffer(buf); // linear → sRGB
-  putImageData(output, buf);
+  const imageData = inputCtx.getImageData(0, 0, w, h);
+  if (options.linearize) linearizeBuffer(imageData.data);
+  // ... existing filter logic, operates on 0-255 values as before ...
+  if (options.linearize) delinearizeBuffer(imageData.data);
+  outputCtx.putImageData(imageData, 0, 0);
 };
 ```
 
-**Pros:** Minimal change to filter logic. Each filter opts in. Toggle per filter.
-**Cons:** Two full-buffer passes for linearization. Repeated if filters are chained.
+Each affected filter gets a `linearize: { type: BOOL, default: true }` option. The toggle appears in the UI automatically via the existing data-driven controls system.
 
-### Option B: Global linearize in pipeline
-
-Linearize once before filtering, delinearize once after:
-
-```
-input canvas → linearize → filter → delinearize → output canvas
-```
-
-Done in `FilterContext.filterImageAsync()`.
-
-**Pros:** Single linearization pass. All filters get it for free.
-**Cons:** Filters that shouldn't linearize (glitch, VHS) need an opt-out. Less granular control.
-
-### Recommendation: Option A with a shared toggle
-
-- Add a `linearize: { type: BOOL, default: true }` option to each affected filter's `optionTypes`
-- Add `linearizeBuffer()` and `delinearizeBuffer()` utility functions to `src/utils/index.js`
-- Each filter calls these at entry/exit when `options.linearize` is true
-- Users can toggle per-filter for artistic preference
-- Default `true` for correctness
+**Why per-filter, not global:** Filters like glitch and VHS should never linearize. Per-filter also means filters that use intermediate buffers (brightnessContrast, convolve) can linearize at the right boundary. And users get artistic control.
 
 ## Implementation
 
-### 1. Add utility functions
+### 1. LUT-based utility functions
 
 ```javascript
 // src/utils/index.js
 
-const SRGB_TO_LINEAR_LUT = new Float32Array(256);
-const LINEAR_TO_SRGB_LUT = new Uint8Array(65536);
+// Precomputed lookup tables — avoids Math.pow per pixel
+const SRGB_TO_LINEAR = new Float32Array(256);
+const LINEAR_TO_SRGB = new Uint8Array(256);
 
-// Precompute LUTs for performance (avoid per-pixel Math.pow)
 for (let i = 0; i < 256; i++) {
   const s = i / 255;
-  SRGB_TO_LINEAR_LUT[i] = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  SRGB_TO_LINEAR[i] = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
 }
-for (let i = 0; i < 65536; i++) {
-  const l = i / 65535;
+for (let i = 0; i < 256; i++) {
+  const l = i / 255;
   const s = l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055;
-  LINEAR_TO_SRGB_LUT[i] = Math.round(s * 255);
+  LINEAR_TO_SRGB[i] = Math.round(Math.max(0, Math.min(1, s)) * 255);
 }
 
-// Mutates buffer in place. Operates on RGBA — skips alpha channel.
+// Mutate RGBA buffer in place. Skip alpha channel.
 export const linearizeBuffer = (buf) => {
   for (let i = 0; i < buf.length; i += 4) {
-    buf[i]     = Math.round(SRGB_TO_LINEAR_LUT[buf[i]] * 255);
-    buf[i + 1] = Math.round(SRGB_TO_LINEAR_LUT[buf[i + 1]] * 255);
-    buf[i + 2] = Math.round(SRGB_TO_LINEAR_LUT[buf[i + 2]] * 255);
-    // buf[i + 3] alpha unchanged
+    buf[i]     = Math.round(SRGB_TO_LINEAR[buf[i]] * 255);
+    buf[i + 1] = Math.round(SRGB_TO_LINEAR[buf[i + 1]] * 255);
+    buf[i + 2] = Math.round(SRGB_TO_LINEAR[buf[i + 2]] * 255);
   }
 };
 
 export const delinearizeBuffer = (buf) => {
   for (let i = 0; i < buf.length; i += 4) {
-    // Scale 0-255 linear → 0-65535 for LUT lookup
-    buf[i]     = LINEAR_TO_SRGB_LUT[Math.round(buf[i] / 255 * 65535)];
-    buf[i + 1] = LINEAR_TO_SRGB_LUT[Math.round(buf[i + 1] / 255 * 65535)];
-    buf[i + 2] = LINEAR_TO_SRGB_LUT[Math.round(buf[i + 2] / 255 * 65535)];
+    buf[i]     = LINEAR_TO_SRGB[buf[i]];
+    buf[i + 1] = LINEAR_TO_SRGB[buf[i + 1]];
+    buf[i + 2] = LINEAR_TO_SRGB[buf[i + 2]];
   }
 };
 ```
 
-### 2. Add option to each affected filter
+Note: both LUTs are 256-entry (input is always 0-255 `Uint8ClampedArray`). The `delinearizeBuffer` LUT maps linearized-then-quantized-to-0-255 values back to sRGB. Roundtrip error is ±1 due to quantization.
 
-Add to each filter's `optionTypes`:
+### 2. Add option to affected filters
+
+Each filter's `optionTypes` gets:
 ```javascript
 linearize: { type: BOOL, default: true }
 ```
 
-### 3. Wrap filter logic
+And `defaults` gets:
+```javascript
+linearize: optionTypes.linearize.default
+```
 
-In each affected filter, add linearize/delinearize around the pixel processing:
+### 3. Wrap each filter
+
+**Standard pattern** (errorDiffusion, ordered, random, binarize, quantize, grayscale):
 ```javascript
 const buf = inputCtx.getImageData(0, 0, w, h);
 if (options.linearize) linearizeBuffer(buf.data);
@@ -141,23 +136,81 @@ if (options.linearize) delinearizeBuffer(buf.data);
 outputCtx.putImageData(buf, 0, 0);
 ```
 
-### 4. Tests
+**Dual-buffer pattern** (brightnessContrast, convolve — read from input, write to separate output buf):
+```javascript
+const inputBuf = inputCtx.getImageData(0, 0, w, h).data;
+if (options.linearize) linearizeBuffer(inputBuf);
+// ... existing logic writes to outputBuf ...
+if (options.linearize) delinearizeBuffer(outputBuf);
+outputCtx.putImageData(new ImageData(outputBuf, w, h), 0, 0);
+```
 
-- Test `linearizeBuffer` / `delinearizeBuffer` roundtrip (should be near-lossless, ±1 for rounding)
-- Test affected filters produce different output with `linearize: true` vs `linearize: false`
-- Visual comparison tests: verify dithering patterns are more even in linear mode
+**Halftone** (reads buffer, writes via canvas draw):
+```javascript
+const buf = inputCtx.getImageData(0, 0, w, h).data;
+if (options.linearize) linearizeBuffer(buf);
+// ... existing block averaging + canvas drawing ...
+// No delinearize — output is drawn via arc()/fillRect() with computed colors
+// Colors derived from linearized buffer are already correct for display
+```
+
+Wait — halftone computes mean color from the buffer, then draws colored dots via canvas API. The mean color needs to be delinearized before being used as a CSS `rgba()` color string. This means halftone needs linearize on input and delinearize on the computed colors, not the buffer.
+
+**Revised halftone pattern:**
+```javascript
+const buf = inputCtx.getImageData(0, 0, w, h).data;
+if (options.linearize) linearizeBuffer(buf);
+// ... compute meanColor from buffer (now in linear space) ...
+// ... quantize meanColor ...
+// Delinearize the computed color before using it for canvas drawing
+if (options.linearize) {
+  meanColor[0] = LINEAR_TO_SRGB[meanColor[0]];
+  meanColor[1] = LINEAR_TO_SRGB[meanColor[1]];
+  meanColor[2] = LINEAR_TO_SRGB[meanColor[2]];
+}
+// ... draw dots with delinearized colors ...
+```
+
+### 4. Update Grayscale
+
+Replace `(R+G+B)/3` with the existing `luminance()` function for the linearized path:
+```javascript
+if (options.linearize) {
+  linearizeBuffer(buf);
+  for (let i = 0; i < buf.length; i += 4) {
+    const gray = Math.round(0.299 * buf[i] + 0.587 * buf[i+1] + 0.114 * buf[i+2]);
+    buf[i] = buf[i+1] = buf[i+2] = gray;
+  }
+  delinearizeBuffer(buf);
+} else {
+  // existing (R+G+B)/3 path
+}
+```
+
+### 5. Error diffusion precision
+
+Error diffusion uses `Array.from(buf)` to get a full-precision error buffer (not clamped). When linearizing, the error calculations benefit from the linear space. No special handling needed — just linearize the buffer before the existing logic runs, delinearize after.
+
+## Tests
+
+1. **Roundtrip test:** `linearizeBuffer` → `delinearizeBuffer` on a known buffer. Verify max error ≤ 1 per channel.
+2. **Known-value test:** sRGB 128 → linear ~0.216 → Math.round(0.216 * 255) = 55. Verify `linearizeBuffer([128, 128, 128, 255])` produces `[55, 55, 55, 255]`.
+3. **Per-filter toggle test:** Run each affected filter with `linearize: true` and `linearize: false`, verify outputs differ.
+4. **Visual regression:** Compare error diffusion output on a smooth gradient with and without linearization. Linearized version should have more uniform dot density across the gradient.
 
 ## Execution order
 
-1. Add LUT-based `linearizeBuffer`/`delinearizeBuffer` to utils + tests
-2. Add `linearize` option to error diffusion factory (covers all 11 variants at once)
-3. Add to ordered dithering
-4. Add to remaining filters (binarize, quantize, random, halftone, pixelate, brightness/contrast)
-5. Update grayscale to optionally linearize
-6. Visual testing with sample images
+1. Add `linearizeBuffer`/`delinearizeBuffer` to utils + roundtrip/known-value tests
+2. Add to error diffusion factory (covers all 11 variants at once — biggest impact)
+3. Add to convolution and grayscale
+4. Add to ordered dithering + random dithering
+5. Add to binarize, quantize, pixelate, brightnessContrast
+6. Add to halftone (special case — per-color delinearization)
+7. Visual testing with sample images
 
-## Performance notes
+## Performance
 
-- LUT-based linearization is O(n) with no `Math.pow` calls — fast
-- Two extra buffer passes (~1ms for a 1920x1080 image)
-- Can be optimized further with WASM if needed
+- LUT lookup: O(n) with zero `Math.pow` calls, no branches
+- Two buffer passes add ~1ms for 1920x1080 (8.3M channel lookups)
+- `Uint8ClampedArray` access is already fast — LUT is 256 bytes, fits in L1 cache
+- For video realtime filtering: the two passes add ~2ms per frame, negligible vs filter computation
