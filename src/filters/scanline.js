@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   intensity: { type: RANGE, range: [0, 4], step: 0.01, default: 0.33 },
@@ -21,14 +17,9 @@ export const defaults = {
 };
 
 const scanline = (
-  input: HTMLCanvasElement,
-  options: {
-    intensity: number,
-    gap: number,
-    height: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { intensity, gap, height, palette } = options;
   const output = cloneCanvas(input, false);
 

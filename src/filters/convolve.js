@@ -1,5 +1,3 @@
-// @flow
-
 import { ENUM, RANGE } from "constants/controlTypes";
 
 import {
@@ -26,26 +24,9 @@ export const SOBEL_HORIZONTAL = "SOBEL_HORIZONTAL";
 export const SOBEL_VERTICAL = "SOBEL_VERTICAL";
 export const OUTLINE_3X3 = "OUTLINE_3X3";
 
-export type Kernel =
-  | "BRIGHTEN_0_5X"
-  | "BRIGHTEN_2X"
-  | "EMBOSS_3X3"
-  | "GAUSSIAN_3X3"
-  | "GAUSSIAN_3X3_WEAK"
-  | "GAUSSIAN_5X5"
-  | "LAPLACIAN_3X3"
-  | "LAPLACIAN_5X5"
-  | "OUTLINE_3X3"
-  | "SHARPEN_3X3"
-  | "SOBEL_HORIZONTAL"
-  | "SOBEL_VERTICAL"
-  | "UNSHARP_5X5";
-
 // https://en.wikipedia.org/wiki/Kernel_(image_processing)
 // map[y][x]
-export const kernels: {
-  [Kernel]: { width: number, matrix: Array<Array<?number>> }
-} = {
+export const kernels = {
   [SHARPEN_3X3]: {
     width: 3,
     matrix: [[0, -1, 0], [-1, 5, -1], [0, -1, 0]]
@@ -197,12 +178,9 @@ export const defaults = {
 };
 
 const convolve = (
-  input: HTMLCanvasElement,
-  options: {
-    kernel: Kernel,
-    strength: number
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const kernel = kernels[options.kernel];
   const matrix = scaleMatrix(kernel.matrix, options.strength);
   const output = cloneCanvas(input, false);

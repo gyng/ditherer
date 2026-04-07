@@ -196,7 +196,6 @@ export default class ColorArray extends React.Component {
     const extractOptions = (
       <div>
         {
-          // $FlowFixMe
           <Enum
             name="Algorithm"
             value={this.state.extractMode}
@@ -239,7 +238,6 @@ export default class ColorArray extends React.Component {
               "Could not save: name taken or invalid. Use a different name. "
             );
           } else {
-            // $FlowFixMe
             this.props.onSaveColorPalette(savedName, this.props.value);
             this.forceUpdate();
           }

@@ -1,4 +1,3 @@
-// @flow
 import React from "react";
 import { useFilter } from "context/FilterContext";
 

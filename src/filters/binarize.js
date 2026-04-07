@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
@@ -23,16 +19,10 @@ export const defaults = {
 };
 
 const binarize = (
-  input: HTMLCanvasElement,
-  options: {
-    thresholdR: number,
-    thresholdG: number,
-    thresholdB: number,
-    thresholdA: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
-  const getColor = (val: number, threshold: number): number =>
+  input,
+  options = defaults
+) => {
+  const getColor = (val, threshold) =>
     val > threshold ? 255 : 0;
 
   const { thresholdR, thresholdG, thresholdB, thresholdA, palette } = options;

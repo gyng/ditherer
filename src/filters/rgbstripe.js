@@ -1,5 +1,3 @@
-// @flow
-
 import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
@@ -13,8 +11,6 @@ import {
   gamma as gammaFunc
 } from "utils";
 
-import type { Palette } from "types";
-
 import convolve, {
   GAUSSIAN_3X3_WEAK,
   defaults as convolveDefaults
@@ -26,9 +22,7 @@ export const LADDER = "LADDER";
 export const TILED = "TILED";
 export const HEX_GAP = "HEX_GAP";
 
-export type Mask = "VERTICAL" | "STAGGERED" | "LADDER" | "TILED" | "HEX_GAP";
-
-const masks: { [Mask]: (e: number) => Array<Array<Array<number>>> } = {
+const masks = {
   // R G B
   [VERTICAL]: e => [[[1, e, e, 1], [e, 1, e, 1], [e, e, 1, 1]]],
   // R_G_B_
@@ -119,20 +113,9 @@ export const defaults = {
 };
 
 const rgbStripe = (
-  input: HTMLCanvasElement,
-  options: {
-    strength: number,
-    brightness: number,
-    exposure: number,
-    gamma: number,
-    contrast: number,
-    includeScanline: boolean,
-    scanlineStrength: number,
-    shadowMask: Mask,
-    blur: boolean,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const {
     includeScanline,
     scanlineStrength,

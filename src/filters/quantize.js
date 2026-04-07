@@ -1,10 +1,6 @@
-// @flow
-
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -15,9 +11,9 @@ const defaults = {
 };
 
 const quantize = (
-  input: HTMLCanvasElement,
-  options: { palette: Palette } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { palette } = options;
   const output = cloneCanvas(input, false);
 

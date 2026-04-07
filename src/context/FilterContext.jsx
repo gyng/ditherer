@@ -1,4 +1,3 @@
-// @flow
 import React, { createContext, useContext, useReducer, useCallback } from "react";
 import filterReducer, { initialState } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";

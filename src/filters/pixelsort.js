@@ -1,5 +1,3 @@
-// @flow
-
 import { ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
@@ -12,8 +10,6 @@ import {
   luminance
 } from "utils";
 
-import type { ColorRGBA, Palette } from "types";
-
 export const DIRECTION = {
   COLUMN: "COLUMN",
   ROW: "ROW",
@@ -21,19 +17,10 @@ export const DIRECTION = {
   SPIRAL_CUT: "SPIRAL_CUT",
   DIAGONAL_TOP_RIGHT: "DIAGONAL_TOP_RIGHT"
 };
-export type Direction =
-  | "ROW"
-  | "COLUMN"
-  | "DIAGONAL_TOPRIGHT"
-  | "SPIRAL"
-  | "SPIRAL_CUT";
-
 export const SORT_DIRECTION = {
   ASCENDING: "ASCENDING",
   DESCENDING: "DESCENDING"
 };
-
-export type SortDirection = "ASCENDING" | "DESCENDING";
 
 export const COMPARATOR = {
   LUMINANCE: "LUMINANCE",
@@ -48,23 +35,11 @@ export const COMPARATOR = {
   BALA: "BALA"
 };
 
-export type Comparator =
-  | "RGBA"
-  | "GBRA"
-  | "BGRA"
-  | "LUMINANCE"
-  | "HSVA"
-  | "SVHA"
-  | "VSHA"
-  | "LABA"
-  | "ABLA"
-  | "BALA";
-
 const compareQuadlet = (
-  a: [number, number, number, number],
-  b: [number, number, number, number],
-  dir: SortDirection
-): number => {
+  a,
+  b,
+  dir
+) => {
   const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
   const rd = (a[0] - b[0]) * dirMul;
   if (rd !== 0) {
@@ -85,33 +60,31 @@ const compareQuadlet = (
   return ad;
 };
 
-export const SORTS: {
-  [Comparator]: (ColorRGBA, ColorRGBA, SortDirection) => number
-} = {
+export const SORTS = {
   [COMPARATOR.RGBA]: compareQuadlet,
-  [COMPARATOR.GBRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.GBRA]: (a, b, dir) => {
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.BGRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.BGRA]: (a, b, dir) => {
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.HSVA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.SVHA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
@@ -120,9 +93,9 @@ export const SORTS: {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.VSHA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
@@ -131,18 +104,18 @@ export const SORTS: {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.LABA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.ABLA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
@@ -151,9 +124,9 @@ export const SORTS: {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.BALA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
@@ -161,25 +134,12 @@ export const SORTS: {
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.LUMINANCE]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.LUMINANCE]: (a, b, dir) => {
     const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
     const lumA = luminance(a);
     const lumB = luminance(b);
     return (lumA - lumB) * dirMul;
   }
-};
-
-export type Iterator = (
-  init: any
-) => () => ?{
-  x: number,
-  y: number,
-  i: number,
-  w: number,
-  h: number,
-  wrapX: boolean,
-  wrapY: boolean,
-  endInterval: boolean
 };
 
 const spiralIterator = endIntervalOnTurn => init => {
@@ -290,7 +250,7 @@ const spiralIterator = endIntervalOnTurn => init => {
 };
 
 // Returns buffer indices
-export const ITERATORS: { [string]: Iterator } = {
+export const ITERATORS = {
   [DIRECTION.ROW]: init => {
     let { x, y, i } = init;
     const { w, h } = init;
@@ -472,20 +432,9 @@ export const defaults = {
 };
 
 const pixelsortFilter = (
-  input: HTMLCanvasElement,
-  options: {
-    direction: Direction,
-    sortDirection: SortDirection,
-    comparator: Comparator,
-    sortPixelLuminanceAbove: number,
-    sortPixelLuminanceBelow: number,
-    sortPixelLuminanceChangeAbove: number,
-    sortPixelLuminanceChangeBelow: number,
-    extraIntervalStartChance: number,
-    maxIntervalSize: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const {
     direction,
     sortDirection,

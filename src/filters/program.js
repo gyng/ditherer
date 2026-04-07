@@ -1,15 +1,9 @@
-// @flow
-
 import { ENUM, TEXT, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 
-import type { Palette } from "types";
-
 export const ALL = "ALL";
 export const PIXEL = "PIXEL";
-
-export type Mode = "ALL" | "PIXEL";
 
 export const optionTypes = {
   mode: {
@@ -44,13 +38,9 @@ export const defaults = {
 };
 
 const programFilter = (
-  input: HTMLCanvasElement,
-  options: {
-    mode: Mode,
-    program: string,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { program, palette } = options;
   const output = cloneCanvas(input, false);
 

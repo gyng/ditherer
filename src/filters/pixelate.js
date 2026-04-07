@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25 },
@@ -21,14 +17,9 @@ export const defaults = {
 };
 
 const pixelate = (
-  input: HTMLCanvasElement,
-  options: {
-    scale: number,
-    scaleXOverride: number,
-    scaleYOverride: number,
-    palette: Palette
-  }
-): HTMLCanvasElement => {
+  input,
+  options
+) => {
   const { scale, scaleXOverride, scaleYOverride, palette } = options;
 
   const output = cloneCanvas(input, false);

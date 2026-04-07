@@ -1,10 +1,6 @@
-// @flow
-
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter of input
@@ -27,22 +23,14 @@ export const defaults = {
 };
 
 const halftone = (
-  input: HTMLCanvasElement,
-  options: {
-    size: number,
-    sizeMultiplier: number,
-    offset: number,
-    levels: number,
-    palette: Palette,
-    squareDots: boolean,
-    background: string
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const getOffset = (
-    radians: number,
-    radius: number,
-    x0: number,
-    y0: number
+    radians,
+    radius,
+    x0,
+    y0
   ) => {
     const x = x0 + radius * Math.cos(radians);
     const y = y0 + radius * Math.sin(radians);

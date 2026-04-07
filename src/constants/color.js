@@ -1,5 +1,3 @@
-// @flow
-
 export const RGB_NEAREST = "RGB_NEAREST_FAST";
 export const RGB_APPROX = "RGB_APPROX";
 export const HSV_NEAREST = "HSV_NEAREST";

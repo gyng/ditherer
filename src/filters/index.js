@@ -1,5 +1,3 @@
-// @flow
-
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 

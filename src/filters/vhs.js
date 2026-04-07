@@ -1,5 +1,3 @@
-// @flow
-
 import { nearest } from "palettes";
 import { cloneCanvas } from "utils";
 
@@ -32,12 +30,9 @@ export const defaults = {
 };
 
 const vhs = (
-  input: HTMLCanvasElement,
-  options: {
-    jitterX: number,
-    jitterXSpread: number
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { jitterX, jitterXSpread } = options;
 
   let output = cloneCanvas(input, false);

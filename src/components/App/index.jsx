@@ -1,4 +1,3 @@
-// @flow
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Draggable from "react-draggable";
 

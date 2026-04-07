@@ -1,12 +1,10 @@
-// @flow
-
 import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
 
 export const optionTypes = {};
 
 export const defaults = {};
 
-const grayscale = (input: HTMLCanvasElement): HTMLCanvasElement => {
+const grayscale = (input) => {
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

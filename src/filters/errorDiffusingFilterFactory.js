@@ -1,5 +1,3 @@
-// @flow
-
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -22,17 +20,14 @@ export const defaults = {
 };
 
 export const errorDiffusingFilter = (
-  name: string,
-  errorMatrix: {
-    offset: [number, number],
-    kernel: Array<Array<?number>>
-  },
-  defaultOptions: { [any]: any }
+  name,
+  errorMatrix,
+  defaultOptions
 ) => {
   const filter = (
-    input: HTMLCanvasElement,
-    options: any = defaultOptions
-  ): HTMLCanvasElement => {
+    input,
+    options = defaultOptions
+  ) => {
     const { palette } = options;
 
     const output = cloneCanvas(input, true);
@@ -47,7 +42,7 @@ export const errorDiffusingFilter = (
 
     for (let x = 0; x < output.width; x += 1) {
       for (let y = 0; y < output.height; y += 1) {
-        const i: number = getBufferIndex(x, y, output.width);
+        const i = getBufferIndex(x, y, output.width);
 
         // Ignore alpha channel when calculating error
         const pixel = rgba(

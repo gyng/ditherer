@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   jitterX: { type: RANGE, range: [0, 100], default: 4 },
@@ -23,15 +19,9 @@ export const defaults = {
 };
 
 const jittter = (
-  input: HTMLCanvasElement,
-  options: {
-    jitterX: number,
-    jitterXSpread: number,
-    jitterY: number,
-    jitterYSpread: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { jitterX, jitterXSpread, jitterY, jitterYSpread, palette } = options;
 
   const output = cloneCanvas(input, false);

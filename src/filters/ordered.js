@@ -1,9 +1,5 @@
-// @flow
-
 import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-
-import type { ColorRGBA, Palette } from "types";
 
 import {
   cloneCanvas,
@@ -29,27 +25,8 @@ export const ALTERNATE_3X3 = "ALTERNATE_3X3";
 export const DISPERSED_DOT_3X3 = "DISPERSED_DOT_3X3";
 export const PATTERN_5X5 = "PATTERN_5X5";
 
-export type Threshold =
-  | "BAYER_2X2"
-  | "BAYER_3X3"
-  | "BAYER_4X4"
-  | "BAYER_8X8"
-  | "BAYER_16X16"
-  | "SQUARE_5X5"
-  | "DISPERSED_DOT_3X3"
-  | "CORNER_4X4"
-  | "BLOCK_VERTICAL_4X4"
-  | "BLOCK_HORIZONTAL_4X4"
-  | "HATCH_2X2"
-  | "HATCH_3X3"
-  | "HATCH_4X4"
-  | "ALTERNATE_3X3"
-  | "PATTERN_5X5";
-
 // map[y][x]
-const thresholdMaps: {
-  [Threshold]: { width: number, thresholdMap: Array<Array<?number>> }
-} = {
+const thresholdMaps = {
   [BAYER_2X2]: {
     width: 2,
     thresholdMap: scaleMatrix([[0, 2], [3, 1]], 1 / 4)
@@ -186,10 +163,10 @@ const thresholdMaps: {
 };
 
 const scaleThresholdMap = (
-  map: Array<Array<?number>>,
-  timesX: number,
-  timesY: number
-): Array<Array<?number>> => {
+  map,
+  timesX,
+  timesY
+) => {
   if (timesX === 1 && timesY === 1) {
     return map;
   }
@@ -213,12 +190,12 @@ const scaleThresholdMap = (
 };
 
 const getOrderedColor = (
-  color: ColorRGBA,
-  levels: number,
-  tx: number,
-  ty: number,
-  threshold: Array<Array<?number>>
-): ColorRGBA => {
+  color,
+  levels,
+  tx,
+  ty,
+  threshold
+) => {
   const thresholdValue = threshold[ty][tx];
 
   if (thresholdValue == null) {
@@ -227,7 +204,6 @@ const getOrderedColor = (
 
   const step = 255 / (levels - 1);
 
-  // $FlowFixMe
   return color.map((c, i) => {
     if (i === 3) return c; // alpha channel
     const newColor = c + step * (thresholdValue - 0.5);
@@ -316,14 +292,9 @@ const defaults = {
 };
 
 const ordered = (
-  input: HTMLCanvasElement,
-  options: {
-    thresholdMap: Threshold,
-    thresholdMapScaleX: number,
-    thresholdMapScaleY: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const {
     palette,
     thresholdMap,

@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   rOffsetX: { type: RANGE, range: [0, 100], default: 10 },
@@ -39,23 +35,9 @@ export const defaults = {
 };
 
 const channelSeparation = (
-  input: HTMLCanvasElement,
-  options: {
-    rOffsetX: number,
-    rOffsetY: number,
-    rOpacity: number,
-    gOffsetX: number,
-    gOffsetY: number,
-    gOpacity: number,
-    bOffsetX: number,
-    bOffsetY: number,
-    bOpacity: number,
-    aOffsetX: number,
-    aOffsetY: number,
-    aOpacity: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const {
     rOffsetX,
     rOffsetY,

@@ -1,5 +1,3 @@
-// @flow
-
 import {
   RGB_NEAREST,
   RGB_APPROX,

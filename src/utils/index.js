@@ -1,5 +1,3 @@
-// @flow
-
 import {
   RGB_NEAREST,
   RGB_APPROX,
@@ -8,13 +6,6 @@ import {
   WASM_LAB_NEAREST,
   WASM_LAB_NEAREST_MEMO_PALETTE
 } from "constants/color";
-import type {
-  ColorRGBA,
-  ColorLabA,
-  ColorHSVA,
-  ColorDistanceAlgorithm,
-  AppState
-} from "types";
 
 const memoize = (fn) => {
   const cache = new Map();
@@ -36,19 +27,19 @@ rust.then(obj => {
   console.error("WASM module failed to load, using JS fallback:", err); // eslint-disable-line
 });
 
-export const serializeState = (state: AppState) => JSON.stringify(state);
+export const serializeState = (state) => JSON.stringify(state);
 
 // sRGB linearization for gamma-correct luminance
-const linearize = (c: number): number => {
+const linearize = (c) => {
   const s = c / 255;
   return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
 };
 
 // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 export const luminanceItuBt709 = (
-  c: ColorRGBA,
-  linear: boolean = true
-): number => {
+  c,
+  linear = true
+) => {
   const [r, g, b] = linear
     ? [linearize(c[0]), linearize(c[1]), linearize(c[2])]
     : [c[0] / 255, c[1] / 255, c[2] / 255];
@@ -57,25 +48,25 @@ export const luminanceItuBt709 = (
 
 // ITU BT.601
 export const luminance = (
-  c: ColorRGBA,
-  linear: boolean = true
-): number => {
+  c,
+  linear = true
+) => {
   const [r, g, b] = linear
     ? [linearize(c[0]), linearize(c[1]), linearize(c[2])]
     : [c[0] / 255, c[1] / 255, c[2] / 255];
   return (0.299 * r + 0.587 * g + 0.114 * b) * c[3];
 };
 
-export const quantizeValue = (value: number, levels: number): number => {
+export const quantizeValue = (value, levels) => {
   const step = 255 / (levels - 1);
   const bucket = Math.round(value / step);
   return Math.round(bucket * step);
 };
 
-export const clamp = (min: number, max: number, value: number): number =>
+export const clamp = (min, max, value) =>
   Math.max(min, Math.min(max, value));
 
-export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
+export const rgba = (r, g, b, a) => [
   r,
   g,
   b,
@@ -84,8 +75,8 @@ export const rgba = (r: number, g: number, b: number, a: number): ColorRGBA => [
 
 // mutates input
 export const equalize = (
-  input: Array<number> | Uint8ClampedArray | Uint8Array
-): any => {
+  input
+) => {
   let min = input[0];
   let max = input[0];
 
@@ -104,11 +95,7 @@ export const equalize = (
 };
 
 // http://www.easyrgb.com/en/math.php#text1
-export type ReferenceValue = { x: number, y: number, z: number };
-export type ReferenceStandard = "CIE_1931" | "CIE_1964";
-export const referenceTable: {
-  [ReferenceStandard]: { [string]: ReferenceValue }
-} = {
+export const referenceTable = {
   CIE_1931: {
     // 2° (CIE 1931)
     D65: { x: 95.047, y: 100, z: 108.883 }
@@ -120,7 +107,7 @@ export const referenceTable: {
 };
 
 // 0-360, 0-1, 0-1, 0-1
-export const rgba2hsva = (input: ColorRGBA): ColorHSVA => {
+export const rgba2hsva = (input) => {
   const r = input[0] / 255;
   const g = input[1] / 255;
   const b = input[2] / 255;
@@ -163,9 +150,9 @@ export const rgba2hsva = (input: ColorRGBA): ColorHSVA => {
 // https://stackoverflow.com/questions/7880264/convert-lab-color-to-rgb
 // Convert RGB > XYZ > CIE Lab, copying alpha channel
 export const rgba2laba = (
-  input: ColorRGBA,
-  ref: ReferenceValue = referenceTable.CIE_1931.D65
-): ColorLabA => {
+  input,
+  ref = referenceTable.CIE_1931.D65
+) => {
   let r = input[0] / 255;
   let g = input[1] / 255;
   let b = input[2] / 255;
@@ -210,10 +197,10 @@ let wasmRgbaLabaDistanceInner = (a, b, c, d, e, f, g, h, i, j, k) => {
 
 
 export const wasmRgbaLabaDistance = (
-  a: ColorRGBA,
-  b: ColorRGBA,
-  ref: ReferenceValue = referenceTable.CIE_1931.D65
-): number =>
+  a,
+  b,
+  ref = referenceTable.CIE_1931.D65
+) =>
   wasmRgbaLabaDistanceInner(
     a[0],
     a[1],
@@ -229,10 +216,9 @@ export const wasmRgbaLabaDistance = (
   );
 
 export const wasmRgba2laba = (
-  input: ColorRGBA,
-  ref: ReferenceValue = referenceTable.CIE_1931.D65
-): ColorLabA =>
-  // $FlowFixMe
+  input,
+  ref = referenceTable.CIE_1931.D65
+) =>
   wasmRgba2labaInner(
     input[0],
     input[1],
@@ -247,9 +233,9 @@ export const wasmRgba2labaMemo = memoize(wasmRgba2laba);
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 export const laba2rgba = (
-  input: ColorLabA,
-  ref: ReferenceValue = referenceTable.CIE_1931.D65
-): ColorRGBA => {
+  input,
+  ref = referenceTable.CIE_1931.D65
+) => {
   let y = (input[0] + 16) / 116;
   let x = input[1] / 500 + y;
   let z = y - input[2] / 200;
@@ -285,10 +271,10 @@ export const laba2rgba = (
 
 // a can be assumed to be palette colour
 export const colorDistance = (
-  a: ColorRGBA,
-  b: ColorRGBA,
-  colorDistanceAlgorithm: ColorDistanceAlgorithm
-): number => {
+  a,
+  b,
+  colorDistanceAlgorithm
+) => {
   switch (colorDistanceAlgorithm) {
     case RGB_NEAREST:
       return Math.sqrt(
@@ -345,15 +331,13 @@ export const colorDistance = (
   }
 };
 
-export type AdaptMode = "AVERAGE" | "MID" | "FIRST";
-export type ColorMode = "RGB" | "LAB";
 export const medianCutPalette = (
-  buf: Uint8ClampedArray | Uint8Array,
-  limit: number,
-  ignoreAlpha: boolean,
-  adaptMode: AdaptMode,
-  colorMode: ColorMode = "RGB"
-): Array<ColorRGBA> => {
+  buf,
+  limit,
+  ignoreAlpha,
+  adaptMode,
+  colorMode = "RGB"
+) => {
   const range = {
     r: { min: buf[0], max: buf[0] },
     g: { min: buf[0], max: buf[0] },
@@ -395,13 +379,13 @@ export const medianCutPalette = (
   ].sort((a, b) => b.range - a.range);
 
   const medianCut = (
-    bucket: Array<ColorRGBA>,
-    channelSequence: Array<{ channel: number, range: number }>,
-    remaining: number,
-    iterations: number,
-    ignAlpha: boolean,
-    adptMode: string
-  ): Array<ColorRGBA> => {
+    bucket,
+    channelSequence,
+    remaining,
+    iterations,
+    ignAlpha,
+    adptMode
+  ) => {
     const channel = channelSequence[iterations % (ignAlpha ? 3 : 4)];
     bucket.sort((a, b) => b[channel.channel] - a[channel.channel]);
     const midIdx = Math.floor(bucket.length / 2);
@@ -416,7 +400,6 @@ export const medianCutPalette = (
             acc[2] += c[2] / bucket.length;
             acc[3] += c[3] / bucket.length;
           });
-          // $FlowFixMe
           return [acc.map(ch => Math.floor(ch))];
         }
         case "FIRST":
@@ -461,10 +444,10 @@ export const medianCutPalette = (
 };
 
 export const uniqueColors = (
-  buf: Uint8ClampedArray | Uint8Array,
-  limit: ?number
-): Array<ColorRGBA> => {
-  const seen: { [string]: { count: number, color: ColorRGBA } } = {};
+  buf,
+  limit
+) => {
+  const seen = {};
 
   for (let i = 0; i < buf.length; i += 4) {
     const r = buf[i];
@@ -502,30 +485,28 @@ export const uniqueColors = (
           return 0;
         })
         .slice(0, limit)
-        // $FlowFixMe
         .map(c => c.color)
     );
   }
 
-  // $FlowFixMe
   return Object.values(seen).map(c => c.color);
 };
 
 // Preserves nulls
 export const scaleMatrix = (
-  mat: Array<Array<?number>>,
-  scale: number
-): Array<Array<?number>> =>
+  mat,
+  scale
+) =>
   mat.map(row => row.map(col => (col ? col * scale : col)));
 
-export const add = (a: ColorRGBA, b: ColorRGBA): ColorRGBA => [
+export const add = (a, b) => [
   a[0] + b[0],
   a[1] + b[1],
   a[2] + b[2],
   a[3] + b[3]
 ];
 
-export const sub = (a: ColorRGBA, b: ColorRGBA): ColorRGBA => [
+export const sub = (a, b) => [
   a[0] - b[0],
   a[1] - b[1],
   a[2] - b[2],
@@ -533,10 +514,10 @@ export const sub = (a: ColorRGBA, b: ColorRGBA): ColorRGBA => [
 ];
 
 export const scale = (
-  a: ColorRGBA,
-  scalar: number,
-  alpha: boolean = false
-): ColorRGBA => [
+  a,
+  scalar,
+  alpha = false
+) => [
   scalar * a[0],
   scalar * a[1],
   scalar * a[2],
@@ -544,7 +525,7 @@ export const scale = (
 ];
 
 // contrast factor 0-1 ideally
-export const contrast = (color: ColorRGBA, factor: number) => {
+export const contrast = (color, factor) => {
   // normalise to [-1, 1]
   const nC = [
     color[0] / 255 - 0.5,
@@ -563,9 +544,9 @@ export const contrast = (color: ColorRGBA, factor: number) => {
 
 // factor 0-255, exposure ideally 0-2 (small number)
 export const brightness = (
-  color: ColorRGBA,
-  factor: number,
-  exposure: number = 1
+  color,
+  factor,
+  exposure = 1
 ) => [
   color[0] * exposure + factor,
   color[1] * exposure + factor,
@@ -573,24 +554,24 @@ export const brightness = (
   color[3]
 ];
 
-export const gamma = (color: ColorRGBA, g: number) => [
+export const gamma = (color, g) => [
   255 * (color[0] / 255) ** (1 / g),
   255 * (color[1] / 255) ** (1 / g),
   255 * (color[2] / 255) ** (1 / g),
   color[3]
 ];
 
-export const getBufferIndex = (x: number, y: number, width: number): number =>
+export const getBufferIndex = (x, y, width) =>
   (x + width * y) * 4;
 
 // FIXME: Make signature consistent with addBufferPixel
 export const fillBufferPixel = (
-  buf: Uint8ClampedArray | Array<number>,
-  i: number,
-  r: number,
-  g: number,
-  b: number,
-  a: number
+  buf,
+  i,
+  r,
+  g,
+  b,
+  a
 ) => {
   buf[i] = r; // eslint-disable-line
   buf[i + 1] = g; // eslint-disable-line
@@ -599,9 +580,9 @@ export const fillBufferPixel = (
 };
 
 export const addBufferPixel = (
-  buf: Uint8ClampedArray | Array<number>,
-  i: number,
-  color: ColorRGBA
+  buf,
+  i,
+  color
 ) => {
   buf[i] += color[0]; // eslint-disable-line
   buf[i + 1] += color[1]; // eslint-disable-line
@@ -610,8 +591,8 @@ export const addBufferPixel = (
 };
 
 export const cloneCanvas = (
-  original: HTMLCanvasElement,
-  copyData: boolean = true
+  original,
+  copyData = true
 ) => {
   const clone = document.createElement("canvas");
 

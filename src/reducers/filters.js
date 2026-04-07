@@ -1,5 +1,3 @@
-// @flow
-
 const LOAD_IMAGE = "LOAD_IMAGE";
 const LOAD_STATE = "LOAD_STATE";
 const FILTER_IMAGE = "FILTER_IMAGE";
@@ -120,7 +118,6 @@ export default (state = initialState, action) => {
         (!action.video || action.video !== state.video)
       ) {
         state.video.pause();
-        // $FlowFixMe
         state.video.src = ""; // eslint-disable-line
       }
 

@@ -1,5 +1,3 @@
-// @flow
-
 import nearest from "./nearest";
 import user from "./user";
 

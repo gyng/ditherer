@@ -1,5 +1,3 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
@@ -11,8 +9,6 @@ import {
   brightness as brightnessFunc,
   gamma as gammaFunc
 } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   brightness: { type: RANGE, range: [-255, 255], step: 1, default: 0 },
@@ -31,15 +27,9 @@ export const defaults = {
 };
 
 const brightnessContrast = (
-  input: HTMLCanvasElement,
-  options: {
-    brightness: number,
-    contrast: number,
-    exposure: number,
-    gamma: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { brightness, contrast, exposure, gamma, palette } = options;
   const output = cloneCanvas(input, false);
 
