@@ -28,14 +28,33 @@ rust.then(obj => {
 
 export const serializeState = (state: AppState) => JSON.stringify(state);
 
+// sRGB linearization for gamma-correct luminance
+const linearize = (c: number): number => {
+  const s = c / 255;
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+};
+
 // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
-// TODO: make formula an enum
-export const luminanceItuBt709 = (c: ColorRGBA) =>
-  0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] * (c[3] / 255);
+export const luminanceItuBt709 = (
+  c: ColorRGBA,
+  linear: boolean = true
+): number => {
+  const [r, g, b] = linear
+    ? [linearize(c[0]), linearize(c[1]), linearize(c[2])]
+    : [c[0] / 255, c[1] / 255, c[2] / 255];
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) * c[3];
+};
 
 // ITU BT.601
-export const luminance = (c: ColorRGBA) =>
-  0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2] * (c[3] / 255);
+export const luminance = (
+  c: ColorRGBA,
+  linear: boolean = true
+): number => {
+  const [r, g, b] = linear
+    ? [linearize(c[0]), linearize(c[1]), linearize(c[2])]
+    : [c[0] / 255, c[1] / 255, c[2] / 255];
+  return (0.299 * r + 0.587 * g + 0.114 * b) * c[3];
+};
 
 export const quantizeValue = (value: number, levels: number): number => {
   const step = 255 / (levels - 1);
@@ -62,8 +81,8 @@ export const equalize = (
 
   for (let i = 1; i < input.length; i += 1) {
     const val = input[i];
-    if (i < min) min = val;
-    if (i > max) max = val;
+    if (val < min) min = val;
+    if (val > max) max = val;
   }
 
   const range = max - min;

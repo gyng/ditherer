@@ -3,7 +3,6 @@
 
 import * as types from "constants/actionTypes";
 import * as optionTypes from "constants/optionTypes";
-import { paletteList } from "palettes";
 import { THEMES } from "palettes/user";
 
 import type { ColorRGBA, Filter, FilterFunc } from "types";
@@ -172,16 +171,11 @@ export const addPaletteColor = (color: ColorRGBA) => ({
   color
 });
 
-// FIXME: Why is it finding by name here? Fishy, potential problem when value is a valid palette name
-export const setFilterOption = (optionName: string, value: any) => {
-  const paletteObject = paletteList.find(p => p.name === value);
-
-  return {
-    type: types.SET_FILTER_OPTION,
-    optionName,
-    value: paletteObject ? paletteObject.palette : value
-  };
-};
+export const setFilterOption = (optionName: string, value: any) => ({
+  type: types.SET_FILTER_OPTION,
+  optionName,
+  value
+});
 
 export const setFilterPaletteOption = (optionName: string, value: any) => ({
   type: types.SET_FILTER_PALETTE_OPTION,

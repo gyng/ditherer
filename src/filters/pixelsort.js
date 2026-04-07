@@ -108,15 +108,6 @@ export const SORTS: {
     const b = rgba2hsva(bRgba);
     return compareQuadlet(a, b, dir);
   },
-  [COMPARATOR.HSVA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
-  ) => {
-    const a = rgba2hsva(aRgba);
-    const b = rgba2hsva(bRgba);
-    return compareQuadlet(a, b, dir);
-  },
   [COMPARATOR.SVHA]: (
     aRgba: ColorRGBA,
     bRgba: ColorRGBA,
@@ -291,9 +282,8 @@ const spiralIterator = endIntervalOnTurn => init => {
     }
 
     i = getBufferIndex(x, y, w);
-    end = end || i >= w * h * 4; // or oob, somehow
-    // FIXME: Shouldn't end at (0, 0) but at correct corner
-    if (x === 0 && y === 0) {
+    end = end || i >= w * h * 4;
+    if (x < 0 || y < 0 || x >= w || y >= h) {
       return null;
     }
 

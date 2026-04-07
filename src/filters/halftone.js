@@ -67,14 +67,15 @@ const halftone = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  // TODO: handle edges
   for (let x = 0; x < input.width; x += size) {
     for (let y = 0; y < input.height; y += size) {
       const meanColor = rgba(0, 0, 0, 0);
-      const pixels = size * size;
+      const blockW = Math.min(size, input.width - x);
+      const blockH = Math.min(size, input.height - y);
+      const pixels = blockW * blockH;
 
-      for (let w = 0; w < size; w += 1) {
-        for (let h = 0; h < size; h += 1) {
+      for (let w = 0; w < blockW; w += 1) {
+        for (let h = 0; h < blockH; h += 1) {
           const sourceIdx = getBufferIndex(x + w, y + h, output.width);
 
           for (let c = 0; c < 4; c += 1) {
@@ -83,8 +84,7 @@ const halftone = (
         }
       }
 
-      // FIXME: this is wrong(?), should apply nearest here and palette later in colors
-      // rgba(255, 0, 0) should be matched to red?
+      // Quantize mean color via palette — drives dot radii per channel
       const quantizedColor = palette.getColor(meanColor, palette.options);
       const radii = quantizedColor.map(
         c => c * (size / 2 / 255) * options.sizeMultiplier

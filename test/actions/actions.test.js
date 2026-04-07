@@ -41,9 +41,7 @@ describe("actions", () => {
     expect(action.value).to.equal("optionValue");
   });
 
-  // This action is fishy: why is it finding by name? Potential to unintentionally
-  // overwrite legit values here.
-  xit("should create an action to set a palette for a filter", () => {
+  it("should pass palette values through without implicit lookup", () => {
     const action = actions.setFilterOption("myPalette", paletteList[0].palette);
     expect(action.type).to.equal(types.SET_FILTER_OPTION);
     expect(action.optionName).to.equal("myPalette");
