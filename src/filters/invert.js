@@ -1,5 +1,3 @@
-// @flow
-
 import { BOOL } from "constants/controlTypes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
 
@@ -18,14 +16,9 @@ export const defaults = {
 };
 
 const invert = (
-  input: HTMLCanvasElement,
-  options: {
-    invertR: boolean,
-    invertG: boolean,
-    invertB: boolean,
-    invertA: boolean
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

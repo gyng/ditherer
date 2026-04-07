@@ -1,6 +1,4 @@
-// @flow
-
-import { ENUM, RANGE, PALETTE } from "constants/controlTypes";
+import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
   cloneCanvas,
@@ -9,10 +7,9 @@ import {
   rgba,
   rgba2hsva,
   rgba2laba,
-  luminance
+  luminance,
+  paletteGetColor
 } from "utils";
-
-import type { ColorRGBA, Palette } from "types";
 
 export const DIRECTION = {
   COLUMN: "COLUMN",
@@ -21,19 +18,10 @@ export const DIRECTION = {
   SPIRAL_CUT: "SPIRAL_CUT",
   DIAGONAL_TOP_RIGHT: "DIAGONAL_TOP_RIGHT"
 };
-export type Direction =
-  | "ROW"
-  | "COLUMN"
-  | "DIAGONAL_TOPRIGHT"
-  | "SPIRAL"
-  | "SPIRAL_CUT";
-
 export const SORT_DIRECTION = {
   ASCENDING: "ASCENDING",
   DESCENDING: "DESCENDING"
 };
-
-export type SortDirection = "ASCENDING" | "DESCENDING";
 
 export const COMPARATOR = {
   LUMINANCE: "LUMINANCE",
@@ -48,23 +36,11 @@ export const COMPARATOR = {
   BALA: "BALA"
 };
 
-export type Comparator =
-  | "RGBA"
-  | "GBRA"
-  | "BGRA"
-  | "LUMINANCE"
-  | "HSVA"
-  | "SVHA"
-  | "VSHA"
-  | "LABA"
-  | "ABLA"
-  | "BALA";
-
 const compareQuadlet = (
-  a: [number, number, number, number],
-  b: [number, number, number, number],
-  dir: SortDirection
-): number => {
+  a,
+  b,
+  dir
+) => {
   const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
   const rd = (a[0] - b[0]) * dirMul;
   if (rd !== 0) {
@@ -85,42 +61,31 @@ const compareQuadlet = (
   return ad;
 };
 
-export const SORTS: {
-  [Comparator]: (ColorRGBA, ColorRGBA, SortDirection) => number
-} = {
+export const SORTS = {
   [COMPARATOR.RGBA]: compareQuadlet,
-  [COMPARATOR.GBRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.GBRA]: (a, b, dir) => {
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.BGRA]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.BGRA]: (a, b, dir) => {
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.HSVA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
-  ) => {
-    const a = rgba2hsva(aRgba);
-    const b = rgba2hsva(bRgba);
-    return compareQuadlet(a, b, dir);
-  },
-  [COMPARATOR.HSVA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.SVHA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
@@ -129,9 +94,9 @@ export const SORTS: {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.VSHA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2hsva(aRgba);
     const b = rgba2hsva(bRgba);
@@ -140,18 +105,18 @@ export const SORTS: {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.LABA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.ABLA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
@@ -160,9 +125,9 @@ export const SORTS: {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.BALA]: (
-    aRgba: ColorRGBA,
-    bRgba: ColorRGBA,
-    dir: SortDirection
+    aRgba,
+    bRgba,
+    dir
   ) => {
     const a = rgba2laba(aRgba);
     const b = rgba2laba(bRgba);
@@ -170,25 +135,12 @@ export const SORTS: {
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.LUMINANCE]: (a: ColorRGBA, b: ColorRGBA, dir: SortDirection) => {
+  [COMPARATOR.LUMINANCE]: (a, b, dir, linear = true) => {
     const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
-    const lumA = luminance(a);
-    const lumB = luminance(b);
+    const lumA = luminance(a, linear);
+    const lumB = luminance(b, linear);
     return (lumA - lumB) * dirMul;
   }
-};
-
-export type Iterator = (
-  init: any
-) => () => ?{
-  x: number,
-  y: number,
-  i: number,
-  w: number,
-  h: number,
-  wrapX: boolean,
-  wrapY: boolean,
-  endInterval: boolean
 };
 
 const spiralIterator = endIntervalOnTurn => init => {
@@ -216,8 +168,6 @@ const spiralIterator = endIntervalOnTurn => init => {
   };
 
   return () => {
-    // debugger;
-
     if (end) {
       return null;
     }
@@ -291,9 +241,8 @@ const spiralIterator = endIntervalOnTurn => init => {
     }
 
     i = getBufferIndex(x, y, w);
-    end = end || i >= w * h * 4; // or oob, somehow
-    // FIXME: Shouldn't end at (0, 0) but at correct corner
-    if (x === 0 && y === 0) {
+    end = end || i >= w * h * 4;
+    if (x < 0 || y < 0 || x >= w || y >= h) {
       return null;
     }
 
@@ -302,7 +251,7 @@ const spiralIterator = endIntervalOnTurn => init => {
 };
 
 // Returns buffer indices
-export const ITERATORS: { [string]: Iterator } = {
+export const ITERATORS = {
   [DIRECTION.ROW]: init => {
     let { x, y, i } = init;
     const { w, h } = init;
@@ -465,7 +414,8 @@ export const optionTypes = {
     step: 1,
     default: 0
   },
-  palette: { type: PALETTE, default: palettes.nearest }
+  palette: { type: PALETTE, default: palettes.nearest },
+  linearLuminance: { type: BOOL, default: true }
 };
 
 export const defaults = {
@@ -473,6 +423,7 @@ export const defaults = {
   sortDirection: optionTypes.sortDirection.default,
   comparator: optionTypes.comparator.default,
   palette: optionTypes.palette.default,
+  linearLuminance: optionTypes.linearLuminance.default,
   sortPixelLuminanceAbove: optionTypes.sortPixelLuminanceAbove.default,
   sortPixelLuminanceBelow: optionTypes.sortPixelLuminanceBelow.default,
   sortPixelLuminanceChangeAbove:
@@ -484,20 +435,9 @@ export const defaults = {
 };
 
 const pixelsortFilter = (
-  input: HTMLCanvasElement,
-  options: {
-    direction: Direction,
-    sortDirection: SortDirection,
-    comparator: Comparator,
-    sortPixelLuminanceAbove: number,
-    sortPixelLuminanceBelow: number,
-    sortPixelLuminanceChangeAbove: number,
-    sortPixelLuminanceChangeBelow: number,
-    extraIntervalStartChance: number,
-    maxIntervalSize: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const {
     direction,
     sortDirection,
@@ -508,8 +448,11 @@ const pixelsortFilter = (
     sortPixelLuminanceChangeBelow,
     extraIntervalStartChance,
     maxIntervalSize,
-    palette
+    palette,
+    linearLuminance
   } = options;
+
+  const lum = (pixel) => luminance(pixel, linearLuminance);
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -525,12 +468,12 @@ const pixelsortFilter = (
   let interval = newInterval();
 
   const fillInterval = () => {
-    interval.pixels.sort((a, b) => SORTS[comparator](a, b, sortDirection));
+    interval.pixels.sort((a, b) => SORTS[comparator](a, b, sortDirection, linearLuminance));
 
     for (let i = 0; i < interval.trail.length; i += 1) {
       const bufIdx = interval.trail[i];
       const pixel = interval.pixels[i];
-      const col = palette.getColor(pixel, palette.options);
+      const col = paletteGetColor(palette, pixel, palette.options, options._linearize);
       fillBufferPixel(buf, bufIdx, col[0], col[1], col[2], col[3]);
     }
 
@@ -547,21 +490,21 @@ const pixelsortFilter = (
     h: input.height
   });
 
-  /* eslint-disable */
+   
   while ((cur = iterator())) {
-    /* eslint-enable */
+     
     const pixel = rgba(
       buf[cur.i],
       buf[cur.i + 1],
       buf[cur.i + 2],
       buf[cur.i + 3]
     );
-    const lum = luminance(pixel);
-    const lumDelta = lastLum != null ? lastLum - lum : 0;
-    lastLum = lum;
+    const pixelLum = lum(pixel);
+    const lumDelta = lastLum != null ? lastLum - pixelLum : 0;
+    lastLum = pixelLum;
 
     const inLuminosityWindow =
-      lum >= sortPixelLuminanceAbove && lum <= sortPixelLuminanceBelow;
+      pixelLum >= sortPixelLuminanceAbove && pixelLum <= sortPixelLuminanceBelow;
 
     const enoughLuminosityDelta =
       lumDelta >= sortPixelLuminanceChangeAbove &&

@@ -1,9 +1,8 @@
-// @flow
 /* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
-/* eslint-disable no-param-reassign, no-bitwise */ // lots of mutation
+  // lots of mutation
 
-import { filterImage } from "actions";
-import { ASYNC_FILTER } from "constants/actionTypes";
+const ASYNC_FILTER = "ASYNC_FILTER";
+const filterImage = (image) => ({ type: "FILTER_IMAGE", image });
 
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
@@ -15,14 +14,7 @@ export const IMAGE_WEBP = "IMAGE_WEBP";
 export const IMAGE_BMP = "IMAGE_BMP";
 export const IMAGE_ICO = "IMAGE_ICO";
 
-export type Format =
-  | "IMAGE_JPEG"
-  | "IMAGE_PNG"
-  | "IMAGE_WEBP"
-  | "IMAGE_BMP"
-  | "IMAGE_ICO";
-
-const formatMap: { [Format]: string } = {
+const formatMap = {
   [IMAGE_JPEG]: "image/jpeg",
   [IMAGE_PNG]: "image/png",
   [IMAGE_WEBP]: "image/webp",
@@ -81,16 +73,16 @@ class PngError extends Error {
 }
 
 const canvasToBlob = (
-  image: HTMLCanvasElement,
-  format: Format
-): Promise<Blob> =>
+  image,
+  format
+) =>
   new Promise((resolve, _reject) => {
     image.toBlob(blob => {
       resolve(blob);
     }, formatMap[format]);
   });
 
-const blobToImage = (blob: Blob): Promise<HTMLImageElement> =>
+const blobToImage = (blob) =>
   new Promise((resolve, reject) => {
     const corruptedImage = new Image();
     corruptedImage.onload = () => {
@@ -102,7 +94,7 @@ const blobToImage = (blob: Blob): Promise<HTMLImageElement> =>
     corruptedImage.src = URL.createObjectURL(blob);
   });
 
-const blobToUint8Array = (blob: Blob): Promise<Uint8Array> =>
+const blobToUint8Array = (blob) =>
   new Promise((resolve, reject) => {
     const fileReader = new FileReader();
     fileReader.onload = event => {
@@ -120,10 +112,10 @@ const blobToUint8Array = (blob: Blob): Promise<Uint8Array> =>
   });
 
 const transformTranspose = (
-  header: number,
-  input: Uint8Array,
-  ..._rest: any
-): Uint8Array => {
+  header,
+  input,
+  ..._rest
+) => {
   const idx = header + Math.floor(Math.random() * (input.length - header - 1));
   const tmp = input[idx];
   input[idx] = input[idx + 1];
@@ -132,10 +124,10 @@ const transformTranspose = (
 };
 
 const transformSubstitute = (
-  header: number,
-  input: Uint8Array,
-  ..._rest: any
-): Uint8Array => {
+  header,
+  input,
+  ..._rest
+) => {
   const by = Math.floor(Math.random() * 256);
   const idx = header + Math.floor(Math.random() * (input.length - header));
   input[idx] = by;
@@ -143,10 +135,10 @@ const transformSubstitute = (
 };
 
 const transformRepeat = (
-  header: number,
-  input: Uint8Array,
-  ..._rest: any
-): Uint8Array => {
+  header,
+  input,
+  ..._rest
+) => {
   const idx = header + Math.floor(Math.random() * (input.length - header));
   const by = input[idx];
 
@@ -164,30 +156,30 @@ const transformRepeat = (
   return newOut;
 };
 
-const setU32 = (data: Uint8Array, value: number) => {
+const setU32 = (data, value) => {
   const tmpBuf = new ArrayBuffer(4);
   new DataView(tmpBuf).setUint32(0, value);
-  /* eslint-disable */
+   
   data[0] = new Uint8Array(tmpBuf)[0];
   data[1] = new Uint8Array(tmpBuf)[1];
   data[2] = new Uint8Array(tmpBuf)[2];
   data[3] = new Uint8Array(tmpBuf)[3];
-  /* eslint-enable */
+   
 };
 
-const getU32 = (data: Uint8Array) => {
+const getU32 = (data) => {
   const tmpBuf = new ArrayBuffer(4);
-  /* eslint-disable */
+   
   new Uint8Array(tmpBuf)[0] = data[0];
   new Uint8Array(tmpBuf)[1] = data[1];
   new Uint8Array(tmpBuf)[2] = data[2];
   new Uint8Array(tmpBuf)[3] = data[3];
-  /* eslint-enable */
+   
   return new DataView(tmpBuf).getUint32(0);
 };
 
-const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
-  /* eslint-disable */
+const computeCrc = (data, crcBuf) => {
+   
   function buildCRC32Table(poly) {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n += 1) {
@@ -210,17 +202,11 @@ const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
     crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
   }
   crc ^= 0xffffffff;
-  /* eslint-enable */
+   
   setU32(crcBuf, crc);
 };
 
-type PNGContext = {
-  filter: Uint8Array,
-  skippedBeforeIdat: Array<Uint8Array>,
-  skippedAfterIdat: Array<Uint8Array>
-};
-
-const postprocessPNG = (ctx: PNGContext): Uint8Array => {
+const postprocessPNG = (ctx) => {
   const CHUNK_SIZE = 8192;
   // prettier-ignore
   const pngHeader = new Uint8Array([ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -279,7 +265,7 @@ const postprocessPNG = (ctx: PNGContext): Uint8Array => {
   return out;
 };
 
-const preprocessPNG = (buffer: Uint8Array): PNGContext => {
+const preprocessPNG = (buffer) => {
   let offset = 0;
   const skippedBeforeIdat = [];
   const skippedAfterIdat = [];
@@ -383,17 +369,10 @@ const preprocessPNG = (buffer: Uint8Array): PNGContext => {
 };
 
 const glitchblob = (
-  input: HTMLCanvasElement,
-  options: {
-    errSubstitute: boolean,
-    errTranspose: boolean,
-    errRepeat: boolean,
-    errors: number,
-    format: Format,
-    jpegQuality: number
-  } = defaults,
-  dispatch: Dispatch
-): HTMLCanvasElement | "ASYNC_FILTER" => {
+  input,
+  options = defaults,
+  dispatch
+) => {
   const { errRepeat, errSubstitute, errTranspose, errors, format } = options;
   const output = cloneCanvas(input, false);
 
@@ -405,13 +384,13 @@ const glitchblob = (
   }
 
   const corruptThis = (
-    image: HTMLCanvasElement,
-    fmt: Format
-  ): Promise<HTMLImageElement> => {
-    const retry = <T>(
-      limit: number,
-      promiseChainFactory: () => Promise<T>
-    ): Promise<T> =>
+    image,
+    fmt
+  ) => {
+    const retry = (
+      limit,
+      promiseChainFactory
+    ) =>
       promiseChainFactory().catch(
         e =>
           new Promise((reso, rej) => {
@@ -423,7 +402,7 @@ const glitchblob = (
           })
       );
 
-    const corruptor = (corruptedArg: Uint8Array): Uint8Array => {
+    const corruptor = (corruptedArg) => {
       let corrupted = corruptedArg;
       let context;
       let header = Math.round(Math.min(100, 0.9 * corrupted.length));

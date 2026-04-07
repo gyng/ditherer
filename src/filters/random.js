@@ -1,5 +1,3 @@
-// @flow
-
 import { BOOL, RANGE, COLOR_DISTANCE_ALGORITHM } from "constants/controlTypes";
 import { RGB_NEAREST } from "constants/color";
 
@@ -10,10 +8,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  quantizeValue
+  quantizeValue,
+  linearizeBuffer,
+  delinearizeBuffer
 } from "utils";
-
-import type { ColorDistanceAlgorithm } from "types";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [0, 255], default: 2 },
@@ -28,13 +26,9 @@ export const defaults = {
 };
 
 const random = (
-  input: HTMLCanvasElement,
-  options: {
-    levels: number,
-    grayscale: boolean,
-    colorDistanceAlgorithm: ColorDistanceAlgorithm
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -45,6 +39,7 @@ const random = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
@@ -70,6 +65,7 @@ const random = (
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };

@@ -1,30 +1,25 @@
-// @flow
-
-import {
-  LOAD_IMAGE,
-  LOAD_STATE,
-  FILTER_IMAGE,
-  SELECT_FILTER,
-  SET_GRAYSCALE,
-  SET_REAL_TIME_FILTERING,
-  SET_INPUT_CANVAS,
-  SET_INPUT_VOLUME,
-  SET_INPUT_PLAYBACK_RATE,
-  SET_SCALE,
-  SET_OUTPUT_SCALE,
-  SET_FILTER_OPTION,
-  SET_FILTER_PALETTE_OPTION,
-  ADD_PALETTE_COLOR,
-  SET_SCALING_ALGORITHM
-} from "constants/actionTypes";
+const LOAD_IMAGE = "LOAD_IMAGE";
+const LOAD_STATE = "LOAD_STATE";
+const FILTER_IMAGE = "FILTER_IMAGE";
+const SELECT_FILTER = "SELECT_FILTER";
+const SET_GRAYSCALE = "SET_GRAYSCALE";
+const SET_REAL_TIME_FILTERING = "SET_REAL_TIME_FILTERING";
+const SET_INPUT_CANVAS = "SET_INPUT_CANVAS";
+const SET_INPUT_VOLUME = "SET_INPUT_VOLUME";
+const SET_INPUT_PLAYBACK_RATE = "SET_INPUT_PLAYBACK_RATE";
+const SET_SCALE = "SET_SCALE";
+const SET_OUTPUT_SCALE = "SET_OUTPUT_SCALE";
+const SET_FILTER_OPTION = "SET_FILTER_OPTION";
+const SET_FILTER_PALETTE_OPTION = "SET_FILTER_PALETTE_OPTION";
+const ADD_PALETTE_COLOR = "ADD_PALETTE_COLOR";
+const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
+const SET_LINEARIZE = "SET_LINEARIZE";
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
 import { floydSteinberg } from "filters/errorDiffusing";
 import { grayscale, filterIndex } from "filters";
 import { paletteList } from "palettes";
-
-import type { Action, AppState } from "types";
 
 export const initialState = {
   selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
@@ -39,12 +34,13 @@ export const initialState = {
   video: null,
   videoVolume: 1,
   videoPlaybackRate: 1,
-  scalingAlgorithm: SCALING_ALGORITHM.PIXELATED
+  scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
+  linearize: true
 };
 
-export default (state: AppState = initialState, action: Action) => {
+export default (state = initialState, action) => {
   switch (action.type) {
-    case LOAD_STATE:
+    case LOAD_STATE: {
       const localFilter = filterIndex[action.data.selected.filter.name];
       const deserializedFilter = {
         ...localFilter,
@@ -72,6 +68,7 @@ export default (state: AppState = initialState, action: Action) => {
         },
         convertGrayscale: action.data.convertGrayscale
       };
+    }
     case SET_SCALING_ALGORITHM: {
       if (state.inputCanvas) {
         const context = state.inputCanvas.getContext("2d");
@@ -101,7 +98,7 @@ export default (state: AppState = initialState, action: Action) => {
       };
     case SET_INPUT_VOLUME:
       if (state.video) {
-        state.video.volume = action.volume; // eslint-disable-line
+        state.video.volume = action.volume;  
       }
 
       return {
@@ -110,22 +107,21 @@ export default (state: AppState = initialState, action: Action) => {
       };
     case SET_INPUT_PLAYBACK_RATE:
       if (state.video) {
-        state.video.playbackRate = action.rate; // eslint-disable-line
+        state.video.playbackRate = action.rate;  
       }
 
       return {
         ...state,
         videoPlaybackRate: action.rate
       };
-    case LOAD_IMAGE: // eslint-disable-line
+    case LOAD_IMAGE: {
       // Image or new video
       if (
         state.video != null &&
         (!action.video || action.video !== state.video)
       ) {
         state.video.pause();
-        // $FlowFixMe
-        state.video.src = ""; // eslint-disable-line
+        state.video.src = "";  
       }
 
       const newState = {
@@ -137,15 +133,16 @@ export default (state: AppState = initialState, action: Action) => {
       };
 
       if (state.realtimeFiltering && state.inputCanvas) {
+        const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize };
         const output = state.convertGrayscale
           ? state.selected.filter.func(
               grayscale.func(state.inputCanvas),
-              state.selected.filter.options,
+              rtOpts,
               action.dispatch
             )
           : state.selected.filter.func(
               state.inputCanvas,
-              state.selected.filter.options,
+              rtOpts,
               action.dispatch
             );
         if (output instanceof HTMLCanvasElement) {
@@ -154,6 +151,7 @@ export default (state: AppState = initialState, action: Action) => {
       }
 
       return newState;
+    }
     case SET_GRAYSCALE:
       return {
         ...state,
@@ -201,7 +199,7 @@ export default (state: AppState = initialState, action: Action) => {
         !state.selected.filter.options ||
         !state.selected.filter.options.palette
       ) {
-        console.warn("Tried to set option on null palette", state); // eslint-disable-line
+        console.warn("Tried to set option on null palette", state);  
         return state;
       }
 
@@ -229,7 +227,7 @@ export default (state: AppState = initialState, action: Action) => {
         !state.selected.filter.options ||
         !state.selected.filter.options.palette
       ) {
-        console.warn("Tried to add color to null palette", state); // eslint-disable-line
+        console.warn("Tried to add color to null palette", state);  
         return state;
       }
 
@@ -259,6 +257,11 @@ export default (state: AppState = initialState, action: Action) => {
       return {
         ...state,
         outputImage: action.image
+      };
+    case SET_LINEARIZE:
+      return {
+        ...state,
+        linearize: action.value
       };
     default:
       return state;

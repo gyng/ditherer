@@ -1,24 +1,16 @@
-// @flow
-
 import React from "react";
 
-import s from "./styles.scss";
+import s from "./styles.module.css";
 
 const onManualValue = props => {
-  const newValue = window.prompt("Value"); // eslint-disable-line
+  const newValue = window.prompt("Value");  
   const parsed = parseFloat(newValue);
   if (parsed || parsed === 0) {
     props.onSetFilterOption(props.name, parsed);
   }
 };
 
-const Range = (props: {
-  name: string,
-  types: { range: [number, number] },
-  value: number,
-  step: ?number,
-  onSetFilterOption: (string, any) => void
-}) => (
+const Range = (props) => (
   <div className={s.range}>
     <div className={s.label}>{props.name}</div>
     <div className={s.rangeGroup}>

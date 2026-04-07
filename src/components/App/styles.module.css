@@ -1,0 +1,99 @@
+@keyframes timer {
+  0% { content: "\1F55B"; }
+  8.333% { content: "\1F550"; }
+  16.666% { content: "\1F551"; }
+  25% { content: "\1F552"; }
+  33.333% { content: "\1F553"; }
+  33.333% { content: "\1F554"; }
+  41.666% { content: "\1F555"; }
+  50% { content: "\1F556"; }
+  58.333% { content: "\1F557"; }
+  66.666% { content: "\1F558"; }
+  75% { content: "\1F559"; }
+  91.666% { content: "\1F55A"; }
+  100% { content: "\1F55B"; }
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.app {
+  align-content: flex-start;
+  display: flex;
+  flex-direction: row;
+  min-height: 100%;
+  justify-content: flex-start;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.chrome {
+  display: flex;
+  flex-direction: column;
+  background: var(--light-gray);
+  min-width: 210px;
+  width: 10vw;
+  padding: 15px;
+}
+
+.chrome .filterButton {
+  padding: 20px;
+  width: 100%;
+}
+
+.chrome .waitButton:active::after {
+  position: absolute;
+  transform: translateX(-25px) translateY(-2px);
+  content: "\1F55B";
+  animation: timer 0.5s linear infinite;
+}
+
+.chrome .copyButton {
+  margin-top: 10px;
+}
+
+.chrome .section:not(:first-child) {
+  margin-top: 20px;
+}
+
+.chrome .captureSection {
+  max-width: 210px;
+}
+
+.chrome .github {
+  margin-top: auto;
+}
+
+.hide {
+  display: none !important;
+}
+
+.rec {
+  animation: blink 1.5s steps(5, start) infinite;
+  font-weight: bold;
+  color: red;
+  position: absolute;
+  right: 8px;
+  top: 32px;
+}
+
+.canvases {
+  display: grid;
+}
+
+.canvases > div {
+  background-color: var(--light-gray);
+  position: fixed;
+  margin: 10px;
+  display: table;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.canvases .canvas {
+  display: block;
+}

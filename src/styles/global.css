@@ -1,0 +1,25 @@
+/* Global styles — NOT a CSS module */
+@import './typography.css';
+
+:root {
+  --bg-color: rgba(38, 38, 38);
+  --light-gray: #bfbfbf;
+  --gray: #bfbfbf;
+  --beautiful-blue: #000080;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-color);
+}
+
+a {
+  color: blue;
+}

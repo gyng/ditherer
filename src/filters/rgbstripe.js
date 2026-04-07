@@ -1,5 +1,3 @@
-// @flow
-
 import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
@@ -10,10 +8,9 @@ import {
   scale,
   contrast as contrastFunc,
   brightness as brightnessFunc,
-  gamma as gammaFunc
+  gamma as gammaFunc,
+  paletteGetColor
 } from "utils";
-
-import type { Palette } from "types";
 
 import convolve, {
   GAUSSIAN_3X3_WEAK,
@@ -26,9 +23,7 @@ export const LADDER = "LADDER";
 export const TILED = "TILED";
 export const HEX_GAP = "HEX_GAP";
 
-export type Mask = "VERTICAL" | "STAGGERED" | "LADDER" | "TILED" | "HEX_GAP";
-
-const masks: { [Mask]: (e: number) => Array<Array<Array<number>>> } = {
+const masks = {
   // R G B
   [VERTICAL]: e => [[[1, e, e, 1], [e, 1, e, 1], [e, e, 1, 1]]],
   // R_G_B_
@@ -119,20 +114,9 @@ export const defaults = {
 };
 
 const rgbStripe = (
-  input: HTMLCanvasElement,
-  options: {
-    strength: number,
-    brightness: number,
-    exposure: number,
-    gamma: number,
-    contrast: number,
-    includeScanline: boolean,
-    scanlineStrength: number,
-    shadowMask: Mask,
-    blur: boolean,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const {
     includeScanline,
     scanlineStrength,
@@ -183,7 +167,7 @@ const rgbStripe = (
         includeScanline && y % 3 === 0 ? scanlineStrength : 1;
       const scanlined = scale(gammaAdjusted, scanlineScale);
 
-      const color = palette.getColor(scanlined, palette.options);
+      const color = paletteGetColor(palette, scanlined, palette.options, options._linearize);
 
       fillBufferPixel(outputBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }

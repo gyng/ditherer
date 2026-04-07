@@ -1,17 +1,10 @@
-// @flow
-
-/* eslint-disable no-alert, react/no-unused-prop-types, react/prop-types, jsx-a11y/accessible-emoji */
-
 import React from "react";
 
 import { THEMES } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
 
-import type { ColorRGBA } from "types";
-import type { AdaptMode, ColorMode } from "utils";
-
 import Enum from "./Enum";
-import s from "./styles.scss";
+import s from "./styles.module.css";
 
 export const TOP = "TOP";
 export const RGB_ADAPT_MID = "RGB_ADAPT_MID";
@@ -29,7 +22,7 @@ export const modeMap = {
   [LAB_ADAPT_FIRST]: { colorMode: "LAB", adaptMode: "FIRST" }
 };
 
-const convertCsvToColor = (csv: string): ?ColorRGBA => {
+const convertCsvToColor = (csv) => {
   const tokens = csv.split(",");
 
   if (tokens.length !== 4) {
@@ -45,19 +38,6 @@ const convertCsvToColor = (csv: string): ?ColorRGBA => {
   return rgba(channels[0], channels[1], channels[2], channels[3]);
 };
 
-type Props = {
-  value: { [string]: any },
-  inputCanvas: ?HTMLCanvasElement,
-  onSetPaletteOption: (string, any) => {},
-  onAddPaletteColor: ColorRGBA => {},
-  onSaveColorPalette: (string, Array<ColorRGBA>) => {},
-  onDeleteColorPalette: string => {}
-};
-
-type State = {
-  extractMode: string
-};
-
 const onDeleteColor = (e, props) => {
   props.onSetPaletteOption(
     "colors",
@@ -67,7 +47,7 @@ const onDeleteColor = (e, props) => {
   );
 };
 
-export default class ColorArray extends React.Component<Props, State> {
+export default class ColorArray extends React.Component {
   constructor() {
     super();
 
@@ -77,6 +57,10 @@ export default class ColorArray extends React.Component<Props, State> {
   }
 
   render() {
+    if (!this.props.value || !Array.isArray(this.props.value)) {
+      return <div>No colors</div>;
+    }
+
     const currentTheme = Object.entries(THEMES).find(
       e => e[1] === this.props.value
     );
@@ -113,7 +97,7 @@ export default class ColorArray extends React.Component<Props, State> {
 
           return (
             <div
-              key={`${c}-${i++}`} // eslint-disable-line
+              key={`${c}-${i++}`}  
               className={s.color}
               data-idx={i}
               title={`${color} - click to remove`}
@@ -179,10 +163,10 @@ export default class ColorArray extends React.Component<Props, State> {
     );
 
     const extractAdaptiveButton = (
-      name: string,
-      ignoreAlpha: boolean,
-      colorMode: ColorMode,
-      adaptMode: AdaptMode
+      name,
+      ignoreAlpha,
+      colorMode,
+      adaptMode
     ) => (
       <button
         onClick={() => {
@@ -214,7 +198,6 @@ export default class ColorArray extends React.Component<Props, State> {
     const extractOptions = (
       <div>
         {
-          // $FlowFixMe
           <Enum
             name="Algorithm"
             value={this.state.extractMode}
@@ -229,7 +212,7 @@ export default class ColorArray extends React.Component<Props, State> {
                 { name: "LAB Adaptive (first)", value: LAB_ADAPT_FIRST }
               ]
             }}
-            onSetFilterOption={(name: string, value: any) => {
+            onSetFilterOption={(name, value) => {
               this.setState({ extractMode: value });
             }}
           />
@@ -257,7 +240,6 @@ export default class ColorArray extends React.Component<Props, State> {
               "Could not save: name taken or invalid. Use a different name. "
             );
           } else {
-            // $FlowFixMe
             this.props.onSaveColorPalette(savedName, this.props.value);
             this.forceUpdate();
           }

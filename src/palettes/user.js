@@ -1,10 +1,6 @@
-// @flow
-
 import { COLOR_ARRAY, COLOR_DISTANCE_ALGORITHM } from "constants/controlTypes";
 
 import { rgba, colorDistance } from "utils";
-
-import type { ColorRGBA, ColorDistanceAlgorithm } from "types";
 
 // https://en.wikipedia.org/wiki/List_of_8-bit_computer_hardware_palettes
 // https://en.wikipedia.org/wiki/Color_Graphics_Adapter
@@ -444,12 +440,9 @@ const defaults = {
 };
 
 const getColor = (
-  color: ColorRGBA,
-  options: {
-    colors: Array<ColorRGBA>,
-    colorDistanceAlgorithm: ColorDistanceAlgorithm
-  } = defaults
-): ColorRGBA => {
+  color,
+  options = defaults
+) => {
   const { colors } = options;
   const colorDistanceAlgorithm =
     options.colorDistanceAlgorithm || defaults.colorDistanceAlgorithm;
@@ -486,7 +479,7 @@ const user = {
 
 export default user;
 
-export const createPalette = (colors: Array<ColorRGBA>) => ({
+export const createPalette = (colors) => ({
   ...user,
   options: { ...user.options, colors, defaults: colors }
 });

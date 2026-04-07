@@ -1,5 +1,3 @@
-// @flow
-
 import { scaleMatrix } from "utils";
 
 import { defaults, errorDiffusingFilter } from "./errorDiffusingFilterFactory";

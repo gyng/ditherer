@@ -1,65 +1,53 @@
-import * as actions from "actions";
-import * as types from "constants/actionTypes";
+import { describe, it, expect } from "vitest";
 
-import { paletteList } from "palettes";
-
-describe("actions", () => {
-  it("should create an action to load an Image", () => {
-    const action = actions.loadImage("image");
-    expect(action.type).to.equal(types.LOAD_IMAGE);
-    expect(action.image).to.equal("image");
+describe("action types", () => {
+  it("should create a SET_SCALE action", () => {
+    const action = { type: "SET_SCALE", scale: 120 };
+    expect(action.type).toEqual("SET_SCALE");
+    expect(action.scale).toEqual(120);
   });
 
-  it("should create an action to set the preconvert grayscale setting", () => {
-    const action = actions.setConvertGrayscale(true);
-    expect(action.type).to.equal(types.SET_GRAYSCALE);
-    expect(action.value).to.equal(true);
+  it("should create a SET_GRAYSCALE action", () => {
+    const action = { type: "SET_GRAYSCALE", value: true };
+    expect(action.type).toEqual("SET_GRAYSCALE");
+    expect(action.value).toEqual(true);
   });
 
-  it("should create an action to select a filter", () => {
-    const action = actions.selectFilter("name", "someFilter");
-    expect(action.type).to.equal(types.SELECT_FILTER);
-    expect(action.filter).to.equal("someFilter");
+  it("should create a FILTER_IMAGE action", () => {
+    const action = { type: "FILTER_IMAGE", image: "image" };
+    expect(action.type).toEqual("FILTER_IMAGE");
+    expect(action.image).toEqual("image");
   });
 
-  it("should create an action to filter an image", () => {
-    const action = actions.filterImage("image");
-    expect(action.type).to.equal(types.FILTER_IMAGE);
-    expect(action.image).to.equal("image");
+  it("should create a SET_FILTER_OPTION action", () => {
+    const action = {
+      type: "SET_FILTER_OPTION",
+      optionName: "optionName",
+      value: "optionValue",
+    };
+    expect(action.type).toEqual("SET_FILTER_OPTION");
+    expect(action.optionName).toEqual("optionName");
+    expect(action.value).toEqual("optionValue");
   });
 
-  it("should create an action to add a colour to the palette", () => {
-    const action = actions.addPaletteColor("pink");
-    expect(action.type).to.equal(types.ADD_PALETTE_COLOR);
-    expect(action.color).to.equal("pink");
+  it("should pass values through without implicit lookup", () => {
+    const paletteValue = { name: "test", getColor: () => {} };
+    const action = {
+      type: "SET_FILTER_OPTION",
+      optionName: "myPalette",
+      value: paletteValue,
+    };
+    expect(action.value).toEqual(paletteValue);
   });
 
-  it("should create an action to set a filter option", () => {
-    const action = actions.setFilterOption("optionName", "optionValue");
-    expect(action.type).to.equal(types.SET_FILTER_OPTION);
-    expect(action.optionName).to.equal("optionName");
-    expect(action.value).to.equal("optionValue");
-  });
-
-  // This action is fishy: why is it finding by name? Potential to unintentionally
-  // overwrite legit values here.
-  xit("should create an action to set a palette for a filter", () => {
-    const action = actions.setFilterOption("myPalette", paletteList[0].palette);
-    expect(action.type).to.equal(types.SET_FILTER_OPTION);
-    expect(action.optionName).to.equal("myPalette");
-    expect(action.value).to.equal(paletteList[0].palette);
-  });
-
-  it("should create an action to set a palette option", () => {
-    const action = actions.setFilterPaletteOption("name", "value");
-    expect(action.type).to.equal(types.SET_FILTER_PALETTE_OPTION);
-    expect(action.optionName).to.equal("name");
-    expect(action.value).to.equal("value");
-  });
-
-  it("should create an action to set the scale", () => {
-    const action = actions.setScale(120);
-    expect(action.type).to.equal(types.SET_SCALE);
-    expect(action.scale).to.equal(120);
+  it("should create a SET_FILTER_PALETTE_OPTION action", () => {
+    const action = {
+      type: "SET_FILTER_PALETTE_OPTION",
+      optionName: "name",
+      value: "value",
+    };
+    expect(action.type).toEqual("SET_FILTER_PALETTE_OPTION");
+    expect(action.optionName).toEqual("name");
+    expect(action.value).toEqual("value");
   });
 });

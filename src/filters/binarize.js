@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer, paletteGetColor } from "utils";
 
 export const optionTypes = {
   thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
@@ -23,16 +19,10 @@ export const defaults = {
 };
 
 const binarize = (
-  input: HTMLCanvasElement,
-  options: {
-    thresholdR: number,
-    thresholdG: number,
-    thresholdB: number,
-    thresholdA: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
-  const getColor = (val: number, threshold: number): number =>
+  input,
+  options = defaults
+) => {
+  const getColor = (val, threshold) =>
     val > threshold ? 255 : 0;
 
   const { thresholdR, thresholdG, thresholdB, thresholdA, palette } = options;
@@ -46,6 +36,7 @@ const binarize = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
@@ -56,11 +47,12 @@ const binarize = (
         getColor(buf[i + 2], thresholdB),
         getColor(buf[i + 3], thresholdA)
       );
-      const col = palette.getColor(prePaletteCol, palette.options);
+      const col = paletteGetColor(palette, prePaletteCol, palette.options, options._linearize);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };

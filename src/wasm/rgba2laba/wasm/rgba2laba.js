@@ -1,5 +1,14 @@
 /* tslint:disable */
-import * as wasm from './rgba2laba_bg';
+import initWasm from './rgba2laba_bg.wasm?init';
+
+let wasm = null;
+
+// Initialize WASM module
+const wasmReady = initWasm().then(instance => {
+  wasm = instance.exports;
+}).catch(err => {
+  console.error("Failed to init WASM module:", err);
+});
 
 let cachegetFloat64Memory = null;
 function getFloat64Memory() {
@@ -28,6 +37,7 @@ function getUint32Memory() {
     }
     return cachegetUint32Memory;
 }
+
 /**
 * @param {number} arg0
 * @param {number} arg1
@@ -48,7 +58,6 @@ export function rgba2laba(arg0, arg1, arg2, arg3, arg4, arg5, arg6) {
     const realRet = getArrayF64FromWasm(rustptr, rustlen).slice();
     wasm.__wbindgen_free(rustptr, rustlen * 8);
     return realRet;
-
 }
 
 /**
@@ -68,4 +77,3 @@ export function rgba2laba(arg0, arg1, arg2, arg3, arg4, arg5, arg6) {
 export function rgba_laba_distance(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) {
     return wasm.rgba_laba_distance(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 }
-

@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer, paletteGetColor } from "utils";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25 },
@@ -21,14 +17,9 @@ export const defaults = {
 };
 
 const pixelate = (
-  input: HTMLCanvasElement,
-  options: {
-    scale: number,
-    scaleXOverride: number,
-    scaleYOverride: number,
-    palette: Palette
-  }
-): HTMLCanvasElement => {
+  input,
+  options
+) => {
   const { scale, scaleXOverride, scaleYOverride, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -51,15 +42,17 @@ const pixelate = (
   );
 
   const buf = tempCtx.getImageData(0, 0, temp.width, temp.height).data;
+  if (options._linearize) linearizeBuffer(buf);
   for (let x = 0; x < temp.width; x += 1) {
     for (let y = 0; y < temp.height; y += 1) {
       const i = getBufferIndex(x, y, temp.width);
       const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-      const color = palette.getColor(pixel, palette.options);
+      const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
       fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   tempCtx.putImageData(new ImageData(buf, temp.width, temp.height), 0, 0);
 
   outputCtx.imageSmoothingEnabled = false;

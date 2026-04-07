@@ -1,5 +1,3 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
@@ -9,10 +7,11 @@ import {
   rgba,
   contrast as contrastFunc,
   brightness as brightnessFunc,
-  gamma as gammaFunc
+  gamma as gammaFunc,
+  linearizeBuffer,
+  delinearizeBuffer,
+  paletteGetColor
 } from "utils";
-
-import type { Palette } from "types";
 
 export const optionTypes = {
   brightness: { type: RANGE, range: [-255, 255], step: 1, default: 0 },
@@ -31,15 +30,9 @@ export const defaults = {
 };
 
 const brightnessContrast = (
-  input: HTMLCanvasElement,
-  options: {
-    brightness: number,
-    contrast: number,
-    exposure: number,
-    gamma: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { brightness, contrast, exposure, gamma, palette } = options;
   const output = cloneCanvas(input, false);
 
@@ -51,6 +44,7 @@ const brightnessContrast = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
   const outputBuf = new Uint8ClampedArray(buf);
 
   for (let x = 0; x < input.width; x += 1) {
@@ -68,11 +62,12 @@ const brightnessContrast = (
         gamma
       );
 
-      const col = palette.getColor(newColor, palette.options);
+      const col = paletteGetColor(palette, newColor, palette.options, options._linearize);
       fillBufferPixel(outputBuf, i, col[0], col[1], col[2], col[3]);
     }
   }
 
+  if (options._linearize) delinearizeBuffer(outputBuf);
   outputCtx.putImageData(
     new ImageData(outputBuf, output.width, output.height),
     0,

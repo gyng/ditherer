@@ -1,5 +1,3 @@
-// @flow
-
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
@@ -100,7 +98,7 @@ export const filterIndex = [
 }, {});
 
 // Presets
-export const filterList: Array<{ displayName: string, filter: any }> = [
+export const filterList = [
   {
     displayName: "Program",
     filter: {

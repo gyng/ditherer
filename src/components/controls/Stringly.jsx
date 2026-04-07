@@ -1,14 +1,8 @@
-// @flow
-
 import React from "react";
 
-import s from "./styles.scss";
+import s from "./styles.module.css";
 
-const Stringly = (props: {
-  name: string,
-  value: string,
-  onSetFilterOption: (string, any) => {}
-}) => (
+const Stringly = (props) => (
   <div>
     <div className={s.label}>{props.name}</div>
     <input

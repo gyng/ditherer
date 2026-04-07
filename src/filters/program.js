@@ -1,15 +1,9 @@
-// @flow
-
 import { ENUM, TEXT, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 
-import type { Palette } from "types";
-
 export const ALL = "ALL";
 export const PIXEL = "PIXEL";
-
-export type Mode = "ALL" | "PIXEL";
 
 export const optionTypes = {
   mode: {
@@ -44,13 +38,9 @@ export const defaults = {
 };
 
 const programFilter = (
-  input: HTMLCanvasElement,
-  options: {
-    mode: Mode,
-    program: string,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { program, palette } = options;
   const output = cloneCanvas(input, false);
 
@@ -66,12 +56,12 @@ const programFilter = (
   const w = input.width;
   const h = input.height;
 
-  outside: for (let x = 0; x < w; x += 1) { // eslint-disable-line
+  outside: for (let x = 0; x < w; x += 1) {  
     for (let y = 0; y < h; y += 1) {
       // Define variables for program
       const i = getBufferIndex(x, y, w);
       const p = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-      /* eslint-disable */
+       
       let r = p[0];
       let g = p[1];
       let b = p[2];
@@ -83,7 +73,7 @@ const programFilter = (
         console.error(e);
         break outside;
       }
-      /* eslint-enable */
+       
 
       const col = palette.getColor([r, g, b, a], palette.options);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);

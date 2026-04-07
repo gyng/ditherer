@@ -1,10 +1,6 @@
-// @flow
-
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer, paletteGetColor } from "utils";
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -15,9 +11,9 @@ const defaults = {
 };
 
 const quantize = (
-  input: HTMLCanvasElement,
-  options: { palette: Palette } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { palette } = options;
   const output = cloneCanvas(input, false);
 
@@ -29,16 +25,18 @@ const quantize = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);
       const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-      const color = palette.getColor(pixel, palette.options);
+      const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
       fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };

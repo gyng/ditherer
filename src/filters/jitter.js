@@ -1,10 +1,6 @@
-// @flow
-
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
-
-import type { Palette } from "types";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
   jitterX: { type: RANGE, range: [0, 100], default: 4 },
@@ -23,15 +19,9 @@ export const defaults = {
 };
 
 const jittter = (
-  input: HTMLCanvasElement,
-  options: {
-    jitterX: number,
-    jitterXSpread: number,
-    jitterY: number,
-    jitterYSpread: number,
-    palette: Palette
-  } = defaults
-): HTMLCanvasElement => {
+  input,
+  options = defaults
+) => {
   const { jitterX, jitterXSpread, jitterY, jitterYSpread, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -74,7 +64,7 @@ const jittter = (
       );
 
       const pixel = rgba(buf[jI], buf[jI + 1], buf[jI + 2], buf[jI + 3]);
-      const color = palette.getColor(pixel, palette.options);
+      const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
       fillBufferPixel(buf, i, color[0], color[1], color[2], color[3]);
     }
   }
