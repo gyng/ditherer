@@ -26,6 +26,9 @@ const App = () => {
   const captureVideoRef = useRef(null);
   const zIndexRef = useRef(0);
   const streamRef = useRef(null);
+  const inputDragRef = useRef(null);
+  const outputDragRef = useRef(null);
+  const captureDragRef = useRef(null);
 
   // Create capture video element once
   useEffect(() => {
@@ -321,8 +324,8 @@ const App = () => {
 
       {/* Canvases */}
       <div className={s.canvases}>
-        <Draggable bounds={{ top: 0, left: 0 }}>
-          <div role="presentation" onMouseDownCapture={bringToTop}>
+        <Draggable nodeRef={inputDragRef} bounds={{ top: 0, left: 0 }}>
+          <div ref={inputDragRef} role="presentation" onMouseDownCapture={bringToTop}>
             <div className={controls.window}>
               <div className={["handle", controls.titleBar].join(" ")}>Input</div>
               <canvas
@@ -334,10 +337,11 @@ const App = () => {
         </Draggable>
 
         <Draggable
+          nodeRef={outputDragRef}
           bounds={{ top: 0, left: (inputCanvasRef.current && -inputCanvasRef.current.width) || -300 }}
           defaultPosition={{ x: 0, y: 200 }}
         >
-          <div role="presentation" onMouseDownCapture={bringToTop}>
+          <div ref={outputDragRef} role="presentation" onMouseDownCapture={bringToTop}>
             <div className={controls.window}>
               <div className={["handle", controls.titleBar].join(" ")}>Output</div>
               <canvas className={s.canvas} ref={outputCanvasRef} />
@@ -346,9 +350,11 @@ const App = () => {
         </Draggable>
 
         <Draggable
+          nodeRef={captureDragRef}
           bounds={{ top: 0, left: ((inputCanvasRef.current && -inputCanvasRef.current.width) || -300) * 2 }}
         >
           <div
+            ref={captureDragRef}
             role="presentation"
             onMouseDownCapture={bringToTop}
             id="captureWindow"
