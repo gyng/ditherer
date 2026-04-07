@@ -32,7 +32,8 @@ const rust = import("wasm/rgba2laba/wasm/rgba2laba");
 rust.then(obj => {
   wasmRgba2labaInner = obj.rgba2laba; // eslint-disable-line
   wasmRgbaLabaDistanceInner = obj.rgba_laba_distance; // eslint-disable-line
-  // wasmRgbaLabaDistanceTransformRInner = obj.rgba_laba_distance_transform_right; // eslint-disable-line
+}).catch(err => {
+  console.error("WASM module failed to load, using JS fallback:", err); // eslint-disable-line
 });
 
 export const serializeState = (state: AppState) => JSON.stringify(state);
@@ -207,10 +208,6 @@ let wasmRgbaLabaDistanceInner = (a, b, c, d, e, f, g, h, i, j, k) => {
   return 0;
 };
 
-// let wasmRgbaLabaDistanceTransformRInner = (a, b, c, d, e, f, g, h, i, j, k) => {
-//   console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k); // eslint-disable-line
-//   return 0;
-// };
 
 export const wasmRgbaLabaDistance = (
   a: ColorRGBA,

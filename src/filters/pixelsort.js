@@ -207,8 +207,6 @@ const spiralIterator = endIntervalOnTurn => init => {
   };
 
   return () => {
-    // debugger;
-
     if (end) {
       return null;
     }
