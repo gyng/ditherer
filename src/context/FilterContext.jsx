@@ -158,7 +158,7 @@ export const FilterProvider = ({ children }) => {
         window.open(`data:application/json,${encodeURI(json)}`);
       } else {
         const base = `${window.location.origin}${window.location.pathname}`;
-        prompt("URL", `${base}?state=${encodeURI(btoa(json))}`); // eslint-disable-line
+        prompt("URL", `${base}?state=${encodeURI(btoa(json))}`);  
       }
     },
   };

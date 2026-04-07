@@ -14,7 +14,7 @@ const Exporter = () => {
       </button>
       <button
         onClick={() => {
-          const json = prompt("Paste JSON"); // eslint-disable-line
+          const json = prompt("Paste JSON");  
           if (json) actions.importState(json);
         }}
       >

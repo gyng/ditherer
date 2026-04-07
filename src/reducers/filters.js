@@ -40,7 +40,7 @@ export const initialState = {
 
 export default (state = initialState, action) => {
   switch (action.type) {
-    case LOAD_STATE:
+    case LOAD_STATE: {
       const localFilter = filterIndex[action.data.selected.filter.name];
       const deserializedFilter = {
         ...localFilter,
@@ -68,6 +68,7 @@ export default (state = initialState, action) => {
         },
         convertGrayscale: action.data.convertGrayscale
       };
+    }
     case SET_SCALING_ALGORITHM: {
       if (state.inputCanvas) {
         const context = state.inputCanvas.getContext("2d");
@@ -97,7 +98,7 @@ export default (state = initialState, action) => {
       };
     case SET_INPUT_VOLUME:
       if (state.video) {
-        state.video.volume = action.volume; // eslint-disable-line
+        state.video.volume = action.volume;  
       }
 
       return {
@@ -106,21 +107,21 @@ export default (state = initialState, action) => {
       };
     case SET_INPUT_PLAYBACK_RATE:
       if (state.video) {
-        state.video.playbackRate = action.rate; // eslint-disable-line
+        state.video.playbackRate = action.rate;  
       }
 
       return {
         ...state,
         videoPlaybackRate: action.rate
       };
-    case LOAD_IMAGE: // eslint-disable-line
+    case LOAD_IMAGE: {
       // Image or new video
       if (
         state.video != null &&
         (!action.video || action.video !== state.video)
       ) {
         state.video.pause();
-        state.video.src = ""; // eslint-disable-line
+        state.video.src = "";  
       }
 
       const newState = {
@@ -150,6 +151,7 @@ export default (state = initialState, action) => {
       }
 
       return newState;
+    }
     case SET_GRAYSCALE:
       return {
         ...state,
@@ -197,7 +199,7 @@ export default (state = initialState, action) => {
         !state.selected.filter.options ||
         !state.selected.filter.options.palette
       ) {
-        console.warn("Tried to set option on null palette", state); // eslint-disable-line
+        console.warn("Tried to set option on null palette", state);  
         return state;
       }
 
@@ -225,7 +227,7 @@ export default (state = initialState, action) => {
         !state.selected.filter.options ||
         !state.selected.filter.options.palette
       ) {
-        console.warn("Tried to add color to null palette", state); // eslint-disable-line
+        console.warn("Tried to add color to null palette", state);  
         return state;
       }
 

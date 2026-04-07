@@ -1,5 +1,3 @@
-/* eslint-disable no-alert, react/no-unused-prop-types, react/prop-types, jsx-a11y/accessible-emoji */
-
 import React from "react";
 
 import { THEMES } from "palettes/user";
@@ -99,7 +97,7 @@ export default class ColorArray extends React.Component {
 
           return (
             <div
-              key={`${c}-${i++}`} // eslint-disable-line
+              key={`${c}-${i++}`}  
               className={s.color}
               data-idx={i}
               title={`${color} - click to remove`}

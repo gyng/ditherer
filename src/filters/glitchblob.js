@@ -1,5 +1,5 @@
 /* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
-/* eslint-disable no-param-reassign, no-bitwise */ // lots of mutation
+  // lots of mutation
 
 const ASYNC_FILTER = "ASYNC_FILTER";
 const filterImage = (image) => ({ type: "FILTER_IMAGE", image });
@@ -159,27 +159,27 @@ const transformRepeat = (
 const setU32 = (data, value) => {
   const tmpBuf = new ArrayBuffer(4);
   new DataView(tmpBuf).setUint32(0, value);
-  /* eslint-disable */
+   
   data[0] = new Uint8Array(tmpBuf)[0];
   data[1] = new Uint8Array(tmpBuf)[1];
   data[2] = new Uint8Array(tmpBuf)[2];
   data[3] = new Uint8Array(tmpBuf)[3];
-  /* eslint-enable */
+   
 };
 
 const getU32 = (data) => {
   const tmpBuf = new ArrayBuffer(4);
-  /* eslint-disable */
+   
   new Uint8Array(tmpBuf)[0] = data[0];
   new Uint8Array(tmpBuf)[1] = data[1];
   new Uint8Array(tmpBuf)[2] = data[2];
   new Uint8Array(tmpBuf)[3] = data[3];
-  /* eslint-enable */
+   
   return new DataView(tmpBuf).getUint32(0);
 };
 
 const computeCrc = (data, crcBuf) => {
-  /* eslint-disable */
+   
   function buildCRC32Table(poly) {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n += 1) {
@@ -202,7 +202,7 @@ const computeCrc = (data, crcBuf) => {
     crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
   }
   crc ^= 0xffffffff;
-  /* eslint-enable */
+   
   setU32(crcBuf, crc);
 };
 

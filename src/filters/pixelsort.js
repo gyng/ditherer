@@ -490,9 +490,9 @@ const pixelsortFilter = (
     h: input.height
   });
 
-  /* eslint-disable */
+   
   while ((cur = iterator())) {
-    /* eslint-enable */
+     
     const pixel = rgba(
       buf[cur.i],
       buf[cur.i + 1],

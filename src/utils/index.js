@@ -120,10 +120,10 @@ const memoize = (fn) => {
 const rust = import("wasm/rgba2laba/wasm/rgba2laba");
 
 rust.then(obj => {
-  wasmRgba2labaInner = obj.rgba2laba; // eslint-disable-line
-  wasmRgbaLabaDistanceInner = obj.rgba_laba_distance; // eslint-disable-line
+  wasmRgba2labaInner = obj.rgba2laba;  
+  wasmRgbaLabaDistanceInner = obj.rgba_laba_distance;  
 }).catch(err => {
-  console.error("WASM module failed to load, using JS fallback:", err); // eslint-disable-line
+  console.error("WASM module failed to load, using JS fallback:", err);  
 });
 
 export const serializeState = (state) => JSON.stringify(state);
@@ -189,7 +189,7 @@ export const equalize = (
   const factor = 256 / range;
 
   for (let i = 0; i < input.length; i += 1) {
-    input[i] = (input[i] - min) * factor; // eslint-disable-line
+    input[i] = (input[i] - min) * factor;  
   }
 };
 
@@ -285,12 +285,12 @@ export const rgba2laba = (
 };
 
 let wasmRgba2labaInner = (a, b, c, d, e, f, g) => {
-  console.error("WASM module not loaded!", a, b, c, d, e, f, g); // eslint-disable-line
+  console.error("WASM module not loaded!", a, b, c, d, e, f, g);  
   return [0, 0, 0, 0];
 };
 
 let wasmRgbaLabaDistanceInner = (a, b, c, d, e, f, g, h, i, j, k) => {
-  console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k); // eslint-disable-line
+  console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k);  
   return 0;
 };
 
@@ -672,10 +672,10 @@ export const fillBufferPixel = (
   b,
   a
 ) => {
-  buf[i] = r; // eslint-disable-line
-  buf[i + 1] = g; // eslint-disable-line
-  buf[i + 2] = b; // eslint-disable-line
-  buf[i + 3] = a; // eslint-disable-line
+  buf[i] = r;  
+  buf[i + 1] = g;  
+  buf[i + 2] = b;  
+  buf[i + 3] = a;  
 };
 
 export const addBufferPixel = (
@@ -683,10 +683,10 @@ export const addBufferPixel = (
   i,
   color
 ) => {
-  buf[i] += color[0]; // eslint-disable-line
-  buf[i + 1] += color[1]; // eslint-disable-line
-  buf[i + 2] += color[2]; // eslint-disable-line
-  buf[i + 3] += color[3]; // eslint-disable-line
+  buf[i] += color[0];  
+  buf[i + 1] += color[1];  
+  buf[i + 2] += color[2];  
+  buf[i + 3] += color[3];  
 };
 
 export const cloneCanvas = (

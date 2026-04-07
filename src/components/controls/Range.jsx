@@ -3,7 +3,7 @@ import React from "react";
 import s from "./styles.module.css";
 
 const onManualValue = props => {
-  const newValue = window.prompt("Value"); // eslint-disable-line
+  const newValue = window.prompt("Value");  
   const parsed = parseFloat(newValue);
   if (parsed || parsed === 0) {
     props.onSetFilterOption(props.name, parsed);

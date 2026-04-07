@@ -52,7 +52,7 @@ const App = () => {
     if (inputCanvasRef.current) {
       actions.setInputCanvas(inputCanvasRef.current);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Draw to canvas when input/output changes
   const prevPropsRef = useRef({});
