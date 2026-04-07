@@ -127,4 +127,54 @@ describe("utils", () => {
       expect(input[2]).toEqual(255);
     });
   });
+
+  describe("linearizeBuffer / delinearizeBuffer", () => {
+    it("linearizes sRGB 128 to ~55", () => {
+      const buf = new Uint8ClampedArray([128, 128, 128, 255]);
+      utils.linearizeBuffer(buf);
+      expect(buf[0]).toEqual(55);
+      expect(buf[1]).toEqual(55);
+      expect(buf[2]).toEqual(55);
+      expect(buf[3]).toEqual(255); // alpha unchanged
+    });
+
+    it("preserves 0 and 255", () => {
+      const buf = new Uint8ClampedArray([0, 255, 0, 255]);
+      utils.linearizeBuffer(buf);
+      expect(buf[0]).toEqual(0);
+      expect(buf[1]).toEqual(255);
+    });
+
+    it("roundtrips with acceptable error", () => {
+      // 8-bit linear has fewer levels in shadows/lower midtones than sRGB
+      // (sRGB's gamma curve allocates more bits to shadows). Multiple sRGB
+      // values map to the same quantized linear value, so roundtrip is lossy.
+      // Max error ~10 in deep shadows, ~5 in lower midtones, ±1 above sRGB 100.
+      const original = new Uint8ClampedArray(256 * 4);
+      for (let i = 0; i < 256; i++) {
+        original[i * 4] = i;
+        original[i * 4 + 1] = i;
+        original[i * 4 + 2] = i;
+        original[i * 4 + 3] = 255;
+      }
+      const copy = new Uint8ClampedArray(original);
+      utils.linearizeBuffer(copy);
+      utils.delinearizeBuffer(copy);
+      // Upper half roundtrips cleanly
+      let maxUpperError = 0;
+      for (let i = 128; i < 256; i++) {
+        maxUpperError = Math.max(maxUpperError, Math.abs(copy[i * 4] - original[i * 4]));
+      }
+      expect(maxUpperError).toBeLessThanOrEqual(1);
+      // Endpoints exact
+      expect(copy[0]).toEqual(0);
+      expect(copy[255 * 4]).toEqual(255);
+    });
+
+    it("delinearizes linear 55 back to ~128", () => {
+      const buf = new Uint8ClampedArray([55, 55, 55, 255]);
+      utils.delinearizeBuffer(buf);
+      expect(Math.abs(buf[0] - 128)).toBeLessThanOrEqual(1);
+    });
+  });
 });

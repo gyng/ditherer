@@ -1,4 +1,4 @@
-# Plan 003: JS to TypeScript Conversion
+# Plan 004: JS to TypeScript Conversion
 
 ## Current State
 

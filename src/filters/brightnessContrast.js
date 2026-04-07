@@ -7,7 +7,9 @@ import {
   rgba,
   contrast as contrastFunc,
   brightness as brightnessFunc,
-  gamma as gammaFunc
+  gamma as gammaFunc,
+  linearizeBuffer,
+  delinearizeBuffer
 } from "utils";
 
 export const optionTypes = {
@@ -41,6 +43,7 @@ const brightnessContrast = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
   const outputBuf = new Uint8ClampedArray(buf);
 
   for (let x = 0; x < input.width; x += 1) {
@@ -63,6 +66,7 @@ const brightnessContrast = (
     }
   }
 
+  if (options._linearize) delinearizeBuffer(outputBuf);
   outputCtx.putImageData(
     new ImageData(outputBuf, output.width, output.height),
     0,

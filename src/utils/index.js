@@ -7,6 +7,48 @@ import {
   WASM_LAB_NEAREST_MEMO_PALETTE
 } from "constants/color";
 
+// Precomputed sRGB ↔ linear LUTs (avoid Math.pow per pixel)
+// SRGB_TO_LINEAR_Q maps sRGB 0-255 → quantized linear 0-255
+// LINEAR_TO_SRGB is the exact inverse: for each quantized linear value,
+// which sRGB value produced it?
+const SRGB_TO_LINEAR_Q = new Uint8Array(256);
+export const LINEAR_TO_SRGB = new Uint8Array(256);
+
+for (let i = 0; i < 256; i++) {
+  const s = i / 255;
+  const linear = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  SRGB_TO_LINEAR_Q[i] = Math.round(linear * 255);
+}
+// Build inverse: for each quantized linear value, find the closest sRGB value.
+// Multiple sRGB values may map to the same linear value — pick the middle one.
+{
+  const buckets = Array.from({ length: 256 }, () => []);
+  for (let i = 0; i < 256; i++) buckets[SRGB_TO_LINEAR_Q[i]].push(i);
+  for (let q = 0; q < 256; q++) {
+    const b = buckets[q];
+    LINEAR_TO_SRGB[q] = b.length > 0 ? b[Math.floor(b.length / 2)] : 0;
+  }
+  LINEAR_TO_SRGB[0] = 0;     // black roundtrips exactly
+  LINEAR_TO_SRGB[255] = 255; // white roundtrips exactly
+}
+
+// Mutate RGBA buffer in place. Skip alpha channel.
+export const linearizeBuffer = (buf) => {
+  for (let i = 0; i < buf.length; i += 4) {
+    buf[i]     = SRGB_TO_LINEAR_Q[buf[i]];
+    buf[i + 1] = SRGB_TO_LINEAR_Q[buf[i + 1]];
+    buf[i + 2] = SRGB_TO_LINEAR_Q[buf[i + 2]];
+  }
+};
+
+export const delinearizeBuffer = (buf) => {
+  for (let i = 0; i < buf.length; i += 4) {
+    buf[i]     = LINEAR_TO_SRGB[buf[i]];
+    buf[i + 1] = LINEAR_TO_SRGB[buf[i + 1]];
+    buf[i + 2] = LINEAR_TO_SRGB[buf[i + 2]];
+  }
+};
+
 const memoize = (fn) => {
   const cache = new Map();
   return (...args) => {

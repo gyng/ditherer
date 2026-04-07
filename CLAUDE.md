@@ -13,4 +13,4 @@ See [AGENTS.md](AGENTS.md) for architecture, component patterns, and coding guid
 
 ## Active Plans
 
-- [Modernization Plan](docs/plan-001-modernization.md) — 7-phase migration (bugs, Vite, React 18, TypeScript, Vitest, cleanup, WASM). Check current phase before writing code.
+- [Modernization Plan](docs/plan/001-modernization.md) — 7-phase migration (bugs, Vite, React 18, TypeScript, Vitest, cleanup, WASM). Check current phase before writing code.

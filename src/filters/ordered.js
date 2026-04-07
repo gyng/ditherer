@@ -6,7 +6,9 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  scaleMatrix
+  scaleMatrix,
+  linearizeBuffer,
+  delinearizeBuffer
 } from "utils";
 
 export const BAYER_2X2 = "BAYER_2X2";
@@ -316,6 +318,7 @@ const ordered = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
 
   const threshold = thresholdMaps[thresholdMap];
   const thresholdMapScaled = scaleThresholdMap(
@@ -347,6 +350,7 @@ const ordered = (
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };

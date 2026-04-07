@@ -1,6 +1,6 @@
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, rgba } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, linearizeBuffer, LINEAR_TO_SRGB } from "utils";
 
 export const optionTypes = {
   size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter of input
@@ -54,6 +54,7 @@ const halftone = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
 
   for (let x = 0; x < input.width; x += size) {
     for (let y = 0; y < input.height; y += size) {
@@ -74,6 +75,11 @@ const halftone = (
 
       // Quantize mean color via palette — drives dot radii per channel
       const quantizedColor = palette.getColor(meanColor, palette.options);
+      if (options._linearize) {
+        quantizedColor[0] = LINEAR_TO_SRGB[Math.round(quantizedColor[0])];
+        quantizedColor[1] = LINEAR_TO_SRGB[Math.round(quantizedColor[1])];
+        quantizedColor[2] = LINEAR_TO_SRGB[Math.round(quantizedColor[2])];
+      }
       const radii = quantizedColor.map(
         c => c * (size / 2 / 255) * options.sizeMultiplier
       );

@@ -84,9 +84,10 @@ export const FilterProvider = ({ children }) => {
     }
   }, [loadImageAsync, loadVideoAsync]);
 
-  // Async action: filter image
+  // Async action: filter image (injects _linearize flag)
   const filterImageAsync = useCallback((input, filterFunc, options) => {
-    const output = filterFunc(input, options, dispatch);
+    const filterOpts = { ...options, _linearize: state.linearize };
+    const output = filterFunc(input, filterOpts, dispatch);
     if (!output) return;
     if (output instanceof HTMLCanvasElement) {
       const outputImage = new Image();
@@ -106,6 +107,8 @@ export const FilterProvider = ({ children }) => {
       dispatch({ type: "SELECT_FILTER", name, filter }),
     setConvertGrayscale: (value) =>
       dispatch({ type: "SET_GRAYSCALE", value }),
+    setLinearize: (value) =>
+      dispatch({ type: "SET_LINEARIZE", value }),
     setScale: (scale) =>
       dispatch({ type: "SET_SCALE", scale }),
     setOutputScale: (scale) =>

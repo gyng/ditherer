@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer } from "utils";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25 },
@@ -42,6 +42,7 @@ const pixelate = (
   );
 
   const buf = tempCtx.getImageData(0, 0, temp.width, temp.height).data;
+  if (options._linearize) linearizeBuffer(buf);
   for (let x = 0; x < temp.width; x += 1) {
     for (let y = 0; y < temp.height; y += 1) {
       const i = getBufferIndex(x, y, temp.width);
@@ -51,6 +52,7 @@ const pixelate = (
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   tempCtx.putImageData(new ImageData(buf, temp.width, temp.height), 0, 0);
 
   outputCtx.imageSmoothingEnabled = false;

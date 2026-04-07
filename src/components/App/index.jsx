@@ -198,6 +198,21 @@ const App = () => {
                   Pre-convert to grayscale
                 </span>
               </div>
+              <div className={controls.checkbox}>
+                <input
+                  name="linearize"
+                  type="checkbox"
+                  checked={state.linearize}
+                  onChange={e => actions.setLinearize(e.target.checked)}
+                />
+                <span
+                  role="presentation"
+                  onClick={() => actions.setLinearize(!state.linearize)}
+                  className={controls.label}
+                >
+                  Linearize (gamma-correct)
+                </span>
+              </div>
             </div>
             <Exporter />
           </div>

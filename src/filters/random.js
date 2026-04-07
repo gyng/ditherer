@@ -8,7 +8,9 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  quantizeValue
+  quantizeValue,
+  linearizeBuffer,
+  delinearizeBuffer
 } from "utils";
 
 export const optionTypes = {
@@ -37,6 +39,7 @@ const random = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
@@ -62,6 +65,7 @@ const random = (
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };

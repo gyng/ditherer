@@ -1,6 +1,6 @@
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer } from "utils";
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -25,6 +25,7 @@ const quantize = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  if (options._linearize) linearizeBuffer(buf);
 
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
@@ -35,6 +36,7 @@ const quantize = (
     }
   }
 
+  if (options._linearize) delinearizeBuffer(buf);
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };

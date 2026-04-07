@@ -5,7 +5,9 @@ import {
   getBufferIndex,
   rgba,
   sub,
-  scale
+  scale,
+  linearizeBuffer,
+  delinearizeBuffer
 } from "utils";
 
 import { PALETTE } from "constants/controlTypes";
@@ -36,6 +38,7 @@ export const errorDiffusingFilter = (
 
     const buf = outputCtx.getImageData(0, 0, input.width, input.height).data;
     if (!buf) return input;
+    if (options._linearize) linearizeBuffer(buf);
     // Increase precision over u8 (from getImageData) for error diffusion
     const errBuf = Array.from(buf);
     if (!errBuf) return input;
@@ -78,6 +81,7 @@ export const errorDiffusingFilter = (
       }
     }
 
+    if (options._linearize) delinearizeBuffer(buf);
     outputCtx.putImageData(
       new ImageData(buf, output.width, output.height),
       0,

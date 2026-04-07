@@ -13,6 +13,7 @@ const SET_FILTER_OPTION = "SET_FILTER_OPTION";
 const SET_FILTER_PALETTE_OPTION = "SET_FILTER_PALETTE_OPTION";
 const ADD_PALETTE_COLOR = "ADD_PALETTE_COLOR";
 const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
+const SET_LINEARIZE = "SET_LINEARIZE";
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
@@ -33,7 +34,8 @@ export const initialState = {
   video: null,
   videoVolume: 1,
   videoPlaybackRate: 1,
-  scalingAlgorithm: SCALING_ALGORITHM.PIXELATED
+  scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
+  linearize: true
 };
 
 export default (state = initialState, action) => {
@@ -130,15 +132,16 @@ export default (state = initialState, action) => {
       };
 
       if (state.realtimeFiltering && state.inputCanvas) {
+        const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize };
         const output = state.convertGrayscale
           ? state.selected.filter.func(
               grayscale.func(state.inputCanvas),
-              state.selected.filter.options,
+              rtOpts,
               action.dispatch
             )
           : state.selected.filter.func(
               state.inputCanvas,
-              state.selected.filter.options,
+              rtOpts,
               action.dispatch
             );
         if (output instanceof HTMLCanvasElement) {
@@ -252,6 +255,11 @@ export default (state = initialState, action) => {
       return {
         ...state,
         outputImage: action.image
+      };
+    case SET_LINEARIZE:
+      return {
+        ...state,
+        linearize: action.value
       };
     default:
       return state;

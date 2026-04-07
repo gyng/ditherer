@@ -145,7 +145,7 @@ Use Vitest. Tests live in `test/` mirroring `src/` structure.
 
 ## Modernization Interactions
 
-The project is being modernized per [docs/plan-001-modernization.md](docs/plan-001-modernization.md). This affects how you work on the codebase:
+The project is being modernized per [docs/plan/001-modernization.md](docs/plan/001-modernization.md). This affects how you work on the codebase:
 
 ### Current Migration State
 
