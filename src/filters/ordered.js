@@ -8,7 +8,8 @@ import {
   rgba,
   scaleMatrix,
   linearizeBuffer,
-  delinearizeBuffer
+  delinearizeBuffer,
+  paletteGetColor
 } from "utils";
 
 export const BAYER_2X2 = "BAYER_2X2";
@@ -344,7 +345,7 @@ const ordered = (
         tiy,
         thresholdMapScaled
       );
-      const color = palette.getColor(orderedColor, palette.options);
+      const color = paletteGetColor(palette, orderedColor, palette.options, options._linearize);
 
       fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
     }

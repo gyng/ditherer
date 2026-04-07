@@ -7,7 +7,8 @@ import {
   rgba,
   rgba2hsva,
   rgba2laba,
-  luminance
+  luminance,
+  paletteGetColor
 } from "utils";
 
 export const DIRECTION = {
@@ -472,7 +473,7 @@ const pixelsortFilter = (
     for (let i = 0; i < interval.trail.length; i += 1) {
       const bufIdx = interval.trail[i];
       const pixel = interval.pixels[i];
-      const col = palette.getColor(pixel, palette.options);
+      const col = paletteGetColor(palette, pixel, palette.options, options._linearize);
       fillBufferPixel(buf, bufIdx, col[0], col[1], col[2], col[3]);
     }
 

@@ -49,6 +49,18 @@ export const delinearizeBuffer = (buf) => {
   }
 };
 
+// Wrap palette.getColor for linearized pipeline: delinearize pixel before
+// matching (palette colors are sRGB), re-linearize the result.
+export const paletteGetColor = (palette, pixel, options, isLinear) => {
+  if (!isLinear) return palette.getColor(pixel, options);
+  const tmp = new Uint8ClampedArray([pixel[0], pixel[1], pixel[2], pixel[3]]);
+  delinearizeBuffer(tmp);
+  const match = palette.getColor([tmp[0], tmp[1], tmp[2], tmp[3]], options);
+  const out = new Uint8ClampedArray([match[0], match[1], match[2], match[3]]);
+  linearizeBuffer(out);
+  return [out[0], out[1], out[2], out[3]];
+};
+
 const memoize = (fn) => {
   const cache = new Map();
   return (...args) => {

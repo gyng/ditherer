@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
   intensity: { type: RANGE, range: [0, 4], step: 0.01, default: 0.33 },
@@ -44,7 +44,7 @@ const scanline = (
         buf[i + 3]
       );
 
-      const col = palette.getColor(prePaletteColor, palette.options);
+      const col = paletteGetColor(palette, prePaletteColor, palette.options, options._linearize);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

@@ -7,7 +7,8 @@ import {
   sub,
   scale,
   linearizeBuffer,
-  delinearizeBuffer
+  delinearizeBuffer,
+  paletteGetColor
 } from "utils";
 
 import { PALETTE } from "constants/controlTypes";
@@ -54,7 +55,7 @@ export const errorDiffusingFilter = (
           errBuf[i + 2],
           errBuf[i + 3]
         );
-        const color = palette.getColor(pixel, palette.options);
+        const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
         const error = sub(pixel, color);
 
         // Copy alpha value from input

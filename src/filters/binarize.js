@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer, paletteGetColor } from "utils";
 
 export const optionTypes = {
   thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
@@ -47,7 +47,7 @@ const binarize = (
         getColor(buf[i + 2], thresholdB),
         getColor(buf[i + 3], thresholdA)
       );
-      const col = palette.getColor(prePaletteCol, palette.options);
+      const col = paletteGetColor(palette, prePaletteCol, palette.options, options._linearize);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

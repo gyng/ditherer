@@ -9,7 +9,8 @@ import {
   brightness as brightnessFunc,
   gamma as gammaFunc,
   linearizeBuffer,
-  delinearizeBuffer
+  delinearizeBuffer,
+  paletteGetColor
 } from "utils";
 
 export const optionTypes = {
@@ -61,7 +62,7 @@ const brightnessContrast = (
         gamma
       );
 
-      const col = palette.getColor(newColor, palette.options);
+      const col = paletteGetColor(palette, newColor, palette.options, options._linearize);
       fillBufferPixel(outputBuf, i, col[0], col[1], col[2], col[3]);
     }
   }

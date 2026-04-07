@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
   rOffsetX: { type: RANGE, range: [0, 100], default: 10 },
@@ -86,7 +86,7 @@ const channelSeparation = (
       const aI = getBufferIndex(aX, aY, input.width);
 
       const pixel = rgba(buf[rI], buf[gI + 1], buf[bI + 2], buf[aI + 3]);
-      const color = palette.getColor(pixel, palette.options);
+      const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
       fillBufferPixel(
         buf,
         i,

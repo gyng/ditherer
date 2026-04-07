@@ -8,7 +8,8 @@ import {
   scale,
   contrast as contrastFunc,
   brightness as brightnessFunc,
-  gamma as gammaFunc
+  gamma as gammaFunc,
+  paletteGetColor
 } from "utils";
 
 import convolve, {
@@ -166,7 +167,7 @@ const rgbStripe = (
         includeScanline && y % 3 === 0 ? scanlineStrength : 1;
       const scanlined = scale(gammaAdjusted, scanlineScale);
 
-      const color = palette.getColor(scanlined, palette.options);
+      const color = paletteGetColor(palette, scanlined, palette.options, options._linearize);
 
       fillBufferPixel(outputBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }

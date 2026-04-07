@@ -1,6 +1,6 @@
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, rgba, linearizeBuffer, LINEAR_TO_SRGB } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, linearizeBuffer, LINEAR_TO_SRGB, paletteGetColor } from "utils";
 
 export const optionTypes = {
   size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter of input
@@ -74,7 +74,7 @@ const halftone = (
       }
 
       // Quantize mean color via palette — drives dot radii per channel
-      const quantizedColor = palette.getColor(meanColor, palette.options);
+      const quantizedColor = paletteGetColor(palette, meanColor, palette.options, options._linearize);
       if (options._linearize) {
         quantizedColor[0] = LINEAR_TO_SRGB[Math.round(quantizedColor[0])];
         quantizedColor[1] = LINEAR_TO_SRGB[Math.round(quantizedColor[1])];
