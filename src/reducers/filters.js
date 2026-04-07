@@ -24,8 +24,6 @@ import { floydSteinberg } from "filters/errorDiffusing";
 import { grayscale, filterIndex } from "filters";
 import { paletteList } from "palettes";
 
-import type { Action, AppState } from "types";
-
 export const initialState = {
   selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
   convertGrayscale: false,
@@ -42,7 +40,7 @@ export const initialState = {
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED
 };
 
-export default (state: AppState = initialState, action: Action) => {
+export default (state = initialState, action) => {
   switch (action.type) {
     case LOAD_STATE:
       const localFilter = filterIndex[action.data.selected.filter.name];

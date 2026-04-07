@@ -1,15 +1,8 @@
-// @flow
-
 import React from "react";
 
 import s from "./styles.module.css";
 
-const Enum = (props: {
-  name: string,
-  value: string,
-  types: { options: Array<{ name: string, value: string }> },
-  onSetFilterOption: (string, any) => {}
-}) => (
+const Enum = (props) => (
   <div>
     <div className={s.label}>{props.name}</div>
 

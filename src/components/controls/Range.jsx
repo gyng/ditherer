@@ -1,5 +1,3 @@
-// @flow
-
 import React from "react";
 
 import s from "./styles.module.css";
@@ -12,13 +10,7 @@ const onManualValue = props => {
   }
 };
 
-const Range = (props: {
-  name: string,
-  types: { range: [number, number] },
-  value: number,
-  step: ?number,
-  onSetFilterOption: (string, any) => void
-}) => (
+const Range = (props) => (
   <div className={s.range}>
     <div className={s.label}>{props.name}</div>
     <div className={s.rangeGroup}>

@@ -1,27 +1,11 @@
-// @flow
-
-/* eslint-disable react/no-unused-prop-types */
-
 import React from "react";
 
 import Controls from "components/controls";
 import { paletteList } from "palettes";
 
-import type { ColorRGBA, Palette as PaletteType } from "types";
-
 import s from "./styles.module.css";
 
-const Palette = (props: {
-  name: string,
-  value: PaletteType,
-  inputCanvas: ?HTMLCanvasElement,
-  paletteOptions: { [string]: any },
-  onSaveColorPalette: (string, Array<ColorRGBA>) => {},
-  onDeleteColorPalette: string => {},
-  onSetFilterOption: (string, PaletteType) => {},
-  onSetPaletteOption: (string, any) => {},
-  onAddPaletteColor: ColorRGBA => {}
-}) => (
+const Palette = (props) => (
   <div className={s.group}>
     <span className={s.name}>{props.name}</span>
 

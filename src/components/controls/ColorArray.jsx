@@ -1,14 +1,9 @@
-// @flow
-
 /* eslint-disable no-alert, react/no-unused-prop-types, react/prop-types, jsx-a11y/accessible-emoji */
 
 import React from "react";
 
 import { THEMES } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
-
-import type { ColorRGBA } from "types";
-import type { AdaptMode, ColorMode } from "utils";
 
 import Enum from "./Enum";
 import s from "./styles.module.css";
@@ -29,7 +24,7 @@ export const modeMap = {
   [LAB_ADAPT_FIRST]: { colorMode: "LAB", adaptMode: "FIRST" }
 };
 
-const convertCsvToColor = (csv: string): ?ColorRGBA => {
+const convertCsvToColor = (csv) => {
   const tokens = csv.split(",");
 
   if (tokens.length !== 4) {
@@ -45,19 +40,6 @@ const convertCsvToColor = (csv: string): ?ColorRGBA => {
   return rgba(channels[0], channels[1], channels[2], channels[3]);
 };
 
-type Props = {
-  value: { [string]: any },
-  inputCanvas: ?HTMLCanvasElement,
-  onSetPaletteOption: (string, any) => {},
-  onAddPaletteColor: ColorRGBA => {},
-  onSaveColorPalette: (string, Array<ColorRGBA>) => {},
-  onDeleteColorPalette: string => {}
-};
-
-type State = {
-  extractMode: string
-};
-
 const onDeleteColor = (e, props) => {
   props.onSetPaletteOption(
     "colors",
@@ -67,7 +49,7 @@ const onDeleteColor = (e, props) => {
   );
 };
 
-export default class ColorArray extends React.Component<Props, State> {
+export default class ColorArray extends React.Component {
   constructor() {
     super();
 
@@ -179,10 +161,10 @@ export default class ColorArray extends React.Component<Props, State> {
     );
 
     const extractAdaptiveButton = (
-      name: string,
-      ignoreAlpha: boolean,
-      colorMode: ColorMode,
-      adaptMode: AdaptMode
+      name,
+      ignoreAlpha,
+      colorMode,
+      adaptMode
     ) => (
       <button
         onClick={() => {
@@ -229,7 +211,7 @@ export default class ColorArray extends React.Component<Props, State> {
                 { name: "LAB Adaptive (first)", value: LAB_ADAPT_FIRST }
               ]
             }}
-            onSetFilterOption={(name: string, value: any) => {
+            onSetFilterOption={(name, value) => {
               this.setState({ extractMode: value });
             }}
           />

@@ -31,6 +31,35 @@ export default defineConfig({
       wasm: path.resolve(__dirname, "src/wasm"),
     },
   },
+  optimizeDeps: {
+    esbuildOptions: {
+      // Flow annotations in .js files — use Babel to strip them during dep scanning
+      loader: {
+        ".js": "jsx",
+      },
+      plugins: [
+        {
+          name: "flow-strip",
+          setup(build) {
+            const fs = require("fs");
+            const { transformSync } = require("@babel/core");
+            build.onLoad({ filter: /src\/.*\.jsx?$/ }, (args) => {
+              const source = fs.readFileSync(args.path, "utf8");
+              if (!source.includes("@flow") && !source.includes("import type")) {
+                return { contents: source, loader: args.path.endsWith(".jsx") ? "jsx" : "js" };
+              }
+              const result = transformSync(source, {
+                filename: args.path,
+                plugins: ["@babel/plugin-transform-flow-strip-types"],
+                parserOpts: { plugins: ["flow", "jsx"] },
+              });
+              return { contents: result.code, loader: "jsx" };
+            });
+          },
+        },
+      ],
+    },
+  },
   build: {
     outDir: "build",
   },

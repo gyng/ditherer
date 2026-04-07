@@ -1,14 +1,8 @@
-// @flow
-
 import React from "react";
 
 import s from "./styles.module.css";
 
-const Textly = (props: {
-  name: string,
-  value: string,
-  onSetFilterOption: (string, any) => {}
-}) => (
+const Textly = (props) => (
   <div>
     <div className={s.label}>{props.name}</div>
     <textarea

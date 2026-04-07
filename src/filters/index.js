@@ -100,7 +100,7 @@ export const filterIndex = [
 }, {});
 
 // Presets
-export const filterList: Array<{ displayName: string, filter: any }> = [
+export const filterList = [
   {
     displayName: "Program",
     filter: {
