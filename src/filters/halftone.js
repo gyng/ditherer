@@ -1,6 +1,6 @@
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, rgba, linearizeBuffer, LINEAR_TO_SRGB, paletteGetColor } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, paletteGetColor } from "utils";
 
 export const optionTypes = {
   size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter of input
@@ -54,61 +54,111 @@ const halftone = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
-  if (options._linearize) linearizeBuffer(buf);
 
-  for (let x = 0; x < input.width; x += size) {
-    for (let y = 0; y < input.height; y += size) {
-      const meanColor = rgba(0, 0, 0, 0);
-      const blockW = Math.min(size, input.width - x);
-      const blockH = Math.min(size, input.height - y);
-      const pixels = blockW * blockH;
+  if (options._linearize) {
+    const floatBuf = srgbBufToLinearFloat(buf);
 
-      for (let w = 0; w < blockW; w += 1) {
-        for (let h = 0; h < blockH; h += 1) {
-          const sourceIdx = getBufferIndex(x + w, y + h, output.width);
+    for (let x = 0; x < input.width; x += size) {
+      for (let y = 0; y < input.height; y += size) {
+        const meanColor = [0, 0, 0, 0];
+        const blockW = Math.min(size, input.width - x);
+        const blockH = Math.min(size, input.height - y);
+        const pixels = blockW * blockH;
 
-          for (let c = 0; c < 4; c += 1) {
-            meanColor[c] += buf[sourceIdx + c] / pixels;
+        for (let w = 0; w < blockW; w += 1) {
+          for (let h = 0; h < blockH; h += 1) {
+            const sourceIdx = getBufferIndex(x + w, y + h, output.width);
+
+            for (let c = 0; c < 4; c += 1) {
+              meanColor[c] += floatBuf[sourceIdx + c] / pixels;
+            }
+          }
+        }
+
+        // Quantize mean color via palette (float 0-1), then convert to sRGB for drawing
+        const quantizedColor = paletteGetColor(palette, meanColor, palette.options, true);
+        const srgbColor = delinearizeColorF(quantizedColor);
+        const radii = srgbColor.map(
+          c => c * (size / 2 / 255) * options.sizeMultiplier
+        );
+
+        const alphaFrac = srgbColor[3] / 255;
+        const colors = [
+          `rgba(255, 0, 0, ${alphaFrac}`,
+          `rgba(0, 255, 0, ${alphaFrac}`,
+          `rgba(0, 0, 255, ${alphaFrac}`
+        ];
+
+        const centerX = x + size / 2;
+        const centerY = y + size / 2;
+        const offsetDistance = size * options.offset;
+        const centers = [
+          getOffset((2 * Math.PI) / 3, offsetDistance, centerX, centerY),
+          getOffset((2 * 2 * Math.PI) / 3, offsetDistance, centerX, centerY),
+          getOffset(2 * Math.PI, offsetDistance, centerX, centerY)
+        ];
+
+        for (let c = 0; c < 3; c += 1) {
+          if (options.squareDots) {
+            outputCtx.fillStyle = colors[c];
+            outputCtx.fillRect(centers[c][0], centers[c][1], radii[c], radii[c]);
+          } else {
+            outputCtx.beginPath();
+            outputCtx.arc(centers[c][0], centers[c][1], radii[c], 0, Math.PI * 2);
+            outputCtx.fillStyle = colors[c];
+            outputCtx.fill();
           }
         }
       }
+    }
+  } else {
+    for (let x = 0; x < input.width; x += size) {
+      for (let y = 0; y < input.height; y += size) {
+        const meanColor = rgba(0, 0, 0, 0);
+        const blockW = Math.min(size, input.width - x);
+        const blockH = Math.min(size, input.height - y);
+        const pixels = blockW * blockH;
 
-      // Quantize mean color via palette — drives dot radii per channel
-      const quantizedColor = paletteGetColor(palette, meanColor, palette.options, options._linearize);
-      if (options._linearize) {
-        quantizedColor[0] = LINEAR_TO_SRGB[Math.round(quantizedColor[0])];
-        quantizedColor[1] = LINEAR_TO_SRGB[Math.round(quantizedColor[1])];
-        quantizedColor[2] = LINEAR_TO_SRGB[Math.round(quantizedColor[2])];
-      }
-      const radii = quantizedColor.map(
-        c => c * (size / 2 / 255) * options.sizeMultiplier
-      );
+        for (let w = 0; w < blockW; w += 1) {
+          for (let h = 0; h < blockH; h += 1) {
+            const sourceIdx = getBufferIndex(x + w, y + h, output.width);
 
-      const colors = [
-        `rgba(255, 0, 0, ${meanColor[3] / 255}`,
-        `rgba(0, 255, 0, ${meanColor[3] / 255}`,
-        `rgba(0, 0, 255, ${meanColor[3] / 255}`
-      ];
+            for (let c = 0; c < 4; c += 1) {
+              meanColor[c] += buf[sourceIdx + c] / pixels;
+            }
+          }
+        }
 
-      const centerX = x + size / 2;
-      const centerY = y + size / 2;
-      const offsetDistance = size * options.offset;
-      const centers = [
-        getOffset((2 * Math.PI) / 3, offsetDistance, centerX, centerY),
-        getOffset((2 * 2 * Math.PI) / 3, offsetDistance, centerX, centerY),
-        getOffset(2 * Math.PI, offsetDistance, centerX, centerY)
-      ];
+        const quantizedColor = paletteGetColor(palette, meanColor, palette.options, false);
+        const radii = quantizedColor.map(
+          c => c * (size / 2 / 255) * options.sizeMultiplier
+        );
 
-      for (let c = 0; c < 3; c += 1) {
-        if (options.squareDots) {
-          outputCtx.fillStyle = colors[c];
-          outputCtx.fillRect(centers[c][0], centers[c][1], radii[c], radii[c]);
-        } else {
-          // Circle
-          outputCtx.beginPath();
-          outputCtx.arc(centers[c][0], centers[c][1], radii[c], 0, Math.PI * 2);
-          outputCtx.fillStyle = colors[c];
-          outputCtx.fill();
+        const colors = [
+          `rgba(255, 0, 0, ${meanColor[3] / 255}`,
+          `rgba(0, 255, 0, ${meanColor[3] / 255}`,
+          `rgba(0, 0, 255, ${meanColor[3] / 255}`
+        ];
+
+        const centerX = x + size / 2;
+        const centerY = y + size / 2;
+        const offsetDistance = size * options.offset;
+        const centers = [
+          getOffset((2 * Math.PI) / 3, offsetDistance, centerX, centerY),
+          getOffset((2 * 2 * Math.PI) / 3, offsetDistance, centerX, centerY),
+          getOffset(2 * Math.PI, offsetDistance, centerX, centerY)
+        ];
+
+        for (let c = 0; c < 3; c += 1) {
+          if (options.squareDots) {
+            outputCtx.fillStyle = colors[c];
+            outputCtx.fillRect(centers[c][0], centers[c][1], radii[c], radii[c]);
+          } else {
+            outputCtx.beginPath();
+            outputCtx.arc(centers[c][0], centers[c][1], radii[c], 0, Math.PI * 2);
+            outputCtx.fillStyle = colors[c];
+            outputCtx.fill();
+          }
         }
       }
     }

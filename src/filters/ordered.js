@@ -7,8 +7,8 @@ import {
   getBufferIndex,
   rgba,
   scaleMatrix,
-  linearizeBuffer,
-  delinearizeBuffer,
+  srgbBufToLinearFloat,
+  linearFloatToSrgbBuf,
   paletteGetColor
 } from "utils";
 
@@ -319,7 +319,6 @@ const ordered = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
-  if (options._linearize) linearizeBuffer(buf);
 
   const threshold = thresholdMaps[thresholdMap];
   const thresholdMapScaled = scaleThresholdMap(
@@ -330,28 +329,50 @@ const ordered = (
   const thresholdMapWidth = threshold.width * thresholdMapScaleX;
   const thresholdMapHeight = threshold.width * thresholdMapScaleY;
 
-  for (let x = 0; x < input.width; x += 1) {
-    for (let y = 0; y < input.height; y += 1) {
-      const tix = x % thresholdMapWidth;
-      const tiy = y % thresholdMapHeight;
-      const i = getBufferIndex(x, y, input.width);
+  if (options._linearize) {
+    const floatBuf = srgbBufToLinearFloat(buf);
+    const stepF = 1.0 / (levels - 1);
+    for (let x = 0; x < input.width; x += 1) {
+      for (let y = 0; y < input.height; y += 1) {
+        const tix = x % thresholdMapWidth;
+        const tiy = y % thresholdMapHeight;
+        const i = getBufferIndex(x, y, input.width);
+        const thresholdValue = thresholdMapScaled[tiy][tix];
 
-      // Ignore alpha channel when calculating error
-      const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-      const orderedColor = getOrderedColor(
-        pixel,
-        levels,
-        tix,
-        tiy,
-        thresholdMapScaled
-      );
-      const color = paletteGetColor(palette, orderedColor, palette.options, options._linearize);
+        const pixel = [floatBuf[i], floatBuf[i + 1], floatBuf[i + 2], floatBuf[i + 3]];
+        const orderedColor = pixel.map((c, ci) => {
+          if (ci === 3) return c;
+          const newColor = c + stepF * (thresholdValue - 0.5);
+          const bucket = Math.round(newColor / stepF);
+          return Math.round(bucket * stepF * 1e6) / 1e6;
+        });
 
-      fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
+        const color = paletteGetColor(palette, orderedColor, palette.options, true);
+        fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
+      }
+    }
+    linearFloatToSrgbBuf(floatBuf, buf);
+  } else {
+    for (let x = 0; x < input.width; x += 1) {
+      for (let y = 0; y < input.height; y += 1) {
+        const tix = x % thresholdMapWidth;
+        const tiy = y % thresholdMapHeight;
+        const i = getBufferIndex(x, y, input.width);
+
+        const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
+        const orderedColor = getOrderedColor(
+          pixel,
+          levels,
+          tix,
+          tiy,
+          thresholdMapScaled
+        );
+        const color = paletteGetColor(palette, orderedColor, palette.options, false);
+        fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
+      }
     }
   }
 
-  if (options._linearize) delinearizeBuffer(buf);
   outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
   return output;
 };

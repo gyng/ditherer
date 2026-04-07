@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, linearizeBuffer, delinearizeBuffer, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, paletteGetColor } from "utils";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25 },
@@ -42,17 +42,29 @@ const pixelate = (
   );
 
   const buf = tempCtx.getImageData(0, 0, temp.width, temp.height).data;
-  if (options._linearize) linearizeBuffer(buf);
-  for (let x = 0; x < temp.width; x += 1) {
-    for (let y = 0; y < temp.height; y += 1) {
-      const i = getBufferIndex(x, y, temp.width);
-      const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-      const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
-      fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
+
+  if (options._linearize) {
+    const floatBuf = srgbBufToLinearFloat(buf);
+    for (let x = 0; x < temp.width; x += 1) {
+      for (let y = 0; y < temp.height; y += 1) {
+        const i = getBufferIndex(x, y, temp.width);
+        const pixel = [floatBuf[i], floatBuf[i + 1], floatBuf[i + 2], floatBuf[i + 3]];
+        const color = paletteGetColor(palette, pixel, palette.options, true);
+        fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
+      }
+    }
+    linearFloatToSrgbBuf(floatBuf, buf);
+  } else {
+    for (let x = 0; x < temp.width; x += 1) {
+      for (let y = 0; y < temp.height; y += 1) {
+        const i = getBufferIndex(x, y, temp.width);
+        const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
+        const color = paletteGetColor(palette, pixel, palette.options, false);
+        fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
+      }
     }
   }
 
-  if (options._linearize) delinearizeBuffer(buf);
   tempCtx.putImageData(new ImageData(buf, temp.width, temp.height), 0, 0);
 
   outputCtx.imageSmoothingEnabled = false;

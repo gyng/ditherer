@@ -8,8 +8,8 @@ import {
   add,
   scale,
   scaleMatrix,
-  linearizeBuffer,
-  delinearizeBuffer
+  srgbBufToLinearFloat,
+  linearFloatToSrgbBuf
 } from "utils";
 
 export const SHARPEN_3X3 = "SHARPEN_3X3";
@@ -195,45 +195,86 @@ const convolve = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
-  if (options._linearize) linearizeBuffer(buf);
-  const outputArray = Array.from(buf);
 
-  for (let x = 0; x < input.width; x += 1) {
-    for (let y = 0; y < input.height; y += 1) {
-      let color = rgba(0, 0, 0, 0);
+  if (options._linearize) {
+    const floatBuf = srgbBufToLinearFloat(buf);
+    const outFloat = new Float32Array(floatBuf.length);
 
-      for (let kx = 0; kx < kernel.width; kx += 1) {
-        for (let ky = 0; ky < kernel.width; ky += 1) {
-          const offset = Math.floor(kernel.width / 2);
-          const ki = getBufferIndex(
-            Math.max(0, x + kx - offset),
-            Math.max(0, y + ky - offset),
-            input.width
-          );
-          const kpx = rgba(
-            buf[ki] || 0,
-            buf[ki + 1] || 0,
-            buf[ki + 2] || 0,
-            buf[ki + 3] || 0
-          );
-          const kfactor = matrix[ky][kx];
+    for (let x = 0; x < input.width; x += 1) {
+      for (let y = 0; y < input.height; y += 1) {
+        let color = rgba(0, 0, 0, 0);
 
-          color = add(color, scale(kpx, kfactor || 0));
+        for (let kx = 0; kx < kernel.width; kx += 1) {
+          for (let ky = 0; ky < kernel.width; ky += 1) {
+            const offset = Math.floor(kernel.width / 2);
+            const ki = getBufferIndex(
+              Math.max(0, x + kx - offset),
+              Math.max(0, y + ky - offset),
+              input.width
+            );
+            const kpx = rgba(
+              floatBuf[ki] || 0,
+              floatBuf[ki + 1] || 0,
+              floatBuf[ki + 2] || 0,
+              floatBuf[ki + 3] || 0
+            );
+            const kfactor = matrix[ky][kx];
+
+            color = add(color, scale(kpx, kfactor || 0));
+          }
         }
+
+        const i = getBufferIndex(x, y, input.width);
+        fillBufferPixel(outFloat, i, color[0], color[1], color[2], floatBuf[i + 3]);
       }
-
-      const i = getBufferIndex(x, y, input.width);
-      fillBufferPixel(outputArray, i, color[0], color[1], color[2], buf[i + 3]);
     }
-  }
 
-  const outputBuf = new Uint8ClampedArray(outputArray);
-  if (options._linearize) delinearizeBuffer(outputBuf);
-  outputCtx.putImageData(
-    new ImageData(outputBuf, output.width, output.height),
-    0,
-    0
-  );
+    const outputBuf = new Uint8ClampedArray(buf.length);
+    linearFloatToSrgbBuf(outFloat, outputBuf);
+    outputCtx.putImageData(
+      new ImageData(outputBuf, output.width, output.height),
+      0,
+      0
+    );
+  } else {
+    const outputArray = Array.from(buf);
+
+    for (let x = 0; x < input.width; x += 1) {
+      for (let y = 0; y < input.height; y += 1) {
+        let color = rgba(0, 0, 0, 0);
+
+        for (let kx = 0; kx < kernel.width; kx += 1) {
+          for (let ky = 0; ky < kernel.width; ky += 1) {
+            const offset = Math.floor(kernel.width / 2);
+            const ki = getBufferIndex(
+              Math.max(0, x + kx - offset),
+              Math.max(0, y + ky - offset),
+              input.width
+            );
+            const kpx = rgba(
+              buf[ki] || 0,
+              buf[ki + 1] || 0,
+              buf[ki + 2] || 0,
+              buf[ki + 3] || 0
+            );
+            const kfactor = matrix[ky][kx];
+
+            color = add(color, scale(kpx, kfactor || 0));
+          }
+        }
+
+        const i = getBufferIndex(x, y, input.width);
+        fillBufferPixel(outputArray, i, color[0], color[1], color[2], buf[i + 3]);
+      }
+    }
+
+    const outputBuf = new Uint8ClampedArray(outputArray);
+    outputCtx.putImageData(
+      new ImageData(outputBuf, output.width, output.height),
+      0,
+      0
+    );
+  }
   return output;
 };
 

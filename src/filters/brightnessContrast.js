@@ -8,8 +8,8 @@ import {
   contrast as contrastFunc,
   brightness as brightnessFunc,
   gamma as gammaFunc,
-  linearizeBuffer,
-  delinearizeBuffer,
+  srgbBufToLinearFloat,
+  linearFloatToSrgbBuf,
   paletteGetColor
 } from "utils";
 
@@ -44,35 +44,76 @@ const brightnessContrast = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
-  if (options._linearize) linearizeBuffer(buf);
-  const outputBuf = new Uint8ClampedArray(buf);
 
-  for (let x = 0; x < input.width; x += 1) {
-    for (let y = 0; y < input.height; y += 1) {
-      const i = getBufferIndex(x, y, input.width);
-      const newColor = gammaFunc(
-        contrastFunc(
-          brightnessFunc(
-            rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]),
-            brightness,
-            exposure
+  if (options._linearize) {
+    const floatBuf = srgbBufToLinearFloat(buf);
+    const outputBuf = new Uint8ClampedArray(buf.length);
+    const outFloat = new Float32Array(floatBuf.length);
+
+    for (let x = 0; x < input.width; x += 1) {
+      for (let y = 0; y < input.height; y += 1) {
+        const i = getBufferIndex(x, y, input.width);
+        // brightness/contrast/gamma operate in 0-255 space, so scale up then back
+        const pixel255 = rgba(
+          floatBuf[i] * 255,
+          floatBuf[i + 1] * 255,
+          floatBuf[i + 2] * 255,
+          floatBuf[i + 3] * 255
+        );
+        const newColor = gammaFunc(
+          contrastFunc(
+            brightnessFunc(pixel255, brightness, exposure),
+            contrast
           ),
-          contrast
-        ),
-        gamma
-      );
-
-      const col = paletteGetColor(palette, newColor, palette.options, options._linearize);
-      fillBufferPixel(outputBuf, i, col[0], col[1], col[2], col[3]);
+          gamma
+        );
+        // Convert result back to 0-1 for paletteGetColor
+        const pixel01 = [
+          newColor[0] / 255,
+          newColor[1] / 255,
+          newColor[2] / 255,
+          newColor[3] / 255
+        ];
+        const col = paletteGetColor(palette, pixel01, palette.options, true);
+        fillBufferPixel(outFloat, i, col[0], col[1], col[2], col[3]);
+      }
     }
-  }
 
-  if (options._linearize) delinearizeBuffer(outputBuf);
-  outputCtx.putImageData(
-    new ImageData(outputBuf, output.width, output.height),
-    0,
-    0
-  );
+    linearFloatToSrgbBuf(outFloat, outputBuf);
+    outputCtx.putImageData(
+      new ImageData(outputBuf, output.width, output.height),
+      0,
+      0
+    );
+  } else {
+    const outputBuf = new Uint8ClampedArray(buf);
+
+    for (let x = 0; x < input.width; x += 1) {
+      for (let y = 0; y < input.height; y += 1) {
+        const i = getBufferIndex(x, y, input.width);
+        const newColor = gammaFunc(
+          contrastFunc(
+            brightnessFunc(
+              rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]),
+              brightness,
+              exposure
+            ),
+            contrast
+          ),
+          gamma
+        );
+
+        const col = paletteGetColor(palette, newColor, palette.options, false);
+        fillBufferPixel(outputBuf, i, col[0], col[1], col[2], col[3]);
+      }
+    }
+
+    outputCtx.putImageData(
+      new ImageData(outputBuf, output.width, output.height),
+      0,
+      0
+    );
+  }
   return output;
 };
 
