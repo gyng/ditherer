@@ -59,6 +59,10 @@ export default class ColorArray extends React.Component {
   }
 
   render() {
+    if (!this.props.value || !Array.isArray(this.props.value)) {
+      return <div>No colors</div>;
+    }
+
     const currentTheme = Object.entries(THEMES).find(
       e => e[1] === this.props.value
     );
