@@ -1,4 +1,4 @@
-import { ENUM, RANGE, PALETTE } from "constants/controlTypes";
+import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import {
   cloneCanvas,
@@ -134,10 +134,10 @@ export const SORTS = {
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.LUMINANCE]: (a, b, dir) => {
+  [COMPARATOR.LUMINANCE]: (a, b, dir, linear = true) => {
     const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
-    const lumA = luminance(a);
-    const lumB = luminance(b);
+    const lumA = luminance(a, linear);
+    const lumB = luminance(b, linear);
     return (lumA - lumB) * dirMul;
   }
 };
@@ -413,7 +413,8 @@ export const optionTypes = {
     step: 1,
     default: 0
   },
-  palette: { type: PALETTE, default: palettes.nearest }
+  palette: { type: PALETTE, default: palettes.nearest },
+  linearLuminance: { type: BOOL, default: true }
 };
 
 export const defaults = {
@@ -421,6 +422,7 @@ export const defaults = {
   sortDirection: optionTypes.sortDirection.default,
   comparator: optionTypes.comparator.default,
   palette: optionTypes.palette.default,
+  linearLuminance: optionTypes.linearLuminance.default,
   sortPixelLuminanceAbove: optionTypes.sortPixelLuminanceAbove.default,
   sortPixelLuminanceBelow: optionTypes.sortPixelLuminanceBelow.default,
   sortPixelLuminanceChangeAbove:
@@ -445,8 +447,11 @@ const pixelsortFilter = (
     sortPixelLuminanceChangeBelow,
     extraIntervalStartChance,
     maxIntervalSize,
-    palette
+    palette,
+    linearLuminance
   } = options;
+
+  const lum = (pixel) => luminance(pixel, linearLuminance);
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -462,7 +467,7 @@ const pixelsortFilter = (
   let interval = newInterval();
 
   const fillInterval = () => {
-    interval.pixels.sort((a, b) => SORTS[comparator](a, b, sortDirection));
+    interval.pixels.sort((a, b) => SORTS[comparator](a, b, sortDirection, linearLuminance));
 
     for (let i = 0; i < interval.trail.length; i += 1) {
       const bufIdx = interval.trail[i];
@@ -493,12 +498,12 @@ const pixelsortFilter = (
       buf[cur.i + 2],
       buf[cur.i + 3]
     );
-    const lum = luminance(pixel);
-    const lumDelta = lastLum != null ? lastLum - lum : 0;
-    lastLum = lum;
+    const pixelLum = lum(pixel);
+    const lumDelta = lastLum != null ? lastLum - pixelLum : 0;
+    lastLum = pixelLum;
 
     const inLuminosityWindow =
-      lum >= sortPixelLuminanceAbove && lum <= sortPixelLuminanceBelow;
+      pixelLum >= sortPixelLuminanceAbove && pixelLum <= sortPixelLuminanceBelow;
 
     const enoughLuminosityDelta =
       lumDelta >= sortPixelLuminanceChangeAbove &&
