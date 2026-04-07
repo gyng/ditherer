@@ -84,8 +84,8 @@ export const FilterProvider = ({ children }) => {
     }
   }, [loadImageAsync, loadVideoAsync]);
 
-  // Async action: filter image (injects _linearize flag)
-  const filterImageAsync = useCallback((input, filterFunc, options) => {
+  // Filter image — reads linearize from state at call time
+  const filterImageAsync = (input, filterFunc, options) => {
     const filterOpts = { ...options, _linearize: state.linearize };
     const output = filterFunc(input, filterOpts, dispatch);
     if (!output) return;
@@ -96,7 +96,7 @@ export const FilterProvider = ({ children }) => {
         dispatch({ type: "FILTER_IMAGE", image: outputImage });
       };
     }
-  }, [state.linearize]);
+  };
 
   const actions = {
     loadMediaAsync,
