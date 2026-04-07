@@ -98,7 +98,7 @@ export const equalize = (
   const factor = 256 / range;
 
   for (let i = 0; i < input.length; i += 1) {
-    input[i] = input[i] - min * factor; // eslint-disable-line
+    input[i] = (input[i] - min) * factor; // eslint-disable-line
   }
 };
 

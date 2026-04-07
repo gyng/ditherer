@@ -35,4 +35,8 @@ export default defineConfig({
     outDir: "build",
   },
   base: "./",
+  test: {
+    globals: false,
+    environment: "node",
+  },
 });
