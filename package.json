@@ -16,6 +16,8 @@
     "stylelint": "stylelint '**/*.css'"
   },
   "dependencies": {
+    "history": "^4.7.2",
+    "lodash.memoize": "^4.1.2",
     "pako": "1.0.6",
     "prop-types": "^15.6.1",
     "react": "^16.2.0",
@@ -26,11 +28,10 @@
     "react-router-dom": "^4.2.2",
     "react-router-redux": "next",
     "redux": "^3.7.2",
-    "redux-thunk": "^2.2.0",
-    "history": "^4.7.2",
-    "lodash.memoize": "^4.1.2"
+    "redux-thunk": "^2.2.0"
   },
   "devDependencies": {
+    "@babel/plugin-transform-flow-strip-types": "^7.27.1",
     "@vitejs/plugin-react": "^4.3.0",
     "babel-eslint": "^8.2.2",
     "chai": "^4.1.2",

@@ -1,5 +1,5 @@
 /* tslint:disable */
-import * as wasm from './rgba2laba_bg';
+import * as wasm from './rgba2laba_bg.wasm';
 
 let cachegetFloat64Memory = null;
 function getFloat64Memory() {

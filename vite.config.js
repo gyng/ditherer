@@ -5,7 +5,15 @@ import topLevelAwait from "vite-plugin-top-level-await";
 import path from "path";
 
 export default defineConfig({
-  plugins: [react(), wasm(), topLevelAwait()],
+  plugins: [
+    react({
+      babel: {
+        plugins: ["@babel/plugin-transform-flow-strip-types"],
+      },
+    }),
+    wasm(),
+    topLevelAwait(),
+  ],
   resolve: {
     alias: {
       "@src": path.resolve(__dirname, "src"),

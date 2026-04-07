@@ -14,7 +14,7 @@ import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 
-import controls from "components/controls/styles.scss";
+import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
 type State = {
