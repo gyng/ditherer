@@ -7,20 +7,63 @@ import {
   WASM_LAB_NEAREST_MEMO_PALETTE
 } from "constants/color";
 
-// Precomputed sRGB ↔ linear LUTs (avoid Math.pow per pixel)
-// SRGB_TO_LINEAR_Q maps sRGB 0-255 → quantized linear 0-255
-// LINEAR_TO_SRGB is the exact inverse: for each quantized linear value,
-// which sRGB value produced it?
-const SRGB_TO_LINEAR_Q = new Uint8Array(256);
-export const LINEAR_TO_SRGB = new Uint8Array(256);
+// --- sRGB ↔ linear conversion (float precision) ---
 
+// LUT: sRGB 0-255 → linear float 0.0-1.0
+const SRGB_TO_LINEAR_F = new Float32Array(256);
 for (let i = 0; i < 256; i++) {
   const s = i / 255;
-  const linear = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  SRGB_TO_LINEAR_Q[i] = Math.round(linear * 255);
+  SRGB_TO_LINEAR_F[i] = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
 }
-// Build inverse: for each quantized linear value, find the closest sRGB value.
-// Multiple sRGB values may map to the same linear value — pick the middle one.
+
+// Linear float → sRGB 0-255
+const linearFloatToSrgb = (l) => {
+  const s = l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055;
+  return Math.round(Math.max(0, Math.min(1, s)) * 255);
+};
+
+// Convert sRGB Uint8 buffer → Float32Array in linear 0.0-1.0 range
+export const srgbBufToLinearFloat = (buf) => {
+  const out = new Float32Array(buf.length);
+  for (let i = 0; i < buf.length; i += 4) {
+    out[i]     = SRGB_TO_LINEAR_F[buf[i]];
+    out[i + 1] = SRGB_TO_LINEAR_F[buf[i + 1]];
+    out[i + 2] = SRGB_TO_LINEAR_F[buf[i + 2]];
+    out[i + 3] = buf[i + 3] / 255;
+  }
+  return out;
+};
+
+// Convert linear Float32Array → sRGB Uint8ClampedArray
+export const linearFloatToSrgbBuf = (floats, out) => {
+  for (let i = 0; i < floats.length; i += 4) {
+    out[i]     = linearFloatToSrgb(floats[i]);
+    out[i + 1] = linearFloatToSrgb(floats[i + 1]);
+    out[i + 2] = linearFloatToSrgb(floats[i + 2]);
+    out[i + 3] = Math.round(Math.max(0, Math.min(1, floats[i + 3])) * 255);
+  }
+};
+
+// Single-color: sRGB [0-255] → linear float [0-1]
+export const linearizeColorF = (c) => [
+  SRGB_TO_LINEAR_F[c[0]],
+  SRGB_TO_LINEAR_F[c[1]],
+  SRGB_TO_LINEAR_F[c[2]],
+  c[3] / 255
+];
+
+// Single-color: linear float [0-1] → sRGB [0-255]
+export const delinearizeColorF = (c) => [
+  linearFloatToSrgb(c[0]),
+  linearFloatToSrgb(c[1]),
+  linearFloatToSrgb(c[2]),
+  Math.round(Math.max(0, Math.min(1, c[3])) * 255)
+];
+
+// --- Legacy 8-bit linearize (kept for simple filters) ---
+const SRGB_TO_LINEAR_Q = new Uint8Array(256);
+export const LINEAR_TO_SRGB = new Uint8Array(256);
+for (let i = 0; i < 256; i++) SRGB_TO_LINEAR_Q[i] = Math.round(SRGB_TO_LINEAR_F[i] * 255);
 {
   const buckets = Array.from({ length: 256 }, () => []);
   for (let i = 0; i < 256; i++) buckets[SRGB_TO_LINEAR_Q[i]].push(i);
@@ -28,11 +71,10 @@ for (let i = 0; i < 256; i++) {
     const b = buckets[q];
     LINEAR_TO_SRGB[q] = b.length > 0 ? b[Math.floor(b.length / 2)] : 0;
   }
-  LINEAR_TO_SRGB[0] = 0;     // black roundtrips exactly
-  LINEAR_TO_SRGB[255] = 255; // white roundtrips exactly
+  LINEAR_TO_SRGB[0] = 0;
+  LINEAR_TO_SRGB[255] = 255;
 }
 
-// Mutate RGBA buffer in place. Skip alpha channel.
 export const linearizeBuffer = (buf) => {
   for (let i = 0; i < buf.length; i += 4) {
     buf[i]     = SRGB_TO_LINEAR_Q[buf[i]];
@@ -49,50 +91,19 @@ export const delinearizeBuffer = (buf) => {
   }
 };
 
-// Linearize a single RGBA color (sRGB → linear)
-export const linearizeColor = (c) => [
-  SRGB_TO_LINEAR_Q[c[0]],
-  SRGB_TO_LINEAR_Q[c[1]],
-  SRGB_TO_LINEAR_Q[c[2]],
-  c[3]
-];
+// --- Palette color matching ---
 
-// Delinearize a single RGBA color (linear → sRGB)
-export const delinearizeColor = (c) => [
-  LINEAR_TO_SRGB[Math.min(255, Math.max(0, Math.round(c[0])))],
-  LINEAR_TO_SRGB[Math.min(255, Math.max(0, Math.round(c[1])))],
-  LINEAR_TO_SRGB[Math.min(255, Math.max(0, Math.round(c[2])))],
-  c[3]
-];
-
-// Cache for linearized palette colors (keyed by palette name + colors identity)
-const linearPaletteCache = new WeakMap();
-
-// Get palette color match in the correct space.
-// When isLinear=true, both pixel and palette colors are linearized before
-// distance comparison, so matching is perceptually correct in linear space.
+// Palette matching for linearized pipeline.
+// Pixel is in linear float 0-1 when isLinear=true.
+// Palette colors are always defined in sRGB 0-255.
 export const paletteGetColor = (palette, pixel, options, isLinear) => {
   if (!isLinear) return palette.getColor(pixel, options);
 
-  // For palettes with explicit color arrays (user/adaptive), linearize
-  // the palette colors for matching, then return the linear result.
-  if (options && options.colors && Array.isArray(options.colors)) {
-    // Cache linearized palette colors to avoid per-pixel conversion
-    let linearColors = linearPaletteCache.get(options.colors);
-    if (!linearColors) {
-      linearColors = options.colors.map(c => linearizeColor(c));
-      linearPaletteCache.set(options.colors, linearColors);
-    }
-    const linearOpts = { ...options, colors: linearColors };
-    // pixel is already linear, palette colors are now linear — match in linear space
-    return palette.getColor(pixel, linearOpts);
-  }
-
-  // For palettes without explicit colors (e.g., nearest/quantize),
-  // delinearize pixel for matching, re-linearize result
-  const srgbPixel = delinearizeColor(pixel);
+  // Convert linear float pixel → sRGB 0-255 for matching
+  const srgbPixel = delinearizeColorF(pixel);
   const match = palette.getColor(srgbPixel, options);
-  return linearizeColor(match);
+  // Convert matched sRGB color → linear float
+  return linearizeColorF(match);
 };
 
 const memoize = (fn) => {
