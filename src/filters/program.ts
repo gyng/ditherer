@@ -62,10 +62,10 @@ const programFilter = (
       const i = getBufferIndex(x, y, w);
       const p = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
        
-      let r = p[0];
-      let g = p[1];
-      let b = p[2];
-      let a = p[3];
+      const r = p[0];
+      const g = p[1];
+      const b = p[2];
+      const a = p[3];
 
       try {
         eval(program);
