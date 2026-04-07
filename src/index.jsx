@@ -1,103 +1,70 @@
 // @flow
-/* eslint-disable no-underscore-dangle */
-
 import React from "react";
-import ReactDOM from "react-dom";
-import { createStore, combineReducers, applyMiddleware, compose } from "redux";
-import { Provider } from "react-redux";
-import thunkMiddleware from "redux-thunk";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import createHistory from "history/createBrowserHistory";
-import { Route } from "react-router-dom";
-import {
-  ConnectedRouter,
-  routerReducer,
-  routerMiddleware
-} from "react-router-redux";
-
-import App from "containers/App";
-import reducers from "reducers";
-
-import { THEMES } from "palettes/user";
+import App from "components/App";
+import { FilterProvider, useFilter } from "context/FilterContext";
 import { PALETTE } from "constants/optionTypes";
+import { THEMES } from "palettes/user";
+import { filterList } from "filters";
 
 import s from "styles/style.module.css";
 
-import { filterList } from "filters";
-import { selectFilter, importState } from "actions";
-
-// Redux devtools are still enabled in production!
-const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
-  ? window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__({
-      actionsBlacklist: []
-    })
-  : compose;
-
-const appReducer = combineReducers({
-  ...reducers,
-  router: routerReducer
-});
-
-const history = createHistory();
-const middleware = [thunkMiddleware, routerMiddleware(history)];
-
-const store = createStore(
-  appReducer,
-  composeEnhancers(applyMiddleware(...middleware))
-);
-
-// Load localStorage
+// Load localStorage palettes
 Object.values(localStorage).forEach(json => {
   try {
     if (typeof json !== "string") return;
     const option = JSON.parse(json);
     if (!option || !option.type) return;
-
     if (option.type === PALETTE) {
       THEMES[option.name] = option.colors;
     }
   } catch (e) {
-    // console.log("Not an option", json); // eslint-disable-line
+    // ignore invalid localStorage entries
   }
 });
 
-// Check for params
-if (window.URLSearchParams && window.location.search) {
-  const params = new URLSearchParams(window.location.search);
+// Wrapper to handle URL params on mount
+const AppWithParams = () => {
+  const { actions } = useFilter();
 
-  // Algorithm
-  const alg = params.get("alg");
-  const filters = filterList;
-  const selectedFilterOption = filters.find(
-    f => f && f.displayName && f.displayName === alg
-  );
-  const selectedFilter = selectedFilterOption;
-  if (alg && selectedFilter != null) {
-    // $FlowFixMe
-    store.dispatch(selectFilter(alg, selectedFilterOption));
-  }
-
-  const state = params.get("state");
-  try {
-    const decoded = window.atob(state);
-    if (state && decoded) {
-      store.dispatch(importState(decoded));
+  React.useEffect(() => {
+    if (window.URLSearchParams && window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      const alg = params.get("alg");
+      const selectedFilter = filterList.find(
+        f => f && f.displayName && f.displayName === alg
+      );
+      if (alg && selectedFilter) {
+        actions.selectFilter(alg, selectedFilter);
+      }
+      const stateParam = params.get("state");
+      try {
+        const decoded = window.atob(stateParam);
+        if (stateParam && decoded) {
+          actions.importState(decoded);
+        }
+      } catch (e) {
+        console.warn("Invalid state:", e); // eslint-disable-line
+      }
     }
-  } catch (e) {
-    console.warn("Invalid state:", e); // eslint-disable-line
-  }
-}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <App className={s.app} />;
+};
 
 const root = document.getElementById("root");
-if (root != null) {
-  ReactDOM.render(
-    <Provider store={store}>
-      <ConnectedRouter history={history}>
-        <div style={{ height: "100%" }}>
-          <Route path="/" component={App} className={s.app} />
-        </div>
-      </ConnectedRouter>
-    </Provider>,
-    root
+if (root) {
+  createRoot(root).render(
+    <React.StrictMode>
+      <FilterProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<AppWithParams />} />
+          </Routes>
+        </BrowserRouter>
+      </FilterProvider>
+    </React.StrictMode>
   );
 }

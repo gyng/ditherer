@@ -1,7 +1,4 @@
 // @flow
-
-/* eslint-disable react/no-unused-prop-types */
-
 import React from "react";
 
 import {
@@ -14,7 +11,7 @@ import {
   PALETTE
 } from "constants/controlTypes";
 
-import type { ColorRGBA, OptionTypes } from "types";
+import { useFilter } from "context/FilterContext";
 
 import Enum from "./Enum";
 import Palette from "./Palette";
@@ -26,111 +23,104 @@ import ColorArray from "./ColorArray";
 
 import s from "./styles.module.css";
 
-const Controls = (props: {
-  options: { [string]: any },
-  optionTypes: OptionTypes,
-  inputCanvas: ?HTMLCanvasElement,
-  onAddPaletteColor: ColorRGBA => {},
-  onSetFilterOption: (string, any) => {},
-  onSetPaletteOption: (string, any) => {},
-  onSaveColorPalette: (string, Array<ColorRGBA>) => {},
-  onDeleteColorPalette: string => {}
-}) => (
-  <div className={s.controls}>
-    {Object.entries(props.optionTypes).map(e => {
-      const [name, oType] = e;
+const Controls = ({ inputCanvas }) => {
+  const { state, actions } = useFilter();
+  const optionTypes = state.selected.filter.optionTypes;
+  const options = state.selected.filter.options;
 
-      // $FlowFixMe
-      switch (oType.type) {
-        case RANGE:
-          return (
-            // $FlowFixMe
-            <Range
-              key={name}
-              name={name}
-              types={oType}
-              value={props.options[name]}
-              // $FlowFixMe
-              step={oType && oType.step}
-              onSetFilterOption={props.onSetFilterOption}
-            />
-          );
-        case PALETTE:
-          return (
-            <Palette
-              key={name}
-              name={name}
-              types={oType}
-              value={props.options[name]}
-              paletteOptions={props.options[name].options}
-              onAddPaletteColor={props.onAddPaletteColor}
-              onSetFilterOption={props.onSetFilterOption}
-              onSetPaletteOption={props.onSetPaletteOption}
-              onSaveColorPalette={props.onSaveColorPalette}
-              onDeleteColorPalette={props.onDeleteColorPalette}
-              inputCanvas={props.inputCanvas}
-            />
-          );
-        case COLOR_ARRAY:
-          return (
-            <ColorArray
-              key={name}
-              name={name}
-              value={props.options.colors}
-              onAddPaletteColor={props.onAddPaletteColor}
-              onSetFilterOption={props.onSetFilterOption}
-              onSetPaletteOption={props.onSetPaletteOption}
-              onSaveColorPalette={props.onSaveColorPalette}
-              onDeleteColorPalette={props.onDeleteColorPalette}
-              inputCanvas={props.inputCanvas}
-            />
-          );
-        case STRING:
-          return (
-            <Stringly
-              key={name}
-              name={name}
-              types={oType}
-              value={props.options[name]}
-              onSetFilterOption={props.onSetFilterOption}
-            />
-          );
-        case TEXT:
-          return (
-            <Textly
-              key={name}
-              name={name}
-              types={oType}
-              value={props.options[name]}
-              onSetFilterOption={props.onSetFilterOption}
-            />
-          );
-        case BOOL:
-          return (
-            <Bool
-              key={name}
-              name={name}
-              types={oType}
-              value={props.options[name]}
-              onSetFilterOption={props.onSetFilterOption}
-            />
-          );
-        case ENUM:
-          return (
-            // $FlowFixMe
-            <Enum
-              key={name}
-              name={name}
-              types={oType}
-              value={props.options[name]}
-              onSetFilterOption={props.onSetFilterOption}
-            />
-          );
-        default:
-          return <div>Unknown setting type</div>;
-      }
-    })}
-  </div>
-);
+  return (
+    <div className={s.controls}>
+      {Object.entries(optionTypes).map(e => {
+        const [name, oType] = e;
+
+        switch (oType.type) {
+          case RANGE:
+            return (
+              <Range
+                key={name}
+                name={name}
+                types={oType}
+                value={options[name]}
+                step={oType && oType.step}
+                onSetFilterOption={actions.setFilterOption}
+              />
+            );
+          case PALETTE:
+            return (
+              <Palette
+                key={name}
+                name={name}
+                types={oType}
+                value={options[name]}
+                paletteOptions={options[name].options}
+                onAddPaletteColor={actions.addPaletteColor}
+                onSetFilterOption={actions.setFilterOption}
+                onSetPaletteOption={actions.setFilterPaletteOption}
+                onSaveColorPalette={actions.saveCurrentColorPalette}
+                onDeleteColorPalette={actions.deleteCurrentColorPalette}
+                inputCanvas={inputCanvas}
+              />
+            );
+          case COLOR_ARRAY:
+            return (
+              <ColorArray
+                key={name}
+                name={name}
+                value={options.colors}
+                onAddPaletteColor={actions.addPaletteColor}
+                onSetFilterOption={actions.setFilterOption}
+                onSetPaletteOption={actions.setFilterPaletteOption}
+                onSaveColorPalette={actions.saveCurrentColorPalette}
+                onDeleteColorPalette={actions.deleteCurrentColorPalette}
+                inputCanvas={inputCanvas}
+              />
+            );
+          case STRING:
+            return (
+              <Stringly
+                key={name}
+                name={name}
+                types={oType}
+                value={options[name]}
+                onSetFilterOption={actions.setFilterOption}
+              />
+            );
+          case TEXT:
+            return (
+              <Textly
+                key={name}
+                name={name}
+                types={oType}
+                value={options[name]}
+                onSetFilterOption={actions.setFilterOption}
+              />
+            );
+          case BOOL:
+            return (
+              <Bool
+                key={name}
+                name={name}
+                types={oType}
+                value={options[name]}
+                onSetFilterOption={actions.setFilterOption}
+              />
+            );
+          case ENUM:
+            return (
+              <Enum
+                key={name}
+                name={name}
+                types={oType}
+                value={options[name]}
+                onSetFilterOption={actions.setFilterOption}
+              />
+            );
+          default:
+            return <div>Unknown setting type</div>;
+        }
+      })}
+    </div>
+  );
+};
 
 export default Controls;

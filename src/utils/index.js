@@ -16,7 +16,16 @@ import type {
   AppState
 } from "types";
 
-import memoize from "lodash.memoize";
+const memoize = (fn) => {
+  const cache = new Map();
+  return (...args) => {
+    const key = String(args[0]);
+    if (cache.has(key)) return cache.get(key);
+    const result = fn(...args);
+    cache.set(key, result);
+    return result;
+  };
+};
 
 const rust = import("wasm/rgba2laba/wasm/rgba2laba");
 

@@ -21,6 +21,7 @@ export default defineConfig({
       components: path.resolve(__dirname, "src/components"),
       constants: path.resolve(__dirname, "src/constants"),
       containers: path.resolve(__dirname, "src/containers"),
+      context: path.resolve(__dirname, "src/context"),
       filters: path.resolve(__dirname, "src/filters"),
       palettes: path.resolve(__dirname, "src/palettes"),
       reducers: path.resolve(__dirname, "src/reducers"),
