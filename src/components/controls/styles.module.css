@@ -1,9 +1,3 @@
-:root {
-  --gray: #bfbfbf;
-  --light-gray: #bfbfbf;
-  --beautiful-blue: #000080;
-}
-
 .controls {
   display: flex;
   flex-direction: column;
