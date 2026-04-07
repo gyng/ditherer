@@ -54,23 +54,30 @@ Linearization is correct for blur (Gaussian, box) and edge detection (Laplacian,
 
 ## Design
 
-### Linearize at filter boundaries with per-filter toggle
+### Global toggle, applied at filter boundaries
 
-Add `linearizeBuffer`/`delinearizeBuffer` calls at the entry and exit of each affected filter:
+Add a single `linearize` boolean to the app state, next to the existing `convertGrayscale` toggle. Filters that support linearization receive the flag and wrap their pixel processing.
+
+```
+UI:  [x] Linearize (gamma-correct)     ← new global checkbox
+     [x] Pre-convert to grayscale      ← existing
+```
+
+The flag is passed to each filter call as `options._linearize` (underscore prefix to distinguish from filter-specific options). Each affected filter checks it and wraps accordingly:
 
 ```javascript
 const filter = (input, options) => {
   const imageData = inputCtx.getImageData(0, 0, w, h);
-  if (options.linearize) linearizeBuffer(imageData.data);
-  // ... existing filter logic, operates on 0-255 values as before ...
-  if (options.linearize) delinearizeBuffer(imageData.data);
+  if (options._linearize) linearizeBuffer(imageData.data);
+  // ... existing filter logic unchanged ...
+  if (options._linearize) delinearizeBuffer(imageData.data);
   outputCtx.putImageData(imageData, 0, 0);
 };
 ```
 
-Each affected filter gets a `linearize: { type: BOOL, default: true }` option. The toggle appears in the UI automatically via the existing data-driven controls system.
+Filters that shouldn't linearize (glitch, VHS, invert, etc.) simply don't check the flag.
 
-**Why per-filter, not global:** Filters like glitch and VHS should never linearize. Per-filter also means filters that use intermediate buffers (brightnessContrast, convolve) can linearize at the right boundary. And users get artistic control.
+**Why global, not per-filter:** One toggle is simpler UX. The flag is conceptually the same as "pre-convert to grayscale" — a pipeline-level setting, not a filter parameter. Filters that ignore it (glitch, VHS) do so silently. Users who want the non-linear artistic look uncheck one box.
 
 ## Implementation
 
@@ -113,69 +120,79 @@ export const delinearizeBuffer = (buf) => {
 
 Note: both LUTs are 256-entry (input is always 0-255 `Uint8ClampedArray`). The `delinearizeBuffer` LUT maps linearized-then-quantized-to-0-255 values back to sRGB. Roundtrip error is ±1 due to quantization.
 
-### 2. Add option to affected filters
+### 2. Add global state + UI
 
-Each filter's `optionTypes` gets:
+In `src/reducers/filters.js`, add to `initialState`:
 ```javascript
-linearize: { type: BOOL, default: true }
+linearize: true
 ```
 
-And `defaults` gets:
+Add reducer case:
 ```javascript
-linearize: optionTypes.linearize.default
+case "SET_LINEARIZE":
+  return { ...state, linearize: action.value };
 ```
 
-### 3. Wrap each filter
+In `src/context/FilterContext.jsx`, add action:
+```javascript
+setLinearize: (value) => dispatch({ type: "SET_LINEARIZE", value })
+```
+
+In `src/components/App/index.jsx`, add checkbox next to "Pre-convert to grayscale":
+```jsx
+<input type="checkbox" checked={state.linearize}
+  onChange={e => actions.setLinearize(e.target.checked)} />
+<span>Linearize (gamma-correct)</span>
+```
+
+### 3. Pass flag to filters
+
+In `FilterContext.filterImageAsync` and the realtime filtering path in the reducer, inject the flag into filter options:
+
+```javascript
+const filterOpts = { ...filter.options, _linearize: state.linearize };
+const output = filterFunc(input, filterOpts);
+```
+
+### 4. Wrap each affected filter
 
 **Standard pattern** (errorDiffusion, ordered, random, binarize, quantize, grayscale):
 ```javascript
 const buf = inputCtx.getImageData(0, 0, w, h);
-if (options.linearize) linearizeBuffer(buf.data);
+if (options._linearize) linearizeBuffer(buf.data);
 // ... existing logic ...
-if (options.linearize) delinearizeBuffer(buf.data);
+if (options._linearize) delinearizeBuffer(buf.data);
 outputCtx.putImageData(buf, 0, 0);
 ```
 
 **Dual-buffer pattern** (brightnessContrast, convolve — read from input, write to separate output buf):
 ```javascript
 const inputBuf = inputCtx.getImageData(0, 0, w, h).data;
-if (options.linearize) linearizeBuffer(inputBuf);
+if (options._linearize) linearizeBuffer(inputBuf);
 // ... existing logic writes to outputBuf ...
-if (options.linearize) delinearizeBuffer(outputBuf);
+if (options._linearize) delinearizeBuffer(outputBuf);
 outputCtx.putImageData(new ImageData(outputBuf, w, h), 0, 0);
 ```
 
-**Halftone** (reads buffer, writes via canvas draw):
+**Halftone** (reads buffer, writes via canvas draw — per-color delinearize):
 ```javascript
 const buf = inputCtx.getImageData(0, 0, w, h).data;
-if (options.linearize) linearizeBuffer(buf);
-// ... existing block averaging + canvas drawing ...
-// No delinearize — output is drawn via arc()/fillRect() with computed colors
-// Colors derived from linearized buffer are already correct for display
-```
-
-Wait — halftone computes mean color from the buffer, then draws colored dots via canvas API. The mean color needs to be delinearized before being used as a CSS `rgba()` color string. This means halftone needs linearize on input and delinearize on the computed colors, not the buffer.
-
-**Revised halftone pattern:**
-```javascript
-const buf = inputCtx.getImageData(0, 0, w, h).data;
-if (options.linearize) linearizeBuffer(buf);
+if (options._linearize) linearizeBuffer(buf);
 // ... compute meanColor from buffer (now in linear space) ...
 // ... quantize meanColor ...
-// Delinearize the computed color before using it for canvas drawing
-if (options.linearize) {
-  meanColor[0] = LINEAR_TO_SRGB[meanColor[0]];
-  meanColor[1] = LINEAR_TO_SRGB[meanColor[1]];
-  meanColor[2] = LINEAR_TO_SRGB[meanColor[2]];
+if (options._linearize) {
+  meanColor[0] = LINEAR_TO_SRGB[Math.round(meanColor[0])];
+  meanColor[1] = LINEAR_TO_SRGB[Math.round(meanColor[1])];
+  meanColor[2] = LINEAR_TO_SRGB[Math.round(meanColor[2])];
 }
 // ... draw dots with delinearized colors ...
 ```
 
-### 4. Update Grayscale
+### 5. Update Grayscale
 
-Replace `(R+G+B)/3` with the existing `luminance()` function for the linearized path:
+When linearized, use weighted luminance instead of naive `(R+G+B)/3`:
 ```javascript
-if (options.linearize) {
+if (options._linearize) {
   linearizeBuffer(buf);
   for (let i = 0; i < buf.length; i += 4) {
     const gray = Math.round(0.299 * buf[i] + 0.587 * buf[i+1] + 0.114 * buf[i+2]);
@@ -187,9 +204,13 @@ if (options.linearize) {
 }
 ```
 
-### 5. Error diffusion precision
+### 6. Filters that ignore the flag
 
-Error diffusion uses `Array.from(buf)` to get a full-precision error buffer (not clamped). When linearizing, the error calculations benefit from the linear space. No special handling needed — just linearize the buffer before the existing logic runs, delinearize after.
+These filters don't check `options._linearize` — the underscore-prefixed key is simply ignored:
+- Pixelsort (has its own `linearLuminance` toggle already)
+- Invert, Channel separation
+- Glitch, VHS, Scanline, RGB Stripe
+- Program
 
 ## Tests
 
@@ -201,12 +222,14 @@ Error diffusion uses `Array.from(buf)` to get a full-precision error buffer (not
 ## Execution order
 
 1. Add `linearizeBuffer`/`delinearizeBuffer` to utils + roundtrip/known-value tests
-2. Add to error diffusion factory (covers all 11 variants at once — biggest impact)
-3. Add to convolution and grayscale
-4. Add to ordered dithering + random dithering
-5. Add to binarize, quantize, pixelate, brightnessContrast
-6. Add to halftone (special case — per-color delinearization)
-7. Visual testing with sample images
+2. Add `linearize` to app state, reducer, context, and UI checkbox
+3. Pass `_linearize` flag through filter call sites
+4. Add to error diffusion factory (covers all 11 variants at once — biggest impact)
+5. Add to convolution and grayscale
+6. Add to ordered dithering + random dithering
+7. Add to binarize, quantize, pixelate, brightnessContrast
+8. Add to halftone (special case — per-color delinearization)
+9. Visual testing with sample images
 
 ## Performance
 
