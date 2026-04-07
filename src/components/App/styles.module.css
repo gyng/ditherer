@@ -38,36 +38,34 @@
   min-width: 210px;
   width: 10vw;
   padding: 15px;
+}
 
-  .filterButton {
-    padding: 20px;
-    width: 100%;
-  }
+.chrome .filterButton {
+  padding: 20px;
+  width: 100%;
+}
 
-  .waitButton {
-    &:active::after {
-      position: absolute;
-      transform: translateX(-25px) translateY(-2px);
-      content: "\1F55B";
-      animation: timer 0.5s linear infinite;
-    }
-  }
+.chrome .waitButton:active::after {
+  position: absolute;
+  transform: translateX(-25px) translateY(-2px);
+  content: "\1F55B";
+  animation: timer 0.5s linear infinite;
+}
 
-  .copyButton {
-    margin-top: 10px;
-  }
+.chrome .copyButton {
+  margin-top: 10px;
+}
 
-  .section:not(:first-child) {
-    margin-top: 20px;
-  }
+.chrome .section:not(:first-child) {
+  margin-top: 20px;
+}
 
-  .captureSection {
-    max-width: 210px;
-  }
+.chrome .captureSection {
+  max-width: 210px;
+}
 
-  .github {
-    margin-top: auto;
-  }
+.chrome .github {
+  margin-top: auto;
 }
 
 .hide {
@@ -85,17 +83,17 @@
 
 .canvases {
   display: grid;
+}
 
-  > div {
-    background-color: var(--light-gray);
-    position: fixed;
-    margin: 10px;
-    display: table;
-    grid-column: 1;
-    grid-row: 1;
-  }
+.canvases > div {
+  background-color: var(--light-gray);
+  position: fixed;
+  margin: 10px;
+  display: table;
+  grid-column: 1;
+  grid-row: 1;
+}
 
-  .canvas {
-    display: block;
-  }
+.canvases .canvas {
+  display: block;
 }

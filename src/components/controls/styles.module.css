@@ -18,16 +18,16 @@
 }
 
 .group {
-  .name {
-    background-color: var(--light-gray);
-    padding: 0 3px;
-    position: relative;
-    top: -9px;
-  }
-
   border: 2px groove var(--gray);
   padding: 0 3px 3px;
   margin-top: 10px;
+}
+
+.group .name {
+  background-color: var(--light-gray);
+  padding: 0 3px;
+  position: relative;
+  top: -9px;
 }
 
 .enum {
@@ -42,42 +42,42 @@
   max-height: 40vh;
   overflow-y: auto;
   padding: 5px 0;
+}
 
-  .color {
-    min-height: 16px;
-    min-width: 16px;
-    cursor: pointer;
+.colorArray .color {
+  min-height: 16px;
+  min-width: 16px;
+  cursor: pointer;
+}
 
-    &:hover {
-      outline: 2px solid var(--beautiful-blue);
-      transform: scale(1.2);
-    }
+.colorArray .color:hover {
+  outline: 2px solid var(--beautiful-blue);
+  transform: scale(1.2);
+}
 
-    &:active {
-      transform: scale(0.8);
-    }
-  }
+.colorArray .color:active {
+  transform: scale(0.8);
 }
 
 .range {
-  .rangeGroup {
-    display: flex;
-    flex-direction: row;
-
-    > input[type=range] {
-      flex: 1;
-      margin: 0;
-    }
-  }
-
-  .value {
-    text-align: right;
-    min-width: 35px;
-    user-select: none;
-    cursor: default;
-  }
-
   margin-top: 5px;
+}
+
+.range .rangeGroup {
+  display: flex;
+  flex-direction: row;
+}
+
+.range .rangeGroup > input[type=range] {
+  flex: 1;
+  margin: 0;
+}
+
+.range .value {
+  text-align: right;
+  min-width: 35px;
+  user-select: none;
+  cursor: default;
 }
 
 .file {
@@ -128,18 +128,20 @@ button,
   margin: 1px;
   outline: none;
   user-select: none;
+}
 
-  &:active {
-    border: 2px inset var(--gray);
-    border-bottom: 1px outset var(--gray);
-    border-right: 1px outset var(--gray);
-  }
+button:active,
+.button:active {
+  border: 2px inset var(--gray);
+  border-bottom: 1px outset var(--gray);
+  border-right: 1px outset var(--gray);
+}
 
-  &:focus {
-    outline: 1px dotted black;
-    outline-offset: -5px;
-    box-shadow: 2px 0 black, 0 2px black, 2px 2px black;
-  }
+button:focus,
+.button:focus {
+  outline: 1px dotted black;
+  outline-offset: -5px;
+  box-shadow: 2px 0 black, 0 2px black, 2px 2px black;
 }
 
 .titleBar {
@@ -164,10 +166,10 @@ button,
 
 .clickable {
   cursor: text !important;
+}
 
-  &:hover {
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
-  }
+.clickable:hover {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
 }
 
 .unselectable {
