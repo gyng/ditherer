@@ -4,7 +4,7 @@
 
 import React from "react";
 
-import s from "./styles.scss";
+import s from "./styles.module.css";
 
 const Bool = (props: {
   name: string,

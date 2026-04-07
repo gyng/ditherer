@@ -11,7 +11,7 @@ import type { ColorRGBA } from "types";
 import type { AdaptMode, ColorMode } from "utils";
 
 import Enum from "./Enum";
-import s from "./styles.scss";
+import s from "./styles.module.css";
 
 export const TOP = "TOP";
 export const RGB_ADAPT_MID = "RGB_ADAPT_MID";

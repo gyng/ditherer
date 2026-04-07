@@ -1,6 +1,8 @@
-$gray: #bfbfbf;
-$light-gray: #bfbfbf;
-$beautiful-blue: #000080;
+:root {
+  --gray: #bfbfbf;
+  --light-gray: #bfbfbf;
+  --beautiful-blue: #000080;
+}
 
 .controls {
   display: flex;
@@ -9,7 +11,7 @@ $beautiful-blue: #000080;
 
 .control {
   border: 1px outset #fff;
-  background: $light-gray;
+  background: var(--light-gray);
   padding: 3px;
 }
 
@@ -23,13 +25,13 @@ $beautiful-blue: #000080;
 
 .group {
   .name {
-    background-color: $light-gray;
+    background-color: var(--light-gray);
     padding: 0 3px;
     position: relative;
     top: -9px;
   }
 
-  border: 2px groove $gray;
+  border: 2px groove var(--gray);
   padding: 0 3px 3px;
   margin-top: 10px;
 }
@@ -53,7 +55,7 @@ $beautiful-blue: #000080;
     cursor: pointer;
 
     &:hover {
-      outline: 2px solid $beautiful-blue;
+      outline: 2px solid var(--beautiful-blue);
       transform: scale(1.2);
     }
 
@@ -91,7 +93,7 @@ $beautiful-blue: #000080;
 }
 
 .dropping {
-  outline: 2px solid $beautiful-blue;
+  outline: 2px solid var(--beautiful-blue);
 }
 
 .checkbox {
@@ -122,11 +124,11 @@ textarea {
 
 button,
 .button {
-  background-color: $light-gray;
+  background-color: var(--light-gray);
   border-left: 2px outset white;
   border-top: 2px outset white;
-  border-bottom: 1px outset $gray;
-  border-right: 1px outset $gray;
+  border-bottom: 1px outset var(--gray);
+  border-right: 1px outset var(--gray);
   box-shadow: 1px 1px 0 black;
   padding: 3px 6px;
   margin: 1px;
@@ -134,9 +136,9 @@ button,
   user-select: none;
 
   &:active {
-    border: 2px inset $gray;
-    border-bottom: 1px outset $gray;
-    border-right: 1px outset $gray;
+    border: 2px inset var(--gray);
+    border-bottom: 1px outset var(--gray);
+    border-right: 1px outset var(--gray);
   }
 
   &:focus {
@@ -147,7 +149,7 @@ button,
 }
 
 .titleBar {
-  background: linear-gradient(90deg, $beautiful-blue, #1c85ce);
+  background: linear-gradient(90deg, var(--beautiful-blue), #1c85ce);
   align-items: center;
   display: flex;
   padding: 2px 6px;
@@ -162,8 +164,8 @@ button,
 .window {
   border-left: 2px outset white;
   border-top: 2px outset white;
-  border-bottom: 1px outset $gray;
-  border-right: 1px outset $gray;
+  border-bottom: 1px outset var(--gray);
+  border-right: 1px outset var(--gray);
 }
 
 .clickable {

@@ -1,8 +1,10 @@
-/* A postcss-import import, relative resolution */
+/* Imported values, resolving from src/ */
 @import './typography.css';
+@import './example.module.css';
 
-/* Imported values, resolving from src/ (configured in postcss.config.js) */
-@import 'styles/example.scss';
+:root {
+  --bg-color: rgba(38, 38, 38);
+}
 
 /* Element rules work globally, so use .class selectors when using in React components */
 html,
@@ -13,11 +15,8 @@ body {
   margin: 0;
 }
 
-/* precss variable + cssnext hsl() function */
-$bg-color: rgba(38, 38, 38);
-
 body {
-  background: $bg-color;
+  background: var(--bg-color);
 }
 
 a {
@@ -25,13 +24,12 @@ a {
 }
 
 .example-compose {
-  /* PreCSS SASS-style nesting */
   > .example-nesting {
-    color: $bg-color;
+    color: var(--bg-color);
   }
 
   /* CSS Modules composes direct from file */
-  composes: s from 'styles/example.scss';
+  composes: s from './example.module.css';
 }
 
 .example-compose-2 {

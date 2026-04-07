@@ -9,7 +9,7 @@ import { paletteList } from "palettes";
 
 import type { ColorRGBA, Palette as PaletteType } from "types";
 
-import s from "./styles.scss";
+import s from "./styles.module.css";
 
 const Palette = (props: {
   name: string,

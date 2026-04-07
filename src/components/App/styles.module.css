@@ -1,19 +1,21 @@
-$light-gray: #bfbfbf;
+:root {
+  --light-gray: #bfbfbf;
+}
 
 @keyframes timer {
-  0% { content: "🕛"; }
-  8.333% { content: "🕐"; }
-  16.666% { content: "🕑"; }
-  25% { content: "🕒"; }
-  33.333% { content: "🕓"; }
-  33.333% { content: "🕔"; }
-  41.666% { content: "🕕"; }
-  50% { content: "🕖"; }
-  58.333% { content: "🕗"; }
-  66.666% { content: "🕘"; }
-  75% { content: "🕙"; }
-  91.666% { content: "🕚"; }
-  100% { content: "🕛"; }
+  0% { content: "\1F55B"; }
+  8.333% { content: "\1F550"; }
+  16.666% { content: "\1F551"; }
+  25% { content: "\1F552"; }
+  33.333% { content: "\1F553"; }
+  33.333% { content: "\1F554"; }
+  41.666% { content: "\1F555"; }
+  50% { content: "\1F556"; }
+  58.333% { content: "\1F557"; }
+  66.666% { content: "\1F558"; }
+  75% { content: "\1F559"; }
+  91.666% { content: "\1F55A"; }
+  100% { content: "\1F55B"; }
 }
 
 @keyframes blink {
@@ -36,7 +38,7 @@ $light-gray: #bfbfbf;
 .chrome {
   display: flex;
   flex-direction: column;
-  background: $light-gray;
+  background: var(--light-gray);
   min-width: 210px;
   width: 10vw;
   padding: 15px;
@@ -50,7 +52,7 @@ $light-gray: #bfbfbf;
     &:active::after {
       position: absolute;
       transform: translateX(-25px) translateY(-2px);
-      content: "🕛";
+      content: "\1F55B";
       animation: timer 0.5s linear infinite;
     }
   }
@@ -89,7 +91,7 @@ $light-gray: #bfbfbf;
   display: grid;
 
   > div {
-    background-color: $light-gray;
+    background-color: var(--light-gray);
     position: fixed;
     margin: 10px;
     display: table;

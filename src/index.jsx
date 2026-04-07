@@ -21,7 +21,7 @@ import reducers from "reducers";
 import { THEMES } from "palettes/user";
 import { PALETTE } from "constants/optionTypes";
 
-import s from "styles/style.scss";
+import s from "styles/style.module.css";
 
 import { filterList } from "filters";
 import { selectFilter, importState } from "actions";

@@ -24,7 +24,7 @@ import Stringly from "./Stringly";
 import Textly from "./Textly";
 import ColorArray from "./ColorArray";
 
-import s from "./styles.scss";
+import s from "./styles.module.css";
 
 const Controls = (props: {
   options: { [string]: any },
