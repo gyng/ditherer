@@ -96,7 +96,7 @@ export const FilterProvider = ({ children }) => {
         dispatch({ type: "FILTER_IMAGE", image: outputImage });
       };
     }
-  }, []);
+  }, [state.linearize]);
 
   const actions = {
     loadMediaAsync,
