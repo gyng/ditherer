@@ -1,7 +1,6 @@
 // @flow
 import React, { createContext, useContext, useReducer, useCallback } from "react";
 import filterReducer, { initialState } from "reducers/filters";
-import * as types from "constants/actionTypes";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
 import { THEMES } from "palettes/user";
@@ -23,7 +22,7 @@ export const FilterProvider = ({ children }) => {
     const image = new Image();
     reader.onload = event => {
       image.onload = () => {
-        dispatch({ type: types.LOAD_IMAGE, image, time: null, video: null, dispatch });
+        dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
       };
       image.src = event.target.result;
     };
@@ -50,7 +49,7 @@ export const FilterProvider = ({ children }) => {
               i.onload = () => {
                 if (!video.paused && video.src !== "") {
                   requestAnimationFrame(loadFrame);
-                  dispatch({ type: types.LOAD_IMAGE, image: i, time: video.currentTime, video, dispatch });
+                  dispatch({ type: "LOAD_IMAGE", image: i, time: video.currentTime, video, dispatch });
                 }
               };
             }
@@ -94,7 +93,7 @@ export const FilterProvider = ({ children }) => {
       const outputImage = new Image();
       outputImage.src = output.toDataURL("image/png");
       outputImage.onload = () => {
-        dispatch({ type: types.FILTER_IMAGE, image: outputImage });
+        dispatch({ type: "FILTER_IMAGE", image: outputImage });
       };
     }
   }, []);
@@ -103,34 +102,34 @@ export const FilterProvider = ({ children }) => {
     loadMediaAsync,
     filterImageAsync,
     loadImage: (image, time, video) =>
-      dispatch({ type: types.LOAD_IMAGE, image, time: time || 0, video: video || null, dispatch }),
+      dispatch({ type: "LOAD_IMAGE", image, time: time || 0, video: video || null, dispatch }),
     selectFilter: (name, filter) =>
-      dispatch({ type: types.SELECT_FILTER, name, filter }),
+      dispatch({ type: "SELECT_FILTER", name, filter }),
     setConvertGrayscale: (value) =>
-      dispatch({ type: types.SET_GRAYSCALE, value }),
+      dispatch({ type: "SET_GRAYSCALE", value }),
     setScale: (scale) =>
-      dispatch({ type: types.SET_SCALE, scale }),
+      dispatch({ type: "SET_SCALE", scale }),
     setOutputScale: (scale) =>
-      dispatch({ type: types.SET_OUTPUT_SCALE, scale }),
+      dispatch({ type: "SET_OUTPUT_SCALE", scale }),
     setRealtimeFiltering: (enabled) =>
-      dispatch({ type: types.SET_REAL_TIME_FILTERING, enabled }),
+      dispatch({ type: "SET_REAL_TIME_FILTERING", enabled }),
     setInputCanvas: (canvas) =>
-      dispatch({ type: types.SET_INPUT_CANVAS, canvas }),
+      dispatch({ type: "SET_INPUT_CANVAS", canvas }),
     setInputVolume: (volume) =>
-      dispatch({ type: types.SET_INPUT_VOLUME, volume }),
+      dispatch({ type: "SET_INPUT_VOLUME", volume }),
     setInputPlaybackRate: (rate) =>
-      dispatch({ type: types.SET_INPUT_PLAYBACK_RATE, rate }),
+      dispatch({ type: "SET_INPUT_PLAYBACK_RATE", rate }),
     setScalingAlgorithm: (algorithm) =>
-      dispatch({ type: types.SET_SCALING_ALGORITHM, algorithm }),
+      dispatch({ type: "SET_SCALING_ALGORITHM", algorithm }),
     setFilterOption: (optionName, value) =>
-      dispatch({ type: types.SET_FILTER_OPTION, optionName, value }),
+      dispatch({ type: "SET_FILTER_OPTION", optionName, value }),
     setFilterPaletteOption: (optionName, value) =>
-      dispatch({ type: types.SET_FILTER_PALETTE_OPTION, optionName, value }),
+      dispatch({ type: "SET_FILTER_PALETTE_OPTION", optionName, value }),
     addPaletteColor: (color) =>
-      dispatch({ type: types.ADD_PALETTE_COLOR, color }),
+      dispatch({ type: "ADD_PALETTE_COLOR", color }),
     importState: (json) => {
       const deserialized = JSON.parse(json);
-      dispatch({ type: types.LOAD_STATE, data: deserialized });
+      dispatch({ type: "LOAD_STATE", data: deserialized });
     },
     saveCurrentColorPalette: (name, colors) => {
       window.localStorage.setItem(
@@ -138,12 +137,12 @@ export const FilterProvider = ({ children }) => {
         JSON.stringify({ type: optionTypes.PALETTE, name, colors })
       );
       THEMES[name] = colors;
-      dispatch({ type: types.SAVE_CURRENT_COLOR_PALETTE, name });
+      dispatch({ type: "SAVE_CURRENT_COLOR_PALETTE", name });
     },
     deleteCurrentColorPalette: (name) => {
       window.localStorage.removeItem(`_palette_${name.replace(" ", "")}`);
       delete THEMES[name];
-      dispatch({ type: types.DELETE_CURRENT_COLOR_PALETTE, name });
+      dispatch({ type: "DELETE_CURRENT_COLOR_PALETTE", name });
     },
     exportState: (filterState, format) => {
       const json = JSON.stringify(

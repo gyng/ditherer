@@ -2,8 +2,8 @@
 /* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
 /* eslint-disable no-param-reassign, no-bitwise */ // lots of mutation
 
-import { filterImage } from "actions";
-import { ASYNC_FILTER } from "constants/actionTypes";
+const ASYNC_FILTER = "ASYNC_FILTER";
+const filterImage = (image) => ({ type: "FILTER_IMAGE", image });
 
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";

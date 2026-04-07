@@ -66,6 +66,14 @@ export default defineConfig({
   base: "./",
   test: {
     globals: false,
-    environment: "node",
+    environment: "jsdom",
+    setupFiles: ["vitest-canvas-mock"],
+    deps: {
+      optimizer: {
+        web: {
+          include: ["vitest-canvas-mock"],
+        },
+      },
+    },
   },
 });
