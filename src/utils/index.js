@@ -49,16 +49,50 @@ export const delinearizeBuffer = (buf) => {
   }
 };
 
-// Wrap palette.getColor for linearized pipeline: delinearize pixel before
-// matching (palette colors are sRGB), re-linearize the result.
+// Linearize a single RGBA color (sRGB → linear)
+export const linearizeColor = (c) => [
+  SRGB_TO_LINEAR_Q[c[0]],
+  SRGB_TO_LINEAR_Q[c[1]],
+  SRGB_TO_LINEAR_Q[c[2]],
+  c[3]
+];
+
+// Delinearize a single RGBA color (linear → sRGB)
+export const delinearizeColor = (c) => [
+  LINEAR_TO_SRGB[Math.min(255, Math.max(0, Math.round(c[0])))],
+  LINEAR_TO_SRGB[Math.min(255, Math.max(0, Math.round(c[1])))],
+  LINEAR_TO_SRGB[Math.min(255, Math.max(0, Math.round(c[2])))],
+  c[3]
+];
+
+// Cache for linearized palette colors (keyed by palette name + colors identity)
+const linearPaletteCache = new WeakMap();
+
+// Get palette color match in the correct space.
+// When isLinear=true, both pixel and palette colors are linearized before
+// distance comparison, so matching is perceptually correct in linear space.
 export const paletteGetColor = (palette, pixel, options, isLinear) => {
   if (!isLinear) return palette.getColor(pixel, options);
-  const tmp = new Uint8ClampedArray([pixel[0], pixel[1], pixel[2], pixel[3]]);
-  delinearizeBuffer(tmp);
-  const match = palette.getColor([tmp[0], tmp[1], tmp[2], tmp[3]], options);
-  const out = new Uint8ClampedArray([match[0], match[1], match[2], match[3]]);
-  linearizeBuffer(out);
-  return [out[0], out[1], out[2], out[3]];
+
+  // For palettes with explicit color arrays (user/adaptive), linearize
+  // the palette colors for matching, then return the linear result.
+  if (options && options.colors && Array.isArray(options.colors)) {
+    // Cache linearized palette colors to avoid per-pixel conversion
+    let linearColors = linearPaletteCache.get(options.colors);
+    if (!linearColors) {
+      linearColors = options.colors.map(c => linearizeColor(c));
+      linearPaletteCache.set(options.colors, linearColors);
+    }
+    const linearOpts = { ...options, colors: linearColors };
+    // pixel is already linear, palette colors are now linear — match in linear space
+    return palette.getColor(pixel, linearOpts);
+  }
+
+  // For palettes without explicit colors (e.g., nearest/quantize),
+  // delinearize pixel for matching, re-linearize result
+  const srgbPixel = delinearizeColor(pixel);
+  const match = palette.getColor(srgbPixel, options);
+  return linearizeColor(match);
 };
 
 const memoize = (fn) => {
