@@ -23,10 +23,17 @@ import ColorArray from "./ColorArray";
 
 import s from "./styles.module.css";
 
-const Controls = ({ inputCanvas }) => {
+const Controls = (props) => {
   const { state, actions } = useFilter();
-  const optionTypes = state.selected.filter.optionTypes;
-  const options = state.selected.filter.options;
+  // Allow prop overrides for nested Controls (e.g., Palette sub-options)
+  const optionTypes = props.optionTypes || state.selected.filter.optionTypes;
+  const options = props.options || state.selected.filter.options;
+  const inputCanvas = props.inputCanvas;
+  const onSetFilterOption = props.onSetFilterOption || actions.setFilterOption;
+  const onSetPaletteOption = props.onSetPaletteOption || actions.setFilterPaletteOption;
+  const onAddPaletteColor = props.onAddPaletteColor || actions.addPaletteColor;
+  const onSaveColorPalette = props.onSaveColorPalette || actions.saveCurrentColorPalette;
+  const onDeleteColorPalette = props.onDeleteColorPalette || actions.deleteCurrentColorPalette;
 
   return (
     <div className={s.controls}>
@@ -42,7 +49,7 @@ const Controls = ({ inputCanvas }) => {
                 types={oType}
                 value={options[name]}
                 step={oType && oType.step}
-                onSetFilterOption={actions.setFilterOption}
+                onSetFilterOption={onSetFilterOption}
               />
             );
           case PALETTE:
@@ -53,11 +60,11 @@ const Controls = ({ inputCanvas }) => {
                 types={oType}
                 value={options[name]}
                 paletteOptions={options[name].options}
-                onAddPaletteColor={actions.addPaletteColor}
-                onSetFilterOption={actions.setFilterOption}
-                onSetPaletteOption={actions.setFilterPaletteOption}
-                onSaveColorPalette={actions.saveCurrentColorPalette}
-                onDeleteColorPalette={actions.deleteCurrentColorPalette}
+                onAddPaletteColor={onAddPaletteColor}
+                onSetFilterOption={onSetFilterOption}
+                onSetPaletteOption={onSetPaletteOption}
+                onSaveColorPalette={onSaveColorPalette}
+                onDeleteColorPalette={onDeleteColorPalette}
                 inputCanvas={inputCanvas}
               />
             );
@@ -67,11 +74,11 @@ const Controls = ({ inputCanvas }) => {
                 key={name}
                 name={name}
                 value={options.colors}
-                onAddPaletteColor={actions.addPaletteColor}
-                onSetFilterOption={actions.setFilterOption}
-                onSetPaletteOption={actions.setFilterPaletteOption}
-                onSaveColorPalette={actions.saveCurrentColorPalette}
-                onDeleteColorPalette={actions.deleteCurrentColorPalette}
+                onAddPaletteColor={onAddPaletteColor}
+                onSetFilterOption={onSetFilterOption}
+                onSetPaletteOption={onSetPaletteOption}
+                onSaveColorPalette={onSaveColorPalette}
+                onDeleteColorPalette={onDeleteColorPalette}
                 inputCanvas={inputCanvas}
               />
             );
@@ -82,7 +89,7 @@ const Controls = ({ inputCanvas }) => {
                 name={name}
                 types={oType}
                 value={options[name]}
-                onSetFilterOption={actions.setFilterOption}
+                onSetFilterOption={onSetFilterOption}
               />
             );
           case TEXT:
@@ -92,7 +99,7 @@ const Controls = ({ inputCanvas }) => {
                 name={name}
                 types={oType}
                 value={options[name]}
-                onSetFilterOption={actions.setFilterOption}
+                onSetFilterOption={onSetFilterOption}
               />
             );
           case BOOL:
@@ -102,7 +109,7 @@ const Controls = ({ inputCanvas }) => {
                 name={name}
                 types={oType}
                 value={options[name]}
-                onSetFilterOption={actions.setFilterOption}
+                onSetFilterOption={onSetFilterOption}
               />
             );
           case ENUM:
@@ -112,7 +119,7 @@ const Controls = ({ inputCanvas }) => {
                 name={name}
                 types={oType}
                 value={options[name]}
-                onSetFilterOption={actions.setFilterOption}
+                onSetFilterOption={onSetFilterOption}
               />
             );
           default:
