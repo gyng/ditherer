@@ -38,6 +38,7 @@ import lensDistortion from "./lensDistortion";
 import triangleDither from "./triangleDither";
 import anisotropicDiffusion from "./anisotropicDiffusion";
 import kmeans from "./kmeans";
+import mavicaFd7 from "./mavicaFd7";
 import {
   atkinson,
   burkes,
@@ -88,6 +89,7 @@ export { default as lensDistortion } from "./lensDistortion";
 export { default as triangleDither } from "./triangleDither";
 export { default as anisotropicDiffusion } from "./anisotropicDiffusion";
 export { default as kmeans } from "./kmeans";
+export { default as mavicaFd7 } from "./mavicaFd7";
 export {
   atkinson,
   burkes,
@@ -150,7 +152,8 @@ export const filterIndex = [
   lensDistortion,
   triangleDither,
   anisotropicDiffusion,
-  kmeans
+  kmeans,
+  mavicaFd7
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -404,5 +407,6 @@ export const filterList = [
   },
   { displayName: "Triangle dither", filter: triangleDither },
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion },
-  { displayName: "K-means", filter: kmeans }
+  { displayName: "K-means", filter: kmeans },
+  { displayName: "Mavica FD7", filter: mavicaFd7 }
 ];
