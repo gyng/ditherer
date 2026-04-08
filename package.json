@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
     "test:watch": "vitest",

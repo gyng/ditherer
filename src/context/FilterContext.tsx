@@ -169,24 +169,30 @@ export const FilterProvider = ({ children }) => {
       dispatch({ type: "DELETE_CURRENT_COLOR_PALETTE", name });
     },
     getExportUrl: (filterState) => {
-      const json = JSON.stringify(
-        { selected: filterState.selected, convertGrayscale: filterState.convertGrayscale },
-        (k, v) => {
-          if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
-          return v;
-        }
-      );
+      const exportData = {
+        selected: filterState.selected,
+        convertGrayscale: filterState.convertGrayscale,
+        linearize: filterState.linearize,
+        wasmAcceleration: filterState.wasmAcceleration,
+      };
+      const json = JSON.stringify(exportData, (k, v) => {
+        if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
+        return v;
+      });
       const base = `${window.location.origin}${window.location.pathname}`;
       return `${base}?state=${encodeURI(btoa(json))}`;
     },
     exportState: (filterState, format) => {
-      const json = JSON.stringify(
-        { selected: filterState.selected, convertGrayscale: filterState.convertGrayscale },
-        (k, v) => {
-          if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
-          return v;
-        }
-      );
+      const exportData = {
+        selected: filterState.selected,
+        convertGrayscale: filterState.convertGrayscale,
+        linearize: filterState.linearize,
+        wasmAcceleration: filterState.wasmAcceleration,
+      };
+      const json = JSON.stringify(exportData, (k, v) => {
+        if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
+        return v;
+      });
       if (format === "json") {
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);

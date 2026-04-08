@@ -708,7 +708,7 @@ export const uniqueColors = (
   buf,
   limit
 ) => {
-  const seen = {};
+  const seen: Record<string, { count: number; color: number[] }> = {};
 
   for (let i = 0; i < buf.length; i += 4) {
     const r = buf[i];

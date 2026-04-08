@@ -69,7 +69,9 @@ export default (state = initialState, action) => {
           ...action.data.selected,
           filter: deserializedFilter
         },
-        convertGrayscale: action.data.convertGrayscale
+        convertGrayscale: action.data.convertGrayscale,
+        linearize: action.data.linearize ?? state.linearize,
+        wasmAcceleration: action.data.wasmAcceleration ?? state.wasmAcceleration,
       };
     }
     case SET_SCALING_ALGORITHM: {
