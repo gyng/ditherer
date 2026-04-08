@@ -195,26 +195,17 @@ export const FilterProvider = ({ children }) => {
       const base = `${window.location.origin}${window.location.pathname}`;
       return `${base}#!${encodeURIComponent(btoa(json))}`;
     },
-    exportState: (filterState, format) => {
+    exportState: (filterState) => {
       const exportData = {
         selected: filterState.selected,
         convertGrayscale: filterState.convertGrayscale,
         linearize: filterState.linearize,
         wasmAcceleration: filterState.wasmAcceleration,
       };
-      const json = JSON.stringify(exportData, (k, v) => {
+      return JSON.stringify(exportData, (k, v) => {
         if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
         return v;
-      });
-      if (format === "json") {
-        const blob = new Blob([json], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "ditherer-state.json";
-        a.click();
-        URL.revokeObjectURL(url);
-      }
+      }, 2);
     },
   };
 

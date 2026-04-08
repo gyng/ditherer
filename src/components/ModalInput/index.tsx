@@ -38,6 +38,7 @@ const ModalInput = ({
               value={value}
               onChange={e => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              spellCheck={false}
             />
           ) : (
             <input
@@ -49,6 +50,11 @@ const ModalInput = ({
             />
           )}
           <div className={s.buttons}>
+            <button onClick={() => {
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(value);
+              }
+            }}>Copy</button>
             <button onClick={() => onConfirm(value)}>OK</button>
             <button onClick={onCancel}>Cancel</button>
           </div>

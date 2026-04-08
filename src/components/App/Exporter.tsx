@@ -4,8 +4,9 @@ import ModalInput from "components/ModalInput";
 
 const Exporter = () => {
   const { state, actions } = useFilter();
-  const [modal, setModal] = useState<null | "import" | "url">(null);
+  const [modal, setModal] = useState<null | "import" | "url" | "json">(null);
   const [urlValue, setUrlValue] = useState("");
+  const [jsonValue, setJsonValue] = useState("");
 
   return (
     <div>
@@ -25,7 +26,18 @@ const Exporter = () => {
       >
         ⇧ URL
       </button>
-      <button onClick={() => actions.exportState(state, "json")}>
+      <button onClick={() => {
+        const json = actions.exportState(state, "json");
+        setJsonValue(json);
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(json).then(
+            () => setModal("json"),
+            () => setModal("json")
+          );
+        } else {
+          setModal("json");
+        }
+      }}>
         ⇧ JSON
       </button>
       <button onClick={() => setModal("import")}>
@@ -48,6 +60,16 @@ const Exporter = () => {
         <ModalInput
           title="Export URL (copied to clipboard)"
           defaultValue={urlValue}
+          onConfirm={() => setModal(null)}
+          onCancel={() => setModal(null)}
+        />
+      )}
+
+      {modal === "json" && (
+        <ModalInput
+          title="Export JSON (copied to clipboard)"
+          defaultValue={jsonValue}
+          multiline
           onConfirm={() => setModal(null)}
           onCancel={() => setModal(null)}
         />

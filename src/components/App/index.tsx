@@ -393,8 +393,12 @@ const App = () => {
             <div className={["handle", controls.titleBar].join(" ")}>Input</div>
             <div className={s.canvasArea}>
               {(!state.inputImage || canvasDropping) && (
-                <div className={s.dropPlaceholder}>
-                  <span>{canvasDropping ? "Drop to load" : "Drop image or video here"}</span>
+                <div
+                  className={s.dropPlaceholder}
+                  onClick={() => !canvasDropping && document.getElementById("imageLoader")?.click()}
+                  style={{ cursor: canvasDropping ? undefined : "pointer" }}
+                >
+                  <span>{canvasDropping ? "Drop to load" : "Drop or click to load image/video"}</span>
                 </div>
               )}
               <canvas
