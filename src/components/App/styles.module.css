@@ -107,10 +107,10 @@
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  color: var(--gray);
+  color: #333;
   font-size: 0.9em;
   user-select: none;
   pointer-events: none;
-  border: 2px dashed var(--gray);
+  border: 2px dashed #666;
   margin: 8px;
 }
