@@ -110,7 +110,10 @@
 
 .dropPlaceholder {
   position: absolute;
-  inset: 4px;
+  top: 24px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
