@@ -88,3 +88,105 @@ describe("smoke: filters return valid canvases", () => {
     expect(output.width).toBe(16);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The canvas mock's getImageData always returns zeros, so we can't use a real
+// canvas as input. Instead, provide a plain object that implements the subset
+// of the canvas API the filters use, returning known pixel data.
+// ---------------------------------------------------------------------------
+const makeFakeInputCanvas = (w: number, h: number, fill: number[]) => {
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = fill[0]; data[i + 1] = fill[1];
+    data[i + 2] = fill[2]; data[i + 3] = fill[3];
+  }
+  return {
+    width: w,
+    height: h,
+    // cloneCanvas(input, false) only reads .width/.height, so no drawImage needed.
+    getContext: (type: string) => type === "2d" ? {
+      getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
+        data: new Uint8ClampedArray(data),
+        width: cw,
+        height: ch
+      })
+    } : null
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Run a filter and capture the Uint8ClampedArray passed to `new ImageData()`
+// so we can inspect computed pixel values without relying on getImageData.
+// ---------------------------------------------------------------------------
+const runAndCapture = (filterFn, input, options): Uint8ClampedArray | null => {
+  let captured: Uint8ClampedArray | null = null;
+  const OriginalImageData = (globalThis as any).ImageData;
+
+  (globalThis as any).ImageData = new Proxy(OriginalImageData, {
+    construct(target, args): object {
+      const instance = Reflect.construct(target, args) as object;
+      if (args[0] instanceof Uint8ClampedArray) captured = args[0];
+      return instance;
+    }
+  });
+
+  try {
+    filterFn(input, options);
+  } finally {
+    (globalThis as any).ImageData = OriginalImageData;
+  }
+
+  return captured;
+};
+
+describe("regression: kuwahara / bitCrush / chromaticAberration produce non-blank output", () => {
+  // Bug: passing options._linearize=true caused paletteGetColor to return
+  // linear-float values [0–1]. Writing those to Uint8ClampedArray clipped
+  // alpha to 1 (out of 255) → output was fully transparent.
+  // Fix: these filters always work in sRGB [0–255] space; pass false to
+  // paletteGetColor regardless of the global linearize setting.
+  //
+  // Note: the canvas mock's getImageData always returns zeros, so we use
+  // makeFakeInputCanvas to supply real pixel data to the filter.
+
+  const targets = [
+    { label: "Kuwahara",             key: "Kuwahara" },
+    { label: "Bit crush",            key: "Bit crush" },
+    { label: "Chromatic aberration", key: "Chromatic aberration" }
+  ];
+
+  for (const { label, key } of targets) {
+    describe(label, () => {
+      it("returns HTMLCanvasElement with _linearize: true", () => {
+        const filter = filterIndex[key];
+        const input = makeFakeInputCanvas(8, 8, [128, 64, 32, 255]);
+        const output = filter.func(input, { ...filter.defaults, _linearize: true });
+        expect(output).toBeInstanceOf(HTMLCanvasElement);
+      });
+
+      it("alpha is not clipped to near-zero with _linearize: true", () => {
+        // Before the fix: paletteGetColor returned linear floats [0–1].
+        // Writing alpha=1.0 to Uint8ClampedArray → alpha=1 (1/255, transparent).
+        // After the fix: always passes isLinear=false, so alpha stays 255.
+        const filter = filterIndex[key];
+        const input = makeFakeInputCanvas(8, 8, [128, 64, 32, 255]);
+        const data = runAndCapture(filter.func, input, { ...filter.defaults, _linearize: true });
+        expect(data).not.toBeNull();
+        let maxAlpha = 0;
+        for (let i = 3; i < data!.length; i += 4) maxAlpha = Math.max(maxAlpha, data![i]);
+        // Alpha must be well above 1 (the value the bug produced).
+        expect(maxAlpha).toBeGreaterThan(100);
+      });
+
+      it("alpha is not clipped to near-zero with _linearize: false", () => {
+        const filter = filterIndex[key];
+        const input = makeFakeInputCanvas(8, 8, [128, 64, 32, 255]);
+        const data = runAndCapture(filter.func, input, { ...filter.defaults, _linearize: false });
+        expect(data).not.toBeNull();
+        let maxAlpha = 0;
+        for (let i = 3; i < data!.length; i += 4) maxAlpha = Math.max(maxAlpha, data![i]);
+        expect(maxAlpha).toBeGreaterThan(100);
+      });
+    });
+  }
+});

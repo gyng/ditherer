@@ -93,7 +93,7 @@ const chromaticAberration = (input, options = defaults) => {
         palette,
         rgba(buf[rI], buf[gI + 1], buf[bI + 2], buf[i + 3]),
         palette.options,
-        options._linearize
+        false
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }

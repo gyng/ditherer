@@ -9,7 +9,7 @@ export const optionTypes = {
 
 export const defaults = {
   radius: optionTypes.radius.default,
-  palette: optionTypes.palette.default
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
 // Build a summed-area table (SAT) for one channel
@@ -115,7 +115,7 @@ const kuwahara = (input, options = defaults) => {
         palette,
         rgba(Math.round(bestR), Math.round(bestG), Math.round(bestB), buf[i + 3]),
         palette.options,
-        options._linearize
+        false
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
