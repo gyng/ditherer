@@ -38,6 +38,12 @@ export const FilterProvider = ({ children }) => {
   const frameCountRef = useRef(0);
   const degaussFrameRef = useRef(-Infinity);
   const degaussAnimRef = useRef<number | null>(null);
+  const animLoopRef = useRef<number | null>(null);
+  const animLastTimeRef = useRef(0);
+  const animParamsRef = useRef<{ inputCanvas: any; filterFunc: any; fps: number } | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const filterImageAsyncRef = useRef<any>(null);
 
   // Restore state from #! hash on initial load
   useEffect(() => {
@@ -51,6 +57,25 @@ export const FilterProvider = ({ children }) => {
       console.warn("Failed to restore state from URL hash:", e);
     }
   }, []);
+
+  // Sync filter state to URL hash so the address bar is always shareable
+  useEffect(() => {
+    if (!state.selected) return;
+    const exportData = {
+      selected: state.selected,
+      convertGrayscale: state.convertGrayscale,
+      linearize: state.linearize,
+      wasmAcceleration: state.wasmAcceleration,
+    };
+    const json = JSON.stringify(exportData, (k, v) => {
+      if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
+      return v;
+    });
+    const newHash = `#!${encodeURIComponent(btoa(json))}`;
+    if (window.location.hash !== newHash) {
+      history.replaceState(null, "", newHash);
+    }
+  }, [state.selected, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
 
   // Async action: load image from file
   const loadImageAsync = useCallback((file) => {
@@ -121,6 +146,7 @@ export const FilterProvider = ({ children }) => {
       _prevOutput: prevOutputRef.current,
       _frameIndex: frameCountRef.current,
       _degaussFrame: degaussFrameRef.current,
+      _isAnimating: animLoopRef.current != null || degaussAnimRef.current != null,
     };
     // Propagate wasmAcceleration into palette options so getColor() sees it
     if (filterOpts.palette?.options) {
@@ -148,6 +174,7 @@ export const FilterProvider = ({ children }) => {
       };
     }
   };
+  filterImageAsyncRef.current = filterImageAsync;
 
   const playDegaussSound = () => {
     try {
@@ -273,14 +300,81 @@ export const FilterProvider = ({ children }) => {
     degaussAnimRef.current = requestAnimationFrame(animate);
   };
 
+  const triggerBurst = (inputCanvas, filterFunc, filterOptions, frames, fps = 6) => {
+    if (animLoopRef.current != null) return; // don't overlap with running animation
+    const interval = 1000 / fps;
+    let frame = 0;
+    let lastTime = 0;
+    const animate = (timestamp: number) => {
+      if (frame >= frames || !inputCanvas) {
+        animLoopRef.current = null;
+        // Fire one final non-animated render so _isAnimating=false,
+        // guaranteeing we end on a normal display phase
+        requestAnimationFrame(() => {
+          filterImageAsync(inputCanvas, filterFunc, filterOptions);
+        });
+        return;
+      }
+      if (timestamp - lastTime >= interval) {
+        lastTime = timestamp;
+        filterImageAsync(inputCanvas, filterFunc, filterOptions);
+        frame += 1;
+      }
+      animLoopRef.current = requestAnimationFrame(animate);
+    };
+    animLoopRef.current = requestAnimationFrame(animate);
+  };
+
+  const startAnimLoop = (inputCanvas, filterFunc, _filterOptions, fps = 15) => {
+    if (animLoopRef.current != null) return; // already running
+    animParamsRef.current = { inputCanvas, filterFunc, fps };
+    animLastTimeRef.current = 0;
+    const animate = (timestamp: number) => {
+      const params = animParamsRef.current;
+      if (!params || !params.inputCanvas) {
+        animLoopRef.current = null;
+        return;
+      }
+      // Read current fps from live state (animSpeed option)
+      const curState = stateRef.current;
+      const curFps = curState.selected?.filter?.options?.animSpeed || params.fps;
+      const interval = 1000 / curFps;
+      if (timestamp - animLastTimeRef.current >= interval) {
+        animLastTimeRef.current = timestamp;
+        // Use ref to get latest filterImageAsync with current state
+        const filterFn = filterImageAsyncRef.current;
+        if (filterFn) {
+          filterFn(params.inputCanvas, params.filterFunc, curState.selected.filter.options);
+        }
+      }
+      animLoopRef.current = requestAnimationFrame(animate);
+    };
+    animLoopRef.current = requestAnimationFrame(animate);
+  };
+
+  const stopAnimLoop = () => {
+    if (animLoopRef.current != null) {
+      cancelAnimationFrame(animLoopRef.current);
+      animLoopRef.current = null;
+    }
+  };
+
+  const isAnimating = () => animLoopRef.current != null;
+
   const actions = {
     loadMediaAsync,
     filterImageAsync,
     triggerDegauss,
+    triggerBurst,
+    startAnimLoop,
+    stopAnimLoop,
+    isAnimating,
     loadImage: (image, time, video) =>
       dispatch({ type: "LOAD_IMAGE", image, time: time || 0, video: video || null, dispatch }),
-    selectFilter: (name, filter) =>
-      dispatch({ type: "SELECT_FILTER", name, filter }),
+    selectFilter: (name, filter) => {
+      stopAnimLoop();
+      dispatch({ type: "SELECT_FILTER", name, filter });
+    },
     setConvertGrayscale: (value) =>
       dispatch({ type: "SET_GRAYSCALE", value }),
     setLinearize: (value) =>
