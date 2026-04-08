@@ -21,6 +21,11 @@ export default defineConfig({
   build: {
     outDir: "build",
   },
+  server: {
+    watch: {
+      usePolling: true,
+    },
+  },
   base: "./",
   test: {
     globals: false,
