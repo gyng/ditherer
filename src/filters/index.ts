@@ -433,6 +433,7 @@ export const filterList = [
       }
     }
   },
+  { displayName: "Teletext", filter: teletext, category: "Simulate", description: "Simulate a Teletext/Ceefax block mosaic display with 2x3 character cells and 8 colors" },
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
 
   // ── Blur & Edges ──
