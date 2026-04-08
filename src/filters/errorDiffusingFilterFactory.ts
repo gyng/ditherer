@@ -53,8 +53,8 @@ export const errorDiffusingFilter = (
     // Scratch buffer — avoids per-pixel array allocations in palette calls
     const _pix = new Float32Array(4);
 
-    for (let y = 0; y < H; y += 1) {
-      for (let x = 0; x < W; x += 1) {
+    for (let x = 0; x < W; x += 1) {
+      for (let y = 0; y < H; y += 1) {
         const i = (x + W * y) * 4;
 
         if (useLinear) {
