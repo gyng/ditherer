@@ -344,9 +344,9 @@ const App = () => {
         >
           <div className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}>
             <div className={["handle", controls.titleBar].join(" ")}>Input</div>
-            {!state.inputImage && (
+            {(!state.inputImage || canvasDropping) && (
               <div className={s.dropPlaceholder}>
-                <span>Drop image or video here</span>
+                <span>{canvasDropping ? "Drop to load" : "Drop image or video here"}</span>
               </div>
             )}
             <canvas

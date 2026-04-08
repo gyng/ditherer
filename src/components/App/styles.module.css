@@ -103,16 +103,14 @@
 }
 
 .inputWindow {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   min-height: 200px;
-}
-
-.inputWindow .dropPlaceholder {
-  flex: 1;
+  min-width: 200px;
 }
 
 .dropPlaceholder {
+  position: absolute;
+  inset: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -124,6 +122,5 @@
   border-top: 2px inset #808080;
   border-right: 2px inset white;
   border-bottom: 2px inset white;
-  margin: 4px;
   background: var(--light-gray);
 }
