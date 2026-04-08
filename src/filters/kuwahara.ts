@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
   radius: { type: RANGE, range: [1, 16], step: 1, default: 3 },
@@ -111,11 +111,10 @@ const kuwahara = (input, options = defaults) => {
       }
 
       const i = getBufferIndex(x, y, W);
-      const col = paletteGetColor(
+      const col = srgbPaletteGetColor(
         palette,
         rgba(Math.round(bestR), Math.round(bestG), Math.round(bestB), buf[i + 3]),
-        palette.options,
-        false
+        palette.options
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }

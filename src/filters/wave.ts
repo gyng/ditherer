@@ -1,6 +1,6 @@
 import { RANGE, PALETTE, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
   amplitudeX: { type: RANGE, range: [0, 100], step: 0.5, default: 10 },
@@ -49,11 +49,10 @@ const wave = (input, options = defaults) => {
       const srcY = Math.max(0, Math.min(H - 1, y + offsetY));
       const srcI = getBufferIndex(srcX, srcY, W);
 
-      const col = paletteGetColor(
+      const col = srgbPaletteGetColor(
         palette,
         rgba(buf[srcI], buf[srcI + 1], buf[srcI + 2], buf[srcI + 3]),
-        palette.options,
-        false
+        palette.options
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }

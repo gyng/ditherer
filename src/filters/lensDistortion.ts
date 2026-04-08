@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
   // k > 0 = barrel distortion, k < 0 = pincushion
@@ -71,11 +71,10 @@ const lensDistortion = (input, options = defaults) => {
       }
 
       const srcI = getBufferIndex(srcX, srcY, W);
-      const col = paletteGetColor(
+      const col = srgbPaletteGetColor(
         palette,
         rgba(buf[srcI], buf[srcI + 1], buf[srcI + 2], buf[srcI + 3]),
-        palette.options,
-        false
+        palette.options
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }

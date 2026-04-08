@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 32], step: 1, default: 4 },
@@ -28,7 +28,7 @@ const posterize = (input, options = defaults) => {
       const r = Math.round(Math.round(buf[i] / step) * step);
       const g = Math.round(Math.round(buf[i + 1] / step) * step);
       const b = Math.round(Math.round(buf[i + 2] / step) * step);
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
+      const col = srgbPaletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

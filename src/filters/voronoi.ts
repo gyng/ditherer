@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
   cells: { type: RANGE, range: [5, 2000], step: 1, default: 80 },
@@ -110,7 +110,7 @@ const voronoi = (input, options = defaults) => {
     for (let y = 0; y < H; y += 1) {
       const i = getBufferIndex(x, y, W);
       const s = assignment[y * W + x];
-      const col = paletteGetColor(palette, avgColors[s], palette.options, false);
+      const col = srgbPaletteGetColor(palette, avgColors[s], palette.options);
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
   }

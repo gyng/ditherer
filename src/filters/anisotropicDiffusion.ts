@@ -1,6 +1,6 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 const CONDUCTANCE_EXP = "EXP";
 const CONDUCTANCE_QUADRATIC = "QUADRATIC";
@@ -91,7 +91,7 @@ const anisotropicDiffusion = (input, options = defaults) => {
       const r = Math.round(Math.max(0, Math.min(255, grid[gi])));
       const g = Math.round(Math.max(0, Math.min(255, grid[gi + 1])));
       const b = Math.round(Math.max(0, Math.min(255, grid[gi + 2])));
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[bi + 3]), palette.options, false);
+      const col = srgbPaletteGetColor(palette, rgba(r, g, b, buf[bi + 3]), palette.options);
       fillBufferPixel(outBuf, bi, col[0], col[1], col[2], col[3]);
     }
   }

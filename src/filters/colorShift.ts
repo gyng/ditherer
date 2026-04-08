@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, rgba2hsva, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, rgba2hsva, srgbPaletteGetColor } from "utils";
 
 // h: 0-360, s/v/a: 0-1 → r/g/b/a: 0-255
 const hsva2rgba = ([h, s, v, a]) => {
@@ -59,7 +59,7 @@ const colorShift = (input, options = defaults) => {
         Math.max(0, Math.min(1, v + value)),
         a
       ]);
-      const col = paletteGetColor(palette, shifted, palette.options, false);
+      const col = srgbPaletteGetColor(palette, shifted, palette.options);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

@@ -1,6 +1,6 @@
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -33,11 +33,10 @@ const triangleDither = (input, options = defaults) => {
       const r = buf[i]     + tpdf() * noiseScale * 0.5;
       const g = buf[i + 1] + tpdf() * noiseScale * 0.5;
       const b = buf[i + 2] + tpdf() * noiseScale * 0.5;
-      const col = paletteGetColor(
+      const col = srgbPaletteGetColor(
         palette,
         rgba(r, g, b, buf[i + 3]),
-        palette.options,
-        false
+        palette.options
       );
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }

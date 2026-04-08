@@ -1,6 +1,6 @@
 import { RANGE, PALETTE, BOOL, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 const MODE_AXIAL       = "AXIAL";
 const MODE_INDEPENDENT = "INDEPENDENT";
@@ -89,11 +89,10 @@ const chromaticAberration = (input, options = defaults) => {
       const gI = getBufferIndex(gX, gY, W);
       const bI = getBufferIndex(bX, bY, W);
 
-      const col = paletteGetColor(
+      const col = srgbPaletteGetColor(
         palette,
         rgba(buf[rI], buf[gI + 1], buf[bI + 2], buf[i + 3]),
-        palette.options,
-        false
+        palette.options
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }

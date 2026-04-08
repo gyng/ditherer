@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
@@ -27,7 +27,7 @@ const solarize = (input, options = defaults) => {
       const r = buf[i] > threshold ? 255 - buf[i] : buf[i];
       const g = buf[i + 1] > threshold ? 255 - buf[i + 1] : buf[i + 1];
       const b = buf[i + 2] > threshold ? 255 - buf[i + 2] : buf[i + 2];
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
+      const col = srgbPaletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

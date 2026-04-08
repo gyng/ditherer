@@ -106,6 +106,14 @@ export const paletteGetColor = (palette, pixel, options, isLinear) => {
   return linearizeColorF(match);
 };
 
+// For filters that work entirely in sRGB [0-255] space and do NOT implement
+// their own linear conversion path. Always quantizes in sRGB regardless of
+// the global linearize setting. Use this instead of paletteGetColor to avoid
+// the transparent-output bug where linear float [0-1] values get written to
+// Uint8ClampedArray as near-zero.
+export const srgbPaletteGetColor = (palette, pixel, options) =>
+  palette.getColor(pixel, options);
+
 const memoize = (fn) => {
   const cache = new Map();
   return (...args) => {
