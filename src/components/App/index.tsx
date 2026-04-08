@@ -33,8 +33,32 @@ const App = () => {
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
   const captureDragRef = useRef(null);
-  const inputDrag = useDraggable(inputDragRef);
-  const outputDrag = useDraggable(outputDragRef, { defaultPosition: { x: 320, y: 20 } });
+  const dragScaleStart = useRef({ input: 1, output: 1 });
+
+  const inputDrag = useDraggable(inputDragRef, {
+    onScale: (delta) => {
+      const newScale = Math.round(Math.max(0.1, Math.min(4, state.scale + delta)) * 10) / 10;
+      actions.setScale(newScale);
+    },
+    onScaleAbsolute: (ratio) => {
+      // ratio=1.0 at start → capture; subsequent calls use captured start
+      if (Math.abs(ratio - 1) < 0.005) dragScaleStart.current.input = state.scale;
+      const newScale = Math.max(0.1, Math.min(4, dragScaleStart.current.input * ratio));
+      actions.setScale(Math.round(newScale * 100) / 100);
+    }
+  });
+  const outputDrag = useDraggable(outputDragRef, {
+    defaultPosition: { x: 320, y: 20 },
+    onScale: (delta) => {
+      const newScale = Math.round(Math.max(0.1, Math.min(4, state.outputScale + delta)) * 10) / 10;
+      actions.setOutputScale(newScale);
+    },
+    onScaleAbsolute: (ratio) => {
+      if (Math.abs(ratio - 1) < 0.005) dragScaleStart.current.output = state.outputScale;
+      const newScale = Math.max(0.1, Math.min(4, dragScaleStart.current.output * ratio));
+      actions.setOutputScale(Math.round(newScale * 100) / 100);
+    }
+  });
   const captureDrag = useDraggable(captureDragRef, { defaultPosition: { x: 160, y: 400 } });
 
   // Create capture video element once
@@ -230,6 +254,17 @@ const App = () => {
             <div className={controls.group}>
               <span className={controls.name}>Options</span>
               <Controls inputCanvas={inputCanvasRef.current} />
+              {state.selected?.filter?.defaults && (
+                <button
+                  onClick={() => {
+                    const name = state.selected.displayName || state.selected.name;
+                    const filter = filterList.find(f => f && f.displayName === name);
+                    if (filter) actions.selectFilter(name, filter);
+                  }}
+                >
+                  Reset defaults
+                </button>
+              )}
             </div>
             <div className={controls.separator} />
             <div className={controls.checkbox}>
@@ -406,6 +441,7 @@ const App = () => {
           role="presentation"
           onMouseDown={inputDrag.onMouseDown}
           onMouseDownCapture={bringToTop}
+          onMouseMove={inputDrag.onMouseMove}
           onDragOver={e => { e.preventDefault(); setCanvasDropping(true); }}
           onDragLeave={() => setCanvasDropping(false)}
           onDrop={e => {
@@ -415,7 +451,10 @@ const App = () => {
             if (file) actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
           }}
         >
-          <div className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}>
+          <div
+            className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}
+            style={!state.inputImage ? { minWidth: Math.round(200 * state.scale), minHeight: Math.round(200 * state.scale) } : undefined}
+          >
             <div className={["handle", controls.titleBar].join(" ")}>Input</div>
             <div className={s.canvasArea}>
               {(!state.inputImage || canvasDropping) && (
@@ -435,7 +474,7 @@ const App = () => {
           </div>
         </div>
 
-        <div ref={outputDragRef} role="presentation" onMouseDown={outputDrag.onMouseDown} onMouseDownCapture={bringToTop}>
+        <div ref={outputDragRef} role="presentation" onMouseDown={outputDrag.onMouseDown} onMouseDownCapture={bringToTop} onMouseMove={outputDrag.onMouseMove}>
           <div className={controls.window}>
             <div className={["handle", controls.titleBar].join(" ")}>Output</div>
             <canvas className={s.canvas} ref={outputCanvasRef} />

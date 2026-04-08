@@ -29,8 +29,9 @@ import s from "./styles.module.css";
 const Controls = (props) => {
   const { state, actions } = useFilter();
   // Allow prop overrides for nested Controls (e.g., Palette sub-options)
-  const optionTypes = props.optionTypes || state.selected.filter.optionTypes;
-  const options = props.options || state.selected.filter.options;
+  const filter = state.selected?.filter;
+  const optionTypes = props.optionTypes || filter?.optionTypes || {};
+  const options = props.options || filter?.options || {};
   const inputCanvas = props.inputCanvas;
   const onSetFilterOption = props.onSetFilterOption || actions.setFilterOption;
   const onSetPaletteOption = props.onSetPaletteOption || actions.setFilterPaletteOption;

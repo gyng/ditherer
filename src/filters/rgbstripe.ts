@@ -116,6 +116,18 @@ export const optionTypes = {
       actions.triggerDegauss(inputCanvas, filterFunc, options);
     }
   },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions, inputCanvas, filterFunc, options) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, filterFunc, options, options.animSpeed || 15);
+      }
+    }
+  },
   blur: { type: BOOL, default: true },
   palette: { type: PALETTE, default: palettes.nearest }
 };
@@ -142,6 +154,7 @@ export const defaults = {
   interlace: optionTypes.interlace.default,
   persistence: optionTypes.persistence.default,
   flicker: optionTypes.flicker.default,
+  animSpeed: optionTypes.animSpeed.default,
   blur: optionTypes.blur.default,
   palette: optionTypes.palette.default
 };

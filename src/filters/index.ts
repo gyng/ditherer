@@ -39,6 +39,9 @@ import triangleDither from "./triangleDither";
 import anisotropicDiffusion from "./anisotropicDiffusion";
 import kmeans from "./kmeans";
 import mavicaFd7 from "./mavicaFd7";
+import eink from "./eink";
+import gameboyCamera from "./gameboyCamera";
+import oscilloscope from "./oscilloscope";
 import {
   atkinson,
   burkes,
@@ -90,6 +93,7 @@ export { default as triangleDither } from "./triangleDither";
 export { default as anisotropicDiffusion } from "./anisotropicDiffusion";
 export { default as kmeans } from "./kmeans";
 export { default as mavicaFd7 } from "./mavicaFd7";
+export { default as gameboyCamera } from "./gameboyCamera";
 export {
   atkinson,
   burkes,
@@ -153,7 +157,10 @@ export const filterIndex = [
   triangleDither,
   anisotropicDiffusion,
   kmeans,
-  mavicaFd7
+  mavicaFd7,
+  eink,
+  gameboyCamera,
+  oscilloscope
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -309,7 +316,15 @@ export const filterList = [
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
   { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
-  { displayName: "Mavica FD7", filter: mavicaFd7, category: "Stylize", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
+  { displayName: "E-ink (grayscale)", filter: eink, category: "Simulate", description: "Simulate a 16-level grayscale e-ink display with paper texture and ghosting" },
+  {
+    displayName: "E-ink (color)",
+    category: "Simulate",
+    description: "Simulate a color Kaleido/Gallery e-ink display with washed-out palette",
+    filter: { ...eink, options: { ...eink.options, mode: "COLOR", palette: { ...eink.options.palette, options: { levels: 256 } } } }
+  },
+  { displayName: "Mavica FD7", filter: mavicaFd7, category: "Simulate", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
+  { displayName: "Oscilloscope", filter: oscilloscope, category: "Simulate", description: "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence" },
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
   { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
   { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize", description: "Overlay vertical stripe pattern over the image" },
@@ -414,7 +429,7 @@ export const filterList = [
       }
     }
   },
-  { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape artifacts — color bleed, noise, and tracking errors" },
+  { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
 
   // ── Blur & Edges ──
   { displayName: "Bloom", filter: bloom, category: "Blur & Edges", description: "Add a soft glow around bright areas" },

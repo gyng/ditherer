@@ -45,6 +45,7 @@ export default (state = initialState, action) => {
   switch (action.type) {
     case LOAD_STATE: {
       const localFilter = filterIndex[action.data.selected.filter.name];
+      if (!localFilter) return state; // unknown filter — ignore stale hash
       const deserializedFilter = {
         ...localFilter,
         options: action.data.selected.filter.options
@@ -137,7 +138,7 @@ export default (state = initialState, action) => {
         realtimeFiltering: state.realtimeFiltering
       };
 
-      if (state.realtimeFiltering && state.inputCanvas) {
+      if (state.realtimeFiltering && state.inputCanvas && typeof state.selected.filter.func === "function") {
         const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize, _wasmAcceleration: state.wasmAcceleration };
         const output = state.convertGrayscale
           ? (state.selected.filter.func as any)(
