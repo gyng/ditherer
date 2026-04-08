@@ -27,6 +27,7 @@ a {
 @media (max-width: 768px) {
   html, body {
     overscroll-behavior: none;
+    overflow-x: hidden;
   }
   body {
     padding: env(safe-area-inset-top) env(safe-area-inset-right)

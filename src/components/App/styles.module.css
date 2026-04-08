@@ -140,7 +140,9 @@
     padding: 10px;
     max-height: 50vh;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
   }
 
   .chrome .filterButton {
@@ -156,8 +158,12 @@
   .canvases > div {
     position: static !important;
     transform: none !important;
+    display: block;
     margin: 4px 0;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .canvases > div:nth-child(1) { order: 2; }
