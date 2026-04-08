@@ -344,15 +344,17 @@ const App = () => {
         >
           <div className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}>
             <div className={["handle", controls.titleBar].join(" ")}>Input</div>
-            {(!state.inputImage || canvasDropping) && (
-              <div className={s.dropPlaceholder}>
-                <span>{canvasDropping ? "Drop to load" : "Drop image or video here"}</span>
-              </div>
-            )}
-            <canvas
-              className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
-              ref={inputCanvasRef}
-            />
+            <div className={s.canvasArea}>
+              {(!state.inputImage || canvasDropping) && (
+                <div className={s.dropPlaceholder}>
+                  <span>{canvasDropping ? "Drop to load" : "Drop image or video here"}</span>
+                </div>
+              )}
+              <canvas
+                className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
+                ref={inputCanvasRef}
+              />
+            </div>
           </div>
         </div>
 
