@@ -16,6 +16,7 @@ import s from "./styles.module.css";
 const App = () => {
   const { state, actions, filterList, grayscale } = useFilter();
   const [dropping, setDropping] = useState(false);
+  const [canvasDropping, setCanvasDropping] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [hasCapture, setHasCapture] = useState(false);
 
@@ -327,8 +328,21 @@ const App = () => {
 
       {/* Canvases */}
       <div className={s.canvases}>
-        <div ref={inputDragRef} role="presentation" onMouseDown={inputDrag.onMouseDown} onMouseDownCapture={bringToTop}>
-          <div className={controls.window}>
+        <div
+          ref={inputDragRef}
+          role="presentation"
+          onMouseDown={inputDrag.onMouseDown}
+          onMouseDownCapture={bringToTop}
+          onDragOver={e => { e.preventDefault(); setCanvasDropping(true); }}
+          onDragLeave={() => setCanvasDropping(false)}
+          onDrop={e => {
+            e.preventDefault();
+            setCanvasDropping(false);
+            const file = e.dataTransfer.files[0];
+            if (file) actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
+          }}
+        >
+          <div className={[controls.window, canvasDropping ? s.dropping : ""].join(" ")}>
             <div className={["handle", controls.titleBar].join(" ")}>Input</div>
             <canvas
               className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}

@@ -97,3 +97,7 @@
 .canvases .canvas {
   display: block;
 }
+
+.dropping {
+  outline: 2px solid var(--beautiful-blue);
+}
