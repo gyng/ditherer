@@ -182,6 +182,20 @@ button:focus,
   margin: 8px 0;
 }
 
+.pickerContainer {
+  margin: 6px 0;
+}
+
+.pickerContainer :global(.react-colorful) {
+  width: 100%;
+  height: 150px;
+}
+
+.pickerContainer button {
+  margin-top: 4px;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   .enum {
     padding: 10px;

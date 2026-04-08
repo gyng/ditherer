@@ -1,4 +1,5 @@
 import React from "react";
+import { RgbaColorPicker } from "react-colorful";
 
 import { THEMES } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
@@ -26,22 +27,6 @@ export const modeMap = {
 // Convert a desired color count to median cut recursion depth (rounds up to nearest power of 2)
 const colorCountToDepth = (n: number): number => Math.max(1, Math.ceil(Math.log2(n)));
 
-const convertCsvToColor = (csv) => {
-  const tokens = csv.split(",");
-
-  if (tokens.length !== 4) {
-    return null;
-  }
-
-  const channels = tokens.map(t => parseInt(t, 10));
-
-  if (!channels.every(val => val >= 0 && val <= 255)) {
-    return null;
-  }
-
-  return rgba(channels[0], channels[1], channels[2], channels[3]);
-};
-
 const onDeleteColor = (e, props) => {
   props.onSetPaletteOption(
     "colors",
@@ -52,14 +37,16 @@ const onDeleteColor = (e, props) => {
 };
 
 type ModalState = null | {
-  type: "addColor" | "extract" | "savePalette" | "importPalette";
+  type: "extract" | "savePalette" | "importPalette";
   defaultValue?: string;
 };
 
 export default class ColorArray extends React.Component<any, any> {
   state = {
     extractMode: LAB_ADAPT_AVERAGE,
-    modal: null as ModalState
+    modal: null as ModalState,
+    pickerOpen: false,
+    pickerColor: { r: 255, g: 0, b: 0, a: 1 }
   };
 
   handleModalConfirm = (value: string) => {
@@ -67,11 +54,6 @@ export default class ColorArray extends React.Component<any, any> {
     if (!modal) return;
 
     switch (modal.type) {
-      case "addColor": {
-        const color = convertCsvToColor(value);
-        if (color) this.props.onAddPaletteColor(color);
-        break;
-      }
       case "extract": {
         const ctx = this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
         if (ctx) {
@@ -189,19 +171,32 @@ export default class ColorArray extends React.Component<any, any> {
       </div>
     );
 
-    const onAddColorButton = (
-      <button
-        onClick={() => {
-          this.setState({
-            modal: {
-              type: "addColor",
-              defaultValue: "255,0,0,255"
-            }
-          });
-        }}
-      >
-        🖌 Add color
-      </button>
+    const colorPicker = (
+      <div>
+        <button
+          onClick={() => this.setState({ pickerOpen: !this.state.pickerOpen })}
+        >
+          {this.state.pickerOpen ? "🖌 Close picker" : "🖌 Add color"}
+        </button>
+        {this.state.pickerOpen && (
+          <div className={s.pickerContainer}>
+            <RgbaColorPicker
+              color={this.state.pickerColor}
+              onChange={color => this.setState({ pickerColor: color })}
+            />
+            <button
+              onClick={() => {
+                const c = this.state.pickerColor;
+                this.props.onAddPaletteColor(
+                  rgba(c.r, c.g, c.b, Math.round(c.a * 255))
+                );
+              }}
+            >
+              + Add to palette
+            </button>
+          </div>
+        )}
+      </div>
     );
 
     const extractButton = (
@@ -293,7 +288,6 @@ export default class ColorArray extends React.Component<any, any> {
     );
 
     const modalTitles = {
-      addColor: "Add a color (r,g,b,a — 0-255 each)",
       extract: "Number of colors to extract",
       savePalette: "Save current palette as",
       importPalette: "Paste theme JSON"
@@ -304,7 +298,7 @@ export default class ColorArray extends React.Component<any, any> {
         <div className={s.label}>Theme</div>
         {themePicker}
         {colorSwatch}
-        {onAddColorButton}
+        {colorPicker}
         <div className={s.group}>
           <span className={s.name}>Extract from input</span>
           {extractOptions}
