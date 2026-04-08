@@ -167,7 +167,7 @@ const rgbStripe = (
         includeScanline && y % 3 === 0 ? scanlineStrength : 1;
       const scanlined = scale(gammaAdjusted, scanlineScale);
 
-      const color = paletteGetColor(palette, scanlined, palette.options, options._linearize);
+      const color = paletteGetColor(palette, scanlined, palette.options, false);
 
       fillBufferPixel(outputBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }

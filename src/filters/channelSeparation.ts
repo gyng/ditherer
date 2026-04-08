@@ -86,7 +86,7 @@ const channelSeparation = (
       const aI = getBufferIndex(aX, aY, input.width);
 
       const pixel = rgba(buf[rI], buf[gI + 1], buf[bI + 2], buf[aI + 3]);
-      const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
+      const color = paletteGetColor(palette, pixel, palette.options, false);
       fillBufferPixel(
         buf,
         i,

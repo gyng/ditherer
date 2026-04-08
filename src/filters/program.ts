@@ -1,6 +1,6 @@
 import { ENUM, TEXT, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const ALL = "ALL";
 export const PIXEL = "PIXEL";
@@ -62,10 +62,14 @@ const programFilter = (
       const i = getBufferIndex(x, y, w);
       const p = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
        
-      const r = p[0];
-      const g = p[1];
-      const b = p[2];
-      const a = p[3];
+      // eslint-disable-next-line prefer-const
+      let r = p[0];
+      // eslint-disable-next-line prefer-const
+      let g = p[1];
+      // eslint-disable-next-line prefer-const
+      let b = p[2];
+      // eslint-disable-next-line prefer-const
+      let a = p[3];
 
       try {
         eval(program);
@@ -73,9 +77,8 @@ const programFilter = (
         console.error(e);
         break outside;
       }
-       
 
-      const col = palette.getColor([r, g, b, a], palette.options);
+      const col = srgbPaletteGetColor(palette, [r, g, b, a], palette.options);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

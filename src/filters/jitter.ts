@@ -64,7 +64,7 @@ const jittter = (
       );
 
       const pixel = rgba(buf[jI], buf[jI + 1], buf[jI + 2], buf[jI + 3]);
-      const color = paletteGetColor(palette, pixel, palette.options, options._linearize);
+      const color = paletteGetColor(palette, pixel, palette.options, false);
       fillBufferPixel(buf, i, color[0], color[1], color[2], color[3]);
     }
   }
