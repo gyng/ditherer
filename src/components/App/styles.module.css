@@ -116,5 +116,5 @@
   border-right: 2px inset white;
   border-bottom: 2px inset white;
   margin: 4px;
-  background: white;
+  background: var(--light-gray);
 }
