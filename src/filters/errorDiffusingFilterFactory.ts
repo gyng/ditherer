@@ -48,20 +48,19 @@ export const errorDiffusingFilter = (
     const offsetX = errorMatrix.offset[0];
     const offsetY = errorMatrix.offset[1];
     const W = output.width;
+    const H = output.height;
 
-    // Module-level scratch to avoid per-pixel array allocations in palette call
+    // Scratch buffer — avoids per-pixel array allocations in palette calls
     const _pix = new Float32Array(4);
 
-    for (let y = 0; y < output.height; y += 1) {
+    for (let y = 0; y < H; y += 1) {
       for (let x = 0; x < W; x += 1) {
         const i = (x + W * y) * 4;
 
         if (useLinear) {
-          // Read pixel as scalars
           _pix[0] = errBuf[i]; _pix[1] = errBuf[i + 1];
           _pix[2] = errBuf[i + 2]; _pix[3] = errBuf[i + 3];
           const color = paletteGetColor(palette, _pix as any, palette.options, true);
-          // Error as scalars — no array alloc
           const er = _pix[0] - color[0];
           const eg = _pix[1] - color[1];
           const eb = _pix[2] - color[2];
@@ -73,16 +72,17 @@ export const errorDiffusingFilter = (
           for (let h = 0; h < kernelHeight; h += 1) {
             for (let w = 0; w < kernelWidth; w += 1) {
               const weight = errorMatrix.kernel[h][w];
-              if (weight != null) {
-                const ti = ((x + w + offsetX) + W * (y + h + offsetY)) * 4;
-                errBuf[ti]     += er * weight;
-                errBuf[ti + 1] += eg * weight;
-                errBuf[ti + 2] += eb * weight;
-              }
+              if (weight == null) continue;
+              const tx = x + w + offsetX;
+              const ty = y + h + offsetY;
+              if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
+              const ti = (tx + W * ty) * 4;
+              errBuf[ti]     += er * weight;
+              errBuf[ti + 1] += eg * weight;
+              errBuf[ti + 2] += eb * weight;
             }
           }
         } else {
-          // sRGB path — scalars, no rgba()/sub()/scale() allocations
           const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
           _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
           const color = palette.getColor(_pix as any, palette.options);
@@ -94,12 +94,14 @@ export const errorDiffusingFilter = (
           for (let h = 0; h < kernelHeight; h += 1) {
             for (let w = 0; w < kernelWidth; w += 1) {
               const weight = errorMatrix.kernel[h][w];
-              if (weight != null) {
-                const ti = ((x + w + offsetX) + W * (y + h + offsetY)) * 4;
-                errBuf[ti]     += er * weight;
-                errBuf[ti + 1] += eg * weight;
-                errBuf[ti + 2] += eb * weight;
-              }
+              if (weight == null) continue;
+              const tx = x + w + offsetX;
+              const ty = y + h + offsetY;
+              if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
+              const ti = (tx + W * ty) * 4;
+              errBuf[ti]     += er * weight;
+              errBuf[ti + 1] += eg * weight;
+              errBuf[ti + 2] += eb * weight;
             }
           }
         }
