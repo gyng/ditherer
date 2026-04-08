@@ -46,10 +46,9 @@ describe("smoke: run each filter on a test image", () => {
 
   // Filters that need special handling or are async
   const skipFilters = new Set([
-    "Glitch",        // async, dispatches actions
-    "Program",       // uses eval
-    "Halftone",      // uses canvas compositing not supported in jsdom
-    "ASCII",         // uses canvas text rendering not supported in jsdom
+    "Glitch",    // async, dispatches actions
+    "Program",   // uses eval
+    "Halftone",  // uses canvas compositing not supported in jsdom
   ]);
 
   for (const entry of filterList) {

@@ -30,6 +30,14 @@ import voronoi from "./voronoi";
 import ascii from "./ascii";
 import kuwahara from "./kuwahara";
 import reactionDiffusion from "./reactionDiffusion";
+import histogramEqualization from "./histogramEqualization";
+import duotone from "./duotone";
+import wave from "./wave";
+import colorBalance from "./colorBalance";
+import lensDistortion from "./lensDistortion";
+import triangleDither from "./triangleDither";
+import anisotropicDiffusion from "./anisotropicDiffusion";
+import kmeans from "./kmeans";
 import {
   atkinson,
   burkes,
@@ -72,6 +80,14 @@ export { default as voronoi } from "./voronoi";
 export { default as ascii } from "./ascii";
 export { default as kuwahara } from "./kuwahara";
 export { default as reactionDiffusion } from "./reactionDiffusion";
+export { default as histogramEqualization } from "./histogramEqualization";
+export { default as duotone } from "./duotone";
+export { default as wave } from "./wave";
+export { default as colorBalance } from "./colorBalance";
+export { default as lensDistortion } from "./lensDistortion";
+export { default as triangleDither } from "./triangleDither";
+export { default as anisotropicDiffusion } from "./anisotropicDiffusion";
+export { default as kmeans } from "./kmeans";
 export {
   atkinson,
   burkes,
@@ -114,6 +130,8 @@ export const filterIndex = [
   horizontalStripe,
   verticalStripe,
   vhs,
+  random,
+  pixelate,
   solarize,
   posterize,
   chromaticAberration,
@@ -124,7 +142,15 @@ export const filterIndex = [
   voronoi,
   ascii,
   kuwahara,
-  reactionDiffusion
+  reactionDiffusion,
+  histogramEqualization,
+  duotone,
+  wave,
+  colorBalance,
+  lensDistortion,
+  triangleDither,
+  anisotropicDiffusion,
+  kmeans
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -339,12 +365,44 @@ export const filterList = [
   { displayName: "Solarize", filter: solarize },
   { displayName: "Posterize", filter: posterize },
   { displayName: "Chromatic aberration", filter: chromaticAberration },
+  {
+    displayName: "Chromatic aberration (per-channel)",
+    filter: { ...chromaticAberration, options: { ...chromaticAberration.options, mode: "INDEPENDENT" } }
+  },
   { displayName: "Bloom", filter: bloom },
   { displayName: "Color shift", filter: colorShift },
   { displayName: "Bit crush", filter: bitCrush },
   { displayName: "Displace", filter: displace },
+  {
+    displayName: "Displace (smooth)",
+    filter: { ...displace, options: { ...displace.options, warpSource: "BLURRED" } }
+  },
   { displayName: "Voronoi", filter: voronoi },
   { displayName: "ASCII", filter: ascii },
   { displayName: "Kuwahara", filter: kuwahara },
-  { displayName: "Reaction-diffusion", filter: reactionDiffusion }
+  { displayName: "Reaction-diffusion (coral)", filter: reactionDiffusion },
+  {
+    displayName: "Reaction-diffusion (worms)",
+    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "WORMS" } }
+  },
+  {
+    displayName: "Reaction-diffusion (labyrinth)",
+    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "LABYRINTH" } }
+  },
+  { displayName: "Histogram equalization", filter: histogramEqualization },
+  {
+    displayName: "Histogram equalization (per-channel)",
+    filter: { ...histogramEqualization, options: { ...histogramEqualization.options, perChannel: true } }
+  },
+  { displayName: "Duotone", filter: duotone },
+  { displayName: "Wave", filter: wave },
+  { displayName: "Color balance", filter: colorBalance },
+  { displayName: "Lens distortion", filter: lensDistortion },
+  {
+    displayName: "Lens distortion (pincushion)",
+    filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
+  },
+  { displayName: "Triangle dither", filter: triangleDither },
+  { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion },
+  { displayName: "K-means", filter: kmeans }
 ];

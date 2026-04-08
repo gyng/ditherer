@@ -1,20 +1,32 @@
-import { RANGE } from "constants/controlTypes";
+import { RANGE, ENUM } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
 
+const THRESHOLD_ABSOLUTE = "ABSOLUTE";
+const THRESHOLD_RELATIVE = "RELATIVE";
+
 export const optionTypes = {
+  thresholdMode: {
+    type: ENUM,
+    options: [
+      { name: "Absolute (0–255)", value: THRESHOLD_ABSOLUTE },
+      { name: "Relative (% of max)", value: THRESHOLD_RELATIVE }
+    ],
+    default: THRESHOLD_ABSOLUTE
+  },
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 180 },
-  strength: { type: RANGE, range: [0, 3], step: 0.05, default: 0.8 },
-  radius: { type: RANGE, range: [1, 30], step: 1, default: 8 }
+  strength:  { type: RANGE, range: [0, 3], step: 0.05, default: 0.8 },
+  radius:    { type: RANGE, range: [1, 30], step: 1, default: 8 }
 };
 
 export const defaults = {
+  thresholdMode: optionTypes.thresholdMode.default,
   threshold: optionTypes.threshold.default,
   strength: optionTypes.strength.default,
   radius: optionTypes.radius.default
 };
 
 const bloom = (input, options = defaults) => {
-  const { threshold, strength, radius } = options;
+  const { thresholdMode, strength, radius } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -24,7 +36,18 @@ const bloom = (input, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
 
-  // Extract pixels above threshold
+  // Resolve threshold
+  let threshold = options.threshold;
+  if (thresholdMode === THRESHOLD_RELATIVE) {
+    let maxLum = 0;
+    for (let i = 0; i < buf.length; i += 4) {
+      const lum = buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722;
+      if (lum > maxLum) maxLum = lum;
+    }
+    threshold = maxLum * (options.threshold / 255);
+  }
+
+  // Extract bright regions
   const bright = new Float32Array(buf.length);
   for (let i = 0; i < buf.length; i += 4) {
     bright[i]     = Math.max(0, buf[i]     - threshold);
@@ -33,7 +56,7 @@ const bloom = (input, options = defaults) => {
     bright[i + 3] = buf[i + 3];
   }
 
-  // Separable box blur: horizontal pass
+  // Separable box blur — horizontal pass
   const blurH = new Float32Array(buf.length);
   const r = radius;
   for (let y = 0; y < H; y += 1) {
@@ -43,15 +66,11 @@ const bloom = (input, options = defaults) => {
       for (let kx = -r; kx <= r; kx += 1) {
         const nx = Math.max(0, Math.min(W - 1, x + kx));
         const ki = getBufferIndex(nx, y, W);
-        sr += bright[ki];
-        sg += bright[ki + 1];
-        sb += bright[ki + 2];
+        sr += bright[ki]; sg += bright[ki + 1]; sb += bright[ki + 2];
         count += 1;
       }
       const i = getBufferIndex(x, y, W);
-      blurH[i]     = sr / count;
-      blurH[i + 1] = sg / count;
-      blurH[i + 2] = sb / count;
+      blurH[i] = sr / count; blurH[i + 1] = sg / count; blurH[i + 2] = sb / count;
       blurH[i + 3] = bright[i + 3];
     }
   }
@@ -65,15 +84,11 @@ const bloom = (input, options = defaults) => {
       for (let ky = -r; ky <= r; ky += 1) {
         const ny = Math.max(0, Math.min(H - 1, y + ky));
         const ki = getBufferIndex(x, ny, W);
-        sr += blurH[ki];
-        sg += blurH[ki + 1];
-        sb += blurH[ki + 2];
+        sr += blurH[ki]; sg += blurH[ki + 1]; sb += blurH[ki + 2];
         count += 1;
       }
       const i = getBufferIndex(x, y, W);
-      blurHV[i]     = sr / count;
-      blurHV[i + 1] = sg / count;
-      blurHV[i + 2] = sb / count;
+      blurHV[i] = sr / count; blurHV[i + 1] = sg / count; blurHV[i + 2] = sb / count;
       blurHV[i + 3] = blurH[i + 3];
     }
   }

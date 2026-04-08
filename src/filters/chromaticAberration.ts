@@ -1,23 +1,51 @@
-import { RANGE, PALETTE, BOOL } from "constants/controlTypes";
+import { RANGE, PALETTE, BOOL, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
+const MODE_AXIAL       = "AXIAL";
+const MODE_INDEPENDENT = "INDEPENDENT";
+
 export const optionTypes = {
+  mode: {
+    type: ENUM,
+    options: [
+      { name: "Axial (angle + radial)", value: MODE_AXIAL },
+      { name: "Per-channel", value: MODE_INDEPENDENT }
+    ],
+    default: MODE_AXIAL
+  },
+  // Axial mode
   strength: { type: RANGE, range: [0, 50], step: 0.5, default: 8 },
-  angle: { type: RANGE, range: [-180, 180], step: 1, default: 0 },
-  radial: { type: BOOL, default: true },
+  angle:    { type: RANGE, range: [-180, 180], step: 1, default: 0 },
+  radial:   { type: BOOL, default: true },
+  // Per-channel mode: independent X/Y offsets for R, G, B
+  rOffsetX: { type: RANGE, range: [-50, 50], step: 0.5, default: -8 },
+  rOffsetY: { type: RANGE, range: [-50, 50], step: 0.5, default: 0 },
+  gOffsetX: { type: RANGE, range: [-50, 50], step: 0.5, default: 0 },
+  gOffsetY: { type: RANGE, range: [-50, 50], step: 0.5, default: 0 },
+  bOffsetX: { type: RANGE, range: [-50, 50], step: 0.5, default: 8 },
+  bOffsetY: { type: RANGE, range: [-50, 50], step: 0.5, default: 0 },
   palette: { type: PALETTE, default: nearest }
 };
 
 export const defaults = {
+  mode: optionTypes.mode.default,
   strength: optionTypes.strength.default,
   angle: optionTypes.angle.default,
   radial: optionTypes.radial.default,
+  rOffsetX: optionTypes.rOffsetX.default,
+  rOffsetY: optionTypes.rOffsetY.default,
+  gOffsetX: optionTypes.gOffsetX.default,
+  gOffsetY: optionTypes.gOffsetY.default,
+  bOffsetX: optionTypes.bOffsetX.default,
+  bOffsetY: optionTypes.bOffsetY.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+const clampCoord = (v: number, max: number) => Math.max(0, Math.min(max - 1, Math.round(v)));
+
 const chromaticAberration = (input, options = defaults) => {
-  const { strength, angle, radial, palette } = options;
+  const { mode, strength, angle, radial, rOffsetX, rOffsetY, gOffsetX, gOffsetY, bOffsetX, bOffsetY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -38,24 +66,32 @@ const chromaticAberration = (input, options = defaults) => {
     for (let y = 0; y < H; y += 1) {
       const i = getBufferIndex(x, y, W);
 
-      let distFactor = 1;
-      if (radial) {
-        const distX = x - cx;
-        const distY = y - cy;
-        distFactor = Math.sqrt(distX * distX + distY * distY) / maxDist;
+      let rX: number, rY: number, gX: number, gY: number, bX: number, bY: number;
+
+      if (mode === MODE_INDEPENDENT) {
+        rX = clampCoord(x + rOffsetX, W); rY = clampCoord(y + rOffsetY, H);
+        gX = clampCoord(x + gOffsetX, W); gY = clampCoord(y + gOffsetY, H);
+        bX = clampCoord(x + bOffsetX, W); bY = clampCoord(y + bOffsetY, H);
+      } else {
+        let distFactor = 1;
+        if (radial) {
+          const distX = x - cx;
+          const distY = y - cy;
+          distFactor = Math.sqrt(distX * distX + distY * distY) / maxDist;
+        }
+        const offset = strength * distFactor;
+        rX = clampCoord(x - dx * offset, W); rY = clampCoord(y - dy * offset, H);
+        gX = x;                               gY = y;
+        bX = clampCoord(x + dx * offset, W); bY = clampCoord(y + dy * offset, H);
       }
 
-      const offset = strength * distFactor;
-      const rX = Math.max(0, Math.min(W - 1, Math.round(x - dx * offset)));
-      const rY = Math.max(0, Math.min(H - 1, Math.round(y - dy * offset)));
-      const bX = Math.max(0, Math.min(W - 1, Math.round(x + dx * offset)));
-      const bY = Math.max(0, Math.min(H - 1, Math.round(y + dy * offset)));
       const rI = getBufferIndex(rX, rY, W);
+      const gI = getBufferIndex(gX, gY, W);
       const bI = getBufferIndex(bX, bY, W);
 
       const col = paletteGetColor(
         palette,
-        rgba(buf[rI], buf[i + 1], buf[bI + 2], buf[i + 3]),
+        rgba(buf[rI], buf[gI + 1], buf[bI + 2], buf[i + 3]),
         palette.options,
         options._linearize
       );
