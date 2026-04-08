@@ -4,7 +4,7 @@ export const optionTypes = {};
 
 export const defaults = {};
 
-const grayscale = (input, options = {}) => {
+const grayscale = (input, options: any = {}) => {
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

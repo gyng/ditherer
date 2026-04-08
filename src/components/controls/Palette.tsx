@@ -18,7 +18,7 @@ const Palette = (props) => (
       }}
     >
       {paletteList.map(p => (
-        <option key={p.name} name={p.name}>
+        <option key={p.name} value={p.name}>
           {p.name}
         </option>
       ))}

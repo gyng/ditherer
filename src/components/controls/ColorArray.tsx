@@ -53,7 +53,7 @@ type ModalState = null | {
   defaultValue?: string;
 };
 
-export default class ColorArray extends React.Component {
+export default class ColorArray extends React.Component<any, any> {
   state = {
     extractMode: TOP,
     modal: null as ModalState
@@ -147,12 +147,12 @@ export default class ColorArray extends React.Component {
         {Object.entries(THEMES).map(e => {
           const [key, val] = e;
           return (
-            <option key={key} name={key} data-colors={val}>
+            <option key={key} value={key} data-colors={val}>
               {key}
             </option>
           );
         })}
-        <option key={customThemeName} name={customThemeName} disabled>
+        <option key={customThemeName} value={customThemeName} disabled>
           Custom
         </option>
       </select>
@@ -171,7 +171,7 @@ export default class ColorArray extends React.Component {
               data-idx={i}
               title={`${color} - click to remove`}
               role="button"
-              tabIndex="0"
+              tabIndex={0}
               onKeyPress={e => {
                 if (e.key === "Enter") {
                   onDeleteColor(e, this.props);

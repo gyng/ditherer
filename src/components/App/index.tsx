@@ -58,7 +58,7 @@ const App = () => {
   }, []);
 
   // Draw to canvas when input/output changes
-  const prevPropsRef = useRef({});
+  const prevPropsRef = useRef<any>({});
   useEffect(() => {
     const prev = prevPropsRef.current;
 

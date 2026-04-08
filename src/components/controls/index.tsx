@@ -39,7 +39,7 @@ const Controls = (props) => {
       {Object.entries(optionTypes).map(e => {
         const [name, oType] = e;
 
-        switch (oType.type) {
+        switch ((oType as any).type) {
           case RANGE:
             return (
               <Range
@@ -47,7 +47,7 @@ const Controls = (props) => {
                 name={name}
                 types={oType}
                 value={options[name]}
-                step={oType && oType.step}
+                step={oType && (oType as any).step}
                 onSetFilterOption={onSetFilterOption}
               />
             );

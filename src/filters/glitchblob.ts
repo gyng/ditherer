@@ -68,7 +68,7 @@ const defaults = {
 class PngError extends Error {
   constructor(...params) {
     super(...params);
-    Error.captureStackTrace(this, PngError);
+    (Error as any).captureStackTrace(this, PngError);
   }
 }
 
@@ -98,8 +98,8 @@ const blobToUint8Array = (blob) =>
   new Promise((resolve, reject) => {
     const fileReader = new FileReader();
     fileReader.onload = event => {
-      if (blob.size === event.target.result.byteLength) {
-        resolve(new Uint8Array(event.target.result));
+      if (blob.size === (event.target.result as ArrayBuffer).byteLength) {
+        resolve(new Uint8Array(event.target.result as ArrayBuffer));
       } else {
         reject(new Error("I've lost my mind"));
       }
@@ -274,14 +274,14 @@ const preprocessPNG = (buffer) => {
   const pngHeader = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   for (; offset < pngHeader.length; offset += 1) {
     if (buffer[offset] !== pngHeader[offset]) {
-      throw PngError("invalid magic");
+      throw new PngError("invalid magic");
     }
   }
   let dataBytes = 0;
   // measure.
   for (;;) {
     if (buffer.length < offset + 4) {
-      throw PngError("truncated");
+      throw new PngError("truncated");
     }
     const length = getU32(buffer.subarray(offset, offset + 4));
     if (length < 0) {
@@ -291,7 +291,7 @@ const preprocessPNG = (buffer) => {
 
     if (buffer.length < offset + length + 4) {
       // not a valid PNG
-      throw PngError("truncated");
+      throw new PngError("truncated");
     }
     const headerType = String.fromCharCode.apply(
       null,
@@ -315,13 +315,13 @@ const preprocessPNG = (buffer) => {
   for (; offset < pngHeader.length; offset += 1) {
     if (buffer[offset] !== pngHeader[offset]) {
       // not a PNG
-      throw PngError("invalid magic");
+      throw new PngError("invalid magic");
     }
   }
   for (;;) {
     if (buffer.length < offset + 4) {
       // not a valid PNG
-      throw PngError("truncated");
+      throw new PngError("truncated");
     }
 
     const chunkStart = offset;
@@ -332,7 +332,7 @@ const preprocessPNG = (buffer) => {
     }
     if (buffer.length < offset + length + 4) {
       // not a valid PNG
-      throw PngError("truncated");
+      throw new PngError("truncated");
     }
     const headerType = String.fromCharCode.apply(
       null,

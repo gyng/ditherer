@@ -12,7 +12,7 @@ const defaults = {
 
 const quantize = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const { palette } = options;
   const output = cloneCanvas(input, false);

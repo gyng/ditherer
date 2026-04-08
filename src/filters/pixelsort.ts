@@ -436,7 +436,7 @@ export const defaults = {
 
 const pixelsortFilter = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const {
     direction,

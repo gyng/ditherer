@@ -20,7 +20,7 @@ export const defaults = {
 
 const binarize = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const getColor = (val, threshold) =>
     val > threshold ? 255 : 0;

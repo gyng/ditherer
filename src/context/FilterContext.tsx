@@ -4,9 +4,9 @@ import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
 import { THEMES } from "palettes/user";
 
-const FilterContext = createContext();
+const FilterContext = createContext<any>(null);
 
-export const useFilter = () => {
+export const useFilter = (): { state: any; actions: any; filterList: any; grayscale: any } => {
   const ctx = useContext(FilterContext);
   if (!ctx) throw new Error("useFilter must be used within FilterProvider");
   return ctx;
@@ -58,7 +58,7 @@ export const FilterProvider = ({ children }) => {
         const scale = roundScale(getAutoScale(image.width, image.height));
         if (scale < 1) dispatch({ type: "SET_SCALE", scale });
       };
-      image.src = event.target.result;
+      image.src = event.target.result as string;
     };
     reader.readAsDataURL(file);
   }, []);

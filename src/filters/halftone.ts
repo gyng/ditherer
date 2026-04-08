@@ -24,7 +24,7 @@ export const defaults = {
 
 const halftone = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const getOffset = (
     radians,
@@ -37,7 +37,7 @@ const halftone = (
     return [x, y];
   };
   const { background, palette } = options;
-  const size = parseInt(options.size, 10);
+  const size = parseInt(String(options.size), 10);
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");

@@ -27,7 +27,7 @@ export const defaults = {
 
 const random = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const output = cloneCanvas(input, false);
 
@@ -61,7 +61,7 @@ const random = (
           const color = nearest.getColor(rgba(r, g, b, floatBuf[i + 3] * 255), {
             levels: options.levels,
             colorDistanceAlgorithm: options.colorDistanceAlgorithm
-          });
+          } as any);
           fillBufferPixel(floatBuf, i, color[0] / 255, color[1] / 255, color[2] / 255, floatBuf[i + 3]);
         }
       }
@@ -86,7 +86,7 @@ const random = (
           const color = nearest.getColor(rgba(r, g, b, buf[i + 3]), {
             levels: options.levels,
             colorDistanceAlgorithm: options.colorDistanceAlgorithm
-          });
+          } as any);
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
         }
       }

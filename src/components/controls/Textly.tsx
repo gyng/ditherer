@@ -6,10 +6,9 @@ const Textly = (props) => (
   <div>
     <div className={s.label}>{props.name}</div>
     <textarea
-      type="text"
       value={props.value}
       wrap="off"
-      spellCheck="false"
+      spellCheck={false}
       onChange={e => props.onSetFilterOption(props.name, e.target.value)}
     />
   </div>

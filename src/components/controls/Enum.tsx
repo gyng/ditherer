@@ -12,7 +12,7 @@ const Enum = (props) => (
       onChange={e => props.onSetFilterOption(props.name, e.target.value)}
     >
       {props.types.options.map(p => (
-        <option key={p.value} name={p.value}>
+        <option key={p.value} value={p.value}>
           {p.value}
         </option>
       ))}

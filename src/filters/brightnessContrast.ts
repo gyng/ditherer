@@ -32,7 +32,7 @@ export const defaults = {
 
 const brightnessContrast = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const { brightness, contrast, exposure, gamma, palette } = options;
   const output = cloneCanvas(input, false);

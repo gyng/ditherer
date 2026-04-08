@@ -177,7 +177,7 @@ export const defaults = {
 
 const convolve = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const kernel = kernels[options.kernel];
   const matrix = scaleMatrix(kernel.matrix, options.strength);

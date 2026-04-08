@@ -140,12 +140,12 @@ export default (state = initialState, action) => {
       if (state.realtimeFiltering && state.inputCanvas) {
         const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize, _wasmAcceleration: state.wasmAcceleration };
         const output = state.convertGrayscale
-          ? state.selected.filter.func(
+          ? (state.selected.filter.func as any)(
               grayscale.func(state.inputCanvas),
               rtOpts,
               action.dispatch
             )
-          : state.selected.filter.func(
+          : (state.selected.filter.func as any)(
               state.inputCanvas,
               rtOpts,
               action.dispatch
@@ -249,7 +249,7 @@ export default (state = initialState, action) => {
                 options: {
                   ...state.selected.filter.options.palette.options,
                   colors: [
-                    ...state.selected.filter.options.palette.options.colors,
+                    ...(state.selected.filter.options.palette.options as any).colors,
                     action.color
                   ]
                 }

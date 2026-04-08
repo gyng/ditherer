@@ -298,7 +298,7 @@ const defaults = {
 
 const ordered = (
   input,
-  options = defaults
+  options: any = defaults
 ) => {
   const {
     palette,
