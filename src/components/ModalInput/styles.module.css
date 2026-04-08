@@ -1,0 +1,92 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.dialog {
+  min-width: 280px;
+  max-width: 90vw;
+  background: var(--light-gray);
+  border-left: 2px outset white;
+  border-top: 2px outset white;
+  border-bottom: 1px outset var(--gray);
+  border-right: 1px outset var(--gray);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+}
+
+.titleBar {
+  background: linear-gradient(90deg, var(--beautiful-blue), #1c85ce);
+  padding: 4px 6px;
+  color: white;
+  font-weight: bold;
+  user-select: none;
+  font-size: 12px;
+}
+
+.body {
+  padding: 12px;
+}
+
+.body input,
+.body textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px inset #ccc;
+  padding: 5px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.body textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.buttons button {
+  min-width: 70px;
+  padding: 4px 12px;
+  background-color: var(--light-gray);
+  border-left: 2px outset white;
+  border-top: 2px outset white;
+  border-bottom: 1px outset var(--gray);
+  border-right: 1px outset var(--gray);
+  box-shadow: 1px 1px 0 black;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.buttons button:active {
+  border: 2px inset var(--gray);
+  border-bottom: 1px outset var(--gray);
+  border-right: 1px outset var(--gray);
+}
+
+@media (max-width: 768px) {
+  .dialog {
+    min-width: unset;
+    width: calc(100vw - 32px);
+  }
+
+  .body input,
+  .body textarea {
+    font-size: 16px;
+  }
+
+  .buttons button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+}

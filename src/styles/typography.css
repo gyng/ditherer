@@ -29,3 +29,9 @@ h2 {
   user-select: none;
   cursor: default;
 }
+
+@media (max-width: 768px) {
+  body { font-size: 14px; }
+  h1   { font-size: 14px; }
+  h2   { font-size: 13px; margin-bottom: 5px; }
+}

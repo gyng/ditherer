@@ -1,0 +1,38 @@
+.section {
+  margin-top: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle {
+  display: none;
+  font-family: monospace;
+  font-size: 12px;
+  user-select: none;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.content {
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+
+@media (max-width: 768px) {
+  .toggle {
+    display: inline;
+  }
+
+  .header {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .collapsed .content {
+    max-height: 0 !important;
+  }
+}

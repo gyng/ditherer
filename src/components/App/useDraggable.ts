@@ -1,17 +1,20 @@
 import { useRef, useCallback, useEffect } from "react";
 
+const isMobile = () => window.innerWidth <= 768;
+
 export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 } } = {}) {
   const pos = useRef(defaultPosition);
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (ref.current) {
+    if (ref.current && !isMobile()) {
       ref.current.style.transform = `translate(${pos.current.x}px, ${pos.current.y}px)`;
     }
   }, [ref]);
 
   const onMouseDown = useCallback((e) => {
+    if (isMobile()) return;
     if (!ref.current) return;
     dragging.current = true;
     offset.current = {

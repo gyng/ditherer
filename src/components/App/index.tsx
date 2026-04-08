@@ -5,6 +5,7 @@ import Controls from "components/controls";
 import Exporter from "components/App/Exporter";
 import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
+import CollapsibleSection from "components/CollapsibleSection";
 
 import { useFilter } from "context/FilterContext";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
@@ -151,6 +152,7 @@ const App = () => {
           <input
             className={[controls.file, dropping ? controls.dropping : null].join(" ")}
             type="file"
+            accept="image/*,video/*"
             id="imageLoader"
             name="imageLoader"
             onChange={e => actions.loadMediaAsync(e.target.files[0], state.videoVolume, state.videoPlaybackRate)}
@@ -169,8 +171,7 @@ const App = () => {
         </div>
 
         {/* Algorithm section */}
-        <div className={s.section}>
-          <h2>Algorithm</h2>
+        <CollapsibleSection title="Algorithm" defaultOpen>
           <div className={["filterOptions", s.filterOptions].join(" ")}>
             <select
               className={controls.enum}
@@ -223,11 +224,10 @@ const App = () => {
             </div>
             <Exporter />
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Filter + video section */}
-        <div className={s.section}>
-          <h2>Filter</h2>
+        <CollapsibleSection title="Filter">
           <button
             className={[s.filterButton, s.waitButton].join(" ")}
             onClick={() => {
@@ -257,8 +257,7 @@ const App = () => {
             {"<< Copy output to input"}
           </button>
 
-          <div className={s.section}>
-            <h2>Video</h2>
+          <CollapsibleSection title="Video">
             <div>
               <label className={controls.label} htmlFor="mute">
                 <input
@@ -302,8 +301,7 @@ const App = () => {
               <div className={controls.unselectable}>Audio capture requires Chrome</div>
             </div>
 
-            <div className={s.section}>
-              <h2>Others</h2>
+            <CollapsibleSection title="Others">
               <Enum
                 name="Scaling algorithm"
                 onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(algorithm)}
@@ -317,9 +315,9 @@ const App = () => {
                 onSetFilterOption={(_, value) => actions.setOutputScale(value)}
                 value={state.outputScale}
               />
-            </div>
-          </div>
-        </div>
+            </CollapsibleSection>
+          </CollapsibleSection>
+        </CollapsibleSection>
 
         <div className={s.github}>
           <a href="https://github.com/gyng/ditherer/">GitHub</a>

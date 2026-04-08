@@ -1,0 +1,43 @@
+import React, { useState, useRef, useEffect } from "react";
+import s from "./styles.module.css";
+
+const isMobile = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+
+const CollapsibleSection = ({ title, children, defaultOpen = false }) => {
+  const [collapsed, setCollapsed] = useState(() => isMobile() && !defaultOpen);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Re-evaluate collapsed state on resize (e.g., rotating device)
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handler = (e) => {
+      if (!e.matches) setCollapsed(false); // always expand on desktop
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return (
+    <div className={[s.section, collapsed ? s.collapsed : ""].join(" ")}>
+      <div
+        className={s.header}
+        onClick={() => {
+          if (isMobile()) setCollapsed(c => !c);
+        }}
+      >
+        <h2>{title}</h2>
+        <span className={s.toggle}>{collapsed ? "[+]" : "[-]"}</span>
+      </div>
+      <div
+        ref={contentRef}
+        className={s.content}
+        style={{ maxHeight: collapsed ? 0 : "none" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export default CollapsibleSection;

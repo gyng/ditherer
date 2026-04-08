@@ -128,3 +128,54 @@
   border-bottom: 2px inset white;
   background: var(--light-gray);
 }
+
+@media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .chrome {
+    width: 100%;
+    min-width: unset;
+    padding: 10px;
+    max-height: 50vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .chrome .filterButton {
+    padding: 14px;
+  }
+
+  .canvases {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .canvases > div {
+    position: static !important;
+    transform: none !important;
+    margin: 4px 0;
+    width: 100%;
+  }
+
+  .canvases > div:nth-child(1) { order: 2; }
+  .canvases > div:nth-child(2) { order: 1; }
+  .canvases > div:nth-child(3) { order: 3; }
+
+  .canvases .canvas {
+    max-width: 100%;
+    height: auto;
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  .inputWindow {
+    min-height: unset;
+    min-width: unset;
+  }
+
+  .canvasArea {
+    min-height: 80px;
+  }
+}

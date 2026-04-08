@@ -133,6 +133,17 @@ export const FilterProvider = ({ children }) => {
       delete THEMES[name];
       dispatch({ type: "DELETE_CURRENT_COLOR_PALETTE", name });
     },
+    getExportUrl: (filterState) => {
+      const json = JSON.stringify(
+        { selected: filterState.selected, convertGrayscale: filterState.convertGrayscale },
+        (k, v) => {
+          if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
+          return v;
+        }
+      );
+      const base = `${window.location.origin}${window.location.pathname}`;
+      return `${base}?state=${encodeURI(btoa(json))}`;
+    },
     exportState: (filterState, format) => {
       const json = JSON.stringify(
         { selected: filterState.selected, convertGrayscale: filterState.convertGrayscale },
@@ -142,10 +153,13 @@ export const FilterProvider = ({ children }) => {
         }
       );
       if (format === "json") {
-        window.open(`data:application/json,${encodeURI(json)}`);
-      } else {
-        const base = `${window.location.origin}${window.location.pathname}`;
-        prompt("URL", `${base}?state=${encodeURI(btoa(json))}`);  
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "ditherer-state.json";
+        a.click();
+        URL.revokeObjectURL(url);
       }
     },
   };

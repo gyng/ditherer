@@ -175,3 +175,68 @@ button:focus,
 .unselectable {
   user-select: none !important;
 }
+
+@media (max-width: 768px) {
+  .enum {
+    padding: 10px;
+    font-size: 16px;
+  }
+
+  .checkbox {
+    min-height: 44px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .checkbox input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .range .rangeGroup > input[type=range] {
+    height: 44px;
+  }
+
+  .range .value {
+    min-width: 50px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-size: 14px;
+  }
+
+  .colorArray .color {
+    min-height: 28px;
+    min-width: 28px;
+  }
+
+  button, .button {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .file {
+    min-height: 44px;
+    padding: 8px;
+    font-size: 16px;
+  }
+
+  .titleBar {
+    cursor: default;
+    padding: 6px 8px;
+  }
+
+  textarea {
+    width: 100%;
+    font-size: 16px;
+  }
+
+  input[type=text] {
+    font-size: 16px;
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}

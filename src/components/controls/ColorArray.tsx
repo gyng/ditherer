@@ -2,6 +2,7 @@ import React from "react";
 
 import { THEMES } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
+import ModalInput from "components/ModalInput";
 
 import Enum from "./Enum";
 import s from "./styles.module.css";
@@ -47,14 +48,82 @@ const onDeleteColor = (e, props) => {
   );
 };
 
-export default class ColorArray extends React.Component {
-  constructor() {
-    super();
+type ModalState = null | {
+  type: "addColor" | "extractTop" | "extractAdaptive" | "savePalette" | "importPalette";
+  defaultValue?: string;
+};
 
-    this.state = {
-      extractMode: TOP
-    };
-  }
+export default class ColorArray extends React.Component {
+  state = {
+    extractMode: TOP,
+    modal: null as ModalState
+  };
+
+  handleModalConfirm = (value: string) => {
+    const { modal } = this.state;
+    if (!modal) return;
+
+    switch (modal.type) {
+      case "addColor": {
+        const color = convertCsvToColor(value);
+        if (color) this.props.onAddPaletteColor(color);
+        break;
+      }
+      case "extractTop": {
+        const ctx = this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+        if (ctx) {
+          const topN = parseInt(value, 10);
+          if (topN > 0) {
+            const colors = uniqueColors(
+              ctx.getImageData(0, 0, this.props.inputCanvas.width || 0, this.props.inputCanvas.height || 0).data,
+              topN
+            );
+            this.props.onSetPaletteOption("colors", colors);
+          }
+        }
+        break;
+      }
+      case "extractAdaptive": {
+        const ctx = this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
+        if (ctx) {
+          const topN = parseInt(value, 10);
+          if (topN > 0) {
+            const mode = modeMap[this.state.extractMode];
+            const colors = medianCutPalette(
+              ctx.getImageData(0, 0, this.props.inputCanvas.width || 0, this.props.inputCanvas.height || 0).data,
+              topN,
+              true,
+              mode.adaptMode,
+              mode.colorMode
+            );
+            this.props.onSetPaletteOption("colors", colors);
+          }
+        }
+        break;
+      }
+      case "savePalette": {
+        const savedName = `🎨 ${value}`;
+        if (!value || THEMES[savedName]) {
+          alert("Could not save: name taken or invalid. Use a different name.");
+        } else {
+          this.props.onSaveColorPalette(savedName, this.props.value);
+          this.forceUpdate();
+        }
+        break;
+      }
+      case "importPalette": {
+        try {
+          const imported = JSON.parse(value);
+          this.props.onSetPaletteOption("colors", imported);
+        } catch {
+          // invalid JSON — ignore
+        }
+        break;
+      }
+    }
+
+    this.setState({ modal: null });
+  };
 
   render() {
     if (!this.props.value || !Array.isArray(this.props.value)) {
@@ -97,7 +166,7 @@ export default class ColorArray extends React.Component {
 
           return (
             <div
-              key={`${c}-${i++}`}  
+              key={`${c}-${i++}`}
               className={s.color}
               data-idx={i}
               title={`${color} - click to remove`}
@@ -123,14 +192,12 @@ export default class ColorArray extends React.Component {
     const onAddColorButton = (
       <button
         onClick={() => {
-          const colorString = prompt(
-            'Add a color: "r,g,b,a" (0-255 for each, eg. 255,0,0,255 for red)'
-          );
-          const color = convertCsvToColor(colorString);
-
-          if (color) {
-            this.props.onAddPaletteColor(color);
-          }
+          this.setState({
+            modal: {
+              type: "addColor",
+              defaultValue: "255,0,0,255"
+            }
+          });
         }}
       >
         🖌 Add color
@@ -140,55 +207,27 @@ export default class ColorArray extends React.Component {
     const extractTopButton = (
       <button
         onClick={() => {
-          const ctx =
-            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-          if (ctx) {
-            const topN = parseInt(prompt("Take the top n colors", 64), 10);
-
-            const colors = uniqueColors(
-              ctx.getImageData(
-                0,
-                0,
-                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
-                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
-              ).data,
-              topN
-            );
-            this.props.onSetPaletteOption("colors", colors);
-          }
+          this.setState({
+            modal: {
+              type: "extractTop",
+              defaultValue: "64"
+            }
+          });
         }}
       >
         🖼️ Extract TOP
       </button>
     );
 
-    const extractAdaptiveButton = (
-      name,
-      ignoreAlpha,
-      colorMode,
-      adaptMode
-    ) => (
+    const extractAdaptiveButton = (name) => (
       <button
         onClick={() => {
-          const ctx =
-            this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-          if (ctx) {
-            const topN = parseInt(prompt("Take the top 2^n colors", 4), 10);
-
-            const colors = medianCutPalette(
-              ctx.getImageData(
-                0,
-                0,
-                (this.props.inputCanvas && this.props.inputCanvas.width) || 0,
-                (this.props.inputCanvas && this.props.inputCanvas.height) || 0
-              ).data,
-              topN,
-              ignoreAlpha,
-              adaptMode,
-              colorMode
-            );
-            this.props.onSetPaletteOption("colors", colors);
-          }
+          this.setState({
+            modal: {
+              type: "extractAdaptive",
+              defaultValue: "4"
+            }
+          });
         }}
       >
         🖼️ {`Extract ${name}`}
@@ -220,29 +259,14 @@ export default class ColorArray extends React.Component {
 
         {this.state.extractMode === TOP
           ? extractTopButton
-          : extractAdaptiveButton(
-              this.state.extractMode,
-              true,
-              modeMap[this.state.extractMode].colorMode,
-              modeMap[this.state.extractMode].adaptMode
-            )}
+          : extractAdaptiveButton(this.state.extractMode)}
       </div>
     );
 
     const savePaletteButton = (
       <button
         onClick={() => {
-          const name = prompt("Save current palette as");
-          const savedName = `🎨 ${name}`;
-
-          if (!name || THEMES[savedName]) {
-            alert(
-              "Could not save: name taken or invalid. Use a different name. "
-            );
-          } else {
-            this.props.onSaveColorPalette(savedName, this.props.value);
-            this.forceUpdate();
-          }
+          this.setState({ modal: { type: "savePalette" } });
         }}
       >
         🎨 Save locally
@@ -252,16 +276,13 @@ export default class ColorArray extends React.Component {
     const exportPaletteButton = (
       <button
         onClick={() => {
-          const w = window.open("");
-          w.document.write(
-            `Copy this:
-            <textarea>${JSON.stringify(this.props.value)}</textarea>
-            <hr>
-            Dev:
-            <textarea>${this.props.value
-              .map(c => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`)
-              .join(",\n")}</textarea>`
-          );
+          const blob = new Blob([JSON.stringify(this.props.value)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "palette.json";
+          a.click();
+          URL.revokeObjectURL(url);
         }}
       >
         🎨 Export
@@ -271,9 +292,7 @@ export default class ColorArray extends React.Component {
     const importPaletteButton = (
       <button
         onClick={() => {
-          const json = window.prompt("Paste theme JSON");
-          const imported = JSON.parse(json);
-          this.props.onSetPaletteOption("colors", imported);
+          this.setState({ modal: { type: "importPalette" } });
         }}
       >
         🎨 Import palette
@@ -295,6 +314,14 @@ export default class ColorArray extends React.Component {
       </button>
     );
 
+    const modalTitles = {
+      addColor: "Add a color (r,g,b,a — 0-255 each)",
+      extractTop: "Take the top n colors",
+      extractAdaptive: "Take the top 2^n colors",
+      savePalette: "Save current palette as",
+      importPalette: "Paste theme JSON"
+    };
+
     return (
       <div>
         <div className={s.label}>Theme</div>
@@ -309,9 +336,19 @@ export default class ColorArray extends React.Component {
 
         {importPaletteButton}
         {!currentTheme ? exportPaletteButton : null}
-        {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ") // Hack!
+        {currentTheme && currentTheme[0] && currentTheme[0].includes("🎨 ")
           ? deletePaletteButton
           : null}
+
+        {this.state.modal && (
+          <ModalInput
+            title={modalTitles[this.state.modal.type]}
+            defaultValue={this.state.modal.defaultValue || ""}
+            multiline={this.state.modal.type === "importPalette"}
+            onConfirm={this.handleModalConfirm}
+            onCancel={() => this.setState({ modal: null })}
+          />
+        )}
       </div>
     );
   }
