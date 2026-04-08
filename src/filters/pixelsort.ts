@@ -8,7 +8,7 @@ import {
   rgba2hsvaMemo,
   rgba2labaMemo,
   luminance,
-  paletteGetColor
+  srgbPaletteGetColor
 } from "utils";
 
 export const DIRECTION = {
@@ -382,13 +382,13 @@ export const optionTypes = {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
-    default: 0
+    default: 50
   },
   sortPixelLuminanceBelow: {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
-    default: 255
+    default: 200
   },
   sortPixelLuminanceChangeAbove: {
     type: RANGE,
@@ -415,7 +415,7 @@ export const optionTypes = {
     default: 0
   },
   palette: { type: PALETTE, default: palettes.nearest },
-  linearLuminance: { type: BOOL, default: true }
+  linearLuminance: { type: BOOL, default: false }
 };
 
 export const defaults = {
@@ -473,7 +473,7 @@ const pixelsortFilter = (
     for (let i = 0; i < interval.trail.length; i += 1) {
       const bufIdx = interval.trail[i];
       const pixel = interval.pixels[i];
-      const col = paletteGetColor(palette, pixel, palette.options, options._linearize);
+      const col = srgbPaletteGetColor(palette, pixel, palette.options);
       fillBufferPixel(buf, bufIdx, col[0], col[1], col[2], col[3]);
     }
 

@@ -184,16 +184,25 @@ export default class ColorArray extends React.Component<any, any> {
               color={this.state.pickerColor}
               onChange={color => this.setState({ pickerColor: color })}
             />
-            <button
-              onClick={() => {
-                const c = this.state.pickerColor;
-                this.props.onAddPaletteColor(
-                  rgba(c.r, c.g, c.b, Math.round(c.a * 255))
-                );
-              }}
-            >
-              + Add to palette
-            </button>
+            <div className={s.pickerPreview}>
+              <div
+                className={s.pickerSwatch}
+                style={{
+                  backgroundColor: `rgba(${this.state.pickerColor.r}, ${this.state.pickerColor.g}, ${this.state.pickerColor.b}, ${this.state.pickerColor.a})`
+                }}
+              />
+              <button
+                style={{ flex: 1 }}
+                onClick={() => {
+                  const c = this.state.pickerColor;
+                  this.props.onAddPaletteColor(
+                    rgba(c.r, c.g, c.b, Math.round(c.a * 255))
+                  );
+                }}
+              >
+                + Add to palette
+              </button>
+            </div>
           </div>
         )}
       </div>

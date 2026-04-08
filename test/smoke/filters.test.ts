@@ -183,7 +183,6 @@ describe("linearize safety: every filter produces opaque output with _linearize=
     "Channel separation",
     "Jitter",
     "Scanline",
-    "Pixelsort",
   ]);
 
   const allFilters = Object.entries(filterIndex);
