@@ -35,6 +35,11 @@
   padding: 5px;
 }
 
+.enum optgroup {
+  font-weight: bold;
+  font-style: normal;
+}
+
 .colorArray {
   display: flex;
   flex-flow: row wrap;

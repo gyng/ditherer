@@ -159,35 +159,101 @@ export const filterIndex = [
   return acc;
 }, {});
 
-// Presets
+export const filterCategories = [
+  "Dithering", "Color", "Stylize", "Distort",
+  "Glitch", "Simulate", "Blur & Edges", "Advanced"
+];
+
+// Presets — grouped by category, alphabetized within each
 export const filterList = [
+  // ── Dithering ──
+  { displayName: "Atkinson (Mac)", filter: atkinson, category: "Dithering" },
   {
-    displayName: "Program",
+    displayName: "Atkinson (Macintosh II color test)",
+    category: "Dithering",
     filter: {
-      ...program,
+      ...atkinson,
       options: {
-        ...program.options,
         palette: {
-          ...program.options.palette,
-          options: {
-            ...program.options.palette.options,
-            levels: 256
-          }
+          ...palettes.user,
+          options: { colors: THEMES.MAC2 }
         }
       }
     }
   },
-  { displayName: "Convolve", filter: convolve },
+  { displayName: "Binarize", filter: binarize, category: "Dithering" },
+  { displayName: "Burkes", filter: burkes, category: "Dithering" },
+  { displayName: "False Floyd-Steinberg", filter: falseFloydSteinberg, category: "Dithering" },
+  { displayName: "Floyd-Steinberg", filter: floydSteinberg, category: "Dithering" },
   {
-    displayName: "Convolve (edge detection)",
+    displayName: "Floyd-Steinberg (CGA test)",
+    category: "Dithering",
     filter: {
-      ...convolve,
-      options: { ...convolve.options, kernel: LAPLACIAN_3X3 }
+      ...floydSteinberg,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.CGA }
+        }
+      }
     }
   },
-  { displayName: "Invert", filter: invert },
+  {
+    displayName: "Floyd-Steinberg (Vaporwave test)",
+    category: "Dithering",
+    filter: {
+      ...floydSteinberg,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.VAPORWAVE }
+        }
+      }
+    }
+  },
+  { displayName: "Jarvis", filter: jarvis, category: "Dithering" },
+  { displayName: "Ordered", filter: ordered, category: "Dithering" },
+  {
+    displayName: "Ordered (Gameboy)",
+    category: "Dithering",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.GAMEBOY }
+        }
+      }
+    }
+  },
+  {
+    displayName: "Ordered (Windows 16-color)",
+    category: "Dithering",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        thresholdMap: BAYER_4X4,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.CGA }
+        }
+      }
+    }
+  },
+  { displayName: "Quantize (No dithering)", filter: quantize, category: "Dithering" },
+  { displayName: "Random", filter: random, category: "Dithering" },
+  { displayName: "Sierra (full)", filter: sierra, category: "Dithering" },
+  { displayName: "Sierra (lite)", filter: sierraLite, category: "Dithering" },
+  { displayName: "Sierra (two-row)", filter: sierra2, category: "Dithering" },
+  { displayName: "Stucki", filter: stucki, category: "Dithering" },
+  { displayName: "Triangle dither", filter: triangleDither, category: "Dithering" },
+
+  // ── Color ──
   {
     displayName: "Brightness/Contrast",
+    category: "Color",
     filter: {
       ...brightnessContrast,
       options: {
@@ -202,41 +268,60 @@ export const filterList = [
       }
     }
   },
+  { displayName: "Color balance", filter: colorBalance, category: "Color" },
+  { displayName: "Color shift", filter: colorShift, category: "Color" },
+  { displayName: "Duotone", filter: duotone, category: "Color" },
+  { displayName: "Grayscale", filter: grayscale, category: "Color" },
+  { displayName: "Histogram equalization", filter: histogramEqualization, category: "Color" },
   {
-    displayName: "Scanline",
-    filter: {
-      ...scanline,
-      options: {
-        ...scanline.options,
-        palette: {
-          ...scanline.options.palette,
-          options: {
-            ...scanline.options.palette.options,
-            levels: 256
-          }
-        }
-      }
-    }
+    displayName: "Histogram equalization (per-channel)",
+    category: "Color",
+    filter: { ...histogramEqualization, options: { ...histogramEqualization.options, perChannel: true } }
   },
+  { displayName: "Invert", filter: invert, category: "Color" },
+  { displayName: "Posterize", filter: posterize, category: "Color" },
+  { displayName: "Solarize", filter: solarize, category: "Color" },
+
+  // ── Stylize ──
+  { displayName: "ASCII", filter: ascii, category: "Stylize" },
+  { displayName: "Halftone", filter: halftone, category: "Stylize" },
+  { displayName: "K-means", filter: kmeans, category: "Stylize" },
+  { displayName: "Kuwahara", filter: kuwahara, category: "Stylize" },
+  { displayName: "Mavica FD7", filter: mavicaFd7, category: "Stylize" },
+  { displayName: "Pixelate", filter: pixelate, category: "Stylize" },
+  { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize" },
+  { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize" },
+  { displayName: "Voronoi", filter: voronoi, category: "Stylize" },
+
+  // ── Distort ──
+  { displayName: "Chromatic aberration", filter: chromaticAberration, category: "Distort" },
   {
-    displayName: "CRT emulation",
-    filter: {
-      ...rgbStripe,
-      options: {
-        ...rgbStripe.options,
-        palette: {
-          ...rgbStripe.options.palette,
-          options: {
-            ...rgbStripe.options.palette.options,
-            levels: 32
-          }
-        }
-      }
-    }
+    displayName: "Chromatic aberration (per-channel)",
+    category: "Distort",
+    filter: { ...chromaticAberration, options: { ...chromaticAberration.options, mode: "INDEPENDENT" } }
   },
-  { displayName: "Glitch", filter: glitchblob },
+  { displayName: "Displace", filter: displace, category: "Distort" },
+  {
+    displayName: "Displace (smooth)",
+    category: "Distort",
+    filter: { ...displace, options: { ...displace.options, warpSource: "BLURRED" } }
+  },
+  { displayName: "Lens distortion", filter: lensDistortion, category: "Distort" },
+  {
+    displayName: "Lens distortion (pincushion)",
+    category: "Distort",
+    filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
+  },
+  { displayName: "Wave", filter: wave, category: "Distort" },
+
+  // ── Glitch ──
+  { displayName: "Bit crush", filter: bitCrush, category: "Glitch" },
+  { displayName: "Channel separation", filter: channelSeparation, category: "Glitch" },
+  { displayName: "Glitch", filter: glitchblob, category: "Glitch" },
+  { displayName: "Jitter", filter: jitter, category: "Glitch" },
   {
     displayName: "Pixelsort",
+    category: "Glitch",
     filter: {
       ...pixelsort,
       options: {
@@ -251,162 +336,84 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Pixelate", filter: pixelate },
-  { displayName: "Channel separation", filter: channelSeparation },
-  { displayName: "Jitter", filter: jitter },
-  { displayName: "VHS emulation", filter: vhs },
-  { displayName: "Grayscale", filter: grayscale },
-  { displayName: "Random", filter: random },
-  { displayName: "Halftone", filter: halftone },
-  { displayName: "Binarize", filter: binarize },
+
+  // ── Simulate ──
+  { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Simulate" },
   {
-    displayName: "Quantize (No dithering)",
-    filter: quantize
-  },
-  { displayName: "Ordered", filter: ordered },
-  {
-    displayName: "Ordered (Windows 16-color)",
+    displayName: "CRT emulation",
+    category: "Simulate",
     filter: {
-      ...ordered,
+      ...rgbStripe,
       options: {
-        ...ordered.options,
-        thresholdMap: BAYER_4X4,
+        ...rgbStripe.options,
         palette: {
-          ...palettes.user,
-          options: { colors: THEMES.CGA }
+          ...rgbStripe.options.palette,
+          options: {
+            ...rgbStripe.options.palette.options,
+            levels: 32
+          }
         }
       }
     }
   },
+  { displayName: "Reaction-diffusion (coral)", filter: reactionDiffusion, category: "Simulate" },
   {
-    displayName: "Ordered (Gameboy)",
-    filter: {
-      ...ordered,
-      options: {
-        ...ordered.options,
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.GAMEBOY }
-        }
-      }
-    }
+    displayName: "Reaction-diffusion (labyrinth)",
+    category: "Simulate",
+    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "LABYRINTH" } }
   },
-  {
-    displayName: "Floyd-Steinberg",
-    filter: floydSteinberg
-  },
-  {
-    displayName: "Floyd-Steinberg (CGA test)",
-    filter: {
-      ...floydSteinberg,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.CGA }
-        }
-      }
-    }
-  },
-  {
-    displayName: "Floyd-Steinberg (Vaporwave test)",
-    filter: {
-      ...floydSteinberg,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.VAPORWAVE }
-        }
-      }
-    }
-  },
-  {
-    displayName: "False Floyd-Steinberg",
-    filter: falseFloydSteinberg
-  },
-  { displayName: "Jarvis", filter: jarvis },
-  {
-    displayName: "Stucki",
-    filter: stucki
-  },
-  {
-    displayName: "Burkes",
-    filter: burkes
-  },
-  {
-    displayName: "Atkinson (Mac)",
-    filter: atkinson
-  },
-  {
-    displayName: "Atkinson (Macintosh II color test)",
-    filter: {
-      ...atkinson,
-      options: {
-        palette: {
-          ...palettes.user,
-          options: { colors: THEMES.MAC2 }
-        }
-      }
-    }
-  },
-  { displayName: "Sierra (full)", filter: sierra },
-  {
-    displayName: "Sierra (two-row)",
-    filter: sierra2
-  },
-  {
-    displayName: "Sierra (lite)",
-    filter: sierraLite
-  },
-  {
-    displayName: "Stripe (horizontal)",
-    filter: horizontalStripe
-  },
-  {
-    displayName: "Stripe (vertical)",
-    filter: verticalStripe
-  },
-  { displayName: "Solarize", filter: solarize },
-  { displayName: "Posterize", filter: posterize },
-  { displayName: "Chromatic aberration", filter: chromaticAberration },
-  {
-    displayName: "Chromatic aberration (per-channel)",
-    filter: { ...chromaticAberration, options: { ...chromaticAberration.options, mode: "INDEPENDENT" } }
-  },
-  { displayName: "Bloom", filter: bloom },
-  { displayName: "Color shift", filter: colorShift },
-  { displayName: "Bit crush", filter: bitCrush },
-  { displayName: "Displace", filter: displace },
-  {
-    displayName: "Displace (smooth)",
-    filter: { ...displace, options: { ...displace.options, warpSource: "BLURRED" } }
-  },
-  { displayName: "Voronoi", filter: voronoi },
-  { displayName: "ASCII", filter: ascii },
-  { displayName: "Kuwahara", filter: kuwahara },
-  { displayName: "Reaction-diffusion (coral)", filter: reactionDiffusion },
   {
     displayName: "Reaction-diffusion (worms)",
+    category: "Simulate",
     filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "WORMS" } }
   },
   {
-    displayName: "Reaction-diffusion (labyrinth)",
-    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "LABYRINTH" } }
+    displayName: "Scanline",
+    category: "Simulate",
+    filter: {
+      ...scanline,
+      options: {
+        ...scanline.options,
+        palette: {
+          ...scanline.options.palette,
+          options: {
+            ...scanline.options.palette.options,
+            levels: 256
+          }
+        }
+      }
+    }
   },
-  { displayName: "Histogram equalization", filter: histogramEqualization },
+  { displayName: "VHS emulation", filter: vhs, category: "Simulate" },
+
+  // ── Blur & Edges ──
+  { displayName: "Bloom", filter: bloom, category: "Blur & Edges" },
+  { displayName: "Convolve", filter: convolve, category: "Blur & Edges" },
   {
-    displayName: "Histogram equalization (per-channel)",
-    filter: { ...histogramEqualization, options: { ...histogramEqualization.options, perChannel: true } }
+    displayName: "Convolve (edge detection)",
+    category: "Blur & Edges",
+    filter: {
+      ...convolve,
+      options: { ...convolve.options, kernel: LAPLACIAN_3X3 }
+    }
   },
-  { displayName: "Duotone", filter: duotone },
-  { displayName: "Wave", filter: wave },
-  { displayName: "Color balance", filter: colorBalance },
-  { displayName: "Lens distortion", filter: lensDistortion },
+
+  // ── Advanced ──
   {
-    displayName: "Lens distortion (pincushion)",
-    filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
+    displayName: "Program",
+    category: "Advanced",
+    filter: {
+      ...program,
+      options: {
+        ...program.options,
+        palette: {
+          ...program.options.palette,
+          options: {
+            ...program.options.palette.options,
+            levels: 256
+          }
+        }
+      }
+    }
   },
-  { displayName: "Triangle dither", filter: triangleDither },
-  { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion },
-  { displayName: "K-means", filter: kmeans },
-  { displayName: "Mavica FD7", filter: mavicaFd7 }
 ];

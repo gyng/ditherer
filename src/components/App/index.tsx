@@ -8,6 +8,7 @@ import Enum from "components/controls/Enum";
 import CollapsibleSection from "components/CollapsibleSection";
 
 import { useFilter } from "context/FilterContext";
+import { filterCategories } from "filters";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 
@@ -205,10 +206,16 @@ const App = () => {
               }}
               value={state.selected && (state.selected.displayName || state.selected.name)}
             >
-              {filterList.map(f => (
-                <option key={f && f.displayName} value={f && f.displayName}>
-                  {f && f.displayName}
-                </option>
+              {filterCategories.map(cat => (
+                <optgroup key={cat} label={cat}>
+                  {filterList
+                    .filter(f => f && f.category === cat)
+                    .map(f => (
+                      <option key={f.displayName} value={f.displayName}>
+                        {f.displayName}
+                      </option>
+                    ))}
+                </optgroup>
               ))}
             </select>
             <div className={controls.group}>
