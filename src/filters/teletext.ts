@@ -216,8 +216,10 @@ const teletext = (
               // Check if this pixel is in the gap region
               const localX = px - subX;
               const localY = py - subY;
-              const inGapX = localX >= blockW - blockGap;
-              const inGapY = localY >= blockH - blockGap;
+              const effectiveGapX = Math.min(blockGap, blockW - 1);
+              const effectiveGapY = Math.min(blockGap, blockH - 1);
+              const inGapX = effectiveGapX > 0 && localX >= blockW - effectiveGapX;
+              const inGapY = effectiveGapY > 0 && localY >= blockH - effectiveGapY;
 
               if (inGapX || inGapY) {
                 // Gap pixel: use a darker shade of the background

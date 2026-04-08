@@ -426,7 +426,14 @@ const App = () => {
 
         {state.frameTime != null && (
           <div className={s.perfStats}>
-            {state.frameTime.toFixed(1)}ms | {(1000 / state.frameTime).toFixed(1)} fps
+            {state.stepTimes && state.stepTimes.length > 1
+              ? <>
+                  {state.stepTimes.length} filters {state.frameTime.toFixed(1)}ms ({state.stepTimes.map(st => st.ms.toFixed(0)).join(" + ")}) | {(1000 / state.frameTime).toFixed(1)} fps
+                </>
+              : <>
+                  {state.stepTimes?.[0]?.name ?? "Filter"} {state.frameTime.toFixed(1)}ms | {(1000 / state.frameTime).toFixed(1)} fps
+                </>
+            }
           </div>
         )}
         <div className={s.github}>

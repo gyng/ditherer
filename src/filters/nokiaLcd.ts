@@ -51,18 +51,18 @@ const nokiaLcd = (
   const origW = input.width;
   const origH = input.height;
 
-  // Step 1 — Downscale to Nokia LCD resolution (bilinear via browser)
-  const downCanvas = document.createElement("canvas");
-  downCanvas.width = columns;
-  downCanvas.height = rows;
-  const downCtx = downCanvas.getContext("2d");
-  if (!downCtx) return input;
-
-  downCtx.imageSmoothingEnabled = true;
-  downCtx.drawImage(input, 0, 0, columns, rows);
-
-  const imgData = downCtx.getImageData(0, 0, columns, rows);
-  const buf = imgData.data;
+  // Step 1 — Downscale by sampling from input buffer (nearest neighbor)
+  const srcBuf = inputCtx.getImageData(0, 0, origW, origH).data;
+  const buf = new Uint8ClampedArray(columns * rows * 4);
+  for (let dy = 0; dy < rows; dy++) {
+    for (let dx = 0; dx < columns; dx++) {
+      const sx = Math.min(origW - 1, Math.round(dx * origW / columns));
+      const sy = Math.min(origH - 1, Math.round(dy * origH / rows));
+      const si = getBufferIndex(sx, sy, origW);
+      const di = getBufferIndex(dx, dy, columns);
+      buf[di] = srcBuf[si]; buf[di+1] = srcBuf[si+1]; buf[di+2] = srcBuf[si+2]; buf[di+3] = srcBuf[si+3];
+    }
+  }
 
   // Step 2 — Convert to 1-bit monochrome with contrast and threshold
   const outBuf = new Uint8ClampedArray(buf.length);
@@ -87,15 +87,22 @@ const nokiaLcd = (
     }
   }
 
-  downCtx.putImageData(new ImageData(outBuf, columns, rows), 0, 0);
-
-  // Step 3 — Upscale back to original size with nearest-neighbor for chunky pixels
+  // Step 3 — Upscale back to original size (nearest neighbor for chunky pixels)
   const output = cloneCanvas(input, false);
   const outputCtx = output.getContext("2d");
   if (!outputCtx) return input;
 
-  outputCtx.imageSmoothingEnabled = false;
-  outputCtx.drawImage(downCanvas, 0, 0, origW, origH);
+  const finalBuf = new Uint8ClampedArray(origW * origH * 4);
+  for (let y = 0; y < origH; y++) {
+    for (let x = 0; x < origW; x++) {
+      const sx = Math.min(columns - 1, Math.floor(x * columns / origW));
+      const sy = Math.min(rows - 1, Math.floor(y * rows / origH));
+      const si = getBufferIndex(sx, sy, columns);
+      const di = getBufferIndex(x, y, origW);
+      finalBuf[di] = outBuf[si]; finalBuf[di+1] = outBuf[si+1]; finalBuf[di+2] = outBuf[si+2]; finalBuf[di+3] = outBuf[si+3];
+    }
+  }
+  outputCtx.putImageData(new ImageData(finalBuf, origW, origH), 0, 0);
 
   // Step 4 — Pixel grid: darken every Nth pixel to simulate LCD grid lines
   if (pixelGrid) {

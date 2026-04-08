@@ -44,6 +44,13 @@ import gameboyCamera from "./gameboyCamera";
 import oscilloscope from "./oscilloscope";
 import teletext from "./teletext";
 import datamosh from "./datamosh";
+import thermalCamera from "./thermalCamera";
+import nightVision from "./nightVision";
+import projectionFilm from "./projectionFilm";
+import polaroid from "./polaroid";
+import nokiaLcd from "./nokiaLcd";
+import deepFry from "./deepFry";
+import ultrasound from "./ultrasound";
 import {
   atkinson,
   burkes,
@@ -166,7 +173,14 @@ export const filterIndex = [
   gameboyCamera,
   oscilloscope,
   teletext,
-  datamosh
+  datamosh,
+  thermalCamera,
+  nightVision,
+  projectionFilm,
+  polaroid,
+  nokiaLcd,
+  deepFry,
+  ultrasound
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -322,16 +336,6 @@ export const filterList = [
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
   { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
-  { displayName: "E-ink (grayscale)", filter: eink, category: "Simulate", description: "Simulate a 16-level grayscale e-ink display with paper texture and ghosting" },
-  {
-    displayName: "E-ink (color)",
-    category: "Simulate",
-    description: "Simulate a color Kaleido/Gallery e-ink display with washed-out palette",
-    filter: { ...eink, options: { ...eink.options, mode: "COLOR", palette: { ...eink.options.palette, options: { levels: 256 } } } }
-  },
-  { displayName: "Gameboy Camera", filter: gameboyCamera, category: "Simulate", description: "Simulate the Gameboy Camera — 4-shade green palette with edge enhancement and ordered dithering" },
-  { displayName: "Mavica FD7", filter: mavicaFd7, category: "Simulate", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
-  { displayName: "Oscilloscope", filter: oscilloscope, category: "Simulate", description: "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence" },
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
   { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
   { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize", description: "Overlay vertical stripe pattern over the image" },
@@ -364,6 +368,7 @@ export const filterList = [
   // ── Glitch ──
   { displayName: "Bit crush", filter: bitCrush, category: "Glitch", description: "Reduce bit depth per channel for harsh color banding" },
   { displayName: "Channel separation", filter: channelSeparation, category: "Glitch", description: "Split and offset RGB channels for a glitchy color-fringe look" },
+  { displayName: "Datamosh", filter: datamosh, category: "Glitch", description: "Simulate I-frame removal — blocks persist, smear, and corrupt like broken video compression" },
   { displayName: "Glitch", filter: glitchblob, category: "Glitch", description: "Randomly corrupt pixel data to simulate digital artifacts" },
   { displayName: "Jitter", filter: jitter, category: "Glitch", description: "Randomly shift pixel rows for a shaky, unstable signal look" },
   {
@@ -436,7 +441,38 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Teletext", filter: teletext, category: "Simulate", description: "Simulate a Teletext/Ceefax block mosaic display with 2x3 character cells and 8 colors" },
+  { displayName: "Deep fry", filter: deepFry, category: "Stylize", description: "Extreme contrast, oversaturation, and JPEG artifacts — the deep-fried meme aesthetic" },
+  { displayName: "E-ink (grayscale)", filter: eink, category: "Simulate", description: "Simulate a 16-level grayscale e-ink display with paper texture and ghosting" },
+  {
+    displayName: "E-ink (color)",
+    category: "Simulate",
+    description: "Simulate a color Kaleido/Gallery e-ink display with washed-out palette",
+    filter: { ...eink, options: { ...eink.options, mode: "COLOR", palette: { ...eink.options.palette, options: { levels: 256 } } } }
+  },
+  { displayName: "Gameboy Camera", filter: gameboyCamera, category: "Simulate", description: "Simulate the Gameboy Camera — 4-shade green palette with edge enhancement and ordered dithering" },
+  { displayName: "Mavica FD7", filter: mavicaFd7, category: "Simulate", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
+  { displayName: "Night vision", filter: nightVision, category: "Simulate", description: "Gen 3 image intensifier tube — green phosphor, heavy grain, bloom, and circular vignette" },
+  { displayName: "Nokia LCD", filter: nokiaLcd, category: "Simulate", description: "Simulate the Nokia 3310 monochrome LCD — 84x48 pixels with greenish tint" },
+  { displayName: "Oscilloscope", filter: oscilloscope, category: "Simulate", description: "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence" },
+  { displayName: "Polaroid", filter: polaroid, category: "Simulate", description: "Instant film look — warm tones, faded blacks, soft highlights, and film grain" },
+  { displayName: "Projection film", filter: projectionFilm, category: "Simulate", description: "16mm/35mm projector — gate weave, dust, scratches, grain, and lamp flicker" },
+  {
+    displayName: "Teletext",
+    category: "Simulate",
+    description: "Simulate a Teletext/Ceefax block mosaic display with 2x3 character cells and 8 colors",
+    filter: {
+      ...teletext,
+      options: {
+        ...teletext.options,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.TELETEXT_BBC_MICRO }
+        }
+      }
+    }
+  },
+  { displayName: "Thermal camera", filter: thermalCamera, category: "Simulate", description: "FLIR-style false-color thermal imaging with ironbow, rainbow, and hot/cold palettes" },
+  { displayName: "Ultrasound", filter: ultrasound, category: "Simulate", description: "Medical ultrasound display — fan-shaped sector scan with speckle noise" },
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
 
   // ── Blur & Edges ──
@@ -472,3 +508,9 @@ export const filterList = [
     }
   },
 ];
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    import.meta.hot!.invalidate();
+  });
+}

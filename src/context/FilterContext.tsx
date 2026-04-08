@@ -157,7 +157,10 @@ export const FilterProvider = ({ children }) => {
     }
     const t0 = performance.now();
     const output = filterFunc(input, filterOpts, dispatch);
-    const frameTime = performance.now() - t0;
+    const stepMs = performance.now() - t0;
+    const filterName = state.selected?.displayName || state.selected?.filter?.name || "Filter";
+    const stepTimes = [{ name: filterName, ms: stepMs }];
+    const frameTime = stepMs;
     if (!output) return;
     if (output instanceof HTMLCanvasElement) {
       // Store output buffer for next frame's persistence/interlace
@@ -170,7 +173,7 @@ export const FilterProvider = ({ children }) => {
       const outputImage = new Image();
       outputImage.src = output.toDataURL("image/png");
       outputImage.onload = () => {
-        dispatch({ type: "FILTER_IMAGE", image: outputImage, frameTime });
+        dispatch({ type: "FILTER_IMAGE", image: outputImage, frameTime, stepTimes });
       };
     }
   };

@@ -94,8 +94,6 @@ const polaroid = (
   // --- Step 2: Vignette, color grading, grain ---
   const cx = W / 2;
   const cy = H / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy);
-
   const outBuf = new Uint8ClampedArray(len);
 
   for (let y = 0; y < H; y++) {

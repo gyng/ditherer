@@ -1,4 +1,4 @@
-import { BOOL, RANGE, PALETTE } from "constants/controlTypes";
+import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import {
   cloneCanvas,

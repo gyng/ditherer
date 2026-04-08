@@ -70,10 +70,10 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
         if (edge.includes("n")) dy = -dy;
 
         // Use the dominant axis for scale
-        let dominant = 0;
-        if (edge === "e" || edge === "w") dominant = dx;
-        else if (edge === "n" || edge === "s") dominant = dy;
-        else dominant = (dx + dy) / 2; // corners use average
+        const dominant =
+          (edge === "e" || edge === "w") ? dx :
+          (edge === "n" || edge === "s") ? dy :
+          (dx + dy) / 2; // corners use average
 
         // Ratio relative to start: 1.0 = no change, 1.5 = 50% bigger
         const scaleRatio = Math.max(0.05, 1 + dominant / startSize);

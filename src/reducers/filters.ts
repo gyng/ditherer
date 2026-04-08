@@ -38,7 +38,8 @@ export const initialState = {
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
   linearize: true,
   wasmAcceleration: true,
-  frameTime: null
+  frameTime: null,
+  stepTimes: null   // array of { name: string, ms: number } per chain step
 };
 
 export default (state = initialState, action) => {
@@ -263,7 +264,8 @@ export default (state = initialState, action) => {
       return {
         ...state,
         outputImage: action.image,
-        frameTime: action.frameTime ?? state.frameTime
+        frameTime: action.frameTime ?? state.frameTime,
+        stepTimes: action.stepTimes ?? state.stepTimes
       };
     case SET_LINEARIZE:
       return {

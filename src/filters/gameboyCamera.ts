@@ -65,18 +65,18 @@ const gameboyCamera = (
   const downW = resolution;
   const downH = Math.round(resolution / aspect);
 
-  // Step 1 — Downscale to low resolution (bilinear via browser)
-  const downCanvas = document.createElement("canvas");
-  downCanvas.width = downW;
-  downCanvas.height = downH;
-  const downCtx = downCanvas.getContext("2d");
-  if (!downCtx) return input;
-
-  downCtx.imageSmoothingEnabled = true;
-  downCtx.drawImage(input, 0, 0, downW, downH);
-
-  const imgData = downCtx.getImageData(0, 0, downW, downH);
-  const buf = imgData.data;
+  // Step 1 — Downscale by sampling from input buffer (nearest neighbor)
+  const srcBuf = inputCtx.getImageData(0, 0, origW, origH).data;
+  const buf = new Uint8ClampedArray(downW * downH * 4);
+  for (let dy = 0; dy < downH; dy++) {
+    for (let dx = 0; dx < downW; dx++) {
+      const sx = Math.min(origW - 1, Math.round(dx * origW / downW));
+      const sy = Math.min(origH - 1, Math.round(dy * origH / downH));
+      const si = getBufferIndex(sx, sy, origW);
+      const di = getBufferIndex(dx, dy, downW);
+      buf[di] = srcBuf[si]; buf[di+1] = srcBuf[si+1]; buf[di+2] = srcBuf[si+2]; buf[di+3] = srcBuf[si+3];
+    }
+  }
 
   // Working buffer for grayscale values
   const gray = new Float32Array(downW * downH);
@@ -152,15 +152,22 @@ const gameboyCamera = (
     }
   }
 
-  downCtx.putImageData(new ImageData(outBuf, downW, downH), 0, 0);
-
-  // Step 6 — Upscale back to original size with nearest-neighbor for chunky pixels
+  // Step 6 — Upscale back to original size (nearest neighbor for chunky pixels)
   const output = cloneCanvas(input, false);
   const outputCtx = output.getContext("2d");
   if (!outputCtx) return input;
 
-  outputCtx.imageSmoothingEnabled = false;
-  outputCtx.drawImage(downCanvas, 0, 0, origW, origH);
+  const finalBuf = new Uint8ClampedArray(origW * origH * 4);
+  for (let y = 0; y < origH; y++) {
+    for (let x = 0; x < origW; x++) {
+      const sx = Math.min(downW - 1, Math.floor(x * downW / origW));
+      const sy = Math.min(downH - 1, Math.floor(y * downH / origH));
+      const si = getBufferIndex(sx, sy, downW);
+      const di = getBufferIndex(x, y, origW);
+      finalBuf[di] = outBuf[si]; finalBuf[di+1] = outBuf[si+1]; finalBuf[di+2] = outBuf[si+2]; finalBuf[di+3] = outBuf[si+3];
+    }
+  }
+  outputCtx.putImageData(new ImageData(finalBuf, origW, origH), 0, 0);
 
   return output;
 };

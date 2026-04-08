@@ -1,4 +1,4 @@
-import { ACTION, BOOL, RANGE, PALETTE } from "constants/controlTypes";
+import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -8,11 +8,6 @@ import {
   paletteGetColor
 } from "utils";
 
-import convolve, {
-  GAUSSIAN_3X3_WEAK,
-  defaults as convolveDefaults
-} from "./convolve";
-
 export const optionTypes = {
   gateWeave: { type: RANGE, range: [0, 10], step: 0.5, default: 2 },
   grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
@@ -21,6 +16,8 @@ export const optionTypes = {
   flicker: { type: RANGE, range: [0, 0.2], step: 0.005, default: 0.05 },
   vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
   warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
+  bloom: { type: RANGE, range: [0, 2], step: 0.05, default: 0.4 },
+  bloomRadius: { type: RANGE, range: [1, 15], step: 1, default: 6 },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 18 },
   animate: {
     type: ACTION,
@@ -44,6 +41,8 @@ export const defaults = {
   flicker: optionTypes.flicker.default,
   vignette: optionTypes.vignette.default,
   warmth: optionTypes.warmth.default,
+  bloom: optionTypes.bloom.default,
+  bloomRadius: optionTypes.bloomRadius.default,
   animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
@@ -71,6 +70,8 @@ const projectionFilm = (
     flicker,
     vignette,
     warmth,
+    bloom,
+    bloomRadius,
     palette
   } = options;
 
@@ -148,7 +149,6 @@ const projectionFilm = (
       let r = buf[srcI];
       let g = buf[srcI + 1];
       let b = buf[srcI + 2];
-      const a = buf[srcI + 3];
 
       // --- Warm color cast ---
       if (warmth > 0) {
@@ -185,8 +185,8 @@ const projectionFilm = (
       g = Math.max(0, Math.min(255, g));
       b = Math.max(0, Math.min(255, b));
 
-      const color = paletteGetColor(palette, rgba(r, g, b, a), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], a);
+      const color = paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
     }
   }
 
@@ -218,15 +218,62 @@ const projectionFilm = (
     }
   }
 
+  // --- Projector light bloom: bright areas scatter through the lens ---
+  if (bloom > 0) {
+    const r = Math.round(bloomRadius);
+    const threshold = 160;
+
+    // Extract bright pixels
+    const bright = new Float32Array(outBuf.length);
+    for (let j = 0; j < outBuf.length; j += 4) {
+      bright[j]     = Math.max(0, outBuf[j]     - threshold);
+      bright[j + 1] = Math.max(0, outBuf[j + 1] - threshold);
+      bright[j + 2] = Math.max(0, outBuf[j + 2] - threshold);
+    }
+
+    // Separable box blur — horizontal
+    const blurH = new Float32Array(outBuf.length);
+    for (let by = 0; by < H; by++) {
+      for (let bx = 0; bx < W; bx++) {
+        let sr = 0, sg = 0, sb = 0, count = 0;
+        for (let kx = -r; kx <= r; kx++) {
+          const nx = Math.max(0, Math.min(W - 1, bx + kx));
+          const ki = getBufferIndex(nx, by, W);
+          sr += bright[ki]; sg += bright[ki + 1]; sb += bright[ki + 2];
+          count++;
+        }
+        const bi = getBufferIndex(bx, by, W);
+        blurH[bi] = sr / count; blurH[bi + 1] = sg / count; blurH[bi + 2] = sb / count;
+      }
+    }
+
+    // Vertical
+    const blurHV = new Float32Array(outBuf.length);
+    for (let bx = 0; bx < W; bx++) {
+      for (let by = 0; by < H; by++) {
+        let sr = 0, sg = 0, sb = 0, count = 0;
+        for (let ky = -r; ky <= r; ky++) {
+          const ny = Math.max(0, Math.min(H - 1, by + ky));
+          const ki = getBufferIndex(bx, ny, W);
+          sr += blurH[ki]; sg += blurH[ki + 1]; sb += blurH[ki + 2];
+          count++;
+        }
+        const bi = getBufferIndex(bx, by, W);
+        blurHV[bi] = sr / count; blurHV[bi + 1] = sg / count; blurHV[bi + 2] = sb / count;
+      }
+    }
+
+    // Additive composite
+    for (let j = 0; j < outBuf.length; j += 4) {
+      outBuf[j]     = Math.min(255, outBuf[j]     + blurHV[j]     * bloom);
+      outBuf[j + 1] = Math.min(255, outBuf[j + 1] + blurHV[j + 1] * bloom);
+      outBuf[j + 2] = Math.min(255, outBuf[j + 2] + blurHV[j + 2] * bloom);
+    }
+  }
+
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
 
-  // --- Slight softness via blur ---
-  const softened = convolve.func(output, {
-    ...convolveDefaults,
-    kernel: GAUSSIAN_3X3_WEAK
-  });
-
-  return softened;
+  return output;
 };
 
 export default {
