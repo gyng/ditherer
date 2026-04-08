@@ -152,6 +152,8 @@ const spiralIterator = endIntervalOnTurn => init => {
 
   let end = false;
   let endInterval = false;
+  const maxIterations = w * h;
+  let iterations = 0;
 
   const DIR = {
     N: "N",
@@ -168,9 +170,10 @@ const spiralIterator = endIntervalOnTurn => init => {
   };
 
   return () => {
-    if (end) {
+    if (end || iterations >= maxIterations) {
       return null;
     }
+    iterations += 1;
 
     const nextResult = {
       x,
