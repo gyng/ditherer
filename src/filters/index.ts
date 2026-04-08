@@ -42,6 +42,7 @@ import mavicaFd7 from "./mavicaFd7";
 import eink from "./eink";
 import gameboyCamera from "./gameboyCamera";
 import oscilloscope from "./oscilloscope";
+import teletext from "./teletext";
 import {
   atkinson,
   burkes,
@@ -323,6 +324,7 @@ export const filterList = [
     description: "Simulate a color Kaleido/Gallery e-ink display with washed-out palette",
     filter: { ...eink, options: { ...eink.options, mode: "COLOR", palette: { ...eink.options.palette, options: { levels: 256 } } } }
   },
+  { displayName: "Gameboy Camera", filter: gameboyCamera, category: "Simulate", description: "Simulate the Gameboy Camera — 4-shade green palette with edge enhancement and ordered dithering" },
   { displayName: "Mavica FD7", filter: mavicaFd7, category: "Simulate", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
   { displayName: "Oscilloscope", filter: oscilloscope, category: "Simulate", description: "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence" },
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
