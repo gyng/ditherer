@@ -68,6 +68,10 @@
   margin-top: auto;
 }
 
+.filterBar {
+  margin-top: 10px;
+}
+
 .hide {
   display: none !important;
 }
@@ -183,5 +187,23 @@
 
   .canvasArea {
     min-height: 80px;
+  }
+
+  .filterBar {
+    position: sticky;
+    bottom: 0;
+    background: var(--light-gray);
+    padding: 8px 0;
+    z-index: 10;
+    border-top: 1px solid #808080;
+    margin-top: 8px;
+  }
+
+  .filterBar .filterButton {
+    width: 100%;
+  }
+
+  .filterBar .filterButton:disabled {
+    opacity: 0.7;
   }
 }

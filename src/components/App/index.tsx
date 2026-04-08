@@ -19,6 +19,7 @@ const App = () => {
   const [dropping, setDropping] = useState(false);
   const [canvasDropping, setCanvasDropping] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [filtering, setFiltering] = useState(false);
   const [hasCapture, setHasCapture] = useState(false);
 
   const inputCanvasRef = useRef(null);
@@ -226,19 +227,29 @@ const App = () => {
           </div>
         </CollapsibleSection>
 
-        {/* Filter + video section */}
-        <CollapsibleSection title="Filter">
+        {/* Filter button — always visible, sticky on mobile */}
+        <div className={s.filterBar}>
           <button
             className={[s.filterButton, s.waitButton].join(" ")}
+            disabled={filtering}
             onClick={() => {
+              setFiltering(true);
               const filterFunc = state.convertGrayscale
                 ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
                 : state.selected.filter.func;
-              actions.filterImageAsync(inputCanvasRef.current, filterFunc, state.selected.filter.options);
+              // Use requestAnimationFrame to let the UI update before blocking
+              requestAnimationFrame(() => {
+                actions.filterImageAsync(inputCanvasRef.current, filterFunc, state.selected.filter.options);
+                setFiltering(false);
+              });
             }}
           >
-            Filter
+            {filtering ? "▓░ Processing…" : "Filter"}
           </button>
+        </div>
+
+        {/* Filter extras + video section */}
+        <CollapsibleSection title="Filter">
 
           <button
             style={{ marginLeft: "auto" }}
