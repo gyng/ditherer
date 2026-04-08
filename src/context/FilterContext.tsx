@@ -12,16 +12,20 @@ export const useFilter = () => {
   return ctx;
 };
 
-// On mobile, compute a scale that fits the image within the viewport
-// and caps total pixel count for weaker CPUs.
-const MAX_MOBILE_PIXELS = 500_000; // ~700×700
-const getMobileScale = (w: number, h: number): number => {
-  if (typeof window === "undefined" || window.innerWidth > 768) return 1;
-  // Fit to viewport width (with some padding)
-  const viewportW = window.innerWidth - 16;
-  const fitScale = viewportW / w;
-  // Also cap by total pixel budget
-  const pixelScale = Math.sqrt(MAX_MOBILE_PIXELS / (w * h));
+// Compute a scale that fits the image within the available canvas area
+// and caps total pixel count for performance.
+const MAX_PIXELS_MOBILE  = 500_000;   // ~700×700
+const MAX_PIXELS_DESKTOP = 2_000_000; // ~1400×1400
+const getAutoScale = (w: number, h: number): number => {
+  if (typeof window === "undefined") return 1;
+  const isMobile = window.innerWidth <= 768;
+  const maxPixels = isMobile ? MAX_PIXELS_MOBILE : MAX_PIXELS_DESKTOP;
+  // Fit to available width (sidebar is ~210px on desktop, full width on mobile)
+  const sidebarW = isMobile ? 16 : 240;
+  const availableW = window.innerWidth - sidebarW;
+  const fitScale = availableW / w;
+  // Cap by pixel budget
+  const pixelScale = Math.sqrt(maxPixels / (w * h));
   return Math.min(1, fitScale, pixelScale);
 };
 
@@ -38,7 +42,7 @@ export const FilterProvider = ({ children }) => {
     reader.onload = event => {
       image.onload = () => {
         dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
-        const scale = roundScale(getMobileScale(image.width, image.height));
+        const scale = roundScale(getAutoScale(image.width, image.height));
         if (scale < 1) dispatch({ type: "SET_SCALE", scale });
       };
       image.src = event.target.result;
@@ -66,7 +70,7 @@ export const FilterProvider = ({ children }) => {
           firstPlay = false;
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
-          const scale = roundScale(getMobileScale(video.videoWidth, video.videoHeight));
+          const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
           if (scale < 1) dispatch({ type: "SET_SCALE", scale });
           requestAnimationFrame(loadFrame);
         }
