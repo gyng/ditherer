@@ -175,6 +175,15 @@ const App = () => {
             onDragEnter={() => setDropping(true)}
             onDrop={() => setDropping(false)}
           />
+          <button
+            onClick={() => {
+              const img = new Image();
+              img.src = "pepper.png";
+              img.onload = () => actions.loadImage(img);
+            }}
+          >
+            Load test image
+          </button>
           <Range
             name="Input Scale"
             types={{ range: [0.1, 4] }}
