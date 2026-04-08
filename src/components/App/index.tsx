@@ -109,6 +109,7 @@ const App = () => {
   }, [
     state.selected, state.linearize, state.wasmAcceleration,
     state.convertGrayscale, state.realtimeFiltering, state.inputImage,
+    state.scale, state.outputScale,
   ]);
 
   const bringToTop = useCallback(e => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from "react";
 import filterReducer, { initialState } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
@@ -34,6 +34,10 @@ const roundScale = (s: number) => Math.round(s * 10) / 10 || 0.1;
 
 export const FilterProvider = ({ children }) => {
   const [state, dispatch] = useReducer(filterReducer, initialState);
+  const prevOutputRef = useRef<Uint8ClampedArray | null>(null);
+  const frameCountRef = useRef(0);
+  const degaussFrameRef = useRef(-Infinity);
+  const degaussAnimRef = useRef<number | null>(null);
 
   // Restore state from #! hash on initial load
   useEffect(() => {
@@ -110,7 +114,14 @@ export const FilterProvider = ({ children }) => {
 
   // Filter image — reads linearize from state at call time
   const filterImageAsync = (input, filterFunc, options) => {
-    const filterOpts = { ...options, _linearize: state.linearize, _wasmAcceleration: state.wasmAcceleration };
+    const filterOpts = {
+      ...options,
+      _linearize: state.linearize,
+      _wasmAcceleration: state.wasmAcceleration,
+      _prevOutput: prevOutputRef.current,
+      _frameIndex: frameCountRef.current,
+      _degaussFrame: degaussFrameRef.current,
+    };
     // Propagate wasmAcceleration into palette options so getColor() sees it
     if (filterOpts.palette?.options) {
       filterOpts.palette = {
@@ -123,6 +134,13 @@ export const FilterProvider = ({ children }) => {
     const frameTime = performance.now() - t0;
     if (!output) return;
     if (output instanceof HTMLCanvasElement) {
+      // Store output buffer for next frame's persistence/interlace
+      const outCtx = output.getContext("2d");
+      if (outCtx) {
+        prevOutputRef.current = outCtx.getImageData(0, 0, output.width, output.height).data;
+      }
+      frameCountRef.current += 1;
+
       const outputImage = new Image();
       outputImage.src = output.toDataURL("image/png");
       outputImage.onload = () => {
@@ -131,9 +149,134 @@ export const FilterProvider = ({ children }) => {
     }
   };
 
+  const playDegaussSound = () => {
+    try {
+      const ctx = new AudioContext();
+      const duration = 2.2;
+      const now = ctx.currentTime;
+
+      // Master gain — overall envelope
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0, now);
+      // Sharp attack from relay thunk
+      master.gain.linearRampToValueAtTime(0.35, now + 0.02);
+      // Sustain then decay like a thermistor reducing current
+      master.gain.setValueAtTime(0.3, now + 0.1);
+      master.gain.exponentialRampToValueAtTime(0.15, now + 0.5);
+      master.gain.exponentialRampToValueAtTime(0.03, now + 1.5);
+      master.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      master.connect(ctx.destination);
+
+      // Low resonant filter — the degauss coil acts as a resonant cavity
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(300, now);
+      filter.frequency.exponentialRampToValueAtTime(120, now + duration);
+      filter.Q.setValueAtTime(3, now);
+      filter.connect(master);
+
+      // 50Hz mains hum — core degauss frequency with wobble
+      const hum = ctx.createOscillator();
+      hum.type = "sawtooth";
+      hum.frequency.setValueAtTime(55, now);
+      hum.frequency.linearRampToValueAtTime(48, now + duration);
+      // LFO to wobble the hum frequency (warbling quality)
+      const lfo = ctx.createOscillator();
+      lfo.frequency.setValueAtTime(8, now);
+      lfo.frequency.linearRampToValueAtTime(3, now + duration);
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.setValueAtTime(4, now);
+      lfoGain.gain.linearRampToValueAtTime(1, now + duration);
+      lfo.connect(lfoGain).connect(hum.frequency);
+      lfo.start(now);
+      lfo.stop(now + duration);
+      const humGain = ctx.createGain();
+      humGain.gain.setValueAtTime(0.7, now);
+      hum.connect(humGain).connect(filter);
+      hum.start(now);
+      hum.stop(now + duration);
+
+      // 100Hz second harmonic
+      const harm2 = ctx.createOscillator();
+      harm2.type = "sawtooth";
+      harm2.frequency.setValueAtTime(110, now);
+      harm2.frequency.linearRampToValueAtTime(96, now + duration);
+      const harm2Gain = ctx.createGain();
+      harm2Gain.gain.setValueAtTime(0.35, now);
+      harm2.connect(harm2Gain).connect(filter);
+      harm2.start(now);
+      harm2.stop(now + duration);
+
+      // 150Hz metallic buzz
+      const harm3 = ctx.createOscillator();
+      harm3.type = "square";
+      harm3.frequency.setValueAtTime(165, now);
+      harm3.frequency.linearRampToValueAtTime(144, now + duration);
+      const harm3Gain = ctx.createGain();
+      harm3Gain.gain.setValueAtTime(0.12, now);
+      harm3.connect(harm3Gain).connect(filter);
+      harm3.start(now);
+      harm3.stop(now + duration);
+
+      // Sub-bass body — the physical vibration of the coil/chassis
+      const sub = ctx.createOscillator();
+      sub.type = "sine";
+      sub.frequency.setValueAtTime(30, now);
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.25, now);
+      subGain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+      sub.connect(subGain).connect(master);
+      sub.start(now);
+      sub.stop(now + duration);
+
+      // Initial relay thunk — filtered noise burst
+      const thunkLen = Math.round(ctx.sampleRate * 0.06);
+      const thunkBuf = ctx.createBuffer(1, thunkLen, ctx.sampleRate);
+      const thunkData = thunkBuf.getChannelData(0);
+      for (let i = 0; i < thunkLen; i++) {
+        const env = Math.exp(-i / (ctx.sampleRate * 0.012));
+        thunkData[i] = (Math.random() * 2 - 1) * env;
+      }
+      const thunk = ctx.createBufferSource();
+      thunk.buffer = thunkBuf;
+      const thunkGain = ctx.createGain();
+      thunkGain.gain.setValueAtTime(0.5, now);
+      const thunkFilter = ctx.createBiquadFilter();
+      thunkFilter.type = "bandpass";
+      thunkFilter.frequency.setValueAtTime(800, now);
+      thunkFilter.Q.setValueAtTime(1.5, now);
+      thunk.connect(thunkFilter).connect(thunkGain).connect(master);
+      thunk.start(now);
+
+      // Clean up
+      setTimeout(() => ctx.close(), (duration + 0.2) * 1000);
+    } catch {
+      // Audio not available — degauss visually only
+    }
+  };
+
+  const triggerDegauss = (inputCanvas, filterFunc, filterOptions) => {
+    if (degaussAnimRef.current != null) return; // already running
+    degaussFrameRef.current = frameCountRef.current;
+    playDegaussSound();
+    const DEGAUSS_FRAMES = 45;
+    let frame = 0;
+    const animate = () => {
+      if (frame >= DEGAUSS_FRAMES || !inputCanvas) {
+        degaussAnimRef.current = null;
+        return;
+      }
+      filterImageAsync(inputCanvas, filterFunc, filterOptions);
+      frame += 1;
+      degaussAnimRef.current = requestAnimationFrame(animate);
+    };
+    degaussAnimRef.current = requestAnimationFrame(animate);
+  };
+
   const actions = {
     loadMediaAsync,
     filterImageAsync,
+    triggerDegauss,
     loadImage: (image, time, video) =>
       dispatch({ type: "LOAD_IMAGE", image, time: time || 0, video: video || null, dispatch }),
     selectFilter: (name, filter) =>

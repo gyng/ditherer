@@ -7,6 +7,7 @@ import {
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
+export const ACTION = "ACTION";
 export const BOOL = "BOOL";
 export const ENUM = "ENUM";
 export const RANGE = "RANGE";

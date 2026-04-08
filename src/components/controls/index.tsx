@@ -1,6 +1,7 @@
 import React from "react";
 
 import {
+  ACTION,
   BOOL,
   COLOR,
   RANGE,
@@ -12,6 +13,7 @@ import {
 } from "constants/controlTypes";
 
 import { useFilter } from "context/FilterContext";
+import { grayscale } from "filters";
 
 import Enum from "./Enum";
 import Palette from "./Palette";
@@ -42,6 +44,20 @@ const Controls = (props) => {
         const [name, oType] = e;
 
         switch ((oType as any).type) {
+          case ACTION:
+            return (
+              <button
+                key={name}
+                onClick={() => {
+                  const filterFunc = state.convertGrayscale
+                    ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
+                    : state.selected.filter.func;
+                  (oType as any).action(actions, inputCanvas, filterFunc, options);
+                }}
+              >
+                {(oType as any).label || name}
+              </button>
+            );
           case RANGE:
             return (
               <Range

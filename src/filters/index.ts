@@ -368,7 +368,7 @@ export const filterList = [
   {
     displayName: "CRT emulation",
     category: "Simulate",
-    description: "Simulate a CRT monitor with RGB phosphor sub-pixels",
+    description: "Simulate a CRT monitor with phosphor mask, bloom, scanlines, curvature, and vignette",
     filter: {
       ...rgbStripe,
       options: {
