@@ -160,9 +160,9 @@ const App = () => {
       <div className={s.chrome}>
         <h1>ＤＩＴＨＥＲＥＲ ▓▒░</h1>
 
-        {/* Load image section */}
+        {/* Input section */}
         <div>
-          <h2>Load image or video</h2>
+          <h2>Input</h2>
           <input
             className={[controls.file, dropping ? controls.dropping : null].join(" ")}
             type="file"
@@ -205,68 +205,38 @@ const App = () => {
             <div className={controls.group}>
               <span className={controls.name}>Options</span>
               <Controls inputCanvas={inputCanvasRef.current} />
-              <div className={controls.checkbox}>
-                <input
-                  name="convertGrayscale"
-                  type="checkbox"
-                  checked={state.convertGrayscale}
-                  onChange={e => actions.setConvertGrayscale(e.target.checked)}
-                />
-                <span
-                  role="presentation"
-                  onClick={() => actions.setConvertGrayscale(!state.convertGrayscale)}
-                  className={controls.label}
-                >
-                  Pre-convert to grayscale
-                </span>
-              </div>
-              <div className={controls.checkbox}>
-                <input
-                  name="linearize"
-                  type="checkbox"
-                  checked={state.linearize}
-                  onChange={e => actions.setLinearize(e.target.checked)}
-                />
-                <span
-                  role="presentation"
-                  onClick={() => actions.setLinearize(!state.linearize)}
-                  className={controls.label}
-                >
-                  Linearize (gamma-correct)
-                </span>
-              </div>
-              <div className={controls.checkbox}>
-                <input
-                  name="realtimeFiltering"
-                  type="checkbox"
-                  checked={state.realtimeFiltering}
-                  onChange={e => actions.setRealtimeFiltering(e.target.checked)}
-                />
-                <span
-                  role="presentation"
-                  onClick={() => actions.setRealtimeFiltering(!state.realtimeFiltering)}
-                  className={controls.label}
-                >
-                  Auto-filter
-                </span>
-              </div>
-              <div className={controls.checkbox}>
-                <input
-                  name="wasmAcceleration"
-                  type="checkbox"
-                  checked={state.wasmAcceleration}
-                  onChange={e => actions.setWasmAcceleration(e.target.checked)}
-                />
-                <span
-                  role="presentation"
-                  onClick={() => actions.setWasmAcceleration(!state.wasmAcceleration)}
-                  className={controls.label}
-                >
-                  WASM acceleration
-                </span>
-              </div>
             </div>
-            <Exporter />
+            <div className={controls.separator} />
+            <div className={controls.checkbox}>
+              <input
+                name="convertGrayscale"
+                type="checkbox"
+                checked={state.convertGrayscale}
+                onChange={e => actions.setConvertGrayscale(e.target.checked)}
+              />
+              <span
+                role="presentation"
+                onClick={() => actions.setConvertGrayscale(!state.convertGrayscale)}
+                className={controls.label}
+              >
+                Pre-convert to grayscale
+              </span>
+            </div>
+            <div className={controls.checkbox}>
+              <input
+                name="linearize"
+                type="checkbox"
+                checked={state.linearize}
+                onChange={e => actions.setLinearize(e.target.checked)}
+              />
+              <span
+                role="presentation"
+                onClick={() => actions.setLinearize(!state.linearize)}
+                className={controls.label}
+              >
+                Gamma-correct input
+              </span>
+            </div>
           </div>
         </CollapsibleSection>
 
@@ -281,7 +251,6 @@ const App = () => {
               const filterFunc = state.convertGrayscale
                 ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
                 : state.selected.filter.func;
-              // Use requestAnimationFrame to let the UI update before blocking
               requestAnimationFrame(() => {
                 actions.filterImageAsync(inputCanvasRef.current, filterFunc, state.selected.filter.options);
                 setFiltering(false);
@@ -293,11 +262,22 @@ const App = () => {
           </button>
         </div>
 
-        {/* Filter extras + video section */}
-        <CollapsibleSection title="Filter">
-
+        {/* Output section */}
+        <CollapsibleSection title="Output" defaultOpen>
+          <Range
+            name="Output Scale"
+            types={{ range: [0.1, 4] }}
+            step={0.1}
+            onSetFilterOption={(_, value) => actions.setOutputScale(value)}
+            value={state.outputScale}
+          />
+          <Enum
+            name="Scaling algorithm"
+            onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(algorithm)}
+            value={state.scalingAlgorithm}
+            types={SCALING_ALGORITHM_OPTIONS}
+          />
           <button
-            style={{ marginLeft: "auto" }}
             className={s.copyButton}
             onClick={() => {
               if (outputCanvasRef.current) {
@@ -312,55 +292,76 @@ const App = () => {
           >
             {"<< Copy output to input"}
           </button>
+        </CollapsibleSection>
 
-          <CollapsibleSection title="Video">
-            <div>
-              <label className={controls.label} htmlFor="mute">
-                <input
-                  id="mute"
-                  type="checkbox"
-                  checked={state.videoVolume === 0}
-                  onChange={() => actions.setInputVolume(state.videoVolume > 0 ? 0 : 1)}
-                />
-                Mute video
-              </label>
-            </div>
-            <div>
-              <Range
-                name="Video Playback Rate"
-                types={{ range: [0, 2] }}
-                step={0.05}
-                onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
-                value={state.videoPlaybackRate}
+        {/* Video section — auto-opens when video loaded, auto-closes for images */}
+        <CollapsibleSection title="Video" collapsible forceOpen={!!state.video}>
+          <div>
+            <label className={controls.label} htmlFor="mute">
+              <input
+                id="mute"
+                type="checkbox"
+                checked={state.videoVolume === 0}
+                onChange={() => actions.setInputVolume(state.videoVolume > 0 ? 0 : 1)}
               />
-            </div>
-            <div className={s.captureSection}>
-              <button
-                id="captureButton"
-                style={{ margin: "5px 0" }}
-                disabled={!state.realtimeFiltering}
-                onClick={handleCapture}
-              >
-                {capturing ? "Stop capture" : "Capture output video"}
-              </button>
-            </div>
+              Mute video
+            </label>
+          </div>
+          <div>
+            <Range
+              name="Playback rate"
+              types={{ range: [0, 2] }}
+              step={0.05}
+              onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
+              value={state.videoPlaybackRate}
+            />
+          </div>
+          <div className={s.captureSection}>
+            <button
+              id="captureButton"
+              style={{ margin: "5px 0" }}
+              disabled={!state.realtimeFiltering}
+              onClick={handleCapture}
+            >
+              {capturing ? "Stop capture" : "Capture output video"}
+            </button>
+          </div>
+        </CollapsibleSection>
 
-            <CollapsibleSection title="Others">
-              <Enum
-                name="Scaling algorithm"
-                onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(algorithm)}
-                value={state.scalingAlgorithm}
-                types={SCALING_ALGORITHM_OPTIONS}
-              />
-              <Range
-                name="Output Scale"
-                types={{ range: [0.1, 4] }}
-                step={0.1}
-                onSetFilterOption={(_, value) => actions.setOutputScale(value)}
-                value={state.outputScale}
-              />
-            </CollapsibleSection>
-          </CollapsibleSection>
+        {/* Settings section */}
+        <CollapsibleSection title="Settings" collapsible>
+          <div className={controls.checkbox}>
+            <input
+              name="realtimeFiltering"
+              type="checkbox"
+              checked={state.realtimeFiltering}
+              onChange={e => actions.setRealtimeFiltering(e.target.checked)}
+            />
+            <span
+              role="presentation"
+              onClick={() => actions.setRealtimeFiltering(!state.realtimeFiltering)}
+              className={controls.label}
+            >
+              Apply automatically
+            </span>
+          </div>
+          <div className={controls.checkbox}>
+            <input
+              name="wasmAcceleration"
+              type="checkbox"
+              checked={state.wasmAcceleration}
+              onChange={e => actions.setWasmAcceleration(e.target.checked)}
+            />
+            <span
+              role="presentation"
+              onClick={() => actions.setWasmAcceleration(!state.wasmAcceleration)}
+              className={controls.label}
+            >
+              WASM acceleration
+            </span>
+          </div>
+          <div className={controls.separator} />
+          <Exporter />
         </CollapsibleSection>
 
         {state.frameTime != null && (

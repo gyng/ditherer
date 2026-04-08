@@ -4,26 +4,42 @@ import s from "./styles.module.css";
 const isMobile = () =>
   typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 
-const CollapsibleSection = ({ title, children, defaultOpen = false }) => {
-  const [collapsed, setCollapsed] = useState(() => isMobile() && !defaultOpen);
+const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible = false, forceOpen }: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  collapsible?: boolean;
+  forceOpen?: boolean;
+}) => {
+  const [collapsed, setCollapsed] = useState(() =>
+    collapsible ? !defaultOpen : (isMobile() && !defaultOpen)
+  );
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Sync collapsed state when forceOpen changes
+  useEffect(() => {
+    if (forceOpen !== undefined) {
+      setCollapsed(!forceOpen);
+    }
+  }, [forceOpen]);
 
   // Re-evaluate collapsed state on resize (e.g., rotating device)
   useEffect(() => {
+    if (collapsible) return; // collapsible sections manage their own state on all sizes
     const mq = window.matchMedia("(max-width: 768px)");
     const handler = (e) => {
       if (!e.matches) setCollapsed(false); // always expand on desktop
     };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
-  }, []);
+  }, [collapsible]);
 
   return (
-    <div className={[s.section, collapsed ? s.collapsed : ""].join(" ")}>
+    <div className={[s.section, collapsed ? s.collapsed : "", collapsible ? s.collapsible : ""].join(" ")}>
       <div
         className={s.header}
         onClick={() => {
-          if (isMobile()) setCollapsed(c => !c);
+          if (collapsible || isMobile()) setCollapsed(c => !c);
         }}
       >
         <h2>{title}</h2>

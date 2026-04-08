@@ -22,6 +22,19 @@
   transition: max-height 0.2s ease-out;
 }
 
+/* Desktop: collapsible sections show toggle and support interaction */
+.collapsible .toggle {
+  display: inline;
+}
+
+.collapsible .header {
+  cursor: pointer;
+}
+
+.collapsible.collapsed .content {
+  max-height: 0 !important;
+}
+
 @media (max-width: 768px) {
   .toggle {
     display: inline;

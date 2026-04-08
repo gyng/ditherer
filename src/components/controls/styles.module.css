@@ -176,6 +176,12 @@ button:focus,
   user-select: none !important;
 }
 
+.separator {
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid white;
+  margin: 8px 0;
+}
+
 @media (max-width: 768px) {
   .enum {
     padding: 10px;
