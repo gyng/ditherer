@@ -342,7 +342,7 @@ const App = () => {
             if (file) actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
           }}
         >
-          <div className={[controls.window, canvasDropping ? s.dropping : ""].join(" ")}>
+          <div className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}>
             <div className={["handle", controls.titleBar].join(" ")}>Input</div>
             {!state.inputImage && (
               <div className={s.dropPlaceholder}>

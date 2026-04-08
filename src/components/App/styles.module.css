@@ -102,11 +102,20 @@
   outline: 2px solid var(--beautiful-blue);
 }
 
+.inputWindow {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.inputWindow .dropPlaceholder {
+  flex: 1;
+}
+
 .dropPlaceholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
   color: #000;
   font-size: 0.9em;
   user-select: none;
