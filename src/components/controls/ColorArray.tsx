@@ -23,6 +23,9 @@ export const modeMap = {
   [LAB_ADAPT_FIRST]: { colorMode: "LAB", adaptMode: "FIRST" }
 };
 
+// Convert a desired color count to median cut recursion depth (rounds up to nearest power of 2)
+const colorCountToDepth = (n: number): number => Math.max(1, Math.ceil(Math.log2(n)));
+
 const convertCsvToColor = (csv) => {
   const tokens = csv.split(",");
 
@@ -49,13 +52,13 @@ const onDeleteColor = (e, props) => {
 };
 
 type ModalState = null | {
-  type: "addColor" | "extractTop" | "extractAdaptive" | "savePalette" | "importPalette";
+  type: "addColor" | "extract" | "savePalette" | "importPalette";
   defaultValue?: string;
 };
 
 export default class ColorArray extends React.Component<any, any> {
   state = {
-    extractMode: TOP,
+    extractMode: LAB_ADAPT_AVERAGE,
     modal: null as ModalState
   };
 
@@ -69,33 +72,30 @@ export default class ColorArray extends React.Component<any, any> {
         if (color) this.props.onAddPaletteColor(color);
         break;
       }
-      case "extractTop": {
+      case "extract": {
         const ctx = this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
         if (ctx) {
-          const topN = parseInt(value, 10);
-          if (topN > 0) {
-            const colors = uniqueColors(
-              ctx.getImageData(0, 0, this.props.inputCanvas.width || 0, this.props.inputCanvas.height || 0).data,
-              topN
-            );
-            this.props.onSetPaletteOption("colors", colors);
-          }
-        }
-        break;
-      }
-      case "extractAdaptive": {
-        const ctx = this.props.inputCanvas && this.props.inputCanvas.getContext("2d");
-        if (ctx) {
-          const topN = parseInt(value, 10);
-          if (topN > 0) {
-            const mode = modeMap[this.state.extractMode];
-            const colors = medianCutPalette(
-              ctx.getImageData(0, 0, this.props.inputCanvas.width || 0, this.props.inputCanvas.height || 0).data,
-              topN,
-              true,
-              mode.adaptMode,
-              mode.colorMode
-            );
+          const count = parseInt(value, 10);
+          if (count > 0) {
+            const imageData = ctx.getImageData(
+              0, 0,
+              this.props.inputCanvas.width || 0,
+              this.props.inputCanvas.height || 0
+            ).data;
+
+            let colors;
+            if (this.state.extractMode === TOP) {
+              colors = uniqueColors(imageData, count);
+            } else {
+              const mode = modeMap[this.state.extractMode];
+              colors = medianCutPalette(
+                imageData,
+                colorCountToDepth(count),
+                true,
+                mode.adaptMode,
+                mode.colorMode
+              );
+            }
             this.props.onSetPaletteOption("colors", colors);
           }
         }
@@ -204,62 +204,40 @@ export default class ColorArray extends React.Component<any, any> {
       </button>
     );
 
-    const extractTopButton = (
+    const extractButton = (
       <button
         onClick={() => {
           this.setState({
             modal: {
-              type: "extractTop",
-              defaultValue: "64"
+              type: "extract",
+              defaultValue: "16"
             }
           });
         }}
       >
-        🖼️ Extract TOP
-      </button>
-    );
-
-    const extractAdaptiveButton = (name) => (
-      <button
-        onClick={() => {
-          this.setState({
-            modal: {
-              type: "extractAdaptive",
-              defaultValue: "4"
-            }
-          });
-        }}
-      >
-        🖼️ {`Extract ${name}`}
+        🖼️ Extract
       </button>
     );
 
     const extractOptions = (
       <div>
-        {
-          <Enum
-            name="Algorithm"
-            value={this.state.extractMode}
-            types={{
-              options: [
-                { name: "Top", value: TOP },
-                { name: "RGB Adaptive (mid)", value: RGB_ADAPT_MID },
-                { name: "RGB Adaptive (average)", value: RGB_ADAPT_AVERAGE },
-                { name: "RGB Adaptive (first)", value: RGB_ADAPT_FIRST },
-                { name: "LAB Adaptive (mid)", value: LAB_ADAPT_MID },
-                { name: "LAB Adaptive (average)", value: LAB_ADAPT_AVERAGE },
-                { name: "LAB Adaptive (first)", value: LAB_ADAPT_FIRST }
-              ]
-            }}
-            onSetFilterOption={(name, value) => {
-              this.setState({ extractMode: value });
-            }}
-          />
-        }
-
-        {this.state.extractMode === TOP
-          ? extractTopButton
-          : extractAdaptiveButton(this.state.extractMode)}
+        <Enum
+          name="Algorithm"
+          value={this.state.extractMode}
+          types={{
+            options: [
+              { name: "LAB Median cut (average)", value: LAB_ADAPT_AVERAGE },
+              { name: "LAB Median cut (median)", value: LAB_ADAPT_MID },
+              { name: "RGB Median cut (average)", value: RGB_ADAPT_AVERAGE },
+              { name: "RGB Median cut (median)", value: RGB_ADAPT_MID },
+              { name: "Top N by frequency", value: TOP },
+            ]
+          }}
+          onSetFilterOption={(name, value) => {
+            this.setState({ extractMode: value });
+          }}
+        />
+        {extractButton}
       </div>
     );
 
@@ -316,8 +294,7 @@ export default class ColorArray extends React.Component<any, any> {
 
     const modalTitles = {
       addColor: "Add a color (r,g,b,a — 0-255 each)",
-      extractTop: "Take the top n colors",
-      extractAdaptive: "Take the top 2^n colors",
+      extract: "Number of colors to extract",
       savePalette: "Save current palette as",
       importPalette: "Paste theme JSON"
     };
