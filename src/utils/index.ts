@@ -98,14 +98,13 @@ export const delinearizeBuffer = (buf) => {
 // Filters with a linear branch use LinearPixel + linearPaletteGetColor.
 // The brands are zero-cost at runtime — they only exist for the type checker.
 
-declare const __srgbBrand: unique symbol;
-declare const __linearBrand: unique symbol;
+/** Pixel in sRGB space, channels 0-255. Alias for documentation; use
+ *  srgbPaletteGetColor with this type. */
+export type SrgbPixel = number[];
 
-/** Pixel in sRGB space, channels 0-255 */
-export type SrgbPixel = number[] & { readonly [__srgbBrand]?: never };
-
-/** Pixel in linear-light space, channels 0.0-1.0 */
-export type LinearPixel = number[] & { readonly [__linearBrand]: true };
+/** Pixel in linear-light space, channels 0.0-1.0. Alias for documentation;
+ *  use linearPaletteGetColor with this type. */
+export type LinearPixel = number[];
 
 // --- Palette color matching ---
 
