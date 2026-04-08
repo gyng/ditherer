@@ -38,8 +38,8 @@ export const FilterProvider = ({ children }) => {
       const loadFrame = () => {
         if (!video.paused && video.src !== "") {
           ctx.drawImage(video, 0, 0);
-          requestAnimationFrame(loadFrame);
           dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
+          requestAnimationFrame(loadFrame);
         }
       };
       let firstPlay = true;
