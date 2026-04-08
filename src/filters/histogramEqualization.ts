@@ -83,7 +83,7 @@ const histogramEqualization = (input, options = defaults) => {
         b = Math.min(255, Math.round(buf[i + 2] * scale));
       }
 
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, options._linearize);
+      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
   }

@@ -108,7 +108,7 @@ const displace = (input, options = defaults) => {
         palette,
         rgba(buf[srcI], buf[srcI + 1], buf[srcI + 2], buf[srcI + 3]),
         palette.options,
-        options._linearize
+        false
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }

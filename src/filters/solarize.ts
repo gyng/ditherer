@@ -27,7 +27,7 @@ const solarize = (input, options = defaults) => {
       const r = buf[i] > threshold ? 255 - buf[i] : buf[i];
       const g = buf[i + 1] > threshold ? 255 - buf[i + 1] : buf[i + 1];
       const b = buf[i + 2] > threshold ? 255 - buf[i + 2] : buf[i + 2];
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, options._linearize);
+      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

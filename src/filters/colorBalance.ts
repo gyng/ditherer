@@ -61,7 +61,7 @@ const colorBalance = (input, options = defaults) => {
       const g = clamp(0, 255, Math.round(buf[i + 1] + dg * 2.55));
       const b = clamp(0, 255, Math.round(buf[i + 2] + db * 2.55));
 
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, options._linearize);
+      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
   }

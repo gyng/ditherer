@@ -28,7 +28,7 @@ const posterize = (input, options = defaults) => {
       const r = Math.round(Math.round(buf[i] / step) * step);
       const g = Math.round(Math.round(buf[i + 1] / step) * step);
       const b = Math.round(Math.round(buf[i + 2] / step) * step);
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, options._linearize);
+      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }

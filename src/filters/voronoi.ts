@@ -110,7 +110,7 @@ const voronoi = (input, options = defaults) => {
     for (let y = 0; y < H; y += 1) {
       const i = getBufferIndex(x, y, W);
       const s = assignment[y * W + x];
-      const col = paletteGetColor(palette, avgColors[s], palette.options, options._linearize);
+      const col = paletteGetColor(palette, avgColors[s], palette.options, false);
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
   }

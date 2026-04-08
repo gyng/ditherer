@@ -55,7 +55,7 @@ const duotone = (input, options = defaults) => {
       const r = Math.round(shadow[0] + t * (highlight[0] - shadow[0]));
       const g = Math.round(shadow[1] + t * (highlight[1] - shadow[1]));
       const b = Math.round(shadow[2] + t * (highlight[2] - shadow[2]));
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, options._linearize);
+      const col = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
   }

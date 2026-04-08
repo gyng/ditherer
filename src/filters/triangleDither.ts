@@ -37,7 +37,7 @@ const triangleDither = (input, options = defaults) => {
         palette,
         rgba(r, g, b, buf[i + 3]),
         palette.options,
-        options._linearize
+        false
       );
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }

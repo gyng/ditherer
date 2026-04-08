@@ -91,7 +91,7 @@ const anisotropicDiffusion = (input, options = defaults) => {
       const r = Math.round(Math.max(0, Math.min(255, grid[gi])));
       const g = Math.round(Math.max(0, Math.min(255, grid[gi + 1])));
       const b = Math.round(Math.max(0, Math.min(255, grid[gi + 2])));
-      const col = paletteGetColor(palette, rgba(r, g, b, buf[bi + 3]), palette.options, options._linearize);
+      const col = paletteGetColor(palette, rgba(r, g, b, buf[bi + 3]), palette.options, false);
       fillBufferPixel(outBuf, bi, col[0], col[1], col[2], col[3]);
     }
   }

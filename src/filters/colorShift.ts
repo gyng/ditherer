@@ -59,7 +59,7 @@ const colorShift = (input, options = defaults) => {
         Math.max(0, Math.min(1, v + value)),
         a
       ]);
-      const col = paletteGetColor(palette, shifted, palette.options, options._linearize);
+      const col = paletteGetColor(palette, shifted, palette.options, false);
       fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
     }
   }
