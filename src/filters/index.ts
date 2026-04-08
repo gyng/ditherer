@@ -95,6 +95,7 @@ export { default as anisotropicDiffusion } from "./anisotropicDiffusion";
 export { default as kmeans } from "./kmeans";
 export { default as mavicaFd7 } from "./mavicaFd7";
 export { default as gameboyCamera } from "./gameboyCamera";
+export { default as teletext } from "./teletext";
 export {
   atkinson,
   burkes,
@@ -161,7 +162,8 @@ export const filterIndex = [
   mavicaFd7,
   eink,
   gameboyCamera,
-  oscilloscope
+  oscilloscope,
+  teletext
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
