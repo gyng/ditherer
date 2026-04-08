@@ -12,6 +12,22 @@ export const useFilter = () => {
   return ctx;
 };
 
+// On mobile, compute a scale that fits the image within the viewport
+// and caps total pixel count for weaker CPUs.
+const MAX_MOBILE_PIXELS = 500_000; // ~700×700
+const getMobileScale = (w: number, h: number): number => {
+  if (typeof window === "undefined" || window.innerWidth > 768) return 1;
+  // Fit to viewport width (with some padding)
+  const viewportW = window.innerWidth - 16;
+  const fitScale = viewportW / w;
+  // Also cap by total pixel budget
+  const pixelScale = Math.sqrt(MAX_MOBILE_PIXELS / (w * h));
+  return Math.min(1, fitScale, pixelScale);
+};
+
+// Round scale to nearest 0.1 for clean slider values
+const roundScale = (s: number) => Math.round(s * 10) / 10 || 0.1;
+
 export const FilterProvider = ({ children }) => {
   const [state, dispatch] = useReducer(filterReducer, initialState);
 
@@ -22,6 +38,8 @@ export const FilterProvider = ({ children }) => {
     reader.onload = event => {
       image.onload = () => {
         dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
+        const scale = roundScale(getMobileScale(image.width, image.height));
+        if (scale < 1) dispatch({ type: "SET_SCALE", scale });
       };
       image.src = event.target.result;
     };
@@ -48,6 +66,8 @@ export const FilterProvider = ({ children }) => {
           firstPlay = false;
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
+          const scale = roundScale(getMobileScale(video.videoWidth, video.videoHeight));
+          if (scale < 1) dispatch({ type: "SET_SCALE", scale });
           requestAnimationFrame(loadFrame);
         }
       };
