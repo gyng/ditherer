@@ -1,6 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25 },
@@ -49,7 +49,7 @@ const pixelate = (
       for (let y = 0; y < temp.height; y += 1) {
         const i = getBufferIndex(x, y, temp.width);
         const pixel = [floatBuf[i], floatBuf[i + 1], floatBuf[i + 2], floatBuf[i + 3]];
-        const color = paletteGetColor(palette, pixel, palette.options, true);
+        const color = linearPaletteGetColor(palette, pixel, palette.options);
         fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
       }
     }
@@ -59,7 +59,7 @@ const pixelate = (
       for (let y = 0; y < temp.height; y += 1) {
         const i = getBufferIndex(x, y, temp.width);
         const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-        const color = paletteGetColor(palette, pixel, palette.options, false);
+        const color = srgbPaletteGetColor(palette, pixel, palette.options);
         fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
       }
     }

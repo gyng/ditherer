@@ -3,7 +3,7 @@ import {
   fillBufferPixel,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
-  paletteGetColor
+  linearPaletteGetColor
 } from "utils";
 
 import { PALETTE } from "constants/controlTypes";
@@ -60,7 +60,7 @@ export const errorDiffusingFilter = (
         if (useLinear) {
           _pix[0] = errBuf[i]; _pix[1] = errBuf[i + 1];
           _pix[2] = errBuf[i + 2]; _pix[3] = errBuf[i + 3];
-          const color = paletteGetColor(palette, _pix as any, palette.options, true);
+          const color = linearPaletteGetColor(palette, _pix as any, palette.options);
           const er = _pix[0] - color[0];
           const eg = _pix[1] - color[1];
           const eb = _pix[2] - color[2];

@@ -1,6 +1,6 @@
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, paletteGetColor } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
 
 export const optionTypes = {
   size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter of input
@@ -76,7 +76,7 @@ const halftone = (
         }
 
         // Quantize mean color via palette (float 0-1), then convert to sRGB for drawing
-        const quantizedColor = paletteGetColor(palette, meanColor, palette.options, true);
+        const quantizedColor = linearPaletteGetColor(palette, meanColor, palette.options);
         const srgbColor = delinearizeColorF(quantizedColor);
         const radii = srgbColor.map(
           c => c * (size / 2 / 255) * options.sizeMultiplier
@@ -129,7 +129,7 @@ const halftone = (
           }
         }
 
-        const quantizedColor = paletteGetColor(palette, meanColor, palette.options, false);
+        const quantizedColor = srgbPaletteGetColor(palette, meanColor, palette.options);
         const radii = quantizedColor.map(
           c => c * (size / 2 / 255) * options.sizeMultiplier
         );

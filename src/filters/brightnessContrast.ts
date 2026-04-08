@@ -10,7 +10,8 @@ import {
   gamma as gammaFunc,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
-  paletteGetColor
+  srgbPaletteGetColor,
+  linearPaletteGetColor
 } from "utils";
 
 export const optionTypes = {
@@ -74,7 +75,7 @@ const brightnessContrast = (
           newColor[2] / 255,
           newColor[3] / 255
         ];
-        const col = paletteGetColor(palette, pixel01, palette.options, true);
+        const col = linearPaletteGetColor(palette, pixel01, palette.options);
         fillBufferPixel(outFloat, i, col[0], col[1], col[2], col[3]);
       }
     }
@@ -103,7 +104,7 @@ const brightnessContrast = (
           gamma
         );
 
-        const col = paletteGetColor(palette, newColor, palette.options, false);
+        const col = srgbPaletteGetColor(palette, newColor, palette.options);
         fillBufferPixel(outputBuf, i, col[0], col[1], col[2], col[3]);
       }
     }

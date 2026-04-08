@@ -9,7 +9,8 @@ import {
   scaleMatrix,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
-  paletteGetColor
+  srgbPaletteGetColor,
+  linearPaletteGetColor
 } from "utils";
 
 export const BAYER_2X2 = "BAYER_2X2";
@@ -347,7 +348,7 @@ const ordered = (
           return Math.round(bucket * stepF * 1e6) / 1e6;
         });
 
-        const color = paletteGetColor(palette, orderedColor, palette.options, true);
+        const color = linearPaletteGetColor(palette, orderedColor, palette.options);
         fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
       }
     }
@@ -367,7 +368,7 @@ const ordered = (
           tiy,
           thresholdMapScaled
         );
-        const color = paletteGetColor(palette, orderedColor, palette.options, false);
+        const color = srgbPaletteGetColor(palette, orderedColor, palette.options);
         fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
       }
     }

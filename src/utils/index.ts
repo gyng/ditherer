@@ -91,28 +91,49 @@ export const delinearizeBuffer = (buf) => {
   }
 };
 
+// --- Branded pixel types ---
+//
+// Prevents mixing up sRGB [0-255] and linear [0-1] pixel data at the type
+// level. Filters that work in sRGB space use SrgbPixel + srgbPaletteGetColor.
+// Filters with a linear branch use LinearPixel + linearPaletteGetColor.
+// The brands are zero-cost at runtime — they only exist for the type checker.
+
+declare const __srgbBrand: unique symbol;
+declare const __linearBrand: unique symbol;
+
+/** Pixel in sRGB space, channels 0-255 */
+export type SrgbPixel = number[] & { readonly [__srgbBrand]?: never };
+
+/** Pixel in linear-light space, channels 0.0-1.0 */
+export type LinearPixel = number[] & { readonly [__linearBrand]: true };
+
 // --- Palette color matching ---
 
-// Palette matching for linearized pipeline.
-// Pixel is in linear float 0-1 when isLinear=true.
-// Palette colors are always defined in sRGB 0-255.
-export const paletteGetColor = (palette, pixel, options, isLinear) => {
-  if (!isLinear) return palette.getColor(pixel, options);
+// For filters that work in sRGB [0-255] space. No isLinear parameter —
+// impossible to accidentally request linear conversion.
+export const srgbPaletteGetColor = (palette, pixel: SrgbPixel, options) =>
+  palette.getColor(pixel, options);
 
-  // Convert linear float pixel → sRGB 0-255 for matching
+// For filters that have done their own sRGB→linear conversion and are
+// working in linear float [0-1] space. Converts pixel to sRGB for palette
+// matching, then converts the matched color back to linear.
+export const linearPaletteGetColor = (palette, pixel: LinearPixel, options) => {
   const srgbPixel = delinearizeColorF(pixel);
   const match = palette.getColor(srgbPixel, options);
-  // Convert matched sRGB color → linear float
   return linearizeColorF(match);
 };
 
-// For filters that work entirely in sRGB [0-255] space and do NOT implement
-// their own linear conversion path. Always quantizes in sRGB regardless of
-// the global linearize setting. Use this instead of paletteGetColor to avoid
-// the transparent-output bug where linear float [0-1] values get written to
-// Uint8ClampedArray as near-zero.
-export const srgbPaletteGetColor = (palette, pixel, options) =>
-  palette.getColor(pixel, options);
+// @deprecated — Use srgbPaletteGetColor or linearPaletteGetColor instead.
+// This function accepts a boolean isLinear which is the root cause of the
+// transparent-output bug. Kept only for pre-existing filters (jitter,
+// scanline, channelSeparation, pixelsort, rgbstripe) that still pass
+// options._linearize and need to be migrated.
+export const paletteGetColor = (palette, pixel, options, isLinear) => {
+  if (!isLinear) return palette.getColor(pixel, options);
+  const srgbPixel = delinearizeColorF(pixel);
+  const match = palette.getColor(srgbPixel, options);
+  return linearizeColorF(match);
+};
 
 const memoize = (fn) => {
   const cache = new Map();
