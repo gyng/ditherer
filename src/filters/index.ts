@@ -43,6 +43,7 @@ import eink from "./eink";
 import gameboyCamera from "./gameboyCamera";
 import oscilloscope from "./oscilloscope";
 import teletext from "./teletext";
+import datamosh from "./datamosh";
 import {
   atkinson,
   burkes,
@@ -96,6 +97,7 @@ export { default as kmeans } from "./kmeans";
 export { default as mavicaFd7 } from "./mavicaFd7";
 export { default as gameboyCamera } from "./gameboyCamera";
 export { default as teletext } from "./teletext";
+export { default as datamosh } from "./datamosh";
 export {
   atkinson,
   burkes,
@@ -163,7 +165,8 @@ export const filterIndex = [
   eink,
   gameboyCamera,
   oscilloscope,
-  teletext
+  teletext,
+  datamosh
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
