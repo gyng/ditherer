@@ -33,26 +33,13 @@ export const FilterProvider = ({ children }) => {
     const reader = new FileReader();
     const video = document.createElement("video");
     reader.onload = event => {
-      const i = new Image();
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
       const loadFrame = () => {
-        URL.revokeObjectURL(i.src);
         if (!video.paused && video.src !== "") {
-          i.width = video.videoWidth;
-          i.height = video.videoHeight;
           ctx.drawImage(video, 0, 0);
-          canvas.toBlob(blob => {
-            if (blob) {
-              i.src = URL.createObjectURL(blob);
-              i.onload = () => {
-                if (!video.paused && video.src !== "") {
-                  requestAnimationFrame(loadFrame);
-                  dispatch({ type: "LOAD_IMAGE", image: i, time: video.currentTime, video, dispatch });
-                }
-              };
-            }
-          });
+          requestAnimationFrame(loadFrame);
+          dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
         }
       };
       let firstPlay = true;

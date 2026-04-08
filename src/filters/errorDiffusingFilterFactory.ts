@@ -1,11 +1,6 @@
 import {
   cloneCanvas,
   fillBufferPixel,
-  addBufferPixel,
-  getBufferIndex,
-  rgba,
-  sub,
-  scale,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
   paletteGetColor
@@ -40,71 +35,70 @@ export const errorDiffusingFilter = (
     const buf = outputCtx.getImageData(0, 0, input.width, input.height).data;
     if (!buf) return input;
 
-    // When linearized, work in float linear space for full precision.
-    // errBuf holds working values (float linear or int sRGB).
-    // outBuf accumulates final pixel values.
     const useLinear = options._linearize;
+    // errBuf: Float32Array for both paths — avoids boxed JS Array GC pressure.
+    // Linear path: values 0.0–1.0. sRGB path: values 0–255 (float for error accumulation).
     const linearBuf = useLinear ? srgbBufToLinearFloat(buf) : null;
     const errBuf = useLinear
-      ? Array.from(linearBuf)  // float 0-1 precision
-      : Array.from(buf);       // int 0-255 precision
-    if (!errBuf) return input;
+      ? new Float32Array(linearBuf!)
+      : new Float32Array(buf);
 
-    for (let x = 0; x < output.width; x += 1) {
-      for (let y = 0; y < output.height; y += 1) {
-        const i = getBufferIndex(x, y, output.width);
+    const kernelWidth = errorMatrix.kernel[0].length;
+    const kernelHeight = errorMatrix.kernel.length;
+    const offsetX = errorMatrix.offset[0];
+    const offsetY = errorMatrix.offset[1];
+    const W = output.width;
+
+    // Module-level scratch to avoid per-pixel array allocations in palette call
+    const _pix = new Float32Array(4);
+
+    for (let y = 0; y < output.height; y += 1) {
+      for (let x = 0; x < W; x += 1) {
+        const i = (x + W * y) * 4;
 
         if (useLinear) {
-          // Float linear path: pixel values are 0.0-1.0
-          const pixel = [errBuf[i], errBuf[i + 1], errBuf[i + 2], errBuf[i + 3]];
-          const color = paletteGetColor(palette, pixel, palette.options, true);
-          const error = [pixel[0] - color[0], pixel[1] - color[1], pixel[2] - color[2], 0];
+          // Read pixel as scalars
+          _pix[0] = errBuf[i]; _pix[1] = errBuf[i + 1];
+          _pix[2] = errBuf[i + 2]; _pix[3] = errBuf[i + 3];
+          const color = paletteGetColor(palette, _pix as any, palette.options, true);
+          // Error as scalars — no array alloc
+          const er = _pix[0] - color[0];
+          const eg = _pix[1] - color[1];
+          const eb = _pix[2] - color[2];
 
-          linearBuf[i]     = color[0];
-          linearBuf[i + 1] = color[1];
-          linearBuf[i + 2] = color[2];
-          // keep alpha
+          linearBuf![i]     = color[0];
+          linearBuf![i + 1] = color[1];
+          linearBuf![i + 2] = color[2];
 
-          const kernelWidth = errorMatrix.kernel[0].length;
-          const kernelHeight = errorMatrix.kernel.length;
-
-          for (let w = 0; w < kernelWidth; w += 1) {
-            for (let h = 0; h < kernelHeight; h += 1) {
+          for (let h = 0; h < kernelHeight; h += 1) {
+            for (let w = 0; w < kernelWidth; w += 1) {
               const weight = errorMatrix.kernel[h][w];
               if (weight != null) {
-                const targetIdx = getBufferIndex(
-                  x + w + errorMatrix.offset[0],
-                  y + h + errorMatrix.offset[1],
-                  output.width
-                );
-                errBuf[targetIdx]     += error[0] * weight;
-                errBuf[targetIdx + 1] += error[1] * weight;
-                errBuf[targetIdx + 2] += error[2] * weight;
+                const ti = ((x + w + offsetX) + W * (y + h + offsetY)) * 4;
+                errBuf[ti]     += er * weight;
+                errBuf[ti + 1] += eg * weight;
+                errBuf[ti + 2] += eb * weight;
               }
             }
           }
         } else {
-          // Original sRGB int path
-          const pixel = rgba(errBuf[i], errBuf[i + 1], errBuf[i + 2], errBuf[i + 3]);
-          const color = palette.getColor(pixel, palette.options);
-          const error = sub(pixel, color);
-
+          // sRGB path — scalars, no rgba()/sub()/scale() allocations
+          const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
+          _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
+          const color = palette.getColor(_pix as any, palette.options);
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
+          const er = pr - color[0];
+          const eg = pg - color[1];
+          const eb = pb - color[2];
 
-          const kernelWidth = errorMatrix.kernel[0].length;
-          const kernelHeight = errorMatrix.kernel.length;
-
-          for (let w = 0; w < kernelWidth; w += 1) {
-            for (let h = 0; h < kernelHeight; h += 1) {
+          for (let h = 0; h < kernelHeight; h += 1) {
+            for (let w = 0; w < kernelWidth; w += 1) {
               const weight = errorMatrix.kernel[h][w];
               if (weight != null) {
-                const targetIdx = getBufferIndex(
-                  x + w + errorMatrix.offset[0],
-                  y + h + errorMatrix.offset[1],
-                  output.width
-                );
-                const toDiffuse = scale(error, weight);
-                addBufferPixel(errBuf, targetIdx, toDiffuse);
+                const ti = ((x + w + offsetX) + W * (y + h + offsetY)) * 4;
+                errBuf[ti]     += er * weight;
+                errBuf[ti + 1] += eg * weight;
+                errBuf[ti + 2] += eb * weight;
               }
             }
           }
@@ -113,13 +107,9 @@ export const errorDiffusingFilter = (
     }
 
     if (useLinear) {
-      linearFloatToSrgbBuf(linearBuf, buf);
+      linearFloatToSrgbBuf(linearBuf!, buf);
     }
-    outputCtx.putImageData(
-      new ImageData(buf, output.width, output.height),
-      0,
-      0
-    );
+    outputCtx.putImageData(new ImageData(buf, W, output.height), 0, 0);
     return output;
   };
 
