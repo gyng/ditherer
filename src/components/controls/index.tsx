@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   BOOL,
+  COLOR,
   RANGE,
   ENUM,
   COLOR_ARRAY,
@@ -19,6 +20,7 @@ import Range from "./Range";
 import Stringly from "./Stringly";
 import Textly from "./Textly";
 import ColorArray from "./ColorArray";
+import ColorPicker from "./ColorPicker";
 
 import s from "./styles.module.css";
 
@@ -79,6 +81,15 @@ const Controls = (props) => {
                 onSaveColorPalette={onSaveColorPalette}
                 onDeleteColorPalette={onDeleteColorPalette}
                 inputCanvas={inputCanvas}
+              />
+            );
+          case COLOR:
+            return (
+              <ColorPicker
+                key={name}
+                name={name}
+                value={options[name]}
+                onSetFilterOption={onSetFilterOption}
               />
             );
           case STRING:

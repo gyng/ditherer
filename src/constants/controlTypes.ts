@@ -13,6 +13,7 @@ export const RANGE = "RANGE";
 export const STRING = "STRING";
 export const TEXT = "TEXT";
 export const PALETTE = "PALETTE";
+export const COLOR = "COLOR";
 export const COLOR_ARRAY = "COLOR_ARRAY";
 
 export const COLOR_DISTANCE_ALGORITHM = {

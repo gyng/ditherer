@@ -1,4 +1,4 @@
-import { STRING, PALETTE } from "constants/controlTypes";
+import { COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
@@ -22,8 +22,8 @@ const parseHex = (hex: string): [number, number, number] => {
 };
 
 export const optionTypes = {
-  shadowColor: { type: STRING, default: "#0d0221" },
-  highlightColor: { type: STRING, default: "#ff6b6b" },
+  shadowColor: { type: COLOR, default: "#0d0221" },
+  highlightColor: { type: COLOR, default: "#ff6b6b" },
   palette: { type: PALETTE, default: nearest }
 };
 

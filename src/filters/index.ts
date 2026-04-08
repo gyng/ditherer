@@ -167,10 +167,11 @@ export const filterCategories = [
 // Presets — grouped by category, alphabetized within each
 export const filterList = [
   // ── Dithering ──
-  { displayName: "Atkinson (Mac)", filter: atkinson, category: "Dithering" },
+  { displayName: "Atkinson (Mac)", filter: atkinson, category: "Dithering", description: "Classic Mac dithering with 75% error diffusion for a crisp, high-contrast look" },
   {
     displayName: "Atkinson (Macintosh II color test)",
     category: "Dithering",
+    description: "Atkinson dithering with the original Macintosh II 16-color palette",
     filter: {
       ...atkinson,
       options: {
@@ -181,13 +182,14 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Binarize", filter: binarize, category: "Dithering" },
-  { displayName: "Burkes", filter: burkes, category: "Dithering" },
-  { displayName: "False Floyd-Steinberg", filter: falseFloydSteinberg, category: "Dithering" },
-  { displayName: "Floyd-Steinberg", filter: floydSteinberg, category: "Dithering" },
+  { displayName: "Binarize", filter: binarize, category: "Dithering", description: "Simple threshold to pure black and white with no error diffusion" },
+  { displayName: "Burkes", filter: burkes, category: "Dithering", description: "Fast two-row error diffusion with smooth gradients" },
+  { displayName: "False Floyd-Steinberg", filter: falseFloydSteinberg, category: "Dithering", description: "Simplified Floyd-Steinberg using only two neighbors for a grainier result" },
+  { displayName: "Floyd-Steinberg", filter: floydSteinberg, category: "Dithering", description: "The classic error-diffusion algorithm — balanced quality and speed" },
   {
     displayName: "Floyd-Steinberg (CGA test)",
     category: "Dithering",
+    description: "Floyd-Steinberg with the 16-color CGA palette",
     filter: {
       ...floydSteinberg,
       options: {
@@ -201,6 +203,7 @@ export const filterList = [
   {
     displayName: "Floyd-Steinberg (Vaporwave test)",
     category: "Dithering",
+    description: "Floyd-Steinberg with a pastel vaporwave palette",
     filter: {
       ...floydSteinberg,
       options: {
@@ -211,11 +214,12 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Jarvis", filter: jarvis, category: "Dithering" },
-  { displayName: "Ordered", filter: ordered, category: "Dithering" },
+  { displayName: "Jarvis", filter: jarvis, category: "Dithering", description: "Three-row error diffusion for smoother gradients at the cost of speed" },
+  { displayName: "Ordered", filter: ordered, category: "Dithering", description: "Bayer matrix threshold dithering — fast, tiled, no error diffusion" },
   {
     displayName: "Ordered (Gameboy)",
     category: "Dithering",
+    description: "Ordered dithering with the 4-shade Gameboy green palette",
     filter: {
       ...ordered,
       options: {
@@ -228,8 +232,24 @@ export const filterList = [
     }
   },
   {
+    displayName: "Ordered (Downwell Gameboy)",
+    category: "Dithering",
+    description: "Ordered dithering with Downwell's muted green Gameboy-style palette",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.DOWNWELL_GAMEBOY }
+        }
+      }
+    }
+  },
+  {
     displayName: "Ordered (Windows 16-color)",
     category: "Dithering",
+    description: "4x4 Bayer ordered dithering with the classic Windows 16-color palette",
     filter: {
       ...ordered,
       options: {
@@ -242,18 +262,19 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Quantize (No dithering)", filter: quantize, category: "Dithering" },
-  { displayName: "Random", filter: random, category: "Dithering" },
-  { displayName: "Sierra (full)", filter: sierra, category: "Dithering" },
-  { displayName: "Sierra (lite)", filter: sierraLite, category: "Dithering" },
-  { displayName: "Sierra (two-row)", filter: sierra2, category: "Dithering" },
-  { displayName: "Stucki", filter: stucki, category: "Dithering" },
-  { displayName: "Triangle dither", filter: triangleDither, category: "Dithering" },
+  { displayName: "Quantize (No dithering)", filter: quantize, category: "Dithering", description: "Reduce colors by snapping each pixel to the nearest palette color" },
+  { displayName: "Random", filter: random, category: "Dithering", description: "Add random noise before quantizing for a stippled, noisy texture" },
+  { displayName: "Sierra (full)", filter: sierra, category: "Dithering", description: "Three-row error diffusion similar to Jarvis but with different weights" },
+  { displayName: "Sierra (lite)", filter: sierraLite, category: "Dithering", description: "Minimal Sierra variant — fast with only two neighbors" },
+  { displayName: "Sierra (two-row)", filter: sierra2, category: "Dithering", description: "Two-row Sierra for a balance between speed and quality" },
+  { displayName: "Stucki", filter: stucki, category: "Dithering", description: "Three-row error diffusion with sharper results than Jarvis" },
+  { displayName: "Triangle dither", filter: triangleDither, category: "Dithering", description: "Triangle-distributed noise dithering for film-like grain" },
 
   // ── Color ──
   {
     displayName: "Brightness/Contrast",
     category: "Color",
+    description: "Adjust image brightness and contrast levels",
     filter: {
       ...brightnessContrast,
       options: {
@@ -268,60 +289,65 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Color balance", filter: colorBalance, category: "Color" },
-  { displayName: "Color shift", filter: colorShift, category: "Color" },
-  { displayName: "Duotone", filter: duotone, category: "Color" },
-  { displayName: "Grayscale", filter: grayscale, category: "Color" },
-  { displayName: "Histogram equalization", filter: histogramEqualization, category: "Color" },
+  { displayName: "Color balance", filter: colorBalance, category: "Color", description: "Shift the balance between complementary color channels" },
+  { displayName: "Color shift", filter: colorShift, category: "Color", description: "Rotate hue and shift saturation/lightness" },
+  { displayName: "Duotone", filter: duotone, category: "Color", description: "Map shadows and highlights to two custom colors" },
+  { displayName: "Grayscale", filter: grayscale, category: "Color", description: "Convert to grayscale using perceptual luminance weights" },
+  { displayName: "Histogram equalization", filter: histogramEqualization, category: "Color", description: "Redistribute tonal range for better contrast across the image" },
   {
     displayName: "Histogram equalization (per-channel)",
     category: "Color",
+    description: "Equalize each RGB channel independently — can introduce color shifts",
     filter: { ...histogramEqualization, options: { ...histogramEqualization.options, perChannel: true } }
   },
-  { displayName: "Invert", filter: invert, category: "Color" },
-  { displayName: "Posterize", filter: posterize, category: "Color" },
-  { displayName: "Solarize", filter: solarize, category: "Color" },
+  { displayName: "Invert", filter: invert, category: "Color", description: "Flip all colors to their complement (negative)" },
+  { displayName: "Posterize", filter: posterize, category: "Color", description: "Reduce color levels per channel for a flat, poster-like look" },
+  { displayName: "Solarize", filter: solarize, category: "Color", description: "Partially invert tones above a threshold for a surreal darkroom effect" },
 
   // ── Stylize ──
-  { displayName: "ASCII", filter: ascii, category: "Stylize" },
-  { displayName: "Halftone", filter: halftone, category: "Stylize" },
-  { displayName: "K-means", filter: kmeans, category: "Stylize" },
-  { displayName: "Kuwahara", filter: kuwahara, category: "Stylize" },
-  { displayName: "Mavica FD7", filter: mavicaFd7, category: "Stylize" },
-  { displayName: "Pixelate", filter: pixelate, category: "Stylize" },
-  { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize" },
-  { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize" },
-  { displayName: "Voronoi", filter: voronoi, category: "Stylize" },
+  { displayName: "ASCII", filter: ascii, category: "Stylize", description: "Render the image as ASCII characters based on brightness" },
+  { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
+  { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
+  { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
+  { displayName: "Mavica FD7", filter: mavicaFd7, category: "Stylize", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
+  { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
+  { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
+  { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize", description: "Overlay vertical stripe pattern over the image" },
+  { displayName: "Voronoi", filter: voronoi, category: "Stylize", description: "Divide the image into irregular cell regions with averaged colors" },
 
   // ── Distort ──
-  { displayName: "Chromatic aberration", filter: chromaticAberration, category: "Distort" },
+  { displayName: "Chromatic aberration", filter: chromaticAberration, category: "Distort", description: "Offset color channels to simulate lens fringing" },
   {
     displayName: "Chromatic aberration (per-channel)",
     category: "Distort",
+    description: "Move each RGB channel independently for extreme color splitting",
     filter: { ...chromaticAberration, options: { ...chromaticAberration.options, mode: "INDEPENDENT" } }
   },
-  { displayName: "Displace", filter: displace, category: "Distort" },
+  { displayName: "Displace", filter: displace, category: "Distort", description: "Warp pixels using the image's own luminance as a displacement map" },
   {
     displayName: "Displace (smooth)",
     category: "Distort",
+    description: "Displacement mapping with a blurred source for gentler warping",
     filter: { ...displace, options: { ...displace.options, warpSource: "BLURRED" } }
   },
-  { displayName: "Lens distortion", filter: lensDistortion, category: "Distort" },
+  { displayName: "Lens distortion", filter: lensDistortion, category: "Distort", description: "Apply barrel distortion like a wide-angle lens" },
   {
     displayName: "Lens distortion (pincushion)",
     category: "Distort",
+    description: "Apply inward pincushion distortion like a telephoto lens",
     filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
   },
-  { displayName: "Wave", filter: wave, category: "Distort" },
+  { displayName: "Wave", filter: wave, category: "Distort", description: "Displace pixels along sine waves for a ripple effect" },
 
   // ── Glitch ──
-  { displayName: "Bit crush", filter: bitCrush, category: "Glitch" },
-  { displayName: "Channel separation", filter: channelSeparation, category: "Glitch" },
-  { displayName: "Glitch", filter: glitchblob, category: "Glitch" },
-  { displayName: "Jitter", filter: jitter, category: "Glitch" },
+  { displayName: "Bit crush", filter: bitCrush, category: "Glitch", description: "Reduce bit depth per channel for harsh color banding" },
+  { displayName: "Channel separation", filter: channelSeparation, category: "Glitch", description: "Split and offset RGB channels for a glitchy color-fringe look" },
+  { displayName: "Glitch", filter: glitchblob, category: "Glitch", description: "Randomly corrupt pixel data to simulate digital artifacts" },
+  { displayName: "Jitter", filter: jitter, category: "Glitch", description: "Randomly shift pixel rows for a shaky, unstable signal look" },
   {
     displayName: "Pixelsort",
     category: "Glitch",
+    description: "Sort pixel spans by brightness for dramatic streak effects",
     filter: {
       ...pixelsort,
       options: {
@@ -338,10 +364,11 @@ export const filterList = [
   },
 
   // ── Simulate ──
-  { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Simulate" },
+  { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Simulate", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
   {
     displayName: "CRT emulation",
     category: "Simulate",
+    description: "Simulate a CRT monitor with RGB phosphor sub-pixels",
     filter: {
       ...rgbStripe,
       options: {
@@ -356,20 +383,23 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Reaction-diffusion (coral)", filter: reactionDiffusion, category: "Simulate" },
+  { displayName: "Reaction-diffusion (coral)", filter: reactionDiffusion, category: "Simulate", description: "Grow organic coral-like patterns using a reaction-diffusion simulation" },
   {
     displayName: "Reaction-diffusion (labyrinth)",
     category: "Simulate",
+    description: "Generate maze-like labyrinth patterns via reaction-diffusion",
     filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "LABYRINTH" } }
   },
   {
     displayName: "Reaction-diffusion (worms)",
     category: "Simulate",
+    description: "Create worm-like squiggly patterns through reaction-diffusion",
     filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "WORMS" } }
   },
   {
     displayName: "Scanline",
     category: "Simulate",
+    description: "Add horizontal scanline gaps like a retro CRT display",
     filter: {
       ...scanline,
       options: {
@@ -384,14 +414,15 @@ export const filterList = [
       }
     }
   },
-  { displayName: "VHS emulation", filter: vhs, category: "Simulate" },
+  { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape artifacts — color bleed, noise, and tracking errors" },
 
   // ── Blur & Edges ──
-  { displayName: "Bloom", filter: bloom, category: "Blur & Edges" },
-  { displayName: "Convolve", filter: convolve, category: "Blur & Edges" },
+  { displayName: "Bloom", filter: bloom, category: "Blur & Edges", description: "Add a soft glow around bright areas" },
+  { displayName: "Convolve", filter: convolve, category: "Blur & Edges", description: "Apply a custom convolution kernel — blur, sharpen, emboss, and more" },
   {
     displayName: "Convolve (edge detection)",
     category: "Blur & Edges",
+    description: "Detect edges using a Laplacian convolution kernel",
     filter: {
       ...convolve,
       options: { ...convolve.options, kernel: LAPLACIAN_3X3 }
@@ -402,6 +433,7 @@ export const filterList = [
   {
     displayName: "Program",
     category: "Advanced",
+    description: "Write custom pixel-manipulation code in a built-in editor",
     filter: {
       ...program,
       options: {

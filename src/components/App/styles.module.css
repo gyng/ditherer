@@ -35,7 +35,7 @@
   display: flex;
   flex-direction: column;
   background: var(--light-gray);
-  min-width: 210px;
+  min-width: 250px;
   width: 10vw;
   padding: 15px;
 }
@@ -61,7 +61,7 @@
 }
 
 .chrome .captureSection {
-  max-width: 210px;
+  max-width: 250px;
 }
 
 .chrome .perfStats {
@@ -73,6 +73,14 @@
 
 .chrome .github {
   margin-top: auto;
+}
+
+.filterDescription {
+  font-size: 11px;
+  color: #555;
+  margin-top: 3px;
+  line-height: 1.3;
+  min-height: 2.6em;
 }
 
 .filterBar {

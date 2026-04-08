@@ -187,6 +187,26 @@ button:focus,
   margin: 8px 0;
 }
 
+.colorPickerRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.colorPickerSwatch {
+  width: 24px;
+  height: 24px;
+  border: 2px inset #808080;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.colorPickerHex {
+  font-family: monospace;
+  font-size: 12px;
+}
+
 .pickerContainer {
   margin: 6px 0;
 }

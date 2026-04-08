@@ -218,6 +218,14 @@ const App = () => {
                 </optgroup>
               ))}
             </select>
+            {(() => {
+              const selected = filterList.find(
+                f => f && f.displayName === (state.selected && (state.selected.displayName || state.selected.name))
+              );
+              return selected?.description ? (
+                <div className={s.filterDescription}>{selected.description}</div>
+              ) : null;
+            })()}
             <div className={controls.group}>
               <span className={controls.name}>Options</span>
               <Controls inputCanvas={inputCanvasRef.current} />
