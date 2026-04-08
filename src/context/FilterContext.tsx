@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback } from "react";
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from "react";
 import filterReducer, { initialState } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
@@ -34,6 +34,19 @@ const roundScale = (s: number) => Math.round(s * 10) / 10 || 0.1;
 
 export const FilterProvider = ({ children }) => {
   const [state, dispatch] = useReducer(filterReducer, initialState);
+
+  // Restore state from #! hash on initial load
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#!")) return;
+    try {
+      const json = atob(decodeURIComponent(hash.slice(2)));
+      const data = JSON.parse(json);
+      dispatch({ type: "LOAD_STATE", data });
+    } catch (e) {
+      console.warn("Failed to restore state from URL hash:", e);
+    }
+  }, []);
 
   // Async action: load image from file
   const loadImageAsync = useCallback((file) => {
@@ -180,7 +193,7 @@ export const FilterProvider = ({ children }) => {
         return v;
       });
       const base = `${window.location.origin}${window.location.pathname}`;
-      return `${base}?state=${encodeURI(btoa(json))}`;
+      return `${base}#!${encodeURIComponent(btoa(json))}`;
     },
     exportState: (filterState, format) => {
       const exportData = {
