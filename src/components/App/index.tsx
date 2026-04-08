@@ -344,6 +344,11 @@ const App = () => {
         >
           <div className={[controls.window, canvasDropping ? s.dropping : ""].join(" ")}>
             <div className={["handle", controls.titleBar].join(" ")}>Input</div>
+            {!state.inputImage && (
+              <div className={s.dropPlaceholder}>
+                <span>Drop image or video here</span>
+              </div>
+            )}
             <canvas
               className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
               ref={inputCanvasRef}

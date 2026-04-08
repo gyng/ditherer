@@ -101,3 +101,16 @@
 .dropping {
   outline: 2px solid var(--beautiful-blue);
 }
+
+.dropPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--gray);
+  font-size: 0.9em;
+  user-select: none;
+  pointer-events: none;
+  border: 2px dashed var(--gray);
+  margin: 8px;
+}
