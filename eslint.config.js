@@ -1,6 +1,5 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
-import react from "eslint-plugin-react";
 import globals from "globals";
 
 export default [
@@ -8,14 +7,10 @@ export default [
   ...tseslint.configs.recommended,
   {
     files: ["src/**/*.{js,jsx,ts,tsx}"],
-    plugins: { react },
     languageOptions: {
       globals: {
         ...globals.browser,
       },
-    },
-    settings: {
-      react: { version: "detect" },
     },
     rules: {
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_|^e$" }],
