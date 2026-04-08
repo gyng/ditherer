@@ -49,6 +49,7 @@ describe("smoke: run each filter on a test image", () => {
     "Glitch",        // async, dispatches actions
     "Program",       // uses eval
     "Halftone",      // uses canvas compositing not supported in jsdom
+    "ASCII",         // uses canvas text rendering not supported in jsdom
   ]);
 
   for (const entry of filterList) {

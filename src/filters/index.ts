@@ -19,6 +19,17 @@ import quantize from "./quantize";
 import random from "./random";
 import scanline from "./scanline";
 import rgbStripe from "./rgbstripe";
+import solarize from "./solarize";
+import posterize from "./posterize";
+import chromaticAberration from "./chromaticAberration";
+import bloom from "./bloom";
+import colorShift from "./colorShift";
+import bitCrush from "./bitCrush";
+import displace from "./displace";
+import voronoi from "./voronoi";
+import ascii from "./ascii";
+import kuwahara from "./kuwahara";
+import reactionDiffusion from "./reactionDiffusion";
 import {
   atkinson,
   burkes,
@@ -50,6 +61,17 @@ export { default as ordered } from "./ordered";
 export { default as quantize } from "./quantize";
 export { default as scanline } from "./scanline";
 export { default as rgbStripe } from "./rgbstripe";
+export { default as solarize } from "./solarize";
+export { default as posterize } from "./posterize";
+export { default as chromaticAberration } from "./chromaticAberration";
+export { default as bloom } from "./bloom";
+export { default as colorShift } from "./colorShift";
+export { default as bitCrush } from "./bitCrush";
+export { default as displace } from "./displace";
+export { default as voronoi } from "./voronoi";
+export { default as ascii } from "./ascii";
+export { default as kuwahara } from "./kuwahara";
+export { default as reactionDiffusion } from "./reactionDiffusion";
 export {
   atkinson,
   burkes,
@@ -91,7 +113,18 @@ export const filterIndex = [
   jarvis,
   horizontalStripe,
   verticalStripe,
-  vhs
+  vhs,
+  solarize,
+  posterize,
+  chromaticAberration,
+  bloom,
+  colorShift,
+  bitCrush,
+  displace,
+  voronoi,
+  ascii,
+  kuwahara,
+  reactionDiffusion
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -302,5 +335,16 @@ export const filterList = [
   {
     displayName: "Stripe (vertical)",
     filter: verticalStripe
-  }
+  },
+  { displayName: "Solarize", filter: solarize },
+  { displayName: "Posterize", filter: posterize },
+  { displayName: "Chromatic aberration", filter: chromaticAberration },
+  { displayName: "Bloom", filter: bloom },
+  { displayName: "Color shift", filter: colorShift },
+  { displayName: "Bit crush", filter: bitCrush },
+  { displayName: "Displace", filter: displace },
+  { displayName: "Voronoi", filter: voronoi },
+  { displayName: "ASCII", filter: ascii },
+  { displayName: "Kuwahara", filter: kuwahara },
+  { displayName: "Reaction-diffusion", filter: reactionDiffusion }
 ];
