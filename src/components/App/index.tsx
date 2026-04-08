@@ -33,7 +33,7 @@ const App = () => {
   const outputDragRef = useRef(null);
   const captureDragRef = useRef(null);
   const inputDrag = useDraggable(inputDragRef);
-  const outputDrag = useDraggable(outputDragRef, { defaultPosition: { x: 80, y: 200 } });
+  const outputDrag = useDraggable(outputDragRef, { defaultPosition: { x: 320, y: 20 } });
   const captureDrag = useDraggable(captureDragRef, { defaultPosition: { x: 160, y: 400 } });
 
   // Create capture video element once
