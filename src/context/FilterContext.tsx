@@ -97,14 +97,23 @@ export const FilterProvider = ({ children }) => {
 
   // Filter image — reads linearize from state at call time
   const filterImageAsync = (input, filterFunc, options) => {
-    const filterOpts = { ...options, _linearize: state.linearize };
+    const filterOpts = { ...options, _linearize: state.linearize, _wasmAcceleration: state.wasmAcceleration };
+    // Propagate wasmAcceleration into palette options so getColor() sees it
+    if (filterOpts.palette?.options) {
+      filterOpts.palette = {
+        ...filterOpts.palette,
+        options: { ...filterOpts.palette.options, _wasmAcceleration: state.wasmAcceleration }
+      };
+    }
+    const t0 = performance.now();
     const output = filterFunc(input, filterOpts, dispatch);
+    const frameTime = performance.now() - t0;
     if (!output) return;
     if (output instanceof HTMLCanvasElement) {
       const outputImage = new Image();
       outputImage.src = output.toDataURL("image/png");
       outputImage.onload = () => {
-        dispatch({ type: "FILTER_IMAGE", image: outputImage });
+        dispatch({ type: "FILTER_IMAGE", image: outputImage, frameTime });
       };
     }
   };
@@ -120,6 +129,8 @@ export const FilterProvider = ({ children }) => {
       dispatch({ type: "SET_GRAYSCALE", value }),
     setLinearize: (value) =>
       dispatch({ type: "SET_LINEARIZE", value }),
+    setWasmAcceleration: (value) =>
+      dispatch({ type: "SET_WASM_ACCELERATION", value }),
     setScale: (scale) =>
       dispatch({ type: "SET_SCALE", scale }),
     setOutputScale: (scale) =>

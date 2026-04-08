@@ -34,7 +34,7 @@ const App = () => {
   const captureDragRef = useRef(null);
   const inputDrag = useDraggable(inputDragRef);
   const outputDrag = useDraggable(outputDragRef, { defaultPosition: { x: 80, y: 200 } });
-  const captureDrag = useDraggable(captureDragRef);
+  const captureDrag = useDraggable(captureDragRef, { defaultPosition: { x: 160, y: 400 } });
 
   // Create capture video element once
   useEffect(() => {
@@ -94,6 +94,22 @@ const App = () => {
     };
   }, [state.inputImage, state.outputImage, state.scale, state.outputScale, state.time, state.scalingAlgorithm]);
 
+  // Auto-filter when settings change and realtimeFiltering is on
+  useEffect(() => {
+    if (!state.realtimeFiltering || !inputCanvasRef.current || !state.inputImage) return;
+    const filterFunc = state.convertGrayscale
+      ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
+      : state.selected.filter.func;
+    document.body.style.cursor = "wait";
+    requestAnimationFrame(() => {
+      actions.filterImageAsync(inputCanvasRef.current, filterFunc, state.selected.filter.options);
+      document.body.style.cursor = "";
+    });
+  }, [
+    state.selected, state.linearize, state.wasmAcceleration,
+    state.convertGrayscale, state.realtimeFiltering, state.inputImage,
+  ]);
+
   const bringToTop = useCallback(e => {
     zIndexRef.current += 1;
     e.currentTarget.style.zIndex = `${zIndexRef.current}`;
@@ -116,10 +132,6 @@ const App = () => {
         }
       }
 
-      if (captureVideoRef.current) {
-        captureVideoRef.current.srcObject = stream;
-      }
-
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       recorder.start();
@@ -132,9 +144,10 @@ const App = () => {
           captureVideoRef.current.srcObject = null;
           captureVideoRef.current.src = dataUrl;
         }
+        setHasCapture(true);
       };
       setCapturing(true);
-      setHasCapture(true);
+      setHasCapture(false);
     } else if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
@@ -222,6 +235,36 @@ const App = () => {
                   Linearize (gamma-correct)
                 </span>
               </div>
+              <div className={controls.checkbox}>
+                <input
+                  name="realtimeFiltering"
+                  type="checkbox"
+                  checked={state.realtimeFiltering}
+                  onChange={e => actions.setRealtimeFiltering(e.target.checked)}
+                />
+                <span
+                  role="presentation"
+                  onClick={() => actions.setRealtimeFiltering(!state.realtimeFiltering)}
+                  className={controls.label}
+                >
+                  Auto-filter
+                </span>
+              </div>
+              <div className={controls.checkbox}>
+                <input
+                  name="wasmAcceleration"
+                  type="checkbox"
+                  checked={state.wasmAcceleration}
+                  onChange={e => actions.setWasmAcceleration(e.target.checked)}
+                />
+                <span
+                  role="presentation"
+                  onClick={() => actions.setWasmAcceleration(!state.wasmAcceleration)}
+                  className={controls.label}
+                >
+                  WASM acceleration
+                </span>
+              </div>
             </div>
             <Exporter />
           </div>
@@ -234,6 +277,7 @@ const App = () => {
             disabled={filtering}
             onClick={() => {
               setFiltering(true);
+              document.body.style.cursor = "wait";
               const filterFunc = state.convertGrayscale
                 ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
                 : state.selected.filter.func;
@@ -241,6 +285,7 @@ const App = () => {
               requestAnimationFrame(() => {
                 actions.filterImageAsync(inputCanvasRef.current, filterFunc, state.selected.filter.options);
                 setFiltering(false);
+                document.body.style.cursor = "";
               });
             }}
           >
@@ -281,17 +326,6 @@ const App = () => {
               </label>
             </div>
             <div>
-              <label className={controls.label} htmlFor="realtimeFiltering">
-                <input
-                  id="realtimeFiltering"
-                  type="checkbox"
-                  onChange={e => actions.setRealtimeFiltering(e.target.checked)}
-                  checked={state.realtimeFiltering}
-                />
-                Realtime filtering (videos)
-              </label>
-            </div>
-            <div>
               <Range
                 name="Video Playback Rate"
                 types={{ range: [0, 2] }}
@@ -309,7 +343,6 @@ const App = () => {
               >
                 {capturing ? "Stop capture" : "Capture output video"}
               </button>
-              <div className={controls.unselectable}>Audio capture requires Chrome</div>
             </div>
 
             <CollapsibleSection title="Others">
@@ -330,6 +363,11 @@ const App = () => {
           </CollapsibleSection>
         </CollapsibleSection>
 
+        {state.frameTime != null && (
+          <div className={s.perfStats}>
+            {state.frameTime.toFixed(1)}ms | {(1000 / state.frameTime).toFixed(1)} fps
+          </div>
+        )}
         <div className={s.github}>
           <a href="https://github.com/gyng/ditherer/">GitHub</a>
         </div>

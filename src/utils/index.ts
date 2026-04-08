@@ -3,8 +3,6 @@ import {
   RGB_APPROX,
   HSV_NEAREST,
   LAB_NEAREST,
-  WASM_LAB_NEAREST,
-  WASM_LAB_NEAREST_MEMO_PALETTE
 } from "constants/color";
 
 // --- sRGB ↔ linear conversion (float precision) ---
@@ -134,24 +132,32 @@ export const paletteGetColor = (palette, pixel, options, isLinear) => {
   return linearizeColorF(match);
 };
 
+// Memoize a color conversion fn(rgba, ref?) by packing RGBA into a numeric key.
+// Avoids ...args rest param (allocates per call) and double Map lookup.
 const memoize = (fn) => {
   const cache = new Map();
-  return (...args) => {
-    const key = String(args[0]);
-    if (cache.has(key)) return cache.get(key);
-    const result = fn(...args);
+  return (input, ref?) => {
+    const key = (input[0] << 24 | input[1] << 16 | input[2] << 8 | input[3]) >>> 0;
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+    const result = fn(input, ref);
     cache.set(key, result);
     return result;
   };
 };
 
-const rust = import("wasm/rgba2laba/wasm/rgba2laba");
-
-rust.then(obj => {
-  wasmRgba2labaInner = obj.rgba2laba;  
-  wasmRgbaLabaDistanceInner = obj.rgba_laba_distance;  
+import("wasm/rgba2laba/wasm/rgba2laba").then(async (mod: any) => {
+  await mod.default();
+  wasmRgba2labaInner = mod.rgba2laba;
+  wasmRgbaLabaDistanceInner = mod.rgba_laba_distance;
+  wasmNearestLabIndexInner = mod.rgba_nearest_lab_index;
+  wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
+  wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
+  wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
+  wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
+  wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
 }).catch(err => {
-  console.error("WASM module failed to load, using JS fallback:", err);  
+  console.error("WASM module failed to load, using JS fallback:", err);
 });
 
 export const serializeState = (state) => JSON.stringify(state);
@@ -280,17 +286,10 @@ export const rgba2laba = (
   input,
   ref = referenceTable.CIE_1931.D65
 ) => {
-  let r = input[0] / 255;
-  let g = input[1] / 255;
-  let b = input[2] / 255;
-
-  r = r > 0.04045 ? ((r + 0.055) / 1.055) ** 2.4 : r / 12.92;
-  g = g > 0.04045 ? ((g + 0.055) / 1.055) ** 2.4 : g / 12.92;
-  b = b > 0.04045 ? ((b + 0.055) / 1.055) ** 2.4 : b / 12.92;
-
-  r *= 100;
-  g *= 100;
-  b *= 100;
+  // Use pre-computed sRGB→linear LUT instead of 3× pow(2.4)
+  const r = SRGB_TO_LINEAR_F[input[0]] * 100;
+  const g = SRGB_TO_LINEAR_F[input[1]] * 100;
+  const b = SRGB_TO_LINEAR_F[input[2]] * 100;
 
   // Observer= 2° (Only use CIE 1931!)
   let x = r * 0.4124 + g * 0.3576 + b * 0.1805;
@@ -313,13 +312,43 @@ export const rgba2laba = (
 };
 
 let wasmRgba2labaInner = (a, b, c, d, e, f, g) => {
-  console.error("WASM module not loaded!", a, b, c, d, e, f, g);  
+  console.error("WASM module not loaded!", a, b, c, d, e, f, g);
   return [0, 0, 0, 0];
 };
 
 let wasmRgbaLabaDistanceInner = (a, b, c, d, e, f, g, h, i, j, k) => {
-  console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k);  
+  console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k);
   return 0;
+};
+
+let wasmNearestLabIndexInner = (_r, _g, _b, _a, _palette, _rx, _ry, _rz) => {
+  console.error("WASM module not loaded!");
+  return 0;
+};
+
+let wasmNearestLabPrecomputedInner = (_r, _g, _b, _palette_lab, _rx, _ry, _rz) => {
+  console.error("WASM module not loaded!");
+  return 0;
+};
+
+let wasmQuantizeBufferLabInner = (_buffer, _palette, _rx, _ry, _rz) => {
+  console.error("WASM module not loaded!");
+  return new Uint8Array(0);
+};
+
+let wasmQuantizeBufferRgbInner = (_buffer, _palette) => {
+  console.error("WASM module not loaded!");
+  return new Uint8Array(0);
+};
+
+let wasmQuantizeBufferRgbApproxInner = (_buffer, _palette) => {
+  console.error("WASM module not loaded!");
+  return new Uint8Array(0);
+};
+
+let wasmQuantizeBufferHsvInner = (_buffer, _palette) => {
+  console.error("WASM module not loaded!");
+  return new Uint8Array(0);
 };
 
 
@@ -357,8 +386,127 @@ export const wasmRgba2laba = (
   );
 
 export const wasmRgba2labaMemo = memoize(wasmRgba2laba);
+export const rgba2labaMemo = memoize(rgba2laba);
+export const rgba2hsvaMemo = memoize(rgba2hsva);
+
+// Batch nearest-colour search in WASM — one JS/WASM crossing per pixel
+// instead of O(palette_size). Palette is cached as a flat Float64Array.
+let cachedPaletteFlat: Float64Array | null = null;
+let cachedPaletteRef: any = null;
+export const wasmNearestLabIndex = (
+  pixel,
+  palette,
+  ref = referenceTable.CIE_1931.D65
+) => {
+  if (cachedPaletteRef !== palette) {
+    cachedPaletteFlat = new Float64Array(palette.length * 4);
+    for (let i = 0; i < palette.length; i++) {
+      cachedPaletteFlat[i * 4]     = palette[i][0];
+      cachedPaletteFlat[i * 4 + 1] = palette[i][1];
+      cachedPaletteFlat[i * 4 + 2] = palette[i][2];
+      cachedPaletteFlat[i * 4 + 3] = palette[i][3];
+    }
+    cachedPaletteRef = palette;
+  }
+  return wasmNearestLabIndexInner(
+    pixel[0], pixel[1], pixel[2], pixel[3],
+    cachedPaletteFlat,
+    ref.x, ref.y, ref.z
+  );
+};
+
+// Per-pixel nearest with pre-converted Lab palette — avoids re-converting
+// palette to Lab on every pixel. Palette Lab is cached alongside the RGBA cache.
+let cachedPaletteLabFlat: Float64Array | null = null;
+let cachedPaletteLabRef: any = null;
+export const wasmNearestLabPrecomputed = (
+  pixel,
+  palette,
+  ref = referenceTable.CIE_1931.D65
+) => {
+  if (cachedPaletteLabRef !== palette) {
+    // Pre-convert palette to Lab on JS side, cache as flat [L,a,b, L,a,b, …]
+    cachedPaletteLabFlat = new Float64Array(palette.length * 3);
+    for (let i = 0; i < palette.length; i++) {
+      const lab = rgba2laba(palette[i]);
+      cachedPaletteLabFlat[i * 3]     = lab[0];
+      cachedPaletteLabFlat[i * 3 + 1] = lab[1];
+      cachedPaletteLabFlat[i * 3 + 2] = lab[2];
+    }
+    cachedPaletteLabRef = palette;
+  }
+  return wasmNearestLabPrecomputedInner(
+    pixel[0], pixel[1], pixel[2],
+    cachedPaletteLabFlat,
+    ref.x, ref.y, ref.z
+  );
+};
+
+// Quantize an entire u8 RGBA buffer in a single WASM call.
+// Palette is cached as a flat Float64Array.
+export const wasmQuantizeBufferLab = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette,
+  ref = referenceTable.CIE_1931.D65
+): Uint8Array =>
+  wasmQuantizeBufferLabInner(buffer, ensurePaletteFlat(palette), ref.x, ref.y, ref.z);
+
+// Helper: ensure cached palette flat is fresh
+const ensurePaletteFlat = (palette) => {
+  if (cachedPaletteRef !== palette) {
+    cachedPaletteFlat = new Float64Array(palette.length * 4);
+    for (let i = 0; i < palette.length; i++) {
+      cachedPaletteFlat[i * 4]     = palette[i][0];
+      cachedPaletteFlat[i * 4 + 1] = palette[i][1];
+      cachedPaletteFlat[i * 4 + 2] = palette[i][2];
+      cachedPaletteFlat[i * 4 + 3] = palette[i][3];
+    }
+    cachedPaletteRef = palette;
+  }
+  return cachedPaletteFlat!;
+};
+
+export const wasmQuantizeBufferRgb = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette,
+): Uint8Array =>
+  wasmQuantizeBufferRgbInner(buffer, ensurePaletteFlat(palette));
+
+export const wasmQuantizeBufferRgbApprox = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette,
+): Uint8Array =>
+  wasmQuantizeBufferRgbApproxInner(buffer, ensurePaletteFlat(palette));
+
+export const wasmQuantizeBufferHsv = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette,
+): Uint8Array =>
+  wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
+// Unified WASM buffer quantize dispatcher — picks the right function based on algorithm.
+// Returns a Uint8Array of matched palette colors, or null if no WASM function available.
+export const wasmQuantizeBuffer = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette,
+  colorDistanceAlgorithm: string,
+  ref = referenceTable.CIE_1931.D65
+): Uint8Array | null => {
+  switch (colorDistanceAlgorithm) {
+    case RGB_NEAREST:
+      return wasmQuantizeBufferRgbInner(buffer, ensurePaletteFlat(palette));
+    case RGB_APPROX:
+      return wasmQuantizeBufferRgbApproxInner(buffer, ensurePaletteFlat(palette));
+    case HSV_NEAREST:
+      return wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
+    case LAB_NEAREST:
+      return wasmQuantizeBufferLabInner(buffer, ensurePaletteFlat(palette), ref.x, ref.y, ref.z);
+    default:
+      return null;
+  }
+};
+
 export const laba2rgba = (
   input,
   ref = referenceTable.CIE_1931.D65
@@ -396,7 +544,9 @@ export const laba2rgba = (
   return [r, g, b, input[3]];
 };
 
-// a can be assumed to be palette colour
+// a can be assumed to be palette colour.
+// Returns squared distance (sqrt omitted — monotone, so comparison ordering
+// is preserved and callers only use this for nearest-color search).
 export const colorDistance = (
   a,
   b,
@@ -404,29 +554,13 @@ export const colorDistance = (
 ) => {
   switch (colorDistanceAlgorithm) {
     case RGB_NEAREST:
-      return Math.sqrt(
-        (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
-      );
+      return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
     case LAB_NEAREST: {
-      const aLab = rgba2laba(a);
+      const aLab = rgba2labaMemo(a);
       const bLab = rgba2laba(b);
-      return Math.sqrt(
-        (bLab[0] - aLab[0]) ** 2 +
-          (bLab[1] - aLab[1]) ** 2 +
-          (bLab[2] - aLab[2]) ** 2
-      );
-    }
-    case WASM_LAB_NEAREST: {
-      return wasmRgbaLabaDistance(a, b);
-    }
-    case WASM_LAB_NEAREST_MEMO_PALETTE: {
-      const aLab = wasmRgba2labaMemo(a);
-      const bLab = rgba2laba(b);
-      return Math.sqrt(
-        (bLab[0] - aLab[0]) ** 2 +
-          (bLab[1] - aLab[1]) ** 2 +
-          (bLab[2] - aLab[2]) ** 2
-      );
+      return (bLab[0] - aLab[0]) ** 2 +
+        (bLab[1] - aLab[1]) ** 2 +
+        (bLab[2] - aLab[2]) ** 2;
     }
     case RGB_APPROX: {
       const r = (a[0] + b[0]) / 2;
@@ -435,10 +569,10 @@ export const colorDistance = (
       const dB = a[2] - b[2];
 
       const dRc = (2 + r / 256) * dR ** 2;
-      const dGc = 4 * dG ** 2 + (2 + (255 - r) / 256);
-      const dBc = dB ** 2;
+      const dGc = 4 * dG ** 2;
+      const dBc = (2 + (255 - r) / 256) * dB ** 2;
 
-      return Math.sqrt(dRc + dGc + dBc);
+      return dRc + dGc + dBc;
     }
     case HSV_NEAREST: {
       const aHsv = rgba2hsva(a);
@@ -451,7 +585,7 @@ export const colorDistance = (
       const dS = Math.abs(bHsv[1] - aHsv[1]);
       const dV = Math.abs(bHsv[2] - aHsv[2]) / 255.0;
 
-      return Math.sqrt(dH ** 2 + dS ** 2 + dV ** 2);
+      return dH ** 2 + dS ** 2 + dV ** 2;
     }
     default:
       return -1;
@@ -476,7 +610,7 @@ export const medianCutPalette = (
 
   for (let i = 0; i < buf.length; i += 4) {
     const pixelRaw = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-    const pixel = colorMode === "RGB" ? pixelRaw : rgba2laba(pixelRaw);
+    const pixel = colorMode === "RGB" ? pixelRaw : rgba2labaMemo(pixelRaw);
 
     const r = pixel[0];
     const g = pixel[1];

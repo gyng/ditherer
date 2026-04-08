@@ -5,8 +5,8 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  rgba2hsva,
-  rgba2laba,
+  rgba2hsvaMemo,
+  rgba2labaMemo,
   luminance,
   paletteGetColor
 } from "utils";
@@ -78,8 +78,8 @@ export const SORTS = {
     bRgba,
     dir
   ) => {
-    const a = rgba2hsva(aRgba);
-    const b = rgba2hsva(bRgba);
+    const a = rgba2hsvaMemo(aRgba);
+    const b = rgba2hsvaMemo(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.SVHA]: (
@@ -87,8 +87,8 @@ export const SORTS = {
     bRgba,
     dir
   ) => {
-    const a = rgba2hsva(aRgba);
-    const b = rgba2hsva(bRgba);
+    const a = rgba2hsvaMemo(aRgba);
+    const b = rgba2hsvaMemo(bRgba);
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
@@ -98,8 +98,8 @@ export const SORTS = {
     bRgba,
     dir
   ) => {
-    const a = rgba2hsva(aRgba);
-    const b = rgba2hsva(bRgba);
+    const a = rgba2hsvaMemo(aRgba);
+    const b = rgba2hsvaMemo(bRgba);
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
@@ -109,8 +109,8 @@ export const SORTS = {
     bRgba,
     dir
   ) => {
-    const a = rgba2laba(aRgba);
-    const b = rgba2laba(bRgba);
+    const a = rgba2labaMemo(aRgba);
+    const b = rgba2labaMemo(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.ABLA]: (
@@ -118,8 +118,8 @@ export const SORTS = {
     bRgba,
     dir
   ) => {
-    const a = rgba2laba(aRgba);
-    const b = rgba2laba(bRgba);
+    const a = rgba2labaMemo(aRgba);
+    const b = rgba2labaMemo(bRgba);
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
@@ -129,8 +129,8 @@ export const SORTS = {
     bRgba,
     dir
   ) => {
-    const a = rgba2laba(aRgba);
-    const b = rgba2laba(bRgba);
+    const a = rgba2labaMemo(aRgba);
+    const b = rgba2labaMemo(bRgba);
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);

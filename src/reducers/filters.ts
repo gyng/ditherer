@@ -14,6 +14,7 @@ const SET_FILTER_PALETTE_OPTION = "SET_FILTER_PALETTE_OPTION";
 const ADD_PALETTE_COLOR = "ADD_PALETTE_COLOR";
 const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
 const SET_LINEARIZE = "SET_LINEARIZE";
+const SET_WASM_ACCELERATION = "SET_WASM_ACCELERATION";
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
@@ -29,13 +30,15 @@ export const initialState = {
   inputCanvas: null,
   inputImage: null,
   outputImage: null,
-  realtimeFiltering: false,
+  realtimeFiltering: true,
   time: null,
   video: null,
   videoVolume: 1,
   videoPlaybackRate: 1,
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
-  linearize: true
+  linearize: true,
+  wasmAcceleration: true,
+  frameTime: null
 };
 
 export default (state = initialState, action) => {
@@ -129,11 +132,11 @@ export default (state = initialState, action) => {
         inputImage: action.image,
         time: action.time || 0,
         video: action.video || null,
-        realtimeFiltering: action.video && state.realtimeFiltering
+        realtimeFiltering: state.realtimeFiltering
       };
 
       if (state.realtimeFiltering && state.inputCanvas) {
-        const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize };
+        const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize, _wasmAcceleration: state.wasmAcceleration };
         const output = state.convertGrayscale
           ? state.selected.filter.func(
               grayscale.func(state.inputCanvas),
@@ -256,12 +259,18 @@ export default (state = initialState, action) => {
     case FILTER_IMAGE:
       return {
         ...state,
-        outputImage: action.image
+        outputImage: action.image,
+        frameTime: action.frameTime ?? state.frameTime
       };
     case SET_LINEARIZE:
       return {
         ...state,
         linearize: action.value
+      };
+    case SET_WASM_ACCELERATION:
+      return {
+        ...state,
+        wasmAcceleration: action.value
       };
     default:
       return state;

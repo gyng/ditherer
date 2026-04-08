@@ -1,6 +1,7 @@
 import { COLOR_ARRAY, COLOR_DISTANCE_ALGORITHM } from "constants/controlTypes";
 
-import { rgba, colorDistance } from "utils";
+import { rgba, colorDistance, wasmNearestLabPrecomputed } from "utils";
+import { LAB_NEAREST } from "constants/color";
 
 // https://en.wikipedia.org/wiki/List_of_8-bit_computer_hardware_palettes
 // https://en.wikipedia.org/wiki/Color_Graphics_Adapter
@@ -449,6 +450,13 @@ const getColor = (
 
   if (!colors) {
     return color;
+  }
+
+  // WASM precomputed Lab path — palette Lab is cached, only pixel is converted per call.
+  // Used for per-pixel matching (error diffusion) when Lab is selected.
+  if (colorDistanceAlgorithm === LAB_NEAREST && options._wasmAcceleration) {
+    const idx = wasmNearestLabPrecomputed(color, colors);
+    return colors[idx];
   }
 
   let min = null;

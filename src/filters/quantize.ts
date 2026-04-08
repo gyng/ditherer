@@ -1,6 +1,6 @@
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor, wasmQuantizeBuffer } from "utils";
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -25,6 +25,18 @@ const quantize = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  const algo = palette.options?.colorDistanceAlgorithm;
+
+  // WASM buffer quantize — single call replaces entire pixel loop.
+  // Works for sRGB path (no linearize); linear path still needs per-pixel round-trip.
+  if (options._wasmAcceleration && !options._linearize && algo && palette.options?.colors) {
+    const result = wasmQuantizeBuffer(buf, palette.options.colors, algo);
+    if (result) {
+      buf.set(result);
+      outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
+      return output;
+    }
+  }
 
   if (options._linearize) {
     const floatBuf = srgbBufToLinearFloat(buf);

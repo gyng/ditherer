@@ -10,7 +10,8 @@ import {
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
   srgbPaletteGetColor,
-  linearPaletteGetColor
+  linearPaletteGetColor,
+  wasmQuantizeBuffer
 } from "utils";
 
 export const BAYER_2X2 = "BAYER_2X2";
@@ -354,22 +355,37 @@ const ordered = (
     }
     linearFloatToSrgbBuf(floatBuf, buf);
   } else {
-    for (let x = 0; x < input.width; x += 1) {
-      for (let y = 0; y < input.height; y += 1) {
-        const tix = x % thresholdMapWidth;
-        const tiy = y % thresholdMapHeight;
-        const i = getBufferIndex(x, y, input.width);
-
+    // Apply thresholds to all pixels
+    const W = input.width;
+    const H = input.height;
+    const ditheredBuf = new Uint8Array(buf.length);
+    for (let x = 0; x < W; x += 1) {
+      for (let y = 0; y < H; y += 1) {
+        const i = getBufferIndex(x, y, W);
         const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-        const orderedColor = getOrderedColor(
-          pixel,
-          levels,
-          tix,
-          tiy,
-          thresholdMapScaled
-        );
-        const color = srgbPaletteGetColor(palette, orderedColor, palette.options);
-        fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
+        const oc = getOrderedColor(pixel, levels, x % thresholdMapWidth, y % thresholdMapHeight, thresholdMapScaled);
+        ditheredBuf[i] = oc[0]; ditheredBuf[i + 1] = oc[1];
+        ditheredBuf[i + 2] = oc[2]; ditheredBuf[i + 3] = oc[3];
+      }
+    }
+
+    // WASM buffer quantize on the dithered pixels — single call
+    const algo = palette.options?.colorDistanceAlgorithm;
+    const wasmResult = options._wasmAcceleration && algo && palette.options?.colors
+      ? wasmQuantizeBuffer(ditheredBuf, palette.options.colors, algo)
+      : null;
+
+    if (wasmResult) {
+      buf.set(wasmResult);
+    } else {
+      // JS fallback — per-pixel palette match
+      for (let x = 0; x < W; x += 1) {
+        for (let y = 0; y < H; y += 1) {
+          const i = getBufferIndex(x, y, W);
+          const pixel = [ditheredBuf[i], ditheredBuf[i + 1], ditheredBuf[i + 2], ditheredBuf[i + 3]];
+          const color = srgbPaletteGetColor(palette, pixel, palette.options);
+          fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
+        }
       }
     }
   }

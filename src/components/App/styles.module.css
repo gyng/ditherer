@@ -64,6 +64,13 @@
   max-width: 210px;
 }
 
+.chrome .perfStats {
+  padding: 4px 0;
+  font-size: 11px;
+  font-family: monospace;
+  color: #888;
+}
+
 .chrome .github {
   margin-top: auto;
 }

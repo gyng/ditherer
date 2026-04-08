@@ -24,6 +24,10 @@ a {
   color: blue;
 }
 
+body[style*="cursor: wait"] * {
+  cursor: wait !important;
+}
+
 @media (max-width: 768px) {
   html, body {
     overscroll-behavior: none;

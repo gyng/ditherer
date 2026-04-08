@@ -38,5 +38,8 @@ export default defineConfig({
         },
       },
     },
+    benchmark: {
+      reporters: ["default", "./test/perf/benchReporter.ts"],
+    },
   },
 });

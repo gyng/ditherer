@@ -10,7 +10,9 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench": "vitest bench test/perf/colorDistanceBench",
+    "bench:compare": "node test/perf/compareBench.mjs"
   },
   "dependencies": {
     "pako": "^2.1.0",
