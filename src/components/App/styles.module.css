@@ -111,6 +111,10 @@
   font-size: 0.9em;
   user-select: none;
   pointer-events: none;
-  border: 2px dashed #666;
-  margin: 8px;
+  border-left: 2px inset #808080;
+  border-top: 2px inset #808080;
+  border-right: 2px inset white;
+  border-bottom: 2px inset white;
+  margin: 4px;
+  background: white;
 }
