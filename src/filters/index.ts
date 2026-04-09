@@ -138,6 +138,12 @@ import sepia from "./sepia";
 import oilPainting from "./oilPainting";
 import stainedGlass from "./stainedGlass";
 import jpegArtifact from "./jpegArtifact";
+import zigzag from "./zigzag";
+import scanlineWarp from "./scanlineWarp";
+import posterizeDither from "./posterizeDither";
+import edgeTrace from "./edgeTrace";
+import colorGradientNoise from "./colorGradientNoise";
+import vintageTV from "./vintageTV";
 import {
   atkinson,
   burkes,
@@ -192,6 +198,12 @@ export { default as mavicaFd7 } from "./mavicaFd7";
 export { default as gameboyCamera } from "./gameboyCamera";
 export { default as teletext } from "./teletext";
 export { default as datamosh } from "./datamosh";
+export { default as zigzag } from "./zigzag";
+export { default as scanlineWarp } from "./scanlineWarp";
+export { default as posterizeDither } from "./posterizeDither";
+export { default as edgeTrace } from "./edgeTrace";
+export { default as colorGradientNoise } from "./colorGradientNoise";
+export { default as vintageTV } from "./vintageTV";
 export {
   atkinson,
   burkes,
@@ -354,7 +366,13 @@ export const filterIndex = [
   colorThreshold,
   grainMerge,
   smoothPosterize,
-  scanlineRgb
+  scanlineRgb,
+  zigzag,
+  scanlineWarp,
+  posterizeDither,
+  edgeTrace,
+  colorGradientNoise,
+  vintageTV
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -529,6 +547,7 @@ export const filterList = [
   { displayName: "Stucki", filter: stucki, category: "Dithering", description: "Three-row error diffusion with sharper results than Jarvis" },
   { displayName: "Threshold map", filter: thresholdMap, category: "Dithering", description: "Dither with custom threshold patterns — Bayer, halftone dot, diagonal, cross, diamond" },
   { displayName: "Dither gradient", filter: ditherGradient, category: "Dithering", description: "Generate a smooth gradient and dither it — test pattern or standalone gradient art" },
+  { displayName: "Posterize dither", filter: posterizeDither, category: "Dithering", description: "Per-channel Bayer ordered dithering with configurable levels per channel" },
   { displayName: "Triangle dither", filter: triangleDither, category: "Dithering", description: "Triangle-distributed noise dithering for film-like grain" },
 
   // ── Color ──
@@ -634,6 +653,8 @@ export const filterList = [
     }
   },
   { displayName: "Voronoi", filter: voronoi, category: "Stylize", description: "Divide the image into irregular cell regions with averaged colors" },
+  { displayName: "Zigzag", filter: zigzag, category: "Stylize", description: "Zigzag herringbone pattern where line thickness encodes luminance" },
+  { displayName: "Edge trace", filter: edgeTrace, category: "Stylize", description: "Canny-like edge tracing with non-maximum suppression and configurable line color" },
 
   // ── Distort ──
   { displayName: "Chromatic aberration", filter: chromaticAberration, category: "Distort", description: "Offset color channels to simulate lens fringing" },
@@ -703,6 +724,7 @@ export const filterList = [
   { displayName: "JPEG artifact", filter: jpegArtifact, category: "Glitch", description: "Apply DCT block compression artifacts at controllable quality and block size" },
   { displayName: "Pixel drift", filter: pixelDrift, category: "Glitch", description: "Pixels fall or rise based on luminance — melting/gravity effect" },
   { displayName: "Scan line shift", filter: scanLineShift, category: "Glitch", description: "Offset horizontal scan line blocks for a broken display glitch effect" },
+  { displayName: "Scanline Warp", filter: scanlineWarp, category: "Glitch", description: "Sinusoidal horizontal displacement with animatable phase — wavy CRT glitch" },
 
   // ── Simulate ──
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
@@ -808,6 +830,7 @@ export const filterList = [
   },
   { displayName: "Thermal camera", filter: thermalCamera, category: "Simulate", description: "FLIR-style false-color thermal imaging with ironbow, rainbow, and hot/cold palettes" },
   { displayName: "Ultrasound", filter: ultrasound, category: "Simulate", description: "Medical ultrasound display — fan-shaped sector scan with speckle noise" },
+  { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
 
   // ── Blur & Edges ──
@@ -836,6 +859,7 @@ export const filterList = [
 
   // ── Advanced ──
   { displayName: "Cellular automata", filter: cellularAutomata, category: "Advanced", description: "Conway's Game of Life and other rulesets applied to the image — animatable" },
+  { displayName: "Color gradient noise", filter: colorGradientNoise, category: "Advanced", description: "Perlin noise mapped to a two-color gradient, blended with the input image" },
   { displayName: "Flow field", filter: flowField, category: "Advanced", description: "Displace pixels along curl noise streamlines for organic swirling patterns" },
   { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Fractal", filter: fractal, category: "Advanced", description: "Render Mandelbrot or Julia set fractals, optionally colored from the input image" },
