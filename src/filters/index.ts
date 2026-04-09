@@ -51,6 +51,17 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import bilateralBlur from "./bilateralBlur";
+import bokeh from "./bokeh";
+import morphology from "./morphology";
+import cellularAutomata from "./cellularAutomata";
+import displacementMapXY from "./displacementMapXY";
+import pinch from "./pinch";
+import turbulence from "./turbulence";
+import lineArt from "./lineArt";
+import engraving from "./engraving";
+import infrared from "./infrared";
+import lcdDisplay from "./lcdDisplay";
 import risographMulti from "./risographMulti";
 import newspaper from "./newspaper";
 import faxMachine from "./faxMachine";
@@ -284,7 +295,18 @@ export const filterIndex = [
   ripple,
   spherize,
   stretch,
-  matrixRain
+  matrixRain,
+  bilateralBlur,
+  bokeh,
+  morphology,
+  cellularAutomata,
+  displacementMapXY,
+  pinch,
+  turbulence,
+  lineArt,
+  engraving,
+  infrared,
+  lcdDisplay
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -449,6 +471,8 @@ export const filterList = [
   { displayName: "Crosshatch", filter: crosshatch, category: "Stylize", description: "Simulate pen-and-ink crosshatching with luminance-driven line density" },
   { displayName: "Mosaic tile", filter: mosaicTile, category: "Stylize", description: "Pixelate with grout lines and per-tile color jitter" },
   { displayName: "Dot matrix", filter: dotMatrix, category: "Stylize", description: "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors" },
+  { displayName: "Engraving", filter: engraving, category: "Stylize", description: "Parallel lines whose thickness varies with luminance — currency/illustration style" },
+  { displayName: "Line art", filter: lineArt, category: "Stylize", description: "Extract clean black lines from edges, removing all shading" },
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
   { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
@@ -490,10 +514,12 @@ export const filterList = [
     description: "Apply inward pincushion distortion like a telephoto lens",
     filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
   },
+  { displayName: "Pinch", filter: pinch, category: "Distort", description: "Squeeze pixels toward or away from center — radial scale distortion" },
   { displayName: "Ripple", filter: ripple, category: "Distort", description: "Concentric circular waves radiating from center" },
   { displayName: "Spherize", filter: spherize, category: "Distort", description: "Wrap image onto a sphere surface with adjustable strength" },
   { displayName: "Stretch", filter: stretch, category: "Distort", description: "Non-uniform X/Y scaling from center" },
   { displayName: "Mirror / Kaleidoscope", filter: mirror, category: "Distort", description: "Reflect the image along axes or create radial kaleidoscope patterns" },
+  { displayName: "Turbulence", filter: turbulence, category: "Distort", description: "Perlin noise-driven displacement for organic warping" },
   { displayName: "Swirl", filter: swirl, category: "Distort", description: "Twist the image with rotation that increases toward the center" },
   { displayName: "Wave", filter: wave, category: "Distort", description: "Displace pixels along sine waves for a ripple effect" },
 
@@ -531,6 +557,8 @@ export const filterList = [
 
   // ── Simulate ──
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
+  { displayName: "Infrared photography", filter: infrared, category: "Simulate", description: "IR film look — foliage turns white/pink, skies go dark, color shift" },
+  { displayName: "LCD display", filter: lcdDisplay, category: "Simulate", description: "Visible sub-pixel grid — RGB stripe, PenTile, or diamond layout" },
   { displayName: "Fax machine", filter: faxMachine, category: "Simulate", description: "Low-res binary with scan line artifacts, thermal paper yellowing, and compression noise" },
   { displayName: "Lenticular", filter: lenticular, category: "Simulate", description: "Holographic rainbow sheen strips that shift with a simulated angle" },
   { displayName: "Newspaper", filter: newspaper, category: "Simulate", description: "Coarse halftone on yellowed paper with fold creases and ink smear" },
@@ -626,6 +654,9 @@ export const filterList = [
   // ── Blur & Edges ──
   { displayName: "Bloom", filter: bloom, category: "Blur & Edges", description: "Add a soft glow around bright areas" },
   { displayName: "Convolve", filter: convolve, category: "Blur & Edges", description: "Apply a custom convolution kernel — blur, sharpen, emboss, and more" },
+  { displayName: "Bilateral blur", filter: bilateralBlur, category: "Blur & Edges", description: "Edge-preserving smooth — blurs flat areas while keeping edges crisp" },
+  { displayName: "Bokeh", filter: bokeh, category: "Blur & Edges", description: "Simulate out-of-focus highlights with hexagonal or circular bokeh shapes" },
+  { displayName: "Dilate / Erode", filter: morphology, category: "Blur & Edges", description: "Morphological operations — expand or shrink bright regions" },
   { displayName: "Emboss", filter: emboss, category: "Blur & Edges", description: "Directional relief effect with adjustable light angle and blend" },
   { displayName: "Gaussian blur", filter: gaussianBlur, category: "Blur & Edges", description: "Smooth the image with a Gaussian kernel — adjustable sigma" },
   { displayName: "Motion blur", filter: motionBlur, category: "Blur & Edges", description: "Directional blur simulating camera or object motion" },
@@ -643,6 +674,8 @@ export const filterList = [
   },
 
   // ── Advanced ──
+  { displayName: "Cellular automata", filter: cellularAutomata, category: "Advanced", description: "Conway's Game of Life and other rulesets applied to the image — animatable" },
+  { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Fractal", filter: fractal, category: "Advanced", description: "Render Mandelbrot or Julia set fractals, optionally colored from the input image" },
   { displayName: "Noise generator", filter: noiseGenerator, category: "Advanced", description: "Procedural noise patterns — Perlin, Simplex, or Worley — mixable with the input" },
   {

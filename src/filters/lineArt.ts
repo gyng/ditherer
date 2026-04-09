@@ -1,0 +1,104 @@
+import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
+import { nearest } from "palettes";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+
+export const optionTypes = {
+  threshold: { type: RANGE, range: [5, 100], step: 1, default: 30 },
+  lineWidth: { type: RANGE, range: [1, 5], step: 1, default: 1 },
+  cleanupRadius: { type: RANGE, range: [0, 3], step: 1, default: 1 },
+  lineColor: { type: COLOR, default: [0, 0, 0] },
+  bgColor: { type: COLOR, default: [255, 255, 255] },
+  palette: { type: PALETTE, default: nearest }
+};
+
+export const defaults = {
+  threshold: optionTypes.threshold.default,
+  lineWidth: optionTypes.lineWidth.default,
+  cleanupRadius: optionTypes.cleanupRadius.default,
+  lineColor: optionTypes.lineColor.default,
+  bgColor: optionTypes.bgColor.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 2 } }
+};
+
+const lineArt = (input, options: any = defaults) => {
+  const { threshold, lineWidth, cleanupRadius, lineColor, bgColor, palette } = options;
+  const output = cloneCanvas(input, false);
+  const inputCtx = input.getContext("2d");
+  const outputCtx = output.getContext("2d");
+  if (!inputCtx || !outputCtx) return input;
+
+  const W = input.width, H = input.height;
+  const buf = inputCtx.getImageData(0, 0, W, H).data;
+
+  // Luminance
+  const lum = new Float32Array(W * H);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const i = getBufferIndex(x, y, W);
+      lum[y * W + x] = 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
+    }
+
+  // Sobel edge detection
+  const edges = new Uint8Array(W * H);
+  for (let y = 1; y < H - 1; y++)
+    for (let x = 1; x < W - 1; x++) {
+      const gx = -lum[(y-1)*W+(x-1)] - 2*lum[y*W+(x-1)] - lum[(y+1)*W+(x-1)]
+                + lum[(y-1)*W+(x+1)] + 2*lum[y*W+(x+1)] + lum[(y+1)*W+(x+1)];
+      const gy = -lum[(y-1)*W+(x-1)] - 2*lum[(y-1)*W+x] - lum[(y-1)*W+(x+1)]
+                + lum[(y+1)*W+(x-1)] + 2*lum[(y+1)*W+x] + lum[(y+1)*W+(x+1)];
+      edges[y * W + x] = Math.sqrt(gx * gx + gy * gy) > threshold ? 1 : 0;
+    }
+
+  // Dilate edges for line width
+  let finalEdges = edges;
+  if (lineWidth > 1) {
+    finalEdges = new Uint8Array(W * H);
+    const r = lineWidth - 1;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        let found = false;
+        for (let ky = -r; ky <= r && !found; ky++)
+          for (let kx = -r; kx <= r && !found; kx++) {
+            const ny = Math.max(0, Math.min(H - 1, y + ky));
+            const nx = Math.max(0, Math.min(W - 1, x + kx));
+            if (edges[ny * W + nx]) found = true;
+          }
+        finalEdges[y * W + x] = found ? 1 : 0;
+      }
+  }
+
+  // Cleanup: remove isolated pixels
+  if (cleanupRadius > 0) {
+    const cleaned = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        if (!finalEdges[y * W + x]) continue;
+        let neighbors = 0;
+        for (let ky = -cleanupRadius; ky <= cleanupRadius; ky++)
+          for (let kx = -cleanupRadius; kx <= cleanupRadius; kx++) {
+            if (kx === 0 && ky === 0) continue;
+            const ny = Math.max(0, Math.min(H - 1, y + ky));
+            const nx = Math.max(0, Math.min(W - 1, x + kx));
+            neighbors += finalEdges[ny * W + nx];
+          }
+        cleaned[y * W + x] = neighbors >= 2 ? 1 : 0;
+      }
+    finalEdges = cleaned;
+  }
+
+  // Render
+  const outBuf = new Uint8ClampedArray(buf.length);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const i = getBufferIndex(x, y, W);
+      const isEdge = finalEdges[y * W + x] === 1;
+      const c = isEdge ? lineColor : bgColor;
+      const color = paletteGetColor(palette, rgba(c[0], c[1], c[2], 255), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+    }
+
+  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+  return output;
+};
+
+export default { name: "Line Art", func: lineArt, optionTypes, options: defaults, defaults };
