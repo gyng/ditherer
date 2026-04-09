@@ -158,6 +158,18 @@ const runSuite = async () => {
         },
       ],
     },
+    {
+      title: "Isolated overhead: getImageData only",
+      benches: [
+        () => {
+          const output = floydSteinberg.func(canvas640, { palette, _linearize: false }) as HTMLCanvasElement;
+          const ctx = output.getContext("2d")!;
+          return runBench("640×480 getImageData", () => {
+            ctx.getImageData(0, 0, output.width, output.height);
+          });
+        },
+      ],
+    },
   ];
 
   for (const suite of suites) {
