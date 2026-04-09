@@ -3,6 +3,8 @@ import { useFilter } from "context/FilterContext";
 import { filterList, filterCategories } from "filters";
 import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
 import { paletteList } from "palettes";
+import * as palettes from "palettes";
+import { THEMES } from "palettes/user";
 import s from "./styles.module.css";
 import controls from "components/controls/styles.module.css";
 
@@ -37,14 +39,26 @@ const randomizeOptions = (base: any) => {
         }
         break;
       case PALETTE: {
-        const palettePick = paletteList[Math.floor(Math.random() * paletteList.length)];
+        // Weighted random: 40% nearest with varied levels, 30% user with theme, 30% nearest default
+        const roll = Math.random();
         const palOpts = { ...(defaults[key]?.options || {}) };
-        if (palOpts.levels != null) {
-          palOpts.levels = Math.max(2, Math.min(256,
-            Math.round(palOpts.levels + (Math.random() - 0.5) * 128)
-          ));
+
+        if (roll < 0.4) {
+          // Nearest with randomized levels
+          if (palOpts.levels != null) {
+            palOpts.levels = Math.max(2, Math.min(256,
+              Math.round(palOpts.levels + (Math.random() - 0.5) * 128)
+            ));
+          }
+          options[key] = { ...paletteList[0].palette, options: palOpts };
+        } else if (roll < 0.7) {
+          // User/Adaptive palette with a random preset theme
+          const themeKeys = Object.keys(THEMES).filter(k => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0);
+          const themeKey = themeKeys[Math.floor(Math.random() * themeKeys.length)];
+          options[key] = { ...palettes.user, options: { colors: THEMES[themeKey] } };
+        } else {
+          // Keep default palette as-is
         }
-        options[key] = { ...palettePick.palette, options: palOpts };
         break;
       }
       case COLOR: {
@@ -125,9 +139,13 @@ const ChainList = () => {
   };
 
   const loadPreset = (preset: typeof CHAIN_PRESETS[0]) => {
-    // Clear chain and add preset filters
-    for (const name of preset.filters) {
-      addFilterByName(name);
+    // Set first filter via selectFilter (resets chain to 1 entry)
+    const first = filterList.find((f) => f && f.displayName === preset.filters[0]);
+    if (!first) return;
+    actions.selectFilter(preset.filters[0], first);
+    // Add remaining filters
+    for (let i = 1; i < preset.filters.length; i++) {
+      addFilterByName(preset.filters[i]);
     }
   };
 
@@ -346,9 +364,10 @@ const ChainList = () => {
           className={s.addBtn}
           onClick={() => {
             const { displayName, filter } = getRandomFilter();
-            actions.chainAdd(displayName, filter);
+            // Clear chain and set to random filter
+            actions.selectFilter(displayName, { filter });
           }}
-          title="Add a random filter with perturbed settings"
+          title="Replace chain with a random filter"
         >
           ?
         </button>
@@ -365,29 +384,16 @@ const ChainList = () => {
         >
           ~
         </button>
-      </div>
-
-      {/* Chain presets */}
-      <div className={s.addRow}>
-        <select
-          className={controls.enum}
-          value=""
-          onChange={(e) => {
-            const name = e.target.value;
-            if (!name) return;
-            const preset = CHAIN_PRESETS.find((p) => p.name === name);
-            if (preset) loadPreset(preset);
+        <button
+          className={s.addBtn}
+          onClick={() => {
+            const preset = CHAIN_PRESETS[Math.floor(Math.random() * CHAIN_PRESETS.length)];
+            loadPreset(preset);
           }}
+          title="Load a random chain preset"
         >
-          <option value="" disabled>
-            Presets...
-          </option>
-          {CHAIN_PRESETS.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name} ({p.filters.length})
-            </option>
-          ))}
-        </select>
+          P
+        </button>
       </div>
 
       {/* Active filter description */}
