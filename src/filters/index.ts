@@ -51,6 +51,11 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import noiseGenerator from "./noiseGenerator";
+import blend from "./blend";
+import levels from "./levels";
+import radialBlur from "./radialBlur";
+import fractal from "./fractal";
 import gaussianBlur from "./gaussianBlur";
 import motionBlur from "./motionBlur";
 import filmGrain from "./filmGrain";
@@ -216,7 +221,12 @@ export const filterIndex = [
   edgeGlow,
   tiltShift,
   posterizeEdges,
-  vignette
+  vignette,
+  noiseGenerator,
+  blend,
+  levels,
+  radialBlur,
+  fractal
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -364,7 +374,9 @@ export const filterList = [
     filter: { ...histogramEqualization, options: { ...histogramEqualization.options, perChannel: true } }
   },
   { displayName: "Invert", filter: invert, category: "Color", description: "Flip all colors to their complement (negative)" },
+  { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
   { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
+  { displayName: "Levels", filter: levels, category: "Color", description: "Adjust black point, white point, and gamma for precise tonal control" },
   { displayName: "Posterize", filter: posterize, category: "Color", description: "Reduce color levels per channel for a flat, poster-like look" },
   { displayName: "Sepia", filter: sepia, category: "Color", description: "Warm monochrome toning with adjustable intensity" },
   { displayName: "Solarize", filter: solarize, category: "Color", description: "Partially invert tones above a threshold for a surreal darkroom effect" },
@@ -530,6 +542,7 @@ export const filterList = [
   { displayName: "Emboss", filter: emboss, category: "Blur & Edges", description: "Directional relief effect with adjustable light angle and blend" },
   { displayName: "Gaussian blur", filter: gaussianBlur, category: "Blur & Edges", description: "Smooth the image with a Gaussian kernel — adjustable sigma" },
   { displayName: "Motion blur", filter: motionBlur, category: "Blur & Edges", description: "Directional blur simulating camera or object motion" },
+  { displayName: "Radial blur", filter: radialBlur, category: "Blur & Edges", description: "Zoom blur radiating from center — speed/motion effect" },
   { displayName: "Sharpen", filter: sharpen, category: "Blur & Edges", description: "Unsharp mask — enhance edges with adjustable strength and radius" },
   { displayName: "Tilt shift", filter: tiltShift, category: "Blur & Edges", description: "Miniature/toy camera effect — sharp focus band with progressive blur" },
   {
@@ -543,6 +556,8 @@ export const filterList = [
   },
 
   // ── Advanced ──
+  { displayName: "Fractal", filter: fractal, category: "Advanced", description: "Render Mandelbrot or Julia set fractals, optionally colored from the input image" },
+  { displayName: "Noise generator", filter: noiseGenerator, category: "Advanced", description: "Procedural noise patterns — Perlin, Simplex, or Worley — mixable with the input" },
   {
     displayName: "Program",
     category: "Advanced",

@@ -6,13 +6,10 @@ import { paletteList } from "palettes";
 import s from "./styles.module.css";
 import controls from "components/controls/styles.module.css";
 
-// Perturb a filter's defaults to create interesting random variations
-const getRandomFilter = () => {
-  const entry = filterList[Math.floor(Math.random() * filterList.length)];
-  const base = entry.filter;
+// Perturb a filter's options from its defaults
+const randomizeOptions = (base: any) => {
   const optionTypes = base.optionTypes || {};
   const defaults = base.defaults || base.options || {};
-
   const options = { ...defaults };
 
   for (const [key, oType] of Object.entries(optionTypes)) {
@@ -24,7 +21,6 @@ const getRandomFilter = () => {
         const [min, max] = spec.range;
         const step = spec.step || 1;
         const def = defaults[key] ?? min;
-        // Perturb: offset within ~50% of range, centered on default
         const spread = (max - min) * 0.5;
         const raw = def + (Math.random() - 0.5) * spread;
         const clamped = Math.max(min, Math.min(max, raw));
@@ -34,24 +30,18 @@ const getRandomFilter = () => {
       case BOOL:
         options[key] = Math.random() < 0.3 ? !defaults[key] : defaults[key];
         break;
-      case ENUM: {
-        if (spec.options && spec.options.length > 0) {
-          if (Math.random() < 0.4) {
-            const pick = spec.options[Math.floor(Math.random() * spec.options.length)];
-            options[key] = pick.value ?? pick;
-          }
+      case ENUM:
+        if (spec.options?.length > 0 && Math.random() < 0.4) {
+          const pick = spec.options[Math.floor(Math.random() * spec.options.length)];
+          options[key] = pick.value ?? pick;
         }
         break;
-      }
       case PALETTE: {
-        // Keep palette type but perturb sub-options like levels
         const palettePick = paletteList[Math.floor(Math.random() * paletteList.length)];
-        const palDefaults = defaults[key]?.options || {};
-        const palOpts = { ...palDefaults };
+        const palOpts = { ...(defaults[key]?.options || {}) };
         if (palOpts.levels != null) {
-          const spread = 128;
           palOpts.levels = Math.max(2, Math.min(256,
-            Math.round(palOpts.levels + (Math.random() - 0.5) * spread)
+            Math.round(palOpts.levels + (Math.random() - 0.5) * 128)
           ));
         }
         options[key] = { ...palettePick.palette, options: palOpts };
@@ -64,25 +54,40 @@ const getRandomFilter = () => {
         );
         break;
       }
-      case ACTION:
-      case STRING:
-      case TEXT:
-      case COLOR_ARRAY:
-        // Skip — keep defaults
+      case ACTION: case STRING: case TEXT: case COLOR_ARRAY:
         break;
     }
   }
 
-  const filter = { ...base, options, defaults: options };
-  return { displayName: entry.displayName, filter };
+  return options;
 };
+
+const getRandomFilter = () => {
+  const entry = filterList[Math.floor(Math.random() * filterList.length)];
+  const base = entry.filter;
+  const options = randomizeOptions(base);
+  return { displayName: entry.displayName, filter: { ...base, options, defaults: options } };
+};
+
+// Chain presets: curated multi-filter combos
+const CHAIN_PRESETS: { name: string; filters: string[] }[] = [
+  { name: "Retro TV", filters: ["VHS emulation", "CRT emulation", "Vignette"] },
+  { name: "Lo-fi Print", filters: ["Sepia", "Halftone", "Film grain"] },
+  { name: "Glitch Art", filters: ["Pixelsort", "Chromatic aberration", "Scan line shift"] },
+  { name: "Watercolor", filters: ["Gaussian blur", "Kuwahara", "Posterize edges"] },
+  { name: "Noir", filters: ["Grayscale", "Sharpen", "Vignette", "Film grain"] },
+  { name: "Neon", filters: ["Edge glow", "Bloom", "Chromatic aberration"] },
+];
 
 const ChainList = () => {
   const { state, actions } = useFilter();
   const { chain, activeIndex } = state;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const dragCounter = useRef(0);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDragIndex(index);
@@ -113,6 +118,25 @@ const ChainList = () => {
     setDragOverIndex(null);
     dragCounter.current = 0;
   };
+
+  const addFilterByName = (name: string) => {
+    const filter = filterList.find((f) => f && f.displayName === name);
+    if (filter) actions.chainAdd(name, filter.filter);
+  };
+
+  const loadPreset = (preset: typeof CHAIN_PRESETS[0]) => {
+    // Clear chain and add preset filters
+    for (const name of preset.filters) {
+      addFilterByName(name);
+    }
+  };
+
+  // Filtered results for search
+  const searchResults = searchQuery.length > 0
+    ? filterList.filter(
+        (f) => f && f.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 12)
+    : [];
 
   return (
     <div>
@@ -199,34 +223,85 @@ const ChainList = () => {
           );
         })}
       </div>
+
+      {/* Add filter row: search, browse dropdown, random, re-roll */}
       <div className={s.addRow}>
-        <select
-          className={controls.enum}
-          value=""
-          onChange={(e) => {
-            const name = e.target.value;
-            if (!name) return;
-            const filter = filterList.find((f) => f && f.displayName === name);
-            if (filter) {
-              actions.chainAdd(name, filter.filter);
-            }
-          }}
-        >
-          <option value="" disabled>
-            + Add filter...
-          </option>
-          {filterCategories.map((cat) => (
-            <optgroup key={cat} label={cat}>
-              {filterList
-                .filter((f) => f && f.category === cat)
-                .map((f) => (
-                  <option key={f.displayName} value={f.displayName}>
-                    {f.displayName}
-                  </option>
+        {searchOpen ? (
+          <div className={s.searchContainer}>
+            <input
+              ref={searchRef}
+              className={s.searchInput}
+              type="text"
+              placeholder="Search filters..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setSearchOpen(false);
+                  setSearchQuery("");
+                } else if (e.key === "Enter" && searchResults.length > 0) {
+                  addFilterByName(searchResults[0].displayName);
+                  setSearchQuery("");
+                  setSearchOpen(false);
+                }
+              }}
+              autoFocus
+            />
+            {searchResults.length > 0 && (
+              <div className={s.searchResults}>
+                {searchResults.map((f) => (
+                  <div
+                    key={f.displayName}
+                    className={s.searchResult}
+                    onClick={() => {
+                      addFilterByName(f.displayName);
+                      setSearchQuery("");
+                      setSearchOpen(false);
+                    }}
+                  >
+                    <span className={s.searchResultName}>{f.displayName}</span>
+                    <span className={s.searchResultCategory}>{f.category}</span>
+                  </div>
                 ))}
-            </optgroup>
-          ))}
-        </select>
+              </div>
+            )}
+          </div>
+        ) : (
+          <select
+            className={controls.enum}
+            value=""
+            onChange={(e) => {
+              const name = e.target.value;
+              if (!name) return;
+              addFilterByName(name);
+            }}
+          >
+            <option value="" disabled>
+              + Add filter...
+            </option>
+            {filterCategories.map((cat) => (
+              <optgroup key={cat} label={cat}>
+                {filterList
+                  .filter((f) => f && f.category === cat)
+                  .map((f) => (
+                    <option key={f.displayName} value={f.displayName}>
+                      {f.displayName}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+        )}
+        <button
+          className={s.addBtn}
+          onClick={() => {
+            setSearchOpen(!searchOpen);
+            setSearchQuery("");
+          }}
+          title={searchOpen ? "Browse filters" : "Search filters"}
+        >
+          {searchOpen ? "=" : "/"}
+        </button>
         <button
           className={s.addBtn}
           onClick={() => {
@@ -237,7 +312,45 @@ const ChainList = () => {
         >
           ?
         </button>
+        <button
+          className={s.addBtn}
+          onClick={() => {
+            const entry = chain[activeIndex];
+            if (!entry) return;
+            const base = entry.filter;
+            const options = randomizeOptions(base);
+            actions.chainReplace(entry.id, entry.displayName, { ...base, options });
+          }}
+          title="Re-roll options for the active filter"
+        >
+          ~
+        </button>
       </div>
+
+      {/* Chain presets */}
+      <div className={s.addRow}>
+        <select
+          className={controls.enum}
+          value=""
+          onChange={(e) => {
+            const name = e.target.value;
+            if (!name) return;
+            const preset = CHAIN_PRESETS.find((p) => p.name === name);
+            if (preset) loadPreset(preset);
+          }}
+        >
+          <option value="" disabled>
+            Presets...
+          </option>
+          {CHAIN_PRESETS.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name} ({p.filters.length})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Active filter description */}
       {(() => {
         const activeEntry = chain[activeIndex];
         if (!activeEntry) return null;
