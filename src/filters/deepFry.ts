@@ -1,4 +1,4 @@
-import { RANGE, PALETTE } from "constants/controlTypes";
+import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -15,6 +15,15 @@ export const optionTypes = {
   noise:      { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
   sharpness:  { type: RANGE, range: [0, 3], step: 0.05, default: 1.5 },
   warmth:     { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
+  animSpeed:  { type: RANGE, range: [1, 30], step: 1, default: 8 },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions, inputCanvas, _filterFunc, options) => {
+      if (actions.isAnimating()) { actions.stopAnimLoop(); }
+      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
+    }
+  },
   palette:    { type: PALETTE, default: nearest }
 };
 
@@ -25,6 +34,7 @@ export const defaults = {
   noise:      optionTypes.noise.default,
   sharpness:  optionTypes.sharpness.default,
   warmth:     optionTypes.warmth.default,
+  animSpeed:  optionTypes.animSpeed.default,
   palette:    { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 

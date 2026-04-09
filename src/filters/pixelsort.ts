@@ -14,6 +14,7 @@ import {
 export const DIRECTION = {
   COLUMN: "COLUMN",
   ROW: "ROW",
+  CIRCULAR: "CIRCULAR",
   SPIRAL: "SPIRAL",
   SPIRAL_CUT: "SPIRAL_CUT",
   DIAGONAL_TOP_RIGHT: "DIAGONAL_TOP_RIGHT"
@@ -253,6 +254,50 @@ const spiralIterator = endIntervalOnTurn => init => {
   };
 };
 
+// Circular iterator: concentric rings from center, each ring is one interval
+const circularIterator = init => {
+  const { w, h } = init;
+  const cx = w / 2;
+  const cy = h / 2;
+  const maxR = Math.ceil(Math.sqrt(cx * cx + cy * cy));
+
+  // Pre-compute all pixels sorted by radius, with ring boundaries
+  const pixels: { x: number; y: number; r: number }[] = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      pixels.push({ x, y, r });
+    }
+  }
+  // Sort by radius, then by angle for consistent ring ordering
+  pixels.sort((a, b) => {
+    const dr = a.r - b.r;
+    if (Math.abs(dr) > 0.5) return dr;
+    const angA = Math.atan2(a.y - cy, a.x - cx);
+    const angB = Math.atan2(b.y - cy, b.x - cx);
+    return angA - angB;
+  });
+
+  let idx = 0;
+  const ringWidth = Math.max(1, maxR / Math.min(w, h) * 3);
+
+  return () => {
+    if (idx >= pixels.length) return null;
+
+    const p = pixels[idx];
+    const i = getBufferIndex(p.x, p.y, w);
+
+    // End interval when the next pixel crosses into a new ring
+    const nextP = idx + 1 < pixels.length ? pixels[idx + 1] : null;
+    const endInterval = !nextP || Math.floor(nextP.r / ringWidth) !== Math.floor(p.r / ringWidth);
+
+    idx++;
+    return { x: p.x, y: p.y, i, w, h, wrapX: false, wrapY: false, endInterval };
+  };
+};
+
 // Returns buffer indices
 export const ITERATORS = {
   [DIRECTION.ROW]: init => {
@@ -303,6 +348,7 @@ export const ITERATORS = {
       return nextResult;
     };
   },
+  [DIRECTION.CIRCULAR]: circularIterator,
   [DIRECTION.SPIRAL_CUT]: spiralIterator(true),
   [DIRECTION.SPIRAL]: spiralIterator(false),
   [DIRECTION.DIAGONAL_TOP_RIGHT]: init => {
@@ -351,6 +397,7 @@ export const optionTypes = {
     options: [
       { name: "Row", value: DIRECTION.ROW },
       { name: "Column", value: DIRECTION.COLUMN },
+      { name: "Circular", value: DIRECTION.CIRCULAR },
       { name: "Spiral", value: DIRECTION.SPIRAL },
       { name: "Spiral (non-continuous)", value: DIRECTION.SPIRAL_CUT },
       { name: "Diagonal (top-right)", value: DIRECTION.DIAGONAL_TOP_RIGHT }

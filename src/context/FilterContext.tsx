@@ -100,6 +100,12 @@ const serializeStateJson = (state: any, pretty = false) => {
   return pretty ? JSON.stringify(data, replacer, 2) : JSON.stringify(data, replacer);
 };
 
+// UTF-8-safe base64 encode/decode (btoa/atob only handle Latin1)
+const toBase64 = (str: string) =>
+  btoa(String.fromCodePoint(...new TextEncoder().encode(str)));
+const fromBase64 = (b64: string) =>
+  new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.codePointAt(0)!));
+
 export const FilterProvider = ({ children }) => {
   const [state, dispatch] = useReducer(filterReducer, initialState);
   const prevOutputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
@@ -120,7 +126,7 @@ export const FilterProvider = ({ children }) => {
     const hash = window.location.hash;
     if (!hash.startsWith("#!")) return;
     try {
-      const json = atob(decodeURIComponent(hash.slice(2)));
+      const json = fromBase64(decodeURIComponent(hash.slice(2)));
       const data = JSON.parse(json);
       dispatch({ type: "LOAD_STATE", data });
     } catch (e) {
@@ -131,11 +137,15 @@ export const FilterProvider = ({ children }) => {
   // Sync filter state to URL hash so the address bar is always shareable
   useEffect(() => {
     if (!state.chain || state.chain.length === 0) return;
-    const exportData = serializeState(state);
-    const json = JSON.stringify(exportData);
-    const newHash = `#!${encodeURIComponent(btoa(json))}`;
-    if (window.location.hash !== newHash) {
-      history.replaceState(null, "", newHash);
+    try {
+      const exportData = serializeState(state);
+      const json = JSON.stringify(exportData);
+      const newHash = `#!${encodeURIComponent(toBase64(json))}`;
+      if (window.location.hash !== newHash) {
+        history.replaceState(null, "", newHash);
+      }
+    } catch (e) {
+      console.warn("Failed to sync state to URL hash:", e);
     }
   }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
 
@@ -587,7 +597,7 @@ export const FilterProvider = ({ children }) => {
     getExportUrl: (filterState) => {
       const json = serializeStateJson(filterState);
       const base = `${window.location.origin}${window.location.pathname}`;
-      return `${base}#!${encodeURIComponent(btoa(json))}`;
+      return `${base}#!${encodeURIComponent(toBase64(json))}`;
     },
     exportState: (filterState) => {
       return serializeStateJson(filterState, true);

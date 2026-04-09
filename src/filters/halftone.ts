@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  size: { type: RANGE, range: [0, Infinity], default: 6 }, // diameter of input
+  size: { type: RANGE, range: [1, 512], step: 1, default: 6 }, // diameter of input
   sizeMultiplier: { type: RANGE, range: [0, 5], step: 0.1, default: 1 }, // diameter of output
   offset: { type: RANGE, range: [0, 3], step: 0.1, default: 0.3 },
   levels: { type: RANGE, range: [0, 255], default: 32 }, // no. of circle sizes

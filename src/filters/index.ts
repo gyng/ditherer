@@ -51,6 +51,24 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import gaussianBlur from "./gaussianBlur";
+import motionBlur from "./motionBlur";
+import filmGrain from "./filmGrain";
+import edgeGlow from "./edgeGlow";
+import tiltShift from "./tiltShift";
+import posterizeEdges from "./posterizeEdges";
+import vignette from "./vignette";
+import gradientMap from "./gradientMap";
+import mirror from "./mirror";
+import swirl from "./swirl";
+import crosshatch from "./crosshatch";
+import scanLineShift from "./scanLineShift";
+import sharpen from "./sharpen";
+import emboss from "./emboss";
+import sepia from "./sepia";
+import oilPainting from "./oilPainting";
+import stainedGlass from "./stainedGlass";
+import jpegArtifact from "./jpegArtifact";
 import {
   atkinson,
   burkes,
@@ -180,7 +198,25 @@ export const filterIndex = [
   polaroid,
   nokiaLcd,
   deepFry,
-  ultrasound
+  ultrasound,
+  gradientMap,
+  mirror,
+  swirl,
+  crosshatch,
+  scanLineShift,
+  sharpen,
+  emboss,
+  sepia,
+  oilPainting,
+  stainedGlass,
+  jpegArtifact,
+  gaussianBlur,
+  motionBlur,
+  filmGrain,
+  edgeGlow,
+  tiltShift,
+  posterizeEdges,
+  vignette
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -328,17 +364,24 @@ export const filterList = [
     filter: { ...histogramEqualization, options: { ...histogramEqualization.options, perChannel: true } }
   },
   { displayName: "Invert", filter: invert, category: "Color", description: "Flip all colors to their complement (negative)" },
+  { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
   { displayName: "Posterize", filter: posterize, category: "Color", description: "Reduce color levels per channel for a flat, poster-like look" },
+  { displayName: "Sepia", filter: sepia, category: "Color", description: "Warm monochrome toning with adjustable intensity" },
   { displayName: "Solarize", filter: solarize, category: "Color", description: "Partially invert tones above a threshold for a surreal darkroom effect" },
+  { displayName: "Vignette", filter: vignette, category: "Color", description: "Darken image edges with adjustable radius, softness, and shape" },
 
   // ── Stylize ──
   { displayName: "ASCII", filter: ascii, category: "Stylize", description: "Render the image as ASCII characters based on brightness" },
+  { displayName: "Crosshatch", filter: crosshatch, category: "Stylize", description: "Simulate pen-and-ink crosshatching with luminance-driven line density" },
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
   { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
   { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
   { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize", description: "Overlay vertical stripe pattern over the image" },
+  { displayName: "Posterize edges", filter: posterizeEdges, category: "Stylize", description: "Comic book / cel-shaded look — posterized colors with dark edge outlines" },
+  { displayName: "Oil painting", filter: oilPainting, category: "Stylize", description: "Quantize colors locally for thick, blobby paint strokes" },
+  { displayName: "Stained glass", filter: stainedGlass, category: "Stylize", description: "Voronoi cells with dark leading lines for a stained glass window look" },
   { displayName: "Voronoi", filter: voronoi, category: "Stylize", description: "Divide the image into irregular cell regions with averaged colors" },
 
   // ── Distort ──
@@ -363,6 +406,8 @@ export const filterList = [
     description: "Apply inward pincushion distortion like a telephoto lens",
     filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
   },
+  { displayName: "Mirror / Kaleidoscope", filter: mirror, category: "Distort", description: "Reflect the image along axes or create radial kaleidoscope patterns" },
+  { displayName: "Swirl", filter: swirl, category: "Distort", description: "Twist the image with rotation that increases toward the center" },
   { displayName: "Wave", filter: wave, category: "Distort", description: "Displace pixels along sine waves for a ripple effect" },
 
   // ── Glitch ──
@@ -389,6 +434,8 @@ export const filterList = [
       }
     }
   },
+  { displayName: "JPEG artifact", filter: jpegArtifact, category: "Glitch", description: "Apply DCT block compression artifacts at controllable quality and block size" },
+  { displayName: "Scan line shift", filter: scanLineShift, category: "Glitch", description: "Offset horizontal scan line blocks for a broken display glitch effect" },
 
   // ── Simulate ──
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Simulate", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
@@ -442,6 +489,8 @@ export const filterList = [
     }
   },
   { displayName: "Deep fry", filter: deepFry, category: "Stylize", description: "Extreme contrast, oversaturation, and JPEG artifacts — the deep-fried meme aesthetic" },
+  { displayName: "Edge glow", filter: edgeGlow, category: "Stylize", description: "Neon-colored edge outlines on a dark background — cyberpunk/Tron aesthetic" },
+  { displayName: "Film grain", filter: filmGrain, category: "Stylize", description: "Add film-like noise grain with adjustable size and intensity" },
   { displayName: "E-ink (grayscale)", filter: eink, category: "Simulate", description: "Simulate a 16-level grayscale e-ink display with paper texture and ghosting" },
   {
     displayName: "E-ink (color)",
@@ -478,6 +527,11 @@ export const filterList = [
   // ── Blur & Edges ──
   { displayName: "Bloom", filter: bloom, category: "Blur & Edges", description: "Add a soft glow around bright areas" },
   { displayName: "Convolve", filter: convolve, category: "Blur & Edges", description: "Apply a custom convolution kernel — blur, sharpen, emboss, and more" },
+  { displayName: "Emboss", filter: emboss, category: "Blur & Edges", description: "Directional relief effect with adjustable light angle and blend" },
+  { displayName: "Gaussian blur", filter: gaussianBlur, category: "Blur & Edges", description: "Smooth the image with a Gaussian kernel — adjustable sigma" },
+  { displayName: "Motion blur", filter: motionBlur, category: "Blur & Edges", description: "Directional blur simulating camera or object motion" },
+  { displayName: "Sharpen", filter: sharpen, category: "Blur & Edges", description: "Unsharp mask — enhance edges with adjustable strength and radius" },
+  { displayName: "Tilt shift", filter: tiltShift, category: "Blur & Edges", description: "Miniature/toy camera effect — sharp focus band with progressive blur" },
   {
     displayName: "Convolve (edge detection)",
     category: "Blur & Edges",

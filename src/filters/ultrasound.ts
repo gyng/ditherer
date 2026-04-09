@@ -1,4 +1,4 @@
-import { RANGE, BOOL, PALETTE } from "constants/controlTypes";
+import { ACTION, RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -13,6 +13,15 @@ export const optionTypes = {
   speckle:   { type: RANGE, range: [0, 1], step: 0.01, default: 0.4 },
   brightness: { type: RANGE, range: [0, 3], step: 0.05, default: 1.5 },
   scanLines: { type: BOOL, default: true },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions, inputCanvas, _filterFunc, options) => {
+      if (actions.isAnimating()) { actions.stopAnimLoop(); }
+      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
+    }
+  },
   palette:   { type: PALETTE, default: nearest }
 };
 
@@ -21,6 +30,7 @@ export const defaults = {
   speckle: optionTypes.speckle.default,
   brightness: optionTypes.brightness.default,
   scanLines: optionTypes.scanLines.default,
+  animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 

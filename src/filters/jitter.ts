@@ -1,4 +1,4 @@
-import { RANGE, PALETTE } from "constants/controlTypes";
+import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
@@ -7,6 +7,15 @@ export const optionTypes = {
   jitterXSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1 },
   jitterY: { type: RANGE, range: [0, 100], default: 0 },
   jitterYSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions, inputCanvas, _filterFunc, options) => {
+      if (actions.isAnimating()) { actions.stopAnimLoop(); }
+      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
+    }
+  },
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -15,14 +24,27 @@ export const defaults = {
   jitterXSpread: optionTypes.jitterXSpread.default,
   jitterY: optionTypes.jitterY.default,
   jitterYSpread: optionTypes.jitterYSpread.default,
+  animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const jittter = (
+const mulberry32 = (seed: number) => {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const jitterFilter = (
   input,
   options = defaults
 ) => {
   const { jitterX, jitterXSpread, jitterY, jitterYSpread, palette } = options;
+  const frameIndex = (options as any)._frameIndex || 0;
+  const rng = mulberry32(frameIndex * 7919 + 31337);
 
   const output = cloneCanvas(input, false);
 
@@ -40,7 +62,7 @@ const jittter = (
 
   let jitterFactor = 0;
   for (let i = 0; i < input.width; i += 1) {
-    const jitter = Math.random() * jitterY;
+    const jitter = rng() * jitterY;
     jitterFactor += jitter;
     jitterYMap.push(Math.round(jitterFactor));
     jitterFactor *= jitterYSpread;
@@ -48,7 +70,7 @@ const jittter = (
 
   jitterFactor = 0;
   for (let i = 0; i < input.width; i += 1) {
-    const jitter = Math.random() * jitterX;
+    const jitter = rng() * jitterX;
     jitterFactor += jitter;
     jitterXMap.push(Math.round(jitterFactor));
     jitterFactor *= jitterXSpread;
@@ -75,7 +97,7 @@ const jittter = (
 
 export default {
   name: "Jitter",
-  func: jittter,
+  func: jitterFilter,
   options: defaults,
   optionTypes,
   defaults

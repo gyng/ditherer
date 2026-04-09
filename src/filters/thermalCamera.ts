@@ -1,4 +1,4 @@
-import { ENUM, RANGE, BOOL, PALETTE } from "constants/controlTypes";
+import { ACTION, ENUM, RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -100,6 +100,15 @@ export const optionTypes = {
   contrast:     { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.2 },
   noiseAmount:  { type: RANGE, range: [0, 0.3], step: 0.005, default: 0.05 },
   crosshair:    { type: BOOL, default: true },
+  animSpeed:    { type: RANGE, range: [1, 30], step: 1, default: 15 },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions, inputCanvas, _filterFunc, options) => {
+      if (actions.isAnimating()) { actions.stopAnimLoop(); }
+      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
+    }
+  },
   palette:      { type: PALETTE, default: nearest }
 };
 
@@ -108,6 +117,7 @@ export const defaults = {
   contrast: optionTypes.contrast.default,
   noiseAmount: optionTypes.noiseAmount.default,
   crosshair: optionTypes.crosshair.default,
+  animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 

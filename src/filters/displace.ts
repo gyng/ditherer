@@ -9,7 +9,7 @@ const WARP_RAW       = "RAW";
 const WARP_BLURRED   = "BLURRED";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 100], step: 0.5, default: 20 },
+  strength: { type: RANGE, range: [0, 500], step: 1, default: 20 },
   direction: {
     type: ENUM,
     options: [
