@@ -51,6 +51,15 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import dotMatrix from "./dotMatrix";
+import risograph from "./risograph";
+import liquify from "./liquify";
+import cmykHalftone from "./cmykHalftone";
+import thresholdMap from "./thresholdMap";
+import pixelDrift from "./pixelDrift";
+import woodcut from "./woodcut";
+import analogStatic from "./analogStatic";
+import chromaticPosterize from "./chromaticPosterize";
 import noiseGenerator from "./noiseGenerator";
 import blend from "./blend";
 import levels from "./levels";
@@ -226,7 +235,16 @@ export const filterIndex = [
   blend,
   levels,
   radialBlur,
-  fractal
+  fractal,
+  dotMatrix,
+  risograph,
+  liquify,
+  cmykHalftone,
+  thresholdMap,
+  pixelDrift,
+  woodcut,
+  analogStatic,
+  chromaticPosterize
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -341,6 +359,7 @@ export const filterList = [
   { displayName: "Sierra (lite)", filter: sierraLite, category: "Dithering", description: "Minimal Sierra variant — fast with only two neighbors" },
   { displayName: "Sierra (two-row)", filter: sierra2, category: "Dithering", description: "Two-row Sierra for a balance between speed and quality" },
   { displayName: "Stucki", filter: stucki, category: "Dithering", description: "Three-row error diffusion with sharper results than Jarvis" },
+  { displayName: "Threshold map", filter: thresholdMap, category: "Dithering", description: "Dither with custom threshold patterns — Bayer, halftone dot, diagonal, cross, diamond" },
   { displayName: "Triangle dither", filter: triangleDither, category: "Dithering", description: "Triangle-distributed noise dithering for film-like grain" },
 
   // ── Color ──
@@ -375,6 +394,7 @@ export const filterList = [
   },
   { displayName: "Invert", filter: invert, category: "Color", description: "Flip all colors to their complement (negative)" },
   { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
+  { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
   { displayName: "Levels", filter: levels, category: "Color", description: "Adjust black point, white point, and gamma for precise tonal control" },
   { displayName: "Posterize", filter: posterize, category: "Color", description: "Reduce color levels per channel for a flat, poster-like look" },
@@ -384,7 +404,9 @@ export const filterList = [
 
   // ── Stylize ──
   { displayName: "ASCII", filter: ascii, category: "Stylize", description: "Render the image as ASCII characters based on brightness" },
+  { displayName: "CMYK halftone", filter: cmykHalftone, category: "Stylize", description: "Proper CMYK separation with independent screen angles per channel" },
   { displayName: "Crosshatch", filter: crosshatch, category: "Stylize", description: "Simulate pen-and-ink crosshatching with luminance-driven line density" },
+  { displayName: "Dot matrix", filter: dotMatrix, category: "Stylize", description: "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors" },
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
   { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
@@ -394,6 +416,8 @@ export const filterList = [
   { displayName: "Posterize edges", filter: posterizeEdges, category: "Stylize", description: "Comic book / cel-shaded look — posterized colors with dark edge outlines" },
   { displayName: "Oil painting", filter: oilPainting, category: "Stylize", description: "Quantize colors locally for thick, blobby paint strokes" },
   { displayName: "Stained glass", filter: stainedGlass, category: "Stylize", description: "Voronoi cells with dark leading lines for a stained glass window look" },
+  { displayName: "Risograph", filter: risograph, category: "Stylize", description: "Two-color spot separation with misregistration, grain, and ink bleed" },
+  { displayName: "Woodcut", filter: woodcut, category: "Stylize", description: "High-contrast relief with carved line texture following edge contours" },
   { displayName: "Voronoi", filter: voronoi, category: "Stylize", description: "Divide the image into irregular cell regions with averaged colors" },
 
   // ── Distort ──
@@ -411,6 +435,7 @@ export const filterList = [
     description: "Displacement mapping with a blurred source for gentler warping",
     filter: { ...displace, options: { ...displace.options, warpSource: "BLURRED" } }
   },
+  { displayName: "Liquify", filter: liquify, category: "Distort", description: "Organic pixel warping driven by luminance gradients" },
   { displayName: "Lens distortion", filter: lensDistortion, category: "Distort", description: "Apply barrel distortion like a wide-angle lens" },
   {
     displayName: "Lens distortion (pincushion)",
@@ -446,7 +471,9 @@ export const filterList = [
       }
     }
   },
+  { displayName: "Analog static", filter: analogStatic, category: "Glitch", description: "Analog TV static — noise bars, vertical hold drift, and ghosting" },
   { displayName: "JPEG artifact", filter: jpegArtifact, category: "Glitch", description: "Apply DCT block compression artifacts at controllable quality and block size" },
+  { displayName: "Pixel drift", filter: pixelDrift, category: "Glitch", description: "Pixels fall or rise based on luminance — melting/gravity effect" },
   { displayName: "Scan line shift", filter: scanLineShift, category: "Glitch", description: "Offset horizontal scan line blocks for a broken display glitch effect" },
 
   // ── Simulate ──
