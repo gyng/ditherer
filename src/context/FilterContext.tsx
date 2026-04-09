@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from "react";
-import filterReducer, { initialState } from "reducers/filters";
+import filterReducer, { initialState, ChainEntry } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
 import { THEMES } from "palettes/user";
@@ -32,15 +32,85 @@ const getAutoScale = (w: number, h: number): number => {
 // Round scale to nearest 0.1 for clean slider values
 const roundScale = (s: number) => Math.round(s * 10) / 10 || 0.1;
 
+// Serialize state to v2 format with delta encoding
+const serializeState = (state: any) => {
+  const chain = state.chain;
+  // Single-entry chain with no non-default options: emit v1-compatible format
+  if (chain.length === 1) {
+    return {
+      selected: state.selected,
+      convertGrayscale: state.convertGrayscale,
+      linearize: state.linearize,
+      wasmAcceleration: state.wasmAcceleration,
+    };
+  }
+
+  const serializedChain = chain.map((entry: ChainEntry) => {
+    const result: any = { n: entry.filter.name };
+    if (entry.displayName !== entry.filter.name) {
+      result.d = entry.displayName;
+    }
+    // Delta-encode options vs defaults
+    const opts = entry.filter.options;
+    const defaults = entry.filter.defaults;
+    if (opts && defaults) {
+      const delta: any = {};
+      for (const [k, v] of Object.entries(opts)) {
+        if (typeof v === "function") continue;
+        if (k === "palette") {
+          // Serialize palette with its options
+          const pOpts = (v as any)?.options;
+          const pDefaults = defaults.palette?.options;
+          if (pOpts && JSON.stringify(pOpts) !== JSON.stringify(pDefaults)) {
+            delta.palette = { name: (v as any).name, options: pOpts };
+          }
+        } else if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
+          delta[k] = v;
+        }
+      }
+      if (Object.keys(delta).length > 0) result.o = delta;
+    } else if (opts) {
+      // No defaults — serialize all non-function options
+      const cleaned: any = {};
+      for (const [k, v] of Object.entries(opts)) {
+        if (typeof v !== "function") cleaned[k] = v;
+      }
+      result.o = cleaned;
+    }
+    if (!entry.enabled) result.e = false;
+    return result;
+  });
+
+  return {
+    v: 2,
+    chain: serializedChain,
+    g: state.convertGrayscale,
+    l: state.linearize,
+    w: state.wasmAcceleration,
+  };
+};
+
+// Produce JSON string for export
+const serializeStateJson = (state: any, pretty = false) => {
+  const data = serializeState(state);
+  const replacer = (k: string, v: any) => {
+    if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
+    return v;
+  };
+  return pretty ? JSON.stringify(data, replacer, 2) : JSON.stringify(data, replacer);
+};
+
 export const FilterProvider = ({ children }) => {
   const [state, dispatch] = useReducer(filterReducer, initialState);
-  const prevOutputRef = useRef<Uint8ClampedArray | null>(null);
+  const prevOutputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
+  const cachedOutputsRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const cachedChainOrderRef = useRef<string>("");
   const frameCountRef = useRef(0);
   const degaussFrameRef = useRef(-Infinity);
   const degaussAnimRef = useRef<number | null>(null);
   const animLoopRef = useRef<number | null>(null);
   const animLastTimeRef = useRef(0);
-  const animParamsRef = useRef<{ inputCanvas: any; filterFunc: any; fps: number } | null>(null);
+  const animParamsRef = useRef<{ inputCanvas: any; fps: number } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const filterImageAsyncRef = useRef<any>(null);
@@ -60,22 +130,14 @@ export const FilterProvider = ({ children }) => {
 
   // Sync filter state to URL hash so the address bar is always shareable
   useEffect(() => {
-    if (!state.selected) return;
-    const exportData = {
-      selected: state.selected,
-      convertGrayscale: state.convertGrayscale,
-      linearize: state.linearize,
-      wasmAcceleration: state.wasmAcceleration,
-    };
-    const json = JSON.stringify(exportData, (k, v) => {
-      if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
-      return v;
-    });
+    if (!state.chain || state.chain.length === 0) return;
+    const exportData = serializeState(state);
+    const json = JSON.stringify(exportData);
     const newHash = `#!${encodeURIComponent(btoa(json))}`;
     if (window.location.hash !== newHash) {
       history.replaceState(null, "", newHash);
     }
-  }, [state.selected, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
+  }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
 
   // Async action: load image from file
   const loadImageAsync = useCallback((file) => {
@@ -137,45 +199,103 @@ export const FilterProvider = ({ children }) => {
     }
   }, [loadImageAsync, loadVideoAsync]);
 
-  // Filter image — reads linearize from state at call time
-  const filterImageAsync = (input, filterFunc, options) => {
-    const filterOpts = {
-      ...options,
-      _linearize: state.linearize,
-      _wasmAcceleration: state.wasmAcceleration,
-      _prevOutput: prevOutputRef.current,
-      _frameIndex: frameCountRef.current,
-      _degaussFrame: degaussFrameRef.current,
-      _isAnimating: animLoopRef.current != null || degaussAnimRef.current != null,
-    };
-    // Propagate wasmAcceleration into palette options so getColor() sees it
-    if (filterOpts.palette?.options) {
-      filterOpts.palette = {
-        ...filterOpts.palette,
-        options: { ...filterOpts.palette.options, _wasmAcceleration: state.wasmAcceleration }
-      };
-    }
-    const t0 = performance.now();
-    const output = filterFunc(input, filterOpts, dispatch);
-    const stepMs = performance.now() - t0;
-    const filterName = state.selected?.displayName || state.selected?.filter?.name || "Filter";
-    const stepTimes = [{ name: filterName, ms: stepMs }];
-    const frameTime = stepMs;
-    if (!output) return;
-    if (output instanceof HTMLCanvasElement) {
-      // Store output buffer for next frame's persistence/interlace
-      const outCtx = output.getContext("2d");
-      if (outCtx) {
-        prevOutputRef.current = outCtx.getImageData(0, 0, output.width, output.height).data;
-      }
-      frameCountRef.current += 1;
+  // Execute the full filter chain on the input canvas
+  const filterImageAsync = (input) => {
+    if (!input) return;
+    const curState = stateRef.current;
+    const chain = curState.chain;
+    const isAnimating = animLoopRef.current != null || degaussAnimRef.current != null;
 
-      const outputImage = new Image();
-      outputImage.src = output.toDataURL("image/png");
-      outputImage.onload = () => {
-        dispatch({ type: "FILTER_IMAGE", image: outputImage, frameTime, stepTimes });
-      };
+    // Check if chain structure changed — if so, clear all caches
+    const chainKey = chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(",");
+    if (chainKey !== cachedChainOrderRef.current) {
+      cachedOutputsRef.current.clear();
+      cachedChainOrderRef.current = chainKey;
     }
+
+    // Pre-process: grayscale conversion once before the chain
+    let canvas = input;
+    if (curState.convertGrayscale) {
+      canvas = grayscale.func(canvas);
+    }
+
+    const stepTimes: { name: string; ms: number }[] = [];
+    let totalTime = 0;
+
+    // Find first entry that needs re-execution (no valid cache)
+    // During animation, bypass caching (temporal filters vary per frame)
+    const enabledEntries = chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
+
+    let startIdx = 0;
+    if (!isAnimating && enabledEntries.length > 1) {
+      for (let i = enabledEntries.length - 1; i >= 0; i--) {
+        const cached = cachedOutputsRef.current.get(enabledEntries[i].id);
+        if (cached) {
+          canvas = cached;
+          startIdx = i + 1;
+          // Add cached step times as 0ms
+          for (let j = 0; j <= i; j++) {
+            stepTimes.push({ name: enabledEntries[j].displayName, ms: 0 });
+          }
+          break;
+        }
+      }
+    }
+
+    for (let i = startIdx; i < enabledEntries.length; i++) {
+      const entry = enabledEntries[i];
+      const filterOpts = {
+        ...entry.filter.options,
+        _linearize: curState.linearize,
+        _wasmAcceleration: curState.wasmAcceleration,
+        _prevOutput: prevOutputMapRef.current.get(entry.id) || null,
+        _frameIndex: frameCountRef.current,
+        _degaussFrame: degaussFrameRef.current,
+        _isAnimating: isAnimating,
+      };
+      if (filterOpts.palette?.options) {
+        filterOpts.palette = {
+          ...filterOpts.palette,
+          options: { ...filterOpts.palette.options, _wasmAcceleration: curState.wasmAcceleration },
+        };
+      }
+
+      const t0 = performance.now();
+      let output;
+      try {
+        output = entry.filter.func(canvas, filterOpts, dispatch);
+      } catch (e) {
+        console.error(`Filter "${entry.displayName}" threw:`, e);
+        continue;
+      }
+      const stepMs = performance.now() - t0;
+      stepTimes.push({ name: entry.displayName, ms: stepMs });
+      totalTime += stepMs;
+
+      if (output instanceof HTMLCanvasElement) {
+        // Store per-entry prevOutput for temporal filters
+        const outCtx = output.getContext("2d");
+        if (outCtx) {
+          prevOutputMapRef.current.set(
+            entry.id,
+            outCtx.getImageData(0, 0, output.width, output.height).data
+          );
+        }
+        // Cache this step's output (skip during animation)
+        if (!isAnimating) {
+          cachedOutputsRef.current.set(entry.id, output);
+        }
+        canvas = output;
+      }
+    }
+
+    frameCountRef.current += 1;
+
+    const outputImage = new Image();
+    outputImage.src = canvas.toDataURL("image/png");
+    outputImage.onload = () => {
+      dispatch({ type: "FILTER_IMAGE", image: outputImage, frameTime: totalTime, stepTimes });
+    };
   };
   filterImageAsyncRef.current = filterImageAsync;
 
@@ -285,7 +405,7 @@ export const FilterProvider = ({ children }) => {
     }
   };
 
-  const triggerDegauss = (inputCanvas, filterFunc, filterOptions) => {
+  const triggerDegauss = (inputCanvas) => {
     if (degaussAnimRef.current != null) return; // already running
     degaussFrameRef.current = frameCountRef.current;
     playDegaussSound();
@@ -296,14 +416,14 @@ export const FilterProvider = ({ children }) => {
         degaussAnimRef.current = null;
         return;
       }
-      filterImageAsync(inputCanvas, filterFunc, filterOptions);
+      filterImageAsync(inputCanvas);
       frame += 1;
       degaussAnimRef.current = requestAnimationFrame(animate);
     };
     degaussAnimRef.current = requestAnimationFrame(animate);
   };
 
-  const triggerBurst = (inputCanvas, filterFunc, filterOptions, frames, fps = 6) => {
+  const triggerBurst = (inputCanvas, frames, fps = 6) => {
     if (animLoopRef.current != null) return; // don't overlap with running animation
     const interval = 1000 / fps;
     let frame = 0;
@@ -314,13 +434,13 @@ export const FilterProvider = ({ children }) => {
         // Fire one final non-animated render so _isAnimating=false,
         // guaranteeing we end on a normal display phase
         requestAnimationFrame(() => {
-          filterImageAsync(inputCanvas, filterFunc, filterOptions);
+          filterImageAsync(inputCanvas);
         });
         return;
       }
       if (timestamp - lastTime >= interval) {
         lastTime = timestamp;
-        filterImageAsync(inputCanvas, filterFunc, filterOptions);
+        filterImageAsync(inputCanvas);
         frame += 1;
       }
       animLoopRef.current = requestAnimationFrame(animate);
@@ -328,9 +448,9 @@ export const FilterProvider = ({ children }) => {
     animLoopRef.current = requestAnimationFrame(animate);
   };
 
-  const startAnimLoop = (inputCanvas, filterFunc, _filterOptions, fps = 15) => {
+  const startAnimLoop = (inputCanvas, fps = 15) => {
     if (animLoopRef.current != null) return; // already running
-    animParamsRef.current = { inputCanvas, filterFunc, fps };
+    animParamsRef.current = { inputCanvas, fps };
     animLastTimeRef.current = 0;
     const animate = (timestamp: number) => {
       const params = animParamsRef.current;
@@ -344,10 +464,9 @@ export const FilterProvider = ({ children }) => {
       const interval = 1000 / curFps;
       if (timestamp - animLastTimeRef.current >= interval) {
         animLastTimeRef.current = timestamp;
-        // Use ref to get latest filterImageAsync with current state
         const filterFn = filterImageAsyncRef.current;
         if (filterFn) {
-          filterFn(params.inputCanvas, params.filterFunc, curState.selected.filter.options);
+          filterFn(params.inputCanvas);
         }
       }
       animLoopRef.current = requestAnimationFrame(animate);
@@ -376,6 +495,8 @@ export const FilterProvider = ({ children }) => {
       dispatch({ type: "LOAD_IMAGE", image, time: time || 0, video: video || null, dispatch }),
     selectFilter: (name, filter) => {
       stopAnimLoop();
+      prevOutputMapRef.current.clear();
+      cachedOutputsRef.current.clear();
       dispatch({ type: "SELECT_FILTER", name, filter });
     },
     setConvertGrayscale: (value) =>
@@ -398,14 +519,34 @@ export const FilterProvider = ({ children }) => {
       dispatch({ type: "SET_INPUT_PLAYBACK_RATE", rate }),
     setScalingAlgorithm: (algorithm) =>
       dispatch({ type: "SET_SCALING_ALGORITHM", algorithm }),
-    setFilterOption: (optionName, value) =>
-      dispatch({ type: "SET_FILTER_OPTION", optionName, value }),
-    setFilterPaletteOption: (optionName, value) =>
-      dispatch({ type: "SET_FILTER_PALETTE_OPTION", optionName, value }),
-    addPaletteColor: (color) =>
-      dispatch({ type: "ADD_PALETTE_COLOR", color }),
+    setFilterOption: (optionName, value, chainIndex?) => {
+      const ci = chainIndex ?? stateRef.current.activeIndex;
+      // Invalidate cache from this entry onward
+      const chain = stateRef.current.chain;
+      for (let i = ci; i < chain.length; i++) {
+        cachedOutputsRef.current.delete(chain[i].id);
+      }
+      dispatch({ type: "SET_FILTER_OPTION", optionName, value, chainIndex });
+    },
+    setFilterPaletteOption: (optionName, value, chainIndex?) => {
+      const ci = chainIndex ?? stateRef.current.activeIndex;
+      const chain = stateRef.current.chain;
+      for (let i = ci; i < chain.length; i++) {
+        cachedOutputsRef.current.delete(chain[i].id);
+      }
+      dispatch({ type: "SET_FILTER_PALETTE_OPTION", optionName, value, chainIndex });
+    },
+    addPaletteColor: (color, chainIndex?) => {
+      const ci = chainIndex ?? stateRef.current.activeIndex;
+      const chain = stateRef.current.chain;
+      for (let i = ci; i < chain.length; i++) {
+        cachedOutputsRef.current.delete(chain[i].id);
+      }
+      dispatch({ type: "ADD_PALETTE_COLOR", color, chainIndex });
+    },
     importState: (json) => {
       const deserialized = JSON.parse(json);
+      prevOutputMapRef.current.clear();
       dispatch({ type: "LOAD_STATE", data: deserialized });
     },
     saveCurrentColorPalette: (name, colors) => {
@@ -421,31 +562,35 @@ export const FilterProvider = ({ children }) => {
       delete THEMES[name];
       dispatch({ type: "DELETE_CURRENT_COLOR_PALETTE", name });
     },
+    // Chain actions
+    chainAdd: (displayName, filter) => {
+      dispatch({ type: "CHAIN_ADD", displayName, filter });
+    },
+    chainRemove: (id) => {
+      prevOutputMapRef.current.delete(id);
+      dispatch({ type: "CHAIN_REMOVE", id });
+    },
+    chainReorder: (fromIndex, toIndex) => {
+      prevOutputMapRef.current.clear();
+      dispatch({ type: "CHAIN_REORDER", fromIndex, toIndex });
+    },
+    chainSetActive: (index) => {
+      dispatch({ type: "CHAIN_SET_ACTIVE", index });
+    },
+    chainToggle: (id) => {
+      dispatch({ type: "CHAIN_TOGGLE", id });
+    },
+    chainReplace: (id, displayName, filter) => {
+      prevOutputMapRef.current.delete(id);
+      dispatch({ type: "CHAIN_REPLACE", id, displayName, filter });
+    },
     getExportUrl: (filterState) => {
-      const exportData = {
-        selected: filterState.selected,
-        convertGrayscale: filterState.convertGrayscale,
-        linearize: filterState.linearize,
-        wasmAcceleration: filterState.wasmAcceleration,
-      };
-      const json = JSON.stringify(exportData, (k, v) => {
-        if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
-        return v;
-      });
+      const json = serializeStateJson(filterState);
       const base = `${window.location.origin}${window.location.pathname}`;
       return `${base}#!${encodeURIComponent(btoa(json))}`;
     },
     exportState: (filterState) => {
-      const exportData = {
-        selected: filterState.selected,
-        convertGrayscale: filterState.convertGrayscale,
-        linearize: filterState.linearize,
-        wasmAcceleration: filterState.wasmAcceleration,
-      };
-      return JSON.stringify(exportData, (k, v) => {
-        if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
-        return v;
-      }, 2);
+      return serializeStateJson(filterState, true);
     },
   };
 

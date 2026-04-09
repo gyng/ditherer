@@ -47,64 +47,59 @@ describe("filters reducer", () => {
   });
 
   it("should handle SELECT_FILTER", () => {
-    const prevState = { otherStuff: "foo" };
+    const prevState = { otherStuff: "foo", chain: [], activeIndex: 0 };
     const nextState = reducer(prevState, {
       type: "SELECT_FILTER",
       name: "name",
       filter: { filter: "someFilterFunc" },
     });
-    expect(nextState).toEqual({
-      otherStuff: "foo",
-      selected: { name: "name", filter: "someFilterFunc" },
+    expect(nextState.selected).toEqual({
+      displayName: "name",
+      name: "name",
+      filter: "someFilterFunc",
     });
+    expect(nextState.chain).toHaveLength(1);
+    expect(nextState.chain[0].displayName).toEqual("name");
+    expect(nextState.chain[0].filter).toEqual("someFilterFunc");
   });
 
   it("should handle SET_FILTER_OPTION", () => {
     const prevState = {
       otherStuff: "foo",
-      selected: { filter: { options: { foo: "bar" } } },
+      chain: [{ id: "test", displayName: "Test", filter: { options: { foo: "bar" } }, enabled: true }],
+      activeIndex: 0,
     };
     const nextState = reducer(prevState, {
       type: "SET_FILTER_OPTION",
       optionName: "optionName",
       value: "someValue",
     });
-    expect(nextState).toEqual({
-      otherStuff: "foo",
-      selected: { filter: { options: { foo: "bar", optionName: "someValue" } } },
-    });
+    expect(nextState.selected.filter.options).toEqual({ foo: "bar", optionName: "someValue" });
+    expect(nextState.chain[0].filter.options).toEqual({ foo: "bar", optionName: "someValue" });
   });
 
   it("should handle SET_FILTER_PALETTE_OPTION", () => {
     const prevState = {
       otherStuff: "foo",
-      selected: { filter: { options: { palette: { options: { foo: "bar" } } } } },
+      chain: [{ id: "test", displayName: "Test", filter: { options: { palette: { options: { foo: "bar" } } } }, enabled: true }],
+      activeIndex: 0,
     };
     const nextState = reducer(prevState, {
       type: "SET_FILTER_PALETTE_OPTION",
       optionName: "optionName",
       value: "someValue",
     });
-    expect(nextState).toEqual({
-      otherStuff: "foo",
-      selected: {
-        filter: { options: { palette: { options: { foo: "bar", optionName: "someValue" } } } },
-      },
-    });
+    expect(nextState.selected.filter.options.palette.options).toEqual({ foo: "bar", optionName: "someValue" });
   });
 
   it("should handle ADD_PALETTE_COLOR", () => {
     const prevState = {
       otherStuff: "foo",
-      selected: { filter: { options: { palette: { options: { colors: ["bar"] } } } } },
+      chain: [{ id: "test", displayName: "Test", filter: { options: { palette: { options: { colors: ["bar"] } } } }, enabled: true }],
+      activeIndex: 0,
     };
     const nextState = reducer(prevState, { type: "ADD_PALETTE_COLOR", color: "someColour" });
-    expect(nextState).toEqual({
-      otherStuff: "foo",
-      selected: {
-        filter: { options: { palette: { options: { colors: ["bar", "someColour"] } } } },
-      },
-    });
+    expect(nextState.selected.filter.options.palette.options.colors).toEqual(["bar", "someColour"]);
   });
 
   it("should handle FILTER_IMAGE", () => {

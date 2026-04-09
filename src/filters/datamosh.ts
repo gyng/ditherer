@@ -18,11 +18,11 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, filterFunc, options) => {
+    action: (actions, inputCanvas, _filterFunc, options) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
-        actions.startAnimLoop(inputCanvas, filterFunc, options, options.animSpeed || 12);
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
       }
     }
   },

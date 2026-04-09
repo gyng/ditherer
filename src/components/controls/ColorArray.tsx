@@ -46,7 +46,8 @@ export default class ColorArray extends React.Component<any, any> {
     extractMode: LAB_ADAPT_AVERAGE,
     modal: null as ModalState,
     pickerOpen: false,
-    pickerColor: { r: 255, g: 0, b: 0, a: 1 }
+    pickerColor: { r: 255, g: 0, b: 0, a: 1 },
+    extractCollapsed: true
   };
 
   handleModalConfirm = (value: string) => {
@@ -309,8 +310,14 @@ export default class ColorArray extends React.Component<any, any> {
         {colorSwatch}
         {colorPicker}
         <div className={s.group}>
-          <span className={s.name}>Extract from input</span>
-          {extractOptions}
+          <span
+            className={s.name}
+            onClick={() => this.setState({ extractCollapsed: !this.state.extractCollapsed })}
+            style={{ cursor: "pointer" }}
+          >
+            Extract from input {this.state.extractCollapsed ? "[+]" : "[-]"}
+          </span>
+          {!this.state.extractCollapsed && extractOptions}
         </div>
         {!currentTheme ? savePaletteButton : null}
 

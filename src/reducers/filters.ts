@@ -15,6 +15,12 @@ const ADD_PALETTE_COLOR = "ADD_PALETTE_COLOR";
 const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
 const SET_LINEARIZE = "SET_LINEARIZE";
 const SET_WASM_ACCELERATION = "SET_WASM_ACCELERATION";
+const CHAIN_ADD = "CHAIN_ADD";
+const CHAIN_REMOVE = "CHAIN_REMOVE";
+const CHAIN_REORDER = "CHAIN_REORDER";
+const CHAIN_SET_ACTIVE = "CHAIN_SET_ACTIVE";
+const CHAIN_TOGGLE = "CHAIN_TOGGLE";
+const CHAIN_REPLACE = "CHAIN_REPLACE";
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
@@ -22,8 +28,36 @@ import { floydSteinberg } from "filters/errorDiffusing";
 import { grayscale, filterIndex } from "filters";
 import { paletteList } from "palettes";
 
+export type ChainEntry = {
+  id: string;
+  displayName: string;
+  filter: any;
+  enabled: boolean;
+};
+
+const MAX_CHAIN_LENGTH = 16;
+
+const makeChainEntry = (displayName: string, filter: any): ChainEntry => ({
+  id: crypto.randomUUID(),
+  displayName,
+  filter,
+  enabled: true,
+});
+
+// Derive `selected` compat shim from chain state
+const deriveSelected = (chain: ChainEntry[], activeIndex: number) => ({
+  displayName: chain[activeIndex].displayName,
+  name: chain[activeIndex].displayName,
+  filter: chain[activeIndex].filter,
+});
+
+const defaultEntry = makeChainEntry("Floyd-Steinberg", floydSteinberg);
+
 export const initialState = {
-  selected: { displayName: "Floyd-Steinberg", filter: floydSteinberg },
+  chain: [defaultEntry] as ChainEntry[],
+  activeIndex: 0,
+  // Compat shim — computed from chain[activeIndex]
+  selected: deriveSelected([defaultEntry], 0),
   convertGrayscale: false,
   scale: 1,
   outputScale: 1,
@@ -39,96 +73,251 @@ export const initialState = {
   linearize: true,
   wasmAcceleration: true,
   frameTime: null,
-  stepTimes: null   // array of { name: string, ms: number } per chain step
+  stepTimes: null as { name: string; ms: number }[] | null,
 };
+
+// Helper: update a chain entry's filter options immutably
+const updateChainEntryOptions = (chain: ChainEntry[], index: number, updater: (opts: any) => any): ChainEntry[] =>
+  chain.map((entry, i) =>
+    i === index
+      ? { ...entry, filter: { ...entry.filter, options: updater(entry.filter.options) } }
+      : entry
+  );
+
+// Deserialize a filter from saved state, resolving local references
+const deserializeFilter = (savedFilter: any) => {
+  const localFilter = filterIndex[savedFilter.name];
+  if (!localFilter) return null;
+  const result = { ...localFilter, options: savedFilter.options };
+  if (result.options?.palette != null) {
+    const localPalette = paletteList.find(
+      p => p.palette.name === result.options.palette.name
+    );
+    if (localPalette) {
+      result.options.palette = {
+        ...localPalette.palette,
+        options: result.options.palette.options
+      };
+    }
+  }
+  return result;
+};
+
+// After any chain mutation, recompute the `selected` compat shim
+const withSelected = (state: any) => ({
+  ...state,
+  selected: deriveSelected(state.chain, state.activeIndex),
+});
 
 export default (state = initialState, action) => {
   switch (action.type) {
     case LOAD_STATE: {
-      const localFilter = filterIndex[action.data.selected.filter.name];
-      if (!localFilter) return state; // unknown filter — ignore stale hash
-      const deserializedFilter = {
-        ...localFilter,
-        options: action.data.selected.filter.options
-      };
-
-      if (deserializedFilter.options.palette != null) {
-        const localPalette = paletteList.find(
-          p => p.palette.name === deserializedFilter.options.palette.name
-        );
-
-        if (localPalette) {
-          deserializedFilter.options.palette = {
-            ...localPalette.palette,
-            options: deserializedFilter.options.palette.options
-          };
+      // v2 format: has `chain` array
+      if (action.data.v === 2 && Array.isArray(action.data.chain)) {
+        const chain: ChainEntry[] = [];
+        for (const entry of action.data.chain) {
+          const localFilter = filterIndex[entry.n];
+          if (!localFilter) continue;
+          const mergedOpts = { ...localFilter.options };
+          if (entry.o) {
+            for (const [k, v] of Object.entries(entry.o)) {
+              if (k === "palette" && mergedOpts.palette) {
+                mergedOpts.palette = { ...mergedOpts.palette, options: { ...mergedOpts.palette.options, ...(v as any).options } };
+              } else {
+                mergedOpts[k] = v;
+              }
+            }
+          }
+          // Re-resolve palette references
+          if (mergedOpts.palette?.name) {
+            const localPalette = paletteList.find(p => p.palette.name === mergedOpts.palette.name);
+            if (localPalette) {
+              mergedOpts.palette = { ...localPalette.palette, options: mergedOpts.palette.options };
+            }
+          }
+          chain.push({
+            id: crypto.randomUUID(),
+            displayName: entry.d || entry.n,
+            filter: { ...localFilter, options: mergedOpts },
+            enabled: entry.e !== false,
+          });
         }
+        if (chain.length === 0) return state;
+        return withSelected({
+          ...state,
+          chain,
+          activeIndex: 0,
+          convertGrayscale: action.data.g ?? state.convertGrayscale,
+          linearize: action.data.l ?? state.linearize,
+          wasmAcceleration: action.data.w ?? state.wasmAcceleration,
+        });
       }
 
-      return {
-        ...state,
-        selected: {
-          ...action.data.selected,
-          filter: deserializedFilter
-        },
-        convertGrayscale: action.data.convertGrayscale,
-        linearize: action.data.linearize ?? state.linearize,
-        wasmAcceleration: action.data.wasmAcceleration ?? state.wasmAcceleration,
-      };
+      // v1 format: has `selected`
+      if (action.data.selected) {
+        const deserializedFilter = deserializeFilter(action.data.selected.filter);
+        if (!deserializedFilter) return state;
+        const entry = makeChainEntry(
+          action.data.selected.displayName || action.data.selected.name || deserializedFilter.name,
+          deserializedFilter
+        );
+        return withSelected({
+          ...state,
+          chain: [entry],
+          activeIndex: 0,
+          convertGrayscale: action.data.convertGrayscale,
+          linearize: action.data.linearize ?? state.linearize,
+          wasmAcceleration: action.data.wasmAcceleration ?? state.wasmAcceleration,
+        });
+      }
+      return state;
     }
+
+    // --- Chain actions ---
+    case CHAIN_ADD: {
+      if (state.chain.length >= MAX_CHAIN_LENGTH) return state;
+      const entry = makeChainEntry(action.displayName, action.filter);
+      const chain = [...state.chain, entry];
+      return withSelected({
+        ...state,
+        chain,
+        activeIndex: chain.length - 1,
+      });
+    }
+    case CHAIN_REMOVE: {
+      if (state.chain.length <= 1) return state;
+      const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
+      if (idx === -1) return state;
+      const chain = state.chain.filter((_: any, i: number) => i !== idx);
+      const activeIndex = Math.min(state.activeIndex, chain.length - 1);
+      return withSelected({ ...state, chain, activeIndex });
+    }
+    case CHAIN_REORDER: {
+      const { fromIndex, toIndex } = action;
+      if (fromIndex < 0 || fromIndex >= state.chain.length) return state;
+      if (toIndex < 0 || toIndex >= state.chain.length) return state;
+      if (fromIndex === toIndex) return state;
+      const chain = [...state.chain];
+      const [moved] = chain.splice(fromIndex, 1);
+      chain.splice(toIndex, 0, moved);
+      // activeIndex follows the entry the user was editing
+      let activeIndex = state.activeIndex;
+      if (state.activeIndex === fromIndex) {
+        activeIndex = toIndex;
+      } else if (fromIndex < state.activeIndex && toIndex >= state.activeIndex) {
+        activeIndex -= 1;
+      } else if (fromIndex > state.activeIndex && toIndex <= state.activeIndex) {
+        activeIndex += 1;
+      }
+      return withSelected({ ...state, chain, activeIndex });
+    }
+    case CHAIN_SET_ACTIVE: {
+      const index = Math.max(0, Math.min(action.index, state.chain.length - 1));
+      return withSelected({ ...state, activeIndex: index });
+    }
+    case CHAIN_TOGGLE: {
+      const chain = state.chain.map((e: ChainEntry) =>
+        e.id === action.id ? { ...e, enabled: !e.enabled } : e
+      );
+      return withSelected({ ...state, chain });
+    }
+    case CHAIN_REPLACE: {
+      const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
+      if (idx === -1) return state;
+      const chain = state.chain.map((e: ChainEntry, i: number) =>
+        i === idx
+          ? { ...e, displayName: action.displayName, filter: action.filter }
+          : e
+      );
+      return withSelected({ ...state, chain });
+    }
+
+    // --- Compat: SELECT_FILTER resets to single-entry chain ---
+    case SELECT_FILTER: {
+      const entry = makeChainEntry(action.name, action.filter.filter);
+      return withSelected({
+        ...state,
+        chain: [entry],
+        activeIndex: 0,
+      });
+    }
+
+    // --- Option mutations: support chainIndex with activeIndex fallback ---
+    case SET_FILTER_OPTION: {
+      const ci = action.chainIndex ?? state.activeIndex;
+      const chain = updateChainEntryOptions(state.chain, ci, opts => ({
+        ...opts,
+        [action.optionName]: action.value,
+      }));
+      return withSelected({ ...state, chain });
+    }
+    case SET_FILTER_PALETTE_OPTION: {
+      const ci = action.chainIndex ?? state.activeIndex;
+      const entry = state.chain[ci];
+      if (!entry?.filter?.options?.palette) {
+        console.warn("Tried to set option on null palette", state);
+        return state;
+      }
+      const chain = updateChainEntryOptions(state.chain, ci, opts => ({
+        ...opts,
+        palette: {
+          ...opts.palette,
+          options: { ...opts.palette.options, [action.optionName]: action.value },
+        },
+      }));
+      return withSelected({ ...state, chain });
+    }
+    case ADD_PALETTE_COLOR: {
+      const ci = action.chainIndex ?? state.activeIndex;
+      const entry = state.chain[ci];
+      if (!entry?.filter?.options?.palette) {
+        console.warn("Tried to add color to null palette", state);
+        return state;
+      }
+      const chain = updateChainEntryOptions(state.chain, ci, opts => ({
+        ...opts,
+        palette: {
+          ...opts.palette,
+          options: {
+            ...opts.palette.options,
+            colors: [...(opts.palette.options as any).colors, action.color],
+          },
+        },
+      }));
+      return withSelected({ ...state, chain });
+    }
+
+    // --- Unchanged actions ---
     case SET_SCALING_ALGORITHM: {
       if (state.inputCanvas) {
         const context = state.inputCanvas.getContext("2d");
-
         if (context && state.inputImage) {
           const smoothingEnabled = action.algorithm === SCALING_ALGORITHM.AUTO;
           context.imageSmoothingEnabled = smoothingEnabled;
           context.drawImage(
-            state.inputImage,
-            0,
-            0,
+            state.inputImage, 0, 0,
             state.inputImage.width * (state.scale || 1),
             state.inputImage.height * (state.scale || 1)
           );
         }
       }
-
-      return {
-        ...state,
-        scalingAlgorithm: action.algorithm
-      };
+      return { ...state, scalingAlgorithm: action.algorithm };
     }
     case SET_INPUT_CANVAS:
-      return {
-        ...state,
-        inputCanvas: action.canvas
-      };
+      return { ...state, inputCanvas: action.canvas };
     case SET_INPUT_VOLUME:
-      if (state.video) {
-        state.video.volume = action.volume;  
-      }
-
-      return {
-        ...state,
-        videoVolume: action.volume
-      };
+      if (state.video) state.video.volume = action.volume;
+      return { ...state, videoVolume: action.volume };
     case SET_INPUT_PLAYBACK_RATE:
-      if (state.video) {
-        state.video.playbackRate = action.rate;  
-      }
-
-      return {
-        ...state,
-        videoPlaybackRate: action.rate
-      };
+      if (state.video) state.video.playbackRate = action.rate;
+      return { ...state, videoPlaybackRate: action.rate };
     case LOAD_IMAGE: {
-      // Image or new video
       if (
         state.video != null &&
         (!action.video || action.video !== state.video)
       ) {
         state.video.pause();
-        state.video.src = "";  
+        state.video.src = "";
       }
 
       const newState = {
@@ -143,14 +332,10 @@ export default (state = initialState, action) => {
         const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize, _wasmAcceleration: state.wasmAcceleration };
         const output = state.convertGrayscale
           ? (state.selected.filter.func as any)(
-              grayscale.func(state.inputCanvas),
-              rtOpts,
-              action.dispatch
+              grayscale.func(state.inputCanvas), rtOpts, action.dispatch
             )
           : (state.selected.filter.func as any)(
-              state.inputCanvas,
-              rtOpts,
-              action.dispatch
+              state.inputCanvas, rtOpts, action.dispatch
             );
         if (output instanceof HTMLCanvasElement) {
           newState.outputImage = output;
@@ -160,123 +345,24 @@ export default (state = initialState, action) => {
       return newState;
     }
     case SET_GRAYSCALE:
-      return {
-        ...state,
-        convertGrayscale: action.value
-      };
+      return { ...state, convertGrayscale: action.value };
     case SET_REAL_TIME_FILTERING:
-      return {
-        ...state,
-        realtimeFiltering: action.enabled
-      };
+      return { ...state, realtimeFiltering: action.enabled };
     case SET_SCALE:
-      return {
-        ...state,
-        scale: action.scale
-      };
+      return { ...state, scale: action.scale };
     case SET_OUTPUT_SCALE:
-      return {
-        ...state,
-        outputScale: action.scale
-      };
-    case SELECT_FILTER:
-      return {
-        ...state,
-        selected: {
-          name: action.name,
-          filter: action.filter.filter
-        }
-      };
-    case SET_FILTER_OPTION:
-      return {
-        ...state,
-        selected: {
-          ...state.selected,
-          filter: {
-            ...state.selected.filter,
-            options: {
-              ...state.selected.filter.options,
-              [action.optionName]: action.value
-            }
-          }
-        }
-      };
-    case SET_FILTER_PALETTE_OPTION:
-      if (
-        !state.selected.filter.options ||
-        !state.selected.filter.options.palette
-      ) {
-        console.warn("Tried to set option on null palette", state);  
-        return state;
-      }
-
-      return {
-        ...state,
-        selected: {
-          ...state.selected,
-          filter: {
-            ...state.selected.filter,
-            options: {
-              ...state.selected.filter.options,
-              palette: {
-                ...state.selected.filter.options.palette,
-                options: {
-                  ...state.selected.filter.options.palette.options,
-                  [action.optionName]: action.value
-                }
-              }
-            }
-          }
-        }
-      };
-    case ADD_PALETTE_COLOR:
-      if (
-        !state.selected.filter.options ||
-        !state.selected.filter.options.palette
-      ) {
-        console.warn("Tried to add color to null palette", state);  
-        return state;
-      }
-
-      return {
-        ...state,
-        selected: {
-          ...state.selected,
-          filter: {
-            ...state.selected.filter,
-            options: {
-              ...state.selected.filter.options,
-              palette: {
-                ...state.selected.filter.options.palette,
-                options: {
-                  ...state.selected.filter.options.palette.options,
-                  colors: [
-                    ...(state.selected.filter.options.palette.options as any).colors,
-                    action.color
-                  ]
-                }
-              }
-            }
-          }
-        }
-      };
+      return { ...state, outputScale: action.scale };
     case FILTER_IMAGE:
       return {
         ...state,
         outputImage: action.image,
         frameTime: action.frameTime ?? state.frameTime,
-        stepTimes: action.stepTimes ?? state.stepTimes
+        stepTimes: action.stepTimes ?? state.stepTimes,
       };
     case SET_LINEARIZE:
-      return {
-        ...state,
-        linearize: action.value
-      };
+      return { ...state, linearize: action.value };
     case SET_WASM_ACCELERATION:
-      return {
-        ...state,
-        wasmAcceleration: action.value
-      };
+      return { ...state, wasmAcceleration: action.value };
     default:
       return state;
   }

@@ -112,19 +112,19 @@ export const optionTypes = {
   degauss: {
     type: ACTION,
     label: "Degauss",
-    action: (actions, inputCanvas, filterFunc, options) => {
-      actions.triggerDegauss(inputCanvas, filterFunc, options);
+    action: (actions, inputCanvas) => {
+      actions.triggerDegauss(inputCanvas);
     }
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, filterFunc, options) => {
+    action: (actions, inputCanvas, _filterFunc, options) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
-        actions.startAnimLoop(inputCanvas, filterFunc, options, options.animSpeed || 15);
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
       }
     }
   },

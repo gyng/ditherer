@@ -39,21 +39,21 @@ export const optionTypes = {
   pageRefresh: {
     type: ACTION,
     label: "Page refresh",
-    action: (actions, inputCanvas, filterFunc, options) => {
+    action: (actions, inputCanvas) => {
       // Run enough frames to guarantee we pass through all flash phases
       // and end on a normal render (refreshCycle=6 for full, 2 for partial)
-      actions.triggerBurst(inputCanvas, filterFunc, options, 10, 4);
+      actions.triggerBurst(inputCanvas, 10, 4);
     }
   },
   refreshRate: { type: RANGE, range: [1, 8], step: 1, default: 2 },
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, filterFunc, options) => {
+    action: (actions, inputCanvas, _filterFunc, options) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
-        actions.startAnimLoop(inputCanvas, filterFunc, options, options.refreshRate || 2);
+        actions.startAnimLoop(inputCanvas, options.refreshRate || 2);
       }
     }
   },

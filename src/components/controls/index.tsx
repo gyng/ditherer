@@ -13,7 +13,6 @@ import {
 } from "constants/controlTypes";
 
 import { useFilter } from "context/FilterContext";
-import { grayscale } from "filters";
 
 import Enum from "./Enum";
 import Palette from "./Palette";
@@ -50,10 +49,7 @@ const Controls = (props) => {
               <button
                 key={name}
                 onClick={() => {
-                  const filterFunc = state.convertGrayscale
-                    ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
-                    : state.selected.filter.func;
-                  (oType as any).action(actions, inputCanvas, filterFunc, options);
+                  (oType as any).action(actions, inputCanvas, state.selected?.filter?.func, options);
                 }}
               >
                 {(oType as any).label || name}

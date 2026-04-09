@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import useDraggable from "./useDraggable";
 
 import Controls from "components/controls";
+import ChainList from "components/ChainList";
 import Exporter from "components/App/Exporter";
 import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import CollapsibleSection from "components/CollapsibleSection";
 
 import { useFilter } from "context/FilterContext";
-import { filterCategories } from "filters";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 
@@ -16,7 +16,7 @@ import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
 const App = () => {
-  const { state, actions, filterList, grayscale } = useFilter();
+  const { state, actions, filterList } = useFilter();
   const [dropping, setDropping] = useState(false);
   const [canvasDropping, setCanvasDropping] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -122,16 +122,13 @@ const App = () => {
   // Auto-filter when settings change and realtimeFiltering is on
   useEffect(() => {
     if (!state.realtimeFiltering || !inputCanvasRef.current || !state.inputImage) return;
-    const filterFunc = state.convertGrayscale
-      ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
-      : state.selected.filter.func;
     document.body.style.cursor = "wait";
     requestAnimationFrame(() => {
-      actions.filterImageAsync(inputCanvasRef.current, filterFunc, state.selected.filter.options);
+      actions.filterImageAsync(inputCanvasRef.current);
       document.body.style.cursor = "";
     });
   }, [
-    state.selected, state.linearize, state.wasmAcceleration,
+    state.chain, state.linearize, state.wasmAcceleration,
     state.convertGrayscale, state.realtimeFiltering, state.inputImage,
     state.scale, state.outputScale,
   ]);
@@ -222,44 +219,21 @@ const App = () => {
         {/* Algorithm section */}
         <CollapsibleSection title="Algorithm" defaultOpen>
           <div className={["filterOptions", s.filterOptions].join(" ")}>
-            <select
-              className={controls.enum}
-              onChange={e => {
-                const name = e.target.value;
-                const filter = filterList.find(f => f && f.displayName === name);
-                actions.selectFilter(name, filter);
-              }}
-              value={state.selected && (state.selected.displayName || state.selected.name)}
-            >
-              {filterCategories.map(cat => (
-                <optgroup key={cat} label={cat}>
-                  {filterList
-                    .filter(f => f && f.category === cat)
-                    .map(f => (
-                      <option key={f.displayName} value={f.displayName}>
-                        {f.displayName}
-                      </option>
-                    ))}
-                </optgroup>
-              ))}
-            </select>
-            {(() => {
-              const selected = filterList.find(
-                f => f && f.displayName === (state.selected && (state.selected.displayName || state.selected.name))
-              );
-              return selected?.description ? (
-                <div className={s.filterDescription}>{selected.description}</div>
-              ) : null;
-            })()}
+            <ChainList />
             <div className={controls.group}>
-              <span className={controls.name}>Options</span>
+              <span className={controls.name}>
+                {state.chain[state.activeIndex]?.displayName ?? "Options"}
+              </span>
               <Controls inputCanvas={inputCanvasRef.current} />
               {state.selected?.filter?.defaults && (
                 <button
                   onClick={() => {
                     const name = state.selected.displayName || state.selected.name;
                     const filter = filterList.find(f => f && f.displayName === name);
-                    if (filter) actions.selectFilter(name, filter);
+                    if (filter) {
+                      const entry = state.chain[state.activeIndex];
+                      if (entry) actions.chainReplace(entry.id, name, filter.filter);
+                    }
                   }}
                 >
                   Reset defaults
@@ -308,11 +282,8 @@ const App = () => {
             onClick={() => {
               setFiltering(true);
               document.body.style.cursor = "wait";
-              const filterFunc = state.convertGrayscale
-                ? (i, o) => state.selected.filter.func(grayscale.func(i), o)
-                : state.selected.filter.func;
               requestAnimationFrame(() => {
-                actions.filterImageAsync(inputCanvasRef.current, filterFunc, state.selected.filter.options);
+                actions.filterImageAsync(inputCanvasRef.current);
                 setFiltering(false);
                 document.body.style.cursor = "";
               });
