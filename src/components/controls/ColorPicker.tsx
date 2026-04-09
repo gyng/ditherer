@@ -3,30 +3,19 @@ import { HexColorPicker } from "react-colorful";
 
 import s from "./styles.module.css";
 
-// Convert between [r,g,b] arrays and hex strings
-const toHex = (value: any): string => {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) {
-    const [r, g, b] = value;
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-  }
-  return "#000000";
-};
+// COLOR type is always [r, g, b] arrays
+const rgbToHex = (rgb: number[]): string =>
+  `#${((1 << 24) + (rgb[0] << 16) + (rgb[1] << 8) + rgb[2]).toString(16).slice(1)}`;
 
-const fromHex = (hex: string, originalFormat: any): any => {
-  // If original was an array, return array; otherwise return hex string
-  if (Array.isArray(originalFormat)) {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return [r, g, b];
-  }
-  return hex;
-};
+const hexToRgb = (hex: string): number[] => [
+  parseInt(hex.slice(1, 3), 16),
+  parseInt(hex.slice(3, 5), 16),
+  parseInt(hex.slice(5, 7), 16)
+];
 
 const ColorPicker = (props) => {
   const [open, setOpen] = useState(false);
-  const hexValue = toHex(props.value);
+  const hex = Array.isArray(props.value) ? rgbToHex(props.value) : (props.value || "#000000");
 
   return (
     <div>
@@ -34,17 +23,17 @@ const ColorPicker = (props) => {
       <div className={s.colorPickerRow}>
         <div
           className={s.colorPickerSwatch}
-          style={{ backgroundColor: hexValue }}
+          style={{ backgroundColor: hex }}
           onClick={() => setOpen(!open)}
-          title={hexValue}
+          title={hex}
         />
-        <span className={s.colorPickerHex}>{hexValue}</span>
+        <span className={s.colorPickerHex}>{hex}</span>
       </div>
       {open && (
         <div className={s.pickerContainer}>
           <HexColorPicker
-            color={hexValue}
-            onChange={color => props.onSetFilterOption(props.name, fromHex(color, props.value))}
+            color={hex}
+            onChange={color => props.onSetFilterOption(props.name, hexToRgb(color))}
           />
         </div>
       )}

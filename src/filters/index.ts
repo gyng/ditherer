@@ -51,6 +51,26 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import risographMulti from "./risographMulti";
+import newspaper from "./newspaper";
+import faxMachine from "./faxMachine";
+import photocopier from "./photocopier";
+import daguerreotype from "./daguerreotype";
+import lenticular from "./lenticular";
+import thermalPrinter from "./thermalPrinter";
+import dataBend from "./dataBend";
+import interlaceTear from "./interlaceTear";
+import pixelScatter from "./pixelScatter";
+import stipple from "./stipple";
+import mosaicTile from "./mosaicTile";
+import pencilSketch from "./pencilSketch";
+import watercolorBleed from "./watercolorBleed";
+import popArt from "./popArt";
+import channelMixer from "./channelMixer";
+import ripple from "./ripple";
+import spherize from "./spherize";
+import stretch from "./stretch";
+import matrixRain from "./matrixRain";
 import dotMatrix from "./dotMatrix";
 import risograph from "./risograph";
 import liquify from "./liquify";
@@ -244,7 +264,27 @@ export const filterIndex = [
   pixelDrift,
   woodcut,
   analogStatic,
-  chromaticPosterize
+  chromaticPosterize,
+  risographMulti,
+  newspaper,
+  faxMachine,
+  photocopier,
+  daguerreotype,
+  lenticular,
+  thermalPrinter,
+  dataBend,
+  interlaceTear,
+  pixelScatter,
+  stipple,
+  mosaicTile,
+  pencilSketch,
+  watercolorBleed,
+  popArt,
+  channelMixer,
+  ripple,
+  spherize,
+  stretch,
+  matrixRain
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -394,6 +434,7 @@ export const filterList = [
   },
   { displayName: "Invert", filter: invert, category: "Color", description: "Flip all colors to their complement (negative)" },
   { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
+  { displayName: "Channel mixer", filter: channelMixer, category: "Color", description: "Arbitrary RGB matrix multiplication — swap, mix, or invert channels" },
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
   { displayName: "Levels", filter: levels, category: "Color", description: "Adjust black point, white point, and gamma for precise tonal control" },
@@ -406,6 +447,7 @@ export const filterList = [
   { displayName: "ASCII", filter: ascii, category: "Stylize", description: "Render the image as ASCII characters based on brightness" },
   { displayName: "CMYK halftone", filter: cmykHalftone, category: "Stylize", description: "Proper CMYK separation with independent screen angles per channel" },
   { displayName: "Crosshatch", filter: crosshatch, category: "Stylize", description: "Simulate pen-and-ink crosshatching with luminance-driven line density" },
+  { displayName: "Mosaic tile", filter: mosaicTile, category: "Stylize", description: "Pixelate with grout lines and per-tile color jitter" },
   { displayName: "Dot matrix", filter: dotMatrix, category: "Stylize", description: "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors" },
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
@@ -413,10 +455,15 @@ export const filterList = [
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
   { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
   { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize", description: "Overlay vertical stripe pattern over the image" },
+  { displayName: "Pencil sketch", filter: pencilSketch, category: "Stylize", description: "Directional pencil strokes following edge flow with paper texture" },
+  { displayName: "Pop art", filter: popArt, category: "Stylize", description: "Ben-Day dots with high saturation and flat posterized colors" },
   { displayName: "Posterize edges", filter: posterizeEdges, category: "Stylize", description: "Comic book / cel-shaded look — posterized colors with dark edge outlines" },
+  { displayName: "Matrix rain", filter: matrixRain, category: "Stylize", description: "Matrix-style falling character rain using input image luminance" },
   { displayName: "Oil painting", filter: oilPainting, category: "Stylize", description: "Quantize colors locally for thick, blobby paint strokes" },
   { displayName: "Stained glass", filter: stainedGlass, category: "Stylize", description: "Voronoi cells with dark leading lines for a stained glass window look" },
+  { displayName: "Stipple", filter: stipple, category: "Stylize", description: "Pointillist dot placement sized by luminance — no grid" },
   { displayName: "Risograph", filter: risograph, category: "Stylize", description: "Two-color spot separation with misregistration, grain, and ink bleed" },
+  { displayName: "Watercolor bleed", filter: watercolorBleed, category: "Stylize", description: "Edge-preserving color bleed with paper texture — soft watercolor look" },
   { displayName: "Woodcut", filter: woodcut, category: "Stylize", description: "High-contrast relief with carved line texture following edge contours" },
   { displayName: "Voronoi", filter: voronoi, category: "Stylize", description: "Divide the image into irregular cell regions with averaged colors" },
 
@@ -443,6 +490,9 @@ export const filterList = [
     description: "Apply inward pincushion distortion like a telephoto lens",
     filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
   },
+  { displayName: "Ripple", filter: ripple, category: "Distort", description: "Concentric circular waves radiating from center" },
+  { displayName: "Spherize", filter: spherize, category: "Distort", description: "Wrap image onto a sphere surface with adjustable strength" },
+  { displayName: "Stretch", filter: stretch, category: "Distort", description: "Non-uniform X/Y scaling from center" },
   { displayName: "Mirror / Kaleidoscope", filter: mirror, category: "Distort", description: "Reflect the image along axes or create radial kaleidoscope patterns" },
   { displayName: "Swirl", filter: swirl, category: "Distort", description: "Twist the image with rotation that increases toward the center" },
   { displayName: "Wave", filter: wave, category: "Distort", description: "Displace pixels along sine waves for a ripple effect" },
@@ -471,12 +521,22 @@ export const filterList = [
       }
     }
   },
+  { displayName: "Data bend", filter: dataBend, category: "Glitch", description: "Treat pixel data as audio — apply echo, reverb, bitcrush, or reverse" },
+  { displayName: "Interlace tear", filter: interlaceTear, category: "Glitch", description: "Even/odd row offset simulating torn interlaced video" },
+  { displayName: "Pixel scatter", filter: pixelScatter, category: "Glitch", description: "Explode pixels outward from edges — disintegration effect" },
   { displayName: "Analog static", filter: analogStatic, category: "Glitch", description: "Analog TV static — noise bars, vertical hold drift, and ghosting" },
   { displayName: "JPEG artifact", filter: jpegArtifact, category: "Glitch", description: "Apply DCT block compression artifacts at controllable quality and block size" },
   { displayName: "Pixel drift", filter: pixelDrift, category: "Glitch", description: "Pixels fall or rise based on luminance — melting/gravity effect" },
   { displayName: "Scan line shift", filter: scanLineShift, category: "Glitch", description: "Offset horizontal scan line blocks for a broken display glitch effect" },
 
   // ── Simulate ──
+  { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
+  { displayName: "Fax machine", filter: faxMachine, category: "Simulate", description: "Low-res binary with scan line artifacts, thermal paper yellowing, and compression noise" },
+  { displayName: "Lenticular", filter: lenticular, category: "Simulate", description: "Holographic rainbow sheen strips that shift with a simulated angle" },
+  { displayName: "Newspaper", filter: newspaper, category: "Simulate", description: "Coarse halftone on yellowed paper with fold creases and ink smear" },
+  { displayName: "Photocopier", filter: photocopier, category: "Simulate", description: "High contrast, edge darkening, speckle, and generation loss" },
+  { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
+  { displayName: "Thermal printer", filter: thermalPrinter, category: "Simulate", description: "Receipt printer — low-res dots, paper curl gradient, thermal ink fade" },
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Simulate", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
   {
     displayName: "CRT emulation",

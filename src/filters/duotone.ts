@@ -2,28 +2,20 @@ import { COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
-const parseHex = (hex: string): [number, number, number] => {
-  const h = hex.trim().replace("#", "");
-  if (h.length === 6) {
-    return [
-      parseInt(h.slice(0, 2), 16),
-      parseInt(h.slice(2, 4), 16),
-      parseInt(h.slice(4, 6), 16)
-    ];
-  }
-  if (h.length === 3) {
-    return [
-      parseInt(h[0] + h[0], 16),
-      parseInt(h[1] + h[1], 16),
-      parseInt(h[2] + h[2], 16)
-    ];
+// Parse color that may be hex string (legacy URLs) or [r,g,b] array
+const parseColor = (c: any): [number, number, number] => {
+  if (Array.isArray(c)) return [c[0], c[1], c[2]];
+  if (typeof c === "string") {
+    const h = c.trim().replace("#", "");
+    if (h.length === 6) return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    if (h.length === 3) return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)];
   }
   return [0, 0, 0];
 };
 
 export const optionTypes = {
-  shadowColor: { type: COLOR, default: "#0d0221" },
-  highlightColor: { type: COLOR, default: "#ff6b6b" },
+  shadowColor: { type: COLOR, default: [13, 2, 33] },
+  highlightColor: { type: COLOR, default: [255, 107, 107] },
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -44,8 +36,8 @@ const duotone = (input, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
 
-  const shadow = parseHex(typeof shadowColor === "string" ? shadowColor : defaults.shadowColor);
-  const highlight = parseHex(typeof highlightColor === "string" ? highlightColor : defaults.highlightColor);
+  const shadow = parseColor(shadowColor);
+  const highlight = parseColor(highlightColor);
 
   const outBuf = new Uint8ClampedArray(buf.length);
   for (let x = 0; x < W; x += 1) {
