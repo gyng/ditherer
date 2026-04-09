@@ -81,7 +81,7 @@ const mavicaFd7 = (input, options = defaults) => {
   const workW = needsScale ? MAX_W : origW;
   const workH = needsScale ? MAX_H : origH;
 
-  const workCanvas = document.createElement("canvas");
+  const workCanvas = cloneCanvas(input, false);
   workCanvas.width = workW;
   workCanvas.height = workH;
   const workCtx = workCanvas.getContext("2d");

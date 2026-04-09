@@ -1,16 +1,12 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from "react";
+import React, { createContext, useReducer, useCallback, useEffect, useRef } from "react";
 import filterReducer, { initialState, ChainEntry } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
 import { THEMES } from "palettes/user";
+import { serializePalette } from "palettes";
+import { workerRPC, USE_WORKER } from "workers/workerRPC";
 
-const FilterContext = createContext<any>(null);
-
-export const useFilter = (): { state: any; actions: any; filterList: any; grayscale: any } => {
-  const ctx = useContext(FilterContext);
-  if (!ctx) throw new Error("useFilter must be used within FilterProvider");
-  return ctx;
-};
+export const FilterContext = createContext<any>(null);
 
 // Compute a scale that fits the image within the available canvas area
 // and caps total pixel count for performance.
@@ -117,6 +113,7 @@ export const FilterProvider = ({ children }) => {
   const animLoopRef = useRef<number | null>(null);
   const animLastTimeRef = useRef(0);
   const animParamsRef = useRef<{ inputCanvas: any; fps: number } | null>(null);
+  const filteringRef = useRef(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   const filterImageAsyncRef = useRef<any>(null);
@@ -155,6 +152,7 @@ export const FilterProvider = ({ children }) => {
     const image = new Image();
     reader.onload = event => {
       image.onload = () => {
+        filteringRef.current = false;
         dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
         const scale = roundScale(getAutoScale(image.width, image.height));
         if (scale < 1) dispatch({ type: "SET_SCALE", scale });
@@ -166,6 +164,7 @@ export const FilterProvider = ({ children }) => {
 
   // Async action: load video from file
   const loadVideoAsync = useCallback((file, volume = 1, playbackRate = 1) => {
+    filteringRef.current = false;
     const reader = new FileReader();
     const video = document.createElement("video");
     reader.onload = event => {
@@ -210,47 +209,23 @@ export const FilterProvider = ({ children }) => {
   }, [loadImageAsync, loadVideoAsync]);
 
   // Execute the full filter chain on the input canvas
-  const filterImageAsync = (input) => {
-    if (!input) return;
-    const curState = stateRef.current;
-    const chain = curState.chain;
-    const isAnimating = animLoopRef.current != null || degaussAnimRef.current != null;
-
-    // Check if chain structure changed — if so, clear all caches
-    const chainKey = chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(",");
-    if (chainKey !== cachedChainOrderRef.current) {
-      cachedOutputsRef.current.clear();
-      cachedChainOrderRef.current = chainKey;
+  // Serialize filter options for worker (replace palette objects with serializable form)
+  const serializeOptions = (options) => {
+    const opts = { ...options };
+    if (opts.palette && typeof opts.palette.getColor === "function") {
+      opts.palette = serializePalette(opts.palette);
     }
+    return opts;
+  };
 
-    // Pre-process: grayscale conversion once before the chain
-    let canvas = input;
-    if (curState.convertGrayscale) {
-      canvas = grayscale.func(canvas);
-    }
+  // Check if chain contains glitchblob (needs dispatch, can't run in worker)
+  const chainNeedsMainThread = (entries: any[]) =>
+    entries.some(e => e.filter?.name === "Glitch");
 
+  // Main-thread filter execution (fallback path)
+  const filterOnMainThread = (canvas, enabledEntries, startIdx, isAnimating, curState) => {
     const stepTimes: { name: string; ms: number }[] = [];
     let totalTime = 0;
-
-    // Find first entry that needs re-execution (no valid cache)
-    // During animation, bypass caching (temporal filters vary per frame)
-    const enabledEntries = chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
-
-    let startIdx = 0;
-    if (!isAnimating && enabledEntries.length > 1) {
-      for (let i = enabledEntries.length - 1; i >= 0; i--) {
-        const cached = cachedOutputsRef.current.get(enabledEntries[i].id);
-        if (cached) {
-          canvas = cached;
-          startIdx = i + 1;
-          // Add cached step times as 0ms
-          for (let j = 0; j <= i; j++) {
-            stepTimes.push({ name: enabledEntries[j].displayName, ms: 0 });
-          }
-          break;
-        }
-      }
-    }
 
     for (let i = startIdx; i < enabledEntries.length; i++) {
       const entry = enabledEntries[i];
@@ -283,7 +258,6 @@ export const FilterProvider = ({ children }) => {
       totalTime += stepMs;
 
       if (output instanceof HTMLCanvasElement) {
-        // Store per-entry prevOutput for temporal filters
         const outCtx = output.getContext("2d");
         if (outCtx) {
           prevOutputMapRef.current.set(
@@ -291,7 +265,6 @@ export const FilterProvider = ({ children }) => {
             outCtx.getImageData(0, 0, output.width, output.height).data
           );
         }
-        // Cache this step's output (skip during animation)
         if (!isAnimating) {
           cachedOutputsRef.current.set(entry.id, output);
         }
@@ -299,13 +272,129 @@ export const FilterProvider = ({ children }) => {
       }
     }
 
-    frameCountRef.current += 1;
+    return { canvas, stepTimes, totalTime };
+  };
 
+  const emitOutput = (canvas, totalTime, stepTimes) => {
+    frameCountRef.current += 1;
     const outputImage = new Image();
-    outputImage.src = canvas.toDataURL("image/png");
     outputImage.onload = () => {
+      filteringRef.current = false;
       dispatch({ type: "FILTER_IMAGE", image: outputImage, frameTime: totalTime, stepTimes });
     };
+    outputImage.onerror = () => {
+      filteringRef.current = false;
+    };
+    outputImage.src = canvas.toDataURL("image/png");
+  };
+
+  const filterImageAsync = (input) => {
+    if (!input) return;
+    // Drop frame if previous filter hasn't finished (prevents queue buildup during video)
+    if (filteringRef.current) return;
+    filteringRef.current = true;
+    const curState = stateRef.current;
+    const chain = curState.chain;
+    const isAnimating = animLoopRef.current != null || degaussAnimRef.current != null;
+
+    const chainKey = chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(",");
+    if (chainKey !== cachedChainOrderRef.current) {
+      cachedOutputsRef.current.clear();
+      cachedChainOrderRef.current = chainKey;
+    }
+
+    let canvas = input;
+    if (curState.convertGrayscale) {
+      canvas = grayscale.func(canvas);
+    }
+
+    const stepTimes: { name: string; ms: number }[] = [];
+
+    const enabledEntries = chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
+
+    let startIdx = 0;
+    if (!isAnimating && enabledEntries.length > 1) {
+      for (let i = enabledEntries.length - 1; i >= 0; i--) {
+        const cached = cachedOutputsRef.current.get(enabledEntries[i].id);
+        if (cached) {
+          canvas = cached;
+          startIdx = i + 1;
+          for (let j = 0; j <= i; j++) {
+            stepTimes.push({ name: enabledEntries[j].displayName, ms: 0 });
+          }
+          break;
+        }
+      }
+    }
+
+    const entriesToRun = enabledEntries.slice(startIdx);
+    const useWorker = USE_WORKER && !chainNeedsMainThread(entriesToRun);
+
+    if (useWorker && entriesToRun.length > 0) {
+      // Worker path — async, dispatches output when done
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { filteringRef.current = false; return; }
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      const chainConfig = entriesToRun.map(e => ({
+        id: e.id,
+        filterName: e.filter.name,
+        displayName: e.displayName,
+        options: serializeOptions(e.filter.options),
+      }));
+
+      const serializedPrevOutputs: Record<string, ArrayBuffer> = {};
+      for (const entry of entriesToRun) {
+        const prev = prevOutputMapRef.current.get(entry.id);
+        if (prev) {
+          const copy = new Uint8ClampedArray(prev);
+          serializedPrevOutputs[entry.id] = copy.buffer;
+        }
+      }
+
+      const transfers: ArrayBuffer[] = [imageData.data.buffer];
+      for (const buf of Object.values(serializedPrevOutputs)) {
+        transfers.push(buf);
+      }
+
+      workerRPC({
+        imageData: imageData.data.buffer,
+        width: canvas.width,
+        height: canvas.height,
+        chain: chainConfig,
+        frameIndex: frameCountRef.current,
+        isAnimating,
+        linearize: curState.linearize,
+        wasmAcceleration: curState.wasmAcceleration,
+        convertGrayscale: false,
+        prevOutputs: serializedPrevOutputs,
+      }, transfers).then((result) => {
+        const outData = new ImageData(
+          new Uint8ClampedArray(result.imageData), result.width, result.height
+        );
+        const outCanvas = document.createElement("canvas");
+        outCanvas.width = result.width;
+        outCanvas.height = result.height;
+        outCanvas.getContext("2d")!.putImageData(outData, 0, 0);
+
+        for (const [entryId, buf] of Object.entries(result.prevOutputs)) {
+          prevOutputMapRef.current.set(entryId, new Uint8ClampedArray(buf as ArrayBuffer));
+        }
+
+        const workerStepTimes = [...stepTimes, ...result.stepTimes];
+        const workerTotalTime = result.stepTimes.reduce((a, s) => a + s.ms, 0);
+        emitOutput(outCanvas, workerTotalTime, workerStepTimes);
+      }).catch((err) => {
+        console.error("Worker failed, falling back to main thread:", err);
+        const fallback = filterOnMainThread(canvas, enabledEntries, startIdx, isAnimating, curState);
+        emitOutput(fallback.canvas, fallback.totalTime, [...stepTimes, ...fallback.stepTimes]);
+      });
+    } else {
+      // Main thread path — synchronous
+      const result = filterOnMainThread(canvas, enabledEntries, startIdx, isAnimating, curState);
+      stepTimes.push(...result.stepTimes);
+      emitOutput(result.canvas, result.totalTime, stepTimes);
+    }
   };
   filterImageAsyncRef.current = filterImageAsync;
 
@@ -468,7 +557,6 @@ export const FilterProvider = ({ children }) => {
         animLoopRef.current = null;
         return;
       }
-      // Read current fps from live state (animSpeed option)
       const curState = stateRef.current;
       const curFps = curState.selected?.filter?.options?.animSpeed || params.fps;
       const interval = 1000 / curFps;
@@ -634,5 +722,3 @@ export const FilterProvider = ({ children }) => {
     </FilterContext.Provider>
   );
 };
-
-export default FilterContext;

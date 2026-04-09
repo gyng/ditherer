@@ -1,11 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" fill="#262626"/>
-  <rect x="0"  y="0"  width="8" height="8" fill="#ffffff"/>
-  <rect x="16" y="0"  width="8" height="8" fill="#ffffff"/>
-  <rect x="8"  y="8"  width="8" height="8" fill="#ffffff"/>
-  <rect x="24" y="8"  width="8" height="8" fill="#ffffff"/>
-  <rect x="0"  y="16" width="8" height="8" fill="#ffffff"/>
-  <rect x="16" y="16" width="8" height="8" fill="#ffffff"/>
-  <rect x="8"  y="24" width="8" height="8" fill="#ffffff"/>
-  <rect x="24" y="24" width="8" height="8" fill="#ffffff"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <!-- dither gradient: dense top-left to sparse bottom-right -->
+  <!-- row 0 — fully dense -->
+  <rect x="2"  y="2" width="3" height="3" fill="url(#g)"/>
+  <rect x="6"  y="2" width="3" height="3" fill="url(#g)"/>
+  <rect x="10" y="2" width="3" height="3" fill="url(#g)"/>
+  <rect x="14" y="2" width="3" height="3" fill="url(#g)"/>
+  <rect x="18" y="2" width="3" height="3" fill="url(#g)"/>
+  <rect x="22" y="2" width="3" height="3" fill="url(#g)"/>
+  <rect x="26" y="2" width="3" height="3" fill="url(#g)"/>
+
+  <!-- row 1 — dense checkerboard -->
+  <rect x="4"  y="6" width="3" height="3" fill="url(#g)"/>
+  <rect x="10" y="6" width="3" height="3" fill="url(#g)"/>
+  <rect x="16" y="6" width="3" height="3" fill="url(#g)"/>
+  <rect x="22" y="6" width="3" height="3" fill="url(#g)"/>
+  <rect x="28" y="6" width="2" height="3" fill="url(#g)"/>
+
+  <!-- row 2 — checkerboard -->
+  <rect x="2"  y="10" width="3" height="3" fill="url(#g)"/>
+  <rect x="8"  y="10" width="3" height="3" fill="url(#g)"/>
+  <rect x="14" y="10" width="3" height="3" fill="url(#g)"/>
+  <rect x="20" y="10" width="3" height="3" fill="url(#g)"/>
+  <rect x="27" y="10" width="2" height="2" fill="url(#g)"/>
+
+  <!-- row 3 — sparser -->
+  <rect x="4"  y="14" width="3" height="3" fill="url(#g)"/>
+  <rect x="12" y="14" width="3" height="3" fill="url(#g)"/>
+  <rect x="20" y="14" width="2" height="2" fill="url(#g)"/>
+
+  <!-- row 4 — sparse -->
+  <rect x="2"  y="18" width="3" height="3" fill="url(#g)"/>
+  <rect x="10" y="18" width="2" height="2" fill="url(#g)"/>
+  <rect x="18" y="18" width="2" height="2" fill="url(#g)"/>
+  <rect x="26" y="18" width="2" height="2" fill="url(#g)"/>
+
+  <!-- row 5 — very sparse -->
+  <rect x="5"  y="22" width="2" height="2" fill="url(#g)"/>
+  <rect x="15" y="22" width="2" height="2" fill="url(#g)"/>
+
+  <!-- row 6 — dots -->
+  <rect x="2"  y="26" width="2" height="2" fill="url(#g)"/>
+  <rect x="10" y="27" width="2" height="2" fill="url(#g)"/>
+
+  <!-- single pixel hint -->
+  <rect x="5" y="28" width="1" height="1" fill="url(#g)" opacity="0.6"/>
+  <rect x="22" y="24" width="1" height="1" fill="url(#g)" opacity="0.4"/>
 </svg>

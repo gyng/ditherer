@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { useFilter } from "context/FilterContext";
+import { useFilter } from "context/useFilter";
 import { filterList, filterCategories } from "filters";
 import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
 import { paletteList } from "palettes";
@@ -107,7 +107,7 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Mosaic", desc: "Irregular tile grid with grout lines — ancient mosaic look", filters: ["Mosaic tile", "Sharpen", "Vignette"], category: "Stylize" },
   { name: "Neon", desc: "Glowing edge outlines on dark background with color fringe", filters: ["Invert", "Edge glow", "Bloom", "Chromatic aberration"], category: "Stylize" },
   { name: "Pixel Art", desc: "Chunky pixels quantized to limited colors then upscaled crisp", filters: ["Pixelate", "Quantize (No dithering)", "Pixel art upscale"], category: "Stylize" },
-  { name: "Risograph", desc: "Multi-layer spot color separation with misregistration and grain", filters: ["Posterize", "Risograph (multi-layer)", "Film grain"], category: "Stylize" },
+  { name: "Risograph", desc: "Multi-layer spot color separation with misregistration and grain", filters: ["Risograph (multi-layer)", "Film grain", "Sharpen"], category: "Stylize" },
   { name: "Sketch", desc: "Pencil strokes following edge flow with soft vignette", filters: ["Pencil sketch", "Sharpen", "Vignette"], category: "Stylize" },
   { name: "Stained Glass", desc: "Voronoi cells with dark leading and glowing colored glass", filters: ["Stained glass", "Edge glow", "Bloom"], category: "Stylize" },
   { name: "Watercolor", desc: "Soft wet-on-wet painting with outlined edges", filters: ["Gaussian blur", "Kuwahara", "Watercolor bleed", "Posterize edges"], category: "Stylize" },
@@ -169,6 +169,7 @@ const ChainList = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const dragCounter = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -530,7 +531,17 @@ const ChainList = () => {
             </optgroup>
           ))}
         </select>
-
+        <button
+          className={s.addBtn}
+          onClick={() => {
+            if (chain.length <= 1) return;
+            setShowClearConfirm(true);
+          }}
+          title="Clear filter chain"
+          disabled={chain.length <= 1}
+        >
+          &#10005;
+        </button>
       </div>
 
       {/* Active filter description */}
@@ -544,6 +555,48 @@ const ChainList = () => {
           <div className={s.description}>{match.description}</div>
         ) : null;
       })()}
+
+      {showClearConfirm && (
+        <div className={s.confirmOverlay} onClick={() => setShowClearConfirm(false)}>
+          <div className={s.confirmDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={s.confirmTitleBar}>
+              <span className={s.confirmTitleText}>ditherer.exe</span>
+              <button
+                className={s.confirmTitleClose}
+                onClick={() => setShowClearConfirm(false)}
+              >
+                &#10005;
+              </button>
+            </div>
+            <div className={s.confirmBody}>
+              <div className={s.confirmIcon}>&#9888;</div>
+              <div className={s.confirmMessage}>
+                Clear the filter chain?<br />
+                <span className={s.confirmSub}>This action cannot be undone.</span>
+              </div>
+            </div>
+            <div className={s.confirmButtons}>
+              <button
+                className={s.confirmBtn}
+                autoFocus
+                onClick={() => {
+                  setShowClearConfirm(false);
+                  const defaultFilter = filterList.find((f) => f && f.displayName === chain[0]?.displayName) || filterList[0];
+                  actions.selectFilter(defaultFilter.displayName, defaultFilter);
+                }}
+              >
+                OK
+              </button>
+              <button
+                className={s.confirmBtn}
+                onClick={() => setShowClearConfirm(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -15,6 +15,7 @@ export default defineConfig({
       reducers: path.resolve(__dirname, "src/reducers"),
       styles: path.resolve(__dirname, "src/styles"),
       utils: path.resolve(__dirname, "src/utils"),
+      workers: path.resolve(__dirname, "src/workers"),
       wasm: path.resolve(__dirname, "src/wasm"),
     },
   },

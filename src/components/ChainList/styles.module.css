@@ -107,6 +107,8 @@
   font-size: 10px;
   opacity: 0.5;
   flex-shrink: 0;
+  min-width: 5ch;
+  text-align: right;
 }
 
 .removeBtn {
@@ -277,6 +279,127 @@
 @keyframes previewFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* Retro confirm dialog */
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirmDialog {
+  background: var(--light-gray, #c0c0c0);
+  border-left: 2px solid #ffffff;
+  border-top: 2px solid #ffffff;
+  border-right: 2px solid #404040;
+  border-bottom: 2px solid #404040;
+  box-shadow: 1px 1px 0 #000, inset 1px 1px 0 #dfdfdf;
+  min-width: 280px;
+  font-family: inherit;
+}
+
+.confirmTitleBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  padding: 2px 3px;
+  margin: 2px;
+}
+
+.confirmTitleText {
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  padding-left: 2px;
+}
+
+.confirmTitleClose {
+  background: var(--light-gray, #c0c0c0);
+  border-left: 1px solid #ffffff;
+  border-top: 1px solid #ffffff;
+  border-right: 1px solid #404040;
+  border-bottom: 1px solid #404040;
+  font-size: 9px;
+  line-height: 1;
+  padding: 1px 3px;
+  min-height: unset;
+  cursor: pointer;
+  color: black;
+}
+
+.confirmTitleClose:active {
+  border-left: 1px solid #404040;
+  border-top: 1px solid #404040;
+  border-right: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+}
+
+.confirmBody {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px 12px;
+}
+
+.confirmIcon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.confirmMessage {
+  font-size: 12px;
+  color: black;
+  line-height: 1.5;
+  padding-top: 4px;
+}
+
+.confirmSub {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.confirmButtons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 20px 14px;
+}
+
+.confirmBtn {
+  min-width: 75px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--light-gray, #c0c0c0);
+  border-left: 2px solid #ffffff;
+  border-top: 2px solid #ffffff;
+  border-right: 2px solid #404040;
+  border-bottom: 2px solid #404040;
+  box-shadow: 1px 1px 0 #000;
+  cursor: pointer;
+  color: black;
+  min-height: unset;
+}
+
+.confirmBtn:active {
+  border-left: 2px solid #404040;
+  border-top: 2px solid #404040;
+  border-right: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  box-shadow: none;
+  padding: 4px 11px 2px 13px;
+}
+
+.confirmBtn:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: -4px;
 }
 
 @media (max-width: 768px) {

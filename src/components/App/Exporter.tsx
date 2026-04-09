@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useFilter } from "context/FilterContext";
+import { useFilter } from "context/useFilter";
 import ModalInput from "components/ModalInput";
 
 const Exporter = () => {

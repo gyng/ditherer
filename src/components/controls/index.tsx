@@ -12,7 +12,7 @@ import {
   PALETTE
 } from "constants/controlTypes";
 
-import { useFilter } from "context/FilterContext";
+import { useFilter } from "context/useFilter";
 
 import Enum from "./Enum";
 import Palette from "./Palette";

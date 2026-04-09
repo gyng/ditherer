@@ -28,7 +28,7 @@ const pixelate = (
 
   if (!inputCtx || !outputCtx) return input;
 
-  const temp = document.createElement("canvas");
+  const temp = cloneCanvas(input, false);
   temp.width = input.width * (scaleXOverride || scale);
   temp.height = input.height * (scaleYOverride || scale);
   const tempCtx = temp.getContext("2d");

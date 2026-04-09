@@ -82,34 +82,10 @@ const canvasToBlob = (
     }, formatMap[format]);
   });
 
-const blobToImage = (blob) =>
-  new Promise((resolve, reject) => {
-    const corruptedImage = new Image();
-    corruptedImage.onload = () => {
-      resolve(corruptedImage);
-    };
-    corruptedImage.onerror = e => {
-      reject(e);
-    };
-    corruptedImage.src = URL.createObjectURL(blob);
-  });
+const blobToImage = (blob) => createImageBitmap(blob);
 
-const blobToUint8Array = (blob) =>
-  new Promise((resolve, reject) => {
-    const fileReader = new FileReader();
-    fileReader.onload = event => {
-      if (blob.size === (event.target.result as ArrayBuffer).byteLength) {
-        resolve(new Uint8Array(event.target.result as ArrayBuffer));
-      } else {
-        reject(new Error("I've lost my mind"));
-      }
-    };
-    fileReader.onerror = e => {
-      reject(e);
-    };
-
-    fileReader.readAsArrayBuffer(blob);
-  });
+const blobToUint8Array = async (blob) =>
+  new Uint8Array(await blob.arrayBuffer());
 
 const transformTranspose = (
   header,

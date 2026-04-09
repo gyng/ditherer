@@ -308,26 +308,21 @@ loadFrame()
 
 ## Success Criteria
 
-Establish baseline numbers in Phase 1 before setting specific targets.
-
-| Metric | How to measure | Target (set after baseline) |
+| Metric | How to measure | Baseline (2026-04-10) |
 |---|---|---|
-| Floyd-Steinberg 640×480 ms/frame | `vitest bench` | TBD |
-| Floyd-Steinberg 1280×720 ms/frame | `vitest bench` | TBD |
-| Full pipeline latency at 720p | `?perf` overlay | < 33ms (30 fps) |
-| Heap growth rate during 60s video | Chrome allocation timeline | < 5 MB/min |
+| Floyd-Steinberg 640×480 ms/frame | `vitest bench` | ~48ms (sRGB), ~48ms (linear) |
+| Convolve 3×3 640×480 ms/frame | `vitest bench` | ~29ms (sRGB), ~58ms (linear) |
+| Ordered Bayer 640×480 ms/frame | `vitest bench` | ~77ms (sRGB) |
 
 ---
 
 ## Implementation Order
 
-| Phase | Risk | Effort | Reward |
-|---|---|---|---|
-| **1 — Harness** | Low | Small | Baseline (required) |
-| **2 — toBlob** | Low | ~10 lines | High — removes async hops |
-| **3 — Float32 errBuf** | Low | ~5 lines | High — eliminates largest allocation |
-| **4 — Scalar hot loop** | Medium | ~50 lines | High — kills GC pressure |
-| **5 — Buffer pool** | Medium | ~80 lines | Medium — measure first |
-| **6 — Worker** | High | ~200 lines | Highest — off main thread |
-
-Do not skip Phase 1. Do not implement Phase 6 without Phase 2 complete.
+| Phase | Status | Notes |
+|---|---|---|
+| **1 — Harness** | ✅ Done | `test/perf/filterBench.bench.ts`, `colorDistanceBench.bench.ts`, always-on perf stats in sidebar |
+| **2 — toBlob** | ✅ Done | Video frames dispatch canvas directly |
+| **3 — Float32 errBuf** | ✅ Done | `errBuf` is `Float32Array`, no boxed JS arrays |
+| **4 — Scalar hot loop** | ✅ Done | Scratch buffers + scalar `er/eg/eb`, no per-pixel allocations |
+| **5 — Buffer pool** | Skipped | Benchmarks after Phases 3–4 show remaining bottleneck is algorithmic cost, not allocation. Typed arrays eliminated GC pressure. Remaining per-frame allocations are unavoidable (`getImageData`) or cheap (`Float32Array` copy). Worker offload (Phase 6) further isolates GC from the UI thread. |
+| **6 — Worker** | ✅ Done | `src/workers/filterWorker.ts` + `workerRPC.ts`, full chain support with main-thread fallback |

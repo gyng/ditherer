@@ -8,7 +8,7 @@ import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import CollapsibleSection from "components/CollapsibleSection";
 
-import { useFilter } from "context/FilterContext";
+import { useFilter } from "context/useFilter";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 
@@ -130,15 +130,13 @@ const App = () => {
   // Auto-filter when settings change and realtimeFiltering is on
   useEffect(() => {
     if (!state.realtimeFiltering || !inputCanvasRef.current || !state.inputImage) return;
-    document.body.style.cursor = "wait";
     requestAnimationFrame(() => {
       actions.filterImageAsync(inputCanvasRef.current);
-      document.body.style.cursor = "";
     });
   }, [
     state.chain, state.linearize, state.wasmAcceleration,
     state.convertGrayscale, state.realtimeFiltering, state.inputImage,
-    state.scale, state.outputScale,
+    state.scale, state.outputScale, state.time,
   ]);
 
   const bringToTop = useCallback(e => {

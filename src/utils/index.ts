@@ -855,12 +855,14 @@ export const cloneCanvas = (
   original,
   copyData = true
 ) => {
-  const clone = document.createElement("canvas");
+  const clone = typeof document !== "undefined"
+    ? document.createElement("canvas")
+    : new OffscreenCanvas(original.width, original.height);
 
   clone.width = original.width;
   clone.height = original.height;
 
-  const cloneCtx = clone.getContext("2d");
+  const cloneCtx = clone.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 
   if (cloneCtx && copyData) {
     cloneCtx.drawImage(original, 0, 0);

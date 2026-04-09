@@ -1,6 +1,6 @@
 import { ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 const ALGORITHM = { SCALE2X: "SCALE2X", EAGLE: "EAGLE", NEAREST: "NEAREST" };
 
@@ -35,7 +35,7 @@ const scale2x = (input, options: any = defaults) => {
 
   // Output is 2x size
   const oW = W * 2, oH = H * 2;
-  const output = document.createElement("canvas");
+  const output = cloneCanvas(input, false);
   output.width = oW;
   output.height = oH;
   const outputCtx = output.getContext("2d");

@@ -26,7 +26,7 @@ const CHAIN_DUPLICATE = "CHAIN_DUPLICATE";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
 import { floydSteinberg } from "filters/errorDiffusing";
-import { grayscale, filterIndex } from "filters";
+import { filterIndex } from "filters";
 import { paletteList } from "palettes";
 
 export type ChainEntry = {
@@ -343,20 +343,8 @@ export default (state = initialState, action) => {
         realtimeFiltering: state.realtimeFiltering
       };
 
-      if (state.realtimeFiltering && state.inputCanvas && typeof state.selected.filter.func === "function") {
-        const rtOpts = { ...state.selected.filter.options, _linearize: state.linearize, _wasmAcceleration: state.wasmAcceleration };
-        const output = state.convertGrayscale
-          ? (state.selected.filter.func as any)(
-              grayscale.func(state.inputCanvas), rtOpts, action.dispatch
-            )
-          : (state.selected.filter.func as any)(
-              state.inputCanvas, rtOpts, action.dispatch
-            );
-        if (output instanceof HTMLCanvasElement) {
-          newState.outputImage = output;
-        }
-      }
-
+      // Trigger chain-based filtering via FilterContext (not inline)
+      // The auto-filter effect in App.tsx picks up inputImage/time changes
       return newState;
     }
     case SET_GRAYSCALE:

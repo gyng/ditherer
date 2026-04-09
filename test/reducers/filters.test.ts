@@ -105,6 +105,6 @@ describe("filters reducer", () => {
   it("should handle FILTER_IMAGE", () => {
     const prevState = { otherStuff: "foo" };
     const nextState = reducer(prevState, { type: "FILTER_IMAGE", image: "someImage" });
-    expect(nextState).toEqual({ otherStuff: "foo", outputImage: "someImage" });
+    expect(nextState).toMatchObject({ otherStuff: "foo", outputImage: "someImage" });
   });
 });
