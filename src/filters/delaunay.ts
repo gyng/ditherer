@@ -98,12 +98,16 @@ const delaunay = (input, options: any = defaults) => {
   const outBuf = new Uint8ClampedArray(buf.length);
   const rng = mulberry32(seed);
 
+  // Performance guard: cap points for large images
+  const totalPixels = W * H;
+  const effectivePoints = totalPixels > 500000 ? Math.min(pointCount, 500) : pointCount;
+
   // Generate points weighted toward edges
   const lum = computeLuminance(buf, W, H);
   const { magnitude } = sobelEdges(lum, W, H);
 
   const points: { x: number; y: number }[] = [];
-  for (let i = 0; i < pointCount; i++) {
+  for (let i = 0; i < effectivePoints; i++) {
     if (rng() < edgeWeight) {
       // Edge-biased: try several random positions, pick the one with highest edge magnitude
       let bestX = 0, bestY = 0, bestMag = -1;

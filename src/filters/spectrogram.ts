@@ -34,7 +34,7 @@ export const optionTypes = {
     { name: "Grayscale", value: COLORMAP.GRAYSCALE }
   ], default: COLORMAP.VIRIDIS },
   logScale: { type: BOOL, default: true },
-  freqBins: { type: RANGE, range: [16, 256], step: 8, default: 64 },
+  freqBins: { type: RANGE, range: [16, 128], step: 8, default: 32 },
   palette: { type: PALETTE, default: nearest }
 };
 

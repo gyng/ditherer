@@ -21,6 +21,7 @@ const CHAIN_REORDER = "CHAIN_REORDER";
 const CHAIN_SET_ACTIVE = "CHAIN_SET_ACTIVE";
 const CHAIN_TOGGLE = "CHAIN_TOGGLE";
 const CHAIN_REPLACE = "CHAIN_REPLACE";
+const CHAIN_DUPLICATE = "CHAIN_DUPLICATE";
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
@@ -230,6 +231,20 @@ export default (state = initialState, action) => {
           : e
       );
       return withSelected({ ...state, chain });
+    }
+    case CHAIN_DUPLICATE: {
+      const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
+      if (idx === -1) return state;
+      const source = state.chain[idx];
+      const clone: ChainEntry = {
+        id: crypto.randomUUID(),
+        displayName: source.displayName,
+        filter: { ...source.filter, options: { ...source.filter.options } },
+        enabled: source.enabled,
+      };
+      const chain = [...state.chain];
+      chain.splice(idx + 1, 0, clone);
+      return withSelected({ ...state, chain, activeIndex: idx + 1 });
     }
 
     // --- Compat: SELECT_FILTER resets to single-entry chain ---

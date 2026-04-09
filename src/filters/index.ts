@@ -59,6 +59,10 @@ import contourMap from "./contourMap";
 import filmBurn from "./filmBurn";
 import glitchBlocks from "./glitchBlocks";
 import colorHalftoneSeparate from "./colorHalftoneSeparate";
+import colorThreshold from "./colorThreshold";
+import grainMerge from "./grainMerge";
+import smoothPosterize from "./smoothPosterize";
+import scanlineRgb from "./scanlineRgb";
 import flowField from "./flowField";
 import lensFlare from "./lensFlare";
 import dodgeBurn from "./dodgeBurn";
@@ -346,7 +350,11 @@ export const filterIndex = [
   contourMap,
   filmBurn,
   glitchBlocks,
-  colorHalftoneSeparate
+  colorHalftoneSeparate,
+  colorThreshold,
+  grainMerge,
+  smoothPosterize,
+  scanlineRgb
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -557,6 +565,8 @@ export const filterList = [
   { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
   { displayName: "Channel mixer", filter: channelMixer, category: "Color", description: "Arbitrary RGB matrix multiplication — swap, mix, or invert channels" },
   { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
+  { displayName: "Color threshold", filter: colorThreshold, category: "Color", description: "Isolate pixels by hue range — keep selected colors, desaturate the rest" },
+  { displayName: "Grain merge", filter: grainMerge, category: "Color", description: "High-pass texture enhancement — amplifies existing texture without adding noise" },
   { displayName: "Color halftone (RGB)", filter: colorHalftoneSeparate, category: "Color", description: "Split RGB channels into separate halftone dots with registration offset" },
   { displayName: "Contour map", filter: contourMap, category: "Color", description: "Topographic-style elevation bands with distinct colors per luminance level" },
   { displayName: "Dodge / Burn", filter: dodgeBurn, category: "Color", description: "Classic darkroom technique — dodge lightens shadows, burn darkens highlights" },
@@ -605,6 +615,7 @@ export const filterList = [
   { displayName: "Matrix rain", filter: matrixRain, category: "Stylize", description: "Matrix-style falling character rain using input image luminance" },
   { displayName: "Oil painting", filter: oilPainting, category: "Stylize", description: "Quantize colors locally for thick, blobby paint strokes" },
   { displayName: "Stained glass", filter: stainedGlass, category: "Stylize", description: "Voronoi cells with dark leading lines for a stained glass window look" },
+  { displayName: "Smooth posterize", filter: smoothPosterize, category: "Stylize", description: "Posterize with smooth gradient transitions between bands — painted look" },
   { displayName: "Stipple", filter: stipple, category: "Stylize", description: "Pointillist dot placement sized by luminance — no grid" },
   { displayName: "Risograph", filter: risograph, category: "Stylize", description: "Two-color spot separation with misregistration, grain, and ink bleed" },
   { displayName: "Watercolor bleed", filter: watercolorBleed, category: "Stylize", description: "Edge-preserving color bleed with paper texture — soft watercolor look" },
@@ -709,6 +720,7 @@ export const filterList = [
     description: "Gray-Scott reaction-diffusion with user-adjustable feed/kill parameters — animatable",
     filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "CUSTOM" } }
   },
+  { displayName: "Scanline RGB", filter: scanlineRgb, category: "Simulate", description: "Each scanline shows only one RGB channel, cycling R-G-B — raw phosphor separation" },
   { displayName: "Spectrogram", filter: spectrogram, category: "Simulate", description: "Frequency-domain visualization — columns as time, rows as frequency, with scientific colormaps" },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
   { displayName: "Thermal printer", filter: thermalPrinter, category: "Simulate", description: "Receipt printer — low-res dots, paper curl gradient, thermal ink fade" },

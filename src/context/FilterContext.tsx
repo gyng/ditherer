@@ -594,6 +594,28 @@ export const FilterProvider = ({ children }) => {
       prevOutputMapRef.current.delete(id);
       dispatch({ type: "CHAIN_REPLACE", id, displayName, filter });
     },
+    chainDuplicate: (id) => {
+      dispatch({ type: "CHAIN_DUPLICATE", id });
+    },
+    copyChainToClipboard: () => {
+      try {
+        const json = serializeStateJson(stateRef.current);
+        navigator.clipboard.writeText(json);
+      } catch (e) {
+        console.warn("Failed to copy chain:", e);
+      }
+    },
+    pasteChainFromClipboard: async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        const data = JSON.parse(text);
+        prevOutputMapRef.current.clear();
+        cachedOutputsRef.current.clear();
+        dispatch({ type: "LOAD_STATE", data });
+      } catch (e) {
+        console.warn("Failed to paste chain:", e);
+      }
+    },
     getExportUrl: (filterState) => {
       const json = serializeStateJson(filterState);
       const base = `${window.location.origin}${window.location.pathname}`;
@@ -602,6 +624,8 @@ export const FilterProvider = ({ children }) => {
     exportState: (filterState) => {
       return serializeStateJson(filterState, true);
     },
+    getIntermediatePreview: (entryId: string): HTMLCanvasElement | null =>
+      cachedOutputsRef.current.get(entryId) || null,
   };
 
   return (

@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useFilter } from "context/FilterContext";
 import { filterList, filterCategories } from "filters";
 import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
 import { paletteList } from "palettes";
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
+import ChainPreview from "./ChainPreview";
 import s from "./styles.module.css";
 import controls from "components/controls/styles.module.css";
 
@@ -87,10 +88,25 @@ const getRandomFilter = () => {
 const CHAIN_PRESETS: { name: string; filters: string[] }[] = [
   { name: "Retro TV", filters: ["VHS emulation", "CRT emulation", "Vignette"] },
   { name: "Lo-fi Print", filters: ["Sepia", "Halftone", "Film grain"] },
-  { name: "Glitch Art", filters: ["Pixelsort", "Chromatic aberration", "Scan line shift"] },
-  { name: "Watercolor", filters: ["Gaussian blur", "Kuwahara", "Posterize edges"] },
-  { name: "Noir", filters: ["Grayscale", "Sharpen", "Vignette", "Film grain"] },
-  { name: "Neon", filters: ["Edge glow", "Bloom", "Chromatic aberration"] },
+  { name: "Glitch Art", filters: ["Pixelsort", "Chromatic aberration", "Scan line shift", "JPEG artifact"] },
+  { name: "Watercolor", filters: ["Gaussian blur", "Kuwahara", "Watercolor bleed", "Posterize edges"] },
+  { name: "Noir", filters: ["Grayscale", "Levels", "Sharpen", "Vignette", "Film grain"] },
+  { name: "Neon", filters: ["Invert", "Edge glow", "Bloom", "Chromatic aberration"] },
+  { name: "Risograph", filters: ["Posterize", "Risograph (multi-layer)", "Film grain"] },
+  { name: "Daguerreotype", filters: ["Daguerreotype", "Vignette", "Film grain"] },
+  { name: "Surveillance", filters: ["Grayscale", "Night vision", "Scanline", "JPEG artifact"] },
+  { name: "Newsprint", filters: ["Grayscale", "Newspaper", "Sharpen"] },
+  { name: "Cyberpunk", filters: ["Chromatic posterize", "Chromatic aberration", "Bloom", "CRT emulation"] },
+  { name: "Faded Film", filters: ["Sepia", "Light leak", "Film grain", "Vignette"] },
+  { name: "Thermal", filters: ["Thermal camera", "Posterize", "Bloom"] },
+  { name: "Pixel Art", filters: ["Pixelate", "Quantize (No dithering)", "Pixel art upscale"] },
+  { name: "Sketch", filters: ["Pencil sketch", "Sharpen", "Vignette"] },
+  { name: "Photocopier", filters: ["Photocopier", "Film grain"] },
+  { name: "Corrupted", filters: ["Data bend", "Glitch blocks", "Chromatic aberration", "Analog static"] },
+  { name: "Polaroid", filters: ["Polaroid", "Vignette", "Film grain"] },
+  { name: "Data Corruption", filters: ["Glitch blocks", "Data bend", "JPEG artifact"] },
+  { name: "Vintage Photo", filters: ["Sepia", "Film grain", "Vignette", "Light leak"] },
+  { name: "Blueprint", filters: ["Grayscale", "Contour lines", "Invert"] },
 ];
 
 const ChainList = () => {
@@ -100,8 +116,28 @@ const ChainList = () => {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
   const dragCounter = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback((entryId: string, e: React.MouseEvent) => {
+    if (dragIndex !== null) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setHoveredEntryId(entryId);
+      setHoverPos({ top: rect.top, left: rect.right + 8 });
+    }, 150);
+  }, [dragIndex]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = null;
+    setHoveredEntryId(null);
+    setHoverPos(null);
+  }, []);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDragIndex(index);
@@ -223,6 +259,8 @@ const ChainList = () => {
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
+              onMouseEnter={(e) => handleMouseEnter(entry.id, e)}
+              onMouseLeave={handleMouseLeave}
             >
               <span className={s.dragHandle}>&#9776;</span>
               <input
@@ -277,10 +315,34 @@ const ChainList = () => {
               >
                 x
               </button>
+              <button
+                className={s.removeBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  actions.chainDuplicate(entry.id);
+                }}
+                title="Duplicate"
+              >
+                +
+              </button>
             </div>
           );
         })}
       </div>
+
+      {hoveredEntryId && hoverPos && (() => {
+        const previewCanvas = actions.getIntermediatePreview(hoveredEntryId);
+        if (!previewCanvas) return null;
+        const stepIndex = chain.findIndex((e) => e.id === hoveredEntryId);
+        return (
+          <ChainPreview
+            sourceCanvas={previewCanvas}
+            top={hoverPos.top}
+            left={hoverPos.left}
+            stepNumber={stepIndex + 1}
+          />
+        );
+      })()}
 
       {/* Add filter row: search, browse dropdown, random, re-roll */}
       <div className={s.addRow}>
@@ -364,10 +426,9 @@ const ChainList = () => {
           className={s.addBtn}
           onClick={() => {
             const { displayName, filter } = getRandomFilter();
-            // Clear chain and set to random filter
-            actions.selectFilter(displayName, { filter });
+            actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
           }}
-          title="Replace chain with a random filter"
+          title="Add a random filter"
         >
           ?
         </button>
@@ -384,15 +445,33 @@ const ChainList = () => {
         >
           ~
         </button>
+        <select
+          className={s.presetSelect}
+          value=""
+          onChange={(e) => {
+            const preset = CHAIN_PRESETS.find((p) => p.name === e.target.value);
+            if (preset) loadPreset(preset);
+          }}
+          title="Load a chain preset"
+        >
+          <option value="" disabled>P</option>
+          {CHAIN_PRESETS.map((p) => (
+            <option key={p.name} value={p.name}>{p.name}</option>
+          ))}
+        </select>
         <button
           className={s.addBtn}
-          onClick={() => {
-            const preset = CHAIN_PRESETS[Math.floor(Math.random() * CHAIN_PRESETS.length)];
-            loadPreset(preset);
-          }}
-          title="Load a random chain preset"
+          onClick={() => actions.copyChainToClipboard()}
+          title="Copy chain to clipboard"
         >
-          P
+          C
+        </button>
+        <button
+          className={s.addBtn}
+          onClick={() => actions.pasteChainFromClipboard()}
+          title="Paste chain from clipboard"
+        >
+          V
         </button>
       </div>
 
