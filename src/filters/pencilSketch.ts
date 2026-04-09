@@ -1,6 +1,7 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
   strokeDensity: { type: RANGE, range: [1, 10], step: 1, default: 4 },
@@ -29,34 +30,20 @@ const pencilSketch = (input, options: any = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  // Luminance
-  const lum = new Float32Array(W * H);
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      lum[y * W + x] = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
-    }
+  // Luminance (normalized to 0-1 range)
+  const lum = computeLuminance(buf, W, H);
+  for (let i = 0; i < lum.length; i++) lum[i] /= 255;
 
   // Sobel edges for stroke direction
-  const edgeMag = new Float32Array(W * H);
-  const edgeDir = new Float32Array(W * H);
-  for (let y = 1; y < H - 1; y++)
-    for (let x = 1; x < W - 1; x++) {
-      const gx = -lum[(y-1)*W+(x-1)] - 2*lum[y*W+(x-1)] - lum[(y+1)*W+(x-1)]
-                + lum[(y-1)*W+(x+1)] + 2*lum[y*W+(x+1)] + lum[(y+1)*W+(x+1)];
-      const gy = -lum[(y-1)*W+(x-1)] - 2*lum[(y-1)*W+x] - lum[(y-1)*W+(x+1)]
-                + lum[(y+1)*W+(x-1)] + 2*lum[(y+1)*W+x] + lum[(y+1)*W+(x+1)];
-      edgeMag[y * W + x] = Math.sqrt(gx * gx + gy * gy);
-      edgeDir[y * W + x] = Math.atan2(gy, gx);
-    }
+  const { magnitude, direction } = sobelEdges(lum, W, H);
 
   // Render: paper + pencil strokes
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
       const l = lum[y * W + x];
-      const edge = edgeMag[y * W + x];
-      const dir = edgeDir[y * W + x];
+      const edge = magnitude[y * W + x];
+      const dir = direction[y * W + x];
 
       // Base: paper lightness proportional to luminance
       let darkness = (1 - l) * contrast;

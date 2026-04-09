@@ -1,5 +1,6 @@
-import { RANGE, ENUM } from "constants/controlTypes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
+import { ACTION, RANGE, ENUM, PALETTE } from "constants/controlTypes";
+import { nearest } from "palettes";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const PRESET_CUSTOM    = "CUSTOM";
 export const PRESET_CORAL     = "CORAL";
@@ -34,7 +35,17 @@ export const optionTypes = {
   feed: { type: RANGE, range: [0, 0.1], step: 0.001, default: 0.055 },
   kill: { type: RANGE, range: [0, 0.1], step: 0.001, default: 0.062 },
   diffusionA: { type: RANGE, range: [0, 1], step: 0.01, default: 1.0 },
-  diffusionB: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 }
+  diffusionB: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 4 },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions, inputCanvas, _filterFunc, options) => {
+      if (actions.isAnimating()) { actions.stopAnimLoop(); }
+      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 4); }
+    }
+  },
+  palette: { type: PALETTE, default: nearest }
 };
 
 export const defaults = {
@@ -43,13 +54,16 @@ export const defaults = {
   feed: optionTypes.feed.default,
   kill: optionTypes.kill.default,
   diffusionA: optionTypes.diffusionA.default,
-  diffusionB: optionTypes.diffusionB.default
+  diffusionB: optionTypes.diffusionB.default,
+  animSpeed: optionTypes.animSpeed.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const reactionDiffusion = (input, options = defaults) => {
-  const { iterations, diffusionA, diffusionB } = options;
+const reactionDiffusion = (input, options: any = defaults) => {
+  const { iterations, diffusionA, diffusionB, palette } = options;
+  const isAnimating = (options as any)._isAnimating || false;
+  const prevOutput = (options as any)._prevOutput as Uint8ClampedArray | null;
 
-  // Preset overrides feed/kill unless preset is CUSTOM
   const preset = options.preset ?? PRESET_CUSTOM;
   const feed = preset !== PRESET_CUSTOM ? PRESETS[preset].feed : options.feed;
   const kill = preset !== PRESET_CUSTOM ? PRESETS[preset].kill : options.kill;
@@ -65,12 +79,26 @@ const reactionDiffusion = (input, options = defaults) => {
 
   const A = new Float32Array(W * H);
   const B = new Float32Array(W * H);
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      const i = getBufferIndex(x, y, W);
-      const lum = (buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722) / 255;
-      A[y * W + x] = 1 - lum;
-      B[y * W + x] = lum;
+
+  // When animating with previous output: decode A/B state from stored pixels
+  // We encode A in the green channel and B in the blue channel (scaled to 0-255)
+  if (isAnimating && prevOutput && prevOutput.length === buf.length) {
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = getBufferIndex(x, y, W);
+        A[y * W + x] = prevOutput[i + 1] / 255; // green = A
+        B[y * W + x] = prevOutput[i + 2] / 255; // blue = B
+      }
+    }
+  } else {
+    // Initialize from image luminance
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = getBufferIndex(x, y, W);
+        const lum = (buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722) / 255;
+        A[y * W + x] = 1 - lum;
+        B[y * W + x] = lum;
+      }
     }
   }
 
@@ -84,9 +112,9 @@ const reactionDiffusion = (input, options = defaults) => {
     grid[y * W + Math.min(W - 1, x + 1)] -
     4 * grid[y * W + x];
 
-  for (let iter = 0; iter < iterations; iter += 1) {
-    for (let y = 0; y < H; y += 1) {
-      for (let x = 0; x < W; x += 1) {
+  for (let iter = 0; iter < iterations; iter++) {
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
         const idx = y * W + x;
         const a = A[idx];
         const b = B[idx];
@@ -103,19 +131,22 @@ const reactionDiffusion = (input, options = defaults) => {
     B.set(nextB);
   }
 
+  // Render output: encode A/B state in green/blue for temporal persistence,
+  // visual output uses A-B scaled by original colors
   const outBuf = new Uint8ClampedArray(buf.length);
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
       const idx = y * W + x;
       const i = getBufferIndex(x, y, W);
       const v = Math.max(0, Math.min(1, A[idx] - B[idx]));
-      fillBufferPixel(
-        outBuf, i,
-        Math.round(v * buf[i]),
-        Math.round(v * buf[i + 1]),
-        Math.round(v * buf[i + 2]),
-        buf[i + 3]
-      );
+
+      // Encode A/B in green/blue channels for _prevOutput persistence
+      const encR = Math.round(v * 255);
+      const encG = Math.round(A[idx] * 255);
+      const encB = Math.round(B[idx] * 255);
+
+      const color = paletteGetColor(palette, rgba(encR, encG, encB, buf[i + 3]), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
 

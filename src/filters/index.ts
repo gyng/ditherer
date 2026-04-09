@@ -51,6 +51,12 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import rotate from "./rotate";
+import flip from "./flip";
+import clahe from "./clahe";
+import scale2x from "./scale2x";
+import medianFilter from "./medianFilter";
+import spectrogram from "./spectrogram";
 import bilateralBlur from "./bilateralBlur";
 import bokeh from "./bokeh";
 import morphology from "./morphology";
@@ -306,7 +312,13 @@ export const filterIndex = [
   lineArt,
   engraving,
   infrared,
-  lcdDisplay
+  lcdDisplay,
+  rotate,
+  flip,
+  clahe,
+  scale2x,
+  medianFilter,
+  spectrogram
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -457,6 +469,7 @@ export const filterList = [
   { displayName: "Invert", filter: invert, category: "Color", description: "Flip all colors to their complement (negative)" },
   { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
   { displayName: "Channel mixer", filter: channelMixer, category: "Color", description: "Arbitrary RGB matrix multiplication — swap, mix, or invert channels" },
+  { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
   { displayName: "Levels", filter: levels, category: "Color", description: "Adjust black point, white point, and gamma for precise tonal control" },
@@ -476,6 +489,7 @@ export const filterList = [
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
   { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
+  { displayName: "Pixel art upscale", filter: scale2x, category: "Stylize", description: "Upscale with pixel art algorithms — Scale2x, Eagle, or nearest neighbor" },
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
   { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
   { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize", description: "Overlay vertical stripe pattern over the image" },
@@ -499,6 +513,7 @@ export const filterList = [
     description: "Move each RGB channel independently for extreme color splitting",
     filter: { ...chromaticAberration, options: { ...chromaticAberration.options, mode: "INDEPENDENT" } }
   },
+  { displayName: "Flip", filter: flip, category: "Distort", description: "Flip the image horizontally, vertically, or both" },
   { displayName: "Displace", filter: displace, category: "Distort", description: "Warp pixels using the image's own luminance as a displacement map" },
   {
     displayName: "Displace (smooth)",
@@ -515,6 +530,7 @@ export const filterList = [
     filter: { ...lensDistortion, options: { ...lensDistortion.options, k1: -0.3 } }
   },
   { displayName: "Pinch", filter: pinch, category: "Distort", description: "Squeeze pixels toward or away from center — radial scale distortion" },
+  { displayName: "Rotate", filter: rotate, category: "Distort", description: "Arbitrary angle rotation with bilinear sampling" },
   { displayName: "Ripple", filter: ripple, category: "Distort", description: "Concentric circular waves radiating from center" },
   { displayName: "Spherize", filter: spherize, category: "Distort", description: "Wrap image onto a sphere surface with adjustable strength" },
   { displayName: "Stretch", filter: stretch, category: "Distort", description: "Non-uniform X/Y scaling from center" },
@@ -563,6 +579,13 @@ export const filterList = [
   { displayName: "Lenticular", filter: lenticular, category: "Simulate", description: "Holographic rainbow sheen strips that shift with a simulated angle" },
   { displayName: "Newspaper", filter: newspaper, category: "Simulate", description: "Coarse halftone on yellowed paper with fold creases and ink smear" },
   { displayName: "Photocopier", filter: photocopier, category: "Simulate", description: "High contrast, edge darkening, speckle, and generation loss" },
+  {
+    displayName: "Reaction-diffusion (custom)",
+    category: "Simulate",
+    description: "Gray-Scott reaction-diffusion with user-adjustable feed/kill parameters — animatable",
+    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "CUSTOM" } }
+  },
+  { displayName: "Spectrogram", filter: spectrogram, category: "Simulate", description: "Frequency-domain visualization — columns as time, rows as frequency, with scientific colormaps" },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
   { displayName: "Thermal printer", filter: thermalPrinter, category: "Simulate", description: "Receipt printer — low-res dots, paper curl gradient, thermal ink fade" },
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Simulate", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
@@ -659,6 +682,7 @@ export const filterList = [
   { displayName: "Dilate / Erode", filter: morphology, category: "Blur & Edges", description: "Morphological operations — expand or shrink bright regions" },
   { displayName: "Emboss", filter: emboss, category: "Blur & Edges", description: "Directional relief effect with adjustable light angle and blend" },
   { displayName: "Gaussian blur", filter: gaussianBlur, category: "Blur & Edges", description: "Smooth the image with a Gaussian kernel — adjustable sigma" },
+  { displayName: "Median filter", filter: medianFilter, category: "Blur & Edges", description: "Non-linear noise removal — replaces each pixel with the median of its neighborhood" },
   { displayName: "Motion blur", filter: motionBlur, category: "Blur & Edges", description: "Directional blur simulating camera or object motion" },
   { displayName: "Radial blur", filter: radialBlur, category: "Blur & Edges", description: "Zoom blur radiating from center — speed/motion effect" },
   { displayName: "Sharpen", filter: sharpen, category: "Blur & Edges", description: "Unsharp mask — enhance edges with adjustable strength and radius" },

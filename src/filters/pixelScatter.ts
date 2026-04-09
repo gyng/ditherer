@@ -1,6 +1,7 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
   spread: { type: RANGE, range: [0, 50], step: 1, default: 15 },
@@ -40,12 +41,8 @@ const pixelScatter = (input, options: any = defaults) => {
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
   // Edge detection for scatter source
-  const lum = new Float32Array(W * H);
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      lum[y * W + x] = 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
-    }
+  const lum = computeLuminance(buf, W, H);
+  const { magnitude, direction } = sobelEdges(lum, W, H);
 
   // Start with original
   outBuf.set(buf);
@@ -53,18 +50,14 @@ const pixelScatter = (input, options: any = defaults) => {
   // Scatter pixels near edges outward
   for (let y = 1; y < H - 1; y++) {
     for (let x = 1; x < W - 1; x++) {
-      // Sobel edge magnitude
-      const gx = -lum[(y-1)*W+(x-1)] - 2*lum[y*W+(x-1)] - lum[(y+1)*W+(x-1)]
-                + lum[(y-1)*W+(x+1)] + 2*lum[y*W+(x+1)] + lum[(y+1)*W+(x+1)];
-      const gy = -lum[(y-1)*W+(x-1)] - 2*lum[(y-1)*W+x] - lum[(y-1)*W+(x+1)]
-                + lum[(y+1)*W+(x-1)] + 2*lum[(y+1)*W+x] + lum[(y+1)*W+(x+1)];
-      const edge = Math.sqrt(gx * gx + gy * gy);
+      const pi = y * W + x;
+      const edge = magnitude[pi];
 
       if (edge < threshold) continue;
       if (rng() > density) continue;
 
       // Scatter direction: away from edge (along gradient)
-      const angle = Math.atan2(gy, gx);
+      const angle = direction[pi];
       const dist = spread * (edge / 255) * (0.5 + rng() * 0.5);
       const dx = Math.round(Math.cos(angle) * dist);
       const dy = Math.round(Math.sin(angle) * dist);

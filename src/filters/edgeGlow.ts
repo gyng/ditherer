@@ -7,6 +7,7 @@ import {
   rgba,
   paletteGetColor
 } from "utils";
+import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 100], step: 1, default: 30 },
@@ -38,33 +39,13 @@ const edgeGlow = (input, options: any = defaults) => {
   const outBuf = new Uint8ClampedArray(buf.length);
 
   // Compute luminance
-  const lum = new Float32Array(W * H);
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      lum[y * W + x] = 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
-    }
-  }
+  const lum = computeLuminance(buf, W, H);
 
   // Sobel edge detection
+  const { magnitude } = sobelEdges(lum, W, H);
   const edgeMap = new Float32Array(W * H);
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      const tl = lum[(y - 1) * W + (x - 1)];
-      const tc = lum[(y - 1) * W + x];
-      const tr = lum[(y - 1) * W + (x + 1)];
-      const ml = lum[y * W + (x - 1)];
-      const mr = lum[y * W + (x + 1)];
-      const bl = lum[(y + 1) * W + (x - 1)];
-      const bc = lum[(y + 1) * W + x];
-      const br = lum[(y + 1) * W + (x + 1)];
-
-      const gx = -tl - 2 * ml - bl + tr + 2 * mr + br;
-      const gy = -tl - 2 * tc - tr + bl + 2 * bc + br;
-      const mag = Math.sqrt(gx * gx + gy * gy);
-
-      edgeMap[y * W + x] = mag > threshold ? Math.min(1, mag / 255) : 0;
-    }
+  for (let i = 0; i < magnitude.length; i++) {
+    edgeMap[i] = magnitude[i] > threshold ? Math.min(1, magnitude[i] / 255) : 0;
   }
 
   // Glow: separable blur of edge map

@@ -1,6 +1,7 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [5, 100], step: 1, default: 30 },
@@ -31,23 +32,14 @@ const lineArt = (input, options: any = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
 
   // Luminance
-  const lum = new Float32Array(W * H);
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      lum[y * W + x] = 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
-    }
+  const lum = computeLuminance(buf, W, H);
 
   // Sobel edge detection
+  const { magnitude } = sobelEdges(lum, W, H);
   const edges = new Uint8Array(W * H);
-  for (let y = 1; y < H - 1; y++)
-    for (let x = 1; x < W - 1; x++) {
-      const gx = -lum[(y-1)*W+(x-1)] - 2*lum[y*W+(x-1)] - lum[(y+1)*W+(x-1)]
-                + lum[(y-1)*W+(x+1)] + 2*lum[y*W+(x+1)] + lum[(y+1)*W+(x+1)];
-      const gy = -lum[(y-1)*W+(x-1)] - 2*lum[(y-1)*W+x] - lum[(y-1)*W+(x+1)]
-                + lum[(y+1)*W+(x-1)] + 2*lum[(y+1)*W+x] + lum[(y+1)*W+(x+1)];
-      edges[y * W + x] = Math.sqrt(gx * gx + gy * gy) > threshold ? 1 : 0;
-    }
+  for (let i = 0; i < magnitude.length; i++) {
+    edges[i] = magnitude[i] > threshold ? 1 : 0;
+  }
 
   // Dilate edges for line width
   let finalEdges = edges;
