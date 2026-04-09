@@ -51,6 +51,12 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import flowField from "./flowField";
+import lensFlare from "./lensFlare";
+import dodgeBurn from "./dodgeBurn";
+import despeckle from "./despeckle";
+import smudge from "./smudge";
+import ditherGradient from "./ditherGradient";
 import rotate from "./rotate";
 import flip from "./flip";
 import clahe from "./clahe";
@@ -318,7 +324,13 @@ export const filterIndex = [
   clahe,
   scale2x,
   medianFilter,
-  spectrogram
+  spectrogram,
+  flowField,
+  lensFlare,
+  dodgeBurn,
+  despeckle,
+  smudge,
+  ditherGradient
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -397,16 +409,16 @@ export const filterList = [
     }
   },
   {
-    displayName: "Ordered (Downwell Gameboy)",
+    displayName: "Ordered (Fallwell Greenboy)",
     category: "Dithering",
-    description: "Ordered dithering with Downwell's muted green Gameboy-style palette",
+    description: "Ordered dithering with a muted green Gameboy-style palette",
     filter: {
       ...ordered,
       options: {
         ...ordered.options,
         palette: {
           ...palettes.user,
-          options: { colors: THEMES.DOWNWELL_GAMEBOY }
+          options: { colors: THEMES.FALLWELL_GREENBOY }
         }
       }
     }
@@ -427,6 +439,64 @@ export const filterList = [
       }
     }
   },
+  {
+    displayName: "Ordered (PICO-8)",
+    category: "Dithering",
+    description: "Ordered dithering with the PICO-8 fantasy console 16-color palette",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.PICO8 }
+        }
+      }
+    }
+  },
+  {
+    displayName: "Ordered (Amber CRT)",
+    category: "Dithering",
+    description: "Ordered dithering with 4-shade amber phosphor CRT tones",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.PHOSPHOR_AMBER }
+        }
+      }
+    }
+  },
+  {
+    displayName: "Floyd-Steinberg (Synthwave)",
+    category: "Dithering",
+    description: "Floyd-Steinberg with a neon synthwave/outrun palette",
+    filter: {
+      ...floydSteinberg,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.SYNTHWAVE }
+        }
+      }
+    }
+  },
+  {
+    displayName: "Atkinson (Mondrian)",
+    category: "Dithering",
+    description: "Atkinson dithering with Mondrian's 5-color De Stijl palette",
+    filter: {
+      ...atkinson,
+      options: {
+        palette: {
+          ...palettes.user,
+          options: { colors: THEMES.MONDRIAN }
+        }
+      }
+    }
+  },
   { displayName: "Quantize (No dithering)", filter: quantize, category: "Dithering", description: "Reduce colors by snapping each pixel to the nearest palette color" },
   { displayName: "Random", filter: random, category: "Dithering", description: "Add random noise before quantizing for a stippled, noisy texture" },
   { displayName: "Sierra (full)", filter: sierra, category: "Dithering", description: "Three-row error diffusion similar to Jarvis but with different weights" },
@@ -434,6 +504,7 @@ export const filterList = [
   { displayName: "Sierra (two-row)", filter: sierra2, category: "Dithering", description: "Two-row Sierra for a balance between speed and quality" },
   { displayName: "Stucki", filter: stucki, category: "Dithering", description: "Three-row error diffusion with sharper results than Jarvis" },
   { displayName: "Threshold map", filter: thresholdMap, category: "Dithering", description: "Dither with custom threshold patterns — Bayer, halftone dot, diagonal, cross, diamond" },
+  { displayName: "Dither gradient", filter: ditherGradient, category: "Dithering", description: "Generate a smooth gradient and dither it — test pattern or standalone gradient art" },
   { displayName: "Triangle dither", filter: triangleDither, category: "Dithering", description: "Triangle-distributed noise dithering for film-like grain" },
 
   // ── Color ──
@@ -470,6 +541,7 @@ export const filterList = [
   { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
   { displayName: "Channel mixer", filter: channelMixer, category: "Color", description: "Arbitrary RGB matrix multiplication — swap, mix, or invert channels" },
   { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
+  { displayName: "Dodge / Burn", filter: dodgeBurn, category: "Color", description: "Classic darkroom technique — dodge lightens shadows, burn darkens highlights" },
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
   { displayName: "Levels", filter: levels, category: "Color", description: "Adjust black point, white point, and gamma for precise tonal control" },
@@ -485,10 +557,23 @@ export const filterList = [
   { displayName: "Mosaic tile", filter: mosaicTile, category: "Stylize", description: "Pixelate with grout lines and per-tile color jitter" },
   { displayName: "Dot matrix", filter: dotMatrix, category: "Stylize", description: "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors" },
   { displayName: "Engraving", filter: engraving, category: "Stylize", description: "Parallel lines whose thickness varies with luminance — currency/illustration style" },
+  {
+    displayName: "Engraving (Blueprint)",
+    category: "Stylize",
+    description: "Engraving lines rendered in blueprint Prussian blue on white",
+    filter: {
+      ...engraving,
+      options: {
+        ...engraving.options,
+        inkColor: [THEMES.BLUEPRINT[0][0], THEMES.BLUEPRINT[0][1], THEMES.BLUEPRINT[0][2]],
+        paperColor: [THEMES.BLUEPRINT[3][0], THEMES.BLUEPRINT[3][1], THEMES.BLUEPRINT[3][2]]
+      }
+    }
+  },
   { displayName: "Line art", filter: lineArt, category: "Stylize", description: "Extract clean black lines from edges, removing all shading" },
   { displayName: "Halftone", filter: halftone, category: "Stylize", description: "Simulate print halftone with variable-size dots" },
   { displayName: "K-means", filter: kmeans, category: "Stylize", description: "Cluster pixels into k dominant colors using iterative refinement" },
-  { displayName: "Kuwahara", filter: kuwahara, category: "Stylize", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
+  { displayName: "Kuwahara", filter: kuwahara, category: "Advanced", description: "Edge-preserving smoothing for a painterly, watercolor-like look" },
   { displayName: "Pixel art upscale", filter: scale2x, category: "Stylize", description: "Upscale with pixel art algorithms — Scale2x, Eagle, or nearest neighbor" },
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
   { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
@@ -503,6 +588,19 @@ export const filterList = [
   { displayName: "Risograph", filter: risograph, category: "Stylize", description: "Two-color spot separation with misregistration, grain, and ink bleed" },
   { displayName: "Watercolor bleed", filter: watercolorBleed, category: "Stylize", description: "Edge-preserving color bleed with paper texture — soft watercolor look" },
   { displayName: "Woodcut", filter: woodcut, category: "Stylize", description: "High-contrast relief with carved line texture following edge contours" },
+  {
+    displayName: "Woodcut (Ukiyo-e)",
+    category: "Stylize",
+    description: "Woodcut with Japanese woodblock print colors — sumi ink on cream paper",
+    filter: {
+      ...woodcut,
+      options: {
+        ...woodcut.options,
+        inkColor: [THEMES.UKIYO_E[0][0], THEMES.UKIYO_E[0][1], THEMES.UKIYO_E[0][2]],
+        paperColor: [THEMES.UKIYO_E[6][0], THEMES.UKIYO_E[6][1], THEMES.UKIYO_E[6][2]]
+      }
+    }
+  },
   { displayName: "Voronoi", filter: voronoi, category: "Stylize", description: "Divide the image into irregular cell regions with averaged colors" },
 
   // ── Distort ──
@@ -522,6 +620,8 @@ export const filterList = [
     filter: { ...displace, options: { ...displace.options, warpSource: "BLURRED" } }
   },
   { displayName: "Liquify", filter: liquify, category: "Distort", description: "Organic pixel warping driven by luminance gradients" },
+  { displayName: "Lens flare", filter: lensFlare, category: "Distort", description: "Camera lens flare with ghost reflections, anamorphic streak, and bloom" },
+  { displayName: "Smudge", filter: smudge, category: "Distort", description: "Paint-like smudging — drags color along a direction" },
   { displayName: "Lens distortion", filter: lensDistortion, category: "Distort", description: "Apply barrel distortion like a wide-angle lens" },
   {
     displayName: "Lens distortion (pincushion)",
@@ -588,7 +688,7 @@ export const filterList = [
   { displayName: "Spectrogram", filter: spectrogram, category: "Simulate", description: "Frequency-domain visualization — columns as time, rows as frequency, with scientific colormaps" },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
   { displayName: "Thermal printer", filter: thermalPrinter, category: "Simulate", description: "Receipt printer — low-res dots, paper curl gradient, thermal ink fade" },
-  { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Simulate", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
+  { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Advanced", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
   {
     displayName: "CRT emulation",
     category: "Simulate",
@@ -677,9 +777,10 @@ export const filterList = [
   // ── Blur & Edges ──
   { displayName: "Bloom", filter: bloom, category: "Blur & Edges", description: "Add a soft glow around bright areas" },
   { displayName: "Convolve", filter: convolve, category: "Blur & Edges", description: "Apply a custom convolution kernel — blur, sharpen, emboss, and more" },
+  { displayName: "Despeckle", filter: despeckle, category: "Blur & Edges", description: "Adaptive noise removal — smooths noisy areas while preserving structured detail" },
   { displayName: "Bilateral blur", filter: bilateralBlur, category: "Blur & Edges", description: "Edge-preserving smooth — blurs flat areas while keeping edges crisp" },
   { displayName: "Bokeh", filter: bokeh, category: "Blur & Edges", description: "Simulate out-of-focus highlights with hexagonal or circular bokeh shapes" },
-  { displayName: "Dilate / Erode", filter: morphology, category: "Blur & Edges", description: "Morphological operations — expand or shrink bright regions" },
+  { displayName: "Dilate / Erode", filter: morphology, category: "Advanced", description: "Morphological operations — expand or shrink bright regions" },
   { displayName: "Emboss", filter: emboss, category: "Blur & Edges", description: "Directional relief effect with adjustable light angle and blend" },
   { displayName: "Gaussian blur", filter: gaussianBlur, category: "Blur & Edges", description: "Smooth the image with a Gaussian kernel — adjustable sigma" },
   { displayName: "Median filter", filter: medianFilter, category: "Blur & Edges", description: "Non-linear noise removal — replaces each pixel with the median of its neighborhood" },
@@ -699,6 +800,7 @@ export const filterList = [
 
   // ── Advanced ──
   { displayName: "Cellular automata", filter: cellularAutomata, category: "Advanced", description: "Conway's Game of Life and other rulesets applied to the image — animatable" },
+  { displayName: "Flow field", filter: flowField, category: "Advanced", description: "Displace pixels along curl noise streamlines for organic swirling patterns" },
   { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Fractal", filter: fractal, category: "Advanced", description: "Render Mandelbrot or Julia set fractals, optionally colored from the input image" },
   { displayName: "Noise generator", filter: noiseGenerator, category: "Advanced", description: "Procedural noise patterns — Perlin, Simplex, or Worley — mixable with the input" },
