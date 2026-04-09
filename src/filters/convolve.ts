@@ -44,7 +44,8 @@ export const kernels = {
   },
   [GAUSSIAN_3X3]: {
     width: 3,
-    matrix: scaleMatrix([[1, 2, 1], [2, 4, 2], [1, 2, 1]], 1 / 16)
+    matrix: scaleMatrix([[1, 2, 1], [2, 4, 2], [1, 2, 1]], 1 / 16),
+    separable: { row: [1/4, 2/4, 1/4], col: [1/4, 2/4, 1/4] },
   },
   [GAUSSIAN_3X3_WEAK]: {
     width: 3,
@@ -61,7 +62,8 @@ export const kernels = {
         [1, 4, 6, 4, 1]
       ],
       1 / 256
-    )
+    ),
+    separable: { row: [1/16, 4/16, 6/16, 4/16, 1/16], col: [1/16, 4/16, 6/16, 4/16, 1/16] },
   },
   [BRIGHTEN_2X]: {
     width: 1,
@@ -193,8 +195,120 @@ const convolve = (
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
   const W = input.width;
+  const H = input.height;
   const half = Math.floor(kernel.width / 2);
 
+  // Separable fast path: two 1D passes instead of one 2D pass.
+  // Reduces per-pixel work from K² to 2K multiply-adds.
+  if (kernel.separable) {
+    const row = kernel.separable.row.map((v) => v * options.strength);
+    const col = kernel.separable.col;
+    const K = row.length;
+
+    // Horizontal 1D pass: src → temp
+    const hPass = (src: ArrayLike<number>, temp: Float32Array) => {
+      for (let y = 0; y < H; y++) {
+        const yOff = W * y;
+        // Left border
+        for (let x = 0; x < half; x++) {
+          let cr = 0, cg = 0, cb = 0;
+          for (let k = 0; k < K; k++) {
+            const sx = Math.max(0, x + k - half);
+            const si = (sx + yOff) * 4;
+            cr += (src[si] as number) * row[k]; cg += (src[si + 1] as number) * row[k]; cb += (src[si + 2] as number) * row[k];
+          }
+          const i = (x + yOff) * 4;
+          temp[i] = cr; temp[i + 1] = cg; temp[i + 2] = cb; temp[i + 3] = src[i + 3] as number;
+        }
+        // Interior — no bounds check
+        for (let x = half; x < W - half; x++) {
+          let cr = 0, cg = 0, cb = 0;
+          for (let k = 0; k < K; k++) {
+            const si = (x + k - half + yOff) * 4;
+            cr += (src[si] as number) * row[k]; cg += (src[si + 1] as number) * row[k]; cb += (src[si + 2] as number) * row[k];
+          }
+          const i = (x + yOff) * 4;
+          temp[i] = cr; temp[i + 1] = cg; temp[i + 2] = cb; temp[i + 3] = src[i + 3] as number;
+        }
+        // Right border
+        for (let x = Math.max(half, W - half); x < W; x++) {
+          let cr = 0, cg = 0, cb = 0;
+          for (let k = 0; k < K; k++) {
+            const sx = Math.min(W - 1, x + k - half);
+            const si = (sx + yOff) * 4;
+            cr += (src[si] as number) * row[k]; cg += (src[si + 1] as number) * row[k]; cb += (src[si + 2] as number) * row[k];
+          }
+          const i = (x + yOff) * 4;
+          temp[i] = cr; temp[i + 1] = cg; temp[i + 2] = cb; temp[i + 3] = src[i + 3] as number;
+        }
+      }
+    };
+
+    // Vertical 1D pass: temp → out
+    const vPass = (temp: Float32Array, out: Float32Array | Uint8ClampedArray, clamp: boolean) => {
+      // Top border
+      for (let y = 0; y < half; y++) {
+        for (let x = 0; x < W; x++) {
+          let cr = 0, cg = 0, cb = 0;
+          for (let k = 0; k < K; k++) {
+            const sy = Math.max(0, y + k - half);
+            const si = (x + W * sy) * 4;
+            cr += temp[si] * col[k]; cg += temp[si + 1] * col[k]; cb += temp[si + 2] * col[k];
+          }
+          const i = (x + W * y) * 4;
+          if (clamp) { fillBufferPixel(out, i, cr, cg, cb, temp[i + 3]); }
+          else { out[i] = cr; out[i + 1] = cg; out[i + 2] = cb; out[i + 3] = temp[i + 3]; }
+        }
+      }
+      // Interior — no bounds check
+      for (let y = half; y < H - half; y++) {
+        for (let x = 0; x < W; x++) {
+          let cr = 0, cg = 0, cb = 0;
+          for (let k = 0; k < K; k++) {
+            const si = (x + W * (y + k - half)) * 4;
+            cr += temp[si] * col[k]; cg += temp[si + 1] * col[k]; cb += temp[si + 2] * col[k];
+          }
+          const i = (x + W * y) * 4;
+          if (clamp) { fillBufferPixel(out, i, cr, cg, cb, temp[i + 3]); }
+          else { out[i] = cr; out[i + 1] = cg; out[i + 2] = cb; out[i + 3] = temp[i + 3]; }
+        }
+      }
+      // Bottom border
+      for (let y = Math.max(half, H - half); y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          let cr = 0, cg = 0, cb = 0;
+          for (let k = 0; k < K; k++) {
+            const sy = Math.min(H - 1, y + k - half);
+            const si = (x + W * sy) * 4;
+            cr += temp[si] * col[k]; cg += temp[si + 1] * col[k]; cb += temp[si + 2] * col[k];
+          }
+          const i = (x + W * y) * 4;
+          if (clamp) { fillBufferPixel(out, i, cr, cg, cb, temp[i + 3]); }
+          else { out[i] = cr; out[i + 1] = cg; out[i + 2] = cb; out[i + 3] = temp[i + 3]; }
+        }
+      }
+    };
+
+    if (options._linearize) {
+      const floatBuf = srgbBufToLinearFloat(buf);
+      const temp = new Float32Array(floatBuf.length);
+      const outFloat = new Float32Array(floatBuf.length);
+      hPass(floatBuf, temp);
+      vPass(temp, outFloat, false);
+      const outputBuf = new Uint8ClampedArray(buf.length);
+      linearFloatToSrgbBuf(outFloat, outputBuf);
+      outputCtx.putImageData(new ImageData(outputBuf, W, H), 0, 0);
+    } else {
+      const temp = new Float32Array(buf.length);
+      const outBuf = new Uint8ClampedArray(buf.length);
+      hPass(buf, temp);
+      vPass(temp, outBuf, true);
+      outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    }
+    return output;
+  }
+
+  // 2D convolution path (non-separable kernels)
   if (options._linearize) {
     const floatBuf = srgbBufToLinearFloat(buf);
     const outFloat = new Float32Array(floatBuf.length);

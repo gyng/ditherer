@@ -42,21 +42,28 @@ export const linearFloatToSrgbBuf = (floats, out) => {
   }
 };
 
+// Scratch buffers for linearize/delinearize — avoids per-pixel allocations.
+// Safe because callers consume return values immediately in the hot loop.
+const _linOut = [0, 0, 0, 0];
+const _delinOut = [0, 0, 0, 0];
+
 // Single-color: sRGB [0-255] → linear float [0-1]
-export const linearizeColorF = (c) => [
-  SRGB_TO_LINEAR_F[c[0]],
-  SRGB_TO_LINEAR_F[c[1]],
-  SRGB_TO_LINEAR_F[c[2]],
-  c[3] / 255
-];
+export const linearizeColorF = (c) => {
+  _linOut[0] = SRGB_TO_LINEAR_F[c[0]];
+  _linOut[1] = SRGB_TO_LINEAR_F[c[1]];
+  _linOut[2] = SRGB_TO_LINEAR_F[c[2]];
+  _linOut[3] = c[3] / 255;
+  return _linOut;
+};
 
 // Single-color: linear float [0-1] → sRGB [0-255]
-export const delinearizeColorF = (c) => [
-  linearFloatToSrgb(c[0]),
-  linearFloatToSrgb(c[1]),
-  linearFloatToSrgb(c[2]),
-  Math.round(Math.max(0, Math.min(1, c[3])) * 255)
-];
+export const delinearizeColorF = (c) => {
+  _delinOut[0] = linearFloatToSrgb(c[0]);
+  _delinOut[1] = linearFloatToSrgb(c[1]);
+  _delinOut[2] = linearFloatToSrgb(c[2]);
+  _delinOut[3] = Math.round(Math.max(0, Math.min(1, c[3])) * 255);
+  return _delinOut;
+};
 
 // --- Legacy 8-bit linearize (kept for simple filters) ---
 const SRGB_TO_LINEAR_Q = new Uint8Array(256);
