@@ -18,6 +18,7 @@ import s from "./styles.module.css";
 const App = () => {
   const { state, actions, filterList } = useFilter();
   const [dropping, setDropping] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem("ditherer-theme") || "default");
   const [canvasDropping, setCanvasDropping] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [filtering, setFiltering] = useState(false);
@@ -60,6 +61,13 @@ const App = () => {
     }
   });
   const captureDrag = useDraggable(captureDragRef, { defaultPosition: { x: 160, y: 400 } });
+
+  // Apply saved theme on mount
+  useEffect(() => {
+    if (theme === "rainy-day") {
+      document.documentElement.setAttribute("data-theme", "rainy-day");
+    }
+  }, []);
 
   // Create capture video element once
   useEffect(() => {
@@ -389,6 +397,40 @@ const App = () => {
               className={controls.label}
             >
               WASM acceleration
+            </span>
+          </div>
+          <div className={controls.separator} />
+          <div className={controls.checkbox}>
+            <input
+              name="theme"
+              type="checkbox"
+              checked={theme === "rainy-day"}
+              onChange={e => {
+                const newTheme = e.target.checked ? "rainy-day" : "default";
+                setTheme(newTheme);
+                localStorage.setItem("ditherer-theme", newTheme);
+                if (newTheme === "rainy-day") {
+                  document.documentElement.setAttribute("data-theme", "rainy-day");
+                } else {
+                  document.documentElement.removeAttribute("data-theme");
+                }
+              }}
+            />
+            <span
+              role="presentation"
+              onClick={() => {
+                const newTheme = theme === "rainy-day" ? "default" : "rainy-day";
+                setTheme(newTheme);
+                localStorage.setItem("ditherer-theme", newTheme);
+                if (newTheme === "rainy-day") {
+                  document.documentElement.setAttribute("data-theme", "rainy-day");
+                } else {
+                  document.documentElement.removeAttribute("data-theme");
+                }
+              }}
+              className={controls.label}
+            >
+              Rainy Day theme
             </span>
           </div>
           <div className={controls.separator} />

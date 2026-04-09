@@ -6,6 +6,34 @@
   --light-gray: #bfbfbf;
   --gray: #bfbfbf;
   --beautiful-blue: #000080;
+  --beautiful-blue-gradient: #1c85ce;
+  --button-highlight: white;
+  --button-shadow: #808080;
+  --button-dk-shadow: black;
+  --button-text: black;
+  --window-bg: white;
+  --window-text: black;
+  --input-border: #ccc;
+  --separator-top: #808080;
+  --separator-bottom: white;
+}
+
+/* Windows 98 Rainy Day theme */
+[data-theme="rainy-day"] {
+  --bg-color: #4f657d;
+  --light-gray: #8399b1;
+  --gray: #8399b1;
+  --beautiful-blue: #4f657d;
+  --beautiful-blue-gradient: #80b4d0;
+  --button-highlight: #c1ccd9;
+  --button-shadow: #4f657d;
+  --button-dk-shadow: #000000;
+  --button-text: #000000;
+  --window-bg: #ffffff;
+  --window-text: #000000;
+  --input-border: #4f657d;
+  --separator-top: #4f657d;
+  --separator-bottom: #c1ccd9;
 }
 
 html,

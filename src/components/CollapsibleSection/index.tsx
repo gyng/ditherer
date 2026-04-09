@@ -38,8 +38,17 @@ const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible 
     <div className={[s.section, collapsed ? s.collapsed : "", collapsible ? s.collapsible : ""].join(" ")}>
       <div
         className={s.header}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!collapsed}
         onClick={() => {
           if (collapsible || isMobile()) setCollapsed(c => !c);
+        }}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && (collapsible || isMobile())) {
+            e.preventDefault();
+            setCollapsed(c => !c);
+          }
         }}
       >
         <h2>{title}</h2>

@@ -138,9 +138,47 @@ const ChainList = () => {
       ).slice(0, 12)
     : [];
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (e.altKey && activeIndex < chain.length - 1) {
+          actions.chainReorder(activeIndex, activeIndex + 1);
+        } else if (!e.altKey && activeIndex < chain.length - 1) {
+          actions.chainSetActive(activeIndex + 1);
+        }
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (e.altKey && activeIndex > 0) {
+          actions.chainReorder(activeIndex, activeIndex - 1);
+        } else if (!e.altKey && activeIndex > 0) {
+          actions.chainSetActive(activeIndex - 1);
+        }
+        break;
+      case " ":
+        e.preventDefault();
+        if (chain[activeIndex]) actions.chainToggle(chain[activeIndex].id);
+        break;
+      case "Delete":
+      case "Backspace":
+        e.preventDefault();
+        if (chain.length > 1 && chain[activeIndex]) {
+          actions.chainRemove(chain[activeIndex].id);
+        }
+        break;
+    }
+  };
+
   return (
     <div>
-      <div className={s.chainList}>
+      <div
+        className={s.chainList}
+        role="listbox"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        aria-label="Filter chain"
+      >
         {chain.map((entry, index) => {
           const isActive = index === activeIndex;
           const classes = [
@@ -160,6 +198,8 @@ const ChainList = () => {
               key={entry.id}
               className={classes}
               draggable
+              role="option"
+              aria-selected={isActive}
               onClick={() => actions.chainSetActive(index)}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}

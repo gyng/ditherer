@@ -1,9 +1,14 @@
 .chainList {
-  border: 2px inset #808080;
-  background: white;
-  max-height: 200px;
+  border: 2px inset var(--input-border, #808080);
+  background: var(--window-bg, white);
+  max-height: 300px;
   overflow-y: auto;
   margin-bottom: 4px;
+}
+
+.chainList:focus-visible {
+  outline: 2px dotted var(--button-text, black);
+  outline-offset: -2px;
 }
 
 .entry {
@@ -164,15 +169,17 @@
   width: 100%;
   padding: 3px 5px;
   font-size: 12px;
-  border: 2px inset #ccc;
+  border: 2px inset var(--input-border, #ccc);
+  background: var(--window-bg, white);
+  color: var(--window-text, black);
   box-sizing: border-box;
 }
 
 .searchResults {
   position: absolute;
   z-index: 100;
-  background: white;
-  border: 1px solid #808080;
+  background: var(--window-bg, white);
+  border: 1px solid var(--separator-top, #808080);
   width: 100%;
   max-height: 180px;
   overflow-y: auto;
@@ -216,7 +223,7 @@
 
 @media (max-width: 768px) {
   .chainList {
-    max-height: 120px;
+    max-height: 160px;
   }
 
   .entry {
