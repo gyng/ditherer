@@ -1,5 +1,6 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { THEMES } from "palettes/user";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -9,8 +10,8 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  color1: { type: COLOR, default: [0, 80, 180] },
-  color2: { type: COLOR, default: [230, 50, 80] },
+  color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3) },
+  color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3) },
   misregX: { type: RANGE, range: [0, 20], step: 1, default: 4 },
   misregY: { type: RANGE, range: [0, 20], step: 1, default: 2 },
   grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },

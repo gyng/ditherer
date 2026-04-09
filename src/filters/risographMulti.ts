@@ -1,12 +1,13 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { THEMES } from "palettes/user";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  color1: { type: COLOR, default: [0, 80, 180] },
-  color2: { type: COLOR, default: [230, 50, 80] },
-  color3: { type: COLOR, default: [255, 200, 0] },
-  color4: { type: COLOR, default: [0, 150, 80] },
+  color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3) },
+  color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3) },
+  color3: { type: COLOR, default: THEMES.RISOGRAPH[4].slice(0, 3) },
+  color4: { type: COLOR, default: THEMES.RISOGRAPH[3].slice(0, 3) },
   layers: { type: RANGE, range: [2, 4], step: 1, default: 3 },
   misregistration: { type: RANGE, range: [0, 20], step: 1, default: 5 },
   grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25 },

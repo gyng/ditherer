@@ -1,7 +1,7 @@
 import React from "react";
 import { RgbaColorPicker } from "react-colorful";
 
-import { THEMES } from "palettes/user";
+import { THEMES, THEME_CATEGORIES } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
 import ModalInput from "components/ModalInput";
 
@@ -127,14 +127,25 @@ export default class ColorArray extends React.Component<any, any> {
           this.props.onSetPaletteOption("colors", THEMES[e.target.value])
         }
       >
-        {Object.entries(THEMES).map(e => {
-          const [key, val] = e;
-          return (
-            <option key={key} value={key} data-colors={val}>
-              {key}
+        {Object.entries(THEME_CATEGORIES).map(([cat, entries]) => (
+          <optgroup key={cat} label={cat}>
+            {entries
+              .filter(e => THEMES[e.key])
+              .map(e => (
+                <option key={e.key} value={e.key} title={e.desc}>
+                  {e.key}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+        {/* User-saved palettes (prefixed with 🎨) not in categories */}
+        {Object.keys(THEMES)
+          .filter(k => k.startsWith("🎨"))
+          .map(k => (
+            <option key={k} value={k}>
+              {k}
             </option>
-          );
-        })}
+          ))}
         <option key={customThemeName} value={customThemeName} disabled>
           Custom
         </option>

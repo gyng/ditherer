@@ -35,7 +35,7 @@
   display: flex;
   flex-direction: column;
   background: var(--light-gray);
-  min-width: 250px;
+  min-width: 270px;
   width: 10vw;
   padding: 15px;
 }
@@ -61,7 +61,7 @@
 }
 
 .chrome .captureSection {
-  max-width: 250px;
+  max-width: 270px;
 }
 
 .chrome .perfStats {

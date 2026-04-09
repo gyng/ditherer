@@ -18,10 +18,16 @@ export interface Palette {
   defaults: any;
 }
 
+export interface AnimateOption extends OptionType {
+  type: "ACTION";
+  label: string;
+  action: (actions: any, inputCanvas: any, filterFunc: any, options: any) => void;
+}
+
 export interface Filter {
   name: string;
   func: (input: HTMLCanvasElement, options?: any, dispatch?: any) => HTMLCanvasElement | string | void;
-  optionTypes: Record<string, OptionType>;
+  optionTypes: Record<string, OptionType> & { animate?: AnimateOption; animSpeed?: OptionType };
   options: any;
   defaults: any;
 }

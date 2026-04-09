@@ -130,6 +130,14 @@
   color: red;
 }
 
+.removeBtn.animActive {
+  color: #4fc3f7;
+}
+
+.removeBtn.animActive:hover {
+  color: #f44336;
+}
+
 .removeBtn:active {
   border: none;
   box-shadow: none;
@@ -150,6 +158,28 @@
   font-weight: bold;
   min-height: unset;
   padding: 3px 8px;
+}
+
+.presetSelect {
+  flex: 0 0 auto !important;
+  font-weight: bold;
+  min-height: unset;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  text-align: center;
+  /* Match global button styling */
+  background-color: var(--light-gray);
+  border-left: 2px outset var(--button-highlight);
+  border-top: 2px outset var(--button-highlight);
+  border-bottom: 1px outset var(--button-shadow);
+  border-right: 1px outset var(--button-shadow);
+  box-shadow: 1px 1px 0 var(--button-dk-shadow);
+  color: var(--button-text);
+  padding: 3px 8px;
+  margin: 1px;
+  font: inherit;
+  width: 27px;
 }
 
 .dragging {
@@ -221,7 +251,39 @@
   min-height: 2.6em;
 }
 
+.preview {
+  position: fixed;
+  z-index: 200;
+  pointer-events: none;
+  border: 2px outset var(--input-border, #d4d0c8);
+  background: var(--window-bg, white);
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.3);
+  animation: previewFadeIn 0.12s ease-out;
+}
+
+.previewTitle {
+  font-size: 10px;
+  padding: 1px 4px;
+  background: var(--beautiful-blue, #0a246a);
+  color: white;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.previewCanvas {
+  display: block;
+}
+
+@keyframes previewFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 768px) {
+  .preview {
+    display: none;
+  }
+
   .chainList {
     max-height: 160px;
   }

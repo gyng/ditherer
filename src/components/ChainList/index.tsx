@@ -84,30 +84,81 @@ const getRandomFilter = () => {
   return { displayName: entry.displayName, filter: { ...base, options, defaults: options } };
 };
 
-// Chain presets: curated multi-filter combos
-const CHAIN_PRESETS: { name: string; filters: string[] }[] = [
-  { name: "Retro TV", filters: ["VHS emulation", "CRT emulation", "Vignette"] },
-  { name: "Lo-fi Print", filters: ["Sepia", "Halftone", "Film grain"] },
-  { name: "Glitch Art", filters: ["Pixelsort", "Chromatic aberration", "Scan line shift", "JPEG artifact"] },
-  { name: "Watercolor", filters: ["Gaussian blur", "Kuwahara", "Watercolor bleed", "Posterize edges"] },
-  { name: "Noir", filters: ["Grayscale", "Levels", "Sharpen", "Vignette", "Film grain"] },
-  { name: "Neon", filters: ["Invert", "Edge glow", "Bloom", "Chromatic aberration"] },
-  { name: "Risograph", filters: ["Posterize", "Risograph (multi-layer)", "Film grain"] },
-  { name: "Daguerreotype", filters: ["Daguerreotype", "Vignette", "Film grain"] },
-  { name: "Surveillance", filters: ["Grayscale", "Night vision", "Scanline", "JPEG artifact"] },
-  { name: "Newsprint", filters: ["Grayscale", "Newspaper", "Sharpen"] },
-  { name: "Cyberpunk", filters: ["Chromatic posterize", "Chromatic aberration", "Bloom", "CRT emulation"] },
-  { name: "Faded Film", filters: ["Sepia", "Light leak", "Film grain", "Vignette"] },
-  { name: "Thermal", filters: ["Thermal camera", "Posterize", "Bloom"] },
-  { name: "Pixel Art", filters: ["Pixelate", "Quantize (No dithering)", "Pixel art upscale"] },
-  { name: "Sketch", filters: ["Pencil sketch", "Sharpen", "Vignette"] },
-  { name: "Photocopier", filters: ["Photocopier", "Film grain"] },
-  { name: "Corrupted", filters: ["Data bend", "Glitch blocks", "Chromatic aberration", "Analog static"] },
-  { name: "Polaroid", filters: ["Polaroid", "Vignette", "Film grain"] },
-  { name: "Data Corruption", filters: ["Glitch blocks", "Data bend", "JPEG artifact"] },
-  { name: "Vintage Photo", filters: ["Sepia", "Film grain", "Vignette", "Light leak"] },
-  { name: "Blueprint", filters: ["Grayscale", "Contour lines", "Invert"] },
+// Chain presets: curated multi-filter combos, alphabetized within each category
+const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: string }[] = [
+  // Dithering
+  { name: "Amber Terminal", desc: "Monochrome amber phosphor dithering with CRT glow", filters: ["Ordered (Amber CRT)", "Scanline", "Bloom"], category: "Dithering" },
+  { name: "Gameboy Screen", desc: "4-shade green LCD with visible scan lines and edge darkening", filters: ["Ordered (Gameboy)", "Scanline", "Vignette"], category: "Dithering" },
+  { name: "PICO-8 Demake", desc: "Chunky pixels quantized to the PICO-8 16-color palette", filters: ["Pixelate", "Ordered (PICO-8)", "Sharpen"], category: "Dithering" },
+  { name: "Vaporwave Dither", desc: "Pastel error-diffused dithering with dreamy bloom and color fringe", filters: ["Floyd-Steinberg (Vaporwave test)", "Bloom", "Chromatic aberration"], category: "Dithering" },
+
+  // Color
+  { name: "Duotone Poster", desc: "Two-tone flat poster with bold tonal contrast", filters: ["Grayscale", "Duotone", "Posterize", "Sharpen"], category: "Color" },
+  { name: "Gradient Remap", desc: "Map luminance to a custom color gradient with soft glow", filters: ["Grayscale", "Gradient map", "Bloom"], category: "Color" },
+  { name: "HDR Tone Map", desc: "Aggressive local contrast with dodged highlights and burned shadows", filters: ["CLAHE", "Levels", "Dodge / Burn", "Sharpen"], category: "Color" },
+  { name: "Infrared Film", desc: "False-color IR — white foliage, dark skies, pink cast", filters: ["Infrared photography", "Color balance", "Film grain"], category: "Color" },
+  { name: "Solarized", desc: "Sabattier effect — partial tone reversal with shifted hues", filters: ["Solarize", "Color shift", "Levels"], category: "Color" },
+
+  // Stylize
+  { name: "ASCII Art", desc: "Render the image as a grid of ASCII characters sized by luminance", filters: ["ASCII", "Sharpen"], category: "Stylize" },
+  { name: "Currency Engraving", desc: "Fine parallel lines on aged paper — banknote illustration style", filters: ["Engraving", "Sharpen", "Sepia"], category: "Stylize" },
+  { name: "Dot Matrix Printer", desc: "Fixed-pitch impact dots on warm aged paper", filters: ["Dot matrix", "Sepia", "Film grain"], category: "Stylize" },
+  { name: "Lo-fi Print", desc: "Warm-toned halftone print with film grain texture", filters: ["Sepia", "Halftone", "Film grain"], category: "Stylize" },
+  { name: "Mosaic", desc: "Irregular tile grid with grout lines — ancient mosaic look", filters: ["Mosaic tile", "Sharpen", "Vignette"], category: "Stylize" },
+  { name: "Neon", desc: "Glowing edge outlines on dark background with color fringe", filters: ["Invert", "Edge glow", "Bloom", "Chromatic aberration"], category: "Stylize" },
+  { name: "Pixel Art", desc: "Chunky pixels quantized to limited colors then upscaled crisp", filters: ["Pixelate", "Quantize (No dithering)", "Pixel art upscale"], category: "Stylize" },
+  { name: "Risograph", desc: "Multi-layer spot color separation with misregistration and grain", filters: ["Posterize", "Risograph (multi-layer)", "Film grain"], category: "Stylize" },
+  { name: "Sketch", desc: "Pencil strokes following edge flow with soft vignette", filters: ["Pencil sketch", "Sharpen", "Vignette"], category: "Stylize" },
+  { name: "Stained Glass", desc: "Voronoi cells with dark leading and glowing colored glass", filters: ["Stained glass", "Edge glow", "Bloom"], category: "Stylize" },
+  { name: "Watercolor", desc: "Soft wet-on-wet painting with outlined edges", filters: ["Gaussian blur", "Kuwahara", "Watercolor bleed", "Posterize edges"], category: "Stylize" },
+  { name: "Woodblock Print", desc: "Japanese woodblock style — sumi ink carved lines on cream", filters: ["Woodcut (Ukiyo-e)", "Sharpen", "Vignette"], category: "Stylize" },
+
+  // Distort
+  { name: "Earthquake", desc: "Violent displacement — Perlin warping, sine waves, and shaky rows", filters: ["Turbulence", "Wave", "Jitter"], category: "Distort" },
+  { name: "Funhouse Mirror", desc: "Carnival mirror — bulging center with barrel edges and asymmetric stretch", filters: ["Spherize", "Lens distortion", "Stretch"], category: "Distort" },
+  { name: "Kaleidoscope", desc: "Radial symmetry with prismatic color splitting and soft glow", filters: ["Mirror / Kaleidoscope", "Chromatic aberration", "Bloom"], category: "Distort" },
+  { name: "Melt", desc: "Organic pixel melting — warped, smeared, and dripping by luminance", filters: ["Liquify", "Smudge", "Pixel drift"], category: "Distort" },
+
+  // Glitch
+  { name: "Bit Rot", desc: "Digital decay — crushed bit depth, exploding pixels, and block artifacts", filters: ["Bit crush", "Pixel scatter", "JPEG artifact"], category: "Glitch" },
+  { name: "Broadcast Failure", desc: "Corrupted broadcast — smeared I-frames, split channels, shifted lines", filters: ["Datamosh", "Channel separation", "Scan line shift"], category: "Glitch" },
+  { name: "Corrupted", desc: "Audio-mangled data with block artifacts and static noise", filters: ["Data bend", "Glitch blocks", "Chromatic aberration", "Analog static"], category: "Glitch" },
+  { name: "Data Corruption", desc: "Broken compression — smeared blocks and DCT artifacts", filters: ["Glitch blocks", "Data bend", "JPEG artifact"], category: "Glitch" },
+  { name: "Glitch Art", desc: "Sorted pixel streaks, split channels, shifted scan lines", filters: ["Pixelsort", "Chromatic aberration", "Scan line shift", "JPEG artifact"], category: "Glitch" },
+  { name: "VHS Pause", desc: "Frozen VHS frame — tracking errors, torn fields, and static snow", filters: ["VHS emulation", "Interlace tear", "Analog static"], category: "Glitch" },
+
+  // Simulate
+  { name: "Blueprint", desc: "Architectural line drawing — white lines on blue", filters: ["Grayscale", "Contour lines", "Invert"], category: "Simulate" },
+  { name: "Cyberpunk", desc: "Neon-soaked CRT with chromatic split and bloom glow", filters: ["Chromatic posterize", "Chromatic aberration", "Bloom", "CRT emulation"], category: "Simulate" },
+  { name: "Daguerreotype", desc: "1839 silver-plate photography with soft vignette and grain", filters: ["Daguerreotype", "Vignette", "Film grain"], category: "Simulate" },
+  { name: "Fax Machine", desc: "Thermal fax output — binary with scan artifacts and speckle", filters: ["Fax machine", "Film grain", "Sharpen"], category: "Simulate" },
+  { name: "Film Projector", desc: "Flickering 8mm home movie with gate weave and sprocket burns", filters: ["Projection film", "Film grain", "Vignette", "Light leak"], category: "Simulate" },
+  { name: "Mavica Photo", desc: "Sony Mavica floppy disk camera — 640x480, heavy JPEG, CCD noise", filters: ["Mavica FD7", "JPEG artifact", "Film grain"], category: "Simulate" },
+  { name: "Newsprint", desc: "Black-and-white newspaper with coarse halftone dots", filters: ["Grayscale", "Newspaper", "Sharpen"], category: "Simulate" },
+  { name: "Photocopier", desc: "High-contrast office copier with speckle and generation loss", filters: ["Photocopier", "Film grain"], category: "Simulate" },
+  { name: "Receipt Printer", desc: "Narrow thermal receipt — low-res dots with ink fade", filters: ["Thermal printer", "Film grain"], category: "Simulate" },
+  { name: "Retro TV", desc: "VHS tracking errors, CRT phosphor mask, and corner vignette", filters: ["VHS emulation", "CRT emulation", "Vignette"], category: "Simulate" },
+  { name: "Surveillance", desc: "Grainy security camera feed with night vision and compression", filters: ["Grayscale", "Night vision", "Scanline", "JPEG artifact"], category: "Simulate" },
+  { name: "Thermal", desc: "FLIR-style heat map with posterized temperature bands", filters: ["Thermal camera", "Posterize", "Bloom"], category: "Simulate" },
+
+  // Photo
+  { name: "Faded Film", desc: "Sun-bleached emulsion with light leaks and soft grain", filters: ["Sepia", "Light leak", "Film grain", "Vignette"], category: "Photo" },
+  { name: "Noir", desc: "High-contrast black and white with grain and vignette", filters: ["Grayscale", "Levels", "Sharpen", "Vignette", "Film grain"], category: "Photo" },
+  { name: "Polaroid", desc: "Instant film look with faded edges and subtle grain", filters: ["Polaroid", "Vignette", "Film grain"], category: "Photo" },
+  { name: "Vintage Photo", desc: "Warm sepia toning with chemical grain and light bleed", filters: ["Sepia", "Film grain", "Vignette", "Light leak"], category: "Photo" },
+
+  // Blur & Edges
+  { name: "Dream Sequence", desc: "Soft vaseline-lens glow with warm light bleed — flashback cinema", filters: ["Gaussian blur", "Bloom", "Light leak", "Sepia"], category: "Blur & Edges" },
+  { name: "Embossed Metal", desc: "Raised relief surface — metallic highlight and shadow from edges", filters: ["Emboss", "Levels", "Sharpen"], category: "Blur & Edges" },
+  { name: "Miniature World", desc: "Fake tilt-shift diorama — selective focus makes scenes look tiny", filters: ["Tilt shift", "Bloom", "Vignette", "Levels"], category: "Blur & Edges" },
+
+  // Advanced
+  { name: "Cellular Life", desc: "Conway's Game of Life with neon-glowing cell boundaries", filters: ["Cellular automata", "Edge glow", "Bloom"], category: "Advanced" },
+  { name: "Flow Painting", desc: "Curl noise streamlines blended with thick painterly strokes", filters: ["Flow field", "Oil painting", "Bloom"], category: "Advanced" },
+  { name: "Fractal Overlay", desc: "Mandelbrot fractal color-mapped and blended with the source image", filters: ["Fractal", "Gradient map", "Blend"], category: "Advanced" },
 ];
+
+const PRESET_CATEGORIES = [...new Set(CHAIN_PRESETS.map((p) => p.category))];
 
 const ChainList = () => {
   const { state, actions } = useFilter();
@@ -304,6 +355,20 @@ const ChainList = () => {
                   {stepTime.ms.toFixed(0)}ms
                 </span>
               )}
+              {entry.filter?.optionTypes?.animate && (
+                <button
+                  className={`${s.removeBtn} ${actions.isAnimating() ? s.animActive : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    entry.filter.optionTypes.animate.action(
+                      actions, state.inputCanvas, entry.filter.func, entry.filter.options
+                    );
+                  }}
+                  title={actions.isAnimating() ? "Stop animation" : "Play animation"}
+                >
+                  {actions.isAnimating() ? "\u23F9" : "\u25B6"}
+                </button>
+              )}
               <button
                 className={s.removeBtn}
                 disabled={chain.length <= 1}
@@ -454,25 +519,18 @@ const ChainList = () => {
           }}
           title="Load a chain preset"
         >
-          <option value="" disabled>P</option>
-          {CHAIN_PRESETS.map((p) => (
-            <option key={p.name} value={p.name}>{p.name}</option>
+          <option value="" disabled>&#9733;</option>
+          {PRESET_CATEGORIES.map((cat) => (
+            <optgroup key={cat} label={cat}>
+              {CHAIN_PRESETS
+                .filter((p) => p.category === cat)
+                .map((p) => (
+                  <option key={p.name} value={p.name} title={p.desc}>{p.name}</option>
+                ))}
+            </optgroup>
           ))}
         </select>
-        <button
-          className={s.addBtn}
-          onClick={() => actions.copyChainToClipboard()}
-          title="Copy chain to clipboard"
-        >
-          C
-        </button>
-        <button
-          className={s.addBtn}
-          onClick={() => actions.pasteChainFromClipboard()}
-          title="Paste chain from clipboard"
-        >
-          V
-        </button>
+
       </div>
 
       {/* Active filter description */}
