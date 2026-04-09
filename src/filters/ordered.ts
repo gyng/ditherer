@@ -5,7 +5,6 @@ import {
   cloneCanvas,
   fillBufferPixel,
   getBufferIndex,
-  rgba,
   scaleMatrix,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
@@ -194,6 +193,9 @@ const scaleThresholdMap = (
   return out;
 };
 
+// Scratch buffer reused across getOrderedColor calls — avoids per-pixel allocations
+const _orderedOut = [0, 0, 0, 0];
+
 const getOrderedColor = (
   color,
   levels,
@@ -204,17 +206,18 @@ const getOrderedColor = (
   const thresholdValue = threshold[ty][tx];
 
   if (thresholdValue == null) {
-    return rgba(255, 255, 0, 255); // error colour
+    _orderedOut[0] = 255; _orderedOut[1] = 255; _orderedOut[2] = 0; _orderedOut[3] = 255;
+    return _orderedOut;
   }
 
   const step = 255 / (levels - 1);
+  const bias = step * (thresholdValue - 0.5);
 
-  return color.map((c, i) => {
-    if (i === 3) return c; // alpha channel
-    const newColor = c + step * (thresholdValue - 0.5);
-    const bucket = Math.round(newColor / step);
-    return Math.round(bucket * step);
-  });
+  _orderedOut[0] = Math.round(Math.round((color[0] + bias) / step) * step);
+  _orderedOut[1] = Math.round(Math.round((color[1] + bias) / step) * step);
+  _orderedOut[2] = Math.round(Math.round((color[2] + bias) / step) * step);
+  _orderedOut[3] = color[3];
+  return _orderedOut;
 };
 
 export const optionTypes = {
@@ -341,13 +344,12 @@ const ordered = (
         const i = getBufferIndex(x, y, input.width);
         const thresholdValue = thresholdMapScaled[tiy][tix];
 
-        const pixel = [floatBuf[i], floatBuf[i + 1], floatBuf[i + 2], floatBuf[i + 3]];
-        const orderedColor = pixel.map((c, ci) => {
-          if (ci === 3) return c;
-          const newColor = c + stepF * (thresholdValue - 0.5);
-          const bucket = Math.round(newColor / stepF);
-          return Math.round(bucket * stepF * 1e6) / 1e6;
-        });
+        const bias = stepF * (thresholdValue - 0.5);
+        _orderedOut[0] = Math.round(Math.round((floatBuf[i] + bias) / stepF) * stepF * 1e6) / 1e6;
+        _orderedOut[1] = Math.round(Math.round((floatBuf[i + 1] + bias) / stepF) * stepF * 1e6) / 1e6;
+        _orderedOut[2] = Math.round(Math.round((floatBuf[i + 2] + bias) / stepF) * stepF * 1e6) / 1e6;
+        _orderedOut[3] = floatBuf[i + 3];
+        const orderedColor = _orderedOut;
 
         const color = linearPaletteGetColor(palette, orderedColor, palette.options);
         fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
@@ -359,11 +361,12 @@ const ordered = (
     const W = input.width;
     const H = input.height;
     const ditheredBuf = new Uint8Array(buf.length);
+    const _pix = [0, 0, 0, 0];
     for (let x = 0; x < W; x += 1) {
       for (let y = 0; y < H; y += 1) {
         const i = getBufferIndex(x, y, W);
-        const pixel = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-        const oc = getOrderedColor(pixel, levels, x % thresholdMapWidth, y % thresholdMapHeight, thresholdMapScaled);
+        _pix[0] = buf[i]; _pix[1] = buf[i + 1]; _pix[2] = buf[i + 2]; _pix[3] = buf[i + 3];
+        const oc = getOrderedColor(_pix, levels, x % thresholdMapWidth, y % thresholdMapHeight, thresholdMapScaled);
         ditheredBuf[i] = oc[0]; ditheredBuf[i + 1] = oc[1];
         ditheredBuf[i + 2] = oc[2]; ditheredBuf[i + 3] = oc[3];
       }
@@ -379,11 +382,13 @@ const ordered = (
       buf.set(wasmResult);
     } else {
       // JS fallback — per-pixel palette match
+      const _palPix = [0, 0, 0, 0];
       for (let x = 0; x < W; x += 1) {
         for (let y = 0; y < H; y += 1) {
           const i = getBufferIndex(x, y, W);
-          const pixel = [ditheredBuf[i], ditheredBuf[i + 1], ditheredBuf[i + 2], ditheredBuf[i + 3]];
-          const color = srgbPaletteGetColor(palette, pixel, palette.options);
+          _palPix[0] = ditheredBuf[i]; _palPix[1] = ditheredBuf[i + 1];
+          _palPix[2] = ditheredBuf[i + 2]; _palPix[3] = ditheredBuf[i + 3];
+          const color = srgbPaletteGetColor(palette, _palPix, palette.options);
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
         }
       }

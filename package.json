@@ -12,7 +12,7 @@
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "bench": "vitest bench test/perf/colorDistanceBench",
+    "bench": "vitest bench test/perf",
     "bench:compare": "node test/perf/compareBench.mjs",
     "gallery": "npx vite-node scripts/generate-gallery.ts"
   },

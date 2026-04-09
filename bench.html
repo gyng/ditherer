@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Ditherer — Pipeline Benchmark</title>
+  <meta charset="utf-8">
+  <style>
+    body {
+      background: #1a1a2e;
+      color: #c0c0c0;
+      font-family: "Consolas", "Monaco", monospace;
+      font-size: 13px;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #38bdf8;
+      font-size: 16px;
+      margin: 0 0 8px;
+    }
+    p {
+      color: #808080;
+      margin: 0 0 16px;
+      font-size: 12px;
+    }
+    pre {
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>ditherer pipeline bench</h1>
+  <p>Running benchmarks with real canvas PNG encode/decode. Results appear below.</p>
+  <pre id="log">Starting...\n</pre>
+  <script type="module" src="/src/bench.ts"></script>
+</body>
+</html>

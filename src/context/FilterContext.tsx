@@ -1,12 +1,11 @@
-import React, { createContext, useReducer, useCallback, useEffect, useRef } from "react";
+import React, { useReducer, useCallback, useEffect, useRef } from "react";
 import filterReducer, { initialState, ChainEntry } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
 import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
-
-export const FilterContext = createContext<any>(null);
+import { FilterContext } from "./filterContextValue";
 
 // Compute a scale that fits the image within the available canvas area
 // and caps total pixel count for performance.
@@ -277,15 +276,8 @@ export const FilterProvider = ({ children }) => {
 
   const emitOutput = (canvas, totalTime, stepTimes) => {
     frameCountRef.current += 1;
-    const outputImage = new Image();
-    outputImage.onload = () => {
-      filteringRef.current = false;
-      dispatch({ type: "FILTER_IMAGE", image: outputImage, frameTime: totalTime, stepTimes });
-    };
-    outputImage.onerror = () => {
-      filteringRef.current = false;
-    };
-    outputImage.src = canvas.toDataURL("image/png");
+    filteringRef.current = false;
+    dispatch({ type: "FILTER_IMAGE", image: canvas, frameTime: totalTime, stepTimes });
   };
 
   const filterImageAsync = (input) => {
