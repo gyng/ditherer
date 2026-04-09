@@ -51,6 +51,14 @@ import polaroid from "./polaroid";
 import nokiaLcd from "./nokiaLcd";
 import deepFry from "./deepFry";
 import ultrasound from "./ultrasound";
+import contourLines from "./contourLines";
+import delaunay from "./delaunay";
+import lightLeak from "./lightLeak";
+import mezzotint from "./mezzotint";
+import contourMap from "./contourMap";
+import filmBurn from "./filmBurn";
+import glitchBlocks from "./glitchBlocks";
+import colorHalftoneSeparate from "./colorHalftoneSeparate";
 import flowField from "./flowField";
 import lensFlare from "./lensFlare";
 import dodgeBurn from "./dodgeBurn";
@@ -330,7 +338,15 @@ export const filterIndex = [
   dodgeBurn,
   despeckle,
   smudge,
-  ditherGradient
+  ditherGradient,
+  contourLines,
+  delaunay,
+  lightLeak,
+  mezzotint,
+  contourMap,
+  filmBurn,
+  glitchBlocks,
+  colorHalftoneSeparate
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -541,6 +557,8 @@ export const filterList = [
   { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
   { displayName: "Channel mixer", filter: channelMixer, category: "Color", description: "Arbitrary RGB matrix multiplication — swap, mix, or invert channels" },
   { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
+  { displayName: "Color halftone (RGB)", filter: colorHalftoneSeparate, category: "Color", description: "Split RGB channels into separate halftone dots with registration offset" },
+  { displayName: "Contour map", filter: contourMap, category: "Color", description: "Topographic-style elevation bands with distinct colors per luminance level" },
   { displayName: "Dodge / Burn", filter: dodgeBurn, category: "Color", description: "Classic darkroom technique — dodge lightens shadows, burn darkens highlights" },
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
@@ -553,8 +571,11 @@ export const filterList = [
   // ── Stylize ──
   { displayName: "ASCII", filter: ascii, category: "Stylize", description: "Render the image as ASCII characters based on brightness" },
   { displayName: "CMYK halftone", filter: cmykHalftone, category: "Stylize", description: "Proper CMYK separation with independent screen angles per channel" },
+  { displayName: "Contour lines", filter: contourLines, category: "Stylize", description: "Topographic contour lines from luminance — lines only, filled bands, or both" },
   { displayName: "Crosshatch", filter: crosshatch, category: "Stylize", description: "Simulate pen-and-ink crosshatching with luminance-driven line density" },
+  { displayName: "Mezzotint", filter: mezzotint, category: "Stylize", description: "Fine random dot texture — density encodes luminance, a specific printmaking technique" },
   { displayName: "Mosaic tile", filter: mosaicTile, category: "Stylize", description: "Pixelate with grout lines and per-tile color jitter" },
+  { displayName: "Delaunay triangulation", filter: delaunay, category: "Stylize", description: "Low-poly triangle mesh with edge-weighted point placement" },
   { displayName: "Dot matrix", filter: dotMatrix, category: "Stylize", description: "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors" },
   { displayName: "Engraving", filter: engraving, category: "Stylize", description: "Parallel lines whose thickness varies with luminance — currency/illustration style" },
   {
@@ -663,6 +684,7 @@ export const filterList = [
       }
     }
   },
+  { displayName: "Glitch blocks", filter: glitchBlocks, category: "Glitch", description: "Rectangular block displacement — simulates GPU memory corruption" },
   { displayName: "Data bend", filter: dataBend, category: "Glitch", description: "Treat pixel data as audio — apply echo, reverb, bitcrush, or reverse" },
   { displayName: "Interlace tear", filter: interlaceTear, category: "Glitch", description: "Even/odd row offset simulating torn interlaced video" },
   { displayName: "Pixel scatter", filter: pixelScatter, category: "Glitch", description: "Explode pixels outward from edges — disintegration effect" },
@@ -675,6 +697,8 @@ export const filterList = [
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
   { displayName: "Infrared photography", filter: infrared, category: "Simulate", description: "IR film look — foliage turns white/pink, skies go dark, color shift" },
   { displayName: "LCD display", filter: lcdDisplay, category: "Simulate", description: "Visible sub-pixel grid — RGB stripe, PenTile, or diamond layout" },
+  { displayName: "Film burn", filter: filmBurn, category: "Simulate", description: "Aged film stock — warm edge cast, overexposed hotspots, grain intensification" },
+  { displayName: "Light leak", filter: lightLeak, category: "Simulate", description: "Film light leak — warm chromatic glow bleeding from edges/corners" },
   { displayName: "Fax machine", filter: faxMachine, category: "Simulate", description: "Low-res binary with scan line artifacts, thermal paper yellowing, and compression noise" },
   { displayName: "Lenticular", filter: lenticular, category: "Simulate", description: "Holographic rainbow sheen strips that shift with a simulated angle" },
   { displayName: "Newspaper", filter: newspaper, category: "Simulate", description: "Coarse halftone on yellowed paper with fold creases and ink smear" },
