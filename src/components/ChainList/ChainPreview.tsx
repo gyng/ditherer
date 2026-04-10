@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import s from "./styles.module.css";
 
 const MAX_SIZE = 200;
-const LIVE_FPS = 10; // Throttle live preview updates
 
 interface ChainPreviewProps {
   sourceCanvas: HTMLCanvasElement;
@@ -22,8 +21,9 @@ const ChainPreview = ({ sourceCanvas, top, left, stepNumber, pinned = false }: C
   const width = aspect >= 1 ? MAX_SIZE : Math.round(MAX_SIZE * aspect);
   const height = aspect >= 1 ? Math.round(MAX_SIZE / aspect) : MAX_SIZE;
 
-  // Live-update the preview canvas, throttled to LIVE_FPS
+  // Live-update the preview canvas every frame via rAF
   useEffect(() => {
+    let rafId: number;
     const draw = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -31,15 +31,11 @@ const ChainPreview = ({ sourceCanvas, top, left, stepNumber, pinned = false }: C
       if (!ctx) return;
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(sourceCanvas, 0, 0, width, height);
+      rafId = requestAnimationFrame(draw);
     };
-
-    draw(); // Draw immediately on mount/change
-
-    if (!pinned) return; // Only live-update when pinned
-
-    const interval = setInterval(draw, 1000 / LIVE_FPS);
-    return () => clearInterval(interval);
-  }, [sourceCanvas, width, height, pinned]);
+    rafId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafId);
+  }, [sourceCanvas, width, height]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!pinned) return;
