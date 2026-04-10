@@ -213,7 +213,7 @@
 
 .preview {
   position: fixed;
-  z-index: 200;
+  z-index: 9000;
   pointer-events: none;
   border: 2px outset var(--input-border, #d4d0c8);
   background: var(--window-bg, white);
