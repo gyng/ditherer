@@ -302,9 +302,7 @@ export const FilterProvider = ({ children }) => {
             outCtx.getImageData(0, 0, output.width, output.height).data
           );
         }
-        if (!isAnimating) {
-          cachedOutputsRef.current.set(entry.id, output);
-        }
+        cachedOutputsRef.current.set(entry.id, output);
         canvas = output;
       }
     }
@@ -411,16 +409,18 @@ export const FilterProvider = ({ children }) => {
           const pixels = new Uint8ClampedArray(buf as ArrayBuffer);
           prevOutputMapRef.current.set(entryId, pixels);
 
-          // Reconstruct intermediate canvas for step previews
-          if (!isAnimating) {
-            const stepCanvas = document.createElement("canvas");
+          // Reconstruct intermediate canvas for step previews.
+          // Reuse existing canvas to avoid allocation churn during animation.
+          let stepCanvas = cachedOutputsRef.current.get(entryId);
+          if (!stepCanvas || stepCanvas.width !== result.width || stepCanvas.height !== result.height) {
+            stepCanvas = document.createElement("canvas");
             stepCanvas.width = result.width;
             stepCanvas.height = result.height;
-            stepCanvas.getContext("2d")!.putImageData(
-              new ImageData(new Uint8ClampedArray(pixels), result.width, result.height), 0, 0
-            );
-            cachedOutputsRef.current.set(entryId, stepCanvas);
           }
+          stepCanvas.getContext("2d")!.putImageData(
+            new ImageData(new Uint8ClampedArray(pixels), result.width, result.height), 0, 0
+          );
+          cachedOutputsRef.current.set(entryId, stepCanvas);
         }
 
         const workerStepTimes = [...stepTimes, ...result.stepTimes];
