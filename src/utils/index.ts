@@ -880,3 +880,7 @@ export const cloneCanvas = (
 
   return clone as HTMLCanvasElement;
 };
+
+export * from "./sampling";
+export * from "./motionVectors";
+export * from "./workerFrames";

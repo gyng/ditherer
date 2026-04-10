@@ -78,7 +78,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   // Detect temporal/animated filters in the active chain (mirrors MAIN_THREAD_FILTERS in FilterContext)
   const TEMPORAL_FILTERS = new Set([
     "Glitch", "Motion Detect", "Long Exposure", "Frame Blend",
-    "Temporal Edge", "Phosphor Decay", "Matrix Rain",
+    "Temporal Edge", "Phosphor Decay", "Matrix Rain", "Infinite Call Windows",
   ]);
   const hasAnimatedFilter = (state.chain || []).some(
     (e: any) => e.enabled !== false && TEMPORAL_FILTERS.has(e.filter?.name)

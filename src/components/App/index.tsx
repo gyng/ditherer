@@ -16,6 +16,63 @@ import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
+const TEST_IMAGE_ASSETS = [
+  "/test-assets/image/BoatsColor.png",
+  "/test-assets/image/DSCF0491.JPG@800.avif",
+  "/test-assets/image/DSCF1248.JPG@1600.avif",
+  "/test-assets/image/ZeldaColor.png",
+  "/test-assets/image/airplane.png",
+  "/test-assets/image/baboon.png",
+  "/test-assets/image/barbara.png",
+  "/test-assets/image/fruits.png",
+  "/test-assets/image/goldhill.png",
+  "/test-assets/image/lenna.png",
+  "/test-assets/image/monarch.png",
+  "/test-assets/image/pepper.png",
+  "/test-assets/image/sailboat.png",
+  "/test-assets/image/soccer.png",
+];
+
+const TEST_VIDEO_ASSETS = [
+  "/test-assets/video/118-60i.mp4",
+  "/test-assets/video/120-60i.mp4",
+  "/test-assets/video/164-60i.mp4",
+  "/test-assets/video/207-60p.mp4",
+  "/test-assets/video/DSCF0159.MOV@1280.mp4",
+  "/test-assets/video/akiyo.mp4",
+  "/test-assets/video/badapple-trimp.mp4",
+  "/test-assets/video/c01_Fireworks_willow_4K_960x540.mp4",
+  "/test-assets/video/c06_Drama_standingup_4K_960x540.mp4",
+  "/test-assets/video/c08_Drama_sunset_4K_960x540.mp4",
+  "/test-assets/video/c17_HorseRace_homestretch_4K_960x540.mp4",
+  "/test-assets/video/city_4cif.mp4",
+  "/test-assets/video/crew_4cif.mp4",
+  "/test-assets/video/degauss.webm",
+  "/test-assets/video/ducks_take_off_420_720p50.mp4",
+  "/test-assets/video/hall_objects_qcif.mp4",
+  "/test-assets/video/ice_4cif.mp4",
+  "/test-assets/video/kumiko.webm",
+  "/test-assets/video/pamphlet_cif.mp4",
+  "/test-assets/video/pedestrian_area_1080p25.mp4",
+  "/test-assets/video/salesman_qcif.mp4",
+  "/test-assets/video/suzie.mp4",
+  "/test-assets/video/tempete_cif.mp4",
+  "/test-assets/video/tt_sif.mp4",
+  "/test-assets/video/waterfall_cif.mp4",
+];
+
+const pickRandom = <T,>(items: T[]): T =>
+  items[Math.floor(Math.random() * items.length)];
+
+const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
+  if (items.length <= 1 || previous == null) return pickRandom(items);
+  const choices = items.filter(item => item !== previous);
+  return pickRandom(choices.length > 0 ? choices : items);
+};
+
+const DEFAULT_TEST_IMAGE_ASSET = "/test-assets/image/pepper.png";
+const DEFAULT_TEST_VIDEO_ASSET = "/test-assets/video/akiyo.mp4";
+
 const App = () => {
   const { state, actions, filterList } = useFilter();
   const [dropping, setDropping] = useState(false);
@@ -25,6 +82,7 @@ const App = () => {
   const [videoPaused, setVideoPaused] = useState(false);
   const [showSaveAs, setShowSaveAs] = useState(false);
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
+  const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
   const playPauseTimerRef = useRef<number | null>(null);
 
   const flashPlayPause = (kind: "play" | "pause") => {
@@ -40,6 +98,10 @@ const App = () => {
   const outputDragRef = useRef(null);
   const saveAsDragRef = useRef(null);
   const dragScaleStart = useRef({ input: 1, output: 1 });
+  const hasLoadedTestImageRef = useRef(false);
+  const hasLoadedTestVideoRef = useRef(false);
+  const lastTestImageAssetRef = useRef<string | null>(null);
+  const lastTestVideoAssetRef = useRef<string | null>(null);
 
   const inputDrag = useDraggable(inputDragRef, {
     onScale: (delta) => {
@@ -135,6 +197,58 @@ const App = () => {
     e.currentTarget.style.zIndex = `${zIndexRef.current}`;
   }, []);
 
+  const withInputLoading = useCallback(async (label: string, loader: () => Promise<void> | void) => {
+    setInputLoadingLabel(label);
+    try {
+      await loader();
+    } catch (error) {
+      console.error("Failed to load input asset:", error);
+    } finally {
+      setInputLoadingLabel(null);
+    }
+  }, []);
+
+  const loadUserFile = useCallback((file?: File | null) => {
+    if (!file) return;
+    const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
+    void withInputLoading(label, () =>
+      actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
+    );
+  }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+
+  const loadRandomTestImage = useCallback(() => {
+    const src = hasLoadedTestImageRef.current
+      ? pickRandomDifferent(TEST_IMAGE_ASSETS, lastTestImageAssetRef.current)
+      : DEFAULT_TEST_IMAGE_ASSET;
+    hasLoadedTestImageRef.current = true;
+    lastTestImageAssetRef.current = src;
+    void withInputLoading("LOADING IMAGE", () => new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        actions.loadImage(img);
+        resolve();
+      };
+      img.onerror = () => reject(new Error(`Failed to load image asset: ${src}`));
+      img.src = src;
+    }));
+  }, [actions, withInputLoading]);
+
+  const loadRandomTestVideo = useCallback(() => {
+    const src = hasLoadedTestVideoRef.current
+      ? pickRandomDifferent(TEST_VIDEO_ASSETS, lastTestVideoAssetRef.current)
+      : DEFAULT_TEST_VIDEO_ASSET;
+    hasLoadedTestVideoRef.current = true;
+    lastTestVideoAssetRef.current = src;
+    void withInputLoading("LOADING VIDEO", async () => {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`Failed to fetch video asset: ${src}`);
+      const blob = await response.blob();
+      const filename = src.split("/").pop() || "test-video";
+      const file = new File([blob], filename, { type: blob.type || "video/mp4" });
+      await actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
+    });
+  }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+
   return (
     <div className={s.app}>
       <div className={s.chrome}>
@@ -149,32 +263,24 @@ const App = () => {
             accept="image/*,video/*"
             id="imageLoader"
             name="imageLoader"
-            onChange={e => actions.loadMediaAsync(e.target.files[0], state.videoVolume, state.videoPlaybackRate)}
+            onChange={e => {
+              loadUserFile(e.target.files?.[0] || null);
+              e.target.value = "";
+            }}
             onDragLeave={() => setDropping(false)}
             onDragOver={() => setDropping(true)}
             onDragEnter={() => setDropping(true)}
             onDrop={() => setDropping(false)}
           />
           <button
-            onClick={() => {
-              const img = new Image();
-              img.src = "pepper.png";
-              img.onload = () => actions.loadImage(img);
-            }}
+            onClick={loadRandomTestImage}
           >
-            Load test image
+            Random image
           </button>
           <button
-            onClick={() => {
-              fetch("akiyo.mp4")
-                .then(r => r.blob())
-                .then(blob => {
-                  const file = new File([blob], "akiyo.mp4", { type: "video/mp4" });
-                  actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
-                });
-            }}
+            onClick={loadRandomTestVideo}
           >
-            Load test video
+            Random video
           </button>
           <Range
             name="Input Scale"
@@ -327,7 +433,9 @@ const App = () => {
                 recorder.onstop = () => {
                   const blob = new Blob(chunks, { type: mimeType });
                   const file = new File([blob], "filtered.webm", { type: mimeType });
-                  actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
+                  void withInputLoading("LOADING VIDEO", () =>
+                    actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
+                  );
                 };
 
                 // Restart video from beginning so we capture a full loop
@@ -347,12 +455,16 @@ const App = () => {
 
               // For static images: copy the current filtered frame
               if (outputCanvasRef.current) {
-                const image = new Image();
-                image.src = outputCanvasRef.current.toDataURL("image/png");
-                image.onload = () => {
-                  actions.loadImage(image);
-                  actions.setScale(1);
-                };
+                void withInputLoading("LOADING IMAGE", () => new Promise<void>((resolve, reject) => {
+                  const image = new Image();
+                  image.onload = () => {
+                    actions.loadImage(image);
+                    actions.setScale(1);
+                    resolve();
+                  };
+                  image.onerror = () => reject(new Error("Failed to copy output image to input"));
+                  image.src = outputCanvasRef.current.toDataURL("image/png");
+                }));
               }
             }}
           >
@@ -457,7 +569,7 @@ const App = () => {
             e.preventDefault();
             setCanvasDropping(false);
             const file = e.dataTransfer.files[0];
-            if (file) actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
+            loadUserFile(file);
           }}
         >
           <div
@@ -491,6 +603,11 @@ const App = () => {
               {playPauseIndicator && (
                 <div className={s.playPauseOverlay}>
                   {playPauseIndicator === "play" ? "▶ PLAY" : "❚❚ PAUSE"}
+                </div>
+              )}
+              {inputLoadingLabel && (
+                <div className={[s.playPauseOverlay, s.inputLoadingOverlay].join(" ")}>
+                  {inputLoadingLabel}
                 </div>
               )}
             </div>

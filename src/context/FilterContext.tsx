@@ -4,28 +4,13 @@ import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale } from "filters";
 import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
+import { decodeShareState } from "utils/shareState";
+import { getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
+import { clearMotionVectorsState } from "filters/motionVectors";
 import { FilterContext } from "./filterContextValue";
-
-// Compute a scale that fits the image within the available canvas area
-// and caps total pixel count for performance.
-const MAX_PIXELS_MOBILE  = 500_000;   // ~700×700
-const MAX_PIXELS_DESKTOP = 2_000_000; // ~1400×1400
-const getAutoScale = (w: number, h: number): number => {
-  if (typeof window === "undefined") return 1;
-  const isMobile = window.innerWidth <= 768;
-  const maxPixels = isMobile ? MAX_PIXELS_MOBILE : MAX_PIXELS_DESKTOP;
-  // Fit to available width (sidebar is ~210px on desktop, full width on mobile)
-  const sidebarW = isMobile ? 16 : 240;
-  const availableW = window.innerWidth - sidebarW;
-  const fitScale = availableW / w;
-  // Cap by pixel budget
-  const pixelScale = Math.sqrt(maxPixels / (w * h));
-  return Math.min(1, fitScale, pixelScale);
-};
-
-// Round scale to nearest 0.1 for clean slider values
-const roundScale = (s: number) => Math.round(s * 10) / 10 || 0.1;
+import { getAutoScale, roundScale } from "./autoScale";
+import { getShareHash, getShareUrl } from "./shareUrl";
 
 // Serialize state to v2 format with delta encoding
 const serializeState = (state: any) => {
@@ -95,11 +80,7 @@ const serializeStateJson = (state: any, pretty = false) => {
   return pretty ? JSON.stringify(data, replacer, 2) : JSON.stringify(data, replacer);
 };
 
-// UTF-8-safe base64 encode/decode (btoa/atob only handle Latin1)
-const toBase64 = (str: string) =>
-  btoa(String.fromCodePoint(...new TextEncoder().encode(str)));
-const fromBase64 = (b64: string) =>
-  new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.codePointAt(0)!));
+const DEFAULT_SHARE_STATE_JSON = serializeStateJson(initialState);
 
 export const FilterProvider = ({ children }) => {
   const [state, dispatch] = useReducer(filterReducer, initialState);
@@ -124,7 +105,7 @@ export const FilterProvider = ({ children }) => {
     const hash = window.location.hash;
     if (!hash.startsWith("#!")) return;
     try {
-      const json = fromBase64(decodeURIComponent(hash.slice(2)));
+      const json = decodeShareState(hash.slice(2));
       const data = JSON.parse(json);
       dispatch({ type: "LOAD_STATE", data });
     } catch (e) {
@@ -136,11 +117,11 @@ export const FilterProvider = ({ children }) => {
   useEffect(() => {
     if (!state.chain || state.chain.length === 0) return;
     try {
-      const exportData = serializeState(state);
-      const json = JSON.stringify(exportData);
-      const newHash = `#!${encodeURIComponent(toBase64(json))}`;
-      if (window.location.hash !== newHash) {
-        history.replaceState(null, "", newHash);
+      const json = serializeStateJson(state);
+      const hash = getShareHash(json, DEFAULT_SHARE_STATE_JSON);
+      const url = getShareUrl(window.location.pathname, window.location.search, hash);
+      if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
+        history.replaceState(null, "", url);
       }
     } catch (e) {
       console.warn("Failed to sync state to URL hash:", e);
@@ -148,26 +129,44 @@ export const FilterProvider = ({ children }) => {
   }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
 
   // Async action: load image from file
-  const loadImageAsync = useCallback((file) => {
+  const loadImageAsync = useCallback((file) => new Promise<void>((resolve, reject) => {
     const reader = new FileReader();
     const image = new Image();
+    reader.onerror = () => reject(reader.error || new Error("Failed to read image file"));
+    image.onerror = () => reject(new Error("Failed to decode image"));
     reader.onload = event => {
       image.onload = () => {
         filteringRef.current = false;
         dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
         const scale = roundScale(getAutoScale(image.width, image.height));
-        if (scale < 1) dispatch({ type: "SET_SCALE", scale });
+        dispatch({ type: "SET_SCALE", scale });
+        resolve();
       };
       image.src = event.target.result as string;
     };
     reader.readAsDataURL(file);
-  }, []);
+  }), []);
 
   // Async action: load video from file
-  const loadVideoAsync = useCallback((file, volume = 1, playbackRate = 1) => {
+  const loadVideoAsync = useCallback((file, volume = 1, playbackRate = 1) => new Promise<void>((resolve, reject) => {
     filteringRef.current = false;
     const reader = new FileReader();
     const video = document.createElement("video");
+    let settled = false;
+    const settleResolve = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    const settleReject = (error: Error) => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    };
+    reader.onerror = () => settleReject(reader.error || new Error("Failed to read video file"));
+    video.onerror = () => settleReject(new Error("Failed to decode video"));
     reader.onload = event => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -185,7 +184,8 @@ export const FilterProvider = ({ children }) => {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
-          if (scale < 1) dispatch({ type: "SET_SCALE", scale });
+          dispatch({ type: "SET_SCALE", scale });
+          settleResolve();
         }
         // Restart the frame loop every time playback resumes
         requestAnimationFrame(loadFrame);
@@ -196,17 +196,17 @@ export const FilterProvider = ({ children }) => {
       video.playbackRate = playbackRate;
       video.loop = true;
       video.autoplay = true;
-      video.play();
+      video.play().catch(() => {});
     };
     reader.readAsArrayBuffer(file);
-  }, []);
+  }), []);
 
   // Async action: load media (routes to image or video)
   const loadMediaAsync = useCallback((file, volume = 1, playbackRate = 1) => {
     if (file.type.startsWith("video/")) {
-      loadVideoAsync(file, volume, playbackRate);
+      return loadVideoAsync(file, volume, playbackRate);
     } else {
-      loadImageAsync(file);
+      return loadImageAsync(file);
     }
   }, [loadImageAsync, loadVideoAsync]);
 
@@ -404,20 +404,24 @@ export const FilterProvider = ({ children }) => {
         outCanvas.height = result.height;
         outCanvas.getContext("2d")!.putImageData(outData, 0, 0);
 
-        for (const [entryId, buf] of Object.entries(result.prevOutputs)) {
-          const pixels = new Uint8ClampedArray(buf as ArrayBuffer);
+        for (const [entryId, payload] of Object.entries(result.prevOutputs)) {
+          const { pixels, width, height } = getWorkerPrevOutputFrame(
+            payload as WorkerPrevOutputPayload,
+            result.width,
+            result.height
+          );
           prevOutputMapRef.current.set(entryId, pixels);
 
           // Reconstruct intermediate canvas for step previews.
           // Reuse existing canvas to avoid allocation churn during animation.
           let stepCanvas = cachedOutputsRef.current.get(entryId);
-          if (!stepCanvas || stepCanvas.width !== result.width || stepCanvas.height !== result.height) {
+          if (!stepCanvas || stepCanvas.width !== width || stepCanvas.height !== height) {
             stepCanvas = document.createElement("canvas");
-            stepCanvas.width = result.width;
-            stepCanvas.height = result.height;
+            stepCanvas.width = width;
+            stepCanvas.height = height;
           }
           stepCanvas.getContext("2d")!.putImageData(
-            new ImageData(new Uint8ClampedArray(pixels), result.width, result.height), 0, 0
+            new ImageData(pixels, width, height), 0, 0
           );
           cachedOutputsRef.current.set(entryId, stepCanvas);
         }
@@ -637,6 +641,7 @@ export const FilterProvider = ({ children }) => {
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
+      clearMotionVectorsState();
       cachedOutputsRef.current.clear();
       dispatch({ type: "SELECT_FILTER", name, filter });
     },
@@ -676,6 +681,7 @@ export const FilterProvider = ({ children }) => {
       for (let i = ci; i < chain.length; i++) {
         cachedOutputsRef.current.delete(chain[i].id);
       }
+      clearMotionVectorsState();
       dispatch({ type: "SET_FILTER_OPTION", optionName, value, chainIndex });
     },
     setFilterPaletteOption: (optionName, value, chainIndex?) => {
@@ -684,6 +690,7 @@ export const FilterProvider = ({ children }) => {
       for (let i = ci; i < chain.length; i++) {
         cachedOutputsRef.current.delete(chain[i].id);
       }
+      clearMotionVectorsState();
       dispatch({ type: "SET_FILTER_PALETTE_OPTION", optionName, value, chainIndex });
     },
     addPaletteColor: (color, chainIndex?) => {
@@ -692,6 +699,7 @@ export const FilterProvider = ({ children }) => {
       for (let i = ci; i < chain.length; i++) {
         cachedOutputsRef.current.delete(chain[i].id);
       }
+      clearMotionVectorsState();
       dispatch({ type: "ADD_PALETTE_COLOR", color, chainIndex });
     },
     importState: (json) => {
@@ -699,6 +707,7 @@ export const FilterProvider = ({ children }) => {
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
+      clearMotionVectorsState();
       dispatch({ type: "LOAD_STATE", data: deserialized });
     },
     saveCurrentColorPalette: (name, colors) => {
@@ -716,18 +725,21 @@ export const FilterProvider = ({ children }) => {
     },
     // Chain actions
     chainAdd: (displayName, filter) => {
+      clearMotionVectorsState();
       dispatch({ type: "CHAIN_ADD", displayName, filter });
     },
     chainRemove: (id) => {
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
+      clearMotionVectorsState();
       dispatch({ type: "CHAIN_REMOVE", id });
     },
     chainReorder: (fromIndex, toIndex) => {
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
+      clearMotionVectorsState();
       dispatch({ type: "CHAIN_REORDER", fromIndex, toIndex });
     },
     chainSetActive: (index) => {
@@ -740,9 +752,11 @@ export const FilterProvider = ({ children }) => {
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
+      clearMotionVectorsState();
       dispatch({ type: "CHAIN_REPLACE", id, displayName, filter });
     },
     chainDuplicate: (id) => {
+      clearMotionVectorsState();
       dispatch({ type: "CHAIN_DUPLICATE", id });
     },
     copyChainToClipboard: () => {
@@ -758,8 +772,9 @@ export const FilterProvider = ({ children }) => {
         const text = await navigator.clipboard.readText();
         const data = JSON.parse(text);
         prevOutputMapRef.current.clear();
-      prevInputMapRef.current.clear();
-      emaMapRef.current.clear();
+        prevInputMapRef.current.clear();
+        emaMapRef.current.clear();
+        clearMotionVectorsState();
         cachedOutputsRef.current.clear();
         dispatch({ type: "LOAD_STATE", data });
       } catch (e) {
@@ -768,8 +783,8 @@ export const FilterProvider = ({ children }) => {
     },
     getExportUrl: (filterState) => {
       const json = serializeStateJson(filterState);
-      const base = `${window.location.origin}${window.location.pathname}`;
-      return `${base}#!${encodeURIComponent(toBase64(json))}`;
+      const hash = getShareHash(json, DEFAULT_SHARE_STATE_JSON);
+      return `${window.location.origin}${getShareUrl(window.location.pathname, "", hash)}`;
     },
     exportState: (filterState) => {
       return serializeStateJson(filterState, true);

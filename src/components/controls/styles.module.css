@@ -142,6 +142,66 @@ textarea {
   min-height: 200px;
 }
 
+.curveControl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.curveMeta {
+  font-size: 11px;
+  color: #555;
+  line-height: 1.3;
+}
+
+.curveEditor {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px inset var(--input-border);
+  background: linear-gradient(180deg, #10131a, #1a2230);
+  touch-action: none;
+}
+
+.curveGridLine {
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.curveBaseline {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.curvePath {
+  fill: none;
+  stroke: #7ac7ff;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.curvePoint {
+  fill: #fff4b0;
+  stroke: #223040;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.curveToolbar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.curveTextarea {
+  width: 100%;
+  min-height: 58px;
+  font-family: monospace;
+}
+
 button,
 .button {
   background-color: var(--light-gray);

@@ -5,11 +5,12 @@ import s from "./styles.module.css";
 const Range = (props) => {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
+  const label = props.types?.label || props.name;
 
   return (
     <div className={s.range}>
       <div className={s.label}>
-        {props.name}
+        {label}
         {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
       </div>
       <div className={s.rangeGroup}>

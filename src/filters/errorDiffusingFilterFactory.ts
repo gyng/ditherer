@@ -328,6 +328,7 @@ export const errorDiffusingFilter = (
     const { palette } = options;
     const serpentine = options.serpentine !== undefined ? options.serpentine : true;
     const temporalBleed = options.temporalBleed || 0;
+    const prevInput: Uint8ClampedArray | null = (options as any)._prevInput || null;
     const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
 
     const scanOrder: string = options.scanOrder || ORDER.HORIZONTAL;
@@ -350,9 +351,13 @@ export const errorDiffusingFilter = (
     // Vertical row-major mode: transpose so the standard horizontal scan/kernel
     // code naturally produces a column-wise scan with a 90°-rotated kernel.
     const isVertical = scanOrder === ORDER.VERTICAL;
+    let prevInputForLoop: Uint8ClampedArray | null = prevInput;
     let prevOutputForLoop: Uint8ClampedArray | null = prevOutput;
     if (isVertical) {
       buf = transposeRGBA8(buf, realW, realH);
+      if (prevInput && prevInput.length === realW * realH * 4) {
+        prevInputForLoop = transposeRGBA8(prevInput, realW, realH);
+      }
       if (prevOutput && prevOutput.length === realW * realH * 4) {
         prevOutputForLoop = transposeRGBA8(prevOutput, realW, realH);
       }
@@ -368,12 +373,29 @@ export const errorDiffusingFilter = (
       ? new Float32Array(linearBuf!)
       : new Float32Array(buf);
 
-    // Temporal error bleed: seed error buffer with residual from previous frame
-    if (temporalBleed > 0 && prevOutputForLoop && prevOutputForLoop.length === buf.length) {
-      for (let j = 0; j < errBuf.length; j += 4) {
-        errBuf[j]     += (buf[j]     - prevOutputForLoop[j])     * temporalBleed;
-        errBuf[j + 1] += (buf[j + 1] - prevOutputForLoop[j + 1]) * temporalBleed;
-        errBuf[j + 2] += (buf[j + 2] - prevOutputForLoop[j + 2]) * temporalBleed;
+    // Temporal error bleed should carry the previous frame's quantization
+    // residual, not inject the current frame's whole input delta.
+    if (
+      temporalBleed > 0 &&
+      prevInputForLoop &&
+      prevOutputForLoop &&
+      prevInputForLoop.length === buf.length &&
+      prevOutputForLoop.length === buf.length
+    ) {
+      if (useLinear) {
+        const prevInputLinear = srgbBufToLinearFloat(prevInputForLoop);
+        const prevOutputLinear = srgbBufToLinearFloat(prevOutputForLoop);
+        for (let j = 0; j < errBuf.length; j += 4) {
+          errBuf[j]     += (prevInputLinear[j]     - prevOutputLinear[j])     * temporalBleed;
+          errBuf[j + 1] += (prevInputLinear[j + 1] - prevOutputLinear[j + 1]) * temporalBleed;
+          errBuf[j + 2] += (prevInputLinear[j + 2] - prevOutputLinear[j + 2]) * temporalBleed;
+        }
+      } else {
+        for (let j = 0; j < errBuf.length; j += 4) {
+          errBuf[j]     += (prevInputForLoop[j]     - prevOutputForLoop[j])     * temporalBleed;
+          errBuf[j + 1] += (prevInputForLoop[j + 1] - prevOutputForLoop[j + 1]) * temporalBleed;
+          errBuf[j + 2] += (prevInputForLoop[j + 2] - prevOutputForLoop[j + 2]) * temporalBleed;
+        }
       }
     }
 

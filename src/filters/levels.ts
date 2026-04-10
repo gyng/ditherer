@@ -5,7 +5,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  srgbBufToLinearFloat,
+  linearFloatToSrgbBuf,
+  linearPaletteGetColor
 } from "utils";
 
 export const optionTypes = {
@@ -38,31 +41,53 @@ const levelsFilter = (input, options: any = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-
-  // Build lookup table for speed
-  const lut = new Uint8Array(256);
   const inputRange = Math.max(1, whitePoint - blackPoint);
   const outputRange = outputWhite - outputBlack;
 
-  for (let i = 0; i < 256; i++) {
-    // Clamp to input range
-    let normalized = (i - blackPoint) / inputRange;
-    normalized = Math.max(0, Math.min(1, normalized));
-    // Apply gamma
-    normalized = Math.pow(normalized, 1 / gamma);
-    // Map to output range
-    lut[i] = Math.max(0, Math.min(255, Math.round(outputBlack + normalized * outputRange)));
-  }
+  if (options._linearize) {
+    const inBlack = blackPoint / 255;
+    const inWhite = whitePoint / 255;
+    const outBlack = outputBlack / 255;
+    const outWhite = outputWhite / 255;
+    const linearBuf = srgbBufToLinearFloat(buf);
 
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      const r = lut[buf[i]];
-      const g = lut[buf[i + 1]];
-      const b = lut[buf[i + 2]];
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = getBufferIndex(x, y, W);
+        for (let c = 0; c < 3; c++) {
+          let normalized = (linearBuf[i + c] - inBlack) / Math.max(1e-6, inWhite - inBlack);
+          normalized = Math.max(0, Math.min(1, normalized));
+          normalized = Math.pow(normalized, 1 / gamma);
+          linearBuf[i + c] = Math.max(0, Math.min(1, outBlack + normalized * (outWhite - outBlack)));
+        }
+        const pixel = [linearBuf[i], linearBuf[i + 1], linearBuf[i + 2], linearBuf[i + 3]];
+        const color = linearPaletteGetColor(palette, pixel, palette.options);
+        linearBuf[i] = color[0];
+        linearBuf[i + 1] = color[1];
+        linearBuf[i + 2] = color[2];
+      }
+    }
 
-      const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+    linearFloatToSrgbBuf(linearBuf, outBuf);
+  } else {
+    const lut = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) {
+      let normalized = (i - blackPoint) / inputRange;
+      normalized = Math.max(0, Math.min(1, normalized));
+      normalized = Math.pow(normalized, 1 / gamma);
+      lut[i] = Math.max(0, Math.min(255, Math.round(outputBlack + normalized * outputRange)));
+    }
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = getBufferIndex(x, y, W);
+        const r = lut[buf[i]];
+        const g = lut[buf[i + 1]];
+        const b = lut[buf[i + 2]];
+
+        const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+      }
     }
   }
 

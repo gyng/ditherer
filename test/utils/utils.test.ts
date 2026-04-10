@@ -39,6 +39,28 @@ describe("utils", () => {
     expect(actual).toEqual(100);
   });
 
+  it("samples bilinear values between four corners", () => {
+    const buf = new Uint8ClampedArray([
+      0, 0, 0, 255,
+      255, 0, 0, 255,
+      0, 255, 0, 255,
+      255, 255, 255, 255
+    ]);
+    const actual = utils.sampleBilinear(buf, 2, 2, 0.5, 0.5);
+    expect(actual).toEqual([128, 128, 64, 255]);
+  });
+
+  it("clamps bilinear sampling outside image bounds", () => {
+    const buf = new Uint8ClampedArray([
+      10, 20, 30, 255,
+      40, 50, 60, 255,
+      70, 80, 90, 255,
+      100, 110, 120, 255
+    ]);
+    const actual = utils.sampleBilinear(buf, 2, 2, -4, 3);
+    expect(actual).toEqual([70, 80, 90, 255]);
+  });
+
   it("fills a buffer with a 4-tuple at an index", () => {
     const buf = new Uint8ClampedArray(5);
     utils.fillBufferPixel(buf, 1, 2, 3, 4, 5);

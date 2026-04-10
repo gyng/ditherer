@@ -9,7 +9,8 @@ import {
   COLOR_ARRAY,
   STRING,
   TEXT,
-  PALETTE
+  PALETTE,
+  CURVE
 } from "constants/controlTypes";
 
 import { useFilter } from "context/useFilter";
@@ -22,6 +23,7 @@ import Stringly from "./Stringly";
 import Textly from "./Textly";
 import ColorArray from "./ColorArray";
 import ColorPicker from "./ColorPicker";
+import Curve from "./Curve";
 
 import s from "./styles.module.css";
 
@@ -131,6 +133,16 @@ const Controls = (props) => {
           case TEXT:
             return (
               <Textly
+                key={name}
+                name={name}
+                types={oType}
+                value={value}
+                onSetFilterOption={onSetFilterOption}
+              />
+            );
+          case CURVE:
+            return (
+              <Curve
                 key={name}
                 name={name}
                 types={oType}

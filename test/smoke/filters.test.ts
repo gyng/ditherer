@@ -87,6 +87,29 @@ describe("smoke: filters return valid canvases", () => {
     expect(output).toBeInstanceOf(HTMLCanvasElement);
     expect(output.width).toBe(16);
   });
+
+  it("infinite call windows is registered and returns a canvas", () => {
+    expect(filterIndex["Infinite Call Windows"]).toBeDefined();
+    const input = cloneCanvas(canvas, true);
+    const output = filterIndex["Infinite Call Windows"].func(
+      input,
+      filterIndex["Infinite Call Windows"].defaults
+    );
+    expect(output).toBeInstanceOf(HTMLCanvasElement);
+    expect(output.width).toBe(16);
+    expect(output.height).toBe(16);
+  });
+
+  it("infinite call windows handles missing _prevOutput cleanly", () => {
+    const input = cloneCanvas(canvas, true);
+    const output = filterIndex["Infinite Call Windows"].func(input, {
+      ...filterIndex["Infinite Call Windows"].defaults,
+      _prevOutput: null,
+    });
+    expect(output).toBeInstanceOf(HTMLCanvasElement);
+    expect(output.width).toBe(16);
+    expect(output.height).toBe(16);
+  });
 });
 
 // ---------------------------------------------------------------------------

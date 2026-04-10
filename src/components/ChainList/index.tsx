@@ -85,11 +85,20 @@ const getRandomFilter = () => {
   return { displayName: entry.displayName, filter: { ...base, options, defaults: options } };
 };
 
+type PresetFilterEntry = string | {
+  name: string;
+  options?: Record<string, unknown>;
+};
+
+const presetEntryName = (entry: PresetFilterEntry) => typeof entry === "string" ? entry : entry.name;
+
 // Chain presets: curated multi-filter combos, alphabetized within each category
-const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: string }[] = [
+const CHAIN_PRESETS: { name: string; desc: string; filters: PresetFilterEntry[]; category: string }[] = [
   // Dithering
   { name: "Amber Terminal", desc: "Monochrome amber phosphor dithering with CRT glow", filters: ["Ordered (Amber CRT)", "Scanline", "Bloom"], category: "Dithering" },
   { name: "Gameboy Screen", desc: "4-shade green LCD with visible scan lines and edge darkening", filters: ["Ordered (Gameboy)", "Scanline", "Vignette"], category: "Dithering" },
+  { name: "Median Palette", desc: "Adaptive median-cut palette reduction for a compact posterized color set", filters: ["Median Cut", "Sharpen"], category: "Dithering" },
+  { name: "Octree Palette", desc: "Adaptive octree palette reduction with a slightly harsher retro posterization bias", filters: ["Octree Quantize", "Sharpen"], category: "Dithering" },
   { name: "PICO-8 Demake", desc: "Chunky pixels quantized to the PICO-8 16-color palette", filters: ["Pixelate", "Ordered (PICO-8)", "Sharpen"], category: "Dithering" },
   { name: "Vaporwave Dither", desc: "Pastel error-diffused dithering with dreamy bloom and color fringe", filters: ["Floyd-Steinberg (Vaporwave test)", "Bloom", "Chromatic aberration"], category: "Dithering" },
 
@@ -98,16 +107,30 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Gradient Remap", desc: "Map luminance to a custom color gradient with soft glow", filters: ["Grayscale", "Gradient map", "Bloom"], category: "Color" },
   { name: "HDR Tone Map", desc: "Aggressive local contrast with dodged highlights and burned shadows", filters: ["CLAHE", "Levels", "Dodge / Burn", "Sharpen"], category: "Color" },
   { name: "Infrared Film", desc: "False-color IR — white foliage, dark skies, pink cast", filters: ["Infrared photography", "Color balance", "Film grain"], category: "Color" },
+  { name: "Cutout", desc: "Luminance-based matte cutout with clean graphic separation", filters: ["Luma Matte", "Duotone"], category: "Color" },
+  { name: "Zine Cover", desc: "Two-ink offset print on warm paper stock with a poster-like finish", filters: ["Duplex / Offset Print", "Film grain"], category: "Color" },
+  { name: "Resonator", desc: "Motion-reactive color echo with a glowing amplified difference image", filters: ["Echo Combiner", "Bloom", "Chromatic aberration"], category: "Color" },
+  { name: "Photo Pro", desc: "Gentle tonal shaping and sharpening for a polished photographic finish", filters: ["Levels", "Curves", "Sharpen"], category: "Color" },
+  { name: "Hue Bands", desc: "Map broad hue families into a deliberate palette while keeping image structure intact", filters: ["Palette Mapper by Hue Bands", "Sharpen"], category: "Color" },
+  { name: "Red Coat", desc: "Keep one accent hue vivid while the rest falls back toward monochrome", filters: ["Color Pop", "Vignette"], category: "Color" },
+  { name: "Shop Photo", desc: "Commercial-style tone cleanup with local contrast and vignette", filters: ["Curves", "CLAHE", "Vignette"], category: "Color" },
   { name: "Solarized", desc: "Sabattier effect — partial tone reversal with boosted contrast", filters: ["Solarize", "Levels", "Bloom"], category: "Color" },
 
   // Stylize
   { name: "ASCII Art", desc: "Render the image as a grid of ASCII characters sized by luminance", filters: ["ASCII", "Sharpen"], category: "Stylize" },
+  { name: "Cel Panel", desc: "Flat cartoon shading with crisp ink contours", filters: ["Toon / Cel Shade", "Vignette"], category: "Stylize" },
+  { name: "Crystal Poster", desc: "Broad crystalized planes with dark seams and a polished poster finish", filters: ["Facet / Crystalize Grid", "Bloom"], category: "Stylize" },
+  { name: "Embroidery Hoop", desc: "Threaded X-stitches on warm fabric with a handmade feel", filters: ["Cross-stitch", "Vignette"], category: "Stylize" },
   { name: "Currency Engraving", desc: "Fine parallel lines on aged paper — banknote illustration style", filters: ["Engraving", "Sharpen", "Sepia"], category: "Stylize" },
   { name: "Dot Matrix Printer", desc: "Fixed-pitch impact dots on warm aged paper", filters: ["Dot matrix", "Sepia", "Film grain"], category: "Stylize" },
+  { name: "Etching", desc: "Short ink marks build tone like a coarse engraved print", filters: ["Halftone Line", "Sepia", "Vignette"], category: "Stylize" },
   { name: "Lo-fi Print", desc: "Warm-toned halftone print with film grain texture", filters: ["Sepia", "Halftone", "Film grain"], category: "Stylize" },
   { name: "Mosaic", desc: "Irregular tile grid with grout lines — ancient mosaic look", filters: ["Mosaic tile", "Sharpen", "Vignette"], category: "Stylize" },
   { name: "Neon", desc: "Glowing edge outlines on dark background with color fringe", filters: ["Invert", "Edge glow", "Bloom", "Chromatic aberration"], category: "Stylize" },
   { name: "Pixel Art", desc: "Chunky pixels quantized to limited colors then upscaled crisp", filters: ["Pixelate", "Quantize (No dithering)", "Pixel art upscale"], category: "Stylize" },
+  { name: "Protest Poster", desc: "Bold stamped silhouette on warm paper with rough edges", filters: ["Stamp", "Sharpen"], category: "Stylize" },
+  { name: "Sprite Sheet", desc: "Game-like chunky color blocks with bold sprite borders", filters: ["Pixelate", "Pixel outline", "Posterize"], category: "Stylize" },
+  { name: "Triangle World", desc: "Faceted triangular cells with crisp low-poly structure", filters: ["Triangle pixelate", "Sharpen"], category: "Stylize" },
   { name: "Risograph", desc: "Multi-layer spot color separation with misregistration and grain", filters: ["Risograph (multi-layer)", "Film grain", "Sharpen"], category: "Stylize" },
   { name: "Sketch", desc: "Pencil strokes following edge flow with soft vignette", filters: ["Pencil sketch", "Sharpen", "Vignette"], category: "Stylize" },
   { name: "Stained Glass", desc: "Voronoi cells with dark leading and glowing colored glass", filters: ["Stained glass", "Edge glow", "Bloom"], category: "Stylize" },
@@ -116,8 +139,12 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
 
   // Distort
   { name: "Earthquake", desc: "Violent displacement — Perlin warping, sine waves, and shaky rows", filters: ["Turbulence", "Wave", "Jitter"], category: "Distort" },
+  { name: "F-Zero Floor", desc: "Console-racer ground plane rushing toward the horizon", filters: ["Mode 7", "Bloom", "Vignette"], category: "Distort" },
   { name: "Funhouse Mirror", desc: "Carnival mirror — bulging center with barrel edges and asymmetric stretch", filters: ["Spherize", "Lens distortion", "Stretch"], category: "Distort" },
+  { name: "Hex World", desc: "Staggered hex cells with soft glow — honeycomb posterization", filters: ["Hex pixelate", "Bloom"], category: "Distort" },
+  { name: "Iso Stack", desc: "Poster-like isometric slab extrusion with bold depth and arcade shading", filters: ["Isometric Extrude", "Sharpen"], category: "Distort" },
   { name: "Kaleidoscope", desc: "Radial symmetry with prismatic color splitting and soft glow", filters: ["Mirror / Kaleidoscope", "Chromatic aberration", "Bloom"], category: "Distort" },
+  { name: "Tunnel Wrap", desc: "Wrap the image into a circular tunnel and add a subtle glow", filters: ["Polar transform", "Bloom"], category: "Distort" },
   { name: "Melt", desc: "Organic pixel melting — warped, smeared, and dripping by luminance", filters: ["Liquify", "Smudge", "Pixel drift"], category: "Distort" },
 
   // Glitch
@@ -136,8 +163,11 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Film Projector", desc: "Flickering 8mm home movie with gate weave and sprocket burns", filters: ["Projection film", "Film grain", "Vignette", "Light leak"], category: "Simulate" },
   { name: "Mavica Photo", desc: "Sony Mavica floppy disk camera — 640x480, heavy JPEG, CCD noise", filters: ["Mavica FD7", "JPEG artifact", "Film grain"], category: "Simulate" },
   { name: "Newsprint", desc: "Black-and-white newspaper with coarse halftone dots", filters: ["Grayscale", "Newspaper", "Sharpen"], category: "Simulate" },
+  { name: "Ink Spread", desc: "Cheap paper stock with dark regions bleeding into the fibers", filters: ["Ink Bleed", "Sharpen"], category: "Simulate" },
+  { name: "Misprint", desc: "Silkscreen poster layers drift slightly out of register over warm paper", filters: ["Screen Print / Misregistration", "Film grain"], category: "Simulate" },
   { name: "Photocopier", desc: "High-contrast office copier with speckle and generation loss", filters: ["Photocopier", "Film grain"], category: "Simulate" },
   { name: "Receipt Printer", desc: "Narrow thermal receipt — low-res dots with ink fade", filters: ["Thermal printer", "Film grain"], category: "Simulate" },
+  { name: "Retro 3D", desc: "Classic red/cyan glasses effect with posterized comic contrast", filters: ["Anaglyph 3D", "Sharpen"], category: "Simulate" },
   { name: "Matrix", desc: "Digital rain — source image visible through falling katakana characters", filters: ["Levels", "Matrix rain"], category: "Simulate" },
   { name: "Retro TV", desc: "VHS tracking errors, CRT phosphor mask, and corner vignette", filters: ["VHS emulation", "CRT emulation", "Vignette"], category: "Simulate" },
   { name: "Surveillance", desc: "Grainy security camera feed with night vision and compression", filters: ["Grayscale", "Night vision", "Scanline", "JPEG artifact"], category: "Simulate" },
@@ -152,43 +182,202 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   // Blur & Edges
   { name: "Dream Sequence", desc: "Soft vaseline-lens glow with warm light bleed — flashback cinema", filters: ["Gaussian blur", "Bloom", "Light leak", "Sepia"], category: "Blur & Edges" },
   { name: "Embossed Metal", desc: "Raised relief surface — metallic highlight and shadow from edges", filters: ["Emboss", "Levels", "Sharpen"], category: "Blur & Edges" },
+  { name: "Bas Relief", desc: "Luminance becomes carved stone under a directional raking light", filters: ["Relief Map / Faux Normal Lighting", "Sepia"], category: "Blur & Edges" },
   { name: "Miniature World", desc: "Fake tilt-shift diorama — selective focus makes scenes look tiny", filters: ["Tilt shift", "Bloom", "Vignette", "Levels"], category: "Blur & Edges" },
 
   // Advanced
   { name: "Cellular Life", desc: "Conway's Game of Life with neon-glowing cell boundaries", filters: ["Cellular automata", "Edge glow", "Bloom"], category: "Advanced" },
   { name: "Flow Painting", desc: "Curl noise streamlines blended with thick painterly strokes", filters: ["Flow field", "Oil painting", "Bloom"], category: "Advanced" },
+  { name: "Band Pass", desc: "Middle image frequencies isolated into a technical texture-study view", filters: ["Frequency Filter", "Bloom"], category: "Advanced" },
   { name: "Fractal Overlay", desc: "Mandelbrot fractal with source image colors and edge glow", filters: ["Fractal", "Edge glow", "Bloom"], category: "Advanced" },
+  {
+    name: "Motion Compass",
+    desc: "Animated motion arrows reveal direction changes like a technical field overlay",
+    filters: [{
+      name: "Motion Vectors",
+      options: {
+        display: "OVERLAY",
+        colorMode: "DIRECTION",
+        glyphMode: "NEEDLE",
+        sourceMode: "LUMA",
+        temporalSmoothing: 0.45,
+        spatialSmoothing: 0.35,
+        backgroundDim: 0.55,
+      },
+    }],
+    category: "Advanced",
+  },
+  {
+    name: "Optical Flow",
+    desc: "Motion vectors become a false-color field that reveals direction and speed",
+    filters: [{
+      name: "Motion Vectors",
+      options: {
+        display: "HEAT_ARROWS",
+        colorMode: "DIRECTION",
+        glyphMode: "ARROW",
+        sourceMode: "RGB",
+        temporalSmoothing: 0.25,
+        spatialSmoothing: 0.15,
+        backgroundDim: 0.2,
+      },
+    }, "Bloom"],
+    category: "Advanced",
+  },
+  {
+    name: "Traffic Trails",
+    desc: "Motion vectors plus glow for a kinetic traffic-map feel on live footage",
+    filters: [
+      {
+        name: "Motion Vectors",
+        options: {
+          display: "TRAILS",
+          colorMode: "MAGNITUDE",
+          glyphMode: "DOT",
+          sourceMode: "LUMA",
+          temporalSmoothing: 0.55,
+          spatialSmoothing: 0.25,
+          trailDecay: 0.92,
+          backgroundDim: 0.3,
+        },
+      },
+      "Bloom",
+      "Chromatic aberration",
+    ],
+    category: "Advanced",
+  },
+  {
+    name: "Vector Blueprint",
+    desc: "Motion vectors over a cool technical blueprint-style treatment",
+    filters: [
+      "Grayscale",
+      {
+        name: "Motion Vectors",
+        options: {
+          display: "HEAT_ARROWS",
+          colorMode: "CHANNEL",
+          glyphMode: "LINE",
+          sourceMode: "LUMA",
+          temporalSmoothing: 0.4,
+          spatialSmoothing: 0.3,
+          backgroundDim: 0.6,
+        },
+      },
+      "Bloom",
+    ],
+    category: "Advanced",
+  },
 
   // Temporal — existing
-  { name: "Heat Vision", desc: "Motion detection with bloom glow — thermal camera aesthetic", filters: ["Motion detect", "Bloom", "Color shift"], category: "Simulate" },
-  { name: "Light Painting", desc: "Edge-detected light trails accumulating over time", filters: ["Edge glow", "Long exposure"], category: "Simulate" },
-  { name: "Ghost", desc: "Temporal echo with soft glow — moving subjects leave ghostly trails", filters: ["Frame blend", "Bloom"], category: "Blur & Edges" },
+  {
+    name: "Heat Vision",
+    desc: "Motion detection with bloom glow — thermal camera aesthetic",
+    filters: [{ name: "Motion Analysis", options: { renderMode: "HEATMAP", source: "EMA" } }, "Bloom", "Color shift"],
+    category: "Simulate",
+  },
+  {
+    name: "Light Painting",
+    desc: "Edge-detected light trails accumulating over time",
+    filters: ["Edge glow", { name: "Temporal Exposure", options: { mode: "MAX", brightnessThreshold: 30, decay: 0.05 } }],
+    category: "Simulate",
+  },
+  {
+    name: "Ghost",
+    desc: "Temporal echo with soft glow — moving subjects leave ghostly trails",
+    filters: [{ name: "Temporal Exposure", options: { mode: "BLEND", blendFactor: 0.7 } }, "Bloom"],
+    category: "Blur & Edges",
+  },
   { name: "Motion Neon", desc: "Neon-traced motion outlines with chromatic splitting", filters: ["Temporal edge", "Bloom", "Chromatic aberration"], category: "Blur & Edges" },
   { name: "Retro Monitor", desc: "CRT phosphor persistence with scanlines — green lingers longest", filters: ["CRT emulation", "Phosphor decay", "Scanline"], category: "Simulate" },
-  { name: "Security Camera", desc: "Grainy monochrome security feed with motion overlay", filters: ["Grayscale", "Motion detect", "Scanline", "Film grain"], category: "Simulate" },
+  {
+    name: "Security Camera",
+    desc: "Grainy monochrome security feed with motion overlay",
+    filters: ["Grayscale", { name: "Motion Analysis", options: { renderMode: "MASK", source: "EMA" } }, "Scanline", "Film grain"],
+    category: "Simulate",
+  },
 
   // Temporal — new filters
-  { name: "Activity Map", desc: "Accumulated motion heatmap with bloom glow", filters: ["Motion heatmap", "Bloom"], category: "Simulate" },
+  {
+    name: "Activity Map",
+    desc: "Accumulated motion heatmap with bloom glow",
+    filters: [{ name: "Motion Analysis", options: { renderMode: "ACCUMULATED_HEAT", source: "EMA" } }, "Bloom"],
+    category: "Simulate",
+  },
   { name: "Acid Trip", desc: "Temporal color cycling through solarized bloom", filters: ["Temporal color cycle", "Solarize", "Bloom"], category: "Color" },
   { name: "Censored", desc: "Moving areas become pixelated blocks", filters: ["Motion pixelate", "Sharpen"], category: "Stylize" },
+  {
+    name: "Empty Room",
+    desc: "Static structures remain while moving people gradually disappear",
+    filters: [{ name: "Scene Separation", options: { mode: "BACKGROUND", learnRate: 0.02 } }],
+    category: "Color",
+  },
+  {
+    name: "Frame Diff",
+    desc: "Technical frame-to-frame motion highlight on a dark background",
+    filters: [{ name: "Motion Analysis", options: { renderMode: "DIFFERENCE", source: "PREVIOUS_FRAME" } }],
+    category: "Simulate",
+  },
   { name: "Color Freeze", desc: "RGB channels freeze independently — color-split glitch", filters: ["Freeze frame glitch", "Chromatic aberration"], category: "Glitch" },
   { name: "Frozen Glitch", desc: "Random blocks freeze in time — corrupted buffer", filters: ["Freeze frame glitch"], category: "Glitch" },
   { name: "Ghost Dance", desc: "Isolated moving subject stroboscopic ghosts with bloom", filters: ["Chronophotography", "Bloom", "Chromatic aberration"], category: "Stylize" },
   { name: "Heat Shimmer", desc: "Motion-reactive heat distortion with glow", filters: ["Wake turbulence", "Bloom"], category: "Distort" },
   { name: "Infinite Tunnel", desc: "Zooming recursive video feedback — fractal patterns", filters: ["Video feedback", "Bloom"], category: "Advanced" },
-  { name: "Lucid Dream", desc: "Dreamy temporal blur with light leak and warm tones", filters: ["Gaussian blur", "Bloom", "Light leak", "Sepia", "Frame blend"], category: "Blur & Edges" },
+  {
+    name: "Meeting Meltdown",
+    desc: "Recursive video-call panes with digital UI drift and compression wear",
+    filters: [{
+      name: "Infinite call windows",
+      options: {
+        layout: "GRID_2X2",
+        depth: 6,
+        scalePerDepth: 0.84,
+        drift: 0.02,
+        mix: 0.75,
+        uiChrome: true,
+        digitalDegrade: 0.45,
+        accentHue: 205,
+      },
+    }, "JPEG artifact", "Sharpen"],
+    category: "Advanced",
+  },
+  {
+    name: "Living Photo",
+    desc: "Freeze the still parts of the scene while motion stays alive",
+    filters: [{ name: "Scene Separation", options: { mode: "FREEZE_STILL", frozenFrame: "FIRST", feather: 10 } }, "Vignette"],
+    category: "Stylize",
+  },
+  {
+    name: "Lucid Dream",
+    desc: "Dreamy temporal blur with light leak and warm tones",
+    filters: ["Gaussian blur", "Bloom", "Light leak", "Sepia", { name: "Temporal Exposure", options: { mode: "BLEND", blendFactor: 0.7 } }],
+    category: "Blur & Edges",
+  },
   { name: "Neon Afterglow", desc: "Neon edges with complementary-colored ghosts", filters: ["Edge glow", "After-image", "Bloom"], category: "Stylize" },
   { name: "Panorama Glitch", desc: "Temporal slit scan with JPEG corruption", filters: ["Slit scan", "JPEG artifact"], category: "Glitch" },
   { name: "Privacy Mode", desc: "Moving areas heavily pixelated and blurred", filters: ["Motion pixelate", "Gaussian blur"], category: "Simulate" },
   { name: "Psychedelic", desc: "Motion-reactive rainbow cycling with bloom and color split", filters: ["Temporal color cycle", "Bloom", "Chromatic aberration"], category: "Color" },
+  { name: "POV Display", desc: "Horizontal bands each show a slightly different recent moment", filters: ["POV Bands"], category: "Stylize" },
   { name: "Rainbow Vortex", desc: "Color-shifting recursive zoom with chromatic split", filters: ["Video feedback", "Bloom", "Chromatic aberration"], category: "Advanced" },
   { name: "Retinal Burn", desc: "Bright objects leave complementary-colored after-images", filters: ["After-image", "Bloom"], category: "Simulate" },
+  {
+    name: "Shutter Smear",
+    desc: "Slow-shutter averaging with soft tonal drag across motion",
+    filters: [{ name: "Temporal Exposure", options: { mode: "SHUTTER", windowSize: 8 } }, "Levels"],
+    category: "Simulate",
+  },
+  { name: "Stop-Mo Comic", desc: "Choppy held frames with flatter comic-style tones", filters: ["Stop Motion", "Posterize"], category: "Stylize" },
   { name: "Stargate", desc: "Temporal slit scan with chromatic aberration and glow", filters: ["Slit scan", "Chromatic aberration", "Bloom"], category: "Advanced" },
   { name: "Stroboscope", desc: "Étienne-Jules Marey stroboscopic photography with glow", filters: ["Chronophotography", "Levels", "Bloom"], category: "Stylize" },
   { name: "Surveillance Wall", desc: "Tiles updating at staggered rates with scanlines and grain", filters: ["Time mosaic", "Scanline", "Film grain"], category: "Simulate" },
+  { name: "Time Mirror", desc: "Different parts of the image pull from different moments in recent history", filters: ["Time-warp Displacement", "Bloom"], category: "Distort" },
   { name: "Time Slice", desc: "Temporal slit scan — each column is a different moment", filters: ["Slit scan", "Sharpen"], category: "Distort" },
   { name: "Underwater", desc: "Motion-reactive ripple distortion with chromatic split", filters: ["Wake turbulence", "Chromatic aberration", "Bloom"], category: "Simulate" },
-  { name: "Virtual Greenscreen", desc: "Remove static background, keep only moving foreground", filters: ["Background subtraction"], category: "Color" },
+  {
+    name: "Virtual Greenscreen",
+    desc: "Remove static background, keep only moving foreground",
+    filters: [{ name: "Scene Separation", options: { mode: "FOREGROUND", background: "TRANSPARENT" } }],
+    category: "Color",
+  },
 
   // Non-temporal new presets
   { name: "Cyanotype", desc: "UV-exposed blueprint print — white on Prussian blue", filters: ["Grayscale", "Invert", "Blend", "Vignette"], category: "Color" },
@@ -287,9 +476,31 @@ const ChainList = () => {
     dragCounter.current = 0;
   };
 
-  const addFilterByName = (name: string) => {
+  const resolvePresetFilter = (entry: PresetFilterEntry) => {
+    const name = typeof entry === "string" ? entry : entry.name;
+    const presetOptions = typeof entry === "string" ? null : entry.options || null;
     const filter = filterList.find((f) => f && f.displayName === name);
-    if (filter) actions.chainAdd(name, filter.filter);
+    if (!filter) return null;
+
+    if (!presetOptions) {
+      return { displayName: name, filter: filter.filter };
+    }
+
+    return {
+      displayName: name,
+      filter: {
+        ...filter.filter,
+        options: {
+          ...(filter.filter.defaults || filter.filter.options || {}),
+          ...presetOptions,
+        },
+      },
+    };
+  };
+
+  const addFilterByName = (entry: PresetFilterEntry) => {
+    const resolved = resolvePresetFilter(entry);
+    if (resolved) actions.chainAdd(resolved.displayName, resolved.filter);
   };
 
   const randomChain = () => {
@@ -317,9 +528,9 @@ const ChainList = () => {
 
   const loadPreset = (preset: typeof CHAIN_PRESETS[0]) => {
     // Set first filter via selectFilter (resets chain to 1 entry)
-    const first = filterList.find((f) => f && f.displayName === preset.filters[0]);
+    const first = resolvePresetFilter(preset.filters[0]);
     if (!first) return;
-    actions.selectFilter(preset.filters[0], first.filter);
+    actions.selectFilter(first.displayName, first.filter);
     // Add remaining filters
     for (let i = 1; i < preset.filters.length; i++) {
       addFilterByName(preset.filters[i]);
@@ -706,7 +917,7 @@ const ChainList = () => {
         const chainNames = chain.map((e) => e.displayName);
         // Check built-in presets
         const matchedPreset = CHAIN_PRESETS.find((p) =>
-          p.filters.length === chainNames.length && p.filters.every((f, i) => f === chainNames[i])
+          p.filters.length === chainNames.length && p.filters.every((f, i) => presetEntryName(f) === chainNames[i])
         );
         if (matchedPreset) {
           return <div className={s.description}>{matchedPreset.desc}</div>;

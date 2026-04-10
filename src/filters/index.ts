@@ -63,7 +63,6 @@ import colorHalftoneSeparate from "./colorHalftoneSeparate";
 import colorThreshold from "./colorThreshold";
 import grainMerge from "./grainMerge";
 import smoothPosterize from "./smoothPosterize";
-import scanlineRgb from "./scanlineRgb";
 import flowField from "./flowField";
 import lensFlare from "./lensFlare";
 import dodgeBurn from "./dodgeBurn";
@@ -147,13 +146,12 @@ import colorGradientNoise from "./colorGradientNoise";
 import vintageTV from "./vintageTV";
 import motionDetect from "./motionDetect";
 import longExposure from "./longExposure";
-import frameBlend from "./frameBlend";
 import temporalEdge from "./temporalEdge";
 import phosphorDecay from "./phosphorDecay";
 import videoFeedback from "./videoFeedback";
+import infiniteCallWindows from "./infiniteCallWindows";
 import freezeFrameGlitch from "./freezeFrameGlitch";
 import backgroundSubtraction from "./backgroundSubtraction";
-import motionHeatmap from "./motionHeatmap";
 import slitScan from "./slitScan";
 import wakeTurbulence from "./wakeTurbulence";
 import chronophotography from "./chronophotography";
@@ -161,6 +159,34 @@ import afterImage from "./afterImage";
 import timeMosaic from "./timeMosaic";
 import temporalColorCycle from "./temporalColorCycle";
 import motionPixelate from "./motionPixelate";
+import polarTransform from "./polarTransform";
+import anaglyph from "./anaglyph";
+import hexPixelate from "./hexPixelate";
+import colorPop from "./colorPop";
+import pixelOutline from "./pixelOutline";
+import lumaMatte from "./lumaMatte";
+import stamp from "./stamp";
+import stopMotion from "./stopMotion";
+import toon from "./toon";
+import inkBleed from "./inkBleed";
+import curves from "./curves";
+import mode7 from "./mode7";
+import trianglePixelate from "./trianglePixelate";
+import halftoneLine from "./halftoneLine";
+import crossStitch from "./crossStitch";
+import echoCombiner from "./echoCombiner";
+import timeWarpDisplacement from "./timeWarpDisplacement";
+import povBands from "./povBands";
+import medianCut from "./medianCut";
+import duplexPrint from "./duplexPrint";
+import motionVectors from "./motionVectors";
+import screenPrint from "./screenPrint";
+import reliefMap from "./reliefMap";
+import facet from "./facet";
+import paletteMapper from "./paletteMapper";
+import isometricExtrude from "./isometricExtrude";
+import octreeQuantize from "./octreeQuantize";
+import frequencyFilter from "./frequencyFilter";
 import {
   atkinson,
   burkes,
@@ -222,6 +248,35 @@ export { default as posterizeDither } from "./posterizeDither";
 export { default as edgeTrace } from "./edgeTrace";
 export { default as colorGradientNoise } from "./colorGradientNoise";
 export { default as vintageTV } from "./vintageTV";
+export { default as polarTransform } from "./polarTransform";
+export { default as anaglyph } from "./anaglyph";
+export { default as hexPixelate } from "./hexPixelate";
+export { default as colorPop } from "./colorPop";
+export { default as pixelOutline } from "./pixelOutline";
+export { default as lumaMatte } from "./lumaMatte";
+export { default as stamp } from "./stamp";
+export { default as stopMotion } from "./stopMotion";
+export { default as toon } from "./toon";
+export { default as inkBleed } from "./inkBleed";
+export { default as curves } from "./curves";
+export { default as mode7 } from "./mode7";
+export { default as trianglePixelate } from "./trianglePixelate";
+export { default as halftoneLine } from "./halftoneLine";
+export { default as crossStitch } from "./crossStitch";
+export { default as echoCombiner } from "./echoCombiner";
+export { default as timeWarpDisplacement } from "./timeWarpDisplacement";
+export { default as povBands } from "./povBands";
+export { default as medianCut } from "./medianCut";
+export { default as duplexPrint } from "./duplexPrint";
+export { default as motionVectors } from "./motionVectors";
+export { default as screenPrint } from "./screenPrint";
+export { default as reliefMap } from "./reliefMap";
+export { default as facet } from "./facet";
+export { default as paletteMapper } from "./paletteMapper";
+export { default as isometricExtrude } from "./isometricExtrude";
+export { default as octreeQuantize } from "./octreeQuantize";
+export { default as frequencyFilter } from "./frequencyFilter";
+export { default as infiniteCallWindows } from "./infiniteCallWindows";
 export {
   atkinson,
   burkes,
@@ -385,13 +440,41 @@ export const filterIndex = [
   colorThreshold,
   grainMerge,
   smoothPosterize,
-  scanlineRgb,
   zigzag,
   scanlineWarp,
   posterizeDither,
   edgeTrace,
   colorGradientNoise,
-  vintageTV
+  vintageTV,
+  polarTransform,
+  anaglyph,
+  hexPixelate,
+  colorPop,
+  pixelOutline,
+  lumaMatte,
+  stamp,
+  stopMotion,
+  toon,
+  inkBleed,
+  curves,
+  mode7,
+  trianglePixelate,
+  halftoneLine,
+  crossStitch,
+  echoCombiner,
+  timeWarpDisplacement,
+  povBands,
+  medianCut,
+  duplexPrint,
+  motionVectors,
+  screenPrint,
+  reliefMap,
+  facet,
+  paletteMapper,
+  isometricExtrude,
+  octreeQuantize,
+  frequencyFilter,
+  infiniteCallWindows
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
   return acc;
@@ -562,6 +645,8 @@ export const filterList = [
     }
   },
   { displayName: "Posterize dither", filter: posterizeDither, category: "Dithering", description: "Per-channel Bayer ordered dithering with configurable levels per channel" },
+  { displayName: "Median Cut", filter: medianCut, category: "Dithering", description: "Build an adaptive palette with median-cut partitioning and remap the image to it" },
+  { displayName: "Octree Quantize", filter: octreeQuantize, category: "Dithering", description: "Adaptive palette reduction using octree subdivision for a different quantization bias" },
   { displayName: "Quantize (No dithering)", filter: quantize, category: "Dithering", description: "Reduce colors by snapping each pixel to the nearest palette color" },
   { displayName: "Random", filter: random, category: "Dithering", description: "Add random noise before quantizing for a stippled, noisy texture" },
   { displayName: "Sierra (full)", filter: sierra, category: "Dithering", description: "Three-row error diffusion similar to Jarvis but with different weights" },
@@ -578,12 +663,16 @@ export const filterList = [
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
   { displayName: "Color balance", filter: colorBalance, category: "Color", description: "Shift the balance between complementary color channels" },
+  { displayName: "Color Pop", filter: colorPop, category: "Color", description: "Preserve one hue family while muting the rest toward monochrome" },
   { displayName: "Color halftone (RGB)", filter: colorHalftoneSeparate, category: "Color", description: "Split RGB channels into separate halftone dots with registration offset" },
   { displayName: "Color shift", filter: colorShift, category: "Color", description: "Rotate hue and shift saturation/lightness" },
   { displayName: "Color threshold", filter: colorThreshold, category: "Color", description: "Isolate pixels by hue range — keep selected colors, desaturate the rest" },
   { displayName: "Contour map", filter: contourMap, category: "Color", description: "Topographic-style elevation bands with distinct colors per luminance level" },
+  { displayName: "Curves", filter: curves, category: "Color", description: "Remap tonal response with editable control points for RGB or single-channel shaping" },
   { displayName: "Dodge / Burn", filter: dodgeBurn, category: "Color", description: "Classic darkroom technique — dodge lightens shadows, burn darkens highlights" },
+  { displayName: "Duplex / Offset Print", filter: duplexPrint, category: "Color", description: "Two-ink print simulation with paper stock showing through the tonal ramp" },
   { displayName: "Duotone", filter: duotone, category: "Color", description: "Map shadows and highlights to two custom colors" },
+  { displayName: "Echo Combiner", filter: echoCombiner, category: "Color", description: "Amplify movement against the recent average while keeping or removing the static baseline" },
   { displayName: "Gradient map", filter: gradientMap, category: "Color", description: "Map luminance to a three-stop color gradient for creative toning" },
   { displayName: "Grain merge", filter: grainMerge, category: "Color", description: "High-pass texture enhancement — amplifies existing texture without adding noise" },
   { displayName: "Grayscale", filter: grayscale, category: "Color", description: "Convert to grayscale using perceptual luminance weights" },
@@ -596,6 +685,8 @@ export const filterList = [
   },
   { displayName: "Invert", filter: invert, category: "Color", description: "Flip all colors to their complement (negative)" },
   { displayName: "Levels", filter: levels, category: "Color", description: "Adjust black point, white point, and gamma for precise tonal control" },
+  { displayName: "Luma Matte", filter: lumaMatte, category: "Color", description: "Build a cutout matte from luminance and optionally output transparency" },
+  { displayName: "Palette Mapper by Hue Bands", filter: paletteMapper, category: "Color", description: "Map hue families into fixed palette slots while preserving tonal structure" },
   { displayName: "Posterize", filter: posterize, category: "Color", description: "Reduce color levels per channel for a flat, poster-like look" },
   { displayName: "Sepia", filter: sepia, category: "Color", description: "Warm monochrome toning with adjustable intensity" },
   { displayName: "Solarize", filter: solarize, category: "Color", description: "Partially invert tones above a threshold for a surreal darkroom effect" },
@@ -605,6 +696,7 @@ export const filterList = [
   { displayName: "ASCII", filter: ascii, category: "Stylize", description: "Render the image as ASCII characters based on brightness" },
   { displayName: "CMYK halftone", filter: cmykHalftone, category: "Stylize", description: "Proper CMYK separation with independent screen angles per channel" },
   { displayName: "Contour lines", filter: contourLines, category: "Stylize", description: "Topographic contour lines from luminance — lines only, filled bands, or both" },
+  { displayName: "Cross-stitch", filter: crossStitch, category: "Stylize", description: "Render the image as stitched X patterns on fabric for an embroidery look" },
   { displayName: "Crosshatch", filter: crosshatch, category: "Stylize", description: "Simulate pen-and-ink crosshatching with luminance-driven line density" },
   { displayName: "Delaunay triangulation", filter: delaunay, category: "Stylize", description: "Low-poly triangle mesh with edge-weighted point placement" },
   { displayName: "Dot matrix", filter: dotMatrix, category: "Stylize", description: "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors" },
@@ -633,15 +725,22 @@ export const filterList = [
   { displayName: "Oil painting", filter: oilPainting, category: "Stylize", description: "Quantize colors locally for thick, blobby paint strokes" },
   { displayName: "Pencil sketch", filter: pencilSketch, category: "Stylize", description: "Directional pencil strokes following edge flow with paper texture" },
   { displayName: "Pixel art upscale", filter: scale2x, category: "Stylize", description: "Upscale with pixel art algorithms — Scale2x, Eagle, or nearest neighbor" },
+  { displayName: "Pixel outline", filter: pixelOutline, category: "Stylize", description: "Draw sprite-like borders around sharp color regions for pixel-art styling" },
   { displayName: "Pixelate", filter: pixelate, category: "Stylize", description: "Downscale into chunky pixel blocks" },
+  { displayName: "Hex pixelate", filter: hexPixelate, category: "Stylize", description: "Pixelate into staggered hex cells instead of square blocks" },
+  { displayName: "Facet / Crystalize Grid", filter: facet, category: "Stylize", description: "Regularized faceted cells with crisp seams for a crystalized poster look" },
+  { displayName: "Halftone Line", filter: halftoneLine, category: "Stylize", description: "Render short line marks per cell instead of dots for an etched halftone look" },
   { displayName: "Pop art", filter: popArt, category: "Stylize", description: "Ben-Day dots with high saturation and flat posterized colors" },
   { displayName: "Posterize edges", filter: posterizeEdges, category: "Stylize", description: "Comic book / cel-shaded look — posterized colors with dark edge outlines" },
   { displayName: "Risograph", filter: risograph, category: "Stylize", description: "Two-color spot separation with misregistration, grain, and ink bleed" },
   { displayName: "Smooth posterize", filter: smoothPosterize, category: "Stylize", description: "Posterize with smooth gradient transitions between bands — painted look" },
   { displayName: "Stained glass", filter: stainedGlass, category: "Stylize", description: "Voronoi cells with dark leading lines for a stained glass window look" },
+  { displayName: "Stamp", filter: stamp, category: "Stylize", description: "Bold rubber-stamp print with rough edges and uneven ink coverage" },
   { displayName: "Stipple", filter: stipple, category: "Stylize", description: "Pointillist dot placement sized by luminance — no grid" },
   { displayName: "Stripe (horizontal)", filter: horizontalStripe, category: "Stylize", description: "Overlay horizontal stripe pattern over the image" },
   { displayName: "Stripe (vertical)", filter: verticalStripe, category: "Stylize", description: "Overlay vertical stripe pattern over the image" },
+  { displayName: "Toon / Cel Shade", filter: toon, category: "Stylize", description: "Flat cartoon color bands with inked outlines for a cleaner cel-shaded look" },
+  { displayName: "Triangle pixelate", filter: trianglePixelate, category: "Stylize", description: "Pixelate into alternating triangle cells for a faceted low-poly mosaic look" },
   { displayName: "Voronoi", filter: voronoi, category: "Stylize", description: "Divide the image into irregular cell regions with averaged colors" },
   { displayName: "Watercolor bleed", filter: watercolorBleed, category: "Stylize", description: "Edge-preserving color bleed with paper texture — soft watercolor look" },
   { displayName: "Woodcut", filter: woodcut, category: "Stylize", description: "High-contrast relief with carved line texture following edge contours" },
@@ -685,7 +784,10 @@ export const filterList = [
   },
   { displayName: "Lens flare", filter: lensFlare, category: "Distort", description: "Camera lens flare with ghost reflections, anamorphic streak, and bloom" },
   { displayName: "Liquify", filter: liquify, category: "Distort", description: "Organic pixel warping driven by luminance gradients" },
+  { displayName: "Isometric Extrude", filter: isometricExtrude, category: "Distort", description: "Turn the image into stacked isometric slabs with a directional extrusion shadow" },
   { displayName: "Mirror / Kaleidoscope", filter: mirror, category: "Distort", description: "Reflect the image along axes or create radial kaleidoscope patterns" },
+  { displayName: "Mode 7", filter: mode7, category: "Distort", description: "Project the image onto a receding floor plane like a classic console racer" },
+  { displayName: "Polar transform", filter: polarTransform, category: "Distort", description: "Wrap a rectangle into a circle or unwrap a circular image into a strip" },
   { displayName: "Pinch", filter: pinch, category: "Distort", description: "Squeeze pixels toward or away from center — radial scale distortion" },
   { displayName: "Ripple", filter: ripple, category: "Distort", description: "Concentric circular waves radiating from center" },
   { displayName: "Rotate", filter: rotate, category: "Distort", description: "Arbitrary angle rotation with bilinear sampling" },
@@ -693,6 +795,7 @@ export const filterList = [
   { displayName: "Spherize", filter: spherize, category: "Distort", description: "Wrap image onto a sphere surface with adjustable strength" },
   { displayName: "Stretch", filter: stretch, category: "Distort", description: "Non-uniform X/Y scaling from center" },
   { displayName: "Swirl", filter: swirl, category: "Distort", description: "Twist the image with rotation that increases toward the center" },
+  { displayName: "Time-warp Displacement", filter: timeWarpDisplacement, category: "Distort", description: "Use luminance or position to sample different recent moments per pixel" },
   { displayName: "Turbulence", filter: turbulence, category: "Distort", description: "Perlin noise-driven displacement for organic warping" },
   { displayName: "Wave", filter: wave, category: "Distort", description: "Displace pixels along sine waves for a ripple effect" },
 
@@ -732,6 +835,7 @@ export const filterList = [
 
   // ── Simulate ──
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Advanced", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
+  { displayName: "Anaglyph 3D", filter: anaglyph, category: "Simulate", description: "Split channels into stereoscopic color pairs for a fake 3D glasses effect" },
   {
     displayName: "CRT emulation",
     category: "Simulate",
@@ -763,6 +867,7 @@ export const filterList = [
   { displayName: "Fax machine", filter: faxMachine, category: "Simulate", description: "Low-res binary with scan line artifacts, thermal paper yellowing, and compression noise" },
   { displayName: "Film burn", filter: filmBurn, category: "Simulate", description: "Aged film stock — warm edge cast, overexposed hotspots, grain intensification" },
   { displayName: "Film grain", filter: filmGrain, category: "Stylize", description: "Add film-like noise grain with adjustable size and intensity" },
+  { displayName: "Ink Bleed", filter: inkBleed, category: "Simulate", description: "Spread dark regions into the paper like wet ink on cheap stock" },
   { displayName: "Gameboy Camera", filter: gameboyCamera, category: "Simulate", description: "Simulate the Gameboy Camera — 4-shade green palette with edge enhancement and ordered dithering" },
   { displayName: "Infrared photography", filter: infrared, category: "Simulate", description: "IR film look — foliage turns white/pink, skies go dark, color shift" },
   { displayName: "LCD display", filter: lcdDisplay, category: "Simulate", description: "Visible sub-pixel grid — RGB stripe, PenTile, or diamond layout" },
@@ -796,14 +901,16 @@ export const filterList = [
     filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "WORMS" } }
   },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
+  { displayName: "Screen Print / Misregistration", filter: screenPrint, category: "Simulate", description: "Layer flat spot-color plates with visible offset on warm paper for a silkscreen poster look" },
   {
     displayName: "Scanline",
     category: "Simulate",
-    description: "Add horizontal scanline gaps like a retro CRT display",
+    description: "CRT-style scanlines with either classic darkened rows or RGB phosphor sub-line separation",
     filter: {
       ...scanline,
       options: {
         ...scanline.options,
+        mode: "DARKEN",
         palette: {
           ...scanline.options.palette,
           options: {
@@ -814,7 +921,6 @@ export const filterList = [
       }
     }
   },
-  { displayName: "Scanline RGB", filter: scanlineRgb, category: "Simulate", description: "Each scanline shows only one RGB channel, cycling R-G-B — raw phosphor separation" },
   { displayName: "Spectrogram", filter: spectrogram, category: "Simulate", description: "Frequency-domain visualization — columns as time, rows as frequency, with scientific colormaps" },
   {
     displayName: "Teletext",
@@ -836,8 +942,8 @@ export const filterList = [
   { displayName: "Ultrasound", filter: ultrasound, category: "Simulate", description: "Medical ultrasound display — fan-shaped sector scan with speckle noise" },
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
   { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
-  { displayName: "Motion detect", filter: motionDetect, category: "Simulate", description: "Visualize motion from EMA background model — security camera or heat vision" },
-  { displayName: "Long exposure", filter: longExposure, category: "Simulate", description: "Accumulate bright pixels over time — moving lights leave trails" },
+  { displayName: "Motion Analysis", filter: motionDetect, category: "Simulate", description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap" },
+  { displayName: "Temporal Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },
   { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "CRT phosphor persistence — each RGB channel decays at a different rate" },
 
   // ── Blur & Edges ──
@@ -860,22 +966,24 @@ export const filterList = [
   { displayName: "Gaussian blur", filter: gaussianBlur, category: "Blur & Edges", description: "Smooth the image with a Gaussian kernel — adjustable sigma" },
   { displayName: "Median filter", filter: medianFilter, category: "Blur & Edges", description: "Non-linear noise removal — replaces each pixel with the median of its neighborhood" },
   { displayName: "Motion blur", filter: motionBlur, category: "Blur & Edges", description: "Directional blur simulating camera or object motion" },
+  { displayName: "Relief Map / Faux Normal Lighting", filter: reliefMap, category: "Blur & Edges", description: "Treat luminance like a height field and relight it with directional faux-surface shading" },
   { displayName: "Radial blur", filter: radialBlur, category: "Blur & Edges", description: "Zoom blur radiating from center — speed/motion effect" },
   { displayName: "Sharpen", filter: sharpen, category: "Blur & Edges", description: "Unsharp mask — enhance edges with adjustable strength and radius" },
   { displayName: "Tilt shift", filter: tiltShift, category: "Blur & Edges", description: "Miniature/toy camera effect — sharp focus band with progressive blur" },
-  { displayName: "Frame blend", filter: frameBlend, category: "Blur & Edges", description: "Temporal blur — blend frames for ghosting/echo trails" },
   { displayName: "Temporal edge", filter: temporalEdge, category: "Blur & Edges", description: "Detect edges in time — moving edges glow, static edges invisible" },
 
   // ── Temporal ──
   { displayName: "After-image", filter: afterImage, category: "Simulate", description: "Complementary-colored ghost when bright objects move — retinal fatigue" },
-  { displayName: "Background subtraction", filter: backgroundSubtraction, category: "Color", description: "Remove static background, keep moving foreground — virtual green screen" },
+  { displayName: "Scene Separation", filter: backgroundSubtraction, category: "Color", description: "Separate moving and static regions to isolate foreground, reconstruct the background, or freeze still parts of the scene" },
   { displayName: "Chronophotography", filter: chronophotography, category: "Stylize", description: "Multiple ghosted exposures of moving subjects — stroboscopic photography" },
   { displayName: "Freeze frame glitch", filter: freezeFrameGlitch, category: "Glitch", description: "Random blocks freeze in time — corrupted buffer aesthetic" },
-  { displayName: "Motion heatmap", filter: motionHeatmap, category: "Simulate", description: "Accumulate motion into persistent heatmap — sustained movement glows hotter" },
   { displayName: "Motion pixelate", filter: motionPixelate, category: "Stylize", description: "Moving areas become pixelated — privacy or artistic motion effect" },
+  { displayName: "POV Bands", filter: povBands, category: "Stylize", description: "Show different recent moments across horizontal bands like a persistence-of-vision display" },
   { displayName: "Slit scan", filter: slitScan, category: "Distort", description: "Each column shows a different point in time — surreal temporal stretching" },
+  { displayName: "Stop Motion", filter: stopMotion, category: "Stylize", description: "Hold each frame for several beats to create a choppy stop-motion cadence" },
   { displayName: "Temporal color cycle", filter: temporalColorCycle, category: "Color", description: "Hue rotates over time — moving areas cycle faster into rainbow trails" },
   { displayName: "Time mosaic", filter: timeMosaic, category: "Stylize", description: "Tiles update at different rates — staggered surveillance-wall aesthetic" },
+  { displayName: "Infinite call windows", filter: infiniteCallWindows, category: "Advanced", description: "Recursive video-call panes with digital UI chrome and compression-style decay" },
   { displayName: "Video feedback", filter: videoFeedback, category: "Advanced", description: "Camera-at-monitor effect — infinite recursive tunnels and fractal patterns" },
   { displayName: "Wake turbulence", filter: wakeTurbulence, category: "Distort", description: "Moving objects leave rippling distortion — heat shimmer effect" },
 
@@ -884,8 +992,10 @@ export const filterList = [
   { displayName: "Color gradient noise", filter: colorGradientNoise, category: "Advanced", description: "Perlin noise mapped to a two-color gradient, blended with the input image" },
   { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Flow field", filter: flowField, category: "Advanced", description: "Displace pixels along curl noise streamlines for organic swirling patterns" },
+  { displayName: "Frequency Filter", filter: frequencyFilter, category: "Advanced", description: "Approximate low, high, or band-pass image frequencies in the spatial domain" },
   { displayName: "Fractal", filter: fractal, category: "Advanced", description: "Render Mandelbrot or Julia set fractals, optionally colored from the input image" },
   { displayName: "Noise generator", filter: noiseGenerator, category: "Advanced", description: "Procedural noise patterns — Perlin, Simplex, or Worley — mixable with the input" },
+  { displayName: "Motion Vectors", filter: motionVectors, category: "Advanced", description: "Estimate local motion between frames and render stable arrows, trails, or heat overlays for debugging and stylized analysis" },
   {
     displayName: "Program",
     category: "Advanced",

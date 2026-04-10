@@ -23,6 +23,12 @@ interface WorkerMessage {
   prevOutputs: Record<string, ArrayBuffer>;
 }
 
+interface WorkerPrevOutputFrame {
+  imageData: ArrayBuffer;
+  width: number;
+  height: number;
+}
+
 const deserializeOptions = (options: any): any => {
   const opts = { ...options };
   if (opts.palette && opts.palette._serialized) {
@@ -51,7 +57,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
     }
 
     const stepTimes: { name: string; ms: number }[] = [];
-    const newPrevOutputs: Record<string, ArrayBuffer> = {};
+    const newPrevOutputs: Record<string, WorkerPrevOutputFrame> = {};
 
     for (const entry of chain) {
       const filter = (filterIndex as any)[entry.filterName];
@@ -87,7 +93,11 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
         const outCtx = output.getContext("2d");
         if (outCtx) {
           const outData = outCtx.getImageData(0, 0, output.width, output.height).data;
-          newPrevOutputs[entry.id] = outData.buffer;
+          newPrevOutputs[entry.id] = {
+            imageData: outData.buffer,
+            width: output.width,
+            height: output.height,
+          };
         }
         canvas = output;
       }
@@ -99,8 +109,8 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 
     // Collect transferable buffers
     const transfers: ArrayBuffer[] = [resultData.buffer];
-    for (const buf of Object.values(newPrevOutputs)) {
-      transfers.push(buf);
+    for (const frame of Object.values(newPrevOutputs)) {
+      transfers.push(frame.imageData);
     }
 
     (self as any).postMessage(

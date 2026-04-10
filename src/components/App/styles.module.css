@@ -208,6 +208,11 @@
      0    1px 0 #000;
 }
 
+.inputLoadingOverlay {
+  left: 8px;
+  right: auto;
+}
+
 .dropPlaceholder {
   position: absolute;
   inset: 0;
