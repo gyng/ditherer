@@ -214,6 +214,18 @@ const App = () => {
           >
             Load test image
           </button>
+          <button
+            onClick={() => {
+              fetch("akiyo.mp4")
+                .then(r => r.blob())
+                .then(blob => {
+                  const file = new File([blob], "akiyo.mp4", { type: "video/mp4" });
+                  actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
+                });
+            }}
+          >
+            Load test video
+          </button>
           <Range
             name="Input Scale"
             types={{ range: [0.1, 4] }}
