@@ -635,17 +635,6 @@ const ChainList = () => {
         <button
           className={s.addBtn}
           onClick={() => {
-            setLibraryInitialTab("filters");
-            setLibraryInitialQuery("");
-            setShowLibraryBrowser(true);
-          }}
-          title="Open full filter/preset browser"
-        >
-          Browse
-        </button>
-        <button
-          className={s.addBtn}
-          onClick={() => {
             const { displayName, filter } = getRandomFilter();
             actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
           }}
