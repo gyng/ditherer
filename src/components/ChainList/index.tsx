@@ -1,16 +1,17 @@
 import { useState, useRef, useCallback } from "react";
 import { useFilter } from "context/useFilter";
-import { filterList } from "filters";
+import { filterList, noop } from "filters";
 import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
 import { paletteList } from "palettes";
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 import ChainPreview from "./ChainPreview";
 import FilterCombobox from "components/FilterCombobox";
+import ModalInput from "components/ModalInput";
 import s from "./styles.module.css";
 
 // Perturb a filter's options from its defaults
-export const randomizeOptions = (base: any) => {
+const randomizeOptions = (base: any) => {
   const optionTypes = base.optionTypes || {};
   const defaults = base.defaults || base.options || {};
   const options = { ...defaults };
@@ -158,13 +159,46 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Flow Painting", desc: "Curl noise streamlines blended with thick painterly strokes", filters: ["Flow field", "Oil painting", "Bloom"], category: "Advanced" },
   { name: "Fractal Overlay", desc: "Mandelbrot fractal with source image colors and edge glow", filters: ["Fractal", "Edge glow", "Bloom"], category: "Advanced" },
 
-  // Temporal
+  // Temporal — existing
   { name: "Heat Vision", desc: "Motion detection with bloom glow — thermal camera aesthetic", filters: ["Motion detect", "Bloom", "Color shift"], category: "Simulate" },
   { name: "Light Painting", desc: "Edge-detected light trails accumulating over time", filters: ["Edge glow", "Long exposure"], category: "Simulate" },
   { name: "Ghost", desc: "Temporal echo with soft glow — moving subjects leave ghostly trails", filters: ["Frame blend", "Bloom"], category: "Blur & Edges" },
   { name: "Motion Neon", desc: "Neon-traced motion outlines with chromatic splitting", filters: ["Temporal edge", "Bloom", "Chromatic aberration"], category: "Blur & Edges" },
   { name: "Retro Monitor", desc: "CRT phosphor persistence with scanlines — green lingers longest", filters: ["CRT emulation", "Phosphor decay", "Scanline"], category: "Simulate" },
   { name: "Security Camera", desc: "Grainy monochrome security feed with motion overlay", filters: ["Grayscale", "Motion detect", "Scanline", "Film grain"], category: "Simulate" },
+
+  // Temporal — new filters
+  { name: "Activity Map", desc: "Accumulated motion heatmap with bloom glow", filters: ["Motion heatmap", "Bloom"], category: "Simulate" },
+  { name: "Acid Trip", desc: "Temporal color cycling through solarized bloom", filters: ["Temporal color cycle", "Solarize", "Bloom"], category: "Color" },
+  { name: "Censored", desc: "Moving areas become pixelated blocks", filters: ["Motion pixelate", "Sharpen"], category: "Stylize" },
+  { name: "Color Freeze", desc: "RGB channels freeze independently — color-split glitch", filters: ["Freeze frame glitch", "Chromatic aberration"], category: "Glitch" },
+  { name: "Frozen Glitch", desc: "Random blocks freeze in time — corrupted buffer", filters: ["Freeze frame glitch"], category: "Glitch" },
+  { name: "Ghost Dance", desc: "Isolated moving subject stroboscopic ghosts with bloom", filters: ["Chronophotography", "Bloom", "Chromatic aberration"], category: "Stylize" },
+  { name: "Heat Shimmer", desc: "Motion-reactive heat distortion with glow", filters: ["Wake turbulence", "Bloom"], category: "Distort" },
+  { name: "Infinite Tunnel", desc: "Zooming recursive video feedback — fractal patterns", filters: ["Video feedback", "Bloom"], category: "Advanced" },
+  { name: "Lucid Dream", desc: "Dreamy temporal blur with light leak and warm tones", filters: ["Gaussian blur", "Bloom", "Light leak", "Sepia", "Frame blend"], category: "Blur & Edges" },
+  { name: "Neon Afterglow", desc: "Neon edges with complementary-colored ghosts", filters: ["Edge glow", "After-image", "Bloom"], category: "Stylize" },
+  { name: "Panorama Glitch", desc: "Temporal slit scan with JPEG corruption", filters: ["Slit scan", "JPEG artifact"], category: "Glitch" },
+  { name: "Privacy Mode", desc: "Moving areas heavily pixelated and blurred", filters: ["Motion pixelate", "Gaussian blur"], category: "Simulate" },
+  { name: "Psychedelic", desc: "Motion-reactive rainbow cycling with bloom and color split", filters: ["Temporal color cycle", "Bloom", "Chromatic aberration"], category: "Color" },
+  { name: "Rainbow Vortex", desc: "Color-shifting recursive zoom with chromatic split", filters: ["Video feedback", "Bloom", "Chromatic aberration"], category: "Advanced" },
+  { name: "Retinal Burn", desc: "Bright objects leave complementary-colored after-images", filters: ["After-image", "Bloom"], category: "Simulate" },
+  { name: "Stargate", desc: "Temporal slit scan with chromatic aberration and glow", filters: ["Slit scan", "Chromatic aberration", "Bloom"], category: "Advanced" },
+  { name: "Stroboscope", desc: "Étienne-Jules Marey stroboscopic photography with glow", filters: ["Chronophotography", "Levels", "Bloom"], category: "Stylize" },
+  { name: "Surveillance Wall", desc: "Tiles updating at staggered rates with scanlines and grain", filters: ["Time mosaic", "Scanline", "Film grain"], category: "Simulate" },
+  { name: "Time Slice", desc: "Temporal slit scan — each column is a different moment", filters: ["Slit scan", "Sharpen"], category: "Distort" },
+  { name: "Underwater", desc: "Motion-reactive ripple distortion with chromatic split", filters: ["Wake turbulence", "Chromatic aberration", "Bloom"], category: "Simulate" },
+  { name: "Virtual Greenscreen", desc: "Remove static background, keep only moving foreground", filters: ["Background subtraction"], category: "Color" },
+
+  // Non-temporal new presets
+  { name: "Cyanotype", desc: "UV-exposed blueprint print — white on Prussian blue", filters: ["Grayscale", "Invert", "Blend", "Vignette"], category: "Color" },
+  { name: "Double Exposure", desc: "Classic film double exposure with bloom and tonal control", filters: ["Blend", "Bloom", "Levels"], category: "Photo" },
+  { name: "Glitch VHS", desc: "VHS tracking errors with block displacement and color split", filters: ["VHS emulation", "Glitch blocks", "Chromatic aberration"], category: "Glitch" },
+  { name: "Lenticular Card", desc: "Holographic rainbow sheen with scanlines and glow", filters: ["Lenticular", "Scanline", "Bloom"], category: "Simulate" },
+  { name: "Lo-fi Webcam", desc: "Chunky pixels with JPEG artifacts and film grain", filters: ["Pixelate", "JPEG artifact", "Film grain", "Vignette"], category: "Simulate" },
+  { name: "Night City", desc: "Cyberpunk neon outlines with chromatic split and bloom", filters: ["Posterize edges", "Chromatic aberration", "Bloom"], category: "Stylize" },
+  { name: "Pop Art", desc: "Warhol-style Ben-Day dots with flat posterized colors and glow", filters: ["Pop art", "Posterize", "Bloom"], category: "Stylize" },
+  { name: "X-Ray", desc: "Medical X-ray — inverted grayscale with glow", filters: ["Grayscale", "Invert", "Levels", "Bloom"], category: "Simulate" },
 ];
 
 const USER_CHAIN_PREFIX = "_chain_";
@@ -199,6 +233,7 @@ const ChainList = () => {
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
   const [pinnedPreviews, setPinnedPreviews] = useState<Map<string, { top: number; left: number }>>(new Map());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [savedChains, setSavedChains] = useState<SavedChain[]>(loadUserChains);
   const [loadedSavedName, setLoadedSavedName] = useState<string | null>(null);
   const PRESET_CATEGORIES = [...new Set(CHAIN_PRESETS.map((p) => p.category))];
@@ -292,6 +327,17 @@ const ChainList = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Don't intercept keys when the user is typing in an input/textarea/contenteditable
+    // (e.g. the filter typeahead) — let the field handle Backspace, arrows, space, etc.
+    const target = e.target as HTMLElement;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target.isContentEditable
+    ) {
+      return;
+    }
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
@@ -318,6 +364,9 @@ const ChainList = () => {
         e.preventDefault();
         if (chain.length > 1 && chain[activeIndex]) {
           actions.chainRemove(chain[activeIndex].id);
+        } else if (chain[activeIndex]) {
+          // Last entry: replace with noop instead of removing.
+          actions.selectFilter("None", noop);
         }
         break;
     }
@@ -357,11 +406,20 @@ const ChainList = () => {
         <button
           className={s.addBtn}
           onClick={() => {
-            if (chain.length <= 1) return;
-            setShowClearConfirm(true);
+            const url = actions.getExportUrl(state);
+            setShareUrl(url);
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(url).catch(() => { /* fall through to modal */ });
+            }
           }}
+          title="Share filter chain (copies URL to clipboard)"
+        >
+          &#8679;
+        </button>
+        <button
+          className={s.addBtn}
+          onClick={() => setShowClearConfirm(true)}
           title="Clear filter chain"
-          disabled={chain.length <= 1}
         >
           &#10005;
         </button>
@@ -531,10 +589,16 @@ const ChainList = () => {
               </button>
               <button
                 className={s.removeBtn}
-                disabled={chain.length <= 1}
                 onClick={(e) => {
                   e.stopPropagation();
-                  actions.chainRemove(entry.id);
+                  // Removing the last entry would leave the chain empty, which
+                  // breaks the rest of the UI; replace it with a noop instead
+                  // so the user always has at least one (inert) entry.
+                  if (chain.length <= 1) {
+                    actions.selectFilter("None", noop);
+                  } else {
+                    actions.chainRemove(entry.id);
+                  }
                 }}
                 title="Remove"
               >
@@ -680,8 +744,9 @@ const ChainList = () => {
                 autoFocus
                 onClick={() => {
                   setShowClearConfirm(false);
-                  const defaultFilter = filterList.find((f) => f && f.displayName === chain[0]?.displayName) || filterList[0];
-                  actions.selectFilter(defaultFilter.displayName, defaultFilter.filter);
+                  // Reset to a single noop entry so the user has a clean
+                  // baseline to build a new chain from.
+                  actions.selectFilter("None", noop);
                 }}
               >
                 OK
@@ -695,6 +760,15 @@ const ChainList = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {shareUrl !== null && (
+        <ModalInput
+          title="Share URL (copied to clipboard)"
+          defaultValue={shareUrl}
+          onConfirm={() => setShareUrl(null)}
+          onCancel={() => setShareUrl(null)}
+        />
       )}
     </div>
   );

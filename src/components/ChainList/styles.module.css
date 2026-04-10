@@ -76,15 +76,19 @@
 
 .entryName {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: cell;
-}
-
-.entryName:hover {
-  text-decoration: underline;
-  text-decoration-style: dotted;
+  cursor: pointer;
+  border: 2px inset var(--input-border, #ccc);
+  background: var(--window-bg, white);
+  color: var(--window-text, black);
+  padding: 1px 14px 1px 3px;
+  box-sizing: border-box;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0l4 4 4-4z' fill='%23000'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
 }
 
 .entrySelect {

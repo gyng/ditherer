@@ -19,7 +19,8 @@
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.15",
     "cmdk": "^1.1.1",
-    "pako": "^2.1.0",
+    "fflate": "^0.8.2",
+    "modern-gif": "^2.0.4",
     "react": "^19.2.4",
     "react-colorful": "^5.6.1",
     "react-dom": "^19.2.4"

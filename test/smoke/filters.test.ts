@@ -163,6 +163,7 @@ describe("linearize safety: every filter produces opaque output with _linearize=
     // Filters that call drawImage(input, ...) or cloneCanvas(input, true) —
     // fails with fake canvas because it's not a real HTMLCanvasElement.
     "Mavica FD7",
+    "None",
     "Pixelate",
     "VHS emulation",
     "rgbStripe",

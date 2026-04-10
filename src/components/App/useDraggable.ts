@@ -38,6 +38,7 @@ type DraggableOptions = {
 export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, onScale, onScaleAbsolute }: DraggableOptions = {}) {
   const pos = useRef(defaultPosition);
   const dragging = useRef(false);
+  const didDrag = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
 
     if (edge && (onScale || onScaleAbsolute)) {
       // --- Resize mode: drag border to scale ---
+      didDrag.current = true;
       e.preventDefault();
       e.stopPropagation();
       const startX = e.clientX;
@@ -96,6 +98,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
 
     // --- Drag mode: move the window ---
     dragging.current = true;
+    didDrag.current = false;
     offset.current = {
       x: e.clientX - pos.current.x,
       y: e.clientY - pos.current.y,
@@ -103,6 +106,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
 
     const onMouseMove = (e) => {
       if (!dragging.current || !ref.current) return;
+      didDrag.current = true;
       const x = e.clientX - offset.current.x;
       const y = Math.max(0, e.clientY - offset.current.y);
       pos.current = { x, y };
@@ -142,5 +146,5 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
     return () => el.removeEventListener("wheel", handler);
   }, [ref, onScale]);
 
-  return { onMouseDown, onMouseMove };
+  return { onMouseDown, onMouseMove, didDrag };
 }

@@ -21,6 +21,10 @@ export default defineConfig({
   },
   build: {
     outDir: "build",
+    // Filters are intentionally eager-loaded during the boot screen
+    // (see src/index.tsx) and the worker bundles them all so it can
+    // run any filter on demand. Both bundles are knowingly large.
+    chunkSizeWarningLimit: 1000,
   },
   server: {
     watch: {

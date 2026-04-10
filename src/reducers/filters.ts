@@ -260,7 +260,9 @@ export default (state = initialState, action) => {
 
     // --- Compat: SELECT_FILTER resets to single-entry chain ---
     case SELECT_FILTER: {
-      const entry = makeChainEntry(action.name, action.filter.filter);
+      // action.filter may be a FilterObject directly or a wrapper { filter: FilterObject }
+      const filterObj = action.filter.func ? action.filter : action.filter.filter;
+      const entry = makeChainEntry(action.name, filterObj);
       return withSelected({
         ...state,
         chain: [entry],

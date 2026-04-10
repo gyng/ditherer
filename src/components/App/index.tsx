@@ -4,6 +4,7 @@ import useDraggable from "./useDraggable";
 import Controls from "components/controls";
 import ChainList from "components/ChainList";
 import Exporter from "components/App/Exporter";
+import SaveAs from "components/SaveAs";
 import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import CollapsibleSection from "components/CollapsibleSection";
@@ -20,67 +21,56 @@ const App = () => {
   const [dropping, setDropping] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("ditherer-theme") || "default");
   const [canvasDropping, setCanvasDropping] = useState(false);
-  const [capturing, setCapturing] = useState(false);
   const [filtering, setFiltering] = useState(false);
-  const [hasCapture, setHasCapture] = useState(false);
   const [videoPaused, setVideoPaused] = useState(false);
+  const [showSaveAs, setShowSaveAs] = useState(false);
+  const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
+  const playPauseTimerRef = useRef<number | null>(null);
+
+  const flashPlayPause = (kind: "play" | "pause") => {
+    setPlayPauseIndicator(kind);
+    if (playPauseTimerRef.current) window.clearTimeout(playPauseTimerRef.current);
+    playPauseTimerRef.current = window.setTimeout(() => setPlayPauseIndicator(null), 600);
+  };
 
   const inputCanvasRef = useRef(null);
   const outputCanvasRef = useRef(null);
-  const chunksRef = useRef([]);
-  const mediaRecorderRef = useRef(null);
-  const captureVideoRef = useRef(null);
   const zIndexRef = useRef(0);
-  const streamRef = useRef(null);
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
-  const captureDragRef = useRef(null);
+  const saveAsDragRef = useRef(null);
   const dragScaleStart = useRef({ input: 1, output: 1 });
 
   const inputDrag = useDraggable(inputDragRef, {
     onScale: (delta) => {
-      const newScale = Math.round(Math.max(0.1, Math.min(4, state.scale + delta)) * 10) / 10;
+      const newScale = Math.round(Math.max(0.05, Math.min(16, state.scale + delta)) * 10) / 10;
       actions.setScale(newScale);
     },
     onScaleAbsolute: (ratio) => {
       // ratio=1.0 at start → capture; subsequent calls use captured start
       if (Math.abs(ratio - 1) < 0.005) dragScaleStart.current.input = state.scale;
-      const newScale = Math.max(0.1, Math.min(4, dragScaleStart.current.input * ratio));
+      const newScale = Math.max(0.05, Math.min(16, dragScaleStart.current.input * ratio));
       actions.setScale(Math.round(newScale * 100) / 100);
     }
   });
   const outputDrag = useDraggable(outputDragRef, {
     defaultPosition: { x: 320, y: 20 },
     onScale: (delta) => {
-      const newScale = Math.round(Math.max(0.1, Math.min(4, state.outputScale + delta)) * 10) / 10;
+      const newScale = Math.round(Math.max(0.05, Math.min(16, state.outputScale + delta)) * 10) / 10;
       actions.setOutputScale(newScale);
     },
     onScaleAbsolute: (ratio) => {
       if (Math.abs(ratio - 1) < 0.005) dragScaleStart.current.output = state.outputScale;
-      const newScale = Math.max(0.1, Math.min(4, dragScaleStart.current.output * ratio));
+      const newScale = Math.max(0.05, Math.min(16, dragScaleStart.current.output * ratio));
       actions.setOutputScale(Math.round(newScale * 100) / 100);
     }
   });
-  const captureDrag = useDraggable(captureDragRef, { defaultPosition: { x: 160, y: 400 } });
+  const saveAsDrag = useDraggable(saveAsDragRef, { defaultPosition: { x: 160, y: 400 } });
 
   // Apply saved theme on mount
   useEffect(() => {
     if (theme === "rainy-day") {
       document.documentElement.setAttribute("data-theme", "rainy-day");
-    }
-  }, []);
-
-  // Create capture video element once
-  useEffect(() => {
-    const video = document.createElement("video");
-    video.controls = true;
-    video.autoplay = true;
-    video.loop = true;
-    captureVideoRef.current = video;
-
-    const captureOutputContainer = document.body && document.body.querySelector("#captureOutput");
-    if (captureOutputContainer) {
-      captureOutputContainer.appendChild(video);
     }
   }, []);
 
@@ -145,46 +135,6 @@ const App = () => {
     e.currentTarget.style.zIndex = `${zIndexRef.current}`;
   }, []);
 
-  const handleCapture = useCallback(() => {
-    if (!capturing && outputCanvasRef.current) {
-      const stream = outputCanvasRef.current.captureStream(25);
-      streamRef.current = stream;
-
-      if (stream && state.video) {
-        const vid = state.video;
-        let streams;
-        if (vid.captureStream) {
-          streams = vid.captureStream(25);
-        }
-        if (streams && stream && state.videoVolume > 0) {
-          const audioTracks = streams.getAudioTracks();
-          audioTracks.forEach(t => stream.addTrack(t.clone()));
-        }
-      }
-
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      recorder.ondataavailable = e => chunksRef.current.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
-        chunksRef.current = [];
-        const dataUrl = URL.createObjectURL(blob);
-        if (captureVideoRef.current) {
-          captureVideoRef.current.srcObject = null;
-          captureVideoRef.current.src = dataUrl;
-        }
-        setHasCapture(true);
-      };
-      setCapturing(true);
-      setHasCapture(false);
-    } else if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
-      setCapturing(false);
-    }
-  }, [capturing, state.video, state.videoVolume]);
-
   return (
     <div className={s.app}>
       <div className={s.chrome}>
@@ -228,15 +178,15 @@ const App = () => {
           </button>
           <Range
             name="Input Scale"
-            types={{ range: [0.1, 4] }}
-            step={0.1}
+            types={{ range: [0.05, 16] }}
+            step={0.05}
             onSetFilterOption={(_, value) => actions.setScale(value)}
             value={state.scale}
           />
           {state.video && (<>
             <div className={controls.separator} />
             <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-              <button onClick={() => { actions.toggleVideo(); setVideoPaused(!videoPaused); }}>
+              <button onClick={() => { actions.toggleVideo(); const np = !videoPaused; setVideoPaused(np); flashPlayPause(np ? "pause" : "play"); }}>
                 {videoPaused ? "\u25B6 Play" : "\u23F8 Pause"}
               </button>
               <label className={controls.label} htmlFor="mute">
@@ -344,8 +294,8 @@ const App = () => {
         <CollapsibleSection title="Output" defaultOpen>
           <Range
             name="Output Scale"
-            types={{ range: [0.1, 4] }}
-            step={0.1}
+            types={{ range: [0.05, 16] }}
+            step={0.05}
             onSetFilterOption={(_, value) => actions.setOutputScale(value)}
             value={state.outputScale}
           />
@@ -357,7 +307,45 @@ const App = () => {
           />
           <button
             className={s.copyButton}
-            onClick={() => {
+            onClick={async () => {
+              // For video sources: record the filtered output canvas for one full
+              // loop of the source video, then load it back as a new video input.
+              // This bakes the current filter chain into the video.
+              if (state.video && outputCanvasRef.current) {
+                const canvas = outputCanvasRef.current;
+                const stream = canvas.captureStream(30);
+                // Pick a supported mime type
+                const mimeCandidates = [
+                  "video/webm;codecs=vp9",
+                  "video/webm;codecs=vp8",
+                  "video/webm",
+                ];
+                const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || "video/webm";
+                const chunks: BlobPart[] = [];
+                const recorder = new MediaRecorder(stream, { mimeType });
+                recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+                recorder.onstop = () => {
+                  const blob = new Blob(chunks, { type: mimeType });
+                  const file = new File([blob], "filtered.webm", { type: mimeType });
+                  actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
+                };
+
+                // Restart video from beginning so we capture a full loop
+                const v = state.video;
+                const wasPaused = v.paused;
+                try { v.currentTime = 0; } catch { /* ignore */ }
+                if (wasPaused) await v.play().catch(() => {});
+
+                const duration = isFinite(v.duration) && v.duration > 0 ? v.duration : 5;
+                recorder.start();
+                window.setTimeout(() => {
+                  if (recorder.state !== "inactive") recorder.stop();
+                  stream.getTracks().forEach(t => t.stop());
+                }, duration * 1000 + 100);
+                return;
+              }
+
+              // For static images: copy the current filtered frame
               if (outputCanvasRef.current) {
                 const image = new Image();
                 image.src = outputCanvasRef.current.toDataURL("image/png");
@@ -370,16 +358,6 @@ const App = () => {
           >
             {"<< Copy output to input"}
           </button>
-          <div className={s.captureSection}>
-            <button
-              id="captureButton"
-              style={{ margin: "5px 0" }}
-              disabled={!state.realtimeFiltering}
-              onClick={handleCapture}
-            >
-              {capturing ? "Stop capture" : "Capture output video"}
-            </button>
-          </div>
         </CollapsibleSection>
 
         {/* Settings section */}
@@ -491,7 +469,7 @@ const App = () => {
               {(!state.inputImage || canvasDropping) && (
                 <div
                   className={s.dropPlaceholder}
-                  onClick={() => !canvasDropping && document.getElementById("imageLoader")?.click()}
+                  onClick={() => !canvasDropping && !inputDrag.didDrag.current && document.getElementById("imageLoader")?.click()}
                   style={{ cursor: canvasDropping ? undefined : "pointer" }}
                 >
                   <span>{canvasDropping ? "Drop to load" : "Drop or click to load image/video"}</span>
@@ -500,9 +478,21 @@ const App = () => {
               <canvas
                 className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
                 ref={inputCanvasRef}
-                onClick={() => { if (state.video) { actions.toggleVideo(); setVideoPaused(!videoPaused); } }}
+                onClick={() => {
+                  if (state.video && !inputDrag.didDrag.current) {
+                    actions.toggleVideo();
+                    const nowPaused = !videoPaused;
+                    setVideoPaused(nowPaused);
+                    flashPlayPause(nowPaused ? "pause" : "play");
+                  }
+                }}
                 style={state.video ? { cursor: "pointer" } : undefined}
               />
+              {playPauseIndicator && (
+                <div className={s.playPauseOverlay}>
+                  {playPauseIndicator === "play" ? "▶ PLAY" : "❚❚ PAUSE"}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -510,23 +500,39 @@ const App = () => {
         <div ref={outputDragRef} role="presentation" onMouseDown={outputDrag.onMouseDown} onMouseDownCapture={bringToTop} onMouseMove={outputDrag.onMouseMove}>
           <div className={controls.window}>
             <div className={["handle", controls.titleBar].join(" ")}>Output</div>
+            <div className={s.menuBar}>
+              <button
+                className={s.menuItem}
+                onMouseDown={e => e.stopPropagation()}
+                onClick={() => {
+                  setShowSaveAs(true);
+                  zIndexRef.current += 1;
+                  if (saveAsDragRef.current) {
+                    (saveAsDragRef.current as HTMLElement).style.zIndex = `${zIndexRef.current}`;
+                  }
+                }}
+              >
+                Save As...
+              </button>
+            </div>
             <canvas className={s.canvas} ref={outputCanvasRef} />
           </div>
         </div>
 
         <div
-          ref={captureDragRef}
+          ref={saveAsDragRef}
           role="presentation"
-          onMouseDown={captureDrag.onMouseDown}
+          onMouseDown={saveAsDrag.onMouseDown}
           onMouseDownCapture={bringToTop}
-          id="captureWindow"
-          className={hasCapture ? "" : s.hide}
+          onMouseMove={saveAsDrag.onMouseMove}
+          style={showSaveAs ? undefined : { display: "none" }}
         >
-          <div className={controls.window}>
-            <div className={["handle", controls.titleBar].join(" ")}>Capture</div>
-            <div id="captureOutput" />
-            <div className={[s.rec, !capturing ? s.hide : ""].join(" ")}>● REC</div>
-          </div>
+          {showSaveAs && (
+            <SaveAs
+              outputCanvasRef={outputCanvasRef}
+              onClose={() => setShowSaveAs(false)}
+            />
+          )}
         </div>
       </div>
     </div>

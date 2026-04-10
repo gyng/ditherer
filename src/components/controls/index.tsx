@@ -40,7 +40,14 @@ const Controls = (props) => {
 
   return (
     <div className={s.controls}>
-      {Object.entries(optionTypes).map(e => {
+      {Object.entries(optionTypes).filter(([, oType]) => {
+        // Optional visibility predicate — option types may declare a
+        // visibleWhen(options) callback to hide controls that are no-ops
+        // given the current option values (e.g. rowAlternation when the
+        // scan order isn't row-major).
+        const vw = (oType as any).visibleWhen;
+        return typeof vw !== "function" || vw(options);
+      }).map(e => {
         const [name, oType] = e;
 
         switch ((oType as any).type) {

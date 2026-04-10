@@ -14,12 +14,6 @@
   100% { content: "\1F55B"; }
 }
 
-@keyframes blink {
-  to {
-    visibility: hidden;
-  }
-}
-
 .app {
   align-content: flex-start;
   display: flex;
@@ -35,7 +29,7 @@
   display: flex;
   flex-direction: column;
   background: var(--light-gray);
-  min-width: 270px;
+  min-width: 310px;
   width: 10vw;
   padding: 15px;
 }
@@ -60,9 +54,6 @@
   margin-top: 20px;
 }
 
-.chrome .captureSection {
-  max-width: 270px;
-}
 
 .chrome .perfStats {
   padding: 4px 0;
@@ -87,18 +78,72 @@
   margin-top: 10px;
 }
 
-.hide {
-  display: none !important;
+/* Win95-style menu bar below title bar */
+.menuBar {
+  background: var(--light-gray, #c0c0c0);
+  display: flex;
+  padding: 1px 2px;
+  border-bottom: 1px solid var(--button-shadow, #808080);
 }
 
-.rec {
-  animation: blink 1.5s steps(5, start) infinite;
-  font-weight: bold;
-  color: red;
-  position: absolute;
-  right: 8px;
-  top: 32px;
+.menuItem {
+  background: none;
+  border: 1px solid transparent;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--button-text, black);
 }
+
+.menuItem:hover {
+  border-left: 1px solid #ffffff;
+  border-top: 1px solid #ffffff;
+  border-right: 1px solid #404040;
+  border-bottom: 1px solid #404040;
+}
+
+.menuItem:active {
+  border-left: 1px solid #404040;
+  border-top: 1px solid #404040;
+  border-right: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+}
+
+/* Title bar action buttons */
+.titleBarButtons {
+  margin-left: auto;
+  display: flex;
+  gap: 1px;
+}
+
+.titleBarBtn {
+  background: var(--light-gray, #c0c0c0);
+  border-left: 1px solid #ffffff;
+  border-top: 1px solid #ffffff;
+  border-right: 1px solid #404040;
+  border-bottom: 1px solid #404040;
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 3px;
+  min-height: unset;
+  cursor: pointer;
+  color: black;
+  box-shadow: none;
+}
+
+.titleBarBtn:active {
+  border-left: 1px solid #404040;
+  border-top: 1px solid #404040;
+  border-right: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+}
+
+.titleBarBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 
 .canvases {
   display: grid;
@@ -125,11 +170,42 @@
 .inputWindow {
   min-height: 200px;
   min-width: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.inputWindow > :first-child {
+  flex: 0 0 auto;
 }
 
 .canvasArea {
   position: relative;
   min-height: 174px;
+  flex: 1;
+}
+
+.playPauseOverlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: #fff;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+    -1px  0   0 #000,
+     1px  0   0 #000,
+     0   -1px 0 #000,
+     0    1px 0 #000;
 }
 
 .dropPlaceholder {
@@ -141,7 +217,7 @@
   color: #000;
   font-size: 0.9em;
   user-select: none;
-  pointer-events: none;
+  pointer-events: auto;
   border-left: 2px inset #808080;
   border-top: 2px inset #808080;
   border-right: 2px inset white;
@@ -217,6 +293,18 @@
 
   .filterBar .filterButton {
     width: 100%;
+  }
+
+  .titleBarBtn {
+    min-height: 28px;
+    padding: 2px 6px;
+    font-size: 14px;
+  }
+
+  .menuItem {
+    min-height: 32px;
+    padding: 4px 12px;
+    font-size: 14px;
   }
 
   .filterBar .filterButton:disabled {
