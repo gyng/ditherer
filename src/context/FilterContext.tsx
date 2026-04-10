@@ -325,7 +325,7 @@ export const FilterProvider = ({ children }) => {
     filteringRef.current = true;
     const curState = stateRef.current;
     const chain = curState.chain;
-    const isAnimating = animLoopRef.current != null || degaussAnimRef.current != null;
+    const isAnimating = animLoopRef.current != null || degaussAnimRef.current != null || (curState.video && !curState.video.paused);
 
     const chainKey = chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(",");
     if (chainKey !== cachedChainOrderRef.current) {

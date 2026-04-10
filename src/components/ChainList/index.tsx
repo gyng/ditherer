@@ -601,6 +601,7 @@ const ChainList = () => {
             top={previewPos.top}
             left={previewPos.left}
             stepNumber={stepIndex + 1}
+            pinned={!!pinnedPreviewId}
           />
         );
       })()}
