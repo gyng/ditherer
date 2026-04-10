@@ -145,5 +145,6 @@ export default {
   func: analogStatic,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  mainThread: true
 };

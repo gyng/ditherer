@@ -72,4 +72,4 @@ const longExposure = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Long Exposure", func: longExposure, optionTypes, options: defaults, defaults, description: "Accumulate bright pixels over time — moving lights leave trails" };
+export default { name: "Long Exposure", func: longExposure, optionTypes, options: defaults, defaults, mainThread: true, description: "Accumulate bright pixels over time — moving lights leave trails" };

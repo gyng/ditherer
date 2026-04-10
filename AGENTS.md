@@ -4,9 +4,9 @@
 
 Ditherer is a browser-based image/video processing tool. Users load an image, select a dithering algorithm (or other effect), adjust parameters via a control panel, and apply the filter. The app also supports video frame processing, palette extraction, and state export/import via URL.
 
-**Stack:** React, Vite, TypeScript, Rust/WASM (color space conversions)
+**Stack:** React 19, Vite, TypeScript, Rust/WASM (color space conversions), cmdk + Radix UI for the filter picker.
 
-> **Note:** The project is undergoing modernization. See [Modernization Interactions](#modernization-interactions) below for how to handle code that is mid-migration.
+**Quick reference:** `npm run dev` (dev server) · `npm run build` (production build to `build/`) · `npm run test` (Vitest) · `npm run lint` (eslint).
 
 ---
 
@@ -21,41 +21,47 @@ The UI follows an implicit atomic design pattern:
 - Layout values are inline (no token system yet)
 
 **Atoms** — Leaf control components in `src/components/controls/`. Each renders a single HTML control:
-- `Range.jsx` — `<input type="range">` with editable value display
-- `Bool.jsx` — `<input type="checkbox">`
-- `Enum.jsx` — `<select>` dropdown
-- `Stringly.jsx` — `<input type="text">`
-- `Textly.jsx` — `<textarea>`
+- `Range.tsx` — `<input type="range">` with editable value display
+- `Bool.tsx` — `<input type="checkbox">`
+- `Enum.tsx` — `<select>` dropdown
+- `Stringly.tsx` — `<input type="text">`
+- `Textly.tsx` — `<textarea>`
 
 **Molecules** — Composed controls:
-- `Palette.jsx` — palette selector + nested atom controls for palette options
-- `ColorArray.jsx` — color swatch grid + palette extraction UI (stateful)
+- `Palette.tsx` — palette selector + nested atom controls for palette options
+- `ColorArray.tsx` — color swatch grid + palette extraction UI (stateful)
 
 **Organisms** — Sections of the app:
-- `Controls` (`src/components/controls/index.jsx`) — dispatches to the right atom/molecule based on `optionTypes.type`
-- `Exporter` (`src/components/App/Exporter.jsx`) — state export/import panel
+- `Controls` (`src/components/controls/index.tsx`) — dispatches to the right atom/molecule based on `optionTypes.type`
+- `ChainList` (`src/components/ChainList/index.tsx`) — filter chain editor, presets, drag/drop reordering
+- `Exporter` (`src/components/App/Exporter.tsx`) — URL/JSON state export panel
+- `SaveAs` (`src/components/SaveAs/index.tsx`) — image/video file export dialog (uses MediaRecorder for video)
 
 **Page** — Single page app:
-- `App` (`src/components/App/index.jsx`) — top-level layout: sidebar controls + draggable canvas area
+- `App` (`src/components/App/index.tsx`) — top-level layout: sidebar controls + draggable canvas area
 
 ### State Management
 
-App state is managed via React Context + `useReducer` (single reducer, ~13 properties). Components consume state via `useContext`. No external state library.
+App state is managed via React Context + `useReducer` in `src/reducers/filters.ts`. Components consume state via `useFilter()` (`src/context/useFilter.ts`). No external state library.
 
 Key state shape:
-- `selected` — current filter + its options
+- `chain` — array of `ChainEntry { id, displayName, filter, enabled }` (max 16 entries)
+- `activeIndex` — which chain entry is selected for editing
+- `selected` — compat shim derived from `chain[activeIndex]`
 - `inputImage` / `outputImage` — source and processed canvases
 - `video` — video element for realtime filtering
-- Scale, grayscale, playback settings
+- Scale, grayscale, playback, linearize, wasmAcceleration
+
+`FilterContext.tsx` owns the chain execution: temporal pipeline buffers (`prevOutputMapRef`, `prevInputMapRef`, `emaMapRef`), worker offload, and frame loop scheduling. The reducer is pure data shape; the context handles side effects.
 
 ### Filter System
 
-Filters are the core domain. Each filter is a self-contained module in `src/filters/` exporting:
+Filters are the core domain (~160 filters). Each filter is a self-contained module in `src/filters/` exporting:
 
 ```typescript
 // Every filter exports this shape
 export const optionTypes = {
-  paramName: { type: RANGE, range: [0, 255], step: 1, default: 128 }
+  paramName: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "What this controls" }
 }
 
 export const defaults = {
@@ -64,10 +70,18 @@ export const defaults = {
 
 const filterFunc = (input: HTMLCanvasElement, options = defaults) => HTMLCanvasElement
 
-export default { name: "FilterName", func: filterFunc, options: defaults, optionTypes, defaults }
+export default {
+  name: "FilterName",
+  func: filterFunc,
+  options: defaults,
+  optionTypes,
+  defaults,
+  description: "One-line user-facing summary",
+  mainThread: true   // optional — only if the filter needs the temporal pipeline (see below)
+}
 ```
 
-The `optionTypes` declaration drives the UI — the Controls component reads it and renders the appropriate atom/molecule for each option. This is a **data-driven UI** pattern: filters declare what controls they need, the framework renders them.
+The `optionTypes` declaration drives the UI — the Controls component reads it and renders the appropriate atom/molecule for each option. This is a **data-driven UI** pattern: filters declare what controls they need, the framework renders them. Every option should have a `desc` so users get tooltips.
 
 **Control type → component mapping:**
 
@@ -78,31 +92,65 @@ The `optionTypes` declaration drives the UI — the Controls component reads it 
 | `ENUM` | `Enum` |
 | `STRING` | `Stringly` |
 | `TEXT` | `Textly` |
-| `PALETTE` | `Palette` |
+| `COLOR` | color picker |
 | `COLOR_ARRAY` | `ColorArray` |
+| `PALETTE` | `Palette` |
+| `ACTION` | button (e.g., `animate` for play/stop) |
 
-**Adding a new filter:** Create a new file in `src/filters/`, define `optionTypes`, `defaults`, and the filter function, then register it in `src/filters/index.js`. The UI controls are generated automatically from `optionTypes`.
+**Adding a new filter:** Create a new file in `src/filters/`, define `optionTypes`, `defaults`, and the filter function, then register it in `src/filters/index.ts` (both the import and a `filterList` entry with `displayName`/`category`/`description`). The UI controls are generated automatically from `optionTypes`.
+
+### Temporal Pipeline
+
+Filters can read state from previous frames via injected options:
+
+| Option | Type | Description |
+|---|---|---|
+| `_prevOutput` | `Uint8ClampedArray \| null` | This filter's output pixels from the previous frame |
+| `_prevInput` | `Uint8ClampedArray \| null` | This filter's input pixels from the previous frame |
+| `_ema` | `Float32Array \| null` | Exponential moving average of input pixels (α=0.1, ~10-frame window) |
+| `_frameIndex` | `number` | Global frame counter |
+| `_isAnimating` | `boolean` | Whether the animation loop is running |
+| `_linearize` | `boolean` | User has gamma-correct mode on |
+| `_wasmAcceleration` | `boolean` | User has WASM accel on |
+
+These are populated by `FilterContext` and persist across calls in main-thread refs.
+
+**`mainThread: true` flag.** Filters that read `_prevOutput`/`_prevInput`/`_ema`, hold module-level state across calls (ring buffers, accumulators), or use `dispatch` MUST declare `mainThread: true` on their default export. Without it the filter chain runs in a Web Worker where the temporal state and module state don't persist, and the filter silently does nothing.
+
+`FilterContext.chainNeedsMainThread` checks this flag — there is no central name list. Adding a new temporal filter only requires setting the flag on its export.
+
+Existing temporal filters: motion detect, motion heatmap, motion pixelate, long exposure, frame blend, temporal edge, temporal color cycle, phosphor decay, after-image, chronophotography, slit scan, time mosaic, freeze frame glitch, video feedback, wake turbulence, background subtraction, datamosh, e-ink (ghosting), VHS (line persistence), oscilloscope (phosphor), reaction-diffusion, cellular automata, matrix rain, the error-diffusion factory (when `temporalBleed > 0`), and analog static (when `persistence > 0`).
 
 ### WASM Module
 
 `src/wasm/rgba2laba/` contains a Rust crate compiled to WASM for performance-critical color space conversions (RGB to CIE Lab). Loaded via dynamic import with JS fallback if WASM fails to load.
+
+### Filter Chains
+
+Filters compose into chains (max 16 entries). The chain is the unit of work — `FilterContext` runs each enabled entry sequentially, feeding the output of one as the input to the next, with caching of intermediate canvases. State is serialized to URL hash and localStorage so users can share or save chains.
+
+Curated chain presets live in `src/components/ChainList/index.tsx` (`CHAIN_PRESETS`). To add a preset, append an entry referencing existing filter `displayName`s — no code change needed.
 
 ### Directory Structure
 
 ```
 src/
   components/
-    App/              # App organism + Exporter molecule
+    App/              # App organism, Exporter, SaveAs export dialog
+    ChainList/        # Filter chain editor + presets
     controls/         # Atom and molecule UI controls
-  filters/            # Filter modules (20+) — the core domain
-    wasm/             # Rust/WASM color conversion module
-  palettes/           # Color palette definitions and registry
-  actions/            # Action creators (async media loading, filter application)
+    FilterCombobox.tsx # Searchable filter picker (cmdk + Radix popover)
+  filters/            # ~160 filter modules — the core domain
+    blueNoise64.ts    # Generated 64×64 void-and-cluster threshold map
+    errorDiffusingFilterFactory.ts  # Builds Floyd-Steinberg, Atkinson, etc.
+  context/            # FilterContext — state, chain execution, temporal pipeline
   reducers/           # App state reducer
+  palettes/           # Color palette definitions and registry
   constants/          # Enums: control types, color algorithms, action types
-  types/              # Type definitions
   utils/              # Color math, buffer ops, canvas helpers, palette generation
+  wasm/rgba2laba/     # Rust/WASM color conversion module
   styles/             # Global styles
+docs/plan/            # Numbered implementation plans (010 = filter audit, etc.)
 ```
 
 ---
@@ -143,39 +191,20 @@ Use Vitest. Tests live in `test/` mirroring `src/` structure.
 
 ---
 
-## Modernization Interactions
+## Plans
 
-The project is being modernized per [docs/plan/001-modernization.md](docs/plan/001-modernization.md). This affects how you work on the codebase:
+Implementation plans live in [docs/plan/](docs/plan/). Numbered chronologically:
 
-### Current Migration State
+- 001 — modernization (complete)
+- 002 — gamma-correct pipeline
+- 003 — wide-gamut color
+- 004 — js → ts migration (complete)
+- 005 — realtime perf
+- 006 — filter list organization
+- 007 — filter chaining
+- 008 — algorithm optimization
+- 009 — temporal filters (pipeline shipped, several filters built)
+- 010 — filter audit (descriptions, blue noise, 11 new temporal filters, presets)
+- 011 — export dialog (SaveAs)
 
-Check which phase is complete before writing code. The codebase may be in a transitional state where some conventions apply and others don't yet.
-
-### Phase-Aware Coding Rules
-
-**If Phase 2 (Vite) is not yet complete:**
-- Build uses Webpack. Don't add Vite-specific features (e.g., `import.meta.env`).
-- CSS files are `.scss` with SCSS variables (`$var`). Don't use CSS custom properties (`--var`).
-- Imports may rely on webpack's module resolution. Use the same patterns as existing code.
-
-**If Phase 3 (React modernization) is not yet complete:**
-- Redux is still in use. Don't introduce Context/useReducer patterns yet.
-- Class components still exist. Don't mix hooks into class components.
-- Containers (`src/containers/`) still connect components to Redux.
-
-**If Phase 4 (TypeScript) is not yet complete:**
-- Files are `.js/.jsx` with Flow annotations. Don't add TypeScript syntax.
-- Use Flow types if adding new typed code. Or use plain JS if the Flow type would be `any`.
-
-### Writing New Code During Migration
-
-- **New filters:** Always follow the existing filter pattern (see [Filter System](#filter-system) above). This pattern survives all migration phases unchanged.
-- **New components:** Write as function components with hooks, even if Phase 3 isn't complete. They'll be compatible with both Redux `connect()` and future Context patterns.
-- **Bug fixes:** Fix in the current code style. Don't modernize surrounding code as part of a bug fix — that's the modernization plan's job.
-- **Tests:** Write in Vitest style if Phase 5 is complete. Otherwise write in Mocha/Chai style to match existing tests, and they'll be migrated later.
-
-### What Not to Do
-
-- Don't partially migrate a phase. Each phase should be completed atomically.
-- Don't add new dependencies that are slated for removal (e.g., don't add new Redux actions if Phase 3 is upcoming).
-- Don't refactor CSS beyond what the plan specifies — a separate CSS plan is forthcoming.
+When making non-trivial changes, write a plan first under `docs/plan/NNN-name.md` and reference it from the commit.

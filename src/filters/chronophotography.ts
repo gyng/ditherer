@@ -1,6 +1,7 @@
 import { RANGE, ENUM, BOOL, ACTION } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
 
+const BLEND = { LIGHTEN: "LIGHTEN", AVERAGE: "AVERAGE", DARKEN: "DARKEN" };
 const FADE = { LINEAR: "LINEAR", TAIL: "TAIL", HEAD: "HEAD" };
 
 // Module-level ring buffer for exposure frames
@@ -13,19 +14,29 @@ let expInterval = 0;
 let frameSinceLastCapture = 0;
 
 export const optionTypes = {
-  exposures: { type: RANGE, range: [3, 12], step: 1, default: 6, desc: "Number of ghost copies visible" },
-  interval: { type: RANGE, range: [1, 10], step: 1, default: 3, desc: "Frames between each exposure capture" },
+  exposures: { type: RANGE, range: [2, 16], step: 1, default: 8, desc: "Number of ghost copies visible" },
+  interval: { type: RANGE, range: [1, 10], step: 1, default: 2, desc: "Frames between each exposure capture" },
+  blendMode: {
+    type: ENUM,
+    options: [
+      { name: "Lighten (Marey-style stroboscopic)", value: BLEND.LIGHTEN },
+      { name: "Average (ghost trails)", value: BLEND.AVERAGE },
+      { name: "Darken (dark subject on light bg)", value: BLEND.DARKEN },
+    ],
+    default: BLEND.LIGHTEN,
+    desc: "How exposures combine. Lighten keeps the brightest pixel from any exposure (best for bright subject on dark bg).",
+  },
   fadeMode: {
     type: ENUM,
     options: [
-      { name: "Linear (equal opacity)", value: FADE.LINEAR },
+      { name: "Linear (equal weight)", value: FADE.LINEAR },
       { name: "Tail (oldest fades most)", value: FADE.TAIL },
       { name: "Head (newest fades most)", value: FADE.HEAD },
     ],
     default: FADE.LINEAR,
-    desc: "How ghost copies fade",
+    desc: "Per-exposure weighting (Average mode only)",
   },
-  isolateSubject: { type: BOOL, default: false, desc: "Only show moving parts of each exposure" },
+  isolateSubject: { type: BOOL, default: false, desc: "Only show moving parts of each exposure (uses EMA background model)" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
@@ -35,13 +46,14 @@ export const optionTypes = {
 export const defaults = {
   exposures: optionTypes.exposures.default,
   interval: optionTypes.interval.default,
+  blendMode: optionTypes.blendMode.default,
   fadeMode: optionTypes.fadeMode.default,
   isolateSubject: optionTypes.isolateSubject.default,
   animSpeed: optionTypes.animSpeed.default,
 };
 
 const chronophotography = (input, options: any = defaults) => {
-  const { exposures, interval, fadeMode, isolateSubject } = options;
+  const { exposures, interval, blendMode, fadeMode, isolateSubject } = options;
   const ema: Float32Array | null = (options as any)._ema || null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -59,7 +71,7 @@ const chronophotography = (input, options: any = defaults) => {
     expH = H;
     expCount = exposures;
     expInterval = interval;
-    frameSinceLastCapture = interval; // capture immediately
+    frameSinceLastCapture = interval;
   }
 
   // Capture frame at interval
@@ -72,40 +84,84 @@ const chronophotography = (input, options: any = defaults) => {
 
   const filled = Math.min(expHead, exposures);
   const outBuf = new Uint8ClampedArray(buf.length);
+  const pixelCount = W * H;
 
-  // Start with black background
-  outBuf.fill(0);
-  for (let i = 3; i < outBuf.length; i += 4) outBuf[i] = 255;
+  if (filled === 0) {
+    outBuf.set(buf);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
 
-  // Composite exposures from oldest to newest
+  // Pre-compute weights for AVERAGE mode
+  const weights = new Float32Array(filled);
+  let totalWeight = 0;
+  for (let f = 0; f < filled; f++) {
+    if (fadeMode === FADE.TAIL) weights[f] = (f + 1);
+    else if (fadeMode === FADE.HEAD) weights[f] = (filled - f);
+    else weights[f] = 1;
+    totalWeight += weights[f];
+  }
+
+  // Initialize accumulator
+  const useAverage = blendMode === BLEND.AVERAGE;
+  const accumR = useAverage ? new Float32Array(pixelCount) : null;
+  const accumG = useAverage ? new Float32Array(pixelCount) : null;
+  const accumB = useAverage ? new Float32Array(pixelCount) : null;
+  const initVal = blendMode === BLEND.DARKEN ? 255 : 0;
+  if (!useAverage) {
+    for (let p = 0; p < pixelCount; p++) {
+      const i = p * 4;
+      outBuf[i] = initVal; outBuf[i + 1] = initVal; outBuf[i + 2] = initVal;
+    }
+  }
+
+  // Composite each captured exposure
   for (let f = 0; f < filled; f++) {
     const frameData = expBuf[((expHead - filled + f) % exposures + exposures) % exposures];
     if (!frameData) continue;
+    const w = weights[f];
 
-    let alpha: number;
-    if (fadeMode === FADE.TAIL) {
-      alpha = (f + 1) / filled;
-    } else if (fadeMode === FADE.HEAD) {
-      alpha = 1 - f / filled;
-    } else {
-      alpha = 1 / filled;
-    }
+    for (let p = 0; p < pixelCount; p++) {
+      const i = p * 4;
+      const fr = frameData[i], fg = frameData[i + 1], fb = frameData[i + 2];
 
-    for (let i = 0; i < buf.length; i += 4) {
       // If isolating subject, only show pixels that differ from EMA (background)
       if (isolateSubject && ema) {
-        const diff = (Math.abs(frameData[i] - ema[i]) + Math.abs(frameData[i + 1] - ema[i + 1]) + Math.abs(frameData[i + 2] - ema[i + 2])) / 3;
+        const diff = (Math.abs(fr - ema[i]) + Math.abs(fg - ema[i + 1]) + Math.abs(fb - ema[i + 2])) / 3;
         if (diff < 15) continue;
       }
 
-      outBuf[i]     = Math.min(255, Math.round(outBuf[i]     * (1 - alpha) + frameData[i]     * alpha));
-      outBuf[i + 1] = Math.min(255, Math.round(outBuf[i + 1] * (1 - alpha) + frameData[i + 1] * alpha));
-      outBuf[i + 2] = Math.min(255, Math.round(outBuf[i + 2] * (1 - alpha) + frameData[i + 2] * alpha));
+      if (blendMode === BLEND.LIGHTEN) {
+        if (fr > outBuf[i]) outBuf[i] = fr;
+        if (fg > outBuf[i + 1]) outBuf[i + 1] = fg;
+        if (fb > outBuf[i + 2]) outBuf[i + 2] = fb;
+      } else if (blendMode === BLEND.DARKEN) {
+        if (fr < outBuf[i]) outBuf[i] = fr;
+        if (fg < outBuf[i + 1]) outBuf[i + 1] = fg;
+        if (fb < outBuf[i + 2]) outBuf[i + 2] = fb;
+      } else {
+        accumR![p] += fr * w;
+        accumG![p] += fg * w;
+        accumB![p] += fb * w;
+      }
     }
   }
+
+  // Normalize accumulator for AVERAGE mode
+  if (useAverage) {
+    for (let p = 0; p < pixelCount; p++) {
+      const i = p * 4;
+      outBuf[i]     = Math.round(accumR![p] / totalWeight);
+      outBuf[i + 1] = Math.round(accumG![p] / totalWeight);
+      outBuf[i + 2] = Math.round(accumB![p] / totalWeight);
+    }
+  }
+
+  // Set alpha
+  for (let i = 3; i < outBuf.length; i += 4) outBuf[i] = 255;
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
 };
 
-export default { name: "Chronophotography", func: chronophotography, optionTypes, options: defaults, defaults, description: "Multiple exposures of moving subjects — Marey's stroboscopic photography" };
+export default { name: "Chronophotography", func: chronophotography, optionTypes, options: defaults, defaults, mainThread: true, description: "Multiple exposures of moving subjects — Marey's stroboscopic photography" };

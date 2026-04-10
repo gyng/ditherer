@@ -62,4 +62,4 @@ const temporalEdge = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Temporal Edge", func: temporalEdge, optionTypes, options: defaults, defaults, description: "Detect edges in time — moving edges glow, static edges are invisible" };
+export default { name: "Temporal Edge", func: temporalEdge, optionTypes, options: defaults, defaults, mainThread: true, description: "Detect edges in time — moving edges glow, static edges are invisible" };

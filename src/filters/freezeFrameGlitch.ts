@@ -103,4 +103,4 @@ const freezeFrameGlitch = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Freeze Frame Glitch", func: freezeFrameGlitch, optionTypes, options: defaults, defaults, description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic" };
+export default { name: "Freeze Frame Glitch", func: freezeFrameGlitch, optionTypes, options: defaults, defaults, mainThread: true, description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic" };

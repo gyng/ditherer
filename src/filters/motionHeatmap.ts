@@ -84,4 +84,4 @@ const motionHeatmap = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Motion Heatmap", func: motionHeatmap, optionTypes, options: defaults, defaults, description: "Accumulate motion over time into a persistent heatmap — sustained movement glows hotter" };
+export default { name: "Motion Heatmap", func: motionHeatmap, optionTypes, options: defaults, defaults, mainThread: true, description: "Accumulate motion over time into a persistent heatmap — sustained movement glows hotter" };

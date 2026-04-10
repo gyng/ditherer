@@ -83,4 +83,4 @@ const motionDetect = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Motion Detect", func: motionDetect, optionTypes, options: defaults, defaults, description: "Visualize motion from EMA background model — security camera or heat vision" };
+export default { name: "Motion Detect", func: motionDetect, optionTypes, options: defaults, defaults, mainThread: true, description: "Visualize motion from EMA background model — security camera or heat vision" };

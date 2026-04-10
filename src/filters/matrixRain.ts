@@ -286,4 +286,4 @@ const matrixRain = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Matrix Rain", func: matrixRain, optionTypes, options: defaults, defaults, description: "Digital rain — static character grid with illumination sweep, source overlay, and motion reactivity" };
+export default { name: "Matrix Rain", func: matrixRain, optionTypes, options: defaults, defaults, mainThread: true, description: "Digital rain — static character grid with illumination sweep, source overlay, and motion reactivity" };

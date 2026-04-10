@@ -160,5 +160,6 @@ export default {
   func: reactionDiffusion,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  mainThread: true
 };

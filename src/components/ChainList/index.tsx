@@ -527,6 +527,11 @@ const ChainList = () => {
                   inline
                   autoFocus
                   placeholder={entry.displayName}
+                  currentValue={entry.displayName}
+                  onChange={(f) => {
+                    // Arrow-key preview: swap the filter in place but keep the editor open
+                    actions.chainReplace(entry.id, f.displayName, f.filter);
+                  }}
                   onSelect={(f) => {
                     actions.chainReplace(entry.id, f.displayName, f.filter);
                     setEditingEntryId(null);

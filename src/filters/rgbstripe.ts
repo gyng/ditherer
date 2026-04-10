@@ -550,5 +550,6 @@ export default {
   func: rgbStripe,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  mainThread: true
 };

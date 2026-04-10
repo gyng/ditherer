@@ -236,5 +236,6 @@ export default {
   func: eink,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  mainThread: true
 };

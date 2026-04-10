@@ -109,4 +109,4 @@ const timeMosaic = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, description: "Tiles update at different rates — staggered surveillance-wall aesthetic" };
+export default { name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, mainThread: true, description: "Tiles update at different rates — staggered surveillance-wall aesthetic" };

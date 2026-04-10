@@ -36,70 +36,61 @@ const videoFeedback = (input, options: any = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  if (!prevOutput) {
+  if (!prevOutput || prevOutput.length !== buf.length) {
     outBuf.set(buf);
-  } else {
-    // Draw prevOutput onto a scratch canvas with transform
-    const scratch = cloneCanvas(input, false);
-    const sCtx = scratch.getContext("2d");
-    if (!sCtx) { outBuf.set(buf); } else {
-      const prevData = new ImageData(new Uint8ClampedArray(prevOutput), W, H);
-      sCtx.putImageData(prevData, 0, 0);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
 
-      // Apply transform: translate to center, zoom, rotate, translate back + offset
-      const cx = W / 2, cy = H / 2;
-      const rad = rotation * Math.PI / 180;
-      const cos = Math.cos(rad) * zoom;
-      const sin = Math.sin(rad) * zoom;
+  // Put prevOutput on a temp canvas, then draw it transformed onto scratch
+  const temp = cloneCanvas(input, false);
+  const tCtx = temp.getContext("2d");
+  const scratch = cloneCanvas(input, false);
+  const sCtx = scratch.getContext("2d");
+  if (!tCtx || !sCtx) {
+    outBuf.set(buf);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
 
-      sCtx.clearRect(0, 0, W, H);
-      sCtx.save();
-      sCtx.translate(cx + offsetX * W, cy + offsetY * H);
-      sCtx.transform(cos, sin, -sin, cos, 0, 0);
-      sCtx.translate(-cx, -cy);
-      sCtx.drawImage(scratch, 0, 0); // draws the stored prevData
-      sCtx.restore();
+  tCtx.putImageData(new ImageData(new Uint8ClampedArray(prevOutput), W, H), 0, 0);
 
-      // Actually we need to re-approach: put prevOutput on a temp, then transform-draw onto scratch
-      const temp = cloneCanvas(input, false);
-      const tCtx = temp.getContext("2d");
-      if (tCtx) {
-        tCtx.putImageData(prevData, 0, 0);
-        sCtx.clearRect(0, 0, W, H);
-        sCtx.save();
-        sCtx.translate(cx + offsetX * W, cy + offsetY * H);
-        sCtx.transform(cos, sin, -sin, cos, 0, 0);
-        sCtx.translate(-cx, -cy);
-        sCtx.drawImage(temp, 0, 0);
-        sCtx.restore();
-      }
+  const cx = W / 2, cy = H / 2;
+  const rad = rotation * Math.PI / 180;
+  const cos = Math.cos(rad) * zoom;
+  const sin = Math.sin(rad) * zoom;
 
-      const fbData = sCtx.getImageData(0, 0, W, H).data;
+  sCtx.save();
+  sCtx.translate(cx + offsetX * W, cy + offsetY * H);
+  sCtx.transform(cos, sin, -sin, cos, 0, 0);
+  sCtx.translate(-cx, -cy);
+  sCtx.drawImage(temp, 0, 0);
+  sCtx.restore();
 
-      // Blend feedback with current input, apply hue shift to feedback
-      const currentWeight = 1 - mix;
-      for (let i = 0; i < buf.length; i += 4) {
-        let fR = fbData[i], fG = fbData[i + 1], fB = fbData[i + 2];
+  const fbData = sCtx.getImageData(0, 0, W, H).data;
 
-        // Simple hue rotation via channel cycling approximation
-        if (colorShift > 0) {
-          const shift = colorShift / 120; // normalize to 0-0.25 range
-          const r = fR, g = fG, b = fB;
-          fR = Math.min(255, Math.max(0, Math.round(r * (1 - shift) + g * shift)));
-          fG = Math.min(255, Math.max(0, Math.round(g * (1 - shift) + b * shift)));
-          fB = Math.min(255, Math.max(0, Math.round(b * (1 - shift) + r * shift)));
-        }
+  // Blend feedback with current input, apply hue shift to feedback
+  const currentWeight = 1 - mix;
+  for (let i = 0; i < buf.length; i += 4) {
+    let fR = fbData[i], fG = fbData[i + 1], fB = fbData[i + 2];
 
-        outBuf[i]     = Math.round(fR * mix + buf[i] * currentWeight);
-        outBuf[i + 1] = Math.round(fG * mix + buf[i + 1] * currentWeight);
-        outBuf[i + 2] = Math.round(fB * mix + buf[i + 2] * currentWeight);
-        outBuf[i + 3] = 255;
-      }
+    // Simple hue rotation via channel cycling approximation
+    if (colorShift > 0) {
+      const shift = colorShift / 120;
+      const r = fR, g = fG, b = fB;
+      fR = Math.min(255, Math.max(0, Math.round(r * (1 - shift) + g * shift)));
+      fG = Math.min(255, Math.max(0, Math.round(g * (1 - shift) + b * shift)));
+      fB = Math.min(255, Math.max(0, Math.round(b * (1 - shift) + r * shift)));
     }
+
+    outBuf[i]     = Math.round(fR * mix + buf[i] * currentWeight);
+    outBuf[i + 1] = Math.round(fG * mix + buf[i + 1] * currentWeight);
+    outBuf[i + 2] = Math.round(fB * mix + buf[i + 2] * currentWeight);
+    outBuf[i + 3] = 255;
   }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
 };
 
-export default { name: "Video Feedback", func: videoFeedback, optionTypes, options: defaults, defaults, description: "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns" };
+export default { name: "Video Feedback", func: videoFeedback, optionTypes, options: defaults, defaults, mainThread: true, description: "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns" };

@@ -49,6 +49,12 @@ const Controls = (props) => {
         return typeof vw !== "function" || vw(options);
       }).map(e => {
         const [name, oType] = e;
+        // Coalesce missing values to the optionType's default so controls
+        // never flip from uncontrolled (undefined value) to controlled
+        // (defined value) on first interaction — that triggers React's
+        // controlled-input warning. Happens easily when the user replaces
+        // one filter with another that has a different option shape.
+        const value = options[name] !== undefined ? options[name] : (oType as any).default;
 
         switch ((oType as any).type) {
           case ACTION:
@@ -68,7 +74,7 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 types={oType}
-                value={options[name]}
+                value={value}
                 step={oType && (oType as any).step}
                 onSetFilterOption={onSetFilterOption}
               />
@@ -79,8 +85,8 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 types={oType}
-                value={options[name]}
-                paletteOptions={options[name].options}
+                value={value}
+                paletteOptions={value?.options}
                 onAddPaletteColor={onAddPaletteColor}
                 onSetFilterOption={onSetFilterOption}
                 onSetPaletteOption={onSetPaletteOption}
@@ -108,7 +114,7 @@ const Controls = (props) => {
               <ColorPicker
                 key={name}
                 name={name}
-                value={options[name]}
+                value={value}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -118,7 +124,7 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 types={oType}
-                value={options[name]}
+                value={value}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -128,7 +134,7 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 types={oType}
-                value={options[name]}
+                value={value}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -138,7 +144,7 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 types={oType}
-                value={options[name]}
+                value={value}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -148,7 +154,7 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 types={oType}
-                value={options[name]}
+                value={value}
                 onSetFilterOption={onSetFilterOption}
               />
             );

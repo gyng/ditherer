@@ -597,7 +597,10 @@ export const errorDiffusingFilter = (
     func: filter,
     optionTypes,
     options: defaults,
-    defaults: defaultOptions
+    defaults: defaultOptions,
+    // Reads _prevOutput when temporalBleed > 0 — must run on main thread
+    // so the temporal pipeline state is available.
+    mainThread: true
   };
 };
 

@@ -220,14 +220,13 @@ export const FilterProvider = ({ children }) => {
     return opts;
   };
 
-  // Check if chain needs main thread (temporal filters need _prevInput/_ema,
-  // glitchblob needs dispatch — neither available in worker)
-  const MAIN_THREAD_FILTERS = new Set([
-    "Glitch", "Motion Detect", "Long Exposure", "Frame Blend",
-    "Temporal Edge", "Phosphor Decay", "Matrix Rain",
-  ]);
+  // A filter must run on the main thread if it reads temporal pipeline state
+  // (_prevOutput / _prevInput / _ema), holds module-level state that needs to
+  // persist across calls, or uses dispatch. Filters declare this by setting
+  // `mainThread: true` on their default export. The flag is the source of
+  // truth — no hand-maintained name list here.
   const chainNeedsMainThread = (entries: any[]) =>
-    entries.some(e => MAIN_THREAD_FILTERS.has(e.filter?.name));
+    entries.some(e => e.filter?.mainThread === true);
 
   // Main-thread filter execution (fallback path)
   const filterOnMainThread = (canvas, enabledEntries, startIdx, isAnimating, curState) => {

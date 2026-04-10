@@ -50,4 +50,4 @@ const phosphorDecay = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Phosphor Decay", func: phosphorDecay, optionTypes, options: defaults, defaults, description: "CRT phosphor persistence — each RGB channel decays at a different rate" };
+export default { name: "Phosphor Decay", func: phosphorDecay, optionTypes, options: defaults, defaults, mainThread: true, description: "CRT phosphor persistence — each RGB channel decays at a different rate" };

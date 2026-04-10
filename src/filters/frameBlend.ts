@@ -43,4 +43,4 @@ const frameBlend = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Frame Blend", func: frameBlend, optionTypes, options: defaults, defaults, description: "Temporal blur — blend current frame with previous frames for ghosting/echo trails" };
+export default { name: "Frame Blend", func: frameBlend, optionTypes, options: defaults, defaults, mainThread: true, description: "Temporal blur — blend current frame with previous frames for ghosting/echo trails" };

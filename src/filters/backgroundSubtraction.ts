@@ -83,4 +83,4 @@ const backgroundSubtraction = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Background Subtraction", func: backgroundSubtraction, optionTypes, options: defaults, defaults, description: "Remove static background, keep only moving foreground — virtual green screen" };
+export default { name: "Background Subtraction", func: backgroundSubtraction, optionTypes, options: defaults, defaults, mainThread: true, description: "Remove static background, keep only moving foreground — virtual green screen" };

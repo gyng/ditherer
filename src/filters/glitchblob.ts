@@ -447,5 +447,6 @@ export default {
   func: glitchblob,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  mainThread: true
 };

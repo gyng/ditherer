@@ -181,5 +181,6 @@ export default {
   func: datamosh,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  mainThread: true
 };

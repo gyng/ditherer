@@ -277,5 +277,6 @@ export default {
   func: vhs,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  mainThread: true
 };

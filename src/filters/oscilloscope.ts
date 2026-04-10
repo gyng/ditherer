@@ -276,5 +276,6 @@ export default {
   func: oscilloscope,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  mainThread: true
 };

@@ -112,4 +112,4 @@ const slitScan = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Slit Scan", func: slitScan, optionTypes, options: defaults, defaults, description: "Each column/row shows a different point in time — surreal temporal stretching" };
+export default { name: "Slit Scan", func: slitScan, optionTypes, options: defaults, defaults, mainThread: true, description: "Each column/row shows a different point in time — surreal temporal stretching" };
