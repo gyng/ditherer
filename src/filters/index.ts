@@ -144,6 +144,11 @@ import posterizeDither from "./posterizeDither";
 import edgeTrace from "./edgeTrace";
 import colorGradientNoise from "./colorGradientNoise";
 import vintageTV from "./vintageTV";
+import motionDetect from "./motionDetect";
+import longExposure from "./longExposure";
+import frameBlend from "./frameBlend";
+import temporalEdge from "./temporalEdge";
+import phosphorDecay from "./phosphorDecay";
 import {
   atkinson,
   burkes,
@@ -832,6 +837,9 @@ export const filterList = [
   { displayName: "Ultrasound", filter: ultrasound, category: "Simulate", description: "Medical ultrasound display — fan-shaped sector scan with speckle noise" },
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
   { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
+  { displayName: "Motion detect", filter: motionDetect, category: "Simulate", description: "Visualize motion from EMA background model — security camera or heat vision" },
+  { displayName: "Long exposure", filter: longExposure, category: "Simulate", description: "Accumulate bright pixels over time — moving lights leave trails" },
+  { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "CRT phosphor persistence — each RGB channel decays at a different rate" },
 
   // ── Blur & Edges ──
   { displayName: "Bilateral blur", filter: bilateralBlur, category: "Blur & Edges", description: "Edge-preserving smooth — blurs flat areas while keeping edges crisp" },
@@ -856,6 +864,8 @@ export const filterList = [
   { displayName: "Radial blur", filter: radialBlur, category: "Blur & Edges", description: "Zoom blur radiating from center — speed/motion effect" },
   { displayName: "Sharpen", filter: sharpen, category: "Blur & Edges", description: "Unsharp mask — enhance edges with adjustable strength and radius" },
   { displayName: "Tilt shift", filter: tiltShift, category: "Blur & Edges", description: "Miniature/toy camera effect — sharp focus band with progressive blur" },
+  { displayName: "Frame blend", filter: frameBlend, category: "Blur & Edges", description: "Temporal blur — blend frames for ghosting/echo trails" },
+  { displayName: "Temporal edge", filter: temporalEdge, category: "Blur & Edges", description: "Detect edges in time — moving edges glow, static edges invisible" },
 
   // ── Advanced ──
   { displayName: "Cellular automata", filter: cellularAutomata, category: "Advanced", description: "Conway's Game of Life and other rulesets applied to the image — animatable" },

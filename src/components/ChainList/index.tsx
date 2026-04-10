@@ -157,6 +157,14 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Cellular Life", desc: "Conway's Game of Life with neon-glowing cell boundaries", filters: ["Cellular automata", "Edge glow", "Bloom"], category: "Advanced" },
   { name: "Flow Painting", desc: "Curl noise streamlines blended with thick painterly strokes", filters: ["Flow field", "Oil painting", "Bloom"], category: "Advanced" },
   { name: "Fractal Overlay", desc: "Mandelbrot fractal with source image colors and edge glow", filters: ["Fractal", "Edge glow", "Bloom"], category: "Advanced" },
+
+  // Temporal
+  { name: "Heat Vision", desc: "Motion detection with bloom glow — thermal camera aesthetic", filters: ["Motion detect", "Bloom", "Color shift"], category: "Simulate" },
+  { name: "Light Painting", desc: "Edge-detected light trails accumulating over time", filters: ["Edge glow", "Long exposure"], category: "Simulate" },
+  { name: "Ghost", desc: "Temporal echo with soft glow — moving subjects leave ghostly trails", filters: ["Frame blend", "Bloom"], category: "Blur & Edges" },
+  { name: "Motion Neon", desc: "Neon-traced motion outlines with chromatic splitting", filters: ["Temporal edge", "Bloom", "Chromatic aberration"], category: "Blur & Edges" },
+  { name: "Retro Monitor", desc: "CRT phosphor persistence with scanlines — green lingers longest", filters: ["CRT emulation", "Phosphor decay", "Scanline"], category: "Simulate" },
+  { name: "Security Camera", desc: "Grainy monochrome security feed with motion overlay", filters: ["Grayscale", "Motion detect", "Scanline", "Film grain"], category: "Simulate" },
 ];
 
 const USER_CHAIN_PREFIX = "_chain_";
