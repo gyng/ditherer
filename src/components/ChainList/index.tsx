@@ -274,9 +274,9 @@ const ChainList = () => {
       usedCategories.add(pick.category);
     }
     if (picked.length === 0) return;
-    actions.selectFilter(picked[0].displayName, picked[0]);
+    actions.selectFilter(picked[0].displayName, picked[0].filter);
     for (let i = 1; i < picked.length; i++) {
-      actions.chainAdd(picked[i].displayName, picked[i]);
+      actions.chainAdd(picked[i].displayName, picked[i].filter);
     }
   };
 
@@ -284,7 +284,7 @@ const ChainList = () => {
     // Set first filter via selectFilter (resets chain to 1 entry)
     const first = filterList.find((f) => f && f.displayName === preset.filters[0]);
     if (!first) return;
-    actions.selectFilter(preset.filters[0], first);
+    actions.selectFilter(preset.filters[0], first.filter);
     // Add remaining filters
     for (let i = 1; i < preset.filters.length; i++) {
       addFilterByName(preset.filters[i]);
@@ -681,7 +681,7 @@ const ChainList = () => {
                 onClick={() => {
                   setShowClearConfirm(false);
                   const defaultFilter = filterList.find((f) => f && f.displayName === chain[0]?.displayName) || filterList[0];
-                  actions.selectFilter(defaultFilter.displayName, defaultFilter);
+                  actions.selectFilter(defaultFilter.displayName, defaultFilter.filter);
                 }}
               >
                 OK

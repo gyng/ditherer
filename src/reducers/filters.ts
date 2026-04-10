@@ -29,16 +29,27 @@ import { floydSteinberg } from "filters/errorDiffusing";
 import { filterIndex } from "filters";
 import { paletteList } from "palettes";
 
+// A filter object must have a func. This prevents accidentally passing
+// the filterList wrapper ({ displayName, filter, category }) instead of
+// the actual filter ({ name, func, optionTypes, options, defaults }).
+export type FilterObject = {
+  name: string;
+  func: (input: any, options?: any, dispatch?: any) => any;
+  optionTypes?: Record<string, any>;
+  options?: any;
+  defaults?: any;
+};
+
 export type ChainEntry = {
   id: string;
   displayName: string;
-  filter: any;
+  filter: FilterObject;
   enabled: boolean;
 };
 
 const MAX_CHAIN_LENGTH = 16;
 
-const makeChainEntry = (displayName: string, filter: any): ChainEntry => ({
+const makeChainEntry = (displayName: string, filter: FilterObject): ChainEntry => ({
   id: crypto.randomUUID(),
   displayName,
   filter,
