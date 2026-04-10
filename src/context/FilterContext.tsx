@@ -130,28 +130,45 @@ export const FilterProvider = ({ children }) => {
 
   // Async action: load image from file
   const loadImageAsync = useCallback((file) => new Promise<void>((resolve, reject) => {
-    const reader = new FileReader();
     const image = new Image();
-    reader.onerror = () => reject(reader.error || new Error("Failed to read image file"));
-    image.onerror = () => reject(new Error("Failed to decode image"));
-    reader.onload = event => {
-      image.onload = () => {
-        filteringRef.current = false;
-        dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
-        const scale = roundScale(getAutoScale(image.width, image.height));
-        dispatch({ type: "SET_SCALE", scale });
-        resolve();
-      };
-      image.src = event.target.result as string;
+    const objectUrl = URL.createObjectURL(file);
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Failed to decode image"));
     };
-    reader.readAsDataURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      filteringRef.current = false;
+      dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
+      const scale = roundScale(getAutoScale(image.width, image.height));
+      dispatch({ type: "SET_SCALE", scale });
+      resolve();
+    };
+    image.src = objectUrl;
   }), []);
 
-  // Async action: load video from file
-  const loadVideoAsync = useCallback((file, volume = 1, playbackRate = 1) => new Promise<void>((resolve, reject) => {
+  const loadVideoSourceAsync = useCallback((
+    src: string,
+    volume = 1,
+    playbackRate = 1,
+    perfMeta: Record<string, string> = {},
+    objectUrlForCleanup?: string
+  ) => new Promise<void>((resolve, reject) => {
     filteringRef.current = false;
-    const reader = new FileReader();
-    const video = document.createElement("video");
+    const video = document.createElement("video") as HTMLVideoElement & {
+      __objectUrl?: string;
+      __manualPause?: boolean;
+      __drawErrorLogged?: boolean;
+    };
+    const perfStart = performance.now();
+    const logPerf = (stage: string) => {
+      const elapsedMs = Math.round(performance.now() - perfStart);
+      console.info(
+        `[perf][video-load] ${stage} +${elapsedMs}ms`,
+        perfMeta
+      );
+    };
+    logPerf("start");
     let settled = false;
     const settleResolve = () => {
       if (!settled) {
@@ -162,44 +179,112 @@ export const FilterProvider = ({ children }) => {
     const settleReject = (error: Error) => {
       if (!settled) {
         settled = true;
+        if (objectUrlForCleanup) {
+          URL.revokeObjectURL(objectUrlForCleanup);
+        }
         reject(error);
       }
     };
-    reader.onerror = () => settleReject(reader.error || new Error("Failed to read video file"));
-    video.onerror = () => settleReject(new Error("Failed to decode video"));
-    reader.onload = event => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      const loadFrame = () => {
-        if (!video.paused && video.src !== "") {
-          ctx.drawImage(video, 0, 0);
-          dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
-          requestAnimationFrame(loadFrame);
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      settleReject(new Error("Failed to initialize video canvas"));
+      return;
+    }
+
+    let rafId: number | null = null;
+    const loadFrame = () => {
+      if (!video.paused && video.src !== "") {
+        if (!hasLoggedFirstFrame) {
+          hasLoggedFirstFrame = true;
+          logPerf("first-frame-dispatched");
         }
-      };
-      let initialized = false;
-      video.onplaying = () => {
-        if (!initialized) {
-          initialized = true;
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
-          dispatch({ type: "SET_SCALE", scale });
-          settleResolve();
+        try {
+          // Some clips can transiently fail drawImage during decode starvation;
+          // keep the loop alive instead of silently stalling playback updates.
+          if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            ctx.drawImage(video, 0, 0);
+            dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
+          }
+        } catch (error) {
+          if (!video.__drawErrorLogged) {
+            video.__drawErrorLogged = true;
+            console.warn("[video-load] drawImage failed; continuing frame loop", error);
+          }
         }
-        // Restart the frame loop every time playback resumes
-        requestAnimationFrame(loadFrame);
-      };
-      const blob = new Blob([event.target.result]);
-      video.volume = volume;
-      video.src = URL.createObjectURL(blob);
-      video.playbackRate = playbackRate;
-      video.loop = true;
-      video.autoplay = true;
-      video.play().catch(() => {});
+        rafId = requestAnimationFrame(loadFrame);
+      } else {
+        rafId = null;
+      }
     };
-    reader.readAsArrayBuffer(file);
+
+    let hasLoggedFirstFrame = false;
+    video.onerror = () => settleReject(new Error("Failed to decode video"));
+    video.onloadedmetadata = () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
+      dispatch({ type: "SET_SCALE", scale });
+      logPerf("loadedmetadata");
+      settleResolve();
+    };
+    video.onplaying = () => {
+      logPerf("playing");
+      // Restart the frame loop every time playback resumes
+      video.__manualPause = false;
+      if (rafId == null) {
+        rafId = requestAnimationFrame(loadFrame);
+      }
+    };
+    video.onpause = () => {
+      rafId = null;
+      // Recover from unexpected pauses caused by decode/buffering edge cases.
+      // Respect explicit user pauses and teardown state (empty src).
+      if (!video.__manualPause && video.src !== "" && !video.ended) {
+        video.play().catch(() => {});
+      }
+    };
+
+    video.volume = volume;
+    video.playbackRate = playbackRate;
+    video.loop = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    if (objectUrlForCleanup) {
+      video.__objectUrl = objectUrlForCleanup;
+    }
+    video.__manualPause = false;
+    video.__drawErrorLogged = false;
+    video.src = src;
+    video.play().catch(() => {});
   }), []);
+
+  // Async action: load video from file
+  const loadVideoAsync = useCallback((file, volume = 1, playbackRate = 1) => {
+    const objectUrl = URL.createObjectURL(file);
+    return loadVideoSourceAsync(
+      objectUrl,
+      volume,
+      playbackRate,
+      {
+        file: file.name,
+        sizeMiB: (file.size / (1024 * 1024)).toFixed(2),
+        type: file.type || "unknown",
+      },
+      objectUrl
+    );
+  }, [loadVideoSourceAsync]);
+
+  // Async action: load video directly from URL (used for local test assets)
+  const loadVideoFromUrlAsync = useCallback((src, volume = 1, playbackRate = 1) =>
+    loadVideoSourceAsync(
+      src,
+      volume,
+      playbackRate,
+      { src, type: "url" }
+    ),
+  [loadVideoSourceAsync]);
 
   // Async action: load media (routes to image or video)
   const loadMediaAsync = useCallback((file, volume = 1, playbackRate = 1) => {
@@ -248,6 +333,7 @@ export const FilterProvider = ({ children }) => {
         ...entry.filter.options,
         _linearize: curState.linearize,
         _wasmAcceleration: curState.wasmAcceleration,
+        _hasVideoInput: !!curState.video,
         _prevOutput: prevOutputMapRef.current.get(entry.id) || null,
         _prevInput: prevInputMapRef.current.get(entry.id) || null,
         _ema: emaMapRef.current.get(entry.id) || null,
@@ -628,6 +714,7 @@ export const FilterProvider = ({ children }) => {
 
   const actions = {
     loadMediaAsync,
+    loadVideoFromUrlAsync,
     filterImageAsync,
     triggerDegauss,
     triggerBurst,
@@ -667,8 +754,10 @@ export const FilterProvider = ({ children }) => {
       const video = stateRef.current.video;
       if (!video) return;
       if (video.paused) {
+        (video as any).__manualPause = false;
         video.play();
       } else {
+        (video as any).__manualPause = true;
         video.pause();
       }
     },

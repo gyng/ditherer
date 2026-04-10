@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useFilter } from "context/useFilter";
+import useDraggable from "components/App/useDraggable";
 import { filterList, noop } from "filters";
 import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
 import { paletteList } from "palettes";
@@ -9,6 +10,7 @@ import ChainPreview from "./ChainPreview";
 import FilterCombobox from "components/FilterCombobox";
 import ModalInput from "components/ModalInput";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, buildPresetSignatureMap, getChainSignature, type PresetFilterEntry } from "./presets";
+import LibraryBrowser from "./LibraryBrowser";
 import s from "./styles.module.css";
 
 // Perturb a filter's options from its defaults
@@ -118,10 +120,15 @@ const ChainList = () => {
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
   const [pinnedPreviews, setPinnedPreviews] = useState<Map<string, { top: number; left: number }>>(new Map());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showLibraryBrowser, setShowLibraryBrowser] = useState(false);
+  const [libraryInitialTab, setLibraryInitialTab] = useState<"filters" | "presets">("filters");
+  const [libraryInitialQuery, setLibraryInitialQuery] = useState("");
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [savedChains, setSavedChains] = useState<SavedChain[]>(loadUserChains);
   const [loadedSavedName, setLoadedSavedName] = useState<string | null>(null);
   const dragCounter = useRef(0);
+  const libraryDragRef = useRef<HTMLDivElement | null>(null);
+  const libraryDrag = useDraggable(libraryDragRef, { defaultPosition: { x: 560, y: 90 } });
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resolveDefaults = useCallback((name: string) => {
     const match = filterList.find((filter) => filter.displayName === name);
@@ -231,6 +238,18 @@ const ChainList = () => {
     }
   };
 
+  const openPresetBrowserForFilter = useCallback((filterDisplayName: string) => {
+    setLibraryInitialTab("presets");
+    setLibraryInitialQuery(filterDisplayName);
+    setShowLibraryBrowser(true);
+  }, []);
+
+  const handleLibraryDialogMouseDown = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-no-drag='true']")) return;
+    libraryDrag.onMouseDown(event);
+  }, [libraryDrag]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Don't intercept keys when the user is typing in an input/textarea/contenteditable
     // (e.g. the filter typeahead) — let the field handle Backspace, arrows, space, etc.
@@ -281,6 +300,17 @@ const ChainList = () => {
     <div>
       {/* Chain toolbar */}
       <div className={s.addRow}>
+        <button
+          className={s.addBtn}
+          onClick={() => {
+            setLibraryInitialTab("filters");
+            setLibraryInitialQuery("");
+            setShowLibraryBrowser(true);
+          }}
+          title="Open full filter/preset browser"
+        >
+          Browse
+        </button>
         <select
           className={s.presetSelect}
           value=""
@@ -501,6 +531,16 @@ const ChainList = () => {
                 className={s.removeBtn}
                 onClick={(e) => {
                   e.stopPropagation();
+                  openPresetBrowserForFilter(entry.displayName);
+                }}
+                title="Open preset browser and search for presets using this filter"
+              >
+                &#9734;
+              </button>
+              <button
+                className={s.removeBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
                   // Removing the last entry would leave the chain empty, which
                   // breaks the rest of the UI; replace it with a noop instead
                   // so the user always has at least one (inert) entry.
@@ -595,6 +635,17 @@ const ChainList = () => {
         <button
           className={s.addBtn}
           onClick={() => {
+            setLibraryInitialTab("filters");
+            setLibraryInitialQuery("");
+            setShowLibraryBrowser(true);
+          }}
+          title="Open full filter/preset browser"
+        >
+          Browse
+        </button>
+        <button
+          className={s.addBtn}
+          onClick={() => {
             const { displayName, filter } = getRandomFilter();
             actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
           }}
@@ -665,6 +716,29 @@ const ChainList = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showLibraryBrowser && (
+        <div
+          ref={libraryDragRef}
+          role="presentation"
+          className={s.libraryBrowserFloat}
+        >
+          <LibraryBrowser
+            open={showLibraryBrowser}
+            onClose={() => setShowLibraryBrowser(false)}
+            onAddFilter={(entry) => actions.chainAdd(entry.displayName, entry.filter)}
+            onLoadPreset={(preset) => {
+              loadPreset(preset);
+              setLoadedSavedName(null);
+            }}
+            initialTab={libraryInitialTab}
+            initialQuery={libraryInitialQuery}
+            onDialogMouseDown={handleLibraryDialogMouseDown}
+            previewSource={state.inputImage}
+            previewVideo={state.video}
+          />
         </div>
       )}
 

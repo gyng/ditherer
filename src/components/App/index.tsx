@@ -3,6 +3,7 @@ import useDraggable from "./useDraggable";
 
 import Controls from "components/controls";
 import ChainList from "components/ChainList";
+import { CHAIN_PRESETS, type PresetFilterEntry } from "components/ChainList/presets";
 import Exporter from "components/App/Exporter";
 import SaveAs from "components/SaveAs";
 import Range from "components/controls/Range";
@@ -72,6 +73,7 @@ const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
 
 const DEFAULT_TEST_IMAGE_ASSET = "/test-assets/image/pepper.png";
 const DEFAULT_TEST_VIDEO_ASSET = "/test-assets/video/akiyo.mp4";
+const basename = (path: string) => path.split("/").pop() || path;
 
 const App = () => {
   const { state, actions, filterList } = useFilter();
@@ -83,7 +85,9 @@ const App = () => {
   const [showSaveAs, setShowSaveAs] = useState(false);
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
   const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
+  const [inputFilename, setInputFilename] = useState<string | null>(null);
   const playPauseTimerRef = useRef<number | null>(null);
+  const chromeRef = useRef<HTMLDivElement | null>(null);
 
   const flashPlayPause = (kind: "play" | "pause") => {
     setPlayPauseIndicator(kind);
@@ -102,6 +106,7 @@ const App = () => {
   const hasLoadedTestVideoRef = useRef(false);
   const lastTestImageAssetRef = useRef<string | null>(null);
   const lastTestVideoAssetRef = useRef<string | null>(null);
+  const imageAssetPromiseCacheRef = useRef<Map<string, Promise<HTMLImageElement>>>(new Map());
 
   const inputDrag = useDraggable(inputDragRef, {
     onScale: (delta) => {
@@ -208,9 +213,33 @@ const App = () => {
     }
   }, []);
 
+  const loadImageAsset = useCallback((src: string) => {
+    const cached = imageAssetPromiseCacheRef.current.get(src);
+    if (cached) return cached;
+
+    const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => {
+        imageAssetPromiseCacheRef.current.delete(src);
+        reject(new Error(`Failed to load image asset: ${src}`));
+      };
+      img.src = src;
+    });
+
+    imageAssetPromiseCacheRef.current.set(src, promise);
+    return promise;
+  }, []);
+
+  const prefetchRandomImage = useCallback((excludeSrc?: string | null) => {
+    const src = pickRandomDifferent(TEST_IMAGE_ASSETS, excludeSrc ?? null);
+    void loadImageAsset(src).catch(() => {});
+  }, [loadImageAsset]);
+
   const loadUserFile = useCallback((file?: File | null) => {
     if (!file) return;
     const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
+    setInputFilename(file.name);
     void withInputLoading(label, () =>
       actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
     );
@@ -222,16 +251,28 @@ const App = () => {
       : DEFAULT_TEST_IMAGE_ASSET;
     hasLoadedTestImageRef.current = true;
     lastTestImageAssetRef.current = src;
-    void withInputLoading("LOADING IMAGE", () => new Promise<void>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        actions.loadImage(img);
-        resolve();
+    setInputFilename(basename(src));
+    void withInputLoading("LOADING IMAGE", async () => {
+      const perfStart = performance.now();
+      const hadCache = imageAssetPromiseCacheRef.current.has(src);
+      const logPerf = (stage: string, extra: Record<string, unknown> = {}) => {
+        const elapsedMs = Math.round(performance.now() - perfStart);
+        console.info(`[perf][random-image-load] ${stage} +${elapsedMs}ms`, { src, ...extra });
       };
-      img.onerror = () => reject(new Error(`Failed to load image asset: ${src}`));
-      img.src = src;
-    }));
-  }, [actions, withInputLoading]);
+      logPerf("click", { cache: hadCache ? "hit" : "miss" });
+      const img = await loadImageAsset(src);
+      logPerf("image-ready", { width: img.naturalWidth, height: img.naturalHeight });
+      actions.loadImage(img);
+      logPerf("loadImage-dispatched");
+      prefetchRandomImage(src);
+    });
+  }, [actions, loadImageAsset, prefetchRandomImage, withInputLoading]);
+
+  useEffect(() => {
+    void loadImageAsset(DEFAULT_TEST_IMAGE_ASSET).then(() => {
+      prefetchRandomImage(DEFAULT_TEST_IMAGE_ASSET);
+    }).catch(() => {});
+  }, [loadImageAsset, prefetchRandomImage]);
 
   const loadRandomTestVideo = useCallback(() => {
     const src = hasLoadedTestVideoRef.current
@@ -239,19 +280,104 @@ const App = () => {
       : DEFAULT_TEST_VIDEO_ASSET;
     hasLoadedTestVideoRef.current = true;
     lastTestVideoAssetRef.current = src;
+    setInputFilename(basename(src));
     void withInputLoading("LOADING VIDEO", async () => {
-      const response = await fetch(src);
-      if (!response.ok) throw new Error(`Failed to fetch video asset: ${src}`);
-      const blob = await response.blob();
-      const filename = src.split("/").pop() || "test-video";
-      const file = new File([blob], filename, { type: blob.type || "video/mp4" });
-      await actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate);
+      const perfStart = performance.now();
+      const logPerf = (stage: string, extra: Record<string, unknown> = {}) => {
+        const elapsedMs = Math.round(performance.now() - perfStart);
+        console.info(`[perf][random-video-load] ${stage} +${elapsedMs}ms`, { src, ...extra });
+      };
+      logPerf("click");
+      await actions.loadVideoFromUrlAsync(src, state.videoVolume, state.videoPlaybackRate);
+      logPerf("loadVideoFromUrlAsync-resolved");
     });
   }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
+  const fitInputToWindow = useCallback(() => {
+    if (!state.inputImage) return;
+
+    const sidebarRight = chromeRef.current?.getBoundingClientRect().right ?? 0;
+    const horizontalPadding = 36;
+    const verticalPadding = 48;
+    const frameAllowance = 24; // input window chrome around the canvas
+
+    const availableWidth = Math.max(
+      120,
+      window.innerWidth - sidebarRight - horizontalPadding - frameAllowance
+    );
+    const availableHeight = Math.max(
+      120,
+      window.innerHeight - verticalPadding - frameAllowance
+    );
+
+    const fitScale = Math.min(
+      availableWidth / state.inputImage.width,
+      availableHeight / state.inputImage.height
+    );
+
+    const clampedScale = Math.max(0.05, Math.min(16, fitScale));
+    actions.setScale(Math.round(clampedScale * 100) / 100);
+  }, [actions, state.inputImage]);
+
+  const resolvePresetFilter = useCallback((entry: PresetFilterEntry) => {
+    const match = filterList.find((f) => f && f.displayName === entry.name);
+    if (!match) return null;
+    return {
+      displayName: entry.name,
+      filter: {
+        ...match.filter,
+        options: {
+          ...(match.filter.defaults || match.filter.options || {}),
+          ...(entry.options || {}),
+        },
+      },
+    };
+  }, [filterList]);
+
+  const loadPresetFromFilters = useCallback((presetFilters: PresetFilterEntry[]) => {
+    if (!presetFilters.length) return;
+    const first = resolvePresetFilter(presetFilters[0]);
+    if (!first) return;
+    actions.selectFilter(first.displayName, first.filter);
+    for (let i = 1; i < presetFilters.length; i++) {
+      const resolved = resolvePresetFilter(presetFilters[i]);
+      if (resolved) actions.chainAdd(resolved.displayName, resolved.filter);
+    }
+  }, [actions, resolvePresetFilter]);
+
+  const findPresetsForActiveFilter = useCallback(() => {
+    const activeName = state.chain[state.activeIndex]?.displayName;
+    if (!activeName) return;
+
+    const matches = CHAIN_PRESETS.filter((preset) =>
+      preset.filters.some((entry) => entry.name === activeName)
+    );
+
+    if (matches.length === 0) {
+      window.alert(`No presets currently use "${activeName}".`);
+      return;
+    }
+
+    const promptText = [
+      `Presets using "${activeName}":`,
+      ...matches.map((preset, idx) => `${idx + 1}. ${preset.name}`),
+      "",
+      "Enter number to load preset (Cancel to keep current chain).",
+    ].join("\n");
+
+    const raw = window.prompt(promptText, "1");
+    if (!raw) return;
+    const picked = Number.parseInt(raw, 10);
+    if (!Number.isFinite(picked) || picked < 1 || picked > matches.length) {
+      window.alert("Invalid selection.");
+      return;
+    }
+    loadPresetFromFilters(matches[picked - 1].filters);
+  }, [loadPresetFromFilters, state.activeIndex, state.chain]);
+
   return (
     <div className={s.app}>
-      <div className={s.chrome}>
+      <div className={s.chrome} ref={chromeRef}>
         <h1>ＤＩＴＨＥＲＥＲ ▓▒░</h1>
 
         {/* Input section */}
@@ -282,6 +408,14 @@ const App = () => {
           >
             Random video
           </button>
+          {state.video && state.inputImage && (
+            <button
+              onClick={fitInputToWindow}
+              title="Scale the input video to comfortably fit the browser area right of the sidebar"
+            >
+              Fit to window
+            </button>
+          )}
           <Range
             name="Input Scale"
             types={{ range: [0.05, 16] }}
@@ -340,6 +474,14 @@ const App = () => {
                   }}
                 >
                   Reset defaults
+                </button>
+              )}
+              {state.chain[state.activeIndex] && (
+                <button
+                  onClick={findPresetsForActiveFilter}
+                  title="Find presets that include the active filter"
+                >
+                  Find presets
                 </button>
               )}
             </div>
@@ -433,6 +575,7 @@ const App = () => {
                 recorder.onstop = () => {
                   const blob = new Blob(chunks, { type: mimeType });
                   const file = new File([blob], "filtered.webm", { type: mimeType });
+                  setInputFilename(file.name);
                   void withInputLoading("LOADING VIDEO", () =>
                     actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
                   );
@@ -460,6 +603,7 @@ const App = () => {
                   image.onload = () => {
                     actions.loadImage(image);
                     actions.setScale(1);
+                    setInputFilename("filtered-output.png");
                     resolve();
                   };
                   image.onerror = () => reject(new Error("Failed to copy output image to input"));
@@ -576,7 +720,9 @@ const App = () => {
             className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}
             style={!state.inputImage ? { minWidth: Math.round(200 * state.scale), minHeight: Math.round(200 * state.scale) } : undefined}
           >
-            <div className={["handle", controls.titleBar].join(" ")}>Input</div>
+            <div className={["handle", controls.titleBar].join(" ")}>
+              {inputFilename ? `Input - ${inputFilename}` : "Input"}
+            </div>
             <div className={s.canvasArea}>
               {(!state.inputImage || canvasDropping) && (
                 <div
@@ -616,7 +762,9 @@ const App = () => {
 
         <div ref={outputDragRef} role="presentation" onMouseDown={outputDrag.onMouseDown} onMouseDownCapture={bringToTop} onMouseMove={outputDrag.onMouseMove}>
           <div className={controls.window}>
-            <div className={["handle", controls.titleBar].join(" ")}>Output</div>
+            <div className={["handle", controls.titleBar].join(" ")}>
+              {inputFilename ? `Output - ${inputFilename}` : "Output"}
+            </div>
             <div className={s.menuBar}>
               <button
                 className={s.menuItem}

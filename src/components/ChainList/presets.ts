@@ -200,9 +200,11 @@ export const CHAIN_PRESETS: ChainPreset[] = [
 
   { name: "Bit Rot", desc: "Severe digital decay — crushed bits, channel corruption, scattered pixels, heavy compression", filters: [f("Bit crush"), f("Channel shift"), f("Pixel scatter"), f("JPEG artifact"), f("JPEG artifact")], category: "Glitch" },
   { name: "Broadcast Failure", desc: "Corrupted broadcast — smeared I-frames, split channels, shifted lines", filters: [f("Datamosh"), f("Channel separation"), f("Scan line shift")], category: "Glitch" },
+  { name: "Checksum Storm", desc: "Rejected packet stripes with unstable concealment and downstream decode wear", filters: [f("CRC Stripe Reject"), f("Scan line shift"), f("JPEG artifact")], category: "Glitch" },
   { name: "Color Freeze", desc: "Freeze-frame glitch with optional RGB channel splitting, from subtle holds to hard color-split corruption", filters: [f("Freeze frame glitch"), f("Chromatic aberration")], category: "Glitch" },
   { name: "Data Corruption", desc: "Broken compression — smeared blocks and DCT artifacts", filters: [f("Glitch blocks"), f("Data bend"), f("JPEG artifact")], category: "Glitch" },
   { name: "Glitch Art", desc: "Sorted pixel streaks, split channels, shifted scan lines", filters: [f("Pixelsort"), f("Chromatic aberration"), f("Scan line shift"), f("JPEG artifact")], category: "Glitch" },
+  { name: "Legacy LUT Collapse", desc: "Indexed palette table drifts while bitplane bursts erode color significance", filters: [f("Palette Index Drift"), f("Bitplane Dropout"), f("Ordered")], category: "Glitch" },
   { name: "Panorama Glitch", desc: "Temporal slit scan with JPEG corruption", filters: [f("Slit scan"), f("JPEG artifact")], category: "Glitch" },
   { name: "VHS Pause", desc: "Frozen VHS frame — tracking errors, torn fields, and static snow", filters: [f("VHS emulation"), f("Interlace tear"), f("Analog static")], category: "Glitch" },
 
@@ -244,6 +246,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Ink Spread", desc: "Cheap paper stock with dark regions bleeding into the fibers", filters: [f("Ink Bleed"), f("Sharpen")], category: "Simulate" },
   { name: "Lenticular Card", desc: "Holographic rainbow sheen with scanlines and glow", filters: [f("Lenticular"), f("Scanline"), f("Bloom")], category: "Simulate" },
   { name: "Lo-fi Webcam", desc: "Chunky pixels with JPEG artifacts and film grain", filters: [f("Pixelate"), f("JPEG artifact"), f("Film grain"), f("Vignette")], category: "Simulate" },
+  { name: "Metadata Mistake", desc: "Wrong decode assumptions with compression wear and hard edge recovery", filters: [f("Metadata Mismatch Decode"), f("JPEG artifact"), f("Sharpen")], category: "Simulate" },
   { name: "Mavica Photo", desc: "Sony Mavica floppy disk camera — 640x480, heavy JPEG, CCD noise", filters: [f("Mavica FD7"), f("JPEG artifact"), f("Film grain")], category: "Simulate" },
   { name: "Matrix", desc: "Digital rain — source image visible through falling katakana characters", filters: [f("Levels"), f("Matrix rain")], category: "Simulate" },
   { name: "Misprint", desc: "Silkscreen poster layers drift slightly out of register over warm paper", filters: [f("Screen Print / Misregistration"), f("Film grain")], category: "Simulate" },
@@ -256,6 +259,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Retro TV", desc: "Consumer tape playback through a CRT tube with tracking wear and rounded-screen falloff", filters: [f("VHS emulation"), f("CRT emulation"), f("Vignette")], category: "Simulate" },
   { name: "Security Camera", desc: "Monochrome security feed with an explicit motion-analysis overlay for moving subjects", filters: [f("Grayscale"), f("Motion Analysis", { renderMode: "MASK", source: "EMA" }), f("Scanline"), f("Film grain")], category: "Simulate" },
   { name: "Shutter Smear", desc: "Slow-shutter averaging with soft tonal drag across motion", filters: [f("Temporal Exposure", { mode: "SHUTTER", windowSize: 8 }), f("Levels")], category: "Simulate" },
+  { name: "Surveillance DVR Failure", desc: "Near-failure CCTV feed with CRC stripe loss, bitplane bursts, and codec breakup", filters: [f("Grayscale"), f("CRC Stripe Reject"), f("Bitplane Dropout"), f("JPEG artifact")], category: "Simulate" },
   { name: "Surveillance", desc: "Night-vision CCTV look with scanlines, compression, and no analysis overlay", filters: [f("Grayscale"), f("Night vision"), f("Scanline"), f("JPEG artifact")], category: "Simulate" },
   { name: "Surveillance Wall", desc: "Tiles updating at staggered rates with scanlines and grain", filters: [f("Time mosaic"), f("Scanline"), f("Film grain")], category: "Simulate" },
   { name: "Thermal", desc: "FLIR-style heat map with posterized temperature bands", filters: [f("Thermal camera"), f("Posterize"), f("Bloom")], category: "Simulate" },

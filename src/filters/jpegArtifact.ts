@@ -1,93 +1,566 @@
-import { RANGE, PALETTE } from "constants/controlTypes";
+import { BOOL, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
   fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  paletteGetColor
+  paletteGetColor,
+  rgba
 } from "utils";
 
+const BLOCK = 8;
+const INV_SQRT2 = 1 / Math.sqrt(2);
+
+const LUMA_Q = [
+  16, 11, 10, 16, 24, 40, 51, 61,
+  12, 12, 14, 19, 26, 58, 60, 55,
+  14, 13, 16, 24, 40, 57, 69, 56,
+  14, 17, 22, 29, 51, 87, 80, 62,
+  18, 22, 37, 56, 68, 109, 103, 77,
+  24, 35, 55, 64, 81, 104, 113, 92,
+  49, 64, 78, 87, 103, 121, 120, 101,
+  72, 92, 95, 98, 112, 100, 103, 99,
+];
+
+const CHROMA_Q = [
+  17, 18, 24, 47, 99, 99, 99, 99,
+  18, 21, 26, 66, 99, 99, 99, 99,
+  24, 26, 56, 99, 99, 99, 99, 99,
+  47, 66, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99,
+];
+
+const DCT_C = new Float32Array(BLOCK * BLOCK);
+for (let u = 0; u < BLOCK; u++) {
+  const au = u === 0 ? INV_SQRT2 : 1;
+  for (let x = 0; x < BLOCK; x++) {
+    DCT_C[u * BLOCK + x] = 0.5 * au * Math.cos(((2 * x + 1) * u * Math.PI) / 16);
+  }
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+const qualityScale = (quality: number) => {
+  const q = clamp(Math.round(quality), 1, 100);
+  const scale = q < 50 ? 5000 / q : 200 - q * 2;
+  return Math.max(0.01, scale / 100);
+};
+
+const mulberry32 = (seed: number) => {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const forwardDct8 = (input: Float32Array, out: Float32Array, tmp: Float32Array) => {
+  for (let y = 0; y < BLOCK; y++) {
+    const yi = y * BLOCK;
+    for (let u = 0; u < BLOCK; u++) {
+      const ui = u * BLOCK;
+      tmp[yi + u] =
+        input[yi] * DCT_C[ui] +
+        input[yi + 1] * DCT_C[ui + 1] +
+        input[yi + 2] * DCT_C[ui + 2] +
+        input[yi + 3] * DCT_C[ui + 3] +
+        input[yi + 4] * DCT_C[ui + 4] +
+        input[yi + 5] * DCT_C[ui + 5] +
+        input[yi + 6] * DCT_C[ui + 6] +
+        input[yi + 7] * DCT_C[ui + 7];
+    }
+  }
+
+  for (let v = 0; v < BLOCK; v++) {
+    const vi = v * BLOCK;
+    for (let u = 0; u < BLOCK; u++) {
+      out[vi + u] =
+        DCT_C[vi] * tmp[u] +
+        DCT_C[vi + 1] * tmp[BLOCK + u] +
+        DCT_C[vi + 2] * tmp[BLOCK * 2 + u] +
+        DCT_C[vi + 3] * tmp[BLOCK * 3 + u] +
+        DCT_C[vi + 4] * tmp[BLOCK * 4 + u] +
+        DCT_C[vi + 5] * tmp[BLOCK * 5 + u] +
+        DCT_C[vi + 6] * tmp[BLOCK * 6 + u] +
+        DCT_C[vi + 7] * tmp[BLOCK * 7 + u];
+    }
+  }
+};
+
+const inverseDct8 = (coeff: Float32Array, out: Float32Array, tmp: Float32Array) => {
+  for (let y = 0; y < BLOCK; y++) {
+    const yi = y * BLOCK;
+    for (let u = 0; u < BLOCK; u++) {
+      tmp[yi + u] =
+        DCT_C[y] * coeff[u] +
+        DCT_C[BLOCK + y] * coeff[BLOCK + u] +
+        DCT_C[BLOCK * 2 + y] * coeff[BLOCK * 2 + u] +
+        DCT_C[BLOCK * 3 + y] * coeff[BLOCK * 3 + u] +
+        DCT_C[BLOCK * 4 + y] * coeff[BLOCK * 4 + u] +
+        DCT_C[BLOCK * 5 + y] * coeff[BLOCK * 5 + u] +
+        DCT_C[BLOCK * 6 + y] * coeff[BLOCK * 6 + u] +
+        DCT_C[BLOCK * 7 + y] * coeff[BLOCK * 7 + u];
+    }
+  }
+
+  for (let y = 0; y < BLOCK; y++) {
+    const yi = y * BLOCK;
+    for (let x = 0; x < BLOCK; x++) {
+      out[yi + x] =
+        tmp[yi] * DCT_C[x] +
+        tmp[yi + 1] * DCT_C[BLOCK + x] +
+        tmp[yi + 2] * DCT_C[BLOCK * 2 + x] +
+        tmp[yi + 3] * DCT_C[BLOCK * 3 + x] +
+        tmp[yi + 4] * DCT_C[BLOCK * 4 + x] +
+        tmp[yi + 5] * DCT_C[BLOCK * 5 + x] +
+        tmp[yi + 6] * DCT_C[BLOCK * 6 + x] +
+        tmp[yi + 7] * DCT_C[BLOCK * 7 + x];
+    }
+  }
+};
+
+const downsampleChroma = (
+  src: Float32Array,
+  w: number,
+  h: number,
+  subsampling: string
+): { plane: Float32Array; w: number; h: number } => {
+  if (subsampling === "444") {
+    return { plane: new Float32Array(src), w, h };
+  }
+
+  if (subsampling === "422") {
+    const dw = Math.ceil(w / 2);
+    const out = new Float32Array(dw * h);
+    for (let y = 0; y < h; y++) {
+      const sRow = y * w;
+      const dRow = y * dw;
+      for (let x = 0; x < dw; x++) {
+        const sx = x * 2;
+        const sx1 = Math.min(w - 1, sx + 1);
+        out[dRow + x] = (src[sRow + sx] + src[sRow + sx1]) * 0.5;
+      }
+    }
+    return { plane: out, w: dw, h };
+  }
+
+  const dw = Math.ceil(w / 2);
+  const dh = Math.ceil(h / 2);
+  const out = new Float32Array(dw * dh);
+  for (let y = 0; y < dh; y++) {
+    const sy = y * 2;
+    const sy1 = Math.min(h - 1, sy + 1);
+    for (let x = 0; x < dw; x++) {
+      const sx = x * 2;
+      const sx1 = Math.min(w - 1, sx + 1);
+      const a = src[sy * w + sx];
+      const b = src[sy * w + sx1];
+      const c = src[sy1 * w + sx];
+      const d = src[sy1 * w + sx1];
+      out[y * dw + x] = (a + b + c + d) * 0.25;
+    }
+  }
+  return { plane: out, w: dw, h: dh };
+};
+
+const upsampleChroma = (
+  src: Float32Array,
+  sw: number,
+  sh: number,
+  dw: number,
+  dh: number,
+  subsampling: string
+) => {
+  if (subsampling === "444" && sw === dw && sh === dh) {
+    return new Float32Array(src);
+  }
+
+  const out = new Float32Array(dw * dh);
+
+  if (subsampling === "422") {
+    for (let y = 0; y < dh; y++) {
+      const sRow = Math.min(sh - 1, y) * sw;
+      const dRow = y * dw;
+      for (let x = 0; x < dw; x++) {
+        out[dRow + x] = src[sRow + Math.min(sw - 1, x >> 1)];
+      }
+    }
+    return out;
+  }
+
+  for (let y = 0; y < dh; y++) {
+    const sy = Math.min(sh - 1, y >> 1);
+    const sRow = sy * sw;
+    const dRow = y * dw;
+    for (let x = 0; x < dw; x++) {
+      out[dRow + x] = src[sRow + Math.min(sw - 1, x >> 1)];
+    }
+  }
+  return out;
+};
+
+const deblockPlane = (plane: Float32Array, w: number, h: number, strength: number) => {
+  if (strength <= 0) return;
+
+  const blend = clamp(strength, 0, 1) * 0.5;
+
+  for (let x = BLOCK; x < w; x += BLOCK) {
+    for (let y = 0; y < h; y++) {
+      const left = y * w + x - 1;
+      const right = y * w + x;
+      const a = plane[left];
+      const b = plane[right];
+      if (Math.abs(a - b) < 48) {
+        const mid = (a + b) * 0.5;
+        plane[left] = a + (mid - a) * blend;
+        plane[right] = b + (mid - b) * blend;
+      }
+    }
+  }
+
+  for (let y = BLOCK; y < h; y += BLOCK) {
+    for (let x = 0; x < w; x++) {
+      const top = (y - 1) * w + x;
+      const bot = y * w + x;
+      const a = plane[top];
+      const b = plane[bot];
+      if (Math.abs(a - b) < 48) {
+        const mid = (a + b) * 0.5;
+        plane[top] = a + (mid - a) * blend;
+        plane[bot] = b + (mid - b) * blend;
+      }
+    }
+  }
+};
+
+const addRinging = (yPlane: Float32Array, w: number, h: number, amount: number) => {
+  if (amount <= 0) return;
+  const src = new Float32Array(yPlane);
+  const gain = amount * 0.35;
+  for (let y = 1; y < h - 1; y++) {
+    const row = y * w;
+    for (let x = 1; x < w - 1; x++) {
+      const i = row + x;
+      const lap = src[i - 1] + src[i + 1] + src[i - w] + src[i + w] - 4 * src[i];
+      yPlane[i] = clamp(src[i] + lap * gain, 0, 255);
+    }
+  }
+};
+
+const addMosquito = (
+  yPlane: Float32Array,
+  cbPlane: Float32Array,
+  crPlane: Float32Array,
+  w: number,
+  h: number,
+  amount: number,
+  rng: () => number
+) => {
+  if (amount <= 0) return;
+  const ySrc = new Float32Array(yPlane);
+  const amp = amount * 20;
+  for (let y = 1; y < h - 1; y++) {
+    const row = y * w;
+    for (let x = 1; x < w - 1; x++) {
+      const i = row + x;
+      const g = Math.abs(ySrc[i] - ySrc[i + 1]) + Math.abs(ySrc[i] - ySrc[i + w]);
+      if (g > 30) {
+        const n = (rng() - 0.5) * amp;
+        yPlane[i] = clamp(yPlane[i] + n, 0, 255);
+        cbPlane[i] = clamp(cbPlane[i] + n * 0.8, 0, 255);
+        crPlane[i] = clamp(crPlane[i] - n * 0.6, 0, 255);
+      }
+    }
+  }
+};
+
+const processPlane = (
+  src: Float32Array,
+  dst: Float32Array,
+  w: number,
+  h: number,
+  qTable: number[],
+  qScale: number,
+  blockSize: number,
+  gridJitter: number,
+  corruptBurstChance: number,
+  rng: () => number
+) => {
+  const macroW = Math.max(1, Math.ceil(w / blockSize));
+  const macroH = Math.max(1, Math.ceil(h / blockSize));
+  const macroCount = macroW * macroH;
+  const burstMap = new Float32Array(macroCount);
+  const jitterMap = new Float32Array(macroCount);
+
+  for (let i = 0; i < macroCount; i++) {
+    burstMap[i] = rng() < corruptBurstChance ? 1.8 + rng() * 4.5 : 1;
+    jitterMap[i] = clamp(1 + (rng() - 0.5) * 2 * gridJitter, 0.25, 3);
+  }
+
+  const blockIn = new Float32Array(BLOCK * BLOCK);
+  const coeff = new Float32Array(BLOCK * BLOCK);
+  const blockOut = new Float32Array(BLOCK * BLOCK);
+  const tmp = new Float32Array(BLOCK * BLOCK);
+
+  for (let by = 0; by < h; by += BLOCK) {
+    for (let bx = 0; bx < w; bx += BLOCK) {
+      const mx = Math.min(macroW - 1, Math.floor(bx / blockSize));
+      const my = Math.min(macroH - 1, Math.floor(by / blockSize));
+      const m = my * macroW + mx;
+      const burst = burstMap[m];
+      const jitter = jitterMap[m];
+
+      for (let y = 0; y < BLOCK; y++) {
+        const sy = Math.min(h - 1, by + y);
+        const sRow = sy * w;
+        const bRow = y * BLOCK;
+        for (let x = 0; x < BLOCK; x++) {
+          const sx = Math.min(w - 1, bx + x);
+          blockIn[bRow + x] = src[sRow + sx] - 128;
+        }
+      }
+
+      forwardDct8(blockIn, coeff, tmp);
+
+      for (let i = 0; i < coeff.length; i++) {
+        const highFreqPenalty = i > 10 && burst > 1 ? 1 + (burst - 1) * 0.3 : 1;
+        const q = Math.max(1, qTable[i] * qScale * burst * jitter * highFreqPenalty);
+        coeff[i] = Math.round(coeff[i] / q) * q;
+        if (i > 14 && burst > 3 && rng() < 0.15) coeff[i] = 0;
+      }
+
+      inverseDct8(coeff, blockOut, tmp);
+
+      for (let y = 0; y < BLOCK; y++) {
+        const dy = by + y;
+        if (dy >= h) break;
+        const dRow = dy * w;
+        const bRow = y * BLOCK;
+        for (let x = 0; x < BLOCK; x++) {
+          const dx = bx + x;
+          if (dx >= w) break;
+          dst[dRow + dx] = clamp(blockOut[bRow + x] + 128, 0, 255);
+        }
+      }
+    }
+  }
+};
+
 export const optionTypes = {
-  quality: { type: RANGE, range: [1, 100], step: 1, default: 15, desc: "Simulated JPEG quality — lower = more artifacts" },
-  blockSize: { type: RANGE, range: [4, 64], step: 4, default: 8, desc: "DCT block size for compression simulation" },
+  qualityLuma: { type: RANGE, range: [1, 100], step: 1, default: 28, desc: "Luma quantization quality — lower values produce harsher block loss" },
+  qualityChroma: { type: RANGE, range: [1, 100], step: 1, default: 16, desc: "Chroma quantization quality — lower values cause color bleed and smearing" },
+  quality: { type: RANGE, range: [1, 100], step: 1, default: 30, desc: "Legacy master quality fallback for old presets and saved states" },
+  subsampling: {
+    type: ENUM,
+    default: "420",
+    options: [
+      { name: "4:4:4 (none)", value: "444" },
+      { name: "4:2:2", value: "422" },
+      { name: "4:2:0", value: "420" },
+    ],
+    desc: "Chroma subsampling mode used before quantization"
+  },
+  blockSize: { type: RANGE, range: [8, 64], step: 8, default: 16, desc: "Macroblock size controlling burst grouping and temporal hold regions" },
+  ringing: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Sharpened edge overshoot around blocks (ringing)" },
+  mosquito: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Edge-adjacent chroma/luma noise similar to mosquito artifacts" },
+  gridJitter: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Per-macroblock quantization jitter for unstable decode grid" },
+  corruptBurstChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.12, desc: "Probability that a macroblock enters severe corruption" },
+  deblock: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "Post-pass seam softening across 8x8 boundaries" },
+  temporalHold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Hold previous corrupted macroblocks between keyframes (P-frame smear)" },
+  keyframeInterval: { type: RANGE, range: [1, 60], step: 1, default: 12, desc: "Every Nth frame refreshes all macroblocks from current input" },
+  preserveAlpha: { type: BOOL, default: true, desc: "Preserve source alpha channel" },
   palette: { type: PALETTE, default: nearest }
 };
 
 export const defaults = {
+  qualityLuma: optionTypes.qualityLuma.default,
+  qualityChroma: optionTypes.qualityChroma.default,
   quality: optionTypes.quality.default,
+  subsampling: optionTypes.subsampling.default,
   blockSize: optionTypes.blockSize.default,
+  ringing: optionTypes.ringing.default,
+  mosquito: optionTypes.mosquito.default,
+  gridJitter: optionTypes.gridJitter.default,
+  corruptBurstChance: optionTypes.corruptBurstChance.default,
+  deblock: optionTypes.deblock.default,
+  temporalHold: optionTypes.temporalHold.default,
+  keyframeInterval: optionTypes.keyframeInterval.default,
+  preserveAlpha: optionTypes.preserveAlpha.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-// Simulate JPEG block artifacts by quantizing each block's pixels
-// to a reduced set of values, mimicking DCT coefficient quantization
-const jpegArtifact = (input, options: any = defaults) => {
-  const { quality, blockSize, palette } = options;
+export const applyJpegArtifactToCanvas = (input, options: any = defaults) => {
+  const safeOptions = {
+    ...defaults,
+    ...(options || {}),
+    palette: (options && options.palette) ? options.palette : defaults.palette,
+  };
+
+  const safePalette = {
+    ...defaults.palette,
+    ...(safeOptions.palette || {}),
+    options: {
+      ...(defaults.palette?.options || {}),
+      ...(safeOptions.palette?.options || {}),
+    },
+  };
+
+  const {
+    qualityLuma,
+    qualityChroma,
+    quality,
+    subsampling,
+    blockSize,
+    ringing,
+    mosquito,
+    gridJitter,
+    corruptBurstChance,
+    deblock,
+    temporalHold,
+    keyframeInterval,
+    preserveAlpha,
+  } = safeOptions;
+
+  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+  const frameIndex = (options as any)._frameIndex || 0;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
+  const w = input.width;
+  const h = input.height;
+  const src = inputCtx.getImageData(0, 0, w, h).data;
 
-  // Quantization step: lower quality = larger step = more artifacts
-  const qStep = Math.max(1, Math.round((101 - quality) * 2.5));
+  const yPlane = new Float32Array(w * h);
+  const cbFull = new Float32Array(w * h);
+  const crFull = new Float32Array(w * h);
 
-  for (let by = 0; by < H; by += blockSize) {
-    for (let bx = 0; bx < W; bx += blockSize) {
-      const bw = Math.min(blockSize, W - bx);
-      const bh = Math.min(blockSize, H - by);
+  for (let i = 0, p = 0; i < src.length; i += 4, p++) {
+    const r = src[i];
+    const g = src[i + 1];
+    const b = src[i + 2];
+    yPlane[p] = 0.299 * r + 0.587 * g + 0.114 * b;
+    cbFull[p] = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+    crFull[p] = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+  }
 
-      // Compute block average for DC component
-      let avgR = 0, avgG = 0, avgB = 0;
-      let count = 0;
-      for (let dy = 0; dy < bh; dy++) {
-        for (let dx = 0; dx < bw; dx++) {
-          const i = getBufferIndex(bx + dx, by + dy, W);
-          avgR += buf[i];
-          avgG += buf[i + 1];
-          avgB += buf[i + 2];
-          count++;
-        }
-      }
-      avgR /= count;
-      avgG /= count;
-      avgB /= count;
+  const { plane: cbSub, w: cW, h: cH } = downsampleChroma(cbFull, w, h, subsampling);
+  const { plane: crSub } = downsampleChroma(crFull, w, h, subsampling);
 
-      // Process each pixel: quantize the difference from block average
-      for (let dy = 0; dy < bh; dy++) {
-        for (let dx = 0; dx < bw; dx++) {
-          const i = getBufferIndex(bx + dx, by + dy, W);
+  const yOut = new Float32Array(w * h);
+  const cbOutSub = new Float32Array(cW * cH);
+  const crOutSub = new Float32Array(cW * cH);
 
-          // Quantize each channel relative to block mean
-          const qr = Math.round((buf[i] - avgR) / qStep) * qStep + avgR;
-          const qg = Math.round((buf[i + 1] - avgG) / qStep) * qStep + avgG;
-          const qb = Math.round((buf[i + 2] - avgB) / qStep) * qStep + avgB;
+  const rng = mulberry32(frameIndex * 7919 + 31337);
 
-          const r = Math.max(0, Math.min(255, Math.round(qr)));
-          const g = Math.max(0, Math.min(255, Math.round(qg)));
-          const b = Math.max(0, Math.min(255, Math.round(qb)));
+  const effectiveLuma = safeOptions?.qualityLuma ?? quality;
+  const effectiveChroma = safeOptions?.qualityChroma ?? quality;
 
-          const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-          fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+  processPlane(
+    yPlane,
+    yOut,
+    w,
+    h,
+    LUMA_Q,
+    qualityScale(effectiveLuma),
+    blockSize,
+    gridJitter,
+    corruptBurstChance,
+    rng
+  );
+
+  processPlane(
+    cbSub,
+    cbOutSub,
+    cW,
+    cH,
+    CHROMA_Q,
+    qualityScale(effectiveChroma),
+    blockSize,
+    gridJitter,
+    corruptBurstChance,
+    rng
+  );
+
+  processPlane(
+    crSub,
+    crOutSub,
+    cW,
+    cH,
+    CHROMA_Q,
+    qualityScale(effectiveChroma),
+    blockSize,
+    gridJitter,
+    corruptBurstChance,
+    rng
+  );
+
+  const cbOut = upsampleChroma(cbOutSub, cW, cH, w, h, subsampling);
+  const crOut = upsampleChroma(crOutSub, cW, cH, w, h, subsampling);
+
+  deblockPlane(yOut, w, h, deblock);
+  deblockPlane(cbOut, w, h, deblock * 0.8);
+  deblockPlane(crOut, w, h, deblock * 0.8);
+  addRinging(yOut, w, h, ringing);
+  addMosquito(yOut, cbOut, crOut, w, h, mosquito, rng);
+
+  const outBuf = new Uint8ClampedArray(src.length);
+
+  for (let p = 0, i = 0; p < yOut.length; p++, i += 4) {
+    const y = yOut[p];
+    const cb = cbOut[p] - 128;
+    const cr = crOut[p] - 128;
+
+    const r = clamp(y + 1.402 * cr, 0, 255);
+    const g = clamp(y - 0.344136 * cb - 0.714136 * cr, 0, 255);
+    const b = clamp(y + 1.772 * cb, 0, 255);
+
+    const a = preserveAlpha ? src[i + 3] : 255;
+    const color = paletteGetColor(safePalette, rgba(r, g, b, a), safePalette.options, false);
+    fillBufferPixel(outBuf, i, color[0], color[1], color[2], a);
+  }
+
+  if (temporalHold > 0 && prevOutput && prevOutput.length === outBuf.length) {
+    const kf = Math.max(1, Math.round(keyframeInterval));
+    const isKeyframe = frameIndex % kf === 0;
+    if (!isKeyframe) {
+      for (let by = 0; by < h; by += blockSize) {
+        const yEnd = Math.min(h, by + blockSize);
+        for (let bx = 0; bx < w; bx += blockSize) {
+          if (rng() >= temporalHold) continue;
+          const xEnd = Math.min(w, bx + blockSize);
+          for (let y = by; y < yEnd; y++) {
+            let idx = (y * w + bx) * 4;
+            for (let x = bx; x < xEnd; x++, idx += 4) {
+              outBuf[idx] = prevOutput[idx];
+              outBuf[idx + 1] = prevOutput[idx + 1];
+              outBuf[idx + 2] = prevOutput[idx + 2];
+              if (preserveAlpha) outBuf[idx + 3] = prevOutput[idx + 3];
+            }
+          }
         }
       }
     }
   }
 
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+  outputCtx.putImageData(new ImageData(outBuf, w, h), 0, 0);
   return output;
 };
+
+const jpegArtifact = (input, options: any = defaults) => applyJpegArtifactToCanvas(input, options);
 
 export default {
   name: "JPEG Artifact",
   func: jpegArtifact,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  mainThread: true,
+  description: "Codec-style JPEG degradation with DCT quantization, chroma subsampling, and optional temporal hold corruption"
 };

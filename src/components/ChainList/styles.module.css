@@ -364,6 +364,13 @@
   outline-offset: -4px;
 }
 
+.libraryBrowserFloat {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9500;
+}
+
 @media (max-width: 768px) {
   .preview {
     display: none;

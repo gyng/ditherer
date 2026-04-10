@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useLayoutEffect } from "react";
 
 const isMobile = () => window.innerWidth <= 768;
 
@@ -40,16 +40,50 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
   const dragging = useRef(false);
   const didDrag = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
+  const initialized = useRef(false);
 
-  useEffect(() => {
-    if (ref.current && !isMobile()) {
+  const readTranslateFromStyle = (el: HTMLElement) => {
+    const transform = window.getComputedStyle(el).transform;
+    if (!transform || transform === "none") return null;
+    const matrix3d = transform.match(/^matrix3d\((.+)\)$/);
+    if (matrix3d) {
+      const parts = matrix3d[1].split(",").map((v) => Number(v.trim()));
+      if (parts.length === 16) return { x: parts[12] || 0, y: parts[13] || 0 };
+      return null;
+    }
+    const matrix2d = transform.match(/^matrix\((.+)\)$/);
+    if (matrix2d) {
+      const parts = matrix2d[1].split(",").map((v) => Number(v.trim()));
+      if (parts.length === 6) return { x: parts[4] || 0, y: parts[5] || 0 };
+      return null;
+    }
+    return null;
+  };
+
+  const ensureInitializedPosition = useCallback(() => {
+    if (!ref.current || isMobile()) return;
+    if (!initialized.current) {
+      ref.current.style.transform = `translate(${pos.current.x}px, ${pos.current.y}px)`;
+      initialized.current = true;
+      return;
+    }
+    const fromStyle = readTranslateFromStyle(ref.current);
+    if (fromStyle) {
+      pos.current = fromStyle;
+    } else {
       ref.current.style.transform = `translate(${pos.current.x}px, ${pos.current.y}px)`;
     }
   }, [ref]);
 
+  // Apply initial transform before paint so first drag starts from the visible position.
+  useLayoutEffect(() => {
+    ensureInitializedPosition();
+  }, [ensureInitializedPosition]);
+
   const onMouseDown = useCallback((e) => {
     if (isMobile()) return;
     if (!ref.current) return;
+    ensureInitializedPosition();
 
     const edge = getEdge(ref.current, e.clientX, e.clientY);
 
@@ -121,14 +155,15 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
-  }, [ref, onScale]);
+  }, [ensureInitializedPosition, ref, onScale, onScaleAbsolute]);
 
   // Update cursor on hover near edges
   const onMouseMove = useCallback((e) => {
     if (isMobile() || !ref.current || (!onScale && !onScaleAbsolute)) return;
+    ensureInitializedPosition();
     const edge = getEdge(ref.current, e.clientX, e.clientY);
     ref.current.style.cursor = edge ? edgeCursor[edge] : "";
-  }, [ref, onScale]);
+  }, [ensureInitializedPosition, ref, onScale, onScaleAbsolute]);
 
   // Scroll wheel on the window scales up/down
   // Use native listener with { passive: false } so we can preventDefault

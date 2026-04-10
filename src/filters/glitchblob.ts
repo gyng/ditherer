@@ -350,6 +350,10 @@ const glitchblob = (
   options = defaults,
   dispatch
 ) => {
+  if (typeof dispatch !== "function") {
+    return input;
+  }
+
   const { errRepeat, errSubstitute, errTranspose, errors, format } = options;
   const output = cloneCanvas(input, false);
 

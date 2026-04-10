@@ -344,8 +344,16 @@ export default (state = initialState, action) => {
         state.video != null &&
         (!action.video || action.video !== state.video)
       ) {
+        const oldVideo = state.video as HTMLVideoElement & { __objectUrl?: string };
         state.video.pause();
-        state.video.src = "";
+        // Avoid assigning empty src, which can resolve to the document URL ("/")
+        // and trigger "text/html is not supported" media decode warnings.
+        state.video.removeAttribute("src");
+        state.video.load();
+        if (oldVideo.__objectUrl) {
+          URL.revokeObjectURL(oldVideo.__objectUrl);
+          delete oldVideo.__objectUrl;
+        }
       }
 
       const newState = {

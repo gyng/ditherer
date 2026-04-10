@@ -26,6 +26,7 @@ import chromaticAberration from "./chromaticAberration";
 import bloom from "./bloom";
 import colorShift from "./colorShift";
 import bitCrush from "./bitCrush";
+import bitplaneDropout from "./bitplaneDropout";
 import displace from "./displace";
 import voronoi from "./voronoi";
 import ascii from "./ascii";
@@ -91,9 +92,11 @@ import newspaper from "./newspaper";
 import faxMachine from "./faxMachine";
 import photocopier from "./photocopier";
 import daguerreotype from "./daguerreotype";
+import digicamFlash from "./digicamFlash";
 import lenticular from "./lenticular";
 import thermalPrinter from "./thermalPrinter";
 import dataBend from "./dataBend";
+import crcStripeReject from "./crcStripeReject";
 import interlaceTear from "./interlaceTear";
 import pixelScatter from "./pixelScatter";
 import stipple from "./stipple";
@@ -107,6 +110,7 @@ import spherize from "./spherize";
 import stretch from "./stretch";
 import matrixRain from "./matrixRain";
 import dotMatrix from "./dotMatrix";
+import flipDotDisplay from "./flipDotDisplay";
 import risograph from "./risograph";
 import liquify from "./liquify";
 import cmykHalftone from "./cmykHalftone";
@@ -184,9 +188,11 @@ import screenPrint from "./screenPrint";
 import reliefMap from "./reliefMap";
 import facet from "./facet";
 import paletteMapper from "./paletteMapper";
+import paletteIndexDrift from "./paletteIndexDrift";
 import isometricExtrude from "./isometricExtrude";
 import octreeQuantize from "./octreeQuantize";
 import frequencyFilter from "./frequencyFilter";
+import metadataMismatchDecode from "./metadataMismatchDecode";
 import {
   atkinson,
   burkes,
@@ -225,6 +231,7 @@ export { default as chromaticAberration } from "./chromaticAberration";
 export { default as bloom } from "./bloom";
 export { default as colorShift } from "./colorShift";
 export { default as bitCrush } from "./bitCrush";
+export { default as bitplaneDropout } from "./bitplaneDropout";
 export { default as displace } from "./displace";
 export { default as voronoi } from "./voronoi";
 export { default as ascii } from "./ascii";
@@ -239,6 +246,7 @@ export { default as triangleDither } from "./triangleDither";
 export { default as anisotropicDiffusion } from "./anisotropicDiffusion";
 export { default as kmeans } from "./kmeans";
 export { default as mavicaFd7 } from "./mavicaFd7";
+export { default as digicamFlash } from "./digicamFlash";
 export { default as gameboyCamera } from "./gameboyCamera";
 export { default as teletext } from "./teletext";
 export { default as datamosh } from "./datamosh";
@@ -276,7 +284,11 @@ export { default as paletteMapper } from "./paletteMapper";
 export { default as isometricExtrude } from "./isometricExtrude";
 export { default as octreeQuantize } from "./octreeQuantize";
 export { default as frequencyFilter } from "./frequencyFilter";
+export { default as paletteIndexDrift } from "./paletteIndexDrift";
+export { default as metadataMismatchDecode } from "./metadataMismatchDecode";
+export { default as crcStripeReject } from "./crcStripeReject";
 export { default as infiniteCallWindows } from "./infiniteCallWindows";
+export { default as flipDotDisplay } from "./flipDotDisplay";
 export {
   atkinson,
   burkes,
@@ -328,6 +340,7 @@ export const filterIndex = [
   bloom,
   colorShift,
   bitCrush,
+  bitplaneDropout,
   displace,
   voronoi,
   ascii,
@@ -378,6 +391,7 @@ export const filterIndex = [
   radialBlur,
   fractal,
   dotMatrix,
+  flipDotDisplay,
   risograph,
   liquify,
   cmykHalftone,
@@ -391,9 +405,11 @@ export const filterIndex = [
   faxMachine,
   photocopier,
   daguerreotype,
+  digicamFlash,
   lenticular,
   thermalPrinter,
   dataBend,
+  crcStripeReject,
   interlaceTear,
   pixelScatter,
   stipple,
@@ -471,6 +487,8 @@ export const filterIndex = [
   reliefMap,
   facet,
   paletteMapper,
+  paletteIndexDrift,
+  metadataMismatchDecode,
   isometricExtrude,
   octreeQuantize,
   frequencyFilter,
@@ -702,6 +720,7 @@ export const filterList = [
   { displayName: "Dot matrix", filter: dotMatrix, category: "Stylize", description: "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors" },
   { displayName: "Edge trace", filter: edgeTrace, category: "Stylize", description: "Canny-like edge tracing with non-maximum suppression and configurable line color" },
   { displayName: "Engraving", filter: engraving, category: "Stylize", description: "Parallel lines whose thickness varies with luminance — currency/illustration style" },
+  { displayName: "Flip-Dot Display", filter: flipDotDisplay, category: "Stylize", description: "Electromechanical dot-sign board with bi-stable cells, hysteresis, and limited flip throughput" },
   {
     displayName: "Engraving (Blueprint)",
     category: "Stylize",
@@ -802,6 +821,8 @@ export const filterList = [
   // ── Glitch ──
   { displayName: "Analog static", filter: analogStatic, category: "Glitch", description: "Analog TV static — noise bars, vertical hold drift, and ghosting" },
   { displayName: "Bit crush", filter: bitCrush, category: "Glitch", description: "Reduce bit depth per channel for harsh color banding" },
+  { displayName: "Bitplane Dropout", filter: bitplaneDropout, category: "Glitch", description: "Corrupt specific RGB bitplanes in bursts so significance levels drop, freeze, or flip like real digital faults" },
+  { displayName: "CRC Stripe Reject", filter: crcStripeReject, category: "Glitch", description: "Reject stripes or tiles like failed CRC packets, then conceal with hold, row-copy, or nearest-valid fill" },
   { displayName: "Channel separation", filter: channelSeparation, category: "Glitch", description: "Split and offset RGB channels for a glitchy color-fringe look" },
   { displayName: "Data bend", filter: dataBend, category: "Glitch", description: "Treat pixel data as audio — apply echo, reverb, bitcrush, or reverse" },
   { displayName: "Datamosh", filter: datamosh, category: "Glitch", description: "Simulate I-frame removal — blocks persist, smear, and corrupt like broken video compression" },
@@ -810,6 +831,7 @@ export const filterList = [
   { displayName: "Interlace tear", filter: interlaceTear, category: "Glitch", description: "Even/odd row offset simulating torn interlaced video" },
   { displayName: "Jitter", filter: jitter, category: "Glitch", description: "Randomly shift pixel rows for a shaky, unstable signal look" },
   { displayName: "JPEG artifact", filter: jpegArtifact, category: "Glitch", description: "Apply DCT block compression artifacts at controllable quality and block size" },
+  { displayName: "Palette Index Drift", filter: paletteIndexDrift, category: "Glitch", description: "Map into an indexed palette, then drift the lookup table over time so colors break while geometry stays stable" },
   { displayName: "Pixel drift", filter: pixelDrift, category: "Glitch", description: "Pixels fall or rise based on luminance — melting/gravity effect" },
   { displayName: "Pixel scatter", filter: pixelScatter, category: "Glitch", description: "Explode pixels outward from edges — disintegration effect" },
   {
@@ -855,6 +877,7 @@ export const filterList = [
     }
   },
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
+  { displayName: "Digicam Flash", filter: digicamFlash, category: "Simulate", description: "On-camera point-and-shoot flash look with center hotspot, fast falloff, clipped highlights, and edge burn" },
   { displayName: "Deep fry", filter: deepFry, category: "Stylize", description: "Extreme contrast, oversaturation, and JPEG artifacts — the deep-fried meme aesthetic" },
   {
     displayName: "E-ink (color)",
@@ -874,6 +897,7 @@ export const filterList = [
   { displayName: "Lenticular", filter: lenticular, category: "Simulate", description: "Holographic rainbow sheen strips that shift with a simulated angle" },
   { displayName: "Light leak", filter: lightLeak, category: "Simulate", description: "Film light leak — warm chromatic glow bleeding from edges/corners" },
   { displayName: "Mavica FD7", filter: mavicaFd7, category: "Simulate", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
+  { displayName: "Metadata Mismatch Decode", filter: metadataMismatchDecode, category: "Simulate", description: "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures" },
   { displayName: "Newspaper", filter: newspaper, category: "Simulate", description: "Coarse halftone on yellowed paper with fold creases and ink smear" },
   { displayName: "Night vision", filter: nightVision, category: "Simulate", description: "Gen 3 image intensifier tube — green phosphor, heavy grain, bloom, and circular vignette" },
   { displayName: "Nokia LCD", filter: nokiaLcd, category: "Simulate", description: "Simulate the Nokia 3310 monochrome LCD — 84x48 pixels with greenish tint" },

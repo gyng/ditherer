@@ -29,8 +29,15 @@ export const optionTypes = {
       { name: "Full (flash clear)", value: REFRESH_FULL },
       { name: "Partial (fast, more ghosting)", value: REFRESH_PARTIAL }
     ],
-    default: REFRESH_FULL,
-    desc: "Screen refresh method — partial leaves more ghosting"
+    default: REFRESH_PARTIAL,
+    desc: "Screen refresh method — real devices typically use partial updates and occasional full clears"
+  },
+  fullRefreshEvery: {
+    type: RANGE,
+    range: [6, 240],
+    step: 1,
+    default: 72,
+    desc: "In Full mode with video input, run a full flash cycle every N frames instead of every update"
   },
   contrast: { type: RANGE, range: [0.5, 2], step: 0.05, default: 1.2, desc: "Display contrast multiplier" },
   paperWhite: { type: RANGE, range: [180, 255], step: 1, default: 230, desc: "Brightest displayable value" },
@@ -65,6 +72,7 @@ export const optionTypes = {
 export const defaults = {
   mode: optionTypes.mode.default,
   refreshMode: optionTypes.refreshMode.default,
+  fullRefreshEvery: optionTypes.fullRefreshEvery.default,
   contrast: optionTypes.contrast.default,
   paperWhite: optionTypes.paperWhite.default,
   inkBlack: optionTypes.inkBlack.default,
@@ -127,6 +135,7 @@ const eink = (
     contrast,
     paperWhite,
     inkBlack,
+    fullRefreshEvery,
     ghosting,
     pixelGrid,
     texture,
@@ -136,6 +145,7 @@ const eink = (
   const prevOutput = (options as any)._prevOutput || null;
   const frameIndex = (options as any)._frameIndex || 0;
   const isAnimLoop = (options as any)._isAnimating || false;
+  const hasVideoInput = (options as any)._hasVideoInput || false;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -151,12 +161,23 @@ const eink = (
   const isColor = mode === EINK_COLOR;
   const range = paperWhite - inkBlack;
   const isFullRefresh = refreshMode === REFRESH_FULL;
+  const videoRefreshInterval = Math.max(3, Math.round(fullRefreshEvery || 72));
 
   // Refresh phases (only during animation/burst)
   // Full refresh: 0=white, 1=black, 2=invert, 3+=settle to target
   // Partial refresh: skip flashes, go straight to target (more ghosting)
   const refreshCycle = isFullRefresh ? 6 : 2;
-  const phase = isAnimLoop ? (frameIndex % refreshCycle) : refreshCycle; // non-anim = normal
+  let phase = refreshCycle; // non-anim = normal
+  if (isAnimLoop) {
+    if (isFullRefresh && hasVideoInput) {
+      // Video on real e-ink tends to use fast partial updates and only
+      // occasional global clears, not full flashing every frame.
+      const p = frameIndex % videoRefreshInterval;
+      phase = p < 3 ? p : refreshCycle;
+    } else {
+      phase = frameIndex % refreshCycle;
+    }
+  }
 
   for (let x = 0; x < W; x++) {
     for (let y = 0; y < H; y++) {
