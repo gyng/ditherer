@@ -18,50 +18,53 @@ import { setupWebMCP } from "@src/webmcp";
 import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
+const testAssetUrl = (kind: "image" | "video", file: string) =>
+  `${import.meta.env.BASE_URL}test-assets/${kind}/${file}`;
+
 const TEST_IMAGE_ASSETS = [
-  "/test-assets/image/BoatsColor.png",
-  "/test-assets/image/DSCF0491.JPG@800.avif",
-  "/test-assets/image/DSCF1248.JPG@1600.avif",
-  "/test-assets/image/ZeldaColor.png",
-  "/test-assets/image/airplane.png",
-  "/test-assets/image/baboon.png",
-  "/test-assets/image/barbara.png",
-  "/test-assets/image/fruits.png",
-  "/test-assets/image/goldhill.png",
-  "/test-assets/image/lenna.png",
-  "/test-assets/image/monarch.png",
-  "/test-assets/image/pepper.png",
-  "/test-assets/image/sailboat.png",
-  "/test-assets/image/soccer.png",
-];
+  "BoatsColor.png",
+  "DSCF0491.JPG@800.avif",
+  "DSCF1248.JPG@1600.avif",
+  "ZeldaColor.png",
+  "airplane.png",
+  "baboon.png",
+  "barbara.png",
+  "fruits.png",
+  "goldhill.png",
+  "lenna.png",
+  "monarch.png",
+  "pepper.png",
+  "sailboat.png",
+  "soccer.png",
+].map((file) => testAssetUrl("image", file));
 
 const TEST_VIDEO_ASSETS = [
-  "/test-assets/video/118-60i.mp4",
-  "/test-assets/video/120-60i.mp4",
-  "/test-assets/video/164-60i.mp4",
-  "/test-assets/video/207-60p.mp4",
-  "/test-assets/video/DSCF0159.MOV@1280.mp4",
-  "/test-assets/video/akiyo.mp4",
-  "/test-assets/video/badapple-trimp.mp4",
-  "/test-assets/video/c01_Fireworks_willow_4K_960x540.mp4",
-  "/test-assets/video/c06_Drama_standingup_4K_960x540.mp4",
-  "/test-assets/video/c08_Drama_sunset_4K_960x540.mp4",
-  "/test-assets/video/c17_HorseRace_homestretch_4K_960x540.mp4",
-  "/test-assets/video/city_4cif.mp4",
-  "/test-assets/video/crew_4cif.mp4",
-  "/test-assets/video/degauss.webm",
-  "/test-assets/video/ducks_take_off_420_720p50.mp4",
-  "/test-assets/video/hall_objects_qcif.mp4",
-  "/test-assets/video/ice_4cif.mp4",
-  "/test-assets/video/kumiko.webm",
-  "/test-assets/video/pamphlet_cif.mp4",
-  "/test-assets/video/pedestrian_area_1080p25.mp4",
-  "/test-assets/video/salesman_qcif.mp4",
-  "/test-assets/video/suzie.mp4",
-  "/test-assets/video/tempete_cif.mp4",
-  "/test-assets/video/tt_sif.mp4",
-  "/test-assets/video/waterfall_cif.mp4",
-];
+  "118-60i.mp4",
+  "120-60i.mp4",
+  "164-60i.mp4",
+  "207-60p.mp4",
+  "DSCF0159.MOV@1280.mp4",
+  "akiyo.mp4",
+  "badapple-trimp.mp4",
+  "c01_Fireworks_willow_4K_960x540.mp4",
+  "c06_Drama_standingup_4K_960x540.mp4",
+  "c08_Drama_sunset_4K_960x540.mp4",
+  "c17_HorseRace_homestretch_4K_960x540.mp4",
+  "city_4cif.mp4",
+  "crew_4cif.mp4",
+  "degauss.webm",
+  "ducks_take_off_420_720p50.mp4",
+  "hall_objects_qcif.mp4",
+  "ice_4cif.mp4",
+  "kumiko.webm",
+  "pamphlet_cif.mp4",
+  "pedestrian_area_1080p25.mp4",
+  "salesman_qcif.mp4",
+  "suzie.mp4",
+  "tempete_cif.mp4",
+  "tt_sif.mp4",
+  "waterfall_cif.mp4",
+].map((file) => testAssetUrl("video", file));
 
 const pickRandom = <T,>(items: T[]): T =>
   items[Math.floor(Math.random() * items.length)];
@@ -72,8 +75,8 @@ const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
   return pickRandom(choices.length > 0 ? choices : items);
 };
 
-const DEFAULT_TEST_IMAGE_ASSET = "/test-assets/image/pepper.png";
-const DEFAULT_TEST_VIDEO_ASSET = "/test-assets/video/akiyo.mp4";
+const DEFAULT_TEST_IMAGE_ASSET = testAssetUrl("image", "pepper.png");
+const DEFAULT_TEST_VIDEO_ASSET = testAssetUrl("video", "akiyo.mp4");
 const basename = (path: string) => path.split("/").pop() || path;
 
 const App = () => {

@@ -7,8 +7,10 @@ import s from "./libraryBrowser.module.css";
 type FilterEntry = (typeof filterList)[number];
 const ALL_FILTERS = filterList.filter((f) => f) as FilterEntry[];
 const FILTER_CATEGORIES = ["All", ...new Set(ALL_FILTERS.map((f) => f.category))];
-const FALLBACK_IMAGE_SRC = "/test-assets/image/pepper.png";
-const FALLBACK_VIDEO_SRC = "/test-assets/video/akiyo.mp4";
+const testAssetUrl = (kind: "image" | "video", file: string) =>
+  `${import.meta.env.BASE_URL}test-assets/${kind}/${file}`;
+const FALLBACK_IMAGE_SRC = testAssetUrl("image", "pepper.png");
+const FALLBACK_VIDEO_SRC = testAssetUrl("video", "akiyo.mp4");
 
 interface Props {
   open: boolean;
