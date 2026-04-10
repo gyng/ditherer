@@ -408,7 +408,19 @@ export const FilterProvider = ({ children }) => {
         outCanvas.getContext("2d")!.putImageData(outData, 0, 0);
 
         for (const [entryId, buf] of Object.entries(result.prevOutputs)) {
-          prevOutputMapRef.current.set(entryId, new Uint8ClampedArray(buf as ArrayBuffer));
+          const pixels = new Uint8ClampedArray(buf as ArrayBuffer);
+          prevOutputMapRef.current.set(entryId, pixels);
+
+          // Reconstruct intermediate canvas for step previews
+          if (!isAnimating) {
+            const stepCanvas = document.createElement("canvas");
+            stepCanvas.width = result.width;
+            stepCanvas.height = result.height;
+            stepCanvas.getContext("2d")!.putImageData(
+              new ImageData(new Uint8ClampedArray(pixels), result.width, result.height), 0, 0
+            );
+            cachedOutputsRef.current.set(entryId, stepCanvas);
+          }
         }
 
         const workerStepTimes = [...stepTimes, ...result.stepTimes];

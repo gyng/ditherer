@@ -197,6 +197,8 @@ const ChainList = () => {
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
+  const [pinnedPreviewId, setPinnedPreviewId] = useState<string | null>(null);
+  const [pinnedPreviewPos, setPinnedPreviewPos] = useState<{ top: number; left: number } | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [savedChains, setSavedChains] = useState<SavedChain[]>(loadUserChains);
   const [loadedSavedName, setLoadedSavedName] = useState<string | null>(null);
@@ -549,20 +551,55 @@ const ChainList = () => {
               >
                 +
               </button>
+              <button
+                className={`${s.removeBtn} ${pinnedPreviewId === entry.id ? s.animActive : ""}`}
+                onMouseEnter={(e) => {
+                  if (pinnedPreviewId) return;
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setHoveredEntryId(entry.id);
+                  setHoverPos({ top: rect.top, left: rect.right + 8 });
+                }}
+                onMouseLeave={() => {
+                  if (pinnedPreviewId) return;
+                  setHoveredEntryId(null);
+                  setHoverPos(null);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (pinnedPreviewId === entry.id) {
+                    setPinnedPreviewId(null);
+                    setPinnedPreviewPos(null);
+                    setHoveredEntryId(null);
+                    setHoverPos(null);
+                  } else {
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setPinnedPreviewId(entry.id);
+                    setPinnedPreviewPos({ top: rect.top, left: rect.right + 8 });
+                    setHoveredEntryId(entry.id);
+                    setHoverPos({ top: rect.top, left: rect.right + 8 });
+                  }
+                }}
+                title={pinnedPreviewId === entry.id ? "Unpin preview" : "Preview step output"}
+              >
+                &#9673;
+              </button>
             </div>
           );
         })}
       </div>
 
-      {hoveredEntryId && hoverPos && (() => {
-        const previewCanvas = actions.getIntermediatePreview(hoveredEntryId);
+      {(() => {
+        const previewId = pinnedPreviewId || hoveredEntryId;
+        const previewPos = pinnedPreviewId ? pinnedPreviewPos : hoverPos;
+        if (!previewId || !previewPos) return null;
+        const previewCanvas = actions.getIntermediatePreview(previewId);
         if (!previewCanvas) return null;
-        const stepIndex = chain.findIndex((e) => e.id === hoveredEntryId);
+        const stepIndex = chain.findIndex((e) => e.id === previewId);
         return (
           <ChainPreview
             sourceCanvas={previewCanvas}
-            top={hoverPos.top}
-            left={hoverPos.left}
+            top={previewPos.top}
+            left={previewPos.left}
             stepNumber={stepIndex + 1}
           />
         );
