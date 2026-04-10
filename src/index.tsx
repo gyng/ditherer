@@ -3,6 +3,11 @@ import { createRoot } from "react-dom/client";
 
 import "styles/global.css";
 
+// Eagerly load heavy modules during the boot screen
+import "utils"; // triggers WASM init
+import "filters"; // loads all filter modules
+import "workers/workerRPC"; // pre-warms the Web Worker
+
 import App from "components/App";
 import { FilterProvider } from "context/FilterContext";
 import { PALETTE } from "constants/optionTypes";

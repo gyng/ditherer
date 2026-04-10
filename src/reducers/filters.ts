@@ -68,7 +68,7 @@ export const initialState = {
   realtimeFiltering: true,
   time: null,
   video: null,
-  videoVolume: 1,
+  videoVolume: localStorage.getItem("ditherer-mute") === "1" ? 0 : 1,
   videoPlaybackRate: 1,
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
   linearize: true,

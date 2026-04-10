@@ -285,10 +285,11 @@ export const optionTypes = {
         value: PATTERN_5X5
       }
     ],
-    default: HATCH_2X2
+    default: HATCH_2X2,
+    desc: "Dither pattern — larger matrices produce smoother gradients"
   },
-  thresholdMapScaleX: { type: RANGE, range: [1, 5], step: 1, default: 1 },
-  thresholdMapScaleY: { type: RANGE, range: [1, 5], step: 1, default: 1 },
+  thresholdMapScaleX: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern horizontally" },
+  thresholdMapScaleY: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern vertically" },
   palette: { type: PALETTE, default: nearest }
 };
 

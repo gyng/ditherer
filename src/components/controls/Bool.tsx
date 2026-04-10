@@ -15,6 +15,7 @@ const Bool = (props) => (
       onClick={() => props.onSetFilterOption(props.name, !props.value)}
     >
       {props.name}
+      {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
     </span>
   </div>
 );

@@ -858,10 +858,13 @@ export const addBufferPixel = (
   buf[i + 3] += color[3];  
 };
 
+// Returns HTMLCanvasElement in the main thread, OffscreenCanvas in workers.
+// Typed as HTMLCanvasElement because both share the same 2D API and this
+// avoids 180+ downstream TS errors from the union return type.
 export const cloneCanvas = (
   original,
   copyData = true
-) => {
+): HTMLCanvasElement => {
   const clone = typeof document !== "undefined"
     ? document.createElement("canvas")
     : new OffscreenCanvas(original.width, original.height);
@@ -869,11 +872,11 @@ export const cloneCanvas = (
   clone.width = original.width;
   clone.height = original.height;
 
-  const cloneCtx = clone.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  const cloneCtx = clone.getContext("2d") as CanvasRenderingContext2D | null;
 
   if (cloneCtx && copyData) {
     cloneCtx.drawImage(original, 0, 0);
   }
 
-  return clone;
+  return clone as HTMLCanvasElement;
 };

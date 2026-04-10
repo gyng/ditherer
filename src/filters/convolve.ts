@@ -162,13 +162,15 @@ export const optionTypes = {
         value: OUTLINE_3X3
       }
     ],
-    default: GAUSSIAN_3X3
+    default: GAUSSIAN_3X3,
+    desc: "Convolution kernel — blur, sharpen, edge detect, emboss"
   },
   strength: {
     type: RANGE,
     range: [-10, 10],
     step: 0.1,
-    default: 1
+    default: 1,
+    desc: "Multiplier for the kernel — negative values invert the effect"
   }
 };
 

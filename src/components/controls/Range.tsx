@@ -8,7 +8,10 @@ const Range = (props) => {
 
   return (
     <div className={s.range}>
-      <div className={s.label}>{props.name}</div>
+      <div className={s.label}>
+        {props.name}
+        {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
+      </div>
       <div className={s.rangeGroup}>
         <input
           type="range"

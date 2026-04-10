@@ -11,8 +11,6 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["vite/client"],
-    "typeRoots": ["./node_modules/@types"],
     "ignoreDeprecations": "6.0",
     "baseUrl": "src",
     "paths": {

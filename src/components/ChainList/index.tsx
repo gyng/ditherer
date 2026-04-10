@@ -1,16 +1,16 @@
 import { useState, useRef, useCallback } from "react";
 import { useFilter } from "context/useFilter";
-import { filterList, filterCategories } from "filters";
+import { filterList } from "filters";
 import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
 import { paletteList } from "palettes";
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 import ChainPreview from "./ChainPreview";
+import FilterCombobox from "components/FilterCombobox";
 import s from "./styles.module.css";
-import controls from "components/controls/styles.module.css";
 
 // Perturb a filter's options from its defaults
-const randomizeOptions = (base: any) => {
+export const randomizeOptions = (base: any) => {
   const optionTypes = base.optionTypes || {};
   const defaults = base.defaults || base.options || {};
   const options = { ...defaults };
@@ -159,20 +159,41 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Fractal Overlay", desc: "Mandelbrot fractal with source image colors and edge glow", filters: ["Fractal", "Edge glow", "Bloom"], category: "Advanced" },
 ];
 
-const PRESET_CATEGORIES = [...new Set(CHAIN_PRESETS.map((p) => p.category))];
+const USER_CHAIN_PREFIX = "_chain_";
+
+interface SavedChain {
+  name: string;
+  desc: string;
+  filters: string[];
+  stateJson: string; // full serialized state with options
+}
+
+const loadUserChains = (): SavedChain[] => {
+  const chains: SavedChain[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(USER_CHAIN_PREFIX)) {
+      try {
+        chains.push(JSON.parse(localStorage.getItem(key) || ""));
+      } catch { /* ignore */ }
+    }
+  }
+  return chains;
+};
 
 const ChainList = () => {
   const { state, actions } = useFilter();
   const { chain, activeIndex } = state;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [savedChains, setSavedChains] = useState<SavedChain[]>(loadUserChains);
+  const [loadedSavedName, setLoadedSavedName] = useState<string | null>(null);
+  const PRESET_CATEGORIES = [...new Set(CHAIN_PRESETS.map((p) => p.category))];
   const dragCounter = useRef(0);
-  const searchRef = useRef<HTMLInputElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = useCallback((entryId: string, e: React.MouseEvent) => {
@@ -261,13 +282,6 @@ const ChainList = () => {
     }
   };
 
-  // Filtered results for search
-  const searchResults = searchQuery.length > 0
-    ? filterList.filter(
-        (f) => f && f.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 12)
-    : [];
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case "ArrowDown":
@@ -302,6 +316,97 @@ const ChainList = () => {
 
   return (
     <div>
+      {/* Chain toolbar */}
+      <div className={s.addRow}>
+        <select
+          className={s.presetSelect}
+          value=""
+          onChange={(e) => {
+            const preset = CHAIN_PRESETS.find((p) => p.name === e.target.value);
+            if (preset) { loadPreset(preset); setLoadedSavedName(null); }
+          }}
+          title="Load a preset"
+        >
+          <option value="" disabled>&#9733;</option>
+          {PRESET_CATEGORIES.map((cat) => (
+            <optgroup key={cat} label={cat}>
+              {CHAIN_PRESETS
+                .filter((p) => p.category === cat)
+                .map((p) => (
+                  <option key={p.name} value={p.name} title={p.desc}>{p.name}</option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+        <button
+          className={s.addBtn}
+          onClick={randomChain}
+          title="Random filter chain"
+        >
+          &#9861;
+        </button>
+        <button
+          className={s.addBtn}
+          onClick={() => {
+            if (chain.length <= 1) return;
+            setShowClearConfirm(true);
+          }}
+          title="Clear filter chain"
+          disabled={chain.length <= 1}
+        >
+          &#10005;
+        </button>
+        <span style={{ flex: 1 }} />
+        <button
+          className={s.addBtn}
+          onClick={() => {
+            const name = prompt("Save chain as:");
+            if (!name) return;
+            const stateJson = actions.exportState(state);
+            const filters = chain.map((e) => e.displayName);
+            const data: SavedChain = { name, desc: filters.join(" \u2192 "), filters, stateJson };
+            localStorage.setItem(USER_CHAIN_PREFIX + name, JSON.stringify(data));
+            setSavedChains(loadUserChains());
+            setLoadedSavedName(name);
+          }}
+          title="Save current chain with settings"
+        >
+          &#9660; Save
+        </button>
+        {savedChains.length > 0 && (
+          <select
+            className={s.presetSelect}
+            value=""
+            onChange={(e) => {
+              const saved = savedChains.find((c) => c.name === e.target.value);
+              if (saved) {
+                actions.importState(saved.stateJson);
+                setLoadedSavedName(saved.name);
+              }
+            }}
+            title="Load a saved chain"
+          >
+            <option value="" disabled>&#9650; Load</option>
+            {savedChains.map((c) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        )}
+        {loadedSavedName && (
+          <button
+            className={s.addBtn}
+            onClick={() => {
+              localStorage.removeItem(USER_CHAIN_PREFIX + loadedSavedName);
+              setSavedChains(loadUserChains());
+              setLoadedSavedName(null);
+            }}
+            title={`Delete "${loadedSavedName}"`}
+          >
+            &#10005; Del
+          </button>
+        )}
+      </div>
+
       <div
         className={s.chainList}
         role="listbox"
@@ -350,31 +455,29 @@ const ChainList = () => {
                 onClick={(e) => e.stopPropagation()}
               />
               <span className={s.entryNumber}>{index + 1}.</span>
-              <select
-                className={s.entrySelect}
-                value={entry.displayName}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  const name = e.target.value;
-                  const filter = filterList.find((f) => f && f.displayName === name);
-                  if (filter) {
-                    actions.chainReplace(entry.id, name, filter.filter);
-                  }
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {filterCategories.map((cat) => (
-                  <optgroup key={cat} label={cat}>
-                    {filterList
-                      .filter((f) => f && f.category === cat)
-                      .map((f) => (
-                        <option key={f.displayName} value={f.displayName}>
-                          {f.displayName}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
+              {editingEntryId === entry.id ? (
+                <FilterCombobox
+                  inline
+                  autoFocus
+                  placeholder={entry.displayName}
+                  onSelect={(f) => {
+                    actions.chainReplace(entry.id, f.displayName, f.filter);
+                    setEditingEntryId(null);
+                  }}
+                  onClose={() => setEditingEntryId(null)}
+                />
+              ) : (
+                <span
+                  className={s.entryName}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingEntryId(entry.id);
+                  }}
+                  title="Click to search and replace filter"
+                >
+                  {entry.displayName}
+                </span>
+              )}
               {stepTime && (
                 <span className={s.entryTime}>
                   {stepTime.ms.toFixed(0)}ms
@@ -394,6 +497,29 @@ const ChainList = () => {
                   {actions.isAnimating() ? "\u23F9" : "\u25B6"}
                 </button>
               )}
+              <button
+                className={s.removeBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const match = filterList.find((f) => f && f.displayName === entry.displayName);
+                  if (match) actions.chainReplace(entry.id, entry.displayName, match.filter);
+                }}
+                title="Reset to defaults"
+              >
+                &#8634;
+              </button>
+              <button
+                className={s.removeBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const base = entry.filter;
+                  const opts = randomizeOptions(base);
+                  actions.chainReplace(entry.id, entry.displayName, { ...base, options: opts });
+                }}
+                title="Re-roll options"
+              >
+                ~
+              </button>
               <button
                 className={s.removeBtn}
                 disabled={chain.length <= 1}
@@ -434,84 +560,12 @@ const ChainList = () => {
         );
       })()}
 
-      {/* Add filter row: search, browse dropdown, random, re-roll */}
+      {/* Add filter row */}
       <div className={s.addRow}>
-        {searchOpen ? (
-          <div className={s.searchContainer}>
-            <input
-              ref={searchRef}
-              className={s.searchInput}
-              type="text"
-              placeholder="Search filters..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setSearchOpen(false);
-                  setSearchQuery("");
-                } else if (e.key === "Enter" && searchResults.length > 0) {
-                  addFilterByName(searchResults[0].displayName);
-                  setSearchQuery("");
-                  setSearchOpen(false);
-                }
-              }}
-              autoFocus
-            />
-            {searchResults.length > 0 && (
-              <div className={s.searchResults}>
-                {searchResults.map((f) => (
-                  <div
-                    key={f.displayName}
-                    className={s.searchResult}
-                    onClick={() => {
-                      addFilterByName(f.displayName);
-                      setSearchQuery("");
-                      setSearchOpen(false);
-                    }}
-                  >
-                    <span className={s.searchResultName}>{f.displayName}</span>
-                    <span className={s.searchResultCategory}>{f.category}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <select
-            className={controls.enum}
-            value=""
-            onChange={(e) => {
-              const name = e.target.value;
-              if (!name) return;
-              addFilterByName(name);
-            }}
-          >
-            <option value="" disabled>
-              + Add filter...
-            </option>
-            {filterCategories.map((cat) => (
-              <optgroup key={cat} label={cat}>
-                {filterList
-                  .filter((f) => f && f.category === cat)
-                  .map((f) => (
-                    <option key={f.displayName} value={f.displayName}>
-                      {f.displayName}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        )}
-        <button
-          className={s.addBtn}
-          onClick={() => {
-            setSearchOpen(!searchOpen);
-            setSearchQuery("");
-          }}
-          title={searchOpen ? "Browse filters" : "Search filters"}
-        >
-          {searchOpen ? "=" : "/"}
-        </button>
+        <FilterCombobox
+          placeholder="+ Add filter..."
+          onSelect={(f) => actions.chainAdd(f.displayName, f.filter)}
+        />
         <button
           className={s.addBtn}
           onClick={() => {
@@ -522,63 +576,25 @@ const ChainList = () => {
         >
           ?
         </button>
-        <button
-          className={s.addBtn}
-          onClick={() => {
-            const entry = chain[activeIndex];
-            if (!entry) return;
-            const base = entry.filter;
-            const options = randomizeOptions(base);
-            actions.chainReplace(entry.id, entry.displayName, { ...base, options });
-          }}
-          title="Re-roll options for the active filter"
-        >
-          ~
-        </button>
-        <select
-          className={s.presetSelect}
-          value=""
-          onChange={(e) => {
-            const preset = CHAIN_PRESETS.find((p) => p.name === e.target.value);
-            if (preset) loadPreset(preset);
-          }}
-          title="Load a chain preset"
-        >
-          <option value="" disabled>&#9733;</option>
-          {PRESET_CATEGORIES.map((cat) => (
-            <optgroup key={cat} label={cat}>
-              {CHAIN_PRESETS
-                .filter((p) => p.category === cat)
-                .map((p) => (
-                  <option key={p.name} value={p.name} title={p.desc}>{p.name}</option>
-                ))}
-            </optgroup>
-          ))}
-        </select>
-        <button
-          className={s.addBtn}
-          onClick={randomChain}
-          title="Random filter chain"
-        >
-          &#9861;
-        </button>
-        <button
-          className={s.addBtn}
-          onClick={() => {
-            if (chain.length <= 1) return;
-            setShowClearConfirm(true);
-          }}
-          title="Clear filter chain"
-          disabled={chain.length <= 1}
-        >
-          &#10005;
-        </button>
       </div>
 
-      {/* Active filter description */}
+      {/* Active filter / preset description */}
       {(() => {
         const activeEntry = chain[activeIndex];
         if (!activeEntry) return null;
+        const chainNames = chain.map((e) => e.displayName);
+        // Check built-in presets
+        const matchedPreset = CHAIN_PRESETS.find((p) =>
+          p.filters.length === chainNames.length && p.filters.every((f, i) => f === chainNames[i])
+        );
+        if (matchedPreset) {
+          return <div className={s.description}>{matchedPreset.desc}</div>;
+        }
+        // Show saved chain name if loaded
+        if (loadedSavedName) {
+          const saved = savedChains.find((c) => c.name === loadedSavedName);
+          if (saved) return <div className={s.description}>{saved.name}: {saved.desc}</div>;
+        }
         const match = filterList.find(
           (f) => f && f.displayName === activeEntry.displayName
         );

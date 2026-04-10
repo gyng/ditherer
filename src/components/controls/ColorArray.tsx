@@ -318,6 +318,13 @@ export default class ColorArray extends React.Component<any, any> {
       <div>
         <div className={s.label}>Theme</div>
         {themePicker}
+        {currentThemeName !== customThemeName && (() => {
+          for (const entries of Object.values(THEME_CATEGORIES)) {
+            const match = entries.find(e => e.key === currentThemeName);
+            if (match) return <div className={s.themeDesc}>{match.desc}</div>;
+          }
+          return null;
+        })()}
         {colorSwatch}
         {colorPicker}
         <div className={s.group}>

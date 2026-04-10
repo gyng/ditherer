@@ -221,6 +221,34 @@ const App = () => {
             onSetFilterOption={(_, value) => actions.setScale(value)}
             value={state.scale}
           />
+          {state.video && (<>
+            <div className={controls.separator} />
+            <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+              <button onClick={() => { actions.toggleVideo(); setVideoPaused(!videoPaused); }}>
+                {videoPaused ? "\u25B6 Play" : "\u23F8 Pause"}
+              </button>
+              <label className={controls.label} htmlFor="mute">
+                <input
+                  id="mute"
+                  type="checkbox"
+                  checked={state.videoVolume === 0}
+                  onChange={() => {
+                    const newVol = state.videoVolume > 0 ? 0 : 1;
+                    actions.setInputVolume(newVol);
+                    localStorage.setItem("ditherer-mute", newVol === 0 ? "1" : "0");
+                  }}
+                />
+                Mute
+              </label>
+            </div>
+            <Range
+              name="Playback rate"
+              types={{ range: [0, 2] }}
+              step={0.05}
+              onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
+              value={state.videoPlaybackRate}
+            />
+          </>)}
         </div>
 
         {/* Algorithm section */}
@@ -330,50 +358,17 @@ const App = () => {
           >
             {"<< Copy output to input"}
           </button>
-          {state.video && (
-            <div className={s.captureSection}>
-              <button
-                id="captureButton"
-                style={{ margin: "5px 0" }}
-                disabled={!state.realtimeFiltering}
-                onClick={handleCapture}
-              >
-                {capturing ? "Stop capture" : "Capture output video"}
-              </button>
-            </div>
-          )}
+          <div className={s.captureSection}>
+            <button
+              id="captureButton"
+              style={{ margin: "5px 0" }}
+              disabled={!state.realtimeFiltering}
+              onClick={handleCapture}
+            >
+              {capturing ? "Stop capture" : "Capture output video"}
+            </button>
+          </div>
         </CollapsibleSection>
-
-        {/* Video section — auto-opens when video loaded, auto-closes for images */}
-        {state.video && (
-          <CollapsibleSection title="Video" collapsible forceOpen>
-            <div>
-              <button onClick={() => { actions.toggleVideo(); setVideoPaused(!videoPaused); }}>
-                {videoPaused ? "▶ Play" : "⏸ Pause"}
-              </button>
-            </div>
-            <div>
-              <label className={controls.label} htmlFor="mute">
-                <input
-                  id="mute"
-                  type="checkbox"
-                  checked={state.videoVolume === 0}
-                  onChange={() => actions.setInputVolume(state.videoVolume > 0 ? 0 : 1)}
-                />
-                Mute
-              </label>
-            </div>
-            <div>
-              <Range
-                name="Playback rate"
-                types={{ range: [0, 2] }}
-                step={0.05}
-                onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
-                value={state.videoPlaybackRate}
-              />
-            </div>
-          </CollapsibleSection>
-        )}
 
         {/* Settings section */}
         <CollapsibleSection title="Settings" collapsible>
@@ -479,18 +474,7 @@ const App = () => {
             className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}
             style={!state.inputImage ? { minWidth: Math.round(200 * state.scale), minHeight: Math.round(200 * state.scale) } : undefined}
           >
-            <div className={["handle", controls.titleBar].join(" ")}>
-              Input
-              {state.video && (
-                <button
-                  className={s.videoToggle}
-                  onClick={(e) => { e.stopPropagation(); actions.toggleVideo(); setVideoPaused(!videoPaused); }}
-                  title={videoPaused ? "Play video" : "Pause video"}
-                >
-                  {videoPaused ? "\u25B6" : "\u23F8"}
-                </button>
-              )}
-            </div>
+            <div className={["handle", controls.titleBar].join(" ")}>Input</div>
             <div className={s.canvasArea}>
               {(!state.inputImage || canvasDropping) && (
                 <div

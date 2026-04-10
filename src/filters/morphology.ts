@@ -78,7 +78,7 @@ const morphology = (input, options: any = defaults) => {
       fillBufferPixel(result, i, color[0], color[1], color[2], result[i + 3]);
     }
 
-  outputCtx.putImageData(new ImageData(result, W, H), 0, 0);
+  outputCtx.putImageData(new ImageData(new Uint8ClampedArray(result), W, H), 0, 0);
   return output;
 };
 
