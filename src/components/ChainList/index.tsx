@@ -97,7 +97,7 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Gradient Remap", desc: "Map luminance to a custom color gradient with soft glow", filters: ["Grayscale", "Gradient map", "Bloom"], category: "Color" },
   { name: "HDR Tone Map", desc: "Aggressive local contrast with dodged highlights and burned shadows", filters: ["CLAHE", "Levels", "Dodge / Burn", "Sharpen"], category: "Color" },
   { name: "Infrared Film", desc: "False-color IR — white foliage, dark skies, pink cast", filters: ["Infrared photography", "Color balance", "Film grain"], category: "Color" },
-  { name: "Solarized", desc: "Sabattier effect — partial tone reversal with shifted hues", filters: ["Solarize", "Color shift", "Levels"], category: "Color" },
+  { name: "Solarized", desc: "Sabattier effect — partial tone reversal with boosted contrast", filters: ["Solarize", "Levels", "Bloom"], category: "Color" },
 
   // Stylize
   { name: "ASCII Art", desc: "Render the image as a grid of ASCII characters sized by luminance", filters: ["ASCII", "Sharpen"], category: "Stylize" },
@@ -120,7 +120,7 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Melt", desc: "Organic pixel melting — warped, smeared, and dripping by luminance", filters: ["Liquify", "Smudge", "Pixel drift"], category: "Distort" },
 
   // Glitch
-  { name: "Bit Rot", desc: "Digital decay — crushed bit depth, exploding pixels, and block artifacts", filters: ["Bit crush", "Pixel scatter", "JPEG artifact"], category: "Glitch" },
+  { name: "Bit Rot", desc: "Severe digital decay — crushed bits, channel corruption, scattered pixels, heavy compression", filters: ["Bit crush", "Channel shift", "Pixel scatter", "JPEG artifact", "JPEG artifact"], category: "Glitch" },
   { name: "Broadcast Failure", desc: "Corrupted broadcast — smeared I-frames, split channels, shifted lines", filters: ["Datamosh", "Channel separation", "Scan line shift"], category: "Glitch" },
   { name: "Corrupted", desc: "Audio-mangled data with block artifacts and static noise", filters: ["Data bend", "Glitch blocks", "Chromatic aberration", "Analog static"], category: "Glitch" },
   { name: "Data Corruption", desc: "Broken compression — smeared blocks and DCT artifacts", filters: ["Glitch blocks", "Data bend", "JPEG artifact"], category: "Glitch" },
@@ -137,6 +137,7 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   { name: "Newsprint", desc: "Black-and-white newspaper with coarse halftone dots", filters: ["Grayscale", "Newspaper", "Sharpen"], category: "Simulate" },
   { name: "Photocopier", desc: "High-contrast office copier with speckle and generation loss", filters: ["Photocopier", "Film grain"], category: "Simulate" },
   { name: "Receipt Printer", desc: "Narrow thermal receipt — low-res dots with ink fade", filters: ["Thermal printer", "Film grain"], category: "Simulate" },
+  { name: "Matrix", desc: "Digital rain — source image visible through falling katakana characters", filters: ["Levels", "Matrix rain"], category: "Simulate" },
   { name: "Retro TV", desc: "VHS tracking errors, CRT phosphor mask, and corner vignette", filters: ["VHS emulation", "CRT emulation", "Vignette"], category: "Simulate" },
   { name: "Surveillance", desc: "Grainy security camera feed with night vision and compression", filters: ["Grayscale", "Night vision", "Scanline", "JPEG artifact"], category: "Simulate" },
   { name: "Thermal", desc: "FLIR-style heat map with posterized temperature bands", filters: ["Thermal camera", "Posterize", "Bloom"], category: "Simulate" },
@@ -155,7 +156,7 @@ const CHAIN_PRESETS: { name: string; desc: string; filters: string[]; category: 
   // Advanced
   { name: "Cellular Life", desc: "Conway's Game of Life with neon-glowing cell boundaries", filters: ["Cellular automata", "Edge glow", "Bloom"], category: "Advanced" },
   { name: "Flow Painting", desc: "Curl noise streamlines blended with thick painterly strokes", filters: ["Flow field", "Oil painting", "Bloom"], category: "Advanced" },
-  { name: "Fractal Overlay", desc: "Mandelbrot fractal color-mapped and blended with the source image", filters: ["Fractal", "Gradient map", "Blend"], category: "Advanced" },
+  { name: "Fractal Overlay", desc: "Mandelbrot fractal with source image colors and edge glow", filters: ["Fractal", "Edge glow", "Bloom"], category: "Advanced" },
 ];
 
 const PRESET_CATEGORIES = [...new Set(CHAIN_PRESETS.map((p) => p.category))];
@@ -224,6 +225,29 @@ const ChainList = () => {
   const addFilterByName = (name: string) => {
     const filter = filterList.find((f) => f && f.displayName === name);
     if (filter) actions.chainAdd(name, filter.filter);
+  };
+
+  const randomChain = () => {
+    // Pick 2-4 random filters, weighted toward interesting categories
+    const candidates = filterList.filter((f) => f && f.category !== "Advanced");
+    if (candidates.length === 0) return;
+    const count = 2 + Math.floor(Math.random() * 3); // 2-4 filters
+    const picked: typeof candidates = [];
+    const usedCategories = new Set<string>();
+    for (let i = 0; i < count; i++) {
+      // Prefer filters from categories we haven't used yet
+      const pool = candidates.filter((f) => !usedCategories.has(f.category) && !picked.includes(f));
+      const source = pool.length > 0 ? pool : candidates.filter((f) => !picked.includes(f));
+      if (source.length === 0) break;
+      const pick = source[Math.floor(Math.random() * source.length)];
+      picked.push(pick);
+      usedCategories.add(pick.category);
+    }
+    if (picked.length === 0) return;
+    actions.selectFilter(picked[0].displayName, picked[0]);
+    for (let i = 1; i < picked.length; i++) {
+      actions.chainAdd(picked[i].displayName, picked[i]);
+    }
   };
 
   const loadPreset = (preset: typeof CHAIN_PRESETS[0]) => {
@@ -531,6 +555,13 @@ const ChainList = () => {
             </optgroup>
           ))}
         </select>
+        <button
+          className={s.addBtn}
+          onClick={randomChain}
+          title="Random filter chain"
+        >
+          &#9861;
+        </button>
         <button
           className={s.addBtn}
           onClick={() => {

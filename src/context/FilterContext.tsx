@@ -104,6 +104,8 @@ const fromBase64 = (b64: string) =>
 export const FilterProvider = ({ children }) => {
   const [state, dispatch] = useReducer(filterReducer, initialState);
   const prevOutputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
+  const prevInputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
+  const emaMapRef = useRef<Map<string, Float32Array>>(new Map());
   const cachedOutputsRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const cachedChainOrderRef = useRef<string>("");
   const frameCountRef = useRef(0);
@@ -176,16 +178,17 @@ export const FilterProvider = ({ children }) => {
           requestAnimationFrame(loadFrame);
         }
       };
-      let firstPlay = true;
+      let initialized = false;
       video.onplaying = () => {
-        if (firstPlay) {
-          firstPlay = false;
+        if (!initialized) {
+          initialized = true;
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
           if (scale < 1) dispatch({ type: "SET_SCALE", scale });
-          requestAnimationFrame(loadFrame);
         }
+        // Restart the frame loop every time playback resumes
+        requestAnimationFrame(loadFrame);
       };
       const blob = new Blob([event.target.result]);
       video.volume = volume;
@@ -228,11 +231,25 @@ export const FilterProvider = ({ children }) => {
 
     for (let i = startIdx; i < enabledEntries.length; i++) {
       const entry = enabledEntries[i];
+
+      // Capture input pixels for _prevInput and EMA before the filter runs.
+      // Only do this work if the filter is temporal (has _prevInput or _ema usage),
+      // but since we can't know that cheaply, always capture during animation.
+      let inputData: Uint8ClampedArray | null = null;
+      if (isAnimating) {
+        const inputCtx = canvas.getContext("2d");
+        if (inputCtx) {
+          inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+        }
+      }
+
       const filterOpts = {
         ...entry.filter.options,
         _linearize: curState.linearize,
         _wasmAcceleration: curState.wasmAcceleration,
         _prevOutput: prevOutputMapRef.current.get(entry.id) || null,
+        _prevInput: prevInputMapRef.current.get(entry.id) || null,
+        _ema: emaMapRef.current.get(entry.id) || null,
         _frameIndex: frameCountRef.current,
         _degaussFrame: degaussFrameRef.current,
         _isAnimating: isAnimating,
@@ -255,6 +272,25 @@ export const FilterProvider = ({ children }) => {
       const stepMs = performance.now() - t0;
       stepTimes.push({ name: entry.displayName, ms: stepMs });
       totalTime += stepMs;
+
+      // Update temporal buffers
+      if (inputData) {
+        prevInputMapRef.current.set(entry.id, inputData);
+
+        // Update EMA: ema = ema * (1 - alpha) + input * alpha
+        // Alpha 0.1 ≈ ~10 frame averaging window
+        const EMA_ALPHA = 0.1;
+        let ema = emaMapRef.current.get(entry.id);
+        if (!ema || ema.length !== inputData.length) {
+          ema = new Float32Array(inputData);
+        } else {
+          const oneMinusAlpha = 1 - EMA_ALPHA;
+          for (let j = 0; j < ema.length; j++) {
+            ema[j] = ema[j] * oneMinusAlpha + inputData[j] * EMA_ALPHA;
+          }
+        }
+        emaMapRef.current.set(entry.id, ema);
+      }
 
       if (output instanceof HTMLCanvasElement) {
         const outCtx = output.getContext("2d");
@@ -586,6 +622,8 @@ export const FilterProvider = ({ children }) => {
     selectFilter: (name, filter) => {
       stopAnimLoop();
       prevOutputMapRef.current.clear();
+      prevInputMapRef.current.clear();
+      emaMapRef.current.clear();
       cachedOutputsRef.current.clear();
       dispatch({ type: "SELECT_FILTER", name, filter });
     },
@@ -607,6 +645,15 @@ export const FilterProvider = ({ children }) => {
       dispatch({ type: "SET_INPUT_VOLUME", volume }),
     setInputPlaybackRate: (rate) =>
       dispatch({ type: "SET_INPUT_PLAYBACK_RATE", rate }),
+    toggleVideo: () => {
+      const video = stateRef.current.video;
+      if (!video) return;
+      if (video.paused) {
+        video.play();
+      } else {
+        video.pause();
+      }
+    },
     setScalingAlgorithm: (algorithm) =>
       dispatch({ type: "SET_SCALING_ALGORITHM", algorithm }),
     setFilterOption: (optionName, value, chainIndex?) => {
@@ -637,6 +684,8 @@ export const FilterProvider = ({ children }) => {
     importState: (json) => {
       const deserialized = JSON.parse(json);
       prevOutputMapRef.current.clear();
+      prevInputMapRef.current.clear();
+      emaMapRef.current.clear();
       dispatch({ type: "LOAD_STATE", data: deserialized });
     },
     saveCurrentColorPalette: (name, colors) => {
@@ -658,10 +707,14 @@ export const FilterProvider = ({ children }) => {
     },
     chainRemove: (id) => {
       prevOutputMapRef.current.delete(id);
+      prevInputMapRef.current.delete(id);
+      emaMapRef.current.delete(id);
       dispatch({ type: "CHAIN_REMOVE", id });
     },
     chainReorder: (fromIndex, toIndex) => {
       prevOutputMapRef.current.clear();
+      prevInputMapRef.current.clear();
+      emaMapRef.current.clear();
       dispatch({ type: "CHAIN_REORDER", fromIndex, toIndex });
     },
     chainSetActive: (index) => {
@@ -672,6 +725,8 @@ export const FilterProvider = ({ children }) => {
     },
     chainReplace: (id, displayName, filter) => {
       prevOutputMapRef.current.delete(id);
+      prevInputMapRef.current.delete(id);
+      emaMapRef.current.delete(id);
       dispatch({ type: "CHAIN_REPLACE", id, displayName, filter });
     },
     chainDuplicate: (id) => {
@@ -690,6 +745,8 @@ export const FilterProvider = ({ children }) => {
         const text = await navigator.clipboard.readText();
         const data = JSON.parse(text);
         prevOutputMapRef.current.clear();
+      prevInputMapRef.current.clear();
+      emaMapRef.current.clear();
         cachedOutputsRef.current.clear();
         dispatch({ type: "LOAD_STATE", data });
       } catch (e) {

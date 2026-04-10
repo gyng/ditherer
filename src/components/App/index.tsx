@@ -23,6 +23,7 @@ const App = () => {
   const [capturing, setCapturing] = useState(false);
   const [filtering, setFiltering] = useState(false);
   const [hasCapture, setHasCapture] = useState(false);
+  const [videoPaused, setVideoPaused] = useState(false);
 
   const inputCanvasRef = useRef(null);
   const outputCanvasRef = useRef(null);
@@ -329,41 +330,50 @@ const App = () => {
           >
             {"<< Copy output to input"}
           </button>
+          {state.video && (
+            <div className={s.captureSection}>
+              <button
+                id="captureButton"
+                style={{ margin: "5px 0" }}
+                disabled={!state.realtimeFiltering}
+                onClick={handleCapture}
+              >
+                {capturing ? "Stop capture" : "Capture output video"}
+              </button>
+            </div>
+          )}
         </CollapsibleSection>
 
         {/* Video section — auto-opens when video loaded, auto-closes for images */}
-        <CollapsibleSection title="Video" collapsible forceOpen={!!state.video}>
-          <div>
-            <label className={controls.label} htmlFor="mute">
-              <input
-                id="mute"
-                type="checkbox"
-                checked={state.videoVolume === 0}
-                onChange={() => actions.setInputVolume(state.videoVolume > 0 ? 0 : 1)}
+        {state.video && (
+          <CollapsibleSection title="Video" collapsible forceOpen>
+            <div>
+              <button onClick={() => { actions.toggleVideo(); setVideoPaused(!videoPaused); }}>
+                {videoPaused ? "▶ Play" : "⏸ Pause"}
+              </button>
+            </div>
+            <div>
+              <label className={controls.label} htmlFor="mute">
+                <input
+                  id="mute"
+                  type="checkbox"
+                  checked={state.videoVolume === 0}
+                  onChange={() => actions.setInputVolume(state.videoVolume > 0 ? 0 : 1)}
+                />
+                Mute
+              </label>
+            </div>
+            <div>
+              <Range
+                name="Playback rate"
+                types={{ range: [0, 2] }}
+                step={0.05}
+                onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
+                value={state.videoPlaybackRate}
               />
-              Mute video
-            </label>
-          </div>
-          <div>
-            <Range
-              name="Playback rate"
-              types={{ range: [0, 2] }}
-              step={0.05}
-              onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
-              value={state.videoPlaybackRate}
-            />
-          </div>
-          <div className={s.captureSection}>
-            <button
-              id="captureButton"
-              style={{ margin: "5px 0" }}
-              disabled={!state.realtimeFiltering}
-              onClick={handleCapture}
-            >
-              {capturing ? "Stop capture" : "Capture output video"}
-            </button>
-          </div>
-        </CollapsibleSection>
+            </div>
+          </CollapsibleSection>
+        )}
 
         {/* Settings section */}
         <CollapsibleSection title="Settings" collapsible>
@@ -469,7 +479,18 @@ const App = () => {
             className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}
             style={!state.inputImage ? { minWidth: Math.round(200 * state.scale), minHeight: Math.round(200 * state.scale) } : undefined}
           >
-            <div className={["handle", controls.titleBar].join(" ")}>Input</div>
+            <div className={["handle", controls.titleBar].join(" ")}>
+              Input
+              {state.video && (
+                <button
+                  className={s.videoToggle}
+                  onClick={(e) => { e.stopPropagation(); actions.toggleVideo(); setVideoPaused(!videoPaused); }}
+                  title={videoPaused ? "Play video" : "Pause video"}
+                >
+                  {videoPaused ? "\u25B6" : "\u23F8"}
+                </button>
+              )}
+            </div>
             <div className={s.canvasArea}>
               {(!state.inputImage || canvasDropping) && (
                 <div
@@ -483,6 +504,8 @@ const App = () => {
               <canvas
                 className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
                 ref={inputCanvasRef}
+                onClick={() => { if (state.video) { actions.toggleVideo(); setVideoPaused(!videoPaused); } }}
+                style={state.video ? { cursor: "pointer" } : undefined}
               />
             </div>
           </div>

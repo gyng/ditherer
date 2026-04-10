@@ -117,6 +117,16 @@
   display: block;
 }
 
+.videoToggle {
+  float: right;
+  min-height: unset;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
 .dropping {
   outline: 2px solid var(--beautiful-blue);
 }

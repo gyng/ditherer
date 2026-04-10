@@ -39,7 +39,7 @@ export const optionTypes = {
       { name: "Palette", value: COLOR_SOURCE.PALETTE },
       { name: "Image", value: COLOR_SOURCE.IMAGE }
     ],
-    default: COLOR_SOURCE.PALETTE
+    default: COLOR_SOURCE.IMAGE
   },
   palette: { type: PALETTE, default: nearest }
 };

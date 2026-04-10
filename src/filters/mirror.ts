@@ -24,7 +24,7 @@ export const optionTypes = {
       { name: "Both", value: MODE.BOTH },
       { name: "Kaleidoscope", value: MODE.KALEIDOSCOPE }
     ],
-    default: MODE.HORIZONTAL
+    default: MODE.KALEIDOSCOPE
   },
   segments: { type: RANGE, range: [2, 16], step: 1, default: 6 },
   offsetX: { type: RANGE, range: [-1, 1], step: 0.01, default: 0 },
