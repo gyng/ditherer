@@ -129,7 +129,9 @@ Existing temporal filters: motion detect, motion heatmap, motion pixelate, long 
 
 Filters compose into chains (max 16 entries). The chain is the unit of work — `FilterContext` runs each enabled entry sequentially, feeding the output of one as the input to the next, with caching of intermediate canvases. State is serialized to URL hash and localStorage so users can share or save chains.
 
-Curated chain presets live in `src/components/ChainList/index.tsx` (`CHAIN_PRESETS`). To add a preset, append an entry referencing existing filter `displayName`s — no code change needed.
+Curated chain presets live in `src/components/ChainList/presets.ts` (`CHAIN_PRESETS`). To add a preset, append an entry referencing existing filter `displayName`s — no code change needed.
+
+When auditing or pruning presets, run `npm run report:presets` first. The report flags exact duplicate preset signatures and surfaces high-similarity preset pairs so cleanup decisions are based on the current preset data rather than eyeballing the list.
 
 ### Directory Structure
 
