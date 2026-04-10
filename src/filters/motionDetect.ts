@@ -43,7 +43,10 @@ const motionDetect = (input, options: any = defaults) => {
 
   for (let i = 0; i < buf.length; i += 4) {
     if (!ema) {
-      // No EMA yet — show nothing
+      // No EMA yet — pass through source dimmed
+      outBuf[i] = Math.round(buf[i] * 0.3);
+      outBuf[i + 1] = Math.round(buf[i + 1] * 0.3);
+      outBuf[i + 2] = Math.round(buf[i + 2] * 0.3);
       outBuf[i + 3] = 255;
       continue;
     }

@@ -220,9 +220,14 @@ export const FilterProvider = ({ children }) => {
     return opts;
   };
 
-  // Check if chain contains glitchblob (needs dispatch, can't run in worker)
+  // Check if chain needs main thread (temporal filters need _prevInput/_ema,
+  // glitchblob needs dispatch — neither available in worker)
+  const MAIN_THREAD_FILTERS = new Set([
+    "Glitch", "Motion Detect", "Long Exposure", "Frame Blend",
+    "Temporal Edge", "Phosphor Decay", "Matrix Rain",
+  ]);
   const chainNeedsMainThread = (entries: any[]) =>
-    entries.some(e => e.filter?.name === "Glitch");
+    entries.some(e => MAIN_THREAD_FILTERS.has(e.filter?.name));
 
   // Main-thread filter execution (fallback path)
   const filterOnMainThread = (canvas, enabledEntries, startIdx, isAnimating, curState) => {
@@ -232,15 +237,12 @@ export const FilterProvider = ({ children }) => {
     for (let i = startIdx; i < enabledEntries.length; i++) {
       const entry = enabledEntries[i];
 
-      // Capture input pixels for _prevInput and EMA before the filter runs.
-      // Only do this work if the filter is temporal (has _prevInput or _ema usage),
-      // but since we can't know that cheaply, always capture during animation.
+      // Capture input pixels for _prevInput and EMA.
+      // Always capture so temporal filters work on first click too.
       let inputData: Uint8ClampedArray | null = null;
-      if (isAnimating) {
-        const inputCtx = canvas.getContext("2d");
-        if (inputCtx) {
-          inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
-        }
+      const inputCtx = canvas.getContext("2d");
+      if (inputCtx) {
+        inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
       }
 
       const filterOpts = {
