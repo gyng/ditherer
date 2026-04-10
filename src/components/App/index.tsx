@@ -13,6 +13,7 @@ import CollapsibleSection from "components/CollapsibleSection";
 import { useFilter } from "context/useFilter";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
+import { setupWebMCP } from "@src/webmcp";
 
 import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
@@ -107,6 +108,8 @@ const App = () => {
   const lastTestImageAssetRef = useRef<string | null>(null);
   const lastTestVideoAssetRef = useRef<string | null>(null);
   const imageAssetPromiseCacheRef = useRef<Map<string, Promise<HTMLImageElement>>>(new Map());
+  const webmcpRefs = useRef({ state, actions, filterList });
+  webmcpRefs.current = { state, actions, filterList };
 
   const inputDrag = useDraggable(inputDragRef, {
     onScale: (delta) => {
@@ -139,6 +142,17 @@ const App = () => {
     if (theme === "rainy-day") {
       document.documentElement.setAttribute("data-theme", "rainy-day");
     }
+  }, []);
+
+  // Register WebMCP tools once (if the browser exposes navigator.modelContext).
+  // Tool handlers read latest app state/actions via refs.
+  useEffect(() => {
+    return setupWebMCP({
+      getState: () => webmcpRefs.current.state,
+      getActions: () => webmcpRefs.current.actions,
+      getFilterList: () => webmcpRefs.current.filterList,
+      getOutputCanvas: () => outputCanvasRef.current,
+    });
   }, []);
 
   // Register input canvas with state
