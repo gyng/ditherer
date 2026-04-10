@@ -10,13 +10,13 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3) },
-  color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3) },
-  misregX: { type: RANGE, range: [0, 20], step: 1, default: 4 },
-  misregY: { type: RANGE, range: [0, 20], step: 1, default: 2 },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  inkBleed: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2 },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
+  color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3), desc: "First ink color" },
+  color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3), desc: "Second ink color" },
+  misregX: { type: RANGE, range: [0, 20], step: 1, default: 4, desc: "Horizontal misregistration offset" },
+  misregY: { type: RANGE, range: [0, 20], step: 1, default: 2, desc: "Vertical misregistration offset" },
+  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Paper texture grain amount" },
+  inkBleed: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Ink spreading/bleeding amount" },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance split for two-color separation" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -9,7 +9,7 @@ export const optionTypes = {
     { name: "Horizontal", value: MODE.HORIZONTAL },
     { name: "Vertical", value: MODE.VERTICAL },
     { name: "Both", value: MODE.BOTH }
-  ], default: MODE.HORIZONTAL },
+  ], default: MODE.HORIZONTAL, desc: "Flip axis — horizontal, vertical, or both" },
   palette: { type: PALETTE, default: nearest }
 };
 

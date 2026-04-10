@@ -104,9 +104,10 @@ export const optionTypes = {
       { name: "Cross", value: PATTERN.CROSS },
       { name: "Diamond", value: PATTERN.DIAMOND }
     ],
-    default: PATTERN.BAYER_8X8
+    default: PATTERN.BAYER_8X8,
+    desc: "Threshold pattern shape"
   },
-  scale: { type: RANGE, range: [1, 8], step: 1, default: 1 },
+  scale: { type: RANGE, range: [1, 8], step: 1, default: 1, desc: "Pattern tile scale factor" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  scale: { type: RANGE, range: [5, 200], step: 5, default: 50 },
-  strength: { type: RANGE, range: [0, 100], step: 1, default: 20 },
-  octaves: { type: RANGE, range: [1, 6], step: 1, default: 3 },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42 },
+  scale: { type: RANGE, range: [5, 200], step: 5, default: 50, desc: "Turbulence noise feature size" },
+  strength: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Pixel displacement distance" },
+  octaves: { type: RANGE, range: [1, 6], step: 1, default: 3, desc: "Fractal detail layers" },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for noise pattern" },
   palette: { type: PALETTE, default: nearest }
 };
 

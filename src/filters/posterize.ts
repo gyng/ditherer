@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [2, 32], step: 1, default: 4 },
+  levels: { type: RANGE, range: [2, 32], step: 1, default: 4, desc: "Number of distinct color levels per channel" },
   palette: { type: PALETTE, default: nearest }
 };
 

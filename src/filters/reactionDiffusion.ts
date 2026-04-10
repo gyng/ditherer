@@ -29,13 +29,14 @@ export const optionTypes = {
       { name: "Labyrinth", value: PRESET_LABYRINTH },
       { name: "Custom",    value: PRESET_CUSTOM    }
     ],
-    default: PRESET_CORAL
+    default: PRESET_CORAL,
+    desc: "Pattern preset — sets feed/kill parameters"
   },
-  iterations: { type: RANGE, range: [1, 100], step: 1, default: 30 },
-  feed: { type: RANGE, range: [0, 0.1], step: 0.001, default: 0.055 },
-  kill: { type: RANGE, range: [0, 0.1], step: 0.001, default: 0.062 },
-  diffusionA: { type: RANGE, range: [0, 1], step: 0.01, default: 1.0 },
-  diffusionB: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
+  iterations: { type: RANGE, range: [1, 100], step: 1, default: 30, desc: "Simulation steps per frame" },
+  feed: { type: RANGE, range: [0, 0.1], step: 0.001, default: 0.055, desc: "Chemical A feed rate" },
+  kill: { type: RANGE, range: [0, 0.1], step: 0.001, default: 0.062, desc: "Chemical B kill rate" },
+  diffusionA: { type: RANGE, range: [0, 1], step: 0.01, default: 1.0, desc: "Diffusion rate of chemical A" },
+  diffusionB: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Diffusion rate of chemical B" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 4 },
   animate: {
     type: ACTION,

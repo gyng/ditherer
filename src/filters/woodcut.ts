@@ -10,11 +10,11 @@ import {
 import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
-  lineWeight: { type: RANGE, range: [1, 5], step: 1, default: 2 },
-  edgeStrength: { type: RANGE, range: [0, 3], step: 0.1, default: 1.5 },
-  inkColor: { type: COLOR, default: [20, 15, 10] },
-  paperColor: { type: COLOR, default: [240, 230, 210] },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Black/white carving threshold" },
+  lineWeight: { type: RANGE, range: [1, 5], step: 1, default: 2, desc: "Carved line thickness" },
+  edgeStrength: { type: RANGE, range: [0, 3], step: 0.1, default: 1.5, desc: "Detail edge emphasis" },
+  inkColor: { type: COLOR, default: [20, 15, 10], desc: "Ink color for printed areas" },
+  paperColor: { type: COLOR, default: [240, 230, 210], desc: "Uncarved paper/wood color" },
   palette: { type: PALETTE, default: nearest }
 };
 

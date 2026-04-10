@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  perChannel: { type: BOOL, default: false },
+  perChannel: { type: BOOL, default: false, desc: "Equalize each RGB channel independently" },
   palette: { type: PALETTE, default: nearest }
 };
 

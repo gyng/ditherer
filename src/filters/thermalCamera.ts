@@ -95,11 +95,12 @@ export const optionTypes = {
       { name: "White Hot", value: COLORMAP_WHITE_HOT },
       { name: "Black Hot", value: COLORMAP_BLACK_HOT }
     ],
-    default: COLORMAP_IRONBOW
+    default: COLORMAP_IRONBOW,
+    desc: "Thermal color palette"
   },
-  contrast:     { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.2 },
-  noiseAmount:  { type: RANGE, range: [0, 0.3], step: 0.005, default: 0.05 },
-  crosshair:    { type: BOOL, default: true },
+  contrast:     { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.2, desc: "Temperature contrast" },
+  noiseAmount:  { type: RANGE, range: [0, 0.3], step: 0.005, default: 0.05, desc: "Sensor noise amount" },
+  crosshair:    { type: BOOL, default: true, desc: "Show center crosshair overlay" },
   animSpeed:    { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
     type: ACTION,

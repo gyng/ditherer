@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 100], step: 1, default: 20 },
-  smoothness: { type: RANGE, range: [1, 20], step: 1, default: 5 },
-  direction: { type: RANGE, range: [0, 360], step: 5, default: 90 },
+  strength: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Maximum warp displacement" },
+  smoothness: { type: RANGE, range: [1, 20], step: 1, default: 5, desc: "Blur radius controlling warp smoothness" },
+  direction: { type: RANGE, range: [0, 360], step: 5, default: 90, desc: "Push direction in degrees" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -11,7 +11,7 @@ import {
 const DRIFT_DIR = { DOWN: "DOWN", UP: "UP", LEFT: "LEFT", RIGHT: "RIGHT" };
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 50], step: 1, default: 15 },
+  strength: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "Maximum drift displacement in pixels" },
   direction: {
     type: ENUM,
     options: [
@@ -20,9 +20,10 @@ export const optionTypes = {
       { name: "Left", value: DRIFT_DIR.LEFT },
       { name: "Right", value: DRIFT_DIR.RIGHT }
     ],
-    default: DRIFT_DIR.DOWN
+    default: DRIFT_DIR.DOWN,
+    desc: "Direction pixels drift toward"
   },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance threshold — darker pixels drift more" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
   animate: {
     type: ACTION,

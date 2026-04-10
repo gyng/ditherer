@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
 
 export const optionTypes = {
-  k:          { type: RANGE, range: [2, 32], step: 1, default: 8 },
-  iterations: { type: RANGE, range: [1, 30], step: 1, default: 10 },
-  sampleRate: { type: RANGE, range: [1, 20], step: 1, default: 4 },
+  k:          { type: RANGE, range: [2, 32], step: 1, default: 8, desc: "Number of color clusters" },
+  iterations: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Clustering iterations for convergence" },
+  sampleRate: { type: RANGE, range: [1, 20], step: 1, default: 4, desc: "Sample every Nth pixel for speed" },
   palette:    { type: PALETTE, default: nearest }
 };
 

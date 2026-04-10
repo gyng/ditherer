@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  amplitude: { type: RANGE, range: [1, 50], step: 1, default: 10 },
-  wavelength: { type: RANGE, range: [5, 100], step: 1, default: 30 },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
+  amplitude: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Wave height in pixels" },
+  wavelength: { type: RANGE, range: [5, 100], step: 1, default: 30, desc: "Distance between wave peaks" },
+  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of ripple origin" },
+  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical center of ripple origin" },
   palette: { type: PALETTE, default: nearest }
 };
 

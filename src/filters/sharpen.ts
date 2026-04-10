@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 5], step: 0.1, default: 1.5 },
-  radius: { type: RANGE, range: [1, 20], step: 1, default: 3 },
-  threshold: { type: RANGE, range: [0, 50], step: 1, default: 0 },
+  strength: { type: RANGE, range: [0, 5], step: 0.1, default: 1.5, desc: "Sharpening intensity applied via unsharp mask" },
+  radius: { type: RANGE, range: [1, 20], step: 1, default: 3, desc: "Blur radius for the unsharp mask kernel" },
+  threshold: { type: RANGE, range: [0, 50], step: 1, default: 0, desc: "Minimum difference required to sharpen a pixel" },
   palette: { type: PALETTE, default: nearest }
 };
 

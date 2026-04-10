@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  contrast: { type: RANGE, range: [1, 5], step: 0.1, default: 2.5 },
-  edgeDarken: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4 },
-  speckle: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1 },
-  generationLoss: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
+  contrast: { type: RANGE, range: [1, 5], step: 0.1, default: 2.5, desc: "Copy contrast — higher = blown-out whites" },
+  edgeDarken: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Edge darkening around details" },
+  speckle: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Random toner speckle amount" },
+  generationLoss: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Quality degradation from copy-of-a-copy" },
   palette: { type: PALETTE, default: nearest }
 };
 

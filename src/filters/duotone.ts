@@ -14,8 +14,8 @@ const parseColor = (c: any): [number, number, number] => {
 };
 
 export const optionTypes = {
-  shadowColor: { type: COLOR, default: [13, 2, 33] },
-  highlightColor: { type: COLOR, default: [255, 107, 107] },
+  shadowColor: { type: COLOR, default: [13, 2, 33], desc: "Color mapped to dark tones" },
+  highlightColor: { type: COLOR, default: [255, 107, 107], desc: "Color mapped to bright tones" },
   palette: { type: PALETTE, default: nearest }
 };
 

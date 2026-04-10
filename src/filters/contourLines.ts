@@ -5,14 +5,14 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 const FILL_MODE = { LINES: "LINES", FILLED: "FILLED", BOTH: "BOTH" };
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [3, 30], step: 1, default: 10 },
-  lineWidth: { type: RANGE, range: [1, 4], step: 1, default: 1 },
-  lineColor: { type: COLOR, default: [0, 0, 0] },
+  levels: { type: RANGE, range: [3, 30], step: 1, default: 10, desc: "Number of contour levels" },
+  lineWidth: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Contour line thickness in pixels" },
+  lineColor: { type: COLOR, default: [0, 0, 0], desc: "Contour line color" },
   fillMode: { type: ENUM, options: [
     { name: "Lines only", value: FILL_MODE.LINES },
     { name: "Filled bands", value: FILL_MODE.FILLED },
     { name: "Lines + Fill", value: FILL_MODE.BOTH }
-  ], default: FILL_MODE.BOTH },
+  ], default: FILL_MODE.BOTH, desc: "Show contour lines, filled bands, or both" },
   palette: { type: PALETTE, default: nearest }
 };
 

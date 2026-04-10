@@ -4,9 +4,9 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
-  spread: { type: RANGE, range: [0, 50], step: 1, default: 15 },
-  threshold: { type: RANGE, range: [0, 200], step: 1, default: 50 },
-  density: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7 },
+  spread: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "Max random scatter distance in pixels" },
+  threshold: { type: RANGE, range: [0, 200], step: 1, default: 50, desc: "Edge strength required to trigger scatter" },
+  density: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Fraction of edge pixels that scatter" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }

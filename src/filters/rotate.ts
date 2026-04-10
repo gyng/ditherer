@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [-180, 180], step: 1, default: 15 },
-  bgColor: { type: COLOR, default: [0, 0, 0] },
+  angle: { type: RANGE, range: [-180, 180], step: 1, default: 15, desc: "Rotation angle in degrees" },
+  bgColor: { type: COLOR, default: [0, 0, 0], desc: "Fill color for exposed corners" },
   palette: { type: PALETTE, default: nearest }
 };
 

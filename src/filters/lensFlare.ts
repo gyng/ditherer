@@ -3,11 +3,11 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  positionX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  positionY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  intensity: { type: RANGE, range: [0, 2], step: 0.1, default: 1 },
-  flareColor: { type: COLOR, default: [255, 200, 100] },
-  ghosts: { type: RANGE, range: [0, 6], step: 1, default: 3 },
+  positionX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Horizontal light source position" },
+  positionY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Vertical light source position" },
+  intensity: { type: RANGE, range: [0, 2], step: 0.1, default: 1, desc: "Overall flare brightness" },
+  flareColor: { type: COLOR, default: [255, 200, 100], desc: "Tint color of the flare" },
+  ghosts: { type: RANGE, range: [0, 6], step: 1, default: 3, desc: "Number of lens ghost reflections" },
   palette: { type: PALETTE, default: nearest }
 };
 

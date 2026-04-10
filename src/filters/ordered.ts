@@ -1,5 +1,6 @@
-import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { BLUE_NOISE_MAP, BLUE_NOISE_SIZE, BLUE_NOISE_LEVELS } from "./blueNoise64";
 
 import {
   cloneCanvas,
@@ -28,6 +29,8 @@ export const HATCH_4X4 = "HATCH_4X4";
 export const ALTERNATE_3X3 = "ALTERNATE_3X3";
 export const DISPERSED_DOT_3X3 = "DISPERSED_DOT_3X3";
 export const PATTERN_5X5 = "PATTERN_5X5";
+export const BLUE_NOISE_16X16 = "BLUE_NOISE_16X16";
+export const BLUE_NOISE_64X64 = "BLUE_NOISE_64X64";
 
 // map[y][x]
 const thresholdMaps = {
@@ -163,6 +166,36 @@ const thresholdMaps = {
       1 / 5
     ),
     levels: 5
+  },
+  // Pre-computed 16×16 blue noise — fast, good for small/pixelated output
+  [BLUE_NOISE_16X16]: {
+    width: 16,
+    thresholdMap: scaleMatrix([
+      [120, 24, 200, 80, 160, 40, 240, 8, 136, 56, 184, 96, 216, 32, 176, 72],
+      [48, 232, 144, 16, 112, 208, 88, 168, 104, 224, 12, 152, 64, 128, 248, 192],
+      [192, 68, 100, 252, 180, 60, 148, 28, 244, 76, 164, 212, 44, 108, 20, 140],
+      [132, 172, 36, 220, 132, 4, 236, 116, 52, 188, 36, 92, 228, 172, 84, 52],
+      [4, 84, 156, 52, 96, 196, 72, 180, 140, 100, 252, 132, 156, 0, 204, 244],
+      [244, 204, 116, 228, 28, 164, 124, 44, 216, 20, 68, 196, 40, 120, 60, 160],
+      [56, 148, 8, 176, 248, 84, 252, 92, 152, 240, 108, 176, 88, 236, 148, 28],
+      [184, 104, 72, 140, 60, 212, 12, 200, 60, 128, 48, 220, 12, 184, 100, 208],
+      [36, 224, 188, 20, 112, 168, 108, 168, 232, 84, 168, 144, 72, 52, 124, 72],
+      [128, 160, 44, 240, 200, 32, 76, 40, 4, 200, 24, 96, 248, 200, 16, 252],
+      [80, 252, 96, 64, 152, 244, 136, 224, 120, 148, 244, 56, 160, 108, 176, 40],
+      [212, 16, 136, 188, 88, 48, 180, 56, 92, 212, 76, 184, 28, 228, 136, 88],
+      [112, 168, 204, 8, 124, 228, 100, 160, 28, 172, 116, 232, 64, 152, 48, 196],
+      [60, 40, 236, 76, 196, 16, 68, 248, 132, 52, 252, 140, 96, 4, 216, 120],
+      [144, 188, 104, 156, 52, 144, 204, 36, 216, 84, 12, 192, 44, 248, 80, 24],
+      [24, 220, 68, 244, 116, 84, 176, 112, 188, 160, 100, 72, 168, 124, 164, 232]
+    ], 1 / 256),
+    levels: 256
+  },
+  // 64×64 blue noise generated via void-and-cluster algorithm
+  // Best quality — organic, film-grain-like dithering with no visible tiling
+  [BLUE_NOISE_64X64]: {
+    width: BLUE_NOISE_SIZE,
+    thresholdMap: BLUE_NOISE_MAP,
+    levels: BLUE_NOISE_LEVELS
   }
 };
 
@@ -283,6 +316,14 @@ export const optionTypes = {
       {
         name: "Hatch 2×2 ×3",
         value: PATTERN_5X5
+      },
+      {
+        name: "Blue Noise 16×16",
+        value: BLUE_NOISE_16X16
+      },
+      {
+        name: "Blue Noise 64×64",
+        value: BLUE_NOISE_64X64
       }
     ],
     default: HATCH_2X2,
@@ -290,6 +331,11 @@ export const optionTypes = {
   },
   thresholdMapScaleX: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern horizontally" },
   thresholdMapScaleY: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern vertically" },
+  temporalPhases: { type: RANGE, range: [1, 8], step: 1, default: 1, desc: "Cycle threshold offset across frames — higher = more perceived colors over time" },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
+  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
+  }},
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -297,6 +343,8 @@ const defaults = {
   thresholdMap: optionTypes.thresholdMap.default,
   thresholdMapScaleX: optionTypes.thresholdMapScaleX.default,
   thresholdMapScaleY: optionTypes.thresholdMapScaleY.default,
+  temporalPhases: optionTypes.temporalPhases.default,
+  animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
@@ -310,10 +358,8 @@ const ordered = (
     thresholdMapScaleX,
     thresholdMapScaleY
   } = options;
-  const levels =
-    thresholdMap.levels || thresholdMap.length > 0
-      ? thresholdMap.length * thresholdMap[0].length
-      : 4;
+  const temporalPhases = options.temporalPhases || 1;
+  const frameIndex = (options as any)._frameIndex || 0;
 
   const output = cloneCanvas(input, false);
 
@@ -327,6 +373,7 @@ const ordered = (
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
   const threshold = thresholdMaps[thresholdMap];
+  const levels = threshold.levels || threshold.width * threshold.width;
   const thresholdMapScaled = scaleThresholdMap(
     threshold.thresholdMap,
     thresholdMapScaleX,
@@ -335,13 +382,18 @@ const ordered = (
   const thresholdMapWidth = threshold.width * thresholdMapScaleX;
   const thresholdMapHeight = threshold.width * thresholdMapScaleY;
 
+  // Temporal dither: offset threshold map position per frame
+  const phase = temporalPhases > 1 ? (frameIndex % temporalPhases) : 0;
+  const temporalOffsetX = temporalPhases > 1 ? Math.floor(phase * thresholdMapWidth / temporalPhases) : 0;
+  const temporalOffsetY = temporalPhases > 1 ? Math.floor(phase * thresholdMapHeight / temporalPhases) : 0;
+
   if (options._linearize) {
     const floatBuf = srgbBufToLinearFloat(buf);
     const stepF = 1.0 / (levels - 1);
     for (let x = 0; x < input.width; x += 1) {
       for (let y = 0; y < input.height; y += 1) {
-        const tix = x % thresholdMapWidth;
-        const tiy = y % thresholdMapHeight;
+        const tix = (x + temporalOffsetX) % thresholdMapWidth;
+        const tiy = (y + temporalOffsetY) % thresholdMapHeight;
         const i = getBufferIndex(x, y, input.width);
         const thresholdValue = thresholdMapScaled[tiy][tix];
 
@@ -367,7 +419,7 @@ const ordered = (
       for (let y = 0; y < H; y += 1) {
         const i = getBufferIndex(x, y, W);
         _pix[0] = buf[i]; _pix[1] = buf[i + 1]; _pix[2] = buf[i + 2]; _pix[3] = buf[i + 3];
-        const oc = getOrderedColor(_pix, levels, x % thresholdMapWidth, y % thresholdMapHeight, thresholdMapScaled);
+        const oc = getOrderedColor(_pix, levels, (x + temporalOffsetX) % thresholdMapWidth, (y + temporalOffsetY) % thresholdMapHeight, thresholdMapScaled);
         ditheredBuf[i] = oc[0]; ditheredBuf[i + 1] = oc[1];
         ditheredBuf[i + 2] = oc[2]; ditheredBuf[i + 3] = oc[3];
       }

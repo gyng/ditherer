@@ -21,12 +21,12 @@ const sampleGradient = (stops: number[][], t: number): [number, number, number] 
 };
 
 export const optionTypes = {
-  bands: { type: RANGE, range: [3, 20], step: 1, default: 8 },
+  bands: { type: RANGE, range: [3, 20], step: 1, default: 8, desc: "Number of elevation bands" },
   colormap: { type: ENUM, options: [
     { name: "Topographic", value: COLORMAP.TOPOGRAPHIC },
     { name: "Bathymetric", value: COLORMAP.BATHYMETRIC },
     { name: "Thermal", value: COLORMAP.THERMAL }
-  ], default: COLORMAP.TOPOGRAPHIC },
+  ], default: COLORMAP.TOPOGRAPHIC, desc: "Color scheme for the contour bands" },
   palette: { type: PALETTE, default: nearest }
 };
 

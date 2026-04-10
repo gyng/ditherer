@@ -9,11 +9,11 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  blackPoint: { type: RANGE, range: [0, 255], step: 1, default: 0 },
-  whitePoint: { type: RANGE, range: [0, 255], step: 1, default: 255 },
-  gamma: { type: RANGE, range: [0.1, 3], step: 0.05, default: 1 },
-  outputBlack: { type: RANGE, range: [0, 255], step: 1, default: 0 },
-  outputWhite: { type: RANGE, range: [0, 255], step: 1, default: 255 },
+  blackPoint: { type: RANGE, range: [0, 255], step: 1, default: 0, desc: "Input shadow clipping point" },
+  whitePoint: { type: RANGE, range: [0, 255], step: 1, default: 255, desc: "Input highlight clipping point" },
+  gamma: { type: RANGE, range: [0.1, 3], step: 0.05, default: 1, desc: "Midtone gamma curve (>1 brightens, <1 darkens)" },
+  outputBlack: { type: RANGE, range: [0, 255], step: 1, default: 0, desc: "Minimum output value (lifts shadows)" },
+  outputWhite: { type: RANGE, range: [0, 255], step: 1, default: 255, desc: "Maximum output value (clamps highlights)" },
   palette: { type: PALETTE, default: nearest }
 };
 

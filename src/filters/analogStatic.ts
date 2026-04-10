@@ -9,12 +9,13 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  noiseAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  barHeight: { type: RANGE, range: [1, 100], step: 1, default: 20 },
-  barIntensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6 },
-  verticalHold: { type: RANGE, range: [0, 50], step: 1, default: 0 },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
-  color: { type: BOOL, default: false },
+  noiseAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Intensity of per-pixel random static noise" },
+  barHeight: { type: RANGE, range: [1, 100], step: 1, default: 20, desc: "Height of horizontal noise bars in pixels" },
+  barIntensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Brightness variation of horizontal noise bars" },
+  verticalHold: { type: RANGE, range: [0, 50], step: 1, default: 0, desc: "Vertical rolling/shifting of the image per frame" },
+  ghosting: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Horizontal echo/shadow from a shifted copy of the image" },
+  color: { type: BOOL, default: false, desc: "Use color noise instead of monochrome" },
+  persistence: { type: RANGE, range: [0, 0.5], step: 0.05, default: 0, desc: "Blend previous frame's noise — bright dots linger like real CRT static" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
     type: ACTION,
@@ -34,6 +35,7 @@ export const defaults = {
   verticalHold: optionTypes.verticalHold.default,
   ghosting: optionTypes.ghosting.default,
   color: optionTypes.color.default,
+  persistence: optionTypes.persistence.default,
   animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
@@ -49,8 +51,9 @@ const mulberry32 = (seed: number) => {
 };
 
 const analogStatic = (input, options: any = defaults) => {
-  const { noiseAmount, barHeight, barIntensity, verticalHold, ghosting, color: colorNoise, palette } = options;
+  const { noiseAmount, barHeight, barIntensity, verticalHold, ghosting, color: colorNoise, persistence, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
+  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -119,6 +122,17 @@ const analogStatic = (input, options: any = defaults) => {
 
       const c = paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false);
       fillBufferPixel(outBuf, di, c[0], c[1], c[2], 255);
+    }
+  }
+
+  // Temporal persistence: blend with previous frame's output for lingering noise
+  if (persistence > 0 && prevOutput && prevOutput.length === outBuf.length) {
+    const keep = persistence;
+    const fresh = 1 - keep;
+    for (let j = 0; j < outBuf.length; j += 4) {
+      outBuf[j]     = Math.round(outBuf[j]     * fresh + prevOutput[j]     * keep);
+      outBuf[j + 1] = Math.round(outBuf[j + 1] * fresh + prevOutput[j + 1] * keep);
+      outBuf[j + 2] = Math.round(outBuf[j + 2] * fresh + prevOutput[j + 2] * keep);
     }
   }
 

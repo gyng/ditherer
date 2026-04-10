@@ -9,14 +9,14 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  density: { type: RANGE, range: [2, 20], step: 1, default: 6 },
-  angle1: { type: RANGE, range: [0, 180], step: 5, default: 45 },
-  angle2: { type: RANGE, range: [0, 180], step: 5, default: 135 },
-  threshold1: { type: RANGE, range: [0, 255], step: 1, default: 170 },
-  threshold2: { type: RANGE, range: [0, 255], step: 1, default: 100 },
-  lineWidth: { type: RANGE, range: [1, 4], step: 1, default: 1 },
-  inkColor: { type: COLOR, default: [0, 0, 0] },
-  paperColor: { type: COLOR, default: [255, 255, 240] },
+  density: { type: RANGE, range: [2, 20], step: 1, default: 6, desc: "Line spacing in pixels" },
+  angle1: { type: RANGE, range: [0, 180], step: 5, default: 45, desc: "First hatch direction in degrees" },
+  angle2: { type: RANGE, range: [0, 180], step: 5, default: 135, desc: "Second hatch direction in degrees" },
+  threshold1: { type: RANGE, range: [0, 255], step: 1, default: 170, desc: "Luminance below which first hatch appears" },
+  threshold2: { type: RANGE, range: [0, 255], step: 1, default: 100, desc: "Luminance below which second hatch appears" },
+  lineWidth: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Hatch line thickness" },
+  inkColor: { type: COLOR, default: [0, 0, 0], desc: "Hatch line color" },
+  paperColor: { type: COLOR, default: [255, 255, 240], desc: "Background paper color" },
   palette: { type: PALETTE, default: nearest }
 };
 

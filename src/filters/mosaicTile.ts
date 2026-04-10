@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  tileSize: { type: RANGE, range: [4, 40], step: 1, default: 12 },
-  groutWidth: { type: RANGE, range: [1, 6], step: 1, default: 2 },
-  groutColor: { type: COLOR, default: [60, 55, 50] },
-  jitter: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2 },
+  tileSize: { type: RANGE, range: [4, 40], step: 1, default: 12, desc: "Tile size in pixels" },
+  groutWidth: { type: RANGE, range: [1, 6], step: 1, default: 2, desc: "Gap between tiles" },
+  groutColor: { type: COLOR, default: [60, 55, 50], desc: "Grout/mortar color" },
+  jitter: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Random tile position variation" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -30,10 +30,11 @@ export const optionTypes = {
       { name: "Difference", value: MODE.DIFFERENCE },
       { name: "Exclusion", value: MODE.EXCLUSION }
     ],
-    default: MODE.MULTIPLY
+    default: MODE.MULTIPLY,
+    desc: "Blend mode used to combine the color with the image"
   },
-  color: { type: COLOR, default: [200, 150, 100] },
-  opacity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
+  color: { type: COLOR, default: [200, 150, 100], desc: "Solid color to blend with the image" },
+  opacity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Mix amount between original (0) and blended result (1)" },
   palette: { type: PALETTE, default: nearest }
 };
 

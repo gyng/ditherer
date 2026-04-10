@@ -6,7 +6,7 @@ const filterImage = (image) => ({ type: "FILTER_IMAGE", image });
 
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
-import { deflate, inflate } from "pako";
+import { deflateSync, inflateSync } from "fflate";
 
 export const IMAGE_JPEG = "IMAGE_JPEG";
 export const IMAGE_PNG = "IMAGE_PNG";
@@ -47,13 +47,14 @@ export const optionTypes = {
         value: IMAGE_ICO
       }
     ],
-    default: IMAGE_JPEG
+    default: IMAGE_JPEG,
+    desc: "Image format to corrupt"
   },
-  errors: { type: RANGE, range: [0, 300], step: 1, default: 30 },
-  errTranspose: { type: BOOL, default: true },
-  errRepeat: { type: BOOL, default: false },
-  errSubstitute: { type: BOOL, default: true },
-  jpegQuality: { type: RANGE, range: [0, 1], step: 0.01, default: 0.92 }
+  errors: { type: RANGE, range: [0, 300], step: 1, default: 30, desc: "Number of byte-level corruptions" },
+  errTranspose: { type: BOOL, default: true, desc: "Enable byte transposition errors" },
+  errRepeat: { type: BOOL, default: false, desc: "Enable byte repetition errors" },
+  errSubstitute: { type: BOOL, default: true, desc: "Enable byte substitution errors" },
+  jpegQuality: { type: RANGE, range: [0, 1], step: 0.01, default: 0.92, desc: "JPEG quality before corruption" }
 };
 
 const defaults = {
@@ -188,7 +189,7 @@ const postprocessPNG = (ctx) => {
   const pngHeader = new Uint8Array([ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
   let outSize = pngHeader.length;
-  const filterDeflate = deflate(ctx.filter);
+  const filterDeflate = deflateSync(ctx.filter);
 
   for (let i = 0; i < ctx.skippedBeforeIdat.length; i += 1) {
     outSize += ctx.skippedBeforeIdat[i].length;
@@ -338,7 +339,7 @@ const preprocessPNG = (buffer) => {
     }
   }
   return {
-    filter: inflate(filterDeflated),
+    filter: inflateSync(filterDeflated),
     skippedBeforeIdat,
     skippedAfterIdat
   };

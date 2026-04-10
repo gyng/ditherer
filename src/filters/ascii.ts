@@ -14,7 +14,7 @@ const toBraille = (lum) =>
   String.fromCodePoint(BRAILLE_PATTERNS[Math.round(lum / 255 * 8)]);
 
 export const optionTypes = {
-  cellSize: { type: RANGE, range: [4, 32], step: 1, default: 8 },
+  cellSize: { type: RANGE, range: [4, 32], step: 1, default: 8, desc: "Size of each character cell in pixels" },
   charset: {
     type: ENUM,
     options: [
@@ -22,10 +22,11 @@ export const optionTypes = {
       { name: "Braille", value: CHARSET_BRAILLE },
       { name: "Block", value: CHARSET_BLOCK }
     ],
-    default: CHARSET_ASCII
+    default: CHARSET_ASCII,
+    desc: "Character set used to represent luminance"
   },
-  color: { type: BOOL, default: true },
-  background: { type: STRING, default: "black" }
+  color: { type: BOOL, default: true, desc: "Use source colors instead of grayscale" },
+  background: { type: STRING, default: "black", desc: "Background fill color" }
 };
 
 export const defaults = {

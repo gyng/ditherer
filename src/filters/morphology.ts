@@ -10,8 +10,8 @@ export const optionTypes = {
     { name: "Erode", value: MODE.ERODE },
     { name: "Open (erode then dilate)", value: MODE.OPEN },
     { name: "Close (dilate then erode)", value: MODE.CLOSE }
-  ], default: MODE.DILATE },
-  radius: { type: RANGE, range: [1, 10], step: 1, default: 2 },
+  ], default: MODE.DILATE, desc: "Morphological operation type" },
+  radius: { type: RANGE, range: [1, 10], step: 1, default: 2, desc: "Structuring element radius" },
   palette: { type: PALETTE, default: nearest }
 };
 

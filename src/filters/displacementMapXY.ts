@@ -5,14 +5,14 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 const CHANNEL = { R: 0, G: 1, B: 2 };
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 200], step: 1, default: 30 },
-  blurRadius: { type: RANGE, range: [0, 20], step: 1, default: 5 },
+  strength: { type: RANGE, range: [0, 200], step: 1, default: 30, desc: "Maximum pixel displacement" },
+  blurRadius: { type: RANGE, range: [0, 20], step: 1, default: 5, desc: "Pre-blur the displacement map for smoother warps" },
   channelX: { type: ENUM, options: [
     { name: "Red", value: CHANNEL.R }, { name: "Green", value: CHANNEL.G }, { name: "Blue", value: CHANNEL.B }
-  ], default: CHANNEL.R },
+  ], default: CHANNEL.R, desc: "Color channel driving horizontal displacement" },
   channelY: { type: ENUM, options: [
     { name: "Red", value: CHANNEL.R }, { name: "Green", value: CHANNEL.G }, { name: "Blue", value: CHANNEL.B }
-  ], default: CHANNEL.G },
+  ], default: CHANNEL.G, desc: "Color channel driving vertical displacement" },
   palette: { type: PALETTE, default: nearest }
 };
 

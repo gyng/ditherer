@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  tileSize: { type: RANGE, range: [8, 64], step: 4, default: 32 },
-  clipLimit: { type: RANGE, range: [1, 10], step: 0.5, default: 3 },
+  tileSize: { type: RANGE, range: [8, 64], step: 4, default: 32, desc: "Size of local histogram regions" },
+  clipLimit: { type: RANGE, range: [1, 10], step: 0.5, default: 3, desc: "Contrast amplification limit" },
   palette: { type: PALETTE, default: nearest }
 };
 

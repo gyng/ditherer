@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  sigmaSpatial: { type: RANGE, range: [1, 20], step: 1, default: 5 },
-  sigmaRange: { type: RANGE, range: [5, 100], step: 5, default: 30 },
+  sigmaSpatial: { type: RANGE, range: [1, 20], step: 1, default: 5, desc: "Spatial kernel size — larger blurs over a wider area" },
+  sigmaRange: { type: RANGE, range: [5, 100], step: 5, default: 30, desc: "Color similarity threshold — higher preserves fewer edges" },
   palette: { type: PALETTE, default: nearest }
 };
 

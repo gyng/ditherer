@@ -3,13 +3,13 @@ import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  size: { type: RANGE, range: [1, 512], step: 1, default: 6 }, // diameter of input
-  sizeMultiplier: { type: RANGE, range: [0, 5], step: 0.1, default: 1 }, // diameter of output
-  offset: { type: RANGE, range: [0, 3], step: 0.1, default: 0.3 },
-  levels: { type: RANGE, range: [0, 255], default: 32 }, // no. of circle sizes
+  size: { type: RANGE, range: [1, 512], step: 1, default: 6, desc: "Sampling grid cell size in pixels" },
+  sizeMultiplier: { type: RANGE, range: [0, 5], step: 0.1, default: 1, desc: "Multiplier for rendered dot size relative to grid cell" },
+  offset: { type: RANGE, range: [0, 3], step: 0.1, default: 0.3, desc: "RGB channel separation distance as fraction of cell size" },
+  levels: { type: RANGE, range: [0, 255], default: 32, desc: "Number of distinct dot sizes for quantization" },
   palette: { type: PALETTE, default: nearest },
-  squareDots: { type: BOOL, default: false },
-  background: { type: STRING, default: "black" }
+  squareDots: { type: BOOL, default: false, desc: "Use square dots instead of circles" },
+  background: { type: STRING, default: "black", desc: "Background fill color behind the halftone dots" }
 };
 
 export const defaults = {

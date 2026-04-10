@@ -25,21 +25,23 @@ export const optionTypes = {
       { name: "Mandelbrot", value: FRACTAL_TYPE.MANDELBROT },
       { name: "Julia", value: FRACTAL_TYPE.JULIA }
     ],
-    default: FRACTAL_TYPE.MANDELBROT
+    default: FRACTAL_TYPE.MANDELBROT,
+    desc: "Fractal set to render"
   },
-  zoom: { type: RANGE, range: [0.1, 50], step: 0.1, default: 1 },
-  centerX: { type: RANGE, range: [-2.5, 2.5], step: 0.01, default: -0.5 },
-  centerY: { type: RANGE, range: [-2, 2], step: 0.01, default: 0 },
-  iterations: { type: RANGE, range: [10, 500], step: 10, default: 100 },
-  juliaR: { type: RANGE, range: [-2, 2], step: 0.01, default: -0.7 },
-  juliaI: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.27 },
+  zoom: { type: RANGE, range: [0.1, 50], step: 0.1, default: 1, desc: "Zoom level into the fractal" },
+  centerX: { type: RANGE, range: [-2.5, 2.5], step: 0.01, default: -0.5, desc: "Horizontal center in complex plane" },
+  centerY: { type: RANGE, range: [-2, 2], step: 0.01, default: 0, desc: "Vertical center in complex plane" },
+  iterations: { type: RANGE, range: [10, 500], step: 10, default: 100, desc: "Max escape iterations — more = finer detail" },
+  juliaR: { type: RANGE, range: [-2, 2], step: 0.01, default: -0.7, desc: "Julia set real component (c.r)" },
+  juliaI: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.27, desc: "Julia set imaginary component (c.i)" },
   colorSource: {
     type: ENUM,
     options: [
       { name: "Palette", value: COLOR_SOURCE.PALETTE },
       { name: "Image", value: COLOR_SOURCE.IMAGE }
     ],
-    default: COLOR_SOURCE.IMAGE
+    default: COLOR_SOURCE.IMAGE,
+    desc: "Color fractal from palette or source image"
   },
   palette: { type: PALETTE, default: nearest }
 };

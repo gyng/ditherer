@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  levelsR: { type: RANGE, range: [2, 32], step: 1, default: 4 },
-  levelsG: { type: RANGE, range: [2, 32], step: 1, default: 8 },
-  levelsB: { type: RANGE, range: [2, 32], step: 1, default: 3 },
+  levelsR: { type: RANGE, range: [2, 32], step: 1, default: 4, desc: "Quantization levels for red channel" },
+  levelsG: { type: RANGE, range: [2, 32], step: 1, default: 8, desc: "Quantization levels for green channel" },
+  levelsB: { type: RANGE, range: [2, 32], step: 1, default: 3, desc: "Quantization levels for blue channel" },
   palette: { type: PALETTE, default: nearest }
 };
 

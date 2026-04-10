@@ -402,7 +402,8 @@ export const optionTypes = {
       { name: "Spiral (non-continuous)", value: DIRECTION.SPIRAL_CUT },
       { name: "Diagonal (top-right)", value: DIRECTION.DIAGONAL_TOP_RIGHT }
     ],
-    default: DIRECTION.COLUMN
+    default: DIRECTION.COLUMN,
+    desc: "Pixel traversal direction for sorting"
   },
   sortDirection: {
     type: ENUM,
@@ -410,7 +411,8 @@ export const optionTypes = {
       { name: "Ascending", value: SORT_DIRECTION.ASCENDING },
       { name: "Descending", value: SORT_DIRECTION.DESCENDING }
     ],
-    default: SORT_DIRECTION.ASCENDING
+    default: SORT_DIRECTION.ASCENDING,
+    desc: "Sort order — light-to-dark or dark-to-light"
   },
   comparator: {
     type: ENUM,
@@ -426,46 +428,53 @@ export const optionTypes = {
       { name: "BALA", value: COMPARATOR.BALA },
       { name: "Luminance", value: COMPARATOR.LUMINANCE }
     ],
-    default: COMPARATOR.LUMINANCE
+    default: COMPARATOR.LUMINANCE,
+    desc: "Color space / channel priority for sorting"
   },
   sortPixelLuminanceAbove: {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
-    default: 50
+    default: 50,
+    desc: "Only sort pixels brighter than this"
   },
   sortPixelLuminanceBelow: {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
-    default: 200
+    default: 200,
+    desc: "Only sort pixels darker than this"
   },
   sortPixelLuminanceChangeAbove: {
     type: RANGE,
     range: [-255, 255],
     step: 1,
-    default: -255
+    default: -255,
+    desc: "Min luminance delta to start a sort interval"
   },
   sortPixelLuminanceChangeBelow: {
     type: RANGE,
     range: [-255, 255],
     step: 1,
-    default: 255
+    default: 255,
+    desc: "Max luminance delta to start a sort interval"
   },
   extraIntervalStartChance: {
     type: RANGE,
     range: [0, 1],
     step: 0.01,
-    default: 0
+    default: 0,
+    desc: "Random chance to break the current sort interval"
   },
   maxIntervalSize: {
     type: RANGE,
     range: [0, 5000],
     step: 1,
-    default: 0
+    default: 0,
+    desc: "Max sorted run length — 0 = unlimited"
   },
   palette: { type: PALETTE, default: palettes.nearest },
-  linearLuminance: { type: BOOL, default: false }
+  linearLuminance: { type: BOOL, default: false, desc: "Use linear-light luminance instead of sRGB" }
 };
 
 export const defaults = {

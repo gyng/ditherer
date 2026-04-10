@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  scale: { type: RANGE, range: [5, 200], step: 5, default: 50 },
-  strength: { type: RANGE, range: [0, 50], step: 1, default: 15 },
-  steps: { type: RANGE, range: [1, 20], step: 1, default: 5 },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42 },
+  scale: { type: RANGE, range: [5, 200], step: 5, default: 50, desc: "Flow noise feature size" },
+  strength: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "Pixel displacement distance" },
+  steps: { type: RANGE, range: [1, 20], step: 1, default: 5, desc: "Flow advection iterations" },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for flow pattern" },
   palette: { type: PALETTE, default: nearest }
 };
 

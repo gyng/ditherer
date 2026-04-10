@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  scaleX: { type: RANGE, range: [0.1, 4], step: 0.05, default: 1.5 },
-  scaleY: { type: RANGE, range: [0.1, 4], step: 0.05, default: 1 },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
+  scaleX: { type: RANGE, range: [0.1, 4], step: 0.05, default: 1.5, desc: "Horizontal scale factor" },
+  scaleY: { type: RANGE, range: [0.1, 4], step: 0.05, default: 1, desc: "Vertical scale factor" },
+  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of scaling" },
+  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical center of scaling" },
   palette: { type: PALETTE, default: nearest }
 };
 

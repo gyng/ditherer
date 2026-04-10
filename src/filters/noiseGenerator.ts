@@ -22,13 +22,14 @@ export const optionTypes = {
       { name: "Simplex", value: NOISE_TYPE.SIMPLEX },
       { name: "Worley", value: NOISE_TYPE.WORLEY }
     ],
-    default: NOISE_TYPE.PERLIN
+    default: NOISE_TYPE.PERLIN,
+    desc: "Noise algorithm type"
   },
-  scale: { type: RANGE, range: [1, 200], step: 1, default: 50 },
-  octaves: { type: RANGE, range: [1, 8], step: 1, default: 4 },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42 },
-  colorize: { type: BOOL, default: false },
-  mix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
+  scale: { type: RANGE, range: [1, 200], step: 1, default: 50, desc: "Noise feature size in pixels" },
+  octaves: { type: RANGE, range: [1, 8], step: 1, default: 4, desc: "Fractal octave layers — more = finer detail" },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for noise pattern" },
+  colorize: { type: BOOL, default: false, desc: "Generate colored noise instead of grayscale" },
+  mix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Blend amount with source image" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
   animate: {
     type: ACTION,

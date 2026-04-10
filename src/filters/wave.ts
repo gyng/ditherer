@@ -3,13 +3,13 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  amplitudeX: { type: RANGE, range: [0, 100], step: 0.5, default: 10 },
-  frequencyX: { type: RANGE, range: [0, 0.2], step: 0.001, default: 0.02 },
-  amplitudeY: { type: RANGE, range: [0, 100], step: 0.5, default: 0 },
-  frequencyY: { type: RANGE, range: [0, 0.2], step: 0.001, default: 0.02 },
-  phaseX: { type: RANGE, range: [0, 6.28], step: 0.01, default: 0 },
-  phaseY: { type: RANGE, range: [0, 6.28], step: 0.01, default: 0 },
-  diagonal: { type: BOOL, default: false },
+  amplitudeX: { type: RANGE, range: [0, 100], step: 0.5, default: 10, desc: "Max horizontal displacement in pixels" },
+  frequencyX: { type: RANGE, range: [0, 0.2], step: 0.001, default: 0.02, desc: "Horizontal wave frequency (cycles per pixel)" },
+  amplitudeY: { type: RANGE, range: [0, 100], step: 0.5, default: 0, desc: "Max vertical displacement in pixels" },
+  frequencyY: { type: RANGE, range: [0, 0.2], step: 0.001, default: 0.02, desc: "Vertical wave frequency (cycles per pixel)" },
+  phaseX: { type: RANGE, range: [0, 6.28], step: 0.01, default: 0, desc: "Phase offset for horizontal wave (0 to 2pi)" },
+  phaseY: { type: RANGE, range: [0, 6.28], step: 0.01, default: 0, desc: "Phase offset for vertical wave (0 to 2pi)" },
+  diagonal: { type: BOOL, default: false, desc: "Drive waves along diagonal (x+y) instead of axes" },
   palette: { type: PALETTE, default: nearest }
 };
 

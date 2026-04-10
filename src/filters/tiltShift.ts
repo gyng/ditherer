@@ -9,10 +9,10 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  focusPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  focusWidth: { type: RANGE, range: [0.01, 0.5], step: 0.01, default: 0.15 },
-  blurAmount: { type: RANGE, range: [1, 20], step: 1, default: 8 },
-  saturationBoost: { type: RANGE, range: [0, 0.5], step: 0.05, default: 0.2 },
+  focusPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the in-focus band (0=top, 1=bottom)" },
+  focusWidth: { type: RANGE, range: [0.01, 0.5], step: 0.01, default: 0.15, desc: "Height of the sharp focus band as fraction of image" },
+  blurAmount: { type: RANGE, range: [1, 20], step: 1, default: 8, desc: "Gaussian blur sigma for out-of-focus areas" },
+  saturationBoost: { type: RANGE, range: [0, 0.5], step: 0.05, default: 0.2, desc: "Extra color saturation for a miniature/toy look" },
   palette: { type: PALETTE, default: nearest }
 };
 

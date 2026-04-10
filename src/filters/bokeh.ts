@@ -5,13 +5,13 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 const SHAPE = { CIRCLE: "CIRCLE", HEXAGON: "HEXAGON" };
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [2, 20], step: 1, default: 8 },
-  threshold: { type: RANGE, range: [100, 255], step: 1, default: 200 },
-  intensity: { type: RANGE, range: [0, 2], step: 0.1, default: 1 },
+  radius: { type: RANGE, range: [2, 20], step: 1, default: 8, desc: "Size of blur kernel and bokeh highlight shapes" },
+  threshold: { type: RANGE, range: [100, 255], step: 1, default: 200, desc: "Luminance cutoff — brighter pixels become bokeh highlights" },
+  intensity: { type: RANGE, range: [0, 2], step: 0.1, default: 1, desc: "Brightness multiplier for the bokeh highlight shapes" },
   shape: { type: ENUM, options: [
     { name: "Circle", value: SHAPE.CIRCLE },
     { name: "Hexagon", value: SHAPE.HEXAGON }
-  ], default: SHAPE.CIRCLE },
+  ], default: SHAPE.CIRCLE, desc: "Shape of the bokeh highlight" },
   palette: { type: PALETTE, default: nearest }
 };
 

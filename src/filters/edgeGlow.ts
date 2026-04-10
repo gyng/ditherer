@@ -10,10 +10,10 @@ import {
 import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 100], step: 1, default: 30 },
-  glowRadius: { type: RANGE, range: [0, 8], step: 1, default: 3 },
-  edgeColor: { type: COLOR, default: [0, 255, 200] },
-  backgroundColor: { type: COLOR, default: [0, 0, 10] },
+  threshold: { type: RANGE, range: [0, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
+  glowRadius: { type: RANGE, range: [0, 8], step: 1, default: 3, desc: "Blur radius for the glow effect" },
+  edgeColor: { type: COLOR, default: [0, 255, 200], desc: "Neon glow color for detected edges" },
+  backgroundColor: { type: COLOR, default: [0, 0, 10], desc: "Background fill color" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [2, 16], step: 1, default: 5 },
-  smoothness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
+  levels: { type: RANGE, range: [2, 16], step: 1, default: 5, desc: "Number of color levels" },
+  smoothness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Transition smoothness between levels" },
   palette: { type: PALETTE, default: nearest }
 };
 

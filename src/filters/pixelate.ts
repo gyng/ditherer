@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25 },
-  scaleXOverride: { type: RANGE, range: [0, 1], step: 0.01, default: 0 },
-  scaleYOverride: { type: RANGE, range: [0, 1], step: 0.01, default: 0 },
+  scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25, desc: "Downscale factor for both axes (smaller = bigger pixels)" },
+  scaleXOverride: { type: RANGE, range: [0, 1], step: 0.01, default: 0, desc: "Override horizontal scale (0 = use main scale)" },
+  scaleYOverride: { type: RANGE, range: [0, 1], step: 0.01, default: 0, desc: "Override vertical scale (0 = use main scale)" },
   palette: { type: PALETTE, default: nearest }
 };
 

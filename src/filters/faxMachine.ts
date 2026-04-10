@@ -3,11 +3,11 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  resolution: { type: RANGE, range: [50, 300], step: 10, default: 100 },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
-  scanNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
-  yellowing: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
-  compression: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4 },
+  resolution: { type: RANGE, range: [50, 300], step: 10, default: 100, desc: "Effective scan DPI" },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Black/white threshold for fax output" },
+  scanNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Random scan-line noise amount" },
+  yellowing: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Aged paper yellowing intensity" },
+  compression: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Simulated compression artifact level" },
   palette: { type: PALETTE, default: nearest }
 };
 

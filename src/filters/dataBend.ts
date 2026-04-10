@@ -10,9 +10,9 @@ export const optionTypes = {
     { name: "Reverb", value: EFFECT.REVERB },
     { name: "Bitcrush", value: EFFECT.BITCRUSH },
     { name: "Reverse", value: EFFECT.REVERSE }
-  ], default: EFFECT.ECHO },
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
-  offset: { type: RANGE, range: [1, 500], step: 1, default: 100 },
+  ], default: EFFECT.ECHO, desc: "Audio-style corruption applied to pixel data" },
+  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Effect strength" },
+  offset: { type: RANGE, range: [1, 500], step: 1, default: 100, desc: "Byte offset for echo/reverb displacement" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }

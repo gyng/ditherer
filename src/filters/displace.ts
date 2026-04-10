@@ -9,7 +9,7 @@ const WARP_RAW       = "RAW";
 const WARP_BLURRED   = "BLURRED";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 500], step: 1, default: 20 },
+  strength: { type: RANGE, range: [0, 500], step: 1, default: 20, desc: "Maximum pixel displacement" },
   direction: {
     type: ENUM,
     options: [
@@ -17,7 +17,8 @@ export const optionTypes = {
       { name: "Vertical",   value: DIRECTION_Y },
       { name: "Both",       value: DIRECTION_BOTH }
     ],
-    default: DIRECTION_BOTH
+    default: DIRECTION_BOTH,
+    desc: "Displacement axis"
   },
   warpSource: {
     type: ENUM,
@@ -25,9 +26,10 @@ export const optionTypes = {
       { name: "Raw (high-freq, noisy)",    value: WARP_RAW     },
       { name: "Blurred (low-freq, smooth)", value: WARP_BLURRED }
     ],
-    default: WARP_RAW
+    default: WARP_RAW,
+    desc: "Use raw luminance or pre-blurred for smoother warps"
   },
-  blurRadius: { type: RANGE, range: [1, 50], step: 1, default: 15 },
+  blurRadius: { type: RANGE, range: [1, 50], step: 1, default: 15, desc: "Blur radius when using blurred warp source" },
   palette: { type: PALETTE, default: nearest }
 };
 

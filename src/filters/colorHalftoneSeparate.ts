@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6 },
-  offsetR: { type: RANGE, range: [0, 10], step: 1, default: 2 },
-  offsetG: { type: RANGE, range: [0, 10], step: 1, default: 0 },
-  offsetB: { type: RANGE, range: [0, 10], step: 1, default: 3 },
+  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, desc: "Halftone dot diameter" },
+  offsetR: { type: RANGE, range: [0, 10], step: 1, default: 2, desc: "Red screen registration offset" },
+  offsetG: { type: RANGE, range: [0, 10], step: 1, default: 0, desc: "Green screen registration offset" },
+  offsetB: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Blue screen registration offset" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -6,16 +6,17 @@ const CONDUCTANCE_EXP = "EXP";
 const CONDUCTANCE_QUADRATIC = "QUADRATIC";
 
 export const optionTypes = {
-  iterations: { type: RANGE, range: [1, 50], step: 1, default: 10 },
-  kappa: { type: RANGE, range: [1, 200], step: 1, default: 30 },
-  lambda: { type: RANGE, range: [0.05, 0.25], step: 0.01, default: 0.2 },
+  iterations: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Number of diffusion passes" },
+  kappa: { type: RANGE, range: [1, 200], step: 1, default: 30, desc: "Edge sensitivity — higher preserves weaker edges" },
+  lambda: { type: RANGE, range: [0.05, 0.25], step: 0.01, default: 0.2, desc: "Diffusion rate per iteration" },
   conductance: {
     type: ENUM,
     options: [
       { name: "Exponential (sharp edges)", value: CONDUCTANCE_EXP },
       { name: "Quadratic (wide edges)", value: CONDUCTANCE_QUADRATIC }
     ],
-    default: CONDUCTANCE_EXP
+    default: CONDUCTANCE_EXP,
+    desc: "Edge-stopping function shape"
   },
   palette: { type: PALETTE, default: nearest }
 };

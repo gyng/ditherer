@@ -3,10 +3,10 @@ import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
-  thresholdG: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
-  thresholdB: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5 },
-  thresholdA: { type: RANGE, range: [0, 255], step: 0.5, default: 0 },
+  thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5, desc: "Red channel threshold for black/white split" },
+  thresholdG: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5, desc: "Green channel threshold for black/white split" },
+  thresholdB: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5, desc: "Blue channel threshold for black/white split" },
+  thresholdA: { type: RANGE, range: [0, 255], step: 0.5, default: 0, desc: "Alpha channel threshold for black/white split" },
   palette: { type: PALETTE, default: palettes.nearest }
 };
 

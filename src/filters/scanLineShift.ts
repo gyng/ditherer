@@ -9,11 +9,11 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  maxShift: { type: RANGE, range: [0, 200], step: 1, default: 30 },
-  blockHeight: { type: RANGE, range: [1, 50], step: 1, default: 4 },
-  chance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  colorShift: { type: BOOL, default: true },
-  wrap: { type: BOOL, default: true },
+  maxShift: { type: RANGE, range: [0, 200], step: 1, default: 30, desc: "Maximum horizontal shift in pixels" },
+  blockHeight: { type: RANGE, range: [1, 50], step: 1, default: 4, desc: "Height of each shifted block" },
+  chance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Probability of shifting each block" },
+  colorShift: { type: BOOL, default: true, desc: "Shift RGB channels independently" },
+  wrap: { type: BOOL, default: true, desc: "Wrap shifted pixels around edges" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
   animate: {
     type: ACTION,

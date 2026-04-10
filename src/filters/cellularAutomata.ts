@@ -9,9 +9,9 @@ export const optionTypes = {
     { name: "Conway (B3/S23)", value: RULE.CONWAY },
     { name: "Highlife (B36/S23)", value: RULE.HIGHLIFE },
     { name: "Seeds (B2/S)", value: RULE.SEEDS }
-  ], default: RULE.CONWAY },
-  steps: { type: RANGE, range: [1, 50], step: 1, default: 5 },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
+  ], default: RULE.CONWAY, desc: "Cellular automaton ruleset" },
+  steps: { type: RANGE, range: [1, 50], step: 1, default: 5, desc: "Simulation steps per frame" },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance cutoff for initial alive/dead state" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }

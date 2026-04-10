@@ -9,10 +9,10 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [-720, 720], step: 5, default: 180 },
-  radius: { type: RANGE, range: [0, 1], step: 0.01, default: 0.8 },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
+  angle: { type: RANGE, range: [-720, 720], step: 5, default: 180, desc: "Maximum rotation in degrees at the center of the swirl" },
+  radius: { type: RANGE, range: [0, 1], step: 0.01, default: 0.8, desc: "Swirl area size as fraction of image diagonal" },
+  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of the swirl (0=left, 1=right)" },
+  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical center of the swirl (0=top, 1=bottom)" },
   palette: { type: PALETTE, default: nearest }
 };
 

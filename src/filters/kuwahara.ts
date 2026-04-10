@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [1, 16], step: 1, default: 3 },
+  radius: { type: RANGE, range: [1, 16], step: 1, default: 3, desc: "Filter kernel radius — larger = more painterly" },
   palette: { type: PALETTE, default: nearest }
 };
 

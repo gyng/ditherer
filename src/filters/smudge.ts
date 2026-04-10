@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [1, 30], step: 1, default: 10 },
-  direction: { type: RANGE, range: [0, 360], step: 5, default: 90 },
+  strength: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Smudge distance in pixels" },
+  direction: { type: RANGE, range: [0, 360], step: 5, default: 90, desc: "Smudge direction in degrees" },
   palette: { type: PALETTE, default: nearest }
 };
 

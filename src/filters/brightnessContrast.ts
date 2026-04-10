@@ -15,10 +15,10 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  brightness: { type: RANGE, range: [-255, 255], step: 1, default: 0 },
-  contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 0 },
-  exposure: { type: RANGE, range: [-4, 4], step: 0.1, default: 1 },
-  gamma: { type: RANGE, range: [-1.5, 7.5], step: 0.1, default: 1 },
+  brightness: { type: RANGE, range: [-255, 255], step: 1, default: 0, desc: "Additive brightness offset applied to all channels" },
+  contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 0, desc: "Contrast adjustment — positive increases, negative decreases" },
+  exposure: { type: RANGE, range: [-4, 4], step: 0.1, default: 1, desc: "Exposure multiplier applied before contrast" },
+  gamma: { type: RANGE, range: [-1.5, 7.5], step: 0.1, default: 1, desc: "Gamma correction curve (>1 darkens midtones, <1 brightens)" },
   palette: { type: PALETTE, default: palettes.nearest }
 };
 

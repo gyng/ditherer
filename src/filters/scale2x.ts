@@ -9,7 +9,7 @@ export const optionTypes = {
     { name: "Scale2x", value: ALGORITHM.SCALE2X },
     { name: "Eagle", value: ALGORITHM.EAGLE },
     { name: "Nearest", value: ALGORITHM.NEAREST }
-  ], default: ALGORITHM.SCALE2X },
+  ], default: ALGORITHM.SCALE2X, desc: "Pixel-art upscaling algorithm" },
   palette: { type: PALETTE, default: nearest }
 };
 

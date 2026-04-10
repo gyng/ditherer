@@ -9,11 +9,11 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  blockSize: { type: RANGE, range: [4, 32], step: 1, default: 16 },
-  motionThreshold: { type: RANGE, range: [0, 100], step: 1, default: 20 },
-  displacement: { type: RANGE, range: [0, 30], step: 1, default: 8 },
-  corruptChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
-  channelShift: { type: RANGE, range: [0, 10], step: 1, default: 2 },
+  blockSize: { type: RANGE, range: [4, 32], step: 1, default: 16, desc: "Macro-block size for motion compensation" },
+  motionThreshold: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Sensitivity for detecting motion between frames" },
+  displacement: { type: RANGE, range: [0, 30], step: 1, default: 8, desc: "Max pixel offset for block displacement" },
+  corruptChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Probability of corrupting each block" },
+  channelShift: { type: RANGE, range: [0, 10], step: 1, default: 2, desc: "RGB channel misalignment in pixels" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,

@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  blockCount: { type: RANGE, range: [1, 50], step: 1, default: 10 },
-  maxBlockSize: { type: RANGE, range: [10, 200], step: 5, default: 60 },
-  corruption: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
+  blockCount: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Number of glitch blocks per frame" },
+  maxBlockSize: { type: RANGE, range: [10, 200], step: 5, default: 60, desc: "Maximum block dimension in pixels" },
+  corruption: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Intensity of color/offset corruption" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }

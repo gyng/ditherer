@@ -9,7 +9,7 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8 },
+  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Sepia tone intensity" },
   palette: { type: PALETTE, default: nearest }
 };
 

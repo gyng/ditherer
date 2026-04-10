@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  silverTone: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7 },
-  softFocus: { type: RANGE, range: [0, 10], step: 1, default: 3 },
-  vignette: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6 },
-  metallic: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4 },
+  silverTone: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Intensity of silver/mercury toning" },
+  softFocus: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Blur radius for period-accurate softness" },
+  vignette: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Edge darkening intensity" },
+  metallic: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Metallic plate sheen effect" },
   palette: { type: PALETTE, default: nearest }
 };
 

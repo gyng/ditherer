@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  density: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.5 },
-  dotSize: { type: RANGE, range: [1, 3], step: 1, default: 1 },
+  density: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.5, desc: "Overall dot coverage density" },
+  dotSize: { type: RANGE, range: [1, 3], step: 1, default: 1, desc: "Individual mezzotint dot size" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -14,19 +14,19 @@ import convolve, {
 } from "./convolve";
 
 export const optionTypes = {
-  tracking: { type: RANGE, range: [0, 30], step: 1, default: 3 },
-  trackingSpread: { type: RANGE, range: [0, 2], step: 0.05, default: 0.5 },
-  flagging: { type: RANGE, range: [0, 40], step: 1, default: 8 },
-  flaggingHeight: { type: RANGE, range: [0, 60], step: 1, default: 15 },
-  verticalJitter: { type: RANGE, range: [0, 20], step: 1, default: 1 },
-  chromaDelay: { type: RANGE, range: [0, 10], step: 1, default: 3 },
-  headSwitching: { type: RANGE, range: [0, 50], step: 1, default: 12 },
-  headSwitchingHeight: { type: RANGE, range: [0, 80], step: 1, default: 20 },
-  dropout: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1 },
-  tapeNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  brightness: { type: RANGE, range: [-100, 100], step: 1, default: -15 },
-  saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 1.1 },
+  tracking: { type: RANGE, range: [0, 30], step: 1, default: 3, desc: "Random horizontal row shift per scanline" },
+  trackingSpread: { type: RANGE, range: [0, 2], step: 0.05, default: 0.5, desc: "How much row drift carries over to the next line" },
+  flagging: { type: RANGE, range: [0, 40], step: 1, default: 8, desc: "Horizontal bending at the top of the frame" },
+  flaggingHeight: { type: RANGE, range: [0, 60], step: 1, default: 15, desc: "Number of rows affected by top-edge flagging" },
+  verticalJitter: { type: RANGE, range: [0, 20], step: 1, default: 1, desc: "Whole-frame vertical bounce per frame" },
+  chromaDelay: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Color channel horizontal offset from luma (pixels)" },
+  headSwitching: { type: RANGE, range: [0, 50], step: 1, default: 12, desc: "Distortion band intensity near the bottom edge" },
+  headSwitchingHeight: { type: RANGE, range: [0, 80], step: 1, default: 20, desc: "Height of the bottom-edge head switching band" },
+  dropout: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Probability of white signal-loss streaks per frame" },
+  tapeNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Per-row brightness noise and static bar frequency" },
+  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Previous-frame bleed-through (temporal smear)" },
+  brightness: { type: RANGE, range: [-100, 100], step: 1, default: -15, desc: "Overall brightness offset applied after VHS processing" },
+  saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 1.1, desc: "Chroma saturation multiplier" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -39,7 +39,7 @@ export const optionTypes = {
       }
     }
   },
-  blur: { type: BOOL, default: true },
+  blur: { type: BOOL, default: true, desc: "Apply soft Gaussian blur to simulate analog softness" },
   palette: { type: PALETTE, default: nearest }
 };
 

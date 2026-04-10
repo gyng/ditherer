@@ -10,10 +10,10 @@ import {
 import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [10, 100], step: 1, default: 30 },
-  lineWidth: { type: RANGE, range: [1, 3], step: 1, default: 1 },
-  lineColor: { type: COLOR, default: [0, 0, 0] },
-  bgColor: { type: COLOR, default: [255, 255, 255] },
+  threshold: { type: RANGE, range: [10, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
+  lineWidth: { type: RANGE, range: [1, 3], step: 1, default: 1, desc: "Traced line thickness" },
+  lineColor: { type: COLOR, default: [0, 0, 0], desc: "Edge line color" },
+  bgColor: { type: COLOR, default: [255, 255, 255], desc: "Background color" },
   palette: { type: PALETTE, default: nearest }
 };
 

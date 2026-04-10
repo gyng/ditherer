@@ -3,10 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  // k > 0 = barrel distortion, k < 0 = pincushion
-  k1: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3 },
-  k2: { type: RANGE, range: [-1, 1], step: 0.01, default: 0 },
-  zoom: { type: RANGE, range: [0.1, 3], step: 0.01, default: 1 },
+  k1: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3, desc: "Primary distortion (+barrel, -pincushion)" },
+  k2: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Secondary radial distortion for fine-tuning edges" },
+  zoom: { type: RANGE, range: [0.1, 3], step: 0.01, default: 1, desc: "Zoom factor to compensate for distortion cropping" },
   palette: { type: PALETTE, default: nearest }
 };
 

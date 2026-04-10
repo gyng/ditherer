@@ -4,10 +4,10 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
-  strokeDensity: { type: RANGE, range: [1, 10], step: 1, default: 4 },
-  contrast: { type: RANGE, range: [0.5, 3], step: 0.1, default: 1.5 },
-  pencilColor: { type: COLOR, default: [30, 25, 20] },
-  paperColor: { type: COLOR, default: [250, 245, 235] },
+  strokeDensity: { type: RANGE, range: [1, 10], step: 1, default: 4, desc: "Hatching line density" },
+  contrast: { type: RANGE, range: [0.5, 3], step: 0.1, default: 1.5, desc: "Contrast boost for pencil strokes" },
+  pencilColor: { type: COLOR, default: [30, 25, 20], desc: "Pencil graphite color" },
+  paperColor: { type: COLOR, default: [250, 245, 235], desc: "Background paper color" },
   palette: { type: PALETTE, default: nearest }
 };
 

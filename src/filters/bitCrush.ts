@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  bits: { type: RANGE, range: [1, 8], step: 1, default: 3 },
+  bits: { type: RANGE, range: [1, 8], step: 1, default: 3, desc: "Bits per channel — fewer bits = harsher posterization" },
   palette: { type: PALETTE, default: nearest }
 };
 

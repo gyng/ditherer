@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  resolution: { type: RANGE, range: [50, 400], step: 10, default: 200 },
-  fadeGradient: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
-  dotDensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8 },
+  resolution: { type: RANGE, range: [50, 400], step: 10, default: 200, desc: "Print resolution in pixels wide" },
+  fadeGradient: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Thermal fade toward paper edges" },
+  dotDensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Print head dot coverage density" },
   palette: { type: PALETTE, default: nearest }
 };
 

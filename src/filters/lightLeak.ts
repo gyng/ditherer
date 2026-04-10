@@ -5,13 +5,13 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 const POS = { TL: "TL", TR: "TR", BL: "BL", BR: "BR" };
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
+  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Light leak brightness" },
   position: { type: ENUM, options: [
     { name: "Top-Left", value: POS.TL }, { name: "Top-Right", value: POS.TR },
     { name: "Bottom-Left", value: POS.BL }, { name: "Bottom-Right", value: POS.BR }
-  ], default: POS.TR },
-  color: { type: COLOR, default: [255, 120, 50] },
-  spread: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.4 },
+  ], default: POS.TR, desc: "Corner where the light leak originates" },
+  color: { type: COLOR, default: [255, 120, 50], desc: "Leak color tint" },
+  spread: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.4, desc: "How far the leak extends into the image" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  lineSpacing: { type: RANGE, range: [2, 12], step: 1, default: 4 },
-  angle: { type: RANGE, range: [0, 180], step: 5, default: 45 },
-  inkColor: { type: COLOR, default: [10, 10, 20] },
-  paperColor: { type: COLOR, default: [250, 245, 235] },
+  lineSpacing: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Distance between engraved lines" },
+  angle: { type: RANGE, range: [0, 180], step: 5, default: 45, desc: "Line angle in degrees" },
+  inkColor: { type: COLOR, default: [10, 10, 20], desc: "Engraved line color" },
+  paperColor: { type: COLOR, default: [250, 245, 235], desc: "Background paper color" },
   palette: { type: PALETTE, default: nearest }
 };
 

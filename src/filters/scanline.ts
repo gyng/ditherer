@@ -3,9 +3,9 @@ import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 4], step: 0.01, default: 0.33 },
-  gap: { type: RANGE, range: [0, 255], step: 1, default: 3 },
-  height: { type: RANGE, range: [0, 255], step: 1, default: 1 },
+  intensity: { type: RANGE, range: [0, 4], step: 0.01, default: 0.33, desc: "Scan line darkness" },
+  gap: { type: RANGE, range: [0, 255], step: 1, default: 3, desc: "Spacing between scan lines" },
+  height: { type: RANGE, range: [0, 255], step: 1, default: 1, desc: "Scan line thickness" },
   palette: { type: PALETTE, default: palettes.nearest }
 };
 

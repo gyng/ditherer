@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6 },
-  levels: { type: RANGE, range: [2, 8], step: 1, default: 4 },
-  saturationBoost: { type: RANGE, range: [1, 3], step: 0.1, default: 2 },
+  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, desc: "Ben-Day dot size" },
+  levels: { type: RANGE, range: [2, 8], step: 1, default: 4, desc: "Color posterization levels" },
+  saturationBoost: { type: RANGE, range: [1, 3], step: 0.1, default: 2, desc: "Vivid color saturation multiplier" },
   palette: { type: PALETTE, default: nearest }
 };
 

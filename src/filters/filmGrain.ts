@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  size: { type: RANGE, range: [1, 4], step: 1, default: 1 },
-  monochrome: { type: BOOL, default: true },
+  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Intensity of the grain noise overlay" },
+  size: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Grain particle size in pixels" },
+  monochrome: { type: BOOL, default: true, desc: "Use uniform grayscale noise instead of color noise" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
     type: ACTION,

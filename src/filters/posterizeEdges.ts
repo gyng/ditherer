@@ -10,10 +10,10 @@ import {
 import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [2, 16], step: 1, default: 5 },
-  edgeThreshold: { type: RANGE, range: [0, 100], step: 1, default: 25 },
-  edgeWidth: { type: RANGE, range: [1, 4], step: 1, default: 1 },
-  edgeColor: { type: COLOR, default: [0, 0, 0] },
+  levels: { type: RANGE, range: [2, 16], step: 1, default: 5, desc: "Color posterization levels" },
+  edgeThreshold: { type: RANGE, range: [0, 100], step: 1, default: 25, desc: "Edge detection sensitivity" },
+  edgeWidth: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Edge outline thickness" },
+  edgeColor: { type: COLOR, default: [0, 0, 0], desc: "Edge outline color" },
   palette: { type: PALETTE, default: nearest }
 };
 

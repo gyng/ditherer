@@ -9,11 +9,11 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4 },
-  fadedBlacks: { type: RANGE, range: [0, 50], step: 1, default: 20 },
-  saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 0.8 },
-  grain: { type: RANGE, range: [0, 0.5], step: 0.01, default: 0.08 },
-  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.35 },
+  warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Warm color cast intensity" },
+  fadedBlacks: { type: RANGE, range: [0, 50], step: 1, default: 20, desc: "Lift shadows for faded film look" },
+  saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 0.8, desc: "Color saturation level" },
+  grain: { type: RANGE, range: [0, 0.5], step: 0.01, default: 0.08, desc: "Film grain noise amount" },
+  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.35, desc: "Edge darkening intensity" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,

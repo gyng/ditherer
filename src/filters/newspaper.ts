@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6 },
-  yellowing: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4 },
-  foldCrease: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
-  inkSmear: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2 },
+  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, desc: "Halftone dot size" },
+  yellowing: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Aged newsprint yellowing" },
+  foldCrease: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Visible fold crease intensity" },
+  inkSmear: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Ink bleeding/smearing amount" },
   palette: { type: PALETTE, default: nearest }
 };
 

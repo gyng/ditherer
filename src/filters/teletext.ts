@@ -20,9 +20,9 @@ const TELETEXT_COLORS: [number, number, number][] = [
 ];
 
 export const optionTypes = {
-  columns: { type: RANGE, range: [20, 80], step: 1, default: 40 },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
-  blockGap: { type: RANGE, range: [0, 3], step: 1, default: 1 },
+  columns: { type: RANGE, range: [20, 80], step: 1, default: 40, desc: "Character grid width" },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance threshold per block cell" },
+  blockGap: { type: RANGE, range: [0, 3], step: 1, default: 1, desc: "Pixel gap between character blocks" },
   palette: { type: PALETTE, default: nearest }
 };
 

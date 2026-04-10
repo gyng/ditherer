@@ -32,9 +32,9 @@ export const optionTypes = {
     { name: "Magma", value: COLORMAP.MAGMA },
     { name: "Inferno", value: COLORMAP.INFERNO },
     { name: "Grayscale", value: COLORMAP.GRAYSCALE }
-  ], default: COLORMAP.VIRIDIS },
-  logScale: { type: BOOL, default: true },
-  freqBins: { type: RANGE, range: [16, 128], step: 8, default: 32 },
+  ], default: COLORMAP.VIRIDIS, desc: "Color mapping for frequency intensity" },
+  logScale: { type: BOOL, default: true, desc: "Use logarithmic frequency scale" },
+  freqBins: { type: RANGE, range: [16, 128], step: 8, default: 32, desc: "Number of frequency bands" },
   palette: { type: PALETTE, default: nearest }
 };
 

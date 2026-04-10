@@ -9,10 +9,10 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  banding: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4 },
-  colorFringe: { type: RANGE, range: [0, 10], step: 1, default: 3 },
-  verticalRoll: { type: RANGE, range: [0, 20], step: 1, default: 5 },
-  glow: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
+  banding: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Horizontal interference banding intensity" },
+  colorFringe: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Color fringing/bleeding in pixels" },
+  verticalRoll: { type: RANGE, range: [0, 20], step: 1, default: 5, desc: "Vertical hold instability" },
+  glow: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "CRT phosphor glow intensity" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,

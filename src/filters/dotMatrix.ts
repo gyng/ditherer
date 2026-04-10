@@ -9,11 +9,11 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  dotSize: { type: RANGE, range: [2, 12], step: 1, default: 4 },
-  spacing: { type: RANGE, range: [1, 8], step: 1, default: 2 },
-  inkDensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8 },
-  inkColor: { type: COLOR, default: [10, 10, 40] },
-  paperColor: { type: COLOR, default: [240, 235, 220] },
+  dotSize: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Maximum dot radius" },
+  spacing: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Gap between dot centers" },
+  inkDensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "How fully dots fill their cells" },
+  inkColor: { type: COLOR, default: [10, 10, 40], desc: "Dot ink color" },
+  paperColor: { type: COLOR, default: [240, 235, 220], desc: "Background paper color" },
   palette: { type: PALETTE, default: nearest }
 };
 

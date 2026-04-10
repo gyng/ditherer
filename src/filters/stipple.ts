@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  density: { type: RANGE, range: [1, 20], step: 1, default: 4 },
-  maxDotSize: { type: RANGE, range: [1, 8], step: 0.5, default: 3 },
-  inkColor: { type: COLOR, default: [0, 0, 0] },
-  paperColor: { type: COLOR, default: [255, 250, 240] },
+  density: { type: RANGE, range: [1, 20], step: 1, default: 4, desc: "Dot spacing — lower = denser stippling" },
+  maxDotSize: { type: RANGE, range: [1, 8], step: 0.5, default: 3, desc: "Maximum stipple dot radius" },
+  inkColor: { type: COLOR, default: [0, 0, 0], desc: "Stipple dot color" },
+  paperColor: { type: COLOR, default: [255, 250, 240], desc: "Background paper color" },
   palette: { type: PALETTE, default: nearest }
 };
 

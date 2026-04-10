@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [1, 8], step: 1, default: 2 },
+  radius: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Neighborhood radius for median calculation" },
   palette: { type: PALETTE, default: nearest }
 };
 

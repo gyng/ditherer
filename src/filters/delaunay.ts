@@ -4,10 +4,10 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
-  pointCount: { type: RANGE, range: [50, 2000], step: 10, default: 300 },
-  edgeWeight: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
-  showEdges: { type: BOOL, default: false },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42 },
+  pointCount: { type: RANGE, range: [50, 2000], step: 10, default: 300, desc: "Number of triangulation vertices" },
+  edgeWeight: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Bias points toward image edges vs random" },
+  showEdges: { type: BOOL, default: false, desc: "Draw triangle outlines" },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for point placement" },
   palette: { type: PALETTE, default: nearest }
 };
 

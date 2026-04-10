@@ -1,6 +1,7 @@
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 
+import noop from "./noop";
 import binarize from "./binarize";
 import channelSeparation from "./channelSeparation";
 import jitter from "./jitter";
@@ -149,6 +150,17 @@ import longExposure from "./longExposure";
 import frameBlend from "./frameBlend";
 import temporalEdge from "./temporalEdge";
 import phosphorDecay from "./phosphorDecay";
+import videoFeedback from "./videoFeedback";
+import freezeFrameGlitch from "./freezeFrameGlitch";
+import backgroundSubtraction from "./backgroundSubtraction";
+import motionHeatmap from "./motionHeatmap";
+import slitScan from "./slitScan";
+import wakeTurbulence from "./wakeTurbulence";
+import chronophotography from "./chronophotography";
+import afterImage from "./afterImage";
+import timeMosaic from "./timeMosaic";
+import temporalColorCycle from "./temporalColorCycle";
+import motionPixelate from "./motionPixelate";
 import {
   atkinson,
   burkes,
@@ -163,6 +175,7 @@ import {
   verticalStripe
 } from "./errorDiffusing";
 
+export { default as noop } from "./noop";
 export { default as channelSeparation } from "./channelSeparation";
 export { default as jitter } from "./jitter";
 export { default as vhs } from "./vhs";
@@ -224,6 +237,7 @@ export {
 } from "./errorDiffusing";
 
 export const filterIndex = [
+  noop,
   binarize,
   channelSeparation,
   program,
@@ -384,12 +398,14 @@ export const filterIndex = [
 }, {});
 
 export const filterCategories = [
-  "Dithering", "Color", "Stylize", "Distort",
+  "None", "Dithering", "Color", "Stylize", "Distort",
   "Glitch", "Simulate", "Blur & Edges", "Advanced"
 ];
 
 // Presets — grouped by category, alphabetized within each
 export const filterList = [
+  // ── None ──
+  { displayName: "None", filter: noop, category: "None", description: "Pass-through — leaves the image unchanged. The default chain entry after Clear." },
   // ── Dithering ──
   { displayName: "Atkinson (Mac)", filter: atkinson, category: "Dithering", description: "Classic Mac dithering with 75% error diffusion for a crisp, high-contrast look" },
   {
@@ -557,24 +573,7 @@ export const filterList = [
 
   // ── Color ──
   { displayName: "Blend", filter: blend, category: "Color", description: "Blend with a color using standard modes — multiply, screen, overlay, and more" },
-  {
-    displayName: "Brightness/Contrast",
-    category: "Color",
-    description: "Adjust image brightness and contrast levels",
-    filter: {
-      ...brightnessContrast,
-      options: {
-        ...brightnessContrast.options,
-        palette: {
-          ...brightnessContrast.options.palette,
-          options: {
-            ...brightnessContrast.options.palette.options,
-            levels: 256
-          }
-        }
-      }
-    }
-  },
+  { displayName: "Brightness/Contrast", filter: brightnessContrast, category: "Color", description: "Adjust image brightness and contrast levels" },
   { displayName: "Channel mixer", filter: channelMixer, category: "Color", description: "Arbitrary RGB matrix multiplication — swap, mix, or invert channels" },
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
@@ -866,6 +865,19 @@ export const filterList = [
   { displayName: "Tilt shift", filter: tiltShift, category: "Blur & Edges", description: "Miniature/toy camera effect — sharp focus band with progressive blur" },
   { displayName: "Frame blend", filter: frameBlend, category: "Blur & Edges", description: "Temporal blur — blend frames for ghosting/echo trails" },
   { displayName: "Temporal edge", filter: temporalEdge, category: "Blur & Edges", description: "Detect edges in time — moving edges glow, static edges invisible" },
+
+  // ── Temporal ──
+  { displayName: "After-image", filter: afterImage, category: "Simulate", description: "Complementary-colored ghost when bright objects move — retinal fatigue" },
+  { displayName: "Background subtraction", filter: backgroundSubtraction, category: "Color", description: "Remove static background, keep moving foreground — virtual green screen" },
+  { displayName: "Chronophotography", filter: chronophotography, category: "Stylize", description: "Multiple ghosted exposures of moving subjects — stroboscopic photography" },
+  { displayName: "Freeze frame glitch", filter: freezeFrameGlitch, category: "Glitch", description: "Random blocks freeze in time — corrupted buffer aesthetic" },
+  { displayName: "Motion heatmap", filter: motionHeatmap, category: "Simulate", description: "Accumulate motion into persistent heatmap — sustained movement glows hotter" },
+  { displayName: "Motion pixelate", filter: motionPixelate, category: "Stylize", description: "Moving areas become pixelated — privacy or artistic motion effect" },
+  { displayName: "Slit scan", filter: slitScan, category: "Distort", description: "Each column shows a different point in time — surreal temporal stretching" },
+  { displayName: "Temporal color cycle", filter: temporalColorCycle, category: "Color", description: "Hue rotates over time — moving areas cycle faster into rainbow trails" },
+  { displayName: "Time mosaic", filter: timeMosaic, category: "Stylize", description: "Tiles update at different rates — staggered surveillance-wall aesthetic" },
+  { displayName: "Video feedback", filter: videoFeedback, category: "Advanced", description: "Camera-at-monitor effect — infinite recursive tunnels and fractal patterns" },
+  { displayName: "Wake turbulence", filter: wakeTurbulence, category: "Distort", description: "Moving objects leave rippling distortion — heat shimmer effect" },
 
   // ── Advanced ──
   { displayName: "Cellular automata", filter: cellularAutomata, category: "Advanced", description: "Conway's Game of Life and other rulesets applied to the image — animatable" },

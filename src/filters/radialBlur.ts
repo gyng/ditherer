@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [1, 50], step: 1, default: 10 },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
+  strength: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Blur intensity — increases with distance from center" },
+  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal position of the blur center (0=left, 1=right)" },
+  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the blur center (0=top, 1=bottom)" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Brightness level above which pixels invert" },
   palette: { type: PALETTE, default: nearest }
 };
 

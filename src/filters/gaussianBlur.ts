@@ -9,7 +9,7 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  sigma: { type: RANGE, range: [0.5, 20], step: 0.5, default: 3 },
+  sigma: { type: RANGE, range: [0.5, 20], step: 0.5, default: 3, desc: "Blur radius — higher values produce a softer image" },
   palette: { type: PALETTE, default: nearest }
 };
 

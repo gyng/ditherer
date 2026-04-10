@@ -4,13 +4,13 @@ import { THEMES } from "palettes/user";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3) },
-  color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3) },
-  color3: { type: COLOR, default: THEMES.RISOGRAPH[4].slice(0, 3) },
-  color4: { type: COLOR, default: THEMES.RISOGRAPH[3].slice(0, 3) },
-  layers: { type: RANGE, range: [2, 4], step: 1, default: 3 },
-  misregistration: { type: RANGE, range: [0, 20], step: 1, default: 5 },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25 },
+  color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3), desc: "First ink color" },
+  color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3), desc: "Second ink color" },
+  color3: { type: COLOR, default: THEMES.RISOGRAPH[4].slice(0, 3), desc: "Third ink color" },
+  color4: { type: COLOR, default: THEMES.RISOGRAPH[3].slice(0, 3), desc: "Fourth ink color" },
+  layers: { type: RANGE, range: [2, 4], step: 1, default: 3, desc: "Number of ink layers to print" },
+  misregistration: { type: RANGE, range: [0, 20], step: 1, default: 5, desc: "Print alignment error in pixels" },
+  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Paper texture grain amount" },
   palette: { type: PALETTE, default: nearest }
 };
 

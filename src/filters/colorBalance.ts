@@ -3,15 +3,15 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, clamp } from "utils";
 
 export const optionTypes = {
-  shadowR:    { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  shadowG:    { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  shadowB:    { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  midtoneR:   { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  midtoneG:   { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  midtoneB:   { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  highlightR: { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  highlightG: { type: RANGE, range: [-100, 100], step: 1, default: 0 },
-  highlightB: { type: RANGE, range: [-100, 100], step: 1, default: 0 },
+  shadowR:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in shadows" },
+  shadowG:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Green shift in shadows" },
+  shadowB:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Blue shift in shadows" },
+  midtoneR:   { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in midtones" },
+  midtoneG:   { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Green shift in midtones" },
+  midtoneB:   { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Blue shift in midtones" },
+  highlightR: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in highlights" },
+  highlightG: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Green shift in highlights" },
+  highlightB: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Blue shift in highlights" },
   palette:    { type: PALETTE, default: nearest }
 };
 

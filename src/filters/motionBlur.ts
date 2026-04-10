@@ -9,8 +9,8 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [0, 360], step: 5, default: 0 },
-  length: { type: RANGE, range: [1, 50], step: 1, default: 10 },
+  angle: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Direction of the blur in degrees" },
+  length: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Number of pixels sampled along the blur direction" },
   palette: { type: PALETTE, default: nearest }
 };
 

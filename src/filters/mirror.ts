@@ -24,11 +24,12 @@ export const optionTypes = {
       { name: "Both", value: MODE.BOTH },
       { name: "Kaleidoscope", value: MODE.KALEIDOSCOPE }
     ],
-    default: MODE.KALEIDOSCOPE
+    default: MODE.KALEIDOSCOPE,
+    desc: "Mirror mode — simple flip or kaleidoscope"
   },
-  segments: { type: RANGE, range: [2, 16], step: 1, default: 6 },
-  offsetX: { type: RANGE, range: [-1, 1], step: 0.01, default: 0 },
-  offsetY: { type: RANGE, range: [-1, 1], step: 0.01, default: 0 },
+  segments: { type: RANGE, range: [2, 16], step: 1, default: 6, desc: "Number of kaleidoscope wedge segments" },
+  offsetX: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Horizontal center offset" },
+  offsetY: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Vertical center offset" },
   palette: { type: PALETTE, default: nearest }
 };
 

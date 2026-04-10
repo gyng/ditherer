@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  tearOffset: { type: RANGE, range: [0, 100], step: 1, default: 20 },
-  tearPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  fieldShift: { type: RANGE, range: [0, 20], step: 1, default: 3 },
+  tearOffset: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Horizontal shift of torn scan lines" },
+  tearPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the tear" },
+  fieldShift: { type: RANGE, range: [0, 20], step: 1, default: 3, desc: "Interlace field displacement" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }

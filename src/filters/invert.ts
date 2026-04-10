@@ -2,10 +2,10 @@ import { BOOL } from "constants/controlTypes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
 
 export const optionTypes = {
-  invertR: { type: BOOL, default: true },
-  invertG: { type: BOOL, default: true },
-  invertB: { type: BOOL, default: true },
-  invertA: { type: BOOL, default: false }
+  invertR: { type: BOOL, default: true, desc: "Invert red channel" },
+  invertG: { type: BOOL, default: true, desc: "Invert green channel" },
+  invertB: { type: BOOL, default: true, desc: "Invert blue channel" },
+  invertA: { type: BOOL, default: false, desc: "Invert alpha channel" }
 };
 
 export const defaults = {

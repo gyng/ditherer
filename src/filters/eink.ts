@@ -20,7 +20,8 @@ export const optionTypes = {
       { name: "Grayscale (16-level)", value: EINK_GRAYSCALE },
       { name: "Color (Kaleido/Gallery)", value: EINK_COLOR }
     ],
-    default: EINK_GRAYSCALE
+    default: EINK_GRAYSCALE,
+    desc: "E-ink display type to emulate"
   },
   refreshMode: {
     type: ENUM,
@@ -28,14 +29,15 @@ export const optionTypes = {
       { name: "Full (flash clear)", value: REFRESH_FULL },
       { name: "Partial (fast, more ghosting)", value: REFRESH_PARTIAL }
     ],
-    default: REFRESH_FULL
+    default: REFRESH_FULL,
+    desc: "Screen refresh method — partial leaves more ghosting"
   },
-  contrast: { type: RANGE, range: [0.5, 2], step: 0.05, default: 1.2 },
-  paperWhite: { type: RANGE, range: [180, 255], step: 1, default: 230 },
-  inkBlack: { type: RANGE, range: [0, 80], step: 1, default: 15 },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25 },
-  pixelGrid: { type: BOOL, default: true },
-  texture: { type: RANGE, range: [0, 0.3], step: 0.01, default: 0.06 },
+  contrast: { type: RANGE, range: [0.5, 2], step: 0.05, default: 1.2, desc: "Display contrast multiplier" },
+  paperWhite: { type: RANGE, range: [180, 255], step: 1, default: 230, desc: "Brightest displayable value" },
+  inkBlack: { type: RANGE, range: [0, 80], step: 1, default: 15, desc: "Darkest displayable value" },
+  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Previous-frame ghosting intensity" },
+  pixelGrid: { type: BOOL, default: true, desc: "Show subtle pixel grid lines" },
+  texture: { type: RANGE, range: [0, 0.3], step: 0.01, default: 0.06, desc: "Paper surface texture grain" },
   pageRefresh: {
     type: ACTION,
     label: "Page refresh",
@@ -45,7 +47,7 @@ export const optionTypes = {
       actions.triggerBurst(inputCanvas, 10, 4);
     }
   },
-  refreshRate: { type: RANGE, range: [1, 8], step: 1, default: 2 },
+  refreshRate: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Screen refresh speed (frames per second)" },
   animate: {
     type: ACTION,
     label: "Play / Stop",

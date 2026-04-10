@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [0, 360], step: 15, default: 135 },
-  strength: { type: RANGE, range: [0, 3], step: 0.1, default: 1 },
-  blend: { type: RANGE, range: [0, 1], step: 0.05, default: 0 },
+  angle: { type: RANGE, range: [0, 360], step: 15, default: 135, desc: "Light direction angle for the emboss relief effect" },
+  strength: { type: RANGE, range: [0, 3], step: 0.1, default: 1, desc: "Emboss depth — higher values exaggerate the relief" },
+  blend: { type: RANGE, range: [0, 1], step: 0.05, default: 0, desc: "Blend between embossed result (0) and original image (1)" },
   palette: { type: PALETTE, default: nearest }
 };
 

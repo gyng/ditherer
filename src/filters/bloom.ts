@@ -13,9 +13,9 @@ export const optionTypes = {
     ],
     default: THRESHOLD_ABSOLUTE
   },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 180 },
-  strength:  { type: RANGE, range: [0, 3], step: 0.05, default: 0.8 },
-  radius:    { type: RANGE, range: [1, 30], step: 1, default: 8 }
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 180, desc: "Brightness cutoff — only pixels above this value glow" },
+  strength:  { type: RANGE, range: [0, 3], step: 0.05, default: 0.8, desc: "Intensity of the additive glow composite" },
+  radius:    { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Blur radius for the glow spread" }
 };
 
 export const defaults = {

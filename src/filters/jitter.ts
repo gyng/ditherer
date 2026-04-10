@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  jitterX: { type: RANGE, range: [0, 100], default: 4 },
-  jitterXSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1 },
-  jitterY: { type: RANGE, range: [0, 100], default: 0 },
-  jitterYSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1 },
+  jitterX: { type: RANGE, range: [0, 100], default: 4, desc: "Maximum horizontal pixel displacement per row" },
+  jitterXSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1, desc: "How much horizontal jitter carries over to the next row" },
+  jitterY: { type: RANGE, range: [0, 100], default: 0, desc: "Maximum vertical pixel displacement per column" },
+  jitterYSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1, desc: "How much vertical jitter carries over to the next column" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,

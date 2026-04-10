@@ -9,15 +9,15 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  gateWeave: { type: RANGE, range: [0, 10], step: 0.5, default: 2 },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
-  dustAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2 },
-  scratchAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
-  flicker: { type: RANGE, range: [0, 0.2], step: 0.005, default: 0.05 },
-  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  bloom: { type: RANGE, range: [0, 2], step: 0.05, default: 0.4 },
-  bloomRadius: { type: RANGE, range: [1, 15], step: 1, default: 6 },
+  gateWeave: { type: RANGE, range: [0, 10], step: 0.5, default: 2, desc: "Projector gate weave jitter in pixels" },
+  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Film grain noise intensity" },
+  dustAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Dust particle density" },
+  scratchAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Vertical scratch line density" },
+  flicker: { type: RANGE, range: [0, 0.2], step: 0.005, default: 0.05, desc: "Frame-to-frame brightness flicker" },
+  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Edge darkening intensity" },
+  warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warm color cast" },
+  bloom: { type: RANGE, range: [0, 2], step: 0.05, default: 0.4, desc: "Highlight bloom strength" },
+  bloomRadius: { type: RANGE, range: [1, 15], step: 1, default: 6, desc: "Bloom glow radius" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 18 },
   animate: {
     type: ACTION,

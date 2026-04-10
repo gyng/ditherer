@@ -78,15 +78,15 @@ const masks = {
 };
 
 export const optionTypes = {
-  contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 4 },
-  strength: { type: RANGE, range: [-1, 1], step: 0.05, default: 0.7 },
-  brightness: { type: RANGE, range: [-255, 255], step: 1, default: 40 },
-  exposure: { type: RANGE, range: [0, 4], step: 0.05, default: 1.5 },
-  gamma: { type: RANGE, range: [0, 4], step: 0.05, default: 2.2 },
-  phosphorScale: { type: RANGE, range: [1, 6], step: 1, default: 2 },
-  includeScanline: { type: BOOL, default: true },
-  scanlineGap: { type: RANGE, range: [1, 12], step: 1, default: 3 },
-  scanlineStrength: { type: RANGE, range: [-2, 2], step: 0.05, default: 0.75 },
+  contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 4, desc: "CRT contrast adjustment" },
+  strength: { type: RANGE, range: [-1, 1], step: 0.05, default: 0.7, desc: "Phosphor mask visibility" },
+  brightness: { type: RANGE, range: [-255, 255], step: 1, default: 40, desc: "Overall brightness offset" },
+  exposure: { type: RANGE, range: [0, 4], step: 0.05, default: 1.5, desc: "Exposure multiplier" },
+  gamma: { type: RANGE, range: [0, 4], step: 0.05, default: 2.2, desc: "Gamma correction curve" },
+  phosphorScale: { type: RANGE, range: [1, 6], step: 1, default: 2, desc: "Phosphor triad cell size" },
+  includeScanline: { type: BOOL, default: true, desc: "Enable horizontal scan lines" },
+  scanlineGap: { type: RANGE, range: [1, 12], step: 1, default: 3, desc: "Spacing between scan lines" },
+  scanlineStrength: { type: RANGE, range: [-2, 2], step: 0.05, default: 0.75, desc: "Scan line darkness" },
   shadowMask: {
     type: ENUM,
     options: [
@@ -96,19 +96,20 @@ export const optionTypes = {
       { name: "Tiled", value: TILED },
       { name: "Hex", value: HEX_GAP }
     ],
-    default: HEX_GAP
+    default: HEX_GAP,
+    desc: "RGB phosphor arrangement pattern"
   },
-  misconvergence: { type: RANGE, range: [0, 6], step: 0.5, default: 1 },
-  beamSpread: { type: RANGE, range: [0, 8], step: 1, default: 2 },
-  bloom: { type: BOOL, default: true },
-  bloomThreshold: { type: RANGE, range: [0, 255], step: 1, default: 140 },
-  bloomRadius: { type: RANGE, range: [1, 20], step: 1, default: 4 },
-  bloomStrength: { type: RANGE, range: [0, 3], step: 0.05, default: 0.6 },
-  curvature: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
-  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  interlace: { type: BOOL, default: false },
-  persistence: { type: RANGE, range: [0, 1], step: 0.01, default: 0 },
-  flicker: { type: RANGE, range: [0, 0.15], step: 0.005, default: 0 },
+  misconvergence: { type: RANGE, range: [0, 6], step: 0.5, default: 1, desc: "Color channel misalignment" },
+  beamSpread: { type: RANGE, range: [0, 8], step: 1, default: 2, desc: "Electron beam blur radius" },
+  bloom: { type: BOOL, default: true, desc: "Enable bright-area glow" },
+  bloomThreshold: { type: RANGE, range: [0, 255], step: 1, default: 140, desc: "Brightness level where bloom starts" },
+  bloomRadius: { type: RANGE, range: [1, 20], step: 1, default: 4, desc: "Bloom glow radius" },
+  bloomStrength: { type: RANGE, range: [0, 3], step: 0.05, default: 0.6, desc: "Bloom glow intensity" },
+  curvature: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "CRT screen barrel curvature" },
+  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Edge darkening from curvature" },
+  interlace: { type: BOOL, default: false, desc: "Simulate interlaced scanning" },
+  persistence: { type: RANGE, range: [0, 1], step: 0.01, default: 0, desc: "Phosphor afterglow persistence" },
+  flicker: { type: RANGE, range: [0, 0.15], step: 0.005, default: 0, desc: "Frame-to-frame brightness flicker" },
   degauss: {
     type: ACTION,
     label: "Degauss",
@@ -128,7 +129,7 @@ export const optionTypes = {
       }
     }
   },
-  blur: { type: BOOL, default: true },
+  blur: { type: BOOL, default: true, desc: "Apply light Gaussian blur for softness" },
   palette: { type: PALETTE, default: palettes.nearest }
 };
 

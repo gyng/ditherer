@@ -9,10 +9,10 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  fanAngle:  { type: RANGE, range: [30, 150], step: 1, default: 70 },
-  speckle:   { type: RANGE, range: [0, 1], step: 0.01, default: 0.4 },
-  brightness: { type: RANGE, range: [0, 3], step: 0.05, default: 1.5 },
-  scanLines: { type: BOOL, default: true },
+  fanAngle:  { type: RANGE, range: [30, 150], step: 1, default: 70, desc: "Ultrasound scan sector angle" },
+  speckle:   { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Speckle noise characteristic of ultrasound" },
+  brightness: { type: RANGE, range: [0, 3], step: 0.05, default: 1.5, desc: "Overall image brightness" },
+  scanLines: { type: BOOL, default: true, desc: "Show radial scan lines" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,

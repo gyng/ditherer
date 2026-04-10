@@ -9,10 +9,10 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  color1: { type: COLOR, default: [0, 0, 40] },
-  color2: { type: COLOR, default: [200, 50, 50] },
-  color3: { type: COLOR, default: [255, 220, 100] },
-  mix: { type: RANGE, range: [0, 1], step: 0.05, default: 1 },
+  color1: { type: COLOR, default: [0, 0, 40], desc: "Shadow color (darkest tones)" },
+  color2: { type: COLOR, default: [200, 50, 50], desc: "Midtone color" },
+  color3: { type: COLOR, default: [255, 220, 100], desc: "Highlight color (brightest tones)" },
+  mix: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Blend with original image" },
   palette: { type: PALETTE, default: nearest }
 };
 

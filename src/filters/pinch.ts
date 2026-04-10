@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [-1, 1], step: 0.05, default: 0.5 },
-  radius: { type: RANGE, range: [0.1, 1.5], step: 0.05, default: 0.8 },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5 },
+  strength: { type: RANGE, range: [-1, 1], step: 0.05, default: 0.5, desc: "Pinch (+) or bulge (-) intensity" },
+  radius: { type: RANGE, range: [0.1, 1.5], step: 0.05, default: 0.8, desc: "Affected area radius as fraction of image" },
+  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of distortion" },
+  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical center of distortion" },
   palette: { type: PALETTE, default: nearest }
 };
 

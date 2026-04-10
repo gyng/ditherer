@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  lineHeight: { type: RANGE, range: [1, 6], step: 1, default: 2 },
-  brightness: { type: RANGE, range: [0.5, 2], step: 0.1, default: 1.5 },
+  lineHeight: { type: RANGE, range: [1, 6], step: 1, default: 2, desc: "Height of each RGB sub-line" },
+  brightness: { type: RANGE, range: [0.5, 2], step: 0.1, default: 1.5, desc: "Brightness boost to compensate for filtering" },
   palette: { type: PALETTE, default: nearest }
 };
 

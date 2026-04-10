@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  stripWidth: { type: RANGE, range: [2, 20], step: 1, default: 6 },
-  angle: { type: RANGE, range: [0, 360], step: 5, default: 0 },
-  sheenIntensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
-  rainbowSpread: { type: RANGE, range: [0, 3], step: 0.1, default: 1 },
+  stripWidth: { type: RANGE, range: [2, 20], step: 1, default: 6, desc: "Width of each lenticular strip" },
+  angle: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Strip rotation angle in degrees" },
+  sheenIntensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Holographic sheen strength" },
+  rainbowSpread: { type: RANGE, range: [0, 3], step: 0.1, default: 1, desc: "Rainbow color spread across strips" },
   palette: { type: PALETTE, default: nearest }
 };
 

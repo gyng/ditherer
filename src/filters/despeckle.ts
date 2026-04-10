@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 50], step: 1, default: 15 },
-  radius: { type: RANGE, range: [1, 5], step: 1, default: 2 },
+  threshold: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "Difference threshold to detect speckle noise" },
+  radius: { type: RANGE, range: [1, 5], step: 1, default: 2, desc: "Neighborhood radius for median sampling" },
   palette: { type: PALETTE, default: nearest }
 };
 

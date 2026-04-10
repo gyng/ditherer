@@ -20,6 +20,7 @@ export const optionTypes = {
       { name: "Standard (~25 KB/frame)", value: QUALITY_STANDARD },
     ],
     default: QUALITY_FINE,
+    desc: "JPEG compression quality preset"
   },
   lighting: {
     type: ENUM,
@@ -29,8 +30,9 @@ export const optionTypes = {
       { name: "Fluorescent (green cast)",     value: LIGHTING_FLUORESCENT },
     ],
     default: LIGHTING_DAYLIGHT,
+    desc: "White balance preset — each adds a period-accurate color cast"
   },
-  smear: { type: BOOL, default: false },
+  smear: { type: BOOL, default: false, desc: "CCD smear artifact on bright highlights" },
 };
 
 export const defaults = {

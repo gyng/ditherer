@@ -44,9 +44,9 @@ const getBayerMatrix = (sizeStr: string): { matrix: number[][]; n: number } => {
 };
 
 export const optionTypes = {
-  levelsR: { type: RANGE, range: [2, 16], step: 1, default: 4 },
-  levelsG: { type: RANGE, range: [2, 16], step: 1, default: 4 },
-  levelsB: { type: RANGE, range: [2, 16], step: 1, default: 4 },
+  levelsR: { type: RANGE, range: [2, 16], step: 1, default: 4, desc: "Quantization levels for red" },
+  levelsG: { type: RANGE, range: [2, 16], step: 1, default: 4, desc: "Quantization levels for green" },
+  levelsB: { type: RANGE, range: [2, 16], step: 1, default: 4, desc: "Quantization levels for blue" },
   matrixSize: {
     type: ENUM,
     options: [
@@ -54,7 +54,8 @@ export const optionTypes = {
       { name: "4x4", value: MATRIX_SIZE["4x4"] },
       { name: "8x8", value: MATRIX_SIZE["8x8"] }
     ],
-    default: MATRIX_SIZE["4x4"]
+    default: MATRIX_SIZE["4x4"],
+    desc: "Bayer dither matrix size"
   },
   palette: { type: PALETTE, default: nearest }
 };

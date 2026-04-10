@@ -3,15 +3,15 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  rr: { type: RANGE, range: [-1, 2], step: 0.05, default: 1 },
-  rg: { type: RANGE, range: [-1, 2], step: 0.05, default: 0 },
-  rb: { type: RANGE, range: [-1, 2], step: 0.05, default: 0 },
-  gr: { type: RANGE, range: [-1, 2], step: 0.05, default: 0 },
-  gg: { type: RANGE, range: [-1, 2], step: 0.05, default: 1 },
-  gb: { type: RANGE, range: [-1, 2], step: 0.05, default: 0 },
-  br: { type: RANGE, range: [-1, 2], step: 0.05, default: 0 },
-  bg: { type: RANGE, range: [-1, 2], step: 0.05, default: 0 },
-  bb: { type: RANGE, range: [-1, 2], step: 0.05, default: 1 },
+  rr: { type: RANGE, range: [-1, 2], step: 0.05, default: 1, desc: "Red contribution to output red" },
+  rg: { type: RANGE, range: [-1, 2], step: 0.05, default: 0, desc: "Green contribution to output red" },
+  rb: { type: RANGE, range: [-1, 2], step: 0.05, default: 0, desc: "Blue contribution to output red" },
+  gr: { type: RANGE, range: [-1, 2], step: 0.05, default: 0, desc: "Red contribution to output green" },
+  gg: { type: RANGE, range: [-1, 2], step: 0.05, default: 1, desc: "Green contribution to output green" },
+  gb: { type: RANGE, range: [-1, 2], step: 0.05, default: 0, desc: "Blue contribution to output green" },
+  br: { type: RANGE, range: [-1, 2], step: 0.05, default: 0, desc: "Red contribution to output blue" },
+  bg: { type: RANGE, range: [-1, 2], step: 0.05, default: 0, desc: "Green contribution to output blue" },
+  bb: { type: RANGE, range: [-1, 2], step: 0.05, default: 1, desc: "Blue contribution to output blue" },
   palette: { type: PALETTE, default: nearest }
 };
 

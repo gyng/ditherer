@@ -3,18 +3,18 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  rOffsetX: { type: RANGE, range: [0, 100], default: 10 },
-  rOffsetY: { type: RANGE, range: [0, 100], default: 0 },
-  rOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1 },
-  gOffsetX: { type: RANGE, range: [0, 100], default: 0 },
-  gOffsetY: { type: RANGE, range: [0, 100], default: 5 },
-  gOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1 },
-  bOffsetX: { type: RANGE, range: [0, 100], default: 8 },
-  bOffsetY: { type: RANGE, range: [0, 100], default: 4 },
-  bOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1 },
-  aOffsetX: { type: RANGE, range: [0, 100], default: 0 },
-  aOffsetY: { type: RANGE, range: [0, 100], default: 0 },
-  aOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1 },
+  rOffsetX: { type: RANGE, range: [0, 100], default: 10, desc: "Red channel horizontal offset" },
+  rOffsetY: { type: RANGE, range: [0, 100], default: 0, desc: "Red channel vertical offset" },
+  rOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Red channel opacity" },
+  gOffsetX: { type: RANGE, range: [0, 100], default: 0, desc: "Green channel horizontal offset" },
+  gOffsetY: { type: RANGE, range: [0, 100], default: 5, desc: "Green channel vertical offset" },
+  gOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Green channel opacity" },
+  bOffsetX: { type: RANGE, range: [0, 100], default: 8, desc: "Blue channel horizontal offset" },
+  bOffsetY: { type: RANGE, range: [0, 100], default: 4, desc: "Blue channel vertical offset" },
+  bOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Blue channel opacity" },
+  aOffsetX: { type: RANGE, range: [0, 100], default: 0, desc: "Alpha channel horizontal offset" },
+  aOffsetY: { type: RANGE, range: [0, 100], default: 0, desc: "Alpha channel vertical offset" },
+  aOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Alpha channel opacity" },
   palette: { type: PALETTE, default: nearest }
 };
 

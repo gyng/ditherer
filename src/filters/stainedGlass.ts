@@ -15,11 +15,11 @@ const COLOR_MODE = {
 };
 
 export const optionTypes = {
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42 },
-  cellSize: { type: RANGE, range: [5, 60], step: 1, default: 20 },
-  irregularity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
-  leadingWidth: { type: RANGE, range: [1, 6], step: 1, default: 2 },
-  leadingColor: { type: COLOR, default: [20, 20, 20] },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for cell layout" },
+  cellSize: { type: RANGE, range: [5, 60], step: 1, default: 20, desc: "Average glass pane size" },
+  irregularity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "How irregular the cell shapes are" },
+  leadingWidth: { type: RANGE, range: [1, 6], step: 1, default: 2, desc: "Lead came (border) width" },
+  leadingColor: { type: COLOR, default: [20, 20, 20], desc: "Lead came color" },
   colorMode: {
     type: ENUM,
     options: [
@@ -27,7 +27,8 @@ export const optionTypes = {
       { name: "Median", value: COLOR_MODE.MEDIAN },
       { name: "Dominant", value: COLOR_MODE.DOMINANT }
     ],
-    default: COLOR_MODE.AVERAGE
+    default: COLOR_MODE.AVERAGE,
+    desc: "How each pane's color is sampled"
   },
   palette: { type: PALETTE, default: nearest }
 };

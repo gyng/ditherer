@@ -9,11 +9,11 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  gain: { type: RANGE, range: [1, 8], step: 0.1, default: 4 },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
-  bloomRadius: { type: RANGE, range: [0, 8], step: 1, default: 3 },
-  bloomStrength: { type: RANGE, range: [0, 2], step: 0.05, default: 0.6 },
-  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7 },
+  gain: { type: RANGE, range: [1, 8], step: 0.1, default: 4, desc: "Image intensifier gain multiplier" },
+  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Photon noise grain amount" },
+  bloomRadius: { type: RANGE, range: [0, 8], step: 1, default: 3, desc: "Glow radius around bright areas" },
+  bloomStrength: { type: RANGE, range: [0, 2], step: 0.05, default: 0.6, desc: "Bloom glow intensity" },
+  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Circular edge darkening" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
     type: ACTION,

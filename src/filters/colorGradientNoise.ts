@@ -55,11 +55,11 @@ const perlinNoise = (px: number, py: number, perm: number[]): number => {
 };
 
 export const optionTypes = {
-  scale: { type: RANGE, range: [5, 200], step: 1, default: 50 },
-  color1: { type: COLOR, default: [20, 0, 80] },
-  color2: { type: COLOR, default: [255, 100, 50] },
-  mix: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4 },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42 },
+  scale: { type: RANGE, range: [5, 200], step: 1, default: 50, desc: "Noise feature size in pixels" },
+  color1: { type: COLOR, default: [20, 0, 80], desc: "First gradient endpoint color" },
+  color2: { type: COLOR, default: [255, 100, 50], desc: "Second gradient endpoint color" },
+  mix: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Blend amount with source image" },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for noise pattern" },
   palette: { type: PALETTE, default: nearest }
 };
 

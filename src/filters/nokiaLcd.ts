@@ -13,11 +13,11 @@ const PIXEL_ON: [number, number, number] = [67, 82, 61];   // dark (ink)
 const PIXEL_OFF: [number, number, number] = [199, 207, 161]; // light (background)
 
 export const optionTypes = {
-  columns: { type: RANGE, range: [42, 168], step: 1, default: 84 },
-  rows: { type: RANGE, range: [24, 96], step: 1, default: 48 },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128 },
-  contrast: { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.5 },
-  pixelGrid: { type: BOOL, default: true },
+  columns: { type: RANGE, range: [42, 168], step: 1, default: 84, desc: "LCD horizontal pixel resolution" },
+  rows: { type: RANGE, range: [24, 96], step: 1, default: 48, desc: "LCD vertical pixel resolution" },
+  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Black/white threshold for 1-bit display" },
+  contrast: { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.5, desc: "Contrast boost before thresholding" },
+  pixelGrid: { type: BOOL, default: true, desc: "Show visible pixel grid lines" },
   palette: { type: PALETTE, default: nearest }
 };
 

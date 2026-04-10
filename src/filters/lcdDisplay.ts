@@ -5,14 +5,14 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 const LAYOUT = { STRIPE: "STRIPE", PENTILE: "PENTILE", DIAMOND: "DIAMOND" };
 
 export const optionTypes = {
-  pixelSize: { type: RANGE, range: [3, 20], step: 1, default: 6 },
+  pixelSize: { type: RANGE, range: [3, 20], step: 1, default: 6, desc: "LCD pixel cell size" },
   subpixelLayout: { type: ENUM, options: [
     { name: "RGB Stripe", value: LAYOUT.STRIPE },
     { name: "PenTile", value: LAYOUT.PENTILE },
     { name: "Diamond", value: LAYOUT.DIAMOND }
-  ], default: LAYOUT.STRIPE },
-  brightness: { type: RANGE, range: [0.5, 2], step: 0.1, default: 1.2 },
-  gapDarkness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
+  ], default: LAYOUT.STRIPE, desc: "Subpixel arrangement pattern" },
+  brightness: { type: RANGE, range: [0.5, 2], step: 0.1, default: 1.2, desc: "Backlight brightness multiplier" },
+  gapDarkness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Darkness of grid gaps between pixels" },
   palette: { type: PALETTE, default: nearest }
 };
 

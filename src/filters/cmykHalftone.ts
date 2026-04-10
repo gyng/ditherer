@@ -9,12 +9,12 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  dotSize: { type: RANGE, range: [2, 20], step: 1, default: 6 },
-  angleC: { type: RANGE, range: [0, 180], step: 5, default: 15 },
-  angleM: { type: RANGE, range: [0, 180], step: 5, default: 75 },
-  angleY: { type: RANGE, range: [0, 180], step: 5, default: 0 },
-  angleK: { type: RANGE, range: [0, 180], step: 5, default: 45 },
-  paperColor: { type: COLOR, default: [255, 250, 245] },
+  dotSize: { type: RANGE, range: [2, 20], step: 1, default: 6, desc: "Halftone dot diameter" },
+  angleC: { type: RANGE, range: [0, 180], step: 5, default: 15, desc: "Cyan screen angle in degrees" },
+  angleM: { type: RANGE, range: [0, 180], step: 5, default: 75, desc: "Magenta screen angle in degrees" },
+  angleY: { type: RANGE, range: [0, 180], step: 5, default: 0, desc: "Yellow screen angle in degrees" },
+  angleK: { type: RANGE, range: [0, 180], step: 5, default: 45, desc: "Black (key) screen angle in degrees" },
+  paperColor: { type: COLOR, default: [255, 250, 245], desc: "Background paper color" },
   palette: { type: PALETTE, default: nearest }
 };
 

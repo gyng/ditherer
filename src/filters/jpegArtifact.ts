@@ -9,8 +9,8 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  quality: { type: RANGE, range: [1, 100], step: 1, default: 15 },
-  blockSize: { type: RANGE, range: [4, 64], step: 4, default: 8 },
+  quality: { type: RANGE, range: [1, 100], step: 1, default: 15, desc: "Simulated JPEG quality — lower = more artifacts" },
+  blockSize: { type: RANGE, range: [4, 64], step: 4, default: 8, desc: "DCT block size for compression simulation" },
   palette: { type: PALETTE, default: nearest }
 };
 

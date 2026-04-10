@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8 },
-  falseColor: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
+  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Infrared effect strength" },
+  falseColor: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "False-color mapping intensity" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -3,8 +3,8 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 2], step: 0.1, default: 0.5 },
-  radius: { type: RANGE, range: [1, 10], step: 1, default: 3 },
+  strength: { type: RANGE, range: [0, 2], step: 0.1, default: 0.5, desc: "Grain merge intensity" },
+  radius: { type: RANGE, range: [1, 10], step: 1, default: 3, desc: "Blur radius for grain extraction" },
   palette: { type: PALETTE, default: nearest }
 };
 

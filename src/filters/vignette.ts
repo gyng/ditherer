@@ -11,16 +11,17 @@ import {
 const SHAPE = { CIRCLE: "CIRCLE", ELLIPSE: "ELLIPSE" };
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
-  radius: { type: RANGE, range: [0.2, 1.5], step: 0.05, default: 0.8 },
-  softness: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.4 },
+  strength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Maximum darkening amount at the edges" },
+  radius: { type: RANGE, range: [0.2, 1.5], step: 0.05, default: 0.8, desc: "Distance from center where darkening begins" },
+  softness: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.4, desc: "Width of the transition zone between clear and dark" },
   shape: {
     type: ENUM,
     options: [
       { name: "Circle", value: SHAPE.CIRCLE },
       { name: "Ellipse", value: SHAPE.ELLIPSE }
     ],
-    default: SHAPE.ELLIPSE
+    default: SHAPE.ELLIPSE,
+    desc: "Vignette shape — ellipse matches the image aspect ratio"
   },
   palette: { type: PALETTE, default: nearest }
 };

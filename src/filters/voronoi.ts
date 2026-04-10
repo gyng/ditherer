@@ -3,7 +3,7 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 
 export const optionTypes = {
-  cells: { type: RANGE, range: [5, 2000], step: 1, default: 80 },
+  cells: { type: RANGE, range: [5, 2000], step: 1, default: 80, desc: "Number of Voronoi cells" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -3,10 +3,10 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4 },
-  warmth: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6 },
-  hotspots: { type: RANGE, range: [0, 5], step: 1, default: 2 },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42 },
+  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Overall burn intensity" },
+  warmth: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Warm color bias of the burn" },
+  hotspots: { type: RANGE, range: [0, 5], step: 1, default: 2, desc: "Number of concentrated burn areas" },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for burn placement" },
   palette: { type: PALETTE, default: nearest }
 };
 

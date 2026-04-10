@@ -9,8 +9,8 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [1, 12], step: 1, default: 4 },
-  levels: { type: RANGE, range: [4, 30], step: 1, default: 20 },
+  radius: { type: RANGE, range: [1, 12], step: 1, default: 4, desc: "Brush stroke radius" },
+  levels: { type: RANGE, range: [4, 30], step: 1, default: 20, desc: "Color quantization levels for paint effect" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -9,12 +9,12 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  contrast:   { type: RANGE, range: [1, 5], step: 0.1, default: 3 },
-  saturation: { type: RANGE, range: [1, 5], step: 0.1, default: 3 },
-  blockiness: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4 },
-  noise:      { type: RANGE, range: [0, 1], step: 0.01, default: 0.15 },
-  sharpness:  { type: RANGE, range: [0, 3], step: 0.05, default: 1.5 },
-  warmth:     { type: RANGE, range: [0, 1], step: 0.01, default: 0.3 },
+  contrast:   { type: RANGE, range: [1, 5], step: 0.1, default: 3, desc: "Extreme contrast boost" },
+  saturation: { type: RANGE, range: [1, 5], step: 0.1, default: 3, desc: "Extreme saturation boost" },
+  blockiness: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "JPEG-like block artifact intensity" },
+  noise:      { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Random noise grain amount" },
+  sharpness:  { type: RANGE, range: [0, 3], step: 0.05, default: 1.5, desc: "Over-sharpening intensity" },
+  warmth:     { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warm color cast toward orange/red" },
   animSpeed:  { type: RANGE, range: [1, 30], step: 1, default: 8 },
   animate: {
     type: ACTION,

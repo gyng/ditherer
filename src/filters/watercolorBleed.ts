@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  bleedRadius: { type: RANGE, range: [1, 20], step: 1, default: 6 },
-  edgeSoftness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5 },
-  paperTexture: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
+  bleedRadius: { type: RANGE, range: [1, 20], step: 1, default: 6, desc: "How far pigment bleeds outward" },
+  edgeSoftness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Edge dissolution softness" },
+  paperTexture: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Visible paper grain texture" },
   palette: { type: PALETTE, default: nearest }
 };
 

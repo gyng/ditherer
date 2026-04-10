@@ -27,9 +27,9 @@ const hsva2rgba = ([h, s, v, a]) => {
 };
 
 export const optionTypes = {
-  hue: { type: RANGE, range: [-180, 180], step: 1, default: 0 },
-  saturation: { type: RANGE, range: [-1, 1], step: 0.01, default: 0 },
-  value: { type: RANGE, range: [-1, 1], step: 0.01, default: 0 },
+  hue: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Hue rotation in degrees" },
+  saturation: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Saturation adjustment" },
+  value: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Brightness/value adjustment" },
   palette: { type: PALETTE, default: nearest }
 };
 

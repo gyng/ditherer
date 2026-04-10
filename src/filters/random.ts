@@ -14,8 +14,8 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [0, 255], default: 2 },
-  grayscale: { type: BOOL, default: false },
+  levels: { type: RANGE, range: [0, 255], default: 2, desc: "Number of random quantization levels" },
+  grayscale: { type: BOOL, default: false, desc: "Apply same random value to all channels" },
   colorDistanceAlgorithm: COLOR_DISTANCE_ALGORITHM
 };
 

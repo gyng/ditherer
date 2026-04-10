@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  hueCenter: { type: RANGE, range: [0, 360], step: 5, default: 0 },
-  hueRange: { type: RANGE, range: [5, 180], step: 5, default: 30 },
-  saturationMin: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2 },
+  hueCenter: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Target hue to isolate in degrees" },
+  hueRange: { type: RANGE, range: [5, 180], step: 5, default: 30, desc: "Width of hue band around center" },
+  saturationMin: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Minimum saturation to keep as color" },
   palette: { type: PALETTE, default: nearest }
 };
 

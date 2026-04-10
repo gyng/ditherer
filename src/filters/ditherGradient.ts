@@ -3,9 +3,9 @@ import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
-  color1: { type: COLOR, default: [0, 0, 0] },
-  color2: { type: COLOR, default: [255, 255, 255] },
-  angle: { type: RANGE, range: [0, 360], step: 5, default: 0 },
+  color1: { type: COLOR, default: [0, 0, 0], desc: "Start color of the gradient" },
+  color2: { type: COLOR, default: [255, 255, 255], desc: "End color of the gradient" },
+  angle: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Gradient direction in degrees" },
   palette: { type: PALETTE, default: nearest }
 };
 

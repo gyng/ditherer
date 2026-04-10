@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  amplitude: { type: RANGE, range: [0, 50], step: 1, default: 10 },
-  frequency: { type: RANGE, range: [0.1, 10], step: 0.1, default: 2 },
-  phase: { type: RANGE, range: [0, 360], step: 1, default: 0 },
+  amplitude: { type: RANGE, range: [0, 50], step: 1, default: 10, desc: "Horizontal wave displacement" },
+  frequency: { type: RANGE, range: [0.1, 10], step: 0.1, default: 2, desc: "Wave oscillation frequency" },
+  phase: { type: RANGE, range: [0, 360], step: 1, default: 0, desc: "Wave phase offset in degrees" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,

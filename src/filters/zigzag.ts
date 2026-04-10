@@ -9,9 +9,9 @@ import {
 } from "utils";
 
 export const optionTypes = {
-  lineSpacing: { type: RANGE, range: [2, 12], step: 1, default: 4 },
-  angle: { type: RANGE, range: [0, 180], step: 1, default: 45 },
-  amplitude: { type: RANGE, range: [1, 10], step: 1, default: 3 },
+  lineSpacing: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Distance between zigzag lines" },
+  angle: { type: RANGE, range: [0, 180], step: 1, default: 45, desc: "Line angle in degrees" },
+  amplitude: { type: RANGE, range: [1, 10], step: 1, default: 3, desc: "Zigzag wave height" },
   palette: { type: PALETTE, default: nearest }
 };
 

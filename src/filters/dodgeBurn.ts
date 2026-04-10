@@ -9,9 +9,9 @@ export const optionTypes = {
     { name: "Dodge (lighten shadows)", value: MODE.DODGE },
     { name: "Burn (darken highlights)", value: MODE.BURN },
     { name: "Both", value: MODE.BOTH }
-  ], default: MODE.BOTH },
-  strength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3 },
-  range: { type: RANGE, range: [0, 255], step: 1, default: 128 },
+  ], default: MODE.BOTH, desc: "Lighten shadows, darken highlights, or both" },
+  strength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Effect intensity" },
+  range: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance range affected by dodge/burn" },
   palette: { type: PALETTE, default: nearest }
 };
 

@@ -9,10 +9,12 @@ export const optionTypes = {
   mode: {
     type: ENUM,
     options: [{ name: "Pixel", value: PIXEL }],
-    default: PIXEL
+    default: PIXEL,
+    desc: "Execution scope for the custom program"
   },
   program: {
     type: TEXT,
+    desc: "Custom JavaScript code run per pixel",
     default: `// Eval'd JS
 // Errors in console
 // Variables:
@@ -56,23 +58,31 @@ const programFilter = (
   const w = input.width;
   const h = input.height;
 
-  outside: for (let x = 0; x < w; x += 1) {  
+  let pixelFn: (...args: any[]) => [number, number, number, number];
+  try {
+    // Compile the user program once. It reads/writes r,g,b,a and reads
+    // i,p,w,h,x,y,buf,palette; we return the (possibly mutated) channels.
+    pixelFn = new Function(
+      "r", "g", "b", "a", "i", "p", "w", "h", "x", "y", "buf", "palette",
+      `${program}\nreturn [r, g, b, a];`
+    ) as (...args: any[]) => [number, number, number, number];
+  } catch (e) {
+    console.error(e);
+    return input;
+  }
+
+  outside: for (let x = 0; x < w; x += 1) {
     for (let y = 0; y < h; y += 1) {
-      // Define variables for program
       const i = getBufferIndex(x, y, w);
       const p = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
-       
-      // eslint-disable-next-line prefer-const
+
       let r = p[0];
-      // eslint-disable-next-line prefer-const
       let g = p[1];
-      // eslint-disable-next-line prefer-const
       let b = p[2];
-      // eslint-disable-next-line prefer-const
       let a = p[3];
 
       try {
-        eval(program);
+        [r, g, b, a] = pixelFn(r, g, b, a, i, p, w, h, x, y, buf, palette);
       } catch (e) {
         console.error(e);
         break outside;
