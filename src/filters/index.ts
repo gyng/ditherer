@@ -31,7 +31,6 @@ import displace from "./displace";
 import voronoi from "./voronoi";
 import ascii from "./ascii";
 import kuwahara from "./kuwahara";
-import reactionDiffusion from "./reactionDiffusion";
 import histogramEqualization from "./histogramEqualization";
 import duotone from "./duotone";
 import wave from "./wave";
@@ -236,7 +235,6 @@ export { default as displace } from "./displace";
 export { default as voronoi } from "./voronoi";
 export { default as ascii } from "./ascii";
 export { default as kuwahara } from "./kuwahara";
-export { default as reactionDiffusion } from "./reactionDiffusion";
 export { default as histogramEqualization } from "./histogramEqualization";
 export { default as duotone } from "./duotone";
 export { default as wave } from "./wave";
@@ -345,7 +343,6 @@ export const filterIndex = [
   voronoi,
   ascii,
   kuwahara,
-  reactionDiffusion,
   histogramEqualization,
   duotone,
   wave,
@@ -905,25 +902,6 @@ export const filterList = [
   { displayName: "Photocopier", filter: photocopier, category: "Simulate", description: "High contrast, edge darkening, speckle, and generation loss" },
   { displayName: "Polaroid", filter: polaroid, category: "Simulate", description: "Instant film look — warm tones, faded blacks, soft highlights, and film grain" },
   { displayName: "Projection film", filter: projectionFilm, category: "Simulate", description: "16mm/35mm projector — gate weave, dust, scratches, grain, and lamp flicker" },
-  { displayName: "Reaction-diffusion (coral)", filter: reactionDiffusion, category: "Simulate", description: "Grow organic coral-like patterns using a reaction-diffusion simulation" },
-  {
-    displayName: "Reaction-diffusion (custom)",
-    category: "Simulate",
-    description: "Gray-Scott reaction-diffusion with user-adjustable feed/kill parameters — animatable",
-    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "CUSTOM" } }
-  },
-  {
-    displayName: "Reaction-diffusion (labyrinth)",
-    category: "Simulate",
-    description: "Generate maze-like labyrinth patterns via reaction-diffusion",
-    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "LABYRINTH" } }
-  },
-  {
-    displayName: "Reaction-diffusion (worms)",
-    category: "Simulate",
-    description: "Create worm-like squiggly patterns through reaction-diffusion",
-    filter: { ...reactionDiffusion, options: { ...reactionDiffusion.options, preset: "WORMS" } }
-  },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
   { displayName: "Screen Print / Misregistration", filter: screenPrint, category: "Simulate", description: "Layer flat spot-color plates with visible offset on warm paper for a silkscreen poster look" },
   {

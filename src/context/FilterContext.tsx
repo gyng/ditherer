@@ -331,6 +331,7 @@ export const FilterProvider = ({ children }) => {
 
       const filterOpts = {
         ...entry.filter.options,
+        _chainIndex: i,
         _linearize: curState.linearize,
         _wasmAcceleration: curState.wasmAcceleration,
         _hasVideoInput: !!curState.video,

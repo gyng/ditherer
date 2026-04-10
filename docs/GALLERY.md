@@ -50,8 +50,7 @@
 
 | | | |
 |---|---|---|
-| **Anisotropic diffusion**<br>Smooth flat regions while preserving edges — like Perona-Malik filtering<br>![Anisotropic diffusion](gallery/anisotropic-diffusion.png) | **CRT emulation**<br>Simulate a CRT monitor with phosphor mask, bloom, scanlines, curvature, and vignette<br>![CRT emulation](gallery/crt-emulation.png) | **Reaction-diffusion (coral)**<br>Grow organic coral-like patterns using a reaction-diffusion simulation<br>![Reaction-diffusion (coral)](gallery/reaction-diffusion-coral.png) |
-| **Reaction-diffusion (labyrinth)**<br>Generate maze-like labyrinth patterns via reaction-diffusion<br>![Reaction-diffusion (labyrinth)](gallery/reaction-diffusion-labyrinth.png) | **Reaction-diffusion (worms)**<br>Create worm-like squiggly patterns through reaction-diffusion<br>![Reaction-diffusion (worms)](gallery/reaction-diffusion-worms.png) | **Scanline**<br>Add horizontal scanline gaps like a retro CRT display<br>![Scanline](gallery/scanline.png) |
+| **Anisotropic diffusion**<br>Smooth flat regions while preserving edges — like Perona-Malik filtering<br>![Anisotropic diffusion](gallery/anisotropic-diffusion.png) | **CRT emulation**<br>Simulate a CRT monitor with phosphor mask, bloom, scanlines, curvature, and vignette<br>![CRT emulation](gallery/crt-emulation.png) | **Scanline**<br>Add horizontal scanline gaps like a retro CRT display<br>![Scanline](gallery/scanline.png) |
 | **VHS emulation**<br>Simulate VHS tape artifacts — color bleed, noise, and tracking errors<br>![VHS emulation](gallery/vhs-emulation.png) |  |  |
 
 ## Blur & Edges
@@ -59,4 +58,3 @@
 | | | |
 |---|---|---|
 | **Bloom**<br>Add a soft glow around bright areas<br>![Bloom](gallery/bloom.png) | **Convolve**<br>Apply a custom convolution kernel — blur, sharpen, emboss, and more<br>![Convolve](gallery/convolve.png) | **Convolve (edge detection)**<br>Detect edges using a Laplacian convolution kernel<br>![Convolve (edge detection)](gallery/convolve-edge-detection.png) |
-

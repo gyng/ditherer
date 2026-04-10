@@ -181,7 +181,6 @@ describe("linearize safety: every filter produces opaque output with _linearize=
     "Halftone",            // canvas compositing (screen mode)
     "ASCII",               // canvas text rendering
     "K-means",             // doesn't use palette path
-    "Reaction-diffusion",  // no palette, output depends on iteration convergence
     "Bloom",               // no palette
     // Filters that call drawImage(input, ...) or cloneCanvas(input, true) —
     // fails with fake canvas because it's not a real HTMLCanvasElement.

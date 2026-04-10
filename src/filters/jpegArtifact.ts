@@ -459,8 +459,8 @@ export const applyJpegArtifactToCanvas = (input, options: any = defaults) => {
 
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
-  const effectiveLuma = safeOptions?.qualityLuma ?? quality;
-  const effectiveChroma = safeOptions?.qualityChroma ?? quality;
+  const effectiveLuma = qualityLuma ?? quality;
+  const effectiveChroma = qualityChroma ?? quality;
 
   processPlane(
     yPlane,
