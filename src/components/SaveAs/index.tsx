@@ -1069,7 +1069,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                 encodeMs: Math.round(renderResult.metrics.encodeMs),
                 frames: renderResult.frameCount,
               });
-              return { blob: null, aborted: true };
+              return { blob: null, aborted: true, audioIncluded: encoder.audioIncluded, audioUnavailableReason: encoder.audioUnavailableReason };
             }
             updateProgress("Finalizing partial preview...", 0.97);
             const finalized = await encoder.finalize();
@@ -1088,7 +1088,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
               finalizeMs: Math.round(finalized.metrics.finalizeMs),
               frames: renderResult.frameCount,
             });
-            return { blob: finalized.blob, aborted: true };
+            return { blob: finalized.blob, aborted: true, audioIncluded: encoder.audioIncluded, audioUnavailableReason: encoder.audioUnavailableReason };
           }
 
           updateProgress(encoder.audioIncluded ? "Encoding video + audio..." : "Encoding video...", 0.92);
@@ -1112,8 +1112,9 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
             finalizeMs: Math.round(finalized.metrics.finalizeMs),
             frames: renderResult.frameCount,
             audioIncluded: encoder.audioIncluded,
+            audioUnavailableReason: encoder.audioUnavailableReason,
           });
-          return { blob: finalized.blob, aborted: false };
+          return { blob: finalized.blob, aborted: false, audioIncluded: encoder.audioIncluded, audioUnavailableReason: encoder.audioUnavailableReason };
         } catch (error) {
           encoder.dispose();
           throw error;
@@ -1133,7 +1134,11 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
           });
           updateProgress(result.aborted
             ? "Partial WebM preview ready after stopping."
-            : (includeAudio ? "Reliable WebM with source audio ready to save or copy." : "Reliable WebM ready to save or copy."), null);
+            : result.audioIncluded
+              ? "Reliable WebM with source audio ready to save or copy."
+              : (includeAudio && result.audioUnavailableReason)
+                ? "Reliable WebM ready to save or copy. Source audio could not be decoded, so this export is silent."
+                : "Reliable WebM ready to save or copy.", null);
         })
         .catch((error) => {
           console.error("Reliable video export failed:", error);

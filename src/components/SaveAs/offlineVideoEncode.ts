@@ -130,10 +130,9 @@ export const createOfflineVideoEncoder = async ({
     ? await prepareOfflineAudioTrack(sourceVideo, durationUs)
     : null;
   const audioPrepareMs = performance.now() - audioPrepareStartedAt;
-
-  if (includeAudio && sourceVideo && !audioTrack) {
-    throw new Error("Reliable export could not decode an audio track from the source video.");
-  }
+  const audioUnavailableReason = includeAudio && sourceVideo && !audioTrack
+    ? "Reliable export could not decode an audio track from the source video, so the output was saved without audio."
+    : null;
 
   const muxer = new Muxer({
     target,
@@ -184,6 +183,7 @@ export const createOfflineVideoEncoder = async ({
 
   return {
     audioIncluded: !!audioTrack,
+    audioUnavailableReason,
     metrics: {
       audioPrepareMs,
       finalizeMs: 0,
