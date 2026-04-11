@@ -4,6 +4,11 @@ import s from "./styles.module.css";
 
 const Enum = (props) => {
   const label = props.types?.label || props.name;
+  const renderOption = (option) => (
+    <option key={option.value} value={option.value}>
+      {option.name || option.value}
+    </option>
+  );
 
   return (
     <div>
@@ -17,10 +22,12 @@ const Enum = (props) => {
         value={props.value}
         onChange={e => props.onSetFilterOption(props.name, e.target.value)}
       >
-        {props.types.options.map(p => (
-          <option key={p.value} value={p.value}>
-            {p.name || p.value}
-          </option>
+        {props.types.options.map((option) => (
+          Array.isArray(option.options) ? (
+            <optgroup key={option.label} label={option.label}>
+              {option.options.map(renderOption)}
+            </optgroup>
+          ) : renderOption(option)
         ))}
       </select>
     </div>

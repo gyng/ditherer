@@ -204,25 +204,29 @@ export const FilterProvider = ({ children }) => {
     }
 
     let rafId: number | null = null;
+    const dispatchCurrentFrame = () => {
+      try {
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          ctx.drawImage(video, 0, 0);
+          dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
+        }
+      } catch (error) {
+        if (!video.__drawErrorLogged) {
+          video.__drawErrorLogged = true;
+          console.warn("[video-load] drawImage failed; continuing frame loop", error);
+        }
+      }
+    };
+
     const loadFrame = () => {
       if (!video.paused && video.src !== "") {
         if (!hasLoggedFirstFrame) {
           hasLoggedFirstFrame = true;
           logPerf("first-frame-dispatched");
         }
-        try {
-          // Some clips can transiently fail drawImage during decode starvation;
-          // keep the loop alive instead of silently stalling playback updates.
-          if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-            ctx.drawImage(video, 0, 0);
-            dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
-          }
-        } catch (error) {
-          if (!video.__drawErrorLogged) {
-            video.__drawErrorLogged = true;
-            console.warn("[video-load] drawImage failed; continuing frame loop", error);
-          }
-        }
+        // Some clips can transiently fail drawImage during decode starvation;
+        // keep the loop alive instead of silently stalling playback updates.
+        dispatchCurrentFrame();
         rafId = requestAnimationFrame(loadFrame);
       } else {
         rafId = null;
@@ -238,6 +242,12 @@ export const FilterProvider = ({ children }) => {
       dispatch({ type: "SET_SCALE", scale });
       logPerf("loadedmetadata");
       settleResolve();
+    };
+    video.onseeked = () => {
+      dispatchCurrentFrame();
+    };
+    video.onloadeddata = () => {
+      dispatchCurrentFrame();
     };
     video.onplaying = () => {
       logPerf("playing");

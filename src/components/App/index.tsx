@@ -91,6 +91,14 @@ const cloneImageToCanvas = (image: HTMLImageElement) => {
   return canvas;
 };
 
+const formatVideoTime = (seconds?: number | null) => {
+  if (seconds == null || !Number.isFinite(seconds)) return "--:--";
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
 const App = () => {
   const { state, actions, filterList } = useFilter();
   const [dropping, setDropping] = useState(false);
@@ -102,8 +110,11 @@ const App = () => {
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
   const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
   const [inputFilename, setInputFilename] = useState<string | null>(null);
+  const [seekDraftTime, setSeekDraftTime] = useState<number | null>(null);
   const playPauseTimerRef = useRef<number | null>(null);
+  const seekCommitTimerRef = useRef<number | null>(null);
   const chromeRef = useRef<HTMLDivElement | null>(null);
+  const estimatedFrameStepRef = useRef(1 / 30);
 
   const flashPlayPause = (kind: "play" | "pause") => {
     setPlayPauseIndicator(kind);
@@ -153,6 +164,81 @@ const App = () => {
     }
   });
   const saveAsDrag = useDraggable(saveAsDragRef, { defaultPosition: { x: 160, y: 400 } });
+
+  useEffect(() => {
+    const video = state.video;
+    if (!video) {
+      setVideoPaused(false);
+      estimatedFrameStepRef.current = 1 / 30;
+      setSeekDraftTime(null);
+      if (seekCommitTimerRef.current) {
+        window.clearTimeout(seekCommitTimerRef.current);
+        seekCommitTimerRef.current = null;
+      }
+      return;
+    }
+
+    const syncPaused = () => setVideoPaused(video.paused);
+    syncPaused();
+    video.addEventListener("play", syncPaused);
+    video.addEventListener("pause", syncPaused);
+    video.addEventListener("loadedmetadata", syncPaused);
+
+    return () => {
+      video.removeEventListener("play", syncPaused);
+      video.removeEventListener("pause", syncPaused);
+      video.removeEventListener("loadedmetadata", syncPaused);
+    };
+  }, [state.video]);
+
+  useEffect(() => {
+    return () => {
+      if (seekCommitTimerRef.current) {
+        window.clearTimeout(seekCommitTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (seekDraftTime == null) return;
+    if (state.time == null) return;
+    if (Math.abs(state.time - seekDraftTime) < 0.02) {
+      setSeekDraftTime(null);
+    }
+  }, [seekDraftTime, state.time]);
+
+  useEffect(() => {
+    const video = state.video as (HTMLVideoElement & {
+      requestVideoFrameCallback?: (callback: (now: number, metadata: { mediaTime: number }) => void) => number;
+      cancelVideoFrameCallback?: (handle: number) => void;
+    }) | null;
+    if (!video || typeof video.requestVideoFrameCallback !== "function") return;
+
+    let frameHandle: number | null = null;
+    let lastMediaTime: number | null = null;
+    let cancelled = false;
+
+    const onFrame = (_now: number, metadata: { mediaTime: number }) => {
+      if (cancelled) return;
+      if (lastMediaTime != null) {
+        const delta = metadata.mediaTime - lastMediaTime;
+        if (delta > 0 && Number.isFinite(delta) && delta < 0.25) {
+          estimatedFrameStepRef.current = delta;
+        }
+      }
+      lastMediaTime = metadata.mediaTime;
+      frameHandle = video.requestVideoFrameCallback?.(onFrame) ?? null;
+    };
+
+    frameHandle = video.requestVideoFrameCallback(onFrame);
+
+    return () => {
+      cancelled = true;
+      if (frameHandle != null && typeof video.cancelVideoFrameCallback === "function") {
+        video.cancelVideoFrameCallback(frameHandle);
+      }
+    };
+  }, [state.video]);
 
   // Apply saved theme on mount
   useEffect(() => {
@@ -294,6 +380,69 @@ const App = () => {
       actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
     );
   }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+
+  const commitSeekVideo = useCallback((nextTime: number) => {
+    const video = state.video;
+    if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
+    const clampedTime = Math.max(0, Math.min(video.duration, nextTime));
+    setSeekDraftTime(clampedTime);
+    video.currentTime = clampedTime;
+  }, [state.video]);
+
+  const seekVideo = useCallback((nextTime: number) => {
+    const video = state.video;
+    if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
+    const clampedTime = Math.max(0, Math.min(video.duration, nextTime));
+    setSeekDraftTime(clampedTime);
+    if (seekCommitTimerRef.current) {
+      window.clearTimeout(seekCommitTimerRef.current);
+    }
+    seekCommitTimerRef.current = window.setTimeout(() => {
+      seekCommitTimerRef.current = null;
+      commitSeekVideo(clampedTime);
+    }, 40);
+  }, [commitSeekVideo, state.video]);
+
+  const flushSeekVideo = useCallback((nextTime: number) => {
+    if (seekCommitTimerRef.current) {
+      window.clearTimeout(seekCommitTimerRef.current);
+      seekCommitTimerRef.current = null;
+    }
+    commitSeekVideo(nextTime);
+  }, [commitSeekVideo]);
+
+  const getEstimatedFrameStep = useCallback(() => {
+    const video = state.video as (HTMLVideoElement & {
+      webkitDecodedFrameCount?: number;
+      mozPresentedFrames?: number;
+      getVideoPlaybackQuality?: () => { totalVideoFrames?: number };
+    }) | null;
+    if (!video) return 1 / 30;
+
+    const observed = estimatedFrameStepRef.current;
+    if (observed > 0 && Number.isFinite(observed)) return observed;
+
+    const elapsed = video.currentTime;
+    const qualityFrames = video.getVideoPlaybackQuality?.().totalVideoFrames;
+    if (elapsed > 0.1 && qualityFrames && qualityFrames > 0) return elapsed / qualityFrames;
+
+    const webkitFrames = video.webkitDecodedFrameCount;
+    if (elapsed > 0.1 && webkitFrames && webkitFrames > 0) return elapsed / webkitFrames;
+
+    const mozFrames = video.mozPresentedFrames;
+    if (elapsed > 0.1 && mozFrames && mozFrames > 0) return elapsed / mozFrames;
+
+    return 1 / 30;
+  }, [state.video]);
+
+  const stepVideoFrame = useCallback((direction: -1 | 1) => {
+    const video = state.video;
+    if (!video) return;
+    (video as HTMLVideoElement & { __manualPause?: boolean }).__manualPause = true;
+    video.pause();
+    setVideoPaused(true);
+    flushSeekVideo((video.currentTime || 0) + getEstimatedFrameStep() * direction);
+  }, [flushSeekVideo, getEstimatedFrameStep, state.video]);
 
   const loadTestImageFromSrc = useCallback((src: string) => {
     hasLoadedTestImageRef.current = true;
@@ -538,10 +687,58 @@ const App = () => {
                 />
                 {state.video && (<>
                   <div className={controls.separator} />
+                  <div className={s.videoSeekRow}>
+                    <span className={controls.label}>Position</span>
+                    <button
+                      className={s.videoFrameStep}
+                      onClick={() => stepVideoFrame(-1)}
+                      title="Step backward by roughly one frame"
+                    >
+                      &lt;
+                    </button>
+                    <input
+                      className={s.videoSeek}
+                      type="range"
+                      min={0}
+                      max={Number.isFinite(state.video?.duration) && state.video && state.video.duration > 0 ? state.video.duration : 0}
+                      step={0.01}
+                      value={Math.min(
+                        seekDraftTime ?? state.time ?? 0,
+                        Number.isFinite(state.video?.duration) ? state.video?.duration || 0 : 0
+                      )}
+                      onInput={(e) => seekVideo(Number((e.target as HTMLInputElement).value))}
+                      onChange={(e) => flushSeekVideo(Number(e.target.value))}
+                      disabled={!state.video || !Number.isFinite(state.video.duration) || state.video.duration <= 0}
+                      title="Seek through the loaded video"
+                    />
+                    <button
+                      className={s.videoFrameStep}
+                      onClick={() => stepVideoFrame(1)}
+                      title="Step forward by roughly one frame"
+                    >
+                      &gt;
+                    </button>
+                    <span className={s.videoSeekTime}>{formatVideoTime(state.time)} / {formatVideoTime(state.video?.duration)}</span>
+                  </div>
                   <div className={s.videoControlRow}>
-                    <button onClick={() => { actions.toggleVideo(); const np = !videoPaused; setVideoPaused(np); flashPlayPause(np ? "pause" : "play"); }}>
+                    <button onClick={() => { actions.toggleVideo(); flashPlayPause(videoPaused ? "play" : "pause"); }}>
                       {videoPaused ? "\u25B6 Play" : "\u23F8 Pause"}
                     </button>
+                    <label className={[controls.label, s.videoRateInline].join(" ")} htmlFor="playback-rate-inline">
+                      <span>Rate</span>
+                      <input
+                        id="playback-rate-inline"
+                        className={s.videoRateSlider}
+                        type="range"
+                        min={0}
+                        max={2}
+                        step={0.05}
+                        value={state.videoPlaybackRate}
+                        onChange={(e) => actions.setInputPlaybackRate(Number(e.target.value))}
+                        title="Adjust playback rate"
+                      />
+                      <span className={s.videoRateValue}>{state.videoPlaybackRate.toFixed(2)}x</span>
+                    </label>
                     <label className={controls.label} htmlFor="mute">
                       <input
                         id="mute"
@@ -556,13 +753,6 @@ const App = () => {
                       Mute
                     </label>
                   </div>
-                  <Range
-                    name="Playback rate"
-                    types={{ range: [0, 2] }}
-                    step={0.05}
-                    onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
-                    value={state.videoPlaybackRate}
-                  />
                 </>)}
               </div>
             </CollapsibleSection>
