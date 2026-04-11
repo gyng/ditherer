@@ -1093,7 +1093,11 @@ const App = () => {
         <div
           ref={saveAsDragRef}
           role="presentation"
-          onMouseDown={saveAsDrag.onMouseDown}
+          onMouseDown={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (!target?.closest(".handle")) return;
+            saveAsDrag.onMouseDown(e);
+          }}
           onMouseDownCapture={bringToTop}
           onMouseMove={saveAsDrag.onMouseMove}
           style={showSaveAs ? undefined : { display: "none" }}

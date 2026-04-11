@@ -108,7 +108,7 @@ export const optionTypes = {
   curvature: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "CRT screen barrel curvature" },
   vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Edge darkening from curvature" },
   interlace: { type: BOOL, default: false, desc: "Simulate interlaced scanning" },
-  persistence: { type: RANGE, range: [0, 1], step: 0.01, default: 0, desc: "Phosphor afterglow persistence" },
+  persistence: { type: RANGE, label: "Phosphor Persistence Afterglow", range: [0, 1], step: 0.01, default: 0, desc: "Phosphor afterglow persistence" },
   flicker: { type: RANGE, range: [0, 0.15], step: 0.005, default: 0, desc: "Frame-to-frame brightness flicker" },
   degauss: {
     type: ACTION,

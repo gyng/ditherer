@@ -96,12 +96,22 @@ export const FilterProvider = ({ children }) => {
   const animLastTimeRef = useRef(0);
   const animParamsRef = useRef<{ inputCanvas: any; fps: number } | null>(null);
   const filteringRef = useRef(false);
+  const pendingFilterRef = useRef(false);
+  const videoFrameTokenRef = useRef(0);
+  const exportSessionsRef = useRef<Map<string, {
+    prevOutputMap: Map<string, Uint8ClampedArray>;
+    prevInputMap: Map<string, Uint8ClampedArray>;
+    emaMap: Map<string, Float32Array>;
+    frameIndex: number;
+  }>>(new Map());
   const stateRef = useRef(state);
   stateRef.current = state;
   const filterImageAsyncRef = useRef<any>(null);
 
   const resetProcessingState = useCallback(() => {
     filteringRef.current = false;
+    pendingFilterRef.current = false;
+    videoFrameTokenRef.current = 0;
     prevOutputMapRef.current.clear();
     prevInputMapRef.current.clear();
     emaMapRef.current.clear();
@@ -149,7 +159,7 @@ export const FilterProvider = ({ children }) => {
     image.onload = () => {
       URL.revokeObjectURL(objectUrl);
       resetProcessingState();
-      dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
+      dispatch({ type: "LOAD_IMAGE", image, time: null, frameToken: 0, video: null, dispatch });
       const scale = roundScale(getAutoScale(image.width, image.height));
       dispatch({ type: "SET_SCALE", scale });
       resolve();
@@ -165,6 +175,7 @@ export const FilterProvider = ({ children }) => {
     objectUrlForCleanup?: string
   ) => new Promise<void>((resolve, reject) => {
     resetProcessingState();
+    const loadStartedScale = stateRef.current.scale;
     const video = document.createElement("video") as HTMLVideoElement & {
       __objectUrl?: string;
       __manualPause?: boolean;
@@ -208,7 +219,8 @@ export const FilterProvider = ({ children }) => {
       try {
         if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
           ctx.drawImage(video, 0, 0);
-          dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
+          const frameToken = ++videoFrameTokenRef.current;
+          dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, frameToken, video, dispatch });
         }
       } catch (error) {
         if (!video.__drawErrorLogged) {
@@ -238,8 +250,10 @@ export const FilterProvider = ({ children }) => {
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
-      dispatch({ type: "SET_SCALE", scale });
+      if (Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
+        const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
+        dispatch({ type: "SET_SCALE", scale });
+      }
       logPerf("loadedmetadata");
       settleResolve();
     };
@@ -267,6 +281,7 @@ export const FilterProvider = ({ children }) => {
     };
 
     video.volume = volume;
+    video.muted = volume === 0;
     video.playbackRate = playbackRate;
     video.loop = true;
     video.autoplay = true;
@@ -277,7 +292,14 @@ export const FilterProvider = ({ children }) => {
     video.__manualPause = false;
     video.__drawErrorLogged = false;
     video.src = src;
-    video.play().catch(() => {});
+    video.play().catch(() => {
+      if (video.src === "") return;
+      if (video.muted || volume === 0) return;
+      video.muted = true;
+      video.volume = 0;
+      dispatch({ type: "SET_INPUT_VOLUME", volume: 0 });
+      video.play().catch(() => {});
+    });
   }), [resetProcessingState]);
 
   // Async action: load video from file
@@ -334,7 +356,21 @@ export const FilterProvider = ({ children }) => {
     entries.some(e => e.filter?.mainThread === true);
 
   // Main-thread filter execution (fallback path)
-  const filterOnMainThread = (canvas, enabledEntries, startIdx, isAnimating, curState) => {
+  const filterOnMainThread = (
+    canvas,
+    enabledEntries,
+    startIdx,
+    isAnimating,
+    curState,
+    temporalState = {
+      prevOutputMap: prevOutputMapRef.current,
+      prevInputMap: prevInputMapRef.current,
+      emaMap: emaMapRef.current,
+      frameIndex: frameCountRef.current,
+    },
+    dispatchOverride = dispatch,
+    cacheOutputs = true,
+  ) => {
     const stepTimes: { name: string; ms: number }[] = [];
     let totalTime = 0;
 
@@ -355,10 +391,10 @@ export const FilterProvider = ({ children }) => {
         _linearize: curState.linearize,
         _wasmAcceleration: curState.wasmAcceleration,
         _hasVideoInput: !!curState.video,
-        _prevOutput: prevOutputMapRef.current.get(entry.id) || null,
-        _prevInput: prevInputMapRef.current.get(entry.id) || null,
-        _ema: emaMapRef.current.get(entry.id) || null,
-        _frameIndex: frameCountRef.current,
+        _prevOutput: temporalState.prevOutputMap.get(entry.id) || null,
+        _prevInput: temporalState.prevInputMap.get(entry.id) || null,
+        _ema: temporalState.emaMap.get(entry.id) || null,
+        _frameIndex: temporalState.frameIndex,
         _degaussFrame: degaussFrameRef.current,
         _isAnimating: isAnimating,
       };
@@ -372,7 +408,7 @@ export const FilterProvider = ({ children }) => {
       const t0 = performance.now();
       let output;
       try {
-        output = entry.filter.func(canvas, filterOpts, dispatch);
+        output = entry.filter.func(canvas, filterOpts, dispatchOverride);
       } catch (e) {
         console.error(`Filter "${entry.displayName}" threw:`, e);
         continue;
@@ -383,12 +419,12 @@ export const FilterProvider = ({ children }) => {
 
       // Update temporal buffers
       if (inputData) {
-        prevInputMapRef.current.set(entry.id, inputData);
+        temporalState.prevInputMap.set(entry.id, inputData);
 
         // Update EMA: ema = ema * (1 - alpha) + input * alpha
         // Alpha 0.1 ≈ ~10 frame averaging window
         const EMA_ALPHA = 0.1;
-        let ema = emaMapRef.current.get(entry.id);
+        let ema = temporalState.emaMap.get(entry.id);
         if (!ema || ema.length !== inputData.length) {
           ema = new Float32Array(inputData);
         } else {
@@ -397,18 +433,20 @@ export const FilterProvider = ({ children }) => {
             ema[j] = ema[j] * oneMinusAlpha + inputData[j] * EMA_ALPHA;
           }
         }
-        emaMapRef.current.set(entry.id, ema);
+        temporalState.emaMap.set(entry.id, ema);
       }
 
       if (output instanceof HTMLCanvasElement) {
         const outCtx = output.getContext("2d");
         if (outCtx) {
-          prevOutputMapRef.current.set(
+          temporalState.prevOutputMap.set(
             entry.id,
             outCtx.getImageData(0, 0, output.width, output.height).data
           );
         }
-        cachedOutputsRef.current.set(entry.id, output);
+        if (cacheOutputs) {
+          cachedOutputsRef.current.set(entry.id, output);
+        }
         canvas = output;
       }
     }
@@ -416,18 +454,32 @@ export const FilterProvider = ({ children }) => {
     return { canvas, stepTimes, totalTime };
   };
 
-  const emitOutput = (canvas, totalTime, stepTimes) => {
+  const emitOutput = (canvas, totalTime, stepTimes, frameToken, sourceTime) => {
     frameCountRef.current += 1;
     filteringRef.current = false;
-    dispatch({ type: "FILTER_IMAGE", image: canvas, frameTime: totalTime, stepTimes });
+    dispatch({ type: "FILTER_IMAGE", image: canvas, frameToken, time: sourceTime, frameTime: totalTime, stepTimes });
+    if (pendingFilterRef.current) {
+      pendingFilterRef.current = false;
+      requestAnimationFrame(() => {
+        const latestCanvas = stateRef.current.inputCanvas;
+        if (latestCanvas) {
+          filterImageAsyncRef.current?.(latestCanvas);
+        }
+      });
+    }
   };
 
   const filterImageAsync = (input) => {
     if (!input) return;
     // Drop frame if previous filter hasn't finished (prevents queue buildup during video)
-    if (filteringRef.current) return;
+    if (filteringRef.current) {
+      pendingFilterRef.current = true;
+      return;
+    }
     filteringRef.current = true;
     const curState = stateRef.current;
+    const sourceFrameToken = curState.inputFrameToken ?? 0;
+    const sourceTime = curState.time ?? 0;
     const chain = curState.chain;
     const isAnimating = animLoopRef.current != null || degaussAnimRef.current != null || (curState.video && !curState.video.paused);
 
@@ -535,17 +587,17 @@ export const FilterProvider = ({ children }) => {
 
         const workerStepTimes = [...stepTimes, ...result.stepTimes];
         const workerTotalTime = result.stepTimes.reduce((a, s) => a + s.ms, 0);
-        emitOutput(outCanvas, workerTotalTime, workerStepTimes);
+        emitOutput(outCanvas, workerTotalTime, workerStepTimes, sourceFrameToken, sourceTime);
       }).catch((err) => {
         console.error("Worker failed, falling back to main thread:", err);
         const fallback = filterOnMainThread(canvas, enabledEntries, startIdx, isAnimating, curState);
-        emitOutput(fallback.canvas, fallback.totalTime, [...stepTimes, ...fallback.stepTimes]);
+        emitOutput(fallback.canvas, fallback.totalTime, [...stepTimes, ...fallback.stepTimes], sourceFrameToken, sourceTime);
       });
     } else {
       // Main thread path — synchronous
       const result = filterOnMainThread(canvas, enabledEntries, startIdx, isAnimating, curState);
       stepTimes.push(...result.stepTimes);
-      emitOutput(result.canvas, result.totalTime, stepTimes);
+      emitOutput(result.canvas, result.totalTime, stepTimes, sourceFrameToken, sourceTime);
     }
   };
   filterImageAsyncRef.current = filterImageAsync;
@@ -733,6 +785,65 @@ export const FilterProvider = ({ children }) => {
 
   const isAnimating = () => animLoopRef.current != null;
 
+  const renderFrameForExport = (inputCanvas, {
+    sessionId,
+    time = 0,
+    video = null,
+  }: {
+    sessionId: string;
+    time?: number;
+    video?: HTMLVideoElement | null;
+  }) => {
+    if (!inputCanvas) return null;
+
+    let session = exportSessionsRef.current.get(sessionId);
+    if (!session) {
+      session = {
+        prevOutputMap: new Map(),
+        prevInputMap: new Map(),
+        emaMap: new Map(),
+        frameIndex: 0,
+      };
+      exportSessionsRef.current.set(sessionId, session);
+    }
+
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = inputCanvas.width;
+    exportCanvas.height = inputCanvas.height;
+    const exportCtx = exportCanvas.getContext("2d");
+    if (!exportCtx) return null;
+    exportCtx.drawImage(inputCanvas, 0, 0);
+
+    let canvas = exportCanvas;
+    const exportState = {
+      ...stateRef.current,
+      time,
+      video,
+    };
+
+    if (exportState.convertGrayscale) {
+      canvas = grayscale.func(canvas);
+    }
+
+    const enabledEntries = exportState.chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
+    const result = filterOnMainThread(
+      canvas,
+      enabledEntries,
+      0,
+      true,
+      exportState,
+      session,
+      () => {},
+      false,
+    );
+    session.frameIndex += 1;
+    return result.canvas;
+  };
+
+  const clearExportSession = (sessionId: string) => {
+    exportSessionsRef.current.delete(sessionId);
+  };
+
   const actions = {
     loadMediaAsync,
     loadVideoFromUrlAsync,
@@ -742,10 +853,12 @@ export const FilterProvider = ({ children }) => {
     startAnimLoop,
     stopAnimLoop,
     isAnimating,
+    renderFrameForExport,
+    clearExportSession,
     loadImage: (image, time, video) =>
     {
       resetProcessingState();
-      dispatch({ type: "LOAD_IMAGE", image, time: time || 0, video: video || null, dispatch });
+      dispatch({ type: "LOAD_IMAGE", image, time: time || 0, frameToken: stateRef.current.inputFrameToken ?? 0, video: video || null, dispatch });
     },
     selectFilter: (name, filter) => {
       stopAnimLoop();

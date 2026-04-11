@@ -11,7 +11,7 @@ import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [10, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
-  lineWidth: { type: RANGE, range: [1, 3], step: 1, default: 1, desc: "Traced line thickness" },
+  lineWidth: { type: RANGE, range: [0.1, 3], step: 0.1, default: 1, desc: "Traced line thickness" },
   lineColor: { type: COLOR, default: [0, 0, 0], desc: "Edge line color" },
   bgColor: { type: COLOR, default: [255, 255, 255], desc: "Background color" },
   palette: { type: PALETTE, default: nearest }
@@ -46,6 +46,7 @@ const edgeTrace = (
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const edgeAlpha = Math.min(1, Math.max(0.1, lineWidth));
 
   // Compute luminance and Sobel edges
   const lum = computeLuminance(buf, W, H);
@@ -94,13 +95,16 @@ const edgeTrace = (
 
   // Dilate edge map by lineWidth
   const dilated = new Uint8Array(W * H);
-  const radius = Math.floor(lineWidth / 2);
+  const radius = lineWidth > 1 ? (lineWidth - 1) / 2 : 0;
+  const ceilRadius = Math.ceil(radius);
+  const reach = radius + 0.35;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       if (edgeMap[y * W + x] === 0) continue;
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -ceilRadius; dy <= ceilRadius; dy++) {
+        for (let dx = -ceilRadius; dx <= ceilRadius; dx++) {
+          if (Math.hypot(dx, dy) > reach) continue;
           const ny = y + dy;
           const nx = x + dx;
           if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
@@ -121,7 +125,17 @@ const edgeTrace = (
       const g = isEdge ? lineColor[1] : bgColor[1];
       const b = isEdge ? lineColor[2] : bgColor[2];
 
-      const color = paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(
+          isEdge && lineWidth < 1 ? Math.round(bgColor[0] + (r - bgColor[0]) * edgeAlpha) : r,
+          isEdge && lineWidth < 1 ? Math.round(bgColor[1] + (g - bgColor[1]) * edgeAlpha) : g,
+          isEdge && lineWidth < 1 ? Math.round(bgColor[2] + (b - bgColor[2]) * edgeAlpha) : b,
+          255
+        ),
+        palette.options,
+        false
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
     }
   }

@@ -3,7 +3,7 @@ import { cloneCanvas, getBufferIndex } from "utils";
 
 export const optionTypes = {
   outlineColor: { type: COLOR, default: [0, 0, 0], desc: "Border color painted around sharp color changes" },
-  outlineWidth: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Thickness of the sprite-like outline" },
+  outlineWidth: { type: RANGE, range: [0.1, 4], step: 0.1, default: 1, desc: "Thickness of the sprite-like outline" },
   mergeThreshold: { type: RANGE, range: [0, 128], step: 1, default: 24, desc: "Neighbor color difference required before drawing an outline" }
 };
 
@@ -46,11 +46,14 @@ const pixelOutline = (input, options: any = defaults) => {
   if (outlineWidth > 1) {
     const dilated = new Uint8Array(W * H);
     const radius = outlineWidth - 1;
+    const ceilRadius = Math.ceil(radius);
+    const reach = radius + 0.35;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         let edge = 0;
-        for (let ky = -radius; ky <= radius && !edge; ky++) {
-          for (let kx = -radius; kx <= radius && !edge; kx++) {
+        for (let ky = -ceilRadius; ky <= ceilRadius && !edge; ky++) {
+          for (let kx = -ceilRadius; kx <= ceilRadius && !edge; kx++) {
+            if (Math.hypot(kx, ky) > reach) continue;
             const nx = x + kx;
             const ny = y + ky;
             if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
@@ -68,9 +71,10 @@ const pixelOutline = (input, options: any = defaults) => {
     for (let x = 0; x < W; x++) {
       if (!edgeMap[y * W + x]) continue;
       const i = getBufferIndex(x, y, W);
-      outBuf[i] = outlineColor[0];
-      outBuf[i + 1] = outlineColor[1];
-      outBuf[i + 2] = outlineColor[2];
+      const edgeAlpha = Math.min(1, Math.max(0.1, outlineWidth));
+      outBuf[i] = Math.round(buf[i] + (outlineColor[0] - buf[i]) * edgeAlpha);
+      outBuf[i + 1] = Math.round(buf[i + 1] + (outlineColor[1] - buf[i + 1]) * edgeAlpha);
+      outBuf[i + 2] = Math.round(buf[i + 2] + (outlineColor[2] - buf[i + 2]) * edgeAlpha);
       outBuf[i + 3] = 255;
     }
   }

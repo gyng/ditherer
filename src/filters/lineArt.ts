@@ -5,7 +5,7 @@ import { computeLuminance, sobelEdges } from "utils/edges";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [5, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
-  lineWidth: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Drawn line thickness" },
+  lineWidth: { type: RANGE, range: [0.1, 5], step: 0.1, default: 1, desc: "Drawn line thickness" },
   cleanupRadius: { type: RANGE, range: [0, 3], step: 1, default: 1, desc: "Remove isolated noise pixels" },
   lineColor: { type: COLOR, default: [0, 0, 0], desc: "Ink/line color" },
   bgColor: { type: COLOR, default: [255, 255, 255], desc: "Background paper color" },
@@ -37,8 +37,9 @@ const lineArt = (input, options: any = defaults) => {
   // Sobel edge detection
   const { magnitude } = sobelEdges(lum, W, H);
   const edges = new Uint8Array(W * H);
+  const effectiveThreshold = lineWidth < 1 ? threshold / Math.max(0.1, lineWidth) : threshold;
   for (let i = 0; i < magnitude.length; i++) {
-    edges[i] = magnitude[i] > threshold ? 1 : 0;
+    edges[i] = magnitude[i] > effectiveThreshold ? 1 : 0;
   }
 
   // Dilate edges for line width
@@ -46,11 +47,14 @@ const lineArt = (input, options: any = defaults) => {
   if (lineWidth > 1) {
     finalEdges = new Uint8Array(W * H);
     const r = lineWidth - 1;
+    const ceilR = Math.ceil(r);
+    const reach = r + 0.35;
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         let found = false;
-        for (let ky = -r; ky <= r && !found; ky++)
-          for (let kx = -r; kx <= r && !found; kx++) {
+        for (let ky = -ceilR; ky <= ceilR && !found; ky++)
+          for (let kx = -ceilR; kx <= ceilR && !found; kx++) {
+            if (Math.hypot(kx, ky) > reach) continue;
             const ny = Math.max(0, Math.min(H - 1, y + ky));
             const nx = Math.max(0, Math.min(W - 1, x + kx));
             if (edges[ny * W + nx]) found = true;

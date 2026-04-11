@@ -1,6 +1,8 @@
 .dialog {
   min-width: 320px;
+  width: min(460px, calc(100vw - 24px));
   max-width: 90vw;
+  box-sizing: border-box;
 }
 
 .titleBar {
@@ -63,14 +65,29 @@
   border-top: 2px solid #ffffff;
   padding: 12px;
   margin: 0 8px 8px;
+  min-width: 0;
+}
+
+.videoTab {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 8px;
+  align-items: start;
 }
 
 /* Rows */
 .row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 8px;
+  min-width: 0;
+}
+
+.videoTab .row {
+  display: contents;
 }
 
 .rowLabel {
@@ -79,8 +96,20 @@
   flex-shrink: 0;
 }
 
+.videoTab .rowLabel {
+  min-width: 0;
+  grid-column: 1;
+  align-self: center;
+}
+
 .row select {
   flex: 1;
+  min-width: 0;
+}
+
+.videoTab .row > :not(.rowLabel) {
+  grid-column: 2;
+  min-width: 0;
 }
 
 /* Radio group */
@@ -119,6 +148,8 @@
   display: flex;
   gap: 6px;
   margin-top: 12px;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
 }
 
 .btn {
@@ -153,6 +184,7 @@
   border: 2px inset #ccc;
   display: block;
   margin-top: 8px;
+  grid-column: 1 / -1;
 }
 
 /* Recording indicator */
@@ -166,6 +198,7 @@
   animation: blink 1.5s steps(5, start) infinite;
   font-size: 12px;
   margin-top: 4px;
+  grid-column: 1 / -1;
 }
 
 /* Progress & status */
@@ -173,6 +206,88 @@
   font-size: 11px;
   color: #555;
   margin-top: 4px;
+  grid-column: 1 / -1;
+}
+
+.progressBar {
+  position: relative;
+  height: 18px;
+  background: #fff;
+  border-left: 2px inset #ccc;
+  border-top: 2px inset #ccc;
+  border-right: 2px inset #fff;
+  border-bottom: 2px inset #fff;
+  overflow: hidden;
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+.progressBarFill {
+  height: 100%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--beautiful-blue, #000080) 0 10px,
+      #1c85ce 10px 20px
+    );
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fpsControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  min-width: 0;
+}
+
+.inlineSliderGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.inlineSliderLabel {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.inlineSliderRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+  flex: 1;
+}
+
+.slider {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.sliderValue {
+  min-width: 24px;
+  text-align: right;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.inlineInfo {
+  font-size: 10px;
+  color: #888;
+  cursor: help;
+  margin-left: 4px;
+  text-transform: none;
 }
 
 .warning {
@@ -201,6 +316,32 @@
   line-height: 1.3;
   margin-top: 4px;
   margin-bottom: 8px;
+  max-width: 42ch;
+  overflow-wrap: anywhere;
+  grid-column: 2;
+}
+
+.palettePreview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: -2px;
+  margin-bottom: 8px;
+  grid-column: 2;
+}
+
+.paletteSwatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #666;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.paletteMore {
+  font-size: 11px;
+  color: #555;
+  margin-left: 4px;
 }
 
 .sourceTimecode {
@@ -219,6 +360,7 @@
   border-bottom: 2px inset #fff;
   margin-top: 4px;
   overflow: hidden;
+  grid-column: 1 / -1;
 }
 
 .seekbarFill {

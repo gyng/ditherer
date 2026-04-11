@@ -28,6 +28,7 @@ import { SCALING_ALGORITHM } from "constants/optionTypes";
 import { floydSteinberg } from "filters/errorDiffusing";
 import { filterIndex } from "filters";
 import { paletteList } from "palettes";
+import { createPalette, THEMES } from "palettes/user";
 
 // A filter object must have a func. This prevents accidentally passing
 // the filterList wrapper ({ displayName, filter, category }) instead of
@@ -63,7 +64,13 @@ const deriveSelected = (chain: ChainEntry[], activeIndex: number) => ({
   filter: chain[activeIndex].filter,
 });
 
-const defaultEntry = makeChainEntry("Floyd-Steinberg", floydSteinberg);
+const defaultEntry = makeChainEntry("Floyd-Steinberg", {
+  ...floydSteinberg,
+  options: {
+    ...floydSteinberg.options,
+    palette: createPalette(THEMES.CGA_NTSC),
+  },
+});
 
 export const initialState = {
   chain: [defaultEntry] as ChainEntry[],
@@ -78,6 +85,9 @@ export const initialState = {
   outputImage: null,
   realtimeFiltering: true,
   time: null,
+  inputFrameToken: 0,
+  outputFrameToken: 0,
+  outputTime: null,
   video: null,
   videoVolume: localStorage.getItem("ditherer-mute") === "1" ? 0 : 1,
   videoPlaybackRate: 1,
@@ -334,7 +344,10 @@ export default (state = initialState, action) => {
     case SET_INPUT_CANVAS:
       return { ...state, inputCanvas: action.canvas };
     case SET_INPUT_VOLUME:
-      if (state.video) state.video.volume = action.volume;
+      if (state.video) {
+        state.video.volume = action.volume;
+        state.video.muted = action.volume === 0;
+      }
       return { ...state, videoVolume: action.volume };
     case SET_INPUT_PLAYBACK_RATE:
       if (state.video) state.video.playbackRate = action.rate;
@@ -360,6 +373,7 @@ export default (state = initialState, action) => {
         ...state,
         inputImage: action.image,
         time: action.time || 0,
+        inputFrameToken: action.frameToken ?? state.inputFrameToken,
         video: action.video || null,
         realtimeFiltering: state.realtimeFiltering
       };
@@ -380,6 +394,8 @@ export default (state = initialState, action) => {
       return {
         ...state,
         outputImage: action.image,
+        outputFrameToken: action.frameToken ?? state.outputFrameToken,
+        outputTime: action.time ?? state.outputTime,
         frameTime: action.frameTime ?? state.frameTime,
         stepTimes: action.stepTimes ?? state.stepTimes,
       };

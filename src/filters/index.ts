@@ -138,6 +138,8 @@ import crosshatch from "./crosshatch";
 import scanLineShift from "./scanLineShift";
 import sharpen from "./sharpen";
 import emboss from "./emboss";
+import cameraShake from "./cameraShake";
+import rhythmicWobble from "./rhythmicWobble";
 import sepia from "./sepia";
 import oilPainting from "./oilPainting";
 import stainedGlass from "./stainedGlass";
@@ -256,6 +258,8 @@ export { default as gameboyCamera } from "./gameboyCamera";
 export { default as teletext } from "./teletext";
 export { default as datamosh } from "./datamosh";
 export { default as zigzag } from "./zigzag";
+export { default as cameraShake } from "./cameraShake";
+export { default as rhythmicWobble } from "./rhythmicWobble";
 export { default as scanlineWarp } from "./scanlineWarp";
 export { default as posterizeDither } from "./posterizeDither";
 export { default as edgeTrace } from "./edgeTrace";
@@ -326,6 +330,8 @@ export const filterIndex = [
   halftone,
   invert,
   jitter,
+  cameraShake,
+  rhythmicWobble,
   ordered,
   quantize,
   scanline,
@@ -808,6 +814,8 @@ export const filterList = [
     filter: { ...displace, options: { ...displace.options, warpSource: "BLURRED" } }
   },
   { displayName: "Flip", filter: flip, category: "Distort", description: "Flip the image horizontally, vertically, or both" },
+  { displayName: "Camera Shake", filter: cameraShake, category: "Distort", description: "Handheld whole-frame wobble — translation, rotation, and slight zoom breathing over time" },
+  { displayName: "Rhythmic Wobble", filter: rhythmicWobble, category: "Distort", description: "Periodic whole-frame wobble with smooth sinusoidal drift and zoom breathing" },
   { displayName: "Lens distortion", filter: lensDistortion, category: "Distort", description: "Apply barrel distortion like a wide-angle lens" },
   {
     displayName: "Lens distortion (pincushion)",

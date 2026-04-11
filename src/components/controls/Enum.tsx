@@ -12,10 +12,12 @@ const Enum = (props) => {
 
   return (
     <div>
-      <div className={s.label}>
-        {label}
-        {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
-      </div>
+      {!props.hideLabel && (
+        <div className={s.label}>
+          {label}
+          {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
+        </div>
+      )}
 
       <select
         className={s.enum}

@@ -7,7 +7,7 @@ export const optionTypes = {
   levels: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Number of flat color bands used for cel shading" },
   edgeThreshold: { type: RANGE, range: [0, 100], step: 1, default: 28, desc: "Edge sensitivity for the ink outline" },
   lineColor: { type: COLOR, default: [24, 18, 18], desc: "Outline color used for the cartoon ink pass" },
-  lineWidth: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Thickness of the outline" },
+  lineWidth: { type: RANGE, range: [0.1, 4], step: 0.1, default: 1, desc: "Thickness of the outline" },
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -33,14 +33,18 @@ const toon = (input, options: any = defaults) => {
   const lum = computeLuminance(buf, W, H);
   const { magnitude } = sobelEdges(lum, W, H);
   const edgeMap = lineWidth > 1 ? new Float32Array(W * H) : magnitude;
+  const edgeAlpha = Math.min(1, Math.max(0.1, lineWidth));
 
   if (lineWidth > 1) {
     const radius = lineWidth - 1;
+    const ceilRadius = Math.ceil(radius);
+    const reach = radius + 0.35;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         let maxVal = 0;
-        for (let ky = -radius; ky <= radius; ky++) {
-          for (let kx = -radius; kx <= radius; kx++) {
+        for (let ky = -ceilRadius; ky <= ceilRadius; ky++) {
+          for (let kx = -ceilRadius; kx <= ceilRadius; kx++) {
+            if (Math.hypot(kx, ky) > reach) continue;
             const nx = Math.max(0, Math.min(W - 1, x + kx));
             const ny = Math.max(0, Math.min(H - 1, y + ky));
             maxVal = Math.max(maxVal, magnitude[ny * W + nx]);
@@ -59,7 +63,24 @@ const toon = (input, options: any = defaults) => {
 
       if (edgeMap[y * W + x] > edgeThreshold) {
         const edgeColor = srgbPaletteGetColor(palette, rgba(lineColor[0], lineColor[1], lineColor[2], 255), palette.options);
-        fillBufferPixel(outBuf, i, edgeColor[0], edgeColor[1], edgeColor[2], 255);
+        if (lineWidth < 1) {
+          const baseR = Math.round(Math.round(buf[i] / step) * step);
+          const baseG = Math.round(Math.round(buf[i + 1] / step) * step);
+          const baseB = Math.round(Math.round(buf[i + 2] / step) * step);
+          const color = srgbPaletteGetColor(
+            palette,
+            rgba(
+              Math.round(baseR + (edgeColor[0] - baseR) * edgeAlpha),
+              Math.round(baseG + (edgeColor[1] - baseG) * edgeAlpha),
+              Math.round(baseB + (edgeColor[2] - baseB) * edgeAlpha),
+              255
+            ),
+            palette.options
+          );
+          fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+        } else {
+          fillBufferPixel(outBuf, i, edgeColor[0], edgeColor[1], edgeColor[2], 255);
+        }
         continue;
       }
 

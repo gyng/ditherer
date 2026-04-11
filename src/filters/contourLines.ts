@@ -6,7 +6,7 @@ const FILL_MODE = { LINES: "LINES", FILLED: "FILLED", BOTH: "BOTH" };
 
 export const optionTypes = {
   levels: { type: RANGE, range: [3, 30], step: 1, default: 10, desc: "Number of contour levels" },
-  lineWidth: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Contour line thickness in pixels" },
+  lineWidth: { type: RANGE, range: [0.1, 4], step: 0.1, default: 1, desc: "Contour line thickness in pixels" },
   lineColor: { type: COLOR, default: [0, 0, 0], desc: "Contour line color" },
   fillMode: { type: ENUM, options: [
     { name: "Lines only", value: FILL_MODE.LINES },
@@ -34,6 +34,10 @@ const contourLines = (input, options: any = defaults) => {
   const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const edgeAlpha = Math.min(1, Math.max(0.1, lineWidth));
+  const radius = Math.max(1, lineWidth);
+  const ceilRadius = Math.ceil(radius);
+  const reach = radius + 0.35;
 
   // Compute luminance and band assignment
   const bands = new Uint8Array(W * H);
@@ -50,9 +54,10 @@ const contourLines = (input, options: any = defaults) => {
     for (let x = 0; x < W; x++) {
       const b = bands[y * W + x];
       let edge = false;
-      for (let ky = -lineWidth; ky <= lineWidth && !edge; ky++)
-        for (let kx = -lineWidth; kx <= lineWidth && !edge; kx++) {
+      for (let ky = -ceilRadius; ky <= ceilRadius && !edge; ky++)
+        for (let kx = -ceilRadius; kx <= ceilRadius && !edge; kx++) {
           if (kx === 0 && ky === 0) continue;
+          if (Math.hypot(kx, ky) > reach) continue;
           const ny = Math.max(0, Math.min(H - 1, y + ky));
           const nx = Math.max(0, Math.min(W - 1, x + kx));
           if (bands[ny * W + nx] !== b) edge = true;
@@ -67,7 +72,20 @@ const contourLines = (input, options: any = defaults) => {
       const edge = isEdge[y * W + x];
 
       if (edge && fillMode !== FILL_MODE.FILLED) {
-        const color = paletteGetColor(palette, rgba(lineColor[0], lineColor[1], lineColor[2], 255), palette.options, false);
+        const baseR = fillMode === FILL_MODE.LINES ? 255 : Math.round(buf[i] * ((bands[y * W + x] + 0.5) / levels) + buf[i] * (1 - ((bands[y * W + x] + 0.5) / levels)) * 0.3);
+        const baseG = fillMode === FILL_MODE.LINES ? 255 : Math.round(buf[i + 1] * ((bands[y * W + x] + 0.5) / levels) + buf[i + 1] * (1 - ((bands[y * W + x] + 0.5) / levels)) * 0.3);
+        const baseB = fillMode === FILL_MODE.LINES ? 255 : Math.round(buf[i + 2] * ((bands[y * W + x] + 0.5) / levels) + buf[i + 2] * (1 - ((bands[y * W + x] + 0.5) / levels)) * 0.3);
+        const color = paletteGetColor(
+          palette,
+          rgba(
+            Math.round(baseR + (lineColor[0] - baseR) * edgeAlpha),
+            Math.round(baseG + (lineColor[1] - baseG) * edgeAlpha),
+            Math.round(baseB + (lineColor[2] - baseB) * edgeAlpha),
+            255
+          ),
+          palette.options,
+          false
+        );
         fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
       } else if (fillMode !== FILL_MODE.LINES) {
         // Fill with quantized band color
