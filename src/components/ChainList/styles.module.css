@@ -201,6 +201,35 @@
   padding: 3px 8px;
 }
 
+.randomAction {
+  background:
+    linear-gradient(180deg, rgba(255, 251, 214, 0.95), rgba(233, 214, 145, 0.95)),
+    var(--light-gray);
+  border-left: 2px outset #fff7d1;
+  border-top: 2px outset #fff7d1;
+  border-bottom: 1px outset #8d7645;
+  border-right: 1px outset #8d7645;
+  box-shadow: 1px 1px 0 #5d4f2d;
+  color: #443311;
+}
+
+.randomAction:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 254, 230, 1), rgba(241, 223, 159, 1)),
+    var(--light-gray);
+}
+
+.randomAction:active {
+  background:
+    linear-gradient(180deg, rgba(214, 192, 120, 0.98), rgba(244, 229, 174, 0.98)),
+    var(--light-gray);
+  border-left: 2px inset #8d7645;
+  border-top: 2px inset #8d7645;
+  border-bottom: 1px inset #fff7d1;
+  border-right: 1px inset #fff7d1;
+  box-shadow: none;
+}
+
 .presetSelect {
   flex: 0 0 auto !important;
   font-weight: bold;

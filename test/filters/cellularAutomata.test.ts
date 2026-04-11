@@ -8,7 +8,7 @@ vi.mock("utils", async importOriginal => {
   };
 });
 
-import cellularAutomata from "filters/cellularAutomata";
+import cellularAutomata, { __testing } from "filters/cellularAutomata";
 
 const binaryPalette = {
   name: "Binary",
@@ -71,6 +71,10 @@ const runAndCapture = (input, options): Uint8ClampedArray | null => {
 };
 
 describe("Cellular automata", () => {
+  it("defaults fresh injection to disabled", () => {
+    expect(cellularAutomata.defaults.freshInjectionEvery).toBe(0);
+  });
+
   it("persists automaton state across frames instead of re-seeding from the source each time", () => {
     const blinker = makeCanvasFromAliveMap([
       [0, 1, 0],
@@ -110,5 +114,24 @@ describe("Cellular automata", () => {
     const restarted = runAndCapture(singleSeed, { ...options, _frameIndex: 0 });
 
     expect(restarted).toEqual(frame0);
+  });
+
+  it("can inject fresh live cells from the source image into the running grid", () => {
+    const width = 3;
+    const height = 3;
+    const source = new Uint8ClampedArray([
+      0, 0, 0, 255,   255, 255, 255, 255,   0, 0, 0, 255,
+      0, 0, 0, 255,   0, 0, 0, 255,         0, 0, 0, 255,
+      0, 0, 0, 255,   0, 0, 0, 255,         0, 0, 0, 255,
+    ]);
+    const grid = new Uint8Array(width * height);
+
+    __testing.injectSourceState(source, width, height, 128, grid);
+
+    expect(Array.from(grid)).toEqual([
+      0, 1, 0,
+      0, 0, 0,
+      0, 0, 0,
+    ]);
   });
 });

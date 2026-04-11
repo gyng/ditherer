@@ -414,14 +414,14 @@ const ChainList = () => {
             ))}
           </select>
           <button
-            className={s.addBtn}
+            className={[s.addBtn, s.randomAction].join(" ")}
             onClick={loadRandomPreset}
             title="Random curated preset"
           >
             &#9733;?
           </button>
           <button
-            className={s.addBtn}
+            className={[s.addBtn, s.randomAction].join(" ")}
             onClick={randomChain}
             title="Random filter chain"
           >

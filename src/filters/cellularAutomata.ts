@@ -9,6 +9,7 @@ let stateWidth = 0;
 let stateHeight = 0;
 let stateRule = "";
 let stateThreshold = -1;
+let stateFreshInjectionEvery = -1;
 let lastFrameIndex = -Infinity;
 
 export const optionTypes = {
@@ -19,6 +20,7 @@ export const optionTypes = {
   ], default: RULE.CONWAY, desc: "Cellular automaton ruleset" },
   steps: { type: RANGE, range: [1, 50], step: 1, default: 5, desc: "Simulation steps per frame" },
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance cutoff for initial alive/dead state" },
+  freshInjectionEvery: { type: RANGE, range: [0, 120], step: 1, default: 0, desc: "Inject fresh live cells from the source image every N frames; 0 disables periodic injection" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
@@ -30,17 +32,26 @@ export const defaults = {
   rule: optionTypes.rule.default,
   steps: optionTypes.steps.default,
   threshold: optionTypes.threshold.default,
+  freshInjectionEvery: optionTypes.freshInjectionEvery.default,
   animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
-const shouldResetState = (width: number, height: number, rule: string, threshold: number, frameIndex: number) =>
+const shouldResetState = (
+  width: number,
+  height: number,
+  rule: string,
+  threshold: number,
+  freshInjectionEvery: number,
+  frameIndex: number
+) =>
   !stateGrid
   || !scratchGrid
   || width !== stateWidth
   || height !== stateHeight
   || rule !== stateRule
   || threshold !== stateThreshold
+  || freshInjectionEvery !== stateFreshInjectionEvery
   || frameIndex <= lastFrameIndex;
 
 const initializeState = (buf: Uint8ClampedArray, width: number, height: number, threshold: number) => {
@@ -59,8 +70,20 @@ const initializeState = (buf: Uint8ClampedArray, width: number, height: number, 
   }
 };
 
+const injectSourceState = (buf: Uint8ClampedArray, width: number, height: number, threshold: number, grid: Uint8Array) => {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = getBufferIndex(x, y, width);
+      const lum = 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
+      if (lum > threshold) {
+        grid[y * width + x] = 1;
+      }
+    }
+  }
+};
+
 const cellularAutomata = (input, options: any = defaults) => {
-  const { rule, steps, threshold, palette } = options;
+  const { rule, steps, threshold, freshInjectionEvery, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -69,9 +92,12 @@ const cellularAutomata = (input, options: any = defaults) => {
 
   const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
-  if (shouldResetState(W, H, rule, threshold, frameIndex)) {
+  if (shouldResetState(W, H, rule, threshold, freshInjectionEvery, frameIndex)) {
     initializeState(buf, W, H, threshold);
     stateRule = rule;
+    stateFreshInjectionEvery = freshInjectionEvery;
+  } else if (freshInjectionEvery > 0 && frameIndex > 0 && frameIndex % freshInjectionEvery === 0) {
+    injectSourceState(buf, W, H, threshold, stateGrid!);
   }
 
   // Birth/survival rules
@@ -111,6 +137,7 @@ const cellularAutomata = (input, options: any = defaults) => {
   stateGrid = grid;
   scratchGrid = next;
   stateRule = rule;
+  stateFreshInjectionEvery = freshInjectionEvery;
   lastFrameIndex = frameIndex;
 
   // Render: alive cells use original color, dead cells are dark
@@ -129,6 +156,10 @@ const cellularAutomata = (input, options: any = defaults) => {
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
+};
+
+export const __testing = {
+  injectSourceState,
 };
 
 export default { name: "Cellular Automata", func: cellularAutomata, optionTypes, options: defaults, defaults, mainThread: true };
