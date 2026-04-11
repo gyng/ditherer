@@ -29,7 +29,7 @@
   display: flex;
   flex-direction: column;
   background: var(--light-gray);
-  min-width: 310px;
+  min-width: 320px;
   width: 10vw;
   padding: 15px;
 }
@@ -76,6 +76,66 @@
 
 .filterBar {
   margin-top: 10px;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.filePickerToolbar {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.filePickerButton {
+  font-weight: bold;
+  padding: 3px 8px;
+}
+
+.testMediaPicker {
+  margin-top: 8px;
+  padding-bottom: 3px;
+}
+
+.testMediaToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: 3px;
+  align-items: center;
+  margin-top: -6px;
+}
+
+.testMediaSelect {
+  min-width: 0;
+  flex: 0 0 auto !important;
+  font-weight: bold;
+  min-height: unset;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  text-align: center;
+  background-color: var(--light-gray);
+  border-left: 2px outset var(--button-highlight);
+  border-top: 2px outset var(--button-highlight);
+  border-bottom: 1px outset var(--button-shadow);
+  border-right: 1px outset var(--button-shadow);
+  box-shadow: 1px 1px 0 var(--button-dk-shadow);
+  color: var(--button-text);
+  padding: 3px 8px;
+  margin: 1px;
+  font: inherit;
+  min-width: 0;
+}
+
+.testMediaButton {
+  margin: 1px;
+  white-space: nowrap;
+  font-weight: bold;
+  min-height: unset;
+  padding: 3px 8px;
+  font: inherit;
+  width: 27px;
 }
 
 /* Win95-style menu bar below title bar */

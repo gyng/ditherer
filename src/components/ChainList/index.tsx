@@ -238,6 +238,13 @@ const ChainList = () => {
     }
   };
 
+  const loadRandomPreset = () => {
+    if (CHAIN_PRESETS.length === 0) return;
+    const preset = CHAIN_PRESETS[Math.floor(Math.random() * CHAIN_PRESETS.length)];
+    loadPreset(preset);
+    setLoadedSavedName(null);
+  };
+
   const openPresetBrowserForFilter = useCallback((filterDisplayName: string) => {
     setLibraryInitialTab("presets");
     setLibraryInitialQuery(filterDisplayName);
@@ -331,6 +338,13 @@ const ChainList = () => {
             </optgroup>
           ))}
         </select>
+        <button
+          className={s.addBtn}
+          onClick={loadRandomPreset}
+          title="Random curated preset"
+        >
+          &#9733;?
+        </button>
         <button
           className={s.addBtn}
           onClick={randomChain}

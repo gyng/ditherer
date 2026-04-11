@@ -47,6 +47,12 @@ These are the main clusters worth auditing first:
 
 Not all of these are duplicates, but they are the highest-value places to trim overlap and sharpen naming.
 
+## Status
+
+Completed.
+
+The preset data is now normalized to object entries, signature-based matching is in place, and regression coverage exists to guard against duplicate built-in preset signatures. The remaining work described below should be treated as historical implementation intent plus future refinement notes for additional curation passes.
+
 ## Goals
 
 - remove exact duplicate presets
@@ -184,6 +190,14 @@ At minimum, the duplicate guard should fail if two presets produce the same cano
 5. prune near-duplicates and rename survivors
 6. run `npm run lint`, `npm run typecheck`, and targeted Vitest coverage
 
+## Outcome
+
+- preset definitions use a normalized object shape
+- canonical signatures distinguish presets by filter order and option payloads
+- built-in preset matching is option-aware rather than display-name-only
+- automated tests cover canonical signature behavior and duplicate-signature protection
+- exact duplicate preset signatures are currently absent in the built-in library
+
 ## Success Criteria
 
 - built-in preset descriptions are matched by names plus options, not names alone
@@ -191,3 +205,8 @@ At minimum, the duplicate guard should fail if two presets produce the same cano
 - the preset list is shorter and easier to scan
 - each remaining preset has a distinct user-facing visual story
 - automated tests prevent duplicate signatures from being introduced again
+
+## Notes
+
+- `npm run report:presets` is now the preferred way to identify future near-duplicate cleanup candidates.
+- Any additional trimming should focus on high-similarity families rather than infrastructure changes, since the signature and test foundation is already in place.

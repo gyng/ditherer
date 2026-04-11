@@ -83,4 +83,4 @@ const temporalColorCycle = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Temporal Color Cycle", func: temporalColorCycle, optionTypes, options: defaults, defaults, mainThread: true, description: "Hue rotates over time — moving areas cycle faster creating rainbow trails" };
+export default { name: "Color Cycle", func: temporalColorCycle, optionTypes, options: defaults, defaults, mainThread: true, description: "Hue rotates over time — moving areas cycle faster creating rainbow trails" };

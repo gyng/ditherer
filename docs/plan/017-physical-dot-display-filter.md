@@ -111,7 +111,23 @@ Manual QA:
 4. Build and tests pass (`npm run build`, `npm run test` for relevant suites).
 
 ## Current Status
-- `Phase 1` has started:
-  - filter module added,
-  - registry wiring added,
-  - test coverage in progress.
+
+Completed.
+
+- filter module landed in `src/filters/flipDotDisplay.ts`
+- registry wiring landed in `src/filters/index.ts`
+- test coverage landed in `test/filters/flipDotDisplay.test.ts`
+- the filter is discoverable in the picker and configurable through generated controls
+
+## Outcome
+
+`Flip-Dot Display` now ships as a temporal stylization filter that emulates electromechanical signage with:
+
+- coarse cell-based luminance sampling
+- hysteresis-driven on/off state decisions
+- capped per-frame flip throughput
+- deterministic per-dot jitter and stuck-dot behavior
+- mechanical response delay across frames
+- board/gap rendering with shaded dot faces
+
+This plan can now be treated as an implemented record. Future work should be considered follow-up polish rather than baseline delivery.

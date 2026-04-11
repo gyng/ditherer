@@ -78,6 +78,8 @@ const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
 const DEFAULT_TEST_IMAGE_ASSET = testAssetUrl("image", "pepper.png");
 const DEFAULT_TEST_VIDEO_ASSET = testAssetUrl("video", "akiyo.mp4");
 const basename = (path: string) => path.split("/").pop() || path;
+const TEST_IMAGE_OPTIONS = TEST_IMAGE_ASSETS.map((src) => ({ value: src, label: basename(src) }));
+const TEST_VIDEO_OPTIONS = TEST_VIDEO_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 
 const App = () => {
   const { state, actions, filterList } = useFilter();
@@ -90,8 +92,12 @@ const App = () => {
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
   const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
   const [inputFilename, setInputFilename] = useState<string | null>(null);
+  const [selectedTestImage, setSelectedTestImage] = useState(DEFAULT_TEST_IMAGE_ASSET);
+  const [selectedTestVideo, setSelectedTestVideo] = useState(DEFAULT_TEST_VIDEO_ASSET);
   const playPauseTimerRef = useRef<number | null>(null);
   const chromeRef = useRef<HTMLDivElement | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const flashPlayPause = (kind: "play" | "pause") => {
     setPlayPauseIndicator(kind);
@@ -262,12 +268,10 @@ const App = () => {
     );
   }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
-  const loadRandomTestImage = useCallback(() => {
-    const src = hasLoadedTestImageRef.current
-      ? pickRandomDifferent(TEST_IMAGE_ASSETS, lastTestImageAssetRef.current)
-      : DEFAULT_TEST_IMAGE_ASSET;
+  const loadTestImageFromSrc = useCallback((src: string) => {
     hasLoadedTestImageRef.current = true;
     lastTestImageAssetRef.current = src;
+    setSelectedTestImage(src);
     setInputFilename(basename(src));
     void withInputLoading("LOADING IMAGE", async () => {
       const perfStart = performance.now();
@@ -285,18 +289,23 @@ const App = () => {
     });
   }, [actions, loadImageAsset, prefetchRandomImage, withInputLoading]);
 
+  const loadRandomTestImage = useCallback(() => {
+    const src = hasLoadedTestImageRef.current
+      ? pickRandomDifferent(TEST_IMAGE_ASSETS, lastTestImageAssetRef.current)
+      : DEFAULT_TEST_IMAGE_ASSET;
+    loadTestImageFromSrc(src);
+  }, [loadTestImageFromSrc]);
+
   useEffect(() => {
     void loadImageAsset(DEFAULT_TEST_IMAGE_ASSET).then(() => {
       prefetchRandomImage(DEFAULT_TEST_IMAGE_ASSET);
     }).catch(() => {});
   }, [loadImageAsset, prefetchRandomImage]);
 
-  const loadRandomTestVideo = useCallback(() => {
-    const src = hasLoadedTestVideoRef.current
-      ? pickRandomDifferent(TEST_VIDEO_ASSETS, lastTestVideoAssetRef.current)
-      : DEFAULT_TEST_VIDEO_ASSET;
+  const loadTestVideoFromSrc = useCallback((src: string) => {
     hasLoadedTestVideoRef.current = true;
     lastTestVideoAssetRef.current = src;
+    setSelectedTestVideo(src);
     setInputFilename(basename(src));
     void withInputLoading("LOADING VIDEO", async () => {
       const perfStart = performance.now();
@@ -309,6 +318,13 @@ const App = () => {
       logPerf("loadVideoFromUrlAsync-resolved");
     });
   }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+
+  const loadRandomTestVideo = useCallback(() => {
+    const src = hasLoadedTestVideoRef.current
+      ? pickRandomDifferent(TEST_VIDEO_ASSETS, lastTestVideoAssetRef.current)
+      : DEFAULT_TEST_VIDEO_ASSET;
+    loadTestVideoFromSrc(src);
+  }, [loadTestVideoFromSrc]);
 
   const fitInputToWindow = useCallback(() => {
     if (!state.inputImage) return;
@@ -401,30 +417,94 @@ const App = () => {
         <div>
           <h2>Input</h2>
           <input
-            className={[controls.file, dropping ? controls.dropping : null].join(" ")}
+            ref={imageFileInputRef}
+            className={s.hiddenFileInput}
             type="file"
-            accept="image/*,video/*"
-            id="imageLoader"
-            name="imageLoader"
+            accept="image/*"
+            tabIndex={-1}
             onChange={e => {
               loadUserFile(e.target.files?.[0] || null);
               e.target.value = "";
             }}
+          />
+          <input
+            ref={videoFileInputRef}
+            className={s.hiddenFileInput}
+            type="file"
+            accept="video/*"
+            tabIndex={-1}
+            onChange={e => {
+              loadUserFile(e.target.files?.[0] || null);
+              e.target.value = "";
+            }}
+          />
+          <div
+            className={[s.filePickerToolbar, dropping ? controls.dropping : null].join(" ")}
             onDragLeave={() => setDropping(false)}
             onDragOver={() => setDropping(true)}
             onDragEnter={() => setDropping(true)}
             onDrop={() => setDropping(false)}
-          />
-          <button
-            onClick={loadRandomTestImage}
           >
-            Random image
-          </button>
-          <button
-            onClick={loadRandomTestVideo}
-          >
-            Random video
-          </button>
+            <button
+              className={s.filePickerButton}
+              onClick={() => imageFileInputRef.current?.click()}
+              title="Load an image file"
+            >
+              Image...
+            </button>
+            <button
+              className={s.filePickerButton}
+              onClick={() => videoFileInputRef.current?.click()}
+              title="Load a video file"
+            >
+              Video...
+            </button>
+          </div>
+          <div className={[controls.group, s.testMediaPicker].join(" ")}>
+            <span className={controls.name}>Test</span>
+            <div className={s.testMediaToolbar}>
+              <select
+                id="test-image-select"
+                className={s.testMediaSelect}
+                value={selectedTestImage}
+                onChange={(e) => loadTestImageFromSrc(e.target.value)}
+                title="Load a test image"
+              >
+                {TEST_IMAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={s.testMediaButton}
+                onClick={loadRandomTestImage}
+                title="Load a random test image"
+              >
+                ?
+              </button>
+              <select
+                id="test-video-select"
+                className={s.testMediaSelect}
+                value={selectedTestVideo}
+                onChange={(e) => loadTestVideoFromSrc(e.target.value)}
+                title="Load a test video"
+              >
+                {TEST_VIDEO_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={s.testMediaButton}
+                onClick={loadRandomTestVideo}
+                title="Load a random test video"
+              >
+                ?
+              </button>
+            </div>
+          </div>
           {state.video && state.inputImage && (
             <button
               onClick={fitInputToWindow}

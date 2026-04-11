@@ -48,7 +48,7 @@ const runAndCapture = (filterFn, input, options): Uint8ClampedArray | null => {
   return captured;
 };
 
-describe("Temporal Exposure", () => {
+describe("Long Exposure", () => {
   it("blend mode mixes current and previous output", () => {
     const input = makeFakeCanvas(1, 1, new Uint8ClampedArray([200, 100, 50, 255]));
     const data = runAndCapture(temporalExposure.func, input, {

@@ -102,7 +102,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "PICO-8 Demake", desc: "Chunky pixels quantized to the PICO-8 16-color palette", filters: [f("Pixelate"), f("Ordered (PICO-8)"), f("Sharpen")], category: "Dithering" },
   { name: "Vaporwave Dither", desc: "Pastel error-diffused dithering with dreamy bloom and color fringe", filters: [f("Floyd-Steinberg (Vaporwave test)"), f("Bloom"), f("Chromatic aberration")], category: "Dithering" },
 
-  { name: "Acid Trip", desc: "Temporal color cycling through solarized bloom", filters: [f("Temporal color cycle"), f("Solarize"), f("Bloom")], category: "Color" },
+  { name: "Acid Trip", desc: "Temporal color cycling through solarized bloom", filters: [f("Color Cycle"), f("Solarize"), f("Bloom")], category: "Color" },
   { name: "Cutout", desc: "Luminance-based matte cutout with clean graphic separation", filters: [f("Luma Matte"), f("Duotone")], category: "Color" },
   { name: "Duotone Poster", desc: "Two-tone flat poster with bold tonal contrast", filters: [f("Grayscale"), f("Duotone"), f("Posterize"), f("Sharpen")], category: "Color" },
   { name: "Empty Room", desc: "Static structures remain while moving people gradually disappear", filters: [f("Scene Separation", { mode: "BACKGROUND", learnRate: 0.02 })], category: "Color" },
@@ -111,7 +111,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Hue Bands", desc: "Map broad hue families into a deliberate palette while keeping image structure intact", filters: [f("Palette Mapper by Hue Bands"), f("Sharpen")], category: "Color" },
   { name: "Infrared Film", desc: "False-color IR — white foliage, dark skies, pink cast", filters: [f("Infrared photography"), f("Color balance"), f("Film grain")], category: "Color" },
   { name: "Photo Pro", desc: "Gentle tonal shaping and sharpening for a polished photographic finish", filters: [f("Levels"), f("Curves"), f("Sharpen")], category: "Color" },
-  { name: "Psychedelic", desc: "Motion-reactive rainbow cycling with bloom and color split", filters: [f("Temporal color cycle"), f("Bloom"), f("Chromatic aberration")], category: "Color" },
+  { name: "Psychedelic", desc: "Motion-reactive rainbow cycling with bloom and color split", filters: [f("Color Cycle"), f("Bloom"), f("Chromatic aberration")], category: "Color" },
   { name: "Red Coat", desc: "Keep one accent hue vivid while the rest falls back toward monochrome", filters: [f("Color Pop"), f("Vignette")], category: "Color" },
   { name: "Resonator", desc: "Motion-reactive color echo with a glowing amplified difference image", filters: [f("Echo Combiner"), f("Bloom"), f("Chromatic aberration")], category: "Color" },
   { name: "Shop Photo", desc: "Commercial-style tone cleanup with local contrast and vignette", filters: [f("Curves"), f("CLAHE"), f("Vignette")], category: "Color" },
@@ -121,9 +121,9 @@ export const CHAIN_PRESETS: ChainPreset[] = [
 
   { name: "Dream Sequence", desc: "Soft vaseline-lens glow with warm light bleed — flashback cinema", filters: [f("Gaussian blur"), f("Bloom"), f("Light leak"), f("Sepia")], category: "Blur & Edges" },
   { name: "Embossed Metal", desc: "Raised relief surface — metallic highlight and shadow from edges", filters: [f("Emboss"), f("Levels"), f("Sharpen")], category: "Blur & Edges" },
-  { name: "Ghost", desc: "Temporal echo with soft glow — moving subjects leave ghostly trails", filters: [f("Temporal Exposure", { mode: "BLEND", blendFactor: 0.7 }), f("Bloom")], category: "Blur & Edges" },
+  { name: "Ghost", desc: "Temporal echo with soft glow — moving subjects leave ghostly trails", filters: [f("Long Exposure", { mode: "BLEND", blendFactor: 0.7 }), f("Bloom")], category: "Blur & Edges" },
   { name: "Miniature World", desc: "Fake tilt-shift diorama — selective focus makes scenes look tiny", filters: [f("Tilt shift"), f("Bloom"), f("Vignette"), f("Levels")], category: "Blur & Edges" },
-  { name: "Motion Neon", desc: "Neon-traced motion outlines with chromatic splitting", filters: [f("Temporal edge"), f("Bloom"), f("Chromatic aberration")], category: "Blur & Edges" },
+  { name: "Motion Neon", desc: "Neon-traced motion outlines with chromatic splitting", filters: [f("Temporal Edge"), f("Bloom"), f("Chromatic aberration")], category: "Blur & Edges" },
 
   { name: "Band Pass", desc: "Middle image frequencies isolated into a technical texture-study view", filters: [f("Frequency Filter"), f("Bloom")], category: "Advanced" },
   { name: "Cellular Life", desc: "Conway's Game of Life with neon-glowing cell boundaries", filters: [f("Cellular automata"), f("Edge glow"), f("Bloom")], category: "Advanced" },
@@ -238,6 +238,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
 
   { name: "Blueprint", desc: "Architectural line drawing — white lines on blue", filters: [f("Grayscale"), f("Contour lines"), f("Invert")], category: "Simulate" },
   { name: "Cyberpunk", desc: "Neon-soaked CRT with chromatic split and bloom glow", filters: [f("Chromatic posterize"), f("Chromatic aberration"), f("Bloom"), f("CRT emulation")], category: "Simulate" },
+  { name: "Degauss Ritual", desc: "Tube wobble, phosphor mask, and lingering afterglow; trigger the degauss pulse for the full effect", filters: [f("CRT Degauss"), f("CRT emulation"), f("Phosphor Decay")], category: "Simulate" },
   { name: "Daguerreotype", desc: "1839 silver-plate photography with soft vignette and grain", filters: [f("Daguerreotype"), f("Vignette"), f("Film grain")], category: "Simulate" },
   { name: "Fax Machine", desc: "Thermal fax output — binary with scan artifacts and speckle", filters: [f("Fax machine"), f("Film grain"), f("Sharpen")], category: "Simulate" },
   { name: "Film Projector", desc: "Flickering 8mm home movie with gate weave and sprocket burns", filters: [f("Projection film"), f("Film grain"), f("Vignette"), f("Light leak")], category: "Simulate" },
@@ -258,7 +259,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Retro 3D", desc: "Classic red/cyan glasses effect with posterized comic contrast", filters: [f("Anaglyph 3D"), f("Sharpen")], category: "Simulate" },
   { name: "Retro TV", desc: "Consumer tape playback through a CRT tube with tracking wear and rounded-screen falloff", filters: [f("VHS emulation"), f("CRT emulation"), f("Vignette")], category: "Simulate" },
   { name: "Security Camera", desc: "Monochrome security feed with an explicit motion-analysis overlay for moving subjects", filters: [f("Grayscale"), f("Motion Analysis", { renderMode: "MASK", source: "EMA" }), f("Scanline"), f("Film grain")], category: "Simulate" },
-  { name: "Shutter Smear", desc: "Slow-shutter averaging with soft tonal drag across motion", filters: [f("Temporal Exposure", { mode: "SHUTTER", windowSize: 8 }), f("Levels")], category: "Simulate" },
+  { name: "Shutter Smear", desc: "Slow-shutter averaging with soft tonal drag across motion", filters: [f("Long Exposure", { mode: "SHUTTER", windowSize: 8 }), f("Levels")], category: "Simulate" },
   { name: "Surveillance DVR Failure", desc: "Near-failure CCTV feed with CRC stripe loss, bitplane bursts, and codec breakup", filters: [f("Grayscale"), f("CRC Stripe Reject"), f("Bitplane Dropout"), f("JPEG artifact")], category: "Simulate" },
   { name: "Surveillance", desc: "Night-vision CCTV look with scanlines, compression, and no analysis overlay", filters: [f("Grayscale"), f("Night vision"), f("Scanline"), f("JPEG artifact")], category: "Simulate" },
   { name: "Surveillance Wall", desc: "Tiles updating at staggered rates with scanlines and grain", filters: [f("Time mosaic"), f("Scanline"), f("Film grain")], category: "Simulate" },

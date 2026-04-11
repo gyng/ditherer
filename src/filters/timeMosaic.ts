@@ -2,6 +2,7 @@ import { RANGE, ENUM, ACTION } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
 
 const PATTERN = { RANDOM: "RANDOM", CHECKERBOARD: "CHECKERBOARD", RADIAL: "RADIAL", GRADIENT: "GRADIENT" };
+const BEHAVIOR = { DELAY_MAP: "DELAY_MAP", STABILIZER: "STABILIZER" };
 
 // Module-level ring buffer of full frames
 let ringBuf: Uint8ClampedArray[] = [];
@@ -9,8 +10,33 @@ let ringHead = 0;
 let ringW = 0;
 let ringH = 0;
 let ringDepth = 0;
+let stabilizerFrame: Uint8ClampedArray | null = null;
+let stabilizerAges: Uint16Array | null = null;
+let stabilizerBlocksX = 0;
+let stabilizerBlocksY = 0;
+let stabilizerTileSize = 0;
+let stabilizerBehavior = "";
+let lastFrameIndex = -1;
+
+const resetStabilizerState = (width: number, height: number, tileSize: number, behavior: string) => {
+  stabilizerFrame = null;
+  stabilizerBlocksX = Math.ceil(width / tileSize);
+  stabilizerBlocksY = Math.ceil(height / tileSize);
+  stabilizerAges = new Uint16Array(stabilizerBlocksX * stabilizerBlocksY);
+  stabilizerTileSize = tileSize;
+  stabilizerBehavior = behavior;
+};
 
 export const optionTypes = {
+  behavior: {
+    type: ENUM,
+    options: [
+      { name: "Delay map", value: BEHAVIOR.DELAY_MAP },
+      { name: "Stabilizer", value: BEHAVIOR.STABILIZER },
+    ],
+    default: BEHAVIOR.DELAY_MAP,
+    desc: "Use a fixed per-tile delay map or hold tiles until motion forces them to refresh",
+  },
   tileSize: { type: RANGE, range: [8, 64], step: 4, default: 24, desc: "Tile dimensions in pixels" },
   maxDelay: { type: RANGE, range: [2, 30], step: 1, default: 10, desc: "Maximum frame delay for any tile" },
   pattern: {
@@ -23,6 +49,23 @@ export const optionTypes = {
     ],
     default: PATTERN.RANDOM,
     desc: "How delays are distributed across tiles",
+    visibleWhen: (options) => (options.behavior || BEHAVIOR.DELAY_MAP) === BEHAVIOR.DELAY_MAP,
+  },
+  motionThreshold: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 72,
+    desc: "Tile difference needed before the stabilizer refreshes from the live frame",
+    visibleWhen: (options) => options.behavior === BEHAVIOR.STABILIZER,
+  },
+  holdFrames: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 8,
+    desc: "Maximum number of quiet frames a stabilizer tile can hold before it refreshes",
+    visibleWhen: (options) => options.behavior === BEHAVIOR.STABILIZER,
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
@@ -31,9 +74,12 @@ export const optionTypes = {
 };
 
 export const defaults = {
+  behavior: optionTypes.behavior.default,
   tileSize: optionTypes.tileSize.default,
   maxDelay: optionTypes.maxDelay.default,
   pattern: optionTypes.pattern.default,
+  motionThreshold: optionTypes.motionThreshold.default,
+  holdFrames: optionTypes.holdFrames.default,
   animSpeed: optionTypes.animSpeed.default,
 };
 
@@ -45,7 +91,16 @@ const tileHash = (tx: number, ty: number) => {
 };
 
 const timeMosaic = (input, options: any = defaults) => {
-  const { tileSize, maxDelay, pattern } = options;
+  const {
+    behavior = defaults.behavior,
+    tileSize,
+    maxDelay,
+    pattern,
+    motionThreshold = defaults.motionThreshold,
+    holdFrames = defaults.holdFrames,
+  } = options;
+  const prevInput: Uint8ClampedArray | null = (options as any)._prevInput || null;
+  const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -53,6 +108,78 @@ const timeMosaic = (input, options: any = defaults) => {
 
   const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
+  const restartedAnimation = frameIndex === 0 && lastFrameIndex > 0;
+  lastFrameIndex = frameIndex;
+
+  if (behavior === BEHAVIOR.STABILIZER) {
+    if (
+      !stabilizerAges ||
+      stabilizerTileSize !== tileSize ||
+      stabilizerBlocksX !== Math.ceil(W / tileSize) ||
+      stabilizerBlocksY !== Math.ceil(H / tileSize) ||
+      stabilizerBehavior !== behavior ||
+      restartedAnimation ||
+      ringW !== W ||
+      ringH !== H
+    ) {
+      resetStabilizerState(W, H, tileSize, behavior);
+      stabilizerFrame = new Uint8ClampedArray(buf);
+      ringW = W;
+      ringH = H;
+    }
+
+    const outBuf = stabilizerFrame ? new Uint8ClampedArray(stabilizerFrame) : new Uint8ClampedArray(buf);
+    const blocksX = Math.ceil(W / tileSize);
+    const blocksY = Math.ceil(H / tileSize);
+
+    for (let by = 0; by < blocksY; by++) {
+      for (let bx = 0; bx < blocksX; bx++) {
+        const blockIndex = by * blocksX + bx;
+        const startX = bx * tileSize;
+        const startY = by * tileSize;
+        const endX = Math.min(startX + tileSize, W);
+        const endY = Math.min(startY + tileSize, H);
+
+        let motion = 0;
+        let samples = 0;
+        if (prevInput) {
+          for (let y = startY; y < endY; y++) {
+            for (let x = startX; x < endX; x++) {
+              const i = getBufferIndex(x, y, W);
+              motion += (
+                Math.abs(buf[i] - prevInput[i]) +
+                Math.abs(buf[i + 1] - prevInput[i + 1]) +
+                Math.abs(buf[i + 2] - prevInput[i + 2])
+              ) / 3;
+              samples++;
+            }
+          }
+        }
+
+        const avgMotion = samples > 0 ? motion / samples : 255;
+        const shouldRefresh = !stabilizerFrame || avgMotion > motionThreshold || stabilizerAges![blockIndex] >= holdFrames;
+
+        if (shouldRefresh) {
+          for (let y = startY; y < endY; y++) {
+            for (let x = startX; x < endX; x++) {
+              const i = getBufferIndex(x, y, W);
+              outBuf[i] = buf[i];
+              outBuf[i + 1] = buf[i + 1];
+              outBuf[i + 2] = buf[i + 2];
+              outBuf[i + 3] = buf[i + 3];
+            }
+          }
+          stabilizerAges![blockIndex] = 0;
+        } else {
+          stabilizerAges![blockIndex] += 1;
+        }
+      }
+    }
+
+    stabilizerFrame = new Uint8ClampedArray(outBuf);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
 
   // Reset ring buffer if dimensions changed
   if (ringW !== W || ringH !== H || ringDepth !== maxDelay) {
@@ -109,4 +236,4 @@ const timeMosaic = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, mainThread: true, description: "Tiles update at different rates — staggered surveillance-wall aesthetic" };
+export default { name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, mainThread: true, description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views" };

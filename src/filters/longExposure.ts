@@ -170,7 +170,7 @@ const temporalExposure = (input, options: any = defaults) => {
 };
 
 export default {
-  name: "Temporal Exposure",
+  name: "Long Exposure",
   func: temporalExposure,
   optionTypes,
   options: defaults,

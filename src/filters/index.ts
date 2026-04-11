@@ -20,6 +20,7 @@ import quantize from "./quantize";
 import random from "./random";
 import scanline from "./scanline";
 import rgbStripe from "./rgbstripe";
+import crtDegauss from "./crtDegauss";
 import solarize from "./solarize";
 import posterize from "./posterize";
 import chromaticAberration from "./chromaticAberration";
@@ -161,6 +162,10 @@ import chronophotography from "./chronophotography";
 import afterImage from "./afterImage";
 import timeMosaic from "./timeMosaic";
 import temporalColorCycle from "./temporalColorCycle";
+import temporalPosterHold from "./temporalPosterHold";
+import temporalInkDrying from "./temporalInkDrying";
+import temporalRelief from "./temporalRelief";
+import keyframeSmear from "./keyframeSmear";
 import motionPixelate from "./motionPixelate";
 import polarTransform from "./polarTransform";
 import anaglyph from "./anaglyph";
@@ -192,6 +197,7 @@ import isometricExtrude from "./isometricExtrude";
 import octreeQuantize from "./octreeQuantize";
 import frequencyFilter from "./frequencyFilter";
 import metadataMismatchDecode from "./metadataMismatchDecode";
+import temporalMedian from "./temporalMedian";
 import {
   atkinson,
   burkes,
@@ -224,6 +230,7 @@ export { default as ordered } from "./ordered";
 export { default as quantize } from "./quantize";
 export { default as scanline } from "./scanline";
 export { default as rgbStripe } from "./rgbstripe";
+export { default as crtDegauss } from "./crtDegauss";
 export { default as solarize } from "./solarize";
 export { default as posterize } from "./posterize";
 export { default as chromaticAberration } from "./chromaticAberration";
@@ -287,6 +294,11 @@ export { default as metadataMismatchDecode } from "./metadataMismatchDecode";
 export { default as crcStripeReject } from "./crcStripeReject";
 export { default as infiniteCallWindows } from "./infiniteCallWindows";
 export { default as flipDotDisplay } from "./flipDotDisplay";
+export { default as temporalMedian } from "./temporalMedian";
+export { default as temporalPosterHold } from "./temporalPosterHold";
+export { default as temporalInkDrying } from "./temporalInkDrying";
+export { default as temporalRelief } from "./temporalRelief";
+export { default as keyframeSmear } from "./keyframeSmear";
 export {
   atkinson,
   burkes,
@@ -489,6 +501,11 @@ export const filterIndex = [
   isometricExtrude,
   octreeQuantize,
   frequencyFilter,
+  temporalMedian,
+  temporalPosterHold,
+  temporalInkDrying,
+  temporalRelief,
+  keyframeSmear,
   infiniteCallWindows
 ].reduce((acc, cur) => {
   acc[cur.name] = cur;
@@ -873,6 +890,7 @@ export const filterList = [
       }
     }
   },
+  { displayName: "CRT Degauss", filter: crtDegauss, category: "Simulate", description: "Fire a decaying degauss pulse with raster wobble, phosphor mislanding, and a bright magnetic flash" },
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
   { displayName: "Digicam Flash", filter: digicamFlash, category: "Simulate", description: "On-camera point-and-shoot flash look with center hotspot, fast falloff, clipped highlights, and edge burn" },
   { displayName: "Deep fry", filter: deepFry, category: "Stylize", description: "Extreme contrast, oversaturation, and JPEG artifacts — the deep-fried meme aesthetic" },
@@ -945,7 +963,7 @@ export const filterList = [
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
   { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
   { displayName: "Motion Analysis", filter: motionDetect, category: "Simulate", description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap" },
-  { displayName: "Temporal Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },
+  { displayName: "Long Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },
   { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "CRT phosphor persistence — each RGB channel decays at a different rate" },
 
   // ── Blur & Edges ──
@@ -972,7 +990,7 @@ export const filterList = [
   { displayName: "Radial blur", filter: radialBlur, category: "Blur & Edges", description: "Zoom blur radiating from center — speed/motion effect" },
   { displayName: "Sharpen", filter: sharpen, category: "Blur & Edges", description: "Unsharp mask — enhance edges with adjustable strength and radius" },
   { displayName: "Tilt shift", filter: tiltShift, category: "Blur & Edges", description: "Miniature/toy camera effect — sharp focus band with progressive blur" },
-  { displayName: "Temporal edge", filter: temporalEdge, category: "Blur & Edges", description: "Detect edges in time — moving edges glow, static edges invisible" },
+  { displayName: "Temporal Edge", filter: temporalEdge, category: "Blur & Edges", description: "Detect edges in time — moving edges glow, static edges invisible" },
 
   // ── Temporal ──
   { displayName: "After-image", filter: afterImage, category: "Simulate", description: "Complementary-colored ghost when bright objects move — retinal fatigue" },
@@ -983,7 +1001,12 @@ export const filterList = [
   { displayName: "POV Bands", filter: povBands, category: "Stylize", description: "Show different recent moments across horizontal bands like a persistence-of-vision display" },
   { displayName: "Slit scan", filter: slitScan, category: "Distort", description: "Each column shows a different point in time — surreal temporal stretching" },
   { displayName: "Stop Motion", filter: stopMotion, category: "Stylize", description: "Hold each frame for several beats to create a choppy stop-motion cadence" },
-  { displayName: "Temporal color cycle", filter: temporalColorCycle, category: "Color", description: "Hue rotates over time — moving areas cycle faster into rainbow trails" },
+  { displayName: "Keyframe Smear", filter: keyframeSmear, category: "Stylize", description: "Capture sparse keyframes and drag them through in-between frames for compressed temporal smearing" },
+  { displayName: "Ink Drying", filter: temporalInkDrying, category: "Stylize", description: "Fresh dark marks stay wet, bleed slightly, and then dry back toward the page" },
+  { displayName: "Time Median", filter: temporalMedian, category: "Simulate", description: "Per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure" },
+  { displayName: "Color Cycle", filter: temporalColorCycle, category: "Color", description: "Hue rotates over time — moving areas cycle faster into rainbow trails" },
+  { displayName: "Poster Hold", filter: temporalPosterHold, category: "Color", description: "Posterized tone bands update with hysteresis so broad regions hold before snapping to new values" },
+  { displayName: "Motion Relief", filter: temporalRelief, category: "Blur & Edges", description: "Turn recent change history into embossed grayscale relief shading" },
   { displayName: "Time mosaic", filter: timeMosaic, category: "Stylize", description: "Tiles update at different rates — staggered surveillance-wall aesthetic" },
   { displayName: "Infinite call windows", filter: infiniteCallWindows, category: "Advanced", description: "Recursive video-call panes with digital UI chrome and compression-style decay" },
   { displayName: "Video feedback", filter: videoFeedback, category: "Advanced", description: "Camera-at-monitor effect — infinite recursive tunnels and fractal patterns" },

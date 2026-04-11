@@ -200,6 +200,22 @@ Divide the image into a grid of tiles. Each tile updates at a different rate —
 
 **Implementation:** Per-tile delay assigned deterministically. Store a ring buffer of `maxDelay` frames (or just the EMA at different alphas). Each tile reads from `_prevOutput` offset by its delay, or maintains a per-tile mini-buffer.
 
+**Later direction:** If we want a motion-driven variant, prefer extending this filter with a `Temporal Mosaic Stabilizer` mode rather than adding a separate filter. That mode should hold tiles until local motion exceeds a threshold, then refresh them.
+
+---
+
+### 8a. Temporal Mosaic Stabilizer
+**Category:** Stylize | **Difficulty:** Medium (~35 lines on top of Time Mosaic)**
+
+This should be treated as an option/mode on `Time Mosaic`, not a separate top-level filter. Unlike the fixed-delay mosaic, stabilizer mode would create a patchwork of frozen and refreshed tiles based on motion.
+
+**Options:**
+- `motionThreshold` (5–80, default 20) — tile motion needed to refresh
+- `holdFrames` (1–30, default 8) — max frames a quiet tile can stay frozen
+- `refreshMode` — Immediate or Budgeted
+
+**Implementation:** Track a held tile image and a small per-tile age counter. When local motion stays below threshold, keep the prior tile. When motion exceeds threshold or age cap is hit, refresh from current input.
+
 ---
 
 ### 9. Phosphor Decay

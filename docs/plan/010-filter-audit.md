@@ -91,6 +91,22 @@ Add `temporalBleed` (0–1, default 0) and `animate`/`animSpeed` options to the 
 
 **Why it matters:** Like B1, this turns all 11 error-diffusion algorithms into temporal variants. Atkinson on a 1-bit palette with `temporalBleed: 0.5` produces a living, breathing dither pattern that's fundamentally different from any static frame. The classic Mac dithering aesthetic becomes animated.
 
+**Extension note:** If we add temporal decision stabilization beyond residual carryover, it should live here rather than as a standalone `Frame Vote Dither` filter. A vote-based mode belongs to the same user mental model as `temporalBleed`: temporal behavior inside the existing error-diffusion family.
+
+Recommended shape for a later extension:
+- add `temporalMode: "off" | "bleed" | "vote"` to the factory
+- keep `temporalBleed` as the control for `bleed`
+- add `voteWindow` (and only if needed `voteThreshold`) for `vote`
+
+This keeps the filter list smaller and lets users compare temporal carryover vs temporal consensus within the same diffusion algorithms instead of splitting them into separate top-level filters.
+
+`Frame Vote Dither` should therefore be treated as a named temporal mode inside error diffusion, not as its own filter. Product intent:
+
+- `bleed` = living / breathing dither with residual carryover
+- `vote` = more stable / consensus-driven dither with reduced shimmer
+
+This is still an active idea, just scoped as an enhancement to the existing diffusion family.
+
 **Presets:**
 | Preset | Config | Category |
 |---|---|---|
@@ -344,6 +360,19 @@ Memory: `maxDelay × W × H × 4`. At 640×480×10 = ~12MB.
 | Time Gradient | Time Mosaic (Gradient, maxDelay 20) → Sharpen | Stylize |
 | Time Checker | Time Mosaic (Checkerboard, maxDelay 5) → Vignette | Stylize |
 
+**Extension note:** `Temporal Mosaic Stabilizer` should be added as an option or mode on this filter rather than as a separate top-level filter. It should differ from the current fixed-delay behavior by refreshing tiles based on motion activity instead of deterministic age assignment.
+
+Recommended shape for a later extension:
+- add a mode such as `behavior: "delayMap" | "stabilizer"`
+- keep the current `pattern` + `maxDelay` path for `delayMap`
+- for `stabilizer`, add `motionThreshold`, `holdFrames`, and optionally `refreshMode`
+
+Product distinction:
+- `delayMap` = parts of the image are intentionally out of sync in time
+- `stabilizer` = tiles hold until motion forces them to refresh
+
+That keeps the concept unified under one tile-history filter while still giving the motion-triggered patchwork look its own clear behavior.
+
 #### B12. Temporal Color Cycle
 **Category:** Color | **~30 lines** | **New file:** `src/filters/temporalColorCycle.ts`
 
@@ -368,6 +397,25 @@ const hueShift = baseSpeed + motion * motionMultiplier;
 | Psychedelic | Temporal Color Cycle (base 5, motion 15) → Bloom → Chromatic aberration | Color |
 | Acid Trip | Temporal Color Cycle → Solarize → Bloom | Color |
 | Color Breath | Temporal Color Cycle (base 1, motion 0) → Posterize | Color |
+
+### Current Shortlist Of Distinct Next Temporal Ideas
+
+These are the temporal ideas that currently look non-redundant relative to the shipped set, with two of them intentionally scoped as extensions of existing filters rather than new top-level entries:
+
+- `Temporal Median`
+  Per-pixel median across a short frame window to suppress transient movers and flicker instead of accumulating them.
+- `Temporal Poster Hold`
+  Posterized tone bands update only when a temporal hysteresis threshold is crossed, producing sticky quantized regions.
+- `Temporal Ink Drying`
+  New marks appear wet/dark and then dry, shrink, or lighten over time like a physical medium.
+- `Temporal Relief`
+  Recent change history becomes embossed height/shading so motion reads as surface geometry rather than brightness alone.
+- `Keyframe Smear`
+  Sparse keyframes are held and smeared/interpolated forward so the image feels compressed or in-betweened rather than simply echoed.
+- `Temporal Mosaic Stabilizer`
+  Implement as a mode on `Time Mosaic`, using motion-triggered tile refresh instead of fixed delay assignment.
+- `Frame Vote Dither`
+  Implement as a mode on `Temporal Error Diffusion`, using recent decision consensus instead of residual carryover.
 
 #### B13. Motion Pixelate
 **Category:** Stylize | **~40 lines** | **New file:** `src/filters/motionPixelate.ts`

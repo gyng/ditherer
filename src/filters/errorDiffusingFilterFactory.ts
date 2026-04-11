@@ -47,6 +47,12 @@ export const ERR_STRATEGY = {
   SYMMETRIC:   "SYMMETRIC",   // ignore filter kernel, use uniform 8-neighbor distribution
 };
 
+export const TEMPORAL_MODE = {
+  OFF: "OFF",
+  BLEED: "BLEED",
+  VOTE: "VOTE",
+};
+
 const CUSTOM_ORDERS = new Set<string>([
   ORDER.HILBERT, ORDER.SPIRAL, ORDER.DIAGONAL, ORDER.RANDOM_PIXEL,
 ]);
@@ -72,6 +78,8 @@ const SYMMETRIC_TUPLES = [
 // only show errorStrategy when scanOrder is custom-order.
 const isRowMajorOrder = (opts: any) => !CUSTOM_ORDERS.has(opts.scanOrder || ORDER.HORIZONTAL);
 const isCustomOrderOpts = (opts: any) => CUSTOM_ORDERS.has(opts.scanOrder || ORDER.HORIZONTAL);
+const usesTemporalBleed = (opts: any) => (opts.temporalMode || TEMPORAL_MODE.BLEED) === TEMPORAL_MODE.BLEED;
+const usesTemporalVote = (opts: any) => opts.temporalMode === TEMPORAL_MODE.VOTE;
 
 export const optionTypes = {
   serpentine: { type: BOOL, default: true, visibleWhen: isRowMajorOrder, desc: "Alternate scan direction per row to reduce directional artifacts (only affects Horizontal/Vertical scan orders)" },
@@ -107,7 +115,32 @@ export const optionTypes = {
   ], default: ERR_STRATEGY.CLAMPED,
     visibleWhen: isCustomOrderOpts,
     desc: "How error gets distributed to unvisited neighbors in custom-order scans (Hilbert/Spiral/Diagonal/Random Pixel). Renormalize is energy-preserving but creates visible seams at curve sub-quadrant boundaries; Clamped caps the spike; Drop loses energy (darker output) but has no seams; Rotate aligns the kernel with the local curve direction; Symmetric replaces the filter's kernel with a uniform 8-neighbor distribution." },
-  temporalBleed: { type: RANGE, range: [0, 1], step: 0.05, default: 0, desc: "Carry quantization error across frames — higher = more temporal detail recovery" },
+  temporalMode: {
+    type: ENUM,
+    options: [
+      { name: "Bleed", value: TEMPORAL_MODE.BLEED },
+      { name: "Vote", value: TEMPORAL_MODE.VOTE },
+      { name: "Off", value: TEMPORAL_MODE.OFF },
+    ],
+    default: TEMPORAL_MODE.BLEED,
+    desc: "Temporal carryover via residual bleed, temporal consensus via voting, or fully static diffusion",
+  },
+  temporalBleed: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0,
+    visibleWhen: usesTemporalBleed,
+    desc: "Carry quantization error across frames — higher = more temporal detail recovery",
+  },
+  voteWindow: {
+    type: RANGE,
+    range: [3, 9],
+    step: 2,
+    default: 5,
+    visibleWhen: usesTemporalVote,
+    desc: "How many recent quantized frames participate in the temporal vote consensus",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
@@ -120,7 +153,9 @@ export const defaults = {
   scanOrder: optionTypes.scanOrder.default,
   rowAlternation: optionTypes.rowAlternation.default,
   errorStrategy: optionTypes.errorStrategy.default,
+  temporalMode: optionTypes.temporalMode.default,
   temporalBleed: optionTypes.temporalBleed.default,
+  voteWindow: optionTypes.voteWindow.default,
   animSpeed: optionTypes.animSpeed.default,
   palette: optionTypes.palette.default
 };
@@ -316,18 +351,78 @@ const buildVisitOrder = (order: string, W: number, H: number): Int32Array => {
   return randomPixelOrder(W, H); // RANDOM_PIXEL fallback
 };
 
+const majorityColorAt = (
+  frames: Uint8ClampedArray[],
+  filled: number,
+  pixelIndex: number
+) => {
+  let bestColor = 0;
+  let bestCount = -1;
+  let bestLastSeen = -1;
+
+  for (let f = 0; f < filled; f += 1) {
+    const frame = frames[f];
+    const color = (
+      ((frame[pixelIndex] << 24) >>> 0) |
+      (frame[pixelIndex + 1] << 16) |
+      (frame[pixelIndex + 2] << 8) |
+      frame[pixelIndex + 3]
+    ) >>> 0;
+    let count = 1;
+    let lastSeen = f;
+    for (let g = f + 1; g < filled; g += 1) {
+      const compare = frames[g];
+      const compareColor = (
+        ((compare[pixelIndex] << 24) >>> 0) |
+        (compare[pixelIndex + 1] << 16) |
+        (compare[pixelIndex + 2] << 8) |
+        compare[pixelIndex + 3]
+      ) >>> 0;
+      if (compareColor === color) {
+        count += 1;
+        lastSeen = g;
+      }
+    }
+    if (count > bestCount || (count === bestCount && lastSeen > bestLastSeen)) {
+      bestColor = color;
+      bestCount = count;
+      bestLastSeen = lastSeen;
+    }
+  }
+
+  return bestColor >>> 0;
+};
+
 export const errorDiffusingFilter = (
   name,
   errorMatrix,
   defaultOptions
 ) => {
+  let voteFrames: Uint8ClampedArray[] = [];
+  let voteHead = 0;
+  let voteWidth = 0;
+  let voteHeight = 0;
+  let voteDepth = 0;
+  let voteLastFrameIndex = -1;
+
+  const resetVoteState = (width: number, height: number, depth: number) => {
+    voteFrames = [];
+    voteHead = 0;
+    voteWidth = width;
+    voteHeight = height;
+    voteDepth = depth;
+  };
+
   const filter = (
     input,
     options = defaultOptions
   ) => {
     const { palette } = options;
     const serpentine = options.serpentine !== undefined ? options.serpentine : true;
+    const temporalMode = options.temporalMode || defaults.temporalMode;
     const temporalBleed = options.temporalBleed || 0;
+    const voteWindow = Math.max(3, Math.round(options.voteWindow || defaults.voteWindow));
+    const frameIndex = Number((options as any)._frameIndex || 0);
     const prevInput: Uint8ClampedArray | null = (options as any)._prevInput || null;
     const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
 
@@ -376,6 +471,7 @@ export const errorDiffusingFilter = (
     // Temporal error bleed should carry the previous frame's quantization
     // residual, not inject the current frame's whole input delta.
     if (
+      temporalMode === TEMPORAL_MODE.BLEED &&
       temporalBleed > 0 &&
       prevInputForLoop &&
       prevOutputForLoop &&
@@ -610,6 +706,40 @@ export const errorDiffusingFilter = (
     // prevOutput stored for the next frame is in image space, matching what
     // FilterContext expects).
     const finalBuf = isVertical ? transposeRGBA8(buf, W, H) : buf;
+
+    if (temporalMode === TEMPORAL_MODE.VOTE) {
+      const restartedAnimation = frameIndex === 0 && voteLastFrameIndex > 0;
+      if (
+        voteWidth !== realW ||
+        voteHeight !== realH ||
+        voteDepth !== voteWindow ||
+        restartedAnimation
+      ) {
+        resetVoteState(realW, realH, voteWindow);
+      }
+      voteLastFrameIndex = frameIndex;
+
+      voteFrames[voteHead % voteWindow] = new Uint8ClampedArray(finalBuf);
+      voteHead += 1;
+      const filled = Math.min(voteHead, voteWindow);
+      const orderedFrames: Uint8ClampedArray[] = [];
+      for (let f = 0; f < filled; f += 1) {
+        orderedFrames.push(voteFrames[((voteHead - filled + f) % voteWindow + voteWindow) % voteWindow]);
+      }
+
+      const votedBuf = new Uint8ClampedArray(finalBuf.length);
+      for (let i = 0; i < finalBuf.length; i += 4) {
+        const color = majorityColorAt(orderedFrames, filled, i);
+        votedBuf[i] = (color >>> 24) & 0xff;
+        votedBuf[i + 1] = (color >>> 16) & 0xff;
+        votedBuf[i + 2] = (color >>> 8) & 0xff;
+        votedBuf[i + 3] = color & 0xff;
+      }
+
+      outputCtx.putImageData(new ImageData(votedBuf, realW, realH), 0, 0);
+      return output;
+    }
+
     outputCtx.putImageData(new ImageData(finalBuf, realW, realH), 0, 0);
     return output;
   };
