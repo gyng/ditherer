@@ -9,7 +9,8 @@ export type OfflineRenderProgress = {
 };
 
 export type OfflineFrameSample = {
-  index: number;
+  index?: number;
+  timeSec?: number;
   timestampUs: number;
   durationUs: number;
   width: number;
@@ -173,6 +174,7 @@ export const renderOfflineFrames = async ({
     const encodeStartedAt = performance.now();
     await onFrame({
       index: frame.index,
+      timeSec: frame.timeSec,
       timestampUs: frame.timestampUs,
       durationUs: frame.durationUs,
       width: canvas.width,

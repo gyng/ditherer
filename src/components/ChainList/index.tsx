@@ -298,10 +298,11 @@ const ChainList = () => {
   };
 
   const randomChain = () => {
-    // Pick 2-4 random filters, weighted toward interesting categories
+    // Usually pick 2-4 random filters, with small chances of 1- or 5-filter chains.
     const candidates = filterList.filter((f) => f && f.category !== "Advanced");
     if (candidates.length === 0) return;
-    const count = 2 + Math.floor(Math.random() * 3); // 2-4 filters
+    const roll = Math.random();
+    const count = roll < 0.08 ? 1 : roll < 0.92 ? 2 + Math.floor(Math.random() * 3) : 5;
     const picked: typeof candidates = [];
     const usedCategories = new Set<string>();
     for (let i = 0; i < count; i++) {
@@ -315,7 +316,7 @@ const ChainList = () => {
     }
     if (picked.length === 0) return;
     const paletteEligibleIndices = picked
-      .map((entry, index) => (((entry.filter.optionTypes || {}).palette?.type === PALETTE) ? index : -1))
+      .map((entry, index) => ((((entry.filter.optionTypes as Record<string, any> | undefined)?.palette)?.type === PALETTE) ? index : -1))
       .filter((index) => index >= 0);
     const shouldForcePresetPalette = paletteEligibleIndices.length > 0 && Math.random() < 0.45;
     const forcedIndex = shouldForcePresetPalette

@@ -63,6 +63,7 @@ const areFrameBuffersEqual = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
   }
   return true;
 };
+const toGifBuffer = (data: Uint8ClampedArray) => new Uint8Array(data);
 
 type RecordingFormat = {
   label: string;       // e.g. "webm (vp9)"
@@ -1306,15 +1307,15 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     try {
       const { encode } = await import("modern-gif");
       const colorTable = gifPaletteSource === "filter" ? gifFilterPalette : null;
-      const output = await encode({
-        width: normalizedFrames[0].width,
-        height: normalizedFrames[0].height,
-        frames: normalizedFrames.map(f => ({
-          data: f.data,
+        const output = await encode({
+          width: normalizedFrames[0].width,
+          height: normalizedFrames[0].height,
+          frames: normalizedFrames.map(f => ({
+          data: toGifBuffer(f.data),
           delay: f.delay,
         })),
-        ...(colorTable ? { colorTable } : {}),
-      });
+          ...(colorTable ? { colorTable } : {}),
+        });
       const blob = new Blob([output], { type: "image/gif" });
       setGifBlob(blob);
       setGifUrl(prev => {
@@ -1756,7 +1757,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
           width: normalizedFrames[0].width,
           height: normalizedFrames[0].height,
           frames: normalizedFrames.map(f => ({
-            data: f.data,
+            data: toGifBuffer(f.data),
             delay: f.delay,
           })),
           ...(colorTable ? { colorTable } : {}),

@@ -110,15 +110,19 @@ const updateChainEntryOptions = (chain: ChainEntry[], index: number, updater: (o
 const deserializeFilter = (savedFilter: any) => {
   const localFilter = filterIndex[savedFilter.name];
   if (!localFilter) return null;
-  const result = { ...localFilter, options: savedFilter.options };
-  if (result.options?.palette != null) {
+  const result = { ...localFilter, options: savedFilter.options as Record<string, any> | undefined };
+  const palette = result.options?.palette as { name?: string; options?: Record<string, any> } | undefined;
+  if (palette != null) {
     const localPalette = paletteList.find(
-      p => p.palette.name === result.options.palette.name
+      p => p.palette.name === palette.name
     );
     if (localPalette) {
-      result.options.palette = {
+      result.options = {
+        ...(result.options || {}),
+        palette: {
         ...localPalette.palette,
-        options: result.options.palette.options
+          options: palette.options
+        }
       };
     }
   }
@@ -140,7 +144,7 @@ export default (state = initialState, action) => {
         for (const entry of action.data.chain) {
           const localFilter = filterIndex[entry.n];
           if (!localFilter) continue;
-          const mergedOpts = { ...localFilter.options };
+          const mergedOpts: Record<string, any> = { ...(localFilter.options as Record<string, any> | undefined) };
           if (entry.o) {
             for (const [k, v] of Object.entries(entry.o)) {
               if (k === "palette" && mergedOpts.palette) {

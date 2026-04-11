@@ -150,7 +150,7 @@ export const prepareOfflineAudioTrack = async (
             numberOfFrames: chunkFrames,
             numberOfChannels,
             timestamp: Math.round((startFrame / TARGET_AUDIO_SAMPLE_RATE) * 1_000_000),
-            data: planar,
+            data: new Float32Array(planar),
           });
 
           encoder.encode(audioData);

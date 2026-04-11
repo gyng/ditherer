@@ -324,5 +324,5 @@ export const SHARED_CHARSET_GROUPS = [
   },
 ] as const;
 
-export const getCharsetString = (charset: string, fallback = CHARSET.MATRIX_FILM) =>
+export const getCharsetString = (charset: string, fallback: string = CHARSET.MATRIX_FILM) =>
   CHARSET_MAP[charset] || CHARSET_MAP[fallback] || "";
