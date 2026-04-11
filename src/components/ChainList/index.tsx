@@ -739,7 +739,11 @@ const ChainList = () => {
         if (!activeEntry) return null;
         const matchedPreset = presetBySignature.get(getChainSignature(chain, resolveDefaults));
         if (matchedPreset) {
-          return <div className={s.description}>{matchedPreset.desc}</div>;
+          return (
+            <div className={s.description}>
+              <strong>{matchedPreset.name}</strong>: {matchedPreset.desc}
+            </div>
+          );
         }
         // Show saved chain name if loaded
         if (loadedSavedName) {
