@@ -78,19 +78,10 @@
   margin-top: 10px;
 }
 
-.hiddenFileInput {
-  display: none;
-}
-
-.filePickerToolbar {
-  display: flex;
-  gap: 3px;
-  margin-top: 2px;
-}
-
-.filePickerButton {
-  font-weight: bold;
-  padding: 3px 8px;
+.nativeFileInput {
+  width: 100%;
+  margin-top: -4px;
+  box-sizing: border-box;
 }
 
 .testMediaPicker {
@@ -99,16 +90,15 @@
 }
 
 .testMediaToolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-  gap: 3px;
+  display: flex;
+  gap: 2px;
   align-items: center;
   margin-top: -6px;
+  min-width: 0;
 }
 
-.testMediaSelect {
-  min-width: 0;
-  flex: 0 0 auto !important;
+.testMediaTrigger {
+  flex: 0 0 auto;
   font-weight: bold;
   min-height: unset;
   appearance: none;
@@ -125,17 +115,21 @@
   padding: 3px 8px;
   margin: 1px;
   font: inherit;
+  width: 74px;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 .testMediaButton {
+  flex: 0 0 auto;
   margin: 1px;
   white-space: nowrap;
   font-weight: bold;
   min-height: unset;
   padding: 3px 8px;
   font: inherit;
-  width: 27px;
+  width: 42px;
 }
 
 /* Win95-style menu bar below title bar */

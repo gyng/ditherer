@@ -100,6 +100,16 @@ export const FilterProvider = ({ children }) => {
   stateRef.current = state;
   const filterImageAsyncRef = useRef<any>(null);
 
+  const resetProcessingState = useCallback(() => {
+    filteringRef.current = false;
+    prevOutputMapRef.current.clear();
+    prevInputMapRef.current.clear();
+    emaMapRef.current.clear();
+    cachedOutputsRef.current.clear();
+    cachedChainOrderRef.current = "";
+    clearMotionVectorsState();
+  }, []);
+
   // Restore state from #! hash on initial load
   useEffect(() => {
     const hash = window.location.hash;
@@ -138,14 +148,14 @@ export const FilterProvider = ({ children }) => {
     };
     image.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      filteringRef.current = false;
+      resetProcessingState();
       dispatch({ type: "LOAD_IMAGE", image, time: null, video: null, dispatch });
       const scale = roundScale(getAutoScale(image.width, image.height));
       dispatch({ type: "SET_SCALE", scale });
       resolve();
     };
     image.src = objectUrl;
-  }), []);
+  }), [resetProcessingState]);
 
   const loadVideoSourceAsync = useCallback((
     src: string,
@@ -154,7 +164,7 @@ export const FilterProvider = ({ children }) => {
     perfMeta: Record<string, string> = {},
     objectUrlForCleanup?: string
   ) => new Promise<void>((resolve, reject) => {
-    filteringRef.current = false;
+    resetProcessingState();
     const video = document.createElement("video") as HTMLVideoElement & {
       __objectUrl?: string;
       __manualPause?: boolean;
@@ -258,7 +268,7 @@ export const FilterProvider = ({ children }) => {
     video.__drawErrorLogged = false;
     video.src = src;
     video.play().catch(() => {});
-  }), []);
+  }), [resetProcessingState]);
 
   // Async action: load video from file
   const loadVideoAsync = useCallback((file, volume = 1, playbackRate = 1) => {
@@ -723,7 +733,10 @@ export const FilterProvider = ({ children }) => {
     stopAnimLoop,
     isAnimating,
     loadImage: (image, time, video) =>
-      dispatch({ type: "LOAD_IMAGE", image, time: time || 0, video: video || null, dispatch }),
+    {
+      resetProcessingState();
+      dispatch({ type: "LOAD_IMAGE", image, time: time || 0, video: video || null, dispatch });
+    },
     selectFilter: (name, filter) => {
       stopAnimLoop();
       prevOutputMapRef.current.clear();

@@ -80,6 +80,16 @@ const DEFAULT_TEST_VIDEO_ASSET = testAssetUrl("video", "akiyo.mp4");
 const basename = (path: string) => path.split("/").pop() || path;
 const TEST_IMAGE_OPTIONS = TEST_IMAGE_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 const TEST_VIDEO_OPTIONS = TEST_VIDEO_ASSETS.map((src) => ({ value: src, label: basename(src) }));
+const cloneImageToCanvas = (image: HTMLImageElement) => {
+  const canvas = document.createElement("canvas");
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (ctx) ctx.drawImage(image, 0, 0, width, height);
+  return canvas;
+};
 
 const App = () => {
   const { state, actions, filterList } = useFilter();
@@ -92,12 +102,8 @@ const App = () => {
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
   const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
   const [inputFilename, setInputFilename] = useState<string | null>(null);
-  const [selectedTestImage, setSelectedTestImage] = useState(DEFAULT_TEST_IMAGE_ASSET);
-  const [selectedTestVideo, setSelectedTestVideo] = useState(DEFAULT_TEST_VIDEO_ASSET);
   const playPauseTimerRef = useRef<number | null>(null);
   const chromeRef = useRef<HTMLDivElement | null>(null);
-  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
-  const videoFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const flashPlayPause = (kind: "play" | "pause") => {
     setPlayPauseIndicator(kind);
@@ -117,6 +123,7 @@ const App = () => {
   const lastTestImageAssetRef = useRef<string | null>(null);
   const lastTestVideoAssetRef = useRef<string | null>(null);
   const imageAssetPromiseCacheRef = useRef<Map<string, Promise<HTMLImageElement>>>(new Map());
+  const pendingLoadedMediaFilterRef = useRef(false);
   const webmcpRefs = useRef({ state, actions, filterList });
   webmcpRefs.current = { state, actions, filterList };
 
@@ -236,6 +243,24 @@ const App = () => {
     }
   }, []);
 
+  const queueLoadedMediaFilter = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (inputCanvasRef.current) {
+          actions.filterImageAsync(inputCanvasRef.current);
+        }
+      });
+    });
+  }, [actions]);
+
+  // After a new media source is loaded, run one filter pass once the first
+  // input frame has reached the canvas, even if auto-apply is off.
+  useEffect(() => {
+    if (!pendingLoadedMediaFilterRef.current || !inputCanvasRef.current || !state.inputImage) return;
+    pendingLoadedMediaFilterRef.current = false;
+    queueLoadedMediaFilter();
+  }, [queueLoadedMediaFilter, state.inputImage, state.time]);
+
   const loadImageAsset = useCallback((src: string) => {
     const cached = imageAssetPromiseCacheRef.current.get(src);
     if (cached) return cached;
@@ -262,6 +287,7 @@ const App = () => {
   const loadUserFile = useCallback((file?: File | null) => {
     if (!file) return;
     const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
+    pendingLoadedMediaFilterRef.current = true;
     setInputFilename(file.name);
     void withInputLoading(label, () =>
       actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
@@ -271,7 +297,7 @@ const App = () => {
   const loadTestImageFromSrc = useCallback((src: string) => {
     hasLoadedTestImageRef.current = true;
     lastTestImageAssetRef.current = src;
-    setSelectedTestImage(src);
+    pendingLoadedMediaFilterRef.current = true;
     setInputFilename(basename(src));
     void withInputLoading("LOADING IMAGE", async () => {
       const perfStart = performance.now();
@@ -283,11 +309,12 @@ const App = () => {
       logPerf("click", { cache: hadCache ? "hit" : "miss" });
       const img = await loadImageAsset(src);
       logPerf("image-ready", { width: img.naturalWidth, height: img.naturalHeight });
-      actions.loadImage(img);
+      actions.loadImage(cloneImageToCanvas(img));
       logPerf("loadImage-dispatched");
+      queueLoadedMediaFilter();
       prefetchRandomImage(src);
     });
-  }, [actions, loadImageAsset, prefetchRandomImage, withInputLoading]);
+  }, [actions, loadImageAsset, prefetchRandomImage, queueLoadedMediaFilter, withInputLoading]);
 
   const loadRandomTestImage = useCallback(() => {
     const src = hasLoadedTestImageRef.current
@@ -305,7 +332,7 @@ const App = () => {
   const loadTestVideoFromSrc = useCallback((src: string) => {
     hasLoadedTestVideoRef.current = true;
     lastTestVideoAssetRef.current = src;
-    setSelectedTestVideo(src);
+    pendingLoadedMediaFilterRef.current = true;
     setInputFilename(basename(src));
     void withInputLoading("LOADING VIDEO", async () => {
       const perfStart = performance.now();
@@ -316,8 +343,9 @@ const App = () => {
       logPerf("click");
       await actions.loadVideoFromUrlAsync(src, state.videoVolume, state.videoPlaybackRate);
       logPerf("loadVideoFromUrlAsync-resolved");
+      queueLoadedMediaFilter();
     });
-  }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+  }, [actions, queueLoadedMediaFilter, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
   const loadRandomTestVideo = useCallback(() => {
     const src = hasLoadedTestVideoRef.current
@@ -416,60 +444,36 @@ const App = () => {
         {/* Input section */}
         <div>
           <h2>Input</h2>
-          <input
-            ref={imageFileInputRef}
-            className={s.hiddenFileInput}
-            type="file"
-            accept="image/*"
-            tabIndex={-1}
-            onChange={e => {
-              loadUserFile(e.target.files?.[0] || null);
-              e.target.value = "";
-            }}
-          />
-          <input
-            ref={videoFileInputRef}
-            className={s.hiddenFileInput}
-            type="file"
-            accept="video/*"
-            tabIndex={-1}
-            onChange={e => {
-              loadUserFile(e.target.files?.[0] || null);
-              e.target.value = "";
-            }}
-          />
           <div
-            className={[s.filePickerToolbar, dropping ? controls.dropping : null].join(" ")}
+            className={[controls.group, dropping ? controls.dropping : null].join(" ")}
             onDragLeave={() => setDropping(false)}
             onDragOver={() => setDropping(true)}
             onDragEnter={() => setDropping(true)}
             onDrop={() => setDropping(false)}
           >
-            <button
-              className={s.filePickerButton}
-              onClick={() => imageFileInputRef.current?.click()}
-              title="Load an image file"
-            >
-              Image...
-            </button>
-            <button
-              className={s.filePickerButton}
-              onClick={() => videoFileInputRef.current?.click()}
-              title="Load a video file"
-            >
-              Video...
-            </button>
+            <span className={controls.name}>File</span>
+            <input
+              className={[controls.file, s.nativeFileInput].join(" ")}
+              type="file"
+              accept="image/*,video/*"
+              onChange={e => {
+                loadUserFile(e.target.files?.[0] || null);
+                e.target.value = "";
+              }}
+              title="Load an image or video file"
+            />
           </div>
           <div className={[controls.group, s.testMediaPicker].join(" ")}>
-            <span className={controls.name}>Test</span>
+            <span className={controls.name}>Test Media</span>
             <div className={s.testMediaToolbar}>
               <select
                 id="test-image-select"
-                className={s.testMediaSelect}
-                value={selectedTestImage}
+                className={s.testMediaTrigger}
+                value=""
                 onChange={(e) => loadTestImageFromSrc(e.target.value)}
                 title="Load a test image"
               >
+                <option value="" disabled>Image...</option>
                 {TEST_IMAGE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -481,15 +485,16 @@ const App = () => {
                 onClick={loadRandomTestImage}
                 title="Load a random test image"
               >
-                ?
+                Img?
               </button>
               <select
                 id="test-video-select"
-                className={s.testMediaSelect}
-                value={selectedTestVideo}
+                className={s.testMediaTrigger}
+                value=""
                 onChange={(e) => loadTestVideoFromSrc(e.target.value)}
                 title="Load a test video"
               >
+                <option value="" disabled>Video...</option>
                 {TEST_VIDEO_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -501,7 +506,7 @@ const App = () => {
                 onClick={loadRandomTestVideo}
                 title="Load a random test video"
               >
-                ?
+                Vid?
               </button>
             </div>
           </div>
