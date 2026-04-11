@@ -319,6 +319,31 @@
   justify-content: center;
 }
 
+@media (max-width: 768px) {
+  .addRow {
+    gap: 4px;
+    margin-bottom: 3px;
+  }
+
+  .chainList {
+    max-height: 240px;
+    margin-bottom: 3px;
+  }
+
+  .entry {
+    padding: 1px 3px;
+  }
+
+  .entryName {
+    padding: 1px 12px 1px 3px;
+  }
+
+  .description {
+    margin-top: 2px;
+    min-height: 0;
+  }
+}
+
 .confirmDialog {
   background: var(--light-gray, #c0c0c0);
   border-left: 2px solid #ffffff;

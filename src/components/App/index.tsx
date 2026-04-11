@@ -518,49 +518,55 @@ const App = () => {
               </button>
             </div>
           </div>
-          {state.video && state.inputImage && (
-            <button
-              onClick={fitInputToWindow}
-              title="Scale the input video to comfortably fit the browser area right of the sidebar"
-            >
-              Fit to window
-            </button>
-          )}
-          <Range
-            name="Input Scale"
-            types={{ range: [0.05, 16] }}
-            step={0.05}
-            onSetFilterOption={(_, value) => actions.setScale(value)}
-            value={state.scale}
-          />
-          {state.video && (<>
-            <div className={controls.separator} />
-            <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-              <button onClick={() => { actions.toggleVideo(); const np = !videoPaused; setVideoPaused(np); flashPlayPause(np ? "pause" : "play"); }}>
-                {videoPaused ? "\u25B6 Play" : "\u23F8 Pause"}
-              </button>
-              <label className={controls.label} htmlFor="mute">
-                <input
-                  id="mute"
-                  type="checkbox"
-                  checked={state.videoVolume === 0}
-                  onChange={() => {
-                    const newVol = state.videoVolume > 0 ? 0 : 1;
-                    actions.setInputVolume(newVol);
-                    localStorage.setItem("ditherer-mute", newVol === 0 ? "1" : "0");
-                  }}
+          {(state.inputImage || state.video) && (
+            <CollapsibleSection title="Input Tweaks">
+              <div className={s.inputTweaks}>
+                {state.video && state.inputImage && (
+                  <button
+                    onClick={fitInputToWindow}
+                    title="Scale the input video to comfortably fit the browser area right of the sidebar"
+                  >
+                    Fit to window
+                  </button>
+                )}
+                <Range
+                  name="Input Scale"
+                  types={{ range: [0.05, 16] }}
+                  step={0.05}
+                  onSetFilterOption={(_, value) => actions.setScale(value)}
+                  value={state.scale}
                 />
-                Mute
-              </label>
-            </div>
-            <Range
-              name="Playback rate"
-              types={{ range: [0, 2] }}
-              step={0.05}
-              onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
-              value={state.videoPlaybackRate}
-            />
-          </>)}
+                {state.video && (<>
+                  <div className={controls.separator} />
+                  <div className={s.videoControlRow}>
+                    <button onClick={() => { actions.toggleVideo(); const np = !videoPaused; setVideoPaused(np); flashPlayPause(np ? "pause" : "play"); }}>
+                      {videoPaused ? "\u25B6 Play" : "\u23F8 Pause"}
+                    </button>
+                    <label className={controls.label} htmlFor="mute">
+                      <input
+                        id="mute"
+                        type="checkbox"
+                        checked={state.videoVolume === 0}
+                        onChange={() => {
+                          const newVol = state.videoVolume > 0 ? 0 : 1;
+                          actions.setInputVolume(newVol);
+                          localStorage.setItem("ditherer-mute", newVol === 0 ? "1" : "0");
+                        }}
+                      />
+                      Mute
+                    </label>
+                  </div>
+                  <Range
+                    name="Playback rate"
+                    types={{ range: [0, 2] }}
+                    step={0.05}
+                    onSetFilterOption={(_, value) => actions.setInputPlaybackRate(value)}
+                    value={state.videoPlaybackRate}
+                  />
+                </>)}
+              </div>
+            </CollapsibleSection>
+          )}
         </div>
 
         {/* Algorithm section */}

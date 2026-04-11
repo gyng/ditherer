@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useFilter } from "context/useFilter";
 import useDraggable from "components/App/useDraggable";
 import { filterList, noop } from "filters";
@@ -12,6 +12,9 @@ import ModalInput from "components/ModalInput";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, buildPresetSignatureMap, getChainSignature, type PresetFilterEntry } from "./presets";
 import LibraryBrowser from "./LibraryBrowser";
 import s from "./styles.module.css";
+
+const HOVER_PREVIEW_OPEN_DELAY_MS = 150;
+const HOVER_PREVIEW_CLOSE_DELAY_MS = 90;
 
 // Perturb a filter's options from its defaults
 const randomizeOptions = (base: any) => {
@@ -129,31 +132,102 @@ const ChainList = () => {
   const dragCounter = useRef(0);
   const libraryDragRef = useRef<HTMLDivElement | null>(null);
   const libraryDrag = useDraggable(libraryDragRef, { defaultPosition: { x: 560, y: 90 } });
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resolveDefaults = useCallback((name: string) => {
     const match = filterList.find((filter) => filter.displayName === name);
     return (match?.filter.defaults || match?.filter.options || {}) as Record<string, unknown>;
   }, []);
   const presetBySignature = buildPresetSignatureMap(resolveDefaults);
 
+  const clearHoverTimers = useCallback(() => {
+    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+    if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
+    hoverOpenTimerRef.current = null;
+    hoverCloseTimerRef.current = null;
+  }, []);
+
+  const clearHoverPreview = useCallback(() => {
+    clearHoverTimers();
+    setHoveredEntryId(null);
+    setHoverPos(null);
+  }, [clearHoverTimers]);
+
+  const showHoverPreview = useCallback((entryId: string, rect: DOMRect) => {
+    if (hoverCloseTimerRef.current) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+    setHoveredEntryId(entryId);
+    setHoverPos({ top: rect.top, left: rect.right + 8 });
+  }, []);
+
+  const scheduleHoverPreviewClose = useCallback(() => {
+    if (hoverOpenTimerRef.current) {
+      clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
+    if (hoverCloseTimerRef.current) clearTimeout(hoverCloseTimerRef.current);
+    hoverCloseTimerRef.current = setTimeout(() => {
+      setHoveredEntryId(null);
+      setHoverPos(null);
+      hoverCloseTimerRef.current = null;
+    }, HOVER_PREVIEW_CLOSE_DELAY_MS);
+  }, []);
+
   const handleMouseEnter = useCallback((entryId: string, e: React.MouseEvent) => {
     if (dragIndex !== null) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => {
-      setHoveredEntryId(entryId);
-      setHoverPos({ top: rect.top, left: rect.right + 8 });
-    }, 150);
-  }, [dragIndex]);
+    if (hoverCloseTimerRef.current) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+    hoverOpenTimerRef.current = setTimeout(() => {
+      showHoverPreview(entryId, rect);
+      hoverOpenTimerRef.current = null;
+    }, HOVER_PREVIEW_OPEN_DELAY_MS);
+  }, [dragIndex, showHoverPreview]);
 
   const handleMouseLeave = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = null;
-    setHoveredEntryId(null);
-    setHoverPos(null);
-  }, []);
+    scheduleHoverPreviewClose();
+  }, [scheduleHoverPreviewClose]);
+
+  useEffect(() => {
+    const isHoverAnchor = (target: EventTarget | null) =>
+      target instanceof HTMLElement && Boolean(target.closest("[data-preview-hover-anchor='true']"));
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!hoverOpenTimerRef.current && !hoveredEntryId) return;
+      if (isHoverAnchor(event.target)) return;
+      scheduleHoverPreviewClose();
+    };
+
+    const handleWindowBlur = () => clearHoverPreview();
+    const handleVisibilityChange = () => {
+      if (document.hidden) clearHoverPreview();
+    };
+
+    document.addEventListener("mousemove", handleMouseMove, true);
+    document.addEventListener("scroll", handleWindowBlur, true);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove, true);
+      document.removeEventListener("scroll", handleWindowBlur, true);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [clearHoverPreview, hoveredEntryId, scheduleHoverPreviewClose]);
+
+  useEffect(() => {
+    if (hoveredEntryId && !chain.some((entry) => entry.id === hoveredEntryId)) {
+      clearHoverPreview();
+    }
+  }, [chain, clearHoverPreview, hoveredEntryId]);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    clearHoverPreview();
     setDragIndex(index);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", String(index));
@@ -451,6 +525,7 @@ const ChainList = () => {
             <div
               key={entry.id}
               className={classes}
+              data-preview-hover-anchor="true"
               draggable
               role="option"
               aria-selected={isActive}
@@ -579,15 +654,12 @@ const ChainList = () => {
                 </button>
                 <button
                   className={`${s.removeBtn} ${pinnedPreviews.has(entry.id) ? s.animActive : ""}`}
+                  data-preview-hover-anchor="true"
                   onMouseEnter={(e) => {
                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setHoveredEntryId(entry.id);
-                    setHoverPos({ top: rect.top, left: rect.right + 8 });
+                    showHoverPreview(entry.id, rect);
                   }}
-                  onMouseLeave={() => {
-                    setHoveredEntryId(null);
-                    setHoverPos(null);
-                  }}
+                  onMouseLeave={scheduleHoverPreviewClose}
                   onClick={(e) => {
                     e.stopPropagation();
                     const next = new Map(pinnedPreviews);

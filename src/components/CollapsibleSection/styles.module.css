@@ -36,6 +36,10 @@
 }
 
 @media (max-width: 768px) {
+  .section {
+    margin-top: 12px;
+  }
+
   .toggle {
     display: inline;
   }

@@ -376,33 +376,44 @@ button:focus-visible,
 }
 
 @media (max-width: 768px) {
+  .group {
+    margin-top: 7px;
+    padding: 0 2px 2px;
+  }
+
+  .group .name {
+    top: -8px;
+    padding: 0 2px;
+  }
+
   .enum {
-    padding: 10px;
-    font-size: 16px;
+    padding: 8px;
+    font-size: 14px;
   }
 
   .checkbox {
-    min-height: 44px;
+    min-height: 36px;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    margin: 2px 0;
   }
 
   .checkbox input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
   }
 
   .range .rangeGroup > input[type=range] {
-    height: 44px;
+    height: 36px;
   }
 
   .range .value {
     min-width: 50px;
-    min-height: 44px;
+    min-height: 36px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .colorArray .color {
@@ -410,16 +421,24 @@ button:focus-visible,
     min-width: 28px;
   }
 
+  .range {
+    margin-top: 3px;
+  }
+
+  .separator {
+    margin: 6px 0;
+  }
+
   button, .button {
-    min-height: 44px;
-    padding: 8px 12px;
-    font-size: 14px;
+    min-height: 34px;
+    padding: 4px 8px;
+    font-size: 13px;
   }
 
   .file {
-    min-height: 44px;
-    padding: 8px;
-    font-size: 16px;
+    min-height: 38px;
+    padding: 6px;
+    font-size: 14px;
   }
 
   .titleBar {
@@ -429,12 +448,12 @@ button:focus-visible,
 
   textarea {
     width: 100%;
-    font-size: 16px;
+    font-size: 14px;
   }
 
   input[type=text] {
-    font-size: 16px;
-    padding: 8px;
+    font-size: 14px;
+    padding: 6px;
     width: 100%;
     box-sizing: border-box;
   }

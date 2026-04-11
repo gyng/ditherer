@@ -34,6 +34,18 @@
   padding: 15px;
 }
 
+.inputTweaks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.videoControlRow {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
 .chrome .filterButton {
   padding: 20px;
   width: 100%;
@@ -296,16 +308,24 @@
   .chrome {
     width: 100%;
     min-width: unset;
-    padding: 10px;
-    max-height: 50vh;
+    padding: 8px;
+    max-height: min(44dvh, 360px);
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
   }
 
+  .chrome h1 {
+    margin: 0 0 2px;
+  }
+
+  .chrome h2 {
+    margin: 0 0 3px;
+  }
+
   .chrome .filterButton {
-    padding: 14px;
+    padding: 10px 12px;
   }
 
   .canvases {
@@ -348,10 +368,10 @@
     position: sticky;
     bottom: 0;
     background: var(--light-gray);
-    padding: 8px 0;
+    padding: 6px 0 4px;
     z-index: 10;
     border-top: 1px solid #808080;
-    margin-top: 8px;
+    margin-top: 6px;
   }
 
   .filterBar .filterButton {
@@ -372,5 +392,45 @@
 
   .filterBar .filterButton:disabled {
     opacity: 0.7;
+  }
+
+  .nativeFileInput {
+    margin-top: -6px;
+  }
+
+  .testMediaPicker {
+    margin-top: 6px;
+    padding-bottom: 1px;
+  }
+
+  .testMediaToolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    gap: 2px;
+    margin-top: -7px;
+  }
+
+  .testMediaToolbar > :nth-child(2) {
+    margin-right: 0;
+  }
+
+  .testMediaTrigger {
+    width: 100%;
+    min-width: 0;
+    padding: 2px 6px;
+  }
+
+  .testMediaButton {
+    width: auto;
+    padding: 2px 6px;
+  }
+
+  .inputTweaks {
+    gap: 0;
+  }
+
+  .videoControlRow {
+    flex-wrap: wrap;
+    row-gap: 2px;
   }
 }
