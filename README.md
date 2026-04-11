@@ -2,22 +2,27 @@
 
 ![screenshot](screenshot.png)
 
-For all your online dithering needs. Browser-based image and video processing — load media, build a chain of filters, share a URL.
+Browser-based image and video processing for dithering, palette reduction, glitch art, print simulation, temporal effects, and filter-chain experimentation.
 
-## Features
+## What it does
 
-* **~160 filters** across dithering, color, stylize, distort, glitch, simulate, blur/edges, and advanced categories
-* **Filter chains** — compose up to 16 filters, drag-to-reorder, save/load, share via URL or JSON
-* **80+ chain presets** organized by category (Cyberpunk, VHS Pause, Stargate, Lo-fi Webcam, Glitch Art, …)
-* **Dithering** — Floyd-Steinberg / Atkinson / Burkes / Sierra / Stucki / Jarvis with serpentine scanning, ordered (Bayer, hatch, blue noise 16×16 and 64×64 void-and-cluster), pixelsort, posterize, etc.
-* **Temporal pipeline** — filters can read previous frames, EMA background models, and frame indices. Powers motion detect, long exposure, frame blend, phosphor decay, video feedback, slit scan, chronophotography, freeze-frame glitch, motion heatmap, and more
-* **Temporal dithering** — `temporalPhases` on ordered dither and `temporalBleed` on error diffusion accumulate detail across frames (Playdate-style)
-* **Video** — load any video file, realtime filter playback, video copy bakes the chain into a new webm via MediaRecorder
-* **Image/video export** — SaveAs dialog with PNG, JPEG, GIF, and WebM output
-* **80+ palettes** — CGA, Game Boy, PICO-8, NES, C64, Macintosh II, vaporwave, synthwave, Mondrian, Ukiyo-e, thermal, and more — plus adaptive/extracted palettes
-* **Gamma-correct pipeline** — optional linear-light processing for accurate dithering and blurring
-* **WASM acceleration** — Rust-compiled color space conversions for palette matching
-* **Web worker offload** — non-temporal chains run off the main thread
+- Build filter chains in the browser and reorder them with drag and drop
+- Process still images or video clips with realtime preview
+- Share looks through URL state or exported JSON
+- Export processed output as images, GIFs, or video
+- Explore a large built-in library of filters, palettes, and curated presets
+
+## Highlights
+
+- **200+ registered filter entries** spanning dithering, color, stylize, distort, glitch, blur, temporal, simulation, and analysis workflows
+- **129 curated chain presets** for looks like VHS pause, cyberpunk, lo-fi webcam, CRT, print, anime, and glitch-art variants
+- **Temporal pipeline** with previous-frame input/output buffers, EMA history, and frame index injection for motion- and persistence-based effects
+- **Worker offload** for non-temporal chains so the UI stays responsive
+- **Gamma-correct pipeline** with optional linear-light processing
+- **Palette tooling** including built-in retro/art palettes plus adaptive and extracted palettes
+- **WASM acceleration** for performance-critical color distance work with JS fallback
+- **Rich export flows** for PNG, JPEG, WebP, GIF, frame sequences, WebM, and browser-dependent MP4 recording paths
+- **Static gallery generation** from the live filter/preset registries
 
 ## Examples
 
@@ -29,29 +34,40 @@ https://github.com/gyng/ditherer/assets/370496/a721ceb8-d10b-4650-9db1-850a067d7
 
 [vid](https://github.com/gyng/ditherer/assets/370496/cba67de2-8821-4123-98b0-9a71c1fc9bd7)
 
+## Gallery
+
+- Browse the generated gallery in [docs/GALLERY.md](docs/GALLERY.md)
+- Regenerate gallery previews with `npm run gallery`
+
 ## Development
 
-```
+```bash
 npm install
-npm run dev          # dev server
-npm run build        # production build to build/
-npm run test         # vitest
-npm run lint         # eslint + flow + stylelint
-```
-
-See [AGENTS.md](AGENTS.md) for architecture, the filter system, the temporal pipeline, and contribution guidelines.
-
-## Deploying
-
-```
+npm run dev
 npm run build
-git checkout gh-pages
-rm commons.js index.html app.*.js
-mv build/* .
-git add .
-git commit
-git push origin gh-pages
+npm run preview
+npm run lint
+npm run typecheck
+npm run test
 ```
+
+Extra repo utilities:
+
+- `npm run bench` to run performance benches
+- `npm run bench:compare` to compare benchmark runs
+- `npm run report:presets` to find duplicate or highly similar presets
+- `npm run gallery` to regenerate `docs/GALLERY.md` and preview assets
+
+## Build output and deployment
+
+`npm run build` writes a static build to `build/`. The app uses `base: "./"` in Vite, so the output can be hosted from a subdirectory or copied to a static host without extra routing setup.
+
+## Architecture and contributing
+
+- [AGENTS.md](AGENTS.md) covers architecture, filter registration, the temporal pipeline, and contribution expectations
+- [`src/filters/index.ts`](src/filters/index.ts) is the registry for filter metadata and worker-visible entries
+- [`src/context/FilterContext.tsx`](src/context/FilterContext.tsx) owns chain execution, temporal state, sharing, and worker orchestration
+- [docs/plan/](docs/plan/) contains numbered implementation plans
 
 ## References
 
