@@ -1,18 +1,34 @@
-import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
+import { RANGE, COLOR, PALETTE, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  clamp,
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+
+const RENDER_MODE = {
+  SOLID: "SOLID",
+  OVERLAY: "OVERLAY",
+};
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [10, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
   lineWidth: { type: RANGE, range: [0.1, 3], step: 0.1, default: 1, desc: "Traced line thickness" },
   lineColor: { type: COLOR, default: [0, 0, 0], desc: "Edge line color" },
+  renderMode: {
+    type: ENUM,
+    options: [
+      { name: "Solid", value: RENDER_MODE.SOLID },
+      { name: "Overlay", value: RENDER_MODE.OVERLAY },
+    ],
+    default: RENDER_MODE.SOLID,
+    desc: "Draw traced edges on a flat background or overlay them on the source image",
+  },
+  overlayMix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "How strongly traced lines blend over the source image in Overlay mode" },
   bgColor: { type: COLOR, default: [255, 255, 255], desc: "Background color" },
   palette: { type: PALETTE, default: nearest }
 };
@@ -21,8 +37,10 @@ export const defaults = {
   threshold: optionTypes.threshold.default,
   lineWidth: optionTypes.lineWidth.default,
   lineColor: optionTypes.lineColor.default,
+  renderMode: optionTypes.renderMode.default,
+  overlayMix: optionTypes.overlayMix.default,
   bgColor: optionTypes.bgColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 2 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
 const edgeTrace = (
@@ -33,6 +51,8 @@ const edgeTrace = (
     threshold,
     lineWidth,
     lineColor,
+    renderMode,
+    overlayMix,
     bgColor,
     palette
   } = options;
@@ -115,22 +135,33 @@ const edgeTrace = (
     }
   }
 
-  // Render: lineColor on bgColor
+  // Render: lineColor on bgColor or as an overlay on the source image
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
       const isEdge = dilated[y * W + x] === 1;
+      const useOverlay = renderMode === RENDER_MODE.OVERLAY;
+      const baseR = useOverlay ? buf[i] : bgColor[0];
+      const baseG = useOverlay ? buf[i + 1] : bgColor[1];
+      const baseB = useOverlay ? buf[i + 2] : bgColor[2];
 
-      const r = isEdge ? lineColor[0] : bgColor[0];
-      const g = isEdge ? lineColor[1] : bgColor[1];
-      const b = isEdge ? lineColor[2] : bgColor[2];
+      let r = isEdge ? lineColor[0] : baseR;
+      let g = isEdge ? lineColor[1] : baseG;
+      let b = isEdge ? lineColor[2] : baseB;
+
+      if (isEdge && useOverlay) {
+        const mix = clamp(0, 1, overlayMix * edgeAlpha);
+        r = Math.round(baseR + (lineColor[0] - baseR) * mix);
+        g = Math.round(baseG + (lineColor[1] - baseG) * mix);
+        b = Math.round(baseB + (lineColor[2] - baseB) * mix);
+      }
 
       const color = paletteGetColor(
         palette,
         rgba(
-          isEdge && lineWidth < 1 ? Math.round(bgColor[0] + (r - bgColor[0]) * edgeAlpha) : r,
-          isEdge && lineWidth < 1 ? Math.round(bgColor[1] + (g - bgColor[1]) * edgeAlpha) : g,
-          isEdge && lineWidth < 1 ? Math.round(bgColor[2] + (b - bgColor[2]) * edgeAlpha) : b,
+          isEdge && lineWidth < 1 && !useOverlay ? Math.round(baseR + (r - baseR) * edgeAlpha) : r,
+          isEdge && lineWidth < 1 && !useOverlay ? Math.round(baseG + (g - baseG) * edgeAlpha) : g,
+          isEdge && lineWidth < 1 && !useOverlay ? Math.round(baseB + (b - baseB) * edgeAlpha) : b,
           255
         ),
         palette.options,

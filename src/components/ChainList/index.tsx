@@ -16,6 +16,15 @@ import s from "./styles.module.css";
 const HOVER_PREVIEW_OPEN_DELAY_MS = 150;
 const HOVER_PREVIEW_CLOSE_DELAY_MS = 90;
 
+const getThemeKeys = () =>
+  Object.keys(THEMES).filter((k) => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0);
+
+const getRandomPresetPalette = () => {
+  const themeKeys = getThemeKeys();
+  const themeKey = themeKeys[Math.floor(Math.random() * themeKeys.length)];
+  return { ...palettes.user, options: { colors: THEMES[themeKey] } };
+};
+
 // Perturb a filter's options from its defaults
 const randomizeOptions = (base: any) => {
   const optionTypes = base.optionTypes || {};
@@ -61,9 +70,7 @@ const randomizeOptions = (base: any) => {
           options[key] = { ...paletteList[0].palette, options: palOpts };
         } else if (roll < 0.7) {
           // User/Adaptive palette with a random preset theme
-          const themeKeys = Object.keys(THEMES).filter(k => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0);
-          const themeKey = themeKeys[Math.floor(Math.random() * themeKeys.length)];
-          options[key] = { ...palettes.user, options: { colors: THEMES[themeKey] } };
+          options[key] = getRandomPresetPalette();
         } else {
           // Keep default palette as-is
         }
@@ -84,11 +91,23 @@ const randomizeOptions = (base: any) => {
   return options;
 };
 
-const getRandomFilter = () => {
-  const entry = filterList[Math.floor(Math.random() * filterList.length)];
+export const createRandomFilterEntry = (entry: any, forcePresetPalette = false) => {
   const base = entry.filter;
   const options = randomizeOptions(base);
+
+  if (forcePresetPalette) {
+    const paletteKey = Object.entries(base.optionTypes || {}).find(([, spec]) => (spec as any).type === PALETTE)?.[0];
+    if (paletteKey) {
+      options[paletteKey] = getRandomPresetPalette();
+    }
+  }
+
   return { displayName: entry.displayName, filter: { ...base, options, defaults: options } };
+};
+
+const getRandomFilter = () => {
+  const entry = filterList[Math.floor(Math.random() * filterList.length)];
+  return createRandomFilterEntry(entry);
 };
 
 const USER_CHAIN_PREFIX = "_chain_";
@@ -295,9 +314,18 @@ const ChainList = () => {
       usedCategories.add(pick.category);
     }
     if (picked.length === 0) return;
-    actions.selectFilter(picked[0].displayName, picked[0].filter);
-    for (let i = 1; i < picked.length; i++) {
-      actions.chainAdd(picked[i].displayName, picked[i].filter);
+    const paletteEligibleIndices = picked
+      .map((entry, index) => (((entry.filter.optionTypes || {}).palette?.type === PALETTE) ? index : -1))
+      .filter((index) => index >= 0);
+    const shouldForcePresetPalette = paletteEligibleIndices.length > 0 && Math.random() < 0.45;
+    const forcedIndex = shouldForcePresetPalette
+      ? paletteEligibleIndices[Math.floor(Math.random() * paletteEligibleIndices.length)]
+      : -1;
+    const randomized = picked.map((entry, index) => createRandomFilterEntry(entry, index === forcedIndex));
+
+    actions.selectFilter(randomized[0].displayName, randomized[0].filter);
+    for (let i = 1; i < randomized.length; i++) {
+      actions.chainAdd(randomized[i].displayName, randomized[i].filter);
     }
   };
 

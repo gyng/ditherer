@@ -1,7 +1,7 @@
 import React from "react";
 import { RgbaColorPicker } from "react-colorful";
 
-import { THEMES, THEME_CATEGORIES } from "palettes/user";
+import { THEMES, THEME_CATEGORIES, findMatchingThemeKey, getThemeDescription } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
 import ModalInput from "components/ModalInput";
 
@@ -113,11 +113,11 @@ export default class ColorArray extends React.Component<any, any> {
       return <div>No colors</div>;
     }
 
-    const currentTheme = Object.entries(THEMES).find(
-      e => e[1] === this.props.value
-    );
+    const currentThemeKey = findMatchingThemeKey(this.props.value);
+    const currentTheme = currentThemeKey ? [currentThemeKey, THEMES[currentThemeKey]] : null;
     const customThemeName = "Custom";
-    const currentThemeName = currentTheme ? currentTheme[0] : customThemeName;
+    const currentThemeName = currentThemeKey || customThemeName;
+    const currentThemeDescription = currentThemeKey ? getThemeDescription(currentThemeKey) : null;
 
     const themePicker = (
       <select
@@ -318,13 +318,9 @@ export default class ColorArray extends React.Component<any, any> {
       <div>
         <div className={s.label}>Theme</div>
         {themePicker}
-        {currentThemeName !== customThemeName && (() => {
-          for (const entries of Object.values(THEME_CATEGORIES)) {
-            const match = entries.find(e => e.key === currentThemeName);
-            if (match) return <div className={s.themeDesc}>{match.desc}</div>;
-          }
-          return null;
-        })()}
+        {currentThemeName !== customThemeName && currentThemeDescription && (
+          <div className={s.themeDesc}>{currentThemeDescription}</div>
+        )}
         {colorSwatch}
         {colorPicker}
         <div className={s.group}>

@@ -1585,6 +1585,225 @@ export const THEMES = {
     rgba(255, 255, 255, 255)  // white
   ],
 
+  // Derived from the user-provided animated-film palette reference:
+  // https://raw.githubusercontent.com/ewenme/ghibli/master/inst/extdata/palettes.yml
+  MARINA_MANOR_MIST: [
+    rgba(149, 145, 142, 255),
+    rgba(175, 150, 153, 255),
+    rgba(128, 199, 201, 255),
+    rgba(142, 187, 210, 255),
+    rgba(227, 209, 195, 255),
+    rgba(179, 221, 235, 255),
+    rgba(243, 232, 204, 255)
+  ],
+  MARINA_MANOR_MOODY: [
+    rgba(40, 35, 29, 255),
+    rgba(94, 45, 48, 255),
+    rgba(0, 142, 144, 255),
+    rgba(28, 119, 163, 255),
+    rgba(197, 163, 135, 255),
+    rgba(103, 184, 214, 255),
+    rgba(233, 208, 151, 255)
+  ],
+  MARINA_MANOR_AFTER_DARK: [
+    rgba(21, 17, 14, 255),
+    rgba(47, 22, 25, 255),
+    rgba(0, 71, 73, 255),
+    rgba(14, 59, 82, 255),
+    rgba(99, 81, 67, 255),
+    rgba(51, 93, 107, 255),
+    rgba(115, 104, 76, 255)
+  ],
+  SALTSPRITE_CANDYFOAM: [
+    rgba(166, 160, 160, 255),
+    rgba(173, 183, 192, 255),
+    rgba(148, 197, 204, 255),
+    rgba(244, 173, 179, 255),
+    rgba(238, 188, 177, 255),
+    rgba(236, 216, 157, 255),
+    rgba(244, 227, 211, 255)
+  ],
+  SALTSPRITE_TIDEPOP: [
+    rgba(76, 65, 63, 255),
+    rgba(90, 111, 128, 255),
+    rgba(39, 139, 154, 255),
+    rgba(231, 91, 100, 255),
+    rgba(222, 120, 98, 255),
+    rgba(216, 175, 57, 255),
+    rgba(232, 196, 162, 255)
+  ],
+  SALTSPRITE_ABYSSBUBBLE: [
+    rgba(38, 32, 32, 255),
+    rgba(45, 55, 64, 255),
+    rgba(20, 69, 76, 255),
+    rgba(116, 45, 51, 255),
+    rgba(110, 60, 49, 255),
+    rgba(108, 88, 29, 255),
+    rgba(116, 99, 83, 255)
+  ],
+  SKYCASTLE_POSTCARD: [
+    rgba(137, 141, 144, 255),
+    rgba(141, 147, 161, 255),
+    rgba(159, 153, 181, 255),
+    rgba(175, 172, 201, 255),
+    rgba(215, 202, 222, 255),
+    rgba(218, 237, 243, 255),
+    rgba(247, 234, 189, 255)
+  ],
+  SKYCASTLE_STORMSIGNAL: [
+    rgba(20, 25, 31, 255),
+    rgba(29, 38, 69, 255),
+    rgba(64, 51, 105, 255),
+    rgba(92, 89, 146, 255),
+    rgba(174, 147, 190, 255),
+    rgba(180, 218, 229, 255),
+    rgba(240, 215, 123, 255)
+  ],
+  SKYCASTLE_ENGINE_ROOM: [
+    rgba(9, 13, 16, 255),
+    rgba(13, 19, 33, 255),
+    rgba(31, 25, 53, 255),
+    rgba(47, 44, 73, 255),
+    rgba(87, 74, 94, 255),
+    rgba(90, 109, 115, 255),
+    rgba(119, 106, 61, 255)
+  ],
+  WOLFSHADOW_BLUSH: [
+    rgba(131, 138, 144, 255),
+    rgba(186, 150, 138, 255),
+    rgba(159, 167, 190, 255),
+    rgba(179, 184, 177, 255),
+    rgba(231, 167, 155, 255),
+    rgba(242, 198, 149, 255),
+    rgba(245, 237, 201, 255)
+  ],
+  WOLFSHADOW_IRONBARK: [
+    rgba(6, 20, 31, 255),
+    rgba(116, 44, 20, 255),
+    rgba(61, 79, 125, 255),
+    rgba(101, 112, 96, 255),
+    rgba(205, 79, 56, 255),
+    rgba(228, 140, 42, 255),
+    rgba(234, 216, 144, 255)
+  ],
+  WOLFSHADOW_EMBERROOT: [
+    rgba(3, 10, 16, 255),
+    rgba(58, 22, 10, 255),
+    rgba(31, 39, 62, 255),
+    rgba(51, 56, 49, 255),
+    rgba(103, 39, 27, 255),
+    rgba(114, 70, 21, 255),
+    rgba(117, 109, 73, 255)
+  ],
+  BATHHOUSE_BUBBLEBATH: [
+    rgba(143, 146, 151, 255),
+    rgba(154, 156, 151, 255),
+    rgba(193, 154, 155, 255),
+    rgba(199, 192, 200, 255),
+    rgba(180, 220, 245, 255),
+    rgba(225, 215, 203, 255),
+    rgba(219, 235, 248, 255)
+  ],
+  BATHHOUSE_TRAINRIDE: [
+    rgba(31, 38, 46, 255),
+    rgba(53, 56, 49, 255),
+    rgba(131, 52, 55, 255),
+    rgba(143, 128, 147, 255),
+    rgba(103, 185, 233, 255),
+    rgba(195, 175, 151, 255),
+    rgba(183, 217, 242, 255)
+  ],
+  BATHHOUSE_SOOTSHIFT: [
+    rgba(15, 18, 23, 255),
+    rgba(26, 28, 23, 255),
+    rgba(65, 26, 27, 255),
+    rgba(71, 64, 72, 255),
+    rgba(52, 92, 117, 255),
+    rgba(97, 87, 75, 255),
+    rgba(91, 107, 120, 255)
+  ],
+  HARVEST_MEMOIR_DAYBOOK: [
+    rgba(118, 129, 133, 255),
+    rgba(126, 140, 151, 255),
+    rgba(136, 152, 141, 255),
+    rgba(157, 175, 195, 255),
+    rgba(177, 213, 187, 255),
+    rgba(236, 226, 139, 255),
+    rgba(195, 218, 234, 255)
+  ],
+  HARVEST_MEMOIR_AFTERNOON: [
+    rgba(6, 26, 33, 255),
+    rgba(19, 46, 65, 255),
+    rgba(38, 67, 47, 255),
+    rgba(77, 109, 147, 255),
+    rgba(111, 179, 130, 255),
+    rgba(220, 202, 44, 255),
+    rgba(146, 187, 217, 255)
+  ],
+  HARVEST_MEMOIR_DUSK: [
+    rgba(3, 14, 18, 255),
+    rgba(11, 25, 36, 255),
+    rgba(21, 37, 26, 255),
+    rgba(42, 60, 80, 255),
+    rgba(62, 98, 72, 255),
+    rgba(121, 111, 24, 255),
+    rgba(80, 103, 119, 255)
+  ],
+  BROOMCOURIER_PASTRYBOX: [
+    rgba(142, 140, 143, 255),
+    rgba(154, 154, 162, 255),
+    rgba(217, 133, 148, 255),
+    rgba(134, 194, 218, 255),
+    rgba(208, 193, 170, 255),
+    rgba(192, 221, 225, 255),
+    rgba(233, 219, 208, 255)
+  ],
+  BROOMCOURIER_SIGNPAINT: [
+    rgba(28, 26, 31, 255),
+    rgba(51, 53, 68, 255),
+    rgba(181, 10, 42, 255),
+    rgba(14, 132, 180, 255),
+    rgba(158, 131, 86, 255),
+    rgba(126, 186, 194, 255),
+    rgba(209, 183, 158, 255)
+  ],
+  BROOMCOURIER_MIDNIGHTDROP: [
+    rgba(14, 12, 15, 255),
+    rgba(26, 26, 34, 255),
+    rgba(89, 5, 20, 255),
+    rgba(6, 66, 90, 255),
+    rgba(80, 65, 42, 255),
+    rgba(64, 93, 97, 255),
+    rgba(105, 91, 80, 255)
+  ],
+  BIGFUZZY_PILLOWFORT: [
+    rgba(133, 137, 138, 255),
+    rgba(149, 148, 146, 255),
+    rgba(172, 157, 150, 255),
+    rgba(168, 166, 169, 255),
+    rgba(161, 177, 200, 255),
+    rgba(214, 192, 169, 255),
+    rgba(220, 211, 196, 255)
+  ],
+  BIGFUZZY_RAINYPATH: [
+    rgba(10, 18, 21, 255),
+    rgba(45, 42, 37, 255),
+    rgba(88, 59, 43, 255),
+    rgba(83, 76, 83, 255),
+    rgba(68, 101, 144, 255),
+    rgba(173, 129, 82, 255),
+    rgba(187, 167, 140, 255)
+  ],
+  BIGFUZZY_CAMPHOLLOW: [
+    rgba(5, 9, 10, 255),
+    rgba(21, 20, 18, 255),
+    rgba(44, 29, 22, 255),
+    rgba(40, 38, 41, 255),
+    rgba(33, 49, 72, 255),
+    rgba(86, 64, 41, 255),
+    rgba(92, 83, 68, 255)
+  ],
+
   EMPTY: []
 };
 
@@ -1671,6 +1890,32 @@ export const THEME_CATEGORIES: Record<string, Array<{ key: string; desc: string 
     { key: "SEPIA", desc: "Sepia toning — 8-shade warm brown gradient" },
     { key: "TECHNICOLOR", desc: "3-strip Technicolor — oversaturated Hollywood primaries" },
     { key: "TINTYPE", desc: "Wet plate collodion tintype — cool metallic silver (1860s)" }
+  ],
+  "Animated Knockoffs": [
+    { key: "BATHHOUSE_BUBBLEBATH", desc: "Ghostly spa day — powder pinks, porcelain neutrals, misty blue" },
+    { key: "BATHHOUSE_SOOTSHIFT", desc: "Late-shift boiler room — charcoal, oxblood, stormy teal" },
+    { key: "BATHHOUSE_TRAINRIDE", desc: "Dream commute at dusk — mauve, sky blue, warm tan" },
+    { key: "BIGFUZZY_CAMPHOLLOW", desc: "Forest creature campfire — bark brown, slate blue, soot gray" },
+    { key: "BIGFUZZY_PILLOWFORT", desc: "Gentle giant nap palette — mushroom gray, denim, oatmeal" },
+    { key: "BIGFUZZY_RAINYPATH", desc: "Umbrella walk through the woods — wet stone, chestnut, faded blue" },
+    { key: "BROOMCOURIER_MIDNIGHTDROP", desc: "After-hours delivery run — plum red, harbor teal, cocoa" },
+    { key: "BROOMCOURIER_PASTRYBOX", desc: "Bakery window charm — blush pink, sky blue, frosted cream" },
+    { key: "BROOMCOURIER_SIGNPAINT", desc: "Small-town shopfront — poster red, painted blue, warm kraft paper" },
+    { key: "HARVEST_MEMOIR_AFTERNOON", desc: "Country scrapbook in summer — leaf green, cloud blue, sunflower" },
+    { key: "HARVEST_MEMOIR_DAYBOOK", desc: "Memory album washed in daylight — sage, butter, schoolbook blue" },
+    { key: "HARVEST_MEMOIR_DUSK", desc: "Evening farm road — inky blue, moss, dim lantern gold" },
+    { key: "MARINA_MANOR_AFTER_DARK", desc: "Seaside mystery after curfew — pine black, wine, deep harbor teal" },
+    { key: "MARINA_MANOR_MIST", desc: "Coastal manor morning fog — faded rose, sea glass, antique cream" },
+    { key: "MARINA_MANOR_MOODY", desc: "Salt-air drama — mahogany, petrol blue, sanded brass" },
+    { key: "SALTSPRITE_ABYSSBUBBLE", desc: "Deep tide fantasy — kelp shadow, coral ember, anchor rust" },
+    { key: "SALTSPRITE_CANDYFOAM", desc: "Bubblegum shoreline — sherbet pink, aqua, seashell beige" },
+    { key: "SALTSPRITE_TIDEPOP", desc: "Sunlit surf chaos — candy coral, sea blue, goldfish yellow" },
+    { key: "SKYCASTLE_ENGINE_ROOM", desc: "Ancient flying machine at night — indigo steel, brass, smoke" },
+    { key: "SKYCASTLE_POSTCARD", desc: "Floating-island postcard — lavender stone, cloud blue, parchment gold" },
+    { key: "SKYCASTLE_STORMSIGNAL", desc: "Adventure serial sky chase — ultramarine, orchid, beacon gold" },
+    { key: "WOLFSHADOW_BLUSH", desc: "Mythic forest dawn — clay pink, mist blue, pale amber" },
+    { key: "WOLFSHADOW_EMBERROOT", desc: "Ash-and-cedar night hunt — charcoal, ember orange, bog green" },
+    { key: "WOLFSHADOW_IRONBARK", desc: "Ancient woodland conflict — iron blue, bark brown, signal red" }
   ],
   "Art & Design": [
     { key: "ART_DECO", desc: "Roaring twenties luxury — gold, jade, lacquer, ivory" },
@@ -1782,6 +2027,31 @@ export const THEME_CATEGORIES: Record<string, Array<{ key: string; desc: string 
     { key: "VAPORWAVE", desc: "Seapunk vaporwave — pastel pinks, purples, blues on black" },
     { key: "WIREDSOUND", desc: "Fauux neocities — pink, black, tan minimalism" }
   ]
+};
+
+const getPaletteSignature = (colors?: number[][] | null) =>
+  Array.isArray(colors) ? JSON.stringify(colors) : "";
+
+export const findMatchingThemeKey = (colors?: number[][] | null) => {
+  const signature = getPaletteSignature(colors);
+  if (!signature) return null;
+
+  for (const [key, palette] of Object.entries(THEMES)) {
+    if (getPaletteSignature(palette) === signature) {
+      return key;
+    }
+  }
+
+  return null;
+};
+
+export const getThemeDescription = (themeKey: string) => {
+  for (const entries of Object.values(THEME_CATEGORIES)) {
+    const match = entries.find((entry) => entry.key === themeKey);
+    if (match) return match.desc;
+  }
+
+  return null;
 };
 
 const optionTypes = {

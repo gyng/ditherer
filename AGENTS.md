@@ -97,7 +97,7 @@ The `optionTypes` declaration drives the UI — the Controls component reads it 
 | `PALETTE` | `Palette` |
 | `ACTION` | button (e.g., `animate` for play/stop) |
 
-**Adding a new filter:** Create a new file in `src/filters/`, define `optionTypes`, `defaults`, and the filter function, then register it in `src/filters/index.ts` (both the import and a `filterList` entry with `displayName`/`category`/`description`). The UI controls are generated automatically from `optionTypes`.
+**Adding a new filter:** Create a new file in `src/filters/`, define `optionTypes`, `defaults`, and the filter function, then register it in `src/filters/index.ts` (both the import and a `filterList` entry with `displayName`/`category`/`description`). If the filter is worker-capable (`mainThread` is not `true`), it must also be present in the `filterIndex` registry in that same file or the browser worker path will silently skip it. The UI controls are generated automatically from `optionTypes`.
 
 ### Temporal Pipeline
 

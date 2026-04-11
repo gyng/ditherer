@@ -119,6 +119,55 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Virtual Greenscreen", desc: "Remove static background, keep only moving foreground", filters: [f("Scene Separation", { mode: "FOREGROUND", background: "TRANSPARENT" })], category: "Color" },
   { name: "Zine Cover", desc: "Two-ink offset print on warm paper stock with a poster-like finish", filters: [f("Duplex / Offset Print"), f("Film grain")], category: "Color" },
 
+  { name: "Anime Background", desc: "Paint-over starter for streets and landscapes with broader tone bands, anime grading, and atmospheric depth", filters: [f("Bilateral blur"), f("Anime Tone Bands"), f("Anime Color Grade"), f("Atmospheric Haze")], category: "Anime & Paint-over" },
+  { name: "Anime Clean", desc: "Edge-preserved smoothing, cel-style banding, and anime-background color grading for a clean painted base", filters: [f("Bilateral blur"), f("Toon / Cel Shade"), f("Anime Color Grade"), f("Sharpen")], category: "Anime & Paint-over" },
+  {
+    name: "Anime Ink Grade",
+    desc: "Clean anime grading pass with bilateral smoothing, sharpened detail, and restrained overlaid ink lines",
+    filters: [
+      f("Bilateral blur"),
+      f("Anime Color Grade"),
+      f("Sharpen"),
+      f("Anime Ink Lines", { threshold: 121, lineWidth: 0.8 }),
+    ],
+    category: "Anime & Paint-over",
+  },
+  {
+    name: "Graphic Anime Palette",
+    desc: "Sharper ink-and-palette anime treatment with flatter color families and overlaid traced edges that sit on top of the base image",
+    filters: [
+      f("Bilateral blur"),
+      f("Anime Tone Bands"),
+      f("Palette Mapper by Hue Bands"),
+      f("Edge trace", { renderMode: "OVERLAY", overlayMix: 0.75, lineWidth: 1.2 }),
+    ],
+    category: "Anime & Paint-over",
+  },
+  {
+    name: "Shinkai Sky Base",
+    desc: "Sky-first anime background base with painted clouds, broader light bands, cool shadows, warm highlights, and restrained glow",
+    filters: [
+      f("Anime Sky", { cloudAmount: 0.6, blend: 0.95 }),
+      f("Anime Tone Bands", { highlightSteps: 5, edgeSoftness: 0.12, mix: 0.65 }),
+      f("Anime Color Grade", { shadowCool: 0.65, highlightWarm: 0.45, vibrance: 0.7 }),
+      f("Atmospheric Haze", { strength: 0.55, highlightBloom: 0.35 }),
+      f("Bloom", { amount: 0.18 }),
+    ],
+    category: "Anime & Paint-over",
+  },
+  {
+    name: "Soft Anime Paint",
+    desc: "Foliage and texture simplification for a softer hand-painted anime background feel with a light finishing ink pass",
+    filters: [
+      f("Foliage Simplifier"),
+      f("Kuwahara"),
+      f("Anime Color Grade"),
+      f("Sharpen"),
+      f("Anime Ink Lines", { threshold: 160, lineWidth: 1 }),
+    ],
+    category: "Anime & Paint-over",
+  },
+
   { name: "Dream Sequence", desc: "Soft vaseline-lens glow with warm light bleed — flashback cinema", filters: [f("Gaussian blur"), f("Bloom"), f("Light leak"), f("Sepia")], category: "Blur & Edges" },
   { name: "Embossed Metal", desc: "Raised relief surface — metallic highlight and shadow from edges", filters: [f("Emboss"), f("Levels"), f("Sharpen")], category: "Blur & Edges" },
   { name: "Ghost", desc: "Temporal echo with soft glow — moving subjects leave ghostly trails", filters: [f("Long Exposure", { mode: "BLEND", blendFactor: 0.7 }), f("Bloom")], category: "Blur & Edges" },

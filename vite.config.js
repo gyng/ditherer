@@ -25,6 +25,31 @@ export default defineConfig({
     // (see src/index.tsx) and the worker bundles them all so it can
     // run any filter on demand. Both bundles are knowingly large.
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (id.includes("/react/") || id.includes("/react-dom/")) {
+            return "react-vendor";
+          }
+
+          if (id.includes("/@radix-ui/") || id.includes("/cmdk/") || id.includes("/react-colorful/")) {
+            return "ui-vendor";
+          }
+
+          if (
+            id.includes("/modern-gif/") ||
+            id.includes("/fflate/") ||
+            id.includes("/mp4box/") ||
+            id.includes("/web-demuxer/") ||
+            id.includes("/webm-muxer/")
+          ) {
+            return "export-vendor";
+          }
+        },
+      },
+    },
   },
   server: {
     watch: {
