@@ -307,120 +307,123 @@ const ChainList = () => {
     <div>
       {/* Chain toolbar */}
       <div className={s.addRow}>
-        <button
-          className={s.addBtn}
-          onClick={() => {
-            setLibraryInitialTab("filters");
-            setLibraryInitialQuery("");
-            setShowLibraryBrowser(true);
-          }}
-          title="Open full filter/preset browser"
-        >
-          Browse
-        </button>
-        <select
-          className={s.presetSelect}
-          value=""
-          onChange={(e) => {
-            const preset = CHAIN_PRESETS.find((p) => p.name === e.target.value);
-            if (preset) { loadPreset(preset); setLoadedSavedName(null); }
-          }}
-          title="Load a preset"
-        >
-          <option value="" disabled>&#9733;</option>
-          {PRESET_CATEGORIES.map((cat) => (
-            <optgroup key={cat} label={cat}>
-              {CHAIN_PRESETS
-                .filter((p) => p.category === cat)
-                .map((p) => (
-                  <option key={p.name} value={p.name} title={p.desc}>{p.name}</option>
-                ))}
-            </optgroup>
-          ))}
-        </select>
-        <button
-          className={s.addBtn}
-          onClick={loadRandomPreset}
-          title="Random curated preset"
-        >
-          &#9733;?
-        </button>
-        <button
-          className={s.addBtn}
-          onClick={randomChain}
-          title="Random filter chain"
-        >
-          &#9861;
-        </button>
-        <button
-          className={s.addBtn}
-          onClick={() => {
-            const url = actions.getExportUrl(state);
-            setShareUrl(url);
-            if (navigator.clipboard) {
-              navigator.clipboard.writeText(url).catch(() => { /* fall through to modal */ });
-            }
-          }}
-          title="Share filter chain (copies URL to clipboard)"
-        >
-          &#8679;
-        </button>
-        <button
-          className={s.addBtn}
-          onClick={() => setShowClearConfirm(true)}
-          title="Clear filter chain"
-        >
-          &#10005;
-        </button>
-        <span style={{ flex: 1 }} />
-        <button
-          className={s.addBtn}
-          onClick={() => {
-            const name = prompt("Save chain as:");
-            if (!name) return;
-            const stateJson = actions.exportState(state);
-            const filters = chain.map((e) => e.displayName);
-            const data: SavedChain = { name, desc: filters.join(" \u2192 "), filters, stateJson };
-            localStorage.setItem(USER_CHAIN_PREFIX + name, JSON.stringify(data));
-            setSavedChains(loadUserChains());
-            setLoadedSavedName(name);
-          }}
-          title="Save current chain with settings"
-        >
-          &#9660; Save
-        </button>
-        {savedChains.length > 0 && (
+        <div className={s.toolbarGroup}>
+          <button
+            className={s.addBtn}
+            onClick={() => {
+              setLibraryInitialTab("filters");
+              setLibraryInitialQuery("");
+              setShowLibraryBrowser(true);
+            }}
+            title="Open full filter/preset browser"
+          >
+            Browse
+          </button>
           <select
             className={s.presetSelect}
             value=""
             onChange={(e) => {
-              const saved = savedChains.find((c) => c.name === e.target.value);
-              if (saved) {
-                actions.importState(saved.stateJson);
-                setLoadedSavedName(saved.name);
-              }
+              const preset = CHAIN_PRESETS.find((p) => p.name === e.target.value);
+              if (preset) { loadPreset(preset); setLoadedSavedName(null); }
             }}
-            title="Load a saved chain"
+            title="Load a preset"
           >
-            <option value="" disabled>&#9650; Load</option>
-            {savedChains.map((c) => (
-              <option key={c.name} value={c.name}>{c.name}</option>
+            <option value="" disabled>&#9733;</option>
+            {PRESET_CATEGORIES.map((cat) => (
+              <optgroup key={cat} label={cat}>
+                {CHAIN_PRESETS
+                  .filter((p) => p.category === cat)
+                  .map((p) => (
+                    <option key={p.name} value={p.name} title={p.desc}>{p.name}</option>
+                  ))}
+              </optgroup>
             ))}
           </select>
-        )}
-        {loadedSavedName && (
+          <button
+            className={s.addBtn}
+            onClick={loadRandomPreset}
+            title="Random curated preset"
+          >
+            &#9733;?
+          </button>
+          <button
+            className={s.addBtn}
+            onClick={randomChain}
+            title="Random filter chain"
+          >
+            &#9861;
+          </button>
           <button
             className={s.addBtn}
             onClick={() => {
-              localStorage.removeItem(USER_CHAIN_PREFIX + loadedSavedName);
-              setSavedChains(loadUserChains());
-              setLoadedSavedName(null);
+              const url = actions.getExportUrl(state);
+              setShareUrl(url);
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).catch(() => { /* fall through to modal */ });
+              }
             }}
-            title={`Delete "${loadedSavedName}"`}
+            title="Share filter chain (copies URL to clipboard)"
           >
-            &#10005; Del
+            &#8679;
           </button>
-        )}
+          <button
+            className={s.addBtn}
+            onClick={() => setShowClearConfirm(true)}
+            title="Clear filter chain"
+          >
+            &#10005;
+          </button>
+        </div>
+        <div className={`${s.toolbarGroup} ${s.toolbarGroupRight}`}>
+          <button
+            className={s.addBtn}
+            onClick={() => {
+              const name = prompt("Save chain as:");
+              if (!name) return;
+              const stateJson = actions.exportState(state);
+              const filters = chain.map((e) => e.displayName);
+              const data: SavedChain = { name, desc: filters.join(" \u2192 "), filters, stateJson };
+              localStorage.setItem(USER_CHAIN_PREFIX + name, JSON.stringify(data));
+              setSavedChains(loadUserChains());
+              setLoadedSavedName(name);
+            }}
+            title="Save current chain with settings"
+          >
+            &#9660; Save
+          </button>
+          {savedChains.length > 0 && (
+            <select
+              className={s.presetSelect}
+              value=""
+              onChange={(e) => {
+                const saved = savedChains.find((c) => c.name === e.target.value);
+                if (saved) {
+                  actions.importState(saved.stateJson);
+                  setLoadedSavedName(saved.name);
+                }
+              }}
+              title="Load a saved chain"
+            >
+              <option value="" disabled>&#9650; Load</option>
+              {savedChains.map((c) => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          )}
+          {loadedSavedName && (
+            <button
+              className={s.addBtn}
+              onClick={() => {
+                localStorage.removeItem(USER_CHAIN_PREFIX + loadedSavedName);
+                setSavedChains(loadUserChains());
+                setLoadedSavedName(null);
+              }}
+              title={`Delete "${loadedSavedName}"`}
+            >
+              &#10005; Del
+            </button>
+          )}
+        </div>
       </div>
 
       <div
@@ -499,114 +502,132 @@ const ChainList = () => {
                   {entry.displayName}
                 </span>
               )}
-              {stepTime && (
-                <span className={s.entryTime}>
-                  {stepTime.ms.toFixed(0)}ms
-                </span>
-              )}
-              {entry.filter?.optionTypes?.animate && (
+              <span className={s.entryTime}>
+                {stepTime ? `${stepTime.ms.toFixed(0)}ms` : ""}
+              </span>
+              <div className={s.entryActions}>
+                {entry.filter?.optionTypes?.animate && (
+                  <button
+                    className={`${s.removeBtn} ${actions.isAnimating() ? s.animActive : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      entry.filter.optionTypes.animate.action(
+                        actions, state.inputCanvas, entry.filter.func, entry.filter.options
+                      );
+                    }}
+                    title={actions.isAnimating() ? "Stop animation" : "Play animation"}
+                  >
+                    {actions.isAnimating() ? "\u23F9" : "\u25B6"}
+                  </button>
+                )}
                 <button
-                  className={`${s.removeBtn} ${actions.isAnimating() ? s.animActive : ""}`}
+                  className={s.removeBtn}
                   onClick={(e) => {
                     e.stopPropagation();
-                    entry.filter.optionTypes.animate.action(
-                      actions, state.inputCanvas, entry.filter.func, entry.filter.options
-                    );
+                    const match = filterList.find((f) => f && f.displayName === entry.displayName);
+                    if (match) actions.chainReplace(entry.id, entry.displayName, match.filter);
                   }}
-                  title={actions.isAnimating() ? "Stop animation" : "Play animation"}
+                  title="Reset to defaults"
                 >
-                  {actions.isAnimating() ? "\u23F9" : "\u25B6"}
+                  &#8634;
                 </button>
-              )}
-              <button
-                className={s.removeBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const match = filterList.find((f) => f && f.displayName === entry.displayName);
-                  if (match) actions.chainReplace(entry.id, entry.displayName, match.filter);
-                }}
-                title="Reset to defaults"
-              >
-                &#8634;
-              </button>
-              <button
-                className={s.removeBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const base = entry.filter;
-                  const opts = randomizeOptions(base);
-                  actions.chainReplace(entry.id, entry.displayName, { ...base, options: opts });
-                }}
-                title="Re-roll options"
-              >
-                ~
-              </button>
-              <button
-                className={s.removeBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openPresetBrowserForFilter(entry.displayName);
-                }}
-                title="Open preset browser and search for presets using this filter"
-              >
-                &#9734;
-              </button>
-              <button
-                className={s.removeBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Removing the last entry would leave the chain empty, which
-                  // breaks the rest of the UI; replace it with a noop instead
-                  // so the user always has at least one (inert) entry.
-                  if (chain.length <= 1) {
-                    actions.selectFilter("None", noop);
-                  } else {
-                    actions.chainRemove(entry.id);
-                  }
-                }}
-                title="Remove"
-              >
-                x
-              </button>
-              <button
-                className={s.removeBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  actions.chainDuplicate(entry.id);
-                }}
-                title="Duplicate"
-              >
-                +
-              </button>
-              <button
-                className={`${s.removeBtn} ${pinnedPreviews.has(entry.id) ? s.animActive : ""}`}
-                onMouseEnter={(e) => {
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  setHoveredEntryId(entry.id);
-                  setHoverPos({ top: rect.top, left: rect.right + 8 });
-                }}
-                onMouseLeave={() => {
-                  setHoveredEntryId(null);
-                  setHoverPos(null);
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const next = new Map(pinnedPreviews);
-                  if (next.has(entry.id)) {
-                    next.delete(entry.id);
-                  } else {
+                <button
+                  className={s.removeBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const base = entry.filter;
+                    const opts = randomizeOptions(base);
+                    actions.chainReplace(entry.id, entry.displayName, { ...base, options: opts });
+                  }}
+                  title="Re-roll options"
+                >
+                  ~
+                </button>
+                <button
+                  className={s.removeBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openPresetBrowserForFilter(entry.displayName);
+                  }}
+                  title="Open preset browser and search for presets using this filter"
+                >
+                  &#9734;
+                </button>
+                <button
+                  className={s.removeBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (chain.length <= 1) {
+                      actions.selectFilter("None", noop);
+                    } else {
+                      actions.chainRemove(entry.id);
+                    }
+                  }}
+                  title="Remove"
+                >
+                  x
+                </button>
+                <button
+                  className={s.removeBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    actions.chainDuplicate(entry.id);
+                  }}
+                  title="Duplicate"
+                >
+                  +
+                </button>
+                <button
+                  className={`${s.removeBtn} ${pinnedPreviews.has(entry.id) ? s.animActive : ""}`}
+                  onMouseEnter={(e) => {
                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    next.set(entry.id, { top: rect.top, left: rect.right + 8 });
-                  }
-                  setPinnedPreviews(next);
-                }}
-                title={pinnedPreviews.has(entry.id) ? "Unpin preview" : "Pin preview"}
-              >
-                &#9673;
-              </button>
+                    setHoveredEntryId(entry.id);
+                    setHoverPos({ top: rect.top, left: rect.right + 8 });
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredEntryId(null);
+                    setHoverPos(null);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = new Map(pinnedPreviews);
+                    if (next.has(entry.id)) {
+                      next.delete(entry.id);
+                    } else {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      next.set(entry.id, { top: rect.top, left: rect.right + 8 });
+                    }
+                    setPinnedPreviews(next);
+                  }}
+                  title={pinnedPreviews.has(entry.id) ? "Unpin preview" : "Pin preview"}
+                >
+                  &#9673;
+                </button>
+              </div>
             </div>
           );
         })}
+        <div className={`${s.entry} ${s.addEntry}`} aria-label="Add filter row">
+          <span className={s.addEntrySpacer} aria-hidden="true" />
+          <div className={s.addEntryPicker}>
+            <FilterCombobox
+              inline
+              placeholder="Add filter..."
+              onSelect={(f) => actions.chainAdd(f.displayName, f.filter)}
+            />
+          </div>
+          <button
+            className={`${s.removeBtn} ${s.addEntryButton}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              const { displayName, filter } = getRandomFilter();
+              actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
+            }}
+            title="Add a random filter"
+          >
+            ⚄
+          </button>
+        </div>
       </div>
 
       {/* Pinned previews */}
@@ -639,24 +660,6 @@ const ChainList = () => {
           />
         );
       })()}
-
-      {/* Add filter row */}
-      <div className={s.addRow}>
-        <FilterCombobox
-          placeholder="+ Add filter..."
-          onSelect={(f) => actions.chainAdd(f.displayName, f.filter)}
-        />
-        <button
-          className={s.addBtn}
-          onClick={() => {
-            const { displayName, filter } = getRandomFilter();
-            actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
-          }}
-          title="Add a random filter"
-        >
-          ?
-        </button>
-      </div>
 
       {/* Active filter / preset description */}
       {(() => {

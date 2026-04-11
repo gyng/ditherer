@@ -132,6 +132,10 @@
   width: 42px;
 }
 
+.testMediaToolbar > :nth-child(2) {
+  margin-right: 7px;
+}
+
 /* Win95-style menu bar below title bar */
 .menuBar {
   background: var(--light-gray, #c0c0c0);

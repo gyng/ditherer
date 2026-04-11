@@ -1,4 +1,7 @@
 .chainList {
+  display: grid;
+  grid-template-columns: 14px 16px 22px minmax(0, 1fr) 5ch auto;
+  grid-auto-rows: minmax(0, auto);
   border: 2px inset var(--input-border, #808080);
   background: var(--window-bg, white);
   max-height: 300px;
@@ -12,7 +15,9 @@
 }
 
 .entry {
-  display: flex;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
   gap: 2px;
   padding: 2px 4px;
@@ -48,6 +53,7 @@
 }
 
 .dragHandle {
+  justify-self: center;
   cursor: grab;
   padding: 0 2px;
   color: #999;
@@ -63,12 +69,11 @@
 }
 
 .entryCheckbox {
-  flex-shrink: 0;
+  justify-self: center;
 }
 
 .entryNumber {
-  flex-shrink: 0;
-  min-width: 14px;
+  min-width: 22px;
   text-align: right;
   font-size: 11px;
   opacity: 0.6;
@@ -116,9 +121,18 @@
   font-family: monospace;
   font-size: 10px;
   opacity: 0.5;
-  flex-shrink: 0;
   min-width: 5ch;
   text-align: right;
+}
+
+.entryActions {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  align-items: center;
+  justify-content: end;
+  gap: 2px;
+  min-width: max-content;
 }
 
 .removeBtn {
@@ -161,17 +175,27 @@
 }
 
 .addRow {
-  display: flex;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
   margin-bottom: 4px;
 }
 
-.addRow select {
-  flex: 1;
+.toolbarGroup {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: center;
+  justify-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toolbarGroupRight {
+  justify-self: end;
 }
 
 .addBtn {
-  flex-shrink: 0;
   font-weight: bold;
   min-height: unset;
   padding: 3px 8px;
@@ -205,6 +229,47 @@
 
 .dragOver {
   border-top: 2px solid var(--beautiful-blue);
+}
+
+.addEntry {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  cursor: default;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(0, 0, 0, 0.02));
+}
+
+.addEntrySpacer {
+  grid-column: 1 / 4;
+}
+
+.addEntryPicker {
+  grid-column: 4;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.addEntryPicker > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addEntry:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(0, 0, 0, 0.03));
+}
+
+.addEntryButton {
+  grid-column: 5;
+  justify-self: start;
+  color: var(--button-text, #000);
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+.addEntryButton:hover:not(:disabled) {
+  color: var(--beautiful-blue);
 }
 
 .description {

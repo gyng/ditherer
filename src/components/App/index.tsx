@@ -120,6 +120,7 @@ const App = () => {
   const dragScaleStart = useRef({ input: 1, output: 1 });
   const hasLoadedTestImageRef = useRef(false);
   const hasLoadedTestVideoRef = useRef(false);
+  const hasAutoLoadedDefaultMediaRef = useRef(false);
   const lastTestImageAssetRef = useRef<string | null>(null);
   const lastTestVideoAssetRef = useRef<string | null>(null);
   const imageAssetPromiseCacheRef = useRef<Map<string, Promise<HTMLImageElement>>>(new Map());
@@ -346,6 +347,13 @@ const App = () => {
       queueLoadedMediaFilter();
     });
   }, [actions, queueLoadedMediaFilter, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+
+  useEffect(() => {
+    if (hasAutoLoadedDefaultMediaRef.current) return;
+    if (state.inputImage || state.video) return;
+    hasAutoLoadedDefaultMediaRef.current = true;
+    loadTestVideoFromSrc(DEFAULT_TEST_VIDEO_ASSET);
+  }, [loadTestVideoFromSrc, state.inputImage, state.video]);
 
   const loadRandomTestVideo = useCallback(() => {
     const src = hasLoadedTestVideoRef.current
