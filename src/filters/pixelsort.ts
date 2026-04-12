@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import * as palettes from "palettes";
@@ -13,6 +11,12 @@ import {
   luminance,
   srgbPaletteGetColor
 } from "utils";
+
+type Quadlet = number[];
+type SortDirection = string;
+type IteratorInit = { x: number; y: number; i: number; w: number; h: number };
+type IteratorResult = IteratorInit & { wrapX: boolean; wrapY: boolean; endInterval: boolean };
+type IteratorFn = () => IteratorResult | null;
 
 export const DIRECTION = {
   COLUMN: "COLUMN",
@@ -41,9 +45,9 @@ export const COMPARATOR = {
 };
 
 const compareQuadlet = (
-  a,
-  b,
-  dir
+  a: Quadlet,
+  b: Quadlet,
+  dir: SortDirection
 ) => {
   const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
   const rd = (a[0] - b[0]) * dirMul;
@@ -67,29 +71,29 @@ const compareQuadlet = (
 
 export const SORTS = {
   [COMPARATOR.RGBA]: compareQuadlet,
-  [COMPARATOR.GBRA]: (a, b, dir) => {
+  [COMPARATOR.GBRA]: (a: Quadlet, b: Quadlet, dir: SortDirection) => {
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.BGRA]: (a, b, dir) => {
+  [COMPARATOR.BGRA]: (a: Quadlet, b: Quadlet, dir: SortDirection) => {
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.HSVA]: (
-    aRgba,
-    bRgba,
-    dir
+    aRgba: Quadlet,
+    bRgba: Quadlet,
+    dir: SortDirection
   ) => {
     const a = rgba2hsvaMemo(aRgba);
     const b = rgba2hsvaMemo(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.SVHA]: (
-    aRgba,
-    bRgba,
-    dir
+    aRgba: Quadlet,
+    bRgba: Quadlet,
+    dir: SortDirection
   ) => {
     const a = rgba2hsvaMemo(aRgba);
     const b = rgba2hsvaMemo(bRgba);
@@ -98,9 +102,9 @@ export const SORTS = {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.VSHA]: (
-    aRgba,
-    bRgba,
-    dir
+    aRgba: Quadlet,
+    bRgba: Quadlet,
+    dir: SortDirection
   ) => {
     const a = rgba2hsvaMemo(aRgba);
     const b = rgba2hsvaMemo(bRgba);
@@ -109,18 +113,18 @@ export const SORTS = {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.LABA]: (
-    aRgba,
-    bRgba,
-    dir
+    aRgba: Quadlet,
+    bRgba: Quadlet,
+    dir: SortDirection
   ) => {
     const a = rgba2labaMemo(aRgba);
     const b = rgba2labaMemo(bRgba);
     return compareQuadlet(a, b, dir);
   },
   [COMPARATOR.ABLA]: (
-    aRgba,
-    bRgba,
-    dir
+    aRgba: Quadlet,
+    bRgba: Quadlet,
+    dir: SortDirection
   ) => {
     const a = rgba2labaMemo(aRgba);
     const b = rgba2labaMemo(bRgba);
@@ -129,9 +133,9 @@ export const SORTS = {
     return compareQuadlet(ap, bp, dir);
   },
   [COMPARATOR.BALA]: (
-    aRgba,
-    bRgba,
-    dir
+    aRgba: Quadlet,
+    bRgba: Quadlet,
+    dir: SortDirection
   ) => {
     const a = rgba2labaMemo(aRgba);
     const b = rgba2labaMemo(bRgba);
@@ -139,7 +143,7 @@ export const SORTS = {
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.LUMINANCE]: (a, b, dir, linear = true) => {
+  [COMPARATOR.LUMINANCE]: (a: Quadlet, b: Quadlet, dir: SortDirection, linear = true) => {
     const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
     const lumA = luminance(a, linear);
     const lumB = luminance(b, linear);
@@ -147,7 +151,7 @@ export const SORTS = {
   }
 };
 
-const spiralIterator = endIntervalOnTurn => init => {
+const spiralIterator = (endIntervalOnTurn: boolean) => (init: IteratorInit): IteratorFn => {
   let { x, y, i } = init;
   const { w, h } = init;
   x += Math.floor(w / 2);
@@ -258,7 +262,7 @@ const spiralIterator = endIntervalOnTurn => init => {
 };
 
 // Circular iterator: concentric rings from center, each ring is one interval
-const circularIterator = init => {
+const circularIterator = (init: IteratorInit): IteratorFn => {
   const { w, h } = init;
   const cx = w / 2;
   const cy = h / 2;
@@ -303,7 +307,7 @@ const circularIterator = init => {
 
 // Returns buffer indices
 export const ITERATORS = {
-  [DIRECTION.ROW]: init => {
+  [DIRECTION.ROW]: (init: IteratorInit): IteratorFn => {
     let { x, y, i } = init;
     const { w, h } = init;
     let end = false;
@@ -327,7 +331,7 @@ export const ITERATORS = {
       return nextResult;
     };
   },
-  [DIRECTION.COLUMN]: init => {
+  [DIRECTION.COLUMN]: (init: IteratorInit): IteratorFn => {
     let { x, y, i } = init;
     const { w, h } = init;
     let end = false;
@@ -354,7 +358,7 @@ export const ITERATORS = {
   [DIRECTION.CIRCULAR]: circularIterator,
   [DIRECTION.SPIRAL_CUT]: spiralIterator(true),
   [DIRECTION.SPIRAL]: spiralIterator(false),
-  [DIRECTION.DIAGONAL_TOP_RIGHT]: init => {
+  [DIRECTION.DIAGONAL_TOP_RIGHT]: (init: IteratorInit): IteratorFn => {
     let { x, y, i } = init;
     const { w, h } = init;
     let end = false;
@@ -532,7 +536,7 @@ const pixelsortFilter = (
     linearLuminance
   } = options;
 
-  const lum = (pixel) => luminance(pixel, linearLuminance);
+  const lum = (pixel: Quadlet) => luminance(pixel, linearLuminance);
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -544,11 +548,11 @@ const pixelsortFilter = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const newInterval = () => ({ trail: [], pixels: [] });
+  const newInterval = (): { trail: number[]; pixels: Quadlet[] } => ({ trail: [], pixels: [] });
   let interval = newInterval();
 
   const fillInterval = () => {
-    interval.pixels.sort((a, b) => SORTS[comparator](a, b, sortDirection, linearLuminance));
+    interval.pixels.sort((a, b) => SORTS[comparator as keyof typeof SORTS](a, b, sortDirection, linearLuminance));
 
     for (let i = 0; i < interval.trail.length; i += 1) {
       const bufIdx = interval.trail[i];

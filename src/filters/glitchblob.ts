@@ -1,15 +1,13 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 /* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
   // lots of mutation
 
 const ASYNC_FILTER = "ASYNC_FILTER";
-const filterImage = (image) => ({ type: "FILTER_IMAGE", image });
+const filterImage = (image: ImageBitmap) => ({ type: "FILTER_IMAGE", image });
 
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
 import { deflateSync, inflateSync } from "fflate";
-import { defineFilter } from "filters/types";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 export const IMAGE_JPEG = "IMAGE_JPEG";
 export const IMAGE_PNG = "IMAGE_PNG";
@@ -17,7 +15,7 @@ export const IMAGE_WEBP = "IMAGE_WEBP";
 export const IMAGE_BMP = "IMAGE_BMP";
 export const IMAGE_ICO = "IMAGE_ICO";
 
-const formatMap = {
+const formatMap: Record<string, string> = {
   [IMAGE_JPEG]: "image/jpeg",
   [IMAGE_PNG]: "image/png",
   [IMAGE_WEBP]: "image/webp",
@@ -69,8 +67,16 @@ const defaults = {
   jpegQuality: optionTypes.jpegQuality.default
 };
 
+type GlitchblobOptions = FilterOptionValues & typeof defaults;
+
+type PngContext = {
+  filter: Uint8Array;
+  skippedBeforeIdat: Uint8Array[];
+  skippedAfterIdat: Uint8Array[];
+};
+
 class PngError extends Error {
-  constructor(...params) {
+  constructor(...params: ConstructorParameters<typeof Error>) {
     super(...params);
     const ErrorWithCaptureTrace = Error as ErrorConstructor & {
       captureStackTrace?: (
@@ -83,25 +89,26 @@ class PngError extends Error {
 }
 
 const canvasToBlob = (
-  image,
-  format
-) =>
-  new Promise((resolve, _reject) => {
+  image: HTMLCanvasElement,
+  format: string
+): Promise<Blob> =>
+  new Promise((resolve, reject) => {
     image.toBlob(blob => {
-      resolve(blob);
+      if (blob) resolve(blob);
+      else reject(new Error("Canvas export failed"));
     }, formatMap[format]);
   });
 
-const blobToImage = (blob) => createImageBitmap(blob);
+const blobToImage = (blob: Blob) => createImageBitmap(blob);
 
-const blobToUint8Array = async (blob) =>
+const blobToUint8Array = async (blob: Blob) =>
   new Uint8Array(await blob.arrayBuffer());
 
 const transformTranspose = (
-  header,
-  input,
-  ..._rest
-) => {
+  header: number,
+  input: Uint8Array,
+  ..._rest: unknown[]
+): Uint8Array => {
   const idx = header + Math.floor(Math.random() * (input.length - header - 1));
   const tmp = input[idx];
   input[idx] = input[idx + 1];
@@ -110,10 +117,10 @@ const transformTranspose = (
 };
 
 const transformSubstitute = (
-  header,
-  input,
-  ..._rest
-) => {
+  header: number,
+  input: Uint8Array,
+  ..._rest: unknown[]
+): Uint8Array => {
   const by = Math.floor(Math.random() * 256);
   const idx = header + Math.floor(Math.random() * (input.length - header));
   input[idx] = by;
@@ -121,10 +128,10 @@ const transformSubstitute = (
 };
 
 const transformRepeat = (
-  header,
-  input,
-  ..._rest
-) => {
+  header: number,
+  input: Uint8Array,
+  ..._rest: unknown[]
+): Uint8Array => {
   const idx = header + Math.floor(Math.random() * (input.length - header));
   const by = input[idx];
 
@@ -142,7 +149,7 @@ const transformRepeat = (
   return newOut;
 };
 
-const setU32 = (data, value) => {
+const setU32 = (data: Uint8Array, value: number) => {
   const tmpBuf = new ArrayBuffer(4);
   new DataView(tmpBuf).setUint32(0, value);
    
@@ -153,7 +160,7 @@ const setU32 = (data, value) => {
    
 };
 
-const getU32 = (data) => {
+const getU32 = (data: Uint8Array) => {
   const tmpBuf = new ArrayBuffer(4);
    
   new Uint8Array(tmpBuf)[0] = data[0];
@@ -164,9 +171,9 @@ const getU32 = (data) => {
   return new DataView(tmpBuf).getUint32(0);
 };
 
-const computeCrc = (data, crcBuf) => {
+const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
    
-  function buildCRC32Table(poly) {
+  function buildCRC32Table(poly: number) {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n += 1) {
       let c = n;
@@ -192,7 +199,7 @@ const computeCrc = (data, crcBuf) => {
   setU32(crcBuf, crc);
 };
 
-const postprocessPNG = (ctx) => {
+const postprocessPNG = (ctx: PngContext) => {
   const CHUNK_SIZE = 8192;
   // prettier-ignore
   const pngHeader = new Uint8Array([ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -251,7 +258,7 @@ const postprocessPNG = (ctx) => {
   return out;
 };
 
-const preprocessPNG = (buffer) => {
+const preprocessPNG = (buffer: Uint8Array): PngContext => {
   let offset = 0;
   const skippedBeforeIdat = [];
   const skippedAfterIdat = [];
@@ -356,8 +363,8 @@ const preprocessPNG = (buffer) => {
 
 const glitchblob = (
   input: any,
-  options = defaults,
-  dispatch
+  options: GlitchblobOptions = defaults,
+  dispatch?: (_action: { type: string; image: ImageBitmap }) => void
 ) => {
   if (typeof dispatch !== "function") {
     return input;
@@ -374,15 +381,15 @@ const glitchblob = (
   }
 
   const corruptThis = (
-    image,
-    fmt
+    image: HTMLCanvasElement,
+    fmt: string
   ) => {
     const retry = (
-      limit,
-      promiseChainFactory
+      limit: number,
+      promiseChainFactory: () => Promise<ImageBitmap>
     ) =>
       promiseChainFactory().catch(
-        e =>
+        (e: unknown) =>
           new Promise((reso, rej) => {
             if (limit === 0) {
               rej(e);
@@ -392,9 +399,9 @@ const glitchblob = (
           })
       );
 
-    const corruptor = (corruptedArg) => {
+    const corruptor = (corruptedArg: Uint8Array): Uint8Array => {
       let corrupted = corruptedArg;
-      let context;
+      let context: PngContext | undefined;
       let header = Math.round(Math.min(100, 0.9 * corrupted.length));
 
       if (fmt === IMAGE_PNG) {
@@ -443,12 +450,12 @@ const glitchblob = (
       canvasToBlob(image, format)
         .then(blobToUint8Array)
         .then(corruptor)
-        .then(u8a => new Blob([u8a], { type: formatMap[format] }))
+        .then(u8a => new Blob([Uint8Array.from(u8a)], { type: formatMap[format] }))
         .then(blobToImage)
     );
   };
 
-  corruptThis(input, format).then(image => {
+  corruptThis(input, format).then((image: ImageBitmap) => {
     dispatch(filterImage(image));
   });
 
