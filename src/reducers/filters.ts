@@ -128,7 +128,9 @@ const getPaletteState = (value: unknown): PaletteOptionState | null => {
   if (typeof candidate.name !== "string" || candidate.name.length === 0) return null;
   return {
     name: candidate.name,
-    options: (candidate.options as FilterOptionMap | undefined) ?? undefined,
+    ...((candidate.options as FilterOptionMap | undefined) !== undefined
+      ? { options: candidate.options as FilterOptionMap }
+      : {}),
   };
 };
 
@@ -147,7 +149,9 @@ const deserializeFilter = (
   if (!localFilter) return null;
   const result = {
     ...localFilter,
-    options: savedFilter.options as FilterOptionMap | undefined,
+    ...((savedFilter.options as FilterOptionMap | undefined) !== undefined
+      ? { options: savedFilter.options as FilterOptionMap }
+      : {}),
   };
   const palette = getPaletteState(result.options?.palette);
   if (palette != null) {
@@ -158,8 +162,8 @@ const deserializeFilter = (
       result.options = {
         ...(result.options || {}),
         palette: {
-        ...localPalette.palette,
-          options: palette.options
+          ...localPalette.palette,
+          ...(palette.options !== undefined ? { options: palette.options } : {}),
         }
       };
     }

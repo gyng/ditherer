@@ -50,6 +50,10 @@ const Controls = (props: NestedControlsProps) => {
     props.onSaveColorPalette || actions.saveCurrentColorPalette;
   const onDeleteColorPalette: (name: string) => void =
     props.onDeleteColorPalette || actions.deleteCurrentColorPalette;
+  const controlMeta = (label?: string, desc?: string) => ({
+    ...(label !== undefined ? { label } : {}),
+    ...(desc !== undefined ? { desc } : {}),
+  });
 
   return (
     <div className={s.controls}>
@@ -91,9 +95,9 @@ const Controls = (props: NestedControlsProps) => {
               <Range
                 key={name}
                 name={name}
-                types={{ label: rangeType.label, desc: rangeType.desc, range: rangeType.range }}
+                types={{ ...controlMeta(rangeType.label, rangeType.desc), range: rangeType.range }}
                 value={typeof value === "number" ? value : Number(value ?? rangeType.default ?? 0)}
-                step={rangeType.step}
+                {...(rangeType.step !== undefined ? { step: rangeType.step } : {})}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -105,15 +109,17 @@ const Controls = (props: NestedControlsProps) => {
               <Palette
                 key={name}
                 name={name}
-                types={{ label: paletteType.label, desc: paletteType.desc }}
+                types={controlMeta(paletteType.label, paletteType.desc)}
                 value={value as PaletteValue}
-                paletteOptions={(value as PaletteValue | undefined)?.options}
+                {...(((value as PaletteValue | undefined)?.options) !== undefined
+                  ? { paletteOptions: (value as PaletteValue).options }
+                  : {})}
                 onAddPaletteColor={onAddPaletteColor}
                 onSetFilterOption={onSetFilterOption}
                 onSetPaletteOption={onSetPaletteOption}
                 onSaveColorPalette={onSaveColorPalette}
                 onDeleteColorPalette={onDeleteColorPalette}
-                inputCanvas={inputCanvas}
+                {...(inputCanvas !== undefined ? { inputCanvas } : {})}
               />
             );
             }
@@ -128,7 +134,7 @@ const Controls = (props: NestedControlsProps) => {
                 onSetPaletteOption={onSetPaletteOption}
                 onSaveColorPalette={onSaveColorPalette as (name: string, colors: number[][]) => void}
                 onDeleteColorPalette={onDeleteColorPalette}
-                inputCanvas={inputCanvas}
+                {...(inputCanvas !== undefined ? { inputCanvas } : {})}
               />
             );
           case COLOR:
@@ -145,7 +151,7 @@ const Controls = (props: NestedControlsProps) => {
               <Stringly
                 key={name}
                 name={name}
-                types={{ label: oType.label, desc: oType.desc }}
+                types={controlMeta(oType.label, oType.desc)}
                 value={typeof value === "string" ? value : String(value ?? "")}
                 onSetFilterOption={onSetFilterOption}
               />
@@ -155,7 +161,7 @@ const Controls = (props: NestedControlsProps) => {
               <Textly
                 key={name}
                 name={name}
-                types={{ label: oType.label, desc: oType.desc }}
+                types={controlMeta(oType.label, oType.desc)}
                 value={typeof value === "string" ? value : String(value ?? "")}
                 onSetFilterOption={onSetFilterOption}
               />
@@ -175,7 +181,7 @@ const Controls = (props: NestedControlsProps) => {
               <Bool
                 key={name}
                 name={name}
-                types={{ label: oType.label, desc: oType.desc }}
+                types={controlMeta(oType.label, oType.desc)}
                 value={Boolean(value)}
                 onSetFilterOption={onSetFilterOption}
               />
@@ -187,7 +193,7 @@ const Controls = (props: NestedControlsProps) => {
               <Enum
                 key={name}
                 name={name}
-                types={{ label: enumType.label, desc: enumType.desc, options: enumType.options }}
+                types={{ ...controlMeta(enumType.label, enumType.desc), options: enumType.options }}
                 value={typeof value === "number" || typeof value === "string" ? value : String(value ?? "")}
                 onSetFilterOption={onSetFilterOption}
               />

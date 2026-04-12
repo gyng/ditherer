@@ -26,9 +26,9 @@ const Palette = (props: PaletteControlProps) => (
     </select>
 
     <Controls
-      inputCanvas={props.inputCanvas}
-      optionTypes={props.value.optionTypes}
-      options={props.paletteOptions}
+      {...(props.inputCanvas !== undefined ? { inputCanvas: props.inputCanvas } : {})}
+      {...(props.value.optionTypes !== undefined ? { optionTypes: props.value.optionTypes } : {})}
+      {...(props.paletteOptions !== undefined ? { options: props.paletteOptions } : {})}
       onAddPaletteColor={props.onAddPaletteColor}
       onSetPaletteOption={props.onSetPaletteOption}
       onSetFilterOption={props.onSetPaletteOption}

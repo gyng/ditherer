@@ -6,6 +6,7 @@
     "jsx": "react-jsx",
     "strict": false,
     "strictNullChecks": true,
+    "exactOptionalPropertyTypes": true,
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

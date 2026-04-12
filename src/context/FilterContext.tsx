@@ -945,7 +945,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         cachedOutputsRef.current.delete(chain[i].id);
       }
       clearMotionVectorsState();
-      dispatch({ type: "SET_FILTER_OPTION", optionName, value, chainIndex });
+      dispatch({
+        type: "SET_FILTER_OPTION",
+        optionName,
+        value,
+        ...(chainIndex !== undefined ? { chainIndex } : {}),
+      });
     },
     setFilterPaletteOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
@@ -954,7 +959,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         cachedOutputsRef.current.delete(chain[i].id);
       }
       clearMotionVectorsState();
-      dispatch({ type: "SET_FILTER_PALETTE_OPTION", optionName, value, chainIndex });
+      dispatch({
+        type: "SET_FILTER_PALETTE_OPTION",
+        optionName,
+        value,
+        ...(chainIndex !== undefined ? { chainIndex } : {}),
+      });
     },
     addPaletteColor: (color: number[], chainIndex?: number) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
@@ -963,7 +973,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         cachedOutputsRef.current.delete(chain[i].id);
       }
       clearMotionVectorsState();
-      dispatch({ type: "ADD_PALETTE_COLOR", color, chainIndex });
+      dispatch({
+        type: "ADD_PALETTE_COLOR",
+        color,
+        ...(chainIndex !== undefined ? { chainIndex } : {}),
+      });
     },
     importState: (json: string) => {
       const deserialized = JSON.parse(json) as SerializedFilterState;
