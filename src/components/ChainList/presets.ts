@@ -314,6 +314,38 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Surveillance Wall", desc: "Tiles updating at staggered rates with scanlines and grain", filters: [f("Time mosaic"), f("Scanline"), f("Film grain")], category: "Simulate" },
   { name: "Thermal", desc: "FLIR-style heat map with posterized temperature bands", filters: [f("Thermal camera"), f("Posterize"), f("Bloom")], category: "Simulate" },
   { name: "Underwater", desc: "Motion-reactive ripple distortion with chromatic split", filters: [f("Wake turbulence"), f("Chromatic aberration"), f("Bloom")], category: "Simulate" },
+  {
+    name: "Vinyl Record",
+    desc: "Press the image into tight groove-like bands, wrap it into a circular disc, and darken the edge like a black vinyl record",
+    filters: [
+      f("Grayscale"),
+      f("Engraving", {
+        lineSpacing: 2,
+        angle: 0,
+        inkColor: [235, 235, 240],
+        paperColor: [8, 8, 10],
+      }),
+      f("Polar transform", {
+        mode: "RECT_TO_POLAR",
+        centerX: 0.5,
+        centerY: 0.5,
+        angle: 0,
+        interpolation: "BILINEAR",
+      }),
+      f("Rotate", {
+        angle: 0,
+        spinPerFrame: 2,
+        animSpeed: 15,
+      }),
+      f("Vignette", {
+        strength: 0.95,
+        radius: 0.78,
+        softness: 0.16,
+        shape: "CIRCLE",
+      }),
+    ],
+    category: "Simulate",
+  },
 
   { name: "Double Exposure", desc: "Classic film double exposure with bloom and tonal control", filters: [f("Blend"), f("Bloom"), f("Levels")], category: "Photo" },
   { name: "Noir", desc: "High-contrast black and white with grain and vignette", filters: [f("Grayscale"), f("Levels"), f("Sharpen"), f("Vignette"), f("Film grain")], category: "Photo" },

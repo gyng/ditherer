@@ -1,21 +1,34 @@
-import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
+import { RANGE, COLOR, PALETTE, ACTION } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
 export const optionTypes = {
   angle: { type: RANGE, range: [-180, 180], step: 1, default: 15, desc: "Rotation angle in degrees" },
+  spinPerFrame: { type: RANGE, range: [-45, 45], step: 0.5, default: 2, desc: "Additional degrees of rotation applied every animation frame" },
   bgColor: { type: COLOR, default: [0, 0, 0], desc: "Fill color for exposed corners" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions, inputCanvas, _filterFunc, options) => {
+      if (actions.isAnimating()) actions.stopAnimLoop();
+      else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+    },
+  },
 };
 
 export const defaults = {
   angle: optionTypes.angle.default,
+  spinPerFrame: optionTypes.spinPerFrame.default,
   bgColor: optionTypes.bgColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
+  animSpeed: optionTypes.animSpeed.default,
 };
 
 const rotateFilter = (input, options: any = defaults) => {
-  const { angle, bgColor, palette } = options;
+  const { angle, spinPerFrame, bgColor, palette } = options;
+  const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -25,7 +38,8 @@ const rotateFilter = (input, options: any = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const rad = (-angle * Math.PI) / 180;
+  const animatedAngle = angle + spinPerFrame * frameIndex;
+  const rad = (-animatedAngle * Math.PI) / 180;
   const cosA = Math.cos(rad), sinA = Math.sin(rad);
   const cx = W / 2, cy = H / 2;
 
