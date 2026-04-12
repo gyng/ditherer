@@ -381,6 +381,42 @@ const App = () => {
     );
   }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const clipboardData = event.clipboardData;
+      if (!clipboardData) return;
+
+      const items = Array.from(clipboardData.items || []);
+      const imageItem = items.find((item) => item.type.startsWith("image/"));
+      if (!imageItem) return;
+
+      const target = event.target as HTMLElement | null;
+      const isEditableTarget = !!target && (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target.isContentEditable
+      );
+
+      const pastedFile = imageItem.getAsFile();
+      if (!pastedFile) return;
+
+      event.preventDefault();
+      if (!isEditableTarget || pastedFile.size > 0) {
+        loadUserFile(
+          pastedFile.name
+            ? pastedFile
+            : new File([pastedFile], `pasted-image.${pastedFile.type.split("/")[1] || "png"}`, {
+                type: pastedFile.type || "image/png",
+              })
+        );
+      }
+    };
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [loadUserFile]);
+
   const commitSeekVideo = useCallback((nextTime: number) => {
     const video = state.video;
     if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
@@ -619,6 +655,9 @@ const App = () => {
               }}
               title="Load an image or video file"
             />
+            <p className={s.inputHelpText}>
+              Paste, drag, or choose an image or video to get started.
+            </p>
           </div>
           <div className={[controls.group, s.testMediaPicker].join(" ")}>
             <span className={controls.name}>Test Media</span>
