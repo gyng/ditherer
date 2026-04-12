@@ -32,7 +32,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crossStitch = (input, options = defaults) => {
+const crossStitch = (input: any, options = defaults) => {
   const { stitchSize, threadColor, fabricColor, gapBetween, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

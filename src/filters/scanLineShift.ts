@@ -19,7 +19,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
     }
@@ -47,7 +47,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const scanLineShift = (input, options = defaults) => {
+const scanLineShift = (input: any, options = defaults) => {
   const { maxShift, blockHeight, chance, colorShift, wrap, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
 

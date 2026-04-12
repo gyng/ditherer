@@ -29,7 +29,7 @@ import s from "./styles.module.css";
 const HOVER_PREVIEW_OPEN_DELAY_MS = 150;
 const HOVER_PREVIEW_CLOSE_DELAY_MS = 90;
 
-const getThemeKeys = () =>
+const getThemeKeys = (): string[] =>
   Object.keys(THEMES).filter((k) => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0);
 
 const getRandomPresetPalette = () => {
@@ -878,7 +878,7 @@ const ChainList = () => {
             initialTab={libraryInitialTab}
             initialQuery={libraryInitialQuery}
             onDialogMouseDown={handleLibraryDialogMouseDown}
-            previewSource={state.inputImage}
+            previewSource={state.inputImage as HTMLCanvasElement | HTMLImageElement | null}
             previewVideo={state.video}
           />
         </div>

@@ -8,7 +8,7 @@ export const optionTypes = {
   accumulate: { type: BOOL, default: true, desc: "Build up edges over time vs show only instantaneous changes" },
   decayRate: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.08, desc: "How fast accumulated edges fade" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -31,7 +31,7 @@ type TemporalEdgeOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const temporalEdge = (input, options: TemporalEdgeOptions = defaults) => {
+const temporalEdge = (input: any, options: TemporalEdgeOptions = defaults) => {
   const threshold = Number(options.threshold ?? defaults.threshold);
   const sensitivity = Number(options.sensitivity ?? defaults.sensitivity);
   const accumulate = Boolean(options.accumulate ?? defaults.accumulate);

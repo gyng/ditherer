@@ -22,7 +22,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const watercolorBleed = (input, options = defaults) => {
+const watercolorBleed = (input: any, options = defaults) => {
   const { bleedRadius, edgeSoftness, paperTexture, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

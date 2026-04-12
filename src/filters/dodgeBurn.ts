@@ -23,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const dodgeBurn = (input, options = defaults) => {
+const dodgeBurn = (input: any, options = defaults) => {
   const { mode, strength, range: lumRange, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

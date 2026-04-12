@@ -7,7 +7,7 @@ export const optionTypes = {
   invert: { type: BOOL, default: false, desc: "Pixelate static areas instead of moving" },
   threshold: { type: RANGE, range: [1, 50], step: 1, default: 5, desc: "Motion sensitivity — lower = more reactive" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -27,7 +27,7 @@ type MotionPixelateOptions = FilterOptionValues & {
   _ema?: Float32Array | null;
 };
 
-const motionPixelate = (input, options: MotionPixelateOptions = defaults) => {
+const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) => {
   const blockSize = Number(options.blockSize ?? defaults.blockSize);
   const invert = Boolean(options.invert ?? defaults.invert);
   const threshold = Number(options.threshold ?? defaults.threshold);

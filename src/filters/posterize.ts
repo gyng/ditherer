@@ -13,7 +13,7 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
-const posterize = (input, options = defaults) => {
+const posterize = (input: any, options = defaults) => {
   const { levels, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

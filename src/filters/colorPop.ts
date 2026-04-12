@@ -22,7 +22,7 @@ export const defaults = {
   softness: optionTypes.softness.default
 };
 
-const colorPop = (input, options = defaults) => {
+const colorPop = (input: any, options = defaults) => {
   const { targetHue, hueWidth, desaturateOthers, softness } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

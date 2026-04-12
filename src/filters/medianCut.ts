@@ -61,7 +61,7 @@ export const defaults = {
   colorMode: optionTypes.colorMode.default
 };
 
-const medianCutFilter = (input, options = defaults) => {
+const medianCutFilter = (input: any, options = defaults) => {
   const { levels, sampleRate, adaptMode, colorMode } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

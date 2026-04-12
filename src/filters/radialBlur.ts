@@ -23,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const radialBlurFilter = (input, options = defaults) => {
+const radialBlurFilter = (input: any, options = defaults) => {
   const { strength, centerX, centerY, palette } = options;
 
   const output = cloneCanvas(input, false);

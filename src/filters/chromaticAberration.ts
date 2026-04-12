@@ -46,7 +46,7 @@ export const defaults = {
 
 const clampCoord = (v: number, max: number) => Math.max(0, Math.min(max - 1, Math.round(v)));
 
-const chromaticAberration = (input, options = defaults) => {
+const chromaticAberration = (input: any, options = defaults) => {
   const { mode, strength, angle, radial, rOffsetX, rOffsetY, gOffsetX, gOffsetY, bOffsetX, bOffsetY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

@@ -59,7 +59,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const fractalFilter = (input, options = defaults) => {
+const fractalFilter = (input: any, options = defaults) => {
   const { type, zoom, centerX, centerY, iterations, juliaR, juliaI, colorSource, palette } = options;
 
   const output = cloneCanvas(input, false);

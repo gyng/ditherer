@@ -58,7 +58,7 @@ type ProgramPixelFn = (
 ) => ProgramPixel;
 
 const programFilter = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const { program, palette } = options;

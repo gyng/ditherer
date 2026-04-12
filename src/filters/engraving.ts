@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const engraving = (input, options = defaults) => {
+const engraving = (input: any, options = defaults) => {
   const { lineSpacing, angle, inkColor, paperColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

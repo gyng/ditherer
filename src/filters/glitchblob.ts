@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck
 /* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
   // lots of mutation
 
@@ -353,7 +355,7 @@ const preprocessPNG = (buffer) => {
 };
 
 const glitchblob = (
-  input,
+  input: any,
   options = defaults,
   dispatch
 ) => {

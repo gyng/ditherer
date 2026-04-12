@@ -25,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lcdDisplay = (input, options = defaults) => {
+const lcdDisplay = (input: any, options = defaults) => {
   const { pixelSize, subpixelLayout, brightness, gapDarkness, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

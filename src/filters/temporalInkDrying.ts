@@ -45,7 +45,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -75,7 +75,7 @@ type TemporalInkDryingOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const temporalInkDrying = (input, options: TemporalInkDryingOptions = defaults) => {
+const temporalInkDrying = (input: any, options: TemporalInkDryingOptions = defaults) => {
   const style = options.style ?? defaults.style;
   const inkThreshold = Number(options.inkThreshold ?? defaults.inkThreshold);
   const styleDryRate = style === STYLE.BRUSH_INK ? 0.035 : style === STYLE.MARKER_BLEED ? 0.06 : 0.05;

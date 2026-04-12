@@ -30,7 +30,7 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-const tiltShiftFilter = (input, options = defaults) => {
+const tiltShiftFilter = (input: any, options = defaults) => {
   const { focusPosition, focusWidth, blurAmount, saturationBoost, palette } = options;
 
   const output = cloneCanvas(input, false);

@@ -45,7 +45,7 @@ export const optionTypes = {
     step: 0.05,
     default: 0.7,
     desc: "Weight of the previous frame in blend mode",
-    visibleWhen: (options) => options.mode === MODE.BLEND,
+    visibleWhen: (options: LongExposureOptions) => options.mode === MODE.BLEND,
   },
   windowSize: {
     type: RANGE,
@@ -53,7 +53,7 @@ export const optionTypes = {
     step: 1,
     default: 8,
     desc: "How many recent frames get averaged in shutter mode",
-    visibleWhen: (options) => options.mode === MODE.SHUTTER,
+    visibleWhen: (options: LongExposureOptions) => options.mode === MODE.SHUTTER,
   },
   decay: {
     type: RANGE,
@@ -61,7 +61,7 @@ export const optionTypes = {
     step: 0.01,
     default: 0.05,
     desc: "How fast old light fades in accumulation modes",
-    visibleWhen: (options) => options.mode !== MODE.SHUTTER,
+    visibleWhen: (options: LongExposureOptions) => options.mode !== MODE.SHUTTER,
   },
   brightnessThreshold: {
     type: RANGE,
@@ -69,10 +69,10 @@ export const optionTypes = {
     step: 5,
     default: 30,
     desc: "Only accumulate pixels brighter than this in long-exposure modes",
-    visibleWhen: (options) => options.mode === MODE.MAX || options.mode === MODE.ADDITIVE,
+    visibleWhen: (options: LongExposureOptions) => options.mode === MODE.MAX || options.mode === MODE.ADDITIVE,
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) actions.stopAnimLoop();
     else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
   } },
@@ -97,7 +97,7 @@ type LongExposureOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const temporalExposure = (input, options: LongExposureOptions = defaults) => {
+const temporalExposure = (input: any, options: LongExposureOptions = defaults) => {
   const mode = String(options.mode ?? defaults.mode);
   const blendFactor = Number(options.blendFactor ?? defaults.blendFactor);
   const windowSize = Number(options.windowSize ?? defaults.windowSize);

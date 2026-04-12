@@ -1,13 +1,14 @@
-const clampValue = (min, max, value) => Math.max(min, Math.min(max, value));
-const getIndex = (x, y, width) => (y * width + x) * 4;
+const clampValue = (min: number, max: number, value: number) =>
+  Math.max(min, Math.min(max, value));
+const getIndex = (x: number, y: number, width: number) => (y * width + x) * 4;
 
 export const sampleNearest = (
-  buf,
-  width,
-  height,
-  x,
-  y,
-  out = [0, 0, 0, 0]
+  buf: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  out: number[] = [0, 0, 0, 0]
 ) => {
   const sx = Math.round(clampValue(0, width - 1, x));
   const sy = Math.round(clampValue(0, height - 1, y));
@@ -20,12 +21,12 @@ export const sampleNearest = (
 };
 
 export const sampleBilinear = (
-  buf,
-  width,
-  height,
-  x,
-  y,
-  out = [0, 0, 0, 0]
+  buf: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  out: number[] = [0, 0, 0, 0]
 ) => {
   const sx = clampValue(0, width - 1, x);
   const sy = clampValue(0, height - 1, y);

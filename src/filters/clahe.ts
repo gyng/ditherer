@@ -23,7 +23,7 @@ type ClaheOptions = FilterOptionValues & {
   } & Record<string, unknown>;
 };
 
-const clahe = (input, options: ClaheOptions = defaults) => {
+const clahe = (input: any, options: ClaheOptions = defaults) => {
   const { tileSize, clipLimit, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

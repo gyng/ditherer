@@ -12,7 +12,7 @@ const BLOCK_CHARS = " ░▒▓█";
 
 // Map luminance 0-255 to a braille density character
 const BRAILLE_PATTERNS = [0x2800, 0x2801, 0x2803, 0x2807, 0x280F, 0x281F, 0x283F, 0x287F, 0x28FF];
-const toBraille = (lum) =>
+const toBraille = (lum: number) =>
   String.fromCodePoint(BRAILLE_PATTERNS[Math.round(lum / 255 * 8)]);
 
 export const optionTypes = {
@@ -56,13 +56,13 @@ export const defaults = {
   background: optionTypes.background.default
 };
 
-const hashCell = (x, y) => {
+const hashCell = (x: number, y: number) => {
   let h = Math.imul(x + 1, 374761393) ^ Math.imul(y + 1, 668265263);
   h = (h ^ (h >>> 13)) >>> 0;
   return (Math.imul(h, 1274126177) >>> 0) / 0xffffffff;
 };
 
-const getTransformMode = (x, y, intensity) => {
+const getTransformMode = (x: number, y: number, intensity: number) => {
   if (intensity <= 0) return 0;
   const roll = hashCell(x, y);
   if (roll > intensity) return 0;
@@ -74,7 +74,7 @@ const getTransformMode = (x, y, intensity) => {
   return 4; // rotate 90
 };
 
-const ascii = (input, options = defaults) => {
+const ascii = (input: any, options = defaults) => {
   const {
     cellSize,
     charset,

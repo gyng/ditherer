@@ -73,13 +73,13 @@ export const optionTypes = {
     ],
     default: BACKGROUND.TRANSPARENT,
     desc: "What to show behind the moving subject in foreground mode",
-    visibleWhen: (options) => options.mode === MODE.FOREGROUND,
+    visibleWhen: (options: BackgroundSubtractionOptions) => options.mode === MODE.FOREGROUND,
   },
   bgColor: {
     type: COLOR,
     default: [0, 0, 0, 255],
     desc: "Background color when using solid background mode",
-    visibleWhen: (options) => options.mode === MODE.FOREGROUND && options.background === BACKGROUND.SOLID,
+    visibleWhen: (options: BackgroundSubtractionOptions) => options.mode === MODE.FOREGROUND && options.background === BACKGROUND.SOLID,
   },
   learnRate: {
     type: RANGE,
@@ -87,7 +87,7 @@ export const optionTypes = {
     step: 0.001,
     default: 0.02,
     desc: "How quickly the reconstructed background adapts to new static content",
-    visibleWhen: (options) => options.mode === MODE.BACKGROUND,
+    visibleWhen: (options: BackgroundSubtractionOptions) => options.mode === MODE.BACKGROUND,
   },
   frozenFrame: {
     type: ENUM,
@@ -97,10 +97,10 @@ export const optionTypes = {
     ],
     default: FROZEN.FIRST,
     desc: "Reference image used for frozen regions in freeze-still mode",
-    visibleWhen: (options) => options.mode === MODE.FREEZE_STILL,
+    visibleWhen: (options: BackgroundSubtractionOptions) => options.mode === MODE.FREEZE_STILL,
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) actions.stopAnimLoop();
     else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
   } },
@@ -129,7 +129,7 @@ type BackgroundSubtractionOptions = FilterOptionValues & {
   _ema?: Float32Array | null;
 };
 
-const sceneSeparation = (input, options: BackgroundSubtractionOptions = defaults) => {
+const sceneSeparation = (input: any, options: BackgroundSubtractionOptions = defaults) => {
   const mode = String(options.mode ?? defaults.mode);
   const threshold = Number(options.threshold ?? defaults.threshold);
   const feather = Number(options.feather ?? defaults.feather);

@@ -23,7 +23,7 @@ export const optionTypes = {
   thawRate: { type: RANGE, range: [0.01, 0.2], step: 0.01, default: 0.05, desc: "Probability of a frozen block unfreezing each frame" },
   channelIndependent: { type: BOOL, default: false, desc: "Freeze R/G/B channels independently for color-split glitches" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
   }},
 };
@@ -46,7 +46,7 @@ type FreezeFrameGlitchOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const freezeFrameGlitch = (input, options: FreezeFrameGlitchOptions = defaults) => {
+const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defaults) => {
   const blockSize = Number(options.blockSize ?? defaults.blockSize);
   const freezeChance = Number(options.freezeChance ?? defaults.freezeChance);
   const thawRate = Number(options.thawRate ?? defaults.thawRate);

@@ -315,7 +315,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _f, options) => {
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
@@ -351,7 +351,7 @@ type InfiniteCallWindowsOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const infiniteCallWindows = (input, options: InfiniteCallWindowsOptions = defaults) => {
+const infiniteCallWindows = (input: any, options: InfiniteCallWindowsOptions = defaults) => {
   const {
     layout,
     depth,

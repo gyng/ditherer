@@ -37,7 +37,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const contourMap = (input, options = defaults) => {
+const contourMap = (input: any, options = defaults) => {
   const { bands, colormap, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

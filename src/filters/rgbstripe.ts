@@ -26,10 +26,10 @@ export const HEX_GAP = "HEX_GAP";
 
 const masks = {
   // R G B
-  [VERTICAL]: e => [[[1, e, e, 1], [e, 1, e, 1], [e, e, 1, 1]]],
+  [VERTICAL]: (e: number) => [[[1, e, e, 1], [e, 1, e, 1], [e, e, 1, 1]]],
   // R_G_B_
   // _B_R_G
-  [STAGGERED]: e => {
+  [STAGGERED]: (e: number) => {
     const r = [0.9, e, e, 1];
     const r2 = [0.8, e, e, 1];
     const g = [e, 1, e, 1];
@@ -41,7 +41,7 @@ const masks = {
   // G B R
   // B R G
   // R G B
-  [LADDER]: e => {
+  [LADDER]: (e: number) => {
     const r = [1, e, e, 1];
     const g = [e, 1, e, 1];
     const b = [e, e, 1, 1];
@@ -52,7 +52,7 @@ const masks = {
   // R G B _ _ _
   // R G B R G B
   // _ _ _ R G B
-  [TILED]: e => {
+  [TILED]: (e: number) => {
     const r = [1, e, e, 1];
     const g = [e, 1, e, 1];
     const b = [e, e, 1, 1];
@@ -68,7 +68,7 @@ const masks = {
   // R G B _ R G B _
   // B _ R G B _ R G
   // R G B _ R G B _
-  [HEX_GAP]: e => {
+  [HEX_GAP]: (e: number) => {
     const r = [1, e, e, 1];
     const g = [e, 1, e, 1];
     const b = [e, e, 1, 1];
@@ -114,7 +114,7 @@ export const optionTypes = {
   degauss: {
     type: ACTION,
     label: "Degauss",
-    action: (actions, inputCanvas) => {
+    action: (actions: any, inputCanvas: any) => {
       actions.triggerDegauss(inputCanvas);
     }
   },
@@ -122,7 +122,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
@@ -218,7 +218,7 @@ const readBuf = (buf: Uint8ClampedArray, x: number, y: number, W: number, H: num
 };
 
 const rgbStripe = (
-  input,
+  input: any,
   options: RgbStripeOptions = defaults
 ) => {
   const {
@@ -320,7 +320,7 @@ const rgbStripe = (
 
   const outputBuf = new Uint8ClampedArray(buf.length);
   const effect = 1 - strength;
-  const mask = masks[shadowMask](effect);
+  const mask = masks[shadowMask as keyof typeof masks](effect);
   const maskH = mask.length;
   const maskW = mask[0].length;
   const pScale = Math.max(1, Math.round(phosphorScale));

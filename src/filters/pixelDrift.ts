@@ -29,7 +29,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
     }
@@ -55,7 +55,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const pixelDrift = (input, options = defaults) => {
+const pixelDrift = (input: any, options = defaults) => {
   const { strength, direction, threshold, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
 

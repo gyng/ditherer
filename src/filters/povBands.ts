@@ -12,7 +12,7 @@ export const optionTypes = {
   bands: { type: RANGE, range: [2, 20], step: 1, default: 8, desc: "Number of horizontal bands shown with different time offsets" },
   framesPerBand: { type: RANGE, range: [1, 10], step: 1, default: 3, desc: "How many frames older each band becomes than the one above it" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -23,7 +23,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const povBands = (input, options = defaults) => {
+const povBands = (input: any, options = defaults) => {
   const { bands, framesPerBand } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

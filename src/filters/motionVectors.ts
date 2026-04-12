@@ -222,7 +222,7 @@ export const optionTypes = {
     ],
     default: MOTION_SOURCE.LUMA,
     desc: "Pick which signal drives block matching. Luma is usually the most stable starting point",
-    visibleWhen: (options) => !isSplitDisplay(options.display),
+    visibleWhen: (options: any) => !isSplitDisplay(options.display),
   },
   cellSize: {
     type: RANGE,
@@ -255,7 +255,7 @@ export const optionTypes = {
     step: 0.1,
     default: 0.35,
     desc: "Hide tiny vectors that mostly read as shimmer or sensor noise",
-    visibleWhen: (options) => !isHeatDisplay(options.display),
+    visibleWhen: (options: any) => !isHeatDisplay(options.display),
   },
   confidenceCutoff: {
     type: RANGE,
@@ -272,7 +272,7 @@ export const optionTypes = {
     step: 0.1,
     default: 2.4,
     desc: "Boost how far vectors extend from each cell center",
-    visibleWhen: (options) => !isHeatDisplay(options.display),
+    visibleWhen: (options: any) => !isHeatDisplay(options.display),
   },
   colorMode: {
     type: ENUM,
@@ -287,7 +287,7 @@ export const optionTypes = {
     ],
     default: COLOR.DIRECTION,
     desc: "Choose whether color encodes direction, strength, source color, or confidence",
-    visibleWhen: (options) => !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
+    visibleWhen: (options: any) => !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
   },
   glyphMode: {
     type: ENUM,
@@ -301,7 +301,7 @@ export const optionTypes = {
     ],
     default: GLYPH.NEEDLE,
     desc: "Swap classic arrows for cleaner needles, lines, triangles, or comet-like tails",
-    visibleWhen: (options) => !isHeatDisplay(options.display),
+    visibleWhen: (options: any) => !isHeatDisplay(options.display),
   },
   temporalSmoothing: {
     type: RANGE,
@@ -324,7 +324,7 @@ export const optionTypes = {
     label: "Fade By Speed",
     default: true,
     desc: "Dim short vectors and emphasize stronger motion",
-    visibleWhen: (options) => !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
+    visibleWhen: (options: any) => !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
   },
   backgroundDim: {
     type: RANGE,
@@ -333,7 +333,7 @@ export const optionTypes = {
     step: 0.05,
     default: 0.55,
     desc: "How much of the source image stays visible behind overlays",
-    visibleWhen: (options) => options.display !== DISPLAY.ARROWS && options.display !== DISPLAY.RGB_SPLIT_ARROWS,
+    visibleWhen: (options: any) => options.display !== DISPLAY.ARROWS && options.display !== DISPLAY.RGB_SPLIT_ARROWS,
   },
   trailDecay: {
     type: RANGE,
@@ -342,7 +342,7 @@ export const optionTypes = {
     step: 0.01,
     default: 0.88,
     desc: "How slowly older vectors fade when using trail mode",
-    visibleWhen: (options) => isTrailDisplay(options.display),
+    visibleWhen: (options: any) => isTrailDisplay(options.display),
   },
   animSpeed: {
     type: RANGE,
@@ -352,7 +352,7 @@ export const optionTypes = {
     default: 15,
     desc: "Playback speed when using the built-in animation toggle",
   },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) actions.stopAnimLoop();
     else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
   } },
@@ -398,7 +398,7 @@ type MotionVectorsOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const motionVectors = (input, options: MotionVectorsOptions = defaults) => {
+const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => {
   const prevInput = options._prevInput ?? null;
   const prevOutput = options._prevOutput ?? null;
   const {

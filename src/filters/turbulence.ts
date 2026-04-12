@@ -45,7 +45,7 @@ const fbm = (x: number, y: number, octaves: number, seed: number) => {
   return value / maxAmp;
 };
 
-const turbulence = (input, options = defaults) => {
+const turbulence = (input: any, options = defaults) => {
   const { scale, strength, octaves, seed, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

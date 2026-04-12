@@ -303,7 +303,7 @@ const upscaleBuffer = (buf: Uint8ClampedArray, width: number, height: number, ou
   return outBuf;
 };
 
-const bilateralBlur = (input, options = defaults) => {
+const bilateralBlur = (input: any, options = defaults) => {
   const {
     sigmaSpatial,
     sigmaRange,

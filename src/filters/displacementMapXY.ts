@@ -25,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const displacementMapXY = (input, options = defaults) => {
+const displacementMapXY = (input: any, options = defaults) => {
   const { strength, blurRadius, channelX, channelY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

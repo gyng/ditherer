@@ -179,7 +179,7 @@ export const optionTypes = {
   degauss: {
     type: ACTION,
     label: "Degauss",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       pendingManualBurst = true;
       actions.triggerBurst(inputCanvas, Math.max(6, Math.round(options.duration || 45)), options.animSpeed || 20);
     }
@@ -187,7 +187,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         previewLoopEnabled = false;
         actions.stopAnimLoop();
@@ -214,7 +214,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crtDegauss = (input, options: CrtDegaussOptions = defaults) => {
+const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const {
     intensity,
     warp,

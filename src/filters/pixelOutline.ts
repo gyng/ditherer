@@ -18,7 +18,7 @@ const colorDelta = (buf: Uint8ClampedArray, a: number, b: number) => (
   (Math.abs(buf[a] - buf[b]) + Math.abs(buf[a + 1] - buf[b + 1]) + Math.abs(buf[a + 2] - buf[b + 2])) / 3
 );
 
-const pixelOutline = (input, options = defaults) => {
+const pixelOutline = (input: any, options = defaults) => {
   const { outlineColor, outlineWidth, mergeThreshold } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

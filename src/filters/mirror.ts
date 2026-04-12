@@ -42,7 +42,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const mirror = (input, options = defaults) => {
+const mirror = (input: any, options = defaults) => {
   const { mode, segments, offsetX, offsetY, palette } = options;
 
   const output = cloneCanvas(input, false);

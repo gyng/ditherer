@@ -49,7 +49,7 @@ const directionVector = (direction: string) => {
   }
 };
 
-const isometricExtrude = (input, options = defaults) => {
+const isometricExtrude = (input: any, options = defaults) => {
   const { depth, direction, threshold, shadowColor, shadeFalloff, palette } = options;
 
   const output = cloneCanvas(input, false);

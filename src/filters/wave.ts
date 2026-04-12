@@ -25,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const wave = (input, options = defaults) => {
+const wave = (input: any, options = defaults) => {
   const { amplitudeX, frequencyX, amplitudeY, frequencyY, phaseX, phaseY, diagonal, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

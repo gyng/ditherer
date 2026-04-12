@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck
 import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import * as palettes from "palettes";
@@ -513,7 +515,7 @@ type PixelsortOptions = FilterOptionValues & {
 };
 
 const pixelsortFilter = (
-  input,
+  input: any,
   options: PixelsortOptions = defaults
 ) => {
   const {

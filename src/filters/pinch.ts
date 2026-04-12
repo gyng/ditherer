@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const pinch = (input, options = defaults) => {
+const pinch = (input: any, options = defaults) => {
   const { strength, radius, centerX, centerY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

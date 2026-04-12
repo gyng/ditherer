@@ -69,7 +69,7 @@ const blurLuminance = (lum: Float32Array, W: number, H: number, r: number): Floa
   return out;
 };
 
-const displace = (input, options = defaults) => {
+const displace = (input: any, options = defaults) => {
   const { strength, direction, warpSource, blurRadius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

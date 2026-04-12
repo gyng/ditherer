@@ -52,7 +52,7 @@ const buildBandPalette = (bandCount: number, hueOffset: number, palette: Palette
   return colors;
 };
 
-const paletteMapper = (input, options = defaults) => {
+const paletteMapper = (input: any, options = defaults) => {
   const { bandCount, hueOffset, preserveLuma, saturationBoost, palette } = options;
 
   const output = cloneCanvas(input, false);

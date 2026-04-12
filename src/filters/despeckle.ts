@@ -15,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const despeckle = (input, options = defaults) => {
+const despeckle = (input: any, options = defaults) => {
   const { threshold, radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

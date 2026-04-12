@@ -21,7 +21,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const oilPainting = (input, options = defaults) => {
+const oilPainting = (input: any, options = defaults) => {
   const { radius, levels, palette } = options;
 
   const output = cloneCanvas(input, false);

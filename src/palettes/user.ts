@@ -1,4 +1,5 @@
 import { COLOR_ARRAY, COLOR_DISTANCE_ALGORITHM } from "constants/controlTypes";
+import type { PaletteDefinition } from "./types";
 
 import { rgba, colorDistance, wasmNearestLabPrecomputed } from "utils";
 import { LAB_NEAREST } from "constants/color";
@@ -25,7 +26,7 @@ const cga = {
   BWHITE: rgba(255, 255, 255, 255) // 15 bright white
 };
 
-export const THEMES = {
+export const THEMES: Record<string, number[][]> = {
   CMYK: [
     rgba(0, 255, 255, 255), // cyan
     rgba(255, 0, 255, 255), // magenta
@@ -2067,10 +2068,14 @@ const defaults = {
   colorDistanceAlgorithm: optionTypes.colorDistanceAlgorithm.default
 };
 
+type UserPaletteOptions = typeof defaults & {
+  _wasmAcceleration?: boolean;
+};
+
 const getColor = (
-  color,
-  options = defaults
-) => {
+  color: number[],
+  options: UserPaletteOptions = defaults,
+): number[] => {
   const { colors } = options;
   const colorDistanceAlgorithm =
     options.colorDistanceAlgorithm || defaults.colorDistanceAlgorithm;
@@ -2089,10 +2094,10 @@ const getColor = (
     return colors[idx];
   }
 
-  let min = null;
+  let min: number[] | null = null;
   let minDistance = 0;
 
-  colors.forEach(pc => {
+  colors.forEach((pc: number[]) => {
     const distance = colorDistance(pc, color, colorDistanceAlgorithm);
 
     if (min === null) {
@@ -2107,7 +2112,7 @@ const getColor = (
   return !min ? color : min;
 };
 
-const user = {
+const user: PaletteDefinition<typeof defaults> = {
   name: "User/Adaptive",
   getColor,
   options: defaults,
@@ -2117,7 +2122,7 @@ const user = {
 
 export default user;
 
-export const createPalette = (colors) => ({
+export const createPalette = (colors: number[][]) => ({
   ...user,
   options: { ...user.options, colors, defaults: colors }
 });

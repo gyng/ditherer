@@ -35,7 +35,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const trianglePixelate = (input, options = defaults) => {
+const trianglePixelate = (input: any, options = defaults) => {
   const { cellSize, outline, outlineColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

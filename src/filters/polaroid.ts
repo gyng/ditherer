@@ -19,7 +19,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
     }
@@ -49,7 +49,7 @@ const mulberry32 = (seed: number) => {
 };
 
 const polaroid = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const {

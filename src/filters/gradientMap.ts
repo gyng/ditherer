@@ -27,7 +27,7 @@ export const defaults = {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-const gradientMap = (input, options = defaults) => {
+const gradientMap = (input: any, options = defaults) => {
   const { color1, color2, color3, mix, palette } = options;
 
   const output = cloneCanvas(input, false);

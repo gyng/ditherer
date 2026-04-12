@@ -60,7 +60,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -78,7 +78,7 @@ type TemporalMedianOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const temporalMedian = (input, options: TemporalMedianOptions = defaults) => {
+const temporalMedian = (input: any, options: TemporalMedianOptions = defaults) => {
   const windowSize = Math.max(3, Math.round(Number(options.windowSize ?? defaults.windowSize)));
   const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);

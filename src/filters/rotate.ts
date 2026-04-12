@@ -12,7 +12,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -38,7 +38,7 @@ type RotateOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const rotateFilter = (input, options: RotateOptions = defaults) => {
+const rotateFilter = (input: any, options: RotateOptions = defaults) => {
   const angle = Number(options.angle ?? defaults.angle);
   const spinPerFrame = Number(options.spinPerFrame ?? defaults.spinPerFrame);
   const bgColor = Array.isArray(options.bgColor) ? options.bgColor : defaults.bgColor;

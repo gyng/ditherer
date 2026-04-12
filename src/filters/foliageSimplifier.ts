@@ -76,7 +76,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const foliageSimplifier = (input, options = defaults) => {
+const foliageSimplifier = (input: any, options = defaults) => {
   const { radius, regionMerge, edgePreserve, brushiness, shadowRetention, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const flipFilter = (input, options = defaults) => {
+const flipFilter = (input: any, options = defaults) => {
   const { mode, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

@@ -19,7 +19,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
@@ -68,7 +68,7 @@ const mulberry32 = (seed: number) => {
 };
 
 const datamosh = (
-  input,
+  input: any,
   options: DatamoshOptions = defaults
 ) => {
   const {

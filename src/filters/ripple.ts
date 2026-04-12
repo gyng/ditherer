@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const rippleFilter = (input, options = defaults) => {
+const rippleFilter = (input: any, options = defaults) => {
   const { amplitude, wavelength, centerX, centerY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

@@ -45,7 +45,7 @@ export const defaults = {
 };
 
 const edgeTrace = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const {

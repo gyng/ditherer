@@ -53,7 +53,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeSky = (input, options = defaults) => {
+const animeSky = (input: any, options = defaults) => {
   const { mode, skyStart, gradientTop, gradientBottom, cloudAmount, cloudSoftness, blend, palette } = options;
 
   const output = cloneCanvas(input, false);

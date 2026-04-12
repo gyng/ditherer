@@ -165,7 +165,7 @@ export const optionTypes = {
     desc: "How many recent quantized frames participate in the temporal vote consensus",
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
   palette: { type: PALETTE, default: palettes.nearest }
@@ -417,9 +417,9 @@ const majorityColorAt = (
 };
 
 export const errorDiffusingFilter = (
-  name,
-  errorMatrix,
-  defaultOptions
+  name: string,
+  errorMatrix: any,
+  defaultOptions: any
 ) => {
   let voteFrames: Uint8ClampedArray[] = [];
   let voteHead = 0;
@@ -437,7 +437,7 @@ export const errorDiffusingFilter = (
   };
 
   const filter = (
-    input,
+    input: any,
     options: ErrorDiffusingRuntimeOptions = defaultOptions
   ) => {
     const palette = (options.palette ?? defaultOptions.palette) as NonNullable<

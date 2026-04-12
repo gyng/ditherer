@@ -20,7 +20,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const toon = (input, options = defaults) => {
+const toon = (input: any, options = defaults) => {
   const { levels, edgeThreshold, lineColor, lineWidth, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

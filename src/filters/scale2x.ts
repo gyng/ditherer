@@ -26,7 +26,7 @@ const copyPixel = (outBuf: Uint8ClampedArray, di: number, srcBuf: Uint8ClampedAr
   outBuf[di] = srcBuf[si]; outBuf[di+1] = srcBuf[si+1]; outBuf[di+2] = srcBuf[si+2]; outBuf[di+3] = srcBuf[si+3];
 };
 
-const scale2x = (input, options = defaults) => {
+const scale2x = (input: any, options = defaults) => {
   const { algorithm, palette } = options;
   const inputCtx = input.getContext("2d");
   if (!inputCtx) return input;

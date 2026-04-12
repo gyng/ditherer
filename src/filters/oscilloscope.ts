@@ -47,7 +47,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
@@ -108,7 +108,7 @@ const mulberry32 = (seed: number) => {
 };
 
 const oscilloscope = (
-  input,
+  input: any,
   options: OscilloscopeOptions = defaults
 ) => {
   const {
@@ -139,7 +139,7 @@ const oscilloscope = (
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const len = buf.length;
 
-  const pColor = phosphorColors[phosphor] || phosphorColors[PHOSPHOR_GREEN];
+  const pColor = phosphorColors[phosphor as keyof typeof phosphorColors] || phosphorColors[PHOSPHOR_GREEN];
   const rng = mulberry32(frameIndex * 3571 + 41);
 
   // Step 1: Convert to luminance intensity — how bright the beam is at each pixel

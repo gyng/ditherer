@@ -42,7 +42,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
     }
@@ -76,7 +76,7 @@ type BitplaneDropoutOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const bitplaneDropout = (input, options: BitplaneDropoutOptions = defaults) => {
+const bitplaneDropout = (input: any, options: BitplaneDropoutOptions = defaults) => {
   const mode = String(options.mode ?? defaults.mode);
   const targetBits = Number(options.targetBits ?? defaults.targetBits);
   const perChannel = Boolean(options.perChannel ?? defaults.perChannel);

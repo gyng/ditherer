@@ -23,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const liquify = (input, options = defaults) => {
+const liquify = (input: any, options = defaults) => {
   const { strength, smoothness, direction, palette } = options;
 
   const output = cloneCanvas(input, false);

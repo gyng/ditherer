@@ -21,7 +21,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
     }
@@ -67,7 +67,7 @@ type AnalogStaticOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const analogStatic = (input, options: AnalogStaticOptions = defaults) => {
+const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
   const noiseAmount = Number(options.noiseAmount ?? defaults.noiseAmount);
   const barHeight = Number(options.barHeight ?? defaults.barHeight);
   const barIntensity = Number(options.barIntensity ?? defaults.barIntensity);

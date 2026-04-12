@@ -27,7 +27,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const dotMatrix = (input, options = defaults) => {
+const dotMatrix = (input: any, options = defaults) => {
   const { dotSize, spacing, inkDensity, inkColor, paperColor, palette } = options;
 
   const output = cloneCanvas(input, false);

@@ -47,7 +47,7 @@ export const defaults = {
   depthSource: optionTypes.depthSource.default
 };
 
-const anaglyph = (input, options = defaults) => {
+const anaglyph = (input: any, options = defaults) => {
   const { strength, mode, depthSource } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

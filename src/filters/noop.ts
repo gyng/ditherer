@@ -7,7 +7,7 @@ import { defineFilter } from "filters/types";
 export const optionTypes = {};
 export const defaults = {};
 
-const noop = (input) => cloneCanvas(input, true);
+const noop = (input: any) => cloneCanvas(input, true);
 
 export default defineFilter({
   name: "None",

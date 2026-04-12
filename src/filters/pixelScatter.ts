@@ -9,7 +9,7 @@ export const optionTypes = {
   threshold: { type: RANGE, range: [0, 200], step: 1, default: 50, desc: "Edge strength required to trigger scatter" },
   density: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Fraction of edge pixels that scatter" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
   }},
   palette: { type: PALETTE, default: nearest }
@@ -28,7 +28,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const pixelScatter = (input, options = defaults) => {
+const pixelScatter = (input: any, options = defaults) => {
   const { spread, threshold, density, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const output = cloneCanvas(input, false);

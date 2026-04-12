@@ -7,7 +7,7 @@ export const optionTypes = {
   greenDecay: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.05, desc: "Green channel persistence — slowest (like real P22 phosphors)" },
   blueDecay: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.2, desc: "Blue channel persistence — fastest fade" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -27,7 +27,7 @@ type PhosphorDecayOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const phosphorDecay = (input, options: PhosphorDecayOptions = defaults) => {
+const phosphorDecay = (input: any, options: PhosphorDecayOptions = defaults) => {
   const redDecay = Number(options.redDecay ?? defaults.redDecay);
   const greenDecay = Number(options.greenDecay ?? defaults.greenDecay);
   const blueDecay = Number(options.blueDecay ?? defaults.blueDecay);

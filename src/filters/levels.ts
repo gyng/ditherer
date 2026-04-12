@@ -34,7 +34,7 @@ type LevelsOptions = FilterOptionValues & typeof defaults & {
   _linearize?: boolean;
 };
 
-const levelsFilter = (input, options: LevelsOptions = defaults) => {
+const levelsFilter = (input: any, options: LevelsOptions = defaults) => {
   const { blackPoint, whitePoint, gamma, outputBlack, outputWhite, palette } = options;
 
   const output = cloneCanvas(input, false);

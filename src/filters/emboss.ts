@@ -23,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const embossFilter = (input, options = defaults) => {
+const embossFilter = (input: any, options = defaults) => {
   const { angle, strength, blend, palette } = options;
 
   const output = cloneCanvas(input, false);

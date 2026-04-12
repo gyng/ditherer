@@ -69,7 +69,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeColorGrade = (input, options = defaults) => {
+const animeColorGrade = (input: any, options = defaults) => {
   const {
     shadowCool,
     highlightWarm,

@@ -91,7 +91,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const metadataMismatchDecode = (input, options = defaults) => {
+const metadataMismatchDecode = (input: any, options = defaults) => {
   const { gammaAssumption, matrixAssumption, rangeAssumption, chromaPlacement, recoveryMix, palette } = options;
 
   const output = cloneCanvas(input, false);

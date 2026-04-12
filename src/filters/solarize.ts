@@ -13,7 +13,7 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
-const solarize = (input, options = defaults) => {
+const solarize = (input: any, options = defaults) => {
   const { threshold, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

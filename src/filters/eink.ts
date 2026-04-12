@@ -49,7 +49,7 @@ export const optionTypes = {
   pageRefresh: {
     type: ACTION,
     label: "Page refresh",
-    action: (actions, inputCanvas) => {
+    action: (actions: any, inputCanvas: any) => {
       // Run enough frames to guarantee we pass through all flash phases
       // and end on a normal render (refreshCycle=6 for full, 2 for partial)
       actions.triggerBurst(inputCanvas, 10, 4);
@@ -59,7 +59,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
       } else {
@@ -149,7 +149,7 @@ const computePixel = (
 };
 
 const eink = (
-  input,
+  input: any,
   options: EinkOptions = defaults
 ) => {
   const {

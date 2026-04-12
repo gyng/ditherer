@@ -34,7 +34,7 @@ export const defaults = {
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
 const nokiaLcd = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const {

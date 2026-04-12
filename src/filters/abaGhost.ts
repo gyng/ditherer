@@ -56,7 +56,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -75,7 +75,7 @@ type AbaGhostOptions = FilterOptionValues & typeof defaults & {
   _frameIndex?: number;
 };
 
-const abaGhost = (input, options: AbaGhostOptions = defaults) => {
+const abaGhost = (input: any, options: AbaGhostOptions = defaults) => {
   const ghostMix = Math.max(0, Math.min(1, Number(options.ghostMix ?? defaults.ghostMix)));
   const persistence = Math.max(0, Math.min(0.999, Number(options.persistence ?? defaults.persistence)));
   const flash = Math.max(0, Number(options.flash ?? defaults.flash));

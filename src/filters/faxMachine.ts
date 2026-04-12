@@ -26,7 +26,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const faxMachine = (input, options = defaults) => {
+const faxMachine = (input: any, options = defaults) => {
   const { resolution, threshold, scanNoise, yellowing, compression, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const output = cloneCanvas(input, false);

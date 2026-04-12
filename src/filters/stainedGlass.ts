@@ -44,7 +44,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const stainedGlass = (input, options = defaults) => {
+const stainedGlass = (input: any, options = defaults) => {
   const { seed: seedOpt, cellSize, irregularity, leadingWidth, leadingColor, palette } = options;
 
   const output = cloneCanvas(input, false);

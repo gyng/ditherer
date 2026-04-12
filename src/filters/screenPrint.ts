@@ -37,7 +37,7 @@ const sampleChannel = (data: Uint8ClampedArray, width: number, height: number, x
   return data[getBufferIndex(sx, sy, width) + channel];
 };
 
-const screenPrint = (input, options = defaults) => {
+const screenPrint = (input: any, options = defaults) => {
   const { plates, offset, angleJitter, paperColor, inkStrength, palette } = options;
 
   const output = cloneCanvas(input, false);

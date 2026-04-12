@@ -36,7 +36,7 @@ export const optionTypes = {
     desc: "Which column/row captures the live slice",
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -49,7 +49,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const slitScan = (input, options = defaults) => {
+const slitScan = (input: any, options = defaults) => {
   const { direction, reverse } = options;
   let { depth } = options;
   const output = cloneCanvas(input, false);

@@ -149,7 +149,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
     }
@@ -177,7 +177,7 @@ type PaletteIndexDriftOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const paletteIndexDrift = (input, options: PaletteIndexDriftOptions = defaults) => {
+const paletteIndexDrift = (input: any, options: PaletteIndexDriftOptions = defaults) => {
   const paletteSize = Number(options.paletteSize ?? defaults.paletteSize);
   const driftMode = String(options.driftMode ?? defaults.driftMode);
   const driftRate = Number(options.driftRate ?? defaults.driftRate);

@@ -28,14 +28,14 @@ type HalftoneOptions = FilterOptionValues & typeof defaults & {
 };
 
 const halftone = (
-  input,
+  input: any,
   options: HalftoneOptions = defaults
 ) => {
   const getOffset = (
-    radians,
-    radius,
-    x0,
-    y0
+    radians: number,
+    radius: number,
+    x0: number,
+    y0: number
   ) => {
     const x = x0 + radius * Math.cos(radians);
     const y = y0 + radius * Math.sin(radians);
@@ -84,7 +84,7 @@ const halftone = (
         const quantizedColor = linearPaletteGetColor(palette, meanColor, palette.options);
         const srgbColor = delinearizeColorF(quantizedColor);
         const radii = srgbColor.map(
-          c => c * (size / 2 / 255) * options.sizeMultiplier
+          (c: number) => c * (size / 2 / 255) * options.sizeMultiplier
         );
 
         const alphaFrac = srgbColor[3] / 255;
@@ -136,7 +136,7 @@ const halftone = (
 
         const quantizedColor = srgbPaletteGetColor(palette, meanColor, palette.options);
         const radii = quantizedColor.map(
-          c => c * (size / 2 / 255) * options.sizeMultiplier
+          (c: number) => c * (size / 2 / 255) * options.sizeMultiplier
         );
 
         const colors = [

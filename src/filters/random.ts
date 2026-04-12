@@ -36,7 +36,7 @@ type RandomPaletteOptions = {
 };
 
 const random = (
-  input,
+  input: any,
   options: RandomOptions = defaults
 ) => {
   const output = cloneCanvas(input, false);

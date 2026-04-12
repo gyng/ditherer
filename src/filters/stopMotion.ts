@@ -11,7 +11,7 @@ let holdCounter = 0;
 export const optionTypes = {
   holdFrames: { type: RANGE, range: [2, 30], step: 1, default: 6, desc: "How many frames to hold before capturing a new pose" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -21,7 +21,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const stopMotion = (input, options = defaults) => {
+const stopMotion = (input: any, options = defaults) => {
   const { holdFrames } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

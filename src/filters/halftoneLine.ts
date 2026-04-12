@@ -37,7 +37,17 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const drawLine = (buf, W, H, cx, cy, angle, halfLen, thickness, ink) => {
+const drawLine = (
+  buf: Uint8ClampedArray,
+  W: number,
+  H: number,
+  cx: number,
+  cy: number,
+  angle: number,
+  halfLen: number,
+  thickness: number,
+  ink: number[]
+) => {
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   const radius = Math.ceil(halfLen + thickness);
@@ -58,7 +68,7 @@ const drawLine = (buf, W, H, cx, cy, angle, halfLen, thickness, ink) => {
   }
 };
 
-const halftoneLine = (input, options = defaults) => {
+const halftoneLine = (input: any, options = defaults) => {
   const { cellSize, angleMode, baseAngle, inkColor, paperColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

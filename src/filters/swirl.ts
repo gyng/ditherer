@@ -25,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const swirlFilter = (input, options = defaults) => {
+const swirlFilter = (input: any, options = defaults) => {
   const { angle, radius, centerX, centerY, palette } = options;
 
   const output = cloneCanvas(input, false);

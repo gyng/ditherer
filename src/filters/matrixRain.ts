@@ -65,7 +65,7 @@ export const optionTypes = {
     label: "Edit Selected Charset",
     visibleWhen: (options: FilterOptionValues) =>
       (options.charset || CHARSET.MATRIX_FILM) !== CUSTOM_CHARSET,
-    action: (actions, _inputCanvas, _filterFunc, options) => {
+    action: (actions: any, _inputCanvas: any, _filterFunc: any, options: any) => {
       const selected = options.charset || CHARSET.MATRIX_FILM;
       const chars = getCharsetString(selected);
       actions.setFilterOption("customCharset", chars);
@@ -93,7 +93,7 @@ export const optionTypes = {
   motionSensitivity: { type: RANGE, range: [0, 3], step: 0.1, default: 0.3, desc: "Rain reacts to motion — high values show rain only where movement is detected" },
   motionDropStrength: { type: RANGE, range: [0.25, 2], step: 0.05, default: 1, desc: "How bursty and persistent movement-triggered drops feel in Trigger drops mode" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Animation frames per second" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
   }},
   palette: { type: PALETTE, default: nearest }
@@ -218,7 +218,7 @@ export const __testing = {
   sampleBitmapAlpha,
 };
 
-const matrixRain = (input, options: MatrixRainOptions = defaults) => {
+const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
   const columnWidth = Number(options.columnWidth ?? defaults.columnWidth);
   const columnSizeVariation = Number(options.columnSizeVariation ?? defaults.columnSizeVariation);
   const characterSizeVariation = Number(options.characterSizeVariation ?? defaults.characterSizeVariation);

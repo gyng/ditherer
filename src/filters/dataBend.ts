@@ -15,7 +15,7 @@ export const optionTypes = {
   intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Effect strength" },
   offset: { type: RANGE, range: [1, 500], step: 1, default: 100, desc: "Byte offset for echo/reverb displacement" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
   }},
   palette: { type: PALETTE, default: nearest }
@@ -29,7 +29,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const dataBend = (input, options = defaults) => {
+const dataBend = (input: any, options = defaults) => {
   const { effect, intensity, offset, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

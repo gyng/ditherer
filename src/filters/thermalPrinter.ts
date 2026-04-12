@@ -32,7 +32,7 @@ type ThermalPrinterOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const thermalPrinter = (input, options: ThermalPrinterOptions = defaults) => {
+const thermalPrinter = (input: any, options: ThermalPrinterOptions = defaults) => {
   const { resolution, fadeGradient, dotDensity, palette } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);

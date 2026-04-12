@@ -30,7 +30,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const anisotropicDiffusion = (input, options = defaults) => {
+const anisotropicDiffusion = (input: any, options = defaults) => {
   const { iterations, kappa, lambda, conductance, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

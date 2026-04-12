@@ -8,7 +8,7 @@ export const optionTypes = {
   maxBlockSize: { type: RANGE, range: [10, 200], step: 5, default: 60, desc: "Maximum block dimension in pixels" },
   corruption: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Intensity of color/offset corruption" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
   }},
   palette: { type: PALETTE, default: nearest }
@@ -27,7 +27,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const glitchBlocks = (input, options = defaults) => {
+const glitchBlocks = (input: any, options = defaults) => {
   const { blockCount, maxBlockSize, corruption, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const output = cloneCanvas(input, false);

@@ -27,7 +27,7 @@ const buildCdf = (hist: number[], total: number): number[] => {
   return cdf.map(v => (range > 0 ? Math.round(((v - cdfMin) / range) * 255) : 0));
 };
 
-const histogramEqualization = (input, options = defaults) => {
+const histogramEqualization = (input: any, options = defaults) => {
   const { perChannel, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

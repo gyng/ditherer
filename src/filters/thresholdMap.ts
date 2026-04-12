@@ -126,7 +126,7 @@ type ThresholdMapOptions = FilterOptionValues & {
   } & Record<string, unknown>;
 };
 
-const thresholdMap = (input, options: ThresholdMapOptions = defaults) => {
+const thresholdMap = (input: any, options: ThresholdMapOptions = defaults) => {
   const { pattern, scale, palette } = options;
 
   const output = cloneCanvas(input, false);

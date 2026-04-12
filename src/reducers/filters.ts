@@ -43,6 +43,7 @@ type PaletteColor = number[];
 type StepTime = { name: string; ms: number };
 type ScalingAlgorithm = typeof SCALING_ALGORITHM[keyof typeof SCALING_ALGORITHM];
 type PaletteOptionState = SerializedPaletteState & { options?: FilterOptionMap };
+type DrawableImage = CanvasImageSource & { width: number; height: number };
 
 export type ChainEntry = {
   id: string;
@@ -89,21 +90,21 @@ export const initialState = {
   convertGrayscale: false,
   scale: 1,
   outputScale: 1,
-  inputCanvas: null,
-  inputImage: null,
-  outputImage: null,
+  inputCanvas: null as HTMLCanvasElement | OffscreenCanvas | null,
+  inputImage: null as DrawableImage | null,
+  outputImage: null as HTMLCanvasElement | OffscreenCanvas | null,
   realtimeFiltering: true,
-  time: null,
+  time: null as number | null,
   inputFrameToken: 0,
   outputFrameToken: 0,
-  outputTime: null,
-  video: null,
+  outputTime: null as number | null,
+  video: null as HTMLVideoElement | null,
   videoVolume: localStorage.getItem("ditherer-mute") === "1" ? 0 : 1,
   videoPlaybackRate: 1,
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
   linearize: true,
   wasmAcceleration: true,
-  frameTime: null,
+  frameTime: null as number | null,
   stepTimes: null as { name: string; ms: number }[] | null,
 };
 
@@ -244,7 +245,7 @@ type FilterOptionAction =
 type ImageAction =
   | {
       type: typeof LOAD_IMAGE;
-      image: CanvasImageSource;
+      image: DrawableImage;
       time: number | null;
       frameToken?: number;
       video: HTMLVideoElement | null;
@@ -526,7 +527,10 @@ const filterReducer = (
     // --- Unchanged actions ---
     case SET_SCALING_ALGORITHM: {
       if (state.inputCanvas) {
-        const context = state.inputCanvas.getContext("2d");
+        const context = state.inputCanvas.getContext("2d") as
+          | CanvasRenderingContext2D
+          | OffscreenCanvasRenderingContext2D
+          | null;
         if (context && state.inputImage) {
           const smoothingEnabled = action.algorithm === SCALING_ALGORITHM.AUTO;
           context.imageSmoothingEnabled = smoothingEnabled;

@@ -12,7 +12,7 @@ export const optionTypes = {
   turbulence: { type: RANGE, range: [1, 5], step: 0.5, default: 2, desc: "Noise frequency in the warp pattern" },
   settleSpeed: { type: RANGE, range: [0.02, 0.2], step: 0.01, default: 0.08, desc: "How fast distortion fades after motion stops" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -33,7 +33,7 @@ type WakeTurbulenceOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const wakeTurbulence = (input, options: WakeTurbulenceOptions = defaults) => {
+const wakeTurbulence = (input: any, options: WakeTurbulenceOptions = defaults) => {
   const intensity = Number(options.intensity ?? defaults.intensity);
   const turbulence = Number(options.turbulence ?? defaults.turbulence);
   const settleSpeed = Number(options.settleSpeed ?? defaults.settleSpeed);

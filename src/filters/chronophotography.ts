@@ -39,7 +39,7 @@ export const optionTypes = {
   },
   isolateSubject: { type: BOOL, default: false, desc: "Only show moving parts of each exposure (uses EMA background model)" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -53,7 +53,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const chronophotography = (input, options = defaults) => {
+const chronophotography = (input: any, options = defaults) => {
   const { exposures, interval, blendMode, fadeMode, isolateSubject } = options;
   const ema: Float32Array | null = (options as { _ema?: Float32Array | null })._ema || null;
   const output = cloneCanvas(input, false);

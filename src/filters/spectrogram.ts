@@ -46,7 +46,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const spectrogram = (input, options = defaults) => {
+const spectrogram = (input: any, options = defaults) => {
   const { colormap, logScale, freqBins, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

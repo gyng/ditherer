@@ -40,7 +40,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -57,7 +57,7 @@ type AbaBounceOptions = FilterOptionValues & typeof defaults & {
   _frameIndex?: number;
 };
 
-const abaBounce = (input, options: AbaBounceOptions = defaults) => {
+const abaBounce = (input: any, options: AbaBounceOptions = defaults) => {
   const strength = Math.max(0, Number(options.strength ?? defaults.strength));
   const cadenceDrift = Math.max(0, Math.min(1, Number(options.cadenceDrift ?? defaults.cadenceDrift)));
   const frameIndex = Number(options._frameIndex ?? 0);

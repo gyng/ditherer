@@ -31,7 +31,7 @@ export const optionTypes = {
   amount: { type: RANGE, range: [0, 1], step: 0.05, default: 0.85, desc: "How strongly the ordered dither pattern perturbs the gradient before quantization" },
   sourceInfluence: { type: RANGE, range: [0, 1], step: 0.05, default: 0.75, desc: "How much the source luminance remaps the generated gradient" },
   detailInfluence: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "How much source edges intensify local dither contrast" },
-  sourceColorMix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "How much source color tints the gradient result", visibleWhen: (options) => options.style === STYLE.DREAMY },
+  sourceColorMix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "How much source color tints the gradient result", visibleWhen: (options: any) => options.style === STYLE.DREAMY },
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -47,7 +47,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
-const ditherGradient = (input, options = defaults) => {
+const ditherGradient = (input: any, options: any = defaults) => {
   const {
     color1,
     color2,

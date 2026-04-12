@@ -17,7 +17,7 @@ export const defaults = {
 };
 
 const invert = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const output = cloneCanvas(input, false);

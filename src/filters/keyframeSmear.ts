@@ -24,7 +24,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -44,7 +44,7 @@ type KeyframeSmearOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const keyframeSmear = (input, options: KeyframeSmearOptions = defaults) => {
+const keyframeSmear = (input: any, options: KeyframeSmearOptions = defaults) => {
   const keyframeInterval = Math.max(2, Math.round(Number(options.keyframeInterval ?? defaults.keyframeInterval)));
   const smear = Math.max(0, Math.min(1, Number(options.smear ?? defaults.smear)));
   const frameIndex = Number(options._frameIndex ?? 0);

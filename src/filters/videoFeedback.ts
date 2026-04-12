@@ -10,7 +10,7 @@ export const optionTypes = {
   mix: { type: RANGE, range: [0.3, 0.95], step: 0.05, default: 0.7, desc: "Blend ratio of feedback vs fresh input" },
   colorShift: { type: RANGE, range: [0, 30], step: 1, default: 5, desc: "Hue rotation degrees per iteration" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -36,7 +36,7 @@ type VideoFeedbackOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const videoFeedback = (input, options: VideoFeedbackOptions = defaults) => {
+const videoFeedback = (input: any, options: VideoFeedbackOptions = defaults) => {
   const zoom = Number(options.zoom ?? defaults.zoom);
   const rotation = Number(options.rotation ?? defaults.rotation);
   const offsetX = Number(options.offsetX ?? defaults.offsetX);

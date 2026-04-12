@@ -23,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const chromaticPosterize = (input, options = defaults) => {
+const chromaticPosterize = (input: any, options = defaults) => {
   const { levelsR, levelsG, levelsB, palette } = options;
 
   const output = cloneCanvas(input, false);

@@ -20,7 +20,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
     }
@@ -91,7 +91,7 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   ];
 };
 
-const deepFry = (input, options = defaults) => {
+const deepFry = (input: any, options = defaults) => {
   const { contrast, saturation, blockiness, noise, sharpness, warmth, palette } = options;
 
   const output = cloneCanvas(input, false);

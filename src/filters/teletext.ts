@@ -59,7 +59,7 @@ const nearestTeletextColor = (
 };
 
 const teletext = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const { columns, threshold, blockGap, palette } = options;

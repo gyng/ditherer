@@ -54,7 +54,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
     }
@@ -88,7 +88,7 @@ type CrcStripeRejectOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const crcStripeReject = (input, options: CrcStripeRejectOptions = defaults) => {
+const crcStripeReject = (input: any, options: CrcStripeRejectOptions = defaults) => {
   const { pattern, rejectChance, stripeHeight, tileSize, conceal, jitter, palette } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
   const prevOutput = options._prevOutput ?? null;

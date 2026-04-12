@@ -54,7 +54,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -76,7 +76,7 @@ type FlickerOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const flicker = (input, options: FlickerOptions = defaults) => {
+const flicker = (input: any, options: FlickerOptions = defaults) => {
   const mode = options.mode || defaults.mode;
   const amount = Math.max(0, Math.min(1, Number(options.amount ?? defaults.amount)));
   const flash = Math.max(0, Number(options.flash ?? defaults.flash));

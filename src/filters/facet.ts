@@ -44,7 +44,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const facet = (input, options = defaults) => {
+const facet = (input: any, options = defaults) => {
   const { facetSize, jitter, seamWidth, lineColor, fillMode, palette } = options;
 
   const output = cloneCanvas(input, false);

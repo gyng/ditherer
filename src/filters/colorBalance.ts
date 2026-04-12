@@ -28,7 +28,7 @@ const shadowMask    = (t: number) => Math.max(0, 1 - t * 4);
 const highlightMask = (t: number) => Math.max(0, t * 4 - 3);
 const midtoneMask   = (t: number) => 1 - shadowMask(t) - highlightMask(t);
 
-const colorBalance = (input, options = defaults) => {
+const colorBalance = (input: any, options = defaults) => {
   const {
     shadowR, shadowG, shadowB,
     midtoneR, midtoneG, midtoneB,

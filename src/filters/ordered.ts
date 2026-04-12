@@ -201,9 +201,9 @@ const thresholdMaps = {
 };
 
 const scaleThresholdMap = (
-  map,
-  timesX,
-  timesY
+  map: number[][],
+  timesX: number,
+  timesY: number
 ) => {
   if (timesX === 1 && timesY === 1) {
     return map;
@@ -231,11 +231,11 @@ const scaleThresholdMap = (
 const _orderedOut = [0, 0, 0, 0];
 
 const getOrderedColor = (
-  color,
-  levels,
-  tx,
-  ty,
-  threshold
+  color: number[],
+  levels: number,
+  tx: number,
+  ty: number,
+  threshold: number[][]
 ) => {
   const thresholdValue = threshold[ty][tx];
 
@@ -354,7 +354,7 @@ export const optionTypes = {
   thresholdMapScaleY: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern vertically" },
   temporalPhases: { type: RANGE, range: [1, 8], step: 1, default: 1, desc: "Cycle threshold offset across frames — higher = more perceived colors over time" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
   palette: { type: PALETTE, default: nearest }
@@ -372,7 +372,7 @@ const defaults: OrderedOptions = {
 };
 
 const ordered = (
-  input,
+  input: any,
   options: OrderedOptions = defaults
 ) => {
   const palette = options.palette ?? defaults.palette;

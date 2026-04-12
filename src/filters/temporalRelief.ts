@@ -38,7 +38,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -66,7 +66,7 @@ type TemporalReliefOptions = FilterOptionValues & {
   _ema?: Float32Array | null;
 };
 
-const temporalRelief = (input, options: TemporalReliefOptions = defaults) => {
+const temporalRelief = (input: any, options: TemporalReliefOptions = defaults) => {
   const sourceMode = options.source ?? defaults.source;
   const depth = Number(options.depth ?? defaults.depth);
   const decay = clamp01(Number(options.decay ?? defaults.decay));

@@ -13,7 +13,7 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
-const voronoi = (input, options = defaults) => {
+const voronoi = (input: any, options = defaults) => {
   const { cells, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -34,7 +34,7 @@ const voronoi = (input, options = defaults) => {
   const gridDim = Math.max(1, Math.ceil(Math.sqrt(cells)));
   const cellW = W / gridDim;
   const cellH = H / gridDim;
-  const grid: number[][] = Array.from({ length: gridDim * gridDim }, () => []);
+  const grid: number[][] = Array.from({ length: gridDim * gridDim }, (): number[] => []);
   for (let s = 0; s < cells; s += 1) {
     const gx = Math.min(gridDim - 1, Math.floor(seeds[s].x / cellW));
     const gy = Math.min(gridDim - 1, Math.floor(seeds[s].y / cellH));

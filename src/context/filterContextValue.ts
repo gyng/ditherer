@@ -21,7 +21,7 @@ export interface ExportFrameOptions {
 export interface FilterActions {
   loadMediaAsync: (file: File, volume?: number, playbackRate?: number) => Promise<void>;
   loadVideoFromUrlAsync: (src: string, volume?: number, playbackRate?: number) => Promise<void>;
-  filterImageAsync: (input: HTMLCanvasElement | null) => void;
+  filterImageAsync: (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
   triggerDegauss: (inputCanvas: HTMLCanvasElement | null) => void;
   triggerBurst: (inputCanvas: HTMLCanvasElement | null, frames: number, fps?: number) => void;
   startAnimLoop: (inputCanvas: HTMLCanvasElement | null, fps?: number) => void;
@@ -30,7 +30,7 @@ export interface FilterActions {
   renderFrameForExport: (
     inputCanvas: HTMLCanvasElement | null,
     options: ExportFrameOptions,
-  ) => HTMLCanvasElement | null;
+  ) => HTMLCanvasElement | OffscreenCanvas | null;
   clearExportSession: (sessionId: string) => void;
   loadImage: (image: CanvasImageSource, time?: number | null, video?: AnimatedVideoElement | null) => void;
   selectFilter: (name: string, filter: FilterDefinition | { filter: FilterDefinition }) => void;

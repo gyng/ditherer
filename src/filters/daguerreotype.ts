@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const daguerreotype = (input, options = defaults) => {
+const daguerreotype = (input: any, options = defaults) => {
   const { silverTone, softFocus, vignette, metallic, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

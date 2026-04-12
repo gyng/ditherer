@@ -56,7 +56,7 @@ type RisographOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const risograph = (input, options: RisographOptions = defaults) => {
+const risograph = (input: any, options: RisographOptions = defaults) => {
   const { color1, color2, misregX, misregY, grain, inkBleed, threshold, palette } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
 

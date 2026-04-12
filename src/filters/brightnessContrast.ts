@@ -36,7 +36,7 @@ type BrightnessContrastOptions = FilterOptionValues & typeof defaults & {
 };
 
 const brightnessContrast = (
-  input,
+  input: any,
   options: BrightnessContrastOptions = defaults
 ) => {
   const { brightness, contrast, exposure, gamma, palette } = options;

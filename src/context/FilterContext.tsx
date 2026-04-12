@@ -1,4 +1,4 @@
-import React, { useReducer, useCallback, useEffect, useRef } from "react";
+import React, { useReducer, useCallback, useEffect, useRef, type ReactNode } from "react";
 import filterReducer, { initialState, ChainEntry, type FilterReducerAction, type FilterReducerState } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale, isMainThreadFilter } from "filters";
@@ -19,7 +19,7 @@ type SerializedPaletteOption = { name?: string; options?: SerializableOptions };
 type SerializablePalette = SerializedPaletteOption & {
   getColor?: (...args: unknown[]) => unknown;
 };
-type FilterRunner = (input: HTMLCanvasElement | null) => void;
+type FilterRunner = (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
 type AnimationParams = { inputCanvas: HTMLCanvasElement | null; fps: number };
 
 // Serialize state to v2 format with delta encoding
@@ -96,7 +96,7 @@ const serializeStateJson = (state: typeof initialState, pretty = false) => {
 
 const DEFAULT_SHARE_STATE_JSON = serializeStateJson(initialState);
 
-export const FilterProvider = ({ children }) => {
+export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch]: [FilterReducerState, React.Dispatch<FilterReducerAction>] = useReducer(filterReducer, initialState);
   const prevOutputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const prevInputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
@@ -163,7 +163,7 @@ export const FilterProvider = ({ children }) => {
   }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
 
   // Async action: load image from file
-  const loadImageAsync = useCallback((file) => new Promise<void>((resolve, reject) => {
+  const loadImageAsync = useCallback((file: File) => new Promise<void>((resolve, reject) => {
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
     image.onerror = () => {
@@ -372,7 +372,7 @@ export const FilterProvider = ({ children }) => {
 
   // Main-thread filter execution (fallback path)
   const filterOnMainThread = (
-    canvas: HTMLCanvasElement,
+    canvas: HTMLCanvasElement | OffscreenCanvas,
     enabledEntries: ChainEntry[],
     startIdx: number,
     isAnimating: boolean,
@@ -395,7 +395,10 @@ export const FilterProvider = ({ children }) => {
       // Capture input pixels for _prevInput and EMA.
       // Always capture so temporal filters work on first click too.
       let inputData: Uint8ClampedArray | null = null;
-      const inputCtx = canvas.getContext("2d");
+      const inputCtx = canvas.getContext("2d") as
+        | CanvasRenderingContext2D
+        | OffscreenCanvasRenderingContext2D
+        | null;
       if (inputCtx) {
         inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
       }
@@ -470,7 +473,7 @@ export const FilterProvider = ({ children }) => {
   };
 
   const emitOutput = (
-    canvas: HTMLCanvasElement,
+    canvas: HTMLCanvasElement | OffscreenCanvas,
     totalTime: number,
     stepTimes: { name: string; ms: number }[],
     frameToken: number,
@@ -478,7 +481,7 @@ export const FilterProvider = ({ children }) => {
   ) => {
     frameCountRef.current += 1;
     filteringRef.current = false;
-    dispatch({ type: "FILTER_IMAGE", image: canvas, frameToken, time: sourceTime, frameTime: totalTime, stepTimes });
+    dispatch({ type: "FILTER_IMAGE", image: canvas as HTMLCanvasElement, frameToken, time: sourceTime, frameTime: totalTime, stepTimes });
     if (pendingFilterRef.current) {
       pendingFilterRef.current = false;
       requestAnimationFrame(() => {
@@ -542,7 +545,10 @@ export const FilterProvider = ({ children }) => {
 
     if (useWorker && entriesToRun.length > 0) {
       // Worker path — async, dispatches output when done
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d") as
+        | CanvasRenderingContext2D
+        | OffscreenCanvasRenderingContext2D
+        | null;
       if (!ctx) { filteringRef.current = false; return; }
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
@@ -882,7 +888,7 @@ export const FilterProvider = ({ children }) => {
     loadImage: (image: CanvasImageSource, time?: number | null, video?: AnimatedVideoElement | null) =>
     {
       resetProcessingState();
-      dispatch({ type: "LOAD_IMAGE", image, time: time || 0, frameToken: stateRef.current.inputFrameToken ?? 0, video: video || null, dispatch });
+      dispatch({ type: "LOAD_IMAGE", image: image as any, time: time || 0, frameToken: stateRef.current.inputFrameToken ?? 0, video: video || null, dispatch });
     },
     selectFilter: (name, filter) => {
       stopAnimLoop();
@@ -912,7 +918,7 @@ export const FilterProvider = ({ children }) => {
     setInputPlaybackRate: (rate: number) =>
       dispatch({ type: "SET_INPUT_PLAYBACK_RATE", rate }),
     toggleVideo: () => {
-      const video = stateRef.current.video;
+      const video = stateRef.current.video as AnimatedVideoElement | null;
       if (!video) return;
       if (video.paused) {
         video.__manualPause = false;

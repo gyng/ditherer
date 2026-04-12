@@ -7,7 +7,7 @@ export const optionTypes = {
   motionMultiplier: { type: RANGE, range: [0, 20], step: 1, default: 8, desc: "Extra hue rotation per unit of motion" },
   saturationBoost: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Boost saturation in moving areas" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -62,7 +62,7 @@ type TemporalColorCycleOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const temporalColorCycle = (input, options: TemporalColorCycleOptions = defaults) => {
+const temporalColorCycle = (input: any, options: TemporalColorCycleOptions = defaults) => {
   const baseSpeed = Number(options.baseSpeed ?? defaults.baseSpeed);
   const motionMultiplier = Number(options.motionMultiplier ?? defaults.motionMultiplier);
   const saturationBoost = Number(options.saturationBoost ?? defaults.saturationBoost);

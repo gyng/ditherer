@@ -87,7 +87,7 @@ const triangulate = (points: { x: number; y: number }[], W: number, H: number) =
   return { triangles: triangles.filter(t => t[0] > 2 && t[1] > 2 && t[2] > 2), points: allPts };
 };
 
-const delaunay = (input, options = defaults) => {
+const delaunay = (input: any, options = defaults) => {
   const { pointCount, edgeWeight, showEdges, seed, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

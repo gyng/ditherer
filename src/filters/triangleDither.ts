@@ -15,7 +15,7 @@ export const defaults = {
 // Better spectral properties than uniform noise: blue-ish noise distribution
 const tpdf = () => Math.random() - Math.random();
 
-const triangleDither = (input, options = defaults) => {
+const triangleDither = (input: any, options = defaults) => {
   const { palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

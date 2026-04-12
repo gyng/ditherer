@@ -50,7 +50,7 @@ export const optionTypes = {
     ],
     default: PATTERN.RANDOM,
     desc: "How delays are distributed across tiles",
-    visibleWhen: (options) => (options.behavior || BEHAVIOR.DELAY_MAP) === BEHAVIOR.DELAY_MAP,
+    visibleWhen: (options: TimeMosaicOptions) => (options.behavior || BEHAVIOR.DELAY_MAP) === BEHAVIOR.DELAY_MAP,
   },
   motionThreshold: {
     type: RANGE,
@@ -58,7 +58,7 @@ export const optionTypes = {
     step: 1,
     default: 72,
     desc: "Tile difference needed before the stabilizer refreshes from the live frame",
-    visibleWhen: (options) => options.behavior === BEHAVIOR.STABILIZER,
+    visibleWhen: (options: TimeMosaicOptions) => options.behavior === BEHAVIOR.STABILIZER,
   },
   holdFrames: {
     type: RANGE,
@@ -66,10 +66,10 @@ export const optionTypes = {
     step: 1,
     default: 8,
     desc: "Maximum number of quiet frames a stabilizer tile can hold before it refreshes",
-    visibleWhen: (options) => options.behavior === BEHAVIOR.STABILIZER,
+    visibleWhen: (options: TimeMosaicOptions) => options.behavior === BEHAVIOR.STABILIZER,
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -103,7 +103,7 @@ type TimeMosaicOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const timeMosaic = (input, options: TimeMosaicOptions = defaults) => {
+const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
   const {
     behavior = defaults.behavior,
     tileSize = defaults.tileSize,

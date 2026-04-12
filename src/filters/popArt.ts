@@ -17,7 +17,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const popArt = (input, options = defaults) => {
+const popArt = (input: any, options = defaults) => {
   const { dotSize, levels, saturationBoost, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

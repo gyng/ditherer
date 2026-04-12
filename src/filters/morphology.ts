@@ -52,7 +52,7 @@ const applyMorphOp = (buf: Uint8ClampedArray, W: number, H: number, radius: numb
   return out;
 };
 
-const morphology = (input, options = defaults) => {
+const morphology = (input: any, options = defaults) => {
   const { mode, radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

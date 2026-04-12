@@ -26,7 +26,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const posterizeEdges = (input, options = defaults) => {
+const posterizeEdges = (input: any, options = defaults) => {
   const { levels, edgeThreshold, edgeWidth, edgeColor, palette } = options;
 
   const output = cloneCanvas(input, false);

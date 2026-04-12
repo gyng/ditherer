@@ -40,7 +40,7 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-const vignetteFilter = (input, options = defaults) => {
+const vignetteFilter = (input: any, options = defaults) => {
   const { strength, radius, softness, shape, palette } = options;
 
   const output = cloneCanvas(input, false);

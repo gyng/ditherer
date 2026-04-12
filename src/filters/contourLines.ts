@@ -25,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const contourLines = (input, options = defaults) => {
+const contourLines = (input: any, options = defaults) => {
   const { levels, lineWidth, lineColor, fillMode, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

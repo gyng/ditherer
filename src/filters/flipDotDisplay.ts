@@ -106,7 +106,7 @@ const resetGridState = (cols: number, rows: number, stuckDotRate: number) => {
   cachedStuckDotRate = stuckDotRate;
 };
 
-const flipDotDisplay = (input, options = defaults) => {
+const flipDotDisplay = (input: any, options = defaults) => {
   const cellSize = Math.max(1, Math.round(options.cellSize ?? defaults.cellSize));
   const threshold = Number(options.threshold ?? defaults.threshold);
   const hysteresis = Math.max(0, Number(options.hysteresis ?? defaults.hysteresis));

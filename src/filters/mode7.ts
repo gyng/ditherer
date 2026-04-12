@@ -12,7 +12,7 @@ export const optionTypes = {
     step: 0.1,
     default: 0.4,
     desc: "Forward or reverse travel speed while the animation loop is playing",
-    visibleWhen: options => options.fly
+    visibleWhen: (options: any) => options.fly
   },
   strafeSpeed: {
     type: RANGE,
@@ -21,7 +21,7 @@ export const optionTypes = {
     step: 0.05,
     default: 0,
     desc: "Slide sideways while flying",
-    visibleWhen: options => options.fly
+    visibleWhen: (options: any) => options.fly
   },
   liftSpeed: {
     type: RANGE,
@@ -30,10 +30,10 @@ export const optionTypes = {
     step: 0.05,
     default: 0,
     desc: "Rise or descend while flying",
-    visibleWhen: options => options.fly
+    visibleWhen: (options: any) => options.fly
   },
   animSpeed: { type: RANGE, label: "Playback FPS", range: [1, 30], step: 1, default: 15, desc: "Playback speed for the optional flying preview" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) {
       actions.stopAnimLoop();
     } else {
@@ -60,7 +60,7 @@ export const optionTypes = {
       { name: "Storm Run", value: "stormRun" }
     ],
     desc: "Choose a period-style backdrop motif inspired by SNES racing skies",
-    visibleWhen: options => options.sky
+    visibleWhen: (options: any) => options.sky
   },
   skyGlow: {
     type: RANGE,
@@ -69,7 +69,7 @@ export const optionTypes = {
     step: 0.01,
     default: 0.75,
     desc: "Strength of the horizon glow and sun bloom",
-    visibleWhen: options => options.sky
+    visibleWhen: (options: any) => options.sky
   },
   skyBands: {
     type: RANGE,
@@ -78,7 +78,7 @@ export const optionTypes = {
     step: 0.01,
     default: 0.6,
     desc: "Amount of chunky horizon banding in the retro sky",
-    visibleWhen: options => options.sky
+    visibleWhen: (options: any) => options.sky
   },
   skyTwist: {
     type: RANGE,
@@ -87,7 +87,7 @@ export const optionTypes = {
     step: 0.01,
     default: 0.5,
     desc: "How much the sky shears with yaw like a sweeping arcade backdrop",
-    visibleWhen: options => options.sky
+    visibleWhen: (options: any) => options.sky
   },
   palette: { type: PALETTE, default: nearest }
 };
@@ -257,7 +257,7 @@ const getSkyColor = (
   ] as const;
 };
 
-const mode7 = (input, options = defaults) => {
+const mode7 = (input: any, options = defaults) => {
   const {
     horizon,
     fov,

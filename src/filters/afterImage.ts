@@ -6,7 +6,7 @@ export const optionTypes = {
   strength: { type: RANGE, range: [0, 3], step: 0.1, default: 1.5, desc: "Intensity of the complementary ghost" },
   threshold: { type: RANGE, range: [5, 80], step: 1, default: 20, desc: "Minimum scene change before a ghost appears" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -24,7 +24,7 @@ type AfterImageOptions = FilterOptionValues & {
   _ema?: Float32Array | null;
 };
 
-const afterImage = (input, options: AfterImageOptions = defaults) => {
+const afterImage = (input: any, options: AfterImageOptions = defaults) => {
   const strength = Number(options.strength ?? defaults.strength);
   const threshold = Number(options.threshold ?? defaults.threshold);
   const ema = options._ema ?? null;

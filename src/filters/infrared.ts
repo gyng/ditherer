@@ -15,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const infrared = (input, options = defaults) => {
+const infrared = (input: any, options = defaults) => {
   const { intensity, falseColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

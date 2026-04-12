@@ -421,7 +421,7 @@ export const defaults = {
 };
 
 export const applyJpegArtifactToCanvas = (
-  input,
+  input: any,
   options: JpegArtifactOptions = defaults
 ) => {
   const palette = isRecord(options.palette) ? options.palette : defaults.palette;
@@ -586,7 +586,7 @@ export const applyJpegArtifactToCanvas = (
   return output;
 };
 
-const jpegArtifact = (input, options: JpegArtifactOptions = defaults) =>
+const jpegArtifact = (input: any, options: JpegArtifactOptions = defaults) =>
   applyJpegArtifactToCanvas(input, options);
 
 export default defineFilter({

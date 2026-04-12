@@ -26,7 +26,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const duotone = (input, options = defaults) => {
+const duotone = (input: any, options = defaults) => {
   const { shadowColor, highlightColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

@@ -282,7 +282,7 @@ const estimateSceneComplexity = (buf: Uint8ClampedArray, w: number, h: number) =
 };
 
 const getBudgetedJpegPreset = (quality: string, complexity: number, flash: boolean) => {
-  const base = JPEG_PRESETS[quality] || JPEG_PRESETS[QUALITY_FINE];
+  const base = JPEG_PRESETS[quality as keyof typeof JPEG_PRESETS] || JPEG_PRESETS[QUALITY_FINE];
   const c = clamp(0, 1, complexity);
   const qDrop = quality === QUALITY_STANDARD ? 10 : 7;
   const chromaDrop = quality === QUALITY_STANDARD ? 14 : 9;
@@ -496,7 +496,7 @@ const applyDigicamFlashLighting = (
   }
 };
 
-const mavicaFd7 = (input, options = defaults) => {
+const mavicaFd7 = (input: any, options = defaults) => {
   const {
     captureMode,
     quality,
@@ -542,7 +542,7 @@ const mavicaFd7 = (input, options = defaults) => {
   // Step 2 — AWB colour temperature (auto by default, or user override)
   const [rMul, gMul, bMul] = lighting === LIGHTING_AUTO
     ? computeAutoAwb(buf)
-    : (AWB[lighting] || AWB[LIGHTING_AUTO]);
+    : (AWB[lighting as keyof typeof AWB] || AWB[LIGHTING_AUTO]);
   const fluorescentFlutter = lighting === LIGHTING_FLUORESCENT;
 
   for (let y = 0; y < workH; y += 1) {
@@ -655,7 +655,7 @@ const mavicaFd7 = (input, options = defaults) => {
   }
 
   // Step 9 — Shadow noise (measured: R/B sigma ~8, G sigma ~6)
-  const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality] || NOISE_PARAMS[QUALITY_FINE];
+  const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] || NOISE_PARAMS[QUALITY_FINE];
 
   for (let y = 0; y < workH; y += 1) {
     for (let x = 0; x < workW; x += 1) {

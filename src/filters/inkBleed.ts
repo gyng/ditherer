@@ -21,7 +21,7 @@ const noise = (x: number, y: number) => {
   return n - Math.floor(n);
 };
 
-const inkBleed = (input, options = defaults) => {
+const inkBleed = (input: any, options = defaults) => {
   const { spread, absorbency, paperTint, grain } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

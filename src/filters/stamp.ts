@@ -21,7 +21,7 @@ export const defaults = {
   roughness: optionTypes.roughness.default
 };
 
-const stamp = (input, options = defaults) => {
+const stamp = (input: any, options = defaults) => {
   const { threshold, inkColor, paperColor, roughness } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

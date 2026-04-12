@@ -83,7 +83,7 @@ const blendChannel = (a: number, b: number, mode: string): number => {
   return Math.round(Math.max(0, Math.min(1, result)) * 255);
 };
 
-const blendFilter = (input, options = defaults) => {
+const blendFilter = (input: any, options = defaults) => {
   const { mode, color, opacity, palette } = options;
 
   const output = cloneCanvas(input, false);

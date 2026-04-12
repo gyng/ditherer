@@ -30,7 +30,7 @@ const nearestCentroid = (pixel: number[], centroids: number[][]): number => {
   return best;
 };
 
-const kmeans = (input, options = defaults) => {
+const kmeans = (input: any, options = defaults) => {
   const { k, iterations, sampleRate, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

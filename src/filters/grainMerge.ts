@@ -15,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const grainMerge = (input, options = defaults) => {
+const grainMerge = (input: any, options = defaults) => {
   const { strength, radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

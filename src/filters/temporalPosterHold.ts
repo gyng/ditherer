@@ -31,7 +31,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
@@ -53,7 +53,7 @@ type TemporalPosterHoldOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
-const temporalPosterHold = (input, options: TemporalPosterHoldOptions = defaults) => {
+const temporalPosterHold = (input: any, options: TemporalPosterHoldOptions = defaults) => {
   const levels = Math.max(2, Math.round(Number(options.levels ?? defaults.levels)));
   const holdThreshold = Math.max(0, Number(options.holdThreshold ?? defaults.holdThreshold));
   const releaseSpeed = Math.max(0.01, Number(options.releaseSpeed ?? defaults.releaseSpeed));

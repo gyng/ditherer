@@ -37,7 +37,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const digicamFlash = (input, options = defaults) => {
+const digicamFlash = (input: any, options = defaults) => {
   const {
     flashPower,
     falloff,

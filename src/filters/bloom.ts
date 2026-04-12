@@ -26,7 +26,7 @@ export const defaults = {
   radius: optionTypes.radius.default
 };
 
-const bloom = (input, options = defaults) => {
+const bloom = (input: any, options = defaults) => {
   const { thresholdMode, strength, radius } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

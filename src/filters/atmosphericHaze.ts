@@ -43,7 +43,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const atmosphericHaze = (input, options = defaults) => {
+const atmosphericHaze = (input: any, options = defaults) => {
   const { strength, horizon, softness, highlightBloom, tint, depthMode, palette } = options;
 
   const output = cloneCanvas(input, false);

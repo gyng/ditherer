@@ -35,7 +35,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
     }
@@ -145,7 +145,7 @@ const worleyNoise = (px: number, py: number, seed: number) => {
   return Math.sqrt(minDist);
 };
 
-const noiseGenerator = (input, options = defaults) => {
+const noiseGenerator = (input: any, options = defaults) => {
   const { type, scale, octaves, seed: seedOpt, colorize, mix, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
 

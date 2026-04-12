@@ -23,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const sharpenFilter = (input, options = defaults) => {
+const sharpenFilter = (input: any, options = defaults) => {
   const { strength, radius, threshold, palette } = options;
 
   const output = cloneCanvas(input, false);

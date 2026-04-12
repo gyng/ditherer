@@ -36,7 +36,7 @@ export const defaults = {
 };
 
 const channelSeparation = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const {

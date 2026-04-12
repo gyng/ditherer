@@ -34,7 +34,7 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 };
 
-const lenticular = (input, options = defaults) => {
+const lenticular = (input: any, options = defaults) => {
   const { stripWidth, angle, sheenIntensity, rainbowSpread, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

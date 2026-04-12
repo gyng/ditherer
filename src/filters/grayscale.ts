@@ -9,7 +9,7 @@ type GrayscaleOptions = FilterOptionValues & {
   _linearize?: boolean;
 };
 
-const grayscale = (input, options: GrayscaleOptions = {}) => {
+const grayscale = (input: any, options: GrayscaleOptions = {}) => {
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

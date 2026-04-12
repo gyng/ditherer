@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const sepiaFilter = (input, options = defaults) => {
+const sepiaFilter = (input: any, options = defaults) => {
   const { intensity, palette } = options;
 
   const output = cloneCanvas(input, false);

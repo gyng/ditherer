@@ -26,7 +26,7 @@ export const defaults = {
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
 const zigzag = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const {

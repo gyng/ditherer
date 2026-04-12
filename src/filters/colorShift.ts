@@ -4,7 +4,7 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, rgba2hsva, srgbPale
 import { defineFilter } from "filters/types";
 
 // h: 0-360, s/v/a: 0-1 → r/g/b/a: 0-255
-const hsva2rgba = ([h, s, v, a]) => {
+const hsva2rgba = ([h, s, v, a]: readonly number[]) => {
   if (s === 0) {
     const c = Math.round(v * 255);
     return [c, c, c, Math.round(a * 255)];
@@ -41,7 +41,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const colorShift = (input, options = defaults) => {
+const colorShift = (input: any, options = defaults) => {
   const { hue, saturation, value, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

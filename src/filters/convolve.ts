@@ -185,10 +185,10 @@ type ConvolveOptions = FilterOptionValues & typeof defaults & {
 };
 
 const convolve = (
-  input,
+  input: any,
   options: ConvolveOptions = defaults
 ) => {
-  const kernel = kernels[options.kernel];
+  const kernel = kernels[String(options.kernel) as keyof typeof kernels];
   const matrix = scaleMatrix(kernel.matrix, options.strength);
   const output = cloneCanvas(input, false);
 
@@ -207,9 +207,10 @@ const convolve = (
 
   // Separable fast path: two 1D passes instead of one 2D pass.
   // Reduces per-pixel work from K² to 2K multiply-adds.
-  if (kernel.separable) {
-    const row = kernel.separable.row.map((v) => v * options.strength);
-    const col = kernel.separable.col;
+  const separable = "separable" in kernel ? kernel.separable : undefined;
+  if (separable) {
+    const row = separable.row.map((v: number) => v * options.strength);
+    const col = separable.col;
     const K = row.length;
 
     // Horizontal 1D pass: src → temp

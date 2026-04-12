@@ -22,7 +22,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
-const lineArt = (input, options = defaults) => {
+const lineArt = (input: any, options = defaults) => {
   const { threshold, lineWidth, cleanupRadius, lineColor, bgColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

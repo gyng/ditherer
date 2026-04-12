@@ -28,7 +28,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const woodcut = (input, options = defaults) => {
+const woodcut = (input: any, options = defaults) => {
   const { threshold, lineWeight, edgeStrength, inkColor, paperColor, palette } = options;
 
   const output = cloneCanvas(input, false);

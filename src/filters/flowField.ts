@@ -44,7 +44,7 @@ const curlAngle = (px: number, py: number, seed: number) => {
   return Math.atan2(dndx, -dndy);
 };
 
-const flowField = (input, options = defaults) => {
+const flowField = (input: any, options = defaults) => {
   const { scale, strength, steps, seed, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

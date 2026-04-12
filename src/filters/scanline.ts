@@ -24,7 +24,7 @@ export const optionTypes = {
     step: 0.01,
     default: 0.33,
     desc: "How dark each scanline becomes in darken-lines mode",
-    visibleWhen: (options) => options.mode === MODE.DARKEN,
+    visibleWhen: (options: any) => options.mode === MODE.DARKEN,
   },
   gap: {
     type: RANGE,
@@ -32,7 +32,7 @@ export const optionTypes = {
     step: 1,
     default: 3,
     desc: "Spacing between scanlines in darken-lines mode",
-    visibleWhen: (options) => options.mode === MODE.DARKEN,
+    visibleWhen: (options: any) => options.mode === MODE.DARKEN,
   },
   height: {
     type: RANGE,
@@ -40,7 +40,7 @@ export const optionTypes = {
     step: 1,
     default: 1,
     desc: "Thickness of each darkened line in darken-lines mode",
-    visibleWhen: (options) => options.mode === MODE.DARKEN,
+    visibleWhen: (options: any) => options.mode === MODE.DARKEN,
   },
   lineHeight: {
     type: RANGE,
@@ -48,7 +48,7 @@ export const optionTypes = {
     step: 1,
     default: 2,
     desc: "Height of each RGB sub-line in phosphor mode",
-    visibleWhen: (options) => options.mode === MODE.RGB_SUBLINES,
+    visibleWhen: (options: any) => options.mode === MODE.RGB_SUBLINES,
   },
   brightness: {
     type: RANGE,
@@ -56,7 +56,7 @@ export const optionTypes = {
     step: 0.1,
     default: 1.5,
     desc: "Brightness boost to compensate for RGB sub-line filtering",
-    visibleWhen: (options) => options.mode === MODE.RGB_SUBLINES,
+    visibleWhen: (options: any) => options.mode === MODE.RGB_SUBLINES,
   },
   palette: { type: PALETTE, default: palettes.nearest },
 };
@@ -71,7 +71,7 @@ export const defaults = {
   palette: optionTypes.palette.default,
 };
 
-const scanline = (input, options = defaults) => {
+const scanline = (input: any, options = defaults) => {
   const { mode, intensity, gap, height, lineHeight, brightness, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

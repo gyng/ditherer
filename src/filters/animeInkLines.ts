@@ -101,7 +101,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeInkLines = (input, options = defaults) => {
+const animeInkLines = (input: any, options = defaults) => {
   const { source, threshold, lineWidth, lineColor, renderMode, overlayMix, bgColor, palette } = options;
 
   const output = cloneCanvas(input, false);

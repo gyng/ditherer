@@ -23,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const channelMixer = (input, options = defaults) => {
+const channelMixer = (input: any, options = defaults) => {
   const { rr, rg, rb, gr, gg, gb, br, bg, bb, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

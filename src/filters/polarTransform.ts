@@ -44,7 +44,7 @@ export const defaults = {
   interpolation: optionTypes.interpolation.default
 };
 
-const polarTransform = (input, options = defaults) => {
+const polarTransform = (input: any, options = defaults) => {
   const { mode, centerX, centerY, angle, interpolation } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

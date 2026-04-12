@@ -13,7 +13,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
     }
@@ -34,7 +34,7 @@ export const defaults = {
 const samplePhase = (frameIndex: number, frequency: number, seed: number) =>
   frameIndex * frequency * 0.14 + seed;
 
-const rhythmicWobble = (input, options = defaults) => {
+const rhythmicWobble = (input: any, options = defaults) => {
   const { amountX, amountY, rotation, zoomJitter, frequency, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
 

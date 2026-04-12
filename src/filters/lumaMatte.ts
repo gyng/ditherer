@@ -37,7 +37,7 @@ export const defaults = {
   backgroundMode: optionTypes.backgroundMode.default
 };
 
-const lumaMatte = (input, options = defaults) => {
+const lumaMatte = (input: any, options = defaults) => {
   const { threshold, feather, invert, backgroundMode } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

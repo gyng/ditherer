@@ -41,7 +41,7 @@ export const optionTypes = {
     desc: "How the driver maps into older or newer history"
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -53,7 +53,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const timeWarpDisplacement = (input, options = defaults) => {
+const timeWarpDisplacement = (input: any, options = defaults) => {
   const { depth, source, direction } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const spherize = (input, options = defaults) => {
+const spherize = (input: any, options = defaults) => {
   const { strength, centerX, centerY, radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

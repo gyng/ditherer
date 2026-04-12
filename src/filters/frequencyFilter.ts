@@ -76,7 +76,7 @@ const boxBlur = (src: Uint8ClampedArray, width: number, height: number, radius: 
   return out;
 };
 
-const frequencyFilter = (input, options = defaults) => {
+const frequencyFilter = (input: any, options = defaults) => {
   const { mode, radius, bandWidth, gain, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

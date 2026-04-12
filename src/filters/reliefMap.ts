@@ -38,7 +38,7 @@ export const defaults = {
 
 const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
-const reliefMap = (input, options = defaults) => {
+const reliefMap = (input: any, options = defaults) => {
   const { lightAngle, height, specular, baseColorMode, tintColor, palette } = options;
 
   const output = cloneCanvas(input, false);

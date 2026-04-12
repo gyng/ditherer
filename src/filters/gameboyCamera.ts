@@ -32,7 +32,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
-    action: (actions, inputCanvas, _filterFunc, options) => {
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
     }
@@ -52,7 +52,7 @@ export const defaults = {
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
 const gameboyCamera = (
-  input,
+  input: any,
   options = defaults
 ) => {
   const {

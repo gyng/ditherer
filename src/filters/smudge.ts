@@ -15,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const smudge = (input, options = defaults) => {
+const smudge = (input: any, options = defaults) => {
   const { strength, direction, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

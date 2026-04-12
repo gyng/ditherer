@@ -15,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const smoothPosterize = (input, options = defaults) => {
+const smoothPosterize = (input: any, options = defaults) => {
   const { levels, smoothness, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

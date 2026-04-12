@@ -72,13 +72,13 @@ export const optionTypes = {
     step: 0.5,
     default: 3,
     desc: "Amplify detected motion intensity",
-    visibleWhen: (options) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
+    visibleWhen: (options: any) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
   },
   backgroundColor: {
     type: COLOR,
     default: [0, 0, 0],
     desc: "Background color where no motion is detected",
-    visibleWhen: (options) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
+    visibleWhen: (options: any) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
   },
   colorMap: {
     type: ENUM,
@@ -89,7 +89,7 @@ export const optionTypes = {
     ],
     default: COLORMAP.INFERNO,
     desc: "Color palette for heat visualization",
-    visibleWhen: (options) => options.renderMode === RENDER.HEATMAP || options.renderMode === RENDER.ACCUMULATED_HEAT,
+    visibleWhen: (options: any) => options.renderMode === RENDER.HEATMAP || options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
   accumRate: {
     type: RANGE,
@@ -97,7 +97,7 @@ export const optionTypes = {
     step: 0.01,
     default: 0.05,
     desc: "How quickly motion builds heat over time",
-    visibleWhen: (options) => options.renderMode === RENDER.ACCUMULATED_HEAT,
+    visibleWhen: (options: any) => options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
   coolRate: {
     type: RANGE,
@@ -105,10 +105,10 @@ export const optionTypes = {
     step: 0.001,
     default: 0.01,
     desc: "How quickly idle areas cool in accumulated heat mode",
-    visibleWhen: (options) => options.renderMode === RENDER.ACCUMULATED_HEAT,
+    visibleWhen: (options: any) => options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) actions.stopAnimLoop();
     else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
   } },
@@ -141,7 +141,7 @@ type MotionDetectOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
-const motionAnalysis = (input, options: MotionDetectOptions = defaults) => {
+const motionAnalysis = (input: any, options: MotionDetectOptions = defaults) => {
   const source = String(options.source ?? defaults.source);
   const renderMode = String(options.renderMode ?? defaults.renderMode);
   const threshold = Number(options.threshold ?? defaults.threshold);

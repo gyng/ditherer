@@ -87,7 +87,7 @@ export const defaults = {
   reduceMode: optionTypes.reduceMode.default
 };
 
-const octreeQuantize = (input, options = defaults) => {
+const octreeQuantize = (input: any, options = defaults) => {
   const { levels, sampleRate, reduceMode } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -100,7 +100,7 @@ const octreeQuantize = (input, options = defaults) => {
   const outBuf = new Uint8ClampedArray(buf.length);
   const maxColors = Math.max(2, Math.round(levels));
   const leafLevel = 7;
-  const reducible: Array<OctreeNode | null> = Array.from({ length: leafLevel }, () => null);
+  const reducible: Array<OctreeNode | null> = Array.from({ length: leafLevel }, (): OctreeNode | null => null);
   const root = createNode(0, leafLevel);
   let leafCount = 0;
 

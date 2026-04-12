@@ -32,7 +32,7 @@ const invertRadius = (rDst: number, k1: number, k2: number): number => {
   return r;
 };
 
-const lensDistortion = (input, options = defaults) => {
+const lensDistortion = (input: any, options = defaults) => {
   const { k1, k2, zoom, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

@@ -16,7 +16,7 @@ export const defaults = {
   paperColor: optionTypes.paperColor.default
 };
 
-const duplexPrint = (input, options = defaults) => {
+const duplexPrint = (input: any, options = defaults) => {
   const { inkA, inkB, mixCurve, paperColor } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

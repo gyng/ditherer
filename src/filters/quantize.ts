@@ -26,7 +26,7 @@ type QuantizeOptions = FilterOptionValues & typeof defaults & {
 };
 
 const quantize = (
-  input,
+  input: any,
   options: QuantizeOptions = defaults
 ) => {
   const { palette } = options;

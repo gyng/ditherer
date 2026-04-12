@@ -24,7 +24,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lightLeak = (input, options = defaults) => {
+const lightLeak = (input: any, options = defaults) => {
   const { intensity, position, color: leakColor, spread, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

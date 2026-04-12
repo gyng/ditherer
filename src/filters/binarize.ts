@@ -24,10 +24,10 @@ type BinarizeOptions = FilterOptionValues & typeof defaults & {
 };
 
 const binarize = (
-  input,
+  input: any,
   options: BinarizeOptions = defaults
 ) => {
-  const getColor = (val, threshold) =>
+  const getColor = (val: number, threshold: number) =>
     val > threshold ? 255 : 0;
 
   const { thresholdR, thresholdG, thresholdB, thresholdA, palette } = options;
@@ -44,7 +44,7 @@ const binarize = (
 
   if (options._linearize) {
     const floatBuf = srgbBufToLinearFloat(buf);
-    const getColorF = (val, threshold) =>
+    const getColorF = (val: number, threshold: number) =>
       val > threshold / 255 ? 1.0 : 0.0;
     for (let x = 0; x < input.width; x += 1) {
       for (let y = 0; y < input.height; y += 1) {

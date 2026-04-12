@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const gaussianBlurFilter = (input, options = defaults) => {
+const gaussianBlurFilter = (input: any, options = defaults) => {
   const { sigma, palette } = options;
 
   const output = cloneCanvas(input, false);

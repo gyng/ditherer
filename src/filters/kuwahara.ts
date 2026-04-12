@@ -60,7 +60,7 @@ const buildKuwaharaSats = (buf: Uint8ClampedArray, W: number, H: number) => {
   return { stride, satR, satG, satB, satR2, satG2, satB2 };
 };
 
-const kuwahara = (input, options = defaults) => {
+const kuwahara = (input: any, options = defaults) => {
   const { radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

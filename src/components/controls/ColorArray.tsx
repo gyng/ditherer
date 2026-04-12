@@ -141,7 +141,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
       return <div>No colors</div>;
     }
 
-    const currentThemeKey = findMatchingThemeKey(this.props.value) as keyof typeof THEMES | null;
+    const currentThemeKey = findMatchingThemeKey(this.props.value);
     const currentTheme = currentThemeKey ? [currentThemeKey, THEMES[currentThemeKey]] as const : null;
     const customThemeName = "Custom";
     const currentThemeName = currentThemeKey || customThemeName;

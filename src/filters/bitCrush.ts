@@ -13,7 +13,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const bitCrush = (input, options = defaults) => {
+const bitCrush = (input: any, options = defaults) => {
   const { bits, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

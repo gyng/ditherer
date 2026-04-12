@@ -19,7 +19,7 @@ export const optionTypes = {
     desc: "Whether the stable parts of the image stay visible or fall to black"
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _f, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
 };
@@ -30,7 +30,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const echoCombiner = (input, options = defaults) => {
+const echoCombiner = (input: any, options = defaults) => {
   const { gain, baseline } = options;
   const ema: Float32Array | null = (options as { _ema?: Float32Array | null })._ema || null;
   const output = cloneCanvas(input, false);

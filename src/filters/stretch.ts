@@ -19,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const stretchFilter = (input, options = defaults) => {
+const stretchFilter = (input: any, options = defaults) => {
   const { scaleX, scaleY, centerX, centerY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

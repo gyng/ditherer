@@ -29,7 +29,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const cmykHalftone = (input, options = defaults) => {
+const cmykHalftone = (input: any, options = defaults) => {
   const { dotSize, angleC, angleM, angleY, angleK, paperColor, palette } = options;
 
   const output = cloneCanvas(input, false);

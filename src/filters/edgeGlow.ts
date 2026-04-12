@@ -26,7 +26,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const edgeGlow = (input, options = defaults) => {
+const edgeGlow = (input: any, options = defaults) => {
   const { threshold, glowRadius, edgeColor, backgroundColor, palette } = options;
 
   const output = cloneCanvas(input, false);

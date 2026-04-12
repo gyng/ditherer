@@ -23,7 +23,7 @@ export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance cutoff for initial alive/dead state" },
   freshInjectionEvery: { type: RANGE, range: [0, 120], step: 1, default: 0, desc: "Inject fresh live cells from the source image every N frames; 0 disables periodic injection" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions, inputCanvas, _filterFunc, options) => {
+  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
   }},
   palette: { type: PALETTE, default: nearest }
@@ -83,7 +83,7 @@ const injectSourceState = (buf: Uint8ClampedArray, width: number, height: number
   }
 };
 
-const cellularAutomata = (input, options = defaults) => {
+const cellularAutomata = (input: any, options = defaults) => {
   const { rule, steps, threshold, freshInjectionEvery, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const output = cloneCanvas(input, false);

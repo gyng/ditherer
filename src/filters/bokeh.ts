@@ -24,7 +24,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const bokeh = (input, options = defaults) => {
+const bokeh = (input: any, options = defaults) => {
   const { radius, threshold, intensity, shape, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

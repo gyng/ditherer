@@ -18,8 +18,8 @@ export const defaults = {
 };
 
 const pixelate = (
-  input,
-  options
+  input: any,
+  options: any
 ) => {
   const { scale, scaleXOverride, scaleYOverride, palette } = options;
 

@@ -33,7 +33,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crosshatch = (input, options = defaults) => {
+const crosshatch = (input: any, options = defaults) => {
   const { density, angle1, angle2, threshold1, threshold2, lineWidth, inkColor, paperColor, palette } = options;
 
   const output = cloneCanvas(input, false);
