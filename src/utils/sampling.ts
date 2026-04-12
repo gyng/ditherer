@@ -13,10 +13,10 @@ export const sampleNearest = (
   const sx = Math.round(clampValue(0, width - 1, x));
   const sy = Math.round(clampValue(0, height - 1, y));
   const i = getIndex(sx, sy, width);
-  out[0] = buf[i];
-  out[1] = buf[i + 1];
-  out[2] = buf[i + 2];
-  out[3] = buf[i + 3];
+  out[0] = buf[i] ?? 0;
+  out[1] = buf[i + 1] ?? 0;
+  out[2] = buf[i + 2] ?? 0;
+  out[3] = buf[i + 3] ?? 0;
   return out;
 };
 
@@ -49,9 +49,9 @@ export const sampleBilinear = (
   const w01 = (1 - tx) * ty;
   const w11 = tx * ty;
 
-  out[0] = Math.round(buf[i00] * w00 + buf[i10] * w10 + buf[i01] * w01 + buf[i11] * w11);
-  out[1] = Math.round(buf[i00 + 1] * w00 + buf[i10 + 1] * w10 + buf[i01 + 1] * w01 + buf[i11 + 1] * w11);
-  out[2] = Math.round(buf[i00 + 2] * w00 + buf[i10 + 2] * w10 + buf[i01 + 2] * w01 + buf[i11 + 2] * w11);
-  out[3] = Math.round(buf[i00 + 3] * w00 + buf[i10 + 3] * w10 + buf[i01 + 3] * w01 + buf[i11 + 3] * w11);
+  out[0] = Math.round((buf[i00] ?? 0) * w00 + (buf[i10] ?? 0) * w10 + (buf[i01] ?? 0) * w01 + (buf[i11] ?? 0) * w11);
+  out[1] = Math.round((buf[i00 + 1] ?? 0) * w00 + (buf[i10 + 1] ?? 0) * w10 + (buf[i01 + 1] ?? 0) * w01 + (buf[i11 + 1] ?? 0) * w11);
+  out[2] = Math.round((buf[i00 + 2] ?? 0) * w00 + (buf[i10 + 2] ?? 0) * w10 + (buf[i01 + 2] ?? 0) * w01 + (buf[i11 + 2] ?? 0) * w11);
+  out[3] = Math.round((buf[i00 + 3] ?? 0) * w00 + (buf[i10 + 3] ?? 0) * w10 + (buf[i01 + 3] ?? 0) * w01 + (buf[i11 + 3] ?? 0) * w11);
   return out;
 };

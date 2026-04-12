@@ -24,10 +24,10 @@ const linearFloatToSrgb = (l: number) => {
 export const srgbBufToLinearFloat = (buf: Uint8ClampedArray | Uint8Array) => {
   const out = new Float32Array(buf.length);
   for (let i = 0; i < buf.length; i += 4) {
-    out[i]     = SRGB_TO_LINEAR_F[buf[i]];
-    out[i + 1] = SRGB_TO_LINEAR_F[buf[i + 1]];
-    out[i + 2] = SRGB_TO_LINEAR_F[buf[i + 2]];
-    out[i + 3] = buf[i + 3] / 255;
+    out[i] = SRGB_TO_LINEAR_F[buf[i] ?? 0];
+    out[i + 1] = SRGB_TO_LINEAR_F[buf[i + 1] ?? 0];
+    out[i + 2] = SRGB_TO_LINEAR_F[buf[i + 2] ?? 0];
+    out[i + 3] = (buf[i + 3] ?? 0) / 255;
   }
   return out;
 };
@@ -38,17 +38,17 @@ export const linearFloatToSrgbBuf = (
   out: Uint8ClampedArray | Uint8Array
 ) => {
   for (let i = 0; i < floats.length; i += 4) {
-    out[i]     = linearFloatToSrgb(floats[i]);
-    out[i + 1] = linearFloatToSrgb(floats[i + 1]);
-    out[i + 2] = linearFloatToSrgb(floats[i + 2]);
-    out[i + 3] = Math.round(Math.max(0, Math.min(1, floats[i + 3])) * 255);
+    out[i] = linearFloatToSrgb(floats[i] ?? 0);
+    out[i + 1] = linearFloatToSrgb(floats[i + 1] ?? 0);
+    out[i + 2] = linearFloatToSrgb(floats[i + 2] ?? 0);
+    out[i + 3] = Math.round(Math.max(0, Math.min(1, floats[i + 3] ?? 0)) * 255);
   }
 };
 
 // Scratch buffers for linearize/delinearize — avoids per-pixel allocations.
 // Safe because callers consume return values immediately in the hot loop.
-const _linOut = [0, 0, 0, 0];
-const _delinOut = [0, 0, 0, 0];
+const _linOut: [number, number, number, number] = [0, 0, 0, 0];
+const _delinOut: [number, number, number, number] = [0, 0, 0, 0];
 
 // Single-color: sRGB [0-255] → linear float [0-1]
 export const linearizeColorF = (c: RgbaLike) => {
@@ -74,10 +74,10 @@ export const LINEAR_TO_SRGB = new Uint8Array(256);
 for (let i = 0; i < 256; i++) SRGB_TO_LINEAR_Q[i] = Math.round(SRGB_TO_LINEAR_F[i] * 255);
 {
   const buckets = Array.from({ length: 256 }, (): number[] => []);
-  for (let i = 0; i < 256; i++) buckets[SRGB_TO_LINEAR_Q[i]].push(i);
+  for (let i = 0; i < 256; i++) buckets[SRGB_TO_LINEAR_Q[i] ?? 0]?.push(i);
   for (let q = 0; q < 256; q++) {
-    const b = buckets[q];
-    LINEAR_TO_SRGB[q] = b.length > 0 ? b[Math.floor(b.length / 2)] : 0;
+    const b = buckets[q] ?? [];
+    LINEAR_TO_SRGB[q] = b.length > 0 ? (b[Math.floor(b.length / 2)] ?? 0) : 0;
   }
   LINEAR_TO_SRGB[0] = 0;
   LINEAR_TO_SRGB[255] = 255;
@@ -85,17 +85,17 @@ for (let i = 0; i < 256; i++) SRGB_TO_LINEAR_Q[i] = Math.round(SRGB_TO_LINEAR_F[
 
 export const linearizeBuffer = (buf: NumericBuffer) => {
   for (let i = 0; i < buf.length; i += 4) {
-    buf[i]     = SRGB_TO_LINEAR_Q[buf[i]];
-    buf[i + 1] = SRGB_TO_LINEAR_Q[buf[i + 1]];
-    buf[i + 2] = SRGB_TO_LINEAR_Q[buf[i + 2]];
+    buf[i] = SRGB_TO_LINEAR_Q[buf[i] ?? 0];
+    buf[i + 1] = SRGB_TO_LINEAR_Q[buf[i + 1] ?? 0];
+    buf[i + 2] = SRGB_TO_LINEAR_Q[buf[i + 2] ?? 0];
   }
 };
 
 export const delinearizeBuffer = (buf: NumericBuffer) => {
   for (let i = 0; i < buf.length; i += 4) {
-    buf[i]     = LINEAR_TO_SRGB[buf[i]];
-    buf[i + 1] = LINEAR_TO_SRGB[buf[i + 1]];
-    buf[i + 2] = LINEAR_TO_SRGB[buf[i + 2]];
+    buf[i] = LINEAR_TO_SRGB[buf[i] ?? 0];
+    buf[i + 1] = LINEAR_TO_SRGB[buf[i + 1] ?? 0];
+    buf[i + 2] = LINEAR_TO_SRGB[buf[i + 2] ?? 0];
   }
 };
 
@@ -225,17 +225,17 @@ export const rgba = (r: number, g: number, b: number, a: number) => [
   g,
   b,
   a
-];
+] as [number, number, number, number];
 
 // mutates input
 export const equalize = (
   input: NumericBuffer
 ) => {
-  let min = input[0];
-  let max = input[0];
+  let min = input[0] ?? 0;
+  let max = input[0] ?? 0;
 
   for (let i = 1; i < input.length; i += 1) {
-    const val = input[i];
+    const val = input[i] ?? 0;
     if (val < min) min = val;
     if (val > max) max = val;
   }
@@ -244,7 +244,7 @@ export const equalize = (
   const factor = 256 / range;
 
   for (let i = 0; i < input.length; i += 1) {
-    input[i] = (input[i] - min) * factor;  
+    input[i] = ((input[i] ?? 0) - min) * factor;
   }
 };
 
