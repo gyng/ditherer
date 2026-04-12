@@ -33,7 +33,12 @@ type ThermalPrinterOptions = FilterOptionValues & {
 };
 
 const thermalPrinter = (input: any, options: ThermalPrinterOptions = defaults) => {
-  const { resolution, fadeGradient, dotDensity, palette } = options;
+  const {
+    resolution = defaults.resolution,
+    fadeGradient = defaults.fadeGradient,
+    dotDensity = defaults.dotDensity,
+    palette = defaults.palette,
+  } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

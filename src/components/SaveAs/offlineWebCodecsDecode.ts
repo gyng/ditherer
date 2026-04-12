@@ -96,8 +96,9 @@ export const decodeSourceFramesWithWebCodecs = async ({
       demuxer.getMediaStream("video"),
     ]);
     const support = await VideoDecoder.isConfigSupported(decoderConfig);
+    const supportConfig = support.config;
     metrics.configMs = performance.now() - configStartedAt;
-    if (!support.supported) {
+    if (!support.supported || !supportConfig) {
       throw new Error(`Browser rejected WebCodecs config for ${decoderConfig.codec}.`);
     }
 
@@ -126,7 +127,7 @@ export const decodeSourceFramesWithWebCodecs = async ({
       },
     });
 
-    decoder.configure(support.config);
+    decoder.configure(supportConfig);
 
     onProgress?.({ message: "Demuxing + decoding source frames...", fraction: 0.08 });
     const demuxStartedAt = performance.now();
@@ -183,9 +184,9 @@ export const decodeSourceFramesWithWebCodecs = async ({
     frames.sort((a, b) => a.timestampUs - b.timestampUs);
     return {
       frames,
-      width: streamInfo.width || support.config.codedWidth || 0,
-      height: streamInfo.height || support.config.codedHeight || 0,
-      codec: support.config.codec,
+      width: streamInfo.width || supportConfig.codedWidth || 0,
+      height: streamInfo.height || supportConfig.codedHeight || 0,
+      codec: supportConfig.codec,
       metrics,
     };
   } finally {
@@ -230,8 +231,9 @@ export const decodeTimelineFramesWithWebCodecs = async ({
       demuxer.getMediaStream("video"),
     ]);
     const support = await VideoDecoder.isConfigSupported(decoderConfig);
+    const supportConfig = support.config;
     metrics.configMs = performance.now() - configStartedAt;
-    if (!support.supported) {
+    if (!support.supported || !supportConfig) {
       throw new Error(`Browser rejected WebCodecs config for ${decoderConfig.codec}.`);
     }
 
@@ -289,7 +291,7 @@ export const decodeTimelineFramesWithWebCodecs = async ({
       });
 
       try {
-        decoder.configure(support.config);
+        decoder.configure(supportConfig);
         const chunkStream = demuxer.read("video", windowStartSec, windowEndSec, AVSeekFlag.AVSEEK_FLAG_BACKWARD);
         const reader = chunkStream.getReader();
         let localChunks = 0;
@@ -312,19 +314,23 @@ export const decodeTimelineFramesWithWebCodecs = async ({
         decoder.close();
       }
 
+      const currentBestFrame = bestFrame as DecodedFrame | null;
       if (decodeError) {
-        bestFrame?.frame.close();
+        if (currentBestFrame != null) {
+          currentBestFrame.frame.close();
+        }
         throw decodeError;
       }
 
-      if (!bestFrame) {
+      if (!currentBestFrame) {
         throw new Error(`No decoded frame was produced for ${timelineFrame.timeSec.toFixed(3)}s.`);
       }
 
-      frames.push(bestFrame);
+      const resolvedBestFrame: DecodedFrame = currentBestFrame;
+      frames.push(resolvedBestFrame);
       const completedFraction = 0.08 + ((i + 1) / Math.max(1, timeline.length)) * 0.22;
       onProgress?.({
-        message: `Decoded source frame ${i + 1}/${timeline.length} (${(bestFrame.timestampUs / 1_000_000).toFixed(2)}s)...`,
+        message: `Decoded source frame ${i + 1}/${timeline.length} (${(resolvedBestFrame.timestampUs / 1_000_000).toFixed(2)}s)...`,
         fraction: completedFraction,
       });
     }
@@ -334,9 +340,9 @@ export const decodeTimelineFramesWithWebCodecs = async ({
 
     return {
       frames,
-      width: streamInfo.width || support.config.codedWidth || 0,
-      height: streamInfo.height || support.config.codedHeight || 0,
-      codec: support.config.codec,
+      width: streamInfo.width || supportConfig.codedWidth || 0,
+      height: streamInfo.height || supportConfig.codedHeight || 0,
+      codec: supportConfig.codec,
       metrics,
     };
   } finally {

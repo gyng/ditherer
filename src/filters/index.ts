@@ -685,9 +685,9 @@ export const filterList = [
       options: {
         ...pixelsort.options,
         palette: {
-          ...pixelsort.options.palette,
+          ...pixelsort.options!.palette!,
           options: {
-            ...pixelsort.options.palette.options,
+            ...(pixelsort.options!.palette!.options ?? {}),
             levels: 256
           }
         }
@@ -709,9 +709,9 @@ export const filterList = [
       options: {
         ...rgbStripe.options,
         palette: {
-          ...rgbStripe.options.palette,
+          ...rgbStripe.options!.palette!,
           options: {
-            ...rgbStripe.options.palette.options,
+            ...(rgbStripe.options!.palette!.options ?? {}),
             levels: 32
           }
         }
@@ -726,7 +726,7 @@ export const filterList = [
     displayName: "E-ink (color)",
     category: "Simulate",
     description: "Simulate a color Kaleido/Gallery e-ink display with washed-out palette",
-    filter: { ...eink, options: { ...eink.options, mode: "COLOR", palette: { ...eink.options.palette, options: { levels: 256 } } } }
+    filter: { ...eink, options: { ...eink.options, mode: "COLOR", palette: { ...eink.options!.palette, options: { levels: 256 } } } }
   },
   { displayName: "E-ink (grayscale)", filter: eink, category: "Simulate", description: "Simulate a 16-level grayscale e-ink display with paper texture and ghosting" },
   { displayName: "Edge glow", filter: edgeGlow, category: "Stylize", description: "Neon-colored edge outlines on a dark background — cyberpunk/Tron aesthetic" },
@@ -760,9 +760,9 @@ export const filterList = [
         ...scanline.options,
         mode: "DARKEN",
         palette: {
-          ...scanline.options.palette,
+          ...scanline.options!.palette,
           options: {
-            ...scanline.options.palette.options,
+            ...scanline.options!.palette.options,
             levels: 256
           }
         }
@@ -862,9 +862,9 @@ export const filterList = [
       options: {
         ...program.options,
         palette: {
-          ...program.options.palette,
+          ...program.options!.palette,
           options: {
-            ...program.options.palette.options,
+            ...program.options!.palette.options,
             levels: 256
           }
         }

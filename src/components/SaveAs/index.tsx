@@ -118,7 +118,7 @@ const detectRecordingFormats = (): RecordingFormat[] => {
 };
 
 interface SaveAsProps {
-  outputCanvasRef: React.RefObject<HTMLCanvasElement>;
+  outputCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   onClose: () => void;
 }
 
@@ -137,6 +137,8 @@ type VideoFrameCallbackVideo = HTMLVideoElement & {
   cancelVideoFrameCallback?: (handle: number) => void;
   captureStream?: (fps?: number) => MediaStream;
 };
+
+const canWriteClipboard = () => typeof navigator !== "undefined" && navigator.clipboard != null;
 
 const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const { state, actions } = useFilter();
@@ -1664,6 +1666,10 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
               return;
             }
             const t = metadata.mediaTime;
+            if (t == null) {
+              if (!stopped) (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.(onFrame);
+              return;
+            }
             if (t < lastMediaTime - 0.05 || t >= duration) {
               stop();
               return;
@@ -1796,7 +1802,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
           gifProfile.encodeMs = Math.round(performance.now() - encodeStartedAt);
           logGifExportProfile("completed", {
             path: gifProfile.path,
-            fallbackReason: gifProfile.fallbackReason || undefined,
+            ...(gifProfile.fallbackReason ? { fallbackReason: gifProfile.fallbackReason } : {}),
             fps: captureFps,
             selectedFrames: gifProfile.selectedFrames || capturedFrames.length,
             normalizedFrames: normalizedFrames.length,
@@ -2047,7 +2053,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                 <button className={s.btn} disabled={!canvasReady} onClick={handleSave}>
                   Save
                 </button>
-                {navigator.clipboard?.write && (
+                {canWriteClipboard() && (
                   <button className={s.btn} disabled={!canvasReady} onClick={handleCopy}>
                     Copy to Clipboard
                     {copySuccess && <span className={s.copyFlash}> Copied!</span>}
@@ -2399,7 +2405,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                                 max={Math.max(0.01, state.video.duration || 0)}
                                 step={0.01}
                                 value={Math.max(reliableRangeEnd, Math.min(state.video.duration || 0, reliableRangeStart + 0.01))}
-                                onChange={e => setReliableRangeEnd(Math.max(parseFloat(e.target.value) || 0.01, Math.min((state.video.duration || 0), reliableRangeStart + 0.01)))}
+                                onChange={e => setReliableRangeEnd(Math.max(parseFloat(e.target.value) || 0.01, Math.min((state.video?.duration || 0), reliableRangeStart + 0.01)))}
                               />
                               <span className={s.sliderValue}>{reliableRangeEnd.toFixed(2)}</span>
                             </div>
@@ -2463,7 +2469,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                     <button className={s.btn} disabled={!recordedBlob} onClick={handleSaveVideo}>
                       Save
                     </button>
-                    {navigator.clipboard?.write && (
+                    {canWriteClipboard() && (
                       <button className={s.btn} disabled={!recordedBlob} onClick={handleCopyVideo}>
                         Copy
                         {copySuccess && <span className={s.copyFlash}> Copied!</span>}
@@ -2706,7 +2712,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                             max={Math.max(0.01, state.video.duration || 0)}
                             step={0.01}
                             value={Math.max(loopRangeEnd, Math.min(state.video.duration || 0, loopRangeStart + 0.01))}
-                            onChange={e => setLoopRangeEnd(Math.max(parseFloat(e.target.value) || 0.01, Math.min((state.video.duration || 0), loopRangeStart + 0.01)))}
+                            onChange={e => setLoopRangeEnd(Math.max(parseFloat(e.target.value) || 0.01, Math.min((state.video?.duration || 0), loopRangeStart + 0.01)))}
                           />
                           <span className={s.sliderValue}>{loopRangeEnd.toFixed(2)}</span>
                         </div>
@@ -2750,7 +2756,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                       <button className={s.btn} disabled={!gifBlob} onClick={handleSaveGif}>
                         Save
                       </button>
-                      {navigator.clipboard?.write && (
+                      {canWriteClipboard() && (
                         <button className={s.btn} disabled={!gifBlob} onClick={handleCopyGif}>
                           Copy
                           {copySuccess && <span className={s.copyFlash}> Copied!</span>}
@@ -2770,7 +2776,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                       <button className={s.btn} disabled={!sequenceBlob} onClick={handleSaveSequence}>
                         Save
                       </button>
-                      {navigator.clipboard?.write && (
+                      {canWriteClipboard() && (
                         <button className={s.btn} disabled={!sequenceBlob} onClick={handleCopySequence}>
                           Copy
                           {copySuccess && <span className={s.copyFlash}> Copied!</span>}

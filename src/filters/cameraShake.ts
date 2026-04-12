@@ -120,7 +120,15 @@ const updateAxis = (
 };
 
 const stepRig = (frameIndex: number, options: CameraShakeOptions) => {
-  const { amountX, amountY, rotation, zoomJitter, frequency, inertia, tremor } = options;
+  const {
+    amountX = defaults.amountX,
+    amountY = defaults.amountY,
+    rotation = defaults.rotation,
+    zoomJitter = defaults.zoomJitter,
+    frequency = defaults.frequency,
+    inertia = defaults.inertia,
+    tremor = defaults.tremor,
+  } = options;
   const t = frameIndex * frequency * 0.12;
   const response = 0.08 + (1 - inertia) * 0.22;
   const damping = 0.72 + inertia * 0.22;
@@ -182,7 +190,7 @@ const cameraShake = (input: any, options: CameraShakeOptions = defaults) => {
 
   const buf = inputCtx.getImageData(0, 0, width, height).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const { palette } = options;
+  const { palette = defaults.palette } = options;
   const cosA = Math.cos(rigState.rotation);
   const sinA = Math.sin(rigState.rotation);
   const cx = (width - 1) * 0.5;

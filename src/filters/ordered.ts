@@ -209,11 +209,11 @@ const scaleThresholdMap = (
     return map;
   }
 
-  const out = [];
+  const out: number[][] = [];
 
   for (let i = 0; i < map.length; i += 1) {
     for (let y = 0; y < timesY; y += 1) {
-      const row = [];
+      const row: number[] = [];
 
       for (let j = 0; j < map[i].length; j += 1) {
         for (let x = 0; x < timesX; x += 1) {
@@ -402,7 +402,11 @@ const ordered = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const threshold = thresholdMaps[thresholdMapKey];
+  const threshold = thresholdMaps[thresholdMapKey] as {
+    width: number;
+    thresholdMap: number[][];
+    levels?: number;
+  };
   const explicitLevels = "levels" in threshold ? threshold.levels : undefined;
   const levels = explicitLevels || threshold.width * threshold.width;
   const thresholdMapScaled = scaleThresholdMap(

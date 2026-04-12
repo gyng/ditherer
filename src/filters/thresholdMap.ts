@@ -127,7 +127,11 @@ type ThresholdMapOptions = FilterOptionValues & {
 };
 
 const thresholdMap = (input: any, options: ThresholdMapOptions = defaults) => {
-  const { pattern, scale, palette } = options;
+  const {
+    pattern = defaults.pattern,
+    scale = defaults.scale,
+    palette = defaults.palette,
+  } = options;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

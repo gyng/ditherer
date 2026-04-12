@@ -97,7 +97,10 @@ const serializeStateJson = (state: typeof initialState, pretty = false) => {
 const DEFAULT_SHARE_STATE_JSON = serializeStateJson(initialState);
 
 export const FilterProvider = ({ children }: { children: ReactNode }) => {
-  const [state, dispatch] = useReducer(filterReducer, initialState);
+  const [state, dispatch] = useReducer(
+    filterReducer as React.Reducer<FilterReducerState, FilterReducerAction>,
+    initialState
+  );
   const prevOutputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const prevInputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const emaMapRef = useRef<Map<string, Float32Array>>(new Map());
@@ -118,7 +121,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     emaMap: Map<string, Float32Array>;
     frameIndex: number;
   }>>(new Map());
-  const stateRef = useRef(state);
+  const stateRef = useRef<FilterReducerState>(state);
   stateRef.current = state;
   const filterImageAsyncRef = useRef<FilterRunner | null>(null);
 

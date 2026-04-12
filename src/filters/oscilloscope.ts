@@ -112,18 +112,18 @@ const oscilloscope = (
   options: OscilloscopeOptions = defaults
 ) => {
   const {
-    phosphor,
-    threshold,
-    intensity,
-    bloom,
-    bloomStrength,
-    persistence,
-    graticule,
-    graticuleDivs,
-    scanlines,
-    scanlineSpacing,
-    noiseFloor,
-    palette
+    phosphor = defaults.phosphor,
+    threshold = defaults.threshold,
+    intensity = defaults.intensity,
+    bloom = defaults.bloom,
+    bloomStrength = defaults.bloomStrength,
+    persistence = defaults.persistence,
+    graticule = defaults.graticule,
+    graticuleDivs = defaults.graticuleDivs,
+    scanlines = defaults.scanlines,
+    scanlineSpacing = defaults.scanlineSpacing,
+    noiseFloor = defaults.noiseFloor,
+    palette = defaults.palette,
   } = options;
 
   const prevOutput = options._prevOutput ?? null;

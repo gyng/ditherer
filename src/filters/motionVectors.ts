@@ -402,21 +402,21 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
   const prevInput = options._prevInput ?? null;
   const prevOutput = options._prevOutput ?? null;
   const {
-    cellSize,
-    searchRadius,
-    threshold,
-    gain,
-    display,
-    sourceMode,
-    colorMode,
-    glyphMode,
-    minMagnitude,
-    confidenceCutoff,
-    temporalSmoothing,
-    spatialSmoothing,
-    showMagnitude,
-    backgroundDim,
-    trailDecay,
+    cellSize = defaults.cellSize,
+    searchRadius = defaults.searchRadius,
+    threshold = defaults.threshold,
+    gain = defaults.gain,
+    display = defaults.display,
+    sourceMode = defaults.sourceMode,
+    colorMode = defaults.colorMode,
+    glyphMode = defaults.glyphMode,
+    minMagnitude = defaults.minMagnitude,
+    confidenceCutoff = defaults.confidenceCutoff,
+    temporalSmoothing = defaults.temporalSmoothing,
+    spatialSmoothing = defaults.spatialSmoothing,
+    showMagnitude = defaults.showMagnitude,
+    backgroundDim = defaults.backgroundDim,
+    trailDecay = defaults.trailDecay,
   } = options;
   const splitDisplay = isSplitDisplay(display);
   const heatDisplay = isHeatDisplay(display);

@@ -216,16 +216,16 @@ export const defaults = {
 
 const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const {
-    intensity,
-    warp,
-    misconvergence,
-    hueShimmer,
-    flash,
-    triggerMode,
-    triggerThreshold,
-    cooldownFrames,
-    duration,
-    palette
+    intensity = defaults.intensity,
+    warp = defaults.warp,
+    misconvergence = defaults.misconvergence,
+    hueShimmer = defaults.hueShimmer,
+    flash = defaults.flash,
+    triggerMode = defaults.triggerMode,
+    triggerThreshold = defaults.triggerThreshold,
+    cooldownFrames = defaults.cooldownFrames,
+    duration = defaults.duration,
+    palette = defaults.palette,
   } = options;
 
   const frameIndex = Number(options._frameIndex ?? 0);

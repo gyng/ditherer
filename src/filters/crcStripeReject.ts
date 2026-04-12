@@ -89,7 +89,15 @@ type CrcStripeRejectOptions = FilterOptionValues & {
 };
 
 const crcStripeReject = (input: any, options: CrcStripeRejectOptions = defaults) => {
-  const { pattern, rejectChance, stripeHeight, tileSize, conceal, jitter, palette } = options;
+  const {
+    pattern = defaults.pattern,
+    rejectChance = defaults.rejectChance,
+    stripeHeight = defaults.stripeHeight,
+    tileSize = defaults.tileSize,
+    conceal = defaults.conceal,
+    jitter = defaults.jitter,
+    palette = defaults.palette,
+  } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
   const prevOutput = options._prevOutput ?? null;
 

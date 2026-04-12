@@ -104,21 +104,21 @@ const vhs = (
   options: VhsOptions = defaults
 ) => {
   const {
-    tracking,
-    trackingSpread,
-    flagging,
-    flaggingHeight,
-    verticalJitter,
-    chromaDelay,
-    headSwitching,
-    headSwitchingHeight,
-    dropout,
-    tapeNoise,
-    ghosting,
-    brightness,
-    saturation,
-    blur: doBlur,
-    palette
+    tracking = defaults.tracking,
+    trackingSpread = defaults.trackingSpread,
+    flagging = defaults.flagging,
+    flaggingHeight = defaults.flaggingHeight,
+    verticalJitter = defaults.verticalJitter,
+    chromaDelay = defaults.chromaDelay,
+    headSwitching = defaults.headSwitching,
+    headSwitchingHeight = defaults.headSwitchingHeight,
+    dropout = defaults.dropout,
+    tapeNoise = defaults.tapeNoise,
+    ghosting = defaults.ghosting,
+    brightness = defaults.brightness,
+    saturation = defaults.saturation,
+    blur: doBlur = defaults.blur,
+    palette = defaults.palette,
   } = options;
 
   const prevOutput = options._prevOutput ?? null;

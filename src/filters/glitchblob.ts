@@ -260,8 +260,8 @@ const postprocessPNG = (ctx: PngContext) => {
 
 const preprocessPNG = (buffer: Uint8Array): PngContext => {
   let offset = 0;
-  const skippedBeforeIdat = [];
-  const skippedAfterIdat = [];
+  const skippedBeforeIdat: Uint8Array[] = [];
+  const skippedAfterIdat: Uint8Array[] = [];
 
   // prettier-ignore
   const pngHeader = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -410,7 +410,14 @@ const glitchblob = (
         header = 0;
       }
 
-      const corruptors = [];
+      const corruptors: Array<(
+        _header: number,
+        _inputBytes: Uint8Array,
+        _width: number,
+        _height: number,
+        _currentX: number,
+        _currentY: number
+      ) => Uint8Array> = [];
 
       if (errTranspose) {
         corruptors.push(transformTranspose);

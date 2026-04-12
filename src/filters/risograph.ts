@@ -57,7 +57,16 @@ type RisographOptions = FilterOptionValues & {
 };
 
 const risograph = (input: any, options: RisographOptions = defaults) => {
-  const { color1, color2, misregX, misregY, grain, inkBleed, threshold, palette } = options;
+  const {
+    color1 = defaults.color1,
+    color2 = defaults.color2,
+    misregX = defaults.misregX,
+    misregY = defaults.misregY,
+    grain = defaults.grain,
+    inkBleed = defaults.inkBleed,
+    threshold = defaults.threshold,
+    palette = defaults.palette,
+  } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
 
   const output = cloneCanvas(input, false);

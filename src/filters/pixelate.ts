@@ -33,6 +33,9 @@ const pixelate = (
   temp.width = input.width * (scaleXOverride || scale);
   temp.height = input.height * (scaleYOverride || scale);
   const tempCtx = temp.getContext("2d");
+  if (!tempCtx) {
+    return input;
+  }
   tempCtx.imageSmoothingEnabled = false;
   tempCtx.drawImage(
     input,

@@ -72,12 +72,12 @@ const datamosh = (
   options: DatamoshOptions = defaults
 ) => {
   const {
-    blockSize,
-    motionThreshold,
-    displacement,
-    corruptChance,
-    channelShift,
-    palette
+    blockSize = defaults.blockSize,
+    motionThreshold = defaults.motionThreshold,
+    displacement = defaults.displacement,
+    corruptChance = defaults.corruptChance,
+    channelShift = defaults.channelShift,
+    palette = defaults.palette,
   } = options;
 
   const prevOutput = options._prevOutput ?? null;

@@ -523,17 +523,17 @@ const pixelsortFilter = (
   options: PixelsortOptions = defaults
 ) => {
   const {
-    direction,
-    sortDirection,
-    comparator,
-    sortPixelLuminanceAbove,
-    sortPixelLuminanceBelow,
-    sortPixelLuminanceChangeAbove,
-    sortPixelLuminanceChangeBelow,
-    extraIntervalStartChance,
-    maxIntervalSize,
-    palette,
-    linearLuminance
+    direction = defaults.direction,
+    sortDirection = defaults.sortDirection,
+    comparator = defaults.comparator,
+    sortPixelLuminanceAbove = defaults.sortPixelLuminanceAbove,
+    sortPixelLuminanceBelow = defaults.sortPixelLuminanceBelow,
+    sortPixelLuminanceChangeAbove = defaults.sortPixelLuminanceChangeAbove,
+    sortPixelLuminanceChangeBelow = defaults.sortPixelLuminanceChangeBelow,
+    extraIntervalStartChance = defaults.extraIntervalStartChance,
+    maxIntervalSize = defaults.maxIntervalSize,
+    palette = defaults.palette,
+    linearLuminance = defaults.linearLuminance,
   } = options;
 
   const lum = (pixel: Quadlet) => luminance(pixel, linearLuminance);
@@ -564,7 +564,7 @@ const pixelsortFilter = (
     interval = newInterval();
   };
 
-  let lastLum = null;
+  let lastLum: number | null = null;
   let cur;
   const iterator = ITERATORS[direction]({
     i: 0,

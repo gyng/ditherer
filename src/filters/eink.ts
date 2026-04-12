@@ -153,16 +153,16 @@ const eink = (
   options: EinkOptions = defaults
 ) => {
   const {
-    mode,
-    refreshMode,
-    contrast,
-    paperWhite,
-    inkBlack,
-    fullRefreshEvery,
-    ghosting,
-    pixelGrid,
-    texture,
-    palette
+    mode = defaults.mode,
+    refreshMode = defaults.refreshMode,
+    contrast = defaults.contrast,
+    paperWhite = defaults.paperWhite,
+    inkBlack = defaults.inkBlack,
+    fullRefreshEvery = defaults.fullRefreshEvery,
+    ghosting = defaults.ghosting,
+    pixelGrid = defaults.pixelGrid,
+    texture = defaults.texture,
+    palette = defaults.palette,
   } = options;
 
   const prevOutput = options._prevOutput ?? null;

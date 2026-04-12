@@ -576,7 +576,10 @@ export const errorDiffusingFilter = (
         } else {
           const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
           _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
-          const color = palette.getColor(_pix, palette.options);
+          const color = (palette.getColor ?? palettes.nearest.getColor)(
+            _pix,
+            palette.options as { levels: number } | undefined
+          );
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
           er = pr - color[0];
           eg = pg - color[1];
@@ -698,7 +701,10 @@ export const errorDiffusingFilter = (
         } else {
           const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
           _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
-          const color = palette.getColor(_pix, palette.options);
+          const color = (palette.getColor ?? palettes.nearest.getColor)(
+            _pix,
+            palette.options as { levels: number } | undefined
+          );
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
           const er = pr - color[0];
           const eg = pg - color[1];

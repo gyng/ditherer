@@ -58,8 +58,8 @@ const jitterFilter = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const jitterYMap = [];
-  const jitterXMap = [];
+  const jitterYMap: number[] = [];
+  const jitterXMap: number[] = [];
 
   let jitterFactor = 0;
   for (let i = 0; i < input.width; i += 1) {
