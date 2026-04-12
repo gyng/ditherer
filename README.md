@@ -1,8 +1,13 @@
 # ditherer
 
-![screenshot](screenshot.png)
-
 Browser-based image and video processing for dithering, palette reduction, glitch art, print simulation, temporal effects, and filter-chain experimentation.
+
+[Live Site](https://gyng.github.io/ditherer/) · [Gallery](docs/gallery/GALLERY.md)
+
+| | |
+|---|---|
+| ![Video Feedback](docs/gallery/filters/animated/filter-video-feedback.gif) | ![Floyd-Steinberg](docs/gallery/filters/animated/filter-floyd-steinberg.gif) |
+| ![Cyberpunk Preset](docs/gallery/presets/animated/preset-cyberpunk.gif) | ![Traffic Trails Preset](docs/gallery/presets/animated/preset-traffic-trails.gif) |
 
 ## What it does
 
@@ -26,17 +31,16 @@ Browser-based image and video processing for dithering, palette reduction, glitc
 
 ## Examples
 
-https://github.com/gyng/ditherer/assets/370496/a721ceb8-d10b-4650-9db1-850a067d7af4
+Representative animated previews from the generated gallery:
 
-[vid](https://github.com/gyng/ditherer/assets/370496/ded429eb-d14c-437e-8bbd-ac65e1d05465)
-
-[vid](https://github.com/gyng/ditherer/assets/370496/20e03295-d6f7-4517-bf36-d66f823cbc54)
-
-[vid](https://github.com/gyng/ditherer/assets/370496/cba67de2-8821-4123-98b0-9a71c1fc9bd7)
+- [Video Feedback](docs/gallery/filters/animated/filter-video-feedback.gif)
+- [Floyd-Steinberg](docs/gallery/filters/animated/filter-floyd-steinberg.gif)
+- [Cyberpunk preset](docs/gallery/presets/animated/preset-cyberpunk.gif)
+- [Traffic Trails preset](docs/gallery/presets/animated/preset-traffic-trails.gif)
 
 ## Gallery
 
-- Browse the generated gallery in [docs/GALLERY.md](docs/GALLERY.md)
+- Browse the generated gallery in [docs/gallery/GALLERY.md](docs/gallery/GALLERY.md)
 - Regenerate gallery previews with `npm run gallery`
 
 ## Development
@@ -56,7 +60,7 @@ Extra repo utilities:
 - `npm run bench` to run performance benches
 - `npm run bench:compare` to compare benchmark runs
 - `npm run report:presets` to find duplicate or highly similar presets
-- `npm run gallery` to regenerate `docs/GALLERY.md` and preview assets
+- `npm run gallery` to regenerate `docs/gallery/GALLERY.md` and preview assets
 
 ## Build output and deployment
 
@@ -68,9 +72,3 @@ Extra repo utilities:
 - [`src/filters/index.ts`](src/filters/index.ts) is the registry for filter metadata and worker-visible entries
 - [`src/context/FilterContext.tsx`](src/context/FilterContext.tsx) owns chain execution, temporal state, sharing, and worker orchestration
 - [docs/plan/](docs/plan/) contains numbered implementation plans
-
-## References
-
-1. http://www.efg2.com/Lab/Library/ImageProcessing/DHALF.TXT
-2. http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/
-3. http://www.easyrgb.com/en/math.php#text8

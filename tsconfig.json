@@ -20,10 +20,12 @@
       "constants/*": ["constants/*"],
       "containers/*": ["containers/*"],
       "context/*": ["context/*"],
+      "filters": ["filters/index"],
       "filters/*": ["filters/*"],
       "palettes/*": ["palettes/*"],
       "reducers/*": ["reducers/*"],
       "styles/*": ["styles/*"],
+      "utils": ["utils/index"],
       "types/*": ["types/*"],
       "utils/*": ["utils/*"],
       "wasm/*": ["wasm/*"]

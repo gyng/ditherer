@@ -2,55 +2,128 @@
  * Generate a static gallery using the same registries as the in-app browser:
  * - Filters from `filterList`
  * - Presets from `CHAIN_PRESETS`
- * Outputs PNG thumbnails + docs/GALLERY.md.
+ * Outputs preview assets + docs/gallery/GALLERY.md.
  *
  * Usage: npm run gallery   (runs via vite-node)
  */
 
-// -- Polyfill browser globals BEFORE any filter/util imports --
 import { createCanvas, loadImage, ImageData as NodeImageData } from "canvas";
-
-(globalThis as any).document = {
-  createElement: (tag: string) => {
-    if (tag === "canvas") return createCanvas(1, 1);
-    throw new Error(`Unsupported element: ${tag}`);
-  },
-};
-(globalThis as any).ImageData = NodeImageData;
-
-// Now safe to import filters/presets (they use document.createElement via cloneCanvas)
 import { filterList } from "filters";
 import { CHAIN_PRESETS, PRESET_CATEGORIES } from "../src/components/ChainList/presets";
 import { cloneCanvas } from "utils";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { execFileSync, spawn } from "child_process";
+import { encode } from "modern-gif";
+
+type CanvasFactoryDocument = {
+  createElement: (tag: string) => HTMLCanvasElement;
+};
+
+type BufferCanvas = HTMLCanvasElement & {
+  toBuffer: (callback: (err: Error | null, buf: Buffer) => void, mimeType: string) => void;
+};
+
+type PaletteOptionValue = {
+  palette?: {
+    options?: {
+      colors?: unknown;
+    };
+  };
+};
+
+type FilterDefinition = {
+  defaults?: Record<string, unknown>;
+  options?: Record<string, unknown>;
+  optionTypes?: Record<string, unknown>;
+  func: (input: HTMLCanvasElement, options?: Record<string, unknown>, dispatch?: unknown) => unknown;
+  mainThread?: boolean;
+};
+
+(globalThis as unknown as { document: CanvasFactoryDocument }).document = {
+  createElement: (tag: string) => {
+    if (tag === "canvas") return createCanvas(1, 1) as unknown as HTMLCanvasElement;
+    throw new Error(`Unsupported element: ${tag}`);
+  },
+} as unknown as CanvasFactoryDocument;
+(globalThis as unknown as { ImageData: typeof globalThis.ImageData }).ImageData =
+  NodeImageData as unknown as typeof globalThis.ImageData;
 
 const THUMB_WIDTH = 256;
 const PREVIEW_FRAMES = 8;
+const ANIMATED_PREVIEW_SECONDS = 3;
+const ANIMATED_PREVIEW_FPS = 10;
 const EMA_ALPHA = 0.1;
-const CPU_DEFAULT_CONCURRENCY = Math.min(32, Math.max(8, os.cpus().length * 2));
-const DEFAULT_CONCURRENCY = Math.max(
+const CPU_COUNT = os.cpus().length;
+const DEFAULT_WORKER_COUNT = Math.max(
   1,
-  Number(process.env.GALLERY_CONCURRENCY || String(CPU_DEFAULT_CONCURRENCY))
+  Math.min(30, Number(process.env.GALLERY_WORKERS || String(Math.max(1, CPU_COUNT - 2))))
+);
+const DEFAULT_WORKER_ITEM_CONCURRENCY = Math.max(
+  1,
+  Number(process.env.GALLERY_WORKER_ITEM_CONCURRENCY || "1")
 );
 const PROGRESS_EVERY = Math.max(1, Number(process.env.GALLERY_PROGRESS_EVERY || "25"));
+const WORKER_MODE = process.env.GALLERY_WORKER_MODE === "1";
+const WORKER_INDEX = Number(process.env.GALLERY_WORKER_INDEX || "0");
+
+type GalleryKind = "filters" | "presets";
 
 type GalleryItem = {
   displayName: string;
   category: string;
-  filename: string | null;
+  assetPath: string | null;
   description: string;
+  previewSource: "image" | "video";
   status: "ok" | "unavailable";
 };
 
+type GifColorTable = number[][];
+
+type AnimatedPreviewResult = {
+  frames: HTMLCanvasElement[];
+  colorTable: GifColorTable | null;
+};
+
 type FilterListEntry = (typeof filterList)[number];
+
+type GalleryTask = {
+  kind: GalleryKind;
+  index: number;
+};
+
+type GalleryTaskResult = {
+  kind: GalleryKind;
+  index: number;
+  item: GalleryItem;
+};
+
+type WorkerPayload = {
+  tasks: GalleryTask[];
+  items: GalleryTaskResult[];
+};
+
+const isCanvasElementLike = (value: unknown): value is HTMLCanvasElement =>
+  typeof value === "object" &&
+  value !== null &&
+  "getContext" in value &&
+  typeof value.getContext === "function";
+
+const getErrorMessage = (err: unknown) =>
+  err instanceof Error ? err.message : String(err);
 
 const slugify = (value: string) =>
   value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/-+$/, "");
+
+const getAssetRelativePath = (
+  kind: GalleryKind,
+  previewSource: "image" | "video",
+  basename: string
+) => path.posix.join(kind, previewSource === "video" ? "animated" : "static", basename);
 
 const getCategories = (items: Array<{ category: string }>) => {
   const seen = new Set<string>();
@@ -72,11 +145,55 @@ const resolveFilterOptions = (
   ...(overrideOptions || {}),
 });
 
+const getGifPaletteColorTable = (
+  optionCandidates: Array<Record<string, unknown> | undefined>
+): GifColorTable | null => {
+  const paletteCandidates = optionCandidates.map((options) => (options as PaletteOptionValue | undefined)?.palette);
+
+  for (const palette of paletteCandidates) {
+    const rawColors = palette?.options?.colors;
+    if (!Array.isArray(rawColors) || rawColors.length === 0) continue;
+    const deduped = rawColors
+      .map((color: number[]) => [color[0], color[1], color[2]].map((channel) => {
+        const n = Number(channel);
+        if (!Number.isFinite(n)) return 0;
+        return Math.max(0, Math.min(255, Math.round(n)));
+      }))
+      .filter((color: number[]) => color.length === 3)
+      .filter((color: number[], index: number, all: number[][]) =>
+        all.findIndex((candidate) => (
+          candidate[0] === color[0] &&
+          candidate[1] === color[1] &&
+          candidate[2] === color[2]
+        )) === index
+      )
+      .slice(0, 256);
+
+    if (deduped.length >= 2) {
+      return deduped;
+    }
+  }
+
+  return null;
+};
+
 const hasAnimatedOption = (entry: FilterListEntry) =>
-  Boolean((entry.filter.optionTypes as any)?.animate);
+  Boolean((entry.filter.optionTypes as Record<string, unknown> | undefined)?.animate);
 
 const hasTemporalBehavior = (entry: FilterListEntry) =>
-  (entry.filter as any).mainThread === true;
+  (entry.filter as FilterDefinition).mainThread === true;
+
+const isAnimatedFilterEntry = (entry: FilterListEntry) =>
+  hasTemporalBehavior(entry) || hasAnimatedOption(entry);
+
+const isAnimatedPreset = (
+  preset: (typeof CHAIN_PRESETS)[number],
+  filterByName: Map<string, FilterListEntry>
+) =>
+  preset.filters.some((presetEntry) => {
+    const match = filterByName.get(presetEntry.name);
+    return match ? isAnimatedFilterEntry(match) : false;
+  });
 
 const updateTemporalState = (
   key: string,
@@ -92,7 +209,7 @@ const updateTemporalState = (
     ema = new Float32Array(inputPixels);
   } else {
     const oneMinus = 1 - EMA_ALPHA;
-    for (let j = 0; j < ema.length; j++) {
+    for (let j = 0; j < ema.length; j += 1) {
       ema[j] = ema[j] * oneMinus + inputPixels[j] * EMA_ALPHA;
     }
   }
@@ -114,14 +231,14 @@ const runFilterPreview = (
   const key = `filter:${entry.displayName}`;
   const needsTemporal = hasTemporalBehavior(entry);
   const isAnimatingPreview = needsTemporal || hasAnimatedOption(entry);
-  let result: HTMLCanvasElement = cloneCanvas(sourceCanvas, true) as any;
+  let result = cloneCanvas(sourceCanvas, true) as HTMLCanvasElement;
 
-  for (let frame = 0; frame < PREVIEW_FRAMES; frame++) {
-    const inputFrame = cloneCanvas(sourceCanvas, true) as any;
+  for (let frame = 0; frame < PREVIEW_FRAMES; frame += 1) {
+    const inputFrame = cloneCanvas(sourceCanvas, true) as HTMLCanvasElement;
     const inCtx = inputFrame.getContext("2d");
     const inPixels = inCtx ? inCtx.getImageData(0, 0, inputFrame.width, inputFrame.height).data : null;
     const opts = {
-      ...resolveFilterOptions(entry.filter),
+      ...resolveFilterOptions(entry.filter as FilterDefinition),
       _frameIndex: frame,
       _isAnimating: isAnimatingPreview,
       _hasVideoInput: isAnimatingPreview,
@@ -129,25 +246,57 @@ const runFilterPreview = (
       _prevOutput: prevOutputByKey.get(key) || null,
       _ema: emaByKey.get(key) || null,
     };
-    const maybe = (entry.filter.func as any)(inputFrame, opts, undefined);
-    if (!(maybe instanceof Object) || typeof (maybe as any).getContext !== "function") {
-      // async/sentinel unsupported in static gallery render
+    const maybe = (entry.filter as FilterDefinition).func(inputFrame, opts, undefined);
+    if (!isCanvasElementLike(maybe)) {
       return null;
     }
-    result = maybe as HTMLCanvasElement;
+    result = maybe;
     if (needsTemporal && inPixels) {
-      updateTemporalState(
-        key,
-        inPixels,
-        result,
-        prevInputByKey,
-        prevOutputByKey,
-        emaByKey
-      );
+      updateTemporalState(key, inPixels, result, prevInputByKey, prevOutputByKey, emaByKey);
     }
   }
 
   return result;
+};
+
+const runAnimatedFilterPreview = (
+  entry: FilterListEntry,
+  sourceFrames: HTMLCanvasElement[]
+): AnimatedPreviewResult | null => {
+  const prevInputByKey = new Map<string, Uint8ClampedArray>();
+  const prevOutputByKey = new Map<string, Uint8ClampedArray>();
+  const emaByKey = new Map<string, Float32Array>();
+  const key = `filter:${entry.displayName}`;
+  const needsTemporal = hasTemporalBehavior(entry);
+  const resolvedOptions = resolveFilterOptions(entry.filter as FilterDefinition);
+  const colorTable = getGifPaletteColorTable([resolvedOptions]);
+  const resultFrames: HTMLCanvasElement[] = [];
+
+  for (let frame = 0; frame < sourceFrames.length; frame += 1) {
+    const inputFrame = cloneCanvas(sourceFrames[frame], true) as HTMLCanvasElement;
+    const inCtx = inputFrame.getContext("2d");
+    const inPixels = inCtx ? inCtx.getImageData(0, 0, inputFrame.width, inputFrame.height).data : null;
+    const opts = {
+      ...resolvedOptions,
+      _frameIndex: frame,
+      _isAnimating: true,
+      _hasVideoInput: true,
+      _prevInput: prevInputByKey.get(key) || null,
+      _prevOutput: prevOutputByKey.get(key) || null,
+      _ema: emaByKey.get(key) || null,
+    };
+    const maybe = (entry.filter as FilterDefinition).func(inputFrame, opts, undefined);
+    if (!isCanvasElementLike(maybe)) {
+      return null;
+    }
+    const output = maybe;
+    if (needsTemporal && inPixels) {
+      updateTemporalState(key, inPixels, output, prevInputByKey, prevOutputByKey, emaByKey);
+    }
+    resultFrames.push(cloneCanvas(output, true) as HTMLCanvasElement);
+  }
+
+  return { frames: resultFrames, colorTable };
 };
 
 const runPresetPreview = (
@@ -158,11 +307,11 @@ const runPresetPreview = (
   const prevInputByKey = new Map<string, Uint8ClampedArray>();
   const prevOutputByKey = new Map<string, Uint8ClampedArray>();
   const emaByKey = new Map<string, Float32Array>();
-  let result: HTMLCanvasElement = cloneCanvas(sourceCanvas, true) as any;
+  let result = cloneCanvas(sourceCanvas, true) as HTMLCanvasElement;
 
-  for (let frame = 0; frame < PREVIEW_FRAMES; frame++) {
-    let pipeline = cloneCanvas(sourceCanvas, true) as any;
-    for (let idx = 0; idx < preset.filters.length; idx++) {
+  for (let frame = 0; frame < PREVIEW_FRAMES; frame += 1) {
+    let pipeline = cloneCanvas(sourceCanvas, true) as HTMLCanvasElement;
+    for (let idx = 0; idx < preset.filters.length; idx += 1) {
       const presetEntry = preset.filters[idx];
       const match = filterByName.get(presetEntry.name);
       if (!match) continue;
@@ -172,7 +321,7 @@ const runPresetPreview = (
       const inCtx = pipeline.getContext("2d");
       const inPixels = inCtx ? inCtx.getImageData(0, 0, pipeline.width, pipeline.height).data : null;
       const opts = {
-        ...resolveFilterOptions(match.filter, presetEntry.options),
+        ...resolveFilterOptions(match.filter as FilterDefinition, presetEntry.options),
         _frameIndex: frame,
         _isAnimating: isAnimatingPreview,
         _hasVideoInput: isAnimatingPreview,
@@ -180,20 +329,13 @@ const runPresetPreview = (
         _prevOutput: prevOutputByKey.get(key) || null,
         _ema: emaByKey.get(key) || null,
       };
-      const maybe = (match.filter.func as any)(pipeline, opts, undefined);
-      if (!(maybe instanceof Object) || typeof (maybe as any).getContext !== "function") {
+      const maybe = (match.filter as FilterDefinition).func(pipeline, opts, undefined);
+      if (!isCanvasElementLike(maybe)) {
         return null;
       }
-      pipeline = maybe as HTMLCanvasElement;
+      pipeline = maybe;
       if (needsTemporal && inPixels) {
-        updateTemporalState(
-          key,
-          inPixels,
-          pipeline,
-          prevInputByKey,
-          prevOutputByKey,
-          emaByKey
-        );
+        updateTemporalState(key, inPixels, pipeline, prevInputByKey, prevOutputByKey, emaByKey);
       }
     }
     result = pipeline;
@@ -202,13 +344,66 @@ const runPresetPreview = (
   return result;
 };
 
+const runAnimatedPresetPreview = (
+  sourceFrames: HTMLCanvasElement[],
+  preset: (typeof CHAIN_PRESETS)[number],
+  filterByName: Map<string, FilterListEntry>
+): AnimatedPreviewResult | null => {
+  const prevInputByKey = new Map<string, Uint8ClampedArray>();
+  const prevOutputByKey = new Map<string, Uint8ClampedArray>();
+  const emaByKey = new Map<string, Float32Array>();
+  const resolvedOptionStack = preset.filters
+    .map((presetEntry) => {
+      const match = filterByName.get(presetEntry.name);
+      return match ? resolveFilterOptions(match.filter as FilterDefinition, presetEntry.options) : undefined;
+    })
+    .filter(Boolean)
+    .reverse() as Record<string, unknown>[];
+  const colorTable = getGifPaletteColorTable(resolvedOptionStack);
+  const resultFrames: HTMLCanvasElement[] = [];
+
+  for (let frame = 0; frame < sourceFrames.length; frame += 1) {
+    let pipeline = cloneCanvas(sourceFrames[frame], true) as HTMLCanvasElement;
+    for (let idx = 0; idx < preset.filters.length; idx += 1) {
+      const presetEntry = preset.filters[idx];
+      const match = filterByName.get(presetEntry.name);
+      if (!match) continue;
+      const key = `preset:${preset.name}:${idx}:${presetEntry.name}`;
+      const needsTemporal = hasTemporalBehavior(match);
+      const isAnimatingPreview = isAnimatedFilterEntry(match);
+      const inCtx = pipeline.getContext("2d");
+      const inPixels = inCtx ? inCtx.getImageData(0, 0, pipeline.width, pipeline.height).data : null;
+      const opts = {
+        ...resolveFilterOptions(match.filter as FilterDefinition, presetEntry.options),
+        _frameIndex: frame,
+        _isAnimating: isAnimatingPreview,
+        _hasVideoInput: true,
+        _prevInput: prevInputByKey.get(key) || null,
+        _prevOutput: prevOutputByKey.get(key) || null,
+        _ema: emaByKey.get(key) || null,
+      };
+      const maybe = (match.filter as FilterDefinition).func(pipeline, opts, undefined);
+      if (!isCanvasElementLike(maybe)) {
+        return null;
+      }
+      pipeline = maybe;
+      if (needsTemporal && inPixels) {
+        updateTemporalState(key, inPixels, pipeline, prevInputByKey, prevOutputByKey, emaByKey);
+      }
+    }
+    resultFrames.push(cloneCanvas(pipeline, true) as HTMLCanvasElement);
+  }
+
+  return { frames: resultFrames, colorTable };
+};
+
 const buildGridSection = (items: GalleryItem[]) => {
   let md = "| | | |\n|---|---|---|\n";
   for (let i = 0; i < items.length; i += 3) {
     const row = items.slice(i, i + 3);
     const cells = row.map((item) => {
-      const imagePart = item.filename
-        ? `![${item.displayName}](gallery/${item.filename})`
+      const imagePart = item.assetPath
+        ? `![${item.displayName}](${item.assetPath})`
         : "_Preview unavailable_";
       return `**${item.displayName}**<br>${item.description}<br>${imagePart}`;
     });
@@ -221,11 +416,87 @@ const buildGridSection = (items: GalleryItem[]) => {
 
 const toPngBufferAsync = (canvas: HTMLCanvasElement): Promise<Buffer> =>
   new Promise((resolve, reject) => {
-    (canvas as any).toBuffer((err: Error | null, buf: Buffer) => {
+    (canvas as BufferCanvas).toBuffer((err: Error | null, buf: Buffer) => {
       if (err) reject(err);
       else resolve(buf);
     }, "image/png");
   });
+
+const encodeGifBuffer = async (
+  frames: HTMLCanvasElement[],
+  colorTable?: GifColorTable | null
+): Promise<Buffer> => {
+  if (frames.length === 0) {
+    throw new Error("Cannot encode animated preview without frames.");
+  }
+  const width = frames[0].width;
+  const height = frames[0].height;
+  const delay = Math.max(10, Math.round(1000 / ANIMATED_PREVIEW_FPS / 10) * 10);
+  const output = await encode({
+    width,
+    height,
+    frames: frames.map((frame) => {
+      const ctx = frame.getContext("2d");
+      if (!ctx) {
+        throw new Error("Failed to read animated preview frame.");
+      }
+      return {
+        data: new Uint8Array(ctx.getImageData(0, 0, width, height).data),
+        delay,
+      };
+    }),
+    ...(colorTable ? { colorTable } : {}),
+  });
+  return Buffer.from(output);
+};
+
+const loadAnimatedSourceFrames = async (): Promise<HTMLCanvasElement[]> => {
+  const videoCandidates = [
+    path.resolve("public/test-assets/video/akiyo.mp4"),
+    path.resolve("public/akiyo.mp4"),
+  ];
+  const videoPath = videoCandidates.find((p) => fs.existsSync(p));
+  if (!videoPath) {
+    throw new Error(`Could not find animated source video. Tried:\n${videoCandidates.join("\n")}`);
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ditherer-gallery-"));
+  try {
+    execFileSync("ffmpeg", [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-ss",
+      "0",
+      "-t",
+      String(ANIMATED_PREVIEW_SECONDS),
+      "-i",
+      videoPath,
+      "-vf",
+      `fps=${ANIMATED_PREVIEW_FPS},scale=${THUMB_WIDTH}:-1:flags=lanczos`,
+      path.join(tempDir, "frame-%03d.png"),
+    ]);
+
+    const files = fs.readdirSync(tempDir)
+      .filter((file) => file.endsWith(".png"))
+      .sort();
+    const frames: HTMLCanvasElement[] = [];
+    for (const file of files) {
+      const img = await loadImage(path.join(tempDir, file));
+      const canvas = createCanvas(img.width, img.height);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+      frames.push(canvas as unknown as HTMLCanvasElement);
+    }
+    if (frames.length === 0) {
+      throw new Error(`ffmpeg did not produce any frames from ${path.relative(process.cwd(), videoPath)}`);
+    }
+    return frames;
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+};
 
 const runWithConcurrency = async <T, R>(
   items: T[],
@@ -248,8 +519,7 @@ const runWithConcurrency = async <T, R>(
   return results;
 };
 
-async function main() {
-  // Load source image
+const loadStaticSourceCanvas = async (): Promise<HTMLCanvasElement> => {
   const sourceCandidates = [
     path.resolve("public/pepper.png"),
     path.resolve("public/test-assets/image/pepper.png"),
@@ -259,122 +529,283 @@ async function main() {
     throw new Error(`Could not find source image. Tried:\n${sourceCandidates.join("\n")}`);
   }
   const img = await loadImage(sourcePath);
-  console.log(`Source image: ${path.relative(process.cwd(), sourcePath)} | concurrency=${DEFAULT_CONCURRENCY}`);
   const scale = THUMB_WIDTH / img.width;
   const thumbH = Math.round(img.height * scale);
   const sourceCanvas = createCanvas(THUMB_WIDTH, thumbH);
   const sourceCtx = sourceCanvas.getContext("2d");
   sourceCtx.drawImage(img, 0, 0, THUMB_WIDTH, thumbH);
+  return sourceCanvas as unknown as HTMLCanvasElement;
+};
 
-  const outputDir = path.resolve("docs/gallery");
-  fs.mkdirSync(outputDir, { recursive: true });
-  for (const file of fs.readdirSync(outputDir)) {
-    if (file.endsWith(".png")) {
-      fs.rmSync(path.join(outputDir, file), { force: true });
+const ensureOutputDirectories = (outputDir: string) => {
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(path.join(outputDir, "filters", "static"), { recursive: true });
+  fs.mkdirSync(path.join(outputDir, "filters", "animated"), { recursive: true });
+  fs.mkdirSync(path.join(outputDir, "presets", "static"), { recursive: true });
+  fs.mkdirSync(path.join(outputDir, "presets", "animated"), { recursive: true });
+};
+
+const readWorkerPayload = (filePath: string): WorkerPayload =>
+  JSON.parse(fs.readFileSync(filePath, "utf8")) as WorkerPayload;
+
+const writeWorkerPayload = (filePath: string, payload: WorkerPayload) => {
+  fs.writeFileSync(filePath, JSON.stringify(payload));
+};
+
+const getNpxCommand = () => (process.platform === "win32" ? "npx.cmd" : "npx");
+
+const renderFilterItem = async (
+  entry: FilterListEntry,
+  sourceCanvas: HTMLCanvasElement,
+  animatedSourceFrames: HTMLCanvasElement[],
+  outputDir: string
+): Promise<GalleryItem> => {
+  const animatedPreview = isAnimatedFilterEntry(entry);
+  if (animatedPreview) {
+    const result = runAnimatedFilterPreview(entry, animatedSourceFrames);
+    if (!result) {
+      return {
+        displayName: entry.displayName,
+        category: entry.category,
+        assetPath: null,
+        description: entry.description,
+        previewSource: "video",
+        status: "unavailable",
+      };
     }
+    const filename = `filter-${slugify(entry.displayName)}.gif`;
+    const assetPath = getAssetRelativePath("filters", "video", filename);
+    const gif = await encodeGifBuffer(result.frames, result.colorTable);
+    await fs.promises.writeFile(path.join(outputDir, assetPath), gif);
+    return {
+      displayName: entry.displayName,
+      category: entry.category,
+      assetPath,
+      description: entry.description,
+      previewSource: "video",
+      status: "ok",
+    };
   }
 
-  const filterByName = new Map((filterList.filter(Boolean) as FilterListEntry[]).map((entry) => [entry.displayName, entry] as const));
+  const result = runFilterPreview(entry, sourceCanvas);
+  if (!result) {
+    return {
+      displayName: entry.displayName,
+      category: entry.category,
+      assetPath: null,
+      description: entry.description,
+      previewSource: "image",
+      status: "unavailable",
+    };
+  }
+  const filename = `filter-${slugify(entry.displayName)}.png`;
+  const assetPath = getAssetRelativePath("filters", "image", filename);
+  const png = await toPngBufferAsync(result);
+  await fs.promises.writeFile(path.join(outputDir, assetPath), png);
+  return {
+    displayName: entry.displayName,
+    category: entry.category,
+    assetPath,
+    description: entry.description,
+    previewSource: "image",
+    status: "ok",
+  };
+};
 
+const renderPresetItem = async (
+  preset: (typeof CHAIN_PRESETS)[number],
+  filterByName: Map<string, FilterListEntry>,
+  sourceCanvas: HTMLCanvasElement,
+  animatedSourceFrames: HTMLCanvasElement[],
+  outputDir: string
+): Promise<GalleryItem> => {
+  const animatedPreview = isAnimatedPreset(preset, filterByName);
+  if (animatedPreview) {
+    const result = runAnimatedPresetPreview(animatedSourceFrames, preset, filterByName);
+    if (!result) {
+      return {
+        displayName: preset.name,
+        category: preset.category,
+        assetPath: null,
+        description: preset.desc,
+        previewSource: "video",
+        status: "unavailable",
+      };
+    }
+    const filename = `preset-${slugify(preset.name)}.gif`;
+    const assetPath = getAssetRelativePath("presets", "video", filename);
+    const gif = await encodeGifBuffer(result.frames, result.colorTable);
+    await fs.promises.writeFile(path.join(outputDir, assetPath), gif);
+    return {
+      displayName: preset.name,
+      category: preset.category,
+      assetPath,
+      description: preset.desc,
+      previewSource: "video",
+      status: "ok",
+    };
+  }
+
+  const result = runPresetPreview(sourceCanvas, preset, filterByName);
+  if (!result) {
+    return {
+      displayName: preset.name,
+      category: preset.category,
+      assetPath: null,
+      description: preset.desc,
+      previewSource: "image",
+      status: "unavailable",
+    };
+  }
+  const filename = `preset-${slugify(preset.name)}.png`;
+  const assetPath = getAssetRelativePath("presets", "image", filename);
+  const png = await toPngBufferAsync(result);
+  await fs.promises.writeFile(path.join(outputDir, assetPath), png);
+  return {
+    displayName: preset.name,
+    category: preset.category,
+    assetPath,
+    description: preset.desc,
+    previewSource: "image",
+    status: "ok",
+  };
+};
+
+const chunkTasksRoundRobin = (tasks: GalleryTask[], workerCount: number) => {
+  const groups = Array.from({ length: workerCount }, () => [] as GalleryTask[]);
+  for (let index = 0; index < tasks.length; index += 1) {
+    groups[index % workerCount].push(tasks[index]);
+  }
+  return groups.filter((group) => group.length > 0);
+};
+
+const runWorkerPool = async (
+  tasks: GalleryTask[],
+  outputDir: string
+): Promise<GalleryTaskResult[]> => {
+  if (tasks.length === 0) return [];
+  const workerCount = Math.min(DEFAULT_WORKER_COUNT, tasks.length);
+  const taskGroups = chunkTasksRoundRobin(tasks, workerCount);
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ditherer-gallery-workers-"));
+
+  try {
+    const batches = await Promise.all(taskGroups.map((group, workerIndex) => (
+      new Promise<GalleryTaskResult[]>((resolve, reject) => {
+        const taskFile = path.join(tempDir, `tasks-${workerIndex}.json`);
+        const resultFile = path.join(tempDir, `results-${workerIndex}.json`);
+        writeWorkerPayload(taskFile, { tasks: group, items: [] });
+        const child = spawn(
+          getNpxCommand(),
+          ["vite-node", "scripts/generate-gallery.ts"],
+          {
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              GALLERY_WORKER_MODE: "1",
+              GALLERY_WORKER_INDEX: String(workerIndex + 1),
+              GALLERY_TASK_FILE: taskFile,
+              GALLERY_RESULT_FILE: resultFile,
+              GALLERY_OUTPUT_DIR: outputDir,
+              GALLERY_WORKER_ITEM_CONCURRENCY: String(DEFAULT_WORKER_ITEM_CONCURRENCY),
+            },
+            stdio: "inherit",
+          }
+        );
+        child.on("error", reject);
+        child.on("exit", (code) => {
+          if (code !== 0) {
+            reject(new Error(`Gallery worker ${workerIndex + 1} exited with code ${code}`));
+            return;
+          }
+          if (!fs.existsSync(resultFile)) {
+            reject(new Error(`Gallery worker ${workerIndex + 1} did not write ${resultFile}`));
+            return;
+          }
+          resolve(readWorkerPayload(resultFile).items);
+        });
+      })
+    )));
+    return batches.flat();
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+};
+
+const buildFallbackItem = (
+  task: GalleryTask,
+  allFilters: FilterListEntry[],
+  filterByName: Map<string, FilterListEntry>
+): GalleryItem => {
+  if (task.kind === "filters") {
+    const entry = allFilters[task.index];
+    return {
+      displayName: entry?.displayName || `Filter ${task.index}`,
+      category: entry?.category || "Unknown",
+      assetPath: null,
+      description: entry?.description || "",
+      previewSource: entry && isAnimatedFilterEntry(entry) ? "video" : "image",
+      status: "unavailable",
+    };
+  }
+  const preset = CHAIN_PRESETS[task.index];
+  return {
+    displayName: preset?.name || `Preset ${task.index}`,
+    category: preset?.category || "Unknown",
+    assetPath: null,
+    description: preset?.desc || "",
+    previewSource: preset && isAnimatedPreset(preset, filterByName) ? "video" : "image",
+    status: "unavailable",
+  };
+};
+
+const runWorkerMain = async () => {
+  const taskFile = process.env.GALLERY_TASK_FILE;
+  const resultFile = process.env.GALLERY_RESULT_FILE;
+  const outputDir = process.env.GALLERY_OUTPUT_DIR;
+  if (!taskFile || !resultFile || !outputDir) {
+    throw new Error("Worker mode requires GALLERY_TASK_FILE, GALLERY_RESULT_FILE, and GALLERY_OUTPUT_DIR.");
+  }
+
+  const payload = readWorkerPayload(taskFile);
   const allFilters = filterList.filter(Boolean) as FilterListEntry[];
-  let filterDone = 0;
-  const filterResults = await runWithConcurrency(allFilters, DEFAULT_CONCURRENCY, async (entry) => {
-    try {
-      const result = runFilterPreview(entry, sourceCanvas as any);
-      if (!result) {
-        filterDone += 1;
-        if (filterDone % PROGRESS_EVERY === 0 || filterDone === allFilters.length) {
-          console.log(`Filters: ${filterDone}/${allFilters.length}`);
-        }
-        return {
-          displayName: entry.displayName,
-          category: entry.category,
-          filename: null,
-          description: entry.description,
-          status: "unavailable",
-        } satisfies GalleryItem;
-      }
-      const filename = `filter-${slugify(entry.displayName)}.png`;
-      const png = await toPngBufferAsync(result);
-      await fs.promises.writeFile(path.join(outputDir, filename), png);
-      filterDone += 1;
-      if (filterDone % PROGRESS_EVERY === 0 || filterDone === allFilters.length) {
-        console.log(`Filters: ${filterDone}/${allFilters.length}`);
-      }
-      return {
-        displayName: entry.displayName,
-        category: entry.category,
-        filename,
-        description: entry.description,
-        status: "ok",
-      } satisfies GalleryItem;
-    } catch (err: any) {
-      filterDone += 1;
-      if (filterDone % PROGRESS_EVERY === 0 || filterDone === allFilters.length) {
-        console.log(`Filters: ${filterDone}/${allFilters.length}`);
-      }
-      console.error(`FAIL: filter ${entry.displayName}: ${err.message}`);
-      return {
-        displayName: entry.displayName,
-        category: entry.category,
-        filename: null,
-        description: entry.description,
-        status: "unavailable",
-      } satisfies GalleryItem;
-    }
-  });
+  const filterByName = new Map(allFilters.map((entry) => [entry.displayName, entry] as const));
+  const sourceCanvas = await loadStaticSourceCanvas();
+  const animatedSourceFrames = await loadAnimatedSourceFrames();
+  let done = 0;
 
-  let presetDone = 0;
-  const presetResults = await runWithConcurrency(CHAIN_PRESETS, DEFAULT_CONCURRENCY, async (preset) => {
-    try {
-      const result = runPresetPreview(sourceCanvas as any, preset, filterByName);
-      if (!result) {
-        presetDone += 1;
-        if (presetDone % PROGRESS_EVERY === 0 || presetDone === CHAIN_PRESETS.length) {
-          console.log(`Presets: ${presetDone}/${CHAIN_PRESETS.length}`);
+  const items = await runWithConcurrency(
+    payload.tasks,
+    DEFAULT_WORKER_ITEM_CONCURRENCY,
+    async (task) => {
+      try {
+        const item = task.kind === "filters"
+          ? await renderFilterItem(allFilters[task.index], sourceCanvas, animatedSourceFrames, outputDir)
+          : await renderPresetItem(CHAIN_PRESETS[task.index], filterByName, sourceCanvas, animatedSourceFrames, outputDir);
+        done += 1;
+        if (done % PROGRESS_EVERY === 0 || done === payload.tasks.length) {
+          console.log(`Worker ${WORKER_INDEX}: ${done}/${payload.tasks.length}`);
         }
-        return {
-          displayName: preset.name,
-          category: preset.category,
-          filename: null,
-          description: preset.desc,
-          status: "unavailable",
-        } satisfies GalleryItem;
+        return { kind: task.kind, index: task.index, item } satisfies GalleryTaskResult;
+      } catch (err: unknown) {
+        done += 1;
+        if (done % PROGRESS_EVERY === 0 || done === payload.tasks.length) {
+          console.log(`Worker ${WORKER_INDEX}: ${done}/${payload.tasks.length}`);
+        }
+        const item = buildFallbackItem(task, allFilters, filterByName);
+        console.error(`FAIL: ${task.kind.slice(0, -1)} ${item.displayName}: ${getErrorMessage(err)}`);
+        return { kind: task.kind, index: task.index, item } satisfies GalleryTaskResult;
       }
-      const filename = `preset-${slugify(preset.name)}.png`;
-      const png = await toPngBufferAsync(result);
-      await fs.promises.writeFile(path.join(outputDir, filename), png);
-      presetDone += 1;
-      if (presetDone % PROGRESS_EVERY === 0 || presetDone === CHAIN_PRESETS.length) {
-        console.log(`Presets: ${presetDone}/${CHAIN_PRESETS.length}`);
-      }
-      return {
-        displayName: preset.name,
-        category: preset.category,
-        filename,
-        description: preset.desc,
-        status: "ok",
-      } satisfies GalleryItem;
-    } catch (err: any) {
-      presetDone += 1;
-      if (presetDone % PROGRESS_EVERY === 0 || presetDone === CHAIN_PRESETS.length) {
-        console.log(`Presets: ${presetDone}/${CHAIN_PRESETS.length}`);
-      }
-      console.error(`FAIL: preset ${preset.name}: ${err.message}`);
-      return {
-        displayName: preset.name,
-        category: preset.category,
-        filename: null,
-        description: preset.desc,
-        status: "unavailable",
-      } satisfies GalleryItem;
     }
-  });
+  );
 
-  // Generate markdown
+  writeWorkerPayload(resultFile, { tasks: payload.tasks, items });
+};
+
+const buildGalleryMarkdown = (filterResults: GalleryItem[], presetResults: GalleryItem[]) => {
   let md = "# Filter Gallery\n\n";
   md += "> Generated from `filterList` and `CHAIN_PRESETS` (browser-registry source of truth).\n\n";
-  md += `> Source image: \`pepper.png\` · Simulated preview frames per item: ${PREVIEW_FRAMES}.\n\n`;
+  md += `> Static previews use \`pepper.png\`. Animated/temporal previews use a ${ANIMATED_PREVIEW_SECONDS}s sample from \`akiyo.mp4\` at ${ANIMATED_PREVIEW_FPS} FPS.\n\n`;
+  md += `> Static simulation frames per item: ${PREVIEW_FRAMES}.\n\n`;
   md += `> Filter previews: ${filterResults.filter((r) => r.status === "ok").length}/${filterResults.length} available · `;
   md += `Preset previews: ${presetResults.filter((r) => r.status === "ok").length}/${presetResults.length} available.\n\n`;
 
@@ -394,13 +825,52 @@ async function main() {
     md += buildGridSection(catPresets);
   }
 
-  fs.writeFileSync(path.resolve("docs/GALLERY.md"), md);
+  return md;
+};
+
+async function main() {
+  if (WORKER_MODE) {
+    await runWorkerMain();
+    return;
+  }
+
+  const sourceCandidates = [
+    path.resolve("public/pepper.png"),
+    path.resolve("public/test-assets/image/pepper.png"),
+  ];
+  const sourcePath = sourceCandidates.find((p) => fs.existsSync(p));
+  if (!sourcePath) {
+    throw new Error(`Could not find source image. Tried:\n${sourceCandidates.join("\n")}`);
+  }
   console.log(
-    `\nDone: ${filterResults.length} filters + ${presetResults.length} presets -> docs/gallery/ + docs/GALLERY.md`
+    `Source image: ${path.relative(process.cwd(), sourcePath)} | workers=${DEFAULT_WORKER_COUNT} | per-worker concurrency=${DEFAULT_WORKER_ITEM_CONCURRENCY}`
+  );
+
+  const outputDir = path.resolve("docs/gallery");
+  ensureOutputDirectories(outputDir);
+
+  const allFilters = filterList.filter(Boolean) as FilterListEntry[];
+  const tasks: GalleryTask[] = [
+    ...allFilters.map((_, index) => ({ kind: "filters", index }) satisfies GalleryTask),
+    ...CHAIN_PRESETS.map((_, index) => ({ kind: "presets", index }) satisfies GalleryTask),
+  ];
+  const workerResults = await runWorkerPool(tasks, outputDir);
+
+  const filterResults = new Array<GalleryItem>(allFilters.length);
+  const presetResults = new Array<GalleryItem>(CHAIN_PRESETS.length);
+  for (const result of workerResults) {
+    if (result.kind === "filters") filterResults[result.index] = result.item;
+    else presetResults[result.index] = result.item;
+  }
+
+  const md = buildGalleryMarkdown(filterResults, presetResults);
+  fs.writeFileSync(path.resolve("docs/gallery/GALLERY.md"), md);
+  console.log(
+    `\nDone: ${filterResults.length} filters + ${presetResults.length} presets -> docs/gallery/ + docs/gallery/GALLERY.md`
   );
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   console.error(err);
   process.exit(1);
 });
