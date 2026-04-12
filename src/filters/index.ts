@@ -156,6 +156,10 @@ import posterizeDither from "./posterizeDither";
 import edgeTrace from "./edgeTrace";
 import colorGradientNoise from "./colorGradientNoise";
 import vintageTV from "./vintageTV";
+import abaBounce from "./abaBounce";
+import abaGhost from "./abaGhost";
+import abaRebound from "./abaRebound";
+import flicker from "./flicker";
 import motionDetect from "./motionDetect";
 import longExposure from "./longExposure";
 import temporalEdge from "./temporalEdge";
@@ -271,6 +275,10 @@ export { default as posterizeDither } from "./posterizeDither";
 export { default as edgeTrace } from "./edgeTrace";
 export { default as colorGradientNoise } from "./colorGradientNoise";
 export { default as vintageTV } from "./vintageTV";
+export { default as abaBounce } from "./abaBounce";
+export { default as abaGhost } from "./abaGhost";
+export { default as abaRebound } from "./abaRebound";
+export { default as flicker } from "./flicker";
 export { default as polarTransform } from "./polarTransform";
 export { default as anaglyph } from "./anaglyph";
 export { default as hexPixelate } from "./hexPixelate";
@@ -820,6 +828,10 @@ export const filterList = [
   { displayName: "POV Bands", filter: povBands, category: "Stylize", description: "Show different recent moments across horizontal bands like a persistence-of-vision display" },
   { displayName: "Slit scan", filter: slitScan, category: "Distort", description: "Each column shows a different point in time — surreal temporal stretching" },
   { displayName: "Stop Motion", filter: stopMotion, category: "Stylize", description: "Hold each frame for several beats to create a choppy stop-motion cadence" },
+  { displayName: "ABA Bounce", filter: abaBounce, category: "Stylize", description: "Three-beat A-B-A cadence that snaps the third beat back to the first frame in the triplet" },
+  { displayName: "ABA Ghost", filter: abaGhost, category: "Stylize", description: "Three-beat A-B-A cadence with a double-exposed third beat that ghosts the skipped frame against the first" },
+  { displayName: "ABA Rebound", filter: abaRebound, category: "Distort", description: "On the third beat, push motion away from the first frame in the triplet for a recoiling ABA judder" },
+  { displayName: "Flicker", filter: flicker, category: "Stylize", description: "Aggressive flicker/strobe filter with live ghosting and held-frame flash modes" },
   { displayName: "Keyframe Smear", filter: keyframeSmear, category: "Stylize", description: "Capture sparse keyframes and drag them through in-between frames for compressed temporal smearing" },
   { displayName: "Ink Drying", filter: temporalInkDrying, category: "Stylize", description: "Fresh dark marks stay wet, bleed slightly, and then dry back toward the page" },
   { displayName: "Time Median", filter: temporalMedian, category: "Simulate", description: "Per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure" },
