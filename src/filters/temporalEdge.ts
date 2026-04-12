@@ -1,4 +1,5 @@
 import { RANGE, BOOL, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 export const optionTypes = {
@@ -20,10 +21,23 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const temporalEdge = (input, options: any = defaults) => {
-  const { threshold, sensitivity, accumulate, decayRate } = options;
-  const prevInput: Uint8ClampedArray | null = (options as any)._prevInput || null;
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+type TemporalEdgeOptions = FilterOptionValues & {
+  threshold?: number;
+  sensitivity?: number;
+  accumulate?: boolean;
+  decayRate?: number;
+  animSpeed?: number;
+  _prevInput?: Uint8ClampedArray | null;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const temporalEdge = (input, options: TemporalEdgeOptions = defaults) => {
+  const threshold = Number(options.threshold ?? defaults.threshold);
+  const sensitivity = Number(options.sensitivity ?? defaults.sensitivity);
+  const accumulate = Boolean(options.accumulate ?? defaults.accumulate);
+  const decayRate = Number(options.decayRate ?? defaults.decayRate);
+  const prevInput = options._prevInput ?? null;
+  const prevOutput = options._prevOutput ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -62,4 +76,4 @@ const temporalEdge = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Temporal Edge", func: temporalEdge, optionTypes, options: defaults, defaults, mainThread: true, description: "Detect edges in time — moving edges glow, static edges are invisible" };
+export default defineFilter({ name: "Temporal Edge", func: temporalEdge, optionTypes, options: defaults, defaults, mainThread: true, description: "Detect edges in time — moving edges glow, static edges are invisible" });

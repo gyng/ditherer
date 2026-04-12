@@ -1,51 +1,45 @@
 import { filterIndex } from "filters";
+import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "filters/types";
 import { deserializePalette } from "palettes";
 import { grayscale } from "filters";
+import type { WorkerPrevOutputFrame, WorkerRequestMessage } from "./types";
+import type { SerializedOptionMap } from "context/shareStateTypes";
 
-interface ChainEntry {
-  id: string;
-  filterName: string;
-  displayName: string;
-  options: any;
-}
+type SerializedPaletteOption = {
+  _serialized?: boolean;
+} & SerializedOptionMap;
 
-interface WorkerMessage {
-  id: number;
-  imageData: ArrayBuffer;
-  width: number;
-  height: number;
-  chain: ChainEntry[];
-  frameIndex: number;
-  isAnimating: boolean;
-  linearize: boolean;
-  wasmAcceleration: boolean;
-  convertGrayscale: boolean;
-  prevOutputs: Record<string, ArrayBuffer>;
-}
+type WorkerFilterOptions = FilterOptionValues & {
+  palette?: SerializedPaletteOption;
+};
+type WorkerMessageTarget = {
+  postMessage: (message: unknown, transfer: Transferable[]) => void;
+};
 
-interface WorkerPrevOutputFrame {
-  imageData: ArrayBuffer;
-  width: number;
-  height: number;
-}
+const isRecord = (value: unknown): value is SerializedOptionMap =>
+  typeof value === "object" && value !== null;
 
-const deserializeOptions = (options: any): any => {
-  const opts = { ...options };
+const getOptionObject = (value: unknown): SerializedOptionMap =>
+  isRecord(value) ? value : {};
+
+const deserializeOptions = (options: SerializedOptionMap | undefined): WorkerFilterOptions => {
+  const opts: WorkerFilterOptions = isRecord(options) ? { ...options } : {};
   if (opts.palette && opts.palette._serialized) {
     opts.palette = deserializePalette(opts.palette);
   }
   return opts;
 };
 
-self.onmessage = (e: MessageEvent<WorkerMessage>) => {
+self.onmessage = (e: MessageEvent<WorkerRequestMessage>) => {
+  const workerScope = self as unknown as WorkerMessageTarget;
   const {
     id, imageData, width, height, chain, frameIndex,
     isAnimating, linearize, wasmAcceleration, convertGrayscale, prevOutputs
   } = e.data;
 
   try {
-    let canvas = new OffscreenCanvas(width, height);
-    const initCtx = canvas.getContext("2d");
+    let canvas: FilterCanvas = new OffscreenCanvas(width, height);
+    const initCtx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D | null;
     if (!initCtx) throw new Error("Failed to get 2d context");
     initCtx.putImageData(
       new ImageData(new Uint8ClampedArray(imageData), width, height), 0, 0
@@ -60,7 +54,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
     const newPrevOutputs: Record<string, WorkerPrevOutputFrame> = {};
 
     for (const entry of chain) {
-      const filter = (filterIndex as any)[entry.filterName];
+      const filter: FilterDefinition | undefined = filterIndex[entry.filterName];
       if (!filter || typeof filter.func !== "function") continue;
 
       const opts = deserializeOptions(entry.options);
@@ -75,12 +69,15 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       if (opts.palette?.options) {
         opts.palette = {
           ...opts.palette,
-          options: { ...opts.palette.options, _wasmAcceleration: wasmAcceleration },
+          options: {
+            ...getOptionObject(opts.palette.options),
+            _wasmAcceleration: wasmAcceleration,
+          },
         };
       }
 
       const t0 = performance.now();
-      let output;
+      let output: FilterCanvas | undefined;
       try {
         output = filter.func(canvas, opts);
       } catch (err) {
@@ -90,7 +87,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       stepTimes.push({ name: entry.displayName, ms: performance.now() - t0 });
 
       if (output instanceof OffscreenCanvas) {
-        const outCtx = output.getContext("2d");
+        const outCtx = output.getContext("2d") as OffscreenCanvasRenderingContext2D | null;
         if (outCtx) {
           const outData = outCtx.getImageData(0, 0, output.width, output.height).data;
           newPrevOutputs[entry.id] = {
@@ -103,7 +100,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       }
     }
 
-    const resultCtx = canvas.getContext("2d");
+    const resultCtx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D | null;
     if (!resultCtx) throw new Error("Failed to get result context");
     const resultData = resultCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 
@@ -113,7 +110,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       transfers.push(frame.imageData);
     }
 
-    (self as any).postMessage(
+    workerScope.postMessage(
       {
         id,
         result: {
@@ -126,7 +123,10 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       },
       transfers
     );
-  } catch (err: any) {
-    (self as any).postMessage({ id, error: err?.message || String(err) });
+  } catch (err: unknown) {
+    workerScope.postMessage({
+      id,
+      error: err instanceof Error ? err.message : String(err),
+    }, []);
   }
 };

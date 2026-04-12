@@ -1,4 +1,5 @@
 import { ACTION, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 let historyFrames: Uint8ClampedArray[] = [];
@@ -71,7 +72,13 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const temporalMedian = (input, options: any = defaults) => {
+type TemporalMedianOptions = FilterOptionValues & {
+  windowSize?: number;
+  animSpeed?: number;
+  _frameIndex?: number;
+};
+
+const temporalMedian = (input, options: TemporalMedianOptions = defaults) => {
   const windowSize = Math.max(3, Math.round(Number(options.windowSize ?? defaults.windowSize)));
   const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
@@ -115,7 +122,7 @@ const temporalMedian = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Time Median",
   func: temporalMedian,
   optionTypes,
@@ -123,4 +130,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Take the per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure",
-};
+});

@@ -1,4 +1,5 @@
 import { ACTION, BOOL, RANGE, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -62,6 +63,31 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+type VhsPalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type VhsOptions = FilterOptionValues & {
+  tracking?: number;
+  trackingSpread?: number;
+  flagging?: number;
+  flaggingHeight?: number;
+  verticalJitter?: number;
+  chromaDelay?: number;
+  headSwitching?: number;
+  headSwitchingHeight?: number;
+  dropout?: number;
+  tapeNoise?: number;
+  ghosting?: number;
+  brightness?: number;
+  saturation?: number;
+  animSpeed?: number;
+  blur?: boolean;
+  palette?: VhsPalette;
+  _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+};
+
 // Simple seeded pseudo-random for deterministic per-frame noise
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
@@ -75,7 +101,7 @@ const mulberry32 = (seed: number) => {
 
 const vhs = (
   input,
-  options = defaults
+  options: VhsOptions = defaults
 ) => {
   const {
     tracking,
@@ -95,8 +121,8 @@ const vhs = (
     palette
   } = options;
 
-  const prevOutput = (options as any)._prevOutput || null;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const prevOutput = options._prevOutput ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
 
   let output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -263,20 +289,23 @@ const vhs = (
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
 
   if (doBlur) {
-    output = convolve.func(output, {
+    const maybeBlurred = convolve.func(output, {
       ...convolveDefaults,
       kernel: GAUSSIAN_3X3_WEAK
     });
+    if (maybeBlurred instanceof HTMLCanvasElement) {
+      output = maybeBlurred;
+    }
   }
 
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "VHS emulation",
   func: vhs,
   options: defaults,
   optionTypes,
   defaults,
   mainThread: true
-};
+});

@@ -1,6 +1,7 @@
 import { RANGE, PALETTE, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const DIRECTION_X    = "X";
 const DIRECTION_Y    = "Y";
@@ -119,10 +120,10 @@ const displace = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Displace",
   func: displace,
   options: defaults,
   optionTypes,
   defaults
-};
+});

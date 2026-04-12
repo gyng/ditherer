@@ -1,4 +1,5 @@
 import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba } from "utils";
 
@@ -72,10 +73,25 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crcStripeReject = (input, options: any = defaults) => {
+type CrcStripeRejectOptions = FilterOptionValues & {
+  pattern?: string;
+  rejectChance?: number;
+  stripeHeight?: number;
+  tileSize?: number;
+  conceal?: string;
+  jitter?: number;
+  animSpeed?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+  _frameIndex?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const crcStripeReject = (input, options: CrcStripeRejectOptions = defaults) => {
   const { pattern, rejectChance, stripeHeight, tileSize, conceal, jitter, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const prevOutput = options._prevOutput ?? null;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -166,7 +182,7 @@ const crcStripeReject = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "CRC Stripe Reject",
   func: crcStripeReject,
   optionTypes,
@@ -174,4 +190,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Reject stripes or tiles like failed CRC packets, then conceal with hold, row-copy, or nearest-valid fill"
-};
+});

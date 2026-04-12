@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [5, 200], step: 5, default: 50, desc: "Flow noise feature size" },
@@ -43,7 +44,7 @@ const curlAngle = (px: number, py: number, seed: number) => {
   return Math.atan2(dndx, -dndy);
 };
 
-const flowField = (input, options: any = defaults) => {
+const flowField = (input, options = defaults) => {
   const { scale, strength, steps, seed, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -102,4 +103,4 @@ const flowField = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Flow Field", func: flowField, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Flow Field", func: flowField, optionTypes, options: defaults, defaults });

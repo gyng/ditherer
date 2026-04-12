@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   radius: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Neighborhood radius for median calculation" },
@@ -12,7 +13,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const medianFilter = (input, options: any = defaults) => {
+const medianFilter = (input, options = defaults) => {
   const { radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -71,4 +72,4 @@ const medianFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Median Filter", func: medianFilter, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Median Filter", func: medianFilter, optionTypes, options: defaults, defaults });

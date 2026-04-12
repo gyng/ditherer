@@ -1,6 +1,7 @@
 import { ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const ALGORITHM = { SCALE2X: "SCALE2X", EAGLE: "EAGLE", NEAREST: "NEAREST" };
 
@@ -25,7 +26,7 @@ const copyPixel = (outBuf: Uint8ClampedArray, di: number, srcBuf: Uint8ClampedAr
   outBuf[di] = srcBuf[si]; outBuf[di+1] = srcBuf[si+1]; outBuf[di+2] = srcBuf[si+2]; outBuf[di+3] = srcBuf[si+3];
 };
 
-const scale2x = (input, options: any = defaults) => {
+const scale2x = (input, options = defaults) => {
   const { algorithm, palette } = options;
   const inputCtx = input.getContext("2d");
   if (!inputCtx) return input;
@@ -88,4 +89,4 @@ const scale2x = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Pixel Art Upscale", func: scale2x, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Pixel Art Upscale", func: scale2x, optionTypes, options: defaults, defaults });

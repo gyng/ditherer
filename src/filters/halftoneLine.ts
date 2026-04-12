@@ -2,6 +2,7 @@ import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 const ANGLE_MODE = {
   CONSTANT: "CONSTANT",
@@ -57,7 +58,7 @@ const drawLine = (buf, W, H, cx, cy, angle, halfLen, thickness, ink) => {
   }
 };
 
-const halftoneLine = (input, options: any = defaults) => {
+const halftoneLine = (input, options = defaults) => {
   const { cellSize, angleMode, baseAngle, inkColor, paperColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -115,10 +116,10 @@ const halftoneLine = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Halftone Line",
   func: halftoneLine,
   optionTypes,
   options: defaults,
   defaults
-};
+});

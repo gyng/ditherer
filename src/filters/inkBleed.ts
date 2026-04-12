@@ -1,5 +1,6 @@
 import { RANGE, COLOR } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex, clamp } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   spread: { type: RANGE, range: [0, 12], step: 1, default: 3, desc: "How far dark ink blooms into neighboring paper fibers" },
@@ -20,7 +21,7 @@ const noise = (x: number, y: number) => {
   return n - Math.floor(n);
 };
 
-const inkBleed = (input, options: any = defaults) => {
+const inkBleed = (input, options = defaults) => {
   const { spread, absorbency, paperTint, grain } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -64,10 +65,10 @@ const inkBleed = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Ink Bleed",
   func: inkBleed,
   optionTypes,
   options: defaults,
   defaults
-};
+});

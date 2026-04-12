@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   bits: { type: RANGE, range: [1, 8], step: 1, default: 3, desc: "Bits per channel — fewer bits = harsher posterization" },
@@ -38,10 +39,10 @@ const bitCrush = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Bit crush",
   func: bitCrush,
   options: defaults,
   optionTypes,
   defaults
-};
+});

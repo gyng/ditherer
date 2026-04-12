@@ -1,5 +1,6 @@
 import { RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -49,7 +50,7 @@ const buildBandPalette = (bandCount: number, hueOffset: number, palette: any) =>
   return colors;
 };
 
-const paletteMapper = (input, options: any = defaults) => {
+const paletteMapper = (input, options = defaults) => {
   const { bandCount, hueOffset, preserveLuma, saturationBoost, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -110,11 +111,11 @@ const paletteMapper = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Palette Mapper",
   func: paletteMapper,
   options: defaults,
   optionTypes,
   defaults,
   description: "Remap hue families into fixed palette slots while optionally preserving the original lightness"
-};
+});

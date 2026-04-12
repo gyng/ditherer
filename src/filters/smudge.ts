@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Smudge distance in pixels" },
@@ -14,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const smudge = (input, options: any = defaults) => {
+const smudge = (input, options = defaults) => {
   const { strength, direction, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -69,4 +70,4 @@ const smudge = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Smudge", func: smudge, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Smudge", func: smudge, optionTypes, options: defaults, defaults });

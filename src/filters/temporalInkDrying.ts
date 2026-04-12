@@ -1,4 +1,5 @@
 import { ACTION, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 let wetnessMap: Float32Array | null = null;
@@ -62,7 +63,19 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const temporalInkDrying = (input, options: any = defaults) => {
+type TemporalInkDryingOptions = FilterOptionValues & {
+  style?: string;
+  inkThreshold?: number;
+  dryRate?: number;
+  darkenAmount?: number;
+  edgeShrink?: number;
+  paperBleed?: number;
+  paperWarmth?: number;
+  animSpeed?: number;
+  _frameIndex?: number;
+};
+
+const temporalInkDrying = (input, options: TemporalInkDryingOptions = defaults) => {
   const style = options.style ?? defaults.style;
   const inkThreshold = Number(options.inkThreshold ?? defaults.inkThreshold);
   const styleDryRate = style === STYLE.BRUSH_INK ? 0.035 : style === STYLE.MARKER_BLEED ? 0.06 : 0.05;
@@ -145,7 +158,7 @@ const temporalInkDrying = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Ink Drying",
   func: temporalInkDrying,
   optionTypes,
@@ -153,4 +166,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Fresh marks dry like fountain pen lines, brush ink washes, or marker bleed depending on the chosen paper-and-ink style",
-};
+});

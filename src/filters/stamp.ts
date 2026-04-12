@@ -1,5 +1,6 @@
 import { RANGE, COLOR } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 const hashNoise = (x: number, y: number) => {
   const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
@@ -20,7 +21,7 @@ export const defaults = {
   roughness: optionTypes.roughness.default
 };
 
-const stamp = (input, options: any = defaults) => {
+const stamp = (input, options = defaults) => {
   const { threshold, inkColor, paperColor, roughness } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -53,10 +54,10 @@ const stamp = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Stamp",
   func: stamp,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -22,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const embossFilter = (input, options: any = defaults) => {
+const embossFilter = (input, options = defaults) => {
   const { angle, strength, blend, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -91,10 +92,10 @@ const embossFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Emboss",
   func: embossFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

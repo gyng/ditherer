@@ -1,6 +1,7 @@
 import { RANGE, PALETTE, BOOL, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const MODE_AXIAL       = "AXIAL";
 const MODE_INDEPENDENT = "INDEPENDENT";
@@ -103,10 +104,10 @@ const chromaticAberration = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Chromatic aberration",
   func: chromaticAberration,
   options: defaults,
   optionTypes,
   defaults
-};
+});

@@ -1,5 +1,6 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -41,7 +42,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const mirror = (input, options: any = defaults) => {
+const mirror = (input, options = defaults) => {
   const { mode, segments, offsetX, offsetY, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -103,10 +104,10 @@ const mirror = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Mirror",
   func: mirror,
   optionTypes,
   options: defaults,
   defaults
-};
+});

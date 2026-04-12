@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -22,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const sharpenFilter = (input, options: any = defaults) => {
+const sharpenFilter = (input, options = defaults) => {
   const { strength, radius, threshold, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -104,10 +105,10 @@ const sharpenFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Sharpen",
   func: sharpenFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

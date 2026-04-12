@@ -1,10 +1,15 @@
 import { cloneCanvas, fillBufferPixel, getBufferIndex, srgbBufToLinearFloat, linearFloatToSrgbBuf } from "utils";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 export const optionTypes = {};
 
 export const defaults = {};
 
-const grayscale = (input, options: any = {}) => {
+type GrayscaleOptions = FilterOptionValues & {
+  _linearize?: boolean;
+};
+
+const grayscale = (input, options: GrayscaleOptions = {}) => {
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -37,10 +42,10 @@ const grayscale = (input, options: any = {}) => {
   return output;
 };
 
-export default {
+export default defineFilter<GrayscaleOptions>({
   name: "Grayscale",
   func: grayscale,
   options: defaults,
   optionTypes,
   defaults
-};
+});

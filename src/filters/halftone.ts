@@ -1,6 +1,7 @@
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 export const optionTypes = {
   size: { type: RANGE, range: [1, 512], step: 1, default: 6, desc: "Sampling grid cell size in pixels" },
@@ -22,9 +23,13 @@ export const defaults = {
   background: optionTypes.background.default
 };
 
+type HalftoneOptions = FilterOptionValues & typeof defaults & {
+  _linearize?: boolean;
+};
+
 const halftone = (
   input,
-  options: any = defaults
+  options: HalftoneOptions = defaults
 ) => {
   const getOffset = (
     radians,
@@ -168,10 +173,10 @@ const halftone = (
   return output;
 };
 
-export default {
+export default defineFilter<HalftoneOptions>({
   name: "Halftone",
   func: halftone,
   options: defaults,
   optionTypes,
   defaults
-};
+});

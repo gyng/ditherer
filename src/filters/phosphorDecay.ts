@@ -1,4 +1,5 @@
 import { RANGE, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 export const optionTypes = {
@@ -18,9 +19,19 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const phosphorDecay = (input, options: any = defaults) => {
-  const { redDecay, greenDecay, blueDecay } = options;
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+type PhosphorDecayOptions = FilterOptionValues & {
+  redDecay?: number;
+  greenDecay?: number;
+  blueDecay?: number;
+  animSpeed?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const phosphorDecay = (input, options: PhosphorDecayOptions = defaults) => {
+  const redDecay = Number(options.redDecay ?? defaults.redDecay);
+  const greenDecay = Number(options.greenDecay ?? defaults.greenDecay);
+  const blueDecay = Number(options.blueDecay ?? defaults.blueDecay);
+  const prevOutput = options._prevOutput ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -50,4 +61,4 @@ const phosphorDecay = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Phosphor Decay", func: phosphorDecay, optionTypes, options: defaults, defaults, mainThread: true, description: "CRT phosphor persistence — each RGB channel decays at a different rate" };
+export default defineFilter({ name: "Phosphor Decay", func: phosphorDecay, optionTypes, options: defaults, defaults, mainThread: true, description: "CRT phosphor persistence — each RGB channel decays at a different rate" });

@@ -1,6 +1,7 @@
 import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba } from "utils";
+import { defineFilter } from "filters/types";
 
 const MATRIX = {
   REC601: "REC601",
@@ -90,7 +91,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const metadataMismatchDecode = (input, options: any = defaults) => {
+const metadataMismatchDecode = (input, options = defaults) => {
   const { gammaAssumption, matrixAssumption, rangeAssumption, chromaPlacement, recoveryMix, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -161,11 +162,11 @@ const metadataMismatchDecode = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Metadata Mismatch Decode",
   func: metadataMismatchDecode,
   optionTypes,
   options: defaults,
   defaults,
   description: "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures"
-};
+});

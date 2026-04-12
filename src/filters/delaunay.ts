@@ -2,6 +2,7 @@ import { RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   pointCount: { type: RANGE, range: [50, 2000], step: 10, default: 300, desc: "Number of triangulation vertices" },
@@ -86,7 +87,7 @@ const triangulate = (points: { x: number; y: number }[], W: number, H: number) =
   return { triangles: triangles.filter(t => t[0] > 2 && t[1] > 2 && t[2] > 2), points: allPts };
 };
 
-const delaunay = (input, options: any = defaults) => {
+const delaunay = (input, options = defaults) => {
   const { pointCount, edgeWeight, showEdges, seed, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -184,4 +185,4 @@ const delaunay = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Delaunay", func: delaunay, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Delaunay", func: delaunay, optionTypes, options: defaults, defaults });

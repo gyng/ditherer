@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   k:          { type: RANGE, range: [2, 32], step: 1, default: 8, desc: "Number of color clusters" },
@@ -110,10 +111,10 @@ const kmeans = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "K-means",
   func: kmeans,
   options: defaults,
   optionTypes,
   defaults
-};
+});

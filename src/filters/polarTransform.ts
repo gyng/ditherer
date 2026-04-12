@@ -1,5 +1,6 @@
 import { RANGE, ENUM } from "constants/controlTypes";
 import { cloneCanvas, sampleBilinear, sampleNearest } from "utils";
+import { defineFilter } from "filters/types";
 
 const MODE = {
   RECT_TO_POLAR: "RECT_TO_POLAR",
@@ -43,7 +44,7 @@ export const defaults = {
   interpolation: optionTypes.interpolation.default
 };
 
-const polarTransform = (input, options: any = defaults) => {
+const polarTransform = (input, options = defaults) => {
   const { mode, centerX, centerY, angle, interpolation } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -107,10 +108,10 @@ const polarTransform = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Polar Transform",
   func: polarTransform,
   optionTypes,
   options: defaults,
   defaults
-};
+});

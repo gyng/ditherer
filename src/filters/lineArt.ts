@@ -2,6 +2,7 @@ import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [5, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
@@ -21,7 +22,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
-const lineArt = (input, options: any = defaults) => {
+const lineArt = (input, options = defaults) => {
   const { threshold, lineWidth, cleanupRadius, lineColor, bgColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -97,4 +98,4 @@ const lineArt = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Line Art", func: lineArt, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Line Art", func: lineArt, optionTypes, options: defaults, defaults });

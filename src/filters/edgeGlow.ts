@@ -8,6 +8,7 @@ import {
   paletteGetColor
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
@@ -25,7 +26,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const edgeGlow = (input, options: any = defaults) => {
+const edgeGlow = (input, options = defaults) => {
   const { threshold, glowRadius, edgeColor, backgroundColor, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -105,10 +106,10 @@ const edgeGlow = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Edge Glow",
   func: edgeGlow,
   optionTypes,
   options: defaults,
   defaults
-};
+});

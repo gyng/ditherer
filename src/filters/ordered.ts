@@ -1,4 +1,5 @@
 import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { BLUE_NOISE_MAP, BLUE_NOISE_SIZE, BLUE_NOISE_LEVELS } from "./blueNoise64";
 
@@ -253,6 +254,26 @@ const getOrderedColor = (
   return _orderedOut;
 };
 
+type OrderedPalette = {
+  options?: {
+    levels?: number;
+    colors?: number[][];
+    colorDistanceAlgorithm?: string;
+  } & FilterOptionValues;
+} & Record<string, unknown>;
+
+type OrderedOptions = FilterOptionValues & {
+  palette?: OrderedPalette;
+  thresholdMap?: keyof typeof thresholdMaps;
+  thresholdMapScaleX?: number;
+  thresholdMapScaleY?: number;
+  temporalPhases?: number;
+  animSpeed?: number;
+  _frameIndex?: number;
+  _linearize?: boolean;
+  _wasmAcceleration?: boolean;
+};
+
 export const optionTypes = {
   thresholdMap: {
     type: ENUM,
@@ -339,8 +360,10 @@ export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
 };
 
-const defaults = {
-  thresholdMap: optionTypes.thresholdMap.default,
+const defaultThresholdMap = optionTypes.thresholdMap.default as keyof typeof thresholdMaps;
+
+const defaults: OrderedOptions = {
+  thresholdMap: defaultThresholdMap,
   thresholdMapScaleX: optionTypes.thresholdMapScaleX.default,
   thresholdMapScaleY: optionTypes.thresholdMapScaleY.default,
   temporalPhases: optionTypes.temporalPhases.default,
@@ -350,16 +373,23 @@ const defaults = {
 
 const ordered = (
   input,
-  options: any = defaults
+  options: OrderedOptions = defaults
 ) => {
-  const {
-    palette,
-    thresholdMap,
-    thresholdMapScaleX,
-    thresholdMapScaleY
-  } = options;
-  const temporalPhases = options.temporalPhases || 1;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const palette = options.palette ?? defaults.palette;
+  const thresholdMapKey = options.thresholdMap ?? defaultThresholdMap;
+  const thresholdMapScaleX =
+    typeof options.thresholdMapScaleX === "number"
+      ? options.thresholdMapScaleX
+      : defaults.thresholdMapScaleX ?? 1;
+  const thresholdMapScaleY =
+    typeof options.thresholdMapScaleY === "number"
+      ? options.thresholdMapScaleY
+      : defaults.thresholdMapScaleY ?? 1;
+  const temporalPhases =
+    typeof options.temporalPhases === "number"
+      ? options.temporalPhases
+      : defaults.temporalPhases ?? 1;
+  const frameIndex = typeof options._frameIndex === "number" ? options._frameIndex : 0;
 
   const output = cloneCanvas(input, false);
 
@@ -372,8 +402,9 @@ const ordered = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const threshold = thresholdMaps[thresholdMap];
-  const levels = threshold.levels || threshold.width * threshold.width;
+  const threshold = thresholdMaps[thresholdMapKey];
+  const explicitLevels = "levels" in threshold ? threshold.levels : undefined;
+  const levels = explicitLevels || threshold.width * threshold.width;
   const thresholdMapScaled = scaleThresholdMap(
     threshold.thresholdMap,
     thresholdMapScaleX,
@@ -387,7 +418,7 @@ const ordered = (
   const temporalOffsetX = temporalPhases > 1 ? Math.floor(phase * thresholdMapWidth / temporalPhases) : 0;
   const temporalOffsetY = temporalPhases > 1 ? Math.floor(phase * thresholdMapHeight / temporalPhases) : 0;
 
-  if (options._linearize) {
+  if (options._linearize && palette) {
     const floatBuf = srgbBufToLinearFloat(buf);
     const stepF = 1.0 / (levels - 1);
     for (let x = 0; x < input.width; x += 1) {
@@ -426,8 +457,8 @@ const ordered = (
     }
 
     // WASM buffer quantize on the dithered pixels — single call
-    const algo = palette.options?.colorDistanceAlgorithm;
-    const wasmResult = options._wasmAcceleration && algo && palette.options?.colors
+    const algo = palette?.options?.colorDistanceAlgorithm;
+    const wasmResult = options._wasmAcceleration && algo && palette?.options?.colors
       ? wasmQuantizeBuffer(ditheredBuf, palette.options.colors, algo)
       : null;
 
@@ -441,7 +472,7 @@ const ordered = (
           const i = getBufferIndex(x, y, W);
           _palPix[0] = ditheredBuf[i]; _palPix[1] = ditheredBuf[i + 1];
           _palPix[2] = ditheredBuf[i + 2]; _palPix[3] = ditheredBuf[i + 3];
-          const color = srgbPaletteGetColor(palette, _palPix, palette.options);
+          const color = srgbPaletteGetColor(palette, _palPix, palette?.options);
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
         }
       }
@@ -452,10 +483,10 @@ const ordered = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Ordered",
   func: ordered,
   options: defaults,
   optionTypes,
   defaults
-};
+});

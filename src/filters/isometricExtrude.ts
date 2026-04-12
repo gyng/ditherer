@@ -1,6 +1,7 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const DIRECTION = {
   NE: "NE",
@@ -48,7 +49,7 @@ const directionVector = (direction: string) => {
   }
 };
 
-const isometricExtrude = (input, options: any = defaults) => {
+const isometricExtrude = (input, options = defaults) => {
   const { depth, direction, threshold, shadowColor, shadeFalloff, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -106,11 +107,11 @@ const isometricExtrude = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Isometric Extrude",
   func: isometricExtrude,
   options: defaults,
   optionTypes,
   defaults,
   description: "Project image pixels into stacked isometric slabs with a directional side wall"
-};
+});

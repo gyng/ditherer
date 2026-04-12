@@ -1,4 +1,5 @@
 import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -28,6 +29,28 @@ let previewLoopEnabled = false;
 let pendingManualBurst = false;
 let lastFrameIndex = -Infinity;
 let lastTriggerMode = TRIGGER.MANUAL;
+
+type CrtDegaussPalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type CrtDegaussOptions = FilterOptionValues & {
+  intensity?: number;
+  warp?: number;
+  misconvergence?: number;
+  hueShimmer?: number;
+  flash?: number;
+  triggerMode?: string;
+  triggerThreshold?: number;
+  cooldownFrames?: number;
+  duration?: number;
+  animSpeed?: number;
+  palette?: CrtDegaussPalette;
+  _frameIndex?: number;
+  _isAnimating?: boolean;
+  _prevInput?: Uint8ClampedArray | null;
+  _ema?: Float32Array | null;
+};
 
 const clamp = (value: number) => Math.max(0, Math.min(255, value));
 
@@ -191,7 +214,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crtDegauss = (input, options = defaults) => {
+const crtDegauss = (input, options: CrtDegaussOptions = defaults) => {
   const {
     intensity,
     warp,
@@ -205,10 +228,10 @@ const crtDegauss = (input, options = defaults) => {
     palette
   } = options;
 
-  const frameIndex = (options as any)._frameIndex || 0;
-  const isAnimating = Boolean((options as any)._isAnimating);
-  const prevInput = (options as any)._prevInput || null;
-  const ema = (options as any)._ema || null;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const isAnimating = Boolean(options._isAnimating);
+  const prevInput = options._prevInput ?? null;
+  const ema = options._ema ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -330,7 +353,7 @@ const crtDegauss = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "CRT Degauss",
   func: crtDegauss,
   options: defaults,
@@ -338,4 +361,4 @@ export default {
   defaults,
   mainThread: true,
   description: "A decaying CRT degauss pulse with raster wobble, RGB mislanding, rainbow shimmer, and a bright magnetic flash"
-};
+});

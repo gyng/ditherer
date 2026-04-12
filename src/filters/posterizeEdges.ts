@@ -8,6 +8,7 @@ import {
   paletteGetColor
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 16], step: 1, default: 5, desc: "Color posterization levels" },
@@ -25,7 +26,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const posterizeEdges = (input, options: any = defaults) => {
+const posterizeEdges = (input, options = defaults) => {
   const { levels, edgeThreshold, edgeWidth, edgeColor, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -89,10 +90,10 @@ const posterizeEdges = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Posterize Edges",
   func: posterizeEdges,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -2,6 +2,7 @@ import { COLOR, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 const EDGE_SOURCE = {
   SOBEL: "SOBEL",
@@ -100,7 +101,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeInkLines = (input, options: any = defaults) => {
+const animeInkLines = (input, options = defaults) => {
   const { source, threshold, lineWidth, lineColor, renderMode, overlayMix, bgColor, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -158,10 +159,10 @@ const animeInkLines = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Anime Ink Lines",
   func: animeInkLines,
   optionTypes,
   options: defaults,
   defaults,
-};
+});

@@ -1,6 +1,7 @@
 import { RANGE, BOOL, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, clamp, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const getTriangleCell = (x: number, y: number, size: number): [number, number, number] => {
   const tx = Math.floor(x / size);
@@ -34,7 +35,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const trianglePixelate = (input, options: any = defaults) => {
+const trianglePixelate = (input, options = defaults) => {
   const { cellSize, outline, outlineColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -80,10 +81,10 @@ const trianglePixelate = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Triangle Pixelate",
   func: trianglePixelate,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,6 +1,7 @@
 import { RANGE, PALETTE, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   amplitudeX: { type: RANGE, range: [0, 100], step: 0.5, default: 10, desc: "Max horizontal displacement in pixels" },
@@ -62,10 +63,10 @@ const wave = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Wave",
   func: wave,
   options: defaults,
   optionTypes,
   defaults
-};
+});

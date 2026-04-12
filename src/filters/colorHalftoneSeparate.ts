@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, desc: "Halftone dot diameter" },
@@ -18,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const colorHalftoneSeparate = (input, options: any = defaults) => {
+const colorHalftoneSeparate = (input, options = defaults) => {
   const { dotSize, offsetR, offsetG, offsetB, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -86,4 +87,4 @@ const colorHalftoneSeparate = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Color Halftone Separate", func: colorHalftoneSeparate, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Color Halftone Separate", func: colorHalftoneSeparate, optionTypes, options: defaults, defaults });

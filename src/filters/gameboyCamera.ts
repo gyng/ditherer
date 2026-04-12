@@ -1,5 +1,6 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -182,10 +183,10 @@ const gameboyCamera = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Gameboy Camera",
   func: gameboyCamera,
   options: defaults,
   optionTypes,
   defaults
-};
+});

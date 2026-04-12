@@ -1,5 +1,6 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -39,7 +40,7 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-const vignetteFilter = (input, options: any = defaults) => {
+const vignetteFilter = (input, options = defaults) => {
   const { strength, radius, softness, shape, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -83,10 +84,10 @@ const vignetteFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Vignette",
   func: vignetteFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,6 +1,7 @@
 import { ACTION, RANGE, BOOL, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, sampleBilinear } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   fly: { type: BOOL, label: "Auto Flight", default: true, desc: "Continuously move forward across the track plane" },
@@ -256,7 +257,7 @@ const getSkyColor = (
   ] as const;
 };
 
-const mode7 = (input, options: any = defaults) => {
+const mode7 = (input, options = defaults) => {
   const {
     horizon,
     fov,
@@ -357,10 +358,10 @@ const mode7 = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Mode 7",
   func: mode7,
   optionTypes,
   options: defaults,
   defaults
-};
+});

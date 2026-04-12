@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [0, 2], step: 0.1, default: 0.5, desc: "Grain merge intensity" },
@@ -14,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const grainMerge = (input, options: any = defaults) => {
+const grainMerge = (input, options = defaults) => {
   const { strength, radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -63,4 +64,4 @@ const grainMerge = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Grain Merge", func: grainMerge, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Grain Merge", func: grainMerge, optionTypes, options: defaults, defaults });

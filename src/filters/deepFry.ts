@@ -1,5 +1,6 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -242,10 +243,10 @@ const deepFry = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Deep fry",
   func: deepFry,
   options: defaults,
   optionTypes,
   defaults
-};
+});

@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -29,7 +30,7 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-const tiltShiftFilter = (input, options: any = defaults) => {
+const tiltShiftFilter = (input, options = defaults) => {
   const { focusPosition, focusWidth, blurAmount, saturationBoost, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -119,10 +120,10 @@ const tiltShiftFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Tilt Shift",
   func: tiltShiftFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

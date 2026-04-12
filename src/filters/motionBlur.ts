@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -20,7 +21,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const motionBlurFilter = (input, options: any = defaults) => {
+const motionBlurFilter = (input, options = defaults) => {
   const { angle, length, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -92,10 +93,10 @@ const motionBlurFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Motion Blur",
   func: motionBlurFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -8,6 +8,7 @@ import {
   paletteGetColor
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Black/white carving threshold" },
@@ -27,7 +28,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const woodcut = (input, options: any = defaults) => {
+const woodcut = (input, options = defaults) => {
   const { threshold, lineWeight, edgeStrength, inkColor, paperColor, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -94,10 +95,10 @@ const woodcut = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Woodcut",
   func: woodcut,
   optionTypes,
   options: defaults,
   defaults
-};
+});

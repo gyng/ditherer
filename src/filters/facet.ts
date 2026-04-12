@@ -1,6 +1,7 @@
 import { RANGE, COLOR, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const FILL_MODE = {
   AVERAGE: "AVERAGE",
@@ -43,7 +44,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const facet = (input, options: any = defaults) => {
+const facet = (input, options = defaults) => {
   const { facetSize, jitter, seamWidth, lineColor, fillMode, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -143,11 +144,11 @@ const facet = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Facet",
   func: facet,
   options: defaults,
   optionTypes,
   defaults,
   description: "Break the image into broad faceted planes with regularized seams instead of organic glass cells"
-};
+});

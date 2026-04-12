@@ -1,6 +1,7 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   positionX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Horizontal light source position" },
@@ -20,7 +21,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lensFlare = (input, options: any = defaults) => {
+const lensFlare = (input, options = defaults) => {
   const { positionX, positionY, intensity, flareColor, ghosts, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -100,4 +101,4 @@ const lensFlare = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Lens Flare", func: lensFlare, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Lens Flare", func: lensFlare, optionTypes, options: defaults, defaults });

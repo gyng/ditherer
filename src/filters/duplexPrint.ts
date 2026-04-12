@@ -1,5 +1,6 @@
 import { COLOR, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   inkA: { type: COLOR, default: [28, 24, 24], desc: "Shadow ink color used for the darker end of the print" },
@@ -15,7 +16,7 @@ export const defaults = {
   paperColor: optionTypes.paperColor.default
 };
 
-const duplexPrint = (input, options: any = defaults) => {
+const duplexPrint = (input, options = defaults) => {
   const { inkA, inkB, mixCurve, paperColor } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -54,10 +55,10 @@ const duplexPrint = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Duplex Print",
   func: duplexPrint,
   optionTypes,
   options: defaults,
   defaults
-};
+});

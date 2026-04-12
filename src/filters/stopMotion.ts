@@ -1,5 +1,6 @@
 import { RANGE, ACTION } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 let heldFrame: Uint8ClampedArray | null = null;
 let heldW = 0;
@@ -20,7 +21,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const stopMotion = (input, options: any = defaults) => {
+const stopMotion = (input, options = defaults) => {
   const { holdFrames } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -47,4 +48,4 @@ const stopMotion = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Stop Motion", func: stopMotion, optionTypes, options: defaults, defaults, mainThread: true, description: "Hold each captured frame for several beats to create a choppy stop-motion feel" };
+export default defineFilter({ name: "Stop Motion", func: stopMotion, optionTypes, options: defaults, defaults, mainThread: true, description: "Hold each captured frame for several beats to create a choppy stop-motion feel" });

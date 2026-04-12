@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -18,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const gaussianBlurFilter = (input, options: any = defaults) => {
+const gaussianBlurFilter = (input, options = defaults) => {
   const { sigma, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -85,10 +86,10 @@ const gaussianBlurFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Gaussian Blur",
   func: gaussianBlurFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,4 +1,5 @@
 import { RANGE, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 export const optionTypes = {
@@ -52,10 +53,21 @@ const hsl2rgb = (h: number, s: number, l: number): [number, number, number] => {
   ];
 };
 
-const temporalColorCycle = (input, options: any = defaults) => {
-  const { baseSpeed, motionMultiplier, saturationBoost } = options;
-  const ema: Float32Array | null = (options as any)._ema || null;
-  const frameIndex = (options as any)._frameIndex || 0;
+type TemporalColorCycleOptions = FilterOptionValues & {
+  baseSpeed?: number;
+  motionMultiplier?: number;
+  saturationBoost?: number;
+  animSpeed?: number;
+  _ema?: Float32Array | null;
+  _frameIndex?: number;
+};
+
+const temporalColorCycle = (input, options: TemporalColorCycleOptions = defaults) => {
+  const baseSpeed = Number(options.baseSpeed ?? defaults.baseSpeed);
+  const motionMultiplier = Number(options.motionMultiplier ?? defaults.motionMultiplier);
+  const saturationBoost = Number(options.saturationBoost ?? defaults.saturationBoost);
+  const ema = options._ema ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -83,4 +95,4 @@ const temporalColorCycle = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Color Cycle", func: temporalColorCycle, optionTypes, options: defaults, defaults, mainThread: true, description: "Hue rotates over time — moving areas cycle faster creating rainbow trails" };
+export default defineFilter({ name: "Color Cycle", func: temporalColorCycle, optionTypes, options: defaults, defaults, mainThread: true, description: "Hue rotates over time — moving areas cycle faster creating rainbow trails" });

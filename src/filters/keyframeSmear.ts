@@ -1,4 +1,5 @@
 import { ACTION, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 let keyframeBuf: Uint8ClampedArray | null = null;
@@ -36,7 +37,14 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const keyframeSmear = (input, options: any = defaults) => {
+type KeyframeSmearOptions = FilterOptionValues & {
+  keyframeInterval?: number;
+  smear?: number;
+  animSpeed?: number;
+  _frameIndex?: number;
+};
+
+const keyframeSmear = (input, options: KeyframeSmearOptions = defaults) => {
   const keyframeInterval = Math.max(2, Math.round(Number(options.keyframeInterval ?? defaults.keyframeInterval)));
   const smear = Math.max(0, Math.min(1, Number(options.smear ?? defaults.smear)));
   const frameIndex = Number(options._frameIndex ?? 0);
@@ -80,7 +88,7 @@ const keyframeSmear = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Keyframe Smear",
   func: keyframeSmear,
   optionTypes,
@@ -88,4 +96,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Capture sparse keyframes and drag them through the in-between frames for compressed, smeared temporal interpolation",
-};
+});

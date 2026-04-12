@@ -1,6 +1,7 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   lineSpacing: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Distance between engraved lines" },
@@ -18,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const engraving = (input, options: any = defaults) => {
+const engraving = (input, options = defaults) => {
   const { lineSpacing, angle, inkColor, paperColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -67,4 +68,4 @@ const engraving = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Engraving", func: engraving, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Engraving", func: engraving, optionTypes, options: defaults, defaults });

@@ -1,5 +1,6 @@
 import { RANGE, COLOR } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   outlineColor: { type: COLOR, default: [0, 0, 0], desc: "Border color painted around sharp color changes" },
@@ -17,7 +18,7 @@ const colorDelta = (buf: Uint8ClampedArray, a: number, b: number) => (
   (Math.abs(buf[a] - buf[b]) + Math.abs(buf[a + 1] - buf[b + 1]) + Math.abs(buf[a + 2] - buf[b + 2])) / 3
 );
 
-const pixelOutline = (input, options: any = defaults) => {
+const pixelOutline = (input, options = defaults) => {
   const { outlineColor, outlineWidth, mergeThreshold } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -83,10 +84,10 @@ const pixelOutline = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Pixel Outline",
   func: pixelOutline,
   optionTypes,
   options: defaults,
   defaults
-};
+});

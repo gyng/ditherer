@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, rgba2hsva, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 // h: 0-360, s/v/a: 0-1 → r/g/b/a: 0-255
 const hsva2rgba = ([h, s, v, a]) => {
@@ -68,10 +69,10 @@ const colorShift = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Color shift",
   func: colorShift,
   options: defaults,
   optionTypes,
   defaults
-};
+});

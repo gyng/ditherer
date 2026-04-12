@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 export const optionTypes = {
   thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5, desc: "Red channel threshold for black/white split" },
@@ -18,9 +19,13 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
+type BinarizeOptions = FilterOptionValues & typeof defaults & {
+  _linearize?: boolean;
+};
+
 const binarize = (
   input,
-  options: any = defaults
+  options: BinarizeOptions = defaults
 ) => {
   const getColor = (val, threshold) =>
     val > threshold ? 255 : 0;
@@ -75,10 +80,10 @@ const binarize = (
   return output;
 };
 
-export default {
+export default defineFilter<BinarizeOptions>({
   name: "Binarize",
   func: binarize,
   optionTypes,
   options: defaults,
   defaults
-};
+});

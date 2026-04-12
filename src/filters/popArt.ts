@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, desc: "Ben-Day dot size" },
@@ -16,7 +17,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const popArt = (input, options: any = defaults) => {
+const popArt = (input, options = defaults) => {
   const { dotSize, levels, saturationBoost, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -68,4 +69,4 @@ const popArt = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Pop Art", func: popArt, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Pop Art", func: popArt, optionTypes, options: defaults, defaults });

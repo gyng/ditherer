@@ -1,13 +1,11 @@
 import { CHAIN_PRESETS, type PresetFilterEntry } from "components/ChainList/presets";
+import type { FilterActions, FilterState } from "context/filterContextValue";
+import type { FilterDefinition, FilterListEntry } from "filters/types";
 
-type FilterListEntry = {
+type ChainSnapshotEntry = FilterState["chain"][number];
+type ResolvedPresetFilter = {
   displayName: string;
-  category: string;
-  description?: string;
-  filter: {
-    defaults?: Record<string, unknown>;
-    options?: Record<string, unknown>;
-  };
+  filter: FilterDefinition;
 };
 
 type WebMCPTool = {
@@ -31,8 +29,8 @@ declare global {
 }
 
 export type WebMCPBindings = {
-  getState: () => any;
-  getActions: () => any;
+  getState: () => FilterState;
+  getActions: () => FilterActions;
   getFilterList: () => FilterListEntry[];
   getOutputCanvas: () => HTMLCanvasElement | null;
 };
@@ -72,7 +70,7 @@ const dataUrlToFile = (dataUrl: string, filename: string, mimeType?: string): Fi
   return new File([bytes], filename, { type: mimeType || detectedMime });
 };
 
-const resolvePresetFilter = (filterList: FilterListEntry[], entry: PresetFilterEntry) => {
+const resolvePresetFilter = (filterList: FilterListEntry[], entry: PresetFilterEntry): ResolvedPresetFilter | null => {
   const found = filterList.find((f) => f.displayName === entry.name);
   if (!found) return null;
   return {
@@ -199,7 +197,7 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
       const state = bindings.getState();
       return {
         activeIndex: state.activeIndex,
-        chain: (state.chain || []).map((entry: any, index: number) => ({
+        chain: state.chain.map((entry: ChainSnapshotEntry, index: number) => ({
           index,
           id: entry.id,
           enabled: entry.enabled !== false,
@@ -434,4 +432,3 @@ export const setupWebMCP = (bindings: WebMCPBindings): (() => void) => {
     }
   };
 };
-

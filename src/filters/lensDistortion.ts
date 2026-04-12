@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   k1: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3, desc: "Primary distortion (+barrel, -pincushion)" },
@@ -83,10 +84,10 @@ const lensDistortion = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Lens distortion",
   func: lensDistortion,
   options: defaults,
   optionTypes,
   defaults
-};
+});

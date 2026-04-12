@@ -1,4 +1,5 @@
 import { ACTION, RANGE, BOOL, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -50,10 +51,33 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const analogStatic = (input, options: any = defaults) => {
-  const { noiseAmount, barHeight, barIntensity, verticalHold, ghosting, color: colorNoise, persistence, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+type AnalogStaticOptions = FilterOptionValues & {
+  noiseAmount?: number;
+  barHeight?: number;
+  barIntensity?: number;
+  verticalHold?: number;
+  ghosting?: number;
+  color?: boolean;
+  persistence?: number;
+  animSpeed?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+  _frameIndex?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const analogStatic = (input, options: AnalogStaticOptions = defaults) => {
+  const noiseAmount = Number(options.noiseAmount ?? defaults.noiseAmount);
+  const barHeight = Number(options.barHeight ?? defaults.barHeight);
+  const barIntensity = Number(options.barIntensity ?? defaults.barIntensity);
+  const verticalHold = Number(options.verticalHold ?? defaults.verticalHold);
+  const ghosting = Number(options.ghosting ?? defaults.ghosting);
+  const colorNoise = Boolean(options.color ?? defaults.color);
+  const persistence = Number(options.persistence ?? defaults.persistence);
+  const palette = options.palette ?? defaults.palette;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const prevOutput = options._prevOutput ?? null;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -140,11 +164,11 @@ const analogStatic = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Analog Static",
   func: analogStatic,
   optionTypes,
   options: defaults,
   defaults,
   mainThread: true
-};
+});

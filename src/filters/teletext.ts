@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -59,7 +60,7 @@ const nearestTeletextColor = (
 
 const teletext = (
   input,
-  options: any = defaults
+  options = defaults
 ) => {
   const { columns, threshold, blockGap, palette } = options;
 
@@ -247,10 +248,10 @@ const teletext = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Teletext",
   func: teletext,
   options: defaults,
   optionTypes,
   defaults
-};
+});

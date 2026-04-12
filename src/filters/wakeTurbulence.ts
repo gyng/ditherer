@@ -1,4 +1,5 @@
 import { RANGE, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas, getBufferIndex } from "utils";
 
 // Module-level energy buffer persists across frames
@@ -23,10 +24,21 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const wakeTurbulence = (input, options: any = defaults) => {
-  const { intensity, turbulence, settleSpeed } = options;
-  const ema: Float32Array | null = (options as any)._ema || null;
-  const frameIndex = (options as any)._frameIndex || 0;
+type WakeTurbulenceOptions = FilterOptionValues & {
+  intensity?: number;
+  turbulence?: number;
+  settleSpeed?: number;
+  animSpeed?: number;
+  _ema?: Float32Array | null;
+  _frameIndex?: number;
+};
+
+const wakeTurbulence = (input, options: WakeTurbulenceOptions = defaults) => {
+  const intensity = Number(options.intensity ?? defaults.intensity);
+  const turbulence = Number(options.turbulence ?? defaults.turbulence);
+  const settleSpeed = Number(options.settleSpeed ?? defaults.settleSpeed);
+  const ema = options._ema ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -74,4 +86,4 @@ const wakeTurbulence = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Wake Turbulence", func: wakeTurbulence, optionTypes, options: defaults, defaults, mainThread: true, description: "Moving objects leave rippling distortion in their wake — heat shimmer effect" };
+export default defineFilter({ name: "Wake Turbulence", func: wakeTurbulence, optionTypes, options: defaults, defaults, mainThread: true, description: "Moving objects leave rippling distortion in their wake — heat shimmer effect" });

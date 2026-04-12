@@ -1,6 +1,7 @@
 import { RANGE, COLOR, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const POS = { TL: "TL", TR: "TR", BL: "BL", BR: "BR" };
 
@@ -23,7 +24,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lightLeak = (input, options: any = defaults) => {
+const lightLeak = (input, options = defaults) => {
   const { intensity, position, color: leakColor, spread, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -62,4 +63,4 @@ const lightLeak = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Light Leak", func: lightLeak, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Light Leak", func: lightLeak, optionTypes, options: defaults, defaults });

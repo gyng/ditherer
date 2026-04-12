@@ -1,5 +1,6 @@
 import { RANGE, ENUM, ACTION } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 const BASELINE = {
   BLACK: "BLACK",
@@ -29,7 +30,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const echoCombiner = (input, options: any = defaults) => {
+const echoCombiner = (input, options = defaults) => {
   const { gain, baseline } = options;
   const ema: Float32Array | null = (options as any)._ema || null;
   const output = cloneCanvas(input, false);
@@ -68,4 +69,4 @@ const echoCombiner = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Echo Combiner", func: echoCombiner, optionTypes, options: defaults, defaults, mainThread: true, description: "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded" };
+export default defineFilter({ name: "Echo Combiner", func: echoCombiner, optionTypes, options: defaults, defaults, mainThread: true, description: "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded" });

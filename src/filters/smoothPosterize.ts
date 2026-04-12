@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 16], step: 1, default: 5, desc: "Number of color levels" },
@@ -14,7 +15,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const smoothPosterize = (input, options: any = defaults) => {
+const smoothPosterize = (input, options = defaults) => {
   const { levels, smoothness, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -67,4 +68,4 @@ const smoothPosterize = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Smooth Posterize", func: smoothPosterize, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Smooth Posterize", func: smoothPosterize, optionTypes, options: defaults, defaults });

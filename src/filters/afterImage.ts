@@ -1,4 +1,5 @@
 import { RANGE, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 export const optionTypes = {
@@ -16,9 +17,17 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const afterImage = (input, options: any = defaults) => {
-  const { strength, threshold } = options;
-  const ema: Float32Array | null = (options as any)._ema || null;
+type AfterImageOptions = FilterOptionValues & {
+  strength?: number;
+  threshold?: number;
+  animSpeed?: number;
+  _ema?: Float32Array | null;
+};
+
+const afterImage = (input, options: AfterImageOptions = defaults) => {
+  const strength = Number(options.strength ?? defaults.strength);
+  const threshold = Number(options.threshold ?? defaults.threshold);
+  const ema = options._ema ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -63,4 +72,4 @@ const afterImage = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "After-Image", func: afterImage, optionTypes, options: defaults, defaults, mainThread: true, description: "Complementary-colored ghost when bright objects move away — retinal fatigue simulation" };
+export default defineFilter({ name: "After-Image", func: afterImage, optionTypes, options: defaults, defaults, mainThread: true, description: "Complementary-colored ghost when bright objects move away — retinal fatigue simulation" });

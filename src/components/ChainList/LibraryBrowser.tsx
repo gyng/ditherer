@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BOOL, COLOR, ENUM, RANGE, STRING, TEXT } from "constants/controlTypes";
-import { filterList } from "filters";
+import { filterList, hasTemporalBehavior } from "filters";
+import type {
+  ActionOptionDefinition,
+  EnumOption,
+  EnumOptionDefinition,
+  EnumOptionGroup,
+  FilterDefinition,
+  FilterFunction,
+  FilterOptionDefinition,
+  FilterOptionDefinitions,
+  FilterOptionValues,
+  RangeOptionDefinition,
+} from "filters/types";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, type ChainPreset } from "./presets";
 import s from "./libraryBrowser.module.css";
 
@@ -28,10 +40,22 @@ const includesNeedle = (haystack: string, needle: string) =>
   haystack.toLowerCase().includes(needle.toLowerCase());
 
 const hasAnimatedOption = (entry: FilterEntry) =>
-  Boolean((entry.filter.optionTypes as any)?.animate);
+  Boolean(
+    (entry.filter.optionTypes as FilterOptionDefinitions | undefined)?.["animate"] &&
+    isActionOption((entry.filter.optionTypes as FilterOptionDefinitions)["animate"])
+  );
 
-const hasTemporalBehavior = (entry: FilterEntry) =>
-  (entry.filter as any).mainThread === true;
+const isActionOption = (option: FilterOptionDefinition): option is ActionOptionDefinition =>
+  option.type === "ACTION" && typeof (option as ActionOptionDefinition).action === "function";
+
+const isEnumOption = (option: FilterOptionDefinition): option is EnumOptionDefinition =>
+  option.type === ENUM && Array.isArray((option as EnumOptionDefinition).options);
+
+const isEnumOptionGroup = (option: EnumOption | EnumOptionGroup): option is EnumOptionGroup =>
+  Array.isArray((option as EnumOptionGroup).options);
+
+const isRangeOption = (option: FilterOptionDefinition): option is RangeOptionDefinition =>
+  option.type === RANGE && Array.isArray((option as RangeOptionDefinition).range);
 
 const getPreviewSourceSize = (source: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement) => {
   if (source instanceof HTMLVideoElement) {
@@ -53,8 +77,8 @@ const formatOptionValue = (value: unknown): string => {
 };
 
 const resolveFilterOptions = (
-  filter: { defaults?: Record<string, unknown>; options?: Record<string, unknown> },
-  overrideOptions?: Record<string, unknown>
+  filter: Pick<FilterDefinition, "defaults" | "options">,
+  overrideOptions?: FilterOptionValues
 ) => ({
   ...(filter.defaults || {}),
   ...(filter.options || {}),
@@ -79,22 +103,21 @@ const hexToRgb = (hex: string): [number, number, number] => {
 
 const getFilterOptionRows = (
   entry: FilterEntry,
-  overrideOptions?: Record<string, unknown>
+  overrideOptions?: FilterOptionValues
 ) => {
-  const optionTypes = entry.filter.optionTypes || {};
+  const optionTypes: FilterOptionDefinitions = entry.filter.optionTypes || {};
   const resolvedOptions = resolveFilterOptions(entry.filter, overrideOptions);
 
   return Object.entries(optionTypes)
     .filter(([name]) => !name.startsWith("_"))
     .map(([name, spec]) => {
-      const optionSpec = spec as any;
       return {
         name,
         rawValue: resolvedOptions[name],
         value: formatOptionValue(resolvedOptions[name]),
-        type: optionSpec?.type,
-        optionSpec,
-        desc: optionSpec?.desc || "No help text.",
+        type: spec.type,
+        optionSpec: spec,
+        desc: spec.desc || "No help text.",
       };
     });
 };
@@ -120,7 +143,7 @@ const LibraryBrowser = ({
   const [presetCategory, setPresetCategory] = useState("All");
   const [selectedFilterName, setSelectedFilterName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
-  const [previewOverrides, setPreviewOverrides] = useState<Record<string, Record<string, unknown>>>({});
+  const [previewOverrides, setPreviewOverrides] = useState<Record<string, FilterOptionValues>>({});
   const [fallbackImage, setFallbackImage] = useState<HTMLImageElement | null>(null);
   const [fallbackVideo, setFallbackVideo] = useState<HTMLVideoElement | null>(null);
   const queryRef = useRef<HTMLInputElement>(null);
@@ -423,7 +446,7 @@ const LibraryBrowser = ({
           };
           const inCtxStep = work.getContext("2d");
           const inPixels = inCtxStep ? inCtxStep.getImageData(0, 0, work.width, work.height).data : null;
-          const maybe = (selectedFilter.filter.func as any)(work, opts, undefined);
+          const maybe = (selectedFilter.filter.func as FilterFunction)(work, opts, undefined);
           if (maybe instanceof HTMLCanvasElement) {
             result = maybe;
             if (inPixels && hasTemporalBehavior(selectedFilter)) {
@@ -456,7 +479,7 @@ const LibraryBrowser = ({
               _prevOutput: prevOutputByKey.get(key) || null,
               _ema: emaByKey.get(key) || null,
             };
-            const maybe = (match.filter.func as any)(pipeline, opts, undefined);
+            const maybe = (match.filter.func as FilterFunction)(pipeline, opts, undefined);
             if (maybe instanceof HTMLCanvasElement) {
               pipeline = maybe;
               if (inPixels && hasTemporalBehavior(match)) {
@@ -628,7 +651,7 @@ const LibraryBrowser = ({
                     selectedFilterOptions.map((option) => (
                       <div key={option.name} className={s.optionRow}>
                         <div className={s.optionName}>{option.name}</div>
-                        {option.type === RANGE && Array.isArray(option.optionSpec?.range) ? (
+                        {option.type === RANGE && isRangeOption(option.optionSpec) ? (
                           <div>
                             <input
                               type="range"
@@ -659,7 +682,7 @@ const LibraryBrowser = ({
                             <span className={s.optionValue}> {option.value}</span>
                           </label>
                         ) : null}
-                        {option.type === ENUM && Array.isArray(option.optionSpec?.options) ? (
+                        {option.type === ENUM && isEnumOption(option.optionSpec) ? (
                           <select
                             value={String(option.rawValue)}
                             onChange={(e) => setPreviewOption(
@@ -668,11 +691,13 @@ const LibraryBrowser = ({
                               e.target.value
                             )}
                           >
-                            {option.optionSpec.options.map((opt: any) => (
-                              <option key={String(opt.value)} value={String(opt.value)}>
-                                {opt.name ?? opt.value}
-                              </option>
-                            ))}
+                            {(option.optionSpec as EnumOptionDefinition).options
+                              .filter((opt): opt is EnumOption => !isEnumOptionGroup(opt))
+                              .map((opt) => (
+                                <option key={String(opt.value)} value={String(opt.value)}>
+                                  {opt.name ?? opt.value}
+                                </option>
+                              ))}
                           </select>
                         ) : null}
                         {option.type === STRING ? (

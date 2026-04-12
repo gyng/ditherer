@@ -1,4 +1,5 @@
 import { RANGE, BOOL, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas, getBufferIndex } from "utils";
 
 const mulberry32 = (seed: number) => {
@@ -35,10 +36,23 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const freezeFrameGlitch = (input, options: any = defaults) => {
-  const { blockSize, freezeChance, thawRate, channelIndependent } = options;
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
-  const frameIndex = (options as any)._frameIndex || 0;
+type FreezeFrameGlitchOptions = FilterOptionValues & {
+  blockSize?: number;
+  freezeChance?: number;
+  thawRate?: number;
+  channelIndependent?: boolean;
+  animSpeed?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+};
+
+const freezeFrameGlitch = (input, options: FreezeFrameGlitchOptions = defaults) => {
+  const blockSize = Number(options.blockSize ?? defaults.blockSize);
+  const freezeChance = Number(options.freezeChance ?? defaults.freezeChance);
+  const thawRate = Number(options.thawRate ?? defaults.thawRate);
+  const channelIndependent = Boolean(options.channelIndependent ?? defaults.channelIndependent);
+  const prevOutput = options._prevOutput ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -103,4 +117,4 @@ const freezeFrameGlitch = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Freeze Frame Glitch", func: freezeFrameGlitch, optionTypes, options: defaults, defaults, mainThread: true, description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic" };
+export default defineFilter({ name: "Freeze Frame Glitch", func: freezeFrameGlitch, optionTypes, options: defaults, defaults, mainThread: true, description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic" });

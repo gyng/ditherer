@@ -1,6 +1,7 @@
 import { BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   perChannel: { type: BOOL, default: false, desc: "Equalize each RGB channel independently" },
@@ -92,10 +93,10 @@ const histogramEqualization = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Histogram equalization",
   func: histogramEqualization,
   options: defaults,
   optionTypes,
   defaults
-};
+});

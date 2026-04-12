@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   amplitude: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Wave height in pixels" },
@@ -18,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const rippleFilter = (input, options: any = defaults) => {
+const rippleFilter = (input, options = defaults) => {
   const { amplitude, wavelength, centerX, centerY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -62,4 +63,4 @@ const rippleFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Ripple", func: rippleFilter, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Ripple", func: rippleFilter, optionTypes, options: defaults, defaults });

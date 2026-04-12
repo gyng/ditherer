@@ -78,6 +78,13 @@ const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
 const DEFAULT_TEST_IMAGE_ASSET = testAssetUrl("image", "pepper.png");
 const DEFAULT_TEST_VIDEO_ASSET = testAssetUrl("video", "akiyo.mp4");
 const basename = (path: string) => path.split("/").pop() || path;
+
+type PreviousCanvasProps = {
+  inputImage?: CanvasImageSource | null;
+  outputImage?: CanvasImageSource | null;
+  scale?: number;
+  time?: number | null;
+};
 const TEST_IMAGE_OPTIONS = TEST_IMAGE_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 const TEST_VIDEO_OPTIONS = TEST_VIDEO_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 const cloneImageToCanvas = (image: HTMLImageElement) => {
@@ -266,7 +273,7 @@ const App = () => {
   }, []);
 
   // Draw to canvas when input/output changes
-  const prevPropsRef = useRef<any>({});
+  const prevPropsRef = useRef<PreviousCanvasProps>({});
   useEffect(() => {
     const prev = prevPropsRef.current;
 

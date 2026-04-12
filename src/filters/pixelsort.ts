@@ -1,4 +1,5 @@
 import { BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import * as palettes from "palettes";
 import {
   cloneCanvas,
@@ -493,9 +494,27 @@ export const defaults = {
   maxIntervalSize: optionTypes.maxIntervalSize.default
 };
 
+type PixelsortPalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type PixelsortOptions = FilterOptionValues & {
+  direction?: string;
+  sortDirection?: string;
+  comparator?: string;
+  palette?: PixelsortPalette;
+  linearLuminance?: boolean;
+  sortPixelLuminanceAbove?: number;
+  sortPixelLuminanceBelow?: number;
+  sortPixelLuminanceChangeAbove?: number;
+  sortPixelLuminanceChangeBelow?: number;
+  extraIntervalStartChance?: number;
+  maxIntervalSize?: number;
+};
+
 const pixelsortFilter = (
   input,
-  options: any = defaults
+  options: PixelsortOptions = defaults
 ) => {
   const {
     direction,
@@ -598,10 +617,10 @@ const pixelsortFilter = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Pixelsort",
   func: pixelsortFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

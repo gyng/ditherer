@@ -1,6 +1,7 @@
 import { RANGE, COLOR, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const FILL_MODE = { LINES: "LINES", FILLED: "FILLED", BOTH: "BOTH" };
 
@@ -24,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const contourLines = (input, options: any = defaults) => {
+const contourLines = (input, options = defaults) => {
   const { levels, lineWidth, lineColor, fillMode, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -105,4 +106,4 @@ const contourLines = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Contour Lines", func: contourLines, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Contour Lines", func: contourLines, optionTypes, options: defaults, defaults });

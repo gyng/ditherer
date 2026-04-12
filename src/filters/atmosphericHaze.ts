@@ -1,6 +1,7 @@
 import { COLOR, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const DEPTH_MODE = {
   LUMA: "LUMA",
@@ -42,7 +43,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const atmosphericHaze = (input, options: any = defaults) => {
+const atmosphericHaze = (input, options = defaults) => {
   const { strength, horizon, softness, highlightBloom, tint, depthMode, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -96,10 +97,10 @@ const atmosphericHaze = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Atmospheric Haze",
   func: atmosphericHaze,
   optionTypes,
   options: defaults,
   defaults,
-};
+});

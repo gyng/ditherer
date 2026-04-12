@@ -1,5 +1,5 @@
 import React from "react";
-import { RgbaColorPicker } from "react-colorful";
+import { RgbaColorPicker, type RgbaColor } from "react-colorful";
 
 import { THEMES, THEME_CATEGORIES, findMatchingThemeKey, getThemeDescription } from "palettes/user";
 import { rgba, uniqueColors, medianCutPalette } from "utils";
@@ -27,11 +27,36 @@ export const modeMap = {
 // Convert a desired color count to median cut recursion depth (rounds up to nearest power of 2)
 const colorCountToDepth = (n: number): number => Math.max(1, Math.ceil(Math.log2(n)));
 
-const onDeleteColor = (e, props) => {
+type PaletteColor = number[];
+
+interface ColorArrayProps {
+  name?: string;
+  inputCanvas?: HTMLCanvasElement | null;
+  value: PaletteColor[];
+  onAddPaletteColor: (color: PaletteColor) => void;
+  onSetPaletteOption: (name: string, value: unknown) => void;
+  onSetFilterOption?: (name: string, value: unknown) => void;
+  onSaveColorPalette: (name: string, colors: PaletteColor[]) => void;
+  onDeleteColorPalette: (name: string) => void;
+}
+
+interface ColorArrayState {
+  extractMode: string;
+  modal: ModalState;
+  pickerOpen: boolean;
+  pickerColor: RgbaColor;
+  extractCollapsed: boolean;
+}
+
+const onDeleteColor = (
+  e: React.KeyboardEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>,
+  props: ColorArrayProps
+) => {
+  const colorIndex = parseInt(e.currentTarget.dataset.idx || "0", 10) - 1;
   props.onSetPaletteOption(
     "colors",
     props.value.filter(
-      (_, idx) => idx !== parseInt(e.target.dataset.idx, 10) - 1
+      (_, idx) => idx !== colorIndex
     )
   );
 };
@@ -41,8 +66,8 @@ type ModalState = null | {
   defaultValue?: string;
 };
 
-export default class ColorArray extends React.Component<any, any> {
-  state = {
+export default class ColorArray extends React.Component<ColorArrayProps, ColorArrayState> {
+  state: ColorArrayState = {
     extractMode: LAB_ADAPT_AVERAGE,
     modal: null as ModalState,
     pickerOpen: false,
@@ -77,7 +102,7 @@ export default class ColorArray extends React.Component<any, any> {
                 true,
                 mode.adaptMode,
                 mode.colorMode
-              );
+              ) as PaletteColor[];
             }
             this.props.onSetPaletteOption("colors", colors);
           }
@@ -208,7 +233,7 @@ export default class ColorArray extends React.Component<any, any> {
                 onClick={() => {
                   const c = this.state.pickerColor;
                   this.props.onAddPaletteColor(
-                    rgba(c.r, c.g, c.b, Math.round(c.a * 255))
+                    rgba(c.r, c.g, c.b, Math.round(c.a * 255)) as PaletteColor
                   );
                 }}
               >
@@ -250,7 +275,7 @@ export default class ColorArray extends React.Component<any, any> {
             ]
           }}
           onSetFilterOption={(name, value) => {
-            this.setState({ extractMode: value });
+            this.setState({ extractMode: String(value) });
           }}
         />
         {extractButton}

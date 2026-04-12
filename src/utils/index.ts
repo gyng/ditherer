@@ -153,19 +153,23 @@ const memoize = (fn) => {
   };
 };
 
-import("wasm/rgba2laba/wasm/rgba2laba").then(async (mod: any) => {
-  await mod.default();
-  wasmRgba2labaInner = mod.rgba2laba;
-  wasmRgbaLabaDistanceInner = mod.rgba_laba_distance;
-  wasmNearestLabIndexInner = mod.rgba_nearest_lab_index;
-  wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
-  wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
-  wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
-  wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
-  wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
-}).catch(err => {
-  console.error("WASM module failed to load, using JS fallback:", err);
-});
+export const wasmReady: Promise<boolean> = import.meta.env.MODE !== "test"
+  ? import("wasm/rgba2laba/wasm/rgba2laba").then(async (mod: any) => {
+    await mod.default();
+    wasmRgba2labaInner = mod.rgba2laba;
+    wasmRgbaLabaDistanceInner = mod.rgba_laba_distance;
+    wasmNearestLabIndexInner = mod.rgba_nearest_lab_index;
+    wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
+    wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
+    wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
+    wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
+    wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
+    return true;
+  }).catch(err => {
+    console.error("WASM module failed to load, using JS fallback:", err);
+    return false;
+  })
+  : Promise.resolve(false);
 
 export const serializeState = (state) => JSON.stringify(state);
 

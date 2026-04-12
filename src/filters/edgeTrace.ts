@@ -9,6 +9,7 @@ import {
   clamp,
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 const RENDER_MODE = {
   SOLID: "SOLID",
@@ -176,10 +177,10 @@ const edgeTrace = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Edge Trace",
   func: edgeTrace,
   options: defaults,
   optionTypes,
   defaults
-};
+});

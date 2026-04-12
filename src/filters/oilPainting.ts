@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -20,7 +21,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const oilPainting = (input, options: any = defaults) => {
+const oilPainting = (input, options = defaults) => {
   const { radius, levels, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -89,10 +90,10 @@ const oilPainting = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Oil Painting",
   func: oilPainting,
   optionTypes,
   options: defaults,
   defaults
-};
+});

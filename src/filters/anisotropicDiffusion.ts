@@ -1,6 +1,7 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const CONDUCTANCE_EXP = "EXP";
 const CONDUCTANCE_QUADRATIC = "QUADRATIC";
@@ -101,10 +102,10 @@ const anisotropicDiffusion = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Anisotropic diffusion",
   func: anisotropicDiffusion,
   options: defaults,
   optionTypes,
   defaults
-};
+});

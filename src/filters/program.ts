@@ -1,6 +1,7 @@
 import { ENUM, TEXT, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const ALL = "ALL";
 export const PIXEL = "PIXEL";
@@ -97,10 +98,10 @@ const programFilter = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Program",
   func: programFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

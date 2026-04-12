@@ -7,6 +7,7 @@ const filterImage = (image) => ({ type: "FILTER_IMAGE", image });
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
 import { deflateSync, inflateSync } from "fflate";
+import { defineFilter } from "filters/types";
 
 export const IMAGE_JPEG = "IMAGE_JPEG";
 export const IMAGE_PNG = "IMAGE_PNG";
@@ -446,11 +447,11 @@ const glitchblob = (
   return ASYNC_FILTER;
 };
 
-export default {
+export default defineFilter({
   name: "Glitch",
   func: glitchblob,
   options: defaults,
   optionTypes,
   defaults,
   mainThread: true
-};
+});

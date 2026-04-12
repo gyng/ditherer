@@ -1,6 +1,7 @@
 import { RANGE, COLOR, PALETTE, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const BAYER_4X4 = [
   [0, 8, 2, 10],
@@ -46,7 +47,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
-const ditherGradient = (input, options: any = defaults) => {
+const ditherGradient = (input, options = defaults) => {
   const {
     color1,
     color2,
@@ -142,4 +143,4 @@ const ditherGradient = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Dither Gradient", func: ditherGradient, optionTypes, options: defaults, defaults, description: "Map a gradient through the source image's luminance and edge structure, then ordered-dither the result" };
+export default defineFilter({ name: "Dither Gradient", func: ditherGradient, optionTypes, options: defaults, defaults, description: "Map a gradient through the source image's luminance and edge structure, then ordered-dither the result" });

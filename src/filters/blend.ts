@@ -1,5 +1,6 @@
 import { RANGE, COLOR, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -82,7 +83,7 @@ const blendChannel = (a: number, b: number, mode: string): number => {
   return Math.round(Math.max(0, Math.min(1, result)) * 255);
 };
 
-const blendFilter = (input, options: any = defaults) => {
+const blendFilter = (input, options = defaults) => {
   const { mode, color, opacity, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -117,10 +118,10 @@ const blendFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Blend",
   func: blendFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

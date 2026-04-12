@@ -1,6 +1,7 @@
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -46,10 +47,10 @@ const triangleDither = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Triangle dither",
   func: triangleDither,
   options: defaults,
   optionTypes,
   defaults
-};
+});

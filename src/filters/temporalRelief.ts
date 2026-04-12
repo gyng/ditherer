@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 const SOURCE = {
@@ -53,7 +54,19 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const temporalRelief = (input, options: any = defaults) => {
+type TemporalReliefOptions = FilterOptionValues & {
+  source?: string;
+  depth?: number;
+  decay?: number;
+  lightAngle?: number;
+  invert?: boolean;
+  animSpeed?: number;
+  _frameIndex?: number;
+  _prevInput?: Uint8ClampedArray | null;
+  _ema?: Float32Array | null;
+};
+
+const temporalRelief = (input, options: TemporalReliefOptions = defaults) => {
   const sourceMode = options.source ?? defaults.source;
   const depth = Number(options.depth ?? defaults.depth);
   const decay = clamp01(Number(options.decay ?? defaults.decay));
@@ -62,8 +75,8 @@ const temporalRelief = (input, options: any = defaults) => {
   const frameIndex = Number(options._frameIndex ?? 0);
 
   const reference: Float32Array | Uint8ClampedArray | null = sourceMode === SOURCE.PREVIOUS_FRAME
-    ? ((options as any)._prevInput || null)
-    : ((options as any)._ema || null);
+    ? (options._prevInput ?? null)
+    : (options._ema ?? null);
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -121,7 +134,7 @@ const temporalRelief = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Motion Relief",
   func: temporalRelief,
   optionTypes,
@@ -129,4 +142,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Convert recent motion history into embossed grayscale surface shading so change reads like raised relief",
-};
+});

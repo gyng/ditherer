@@ -1,4 +1,5 @@
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 // Pass-through filter. Used as the default chain entry after a "Clear chain"
 // action so the user is left with a clean baseline they can build on without
@@ -8,10 +9,10 @@ export const defaults = {};
 
 const noop = (input) => cloneCanvas(input, true);
 
-export default {
+export default defineFilter({
   name: "None",
   func: noop,
   options: defaults,
   optionTypes,
   defaults
-};
+});

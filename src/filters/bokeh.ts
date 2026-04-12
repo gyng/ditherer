@@ -1,6 +1,7 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const SHAPE = { CIRCLE: "CIRCLE", HEXAGON: "HEXAGON" };
 
@@ -23,7 +24,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const bokeh = (input, options: any = defaults) => {
+const bokeh = (input, options = defaults) => {
   const { radius, threshold, intensity, shape, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -123,4 +124,4 @@ const bokeh = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Bokeh", func: bokeh, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Bokeh", func: bokeh, optionTypes, options: defaults, defaults });

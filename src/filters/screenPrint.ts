@@ -2,6 +2,7 @@ import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { THEMES } from "palettes/user";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   plates: { type: RANGE, range: [2, 4], step: 1, default: 3, desc: "Number of spot-color plates to layer" },
@@ -36,7 +37,7 @@ const sampleChannel = (data: Uint8ClampedArray, width: number, height: number, x
   return data[getBufferIndex(sx, sy, width) + channel];
 };
 
-const screenPrint = (input, options: any = defaults) => {
+const screenPrint = (input, options = defaults) => {
   const { plates, offset, angleJitter, paperColor, inkStrength, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -107,11 +108,11 @@ const screenPrint = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Screen Print",
   func: screenPrint,
   options: defaults,
   optionTypes,
   defaults,
   description: "Layer a few flat spot-color plates with visible misregistration for a silkscreen poster look"
-};
+});

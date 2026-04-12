@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   silverTone: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Intensity of silver/mercury toning" },
@@ -18,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const daguerreotype = (input, options: any = defaults) => {
+const daguerreotype = (input, options = defaults) => {
   const { silverTone, softFocus, vignette, metallic, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -90,4 +91,4 @@ const daguerreotype = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Daguerreotype", func: daguerreotype, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Daguerreotype", func: daguerreotype, optionTypes, options: defaults, defaults });

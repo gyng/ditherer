@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Overall burn intensity" },
@@ -23,7 +24,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const filmBurn = (input, options: any = defaults) => {
+const filmBurn = (input, options = defaults) => {
   const { intensity, warmth, hotspots, seed, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -95,4 +96,4 @@ const filmBurn = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Film Burn", func: filmBurn, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Film Burn", func: filmBurn, optionTypes, options: defaults, defaults });

@@ -1,5 +1,6 @@
 import { ACTION, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 let heldABuf: Uint8ClampedArray | null = null;
 let heldBBuf: Uint8ClampedArray | null = null;
@@ -70,7 +71,11 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const abaGhost = (input, options: any = defaults) => {
+type AbaGhostOptions = FilterOptionValues & typeof defaults & {
+  _frameIndex?: number;
+};
+
+const abaGhost = (input, options: AbaGhostOptions = defaults) => {
   const ghostMix = Math.max(0, Math.min(1, Number(options.ghostMix ?? defaults.ghostMix)));
   const persistence = Math.max(0, Math.min(0.999, Number(options.persistence ?? defaults.persistence)));
   const flash = Math.max(0, Number(options.flash ?? defaults.flash));
@@ -129,7 +134,7 @@ const abaGhost = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter<AbaGhostOptions>({
   name: "ABA Ghost",
   func: abaGhost,
   optionTypes,
@@ -137,4 +142,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Store A and B, then replay a persistent mostly-B double exposure whose emphasized beat can drift off the strict ABA grid for a looser variable-frame ghost trail",
-};
+});

@@ -1,4 +1,5 @@
 import { RANGE, BOOL, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas, getBufferIndex } from "utils";
 
 export const optionTypes = {
@@ -18,9 +19,19 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const motionPixelate = (input, options: any = defaults) => {
-  const { blockSize, invert, threshold } = options;
-  const ema: Float32Array | null = (options as any)._ema || null;
+type MotionPixelateOptions = FilterOptionValues & {
+  blockSize?: number;
+  invert?: boolean;
+  threshold?: number;
+  animSpeed?: number;
+  _ema?: Float32Array | null;
+};
+
+const motionPixelate = (input, options: MotionPixelateOptions = defaults) => {
+  const blockSize = Number(options.blockSize ?? defaults.blockSize);
+  const invert = Boolean(options.invert ?? defaults.invert);
+  const threshold = Number(options.threshold ?? defaults.threshold);
+  const ema = options._ema ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -94,4 +105,4 @@ const motionPixelate = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Motion Pixelate", func: motionPixelate, optionTypes, options: defaults, defaults, mainThread: true, description: "Moving areas become pixelated — privacy/censorship or artistic motion effect" };
+export default defineFilter({ name: "Motion Pixelate", func: motionPixelate, optionTypes, options: defaults, defaults, mainThread: true, description: "Moving areas become pixelated — privacy/censorship or artistic motion effect" });

@@ -2081,7 +2081,10 @@ const getColor = (
 
   // WASM precomputed Lab path — palette Lab is cached, only pixel is converted per call.
   // Used for per-pixel matching (error diffusion) when Lab is selected.
-  if (colorDistanceAlgorithm === LAB_NEAREST && (options as any)._wasmAcceleration) {
+  if (
+    colorDistanceAlgorithm === LAB_NEAREST
+    && (options as { _wasmAcceleration?: boolean })._wasmAcceleration
+  ) {
     const idx = wasmNearestLabPrecomputed(color, colors);
     return colors[idx];
   }

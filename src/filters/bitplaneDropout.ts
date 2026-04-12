@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, paletteGetColor, rgba } from "utils";
 
@@ -60,10 +61,31 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const bitplaneDropout = (input, options: any = defaults) => {
-  const { mode, targetBits, perChannel, burstChance, burstLength, recoverRate, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+type BitplaneDropoutOptions = FilterOptionValues & {
+  mode?: string;
+  targetBits?: number;
+  perChannel?: boolean;
+  burstChance?: number;
+  burstLength?: number;
+  recoverRate?: number;
+  animSpeed?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+  _frameIndex?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const bitplaneDropout = (input, options: BitplaneDropoutOptions = defaults) => {
+  const mode = String(options.mode ?? defaults.mode);
+  const targetBits = Number(options.targetBits ?? defaults.targetBits);
+  const perChannel = Boolean(options.perChannel ?? defaults.perChannel);
+  const burstChance = Number(options.burstChance ?? defaults.burstChance);
+  const burstLength = Number(options.burstLength ?? defaults.burstLength);
+  const recoverRate = Number(options.recoverRate ?? defaults.recoverRate);
+  const palette = options.palette ?? defaults.palette;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const prevOutput = options._prevOutput ?? null;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -129,7 +151,7 @@ const bitplaneDropout = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Bitplane Dropout",
   func: bitplaneDropout,
   optionTypes,
@@ -137,4 +159,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Corrupt specific RGB bitplanes in bursts so significance levels drop, freeze, or flip like real digital faults"
-};
+});

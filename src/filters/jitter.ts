@@ -1,6 +1,7 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   jitterX: { type: RANGE, range: [0, 100], default: 4, desc: "Maximum horizontal pixel displacement per row" },
@@ -95,10 +96,10 @@ const jitterFilter = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Jitter",
   func: jitterFilter,
   options: defaults,
   optionTypes,
   defaults
-};
+});

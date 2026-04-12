@@ -1,5 +1,6 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -126,10 +127,10 @@ const colorGradientNoise = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Color Gradient Noise",
   func: colorGradientNoise,
   options: defaults,
   optionTypes,
   defaults
-};
+});

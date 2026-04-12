@@ -1,5 +1,6 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -26,7 +27,7 @@ export const defaults = {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-const gradientMap = (input, options: any = defaults) => {
+const gradientMap = (input, options = defaults) => {
   const { color1, color2, color3, mix, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -75,10 +76,10 @@ const gradientMap = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Gradient Map",
   func: gradientMap,
   optionTypes,
   options: defaults,
   defaults
-};
+});

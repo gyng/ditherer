@@ -1,5 +1,6 @@
 import { RANGE, ENUM, BOOL, ACTION } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 const BLEND = { LIGHTEN: "LIGHTEN", AVERAGE: "AVERAGE", DARKEN: "DARKEN" };
 const FADE = { LINEAR: "LINEAR", TAIL: "TAIL", HEAD: "HEAD" };
@@ -52,7 +53,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const chronophotography = (input, options: any = defaults) => {
+const chronophotography = (input, options = defaults) => {
   const { exposures, interval, blendMode, fadeMode, isolateSubject } = options;
   const ema: Float32Array | null = (options as any)._ema || null;
   const output = cloneCanvas(input, false);
@@ -164,4 +165,4 @@ const chronophotography = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Chronophotography", func: chronophotography, optionTypes, options: defaults, defaults, mainThread: true, description: "Multiple exposures of moving subjects — Marey's stroboscopic photography" };
+export default defineFilter({ name: "Chronophotography", func: chronophotography, optionTypes, options: defaults, defaults, mainThread: true, description: "Multiple exposures of moving subjects — Marey's stroboscopic photography" });

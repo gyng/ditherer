@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -22,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const chromaticPosterize = (input, options: any = defaults) => {
+const chromaticPosterize = (input, options = defaults) => {
   const { levelsR, levelsG, levelsB, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -67,10 +68,10 @@ const chromaticPosterize = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Chromatic Posterize",
   func: chromaticPosterize,
   optionTypes,
   options: defaults,
   defaults
-};
+});

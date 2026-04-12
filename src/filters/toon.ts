@@ -2,6 +2,7 @@ import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Number of flat color bands used for cel shading" },
@@ -19,7 +20,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const toon = (input, options: any = defaults) => {
+const toon = (input, options = defaults) => {
   const { levels, edgeThreshold, lineColor, lineWidth, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -96,10 +97,10 @@ const toon = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Toon",
   func: toon,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,4 +1,5 @@
 import { ACTION, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 const MODE = {
@@ -67,7 +68,15 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const flicker = (input, options: any = defaults) => {
+type FlickerOptions = FilterOptionValues & {
+  mode?: string;
+  amount?: number;
+  flash?: number;
+  animSpeed?: number;
+  _frameIndex?: number;
+};
+
+const flicker = (input, options: FlickerOptions = defaults) => {
   const mode = options.mode || defaults.mode;
   const amount = Math.max(0, Math.min(1, Number(options.amount ?? defaults.amount)));
   const flash = Math.max(0, Number(options.flash ?? defaults.flash));
@@ -135,7 +144,7 @@ const flicker = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Flicker",
   func: flicker,
   optionTypes,
@@ -143,4 +152,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Aggressive projector/monitor flicker with live ghost, strobe, and held-frame flash modes",
-};
+});

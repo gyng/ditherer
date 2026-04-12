@@ -1,4 +1,5 @@
 import { ACTION, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 let heldBands: Uint8Array | null = null;
@@ -44,7 +45,15 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const temporalPosterHold = (input, options: any = defaults) => {
+type TemporalPosterHoldOptions = FilterOptionValues & {
+  levels?: number;
+  holdThreshold?: number;
+  releaseSpeed?: number;
+  animSpeed?: number;
+  _frameIndex?: number;
+};
+
+const temporalPosterHold = (input, options: TemporalPosterHoldOptions = defaults) => {
   const levels = Math.max(2, Math.round(Number(options.levels ?? defaults.levels)));
   const holdThreshold = Math.max(0, Number(options.holdThreshold ?? defaults.holdThreshold));
   const releaseSpeed = Math.max(0.01, Number(options.releaseSpeed ?? defaults.releaseSpeed));
@@ -114,7 +123,7 @@ const temporalPosterHold = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Poster Hold",
   func: temporalPosterHold,
   optionTypes,
@@ -122,4 +131,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Posterized tone bands update with temporal hysteresis so broad regions stick before snapping to a new tone",
-};
+});

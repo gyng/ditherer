@@ -1,6 +1,7 @@
 import { COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 // Parse color that may be hex string (legacy URLs) or [r,g,b] array
 const parseColor = (c: any): [number, number, number] => {
@@ -56,10 +57,10 @@ const duotone = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Duotone",
   func: duotone,
   options: defaults,
   optionTypes,
   defaults
-};
+});

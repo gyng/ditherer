@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import * as palettes from "palettes";
 import {
   cloneCanvas,
@@ -160,6 +161,40 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
+type RgbStripePalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type RgbStripeOptions = FilterOptionValues & {
+  includeScanline?: boolean;
+  scanlineGap?: number;
+  scanlineStrength?: number;
+  shadowMask?: string;
+  brightness?: number;
+  contrast?: number;
+  exposure?: number;
+  gamma?: number;
+  strength?: number;
+  phosphorScale?: number;
+  misconvergence?: number;
+  beamSpread?: number;
+  bloom?: boolean;
+  bloomThreshold?: number;
+  bloomRadius?: number;
+  bloomStrength?: number;
+  curvature?: number;
+  vignette?: number;
+  interlace?: boolean;
+  persistence?: number;
+  flicker?: number;
+  animSpeed?: number;
+  blur?: boolean;
+  palette?: RgbStripePalette;
+  _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+  _degaussFrame?: number;
+};
+
 // Newton's method to invert barrel distortion: r_dst = r_src * (1 + k * r_src^2)
 const invertRadius = (rDst: number, k: number): number => {
   if (rDst === 0) return 0;
@@ -184,7 +219,7 @@ const readBuf = (buf: Uint8ClampedArray, x: number, y: number, W: number, H: num
 
 const rgbStripe = (
   input,
-  options = defaults
+  options: RgbStripeOptions = defaults
 ) => {
   const {
     includeScanline,
@@ -212,9 +247,9 @@ const rgbStripe = (
     palette
   } = options;
 
-  const prevOutput = (options as any)._prevOutput || null;
-  const frameIndex = (options as any)._frameIndex || 0;
-  const degaussFrame = (options as any)._degaussFrame ?? -Infinity;
+  const prevOutput = options._prevOutput ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const degaussFrame = Number(options._degaussFrame ?? -Infinity);
 
   // Degauss: decaying wobble over 45 frames (~1.5s)
   const DEGAUSS_DURATION = 45;
@@ -536,20 +571,23 @@ const rgbStripe = (
   );
 
   if (blur) {
-    output = convolve.func(output, {
+    const maybeBlurred = convolve.func(output, {
       ...convolveDefaults,
       kernel: GAUSSIAN_3X3_WEAK
     });
+    if (maybeBlurred instanceof HTMLCanvasElement) {
+      output = maybeBlurred;
+    }
   }
 
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "rgbStripe",
   func: rgbStripe,
   optionTypes,
   options: defaults,
   defaults,
   mainThread: true
-};
+});

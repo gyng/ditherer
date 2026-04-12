@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25, desc: "Downscale factor for both axes (smaller = bigger pixels)" },
@@ -73,10 +74,10 @@ const pixelate = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Pixelate",
   func: pixelate,
   options: defaults,
   optionTypes,
   defaults
-};
+});

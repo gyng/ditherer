@@ -1,4 +1,5 @@
 import { ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 import {
   cloneCanvas,
@@ -179,9 +180,13 @@ export const defaults = {
   strength: optionTypes.strength.default
 };
 
+type ConvolveOptions = FilterOptionValues & typeof defaults & {
+  _linearize?: boolean;
+};
+
 const convolve = (
   input,
-  options: any = defaults
+  options: ConvolveOptions = defaults
 ) => {
   const kernel = kernels[options.kernel];
   const matrix = scaleMatrix(kernel.matrix, options.strength);
@@ -366,10 +371,10 @@ const convolve = (
   return output;
 };
 
-export default {
+export default defineFilter<ConvolveOptions>({
   name: "Convolve",
   func: convolve,
   options: defaults,
   optionTypes,
   defaults
-};
+});

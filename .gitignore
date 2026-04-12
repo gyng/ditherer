@@ -5,3 +5,4 @@ set_config_folder_dir
 yarn-error.log
 .DS_Store
 bench-results/
+coverage/

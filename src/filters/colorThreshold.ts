@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   hueCenter: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Target hue to isolate in degrees" },
@@ -16,7 +17,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const colorThreshold = (input, options: any = defaults) => {
+const colorThreshold = (input, options = defaults) => {
   const { hueCenter, hueRange, saturationMin, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -68,4 +69,4 @@ const colorThreshold = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Color Threshold", func: colorThreshold, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Color Threshold", func: colorThreshold, optionTypes, options: defaults, defaults });

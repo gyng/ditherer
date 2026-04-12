@@ -1,6 +1,7 @@
 import { RANGE, ENUM, BOOL, STRING } from "constants/controlTypes";
 import { CHARSET, SHARED_CHARSET_GROUPS, getCharsetString } from "./charsets";
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 const CHARSET_ASCII = "ASCII";
 const CHARSET_BRAILLE = "BRAILLE";
@@ -187,10 +188,10 @@ const ascii = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "ASCII",
   func: ascii,
   options: defaults,
   optionTypes,
   defaults
-};
+});

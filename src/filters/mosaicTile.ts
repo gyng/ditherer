@@ -1,6 +1,7 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   tileSize: { type: RANGE, range: [4, 40], step: 1, default: 12, desc: "Tile size in pixels" },
@@ -23,7 +24,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const mosaicTile = (input, options: any = defaults) => {
+const mosaicTile = (input, options = defaults) => {
   const { tileSize, groutWidth, groutColor, jitter, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -77,4 +78,4 @@ const mosaicTile = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Mosaic Tile", func: mosaicTile, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Mosaic Tile", func: mosaicTile, optionTypes, options: defaults, defaults });

@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 const LAYOUT = {
@@ -336,7 +337,21 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const infiniteCallWindows = (input, options: any = defaults) => {
+type InfiniteCallWindowsOptions = FilterOptionValues & {
+  layout?: string;
+  depth?: number;
+  scalePerDepth?: number;
+  drift?: number;
+  mix?: number;
+  uiChrome?: boolean;
+  digitalDegrade?: number;
+  accentHue?: number;
+  animSpeed?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+};
+
+const infiniteCallWindows = (input, options: InfiniteCallWindowsOptions = defaults) => {
   const {
     layout,
     depth,
@@ -348,8 +363,8 @@ const infiniteCallWindows = (input, options: any = defaults) => {
     accentHue,
   } = options;
 
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const prevOutput = options._prevOutput ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -426,7 +441,7 @@ const infiniteCallWindows = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Infinite Call Windows",
   func: infiniteCallWindows,
   optionTypes,
@@ -434,4 +449,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Recursive meeting panes with digital UI chrome, blocky compression wear, and endless self-view nesting",
-};
+});

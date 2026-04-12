@@ -1,5 +1,6 @@
 import { ACTION, RANGE, BOOL, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -144,7 +145,7 @@ const worleyNoise = (px: number, py: number, seed: number) => {
   return Math.sqrt(minDist);
 };
 
-const noiseGenerator = (input, options: any = defaults) => {
+const noiseGenerator = (input, options = defaults) => {
   const { type, scale, octaves, seed: seedOpt, colorize, mix, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
 
@@ -221,10 +222,10 @@ const noiseGenerator = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Noise Generator",
   func: noiseGenerator,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   density: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.5, desc: "Overall dot coverage density" },
@@ -19,7 +20,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const mezzotint = (input, options: any = defaults) => {
+const mezzotint = (input, options = defaults) => {
   const { density, dotSize, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -60,4 +61,4 @@ const mezzotint = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Mezzotint", func: mezzotint, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Mezzotint", func: mezzotint, optionTypes, options: defaults, defaults });

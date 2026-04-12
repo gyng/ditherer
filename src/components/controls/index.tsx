@@ -1,4 +1,12 @@
 import React from "react";
+import type {
+  ActionOptionDefinition,
+  EnumOptionDefinition,
+  FilterOptionDefinitions,
+  FilterOptionValues,
+  PaletteOptionDefinition,
+  RangeOptionDefinition,
+} from "filters/types";
 
 import {
   ACTION,
@@ -31,8 +39,8 @@ const Controls = (props) => {
   const { state, actions } = useFilter();
   // Allow prop overrides for nested Controls (e.g., Palette sub-options)
   const filter = state.selected?.filter;
-  const optionTypes = props.optionTypes || filter?.optionTypes || {};
-  const options = props.options || filter?.options || {};
+  const optionTypes: FilterOptionDefinitions = props.optionTypes || filter?.optionTypes || {};
+  const options: FilterOptionValues = props.options || filter?.options || {};
   const inputCanvas = props.inputCanvas;
   const onSetFilterOption = props.onSetFilterOption || actions.setFilterOption;
   const onSetPaletteOption = props.onSetPaletteOption || actions.setFilterPaletteOption;
@@ -47,7 +55,7 @@ const Controls = (props) => {
         // visibleWhen(options) callback to hide controls that are no-ops
         // given the current option values (e.g. rowAlternation when the
         // scan order isn't row-major).
-        const vw = (oType as any).visibleWhen;
+        const vw = oType.visibleWhen;
         return typeof vw !== "function" || vw(options);
       }).map(e => {
         const [name, oType] = e;
@@ -56,39 +64,47 @@ const Controls = (props) => {
         // (defined value) on first interaction — that triggers React's
         // controlled-input warning. Happens easily when the user replaces
         // one filter with another that has a different option shape.
-        const value = options[name] !== undefined ? options[name] : (oType as any).default;
+        const value = options[name] !== undefined ? options[name] : oType.default;
 
-        switch ((oType as any).type) {
+        switch (oType.type) {
           case ACTION:
+            {
+              const actionType = oType as ActionOptionDefinition;
             return (
               <button
                 key={name}
                 onClick={() => {
-                  (oType as any).action(actions, inputCanvas, state.selected?.filter?.func, options);
+                  actionType.action(actions, inputCanvas, state.selected?.filter?.func, options);
                 }}
               >
-                {(oType as any).label || name}
+                {actionType.label || name}
               </button>
             );
+            }
           case RANGE:
+            {
+              const rangeType = oType as RangeOptionDefinition;
             return (
               <Range
                 key={name}
                 name={name}
-                types={oType}
+                types={rangeType}
                 value={value}
-                step={oType && (oType as any).step}
+                step={rangeType.step}
                 onSetFilterOption={onSetFilterOption}
               />
             );
+            }
           case PALETTE:
+            {
+              const paletteType = oType as PaletteOptionDefinition;
             return (
               <Palette
                 key={name}
                 name={name}
-                types={oType}
+                types={paletteType}
                 value={value}
-                paletteOptions={value?.options}
+                paletteOptions={(value as { options?: FilterOptionValues } | undefined)?.options}
                 onAddPaletteColor={onAddPaletteColor}
                 onSetFilterOption={onSetFilterOption}
                 onSetPaletteOption={onSetPaletteOption}
@@ -97,12 +113,13 @@ const Controls = (props) => {
                 inputCanvas={inputCanvas}
               />
             );
+            }
           case COLOR_ARRAY:
             return (
               <ColorArray
                 key={name}
                 name={name}
-                value={options.colors}
+                value={Array.isArray(options.colors) ? (options.colors as number[][]) : []}
                 onAddPaletteColor={onAddPaletteColor}
                 onSetFilterOption={onSetFilterOption}
                 onSetPaletteOption={onSetPaletteOption}
@@ -161,15 +178,18 @@ const Controls = (props) => {
               />
             );
           case ENUM:
+            {
+              const enumType = oType as EnumOptionDefinition;
             return (
               <Enum
                 key={name}
                 name={name}
-                types={oType}
+                types={enumType}
                 value={value}
                 onSetFilterOption={onSetFilterOption}
               />
             );
+            }
           default:
             return <div>Unknown setting type</div>;
         }

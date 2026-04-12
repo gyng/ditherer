@@ -1,6 +1,7 @@
 import { ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const MODE = { HORIZONTAL: "HORIZONTAL", VERTICAL: "VERTICAL", BOTH: "BOTH" };
 
@@ -18,7 +19,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const flipFilter = (input, options: any = defaults) => {
+const flipFilter = (input, options = defaults) => {
   const { mode, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -44,4 +45,4 @@ const flipFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Flip", func: flipFilter, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Flip", func: flipFilter, optionTypes, options: defaults, defaults });

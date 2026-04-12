@@ -5,6 +5,7 @@ import {
   linearFloatToSrgbBuf,
   linearPaletteGetColor
 } from "utils";
+import type { FilterOptionValues } from "filters/types";
 
 import { BOOL, ENUM, PALETTE, RANGE, ACTION } from "constants/controlTypes";
 import * as palettes from "palettes";
@@ -73,6 +74,24 @@ const SYMMETRIC_TUPLES = [
   { dx:  0, dy:  1, weight: 1 / 8 },
   { dx:  1, dy:  1, weight: 1 / 8 },
 ];
+
+type ErrorDiffusingRuntimeOptions = FilterOptionValues & {
+  palette?: {
+    getColor?: (color: unknown, options?: FilterOptionValues) => number[];
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+  serpentine?: boolean;
+  temporalMode?: string;
+  temporalBleed?: number;
+  voteWindow?: number;
+  scanOrder?: string;
+  rowAlternation?: string;
+  errorStrategy?: string;
+  _frameIndex?: number;
+  _prevInput?: Uint8ClampedArray | null;
+  _prevOutput?: Uint8ClampedArray | null;
+  _linearize?: boolean;
+};
 
 // Visibility predicates: only show row-major options when scanOrder is row-major,
 // only show errorStrategy when scanOrder is custom-order.
@@ -415,16 +434,18 @@ export const errorDiffusingFilter = (
 
   const filter = (
     input,
-    options = defaultOptions
+    options: ErrorDiffusingRuntimeOptions = defaultOptions
   ) => {
-    const { palette } = options;
+    const palette = (options.palette ?? defaultOptions.palette) as NonNullable<
+      ErrorDiffusingRuntimeOptions["palette"]
+    >;
     const serpentine = options.serpentine !== undefined ? options.serpentine : true;
     const temporalMode = options.temporalMode || defaults.temporalMode;
     const temporalBleed = options.temporalBleed || 0;
     const voteWindow = Math.max(3, Math.round(options.voteWindow || defaults.voteWindow));
-    const frameIndex = Number((options as any)._frameIndex || 0);
-    const prevInput: Uint8ClampedArray | null = (options as any)._prevInput || null;
-    const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+    const frameIndex = Number(options._frameIndex || 0);
+    const prevInput = options._prevInput ?? null;
+    const prevOutput = options._prevOutput ?? null;
 
     const scanOrder: string = options.scanOrder || ORDER.HORIZONTAL;
     const rowAlt: string = options.rowAlternation || ROW_ALT.BOUSTROPHEDON;

@@ -1,6 +1,7 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const MODE = {
   LOW: "LOW",
@@ -75,7 +76,7 @@ const boxBlur = (src: Uint8ClampedArray, width: number, height: number, radius: 
   return out;
 };
 
-const frequencyFilter = (input, options: any = defaults) => {
+const frequencyFilter = (input, options = defaults) => {
   const { mode, radius, bandWidth, gain, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -119,11 +120,11 @@ const frequencyFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Frequency Filter",
   func: frequencyFilter,
   optionTypes,
   options: defaults,
   defaults,
   description: "Approximate low, high, or mid-band frequency separation using spatial-domain filtering"
-};
+});

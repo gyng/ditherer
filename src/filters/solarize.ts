@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 96, desc: "Brightness level above which pixels invert" },
@@ -36,10 +37,10 @@ const solarize = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Solarize",
   func: solarize,
   options: defaults,
   optionTypes,
   defaults
-};
+});

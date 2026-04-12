@@ -1,5 +1,6 @@
 import { ACTION, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 let heldABuf: Uint8ClampedArray | null = null;
 let heldBBuf: Uint8ClampedArray | null = null;
@@ -52,7 +53,11 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const abaBounce = (input, options: any = defaults) => {
+type AbaBounceOptions = FilterOptionValues & typeof defaults & {
+  _frameIndex?: number;
+};
+
+const abaBounce = (input, options: AbaBounceOptions = defaults) => {
   const strength = Math.max(0, Number(options.strength ?? defaults.strength));
   const cadenceDrift = Math.max(0, Math.min(1, Number(options.cadenceDrift ?? defaults.cadenceDrift)));
   const frameIndex = Number(options._frameIndex ?? 0);
@@ -111,7 +116,7 @@ const abaBounce = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter<AbaBounceOptions>({
   name: "ABA Bounce",
   func: abaBounce,
   optionTypes,
@@ -119,4 +124,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Store A and B, then turn the emphasized beat into a reflected reverse frame whose cadence can drift off the strict ABA grid",
-};
+});

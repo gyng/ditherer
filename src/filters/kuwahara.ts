@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   radius: { type: RANGE, range: [1, 16], step: 1, default: 3, desc: "Filter kernel radius — larger = more painterly" },
@@ -135,10 +136,10 @@ const kuwahara = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Kuwahara",
   func: kuwahara,
   options: defaults,
   optionTypes,
   defaults
-};
+});

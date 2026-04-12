@@ -1,6 +1,7 @@
 import { PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -75,7 +76,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const foliageSimplifier = (input, options: any = defaults) => {
+const foliageSimplifier = (input, options = defaults) => {
   const { radius, regionMerge, edgePreserve, brushiness, shadowRetention, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -134,10 +135,10 @@ const foliageSimplifier = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Foliage Simplifier",
   func: foliageSimplifier,
   optionTypes,
   options: defaults,
   defaults,
-};
+});

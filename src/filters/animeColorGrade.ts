@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -68,7 +69,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeColorGrade = (input, options: any = defaults) => {
+const animeColorGrade = (input, options = defaults) => {
   const {
     shadowCool,
     highlightWarm,
@@ -156,10 +157,10 @@ const animeColorGrade = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Anime Color Grade",
   func: animeColorGrade,
   optionTypes,
   options: defaults,
   defaults,
-};
+});

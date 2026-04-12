@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   rOffsetX: { type: RANGE, range: [0, 100], default: 10, desc: "Red channel horizontal offset" },
@@ -102,10 +103,10 @@ const channelSeparation = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Channel separation",
   func: channelSeparation,
   options: defaults,
   optionTypes,
   defaults
-};
+});

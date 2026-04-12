@@ -200,12 +200,6 @@ describe("linearize safety: every filter produces opaque output with _linearize=
     "Jarvis",
     "Stripe (Horizontal)",
     "Stripe (Vertical)",
-    // Pre-existing filters that have the linearize bug but pass
-    // options._linearize to paletteGetColor without conversion.
-    // TODO: fix these and remove from skip list.
-    "Channel separation",
-    "Jitter",
-    "Scanline",
   ]);
 
   const allFilters = Object.entries(filterIndex);

@@ -1,5 +1,6 @@
 import { ACTION, RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -46,7 +47,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const scanLineShift = (input, options: any = defaults) => {
+const scanLineShift = (input, options = defaults) => {
   const { maxShift, blockHeight, chance, colorShift, wrap, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
 
@@ -104,10 +105,10 @@ const scanLineShift = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Scan Line Shift",
   func: scanLineShift,
   optionTypes,
   options: defaults,
   defaults
-};
+});

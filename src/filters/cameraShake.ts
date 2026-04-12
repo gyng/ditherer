@@ -1,4 +1,5 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { cloneCanvas, paletteGetColor } from "utils";
 
@@ -11,6 +12,20 @@ type RigState = {
   vy: number;
   vRotation: number;
   vZoom: number;
+};
+
+type CameraShakeOptions = FilterOptionValues & {
+  amountX?: number;
+  amountY?: number;
+  rotation?: number;
+  zoomJitter?: number;
+  frequency?: number;
+  inertia?: number;
+  tremor?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+  _frameIndex?: number;
 };
 
 let rigState: RigState = {
@@ -104,7 +119,7 @@ const updateAxis = (
   };
 };
 
-const stepRig = (frameIndex: number, options: any) => {
+const stepRig = (frameIndex: number, options: CameraShakeOptions) => {
   const { amountX, amountY, rotation, zoomJitter, frequency, inertia, tremor } = options;
   const t = frameIndex * frequency * 0.12;
   const response = 0.08 + (1 - inertia) * 0.22;
@@ -133,7 +148,7 @@ const stepRig = (frameIndex: number, options: any) => {
   rigState.vZoom = nextZoom.velocity;
 };
 
-const getStateKey = (width: number, height: number, options: any) => [
+const getStateKey = (width: number, height: number, options: CameraShakeOptions) => [
   width,
   height,
   options.amountX,
@@ -145,8 +160,8 @@ const getStateKey = (width: number, height: number, options: any) => [
   options.tremor,
 ].join("|");
 
-const cameraShake = (input, options: any = defaults) => {
-  const frameIndex = (options as any)._frameIndex || 0;
+const cameraShake = (input, options: CameraShakeOptions = defaults) => {
+  const frameIndex = typeof options._frameIndex === "number" ? options._frameIndex : 0;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -205,7 +220,7 @@ export const __testing = {
   resetRigState,
 };
 
-export default {
+export default defineFilter({
   name: "Camera Shake",
   func: cameraShake,
   optionTypes,
@@ -213,4 +228,4 @@ export default {
   defaults,
   mainThread: true,
   description: "More realistic handheld shake with drift targets, inertia, settling, and fine tremor"
-};
+});

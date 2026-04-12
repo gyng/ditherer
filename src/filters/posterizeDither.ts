@@ -1,5 +1,6 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -121,10 +122,10 @@ const posterizeDither = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Posterize Dither",
   func: posterizeDither,
   options: defaults,
   optionTypes,
   defaults
-};
+});

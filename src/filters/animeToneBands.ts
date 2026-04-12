@@ -1,6 +1,7 @@
 import { BOOL, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const smoothstep = (edge0: number, edge1: number, value: number) => {
@@ -34,7 +35,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeToneBands = (input, options: any = defaults) => {
+const animeToneBands = (input, options = defaults) => {
   const { shadowSteps, highlightSteps, edgeSoftness, bandBias, preserveSkin, mix, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -88,10 +89,10 @@ const animeToneBands = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Anime Tone Bands",
   func: animeToneBands,
   optionTypes,
   options: defaults,
   defaults,
-};
+});

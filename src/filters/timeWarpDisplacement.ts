@@ -1,5 +1,6 @@
 import { RANGE, ENUM, ACTION } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 const SOURCE = {
   LUMINANCE: "LUMINANCE",
@@ -52,7 +53,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const timeWarpDisplacement = (input, options: any = defaults) => {
+const timeWarpDisplacement = (input, options = defaults) => {
   const { depth, source, direction } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -99,4 +100,4 @@ const timeWarpDisplacement = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Time-warp Displacement", func: timeWarpDisplacement, optionTypes, options: defaults, defaults, mainThread: true, description: "Sample different moments from recent history on a per-pixel basis for surreal time-sliced motion warping" };
+export default defineFilter({ name: "Time-warp Displacement", func: timeWarpDisplacement, optionTypes, options: defaults, defaults, mainThread: true, description: "Sample different moments from recent history on a per-pixel basis for surreal time-sliced motion warping" });

@@ -1,5 +1,6 @@
 import { ACTION, RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -42,7 +43,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const filmGrain = (input, options: any = defaults) => {
+const filmGrain = (input, options = defaults) => {
   const { amount, size, monochrome, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
 
@@ -91,10 +92,10 @@ const filmGrain = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Film Grain",
   func: filmGrain,
   optionTypes,
   options: defaults,
   defaults
-};
+});

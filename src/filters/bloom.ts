@@ -1,5 +1,6 @@
 import { RANGE, ENUM } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 const THRESHOLD_ABSOLUTE = "ABSOLUTE";
 const THRESHOLD_RELATIVE = "RELATIVE";
@@ -106,10 +107,10 @@ const bloom = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Bloom",
   func: bloom,
   options: defaults,
   optionTypes,
   defaults
-};
+});

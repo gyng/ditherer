@@ -1,6 +1,7 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const MODE = { DILATE: "DILATE", ERODE: "ERODE", OPEN: "OPEN", CLOSE: "CLOSE" };
 
@@ -51,7 +52,7 @@ const applyMorphOp = (buf: Uint8ClampedArray, W: number, H: number, radius: numb
   return out;
 };
 
-const morphology = (input, options: any = defaults) => {
+const morphology = (input, options = defaults) => {
   const { mode, radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -82,4 +83,4 @@ const morphology = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Dilate / Erode", func: morphology, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Dilate / Erode", func: morphology, optionTypes, options: defaults, defaults });

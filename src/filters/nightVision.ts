@@ -1,5 +1,6 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -198,10 +199,10 @@ const nightVision = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Night vision",
   func: nightVision,
   options: defaults,
   optionTypes,
   defaults
-};
+});

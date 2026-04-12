@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba } from "utils";
 
@@ -23,7 +24,12 @@ const mulberry32 = (seed: number) => {
 
 const luminance = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-const buildPalette = (src: Uint8ClampedArray, size: number, palette) => {
+type PaletteLike = {
+  getColor?: (...args: unknown[]) => unknown;
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+const buildPalette = (src: Uint8ClampedArray, size: number, palette?: PaletteLike) => {
   const bins = new Map<number, { count: number; r: number; g: number; b: number }>();
 
   for (let i = 0; i < src.length; i += 4) {
@@ -160,9 +166,25 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const paletteIndexDrift = (input, options: any = defaults) => {
-  const { paletteSize, driftMode, driftRate, lockLuma, ditherBeforeIndex, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
+type PaletteIndexDriftOptions = FilterOptionValues & {
+  paletteSize?: number;
+  driftMode?: string;
+  driftRate?: number;
+  lockLuma?: boolean;
+  ditherBeforeIndex?: boolean;
+  animSpeed?: number;
+  palette?: PaletteLike;
+  _frameIndex?: number;
+};
+
+const paletteIndexDrift = (input, options: PaletteIndexDriftOptions = defaults) => {
+  const paletteSize = Number(options.paletteSize ?? defaults.paletteSize);
+  const driftMode = String(options.driftMode ?? defaults.driftMode);
+  const driftRate = Number(options.driftRate ?? defaults.driftRate);
+  const lockLuma = Boolean(options.lockLuma ?? defaults.lockLuma);
+  const ditherBeforeIndex = Boolean(options.ditherBeforeIndex ?? defaults.ditherBeforeIndex);
+  const palette = options.palette ?? defaults.palette;
+  const frameIndex = Number(options._frameIndex ?? 0);
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -218,7 +240,7 @@ const paletteIndexDrift = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Palette Index Drift",
   func: paletteIndexDrift,
   optionTypes,
@@ -226,4 +248,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Map into an indexed palette, then drift the lookup table over time so colors break while geometry stays stable"
-};
+});

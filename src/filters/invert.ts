@@ -1,5 +1,6 @@
 import { BOOL } from "constants/controlTypes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   invertR: { type: BOOL, default: true, desc: "Invert red channel" },
@@ -42,10 +43,10 @@ const invert = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Invert",
   func: invert,
   options: defaults,
   optionTypes,
   defaults
-};
+});

@@ -1,6 +1,7 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const BASE_MODE = {
   ORIGINAL: "ORIGINAL",
@@ -37,7 +38,7 @@ export const defaults = {
 
 const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
-const reliefMap = (input, options: any = defaults) => {
+const reliefMap = (input, options = defaults) => {
   const { lightAngle, height, specular, baseColorMode, tintColor, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -109,11 +110,11 @@ const reliefMap = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Relief Map",
   func: reliefMap,
   options: defaults,
   optionTypes,
   defaults,
   description: "Treat luminance like a height field and relight it as a faux 3D surface"
-};
+});

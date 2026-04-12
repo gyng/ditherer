@@ -1,6 +1,7 @@
 import { COLOR, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const SKY_MODE = {
   GRADIENT: "GRADIENT",
@@ -52,7 +53,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeSky = (input, options: any = defaults) => {
+const animeSky = (input, options = defaults) => {
   const { mode, skyStart, gradientTop, gradientBottom, cloudAmount, cloudSoftness, blend, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -113,10 +114,10 @@ const animeSky = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Anime Sky",
   func: animeSky,
   optionTypes,
   options: defaults,
   defaults,
-};
+});

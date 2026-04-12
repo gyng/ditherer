@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   rr: { type: RANGE, range: [-1, 2], step: 0.05, default: 1, desc: "Red contribution to output red" },
@@ -22,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const channelMixer = (input, options: any = defaults) => {
+const channelMixer = (input, options = defaults) => {
   const { rr, rg, rb, gr, gg, gb, br, bg, bb, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -51,4 +52,4 @@ const channelMixer = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Channel Mixer", func: channelMixer, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Channel Mixer", func: channelMixer, optionTypes, options: defaults, defaults });

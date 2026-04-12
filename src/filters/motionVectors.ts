@@ -1,7 +1,9 @@
 import { ACTION, BOOL, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas, getBufferIndex } from "utils";
 import {
   MOTION_SOURCE,
+  MotionSourceMode,
   MotionVector,
   blendSourceIntoBuffer,
   blendVectorFields,
@@ -375,9 +377,30 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const motionVectors = (input, options: any = defaults) => {
-  const prevInput: Uint8ClampedArray | null = options._prevInput || null;
-  const prevOutput: Uint8ClampedArray | null = options._prevOutput || null;
+type MotionVectorsOptions = FilterOptionValues & {
+  cellSize?: number;
+  searchRadius?: number;
+  threshold?: number;
+  gain?: number;
+  display?: string;
+  sourceMode?: MotionSourceMode;
+  colorMode?: string;
+  glyphMode?: string;
+  minMagnitude?: number;
+  confidenceCutoff?: number;
+  temporalSmoothing?: number;
+  spatialSmoothing?: number;
+  showMagnitude?: boolean;
+  backgroundDim?: number;
+  trailDecay?: number;
+  animSpeed?: number;
+  _prevInput?: Uint8ClampedArray | null;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const motionVectors = (input, options: MotionVectorsOptions = defaults) => {
+  const prevInput = options._prevInput ?? null;
+  const prevOutput = options._prevOutput ?? null;
   const {
     cellSize,
     searchRadius,
@@ -590,7 +613,7 @@ const motionVectors = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Motion Vectors",
   func: motionVectors,
   optionTypes,
@@ -598,4 +621,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Estimate local motion between frames and render stable arrows, trails, or heat overlays for debugging and stylized analysis",
-};
+});

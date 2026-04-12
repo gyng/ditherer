@@ -2,6 +2,7 @@ import { BOOL, RANGE, COLOR_DISTANCE_ALGORITHM } from "constants/controlTypes";
 import { RGB_NEAREST } from "constants/color";
 
 import { nearest } from "palettes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 import {
   cloneCanvas,
@@ -25,9 +26,13 @@ export const defaults = {
   colorDistanceAlgorithm: RGB_NEAREST
 };
 
+type RandomOptions = FilterOptionValues & typeof defaults & {
+  _linearize?: boolean;
+};
+
 const random = (
   input,
-  options: any = defaults
+  options: RandomOptions = defaults
 ) => {
   const output = cloneCanvas(input, false);
 
@@ -97,10 +102,10 @@ const random = (
   return output;
 };
 
-export default {
+export default defineFilter<RandomOptions>({
   name: "Random",
   func: random,
   options: defaults,
   optionTypes,
   defaults
-};
+});

@@ -1,4 +1,5 @@
 import { RANGE, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 export const optionTypes = {
@@ -24,9 +25,25 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const videoFeedback = (input, options: any = defaults) => {
-  const { zoom, rotation, offsetX, offsetY, mix, colorShift } = options;
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
+type VideoFeedbackOptions = FilterOptionValues & {
+  zoom?: number;
+  rotation?: number;
+  offsetX?: number;
+  offsetY?: number;
+  mix?: number;
+  colorShift?: number;
+  animSpeed?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const videoFeedback = (input, options: VideoFeedbackOptions = defaults) => {
+  const zoom = Number(options.zoom ?? defaults.zoom);
+  const rotation = Number(options.rotation ?? defaults.rotation);
+  const offsetX = Number(options.offsetX ?? defaults.offsetX);
+  const offsetY = Number(options.offsetY ?? defaults.offsetY);
+  const mix = Number(options.mix ?? defaults.mix);
+  const colorShift = Number(options.colorShift ?? defaults.colorShift);
+  const prevOutput = options._prevOutput ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -93,4 +110,4 @@ const videoFeedback = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Video Feedback", func: videoFeedback, optionTypes, options: defaults, defaults, mainThread: true, description: "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns" };
+export default defineFilter({ name: "Video Feedback", func: videoFeedback, optionTypes, options: defaults, defaults, mainThread: true, description: "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns" });

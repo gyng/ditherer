@@ -1,5 +1,6 @@
 import { RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -134,10 +135,10 @@ const nokiaLcd = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Nokia LCD",
   func: nokiaLcd,
   options: defaults,
   optionTypes,
   defaults
-};
+});

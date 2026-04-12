@@ -1,5 +1,6 @@
 import { RANGE, ENUM } from "constants/controlTypes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 const REDUCE = {
   POPULARITY: "POPULARITY",
@@ -86,7 +87,7 @@ export const defaults = {
   reduceMode: optionTypes.reduceMode.default
 };
 
-const octreeQuantize = (input, options: any = defaults) => {
+const octreeQuantize = (input, options = defaults) => {
   const { levels, sampleRate, reduceMode } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -204,11 +205,11 @@ const octreeQuantize = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Octree Quantize",
   func: octreeQuantize,
   optionTypes,
   options: defaults,
   defaults,
   description: "Adaptive palette reduction using octree subdivision, with a different bias than median-cut"
-};
+});

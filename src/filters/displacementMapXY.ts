@@ -1,6 +1,7 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const CHANNEL = { R: 0, G: 1, B: 2 };
 
@@ -24,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const displacementMapXY = (input, options: any = defaults) => {
+const displacementMapXY = (input, options = defaults) => {
   const { strength, blurRadius, channelX, channelY, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -78,4 +79,4 @@ const displacementMapXY = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Displacement Map XY", func: displacementMapXY, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Displacement Map XY", func: displacementMapXY, optionTypes, options: defaults, defaults });

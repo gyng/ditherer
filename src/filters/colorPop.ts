@@ -1,5 +1,6 @@
 import { RANGE } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   if (edge0 === edge1) return x < edge0 ? 0 : 1;
@@ -21,7 +22,7 @@ export const defaults = {
   softness: optionTypes.softness.default
 };
 
-const colorPop = (input, options: any = defaults) => {
+const colorPop = (input, options = defaults) => {
   const { targetHue, hueWidth, desaturateOthers, softness } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -69,10 +70,10 @@ const colorPop = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Color Pop",
   func: colorPop,
   optionTypes,
   options: defaults,
   defaults
-};
+});

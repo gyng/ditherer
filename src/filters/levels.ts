@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -29,7 +30,11 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const levelsFilter = (input, options: any = defaults) => {
+type LevelsOptions = FilterOptionValues & typeof defaults & {
+  _linearize?: boolean;
+};
+
+const levelsFilter = (input, options: LevelsOptions = defaults) => {
   const { blackPoint, whitePoint, gamma, outputBlack, outputWhite, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -95,10 +100,10 @@ const levelsFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter<LevelsOptions>({
   name: "Levels",
   func: levelsFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

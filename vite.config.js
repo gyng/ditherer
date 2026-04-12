@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -61,6 +62,28 @@ export default defineConfig({
     globals: false,
     environment: "jsdom",
     setupFiles: ["vitest-canvas-mock"],
+    disableConsoleIntercept: true,
+    exclude: [...configDefaults.exclude, "test/e2e/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "json-summary"],
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: [
+        "src/index.tsx",
+        "src/bench.ts",
+        "src/vite-env.d.ts",
+        "src/global.d.ts",
+        "src/types/**/*.d.ts",
+        "src/wasm/**",
+        "src/**/__mocks__/**",
+      ],
+      thresholds: {
+        lines: 65,
+        functions: 40,
+        statements: 65,
+        branches: 40,
+      },
+    },
     deps: {
       optimizer: {
         web: {

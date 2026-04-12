@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, clamp } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   shadowR:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in shadows" },
@@ -70,10 +71,10 @@ const colorBalance = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Color balance",
   func: colorBalance,
   options: defaults,
   optionTypes,
   defaults
-};
+});

@@ -1,5 +1,6 @@
 import { RANGE, BOOL, ENUM } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter } from "filters/types";
 
 const BG_MODE = {
   TRANSPARENT: "TRANSPARENT",
@@ -36,7 +37,7 @@ export const defaults = {
   backgroundMode: optionTypes.backgroundMode.default
 };
 
-const lumaMatte = (input, options: any = defaults) => {
+const lumaMatte = (input, options = defaults) => {
   const { threshold, feather, invert, backgroundMode } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -73,10 +74,10 @@ const lumaMatte = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Luma Matte",
   func: lumaMatte,
   optionTypes,
   options: defaults,
   defaults
-};
+});

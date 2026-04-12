@@ -1,4 +1,5 @@
 import { ACTION, COLOR, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 const MODE = {
@@ -116,9 +117,27 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const sceneSeparation = (input, options: any = defaults) => {
-  const { mode, threshold, feather, background, bgColor, learnRate, frozenFrame: frozenFrameMode } = options;
-  const ema: Float32Array | null = options._ema || null;
+type BackgroundSubtractionOptions = FilterOptionValues & {
+  mode?: string;
+  threshold?: number;
+  feather?: number;
+  background?: string;
+  bgColor?: number[];
+  learnRate?: number;
+  frozenFrame?: string;
+  animSpeed?: number;
+  _ema?: Float32Array | null;
+};
+
+const sceneSeparation = (input, options: BackgroundSubtractionOptions = defaults) => {
+  const mode = String(options.mode ?? defaults.mode);
+  const threshold = Number(options.threshold ?? defaults.threshold);
+  const feather = Number(options.feather ?? defaults.feather);
+  const background = String(options.background ?? defaults.background);
+  const bgColor = Array.isArray(options.bgColor) ? options.bgColor : defaults.bgColor;
+  const learnRate = Number(options.learnRate ?? defaults.learnRate);
+  const frozenFrameMode = String(options.frozenFrame ?? defaults.frozenFrame);
+  const ema = options._ema ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -191,7 +210,7 @@ const sceneSeparation = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Scene Separation",
   func: sceneSeparation,
   optionTypes,
@@ -199,4 +218,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Separate moving and static regions to isolate foreground, reconstruct the background, or freeze still parts of the scene",
-};
+});

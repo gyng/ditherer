@@ -1,5 +1,6 @@
 import { RANGE, ACTION } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 let ringBuf: Uint8ClampedArray[] = [];
 let ringHead = 0;
@@ -22,7 +23,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const povBands = (input, options: any = defaults) => {
+const povBands = (input, options = defaults) => {
   const { bands, framesPerBand } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -67,4 +68,4 @@ const povBands = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "POV Bands", func: povBands, optionTypes, options: defaults, defaults, mainThread: true, description: "Split the frame into horizontal bands that each show a different recent moment in time" };
+export default defineFilter({ name: "POV Bands", func: povBands, optionTypes, options: defaults, defaults, mainThread: true, description: "Split the frame into horizontal bands that each show a different recent moment in time" });

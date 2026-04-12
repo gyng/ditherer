@@ -1,6 +1,7 @@
 import { ACTION, RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const RULE = { CONWAY: "CONWAY", HIGHLIFE: "HIGHLIFE", SEEDS: "SEEDS" };
 let stateGrid: Uint8Array | null = null;
@@ -82,7 +83,7 @@ const injectSourceState = (buf: Uint8ClampedArray, width: number, height: number
   }
 };
 
-const cellularAutomata = (input, options: any = defaults) => {
+const cellularAutomata = (input, options = defaults) => {
   const { rule, steps, threshold, freshInjectionEvery, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
   const output = cloneCanvas(input, false);
@@ -162,4 +163,4 @@ export const __testing = {
   injectSourceState,
 };
 
-export default { name: "Cellular Automata", func: cellularAutomata, optionTypes, options: defaults, defaults, mainThread: true };
+export default defineFilter({ name: "Cellular Automata", func: cellularAutomata, optionTypes, options: defaults, defaults, mainThread: true });

@@ -1,4 +1,5 @@
 import { BOOL, ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -350,6 +351,32 @@ const processPlane = (
   }
 };
 
+type JpegArtifactPalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type JpegArtifactOptions = FilterOptionValues & {
+  qualityLuma?: number;
+  qualityChroma?: number;
+  quality?: number;
+  subsampling?: string;
+  blockSize?: number;
+  ringing?: number;
+  mosquito?: number;
+  gridJitter?: number;
+  corruptBurstChance?: number;
+  deblock?: number;
+  temporalHold?: number;
+  keyframeInterval?: number;
+  preserveAlpha?: boolean;
+  palette?: JpegArtifactPalette;
+  _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value != null && typeof value === "object";
+
 export const optionTypes = {
   qualityLuma: { type: RANGE, range: [1, 100], step: 1, default: 28, desc: "Luma quantization quality — lower values produce harsher block loss" },
   qualityChroma: { type: RANGE, range: [1, 100], step: 1, default: 16, desc: "Chroma quantization quality — lower values cause color bleed and smearing" },
@@ -393,19 +420,25 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-export const applyJpegArtifactToCanvas = (input, options: any = defaults) => {
+export const applyJpegArtifactToCanvas = (
+  input,
+  options: JpegArtifactOptions = defaults
+) => {
+  const palette = isRecord(options.palette) ? options.palette : defaults.palette;
+  const paletteOptions = isRecord(palette.options) ? palette.options : defaults.palette.options;
+
   const safeOptions = {
     ...defaults,
-    ...(options || {}),
-    palette: (options && options.palette) ? options.palette : defaults.palette,
+    ...options,
+    palette,
   };
 
   const safePalette = {
     ...defaults.palette,
-    ...(safeOptions.palette || {}),
+    ...palette,
     options: {
       ...(defaults.palette?.options || {}),
-      ...(safeOptions.palette?.options || {}),
+      ...paletteOptions,
     },
   };
 
@@ -425,8 +458,8 @@ export const applyJpegArtifactToCanvas = (input, options: any = defaults) => {
     preserveAlpha,
   } = safeOptions;
 
-  const prevOutput: Uint8ClampedArray | null = (options as any)._prevOutput || null;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const prevOutput = options._prevOutput instanceof Uint8ClampedArray ? options._prevOutput : null;
+  const frameIndex = typeof options._frameIndex === "number" ? options._frameIndex : 0;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -553,9 +586,10 @@ export const applyJpegArtifactToCanvas = (input, options: any = defaults) => {
   return output;
 };
 
-const jpegArtifact = (input, options: any = defaults) => applyJpegArtifactToCanvas(input, options);
+const jpegArtifact = (input, options: JpegArtifactOptions = defaults) =>
+  applyJpegArtifactToCanvas(input, options);
 
-export default {
+export default defineFilter({
   name: "JPEG Artifact",
   func: jpegArtifact,
   optionTypes,
@@ -563,4 +597,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Codec-style JPEG degradation with DCT quantization, chroma subsampling, and optional temporal hold corruption"
-};
+});

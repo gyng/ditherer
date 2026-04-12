@@ -1,5 +1,6 @@
 import { ACTION, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 
 let heldABuf: Uint8ClampedArray | null = null;
 let heldBBuf: Uint8ClampedArray | null = null;
@@ -60,7 +61,11 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const abaRebound = (input, options: any = defaults) => {
+type AbaReboundOptions = FilterOptionValues & typeof defaults & {
+  _frameIndex?: number;
+};
+
+const abaRebound = (input, options: AbaReboundOptions = defaults) => {
   const strength = Math.max(0, Number(options.strength ?? defaults.strength));
   const threshold = Math.max(0, Number(options.threshold ?? defaults.threshold));
   const cadenceDrift = Math.max(0, Math.min(1, Number(options.cadenceDrift ?? defaults.cadenceDrift)));
@@ -122,7 +127,7 @@ const abaRebound = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter<AbaReboundOptions>({
   name: "ABA Rebound",
   func: abaRebound,
   optionTypes,
@@ -130,4 +135,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Store A and B, then slam the emphasized beat forward into an extreme overshoot whose cadence can drift off the strict ABA grid",
-};
+});

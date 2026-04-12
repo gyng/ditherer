@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -22,7 +23,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const liquify = (input, options: any = defaults) => {
+const liquify = (input, options = defaults) => {
   const { strength, smoothness, direction, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -126,10 +127,10 @@ const liquify = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Liquify",
   func: liquify,
   optionTypes,
   options: defaults,
   defaults
-};
+});

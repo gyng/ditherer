@@ -1,4 +1,5 @@
 import { ACTION, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 const MODE = {
@@ -86,9 +87,23 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const temporalExposure = (input, options: any = defaults) => {
-  const { mode, blendFactor, windowSize, decay, brightnessThreshold } = options;
-  const prevOutput: Uint8ClampedArray | null = options._prevOutput || null;
+type LongExposureOptions = FilterOptionValues & {
+  mode?: string;
+  blendFactor?: number;
+  windowSize?: number;
+  decay?: number;
+  brightnessThreshold?: number;
+  animSpeed?: number;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const temporalExposure = (input, options: LongExposureOptions = defaults) => {
+  const mode = String(options.mode ?? defaults.mode);
+  const blendFactor = Number(options.blendFactor ?? defaults.blendFactor);
+  const windowSize = Number(options.windowSize ?? defaults.windowSize);
+  const decay = Number(options.decay ?? defaults.decay);
+  const brightnessThreshold = Number(options.brightnessThreshold ?? defaults.brightnessThreshold);
+  const prevOutput = options._prevOutput ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -169,7 +184,7 @@ const temporalExposure = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Long Exposure",
   func: temporalExposure,
   optionTypes,
@@ -177,4 +192,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting",
-};
+});

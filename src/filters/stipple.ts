@@ -1,6 +1,7 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   density: { type: RANGE, range: [1, 20], step: 1, default: 4, desc: "Dot spacing — lower = denser stippling" },
@@ -23,7 +24,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const stipple = (input, options: any = defaults) => {
+const stipple = (input, options = defaults) => {
   const { density, maxDotSize, inkColor, paperColor, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -78,4 +79,4 @@ const stipple = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Stipple", func: stipple, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Stipple", func: stipple, optionTypes, options: defaults, defaults });

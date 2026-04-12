@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -73,6 +74,28 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+type OscilloscopePalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type OscilloscopeOptions = FilterOptionValues & {
+  phosphor?: string;
+  threshold?: number;
+  intensity?: number;
+  bloom?: number;
+  bloomStrength?: number;
+  persistence?: number;
+  graticule?: boolean;
+  graticuleDivs?: number;
+  scanlines?: boolean;
+  scanlineSpacing?: number;
+  noiseFloor?: number;
+  animSpeed?: number;
+  palette?: OscilloscopePalette;
+  _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+};
+
 // Simple seeded PRNG
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
@@ -86,7 +109,7 @@ const mulberry32 = (seed: number) => {
 
 const oscilloscope = (
   input,
-  options = defaults
+  options: OscilloscopeOptions = defaults
 ) => {
   const {
     phosphor,
@@ -103,8 +126,8 @@ const oscilloscope = (
     palette
   } = options;
 
-  const prevOutput = (options as any)._prevOutput || null;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const prevOutput = options._prevOutput ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -271,11 +294,11 @@ const oscilloscope = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Oscilloscope",
   func: oscilloscope,
   options: defaults,
   optionTypes,
   defaults,
   mainThread: true
-};
+});

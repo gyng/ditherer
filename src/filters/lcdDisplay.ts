@@ -1,6 +1,7 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const LAYOUT = { STRIPE: "STRIPE", PENTILE: "PENTILE", DIAMOND: "DIAMOND" };
 
@@ -24,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lcdDisplay = (input, options: any = defaults) => {
+const lcdDisplay = (input, options = defaults) => {
   const { pixelSize, subpixelLayout, brightness, gapDarkness, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -100,4 +101,4 @@ const lcdDisplay = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "LCD Display", func: lcdDisplay, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "LCD Display", func: lcdDisplay, optionTypes, options: defaults, defaults });

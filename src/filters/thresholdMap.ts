@@ -1,4 +1,5 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -117,7 +118,15 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
-const thresholdMap = (input, options: any = defaults) => {
+type ThresholdMapOptions = FilterOptionValues & {
+  pattern?: string;
+  scale?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+};
+
+const thresholdMap = (input, options: ThresholdMapOptions = defaults) => {
   const { pattern, scale, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -155,10 +164,10 @@ const thresholdMap = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Threshold Map",
   func: thresholdMap,
   optionTypes,
   options: defaults,
   defaults
-};
+});

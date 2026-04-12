@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import {
   cloneCanvas,
@@ -83,6 +84,28 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 16 } }
 };
 
+type EinkPalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type EinkOptions = FilterOptionValues & {
+  mode?: string;
+  refreshMode?: string;
+  fullRefreshEvery?: number;
+  contrast?: number;
+  paperWhite?: number;
+  inkBlack?: number;
+  ghosting?: number;
+  pixelGrid?: boolean;
+  texture?: number;
+  refreshRate?: number;
+  palette?: EinkPalette;
+  _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+  _isAnimating?: boolean;
+  _hasVideoInput?: boolean;
+};
+
 // Simple seeded pseudo-random
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
@@ -127,7 +150,7 @@ const computePixel = (
 
 const eink = (
   input,
-  options = defaults
+  options: EinkOptions = defaults
 ) => {
   const {
     mode,
@@ -142,10 +165,10 @@ const eink = (
     palette
   } = options;
 
-  const prevOutput = (options as any)._prevOutput || null;
-  const frameIndex = (options as any)._frameIndex || 0;
-  const isAnimLoop = (options as any)._isAnimating || false;
-  const hasVideoInput = (options as any)._hasVideoInput || false;
+  const prevOutput = options._prevOutput ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const isAnimLoop = Boolean(options._isAnimating);
+  const hasVideoInput = Boolean(options._hasVideoInput);
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -252,11 +275,11 @@ const eink = (
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "E-ink",
   func: eink,
   options: defaults,
   optionTypes,
   defaults,
   mainThread: true
-};
+});

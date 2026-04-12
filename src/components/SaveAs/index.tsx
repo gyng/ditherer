@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { zipSync } from "fflate";
 import { useFilter } from "context/useFilter";
+import { filterList, hasTemporalBehavior } from "filters";
 import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import { createOfflineVideoEncoder, getReliableVideoSupport, type ReliableVideoSupport } from "./offlineVideoEncode";
@@ -125,15 +126,13 @@ type SourceVideoWithObjectUrl = HTMLVideoElement & { __objectUrl?: string };
 
 const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const { state, actions } = useFilter();
+  const temporalFilterNamesRef = useRef(new Set(
+    filterList.filter(hasTemporalBehavior).map((entry) => entry.filter.name)
+  ));
 
   // Tab
-  // Detect temporal/animated filters in the active chain (mirrors MAIN_THREAD_FILTERS in FilterContext)
-  const TEMPORAL_FILTERS = new Set([
-    "Glitch", "Motion Detect", "Long Exposure", "Frame Blend",
-    "Temporal Edge", "Phosphor Decay", "Matrix Rain", "Infinite Call Windows",
-  ]);
   const hasAnimatedFilter = (state.chain || []).some(
-    (e: any) => e.enabled !== false && TEMPORAL_FILTERS.has(e.filter?.name)
+    (e: any) => e.enabled !== false && temporalFilterNamesRef.current.has(e.filter?.name)
   );
   const isAnimated = !!state.video || hasAnimatedFilter;
   const showVideoTab = isAnimated || state.realtimeFiltering;

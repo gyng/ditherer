@@ -1,6 +1,7 @@
 import { RANGE, BOOL, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const COLORMAP = { VIRIDIS: "VIRIDIS", MAGMA: "MAGMA", INFERNO: "INFERNO", GRAYSCALE: "GRAYSCALE" };
 
@@ -45,7 +46,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const spectrogram = (input, options: any = defaults) => {
+const spectrogram = (input, options = defaults) => {
   const { colormap, logScale, freqBins, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -100,4 +101,4 @@ const spectrogram = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Spectrogram", func: spectrogram, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Spectrogram", func: spectrogram, optionTypes, options: defaults, defaults });

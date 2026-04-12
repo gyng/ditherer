@@ -1,5 +1,6 @@
 import { RANGE, ENUM } from "constants/controlTypes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, medianCutPalette } from "utils";
+import { defineFilter } from "filters/types";
 
 const ADAPT = {
   MID: "MID",
@@ -60,7 +61,7 @@ export const defaults = {
   colorMode: optionTypes.colorMode.default
 };
 
-const medianCutFilter = (input, options: any = defaults) => {
+const medianCutFilter = (input, options = defaults) => {
   const { levels, sampleRate, adaptMode, colorMode } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -101,10 +102,10 @@ const medianCutFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Median Cut",
   func: medianCutFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

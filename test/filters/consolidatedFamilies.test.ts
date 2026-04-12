@@ -4,17 +4,6 @@ import sceneSeparation from "filters/backgroundSubtraction";
 import motionAnalysis from "filters/motionDetect";
 import scanline from "filters/scanline";
 
-const makeBuffer = (width: number, height: number, fill = [0, 0, 0, 255]) => {
-  const buf = new Uint8ClampedArray(width * height * 4);
-  for (let i = 0; i < buf.length; i += 4) {
-    buf[i] = fill[0];
-    buf[i + 1] = fill[1];
-    buf[i + 2] = fill[2];
-    buf[i + 3] = fill[3];
-  }
-  return buf;
-};
-
 const makeFakeCanvas = (width: number, height: number, data: Uint8ClampedArray) => ({
   width,
   height,

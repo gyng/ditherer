@@ -1,6 +1,7 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   amountX: { type: RANGE, range: [0, 40], step: 1, default: 6, desc: "Maximum horizontal wobble in pixels" },
@@ -33,7 +34,7 @@ export const defaults = {
 const samplePhase = (frameIndex: number, frequency: number, seed: number) =>
   frameIndex * frequency * 0.14 + seed;
 
-const rhythmicWobble = (input, options: any = defaults) => {
+const rhythmicWobble = (input, options = defaults) => {
   const { amountX, amountY, rotation, zoomJitter, frequency, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
 
@@ -90,11 +91,11 @@ const rhythmicWobble = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Rhythmic Wobble",
   func: rhythmicWobble,
   optionTypes,
   options: defaults,
   defaults,
   description: "Periodic whole-frame wobble with sinusoidal drift and gentle zoom breathing"
-};
+});

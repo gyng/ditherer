@@ -1,5 +1,6 @@
 import { RANGE, ENUM, BOOL, ACTION } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 const DIR = { HORIZONTAL: "HORIZONTAL", VERTICAL: "VERTICAL" };
 const SCAN = { CENTER: "CENTER", LEFT: "LEFT", RIGHT: "RIGHT" };
@@ -48,7 +49,7 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const slitScan = (input, options: any = defaults) => {
+const slitScan = (input, options = defaults) => {
   const { direction, reverse } = options;
   let { depth } = options;
   const output = cloneCanvas(input, false);
@@ -112,4 +113,4 @@ const slitScan = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Slit Scan", func: slitScan, optionTypes, options: defaults, defaults, mainThread: true, description: "Each column/row shows a different point in time — surreal temporal stretching" };
+export default defineFilter({ name: "Slit Scan", func: slitScan, optionTypes, options: defaults, defaults, mainThread: true, description: "Each column/row shows a different point in time — surreal temporal stretching" });

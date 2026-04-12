@@ -1,5 +1,6 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -32,7 +33,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crosshatch = (input, options: any = defaults) => {
+const crosshatch = (input, options = defaults) => {
   const { density, angle1, angle2, threshold1, threshold2, lineWidth, inkColor, paperColor, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -92,10 +93,10 @@ const crosshatch = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Crosshatch",
   func: crosshatch,
   optionTypes,
   options: defaults,
   defaults
-};
+});

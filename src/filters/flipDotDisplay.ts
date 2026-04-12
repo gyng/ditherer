@@ -1,5 +1,6 @@
 import { COLOR, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex } from "utils";
+import { defineFilter } from "filters/types";
 
 let stateBits: Uint8Array | null = null;
 let flipFromBits: Uint8Array | null = null;
@@ -105,7 +106,7 @@ const resetGridState = (cols: number, rows: number, stuckDotRate: number) => {
   cachedStuckDotRate = stuckDotRate;
 };
 
-const flipDotDisplay = (input, options: any = defaults) => {
+const flipDotDisplay = (input, options = defaults) => {
   const cellSize = Math.max(1, Math.round(options.cellSize ?? defaults.cellSize));
   const threshold = Number(options.threshold ?? defaults.threshold);
   const hysteresis = Math.max(0, Number(options.hysteresis ?? defaults.hysteresis));
@@ -292,7 +293,7 @@ const flipDotDisplay = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Flip-Dot Display",
   func: flipDotDisplay,
   optionTypes,
@@ -300,4 +301,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Electromechanical split-flap style dot board with hysteresis, flip-rate limits, and subtle mechanical imperfections",
-};
+});

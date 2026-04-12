@@ -1,4 +1,5 @@
 import { ACTION, BOOL, ENUM, RANGE, PALETTE, TEXT } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { CHARSET, SHARED_CHARSET_GROUPS, getCharsetString } from "./charsets";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, srgbPaletteGetColor } from "utils";
@@ -9,6 +10,32 @@ const MOTION_MODE = {
 } as const;
 
 const CUSTOM_CHARSET = "CUSTOM";
+
+type MatrixRainPalette = {
+  options?: FilterOptionValues;
+} & Record<string, unknown>;
+
+type MatrixRainOptions = FilterOptionValues & {
+  columnWidth?: number;
+  columnSizeVariation?: number;
+  characterSizeVariation?: number;
+  characterFlip?: number;
+  speed?: number;
+  trailLength?: number;
+  density?: number;
+  columnOverlap?: number;
+  charset?: string;
+  customCharset?: string;
+  sourceInfluence?: number;
+  classicGreen?: boolean;
+  motionMode?: string;
+  motionSensitivity?: number;
+  motionDropStrength?: number;
+  animSpeed?: number;
+  palette?: MatrixRainPalette;
+  _frameIndex?: number;
+  _ema?: Float32Array | null;
+};
 
 export const optionTypes = {
   columnWidth: { type: RANGE, range: [4, 20], step: 1, default: 10, desc: "Width of each character cell in pixels" },
@@ -36,7 +63,8 @@ export const optionTypes = {
   editSelectedCharset: {
     type: ACTION,
     label: "Edit Selected Charset",
-    visibleWhen: (options: any) => (options.charset || CHARSET.MATRIX_FILM) !== CUSTOM_CHARSET,
+    visibleWhen: (options: FilterOptionValues) =>
+      (options.charset || CHARSET.MATRIX_FILM) !== CUSTOM_CHARSET,
     action: (actions, _inputCanvas, _filterFunc, options) => {
       const selected = options.charset || CHARSET.MATRIX_FILM;
       const chars = getCharsetString(selected);
@@ -47,7 +75,8 @@ export const optionTypes = {
   customCharset: {
     type: TEXT,
     default: getCharsetString(CHARSET.MATRIX_FILM),
-    visibleWhen: (options: any) => (options.charset || CHARSET.MATRIX_FILM) === CUSTOM_CHARSET,
+    visibleWhen: (options: FilterOptionValues) =>
+      (options.charset || CHARSET.MATRIX_FILM) === CUSTOM_CHARSET,
     desc: "Editable glyph set used when Charset is set to Custom",
   },
   sourceInfluence: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "How much the source image brightness drives glyph intensity" },
@@ -189,7 +218,7 @@ export const __testing = {
   sampleBitmapAlpha,
 };
 
-const matrixRain = (input, options: any = defaults) => {
+const matrixRain = (input, options: MatrixRainOptions = defaults) => {
   const columnWidth = Number(options.columnWidth ?? defaults.columnWidth);
   const columnSizeVariation = Number(options.columnSizeVariation ?? defaults.columnSizeVariation);
   const characterSizeVariation = Number(options.characterSizeVariation ?? defaults.characterSizeVariation);
@@ -206,8 +235,8 @@ const matrixRain = (input, options: any = defaults) => {
   const motionSensitivity = Number(options.motionSensitivity ?? defaults.motionSensitivity);
   const motionDropStrength = Number(options.motionDropStrength ?? defaults.motionDropStrength);
   const palette = options.palette ?? defaults.palette;
-  const frameIndex = (options as any)._frameIndex || 0;
-  const ema: Float32Array | null = (options as any)._ema || null;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const ema = options._ema ?? null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -475,4 +504,12 @@ const matrixRain = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Matrix Rain", func: matrixRain, optionTypes, options: defaults, defaults, mainThread: true, description: "Digital rain — static character grid with illumination sweep, source overlay, motion gating, and movement-triggered drops" };
+export default defineFilter<MatrixRainOptions>({
+  name: "Matrix Rain",
+  func: matrixRain,
+  optionTypes,
+  options: defaults,
+  defaults,
+  mainThread: true,
+  description: "Digital rain — static character grid with illumination sweep, source overlay, motion gating, and movement-triggered drops",
+});

@@ -1,6 +1,7 @@
 import { RANGE, ENUM } from "constants/controlTypes";
 import { cloneCanvas, clamp, getBufferIndex } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
+import { defineFilter } from "filters/types";
 
 const MODE = {
   RED_CYAN: "RED_CYAN",
@@ -46,7 +47,7 @@ export const defaults = {
   depthSource: optionTypes.depthSource.default
 };
 
-const anaglyph = (input, options: any = defaults) => {
+const anaglyph = (input, options = defaults) => {
   const { strength, mode, depthSource } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -108,10 +109,10 @@ const anaglyph = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Anaglyph",
   func: anaglyph,
   optionTypes,
   options: defaults,
   defaults
-};
+});

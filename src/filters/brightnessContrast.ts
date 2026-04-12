@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -30,9 +31,13 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
+type BrightnessContrastOptions = FilterOptionValues & typeof defaults & {
+  _linearize?: boolean;
+};
+
 const brightnessContrast = (
   input,
-  options: any = defaults
+  options: BrightnessContrastOptions = defaults
 ) => {
   const { brightness, contrast, exposure, gamma, palette } = options;
   const output = cloneCanvas(input, false);
@@ -118,10 +123,10 @@ const brightnessContrast = (
   return output;
 };
 
-export default {
+export default defineFilter<BrightnessContrastOptions>({
   name: "Brightness/Contrast",
   func: brightnessContrast,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 32], step: 1, default: 4, desc: "Number of distinct color levels per channel" },
@@ -37,10 +38,10 @@ const posterize = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Posterize",
   func: posterize,
   options: defaults,
   optionTypes,
   defaults
-};
+});

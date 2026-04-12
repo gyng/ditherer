@@ -1,4 +1,5 @@
 import { ACTION, COLOR, ENUM, RANGE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas } from "utils";
 
 const SOURCE = {
@@ -125,11 +126,35 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const motionAnalysis = (input, options: any = defaults) => {
-  const { source, renderMode, threshold, sensitivity, backgroundColor, colorMap, accumRate, coolRate } = options;
-  const ema: Float32Array | null = options._ema || null;
-  const prevInput: Uint8ClampedArray | null = options._prevInput || null;
-  const prevOutput: Uint8ClampedArray | null = options._prevOutput || null;
+type MotionDetectOptions = FilterOptionValues & {
+  source?: string;
+  renderMode?: string;
+  threshold?: number;
+  sensitivity?: number;
+  backgroundColor?: number[];
+  colorMap?: string;
+  accumRate?: number;
+  coolRate?: number;
+  animSpeed?: number;
+  _ema?: Float32Array | null;
+  _prevInput?: Uint8ClampedArray | null;
+  _prevOutput?: Uint8ClampedArray | null;
+};
+
+const motionAnalysis = (input, options: MotionDetectOptions = defaults) => {
+  const source = String(options.source ?? defaults.source);
+  const renderMode = String(options.renderMode ?? defaults.renderMode);
+  const threshold = Number(options.threshold ?? defaults.threshold);
+  const sensitivity = Number(options.sensitivity ?? defaults.sensitivity);
+  const backgroundColor = Array.isArray(options.backgroundColor)
+    ? options.backgroundColor
+    : defaults.backgroundColor;
+  const colorMap = String(options.colorMap ?? defaults.colorMap);
+  const accumRate = Number(options.accumRate ?? defaults.accumRate);
+  const coolRate = Number(options.coolRate ?? defaults.coolRate);
+  const ema = options._ema ?? null;
+  const prevInput = options._prevInput ?? null;
+  const prevOutput = options._prevOutput ?? null;
   const reference = source === SOURCE.PREVIOUS_FRAME ? prevInput : ema;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -206,7 +231,7 @@ const motionAnalysis = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Motion Analysis",
   func: motionAnalysis,
   optionTypes,
@@ -214,4 +239,4 @@ export default {
   defaults,
   mainThread: true,
   description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap",
-};
+});

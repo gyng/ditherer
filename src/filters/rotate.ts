@@ -1,4 +1,5 @@
 import { RANGE, COLOR, PALETTE, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
@@ -26,8 +27,22 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const rotateFilter = (input, options: any = defaults) => {
-  const { angle, spinPerFrame, bgColor, palette } = options;
+type RotateOptions = FilterOptionValues & {
+  angle?: number;
+  spinPerFrame?: number;
+  bgColor?: number[];
+  animSpeed?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+  _frameIndex?: number;
+};
+
+const rotateFilter = (input, options: RotateOptions = defaults) => {
+  const angle = Number(options.angle ?? defaults.angle);
+  const spinPerFrame = Number(options.spinPerFrame ?? defaults.spinPerFrame);
+  const bgColor = Array.isArray(options.bgColor) ? options.bgColor : defaults.bgColor;
+  const palette = options.palette ?? defaults.palette;
   const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -71,4 +86,10 @@ const rotateFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Rotate", func: rotateFilter, optionTypes, options: defaults, defaults };
+export default defineFilter<RotateOptions>({
+  name: "Rotate",
+  func: rotateFilter,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

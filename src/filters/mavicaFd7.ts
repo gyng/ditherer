@@ -1,6 +1,7 @@
 import { ENUM, BOOL, RANGE } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex, clamp } from "utils";
 import { applyJpegArtifactToCanvas, defaults as jpegDefaults } from "./jpegArtifact";
+import { defineFilter } from "filters/types";
 
 const QUALITY_FINE     = "FINE";
 const QUALITY_STANDARD = "STANDARD";
@@ -709,10 +710,10 @@ const mavicaFd7 = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Mavica FD7",
   func: mavicaFd7,
   options: defaults,
   optionTypes,
   defaults,
-};
+});

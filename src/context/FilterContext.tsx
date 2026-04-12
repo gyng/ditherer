@@ -1,7 +1,7 @@
 import React, { useReducer, useCallback, useEffect, useRef } from "react";
-import filterReducer, { initialState, ChainEntry } from "reducers/filters";
+import filterReducer, { initialState, ChainEntry, type FilterReducerAction, type FilterReducerState } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
-import { filterList, grayscale } from "filters";
+import { filterList, grayscale, isMainThreadFilter } from "filters";
 import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
@@ -9,24 +9,35 @@ import { getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
 import { FilterContext } from "./filterContextValue";
+import type { AnimatedVideoElement, ExportFrameOptions, FilterActions, FilterOptionValue } from "./filterContextValue";
 import { getAutoScale, roundScale } from "./autoScale";
 import { getShareHash, getShareUrl } from "./shareUrl";
+import { type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
+
+type SerializableOptions = Record<string, unknown>;
+type SerializedPaletteOption = { name?: string; options?: SerializableOptions };
+type SerializablePalette = SerializedPaletteOption & {
+  getColor?: (...args: unknown[]) => unknown;
+};
+type FilterRunner = (input: HTMLCanvasElement | null) => void;
+type AnimationParams = { inputCanvas: HTMLCanvasElement | null; fps: number };
 
 // Serialize state to v2 format with delta encoding
-const serializeState = (state: any) => {
+const serializeState = (state: typeof initialState): SerializedFilterState => {
   const chain = state.chain;
   // Single-entry chain with no non-default options: emit v1-compatible format
   if (chain.length === 1) {
-    return {
+    const v1State: ShareStateV1 = {
       selected: state.selected,
       convertGrayscale: state.convertGrayscale,
       linearize: state.linearize,
       wasmAcceleration: state.wasmAcceleration,
     };
+    return v1State;
   }
 
-  const serializedChain = chain.map((entry: ChainEntry) => {
-    const result: any = { n: entry.filter.name };
+  const serializedChain: SerializedChainEntry[] = chain.map((entry: ChainEntry) => {
+    const result: SerializedChainEntry = { n: entry.filter.name };
     if (entry.displayName !== entry.filter.name) {
       result.d = entry.displayName;
     }
@@ -34,15 +45,17 @@ const serializeState = (state: any) => {
     const opts = entry.filter.options;
     const defaults = entry.filter.defaults;
     if (opts && defaults) {
-      const delta: any = {};
+      const delta: SerializableOptions = {};
       for (const [k, v] of Object.entries(opts)) {
         if (typeof v === "function") continue;
         if (k === "palette") {
           // Serialize palette with its options
-          const pOpts = (v as any)?.options;
-          const pDefaults = defaults.palette?.options;
+          const paletteOption = v as SerializedPaletteOption | undefined;
+          const pOpts = paletteOption?.options;
+          const defaultPalette = defaults.palette as SerializedPaletteOption | undefined;
+          const pDefaults = defaultPalette?.options;
           if (pOpts && JSON.stringify(pOpts) !== JSON.stringify(pDefaults)) {
-            delta.palette = { name: (v as any).name, options: pOpts };
+            delta.palette = { name: paletteOption?.name, options: pOpts };
           }
         } else if (JSON.stringify(v) !== JSON.stringify(defaults[k])) {
           delta[k] = v;
@@ -51,7 +64,7 @@ const serializeState = (state: any) => {
       if (Object.keys(delta).length > 0) result.o = delta;
     } else if (opts) {
       // No defaults — serialize all non-function options
-      const cleaned: any = {};
+      const cleaned: SerializableOptions = {};
       for (const [k, v] of Object.entries(opts)) {
         if (typeof v !== "function") cleaned[k] = v;
       }
@@ -61,19 +74,20 @@ const serializeState = (state: any) => {
     return result;
   });
 
-  return {
+  const v2State: ShareStateV2 = {
     v: 2,
     chain: serializedChain,
     g: state.convertGrayscale,
     l: state.linearize,
     w: state.wasmAcceleration,
   };
+  return v2State;
 };
 
 // Produce JSON string for export
-const serializeStateJson = (state: any, pretty = false) => {
+const serializeStateJson = (state: typeof initialState, pretty = false) => {
   const data = serializeState(state);
-  const replacer = (k: string, v: any) => {
+  const replacer = (k: string, v: unknown) => {
     if (k === "defaults" || k === "optionTypes" || typeof v === "function") return undefined;
     return v;
   };
@@ -83,7 +97,7 @@ const serializeStateJson = (state: any, pretty = false) => {
 const DEFAULT_SHARE_STATE_JSON = serializeStateJson(initialState);
 
 export const FilterProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(filterReducer, initialState);
+  const [state, dispatch]: [FilterReducerState, React.Dispatch<FilterReducerAction>] = useReducer(filterReducer, initialState);
   const prevOutputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const prevInputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const emaMapRef = useRef<Map<string, Float32Array>>(new Map());
@@ -94,7 +108,7 @@ export const FilterProvider = ({ children }) => {
   const degaussAnimRef = useRef<number | null>(null);
   const animLoopRef = useRef<number | null>(null);
   const animLastTimeRef = useRef(0);
-  const animParamsRef = useRef<{ inputCanvas: any; fps: number } | null>(null);
+  const animParamsRef = useRef<AnimationParams | null>(null);
   const filteringRef = useRef(false);
   const pendingFilterRef = useRef(false);
   const videoFrameTokenRef = useRef(0);
@@ -106,7 +120,7 @@ export const FilterProvider = ({ children }) => {
   }>>(new Map());
   const stateRef = useRef(state);
   stateRef.current = state;
-  const filterImageAsyncRef = useRef<any>(null);
+  const filterImageAsyncRef = useRef<FilterRunner | null>(null);
 
   const resetProcessingState = useCallback(() => {
     filteringRef.current = false;
@@ -126,7 +140,7 @@ export const FilterProvider = ({ children }) => {
     if (!hash.startsWith("#!")) return;
     try {
       const json = decodeShareState(hash.slice(2));
-      const data = JSON.parse(json);
+      const data = JSON.parse(json) as SerializedFilterState;
       dispatch({ type: "LOAD_STATE", data });
     } catch (e) {
       console.warn("Failed to restore state from URL hash:", e);
@@ -176,11 +190,7 @@ export const FilterProvider = ({ children }) => {
   ) => new Promise<void>((resolve, reject) => {
     resetProcessingState();
     const loadStartedScale = stateRef.current.scale;
-    const video = document.createElement("video") as HTMLVideoElement & {
-      __objectUrl?: string;
-      __manualPause?: boolean;
-      __drawErrorLogged?: boolean;
-    };
+    const video = document.createElement("video") as AnimatedVideoElement;
     const perfStart = performance.now();
     const logPerf = (stage: string) => {
       const elapsedMs = Math.round(performance.now() - perfStart);
@@ -303,7 +313,7 @@ export const FilterProvider = ({ children }) => {
   }), [resetProcessingState]);
 
   // Async action: load video from file
-  const loadVideoAsync = useCallback((file, volume = 1, playbackRate = 1) => {
+  const loadVideoAsync = useCallback((file: File, volume = 1, playbackRate = 1) => {
     const objectUrl = URL.createObjectURL(file);
     return loadVideoSourceAsync(
       objectUrl,
@@ -319,7 +329,7 @@ export const FilterProvider = ({ children }) => {
   }, [loadVideoSourceAsync]);
 
   // Async action: load video directly from URL (used for local test assets)
-  const loadVideoFromUrlAsync = useCallback((src, volume = 1, playbackRate = 1) =>
+  const loadVideoFromUrlAsync = useCallback((src: string, volume = 1, playbackRate = 1) =>
     loadVideoSourceAsync(
       src,
       volume,
@@ -329,7 +339,7 @@ export const FilterProvider = ({ children }) => {
   [loadVideoSourceAsync]);
 
   // Async action: load media (routes to image or video)
-  const loadMediaAsync = useCallback((file, volume = 1, playbackRate = 1) => {
+  const loadMediaAsync = useCallback((file: File, volume = 1, playbackRate = 1) => {
     if (file.type.startsWith("video/")) {
       return loadVideoAsync(file, volume, playbackRate);
     } else {
@@ -339,8 +349,8 @@ export const FilterProvider = ({ children }) => {
 
   // Execute the full filter chain on the input canvas
   // Serialize filter options for worker (replace palette objects with serializable form)
-  const serializeOptions = (options) => {
-    const opts = { ...options };
+  const serializeOptions = (options?: Record<string, unknown>) => {
+    const opts = { ...options } as SerializableOptions & { palette?: SerializablePalette };
     if (opts.palette && typeof opts.palette.getColor === "function") {
       opts.palette = serializePalette(opts.palette);
     }
@@ -352,16 +362,16 @@ export const FilterProvider = ({ children }) => {
   // persist across calls, or uses dispatch. Filters declare this by setting
   // `mainThread: true` on their default export. The flag is the source of
   // truth — no hand-maintained name list here.
-  const chainNeedsMainThread = (entries: any[]) =>
-    entries.some(e => e.filter?.mainThread === true);
+  const chainNeedsMainThread = (entries: ChainEntry[]) =>
+    entries.some(e => isMainThreadFilter(e.filter));
 
   // Main-thread filter execution (fallback path)
   const filterOnMainThread = (
-    canvas,
-    enabledEntries,
-    startIdx,
-    isAnimating,
-    curState,
+    canvas: HTMLCanvasElement,
+    enabledEntries: ChainEntry[],
+    startIdx: number,
+    isAnimating: boolean,
+    curState: FilterReducerState,
     temporalState = {
       prevOutputMap: prevOutputMapRef.current,
       prevInputMap: prevInputMapRef.current,
@@ -385,7 +395,7 @@ export const FilterProvider = ({ children }) => {
         inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
       }
 
-      const filterOpts = {
+      const filterOpts: Record<string, unknown> & { palette?: SerializablePalette } = {
         ...entry.filter.options,
         _chainIndex: i,
         _linearize: curState.linearize,
@@ -406,7 +416,7 @@ export const FilterProvider = ({ children }) => {
       }
 
       const t0 = performance.now();
-      let output;
+      let output: unknown;
       try {
         output = entry.filter.func(canvas, filterOpts, dispatchOverride);
       } catch (e) {
@@ -454,7 +464,13 @@ export const FilterProvider = ({ children }) => {
     return { canvas, stepTimes, totalTime };
   };
 
-  const emitOutput = (canvas, totalTime, stepTimes, frameToken, sourceTime) => {
+  const emitOutput = (
+    canvas: HTMLCanvasElement,
+    totalTime: number,
+    stepTimes: { name: string; ms: number }[],
+    frameToken: number,
+    sourceTime: number,
+  ) => {
     frameCountRef.current += 1;
     filteringRef.current = false;
     dispatch({ type: "FILTER_IMAGE", image: canvas, frameToken, time: sourceTime, frameTime: totalTime, stepTimes });
@@ -469,7 +485,7 @@ export const FilterProvider = ({ children }) => {
     }
   };
 
-  const filterImageAsync = (input) => {
+  const filterImageAsync: FilterRunner = (input) => {
     if (!input) return;
     // Drop frame if previous filter hasn't finished (prevents queue buildup during video)
     if (filteringRef.current) {
@@ -491,7 +507,10 @@ export const FilterProvider = ({ children }) => {
 
     let canvas = input;
     if (curState.convertGrayscale) {
-      canvas = grayscale.func(canvas);
+      const maybeGrayscale = grayscale.func(canvas);
+      if (maybeGrayscale instanceof HTMLCanvasElement) {
+        canvas = maybeGrayscale;
+      }
     }
 
     const stepTimes: { name: string; ms: number }[] = [];
@@ -708,7 +727,7 @@ export const FilterProvider = ({ children }) => {
     }
   };
 
-  const triggerDegauss = (inputCanvas) => {
+  const triggerDegauss = (inputCanvas: HTMLCanvasElement | null) => {
     if (degaussAnimRef.current != null) return; // already running
     degaussFrameRef.current = frameCountRef.current;
     playDegaussSound();
@@ -726,7 +745,7 @@ export const FilterProvider = ({ children }) => {
     degaussAnimRef.current = requestAnimationFrame(animate);
   };
 
-  const triggerBurst = (inputCanvas, frames, fps = 6) => {
+  const triggerBurst = (inputCanvas: HTMLCanvasElement | null, frames: number, fps = 6) => {
     if (animLoopRef.current != null) return; // don't overlap with running animation
     const interval = 1000 / fps;
     let frame = 0;
@@ -751,7 +770,7 @@ export const FilterProvider = ({ children }) => {
     animLoopRef.current = requestAnimationFrame(animate);
   };
 
-  const startAnimLoop = (inputCanvas, fps = 15) => {
+  const startAnimLoop = (inputCanvas: HTMLCanvasElement | null, fps = 15) => {
     if (animLoopRef.current != null) return; // already running
     animParamsRef.current = { inputCanvas, fps };
     animLastTimeRef.current = 0;
@@ -762,7 +781,8 @@ export const FilterProvider = ({ children }) => {
         return;
       }
       const curState = stateRef.current;
-      const curFps = curState.selected?.filter?.options?.animSpeed || params.fps;
+      const animSpeed = curState.selected?.filter?.options?.animSpeed;
+      const curFps = typeof animSpeed === "number" ? animSpeed : params.fps;
       const interval = 1000 / curFps;
       if (timestamp - animLastTimeRef.current >= interval) {
         animLastTimeRef.current = timestamp;
@@ -785,15 +805,11 @@ export const FilterProvider = ({ children }) => {
 
   const isAnimating = () => animLoopRef.current != null;
 
-  const renderFrameForExport = (inputCanvas, {
+  const renderFrameForExport = (inputCanvas: HTMLCanvasElement | null, {
     sessionId,
     time = 0,
     video = null,
-  }: {
-    sessionId: string;
-    time?: number;
-    video?: HTMLVideoElement | null;
-  }) => {
+  }: ExportFrameOptions) => {
     if (!inputCanvas) return null;
 
     let session = exportSessionsRef.current.get(sessionId);
@@ -822,7 +838,10 @@ export const FilterProvider = ({ children }) => {
     };
 
     if (exportState.convertGrayscale) {
-      canvas = grayscale.func(canvas);
+      const maybeGrayscale = grayscale.func(canvas);
+      if (maybeGrayscale instanceof HTMLCanvasElement) {
+        canvas = maybeGrayscale;
+      }
     }
 
     const enabledEntries = exportState.chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
@@ -844,7 +863,7 @@ export const FilterProvider = ({ children }) => {
     exportSessionsRef.current.delete(sessionId);
   };
 
-  const actions = {
+  const actions: FilterActions = {
     loadMediaAsync,
     loadVideoFromUrlAsync,
     filterImageAsync,
@@ -855,7 +874,7 @@ export const FilterProvider = ({ children }) => {
     isAnimating,
     renderFrameForExport,
     clearExportSession,
-    loadImage: (image, time, video) =>
+    loadImage: (image: CanvasImageSource, time?: number | null, video?: AnimatedVideoElement | null) =>
     {
       resetProcessingState();
       dispatch({ type: "LOAD_IMAGE", image, time: time || 0, frameToken: stateRef.current.inputFrameToken ?? 0, video: video || null, dispatch });
@@ -869,38 +888,38 @@ export const FilterProvider = ({ children }) => {
       cachedOutputsRef.current.clear();
       dispatch({ type: "SELECT_FILTER", name, filter });
     },
-    setConvertGrayscale: (value) =>
+    setConvertGrayscale: (value: boolean) =>
       dispatch({ type: "SET_GRAYSCALE", value }),
-    setLinearize: (value) =>
+    setLinearize: (value: boolean) =>
       dispatch({ type: "SET_LINEARIZE", value }),
-    setWasmAcceleration: (value) =>
+    setWasmAcceleration: (value: boolean) =>
       dispatch({ type: "SET_WASM_ACCELERATION", value }),
-    setScale: (scale) =>
+    setScale: (scale: number) =>
       dispatch({ type: "SET_SCALE", scale }),
-    setOutputScale: (scale) =>
+    setOutputScale: (scale: number) =>
       dispatch({ type: "SET_OUTPUT_SCALE", scale }),
-    setRealtimeFiltering: (enabled) =>
+    setRealtimeFiltering: (enabled: boolean) =>
       dispatch({ type: "SET_REAL_TIME_FILTERING", enabled }),
-    setInputCanvas: (canvas) =>
+    setInputCanvas: (canvas: HTMLCanvasElement | null) =>
       dispatch({ type: "SET_INPUT_CANVAS", canvas }),
-    setInputVolume: (volume) =>
+    setInputVolume: (volume: number) =>
       dispatch({ type: "SET_INPUT_VOLUME", volume }),
-    setInputPlaybackRate: (rate) =>
+    setInputPlaybackRate: (rate: number) =>
       dispatch({ type: "SET_INPUT_PLAYBACK_RATE", rate }),
     toggleVideo: () => {
       const video = stateRef.current.video;
       if (!video) return;
       if (video.paused) {
-        (video as any).__manualPause = false;
+        video.__manualPause = false;
         video.play();
       } else {
-        (video as any).__manualPause = true;
+        video.__manualPause = true;
         video.pause();
       }
     },
-    setScalingAlgorithm: (algorithm) =>
+    setScalingAlgorithm: (algorithm: string) =>
       dispatch({ type: "SET_SCALING_ALGORITHM", algorithm }),
-    setFilterOption: (optionName, value, chainIndex?) => {
+    setFilterOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
       // Invalidate cache from this entry onward
       const chain = stateRef.current.chain;
@@ -910,7 +929,7 @@ export const FilterProvider = ({ children }) => {
       clearMotionVectorsState();
       dispatch({ type: "SET_FILTER_OPTION", optionName, value, chainIndex });
     },
-    setFilterPaletteOption: (optionName, value, chainIndex?) => {
+    setFilterPaletteOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
       const chain = stateRef.current.chain;
       for (let i = ci; i < chain.length; i++) {
@@ -919,7 +938,7 @@ export const FilterProvider = ({ children }) => {
       clearMotionVectorsState();
       dispatch({ type: "SET_FILTER_PALETTE_OPTION", optionName, value, chainIndex });
     },
-    addPaletteColor: (color, chainIndex?) => {
+    addPaletteColor: (color: string, chainIndex?: number) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
       const chain = stateRef.current.chain;
       for (let i = ci; i < chain.length; i++) {
@@ -928,15 +947,15 @@ export const FilterProvider = ({ children }) => {
       clearMotionVectorsState();
       dispatch({ type: "ADD_PALETTE_COLOR", color, chainIndex });
     },
-    importState: (json) => {
-      const deserialized = JSON.parse(json);
+    importState: (json: string) => {
+      const deserialized = JSON.parse(json) as SerializedFilterState;
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
       clearMotionVectorsState();
       dispatch({ type: "LOAD_STATE", data: deserialized });
     },
-    saveCurrentColorPalette: (name, colors) => {
+    saveCurrentColorPalette: (name: string, colors: string[]) => {
       window.localStorage.setItem(
         `_palette_${name.replace(" ", "")}`,
         JSON.stringify({ type: optionTypes.PALETTE, name, colors })
@@ -944,44 +963,44 @@ export const FilterProvider = ({ children }) => {
       THEMES[name] = colors;
       dispatch({ type: "SAVE_CURRENT_COLOR_PALETTE", name });
     },
-    deleteCurrentColorPalette: (name) => {
+    deleteCurrentColorPalette: (name: string) => {
       window.localStorage.removeItem(`_palette_${name.replace(" ", "")}`);
       delete THEMES[name];
       dispatch({ type: "DELETE_CURRENT_COLOR_PALETTE", name });
     },
     // Chain actions
-    chainAdd: (displayName, filter) => {
+    chainAdd: (displayName: string, filter) => {
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_ADD", displayName, filter });
     },
-    chainRemove: (id) => {
+    chainRemove: (id: string) => {
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REMOVE", id });
     },
-    chainReorder: (fromIndex, toIndex) => {
+    chainReorder: (fromIndex: number, toIndex: number) => {
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REORDER", fromIndex, toIndex });
     },
-    chainSetActive: (index) => {
+    chainSetActive: (index: number) => {
       dispatch({ type: "CHAIN_SET_ACTIVE", index });
     },
-    chainToggle: (id) => {
+    chainToggle: (id: string) => {
       dispatch({ type: "CHAIN_TOGGLE", id });
     },
-    chainReplace: (id, displayName, filter) => {
+    chainReplace: (id: string, displayName: string, filter) => {
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REPLACE", id, displayName, filter });
     },
-    chainDuplicate: (id) => {
+    chainDuplicate: (id: string) => {
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_DUPLICATE", id });
     },
@@ -996,7 +1015,7 @@ export const FilterProvider = ({ children }) => {
     pasteChainFromClipboard: async () => {
       try {
         const text = await navigator.clipboard.readText();
-        const data = JSON.parse(text);
+        const data = JSON.parse(text) as SerializedFilterState;
         prevOutputMapRef.current.clear();
         prevInputMapRef.current.clear();
         emaMapRef.current.clear();
@@ -1007,12 +1026,12 @@ export const FilterProvider = ({ children }) => {
         console.warn("Failed to paste chain:", e);
       }
     },
-    getExportUrl: (filterState) => {
+    getExportUrl: (filterState: FilterReducerState) => {
       const json = serializeStateJson(filterState);
       const hash = getShareHash(json, DEFAULT_SHARE_STATE_JSON);
       return `${window.location.origin}${getShareUrl(window.location.pathname, "", hash)}`;
     },
-    exportState: (filterState) => {
+    exportState: (filterState: FilterReducerState) => {
       return serializeStateJson(filterState, true);
     },
     getIntermediatePreview: (entryId: string): HTMLCanvasElement | null =>

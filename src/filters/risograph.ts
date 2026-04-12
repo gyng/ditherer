@@ -1,4 +1,5 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { THEMES } from "palettes/user";
 import {
@@ -41,9 +42,23 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const risograph = (input, options: any = defaults) => {
+type RisographOptions = FilterOptionValues & {
+  color1?: number[];
+  color2?: number[];
+  misregX?: number;
+  misregY?: number;
+  grain?: number;
+  inkBleed?: number;
+  threshold?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+  _frameIndex?: number;
+};
+
+const risograph = (input, options: RisographOptions = defaults) => {
   const { color1, color2, misregX, misregY, grain, inkBleed, threshold, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const frameIndex = Number(options._frameIndex ?? 0);
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -142,10 +157,10 @@ const risograph = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Risograph",
   func: risograph,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,19 +1,24 @@
+import type { WorkerFilterRequest, WorkerFilterResult, WorkerResponseMessage } from "./types";
+
 let worker: Worker | null = null;
 let nextId = 0;
-const pending = new Map<number, { resolve: (value: any) => void; reject: (reason: any) => void }>();
+const pending = new Map<number, {
+  resolve: (value: WorkerFilterResult) => void;
+  reject: (reason: Error) => void;
+}>();
 
 const getWorker = () => {
   if (!worker) {
     worker = new Worker(new URL("./filterWorker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (e) => {
-      const { id, result, error } = e.data;
+    worker.onmessage = (e: MessageEvent<WorkerResponseMessage>) => {
+      const { id } = e.data;
       const p = pending.get(id);
       if (p) {
         pending.delete(id);
-        if (error) {
-          p.reject(new Error(error));
+        if ("error" in e.data) {
+          p.reject(new Error(e.data.error));
         } else {
-          p.resolve(result);
+          p.resolve(e.data.result);
         }
       }
     };
@@ -29,7 +34,10 @@ const getWorker = () => {
   return worker;
 };
 
-export const workerRPC = (payload: any, transfer: Transferable[] = []): Promise<any> => {
+export const workerRPC = (
+  payload: WorkerFilterRequest,
+  transfer: Transferable[] = [],
+): Promise<WorkerFilterResult> => {
   const id = nextId++;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });

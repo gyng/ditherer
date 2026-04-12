@@ -1,5 +1,6 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -28,7 +29,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const cmykHalftone = (input, options: any = defaults) => {
+const cmykHalftone = (input, options = defaults) => {
   const { dotSize, angleC, angleM, angleY, angleK, paperColor, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -131,10 +132,10 @@ const cmykHalftone = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "CMYK Halftone",
   func: cmykHalftone,
   optionTypes,
   options: defaults,
   defaults
-};
+});

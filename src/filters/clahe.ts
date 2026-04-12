@@ -1,4 +1,5 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
 
@@ -14,7 +15,15 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const clahe = (input, options: any = defaults) => {
+type ClaheOptions = FilterOptionValues & {
+  tileSize?: number;
+  clipLimit?: number;
+  palette?: {
+    options?: FilterOptionValues;
+  } & Record<string, unknown>;
+};
+
+const clahe = (input, options: ClaheOptions = defaults) => {
   const { tileSize, clipLimit, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -113,4 +122,4 @@ const clahe = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "CLAHE", func: clahe, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "CLAHE", func: clahe, optionTypes, options: defaults, defaults });

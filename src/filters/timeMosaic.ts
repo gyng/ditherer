@@ -1,4 +1,5 @@
 import { RANGE, ENUM, ACTION } from "constants/controlTypes";
+import { defineFilter, type FilterOptionValues } from "filters/types";
 import { cloneCanvas, getBufferIndex } from "utils";
 
 const PATTERN = { RANDOM: "RANDOM", CHECKERBOARD: "CHECKERBOARD", RADIAL: "RADIAL", GRADIENT: "GRADIENT" };
@@ -90,16 +91,28 @@ const tileHash = (tx: number, ty: number) => {
   return ((h ^ (h >> 16)) >>> 0) / 4294967296;
 };
 
-const timeMosaic = (input, options: any = defaults) => {
+type TimeMosaicOptions = FilterOptionValues & {
+  behavior?: string;
+  tileSize?: number;
+  maxDelay?: number;
+  pattern?: string;
+  motionThreshold?: number;
+  holdFrames?: number;
+  animSpeed?: number;
+  _prevInput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
+};
+
+const timeMosaic = (input, options: TimeMosaicOptions = defaults) => {
   const {
     behavior = defaults.behavior,
-    tileSize,
-    maxDelay,
-    pattern,
+    tileSize = defaults.tileSize,
+    maxDelay = defaults.maxDelay,
+    pattern = defaults.pattern,
     motionThreshold = defaults.motionThreshold,
     holdFrames = defaults.holdFrames,
   } = options;
-  const prevInput: Uint8ClampedArray | null = (options as any)._prevInput || null;
+  const prevInput = options._prevInput ?? null;
   const frameIndex = Number(options._frameIndex ?? 0);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -236,4 +249,4 @@ const timeMosaic = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, mainThread: true, description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views" };
+export default defineFilter({ name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, mainThread: true, description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views" });

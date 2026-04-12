@@ -24,33 +24,42 @@ const CHAIN_REPLACE = "CHAIN_REPLACE";
 const CHAIN_DUPLICATE = "CHAIN_DUPLICATE";
 
 import { SCALING_ALGORITHM } from "constants/optionTypes";
+import {
+  hasV1SelectedState,
+  isShareStateV2,
+  type SerializedFilterReference,
+  type SerializedFilterState,
+  type SerializedPaletteState,
+} from "context/shareStateTypes";
+import type { FilterDefinition, FilterOptionValues } from "filters/types";
 
 import { floydSteinberg } from "filters/errorDiffusing";
 import { filterIndex } from "filters";
 import { paletteList } from "palettes";
 import { createPalette, THEMES } from "palettes/user";
 
-// A filter object must have a func. This prevents accidentally passing
-// the filterList wrapper ({ displayName, filter, category }) instead of
-// the actual filter ({ name, func, optionTypes, options, defaults }).
-export type FilterObject = {
-  name: string;
-  func: (input: any, options?: any, dispatch?: any) => any;
-  optionTypes?: Record<string, any>;
-  options?: any;
-  defaults?: any;
-};
+type FilterOptionMap = FilterOptionValues;
+type PaletteColor = string;
+type StepTime = { name: string; ms: number };
+type ScalingAlgorithm = typeof SCALING_ALGORITHM[keyof typeof SCALING_ALGORITHM];
+type PaletteOptionState = SerializedPaletteState & { options?: FilterOptionMap };
 
 export type ChainEntry = {
   id: string;
   displayName: string;
-  filter: FilterObject;
+  filter: FilterDefinition;
   enabled: boolean;
+};
+
+export type SelectedFilterState = {
+  displayName: string;
+  name: string;
+  filter: FilterDefinition;
 };
 
 const MAX_CHAIN_LENGTH = 16;
 
-const makeChainEntry = (displayName: string, filter: FilterObject): ChainEntry => ({
+const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEntry => ({
   id: crypto.randomUUID(),
   displayName,
   filter,
@@ -58,7 +67,7 @@ const makeChainEntry = (displayName: string, filter: FilterObject): ChainEntry =
 });
 
 // Derive `selected` compat shim from chain state
-const deriveSelected = (chain: ChainEntry[], activeIndex: number) => ({
+const deriveSelected = (chain: ChainEntry[], activeIndex: number): SelectedFilterState => ({
   displayName: chain[activeIndex].displayName,
   name: chain[activeIndex].displayName,
   filter: chain[activeIndex].filter,
@@ -98,20 +107,48 @@ export const initialState = {
   stepTimes: null as { name: string; ms: number }[] | null,
 };
 
+export type FilterReducerState = typeof initialState;
+
 // Helper: update a chain entry's filter options immutably
-const updateChainEntryOptions = (chain: ChainEntry[], index: number, updater: (opts: any) => any): ChainEntry[] =>
+const updateChainEntryOptions = (
+  chain: ChainEntry[],
+  index: number,
+  updater: (opts: FilterOptionMap | undefined) => FilterOptionMap
+): ChainEntry[] =>
   chain.map((entry, i) =>
     i === index
       ? { ...entry, filter: { ...entry.filter, options: updater(entry.filter.options) } }
       : entry
   );
 
+const getPaletteState = (value: unknown): PaletteOptionState | null => {
+  if (typeof value !== "object" || value == null) return null;
+  const candidate = value as Partial<PaletteOptionState>;
+  if (typeof candidate.name !== "string" || candidate.name.length === 0) return null;
+  return {
+    name: candidate.name,
+    options: (candidate.options as FilterOptionMap | undefined) ?? undefined,
+  };
+};
+
+const getPaletteColors = (palette: PaletteOptionState | null | undefined): PaletteColor[] =>
+  Array.isArray(palette?.options?.colors) ? (palette.options.colors as PaletteColor[]) : [];
+
+const getPaletteOptionMap = (palette: unknown): FilterOptionMap =>
+  getPaletteState(palette)?.options ?? {};
+
 // Deserialize a filter from saved state, resolving local references
-const deserializeFilter = (savedFilter: any) => {
+const deserializeFilter = (
+  savedFilter: SerializedFilterReference | null | undefined
+): FilterDefinition | null => {
+  if (!savedFilter?.name) return null;
   const localFilter = filterIndex[savedFilter.name];
   if (!localFilter) return null;
-  const result = { ...localFilter, options: savedFilter.options as Record<string, any> | undefined };
-  const palette = result.options?.palette as { name?: string; options?: Record<string, any> } | undefined;
+  const result = {
+    ...localFilter,
+    options: savedFilter.options as FilterOptionMap | undefined,
+  };
+  const palette = getPaletteState(result.options?.palette);
   if (palette != null) {
     const localPalette = paletteList.find(
       p => p.palette.name === palette.name
@@ -130,35 +167,187 @@ const deserializeFilter = (savedFilter: any) => {
 };
 
 // After any chain mutation, recompute the `selected` compat shim
-const withSelected = (state: any) => ({
+const withSelected = (
+  state: Omit<FilterReducerState, "selected"> & {
+    chain: ChainEntry[];
+    activeIndex: number;
+  }
+): FilterReducerState => ({
   ...state,
   selected: deriveSelected(state.chain, state.activeIndex),
 });
 
-export default (state = initialState, action) => {
+type LoadStateAction = {
+  type: typeof LOAD_STATE;
+  data: SerializedFilterState;
+};
+
+type ChainMutationAction =
+  | {
+      type: typeof CHAIN_ADD;
+      displayName: string;
+      filter: FilterDefinition;
+    }
+  | {
+      type: typeof CHAIN_REMOVE;
+      id: string;
+    }
+  | {
+      type: typeof CHAIN_REORDER;
+      fromIndex: number;
+      toIndex: number;
+    }
+  | {
+      type: typeof CHAIN_SET_ACTIVE;
+      index: number;
+    }
+  | {
+      type: typeof CHAIN_TOGGLE;
+      id: string;
+    }
+  | {
+      type: typeof CHAIN_REPLACE;
+      id: string;
+      displayName: string;
+      filter: FilterDefinition;
+    }
+  | {
+      type: typeof CHAIN_DUPLICATE;
+      id: string;
+    };
+
+type FilterSelectionAction = {
+  type: typeof SELECT_FILTER;
+  name: string;
+  filter: FilterDefinition | { filter: FilterDefinition };
+};
+
+type FilterOptionAction =
+  | {
+      type: typeof SET_FILTER_OPTION;
+      optionName: string;
+      value: unknown;
+      chainIndex?: number;
+    }
+  | {
+      type: typeof SET_FILTER_PALETTE_OPTION;
+      optionName: string;
+      value: unknown;
+      chainIndex?: number;
+    }
+  | {
+      type: typeof ADD_PALETTE_COLOR;
+      color: PaletteColor;
+      chainIndex?: number;
+    };
+
+type ImageAction =
+  | {
+      type: typeof LOAD_IMAGE;
+      image: CanvasImageSource;
+      time: number | null;
+      frameToken?: number;
+      video: HTMLVideoElement | null;
+      dispatch?: unknown;
+    }
+  | {
+      type: typeof FILTER_IMAGE;
+      image: HTMLCanvasElement;
+      frameToken?: number;
+      time?: number | null;
+      frameTime?: number | null;
+      stepTimes?: StepTime[] | null;
+    };
+
+type ScalarStateAction =
+  | {
+      type: typeof SET_GRAYSCALE | typeof SET_LINEARIZE | typeof SET_WASM_ACCELERATION;
+      value: boolean;
+    }
+  | {
+      type: typeof SET_REAL_TIME_FILTERING;
+      enabled: boolean;
+    }
+  | {
+      type: typeof SET_SCALE | typeof SET_OUTPUT_SCALE;
+      scale: number;
+    }
+  | {
+      type: typeof SET_INPUT_CANVAS;
+      canvas: HTMLCanvasElement | null;
+    }
+  | {
+      type: typeof SET_INPUT_VOLUME;
+      volume: number;
+    }
+  | {
+      type: typeof SET_INPUT_PLAYBACK_RATE;
+      rate: number;
+    }
+  | {
+      type: typeof SET_SCALING_ALGORITHM;
+      algorithm: ScalingAlgorithm;
+    };
+
+type PalettePersistenceAction =
+  | {
+      type: "SAVE_CURRENT_COLOR_PALETTE";
+      name: string;
+    }
+  | {
+      type: "DELETE_CURRENT_COLOR_PALETTE";
+      name: string;
+    };
+
+export type FilterReducerAction =
+  | LoadStateAction
+  | ChainMutationAction
+  | FilterSelectionAction
+  | FilterOptionAction
+  | ImageAction
+  | ScalarStateAction
+  | PalettePersistenceAction;
+
+const filterReducer = (
+  state: FilterReducerState = initialState,
+  action: FilterReducerAction
+): FilterReducerState => {
   switch (action.type) {
     case LOAD_STATE: {
       // v2 format: has `chain` array
-      if (action.data.v === 2 && Array.isArray(action.data.chain)) {
+      const data = action.data as SerializedFilterState;
+
+      if (isShareStateV2(data)) {
         const chain: ChainEntry[] = [];
-        for (const entry of action.data.chain) {
+        for (const entry of data.chain) {
           const localFilter = filterIndex[entry.n];
           if (!localFilter) continue;
-          const mergedOpts: Record<string, any> = { ...(localFilter.options as Record<string, any> | undefined) };
+          const mergedOpts: FilterOptionMap = {
+            ...((localFilter.options as FilterOptionMap | undefined) ?? {}),
+          };
           if (entry.o) {
             for (const [k, v] of Object.entries(entry.o)) {
-              if (k === "palette" && mergedOpts.palette) {
-                mergedOpts.palette = { ...mergedOpts.palette, options: { ...mergedOpts.palette.options, ...(v as any).options } };
+              const palette = getPaletteState(v);
+              if (k === "palette" && mergedOpts.palette && palette) {
+                const currentPalette = getPaletteState(mergedOpts.palette);
+                mergedOpts.palette = {
+                  ...(currentPalette ?? {}),
+                  options: {
+                    ...(currentPalette?.options ?? {}),
+                    ...(palette.options ?? {}),
+                  },
+                };
               } else {
                 mergedOpts[k] = v;
               }
             }
           }
           // Re-resolve palette references
-          if (mergedOpts.palette?.name) {
-            const localPalette = paletteList.find(p => p.palette.name === mergedOpts.palette.name);
+          const palette = getPaletteState(mergedOpts.palette);
+          if (palette?.name) {
+            const localPalette = paletteList.find(p => p.palette.name === palette.name);
             if (localPalette) {
-              mergedOpts.palette = { ...localPalette.palette, options: mergedOpts.palette.options };
+              mergedOpts.palette = { ...localPalette.palette, options: palette.options };
             }
           }
           chain.push({
@@ -173,27 +362,27 @@ export default (state = initialState, action) => {
           ...state,
           chain,
           activeIndex: 0,
-          convertGrayscale: action.data.g ?? state.convertGrayscale,
-          linearize: action.data.l ?? state.linearize,
-          wasmAcceleration: action.data.w ?? state.wasmAcceleration,
+          convertGrayscale: data.g ?? state.convertGrayscale,
+          linearize: data.l ?? state.linearize,
+          wasmAcceleration: data.w ?? state.wasmAcceleration,
         });
       }
 
       // v1 format: has `selected`
-      if (action.data.selected) {
-        const deserializedFilter = deserializeFilter(action.data.selected.filter);
+      if (hasV1SelectedState(data)) {
+        const deserializedFilter = deserializeFilter(data.selected.filter);
         if (!deserializedFilter) return state;
         const entry = makeChainEntry(
-          action.data.selected.displayName || action.data.selected.name || deserializedFilter.name,
+          data.selected.displayName || data.selected.name || deserializedFilter.name,
           deserializedFilter
         );
         return withSelected({
           ...state,
           chain: [entry],
           activeIndex: 0,
-          convertGrayscale: action.data.convertGrayscale,
-          linearize: action.data.linearize ?? state.linearize,
-          wasmAcceleration: action.data.wasmAcceleration ?? state.wasmAcceleration,
+          convertGrayscale: data.convertGrayscale,
+          linearize: data.linearize ?? state.linearize,
+          wasmAcceleration: data.wasmAcceleration ?? state.wasmAcceleration,
         });
       }
       return state;
@@ -214,7 +403,7 @@ export default (state = initialState, action) => {
       if (state.chain.length <= 1) return state;
       const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
       if (idx === -1) return state;
-      const chain = state.chain.filter((_: any, i: number) => i !== idx);
+      const chain = state.chain.filter((_, i) => i !== idx);
       const activeIndex = Math.min(state.activeIndex, chain.length - 1);
       return withSelected({ ...state, chain, activeIndex });
     }
@@ -275,7 +464,7 @@ export default (state = initialState, action) => {
     // --- Compat: SELECT_FILTER resets to single-entry chain ---
     case SELECT_FILTER: {
       // action.filter may be a FilterObject directly or a wrapper { filter: FilterObject }
-      const filterObj = action.filter.func ? action.filter : action.filter.filter;
+      const filterObj = "func" in action.filter ? action.filter : action.filter.filter;
       const entry = makeChainEntry(action.name, filterObj);
       return withSelected({
         ...state,
@@ -296,15 +485,19 @@ export default (state = initialState, action) => {
     case SET_FILTER_PALETTE_OPTION: {
       const ci = action.chainIndex ?? state.activeIndex;
       const entry = state.chain[ci];
-      if (!entry?.filter?.options?.palette) {
+      const paletteState = getPaletteState(entry?.filter?.options?.palette);
+      if (!paletteState) {
         console.warn("Tried to set option on null palette", state);
         return state;
       }
       const chain = updateChainEntryOptions(state.chain, ci, opts => ({
         ...opts,
         palette: {
-          ...opts.palette,
-          options: { ...opts.palette.options, [action.optionName]: action.value },
+          ...paletteState,
+          options: {
+            ...getPaletteOptionMap(opts?.palette),
+            [action.optionName]: action.value,
+          },
         },
       }));
       return withSelected({ ...state, chain });
@@ -312,17 +505,18 @@ export default (state = initialState, action) => {
     case ADD_PALETTE_COLOR: {
       const ci = action.chainIndex ?? state.activeIndex;
       const entry = state.chain[ci];
-      if (!entry?.filter?.options?.palette) {
+      const paletteState = getPaletteState(entry?.filter?.options?.palette);
+      if (!paletteState) {
         console.warn("Tried to add color to null palette", state);
         return state;
       }
       const chain = updateChainEntryOptions(state.chain, ci, opts => ({
         ...opts,
         palette: {
-          ...opts.palette,
+          ...paletteState,
           options: {
-            ...opts.palette.options,
-            colors: [...(opts.palette.options as any).colors, action.color],
+            ...getPaletteOptionMap(opts?.palette),
+            colors: [...getPaletteColors(getPaletteState(opts.palette)), action.color],
           },
         },
       }));
@@ -407,7 +601,12 @@ export default (state = initialState, action) => {
       return { ...state, linearize: action.value };
     case SET_WASM_ACCELERATION:
       return { ...state, wasmAcceleration: action.value };
+    case "SAVE_CURRENT_COLOR_PALETTE":
+    case "DELETE_CURRENT_COLOR_PALETTE":
+      return state;
     default:
       return state;
   }
 };
+
+export default filterReducer;

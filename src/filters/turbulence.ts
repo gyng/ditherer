@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [5, 200], step: 5, default: 50, desc: "Turbulence noise feature size" },
@@ -44,7 +45,7 @@ const fbm = (x: number, y: number, octaves: number, seed: number) => {
   return value / maxAmp;
 };
 
-const turbulence = (input, options: any = defaults) => {
+const turbulence = (input, options = defaults) => {
   const { scale, strength, octaves, seed, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -79,4 +80,4 @@ const turbulence = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Turbulence", func: turbulence, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Turbulence", func: turbulence, optionTypes, options: defaults, defaults });

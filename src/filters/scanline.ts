@@ -1,6 +1,7 @@
 import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 const MODE = {
   DARKEN: "DARKEN",
@@ -70,7 +71,7 @@ export const defaults = {
   palette: optionTypes.palette.default,
 };
 
-const scanline = (input, options: any = defaults) => {
+const scanline = (input, options = defaults) => {
   const { mode, intensity, gap, height, lineHeight, brightness, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -110,11 +111,11 @@ const scanline = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Scanline",
   func: scanline,
   optionTypes,
   options: defaults,
   defaults,
   description: "CRT-style scanlines with either classic darkened rows or RGB phosphor sub-line separation",
-};
+});

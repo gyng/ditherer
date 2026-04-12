@@ -1,6 +1,7 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   tearOffset: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Horizontal shift of torn scan lines" },
@@ -26,7 +27,7 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const interlaceTear = (input, options: any = defaults) => {
+const interlaceTear = (input, options = defaults) => {
   const { tearOffset, tearPosition, fieldShift, palette } = options;
   const frameIndex = (options as any)._frameIndex || 0;
   const output = cloneCanvas(input, false);
@@ -71,4 +72,4 @@ const interlaceTear = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Interlace Tear", func: interlaceTear, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Interlace Tear", func: interlaceTear, optionTypes, options: defaults, defaults });

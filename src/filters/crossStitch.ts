@@ -1,6 +1,7 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba, srgbPaletteGetColor, fillBufferPixel } from "utils";
+import { defineFilter } from "filters/types";
 
 const THREAD = {
   SOURCE: "SOURCE",
@@ -31,7 +32,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crossStitch = (input, options: any = defaults) => {
+const crossStitch = (input, options = defaults) => {
   const { stitchSize, threadColor, fabricColor, gapBetween, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -92,10 +93,10 @@ const crossStitch = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Cross Stitch",
   func: crossStitch,
   optionTypes,
   options: defaults,
   defaults
-};
+});

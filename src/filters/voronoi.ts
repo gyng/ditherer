@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   cells: { type: RANGE, range: [5, 2000], step: 1, default: 80, desc: "Number of Voronoi cells" },
@@ -119,10 +120,10 @@ const voronoi = (input, options = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Voronoi",
   func: voronoi,
   options: defaults,
   optionTypes,
   defaults
-};
+});

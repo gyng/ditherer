@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -24,7 +25,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const swirlFilter = (input, options: any = defaults) => {
+const swirlFilter = (input, options = defaults) => {
   const { angle, radius, centerX, centerY, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -100,10 +101,10 @@ const swirlFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Swirl",
   func: swirlFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

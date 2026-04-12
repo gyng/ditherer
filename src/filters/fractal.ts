@@ -1,5 +1,6 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -58,7 +59,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const fractalFilter = (input, options: any = defaults) => {
+const fractalFilter = (input, options = defaults) => {
   const { type, zoom, centerX, centerY, iterations, juliaR, juliaI, colorSource, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -150,10 +151,10 @@ const fractalFilter = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Fractal",
   func: fractalFilter,
   optionTypes,
   options: defaults,
   defaults
-};
+});

@@ -1,5 +1,6 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
+import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -36,7 +37,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const digicamFlash = (input, options: any = defaults) => {
+const digicamFlash = (input, options = defaults) => {
   const {
     flashPower,
     falloff,
@@ -114,11 +115,11 @@ const digicamFlash = (input, options: any = defaults) => {
   return output;
 };
 
-export default {
+export default defineFilter({
   name: "Digicam Flash",
   func: digicamFlash,
   optionTypes,
   options: defaults,
   defaults,
   description: "On-camera point-and-shoot flash look with center hotspot, rapid falloff, reflective clipping, and edge burn",
-};
+});

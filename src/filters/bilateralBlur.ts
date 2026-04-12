@@ -1,6 +1,7 @@
 import { BOOL, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, paletteGetColor } from "utils";
+import { defineFilter } from "filters/types";
 
 export const optionTypes = {
   sigmaSpatial: { type: RANGE, range: [1, 20], step: 1, default: 5, desc: "Spatial kernel size — larger blurs over a wider area" },
@@ -302,7 +303,7 @@ const upscaleBuffer = (buf: Uint8ClampedArray, width: number, height: number, ou
   return outBuf;
 };
 
-const bilateralBlur = (input, options: any = defaults) => {
+const bilateralBlur = (input, options = defaults) => {
   const {
     sigmaSpatial,
     sigmaRange,
@@ -349,4 +350,4 @@ const bilateralBlur = (input, options: any = defaults) => {
   return output;
 };
 
-export default { name: "Bilateral Blur", func: bilateralBlur, optionTypes, options: defaults, defaults };
+export default defineFilter({ name: "Bilateral Blur", func: bilateralBlur, optionTypes, options: defaults, defaults });

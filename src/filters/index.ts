@@ -1,5 +1,6 @@
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
+import { hasTemporalBehavior, isMainThreadFilter, type FilterDefinition, type FilterListEntry } from "./types";
 
 import noop from "./noop";
 import binarize from "./binarize";
@@ -870,7 +871,7 @@ export const filterList = [
       }
     }
   },
-];
+] satisfies FilterListEntry[];
 
 // Worker lookup and saved-state deserialization both resolve filters by
 // `filter.name`, so derive the registry from the same list the UI uses.
@@ -878,7 +879,9 @@ export const filterList = [
 export const filterIndex = filterList.reduce((acc, entry) => {
   acc[entry.filter.name] = entry.filter;
   return acc;
-}, {} as Record<string, (typeof filterList)[number]["filter"]>);
+}, {} as Record<string, FilterDefinition>);
+
+export { hasTemporalBehavior, isMainThreadFilter };
 
 if (import.meta.hot) {
   import.meta.hot.accept(() => {

@@ -2,6 +2,19 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useFilter } from "context/useFilter";
 import useDraggable from "components/App/useDraggable";
 import { filterList, noop } from "filters";
+import type {
+  ActionOptionDefinition,
+  EnumOptionDefinition,
+  EnumOptionGroup,
+  EnumOption,
+  FilterDefinition,
+  FilterListEntry,
+  FilterOptionDefinition,
+  FilterOptionDefinitions,
+  FilterOptionValues,
+  PaletteOptionDefinition,
+  RangeOptionDefinition,
+} from "filters/types";
 import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
 import { paletteList } from "palettes";
 import * as palettes from "palettes";
@@ -25,21 +38,33 @@ const getRandomPresetPalette = () => {
   return { ...palettes.user, options: { colors: THEMES[themeKey] } };
 };
 
+const isRangeOption = (option: FilterOptionDefinition): option is RangeOptionDefinition =>
+  option.type === RANGE && Array.isArray((option as RangeOptionDefinition).range);
+
+const isEnumOption = (option: FilterOptionDefinition): option is EnumOptionDefinition =>
+  option.type === ENUM && Array.isArray((option as EnumOptionDefinition).options);
+
+const isPaletteOption = (option: FilterOptionDefinition): option is PaletteOptionDefinition =>
+  option.type === PALETTE;
+
+const isEnumOptionGroup = (option: EnumOption | EnumOptionGroup): option is EnumOptionGroup =>
+  Array.isArray((option as EnumOptionGroup).options);
+
 // Perturb a filter's options from its defaults
-const randomizeOptions = (base: any) => {
-  const optionTypes = base.optionTypes || {};
-  const defaults = base.defaults || base.options || {};
-  const options = { ...defaults };
+const randomizeOptions = (base: FilterDefinition): FilterOptionValues => {
+  const optionTypes: FilterOptionDefinitions = base.optionTypes || {};
+  const defaults: FilterOptionValues = base.defaults || base.options || {};
+  const options: FilterOptionValues = { ...defaults };
 
   for (const [key, oType] of Object.entries(optionTypes)) {
     if (key.startsWith("_")) continue;
-    const spec = oType as any;
 
-    switch (spec.type) {
+    switch (oType.type) {
       case RANGE: {
-        const [min, max] = spec.range;
-        const step = spec.step || 1;
-        const def = defaults[key] ?? min;
+        if (!isRangeOption(oType) || oType.range.length < 2) break;
+        const [min, max] = oType.range;
+        const step = oType.step || 1;
+        const def = typeof defaults[key] === "number" ? defaults[key] : min;
         const spread = (max - min) * 0.5;
         const raw = def + (Math.random() - 0.5) * spread;
         const clamped = Math.max(min, Math.min(max, raw));
@@ -50,19 +75,21 @@ const randomizeOptions = (base: any) => {
         options[key] = Math.random() < 0.3 ? !defaults[key] : defaults[key];
         break;
       case ENUM:
-        if (spec.options?.length > 0 && Math.random() < 0.4) {
-          const pick = spec.options[Math.floor(Math.random() * spec.options.length)];
+        if (isEnumOption(oType) && oType.options.length > 0 && Math.random() < 0.4) {
+          const pick = oType.options[Math.floor(Math.random() * oType.options.length)];
+          if (isEnumOptionGroup(pick)) break;
           options[key] = pick.value ?? pick;
         }
         break;
       case PALETTE: {
         // Weighted random: 40% nearest with varied levels, 30% user with theme, 30% nearest default
         const roll = Math.random();
-        const palOpts = { ...(defaults[key]?.options || {}) };
+        const defaultPalette = defaults[key] as { options?: FilterOptionValues } | undefined;
+        const palOpts = { ...(defaultPalette?.options || {}) };
 
         if (roll < 0.4) {
           // Nearest with randomized levels
-          if (palOpts.levels != null) {
+          if (typeof palOpts.levels === "number") {
             palOpts.levels = Math.max(2, Math.min(256,
               Math.round(palOpts.levels + (Math.random() - 0.5) * 128)
             ));
@@ -77,8 +104,8 @@ const randomizeOptions = (base: any) => {
         break;
       }
       case COLOR: {
-        const def = defaults[key] || [128, 128, 128];
-        options[key] = def.map((c: number) =>
+        const def = Array.isArray(defaults[key]) ? defaults[key] : [128, 128, 128];
+        options[key] = def.map((c) =>
           Math.max(0, Math.min(255, Math.round(c + (Math.random() - 0.5) * 120)))
         );
         break;
@@ -91,12 +118,12 @@ const randomizeOptions = (base: any) => {
   return options;
 };
 
-export const createRandomFilterEntry = (entry: any, forcePresetPalette = false) => {
+export const createRandomFilterEntry = (entry: FilterListEntry, forcePresetPalette = false) => {
   const base = entry.filter;
   const options = randomizeOptions(base);
 
   if (forcePresetPalette) {
-    const paletteKey = Object.entries(base.optionTypes || {}).find(([, spec]) => (spec as any).type === PALETTE)?.[0];
+    const paletteKey = Object.entries(base.optionTypes || {}).find(([, spec]) => isPaletteOption(spec))?.[0];
     if (paletteKey) {
       options[paletteKey] = getRandomPresetPalette();
     }
@@ -316,7 +343,11 @@ const ChainList = () => {
     }
     if (picked.length === 0) return;
     const paletteEligibleIndices = picked
-      .map((entry, index) => ((((entry.filter.optionTypes as Record<string, any> | undefined)?.palette)?.type === PALETTE) ? index : -1))
+      .map((entry, index) => {
+        const optionTypes = entry.filter.optionTypes as FilterOptionDefinitions | undefined;
+        const paletteOption = optionTypes?.["palette"];
+        return paletteOption && isPaletteOption(paletteOption) ? index : -1;
+      })
       .filter((index) => index >= 0);
     const shouldForcePresetPalette = paletteEligibleIndices.length > 0 && Math.random() < 0.45;
     const forcedIndex = shouldForcePresetPalette
@@ -615,7 +646,7 @@ const ChainList = () => {
                     className={`${s.removeBtn} ${actions.isAnimating() ? s.animActive : ""}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      entry.filter.optionTypes.animate.action(
+                      (entry.filter.optionTypes.animate as ActionOptionDefinition).action(
                         actions, state.inputCanvas, entry.filter.func, entry.filter.options
                       );
                     }}
