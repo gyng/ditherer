@@ -154,7 +154,7 @@ const memoize = (fn) => {
 };
 
 export const wasmReady: Promise<boolean> = import.meta.env.MODE !== "test"
-  ? import("wasm/rgba2laba/wasm/rgba2laba").then(async (mod: any) => {
+  ? import("wasm/rgba2laba/wasm/rgba2laba").then(async (mod) => {
     await mod.default();
     wasmRgba2labaInner = mod.rgba2laba;
     wasmRgbaLabaDistanceInner = mod.rgba_laba_distance;
@@ -322,42 +322,91 @@ export const rgba2laba = (
   return [outL, outA, outB, input[3]];
 };
 
-let wasmRgba2labaInner = (a, b, c, d, e, f, g) => {
+type WasmRgba2LabaFn = (
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  refX: number,
+  refY: number,
+  refZ: number,
+) => ArrayLike<number>;
+type WasmDistanceFn = (
+  ar: number,
+  ag: number,
+  ab: number,
+  aa: number,
+  br: number,
+  bg: number,
+  bb: number,
+  ba: number,
+  refX: number,
+  refY: number,
+  refZ: number,
+) => number;
+type WasmNearestLabIndexFn = (
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  palette: Float64Array,
+  refX: number,
+  refY: number,
+  refZ: number,
+) => number;
+type WasmNearestLabPrecomputedFn = (
+  r: number,
+  g: number,
+  b: number,
+  paletteLab: Float64Array,
+  refX: number,
+  refY: number,
+  refZ: number,
+) => number;
+type WasmQuantizeBufferFn = (
+  buffer: Uint8Array | Uint8ClampedArray,
+  palette: Float64Array,
+  refX?: number,
+  refY?: number,
+  refZ?: number,
+) => Uint8Array<ArrayBufferLike>;
+
+let wasmRgba2labaInner: WasmRgba2LabaFn = (a, b, c, d, e, f, g) => {
   console.error("WASM module not loaded!", a, b, c, d, e, f, g);
   return [0, 0, 0, 0];
 };
 
-let wasmRgbaLabaDistanceInner = (a, b, c, d, e, f, g, h, i, j, k) => {
+let wasmRgbaLabaDistanceInner: WasmDistanceFn = (a, b, c, d, e, f, g, h, i, j, k) => {
   console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k);
   return 0;
 };
 
-let wasmNearestLabIndexInner = (_r, _g, _b, _a, _palette, _rx, _ry, _rz) => {
+let wasmNearestLabIndexInner: WasmNearestLabIndexFn = (_r, _g, _b, _a, _palette, _rx, _ry, _rz) => {
   console.error("WASM module not loaded!");
   return 0;
 };
 
-let wasmNearestLabPrecomputedInner = (_r, _g, _b, _palette_lab, _rx, _ry, _rz) => {
+let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn = (_r, _g, _b, _palette_lab, _rx, _ry, _rz) => {
   console.error("WASM module not loaded!");
   return 0;
 };
 
-let wasmQuantizeBufferLabInner = (_buffer, _palette, _rx, _ry, _rz) => {
+let wasmQuantizeBufferLabInner: WasmQuantizeBufferFn = (_buffer, _palette, _rx, _ry, _rz) => {
   console.error("WASM module not loaded!");
   return new Uint8Array(0);
 };
 
-let wasmQuantizeBufferRgbInner = (_buffer, _palette) => {
+let wasmQuantizeBufferRgbInner: WasmQuantizeBufferFn = (_buffer, _palette) => {
   console.error("WASM module not loaded!");
   return new Uint8Array(0);
 };
 
-let wasmQuantizeBufferRgbApproxInner = (_buffer, _palette) => {
+let wasmQuantizeBufferRgbApproxInner: WasmQuantizeBufferFn = (_buffer, _palette) => {
   console.error("WASM module not loaded!");
   return new Uint8Array(0);
 };
 
-let wasmQuantizeBufferHsvInner = (_buffer, _palette) => {
+let wasmQuantizeBufferHsvInner: WasmQuantizeBufferFn = (_buffer, _palette) => {
   console.error("WASM module not loaded!");
   return new Uint8Array(0);
 };
@@ -403,7 +452,7 @@ export const rgba2hsvaMemo = memoize(rgba2hsva);
 // Batch nearest-colour search in WASM — one JS/WASM crossing per pixel
 // instead of O(palette_size). Palette is cached as a flat Float64Array.
 let cachedPaletteFlat: Float64Array | null = null;
-let cachedPaletteRef: any = null;
+let cachedPaletteRef: unknown[] | null = null;
 export const wasmNearestLabIndex = (
   pixel,
   palette,
@@ -429,7 +478,7 @@ export const wasmNearestLabIndex = (
 // Per-pixel nearest with pre-converted Lab palette — avoids re-converting
 // palette to Lab on every pixel. Palette Lab is cached alongside the RGBA cache.
 let cachedPaletteLabFlat: Float64Array | null = null;
-let cachedPaletteLabRef: any = null;
+let cachedPaletteLabRef: unknown[] | null = null;
 export const wasmNearestLabPrecomputed = (
   pixel,
   palette,

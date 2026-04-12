@@ -70,7 +70,13 @@ const defaults = {
 class PngError extends Error {
   constructor(...params) {
     super(...params);
-    (Error as any).captureStackTrace(this, PngError);
+    const ErrorWithCaptureTrace = Error as ErrorConstructor & {
+      captureStackTrace?: (
+        _target: object,
+        _constructorOpt?: abstract new (..._args: never[]) => object,
+      ) => void;
+    };
+    ErrorWithCaptureTrace.captureStackTrace?.(this, PngError);
   }
 }
 

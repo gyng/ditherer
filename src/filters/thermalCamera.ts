@@ -132,7 +132,7 @@ const thermalCamera = (input, options = defaults) => {
     palette
   } = options;
 
-  const frameIndex = (options as any)._frameIndex || 0;
+  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

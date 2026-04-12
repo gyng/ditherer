@@ -288,7 +288,7 @@ const mode7 = (input, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const frameIndex = (options as any)._frameIndex || 0;
+  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const forwardOffset = fly ? frameIndex * forwardSpeed * 0.05 : 0;
   const strafeOffset = fly ? frameIndex * strafeSpeed * 0.05 : 0;
   const liftOffset = fly ? frameIndex * liftSpeed * 0.02 : 0;

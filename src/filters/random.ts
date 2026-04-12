@@ -30,6 +30,11 @@ type RandomOptions = FilterOptionValues & typeof defaults & {
   _linearize?: boolean;
 };
 
+type RandomPaletteOptions = {
+  levels: number;
+  colorDistanceAlgorithm: unknown;
+};
+
 const random = (
   input,
   options: RandomOptions = defaults
@@ -63,10 +68,11 @@ const random = (
           const r = floatBuf[i] * 255 + (Math.random() - 0.5) * 255;
           const g = floatBuf[i + 1] * 255 + (Math.random() - 0.5) * 255;
           const b = floatBuf[i + 2] * 255 + (Math.random() - 0.5) * 255;
-          const color = nearest.getColor(rgba(r, g, b, floatBuf[i + 3] * 255), {
+          const paletteOptions: RandomPaletteOptions = {
             levels: options.levels,
             colorDistanceAlgorithm: options.colorDistanceAlgorithm
-          } as any);
+          };
+          const color = nearest.getColor(rgba(r, g, b, floatBuf[i + 3] * 255), paletteOptions);
           fillBufferPixel(floatBuf, i, color[0] / 255, color[1] / 255, color[2] / 255, floatBuf[i + 3]);
         }
       }
@@ -88,10 +94,11 @@ const random = (
           const r = buf[i] + (Math.random() - 0.5) * 255;
           const g = buf[i + 1] + (Math.random() - 0.5) * 255;
           const b = buf[i + 2] + (Math.random() - 0.5) * 255;
-          const color = nearest.getColor(rgba(r, g, b, buf[i + 3]), {
+          const paletteOptions: RandomPaletteOptions = {
             levels: options.levels,
             colorDistanceAlgorithm: options.colorDistanceAlgorithm
-          } as any);
+          };
+          const color = nearest.getColor(rgba(r, g, b, buf[i + 3]), paletteOptions);
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
         }
       }

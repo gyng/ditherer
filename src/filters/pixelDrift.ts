@@ -57,7 +57,7 @@ const mulberry32 = (seed: number) => {
 
 const pixelDrift = (input, options = defaults) => {
   const { strength, direction, threshold, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

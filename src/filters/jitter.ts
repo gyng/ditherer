@@ -44,7 +44,7 @@ const jitterFilter = (
   options = defaults
 ) => {
   const { jitterX, jitterXSpread, jitterY, jitterYSpread, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
   const output = cloneCanvas(input, false);

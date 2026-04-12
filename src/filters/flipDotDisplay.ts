@@ -118,7 +118,7 @@ const flipDotDisplay = (input, options = defaults) => {
   const specular = clamp01(Number(options.specular ?? defaults.specular));
   const stuckDotRate = clamp01(Number(options.stuckDotRate ?? defaults.stuckDotRate));
   const jitter = clamp01(Number(options.jitter ?? defaults.jitter));
-  const frameIndex = Number((options as any)._frameIndex ?? 0);
+  const frameIndex = Number((options as { _frameIndex?: number })._frameIndex ?? 0);
 
   const onColor = toColor(options.onColor, defaults.onColor);
   const offColor = toColor(options.offColor, defaults.offColor);

@@ -55,7 +55,7 @@ export const defaults = {
 
 const chronophotography = (input, options = defaults) => {
   const { exposures, interval, blendMode, fadeMode, isolateSubject } = options;
-  const ema: Float32Array | null = (options as any)._ema || null;
+  const ema: Float32Array | null = (options as { _ema?: Float32Array | null })._ema || null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

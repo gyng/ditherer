@@ -33,7 +33,7 @@ const mulberry32 = (seed: number) => {
 
 const risographMulti = (input, options = defaults) => {
   const { color1, color2, color3, color4, layers, misregistration, grain, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

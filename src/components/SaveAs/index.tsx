@@ -7,6 +7,7 @@ import Enum from "components/controls/Enum";
 import { createOfflineVideoEncoder, getReliableVideoSupport, type ReliableVideoSupport } from "./offlineVideoEncode";
 import { renderOfflineFrames } from "./offlineRender";
 import { buildDecodedTimeline, decodeTimelineFramesWithWebCodecs } from "./offlineWebCodecsDecode";
+import { planLoopCaptureRouting, planReliableVideoRouting } from "./exportRouting";
 import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
@@ -123,6 +124,19 @@ interface SaveAsProps {
 
 type ManagedVideoElement = HTMLVideoElement & { __manualPause?: boolean };
 type SourceVideoWithObjectUrl = HTMLVideoElement & { __objectUrl?: string };
+type PaletteOptionWithColors = {
+  options?: {
+    colors?: unknown;
+  };
+};
+type VideoFrameMetadata = { mediaTime?: number };
+type VideoFrameCallbackVideo = HTMLVideoElement & {
+  requestVideoFrameCallback?: (
+    callback: (now: number, metadata: VideoFrameMetadata) => void,
+  ) => number;
+  cancelVideoFrameCallback?: (handle: number) => void;
+  captureStream?: (fps?: number) => MediaStream;
+};
 
 const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const { state, actions } = useFilter();
@@ -132,7 +146,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
 
   // Tab
   const hasAnimatedFilter = (state.chain || []).some(
-    (e: any) => e.enabled !== false && temporalFilterNamesRef.current.has(e.filter?.name)
+    (entry) => entry.enabled !== false && temporalFilterNamesRef.current.has(entry.filter?.name)
   );
   const isAnimated = !!state.video || hasAnimatedFilter;
   const showVideoTab = isAnimated || state.realtimeFiltering;
@@ -262,17 +276,19 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
 
   const activeRecFormat = recordingFormats[selectedRecFormat] ?? recordingFormats[0];
   const activeEntry = state.chain?.[state.activeIndex] ?? null;
+  const getPaletteOptions = (palette: unknown): PaletteOptionWithColors | null =>
+    typeof palette === "object" && palette !== null ? (palette as PaletteOptionWithColors) : null;
 
   const getGifPaletteColorTable = useCallback(() => {
     const paletteCandidates = [
       activeEntry?.filter?.options?.palette,
       ...(state.chain || [])
-        .filter((entry: any) => entry?.enabled !== false)
-        .map((entry: any) => entry?.filter?.options?.palette),
+        .filter((entry) => entry?.enabled !== false)
+        .map((entry) => entry?.filter?.options?.palette),
     ];
 
     for (const palette of paletteCandidates) {
-      const rawColors = palette?.options?.colors;
+      const rawColors = getPaletteOptions(palette)?.options?.colors;
       if (!Array.isArray(rawColors) || rawColors.length === 0) continue;
       const deduped = rawColors
         .map((color: number[]) => [color[0], color[1], color[2]].map((channel) => {
@@ -439,14 +455,14 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     if (strictValidation && "requestVideoFrameCallback" in vid) {
       await Promise.race([
         new Promise<void>((resolve) => {
-          const callbackId = (vid as any).requestVideoFrameCallback((_now: number, metadata: { mediaTime?: number }) => {
+          const callbackId = (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.((_now: number, metadata: VideoFrameMetadata) => {
             decodedMediaTime = metadata?.mediaTime ?? null;
             resolve();
           });
           window.setTimeout(() => {
-            if (typeof (vid as any).cancelVideoFrameCallback === "function") {
+            if (typeof (vid as VideoFrameCallbackVideo).cancelVideoFrameCallback === "function" && callbackId != null) {
               try {
-                (vid as any).cancelVideoFrameCallback(callbackId);
+                (vid as VideoFrameCallbackVideo).cancelVideoFrameCallback?.(callbackId);
               } catch {
                 // ignore cancel races
               }
@@ -565,11 +581,11 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     if ("requestVideoFrameCallback" in vid) {
       await Promise.race([
         new Promise<void>((resolve) => {
-          const callbackId = (vid as any).requestVideoFrameCallback(() => resolve());
+          const callbackId = (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.(() => resolve());
           window.setTimeout(() => {
-            if (typeof (vid as any).cancelVideoFrameCallback === "function") {
+            if (typeof (vid as VideoFrameCallbackVideo).cancelVideoFrameCallback === "function" && callbackId != null) {
               try {
-                (vid as any).cancelVideoFrameCallback(callbackId);
+                (vid as VideoFrameCallbackVideo).cancelVideoFrameCallback?.(callbackId);
               } catch {
                 // ignore cancel races
               }
@@ -739,7 +755,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
 
     // Mix audio from video source if available
     if (state.video && includeVideoAudio) {
-      const vid = state.video as any;
+      const vid = state.video as VideoFrameCallbackVideo;
       if (vid.captureStream) {
         const vidStream = fps != null ? vid.captureStream(fps) : vid.captureStream();
         if (vidStream) {
@@ -918,7 +934,12 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
           };
 
           const sourceUrl = (vid as SourceVideoWithObjectUrl).__objectUrl || vid.currentSrc || vid.src;
-          if (videoLoopMode === "webcodecs" && sourceUrl && typeof VideoDecoder !== "undefined") {
+          const routingPlan = planReliableVideoRouting({
+            preferredMode: videoLoopMode,
+            sourceUrl: sourceUrl || null,
+            hasVideoDecoder: typeof VideoDecoder !== "undefined",
+          });
+          if (routingPlan.shouldAttemptWebCodecs) {
             const exportSessionId = crypto.randomUUID();
             try {
               const timeline = buildDecodedTimeline(vid.duration, reliableFps, rangeStartSec, rangeEndSec);
@@ -1043,12 +1064,8 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
             renderResult = {
               ...fallbackRenderResult,
               sourcePath: "browser-seek",
-              ...(videoLoopMode === "webcodecs"
-                ? {
-                    fallbackReason: !sourceUrl
-                      ? "No source URL available for WebCodecs decode."
-                      : "WebCodecs VideoDecoder is unavailable in this browser.",
-                  }
+              ...(routingPlan.fallbackReason
+                ? { fallbackReason: routingPlan.fallbackReason }
                 : {}),
             };
           }
@@ -1173,8 +1190,10 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
       streamRef.current = stream;
 
       // Mix audio
-      if (includeVideoAudio && (vid as any).captureStream) {
-        const vidStream = fps != null ? (vid as any).captureStream(fps) : (vid as any).captureStream();
+      if (includeVideoAudio && (vid as VideoFrameCallbackVideo).captureStream) {
+        const vidStream = fps != null
+          ? (vid as VideoFrameCallbackVideo).captureStream?.(fps)
+          : (vid as VideoFrameCallbackVideo).captureStream?.();
         if (vidStream) {
           vidStream.getAudioTracks().forEach((t: MediaStreamTrack) => stream.addTrack(t.clone()));
         }
@@ -1376,13 +1395,19 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     const capturedFrames: { data: Uint8ClampedArray; width: number; height: number; delay: number }[] = [];
     const duration = rangeEndSec;
     const captureFps = loopAutoFps ? estimateVideoFps(vid, gifFps) : gifFps;
-    const usePlaybackCapture = loopCaptureMode === "realtime";
-    const useWebCodecsCapture = loopCaptureMode === "webcodecs";
+    const sourceUrl = (vid as SourceVideoWithObjectUrl).__objectUrl || vid.currentSrc || vid.src;
+    const loopRoutingPlan = planLoopCaptureRouting({
+      captureMode: loopCaptureMode,
+      sourceUrl: sourceUrl || null,
+      hasVideoDecoder: typeof VideoDecoder !== "undefined",
+    });
+    const usePlaybackCapture = loopRoutingPlan.usesPlaybackCapture;
+    const useWebCodecsCapture = loopRoutingPlan.shouldAttemptWebCodecs;
     const useVFC = usePlaybackCapture && loopAutoFps && "requestVideoFrameCallback" in vid;
     let aborted = false;
     const gifProfile = mode === "gif" ? {
-      path: usePlaybackCapture ? "realtime-playback" : "hidden-video-fallback",
-      fallbackReason: "",
+      path: loopRoutingPlan.path,
+      fallbackReason: loopRoutingPlan.fallbackReason || "",
       decodeLoadMs: 0,
       decodeConfigMs: 0,
       demuxMs: 0,
@@ -1396,11 +1421,10 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
 
     if (!usePlaybackCapture) {
       const exportSessionId = crypto.randomUUID();
-      const sourceUrl = (vid as SourceVideoWithObjectUrl).__objectUrl || vid.currentSrc || vid.src;
 
       try {
         let renderedViaWebCodecs = false;
-        if (useWebCodecsCapture && sourceUrl && typeof VideoDecoder !== "undefined") {
+        if (useWebCodecsCapture && sourceUrl) {
           let decodedFramesToClose: { frame: VideoFrame }[] = [];
           try {
             const timeline = buildDecodedTimeline(vid.duration, captureFps, rangeStartSec, rangeEndSec);
@@ -1632,7 +1656,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
 
         if (useVFC) {
           // Native framerate path: requestVideoFrameCallback fires per decoded frame
-          const onFrame = async (_now: number, metadata: any) => {
+          const onFrame = async (_now: number, metadata: VideoFrameMetadata) => {
             if (stopped) return;
             if (exportAbortRef.current) {
               aborted = true;
@@ -1645,7 +1669,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
               return;
             }
             if (t <= 0.001 && lastMediaTime === 0) {
-              if (!stopped) (vid as any).requestVideoFrameCallback(onFrame);
+              if (!stopped) (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.(onFrame);
               return;
             }
             if (lastMediaTime > 0) {
@@ -1662,11 +1686,11 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
               return;
             }
             if (!rendered || rendered.renderedTime == null) {
-              if (!stopped) (vid as any).requestVideoFrameCallback(onFrame);
+              if (!stopped) (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.(onFrame);
               return;
             }
             if (rendered.renderVersion <= lastCapturedRenderVersion || rendered.renderedTime <= lastCapturedRenderedTime + 0.0005) {
-              if (!stopped) (vid as any).requestVideoFrameCallback(onFrame);
+              if (!stopped) (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.(onFrame);
               return;
             }
             const capturedCount = Math.max(1, capturedFrames.length);
@@ -1679,9 +1703,9 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
             captureFrame();
             lastCapturedRenderedTime = rendered.renderedTime;
             lastCapturedRenderVersion = rendered.renderVersion;
-            if (!stopped) (vid as any).requestVideoFrameCallback(onFrame);
+            if (!stopped) (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.(onFrame);
           };
-          (vid as any).requestVideoFrameCallback(onFrame);
+          (vid as VideoFrameCallbackVideo).requestVideoFrameCallback?.(onFrame);
         } else {
           const fps = gifFps;
           const intervalMs = Math.round(1000 / fps);

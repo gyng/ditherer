@@ -49,7 +49,7 @@ const mulberry32 = (seed: number) => {
 
 const scanLineShift = (input, options = defaults) => {
   const { maxShift, blockHeight, chance, colorShift, wrap, palette } = options;
-  const frameIndex = (options as any)._frameIndex || 0;
+  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

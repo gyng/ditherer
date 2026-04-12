@@ -4,7 +4,7 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor
 import { defineFilter } from "filters/types";
 
 // Parse color that may be hex string (legacy URLs) or [r,g,b] array
-const parseColor = (c: any): [number, number, number] => {
+const parseColor = (c: unknown): [number, number, number] => {
   if (Array.isArray(c)) return [c[0], c[1], c[2]];
   if (typeof c === "string") {
     const h = c.trim().replace("#", "");

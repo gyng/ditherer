@@ -4,7 +4,7 @@ export type ColorLabA = [number, number, number, number];
 
 export interface OptionType {
   type: string;
-  default?: any;
+  default?: unknown;
   range?: [number, number];
   step?: number;
   options?: Array<{ name: string; value: string }>;
@@ -12,24 +12,33 @@ export interface OptionType {
 
 export interface Palette {
   name: string;
-  getColor: (color: ColorRGBA, options?: any) => ColorRGBA;
-  options: any;
+  getColor: (color: ColorRGBA, options?: unknown) => ColorRGBA;
+  options: unknown;
   optionTypes: Record<string, OptionType>;
-  defaults: any;
+  defaults: unknown;
 }
 
 export interface AnimateOption extends OptionType {
   type: "ACTION";
   label: string;
-  action: (actions: any, inputCanvas: any, filterFunc: any, options: any) => void;
+  action: (
+    actions: unknown,
+    inputCanvas: unknown,
+    filterFunc: unknown,
+    options: unknown,
+  ) => void;
 }
 
 export interface Filter {
   name: string;
-  func: (input: HTMLCanvasElement, options?: any, dispatch?: any) => HTMLCanvasElement | string | void;
+  func: (
+    input: HTMLCanvasElement,
+    options?: unknown,
+    dispatch?: unknown,
+  ) => HTMLCanvasElement | string | void;
   optionTypes: Record<string, OptionType> & { animate?: AnimateOption; animSpeed?: OptionType };
-  options: any;
-  defaults: any;
+  options: unknown;
+  defaults: unknown;
 }
 
 export interface FilterState {

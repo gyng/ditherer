@@ -160,6 +160,8 @@ const NOISE_PARAMS = {
   [QUALITY_STANDARD]: { rb: 11, g: 8 },
 };
 
+type JpegPreset = typeof jpegDefaults;
+
 // Deterministic-looking noise from pixel coordinates.
 // Uses a simple hash to avoid Math.random() producing different output per run
 // while still appearing random spatially.
@@ -285,14 +287,14 @@ const getBudgetedJpegPreset = (quality: string, complexity: number, flash: boole
   const qDrop = quality === QUALITY_STANDARD ? 10 : 7;
   const chromaDrop = quality === QUALITY_STANDARD ? 14 : 9;
 
-  const tuned = {
+  const tuned: JpegPreset = {
     ...jpegDefaults,
     ...base,
     qualityLuma: clamp(8, 95, base.qualityLuma - qDrop * c),
     qualityChroma: clamp(6, 95, base.qualityChroma - chromaDrop * c),
     mosquito: clamp(0, 1, base.mosquito + 0.08 * c),
     ringing: clamp(0, 1, base.ringing + 0.06 * c),
-  } as any;
+  };
 
   if (flash) {
     // Flash tends to lower visible shadow noise and slightly raises effective detail.

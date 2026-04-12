@@ -1,6 +1,6 @@
 import { ENUM, TEXT, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, srgbPaletteGetColor } from "utils";
 import { defineFilter } from "filters/types";
 
 export const ALL = "ALL";
@@ -40,6 +40,23 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
+type ProgramPalette = typeof defaults.palette;
+type ProgramPixel = [number, number, number, number];
+type ProgramPixelFn = (
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  i: number,
+  p: ProgramPixel,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  buf: Uint8ClampedArray,
+  palette: ProgramPalette,
+) => ProgramPixel;
+
 const programFilter = (
   input,
   options = defaults
@@ -59,14 +76,14 @@ const programFilter = (
   const w = input.width;
   const h = input.height;
 
-  let pixelFn: (...args: any[]) => [number, number, number, number];
+  let pixelFn: ProgramPixelFn;
   try {
     // Compile the user program once. It reads/writes r,g,b,a and reads
     // i,p,w,h,x,y,buf,palette; we return the (possibly mutated) channels.
     pixelFn = new Function(
       "r", "g", "b", "a", "i", "p", "w", "h", "x", "y", "buf", "palette",
       `${program}\nreturn [r, g, b, a];`
-    ) as (...args: any[]) => [number, number, number, number];
+    ) as ProgramPixelFn;
   } catch (e) {
     console.error(e);
     return input;
@@ -75,7 +92,7 @@ const programFilter = (
   outside: for (let x = 0; x < w; x += 1) {
     for (let y = 0; y < h; y += 1) {
       const i = getBufferIndex(x, y, w);
-      const p = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
+      const p: ProgramPixel = [buf[i], buf[i + 1], buf[i + 2], buf[i + 3]];
 
       let r = p[0];
       let g = p[1];

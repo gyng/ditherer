@@ -95,10 +95,14 @@ type ErrorDiffusingRuntimeOptions = FilterOptionValues & {
 
 // Visibility predicates: only show row-major options when scanOrder is row-major,
 // only show errorStrategy when scanOrder is custom-order.
-const isRowMajorOrder = (opts: any) => !CUSTOM_ORDERS.has(opts.scanOrder || ORDER.HORIZONTAL);
-const isCustomOrderOpts = (opts: any) => CUSTOM_ORDERS.has(opts.scanOrder || ORDER.HORIZONTAL);
-const usesTemporalBleed = (opts: any) => (opts.temporalMode || TEMPORAL_MODE.BLEED) === TEMPORAL_MODE.BLEED;
-const usesTemporalVote = (opts: any) => opts.temporalMode === TEMPORAL_MODE.VOTE;
+const isRowMajorOrder = (opts: ErrorDiffusingRuntimeOptions) =>
+  !CUSTOM_ORDERS.has(opts.scanOrder || ORDER.HORIZONTAL);
+const isCustomOrderOpts = (opts: ErrorDiffusingRuntimeOptions) =>
+  CUSTOM_ORDERS.has(opts.scanOrder || ORDER.HORIZONTAL);
+const usesTemporalBleed = (opts: ErrorDiffusingRuntimeOptions) =>
+  (opts.temporalMode || TEMPORAL_MODE.BLEED) === TEMPORAL_MODE.BLEED;
+const usesTemporalVote = (opts: ErrorDiffusingRuntimeOptions) =>
+  opts.temporalMode === TEMPORAL_MODE.VOTE;
 
 export const optionTypes = {
   serpentine: { type: BOOL, default: true, visibleWhen: isRowMajorOrder, desc: "Alternate scan direction per row to reduce directional artifacts (only affects Horizontal/Vertical scan orders)" },
@@ -123,7 +127,7 @@ export const optionTypes = {
     { name: "Prime", value: ROW_ALT.PRIME },
     { name: "Random", value: ROW_ALT.RANDOM },
   ], default: ROW_ALT.BOUSTROPHEDON,
-    visibleWhen: (opts: any) => isRowMajorOrder(opts) && opts.serpentine !== false,
+    visibleWhen: (opts: ErrorDiffusingRuntimeOptions) => isRowMajorOrder(opts) && opts.serpentine !== false,
     desc: "Per-row direction pattern. Only applies to Horizontal/Vertical scan orders." },
   errorStrategy: { type: ENUM, options: [
     { name: "Renormalize", value: ERR_STRATEGY.RENORMALIZE },
@@ -522,7 +526,7 @@ export const errorDiffusingFilter = (
     const offsetY = errorMatrix.offset[1];
 
     // Scratch buffer — avoids per-pixel array allocations in palette calls
-    const _pix = new Float32Array(4);
+    const _pix = [0, 0, 0, 0];
 
     if (isCustomOrder) {
       // Custom-order scan: walk a precomputed visit order, push error only to
@@ -562,7 +566,7 @@ export const errorDiffusingFilter = (
         if (useLinear) {
           _pix[0] = errBuf[i]; _pix[1] = errBuf[i + 1];
           _pix[2] = errBuf[i + 2]; _pix[3] = errBuf[i + 3];
-          const color = linearPaletteGetColor(palette, _pix as any, palette.options);
+          const color = linearPaletteGetColor(palette, _pix, palette.options);
           er = _pix[0] - color[0];
           eg = _pix[1] - color[1];
           eb = _pix[2] - color[2];
@@ -572,7 +576,7 @@ export const errorDiffusingFilter = (
         } else {
           const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
           _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
-          const color = palette.getColor(_pix as any, palette.options);
+          const color = palette.getColor(_pix, palette.options);
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
           er = pr - color[0];
           eg = pg - color[1];
@@ -668,7 +672,7 @@ export const errorDiffusingFilter = (
         if (useLinear) {
           _pix[0] = errBuf[i]; _pix[1] = errBuf[i + 1];
           _pix[2] = errBuf[i + 2]; _pix[3] = errBuf[i + 3];
-          const color = linearPaletteGetColor(palette, _pix as any, palette.options);
+          const color = linearPaletteGetColor(palette, _pix, palette.options);
           const er = _pix[0] - color[0];
           const eg = _pix[1] - color[1];
           const eb = _pix[2] - color[2];
@@ -694,7 +698,7 @@ export const errorDiffusingFilter = (
         } else {
           const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
           _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
-          const color = palette.getColor(_pix as any, palette.options);
+          const color = palette.getColor(_pix, palette.options);
           fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
           const er = pr - color[0];
           const eg = pg - color[1];

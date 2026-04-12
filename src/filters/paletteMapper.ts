@@ -26,11 +26,13 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 16 } }
 };
 
+type PaletteMapperPalette = typeof defaults.palette;
+
 const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-const buildBandPalette = (bandCount: number, hueOffset: number, palette: any) => {
+const buildBandPalette = (bandCount: number, hueOffset: number, palette: PaletteMapperPalette) => {
   const colors: number[][] = [];
   for (let band = 0; band < bandCount; band += 1) {
     const hue = (((band / bandCount) * 360 + hueOffset) % 360 + 360) % 360;

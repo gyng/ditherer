@@ -32,7 +32,7 @@ export const defaults = {
 
 const echoCombiner = (input, options = defaults) => {
   const { gain, baseline } = options;
-  const ema: Float32Array | null = (options as any)._ema || null;
+  const ema: Float32Array | null = (options as { _ema?: Float32Array | null })._ema || null;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

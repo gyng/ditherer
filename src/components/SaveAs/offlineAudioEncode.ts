@@ -1,16 +1,20 @@
-import type { Muxer } from "webm-muxer";
+import type { ArrayBufferTarget, Muxer } from "webm-muxer";
 
 const TARGET_AUDIO_SAMPLE_RATE = 48_000;
 const AUDIO_CHUNK_FRAMES = 960;
 
 type SourceVideoWithObjectUrl = HTMLVideoElement & { __objectUrl?: string };
 
+type AudioMuxer = Muxer<ArrayBufferTarget> & {
+  addAudioChunk: (chunk: EncodedAudioChunk, meta?: EncodedAudioChunkMetadata) => void;
+};
+
 export type PreparedOfflineAudioTrack = {
   numberOfChannels: number;
   sampleRate: number;
   totalFrames: number;
   encodeInto: (
-    muxer: Muxer<any>,
+    muxer: AudioMuxer,
     onProgress?: (message: string) => void,
     isAborted?: () => boolean,
   ) => Promise<void>;

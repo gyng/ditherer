@@ -8,12 +8,12 @@ This is a staff-level quality plan, not a single patch plan. It is intentionally
 
 ## Status
 
-Status as of 2026-04-13:
+Status as of 2026-04-13 after implementation:
 
 - Workstream 1 is complete
-- Workstream 2 is materially complete at the core-boundary level, but the full strictness ratchet is not
-- Workstream 3 is complete for source-of-truth cleanup and registry enforcement, with only non-essential decomposition left on the table
-- Workstream 4 is substantially complete, with skip debt reduced and targeted orchestration coverage added
+- Workstream 2 is materially complete at the core-boundary level, but the repo-wide `strict` ratchet is not
+- Workstream 3 is complete for source-of-truth cleanup and registry enforcement, with only optional cosmetic decomposition left on the table
+- Workstream 4 is materially complete, with skip debt reduced and targeted orchestration and parity coverage added
 - Workstream 5 is only partially complete because the repo still does not compile under `noImplicitAny` / full `strict`
 
 The quality initiative succeeded in its highest-leverage goals:
@@ -24,12 +24,15 @@ The quality initiative succeeded in its highest-leverage goals:
 - the core runtime seams are typed instead of relying on broad `any`
 - the filter authoring contract is standardized through `defineFilter(...)`
 - the browser WASM path now has a real end-to-end smoke test
+- worker/main-thread execution now has parity coverage for shared filter behavior
+- `SaveAs` export routing now has dedicated decision-logic coverage instead of relying only on integration behavior
+- the main source tree no longer carries production-code `any` usage outside comments
 
 The remaining work is now concentrated rather than diffuse:
 
 - complete the TypeScript strictness ratchet
 - retire the remaining justified skips in `test/smoke/filters.test.ts`
-- add a small amount of higher-level parity coverage where it buys real confidence
+- optionally add more high-level parity coverage if future regressions justify it
 
 ## Context
 
@@ -233,6 +236,7 @@ Landed:
 - typed filter authoring through generic `FilterDefinition` and `defineFilter(...)`
 - full rollout of `defineFilter(...)` across actual filter exports
 - broad replacement of `options: any = defaults` and other core-boundary `any` usage
+- follow-up cleanup of remaining production-source `any` escapes in filters, utils, workers, and export code
 
 Still open:
 
@@ -270,6 +274,108 @@ Remove correctness drift caused by duplicated behavior logic and reduce hotspot 
 - any decomposition that lands improves correctness or testability, not just file size
 
 ### Status
+
+Complete.
+
+Landed:
+
+- filter-export metadata as the source of truth for temporal/main-thread behavior
+- shared registry helpers consumed by `FilterContext`, `SaveAs`, and filter-library surfaces
+- typechecked registry invariants around exported filter metadata
+- targeted helper extraction in `SaveAs` where it materially improved testing and decision-logic clarity
+- no broad decomposition of `SaveAs`, by design
+
+### Why now
+
+This work removed correctness drift first and only split code where it bought safer behavior or stronger tests.
+
+## Workstream 4 - Regression debt and targeted coverage
+
+### Objective
+
+Turn the known skip and orchestration debt into enforced behavior everywhere it is realistically tractable, and add narrow tests where the behavior is too important to leave implicit.
+
+### Scope
+
+- retire stale smoke skips where the filters now behave under the shared harness
+- add targeted tests around worker parity, reducer edge cases, export routing, and browser-only WASM initialization
+- keep the remaining skip tail explicit where the behavior is still environment-specific or needs larger product decisions
+
+### Deliverables
+
+- fewer smoke-test skips
+- targeted reducer/worker/export/WASM tests
+- explicit residual skip inventory
+
+### Success criteria
+
+- regression-sensitive runtime decisions are covered directly
+- smoke skips only remain where there is known, concrete justification
+- browser-only behavior is exercised in a real browser runner
+
+### Status
+
+Materially complete.
+
+Landed:
+
+- reduced the linearize skip tail in `test/smoke/filters.test.ts`
+- reducer regression coverage for invalid unnamed palette state
+- worker/main-thread parity coverage in `test/workers/filterWorkerParity.test.ts`
+- `SaveAs` export-routing unit coverage in `test/components/SaveAs/exportRouting.test.ts`
+- real browser WASM smoke coverage in `test/e2e/wasm.smoke.spec.ts`
+
+Still open:
+
+- a smaller justified skip tail remains in `test/smoke/filters.test.ts`
+- more skip removal is possible, but no longer as a purely mechanical quality tranche
+
+### Why now
+
+This is the point where additional tests are buying real confidence instead of just increasing count.
+
+## Workstream 5 - Standards ratchet
+
+### Objective
+
+Use the stronger seams and tests to raise the static-quality floor without destabilizing the repo.
+
+### Scope
+
+- remove the highest-value remaining `any` and loose-record usage in production code
+- improve typed authoring and serialization contracts so future code naturally stays within the safer path
+- stop short of flipping repo-wide `strict` settings until the remaining long tail is small enough to tackle intentionally
+
+### Deliverables
+
+- fewer loose runtime type escapes in production code
+- stronger default authoring path for new filters and export logic
+- explicit documentation of what still blocks repo-wide `strict`
+
+### Success criteria
+
+- new code naturally lands on the typed path
+- remaining strictness blockers are concentrated and visible
+- future strictness work is a dedicated ratchet, not a fishing expedition
+
+### Status
+
+Partially complete.
+
+Landed:
+
+- production-source `any` cleanup across filter modules, workers, utils, and export code
+- stronger filter authoring inference via `defineFilter(...)`
+- typed save/export routing, worker contracts, and share-state plumbing
+
+Still open:
+
+- `tsconfig.json` still has `"strict": false`
+- enabling `noImplicitAny` or full `strict` would still require a deliberate long-tail cleanup pass across tests, benches, and remaining implicit assumptions
+
+### Why now
+
+The repo is now meaningfully safer, and the remaining strictness work is isolated enough to be planned as its own follow-on ratchet instead of being mixed into feature work.
 
 Complete for the main quality goals.
 
