@@ -27,7 +27,7 @@ const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible 
   useEffect(() => {
     if (collapsible) return; // collapsible sections manage their own state on all sizes
     const mq = window.matchMedia("(max-width: 768px)");
-    const handler = (e) => {
+    const handler = (e: MediaQueryListEvent) => {
       if (!e.matches) setCollapsed(false); // always expand on desktop
     };
     mq.addEventListener("change", handler);

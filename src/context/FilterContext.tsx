@@ -351,8 +351,13 @@ export const FilterProvider = ({ children }) => {
   // Serialize filter options for worker (replace palette objects with serializable form)
   const serializeOptions = (options?: Record<string, unknown>) => {
     const opts = { ...options } as SerializableOptions & { palette?: SerializablePalette };
-    if (opts.palette && typeof opts.palette.getColor === "function") {
-      opts.palette = serializePalette(opts.palette);
+    if (
+      opts.palette
+      && typeof opts.palette === "object"
+      && typeof (opts.palette as { name?: unknown }).name === "string"
+      && typeof (opts.palette as { getColor?: unknown }).getColor === "function"
+    ) {
+      opts.palette = serializePalette(opts.palette as never);
     }
     return opts;
   };
@@ -938,7 +943,7 @@ export const FilterProvider = ({ children }) => {
       clearMotionVectorsState();
       dispatch({ type: "SET_FILTER_PALETTE_OPTION", optionName, value, chainIndex });
     },
-    addPaletteColor: (color: string, chainIndex?: number) => {
+    addPaletteColor: (color: number[], chainIndex?: number) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
       const chain = stateRef.current.chain;
       for (let i = ci; i < chain.length; i++) {
@@ -955,7 +960,7 @@ export const FilterProvider = ({ children }) => {
       clearMotionVectorsState();
       dispatch({ type: "LOAD_STATE", data: deserialized });
     },
-    saveCurrentColorPalette: (name: string, colors: string[]) => {
+    saveCurrentColorPalette: (name: string, colors: number[][]) => {
       window.localStorage.setItem(
         `_palette_${name.replace(" ", "")}`,
         JSON.stringify({ type: optionTypes.PALETTE, name, colors })

@@ -1980,7 +1980,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                   types={IMAGE_FORMAT_OPTIONS}
                   value={format}
                   hideLabel
-                  onSetFilterOption={(_, v) => setFormat(v)}
+                  onSetFilterOption={(_, v) => setFormat(String(v))}
                 />
               </div>
 
@@ -1990,7 +1990,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                   types={{ range: [0.01, 1] }}
                   step={0.01}
                   value={quality}
-                  onSetFilterOption={(_, v) => setQuality(v)}
+                  onSetFilterOption={(_, v) => setQuality(Number(v))}
                 />
               )}
 
@@ -2105,7 +2105,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                           types={VIDEO_LOOP_MODE_OPTIONS}
                           value={videoLoopMode}
                           hideLabel
-                          onSetFilterOption={(_, v) => setVideoLoopMode(v)}
+                          onSetFilterOption={(_, v) => setVideoLoopMode(v as "offline" | "realtime" | "webcodecs")}
                         />
                       </div>
                       <div className={s.helperText}>
@@ -2226,7 +2226,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                       types={{ range: [1, 60] }}
                       step={1}
                       value={recordFps}
-                      onSetFilterOption={(_, v) => setRecordFps(v)}
+                      onSetFilterOption={(_, v) => setRecordFps(Number(v))}
                     />
                   )}
 
@@ -2531,7 +2531,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                       types={LOOP_CAPTURE_MODE_OPTIONS}
                       value={loopCaptureMode}
                       hideLabel
-                      onSetFilterOption={(_, v) => setLoopCaptureMode(v)}
+                      onSetFilterOption={(_, v) => setLoopCaptureMode(v as "offline" | "realtime" | "webcodecs")}
                     />
                   </div>
                   <div className={s.row}>
@@ -2609,7 +2609,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
                           }}
                           value={canUseGifFilterPalette ? gifPaletteSource : "auto"}
                           hideLabel
-                          onSetFilterOption={(_, v) => setGifPaletteSource(v)}
+                          onSetFilterOption={(_, v) => setGifPaletteSource(v as "filter" | "auto")}
                         />
                       </div>
                       <div className={s.helperText}>

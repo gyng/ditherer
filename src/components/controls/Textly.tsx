@@ -1,8 +1,9 @@
 import React from "react";
+import type { TextControlProps } from "./types";
 
 import s from "./styles.module.css";
 
-const Textly = (props) => (
+const Textly = (props: TextControlProps) => (
   <div>
     <div className={s.label}>{props.name}</div>
     <textarea

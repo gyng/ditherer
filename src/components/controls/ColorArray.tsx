@@ -15,7 +15,10 @@ export const RGB_ADAPT_FIRST = "RGB_ADAPT_FIRST";
 export const LAB_ADAPT_MID = "LAB_ADAPT_MID";
 export const LAB_ADAPT_AVERAGE = "LAB_ADAPT_AVERAGE";
 export const LAB_ADAPT_FIRST = "LAB_ADAPT_FIRST";
-export const modeMap = {
+type ExtractMode = typeof TOP | typeof RGB_ADAPT_MID | typeof RGB_ADAPT_AVERAGE | typeof RGB_ADAPT_FIRST | typeof LAB_ADAPT_MID | typeof LAB_ADAPT_AVERAGE | typeof LAB_ADAPT_FIRST;
+type AdaptModeEntry = { colorMode: string; adaptMode: string };
+
+export const modeMap: Record<Exclude<ExtractMode, typeof TOP>, AdaptModeEntry> = {
   [RGB_ADAPT_MID]: { colorMode: "RGB", adaptMode: "MID" },
   [RGB_ADAPT_AVERAGE]: { colorMode: "RGB", adaptMode: "AVERAGE" },
   [RGB_ADAPT_FIRST]: { colorMode: "RGB", adaptMode: "FIRST" },
@@ -41,7 +44,7 @@ interface ColorArrayProps {
 }
 
 interface ColorArrayState {
-  extractMode: string;
+  extractMode: ExtractMode;
   modal: ModalState;
   pickerOpen: boolean;
   pickerColor: RgbaColor;
@@ -95,7 +98,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
             if (this.state.extractMode === TOP) {
               colors = uniqueColors(imageData, count);
             } else {
-              const mode = modeMap[this.state.extractMode];
+              const mode = modeMap[this.state.extractMode as Exclude<ExtractMode, typeof TOP>];
               colors = medianCutPalette(
                 imageData,
                 colorCountToDepth(count),
@@ -138,8 +141,8 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
       return <div>No colors</div>;
     }
 
-    const currentThemeKey = findMatchingThemeKey(this.props.value);
-    const currentTheme = currentThemeKey ? [currentThemeKey, THEMES[currentThemeKey]] : null;
+    const currentThemeKey = findMatchingThemeKey(this.props.value) as keyof typeof THEMES | null;
+    const currentTheme = currentThemeKey ? [currentThemeKey, THEMES[currentThemeKey]] as const : null;
     const customThemeName = "Custom";
     const currentThemeName = currentThemeKey || customThemeName;
     const currentThemeDescription = currentThemeKey ? getThemeDescription(currentThemeKey) : null;
@@ -149,7 +152,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
         className={s.enum}
         value={currentThemeName}
         onChange={e =>
-          this.props.onSetPaletteOption("colors", THEMES[e.target.value])
+          this.props.onSetPaletteOption("colors", THEMES[e.target.value as keyof typeof THEMES])
         }
       >
         {Object.entries(THEME_CATEGORIES).map(([cat, entries]) => (
@@ -275,7 +278,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
             ]
           }}
           onSetFilterOption={(name, value) => {
-            this.setState({ extractMode: String(value) });
+            this.setState({ extractMode: String(value) as ExtractMode });
           }}
         />
         {extractButton}

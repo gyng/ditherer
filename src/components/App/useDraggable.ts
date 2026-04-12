@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useLayoutEffect } from "react";
+import { useRef, useCallback, useEffect, useLayoutEffect, type RefObject } from "react";
 
 const isMobile = () => window.innerWidth <= 768;
 
@@ -35,7 +35,10 @@ type DraggableOptions = {
   onScaleAbsolute?: (ratio: number, startSize: number) => void;
 };
 
-export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, onScale, onScaleAbsolute }: DraggableOptions = {}) {
+export default function useDraggable(
+  ref: RefObject<HTMLElement | null>,
+  { defaultPosition = { x: 0, y: 0 }, onScale, onScaleAbsolute }: DraggableOptions = {},
+) {
   const pos = useRef(defaultPosition);
   const dragging = useRef(false);
   const didDrag = useRef(false);
@@ -80,7 +83,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
     ensureInitializedPosition();
   }, [ensureInitializedPosition]);
 
-  const onMouseDown = useCallback((e) => {
+  const onMouseDown = useCallback((e: MouseEvent | React.MouseEvent<Element>) => {
     if (isMobile()) return;
     if (!ref.current) return;
     ensureInitializedPosition();
@@ -97,7 +100,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
       const rect = ref.current.getBoundingClientRect();
       const startSize = Math.max(rect.width, rect.height);
 
-      const onMouseMove = (e) => {
+      const onMouseMove = (e: MouseEvent) => {
         let dx = e.clientX - startX;
         let dy = e.clientY - startY;
 
@@ -138,7 +141,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
       y: e.clientY - pos.current.y,
     };
 
-    const onMouseMove = (e) => {
+    const onMouseMove = (e: MouseEvent) => {
       if (!dragging.current || !ref.current) return;
       didDrag.current = true;
       const x = e.clientX - offset.current.x;
@@ -158,7 +161,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
   }, [ensureInitializedPosition, ref, onScale, onScaleAbsolute]);
 
   // Update cursor on hover near edges
-  const onMouseMove = useCallback((e) => {
+  const onMouseMove = useCallback((e: MouseEvent | React.MouseEvent<Element>) => {
     if (isMobile() || !ref.current || (!onScale && !onScaleAbsolute)) return;
     ensureInitializedPosition();
     const edge = getEdge(ref.current, e.clientX, e.clientY);
@@ -170,7 +173,7 @@ export default function useDraggable(ref, { defaultPosition = { x: 0, y: 0 }, on
   useEffect(() => {
     const el = ref.current;
     if (!el || !onScale) return;
-    const handler = (e) => {
+    const handler = (e: WheelEvent) => {
       if (isMobile()) return;
       e.preventDefault();
       e.stopPropagation();

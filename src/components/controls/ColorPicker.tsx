@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { HexColorPicker } from "react-colorful";
+import type { ColorControlProps } from "./types";
 
 import s from "./styles.module.css";
 
@@ -13,7 +14,7 @@ const hexToRgb = (hex: string): number[] => [
   parseInt(hex.slice(5, 7), 16)
 ];
 
-const ColorPicker = (props) => {
+const ColorPicker = (props: ColorControlProps) => {
   const [open, setOpen] = useState(false);
   const hex = Array.isArray(props.value) ? rgbToHex(props.value) : (props.value || "#000000");
 

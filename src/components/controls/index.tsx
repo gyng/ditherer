@@ -7,6 +7,7 @@ import type {
   PaletteOptionDefinition,
   RangeOptionDefinition,
 } from "filters/types";
+import type { NestedControlsProps, PaletteValue } from "./types";
 
 import {
   ACTION,
@@ -35,7 +36,7 @@ import Curve from "./Curve";
 
 import s from "./styles.module.css";
 
-const Controls = (props) => {
+const Controls = (props: NestedControlsProps) => {
   const { state, actions } = useFilter();
   // Allow prop overrides for nested Controls (e.g., Palette sub-options)
   const filter = state.selected?.filter;
@@ -44,9 +45,11 @@ const Controls = (props) => {
   const inputCanvas = props.inputCanvas;
   const onSetFilterOption = props.onSetFilterOption || actions.setFilterOption;
   const onSetPaletteOption = props.onSetPaletteOption || actions.setFilterPaletteOption;
-  const onAddPaletteColor = props.onAddPaletteColor || actions.addPaletteColor;
-  const onSaveColorPalette = props.onSaveColorPalette || actions.saveCurrentColorPalette;
-  const onDeleteColorPalette = props.onDeleteColorPalette || actions.deleteCurrentColorPalette;
+  const onAddPaletteColor: (color: number[]) => void = props.onAddPaletteColor || actions.addPaletteColor;
+  const onSaveColorPalette: (name: string, colors: number[][]) => void =
+    props.onSaveColorPalette || actions.saveCurrentColorPalette;
+  const onDeleteColorPalette: (name: string) => void =
+    props.onDeleteColorPalette || actions.deleteCurrentColorPalette;
 
   return (
     <div className={s.controls}>
@@ -88,8 +91,8 @@ const Controls = (props) => {
               <Range
                 key={name}
                 name={name}
-                types={rangeType}
-                value={value}
+                types={{ label: rangeType.label, desc: rangeType.desc, range: rangeType.range }}
+                value={typeof value === "number" ? value : Number(value ?? rangeType.default ?? 0)}
                 step={rangeType.step}
                 onSetFilterOption={onSetFilterOption}
               />
@@ -102,9 +105,9 @@ const Controls = (props) => {
               <Palette
                 key={name}
                 name={name}
-                types={paletteType}
-                value={value}
-                paletteOptions={(value as { options?: FilterOptionValues } | undefined)?.options}
+                types={{ label: paletteType.label, desc: paletteType.desc }}
+                value={value as PaletteValue}
+                paletteOptions={(value as PaletteValue | undefined)?.options}
                 onAddPaletteColor={onAddPaletteColor}
                 onSetFilterOption={onSetFilterOption}
                 onSetPaletteOption={onSetPaletteOption}
@@ -120,10 +123,10 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 value={Array.isArray(options.colors) ? (options.colors as number[][]) : []}
-                onAddPaletteColor={onAddPaletteColor}
+                onAddPaletteColor={onAddPaletteColor as (color: number[]) => void}
                 onSetFilterOption={onSetFilterOption}
                 onSetPaletteOption={onSetPaletteOption}
-                onSaveColorPalette={onSaveColorPalette}
+                onSaveColorPalette={onSaveColorPalette as (name: string, colors: number[][]) => void}
                 onDeleteColorPalette={onDeleteColorPalette}
                 inputCanvas={inputCanvas}
               />
@@ -133,7 +136,7 @@ const Controls = (props) => {
               <ColorPicker
                 key={name}
                 name={name}
-                value={value}
+                value={typeof value === "string" || Array.isArray(value) ? value : String(value ?? "")}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -142,8 +145,8 @@ const Controls = (props) => {
               <Stringly
                 key={name}
                 name={name}
-                types={oType}
-                value={value}
+                types={{ label: oType.label, desc: oType.desc }}
+                value={typeof value === "string" ? value : String(value ?? "")}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -152,8 +155,8 @@ const Controls = (props) => {
               <Textly
                 key={name}
                 name={name}
-                types={oType}
-                value={value}
+                types={{ label: oType.label, desc: oType.desc }}
+                value={typeof value === "string" ? value : String(value ?? "")}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -163,7 +166,7 @@ const Controls = (props) => {
                 key={name}
                 name={name}
                 types={oType}
-                value={value}
+                value={typeof value === "string" ? value : ""}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -172,8 +175,8 @@ const Controls = (props) => {
               <Bool
                 key={name}
                 name={name}
-                types={oType}
-                value={value}
+                types={{ label: oType.label, desc: oType.desc }}
+                value={Boolean(value)}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -184,8 +187,8 @@ const Controls = (props) => {
               <Enum
                 key={name}
                 name={name}
-                types={enumType}
-                value={value}
+                types={{ label: enumType.label, desc: enumType.desc, options: enumType.options }}
+                value={typeof value === "number" || typeof value === "string" ? value : String(value ?? "")}
                 onSetFilterOption={onSetFilterOption}
               />
             );

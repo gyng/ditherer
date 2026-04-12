@@ -1,11 +1,12 @@
 import { filterIndex } from "filters";
 import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "filters/types";
 import { deserializePalette } from "palettes";
+import type { SerializedPalette } from "palettes";
 import { grayscale } from "filters";
 import type { WorkerFilterRequest, WorkerFilterResult, WorkerPrevOutputFrame, WorkerRequestMessage } from "./types";
 import type { SerializedOptionMap } from "context/shareStateTypes";
 
-type SerializedPaletteOption = {
+type SerializedPaletteOption = Partial<SerializedPalette> & {
   _serialized?: boolean;
 } & SerializedOptionMap;
 

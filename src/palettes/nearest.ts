@@ -1,4 +1,5 @@
 import { RANGE } from "constants/controlTypes";
+import type { PaletteColor, PaletteDefinition } from "./types";
 
 const optionTypes = {
   levels: { type: RANGE, range: [1, 256], default: 2 }
@@ -10,13 +11,13 @@ const defaults = {
 
 // Scratch buffer reused across getColor calls — avoids per-pixel allocations.
 // Safe because all callers consume the return value immediately.
-const _out = [0, 0, 0, 0];
+const _out: PaletteColor = [0, 0, 0, 0];
 
 // Gets nearest color
 const getColor = (
-  color,
+  color: number[],
   options = defaults
-) => {
+): number[] => {
   if (options.levels >= 256) {
     return color;
   }
@@ -29,10 +30,12 @@ const getColor = (
   return _out;
 };
 
-export default {
+const nearest: PaletteDefinition<typeof defaults> = {
   name: "nearest",
   getColor,
   options: defaults,
   optionTypes,
   defaults
 };
+
+export default nearest;

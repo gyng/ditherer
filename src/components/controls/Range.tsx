@@ -1,8 +1,9 @@
 import React, { useState } from "react";
+import type { RangeControlProps } from "./types";
 
 import s from "./styles.module.css";
 
-const Range = (props) => {
+const Range = (props: RangeControlProps) => {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const label = props.types?.label || props.name;

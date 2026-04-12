@@ -47,9 +47,9 @@ export interface FilterActions {
   setScalingAlgorithm: (algorithm: string) => void;
   setFilterOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => void;
   setFilterPaletteOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => void;
-  addPaletteColor: (color: string, chainIndex?: number) => void;
+  addPaletteColor: (color: number[], chainIndex?: number) => void;
   importState: (json: string) => void;
-  saveCurrentColorPalette: (name: string, colors: string[]) => void;
+  saveCurrentColorPalette: (name: string, colors: number[][]) => void;
   deleteCurrentColorPalette: (name: string) => void;
   chainAdd: (displayName: string, filter: FilterDefinition) => void;
   chainRemove: (id: string) => void;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { ControlProps } from "./types";
 
 import s from "./styles.module.css";
 
@@ -40,14 +41,14 @@ const parsePoints = (value: string): CurvePoint[] => {
 const serializePoints = (points: CurvePoint[]) =>
   JSON.stringify(points.map(([x, y]) => [clamp255(x), clamp255(y)]));
 
-const Curve = (props) => {
+const Curve = (props: ControlProps) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [draft, setDraft] = useState(props.value || serializePoints(DEFAULT_POINTS));
+  const [draft, setDraft] = useState(typeof props.value === "string" ? props.value : serializePoints(DEFAULT_POINTS));
   const points = useMemo(() => parsePoints(draft), [draft]);
 
   useEffect(() => {
-    setDraft(props.value || serializePoints(DEFAULT_POINTS));
+    setDraft(typeof props.value === "string" ? props.value : serializePoints(DEFAULT_POINTS));
   }, [props.value]);
 
   const commit = (nextPoints: CurvePoint[]) => {

@@ -277,7 +277,11 @@ const App = () => {
   useEffect(() => {
     const prev = prevPropsRef.current;
 
-    const drawToCanvas = (canvas, image, scale) => {
+    const drawToCanvas = (
+      canvas: HTMLCanvasElement,
+      image: CanvasImageSource & { width: number; height: number },
+      scale: number,
+    ) => {
       const finalWidth = image.width * scale;
       const finalHeight = image.height * scale;
       canvas.width = finalWidth;
@@ -321,7 +325,7 @@ const App = () => {
     state.scale, state.outputScale, state.time,
   ]);
 
-  const bringToTop = useCallback(e => {
+  const bringToTop = useCallback((e: React.MouseEvent<HTMLElement>) => {
     zIndexRef.current += 1;
     e.currentTarget.style.zIndex = `${zIndexRef.current}`;
   }, []);
@@ -728,7 +732,7 @@ const App = () => {
                   name="Input Scale"
                   types={{ range: [0.05, 16] }}
                   step={0.05}
-                  onSetFilterOption={(_, value) => actions.setScale(value)}
+                  onSetFilterOption={(_, value) => actions.setScale(Number(value))}
                   value={state.scale}
                 />
                 {state.video && (<>
@@ -896,12 +900,12 @@ const App = () => {
             name="Output Scale"
             types={{ range: [0.05, 16] }}
             step={0.05}
-            onSetFilterOption={(_, value) => actions.setOutputScale(value)}
+            onSetFilterOption={(_, value) => actions.setOutputScale(Number(value))}
             value={state.outputScale}
           />
           <Enum
             name="Scaling algorithm"
-            onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(algorithm)}
+            onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(String(algorithm))}
             value={state.scalingAlgorithm}
             types={SCALING_ALGORITHM_OPTIONS}
           />
@@ -943,7 +947,7 @@ const App = () => {
                 recorder.start();
                 window.setTimeout(() => {
                   if (recorder.state !== "inactive") recorder.stop();
-                  stream.getTracks().forEach(t => t.stop());
+                  stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
                 }, duration * 1000 + 100);
                 return;
               }

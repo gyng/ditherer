@@ -1,10 +1,11 @@
 import React from "react";
+import type { EnumControlProps } from "./types";
 
 import s from "./styles.module.css";
 
-const Enum = (props) => {
+const Enum = (props: EnumControlProps) => {
   const label = props.types?.label || props.name;
-  const renderOption = (option) => (
+  const renderOption = (option: { name?: string; value: string | number }) => (
     <option key={option.value} value={option.value}>
       {option.name || option.value}
     </option>
@@ -25,7 +26,7 @@ const Enum = (props) => {
         onChange={e => props.onSetFilterOption(props.name, e.target.value)}
       >
         {props.types.options.map((option) => (
-          Array.isArray(option.options) ? (
+          "options" in option ? (
             <optgroup key={option.label} label={option.label}>
               {option.options.map(renderOption)}
             </optgroup>

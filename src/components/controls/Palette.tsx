@@ -1,11 +1,12 @@
 import React from "react";
+import type { PaletteControlProps } from "./types";
 
 import Controls from "components/controls";
 import { paletteList } from "palettes";
 
 import s from "./styles.module.css";
 
-const Palette = (props) => (
+const Palette = (props: PaletteControlProps) => (
   <div className={s.group}>
     <span className={s.name}>{props.name}</span>
 

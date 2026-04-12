@@ -39,7 +39,7 @@ import { paletteList } from "palettes";
 import { createPalette, THEMES } from "palettes/user";
 
 type FilterOptionMap = FilterOptionValues;
-type PaletteColor = string;
+type PaletteColor = number[];
 type StepTime = { name: string; ms: number };
 type ScalingAlgorithm = typeof SCALING_ALGORITHM[keyof typeof SCALING_ALGORITHM];
 type PaletteOptionState = SerializedPaletteState & { options?: FilterOptionMap };
