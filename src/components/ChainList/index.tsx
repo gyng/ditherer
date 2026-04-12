@@ -646,7 +646,7 @@ const ChainList = () => {
                     className={`${s.removeBtn} ${actions.isAnimating() ? s.animActive : ""}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      (entry.filter.optionTypes.animate as ActionOptionDefinition).action(
+                      (entry.filter.optionTypes?.animate as ActionOptionDefinition).action(
                         actions, state.inputCanvas, entry.filter.func, entry.filter.options
                       );
                     }}

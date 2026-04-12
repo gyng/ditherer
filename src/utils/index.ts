@@ -480,7 +480,7 @@ export const wasmNearestLabIndex = (
   }
   return wasmNearestLabIndexInner(
     pixel[0], pixel[1], pixel[2], pixel[3],
-    cachedPaletteFlat,
+    cachedPaletteFlat!,
     ref.x, ref.y, ref.z
   );
 };
@@ -507,7 +507,7 @@ export const wasmNearestLabPrecomputed = (
   }
   return wasmNearestLabPrecomputedInner(
     pixel[0], pixel[1], pixel[2],
-    cachedPaletteLabFlat,
+    cachedPaletteLabFlat!,
     ref.x, ref.y, ref.z
   );
 };
@@ -676,7 +676,7 @@ export const medianCutPalette = (
     a: { min: buf[0], max: buf[0] }
   };
 
-  const pixels = [];
+  const pixels: number[][] = [];
 
   for (let i = 0; i < buf.length; i += 4) {
     const pixelRaw = rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);

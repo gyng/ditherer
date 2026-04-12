@@ -77,7 +77,7 @@ const Controls = (props: NestedControlsProps) => {
               <button
                 key={name}
                 onClick={() => {
-                  actionType.action(actions, inputCanvas, state.selected?.filter?.func, options);
+                  actionType.action(actions, inputCanvas ?? null, state.selected?.filter?.func, options);
                 }}
               >
                 {actionType.label || name}

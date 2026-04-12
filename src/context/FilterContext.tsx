@@ -97,7 +97,7 @@ const serializeStateJson = (state: typeof initialState, pretty = false) => {
 const DEFAULT_SHARE_STATE_JSON = serializeStateJson(initialState);
 
 export const FilterProvider = ({ children }: { children: ReactNode }) => {
-  const [state, dispatch]: [FilterReducerState, React.Dispatch<FilterReducerAction>] = useReducer(filterReducer, initialState);
+  const [state, dispatch] = useReducer(filterReducer, initialState);
   const prevOutputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const prevInputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const emaMapRef = useRef<Map<string, Float32Array>>(new Map());
@@ -505,7 +505,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     const sourceFrameToken = curState.inputFrameToken ?? 0;
     const sourceTime = curState.time ?? 0;
     const chain = curState.chain;
-    const isAnimating = animLoopRef.current != null || degaussAnimRef.current != null || (curState.video && !curState.video.paused);
+    const isAnimating = Boolean(
+      animLoopRef.current != null ||
+      degaussAnimRef.current != null ||
+      (curState.video && !curState.video.paused)
+    );
 
     const chainKey = chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(",");
     if (chainKey !== cachedChainOrderRef.current) {
@@ -620,12 +624,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         emitOutput(outCanvas, workerTotalTime, workerStepTimes, sourceFrameToken, sourceTime);
       }).catch((err) => {
         console.error("Worker failed, falling back to main thread:", err);
-        const fallback = filterOnMainThread(canvas, enabledEntries, startIdx, isAnimating, curState);
+        const fallback = filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
         emitOutput(fallback.canvas, fallback.totalTime, [...stepTimes, ...fallback.stepTimes], sourceFrameToken, sourceTime);
       });
     } else {
       // Main thread path — synchronous
-      const result = filterOnMainThread(canvas, enabledEntries, startIdx, isAnimating, curState);
+      const result = filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
       stepTimes.push(...result.stepTimes);
       emitOutput(result.canvas, result.totalTime, stepTimes, sourceFrameToken, sourceTime);
     }

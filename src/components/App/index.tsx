@@ -129,8 +129,8 @@ const App = () => {
     playPauseTimerRef.current = window.setTimeout(() => setPlayPauseIndicator(null), 600);
   };
 
-  const inputCanvasRef = useRef(null);
-  const outputCanvasRef = useRef(null);
+  const inputCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const outputCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const zIndexRef = useRef(0);
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
@@ -287,8 +287,8 @@ const App = () => {
       canvas.width = finalWidth;
       canvas.height = finalHeight;
       const ctx = canvas.getContext("2d");
-      ctx.imageSmoothingEnabled = state.scalingAlgorithm === SCALING_ALGORITHM.AUTO;
       if (ctx) {
+        ctx.imageSmoothingEnabled = state.scalingAlgorithm === SCALING_ALGORITHM.AUTO;
         ctx.drawImage(image, 0, 0, finalWidth, finalHeight);
       }
     };
@@ -963,7 +963,7 @@ const App = () => {
                     resolve();
                   };
                   image.onerror = () => reject(new Error("Failed to copy output image to input"));
-                  image.src = outputCanvasRef.current.toDataURL("image/png");
+                  image.src = outputCanvasRef.current?.toDataURL("image/png") ?? "";
                 }));
               }
             }}

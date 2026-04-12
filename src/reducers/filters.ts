@@ -517,7 +517,7 @@ const filterReducer = (
           ...paletteState,
           options: {
             ...getPaletteOptionMap(opts?.palette),
-            colors: [...getPaletteColors(getPaletteState(opts.palette)), action.color],
+            colors: [...getPaletteColors(getPaletteState(opts?.palette)), action.color],
           },
         },
       }));
