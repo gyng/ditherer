@@ -2,7 +2,12 @@ import { RANGE } from "constants/controlTypes";
 import type { PaletteColor, PaletteDefinition } from "./types";
 
 const optionTypes = {
-  levels: { type: RANGE, range: [1, 256], default: 2 }
+  levels: {
+    type: RANGE,
+    range: [1, 256],
+    default: 2,
+    desc: "How many evenly spaced brightness levels each RGB channel can use. Lower values posterize harder; 256 keeps the original channel precision."
+  }
 };
 
 const defaults = {

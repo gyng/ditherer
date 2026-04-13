@@ -28,6 +28,7 @@ export interface ShareStateV1 {
   convertGrayscale: boolean;
   linearize?: boolean;
   wasmAcceleration?: boolean;
+  r?: number;
 }
 
 export interface ShareStateV2 {
@@ -36,6 +37,7 @@ export interface ShareStateV2 {
   g: boolean;
   l: boolean;
   w: boolean;
+  r?: number;
 }
 
 export type SerializedFilterState = ShareStateV1 | ShareStateV2;

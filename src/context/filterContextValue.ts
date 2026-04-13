@@ -20,7 +20,7 @@ export interface ExportFrameOptions {
 
 export interface FilterActions {
   loadMediaAsync: (file: File, volume?: number, playbackRate?: number) => Promise<void>;
-  loadVideoFromUrlAsync: (src: string, volume?: number, playbackRate?: number) => Promise<void>;
+  loadVideoFromUrlAsync: (src: string, volume?: number, playbackRate?: number, options?: { preserveScale?: boolean }) => Promise<void>;
   filterImageAsync: (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
   triggerDegauss: (inputCanvas: HTMLCanvasElement | null) => void;
   triggerBurst: (inputCanvas: HTMLCanvasElement | null, frames: number, fps?: number) => void;
@@ -37,6 +37,7 @@ export interface FilterActions {
   setConvertGrayscale: (value: boolean) => void;
   setLinearize: (value: boolean) => void;
   setWasmAcceleration: (value: boolean) => void;
+  setRandomCycleSeconds: (seconds: number | null) => void;
   setScale: (scale: number) => void;
   setOutputScale: (scale: number) => void;
   setRealtimeFiltering: (enabled: boolean) => void;

@@ -15,6 +15,7 @@ const ADD_PALETTE_COLOR = "ADD_PALETTE_COLOR";
 const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
 const SET_LINEARIZE = "SET_LINEARIZE";
 const SET_WASM_ACCELERATION = "SET_WASM_ACCELERATION";
+const SET_RANDOM_CYCLE_SECONDS = "SET_RANDOM_CYCLE_SECONDS";
 const CHAIN_ADD = "CHAIN_ADD";
 const CHAIN_REMOVE = "CHAIN_REMOVE";
 const CHAIN_REORDER = "CHAIN_REORDER";
@@ -104,6 +105,7 @@ export const initialState = {
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
   linearize: true,
   wasmAcceleration: true,
+  randomCycleSeconds: null as number | null,
   frameTime: null as number | null,
   stepTimes: null as { name: string; ms: number }[] | null,
 };
@@ -292,6 +294,10 @@ type ScalarStateAction =
   | {
       type: typeof SET_SCALING_ALGORITHM;
       algorithm: ScalingAlgorithm;
+    }
+  | {
+      type: typeof SET_RANDOM_CYCLE_SECONDS;
+      seconds: number | null;
     };
 
 type PalettePersistenceAction =
@@ -370,6 +376,7 @@ const filterReducer = (
           convertGrayscale: data.g ?? state.convertGrayscale,
           linearize: data.l ?? state.linearize,
           wasmAcceleration: data.w ?? state.wasmAcceleration,
+          randomCycleSeconds: data.r ?? null,
         });
       }
 
@@ -388,6 +395,7 @@ const filterReducer = (
           convertGrayscale: data.convertGrayscale,
           linearize: data.linearize ?? state.linearize,
           wasmAcceleration: data.wasmAcceleration ?? state.wasmAcceleration,
+          randomCycleSeconds: data.r ?? null,
         });
       }
       return state;
@@ -563,11 +571,21 @@ const filterReducer = (
         state.video != null &&
         (!action.video || action.video !== state.video)
       ) {
-        const oldVideo = state.video as HTMLVideoElement & { __objectUrl?: string };
+        const oldVideo = state.video as HTMLVideoElement & { __objectUrl?: string; __manualPause?: boolean };
+        oldVideo.__manualPause = true;
+        oldVideo.onplaying = null;
+        oldVideo.onpause = null;
+        oldVideo.onloadedmetadata = null;
+        oldVideo.onloadeddata = null;
+        oldVideo.onseeked = null;
+        oldVideo.onerror = null;
         state.video.pause();
         // Avoid assigning empty src, which can resolve to the document URL ("/")
         // and trigger "text/html is not supported" media decode warnings.
         state.video.removeAttribute("src");
+        if ("srcObject" in state.video) {
+          (state.video as HTMLVideoElement & { srcObject?: MediaProvider | null }).srcObject = null;
+        }
         state.video.load();
         if (oldVideo.__objectUrl) {
           URL.revokeObjectURL(oldVideo.__objectUrl);
@@ -609,6 +627,8 @@ const filterReducer = (
       return { ...state, linearize: action.value };
     case SET_WASM_ACCELERATION:
       return { ...state, wasmAcceleration: action.value };
+    case SET_RANDOM_CYCLE_SECONDS:
+      return { ...state, randomCycleSeconds: action.seconds };
     case "SAVE_CURRENT_COLOR_PALETTE":
     case "DELETE_CURRENT_COLOR_PALETTE":
       return state;

@@ -101,6 +101,20 @@ const canvasToBlob = (
 
 const blobToImage = (blob: Blob) => createImageBitmap(blob);
 
+const isExpectedGlitchFailure = (error: unknown) => {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("invalid length/literal") ||
+    message.includes("invalid distance") ||
+    message.includes("unexpected eof") ||
+    message.includes("crc") ||
+    message.includes("image") ||
+    message.includes("decode") ||
+    message.includes("usable")
+  );
+};
+
 const blobToUint8Array = async (blob: Blob) =>
   new Uint8Array(await blob.arrayBuffer());
 
@@ -462,9 +476,15 @@ const glitchblob = (
     );
   };
 
-  corruptThis(input, format).then((image) => {
-    dispatch(filterImage(image as ImageBitmap));
-  });
+  corruptThis(input, format)
+    .then((image) => {
+      dispatch(filterImage(image as ImageBitmap));
+    })
+    .catch((error: unknown) => {
+      if (!isExpectedGlitchFailure(error)) {
+        console.warn("[glitchblob] async corruption failed", error);
+      }
+    });
 
   return ASYNC_FILTER;
 };

@@ -5,6 +5,7 @@ import { filterList, grayscale, isMainThreadFilter } from "filters";
 import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
+import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
@@ -32,6 +33,7 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
       convertGrayscale: state.convertGrayscale,
       linearize: state.linearize,
       wasmAcceleration: state.wasmAcceleration,
+      ...(state.randomCycleSeconds != null ? { r: state.randomCycleSeconds } : {}),
     };
     return v1State;
   }
@@ -80,6 +82,7 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
     g: state.convertGrayscale,
     l: state.linearize,
     w: state.wasmAcceleration,
+    ...(state.randomCycleSeconds != null ? { r: state.randomCycleSeconds } : {}),
   };
   return v2State;
 };
@@ -163,7 +166,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.warn("Failed to sync state to URL hash:", e);
     }
-  }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
+  }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration, state.randomCycleSeconds]);
+
+  useEffect(() => {
+    syncRandomCycleSeconds(state.randomCycleSeconds);
+  }, [state.randomCycleSeconds]);
 
   // Async action: load image from file
   const loadImageAsync = useCallback((file: File) => new Promise<void>((resolve, reject) => {
@@ -189,7 +196,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     volume = 1,
     playbackRate = 1,
     perfMeta: Record<string, string> = {},
-    objectUrlForCleanup?: string
+    objectUrlForCleanup?: string,
+    options?: { preserveScale?: boolean }
   ) => new Promise<void>((resolve, reject) => {
     resetProcessingState();
     const loadStartedScale = stateRef.current.scale;
@@ -263,7 +271,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      if (Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
+      if (!options?.preserveScale && Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
         const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
         dispatch({ type: "SET_SCALE", scale });
       }
@@ -332,12 +340,14 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   }, [loadVideoSourceAsync]);
 
   // Async action: load video directly from URL (used for local test assets)
-  const loadVideoFromUrlAsync = useCallback((src: string, volume = 1, playbackRate = 1) =>
+  const loadVideoFromUrlAsync = useCallback((src: string, volume = 1, playbackRate = 1, options?: { preserveScale?: boolean }) =>
     loadVideoSourceAsync(
       src,
       volume,
       playbackRate,
-      { src, type: "url" }
+      { src, type: "url" },
+      undefined,
+      options
     ),
   [loadVideoSourceAsync]);
 
@@ -912,6 +922,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: "SET_LINEARIZE", value }),
     setWasmAcceleration: (value: boolean) =>
       dispatch({ type: "SET_WASM_ACCELERATION", value }),
+    setRandomCycleSeconds: (seconds: number | null) =>
+      dispatch({ type: "SET_RANDOM_CYCLE_SECONDS", seconds }),
     setScale: (scale: number) =>
       dispatch({ type: "SET_SCALE", scale }),
     setOutputScale: (scale: number) =>

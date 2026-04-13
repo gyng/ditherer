@@ -201,6 +201,23 @@
   padding: 3px 8px;
 }
 
+.iconBtn {
+  min-width: 28px;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+.activeToolbarBtn {
+  background:
+    linear-gradient(180deg, rgba(214, 192, 120, 0.98), rgba(244, 229, 174, 0.98)),
+    var(--light-gray);
+  border-left: 2px inset #8d7645;
+  border-top: 2px inset #8d7645;
+  border-bottom: 1px inset #fff7d1;
+  border-right: 1px inset #fff7d1;
+  box-shadow: none;
+}
+
 .randomAction {
   background:
     linear-gradient(180deg, rgba(255, 251, 214, 0.95), rgba(233, 214, 145, 0.95)),
@@ -481,6 +498,44 @@
 .confirmBtn:focus-visible {
   outline: 1px dotted #000;
   outline-offset: -4px;
+}
+
+.randomCycleDialog {
+  min-width: 320px;
+}
+
+.randomCycleBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 8px;
+}
+
+.randomCycleField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.randomCycleLabel {
+  font-size: 12px;
+  color: black;
+}
+
+.randomCycleInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px inset #ccc;
+  padding: 5px;
+  font: inherit;
+  background: white;
+  color: black;
+}
+
+.randomCycleHint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #333;
 }
 
 .libraryBrowserFloat {
