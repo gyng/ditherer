@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { finalizeGifExport, finalizeSequenceExport } from "components/SaveAs/export/finalizeFrameExports";
+import {
+  finalizeGifExport,
+  finalizeSequenceExport,
+} from "components/SaveAs/export/finalizeFrameExports";
 
 vi.mock("components/SaveAs/export/exportArtifacts", () => ({
   encodeGifBlob: vi.fn(async () => ({ blob: new Blob(["gif"], { type: "image/gif" }) })),

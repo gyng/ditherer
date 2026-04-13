@@ -163,12 +163,6 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     setIncludeVideoAudio(true);
   }, [state.video]);
 
-  useEffect(() => {
-    if (videoFormat === "gif" && loopCaptureMode === "offline") {
-      setLoopCaptureMode("webcodecs");
-    }
-  }, [videoFormat, loopCaptureMode]);
-
   const activeRecFormat = recordingFormats[selectedRecFormat] ?? recordingFormats[0];
   const activeEntry = state.chain?.[state.activeIndex] ?? null;
   const gifFilterPalette = getGifPaletteColorTable([
