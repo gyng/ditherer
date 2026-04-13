@@ -454,6 +454,9 @@
 }
 
 .screensaverTitleBar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -464,6 +467,7 @@
   font-size: 12px;
   font-weight: bold;
   cursor: move;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
 .screensaverClose {
@@ -523,10 +527,11 @@
 }
 
 .optionTitleButton {
-  float: right;
   min-height: unset;
   padding: 1px 6px;
   margin-top: -1px;
+  float: right;
+  height: fit-content;
 }
 
 .optionActionRow {
@@ -537,10 +542,6 @@
 }
 
 .audioModDialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   width: min(92vw, 560px);
   max-height: 88vh;
   overflow: auto;
@@ -553,42 +554,344 @@
   z-index: 10002;
 }
 
+.audioModFloat {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10002;
+}
+
 .audioModBody {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 14px 18px 8px;
+  position: relative;
+  z-index: 1;
 }
 
-.audioTargetList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.audioMappingSectionTitle {
+  font-size: 12px;
+  font-weight: bold;
 }
 
-.audioTargetRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px 48px;
-  gap: 8px;
-  align-items: center;
-}
-
-.audioTargetLabel {
+.audioPatchToolbar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
-  font-size: 12px;
+  padding: 8px 10px 0;
+  background: linear-gradient(180deg, rgba(199, 199, 199, 0.98), rgba(199, 199, 199, 0.92));
+  pointer-events: auto;
 }
 
-.audioTargetSlider {
-  margin: 0;
-}
-
-.audioTargetValue {
-  font-family: monospace;
+.audioPatchToolbarLabel {
   font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.audioPatchToolbarSelect {
+  min-width: 96px;
+  min-height: 24px;
+  font-size: 11px;
+  border: 2px inset var(--input-border);
+  background: #fff;
+}
+
+.audioPatchToolbarButton {
+  min-height: 24px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.audioPatchToolbarCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.audioPatchPanel {
+  position: relative;
+  min-height: 320px;
+  border: 2px inset #8a8a8a;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.04)),
+    #c7c7c7;
+  overflow: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.audioPatchSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: auto;
+  z-index: 0;
+}
+
+.audioPatchColumns {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  column-gap: clamp(36px, 18%, 160px);
+  row-gap: 6px;
+  padding: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.audioPatchLeft,
+.audioPatchRight {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.audioPatchNode,
+.audioPatchTarget {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-left: 2px solid #fff;
+  border-top: 2px solid #fff;
+  border-right: 2px solid #5f5f5f;
+  border-bottom: 2px solid #5f5f5f;
+  background: rgba(240, 240, 240, 0.92);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.22);
+  pointer-events: auto;
+}
+
+.audioPatchNodeActive,
+.audioPatchTargetActive {
+  background:
+    linear-gradient(180deg, rgba(255, 244, 210, 0.95), rgba(247, 224, 164, 0.95)),
+    rgba(240, 240, 240, 0.95);
+}
+
+.audioPatchNodeHover,
+.audioPatchTargetHover {
+  background:
+    linear-gradient(180deg, rgba(255, 238, 220, 0.98), rgba(255, 205, 154, 0.96)),
+    rgba(240, 240, 240, 0.96);
+  box-shadow:
+    1px 1px 0 rgba(0, 0, 0, 0.22),
+    0 0 0 2px rgba(255, 123, 34, 0.34);
+}
+
+.audioPatchTargetDroppable {
+  background:
+    linear-gradient(180deg, rgba(255, 247, 236, 0.97), rgba(255, 224, 188, 0.95)),
+    rgba(240, 240, 240, 0.94);
+  box-shadow:
+    1px 1px 0 rgba(0, 0, 0, 0.22),
+    0 0 0 2px rgba(255, 123, 34, 0.22);
+}
+
+.audioPatchNode {
+  min-height: 46px;
+}
+
+.audioPatchNodeGrid {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) 38px auto 16px;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  row-gap: 3px;
+  width: 100%;
+  min-width: 0;
+}
+
+.audioPatchNodeLabel,
+.audioPatchTargetLabel {
+  min-width: 0;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1.1;
+}
+
+.audioPatchNodeLabel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.audioPatchMeter {
+  grid-column: 1;
+  grid-row: 2;
+  height: 8px;
+  border: 1px inset var(--input-border);
+  background: linear-gradient(180deg, #10161f, #1e2e40);
+  overflow: hidden;
+}
+
+.audioPatchMeterFill {
+  height: 100%;
+  background: linear-gradient(90deg, #62b5ff, #b6f3ff);
+  transition: width 0.09s linear;
+  will-change: width;
+}
+
+.audioPatchNodeMeta {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 10px;
+  color: #4c4c4c;
   text-align: right;
+}
+
+.audioPatchMetricValue {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  color: #27485c;
+  text-align: right;
+}
+
+.audioPatchJack {
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-self: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border-radius: 999px;
+  border: 2px solid #0f1116;
+  background: radial-gradient(circle at 35% 35%, #87d6ff, #0b5b8a 62%, #06273b 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.2);
+  cursor: crosshair;
+  padding: 0;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease;
+}
+
+.audioPatchJackDroppable {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 0 0 3px rgba(255, 123, 34, 0.22);
+}
+
+.audioPatchJackHover {
+  transform: scale(1.14);
+  background: radial-gradient(circle at 35% 35%, #fff0d8, #ff9d3a 58%, #b95700 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.24),
+    0 0 0 4px rgba(255, 123, 34, 0.3);
+}
+
+.audioPatchNormalize {
+  grid-column: 2 / span 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 10px;
+  color: #3c4d58;
+  white-space: nowrap;
+}
+
+.audioPatchTarget {
+  min-height: 58px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.audioPatchTarget .audioPatchJack {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.audioPatchTargetBody {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.audioPatchTargetPreview {
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  color: #27485c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audioPatchLine {
+  fill: none;
+  stroke: #0f6da5;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.9;
+  transition: stroke 0.08s ease, stroke-width 0.08s ease, opacity 0.08s ease;
+  pointer-events: none;
+}
+
+.audioPatchLineHovered {
+  stroke: #ff7b22;
+  stroke-width: 3;
+  opacity: 1;
+}
+
+.audioPatchLinePreview {
+  fill: none;
+  stroke: rgba(15, 109, 165, 0.58);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.audioPatchLineHit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: ns-resize;
+}
+
+.audioPatchLabel {
+  fill: #000;
+  font-size: 10px;
+  font-family: "Courier New", monospace;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 3px;
+  pointer-events: auto;
+  cursor: ns-resize;
+}
+
+.audioPatchLabelHovered {
+  fill: #b34f00;
+}
+
+.audioPatchLabelHit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: ns-resize;
 }
 
 

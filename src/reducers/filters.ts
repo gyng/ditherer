@@ -76,12 +76,60 @@ const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEnt
 const deserializeAudioMod = (
   value: SerializedAudioVizModulation | null | undefined,
 ): EntryAudioModulation | null => {
-  if (!value || typeof value.k !== "string" || !Array.isArray(value.t)) return null;
-  const targets = value.t
-    .filter((target) => typeof target?.o === "string" && typeof target?.w === "number")
-    .map((target) => ({ optionName: target.o, weight: target.w }));
-  if (targets.length === 0) return null;
-  return { metric: value.k as EntryAudioModulation["metric"], targets };
+  if (!value || typeof value !== "object") return null;
+  const connections = Array.isArray(value.c)
+    ? value.c
+      .filter((connection) => typeof connection?.k === "string" && typeof connection?.o === "string" && typeof connection?.w === "number")
+      .map((connection) => ({
+        metric: connection.k as EntryAudioModulation["connections"][number]["metric"],
+        target: connection.o,
+        weight: connection.w,
+      }))
+    : [];
+  if (connections.length > 0) {
+    return {
+      connections,
+      normalizedMetrics: Array.isArray(value.z)
+        ? value.z.filter((metric): metric is EntryAudioModulation["connections"][number]["metric"] => typeof metric === "string")
+        : [],
+    };
+  }
+
+  const metrics = Array.isArray(value.m)
+    ? value.m
+      .filter((metric) => typeof metric?.k === "string" && typeof metric?.o === "string" && typeof metric?.w === "number")
+      .map((metric) => ({
+        metric: metric.k as EntryAudioModulation["connections"][number]["metric"],
+        target: metric.o,
+        weight: metric.w,
+      }))
+    : [];
+  if (metrics.length > 0) {
+    return {
+      connections: metrics,
+      normalizedMetrics: Array.isArray(value.z)
+        ? value.z.filter((metric): metric is EntryAudioModulation["connections"][number]["metric"] => typeof metric === "string")
+        : [],
+    };
+  }
+
+  if (typeof value.k !== "string" || !Array.isArray(value.t)) return null;
+  const legacyTargets = value.t
+    .filter((target): target is { o: string; w: number } =>
+      typeof target === "object"
+      && target != null
+      && typeof target.o === "string"
+      && typeof target.w === "number")
+    .map((target) => target.o);
+  if (legacyTargets.length === 0) return null;
+  return {
+    connections: legacyTargets.map((target) => ({
+      metric: value.k as EntryAudioModulation["connections"][number]["metric"],
+      target,
+      weight: 0.25,
+    })),
+    normalizedMetrics: [],
+  };
 };
 
 // Derive `selected` compat shim from chain state
@@ -492,8 +540,8 @@ const filterReducer = (
         enabled: source.enabled,
         audioMod: source.audioMod
           ? {
-              metric: source.audioMod.metric,
-              targets: source.audioMod.targets.map((target) => ({ ...target })),
+              connections: source.audioMod.connections.map((connection) => ({ ...connection })),
+              normalizedMetrics: [...(source.audioMod.normalizedMetrics ?? [])],
             }
           : null,
       };

@@ -169,7 +169,15 @@ const loadUserChains = (): SavedChain[] => {
   return chains;
 };
 
-const ChainList = ({ onEditAudioMod }: { onEditAudioMod?: (entryId: string) => void }) => {
+const ChainList = ({
+  onEditAudioMod,
+  onEditChainAudioMod,
+  chainAudioActive = false,
+}: {
+  onEditAudioMod?: (entryId: string) => void;
+  onEditChainAudioMod?: () => void;
+  chainAudioActive?: boolean;
+}) => {
   const { state, actions } = useFilter();
   const { chain, activeIndex, randomCycleSeconds } = state;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -608,6 +616,13 @@ const ChainList = ({ onEditAudioMod }: { onEditAudioMod?: (entryId: string) => v
           >
             &#10005;
           </button>
+          <button
+            className={[s.addBtn, chainAudioActive ? s.activeToolbarBtn : ""].join(" ")}
+            onClick={() => onEditChainAudioMod?.()}
+            title="Open chain audio visualizer mapping"
+          >
+            Audio viz
+          </button>
         </div>
         <div className={`${s.toolbarGroup} ${s.toolbarGroupRight}`}>
           {savedChains.length > 0 && (
@@ -752,7 +767,7 @@ const ChainList = ({ onEditAudioMod }: { onEditAudioMod?: (entryId: string) => v
                   &#8634;
                 </button>
                 <button
-                  className={s.removeBtn}
+                  className={[s.removeBtn, entry.audioMod ? s.audioMappedBtn : ""].join(" ")}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEditAudioMod?.(entry.id);

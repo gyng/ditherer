@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import useDraggable from "./useDraggable";
 
 import Controls from "components/controls";
@@ -15,12 +15,15 @@ import { useFilter } from "context/useFilter";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 import {
+  dispatchRandomCycleSeconds,
+  getCurrentRandomCycleSeconds,
+  getLastRandomCycleSeconds,
   dispatchScreensaverCycleSeconds,
   getLastScreensaverCycleSeconds,
   setRememberedScreensaverCycleSeconds,
 } from "utils/randomCycleBridge";
-import type { AudioVizMetric, AudioVizTarget, EntryAudioModulation } from "utils/audioVizBridge";
-import { setActiveAudioVizChannel } from "utils/audioVizBridge";
+import type { AudioVizConnection, AudioVizMetric, EntryAudioModulation, GlobalAudioVizModulation } from "utils/audioVizBridge";
+import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, updateAudioVizChannel } from "utils/audioVizBridge";
 import { setupWebMCP } from "@src/webmcp";
 
 import controls from "components/controls/styles.module.css";
@@ -136,7 +139,693 @@ const AUDIO_METRIC_OPTIONS: Array<{ value: AudioVizMetric; label: string }> = [
   { value: "mid", label: "Mid" },
   { value: "treble", label: "Treble" },
   { value: "pulse", label: "Pulse" },
+  { value: "beat", label: "Beat" },
+  { value: "bpm", label: "BPM" },
+  { value: "beatHold", label: "Beat hold" },
+  { value: "onset", label: "Onset" },
+  { value: "spectralCentroid", label: "Spectral centroid" },
+  { value: "spectralFlux", label: "Spectral flux" },
+  { value: "bandRatio", label: "Band ratio" },
+  { value: "stereoWidth", label: "Stereo width" },
+  { value: "stereoBalance", label: "Stereo balance" },
+  { value: "zeroCrossing", label: "Zero crossing" },
+  { value: "subKick", label: "Sub kick" },
+  { value: "bassEnvelope", label: "Bass envelope" },
+  { value: "midEnvelope", label: "Mid envelope" },
+  { value: "trebleEnvelope", label: "Treble envelope" },
+  { value: "peakDecay", label: "Peak decay" },
+  { value: "roughness", label: "Roughness" },
+  { value: "harmonic", label: "Harmonic" },
+  { value: "percussive", label: "Percussive" },
+  { value: "tempoPhase", label: "Tempo phase" },
+  { value: "beatConfidence", label: "Beat confidence" },
 ];
+const AUDIO_METRIC_HELP: Record<AudioVizMetric, string> = {
+  level: "Overall RMS loudness of the incoming audio.",
+  bass: "Low-frequency energy. Good for heavier, slower modulation.",
+  mid: "Mid-band energy from the incoming audio.",
+  treble: "High-frequency energy. Good for crispness and fine detail changes.",
+  pulse: "Short-term loudness spike relative to recent average level.",
+  beat: "A short beat trigger pulse when the detector thinks a beat just hit.",
+  bpm: "Detected tempo in beats per minute.",
+  beatHold: "A slower-decaying version of the beat trigger.",
+  onset: "Transient detection. Good for hits, attacks, and sudden changes.",
+  spectralCentroid: "Perceived brightness of the sound from dark to bright.",
+  spectralFlux: "How much the spectrum changed since the last frame.",
+  bandRatio: "Low-band energy relative to high-band energy.",
+  stereoWidth: "Difference between left and right channels.",
+  stereoBalance: "Left/right energy balance.",
+  zeroCrossing: "Noisiness or high-frequency sign-change rate in the waveform.",
+  subKick: "Very low-end energy, useful for kick and sub movement.",
+  bassEnvelope: "Smoothed low-frequency energy.",
+  midEnvelope: "Smoothed mid-frequency energy.",
+  trebleEnvelope: "Smoothed high-frequency energy.",
+  peakDecay: "A falling peak meter that holds louder moments briefly.",
+  roughness: "A harshness/noise-style metric from treble and zero crossings.",
+  harmonic: "Bias toward more tonal, sustained content.",
+  percussive: "Bias toward more transient, percussive content.",
+  tempoPhase: "Looping phase between detected beats.",
+  beatConfidence: "How stable the current beat detection seems.",
+};
+const DEFAULT_AUDIO_METRIC_WEIGHT = 0.5;
+const AUDIO_METRIC_WEIGHT_MIN = -30;
+const AUDIO_METRIC_WEIGHT_MAX = 30;
+const AUDIO_METRIC_WEIGHT_STEP = 0.05;
+type AutoVizMode = "balanced" | "punchy" | "flow" | "chaotic";
+const AUTO_VIZ_MODES: Array<{ value: AutoVizMode; label: string }> = [
+  { value: "balanced", label: "Balanced" },
+  { value: "punchy", label: "Punchy" },
+  { value: "flow", label: "Flow" },
+  { value: "chaotic", label: "Chaotic" },
+];
+const buildAudioConnectionDraft = (modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined) =>
+  (modulation?.connections ?? []).map((connection) => ({ ...connection }));
+const buildNormalizedMetricsDraft = (modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined) =>
+  [...(modulation?.normalizedMetrics ?? [])];
+
+const meterStyle = (value: number) => ({ width: `${Math.max(4, Math.round(value * 100))}%` });
+const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
+const shuffleArray = <T,>(items: T[]) => {
+  const next = [...items];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+};
+const AUTO_VIZ_METRIC_GROUPS: Record<AutoVizMode, AudioVizMetric[]> = {
+  balanced: ["beatHold", "bassEnvelope", "spectralCentroid", "tempoPhase"],
+  punchy: ["beat", "beatHold", "bassEnvelope", "onset"],
+  flow: ["beatHold", "tempoPhase", "spectralCentroid", "harmonic"],
+  chaotic: ["beat", "onset", "spectralFlux", "percussive"],
+};
+const AUTO_VIZ_NORMALIZE_SKIP = new Set<AudioVizMetric>(["bpm", "tempoPhase", "stereoBalance"]);
+const TRANSIENT_PARAMS = ["amount", "mix", "intensity", "strength", "threshold", "glitch", "noise", "contrast", "edge", "detail", "sharpen", "poster", "posterize"];
+const HEAVY_PARAMS = ["size", "scale", "radius", "blur", "smear", "feedback", "decay", "persistence", "block", "pixel", "distort", "warp", "offset", "displace", "line", "scan"];
+const TONE_PARAMS = ["hue", "color", "palette", "gamma", "brightness", "saturation", "tone", "warm", "cool", "channel", "rgb", "contrast"];
+const FLOW_PARAMS = ["phase", "speed", "angle", "rotate", "offset", "scroll", "drift", "wave", "wobble", "frequency", "motion"];
+const scoreParamForMetric = (metric: AudioVizMetric, optionName: string, label?: string) => {
+  const haystack = `${optionName} ${label || ""}`.toLowerCase();
+  const includesKeyword = (keywords: string[]) => keywords.some((keyword) => haystack.includes(keyword));
+  let score = 1;
+  if (metric === "beat" || metric === "beatHold" || metric === "onset" || metric === "percussive") {
+    score += includesKeyword(TRANSIENT_PARAMS) ? 6 : 0;
+    score += includesKeyword(HEAVY_PARAMS) ? 2 : 0;
+  }
+  if (metric === "bassEnvelope" || metric === "peakDecay") {
+    score += includesKeyword(HEAVY_PARAMS) ? 7 : 0;
+    score += includesKeyword(TRANSIENT_PARAMS) ? 2 : 0;
+  }
+  if (metric === "spectralCentroid" || metric === "treble" || metric === "harmonic") {
+    score += includesKeyword(TONE_PARAMS) ? 7 : 0;
+    score += includesKeyword(TRANSIENT_PARAMS) ? 1 : 0;
+  }
+  if (metric === "tempoPhase" || metric === "bpm") {
+    score += includesKeyword(FLOW_PARAMS) ? 7 : 0;
+    score += includesKeyword(HEAVY_PARAMS) ? 1 : 0;
+  }
+  if (metric === "spectralFlux" || metric === "roughness") {
+    score += includesKeyword(["noise", "glitch", "detail", "edge", "grain", "jitter", "spark"]) ? 7 : 0;
+  }
+  return score;
+};
+const buildAutoVizConnections = (
+  mode: AutoVizMode,
+  rangeOptions: Array<readonly [string, { label?: string }]>,
+): { connections: AudioVizConnection[]; normalizedMetrics: AudioVizMetric[] } => {
+  if (rangeOptions.length === 0) {
+    return { connections: [], normalizedMetrics: [] };
+  }
+
+  const chosenMetrics = shuffleArray(AUTO_VIZ_METRIC_GROUPS[mode]).slice(0, Math.min(4, rangeOptions.length));
+  if (!chosenMetrics.includes("beat") && !chosenMetrics.includes("beatHold")) {
+    const replacementIndex = chosenMetrics.findIndex((metric) => metric !== "bassEnvelope" && metric !== "spectralCentroid");
+    if (replacementIndex >= 0) {
+      chosenMetrics[replacementIndex] = Math.random() < 0.5 ? "beat" : "beatHold";
+    } else if (chosenMetrics.length < Math.min(4, rangeOptions.length)) {
+      chosenMetrics.push(Math.random() < 0.5 ? "beat" : "beatHold");
+    } else if (chosenMetrics.length > 0) {
+      chosenMetrics[chosenMetrics.length - 1] = Math.random() < 0.5 ? "beat" : "beatHold";
+    }
+  }
+  const availableTargets = new Set(rangeOptions.map(([optionName]) => optionName));
+  const connections: AudioVizConnection[] = [];
+
+  for (const metric of chosenMetrics) {
+    const rankedTargets = shuffleArray(rangeOptions)
+      .filter(([optionName]) => availableTargets.has(optionName))
+      .sort((a, b) => scoreParamForMetric(metric, b[0], b[1].label) - scoreParamForMetric(metric, a[0], a[1].label));
+    const targetEntry = rankedTargets[0];
+    if (!targetEntry) continue;
+    const [target] = targetEntry;
+    availableTargets.delete(target);
+    const baseWeight = metric === "bpm"
+      ? randomBetween(0.12, 0.4)
+      : metric === "tempoPhase"
+        ? randomBetween(0.2, 0.7)
+        : metric === "bassEnvelope" || metric === "beatHold"
+          ? randomBetween(0.45, 1.4)
+          : randomBetween(0.35, 1.25);
+    const sign = mode === "chaotic"
+      ? (Math.random() < 0.35 ? -1 : 1)
+      : (Math.random() < 0.14 ? -1 : 1);
+    connections.push({
+      metric,
+      target,
+      weight: Math.max(AUDIO_METRIC_WEIGHT_MIN, Math.min(AUDIO_METRIC_WEIGHT_MAX, baseWeight * sign)),
+    });
+  }
+
+  if (connections.length === 0 && rangeOptions.length > 0) {
+    connections.push({
+      metric: "beatHold",
+      target: rangeOptions[0][0],
+      weight: 0.6,
+    });
+  }
+
+  const normalizedMetrics = connections
+    .map((connection) => connection.metric)
+    .filter((metric, index, all) => !AUTO_VIZ_NORMALIZE_SKIP.has(metric) && all.indexOf(metric) === index);
+  return { connections, normalizedMetrics };
+};
+const formatAudioMetricReadout = (
+  snapshot: ReturnType<typeof getChannelAudioVizSnapshot>,
+  metric: AudioVizMetric,
+  value: number,
+) => {
+  if (metric === "bpm") {
+    return snapshot.detectedBpm != null
+      ? `${Math.round(snapshot.detectedBpm)} BPM`
+      : "-- BPM";
+  }
+  return `${Math.round(value * 100)}%`;
+};
+
+const AudioPatchPanel = ({
+  channel,
+  rangeOptions,
+  optionValues,
+  connections,
+  normalizedMetrics,
+  onNormalizedMetricsChange,
+  onConnectionsChange,
+  autoVizMode,
+  onAutoVizModeChange,
+  autoVizOnChainChange,
+  onAutoVizOnChainChange,
+}: {
+  channel: "chain" | "screensaver";
+  rangeOptions: Array<readonly [string, { label?: string }]>;
+  optionValues: Record<string, unknown>;
+  connections: AudioVizConnection[];
+  normalizedMetrics: AudioVizMetric[];
+  onNormalizedMetricsChange: (metrics: AudioVizMetric[]) => void;
+  onConnectionsChange: (connections: AudioVizConnection[]) => void;
+  autoVizMode?: AutoVizMode;
+  onAutoVizModeChange?: (mode: AutoVizMode) => void;
+  autoVizOnChainChange?: boolean;
+  onAutoVizOnChainChange?: (enabled: boolean) => void;
+}) => {
+  const [snapshot, setSnapshot] = useState(() => getChannelAudioVizSnapshot(channel));
+  const [localAutoVizMode, setLocalAutoVizMode] = useState<AutoVizMode>("balanced");
+  const [draggingMetric, setDraggingMetric] = useState<AudioVizMetric | null>(null);
+  const [dragPointer, setDragPointer] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredMetricJack, setHoveredMetricJack] = useState<AudioVizMetric | null>(null);
+  const [hoveredTargetName, setHoveredTargetName] = useState<string | null>(null);
+  const [hoveredConnectionKey, setHoveredConnectionKey] = useState<string | null>(null);
+  const [connectionDrag, setConnectionDrag] = useState<{
+    connection: AudioVizConnection;
+    startY: number;
+    startWeight: number;
+    moved: boolean;
+  } | null>(null);
+  const connectionDragRef = useRef<typeof connectionDrag>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const metricRefs = useRef<Partial<Record<AudioVizMetric, HTMLButtonElement | null>>>({});
+  const targetRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [nodeRects, setNodeRects] = useState<{
+    metrics: Partial<Record<AudioVizMetric, { x: number; y: number }>>;
+    targets: Record<string, { x: number; y: number }>;
+  }>({ metrics: {}, targets: {} });
+
+  useEffect(() => subscribeAudioViz((changedChannel) => {
+    if (changedChannel === channel) {
+      setSnapshot(getChannelAudioVizSnapshot(channel));
+    }
+  }), [channel]);
+
+  useEffect(() => {
+    connectionDragRef.current = connectionDrag;
+  }, [connectionDrag]);
+
+  const measureNodes = useCallback(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const panelRect = panel.getBoundingClientRect();
+    const metrics = Object.fromEntries(
+      AUDIO_METRIC_OPTIONS.flatMap((option) => {
+        const element = metricRefs.current[option.value];
+        if (!element) return [];
+        const rect = element.getBoundingClientRect();
+        return [[option.value, {
+          x: rect.left - panelRect.left + rect.width / 2 + panel.scrollLeft,
+          y: rect.top - panelRect.top + rect.height / 2 + panel.scrollTop,
+        }]];
+      }),
+    ) as Partial<Record<AudioVizMetric, { x: number; y: number }>>;
+    const targets = Object.fromEntries(
+      rangeOptions.flatMap(([optionName]) => {
+        const element = targetRefs.current[optionName];
+        if (!element) return [];
+        const rect = element.getBoundingClientRect();
+        return [[optionName, {
+          x: rect.left - panelRect.left + rect.width / 2 + panel.scrollLeft,
+          y: rect.top - panelRect.top + rect.height / 2 + panel.scrollTop,
+        }]];
+      }),
+    );
+    setNodeRects({ metrics, targets });
+  }, [rangeOptions]);
+
+  useEffect(() => {
+    measureNodes();
+  }, [connections, measureNodes, rangeOptions, snapshot.metrics]);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return undefined;
+    const handle = () => measureNodes();
+    const resizeObserver = new ResizeObserver(handle);
+    resizeObserver.observe(panel);
+    panel.addEventListener("scroll", handle, { passive: true });
+    window.addEventListener("resize", handle);
+    return () => {
+      resizeObserver.disconnect();
+      panel.removeEventListener("scroll", handle);
+      window.removeEventListener("resize", handle);
+    };
+  }, [measureNodes]);
+
+  useEffect(() => {
+    if (!draggingMetric) return undefined;
+    const handleMove = (event: MouseEvent) => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const rect = panel.getBoundingClientRect();
+      setDragPointer({
+        x: event.clientX - rect.left + panel.scrollLeft,
+        y: event.clientY - rect.top + panel.scrollTop,
+      });
+    };
+    const handleUp = () => {
+      setDraggingMetric(null);
+      setDragPointer(null);
+      setHoveredTargetName(null);
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp, { once: true });
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [draggingMetric]);
+
+  const connectedTargets = new Set(connections.map((connection) => connection.target));
+  const connectedMetrics = new Set(connections.map((connection) => connection.metric));
+  const normalizedMetricSet = new Set(normalizedMetrics);
+  const hoveredConnection = hoveredConnectionKey
+    ? connections.find((connection) => `${connection.metric}:${connection.target}` === hoveredConnectionKey) ?? null
+    : null;
+  const modulationByTarget = new Map<string, number>();
+  for (const connection of connections) {
+    modulationByTarget.set(
+      connection.target,
+      (modulationByTarget.get(connection.target) ?? 0)
+        + getAudioVizMetricValueForMode(snapshot, connection.metric, snapshot.normalize || normalizedMetricSet.has(connection.metric)) * connection.weight,
+    );
+  }
+
+  const setConnectionWeight = useCallback((connection: AudioVizConnection) => {
+    const currentPercent = Math.round(connection.weight * 100);
+    const response = window.prompt("Influence %", String(currentPercent));
+    if (response == null) return;
+    const nextPercent = Number.parseFloat(response);
+    if (!Number.isFinite(nextPercent)) {
+      window.alert("Please enter a number.");
+      return;
+    }
+    onConnectionsChange(
+      connections.map((item) =>
+        item.metric === connection.metric && item.target === connection.target
+          ? { ...item, weight: nextPercent / 100 }
+          : item),
+    );
+  }, [connections, onConnectionsChange]);
+
+  const removeConnection = useCallback((connection: AudioVizConnection) => {
+    onConnectionsChange(
+      connections.filter((item) => !(item.metric === connection.metric && item.target === connection.target)),
+    );
+  }, [connections, onConnectionsChange]);
+
+  const toggleConnection = useCallback((metric: AudioVizMetric, target: string) => {
+    const existing = connections.find((connection) => connection.metric === metric && connection.target === target);
+    if (existing) {
+      onConnectionsChange(connections.filter((connection) => !(connection.metric === metric && connection.target === target)));
+      return;
+    }
+    onConnectionsChange([...connections, { metric, target, weight: DEFAULT_AUDIO_METRIC_WEIGHT }]);
+  }, [connections, onConnectionsChange]);
+
+  const updateConnectionWeight = useCallback((connection: AudioVizConnection, weight: number) => {
+    const nextWeight = Math.max(AUDIO_METRIC_WEIGHT_MIN, Math.min(AUDIO_METRIC_WEIGHT_MAX, weight));
+    onConnectionsChange(
+      connections.map((item) =>
+        item.metric === connection.metric && item.target === connection.target
+          ? { ...item, weight: nextWeight }
+          : item),
+    );
+  }, [connections, onConnectionsChange]);
+
+  useEffect(() => {
+    if (!connectionDrag) return undefined;
+
+    const handleMove = (event: MouseEvent) => {
+      const activeDrag = connectionDragRef.current;
+      if (!activeDrag) return;
+      const deltaY = activeDrag.startY - event.clientY;
+      const nextWeight = activeDrag.startWeight + deltaY * 0.02;
+      if (Math.abs(deltaY) > 3) {
+        if (!activeDrag.moved) {
+          const movedDrag = { ...activeDrag, moved: true };
+          connectionDragRef.current = movedDrag;
+          setConnectionDrag(movedDrag);
+        }
+      }
+      updateConnectionWeight(activeDrag.connection, nextWeight);
+    };
+
+    const handleUp = () => {
+      const activeDrag = connectionDragRef.current;
+      connectionDragRef.current = null;
+      setConnectionDrag(null);
+      document.body.style.cursor = "";
+      if (!activeDrag) return;
+      if (!activeDrag.moved) {
+        setConnectionWeight(activeDrag.connection);
+      }
+    };
+
+    document.body.style.cursor = "ns-resize";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp, { once: true });
+    return () => {
+      document.body.style.cursor = "";
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [connectionDrag, setConnectionWeight, updateConnectionWeight]);
+
+  const startConnectionWeightDrag = useCallback((event: React.MouseEvent<SVGElement>, connection: AudioVizConnection) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setConnectionDrag({
+      connection,
+      startY: event.clientY,
+      startWeight: connection.weight,
+      moved: false,
+    });
+  }, []);
+
+  const applyAutoViz = useCallback((mode: AutoVizMode) => {
+    const next = buildAutoVizConnections(mode, rangeOptions);
+    onConnectionsChange(next.connections);
+    onNormalizedMetricsChange(next.normalizedMetrics);
+  }, [onConnectionsChange, onNormalizedMetricsChange, rangeOptions]);
+  const resolvedAutoVizMode = autoVizMode ?? localAutoVizMode;
+  const setResolvedAutoVizMode = onAutoVizModeChange ?? setLocalAutoVizMode;
+
+  return (
+    <div ref={panelRef} className={s.audioPatchPanel}>
+      <div className={s.audioPatchToolbar}>
+        <span className={s.audioPatchToolbarLabel}>Auto Viz</span>
+        <select
+          className={s.audioPatchToolbarSelect}
+          value={resolvedAutoVizMode}
+          onChange={(event) => setResolvedAutoVizMode(event.target.value as AutoVizMode)}
+        >
+          {AUTO_VIZ_MODES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <button
+          className={s.audioPatchToolbarButton}
+          type="button"
+          onClick={() => applyAutoViz(resolvedAutoVizMode)}
+          disabled={rangeOptions.length === 0}
+          title="Generate a musical set of metric-to-parameter patch cables."
+        >
+          Auto
+        </button>
+        <button
+          className={s.audioPatchToolbarButton}
+          type="button"
+          onClick={() => applyAutoViz(resolvedAutoVizMode)}
+          disabled={rangeOptions.length === 0}
+          title="Replace the current auto-viz routing with a fresh variation."
+        >
+          Reroll
+        </button>
+        {typeof autoVizOnChainChange === "boolean" && onAutoVizOnChainChange && (
+          <label className={s.audioPatchToolbarCheck}>
+            <input
+              type="checkbox"
+              checked={autoVizOnChainChange}
+              onChange={(event) => onAutoVizOnChainChange(event.target.checked)}
+            />
+            <span>Auto</span>
+          </label>
+        )}
+      </div>
+      <svg
+        className={s.audioPatchSvg}
+        aria-hidden="true"
+        onMouseDown={(event) => {
+          if (!hoveredConnection) return;
+          startConnectionWeightDrag(event, hoveredConnection);
+        }}
+      >
+        {connections.map((connection) => {
+          const from = nodeRects.metrics[connection.metric];
+          const to = nodeRects.targets[connection.target];
+          if (!from || !to) return null;
+          const connectionKey = `${connection.metric}:${connection.target}`;
+          const hovered = hoveredConnectionKey === connectionKey;
+          const basePercent = Math.round(connection.weight * 100);
+          const effectiveWeight = (snapshot.rawMetrics[connection.metric] ?? 0) * connection.weight;
+          const effectivePercent = Math.round(effectiveWeight * 100);
+          const effectiveMagnitude = Math.min(1, Math.abs(effectiveWeight));
+          const midX = (from.x + to.x) / 2;
+          const path = `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
+          return (
+            <g key={connectionKey}>
+              <path
+                className={s.audioPatchLineHit}
+                d={path}
+                onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
+                onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
+                onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  removeConnection(connection);
+                }}
+              />
+              <path
+                className={[s.audioPatchLine, hovered ? s.audioPatchLineHovered : ""].join(" ")}
+                d={path}
+                style={{
+                  strokeWidth: hovered ? 3 + effectiveMagnitude * 3 : 1.5 + effectiveMagnitude * 2.5,
+                  opacity: hovered ? 1 : 0.35 + effectiveMagnitude * 0.65,
+                }}
+              />
+              <rect
+                className={s.audioPatchLabelHit}
+                x={midX - 34}
+                y={(from.y + to.y) / 2 - 19}
+                width="68"
+                height="26"
+                rx="4"
+                ry="4"
+                onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
+                onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
+                onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  removeConnection(connection);
+                }}
+              />
+              <text
+                className={[s.audioPatchLabel, hovered ? s.audioPatchLabelHovered : ""].join(" ")}
+                x={midX}
+                y={(from.y + to.y) / 2 - 6}
+                textAnchor="middle"
+                onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
+                onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
+                onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  removeConnection(connection);
+                }}
+              >
+                <title>{`Base ${basePercent}%, live ${effectivePercent}%`}</title>
+                {basePercent}%
+              </text>
+            </g>
+          );
+        })}
+        {draggingMetric && dragPointer && nodeRects.metrics[draggingMetric] && (
+          <path
+            className={s.audioPatchLinePreview}
+            d={`M ${nodeRects.metrics[draggingMetric]!.x} ${nodeRects.metrics[draggingMetric]!.y} C ${(nodeRects.metrics[draggingMetric]!.x + dragPointer.x) / 2} ${nodeRects.metrics[draggingMetric]!.y}, ${(nodeRects.metrics[draggingMetric]!.x + dragPointer.x) / 2} ${dragPointer.y}, ${dragPointer.x} ${dragPointer.y}`}
+          />
+        )}
+      </svg>
+      <div className={s.audioPatchColumns}>
+        <div className={s.audioPatchLeft}>
+          {AUDIO_METRIC_OPTIONS.map((option) => (
+            (() => {
+              const metricValue = getAudioVizMetricValueForMode(
+                snapshot,
+                option.value,
+                snapshot.normalize || normalizedMetricSet.has(option.value),
+              );
+              return (
+                <div
+                  key={option.value}
+                  className={[
+                    s.audioPatchNode,
+                    connectedMetrics.has(option.value) ? s.audioPatchNodeActive : "",
+                    hoveredMetricJack === option.value ? s.audioPatchNodeHover : "",
+                  ].join(" ")}
+                >
+                  <div className={s.audioPatchNodeGrid}>
+                    <span className={s.audioPatchNodeLabel}>
+                      {option.label}
+                      <InfoHint text={AUDIO_METRIC_HELP[option.value]} />
+                    </span>
+                    <span className={s.audioPatchMetricValue}>
+                      {formatAudioMetricReadout(snapshot, option.value, metricValue)}
+                    </span>
+                    <div className={s.audioPatchNodeMeta}>
+                      {connections.filter((connection) => connection.metric === option.value).length || 0} outs
+                    </div>
+                    <button
+                      ref={(element) => { metricRefs.current[option.value] = element; }}
+                      className={[
+                        s.audioPatchJack,
+                        hoveredMetricJack === option.value ? s.audioPatchJackHover : "",
+                      ].join(" ")}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setDraggingMetric(option.value);
+                        const panel = panelRef.current;
+                        if (panel) {
+                          const rect = panel.getBoundingClientRect();
+                          setDragPointer({
+                            x: event.clientX - rect.left + panel.scrollLeft,
+                            y: event.clientY - rect.top + panel.scrollTop,
+                          });
+                        }
+                      }}
+                      onMouseEnter={() => setHoveredMetricJack(option.value)}
+                      onMouseLeave={() => setHoveredMetricJack((current) => current === option.value ? null : current)}
+                      title={`Patch ${option.label}`}
+                    />
+                    <div className={s.audioPatchMeter}>
+                      <div className={s.audioPatchMeterFill} style={meterStyle(metricValue)} />
+                    </div>
+                    <label className={s.audioPatchNormalize}>
+                      <input
+                        type="checkbox"
+                        checked={normalizedMetricSet.has(option.value)}
+                        onChange={(event) => onNormalizedMetricsChange(
+                          event.target.checked
+                            ? (normalizedMetricSet.has(option.value) ? normalizedMetrics : [...normalizedMetrics, option.value])
+                            : normalizedMetrics.filter((item) => item !== option.value),
+                        )}
+                      />
+                      <span>Normalize</span>
+                    </label>
+                  </div>
+                </div>
+              );
+            })()
+          ))}
+        </div>
+        <div className={s.audioPatchRight}>
+          {rangeOptions.length > 0 ? rangeOptions.map(([optionName, optionType]) => (
+            <div
+              key={optionName}
+              className={[
+                s.audioPatchTarget,
+                connectedTargets.has(optionName) ? s.audioPatchTargetActive : "",
+                draggingMetric ? s.audioPatchTargetDroppable : "",
+                hoveredTargetName === optionName ? s.audioPatchTargetHover : "",
+              ].join(" ")}
+            >
+              <button
+                ref={(element) => { targetRefs.current[optionName] = element; }}
+                className={[
+                  s.audioPatchJack,
+                  draggingMetric ? s.audioPatchJackDroppable : "",
+                  hoveredTargetName === optionName ? s.audioPatchJackHover : "",
+                ].join(" ")}
+                onMouseUp={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (!draggingMetric) return;
+                  toggleConnection(draggingMetric, optionName);
+                  setDraggingMetric(null);
+                  setDragPointer(null);
+                  setHoveredTargetName(null);
+                }}
+                onMouseEnter={() => setHoveredTargetName(optionName)}
+                onMouseLeave={() => setHoveredTargetName((current) => current === optionName ? null : current)}
+                title={`Patch to ${optionType.label || optionName}`}
+              />
+              <div className={s.audioPatchTargetBody}>
+                <span className={s.audioPatchTargetLabel}>{optionType.label || optionName}</span>
+                {Array.isArray((optionType as { range?: number[] }).range) && (() => {
+                  const currentValue = Number(optionValues[optionName]);
+                  if (!Number.isFinite(currentValue)) return null;
+                  const [min, max] = (optionType as { range: number[] }).range;
+                  const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
+                  const span = max - min;
+                  const modulated = currentValue + (modulationByTarget.get(optionName) ?? 0) * span;
+                  const nextValue = step > 0 ? Math.round(modulated / step) * step : modulated;
+                  return (
+                    <span className={s.audioPatchTargetPreview}>
+                      {currentValue.toFixed(step >= 1 ? 0 : 2).replace(/\.?0+$/, "")}
+                      {" -> "}
+                      {nextValue.toFixed(step >= 1 ? 0 : 2).replace(/\.?0+$/, "")}
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+          )) : (
+            <div className={s.screensaverHint}>No numeric range parameters are available to modulate.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const App = () => {
   const { state, actions, filterList } = useFilter();
@@ -147,6 +836,7 @@ const App = () => {
   const [videoPaused, setVideoPaused] = useState(false);
   const [showSaveAs, setShowSaveAs] = useState(false);
   const [editingAudioEntryId, setEditingAudioEntryId] = useState<string | null>(null);
+  const [showChainAudioGlobalEditor, setShowChainAudioGlobalEditor] = useState(false);
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
   const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
   const [inputFilename, setInputFilename] = useState<string | null>(null);
@@ -164,8 +854,19 @@ const App = () => {
   const [screensaverVideoSwapSecondsDraft, setScreensaverVideoSwapSecondsDraft] = useState("8");
   const [screensaverScalingAlgorithmDraft, setScreensaverScalingAlgorithmDraft] = useState(state.scalingAlgorithm);
   const [screensaverVideoMaxWidthDraft, setScreensaverVideoMaxWidthDraft] = useState(String(DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH));
-  const [audioModMetricDraft, setAudioModMetricDraft] = useState<AudioVizMetric>("level");
-  const [audioModTargetsDraft, setAudioModTargetsDraft] = useState<Record<string, number>>({});
+  const [audioModConnectionsDraft, setAudioModConnectionsDraft] = useState<AudioVizConnection[]>([]);
+  const [audioModNormalizedMetricsDraft, setAudioModNormalizedMetricsDraft] = useState<AudioVizMetric[]>([]);
+  const [chainAudioGlobalConnectionsDraft, setChainAudioGlobalConnectionsDraft] = useState<AudioVizConnection[]>([]);
+  const [chainAudioGlobalNormalizedMetricsDraft, setChainAudioGlobalNormalizedMetricsDraft] = useState<AudioVizMetric[]>([]);
+  const [screensaverAudioGlobalConnectionsDraft, setScreensaverAudioGlobalConnectionsDraft] = useState<AudioVizConnection[]>([]);
+  const [screensaverAudioGlobalNormalizedMetricsDraft, setScreensaverAudioGlobalNormalizedMetricsDraft] = useState<AudioVizMetric[]>([]);
+  const [chainAudioAutoVizMode, setChainAudioAutoVizMode] = useState<AutoVizMode>("balanced");
+  const [chainAudioAutoVizOnChainChange, setChainAudioAutoVizOnChainChange] = useState(false);
+  const [screensaverAudioAutoVizMode, setScreensaverAudioAutoVizMode] = useState<AutoVizMode>("balanced");
+  const [screensaverAudioAutoVizOnChainChange, setScreensaverAudioAutoVizOnChainChange] = useState(false);
+  const [chainAudioBpmSwapEnabled, setChainAudioBpmSwapEnabled] = useState(false);
+  const [chainAudioBpmSwapBeats, setChainAudioBpmSwapBeats] = useState("4");
+  const chainAudioBpmSwapRestoreRef = useRef<number | null | undefined>(undefined);
   const [seekDraftTime, setSeekDraftTime] = useState<number | null>(null);
   const playPauseTimerRef = useRef<number | null>(null);
   const seekCommitTimerRef = useRef<number | null>(null);
@@ -217,6 +918,7 @@ const App = () => {
   const fullscreenMenuRef = useRef<HTMLDivElement | null>(null);
   const screensaverButtonRef = useRef<HTMLButtonElement | null>(null);
   const screensaverDialogRef = useRef<HTMLDivElement | null>(null);
+  const audioEditorRef = useRef<HTMLDivElement | null>(null);
   const zIndexRef = useRef(0);
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
@@ -258,6 +960,7 @@ const App = () => {
   });
   const saveAsDrag = useDraggable(saveAsDragRef, { defaultPosition: { x: 160, y: 400 } });
   const screensaverDrag = useDraggable(screensaverDialogRef, { defaultPosition: screensaverDialogPosition });
+  const audioEditorDrag = useDraggable(audioEditorRef, { defaultPosition: { x: 500, y: 120 } });
 
   useEffect(() => {
     const video = state.video;
@@ -988,12 +1691,58 @@ const App = () => {
     };
   }, [buildScreensaverConfig, screensaverActive, showScreensaverDialog, startScreensaver]);
 
+  const requestAudioVizPermissions = useCallback((channel: "chain" | "screensaver") => {
+    const snapshot = getChannelAudioVizSnapshot(channel);
+    if (snapshot.source !== "microphone") return;
+    void updateAudioVizChannel(channel, {
+      source: "microphone",
+      enabled: true,
+      deviceId: snapshot.deviceId,
+      normalize: snapshot.normalize,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!chainAudioBpmSwapEnabled) {
+      if (chainAudioBpmSwapRestoreRef.current !== undefined) {
+        dispatchRandomCycleSeconds(chainAudioBpmSwapRestoreRef.current);
+        chainAudioBpmSwapRestoreRef.current = undefined;
+      }
+      return;
+    }
+
+    if (chainAudioBpmSwapRestoreRef.current === undefined) {
+      chainAudioBpmSwapRestoreRef.current = getCurrentRandomCycleSeconds() ?? getLastRandomCycleSeconds() ?? null;
+    }
+
+    const beatsPerSwap = Number.parseFloat(chainAudioBpmSwapBeats);
+    if (!Number.isFinite(beatsPerSwap) || beatsPerSwap <= 0) {
+      return;
+    }
+
+    const syncBpmSwap = () => {
+      const snapshot = getChannelAudioVizSnapshot("chain");
+      if (!snapshot.enabled || snapshot.status !== "live" || !snapshot.detectedBpm || snapshot.detectedBpm <= 0) {
+        return;
+      }
+      const secondsPerSwap = (60 / snapshot.detectedBpm) * beatsPerSwap;
+      dispatchRandomCycleSeconds(secondsPerSwap > 0 ? secondsPerSwap : null);
+    };
+
+    syncBpmSwap();
+    return subscribeAudioViz((changedChannel) => {
+      if (changedChannel !== "chain") return;
+      syncBpmSwap();
+    });
+  }, [chainAudioBpmSwapBeats, chainAudioBpmSwapEnabled]);
+
   const openScreensaverDialog = useCallback(() => {
     const currentSwapSeconds = getLastScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? 2;
     const randomVideoDefault = currentInputIsRandomTestVideoRef.current || screensaverConfigRef.current.randomVideo;
     const videoSwapSeconds = screensaverConfigRef.current.videoSwapSeconds > 0
       ? screensaverConfigRef.current.videoSwapSeconds
       : currentSwapSeconds * 4;
+    const screensaverAudioMod = getGlobalAudioVizModulation("screensaver");
     const buttonRect = screensaverButtonRef.current?.getBoundingClientRect();
     const estimatedWidth = 420;
     const estimatedHeight = 360;
@@ -1010,8 +1759,11 @@ const App = () => {
     setScreensaverVideoSwapSecondsDraft(videoSwapSeconds.toString());
     setScreensaverScalingAlgorithmDraft(screensaverConfigRef.current.scalingAlgorithm || state.scalingAlgorithm);
     setScreensaverVideoMaxWidthDraft((screensaverConfigRef.current.videoMaxWidth || DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH).toString());
+    setScreensaverAudioGlobalConnectionsDraft(buildAudioConnectionDraft(screensaverAudioMod));
+    setScreensaverAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(screensaverAudioMod));
     setShowScreensaverDialog(true);
-  }, [screensaverDialogPosition.x, screensaverDialogPosition.y, state.scalingAlgorithm]);
+    requestAudioVizPermissions("screensaver");
+  }, [requestAudioVizPermissions, screensaverDialogPosition.x, screensaverDialogPosition.y, state.scalingAlgorithm]);
 
   const handleScreensaverSwapSecondsChange = useCallback((value: string) => {
     setScreensaverSwapSecondsDraft(value);
@@ -1027,41 +1779,72 @@ const App = () => {
     setScreensaverSwapSecondsDraft(bpmToSeconds(bpm).toFixed(3).replace(/\.?0+$/, ""));
   }, []);
 
+  const buildGlobalModulation = useCallback((connectionsDraft: AudioVizConnection[], normalizedMetricsDraft: AudioVizMetric[]): GlobalAudioVizModulation | null => {
+    const connections = connectionsDraft
+      .filter((connection) =>
+        typeof connection.target === "string"
+        && typeof connection.metric === "string"
+        && Number.isFinite(connection.weight)
+        && Math.abs(connection.weight) > 0.001)
+      .map((connection) => ({ ...connection }));
+    const normalizedMetrics = normalizedMetricsDraft.filter((metric, index, all) => typeof metric === "string" && all.indexOf(metric) === index);
+    return connections.length > 0 || normalizedMetrics.length > 0 ? { connections, normalizedMetrics } : null;
+  }, []);
+
   const confirmScreensaverDialog = useCallback(() => {
     const config = buildScreensaverConfig();
     if (!config) return;
     screensaverConfigRef.current = config;
     setRememberedScreensaverCycleSeconds(config.swapSeconds);
+    setGlobalAudioVizModulation("screensaver", buildGlobalModulation(screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft));
     setShowScreensaverDialog(false);
     setScreensaverCountdownMs(SCREENSAVER_IDLE_DELAY_MS);
     void startScreensaver(config);
-  }, [buildScreensaverConfig, startScreensaver]);
+  }, [buildGlobalModulation, buildScreensaverConfig, screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft, startScreensaver]);
 
   const openAudioModEditor = useCallback((entryId: string) => {
     const entry = state.chain.find((item) => item.id === entryId);
     if (!entry) return;
+    setShowChainAudioGlobalEditor(false);
     setEditingAudioEntryId(entryId);
-    setAudioModMetricDraft(entry.audioMod?.metric ?? "level");
-    setAudioModTargetsDraft(
-      Object.fromEntries((entry.audioMod?.targets ?? []).map((target) => [target.optionName, target.weight]))
-    );
-  }, [state.chain]);
+    setAudioModConnectionsDraft(buildAudioConnectionDraft(entry.audioMod));
+    setAudioModNormalizedMetricsDraft(buildNormalizedMetricsDraft(entry.audioMod));
+    requestAudioVizPermissions("chain");
+  }, [requestAudioVizPermissions, state.chain]);
 
   const closeAudioModEditor = useCallback(() => {
     setEditingAudioEntryId(null);
   }, []);
 
-  const saveAudioModEditor = useCallback(() => {
+  useEffect(() => {
     if (!editingAudioEntryId) return;
-    const targets: AudioVizTarget[] = Object.entries(audioModTargetsDraft)
-      .filter(([, weight]) => Number.isFinite(weight) && Math.abs(weight) > 0.001)
-      .map(([optionName, weight]) => ({ optionName, weight }));
-    const modulation: EntryAudioModulation | null = targets.length > 0
-      ? { metric: audioModMetricDraft, targets }
-      : null;
-    actions.setChainAudioModulation(editingAudioEntryId, modulation);
+    actions.setChainAudioModulation(
+      editingAudioEntryId,
+      buildGlobalModulation(audioModConnectionsDraft, audioModNormalizedMetricsDraft),
+    );
+  }, [actions, audioModConnectionsDraft, audioModNormalizedMetricsDraft, buildGlobalModulation, editingAudioEntryId]);
+
+  const saveAudioModEditor = useCallback(() => {
     setEditingAudioEntryId(null);
-  }, [actions, audioModMetricDraft, audioModTargetsDraft, editingAudioEntryId]);
+  }, []);
+
+  const openChainAudioGlobalEditor = useCallback(() => {
+    const modulation = getGlobalAudioVizModulation("chain");
+    setEditingAudioEntryId(null);
+    setShowChainAudioGlobalEditor(true);
+    setChainAudioGlobalConnectionsDraft(buildAudioConnectionDraft(modulation));
+    setChainAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(modulation));
+    requestAudioVizPermissions("chain");
+  }, [requestAudioVizPermissions]);
+
+  useEffect(() => {
+    if (!showChainAudioGlobalEditor) return;
+    setGlobalAudioVizModulation("chain", buildGlobalModulation(chainAudioGlobalConnectionsDraft, chainAudioGlobalNormalizedMetricsDraft));
+  }, [buildGlobalModulation, chainAudioGlobalConnectionsDraft, chainAudioGlobalNormalizedMetricsDraft, showChainAudioGlobalEditor]);
+
+  const saveChainAudioGlobalEditor = useCallback(() => {
+    setShowChainAudioGlobalEditor(false);
+  }, []);
 
   const saveCurrentChain = useCallback(() => {
     const name = prompt("Save chain as:");
@@ -1110,13 +1893,57 @@ const App = () => {
   const editingAudioEntry = editingAudioEntryId
     ? state.chain.find((entry) => entry.id === editingAudioEntryId) ?? null
     : null;
-  const editingAudioRangeOptions = editingAudioEntry
-    ? Object.entries(editingAudioEntry.filter.optionTypes || {}).filter(([optionName, optionType]) =>
-        !optionName.startsWith("_") &&
-        optionType.type === "RANGE" &&
-        (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(editingAudioEntry.filter.options || {}))
+  const chainAudioGlobalActive = Boolean(getGlobalAudioVizModulation("chain"));
+  const editingAudioRangeOptions = useMemo(() => (
+    editingAudioEntry
+      ? Object.entries(editingAudioEntry.filter.optionTypes || {}).filter(([optionName, optionType]) =>
+          !optionName.startsWith("_") &&
+          optionType.type === "RANGE" &&
+          (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(editingAudioEntry.filter.options || {}))
+        )
+      : []
+  ), [editingAudioEntry]);
+  const chainWideRangeOptions = useMemo(() => (
+    Array.from(new Map(
+      state.chain.flatMap((entry) =>
+        Object.entries(entry.filter.optionTypes || {})
+          .filter(([optionName, optionType]) =>
+            !optionName.startsWith("_") &&
+            optionType.type === "RANGE" &&
+            (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(entry.filter.options || {}))
+          )
+          .map(([optionName, optionType]) => [optionName, optionType] as const)
       )
-    : [];
+    ).entries())
+  ), [state.chain]);
+  const chainWideOptionValues = useMemo(() => (
+    Object.fromEntries(
+      chainWideRangeOptions.map(([optionName]) => {
+        const entry = state.chain.find((item) => optionName in (item.filter.options || {}));
+        return [optionName, entry?.filter.options?.[optionName]];
+      }),
+    )
+  ), [chainWideRangeOptions, state.chain]);
+  const chainStructureSignature = useMemo(
+    () => state.chain.map((entry) => `${entry.id}:${entry.displayName}:${entry.enabled ? 1 : 0}`).join("|"),
+    [state.chain],
+  );
+
+  useEffect(() => {
+    if (!chainAudioAutoVizOnChainChange || chainWideRangeOptions.length === 0) return;
+    const next = buildAutoVizConnections(chainAudioAutoVizMode, chainWideRangeOptions);
+    setChainAudioGlobalConnectionsDraft(next.connections);
+    setChainAudioGlobalNormalizedMetricsDraft(next.normalizedMetrics);
+    setGlobalAudioVizModulation("chain", buildGlobalModulation(next.connections, next.normalizedMetrics));
+  }, [buildGlobalModulation, chainAudioAutoVizMode, chainAudioAutoVizOnChainChange, chainStructureSignature, chainWideRangeOptions]);
+
+  useEffect(() => {
+    if (!screensaverAudioAutoVizOnChainChange || chainWideRangeOptions.length === 0) return;
+    const next = buildAutoVizConnections(screensaverAudioAutoVizMode, chainWideRangeOptions);
+    setScreensaverAudioGlobalConnectionsDraft(next.connections);
+    setScreensaverAudioGlobalNormalizedMetricsDraft(next.normalizedMetrics);
+    setGlobalAudioVizModulation("screensaver", buildGlobalModulation(next.connections, next.normalizedMetrics));
+  }, [buildGlobalModulation, chainStructureSignature, chainWideRangeOptions, screensaverAudioAutoVizMode, screensaverAudioAutoVizOnChainChange]);
 
   const resolvePresetFilter = useCallback((entry: PresetFilterEntry) => {
     const match = filterList.find((f) => f && f.displayName === entry.name);
@@ -1346,7 +2173,11 @@ const App = () => {
         {/* Algorithm section */}
         <CollapsibleSection title="Algorithm" defaultOpen>
           <div className={["filterOptions", s.filterOptions].join(" ")}>
-            <ChainList onEditAudioMod={openAudioModEditor} />
+            <ChainList
+              onEditAudioMod={openAudioModEditor}
+              onEditChainAudioMod={openChainAudioGlobalEditor}
+              chainAudioActive={chainAudioGlobalActive}
+            />
             <div className={controls.group}>
               <span className={controls.name}>
                 {state.chain[state.activeIndex]?.displayName ?? "Options"}
@@ -1356,7 +2187,7 @@ const App = () => {
                     onClick={() => openAudioModEditor(state.chain[state.activeIndex].id)}
                     title="Map audio visualizer to this filter's numeric parameters"
                   >
-                    Audio Viz...
+                    Per-filter audio viz...
                   </button>
                 )}
               </span>
@@ -1898,6 +2729,20 @@ const App = () => {
                   channel="screensaver"
                   title="Screensaver Audio"
                 />
+                <div className={s.audioMappingSectionTitle}>Screensaver patch panel</div>
+                <AudioPatchPanel
+                  channel="screensaver"
+                  rangeOptions={chainWideRangeOptions}
+                  optionValues={chainWideOptionValues}
+                  connections={screensaverAudioGlobalConnectionsDraft}
+                  normalizedMetrics={screensaverAudioGlobalNormalizedMetricsDraft}
+                  onNormalizedMetricsChange={setScreensaverAudioGlobalNormalizedMetricsDraft}
+                  onConnectionsChange={setScreensaverAudioGlobalConnectionsDraft}
+                  autoVizMode={screensaverAudioAutoVizMode}
+                  onAutoVizModeChange={setScreensaverAudioAutoVizMode}
+                  autoVizOnChainChange={screensaverAudioAutoVizOnChainChange}
+                  onAutoVizOnChainChange={setScreensaverAudioAutoVizOnChainChange}
+                />
                 <div className={s.screensaverHint}>
                   4 beats = 1 chain swap. If auto swap random video is enabled, the input scale is clamped to the video width above for performance. This window auto-starts after 10 seconds of no input.
                 </div>
@@ -1915,88 +2760,133 @@ const App = () => {
           </div>
         )}
 
-        {editingAudioEntry && (
-          <div className={s.screensaverOverlay} onMouseDown={closeAudioModEditor}>
-            <div className={s.audioModDialog} onMouseDown={(event) => event.stopPropagation()}>
-              <div className={s.screensaverTitleBar}>
-                <span>Audio Viz - {editingAudioEntry.displayName}</span>
-                <button className={s.screensaverClose} onClick={closeAudioModEditor}>x</button>
-              </div>
-              <div className={s.audioModBody}>
-                <AudioVizControls channel="chain" title="Filter Chain Audio" />
-                <label className={s.screensaverField}>
-                  <span>Visualizer metric</span>
-                  <select
-                    className={s.screensaverInput}
-                    value={audioModMetricDraft}
-                    onChange={(event) => setAudioModMetricDraft(event.target.value as AudioVizMetric)}
-                  >
-                    {AUDIO_METRIC_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className={s.audioTargetList}>
-                  {editingAudioRangeOptions.length > 0 ? editingAudioRangeOptions.map(([optionName, optionType]) => {
-                    const checked = optionName in audioModTargetsDraft;
-                    const weight = audioModTargetsDraft[optionName] ?? 0.25;
-                    return (
-                      <div key={optionName} className={s.audioTargetRow}>
-                        <label className={s.audioTargetLabel}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(event) => {
-                              setAudioModTargetsDraft((current) => {
-                                const next = { ...current };
-                                if (event.target.checked) {
-                                  next[optionName] = current[optionName] ?? 0.25;
-                                } else {
-                                  delete next[optionName];
-                                }
-                                return next;
-                              });
-                            }}
-                          />
-                          <span>{optionType.label || optionName}</span>
-                        </label>
-                        <input
-                          className={s.audioTargetSlider}
-                          type="range"
-                          min="-1"
-                          max="1"
-                          step="0.05"
-                          disabled={!checked}
-                          value={weight}
-                          onChange={(event) => {
-                            const nextWeight = Number(event.target.value);
-                            setAudioModTargetsDraft((current) => ({ ...current, [optionName]: nextWeight }));
-                          }}
-                        />
-                        <span className={s.audioTargetValue}>{weight.toFixed(2)}</span>
-                      </div>
-                    );
-                  }) : (
-                    <div className={s.screensaverHint}>This filter has no numeric range parameters to modulate.</div>
-                  )}
-                </div>
-              </div>
-              <div className={s.screensaverButtons}>
-                <button className={s.screensaverButton} onClick={saveAudioModEditor}>Save</button>
-                <button
-                  className={s.screensaverButton}
-                  onClick={() => {
-                    if (editingAudioEntry) {
-                      actions.setChainAudioModulation(editingAudioEntry.id, null);
-                    }
-                    closeAudioModEditor();
+        {(editingAudioEntry || showChainAudioGlobalEditor) && (
+          <div
+            className={s.screensaverOverlay}
+            onMouseDown={() => {
+              closeAudioModEditor();
+              setShowChainAudioGlobalEditor(false);
+            }}
+          >
+            <div
+              ref={audioEditorRef}
+              className={s.audioModFloat}
+              onMouseMove={audioEditorDrag.onMouseMove}
+            >
+              <div className={s.audioModDialog} onMouseDown={(event) => event.stopPropagation()}>
+                <div
+                  className={["handle", s.screensaverTitleBar].join(" ")}
+                  onMouseDown={(event) => {
+                    event.stopPropagation();
+                    audioEditorDrag.onMouseDown(event);
                   }}
                 >
-                  Clear
-                </button>
-                <button className={s.screensaverButton} onClick={closeAudioModEditor}>Cancel</button>
+                  <span>{editingAudioEntry ? `Audio Viz - ${editingAudioEntry.displayName}` : "Chain Audio Viz"}</span>
+                  <button
+                    className={s.screensaverClose}
+                    onClick={() => {
+                      closeAudioModEditor();
+                      setShowChainAudioGlobalEditor(false);
+                    }}
+                  >
+                    x
+                  </button>
+                </div>
+                <div className={s.audioModBody}>
+                  <AudioVizControls channel="chain" title="Filter Chain Audio" />
+                  {!editingAudioEntry && (
+                    <>
+                      <label className={s.screensaverCheck}>
+                        <input
+                          type="checkbox"
+                          checked={chainAudioBpmSwapEnabled}
+                          onChange={(event) => setChainAudioBpmSwapEnabled(event.target.checked)}
+                        />
+                        <span>Random chain swap from detected BPM</span>
+                      </label>
+                      {chainAudioBpmSwapEnabled && (
+                        <>
+                          <label className={s.screensaverField}>
+                            <span>Beats per swap</span>
+                            <input
+                              className={s.screensaverInput}
+                              type="number"
+                              min="0.25"
+                              step="0.25"
+                              value={chainAudioBpmSwapBeats}
+                              onChange={(event) => setChainAudioBpmSwapBeats(event.target.value)}
+                            />
+                          </label>
+                          <div className={s.screensaverHint}>
+                            Uses the chain audio input BPM to drive the existing random filter-chain swap timer.
+                            {(() => {
+                              const beatsPerSwap = Number.parseFloat(chainAudioBpmSwapBeats);
+                              const bpm = getChannelAudioVizSnapshot("chain").detectedBpm;
+                              if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
+                                return " Waiting for stable BPM detection.";
+                              }
+                              const seconds = (60 / bpm) * beatsPerSwap;
+                              return ` Current estimate: ${seconds.toFixed(2).replace(/\.?0+$/, "")}s per swap at ${Math.round(bpm)} BPM.`;
+                            })()}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                  <div className={s.audioMappingSectionTitle}>Patch panel</div>
+                  <AudioPatchPanel
+                    channel="chain"
+                    rangeOptions={editingAudioEntry ? editingAudioRangeOptions : chainWideRangeOptions}
+                    optionValues={editingAudioEntry ? (editingAudioEntry.filter.options || {}) : chainWideOptionValues}
+                    connections={editingAudioEntry ? audioModConnectionsDraft : chainAudioGlobalConnectionsDraft}
+                    normalizedMetrics={editingAudioEntry ? audioModNormalizedMetricsDraft : chainAudioGlobalNormalizedMetricsDraft}
+                    onNormalizedMetricsChange={editingAudioEntry ? setAudioModNormalizedMetricsDraft : setChainAudioGlobalNormalizedMetricsDraft}
+                    onConnectionsChange={editingAudioEntry ? setAudioModConnectionsDraft : setChainAudioGlobalConnectionsDraft}
+                    {...(editingAudioEntry ? {} : {
+                      autoVizMode: chainAudioAutoVizMode,
+                      onAutoVizModeChange: setChainAudioAutoVizMode,
+                      autoVizOnChainChange: chainAudioAutoVizOnChainChange,
+                      onAutoVizOnChainChange: setChainAudioAutoVizOnChainChange,
+                    })}
+                  />
+                </div>
+                <div className={s.screensaverButtons}>
+                  <button
+                    className={s.screensaverButton}
+                    onClick={() => {
+                      if (editingAudioEntry) {
+                        saveAudioModEditor();
+                      } else {
+                        saveChainAudioGlobalEditor();
+                      }
+                    }}
+                  >
+                    Done
+                  </button>
+                  <button
+                    className={s.screensaverButton}
+                    onClick={() => {
+                      if (editingAudioEntry) {
+                        actions.setChainAudioModulation(editingAudioEntry.id, null);
+                        closeAudioModEditor();
+                      } else {
+                        setGlobalAudioVizModulation("chain", null);
+                        setShowChainAudioGlobalEditor(false);
+                      }
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    className={s.screensaverButton}
+                    onClick={() => {
+                      closeAudioModEditor();
+                      setShowChainAudioGlobalEditor(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>

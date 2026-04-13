@@ -4,6 +4,8 @@ const isMobile = () => window.innerWidth <= 768;
 
 const EDGE = 8; // px from border to trigger resize
 const WINDOW_MARGIN = 16;
+const WINDOW_VISIBLE_X = 56;
+const WINDOW_VISIBLE_Y = 36;
 
 type Edge = "" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -49,11 +51,13 @@ export default function useDraggable(
   const clampPosition = useCallback((el: HTMLElement, nextPos: { x: number; y: number }) => {
     const width = el.offsetWidth || el.getBoundingClientRect().width;
     const height = el.offsetHeight || el.getBoundingClientRect().height;
-    const maxX = Math.max(WINDOW_MARGIN, window.innerWidth - width - WINDOW_MARGIN);
-    const maxY = Math.max(WINDOW_MARGIN, window.innerHeight - height - WINDOW_MARGIN);
+    const minX = Math.min(WINDOW_MARGIN, window.innerWidth - WINDOW_VISIBLE_X);
+    const maxX = Math.max(minX, window.innerWidth - WINDOW_VISIBLE_X);
+    const minY = Math.min(WINDOW_MARGIN, window.innerHeight - WINDOW_VISIBLE_Y);
+    const maxY = Math.max(minY, window.innerHeight - WINDOW_VISIBLE_Y);
     return {
-      x: Math.min(Math.max(WINDOW_MARGIN, nextPos.x), maxX),
-      y: Math.min(Math.max(WINDOW_MARGIN, nextPos.y), maxY),
+      x: Math.min(Math.max(minX - width, nextPos.x), maxX),
+      y: Math.min(Math.max(minY - height, nextPos.y), maxY),
     };
   }, []);
 
@@ -154,9 +158,11 @@ export default function useDraggable(
     // --- Drag mode: move the window ---
     dragging.current = true;
     didDrag.current = false;
+    const rect = ref.current.getBoundingClientRect();
+    pos.current = { x: rect.left, y: rect.top };
     offset.current = {
-      x: e.clientX - pos.current.x,
-      y: e.clientY - pos.current.y,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     };
 
     const onMouseMove = (e: MouseEvent) => {

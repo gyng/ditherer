@@ -156,6 +156,15 @@
   color: red;
 }
 
+.audioMappedBtn {
+  color: #d10000;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.audioMappedBtn:hover:not(:disabled) {
+  color: #ff2a2a;
+}
+
 .removeBtn:disabled {
   opacity: 0.3;
   cursor: default;

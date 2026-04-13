@@ -6,7 +6,7 @@ import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
-import { getActiveAudioVizSnapshot, getAudioVizMetricValue, type EntryAudioModulation } from "utils/audioVizBridge";
+import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getAudioVizMetricValueForMode, getGlobalAudioVizModulation, type EntryAudioModulation } from "utils/audioVizBridge";
 import { getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
@@ -22,38 +22,71 @@ type SerializablePalette = SerializedPaletteOption & {
   getColor?: (...args: unknown[]) => unknown;
 };
 const serializeAudioModulation = (audioMod: EntryAudioModulation | null | undefined): SerializedAudioVizModulation | undefined => {
-  if (!audioMod || !Array.isArray(audioMod.targets) || audioMod.targets.length === 0) return undefined;
+  if (
+    !audioMod
+    || (
+      (!Array.isArray(audioMod.connections) || audioMod.connections.length === 0)
+      && (!Array.isArray(audioMod.normalizedMetrics) || audioMod.normalizedMetrics.length === 0)
+    )
+  ) {
+    return undefined;
+  }
   return {
-    k: audioMod.metric,
-    t: audioMod.targets.map((target) => ({ o: target.optionName, w: target.weight })),
+    c: audioMod.connections.map((connection) => ({ k: connection.metric, o: connection.target, w: connection.weight })),
+    ...(audioMod.normalizedMetrics?.length ? { z: [...audioMod.normalizedMetrics] } : {}),
   };
 };
 
-const withAudioModulatedOptions = (entry: ChainEntry) => {
-  const audioMod = entry.audioMod;
-  if (!audioMod || !entry.filter.optionTypes || !entry.filter.options) return entry.filter.options;
-
+const applyAudioModulationToOptions = (
+  options: Record<string, unknown>,
+  optionTypes: NonNullable<ChainEntry["filter"]["optionTypes"]>,
+  audioMod: EntryAudioModulation,
+) => {
+  const nextOptions: Record<string, unknown> = { ...options };
   const snapshot = getActiveAudioVizSnapshot();
-  if (!snapshot.enabled || snapshot.status !== "live") return entry.filter.options;
-
-  const metricValue = getAudioVizMetricValue(snapshot, audioMod.metric);
-  const nextOptions: Record<string, unknown> = { ...entry.filter.options };
-
-  for (const target of audioMod.targets) {
-    const optionType = entry.filter.optionTypes[target.optionName];
+  const modulationByTarget = new Map<string, number>();
+  const normalizedMetrics = new Set(audioMod.normalizedMetrics ?? []);
+  for (const connection of audioMod.connections) {
+    const nextValue = (modulationByTarget.get(connection.target) ?? 0)
+      + getAudioVizMetricValueForMode(snapshot, connection.metric, snapshot.normalize || normalizedMetrics.has(connection.metric)) * connection.weight;
+    modulationByTarget.set(connection.target, nextValue);
+  }
+  for (const [optionName, modulationValue] of modulationByTarget) {
+    const optionType = optionTypes[optionName];
     if (!optionType || optionType.type !== "RANGE" || !Array.isArray((optionType as { range?: number[] }).range)) {
       continue;
     }
-    const currentValue = Number(entry.filter.options[target.optionName]);
+    const currentValue = Number(options[optionName]);
     if (!Number.isFinite(currentValue)) continue;
     const [min, max] = (optionType as { range: number[] }).range;
     const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
     const span = max - min;
-    const modulated = currentValue + metricValue * target.weight * span;
-    const clamped = Math.max(min, Math.min(max, modulated));
-    nextOptions[target.optionName] = step > 0 ? Math.round(clamped / step) * step : clamped;
+    const modulated = currentValue + modulationValue * span;
+    nextOptions[optionName] = step > 0 ? Math.round(modulated / step) * step : modulated;
   }
+  return nextOptions;
+};
 
+const withAudioModulatedOptions = (entry: ChainEntry) => {
+  if (!entry.filter.optionTypes || !entry.filter.options) return entry.filter.options;
+  const snapshot = getActiveAudioVizSnapshot();
+  if (!snapshot.enabled || snapshot.status !== "live") return entry.filter.options;
+  let nextOptions: Record<string, unknown> = { ...entry.filter.options };
+  if (entry.audioMod) {
+    nextOptions = applyAudioModulationToOptions(
+      nextOptions,
+      entry.filter.optionTypes,
+      entry.audioMod,
+    );
+  }
+  const globalMod = getGlobalAudioVizModulation(getActiveAudioVizChannel());
+  if (globalMod) {
+    nextOptions = applyAudioModulationToOptions(
+      nextOptions,
+      entry.filter.optionTypes,
+      globalMod,
+    );
+  }
   return nextOptions;
 };
 type FilterRunner = (input: HTMLCanvasElement | OffscreenCanvas | null) => void;

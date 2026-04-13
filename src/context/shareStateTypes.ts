@@ -1,12 +1,16 @@
 export type SerializedOptionMap = Record<string, unknown>;
-export type SerializedAudioVizTarget = {
+export type SerializedAudioVizConnection = {
+  k: string;
   o: string;
   w: number;
 };
 
 export type SerializedAudioVizModulation = {
-  k: string;
-  t: SerializedAudioVizTarget[];
+  c?: SerializedAudioVizConnection[];
+  z?: string[];
+  m?: SerializedAudioVizConnection[];
+  t?: string[] | Array<{ o: string; w: number }>;
+  k?: string;
 };
 
 export interface SerializedPaletteState {
