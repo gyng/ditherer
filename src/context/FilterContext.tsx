@@ -244,9 +244,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   }, [state.randomCycleSeconds]);
 
   // Async action: load image from file
-  const loadImageAsync = useCallback((file: File) => new Promise<void>((resolve, reject) => {
+  const loadImageAsync = useCallback((file: File, options?: { preserveScale?: boolean }) => new Promise<void>((resolve, reject) => {
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
+    const loadStartedScale = stateRef.current.scale;
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
       reject(new Error("Failed to decode image"));
@@ -255,8 +256,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       URL.revokeObjectURL(objectUrl);
       resetProcessingState();
       dispatch({ type: "LOAD_IMAGE", image, time: null, frameToken: 0, video: null, dispatch });
-      const scale = roundScale(getAutoScale(image.width, image.height));
-      dispatch({ type: "SET_SCALE", scale });
+      if (!options?.preserveScale && Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
+        const scale = roundScale(getAutoScale(image.width, image.height));
+        dispatch({ type: "SET_SCALE", scale });
+      }
       resolve();
     };
     image.src = objectUrl;
@@ -395,7 +398,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   }), [resetProcessingState]);
 
   // Async action: load video from file
-  const loadVideoAsync = useCallback((file: File, volume = 1, playbackRate = 1) => {
+  const loadVideoAsync = useCallback((file: File, volume = 1, playbackRate = 1, options?: { preserveScale?: boolean }) => {
     const objectUrl = URL.createObjectURL(file);
     return loadVideoSourceAsync(
       objectUrl,
@@ -406,7 +409,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         sizeMiB: (file.size / (1024 * 1024)).toFixed(2),
         type: file.type || "unknown",
       },
-      objectUrl
+      objectUrl,
+      options
     );
   }, [loadVideoSourceAsync]);
 
@@ -423,11 +427,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   [loadVideoSourceAsync]);
 
   // Async action: load media (routes to image or video)
-  const loadMediaAsync = useCallback((file: File, volume = 1, playbackRate = 1) => {
+  const loadMediaAsync = useCallback((file: File, volume = 1, playbackRate = 1, options?: { preserveScale?: boolean }) => {
     if (file.type.startsWith("video/")) {
-      return loadVideoAsync(file, volume, playbackRate);
+      return loadVideoAsync(file, volume, playbackRate, options);
     } else {
-      return loadImageAsync(file);
+      return loadImageAsync(file, options);
     }
   }, [loadImageAsync, loadVideoAsync]);
 

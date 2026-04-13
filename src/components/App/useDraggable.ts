@@ -33,6 +33,7 @@ const edgeCursor: Record<Edge, string> = {
 
 type DraggableOptions = {
   defaultPosition?: { x: number; y: number };
+  onPositionChange?: (position: { x: number; y: number }) => void;
   onScale?: (delta: number) => void;
   // Called during border drag with (ratio, startSize) where ratio is relative to drag start
   onScaleAbsolute?: (ratio: number, startSize: number) => void;
@@ -40,7 +41,7 @@ type DraggableOptions = {
 
 export default function useDraggable(
   ref: RefObject<HTMLElement | null>,
-  { defaultPosition = { x: 0, y: 0 }, onScale, onScaleAbsolute }: DraggableOptions = {},
+  { defaultPosition = { x: 0, y: 0 }, onPositionChange, onScale, onScaleAbsolute }: DraggableOptions = {},
 ) {
   const pos = useRef(defaultPosition);
   const dragging = useRef(false);
@@ -61,11 +62,16 @@ export default function useDraggable(
     };
   }, []);
 
-  const applyClampedPosition = useCallback((el: HTMLElement, nextPos: { x: number; y: number }) => {
+  const applyClampedPosition = useCallback((
+    el: HTMLElement,
+    nextPos: { x: number; y: number },
+    notify = true,
+  ) => {
     const clamped = clampPosition(el, nextPos);
     pos.current = clamped;
     el.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
-  }, [clampPosition]);
+    if (notify) onPositionChange?.(clamped);
+  }, [clampPosition, onPositionChange]);
 
   const readTranslateFromStyle = (el: HTMLElement) => {
     const transform = window.getComputedStyle(el).transform;
@@ -85,25 +91,30 @@ export default function useDraggable(
     return null;
   };
 
-  const ensureInitializedPosition = useCallback(() => {
+  const ensureInitializedPosition = useCallback((notify = false) => {
     if (!ref.current || isMobile()) return;
     if (!initialized.current) {
-      applyClampedPosition(ref.current, pos.current);
+      applyClampedPosition(ref.current, pos.current, notify);
       initialized.current = true;
       return;
     }
     const fromStyle = readTranslateFromStyle(ref.current);
     if (fromStyle) {
-      applyClampedPosition(ref.current, fromStyle);
+      applyClampedPosition(ref.current, fromStyle, notify);
     } else {
-      applyClampedPosition(ref.current, pos.current);
+      applyClampedPosition(ref.current, pos.current, notify);
     }
   }, [applyClampedPosition, ref]);
+
+  useLayoutEffect(() => {
+    pos.current = defaultPosition;
+    initialized.current = false;
+  }, [defaultPosition.x, defaultPosition.y]);
 
   // Apply initial transform before paint so first drag starts from the visible position.
   useLayoutEffect(() => {
     ensureInitializedPosition();
-  }, [ensureInitializedPosition]);
+  }, [ensureInitializedPosition, defaultPosition.x, defaultPosition.y]);
 
   const onMouseDown = useCallback((e: MouseEvent | React.MouseEvent<Element>) => {
     if (isMobile()) return;
@@ -158,11 +169,11 @@ export default function useDraggable(
     // --- Drag mode: move the window ---
     dragging.current = true;
     didDrag.current = false;
-    const rect = ref.current.getBoundingClientRect();
-    pos.current = { x: rect.left, y: rect.top };
+    const currentPos = readTranslateFromStyle(ref.current) ?? pos.current;
+    pos.current = currentPos;
     offset.current = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: e.clientX - currentPos.x,
+      y: e.clientY - currentPos.y,
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -171,7 +182,7 @@ export default function useDraggable(
       applyClampedPosition(ref.current, {
         x: e.clientX - offset.current.x,
         y: e.clientY - offset.current.y,
-      });
+      }, true);
     };
 
     const onMouseUp = () => {
@@ -212,7 +223,7 @@ export default function useDraggable(
     if (isMobile()) return undefined;
     const handleResize = () => {
       if (!ref.current) return;
-      ensureInitializedPosition();
+      ensureInitializedPosition(true);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);

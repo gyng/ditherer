@@ -20,7 +20,7 @@ export interface ExportFrameOptions {
 }
 
 export interface FilterActions {
-  loadMediaAsync: (file: File, volume?: number, playbackRate?: number) => Promise<void>;
+  loadMediaAsync: (file: File, volume?: number, playbackRate?: number, options?: { preserveScale?: boolean }) => Promise<void>;
   loadVideoFromUrlAsync: (src: string, volume?: number, playbackRate?: number, options?: { preserveScale?: boolean }) => Promise<void>;
   filterImageAsync: (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
   triggerDegauss: (inputCanvas: HTMLCanvasElement | null) => void;

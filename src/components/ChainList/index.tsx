@@ -174,8 +174,8 @@ const ChainList = ({
   onEditChainAudioMod,
   chainAudioActive = false,
 }: {
-  onEditAudioMod?: (entryId: string) => void;
-  onEditChainAudioMod?: () => void;
+  onEditAudioMod?: (entryId: string, anchorRect?: DOMRect) => void;
+  onEditChainAudioMod?: (anchorRect?: DOMRect) => void;
   chainAudioActive?: boolean;
 }) => {
   const { state, actions } = useFilter();
@@ -565,7 +565,7 @@ const ChainList = ({
             }}
             title="Open full filter/preset browser"
           >
-            Browse
+            ▤
           </button>
           <select
             className={s.presetSelect}
@@ -618,7 +618,7 @@ const ChainList = ({
           </button>
           <button
             className={[s.addBtn, chainAudioActive ? s.activeToolbarBtn : ""].join(" ")}
-            onClick={() => onEditChainAudioMod?.()}
+            onClick={(event) => onEditChainAudioMod?.(event.currentTarget.getBoundingClientRect())}
             title="Open chain audio visualizer mapping"
           >
             Audio viz
@@ -770,7 +770,7 @@ const ChainList = ({
                   className={[s.removeBtn, entry.audioMod ? s.audioMappedBtn : ""].join(" ")}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEditAudioMod?.(entry.id);
+                    onEditAudioMod?.(entry.id, (e.currentTarget as HTMLElement).getBoundingClientRect());
                   }}
                   title="Map audio visualizer to this filter"
                 >

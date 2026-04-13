@@ -76,29 +76,29 @@ const AudioVizControls = ({
         />
         <span>Enable audio visualizer input</span>
       </label>
-      <label className={s.field}>
-        <span>Source</span>
-        <select
-          className={s.input}
-          value={snapshot.source}
-          onChange={(event) => {
-            const nextSource = event.target.value as AudioVizSource;
-            void updateAudioVizChannel(channel, {
-              source: event.target.value as AudioVizSource,
-              enabled: true,
-              ...(nextSource === "display" ? { deviceId: null } : {}),
-            });
-          }}
-        >
-          {SOURCE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {snapshot.source === "microphone" && (
-        <div className={s.deviceBlock}>
+      <div className={s.fieldRow}>
+        <label className={s.field}>
+          <span>Source</span>
+          <select
+            className={s.input}
+            value={snapshot.source}
+            onChange={(event) => {
+              const nextSource = event.target.value as AudioVizSource;
+              void updateAudioVizChannel(channel, {
+                source: event.target.value as AudioVizSource,
+                enabled: true,
+                ...(nextSource === "display" ? { deviceId: null } : {}),
+              });
+            }}
+          >
+            {SOURCE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {snapshot.source === "microphone" && (
           <label className={s.field}>
             <span>Microphone</span>
             <select
@@ -122,8 +122,15 @@ const AudioVizControls = ({
               ))}
             </select>
           </label>
-          <div className={s.deviceLabel}>
-            Connected mic: {snapshot.deviceLabel || (snapshot.status === "connecting" ? "Requesting permission..." : "Not connected")}
+        )}
+      </div>
+      {snapshot.source === "microphone" && (
+        <div className={s.deviceBlock}>
+          <div className={s.deviceRow}>
+            <div className={s.deviceLabel}>
+              Connected mic: {snapshot.deviceLabel || (snapshot.status === "connecting" ? "Requesting permission..." : "Not connected")}
+            </div>
+            <div className={s.deviceStatus}>{statusText}</div>
           </div>
           {audioDevices.length === 0 && (
             <div className={s.deviceHint}>
@@ -148,7 +155,9 @@ const AudioVizControls = ({
         />
         <span>Normalize range</span>
       </label>
-      <div className={s.status}>{statusText}</div>
+      {snapshot.source !== "microphone" && (
+        <div className={s.status}>{statusText}</div>
+      )}
     </div>
   );
 };

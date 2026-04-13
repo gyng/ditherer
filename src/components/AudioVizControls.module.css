@@ -26,12 +26,25 @@
   font-size: 12px;
 }
 
+.fieldRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fieldRow .field {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
 .input {
   border: 2px inset var(--input-border);
   background: var(--window-bg);
   color: var(--window-text);
   padding: 4px 6px;
   font: inherit;
+  min-width: 0;
 }
 
 .status {
@@ -48,10 +61,23 @@
   gap: 4px;
 }
 
+.deviceRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
 .deviceLabel {
   font-size: 11px;
   line-height: 1.3;
   color: #333;
+}
+
+.deviceStatus {
+  font-size: 11px;
+  line-height: 1.3;
+  color: #555;
 }
 
 .deviceHint {

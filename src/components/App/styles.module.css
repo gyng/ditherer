@@ -40,6 +40,22 @@
   gap: 2px;
 }
 
+.inputTweakRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+}
+
+.inputTweakRow > * {
+  min-width: 0;
+}
+
+.inputTweakCheck {
+  margin: 0;
+  min-width: 0;
+}
+
 .videoControlRow {
   display: flex;
   gap: 4px;
@@ -362,6 +378,8 @@
 .canvases > div {
   background-color: var(--light-gray);
   position: fixed;
+  top: 0;
+  left: 0;
   margin: 10px;
   display: table;
   grid-column: 1;
@@ -445,12 +463,16 @@
 .screensaverDialog {
   min-width: 320px;
   max-width: min(92vw, 420px);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
   background: var(--light-gray, #c0c0c0);
   border-left: 2px solid #ffffff;
   border-top: 2px solid #ffffff;
   border-right: 2px solid #404040;
   border-bottom: 2px solid #404040;
   box-shadow: 1px 1px 0 #000, inset 1px 1px 0 #dfdfdf;
+  overflow: hidden;
 }
 
 .screensaverTitleBar {
@@ -467,6 +489,8 @@
   font-size: 12px;
   font-weight: bold;
   cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
@@ -479,8 +503,11 @@
 .screensaverBody {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 10px;
   padding: 14px 18px 8px;
+  overflow: auto;
 }
 
 .screensaverField {
@@ -517,6 +544,7 @@
 
 .screensaverButtons {
   display: flex;
+  flex: 0 0 auto;
   justify-content: center;
   gap: 6px;
   padding: 4px 18px 14px;
@@ -524,14 +552,6 @@
 
 .screensaverButton {
   min-width: 76px;
-}
-
-.optionTitleButton {
-  min-height: unset;
-  padding: 1px 6px;
-  margin-top: -1px;
-  float: right;
-  height: fit-content;
 }
 
 .optionActionRow {
@@ -543,8 +563,9 @@
 
 .audioModDialog {
   width: min(92vw, 560px);
-  max-height: 88vh;
-  overflow: auto;
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
   background: var(--light-gray, #c0c0c0);
   border-left: 2px solid #ffffff;
   border-top: 2px solid #ffffff;
@@ -552,6 +573,7 @@
   border-bottom: 2px solid #404040;
   box-shadow: 1px 1px 0 #000, inset 1px 1px 0 #dfdfdf;
   z-index: 10002;
+  overflow: hidden;
 }
 
 .audioModFloat {
@@ -564,15 +586,13 @@
 .audioModBody {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 10px;
   padding: 14px 18px 8px;
   position: relative;
   z-index: 1;
-}
-
-.audioMappingSectionTitle {
-  font-size: 12px;
-  font-weight: bold;
+  overflow: auto;
 }
 
 .audioPatchToolbar {
@@ -610,10 +630,13 @@
 .audioPatchToolbarCheck {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 4px;
   margin-left: auto;
   font-size: 11px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .audioPatchPanel {
@@ -626,6 +649,20 @@
   overflow: auto;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.audioPatchPanelCollapsed {
+  min-height: 0;
+}
+
+.audioPatchCollapse {
+  position: relative;
+  z-index: 9;
+  min-height: 24px;
+  margin: 8px 10px 0;
+  padding: 2px 8px;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .audioPatchSvg {

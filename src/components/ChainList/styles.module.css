@@ -206,8 +206,10 @@
 
 .addBtn {
   font-weight: bold;
-  min-height: unset;
+  min-height: 28px;
+  box-sizing: border-box;
   padding: 3px 8px;
+  line-height: 1.1;
 }
 
 .iconBtn {
@@ -259,7 +261,7 @@
 .presetSelect {
   flex: 0 0 auto !important;
   font-weight: bold;
-  min-height: unset;
+  min-height: 28px;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
@@ -275,6 +277,8 @@
   padding: 3px 8px;
   margin: 1px;
   font: inherit;
+  line-height: 1.1;
+  box-sizing: border-box;
   width: 27px;
 }
 

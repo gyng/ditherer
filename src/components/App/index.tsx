@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from "react";
 import useDraggable from "./useDraggable";
 
 import Controls from "components/controls";
@@ -91,9 +91,31 @@ const basename = (path: string) => path.split("/").pop() || path;
 const SCREENSAVER_IDLE_DELAY_MS = 10000;
 const DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH = 250;
 const FULLSCREEN_CURSOR_IDLE_MS = 1500;
+const DEFAULT_INPUT_WINDOW_POSITION = { x: 340, y: 10 };
+const DEFAULT_OUTPUT_WINDOW_POSITION = { x: 660, y: 20 };
 
 const secondsToBpm = (seconds: number) => 240 / seconds;
 const bpmToSeconds = (bpm: number) => 240 / bpm;
+const isBundledTestVideoSource = (src: string | null | undefined) => {
+  if (!src) return false;
+  try {
+    const normalizedSrc = new URL(src, window.location.href).href;
+    return TEST_VIDEO_ASSETS.some((assetSrc) => new URL(assetSrc, window.location.href).href === normalizedSrc);
+  } catch {
+    return TEST_VIDEO_ASSETS.includes(src);
+  }
+};
+const getAnchoredDialogPosition = (
+  anchorRect: DOMRect | undefined,
+  fallback: { x: number; y: number },
+  estimatedSize: { width: number; height: number },
+) => {
+  if (!anchorRect) return fallback;
+  return {
+    x: Math.min(Math.max(16, anchorRect.left - 24), Math.max(16, window.innerWidth - estimatedSize.width - 16)),
+    y: Math.min(Math.max(16, anchorRect.bottom + 8), Math.max(16, window.innerHeight - estimatedSize.height - 16)),
+  };
+};
 
 type PreviousCanvasProps = {
   inputImage?: CanvasImageSource | null;
@@ -133,6 +155,7 @@ const OUTPUT_SCALE_HELP = "Scales the rendered output view. This changes display
 const SCALING_ALGORITHM_HELP = "Controls how enlarged canvases are drawn on screen. Auto uses smooth browser scaling; Pixelated keeps hard nearest-neighbor edges.";
 const GRAYSCALE_HELP = "Converts the source to grayscale before the chain runs. Useful for monochrome dithers or filters that should ignore color.";
 const GAMMA_HELP = "Runs the pipeline in gamma-correct space for more perceptually accurate blending and brightness. It can look better, but may change results and cost a bit more work.";
+const FIX_INPUT_WIDTH_HELP = "Keeps the current input scale when loading a new image or video so the visible canvas width stays steadier during source swaps.";
 const AUDIO_METRIC_OPTIONS: Array<{ value: AudioVizMetric; label: string }> = [
   { value: "level", label: "Level" },
   { value: "bass", label: "Bass" },
@@ -190,7 +213,6 @@ const AUDIO_METRIC_HELP: Record<AudioVizMetric, string> = {
 const DEFAULT_AUDIO_METRIC_WEIGHT = 0.5;
 const AUDIO_METRIC_WEIGHT_MIN = -30;
 const AUDIO_METRIC_WEIGHT_MAX = 30;
-const AUDIO_METRIC_WEIGHT_STEP = 0.05;
 type AutoVizMode = "balanced" | "punchy" | "flow" | "chaotic";
 const AUTO_VIZ_MODES: Array<{ value: AutoVizMode; label: string }> = [
   { value: "balanced", label: "Balanced" },
@@ -334,6 +356,9 @@ const AudioPatchPanel = ({
   onAutoVizModeChange,
   autoVizOnChainChange,
   onAutoVizOnChainChange,
+  collapsibleBody = false,
+  bodyDefaultOpen = true,
+  bodyTitle = "Patch panel",
 }: {
   channel: "chain" | "screensaver";
   rangeOptions: Array<readonly [string, { label?: string }]>;
@@ -346,9 +371,13 @@ const AudioPatchPanel = ({
   onAutoVizModeChange?: (mode: AutoVizMode) => void;
   autoVizOnChainChange?: boolean;
   onAutoVizOnChainChange?: (enabled: boolean) => void;
+  collapsibleBody?: boolean;
+  bodyDefaultOpen?: boolean;
+  bodyTitle?: string;
 }) => {
   const [snapshot, setSnapshot] = useState(() => getChannelAudioVizSnapshot(channel));
   const [localAutoVizMode, setLocalAutoVizMode] = useState<AutoVizMode>("balanced");
+  const [bodyOpen, setBodyOpen] = useState(bodyDefaultOpen);
   const [draggingMetric, setDraggingMetric] = useState<AudioVizMetric | null>(null);
   const [dragPointer, setDragPointer] = useState<{ x: number; y: number } | null>(null);
   const [hoveredMetricJack, setHoveredMetricJack] = useState<AudioVizMetric | null>(null);
@@ -568,7 +597,13 @@ const AudioPatchPanel = ({
   const setResolvedAutoVizMode = onAutoVizModeChange ?? setLocalAutoVizMode;
 
   return (
-    <div ref={panelRef} className={s.audioPatchPanel}>
+    <div
+      ref={panelRef}
+      className={[
+        s.audioPatchPanel,
+        collapsibleBody && !bodyOpen ? s.audioPatchPanelCollapsed : "",
+      ].join(" ")}
+    >
       <div className={s.audioPatchToolbar}>
         <span className={s.audioPatchToolbarLabel}>Auto Viz</span>
         <select
@@ -607,94 +642,105 @@ const AudioPatchPanel = ({
               checked={autoVizOnChainChange}
               onChange={(event) => onAutoVizOnChainChange(event.target.checked)}
             />
-            <span>Auto</span>
+            <span>Refresh on chain change</span>
           </label>
         )}
       </div>
-      <svg
-        className={s.audioPatchSvg}
-        aria-hidden="true"
-        onMouseDown={(event) => {
-          if (!hoveredConnection) return;
-          startConnectionWeightDrag(event, hoveredConnection);
-        }}
-      >
-        {connections.map((connection) => {
-          const from = nodeRects.metrics[connection.metric];
-          const to = nodeRects.targets[connection.target];
-          if (!from || !to) return null;
-          const connectionKey = `${connection.metric}:${connection.target}`;
-          const hovered = hoveredConnectionKey === connectionKey;
-          const basePercent = Math.round(connection.weight * 100);
-          const effectiveWeight = (snapshot.rawMetrics[connection.metric] ?? 0) * connection.weight;
-          const effectivePercent = Math.round(effectiveWeight * 100);
-          const effectiveMagnitude = Math.min(1, Math.abs(effectiveWeight));
-          const midX = (from.x + to.x) / 2;
-          const path = `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
-          return (
-            <g key={connectionKey}>
+      {collapsibleBody && (
+        <button
+          type="button"
+          className={s.audioPatchCollapse}
+          onClick={() => setBodyOpen((value) => !value)}
+        >
+          {bodyOpen ? "[-]" : "[+]"} {bodyTitle}
+        </button>
+      )}
+      {(!collapsibleBody || bodyOpen) && (
+        <>
+          <svg
+            className={s.audioPatchSvg}
+            aria-hidden="true"
+            onMouseDown={(event) => {
+              if (!hoveredConnection) return;
+              startConnectionWeightDrag(event, hoveredConnection);
+            }}
+          >
+            {connections.map((connection) => {
+              const from = nodeRects.metrics[connection.metric];
+              const to = nodeRects.targets[connection.target];
+              if (!from || !to) return null;
+              const connectionKey = `${connection.metric}:${connection.target}`;
+              const hovered = hoveredConnectionKey === connectionKey;
+              const basePercent = Math.round(connection.weight * 100);
+              const effectiveWeight = (snapshot.rawMetrics[connection.metric] ?? 0) * connection.weight;
+              const effectivePercent = Math.round(effectiveWeight * 100);
+              const effectiveMagnitude = Math.min(1, Math.abs(effectiveWeight));
+              const midX = (from.x + to.x) / 2;
+              const path = `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
+              return (
+                <g key={connectionKey}>
+                  <path
+                    className={s.audioPatchLineHit}
+                    d={path}
+                    onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
+                    onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
+                    onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      removeConnection(connection);
+                    }}
+                  />
+                  <path
+                    className={[s.audioPatchLine, hovered ? s.audioPatchLineHovered : ""].join(" ")}
+                    d={path}
+                    style={{
+                      strokeWidth: hovered ? 3 + effectiveMagnitude * 3 : 1.5 + effectiveMagnitude * 2.5,
+                      opacity: hovered ? 1 : 0.35 + effectiveMagnitude * 0.65,
+                    }}
+                  />
+                  <rect
+                    className={s.audioPatchLabelHit}
+                    x={midX - 34}
+                    y={(from.y + to.y) / 2 - 19}
+                    width="68"
+                    height="26"
+                    rx="4"
+                    ry="4"
+                    onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
+                    onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
+                    onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      removeConnection(connection);
+                    }}
+                  />
+                  <text
+                    className={[s.audioPatchLabel, hovered ? s.audioPatchLabelHovered : ""].join(" ")}
+                    x={midX}
+                    y={(from.y + to.y) / 2 - 6}
+                    textAnchor="middle"
+                    onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
+                    onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
+                    onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      removeConnection(connection);
+                    }}
+                  >
+                    <title>{`Base ${basePercent}%, live ${effectivePercent}%`}</title>
+                    {basePercent}%
+                  </text>
+                </g>
+              );
+            })}
+            {draggingMetric && dragPointer && nodeRects.metrics[draggingMetric] && (
               <path
-                className={s.audioPatchLineHit}
-                d={path}
-                onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
-                onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
-                onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  removeConnection(connection);
-                }}
+                className={s.audioPatchLinePreview}
+                d={`M ${nodeRects.metrics[draggingMetric]!.x} ${nodeRects.metrics[draggingMetric]!.y} C ${(nodeRects.metrics[draggingMetric]!.x + dragPointer.x) / 2} ${nodeRects.metrics[draggingMetric]!.y}, ${(nodeRects.metrics[draggingMetric]!.x + dragPointer.x) / 2} ${dragPointer.y}, ${dragPointer.x} ${dragPointer.y}`}
               />
-              <path
-                className={[s.audioPatchLine, hovered ? s.audioPatchLineHovered : ""].join(" ")}
-                d={path}
-                style={{
-                  strokeWidth: hovered ? 3 + effectiveMagnitude * 3 : 1.5 + effectiveMagnitude * 2.5,
-                  opacity: hovered ? 1 : 0.35 + effectiveMagnitude * 0.65,
-                }}
-              />
-              <rect
-                className={s.audioPatchLabelHit}
-                x={midX - 34}
-                y={(from.y + to.y) / 2 - 19}
-                width="68"
-                height="26"
-                rx="4"
-                ry="4"
-                onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
-                onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
-                onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  removeConnection(connection);
-                }}
-              />
-              <text
-                className={[s.audioPatchLabel, hovered ? s.audioPatchLabelHovered : ""].join(" ")}
-                x={midX}
-                y={(from.y + to.y) / 2 - 6}
-                textAnchor="middle"
-                onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
-                onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
-                onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  removeConnection(connection);
-                }}
-              >
-                <title>{`Base ${basePercent}%, live ${effectivePercent}%`}</title>
-                {basePercent}%
-              </text>
-            </g>
-          );
-        })}
-        {draggingMetric && dragPointer && nodeRects.metrics[draggingMetric] && (
-          <path
-            className={s.audioPatchLinePreview}
-            d={`M ${nodeRects.metrics[draggingMetric]!.x} ${nodeRects.metrics[draggingMetric]!.y} C ${(nodeRects.metrics[draggingMetric]!.x + dragPointer.x) / 2} ${nodeRects.metrics[draggingMetric]!.y}, ${(nodeRects.metrics[draggingMetric]!.x + dragPointer.x) / 2} ${dragPointer.y}, ${dragPointer.x} ${dragPointer.y}`}
-          />
-        )}
-      </svg>
-      <div className={s.audioPatchColumns}>
+            )}
+          </svg>
+          <div className={s.audioPatchColumns}>
         <div className={s.audioPatchLeft}>
           {AUDIO_METRIC_OPTIONS.map((option) => (
             (() => {
@@ -822,7 +868,9 @@ const AudioPatchPanel = ({
             <div className={s.screensaverHint}>No numeric range parameters are available to modulate.</div>
           )}
         </div>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -834,6 +882,7 @@ const App = () => {
   const [canvasDropping, setCanvasDropping] = useState(false);
   const [filtering, setFiltering] = useState(false);
   const [videoPaused, setVideoPaused] = useState(false);
+  const [preserveInputWidthOnNewMedia, setPreserveInputWidthOnNewMedia] = useState(false);
   const [showSaveAs, setShowSaveAs] = useState(false);
   const [editingAudioEntryId, setEditingAudioEntryId] = useState<string | null>(null);
   const [showChainAudioGlobalEditor, setShowChainAudioGlobalEditor] = useState(false);
@@ -844,10 +893,13 @@ const App = () => {
   const [outputFullscreenMode, setOutputFullscreenMode] = useState<"contain" | "cover">("contain");
   const [fullscreenCursorHidden, setFullscreenCursorHidden] = useState(false);
   const [showFullscreenMenu, setShowFullscreenMenu] = useState(false);
+  const [inputWindowPosition, setInputWindowPosition] = useState(DEFAULT_INPUT_WINDOW_POSITION);
+  const [outputWindowPosition, setOutputWindowPosition] = useState(DEFAULT_OUTPUT_WINDOW_POSITION);
   const [screensaverActive, setScreensaverActive] = useState(false);
   const [screensaverCountdownMs, setScreensaverCountdownMs] = useState(SCREENSAVER_IDLE_DELAY_MS);
   const [showScreensaverDialog, setShowScreensaverDialog] = useState(false);
   const [screensaverDialogPosition, setScreensaverDialogPosition] = useState({ x: 640, y: 120 });
+  const [audioEditorPosition, setAudioEditorPosition] = useState({ x: 500, y: 120 });
   const [screensaverSwapSecondsDraft, setScreensaverSwapSecondsDraft] = useState("2");
   const [screensaverSwapBpmDraft, setScreensaverSwapBpmDraft] = useState("120");
   const [screensaverRandomVideoDraft, setScreensaverRandomVideoDraft] = useState(false);
@@ -863,7 +915,7 @@ const App = () => {
   const [chainAudioAutoVizMode, setChainAudioAutoVizMode] = useState<AutoVizMode>("balanced");
   const [chainAudioAutoVizOnChainChange, setChainAudioAutoVizOnChainChange] = useState(false);
   const [screensaverAudioAutoVizMode, setScreensaverAudioAutoVizMode] = useState<AutoVizMode>("balanced");
-  const [screensaverAudioAutoVizOnChainChange, setScreensaverAudioAutoVizOnChainChange] = useState(false);
+  const [screensaverAudioAutoVizOnChainChange, setScreensaverAudioAutoVizOnChainChange] = useState(true);
   const [chainAudioBpmSwapEnabled, setChainAudioBpmSwapEnabled] = useState(false);
   const [chainAudioBpmSwapBeats, setChainAudioBpmSwapBeats] = useState("4");
   const chainAudioBpmSwapRestoreRef = useRef<number | null | undefined>(undefined);
@@ -920,6 +972,7 @@ const App = () => {
   const screensaverDialogRef = useRef<HTMLDivElement | null>(null);
   const audioEditorRef = useRef<HTMLDivElement | null>(null);
   const zIndexRef = useRef(0);
+  const canvasWindowPositionsSeededRef = useRef(false);
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
   const saveAsDragRef = useRef(null);
@@ -935,6 +988,8 @@ const App = () => {
   webmcpRefs.current = { state, actions, filterList };
 
   const inputDrag = useDraggable(inputDragRef, {
+    defaultPosition: inputWindowPosition,
+    onPositionChange: setInputWindowPosition,
     onScale: (delta) => {
       const newScale = Math.round(Math.max(0.05, Math.min(16, state.scale + delta)) * 10) / 10;
       actions.setScale(newScale);
@@ -947,7 +1002,8 @@ const App = () => {
     }
   });
   const outputDrag = useDraggable(outputDragRef, {
-    defaultPosition: { x: 320, y: 20 },
+    defaultPosition: outputWindowPosition,
+    onPositionChange: setOutputWindowPosition,
     onScale: (delta) => {
       const newScale = Math.round(Math.max(0.05, Math.min(16, state.outputScale + delta)) * 10) / 10;
       actions.setOutputScale(newScale);
@@ -959,8 +1015,14 @@ const App = () => {
     }
   });
   const saveAsDrag = useDraggable(saveAsDragRef, { defaultPosition: { x: 160, y: 400 } });
-  const screensaverDrag = useDraggable(screensaverDialogRef, { defaultPosition: screensaverDialogPosition });
-  const audioEditorDrag = useDraggable(audioEditorRef, { defaultPosition: { x: 500, y: 120 } });
+  const screensaverDrag = useDraggable(screensaverDialogRef, {
+    defaultPosition: screensaverDialogPosition,
+    onPositionChange: setScreensaverDialogPosition,
+  });
+  const audioEditorDrag = useDraggable(audioEditorRef, {
+    defaultPosition: audioEditorPosition,
+    onPositionChange: setAudioEditorPosition,
+  });
 
   useEffect(() => {
     const video = state.video;
@@ -1075,6 +1137,15 @@ const App = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [showFullscreenMenu]);
+
+  useLayoutEffect(() => {
+    if (canvasWindowPositionsSeededRef.current) return;
+    const sidebarRight = chromeRef.current?.getBoundingClientRect().right;
+    if (!sidebarRight) return;
+    setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: 10 });
+    setOutputWindowPosition({ x: Math.round(sidebarRight + 330), y: 20 });
+    canvasWindowPositionsSeededRef.current = true;
+  }, []);
 
   useEffect(() => {
     if (screensaverActive && outputFullscreen) {
@@ -1276,6 +1347,12 @@ const App = () => {
     e.currentTarget.style.zIndex = `${zIndexRef.current}`;
   }, []);
 
+  useEffect(() => {
+    if (!showScreensaverDialog || !screensaverDialogRef.current) return;
+    zIndexRef.current += 1;
+    screensaverDialogRef.current.style.zIndex = `${zIndexRef.current}`;
+  }, [showScreensaverDialog]);
+
   const withInputLoading = useCallback(async (label: string, loader: () => Promise<void> | void) => {
     setInputLoadingLabel(label);
     try {
@@ -1335,9 +1412,11 @@ const App = () => {
     currentInputIsRandomTestVideoRef.current = false;
     setInputFilename(file.name);
     void withInputLoading(label, () =>
-      actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
+      actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate, {
+        preserveScale: preserveInputWidthOnNewMedia,
+      })
     );
-  }, [actions, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+  }, [actions, preserveInputWidthOnNewMedia, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
@@ -1491,7 +1570,7 @@ const App = () => {
         src,
         state.videoVolume,
         state.videoPlaybackRate,
-        options?.forceScreensaverScale ? { preserveScale: true } : undefined
+        { preserveScale: options?.forceScreensaverScale || preserveInputWidthOnNewMedia }
       );
       if (options?.forceScreensaverScale) {
         const loadedVideo = webmcpRefs.current.state.video;
@@ -1503,7 +1582,7 @@ const App = () => {
       logPerf("loadVideoFromUrlAsync-resolved");
       queueLoadedMediaFilter();
     });
-  }, [actions, queueLoadedMediaFilter, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+  }, [actions, preserveInputWidthOnNewMedia, queueLoadedMediaFilter, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
   useEffect(() => {
     if (hasAutoLoadedDefaultMediaRef.current) return;
@@ -1738,21 +1817,21 @@ const App = () => {
 
   const openScreensaverDialog = useCallback(() => {
     const currentSwapSeconds = getLastScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? 2;
-    const randomVideoDefault = currentInputIsRandomTestVideoRef.current || screensaverConfigRef.current.randomVideo;
+    const currentVideoSrc = state.video?.currentSrc || state.video?.src || null;
+    const randomVideoDefault =
+      currentInputIsRandomTestVideoRef.current ||
+      isBundledTestVideoSource(currentVideoSrc) ||
+      screensaverConfigRef.current.randomVideo;
     const videoSwapSeconds = screensaverConfigRef.current.videoSwapSeconds > 0
       ? screensaverConfigRef.current.videoSwapSeconds
       : currentSwapSeconds * 4;
     const screensaverAudioMod = getGlobalAudioVizModulation("screensaver");
     const buttonRect = screensaverButtonRef.current?.getBoundingClientRect();
-    const estimatedWidth = 420;
-    const estimatedHeight = 360;
-    const nextX = buttonRect
-      ? Math.min(Math.max(16, buttonRect.left - 24), Math.max(16, window.innerWidth - estimatedWidth - 16))
-      : screensaverDialogPosition.x;
-    const nextY = buttonRect
-      ? Math.min(Math.max(16, buttonRect.bottom + 8), Math.max(16, window.innerHeight - estimatedHeight - 16))
-      : screensaverDialogPosition.y;
-    setScreensaverDialogPosition({ x: nextX, y: nextY });
+    setScreensaverDialogPosition(getAnchoredDialogPosition(
+      buttonRect,
+      screensaverDialogPosition,
+      { width: 420, height: 360 },
+    ));
     setScreensaverSwapSecondsDraft(currentSwapSeconds.toString());
     setScreensaverSwapBpmDraft(secondsToBpm(currentSwapSeconds).toFixed(2).replace(/\.?0+$/, ""));
     setScreensaverRandomVideoDraft(randomVideoDefault);
@@ -1763,7 +1842,7 @@ const App = () => {
     setScreensaverAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(screensaverAudioMod));
     setShowScreensaverDialog(true);
     requestAudioVizPermissions("screensaver");
-  }, [requestAudioVizPermissions, screensaverDialogPosition.x, screensaverDialogPosition.y, state.scalingAlgorithm]);
+  }, [requestAudioVizPermissions, screensaverDialogPosition.x, screensaverDialogPosition.y, state.scalingAlgorithm, state.video]);
 
   const handleScreensaverSwapSecondsChange = useCallback((value: string) => {
     setScreensaverSwapSecondsDraft(value);
@@ -1802,13 +1881,14 @@ const App = () => {
     void startScreensaver(config);
   }, [buildGlobalModulation, buildScreensaverConfig, screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft, startScreensaver]);
 
-  const openAudioModEditor = useCallback((entryId: string) => {
+  const openAudioModEditor = useCallback((entryId: string, anchorRect?: DOMRect) => {
     const entry = state.chain.find((item) => item.id === entryId);
     if (!entry) return;
     setShowChainAudioGlobalEditor(false);
     setEditingAudioEntryId(entryId);
     setAudioModConnectionsDraft(buildAudioConnectionDraft(entry.audioMod));
     setAudioModNormalizedMetricsDraft(buildNormalizedMetricsDraft(entry.audioMod));
+    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 560, height: 520 }));
     requestAudioVizPermissions("chain");
   }, [requestAudioVizPermissions, state.chain]);
 
@@ -1828,12 +1908,13 @@ const App = () => {
     setEditingAudioEntryId(null);
   }, []);
 
-  const openChainAudioGlobalEditor = useCallback(() => {
+  const openChainAudioGlobalEditor = useCallback((anchorRect?: DOMRect) => {
     const modulation = getGlobalAudioVizModulation("chain");
     setEditingAudioEntryId(null);
     setShowChainAudioGlobalEditor(true);
     setChainAudioGlobalConnectionsDraft(buildAudioConnectionDraft(modulation));
     setChainAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(modulation));
+    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 560, height: 520 }));
     requestAudioVizPermissions("chain");
   }, [requestAudioVizPermissions]);
 
@@ -1893,6 +1974,11 @@ const App = () => {
   const editingAudioEntry = editingAudioEntryId
     ? state.chain.find((entry) => entry.id === editingAudioEntryId) ?? null
     : null;
+  useEffect(() => {
+    if ((!editingAudioEntry && !showChainAudioGlobalEditor) || !audioEditorRef.current) return;
+    zIndexRef.current += 1;
+    audioEditorRef.current.style.zIndex = `${zIndexRef.current}`;
+  }, [editingAudioEntry, showChainAudioGlobalEditor]);
   const chainAudioGlobalActive = Boolean(getGlobalAudioVizModulation("chain"));
   const editingAudioRangeOptions = useMemo(() => (
     editingAudioEntry
@@ -2081,14 +2167,6 @@ const App = () => {
           {(state.inputImage || state.video) && (
             <CollapsibleSection title="Input Tweaks">
               <div className={s.inputTweaks}>
-                {state.video && state.inputImage && (
-                  <button
-                    onClick={fitInputToWindow}
-                    title="Scale the input video to comfortably fit the browser area right of the sidebar"
-                  >
-                    Fit to window
-                  </button>
-                )}
                 <Range
                   name="Input Scale"
                   types={{ range: [0.05, 16], desc: INPUT_SCALE_HELP }}
@@ -2096,6 +2174,45 @@ const App = () => {
                   onSetFilterOption={(_, value) => actions.setScale(Number(value))}
                   value={state.scale}
                 />
+                {state.video && state.inputImage ? (
+                  <div className={s.inputTweakRow}>
+                    <button
+                      onClick={fitInputToWindow}
+                      title="Scale the input video to comfortably fit the browser area right of the sidebar"
+                    >
+                      Fit to window
+                    </button>
+                    <label className={[controls.checkbox, s.inputTweakCheck].join(" ")}>
+                      <input
+                        name="preserveInputWidthOnNewMedia"
+                        type="checkbox"
+                        checked={preserveInputWidthOnNewMedia}
+                        onChange={e => setPreserveInputWidthOnNewMedia(e.target.checked)}
+                      />
+                      <span className={controls.label}>
+                        Fix input width
+                        <InfoHint text={FIX_INPUT_WIDTH_HELP} />
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className={controls.checkbox}>
+                    <input
+                      name="preserveInputWidthOnNewMedia"
+                      type="checkbox"
+                      checked={preserveInputWidthOnNewMedia}
+                      onChange={e => setPreserveInputWidthOnNewMedia(e.target.checked)}
+                    />
+                    <span
+                      role="presentation"
+                      onClick={() => setPreserveInputWidthOnNewMedia(!preserveInputWidthOnNewMedia)}
+                      className={controls.label}
+                    >
+                      Fix input width on new media
+                      <InfoHint text={FIX_INPUT_WIDTH_HELP} />
+                    </span>
+                  </div>
+                )}
                 {state.video && (<>
                   <div className={controls.separator} />
                   <div className={s.videoSeekRow}>
@@ -2181,15 +2298,6 @@ const App = () => {
             <div className={controls.group}>
               <span className={controls.name}>
                 {state.chain[state.activeIndex]?.displayName ?? "Options"}
-                {state.chain[state.activeIndex] && (
-                  <button
-                    className={s.optionTitleButton}
-                    onClick={() => openAudioModEditor(state.chain[state.activeIndex].id)}
-                    title="Map audio visualizer to this filter's numeric parameters"
-                  >
-                    Per-filter audio viz...
-                  </button>
-                )}
               </span>
               <Controls inputCanvas={inputCanvasRef.current} />
               {state.selected?.filter?.defaults && (
@@ -2215,6 +2323,17 @@ const App = () => {
                 </button>
               )}
               <div className={s.optionActionRow}>
+                {state.chain[state.activeIndex] && (
+                  <button
+                    onClick={(event) => openAudioModEditor(
+                      state.chain[state.activeIndex].id,
+                      event.currentTarget.getBoundingClientRect(),
+                    )}
+                    title="Map audio visualizer to this filter's numeric parameters"
+                  >
+                    Per-filter audio viz...
+                  </button>
+                )}
                 <button
                   onClick={saveCurrentChain}
                   title="Save current chain with settings"
@@ -2627,6 +2746,7 @@ const App = () => {
               role="presentation"
               className={s.screensaverFloat}
               style={{ transform: `translate(${screensaverDialogPosition.x}px, ${screensaverDialogPosition.y}px)` }}
+              onMouseDownCapture={bringToTop}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 const target = e.target as HTMLElement | null;
@@ -2636,7 +2756,13 @@ const App = () => {
               onMouseMove={screensaverDrag.onMouseMove}
             >
             <div className={s.screensaverDialog} onMouseDown={e => e.stopPropagation()}>
-              <div className={["handle", s.screensaverTitleBar].join(" ")}>
+              <div
+                className={["handle", s.screensaverTitleBar].join(" ")}
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                  screensaverDrag.onMouseDown(event);
+                }}
+              >
                 <span>Screensaver</span>
                 <button
                   className={s.screensaverClose}
@@ -2647,7 +2773,7 @@ const App = () => {
               </div>
               <div className={s.screensaverBody}>
                 <label className={s.screensaverField}>
-                  <span>Swap seconds</span>
+                  <span>Chain swap seconds</span>
                   <input
                     className={s.screensaverInput}
                     type="number"
@@ -2658,7 +2784,7 @@ const App = () => {
                   />
                 </label>
                 <label className={s.screensaverField}>
-                  <span>Swap BPM</span>
+                  <span>Chain swap BPM</span>
                   <input
                     className={s.screensaverInput}
                     type="number"
@@ -2729,7 +2855,6 @@ const App = () => {
                   channel="screensaver"
                   title="Screensaver Audio"
                 />
-                <div className={s.audioMappingSectionTitle}>Screensaver patch panel</div>
                 <AudioPatchPanel
                   channel="screensaver"
                   rangeOptions={chainWideRangeOptions}
@@ -2742,6 +2867,9 @@ const App = () => {
                   onAutoVizModeChange={setScreensaverAudioAutoVizMode}
                   autoVizOnChainChange={screensaverAudioAutoVizOnChainChange}
                   onAutoVizOnChainChange={setScreensaverAudioAutoVizOnChainChange}
+                  collapsibleBody
+                  bodyDefaultOpen={false}
+                  bodyTitle="Screensaver patch panel"
                 />
                 <div className={s.screensaverHint}>
                   4 beats = 1 chain swap. If auto swap random video is enabled, the input scale is clamped to the video width above for performance. This window auto-starts after 10 seconds of no input.
@@ -2771,6 +2899,8 @@ const App = () => {
             <div
               ref={audioEditorRef}
               className={s.audioModFloat}
+              style={{ transform: `translate(${audioEditorPosition.x}px, ${audioEditorPosition.y}px)` }}
+              onMouseDownCapture={bringToTop}
               onMouseMove={audioEditorDrag.onMouseMove}
             >
               <div className={s.audioModDialog} onMouseDown={(event) => event.stopPropagation()}>
@@ -2833,7 +2963,6 @@ const App = () => {
                       )}
                     </>
                   )}
-                  <div className={s.audioMappingSectionTitle}>Patch panel</div>
                   <AudioPatchPanel
                     channel="chain"
                     rangeOptions={editingAudioEntry ? editingAudioRangeOptions : chainWideRangeOptions}
@@ -2848,6 +2977,9 @@ const App = () => {
                       autoVizOnChainChange: chainAudioAutoVizOnChainChange,
                       onAutoVizOnChainChange: setChainAudioAutoVizOnChainChange,
                     })}
+                    collapsibleBody
+                    bodyDefaultOpen
+                    bodyTitle="Patch panel"
                   />
                 </div>
                 <div className={s.screensaverButtons}>
