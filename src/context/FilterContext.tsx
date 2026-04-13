@@ -6,6 +6,7 @@ import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
+import { getActiveAudioVizSnapshot, getAudioVizMetricValue, type EntryAudioModulation } from "utils/audioVizBridge";
 import { getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
@@ -13,12 +14,47 @@ import { FilterContext } from "./filterContextValue";
 import type { AnimatedVideoElement, ExportFrameOptions, FilterActions, FilterOptionValue } from "./filterContextValue";
 import { getAutoScale, roundScale } from "./autoScale";
 import { getShareHash, getShareUrl } from "./shareUrl";
-import { type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
+import { type SerializedAudioVizModulation, type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
 
 type SerializableOptions = Record<string, unknown>;
 type SerializedPaletteOption = { name?: string; options?: SerializableOptions };
 type SerializablePalette = SerializedPaletteOption & {
   getColor?: (...args: unknown[]) => unknown;
+};
+const serializeAudioModulation = (audioMod: EntryAudioModulation | null | undefined): SerializedAudioVizModulation | undefined => {
+  if (!audioMod || !Array.isArray(audioMod.targets) || audioMod.targets.length === 0) return undefined;
+  return {
+    k: audioMod.metric,
+    t: audioMod.targets.map((target) => ({ o: target.optionName, w: target.weight })),
+  };
+};
+
+const withAudioModulatedOptions = (entry: ChainEntry) => {
+  const audioMod = entry.audioMod;
+  if (!audioMod || !entry.filter.optionTypes || !entry.filter.options) return entry.filter.options;
+
+  const snapshot = getActiveAudioVizSnapshot();
+  if (!snapshot.enabled || snapshot.status !== "live") return entry.filter.options;
+
+  const metricValue = getAudioVizMetricValue(snapshot, audioMod.metric);
+  const nextOptions: Record<string, unknown> = { ...entry.filter.options };
+
+  for (const target of audioMod.targets) {
+    const optionType = entry.filter.optionTypes[target.optionName];
+    if (!optionType || optionType.type !== "RANGE" || !Array.isArray((optionType as { range?: number[] }).range)) {
+      continue;
+    }
+    const currentValue = Number(entry.filter.options[target.optionName]);
+    if (!Number.isFinite(currentValue)) continue;
+    const [min, max] = (optionType as { range: number[] }).range;
+    const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
+    const span = max - min;
+    const modulated = currentValue + metricValue * target.weight * span;
+    const clamped = Math.max(min, Math.min(max, modulated));
+    nextOptions[target.optionName] = step > 0 ? Math.round(clamped / step) * step : clamped;
+  }
+
+  return nextOptions;
 };
 type FilterRunner = (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
 type AnimationParams = { inputCanvas: HTMLCanvasElement | null; fps: number };
@@ -73,6 +109,8 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
       result.o = cleaned;
     }
     if (!entry.enabled) result.e = false;
+    const audioMod = serializeAudioModulation(entry.audioMod);
+    if (audioMod) result.m = audioMod;
     return result;
   });
 
@@ -417,7 +455,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const filterOpts: Record<string, unknown> & { palette?: SerializablePalette } = {
-        ...entry.filter.options,
+        ...withAudioModulatedOptions(entry),
         _chainIndex: i,
         _linearize: curState.linearize,
         _wasmAcceleration: curState.wasmAcceleration,
@@ -573,7 +611,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         id: e.id,
         filterName: e.filter.name,
         displayName: e.displayName,
-        options: serializeOptions(e.filter.options),
+        options: serializeOptions(withAudioModulatedOptions(e)),
       }));
 
       const serializedPrevOutputs: Record<string, ArrayBuffer> = {};
@@ -1047,6 +1085,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     chainDuplicate: (id: string) => {
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_DUPLICATE", id });
+    },
+    setChainAudioModulation: (id: string, modulation: EntryAudioModulation | null) => {
+      clearMotionVectorsState();
+      cachedOutputsRef.current.delete(id);
+      dispatch({ type: "SET_CHAIN_AUDIO_MODULATION", id, modulation });
     },
     copyChainToClipboard: () => {
       try {

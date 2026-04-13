@@ -21,7 +21,6 @@ import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 import ChainPreview from "./ChainPreview";
 import FilterCombobox from "components/FilterCombobox";
-import ModalInput from "components/ModalInput";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, buildPresetSignatureMap, getChainSignature, type PresetFilterEntry } from "./presets";
 import LibraryBrowser from "./LibraryBrowser";
 import {
@@ -170,7 +169,7 @@ const loadUserChains = (): SavedChain[] => {
   return chains;
 };
 
-const ChainList = () => {
+const ChainList = ({ onEditAudioMod }: { onEditAudioMod?: (entryId: string) => void }) => {
   const { state, actions } = useFilter();
   const { chain, activeIndex, randomCycleSeconds } = state;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -183,7 +182,6 @@ const ChainList = () => {
   const [showLibraryBrowser, setShowLibraryBrowser] = useState(false);
   const [libraryInitialTab, setLibraryInitialTab] = useState<"filters" | "presets">("filters");
   const [libraryInitialQuery, setLibraryInitialQuery] = useState("");
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [savedChains, setSavedChains] = useState<SavedChain[]>(loadUserChains);
   const [loadedSavedName, setLoadedSavedName] = useState<string | null>(null);
   const [showRandomCycleModal, setShowRandomCycleModal] = useState(false);
@@ -427,6 +425,12 @@ const ChainList = () => {
     setScreensaverCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
   }), []);
 
+  useEffect(() => {
+    const syncSavedChains = () => setSavedChains(loadUserChains());
+    window.addEventListener("ditherer-saved-chains-change", syncSavedChains);
+    return () => window.removeEventListener("ditherer-saved-chains-change", syncSavedChains);
+  }, []);
+
   const loadPreset = (preset: typeof CHAIN_PRESETS[0]) => {
     // Set first filter via selectFilter (resets chain to 1 entry)
     const first = resolvePresetFilter(preset.filters[0]);
@@ -599,19 +603,6 @@ const ChainList = () => {
           </button>
           <button
             className={s.addBtn}
-            onClick={() => {
-              const url = actions.getExportUrl(state);
-              setShareUrl(url);
-              if (navigator.clipboard) {
-                navigator.clipboard.writeText(url).catch(() => { /* fall through to modal */ });
-              }
-            }}
-            title="Share filter chain (copies URL to clipboard)"
-          >
-            &#8679;
-          </button>
-          <button
-            className={s.addBtn}
             onClick={() => setShowClearConfirm(true)}
             title="Clear filter chain"
           >
@@ -619,23 +610,6 @@ const ChainList = () => {
           </button>
         </div>
         <div className={`${s.toolbarGroup} ${s.toolbarGroupRight}`}>
-          <button
-            className={[s.addBtn, s.iconBtn].join(" ")}
-            onClick={() => {
-              const name = prompt("Save chain as:");
-              if (!name) return;
-              const stateJson = actions.exportState(state);
-              const filters = chain.map((e) => e.displayName);
-              const data: SavedChain = { name, desc: filters.join(" \u2192 "), filters, stateJson };
-              localStorage.setItem(USER_CHAIN_PREFIX + name, JSON.stringify(data));
-              setSavedChains(loadUserChains());
-              setLoadedSavedName(name);
-            }}
-            title="Save current chain with settings"
-            aria-label="Save current chain with settings"
-          >
-            S
-          </button>
           {savedChains.length > 0 && (
             <select
               className={s.presetSelect}
@@ -776,6 +750,16 @@ const ChainList = () => {
                   title="Reset to defaults"
                 >
                   &#8634;
+                </button>
+                <button
+                  className={s.removeBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditAudioMod?.(entry.id);
+                  }}
+                  title="Map audio visualizer to this filter"
+                >
+                  ♪
                 </button>
                 <button
                   className={s.removeBtn}
@@ -993,15 +977,6 @@ const ChainList = () => {
             previewVideo={state.video}
           />
         </div>
-      )}
-
-      {shareUrl !== null && (
-        <ModalInput
-          title="Share URL (copied to clipboard)"
-          defaultValue={shareUrl}
-          onConfirm={() => setShareUrl(null)}
-          onCancel={() => setShareUrl(null)}
-        />
       )}
 
       {showRandomCycleModal && (

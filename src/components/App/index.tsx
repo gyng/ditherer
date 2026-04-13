@@ -9,6 +9,7 @@ import SaveAs from "components/SaveAs";
 import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import CollapsibleSection from "components/CollapsibleSection";
+import AudioVizControls from "components/AudioVizControls";
 
 import { useFilter } from "context/useFilter";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
@@ -18,6 +19,8 @@ import {
   getLastScreensaverCycleSeconds,
   setRememberedScreensaverCycleSeconds,
 } from "utils/randomCycleBridge";
+import type { AudioVizMetric, AudioVizTarget, EntryAudioModulation } from "utils/audioVizBridge";
+import { setActiveAudioVizChannel } from "utils/audioVizBridge";
 import { setupWebMCP } from "@src/webmcp";
 
 import controls from "components/controls/styles.module.css";
@@ -127,6 +130,13 @@ const OUTPUT_SCALE_HELP = "Scales the rendered output view. This changes display
 const SCALING_ALGORITHM_HELP = "Controls how enlarged canvases are drawn on screen. Auto uses smooth browser scaling; Pixelated keeps hard nearest-neighbor edges.";
 const GRAYSCALE_HELP = "Converts the source to grayscale before the chain runs. Useful for monochrome dithers or filters that should ignore color.";
 const GAMMA_HELP = "Runs the pipeline in gamma-correct space for more perceptually accurate blending and brightness. It can look better, but may change results and cost a bit more work.";
+const AUDIO_METRIC_OPTIONS: Array<{ value: AudioVizMetric; label: string }> = [
+  { value: "level", label: "Level" },
+  { value: "bass", label: "Bass" },
+  { value: "mid", label: "Mid" },
+  { value: "treble", label: "Treble" },
+  { value: "pulse", label: "Pulse" },
+];
 
 const App = () => {
   const { state, actions, filterList } = useFilter();
@@ -136,6 +146,7 @@ const App = () => {
   const [filtering, setFiltering] = useState(false);
   const [videoPaused, setVideoPaused] = useState(false);
   const [showSaveAs, setShowSaveAs] = useState(false);
+  const [editingAudioEntryId, setEditingAudioEntryId] = useState<string | null>(null);
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
   const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
   const [inputFilename, setInputFilename] = useState<string | null>(null);
@@ -153,6 +164,8 @@ const App = () => {
   const [screensaverVideoSwapSecondsDraft, setScreensaverVideoSwapSecondsDraft] = useState("8");
   const [screensaverScalingAlgorithmDraft, setScreensaverScalingAlgorithmDraft] = useState(state.scalingAlgorithm);
   const [screensaverVideoMaxWidthDraft, setScreensaverVideoMaxWidthDraft] = useState(String(DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH));
+  const [audioModMetricDraft, setAudioModMetricDraft] = useState<AudioVizMetric>("level");
+  const [audioModTargetsDraft, setAudioModTargetsDraft] = useState<Record<string, number>>({});
   const [seekDraftTime, setSeekDraftTime] = useState<number | null>(null);
   const playPauseTimerRef = useRef<number | null>(null);
   const seekCommitTimerRef = useRef<number | null>(null);
@@ -285,6 +298,10 @@ const App = () => {
   useEffect(() => () => {
     dispatchScreensaverCycleSeconds(null);
   }, []);
+
+  useEffect(() => {
+    setActiveAudioVizChannel(screensaverActive ? "screensaver" : "chain");
+  }, [screensaverActive]);
 
   useEffect(() => {
     const syncOutputFullscreen = () => {
@@ -1020,6 +1037,50 @@ const App = () => {
     void startScreensaver(config);
   }, [buildScreensaverConfig, startScreensaver]);
 
+  const openAudioModEditor = useCallback((entryId: string) => {
+    const entry = state.chain.find((item) => item.id === entryId);
+    if (!entry) return;
+    setEditingAudioEntryId(entryId);
+    setAudioModMetricDraft(entry.audioMod?.metric ?? "level");
+    setAudioModTargetsDraft(
+      Object.fromEntries((entry.audioMod?.targets ?? []).map((target) => [target.optionName, target.weight]))
+    );
+  }, [state.chain]);
+
+  const closeAudioModEditor = useCallback(() => {
+    setEditingAudioEntryId(null);
+  }, []);
+
+  const saveAudioModEditor = useCallback(() => {
+    if (!editingAudioEntryId) return;
+    const targets: AudioVizTarget[] = Object.entries(audioModTargetsDraft)
+      .filter(([, weight]) => Number.isFinite(weight) && Math.abs(weight) > 0.001)
+      .map(([optionName, weight]) => ({ optionName, weight }));
+    const modulation: EntryAudioModulation | null = targets.length > 0
+      ? { metric: audioModMetricDraft, targets }
+      : null;
+    actions.setChainAudioModulation(editingAudioEntryId, modulation);
+    setEditingAudioEntryId(null);
+  }, [actions, audioModMetricDraft, audioModTargetsDraft, editingAudioEntryId]);
+
+  const saveCurrentChain = useCallback(() => {
+    const name = prompt("Save chain as:");
+    if (!name) return;
+    const stateJson = actions.exportState(state);
+    const filters = state.chain.map((entry) => entry.displayName);
+    const data = { name, desc: filters.join(" -> "), filters, stateJson };
+    localStorage.setItem(`_chain_${name}`, JSON.stringify(data));
+    window.dispatchEvent(new Event("ditherer-saved-chains-change"));
+  }, [actions, state]);
+
+  const exportCurrentChain = useCallback(() => {
+    const url = actions.getExportUrl(state);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
+    window.alert(`Share URL copied:\n\n${url}`);
+  }, [actions, state]);
+
   const fitInputToWindow = useCallback(() => {
     if (!state.inputImage) return;
 
@@ -1045,6 +1106,17 @@ const App = () => {
     const clampedScale = Math.max(0.05, Math.min(16, fitScale));
     actions.setScale(Math.round(clampedScale * 100) / 100);
   }, [actions, state.inputImage]);
+
+  const editingAudioEntry = editingAudioEntryId
+    ? state.chain.find((entry) => entry.id === editingAudioEntryId) ?? null
+    : null;
+  const editingAudioRangeOptions = editingAudioEntry
+    ? Object.entries(editingAudioEntry.filter.optionTypes || {}).filter(([optionName, optionType]) =>
+        !optionName.startsWith("_") &&
+        optionType.type === "RANGE" &&
+        (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(editingAudioEntry.filter.options || {}))
+      )
+    : [];
 
   const resolvePresetFilter = useCallback((entry: PresetFilterEntry) => {
     const match = filterList.find((f) => f && f.displayName === entry.name);
@@ -1274,10 +1346,19 @@ const App = () => {
         {/* Algorithm section */}
         <CollapsibleSection title="Algorithm" defaultOpen>
           <div className={["filterOptions", s.filterOptions].join(" ")}>
-            <ChainList />
+            <ChainList onEditAudioMod={openAudioModEditor} />
             <div className={controls.group}>
               <span className={controls.name}>
                 {state.chain[state.activeIndex]?.displayName ?? "Options"}
+                {state.chain[state.activeIndex] && (
+                  <button
+                    className={s.optionTitleButton}
+                    onClick={() => openAudioModEditor(state.chain[state.activeIndex].id)}
+                    title="Map audio visualizer to this filter's numeric parameters"
+                  >
+                    Audio Viz...
+                  </button>
+                )}
               </span>
               <Controls inputCanvas={inputCanvasRef.current} />
               {state.selected?.filter?.defaults && (
@@ -1302,6 +1383,20 @@ const App = () => {
                   Find presets
                 </button>
               )}
+              <div className={s.optionActionRow}>
+                <button
+                  onClick={saveCurrentChain}
+                  title="Save current chain with settings"
+                >
+                  Save Chain
+                </button>
+                <button
+                  onClick={exportCurrentChain}
+                  title="Share filter chain (copies URL to clipboard)"
+                >
+                  Export Link
+                </button>
+              </div>
             </div>
             <div className={controls.separator} />
             <div className={controls.checkbox}>
@@ -1799,6 +1894,10 @@ const App = () => {
                     </label>
                   </>
                 )}
+                <AudioVizControls
+                  channel="screensaver"
+                  title="Screensaver Audio"
+                />
                 <div className={s.screensaverHint}>
                   4 beats = 1 chain swap. If auto swap random video is enabled, the input scale is clamped to the video width above for performance. This window auto-starts after 10 seconds of no input.
                 </div>
@@ -1812,6 +1911,93 @@ const App = () => {
                 </button>
               </div>
             </div>
+            </div>
+          </div>
+        )}
+
+        {editingAudioEntry && (
+          <div className={s.screensaverOverlay} onMouseDown={closeAudioModEditor}>
+            <div className={s.audioModDialog} onMouseDown={(event) => event.stopPropagation()}>
+              <div className={s.screensaverTitleBar}>
+                <span>Audio Viz - {editingAudioEntry.displayName}</span>
+                <button className={s.screensaverClose} onClick={closeAudioModEditor}>x</button>
+              </div>
+              <div className={s.audioModBody}>
+                <AudioVizControls channel="chain" title="Filter Chain Audio" />
+                <label className={s.screensaverField}>
+                  <span>Visualizer metric</span>
+                  <select
+                    className={s.screensaverInput}
+                    value={audioModMetricDraft}
+                    onChange={(event) => setAudioModMetricDraft(event.target.value as AudioVizMetric)}
+                  >
+                    {AUDIO_METRIC_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className={s.audioTargetList}>
+                  {editingAudioRangeOptions.length > 0 ? editingAudioRangeOptions.map(([optionName, optionType]) => {
+                    const checked = optionName in audioModTargetsDraft;
+                    const weight = audioModTargetsDraft[optionName] ?? 0.25;
+                    return (
+                      <div key={optionName} className={s.audioTargetRow}>
+                        <label className={s.audioTargetLabel}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              setAudioModTargetsDraft((current) => {
+                                const next = { ...current };
+                                if (event.target.checked) {
+                                  next[optionName] = current[optionName] ?? 0.25;
+                                } else {
+                                  delete next[optionName];
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                          <span>{optionType.label || optionName}</span>
+                        </label>
+                        <input
+                          className={s.audioTargetSlider}
+                          type="range"
+                          min="-1"
+                          max="1"
+                          step="0.05"
+                          disabled={!checked}
+                          value={weight}
+                          onChange={(event) => {
+                            const nextWeight = Number(event.target.value);
+                            setAudioModTargetsDraft((current) => ({ ...current, [optionName]: nextWeight }));
+                          }}
+                        />
+                        <span className={s.audioTargetValue}>{weight.toFixed(2)}</span>
+                      </div>
+                    );
+                  }) : (
+                    <div className={s.screensaverHint}>This filter has no numeric range parameters to modulate.</div>
+                  )}
+                </div>
+              </div>
+              <div className={s.screensaverButtons}>
+                <button className={s.screensaverButton} onClick={saveAudioModEditor}>Save</button>
+                <button
+                  className={s.screensaverButton}
+                  onClick={() => {
+                    if (editingAudioEntry) {
+                      actions.setChainAudioModulation(editingAudioEntry.id, null);
+                    }
+                    closeAudioModEditor();
+                  }}
+                >
+                  Clear
+                </button>
+                <button className={s.screensaverButton} onClick={closeAudioModEditor}>Cancel</button>
+              </div>
             </div>
           </div>
         )}

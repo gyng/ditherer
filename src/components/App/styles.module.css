@@ -522,6 +522,75 @@
   min-width: 76px;
 }
 
+.optionTitleButton {
+  float: right;
+  min-height: unset;
+  padding: 1px 6px;
+  margin-top: -1px;
+}
+
+.optionActionRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.audioModDialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 560px);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--light-gray, #c0c0c0);
+  border-left: 2px solid #ffffff;
+  border-top: 2px solid #ffffff;
+  border-right: 2px solid #404040;
+  border-bottom: 2px solid #404040;
+  box-shadow: 1px 1px 0 #000, inset 1px 1px 0 #dfdfdf;
+  z-index: 10002;
+}
+
+.audioModBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px 8px;
+}
+
+.audioTargetList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audioTargetRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 48px;
+  gap: 8px;
+  align-items: center;
+}
+
+.audioTargetLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.audioTargetSlider {
+  margin: 0;
+}
+
+.audioTargetValue {
+  font-family: monospace;
+  font-size: 11px;
+  text-align: right;
+}
+
 
 .dropping {
   outline: 2px solid var(--beautiful-blue);

@@ -2,6 +2,7 @@ import { createContext } from "react";
 import { filterList, grayscale } from "filters";
 import type { FilterDefinition } from "filters/types";
 import type { FilterReducerState } from "reducers/filters";
+import type { EntryAudioModulation } from "utils/audioVizBridge";
 
 export type FilterState = FilterReducerState;
 export type AnimatedVideoElement = HTMLVideoElement & {
@@ -59,6 +60,7 @@ export interface FilterActions {
   chainToggle: (id: string) => void;
   chainReplace: (id: string, displayName: string, filter: FilterDefinition) => void;
   chainDuplicate: (id: string) => void;
+  setChainAudioModulation: (id: string, modulation: EntryAudioModulation | null) => void;
   copyChainToClipboard: () => void;
   pasteChainFromClipboard: () => Promise<void>;
   getExportUrl: (filterState: FilterState) => string;

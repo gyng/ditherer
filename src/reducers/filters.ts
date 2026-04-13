@@ -16,6 +16,7 @@ const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
 const SET_LINEARIZE = "SET_LINEARIZE";
 const SET_WASM_ACCELERATION = "SET_WASM_ACCELERATION";
 const SET_RANDOM_CYCLE_SECONDS = "SET_RANDOM_CYCLE_SECONDS";
+const SET_CHAIN_AUDIO_MODULATION = "SET_CHAIN_AUDIO_MODULATION";
 const CHAIN_ADD = "CHAIN_ADD";
 const CHAIN_REMOVE = "CHAIN_REMOVE";
 const CHAIN_REORDER = "CHAIN_REORDER";
@@ -28,11 +29,13 @@ import { SCALING_ALGORITHM } from "constants/optionTypes";
 import {
   hasV1SelectedState,
   isShareStateV2,
+  type SerializedAudioVizModulation,
   type SerializedFilterReference,
   type SerializedFilterState,
   type SerializedPaletteState,
 } from "context/shareStateTypes";
 import type { FilterDefinition, FilterOptionValues } from "filters/types";
+import type { EntryAudioModulation } from "utils/audioVizBridge";
 
 import { floydSteinberg } from "filters/errorDiffusing";
 import { filterIndex } from "filters";
@@ -51,6 +54,7 @@ export type ChainEntry = {
   displayName: string;
   filter: FilterDefinition;
   enabled: boolean;
+  audioMod: EntryAudioModulation | null;
 };
 
 export type SelectedFilterState = {
@@ -66,7 +70,19 @@ const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEnt
   displayName,
   filter,
   enabled: true,
+  audioMod: null,
 });
+
+const deserializeAudioMod = (
+  value: SerializedAudioVizModulation | null | undefined,
+): EntryAudioModulation | null => {
+  if (!value || typeof value.k !== "string" || !Array.isArray(value.t)) return null;
+  const targets = value.t
+    .filter((target) => typeof target?.o === "string" && typeof target?.w === "number")
+    .map((target) => ({ optionName: target.o, weight: target.w }));
+  if (targets.length === 0) return null;
+  return { metric: value.k as EntryAudioModulation["metric"], targets };
+};
 
 // Derive `selected` compat shim from chain state
 const deriveSelected = (chain: ChainEntry[], activeIndex: number): SelectedFilterState => ({
@@ -221,6 +237,11 @@ type ChainMutationAction =
   | {
       type: typeof CHAIN_DUPLICATE;
       id: string;
+    }
+  | {
+      type: typeof SET_CHAIN_AUDIO_MODULATION;
+      id: string;
+      modulation: EntryAudioModulation | null;
     };
 
 type FilterSelectionAction = {
@@ -366,6 +387,7 @@ const filterReducer = (
             displayName: entry.d || entry.n,
             filter: { ...localFilter, options: mergedOpts },
             enabled: entry.e !== false,
+            audioMod: deserializeAudioMod(entry.m),
           });
         }
         if (chain.length === 0) return state;
@@ -468,10 +490,22 @@ const filterReducer = (
         displayName: source.displayName,
         filter: { ...source.filter, options: { ...source.filter.options } },
         enabled: source.enabled,
+        audioMod: source.audioMod
+          ? {
+              metric: source.audioMod.metric,
+              targets: source.audioMod.targets.map((target) => ({ ...target })),
+            }
+          : null,
       };
       const chain = [...state.chain];
       chain.splice(idx + 1, 0, clone);
       return withSelected({ ...state, chain, activeIndex: idx + 1 });
+    }
+    case SET_CHAIN_AUDIO_MODULATION: {
+      const chain = state.chain.map((entry) =>
+        entry.id === action.id ? { ...entry, audioMod: action.modulation } : entry
+      );
+      return withSelected({ ...state, chain });
     }
 
     // --- Compat: SELECT_FILTER resets to single-entry chain ---
