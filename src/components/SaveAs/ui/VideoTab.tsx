@@ -31,7 +31,7 @@ export const VideoTab = ({
         Format
         <span
           className={s.inlineInfo}
-          title="Choose the export output type. Recording uses realtime capture, while GIF and sequence export sampled frames."
+          title="Choose the export output type. Recording captures video, GIF and sequence export sampled frames, and contact sheet exports a sampled grid."
         >
           (i)
         </span>
@@ -53,7 +53,7 @@ export const VideoTab = ({
     </div>
 
     {videoFormat === "recording" && <RecordingPanel {...recordingPanel} videoVolume={videoVolume} />}
-    {(videoFormat === "gif" || videoFormat === "sequence") && <FrameExportPanel {...frameExportPanel} videoFormat={videoFormat} />}
+    {(videoFormat === "gif" || videoFormat === "sequence" || videoFormat === "contact") && <FrameExportPanel {...frameExportPanel} videoFormat={videoFormat} />}
   </div>
   );
 };

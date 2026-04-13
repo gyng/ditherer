@@ -1,5 +1,5 @@
 import { planLoopCaptureRouting } from "./exportRouting";
-import { finalizeGifExport, finalizeSequenceExport } from "./finalizeFrameExports";
+import { finalizeContactSheetExport, finalizeGifExport, finalizeSequenceExport } from "./finalizeFrameExports";
 import { captureLoopOfflineFrames, type LoopGifProfile } from "./loopOfflineCapture";
 import { captureLoopPlaybackFrames } from "./loopPlaybackCapture";
 import type { GifFrame, SourceVideoWithObjectUrl } from "../helpers";
@@ -16,10 +16,12 @@ type RenderFrameForExport = (
 ) => HTMLCanvasElement | OffscreenCanvas | null;
 
 interface RunLoopExportOptions {
-  mode: "gif" | "sequence";
+  mode: "gif" | "sequence" | "contact";
   video: HTMLVideoElement;
   sourceCanvas: HTMLCanvasElement;
   mult: number;
+  targetFrameCount: number;
+  contactColumns: number;
   loopExportScope: "loop" | "range";
   loopRangeStart: number;
   loopRangeEnd: number;
@@ -53,6 +55,8 @@ interface RunLoopExportOptions {
   clearSequenceResult: () => void;
   setGifResult: (blob: Blob, label: string) => void;
   setSequenceResult: (blob: Blob) => void;
+  clearContactSheetResult: () => void;
+  setContactSheetResult: (blob: Blob) => void;
   createHiddenExportVideo: (video: HTMLVideoElement) => Promise<HTMLVideoElement>;
   renderFrameForExport: RenderFrameForExport;
   clearExportSession: (sessionId: string) => void;
@@ -64,6 +68,8 @@ export const runLoopExport = async ({
   video,
   sourceCanvas,
   mult,
+  targetFrameCount,
+  contactColumns,
   loopExportScope,
   loopRangeStart,
   loopRangeEnd,
@@ -85,6 +91,8 @@ export const runLoopExport = async ({
   clearSequenceResult,
   setGifResult,
   setSequenceResult,
+  clearContactSheetResult,
+  setContactSheetResult,
   createHiddenExportVideo,
   renderFrameForExport,
   clearExportSession,
@@ -101,8 +109,10 @@ export const runLoopExport = async ({
   updateProgress(loopExportScope === "range" ? `Seeking start (${rangeStartSec.toFixed(2)}s)...` : "Rewinding...", 0.04);
   if (mode === "gif") {
     clearGifResult();
-  } else {
+  } else if (mode === "sequence") {
     clearSequenceResult();
+  } else {
+    clearContactSheetResult();
   }
 
   video.pause();
@@ -121,7 +131,9 @@ export const runLoopExport = async ({
 
   const capturedFrames: GifFrame[] = [];
   const duration = rangeEndSec;
-  const captureFps = loopAutoFps ? estimateVideoFps(video, gifFps) : gifFps;
+  const captureFps = mode === "contact"
+    ? Math.max(1, targetFrameCount / exportDuration)
+    : loopAutoFps ? estimateVideoFps(video, gifFps) : gifFps;
   const sourceUrl = (video as SourceVideoWithObjectUrl).__objectUrl || video.currentSrc || video.src;
   const loopRoutingPlan = planLoopCaptureRouting({
     captureMode: loopCaptureMode,
@@ -238,11 +250,18 @@ export const runLoopExport = async ({
         });
       },
     });
-  } else if (!isAborted()) {
+  } else if (mode === "sequence" && !isAborted()) {
     await finalizeSequenceExport({
       frames: capturedFrames,
       updateProgress,
       setSequenceResult,
+    });
+  } else if (mode === "contact" && !isAborted()) {
+    await finalizeContactSheetExport({
+      frames: capturedFrames,
+      columns: contactColumns,
+      updateProgress,
+      setContactSheetResult,
     });
   }
 

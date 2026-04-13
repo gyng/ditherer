@@ -16,12 +16,20 @@ const frameModeHelper = (
       : loopCaptureMode === "offline"
         ? "Offline Render (Browser) is slower but steadier. It samples source timestamps with browser seek, runs each frame through the offline renderer, and then encodes the GIF."
         : "Offline Render (WebCodecs) can be faster or slower depending on the source. It decodes source frames with WebCodecs before the offline render pass, then encodes the GIF. It may fall back automatically if decode fails.")
-    : (loopCaptureMode === "realtime"
-      ? "Realtime playback is the fastest option. It follows the playing source and can use decoded frame callbacks when available, but it can still reflect playback hiccups."
-      : loopCaptureMode === "offline"
-        ? "Offline Render (Browser) is slower but steadier. It samples the loop at exact timestamps with browser seek and stays the default because it is the safer choice for matching a loop precisely."
-        : "Offline Render (WebCodecs) can be faster or slower depending on the source. It decodes source frames before the offline render pass and avoids relying on browser seek for source-frame access.");
-  return `${description}${loopAutoFps ? " Match source is on." : " Manual FPS is on."}`;
+    : videoFormat === "sequence"
+      ? (loopCaptureMode === "realtime"
+        ? "Realtime playback is the fastest option. It follows the playing source and can use decoded frame callbacks when available, but it can still reflect playback hiccups."
+        : loopCaptureMode === "offline"
+          ? "Offline Render (Browser) is slower but steadier. It samples the loop at exact timestamps with browser seek and stays the default because it is the safer choice for matching a loop precisely."
+          : "Offline Render (WebCodecs) can be faster or slower depending on the source. It decodes source frames before the offline render pass and avoids relying on browser seek for source-frame access.")
+      : (loopCaptureMode === "realtime"
+        ? "Realtime contact sheet export samples the currently playing output and arranges the captured frames into a grid."
+        : loopCaptureMode === "offline"
+          ? "Offline Render (Browser) samples evenly spaced timestamps with browser seek, then builds a contact sheet from the rendered frames."
+          : "Offline Render (WebCodecs) decodes source frames around the requested timestamps before rendering the sampled contact sheet grid.");
+  return videoFormat === "contact"
+    ? description
+    : `${description}${loopAutoFps ? " Match source is on." : " Manual FPS is on."}`;
 };
 
 export const FrameExportPanel = ({
@@ -33,6 +41,7 @@ export const FrameExportPanel = ({
   loopCaptureMode,
   loopAutoFps,
   gifFps,
+  contactColumns,
   videoDuration,
   loopExportScope,
   loopRangeStart,
@@ -45,46 +54,38 @@ export const FrameExportPanel = ({
   gifResultLabel,
   gifBlob,
   sequenceBlob,
+  contactSheetBlob,
+  contactSheetUrl,
   progress,
   progressValue,
   onSetFrames,
   onSetLoopCaptureMode,
   onSetLoopAutoFps,
   onSetGifFps,
+  onSetContactColumns,
   onSetGifPaletteSource,
   onSetLoopExportScope,
   onSetLoopRangeStart,
   onSetLoopRangeEnd,
   onAbortExport,
   onVideoExport,
-  onExportLoop,
   onSaveGif,
   onCopyGif,
   onSaveSequence,
   onCopySequence,
-}: FrameExportPanelProps) => (
-  <>
-    {!hasSourceVideo && (
-      <div className={s.row}>
-        <span className={s.rowLabel}>
-          Frames
-          <span className={s.inlineInfo} title="Number of frames to export when rendering from the current live output instead of a source video loop.">(i)</span>
-        </span>
-        <div className={s.sliderRow}>
-          <input
-            className={s.slider}
-            type="range"
-            min={1}
-            max={120}
-            step={1}
-            value={frames}
-            onChange={(event) => onSetFrames(parseInt(event.target.value) || 1)}
-          />
-          <span className={s.sliderValue}>{frames}</span>
-        </div>
-      </div>
-    )}
+  onSaveContactSheet,
+  onCopyContactSheet,
+}: FrameExportPanelProps) => {
+  const startRenderLabel = hasSourceVideo
+    ? loopExportScope === "range"
+      ? "Render Range"
+      : "Render Whole Video"
+    : videoFormat === "contact"
+      ? "Render Contact Sheet"
+      : "Render Frames";
 
+  return (
+  <>
     <div className={s.row}>
       <span className={s.rowLabel}>
         Capture Mode
@@ -98,36 +99,80 @@ export const FrameExportPanel = ({
         onSetFilterOption={(_, value) => onSetLoopCaptureMode(value as "offline" | "realtime" | "webcodecs")}
       />
     </div>
-    <div className={s.row}>
-      <span className={s.rowLabel}>
-        FPS
-        <span className={s.inlineInfo} title={videoFormat === "gif" ? "Frames per second for GIF export. Match source uses the source video's estimated cadence for offline frame sampling." : "Frames per second for GIF or sequence export. Match source uses the source video's estimated cadence when exporting a loop."}>(i)</span>
-      </span>
-      <div className={s.fpsControls}>
-        <label className={s.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={loopAutoFps}
-            onChange={(event) => onSetLoopAutoFps(event.target.checked)}
-          />
-          Match source
-        </label>
-      </div>
-    </div>
-    {!loopAutoFps && (
+    {(!hasSourceVideo || videoFormat === "contact") && (
       <div className={s.row}>
-        <span className={s.rowLabel}>Manual FPS</span>
+        <span className={s.rowLabel}>
+          {videoFormat === "contact" ? "Samples" : "Frames"}
+          <span className={s.inlineInfo} title={videoFormat === "contact" ? "Number of frames to sample into the contact sheet." : "Number of frames to export when rendering from the current live output instead of a source video loop."}>(i)</span>
+        </span>
         <div className={s.sliderRow}>
           <input
             className={s.slider}
             type="range"
             min={1}
-            max={60}
+            max={videoFormat === "contact" ? 64 : 120}
             step={1}
-            value={gifFps}
-            onChange={(event) => onSetGifFps(parseInt(event.target.value) || 1)}
+            value={frames}
+            onChange={(event) => onSetFrames(parseInt(event.target.value) || 1)}
           />
-          <span className={s.sliderValue}>{gifFps}</span>
+          <span className={s.sliderValue}>{frames}</span>
+        </div>
+      </div>
+    )}
+    {videoFormat !== "contact" && (
+      <>
+        <div className={s.row}>
+          <span className={s.rowLabel}>
+            FPS
+            <span className={s.inlineInfo} title={videoFormat === "gif" ? "Frames per second for GIF export. Match source uses the source video's estimated cadence for offline frame sampling." : "Frames per second for GIF or sequence export. Match source uses the source video's estimated cadence when exporting a loop."}>(i)</span>
+          </span>
+          <div className={s.fpsControls}>
+            <label className={s.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={loopAutoFps}
+                onChange={(event) => onSetLoopAutoFps(event.target.checked)}
+              />
+              Match source
+            </label>
+          </div>
+        </div>
+        {!loopAutoFps && (
+          <div className={s.row}>
+            <span className={s.rowLabel}>Manual FPS</span>
+            <div className={s.sliderRow}>
+              <input
+                className={s.slider}
+                type="range"
+                min={1}
+                max={60}
+                step={1}
+                value={gifFps}
+                onChange={(event) => onSetGifFps(parseInt(event.target.value) || 1)}
+              />
+              <span className={s.sliderValue}>{gifFps}</span>
+            </div>
+          </div>
+        )}
+      </>
+    )}
+    {videoFormat === "contact" && (
+      <div className={s.row}>
+        <span className={s.rowLabel}>
+          Columns
+          <span className={s.inlineInfo} title="How many thumbnails to place in each row of the contact sheet.">(i)</span>
+        </span>
+        <div className={s.sliderRow}>
+          <input
+            className={s.slider}
+            type="range"
+            min={1}
+            max={Math.max(1, frames)}
+            step={1}
+            value={contactColumns}
+            onChange={(event) => onSetContactColumns(parseInt(event.target.value) || 1)}
+          />
+          <span className={s.sliderValue}>{contactColumns}</span>
         </div>
       </div>
     )}
@@ -169,7 +214,7 @@ export const FrameExportPanel = ({
       <div className={s.row}>
         <span className={s.rowLabel}>
           Export Range
-          <span className={s.inlineInfo} title={videoFormat === "gif" ? "Choose whether GIF export samples the whole video or only a selected timestamp range before encoding." : "Choose whether GIF or sequence export covers the whole video or only a selected timestamp range."}>(i)</span>
+          <span className={s.inlineInfo} title={videoFormat === "gif" ? "Choose whether GIF export samples the whole video or only a selected timestamp range before encoding." : videoFormat === "sequence" ? "Choose whether sequence export covers the whole video or only a selected timestamp range." : "Choose whether the contact sheet samples the whole video or only a selected timestamp range."}>(i)</span>
         </span>
         <div className={s.radioGroup}>
           {RELIABLE_SCOPE_OPTIONS.options.map((option) => (
@@ -191,7 +236,7 @@ export const FrameExportPanel = ({
     {hasSourceVideo && loopExportScope === "range" && (
       <>
         <div className={s.row}>
-          <span className={s.rowLabel}>Start <span className={s.inlineInfo} title="Start timestamp for GIF or sequence export.">(i)</span></span>
+          <span className={s.rowLabel}>Start <span className={s.inlineInfo} title={videoFormat === "contact" ? "Start timestamp for contact sheet sampling." : "Start timestamp for GIF or sequence export."}>(i)</span></span>
           <div className={s.sliderRow}>
             <input
               className={s.slider}
@@ -206,7 +251,7 @@ export const FrameExportPanel = ({
           </div>
         </div>
         <div className={s.row}>
-          <span className={s.rowLabel}>End <span className={s.inlineInfo} title="End timestamp for GIF or sequence export.">(i)</span></span>
+          <span className={s.rowLabel}>End <span className={s.inlineInfo} title={videoFormat === "contact" ? "End timestamp for contact sheet sampling." : "End timestamp for GIF or sequence export."}>(i)</span></span>
           <div className={s.sliderRow}>
             <input
               className={s.slider}
@@ -225,18 +270,8 @@ export const FrameExportPanel = ({
 
     <div className={s.buttons}>
       <button className={s.btn} onClick={exporting ? onAbortExport : onVideoExport}>
-        {exporting ? "Stop" : "Export"}
+        {exporting ? "Stop" : startRenderLabel}
       </button>
-      {hasSourceVideo && (
-        <button
-          className={s.btn}
-          disabled={exporting}
-          onClick={() => onExportLoop(videoFormat as "gif" | "sequence")}
-          title="Rewind source video and render one full loop"
-        >
-          ⟲ Render loop
-        </button>
-      )}
     </div>
 
     {videoFormat === "gif" && gifUrl && (
@@ -280,6 +315,31 @@ export const FrameExportPanel = ({
       />
     )}
 
+    {videoFormat === "contact" && contactSheetUrl && (
+      <img
+        src={contactSheetUrl}
+        className={s.videoPreview}
+        alt="Contact sheet export preview"
+      />
+    )}
+
+    {videoFormat === "contact" && contactSheetBlob && (
+      <div className={s.helperText}>
+        Contact sheet PNG ready to save or copy.
+      </div>
+    )}
+
+    {videoFormat === "contact" && (
+      <ResultActions
+        blob={contactSheetBlob}
+        canWriteClipboard={canWriteClipboard()}
+        copySuccess={copySuccess}
+        onSave={onSaveContactSheet}
+        onCopy={onCopyContactSheet}
+      />
+    )}
+
     <ExportProgress progress={progress} progressValue={progressValue} />
   </>
-);
+  );
+};

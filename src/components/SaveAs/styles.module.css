@@ -212,11 +212,8 @@
 .progressBar {
   position: relative;
   height: 18px;
-  background: #fff;
-  border-left: 2px inset #ccc;
-  border-top: 2px inset #ccc;
-  border-right: 2px inset #fff;
-  border-bottom: 2px inset #fff;
+  background: #c0c0c0;
+  border: 2px inset #c0c0c0;
   overflow: hidden;
   grid-column: 1 / -1;
   margin-top: 6px;
@@ -227,10 +224,11 @@
   background:
     repeating-linear-gradient(
       90deg,
-      var(--beautiful-blue, #000080) 0 10px,
-      #1c85ce 10px 20px
+      transparent 0 1px,
+      var(--beautiful-blue, #000080) 1px 14px,
+      #27359a 14px 15px,
+      transparent 15px 17px
     );
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .sliderRow {

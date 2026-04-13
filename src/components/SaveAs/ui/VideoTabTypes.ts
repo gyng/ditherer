@@ -63,6 +63,7 @@ export interface FrameExportPanelProps {
   loopCaptureMode: "realtime" | "offline" | "webcodecs";
   loopAutoFps: boolean;
   gifFps: number;
+  contactColumns: number;
   videoDuration: number;
   loopExportScope: "loop" | "range";
   loopRangeStart: number;
@@ -75,21 +76,25 @@ export interface FrameExportPanelProps {
   gifResultLabel: string | null;
   gifBlob: Blob | null;
   sequenceBlob: Blob | null;
+  contactSheetBlob: Blob | null;
+  contactSheetUrl: string | null;
   progress: string | null;
   progressValue: number | null;
   onSetFrames: (value: number) => void;
   onSetLoopCaptureMode: (value: "offline" | "realtime" | "webcodecs") => void;
   onSetLoopAutoFps: (value: boolean) => void;
   onSetGifFps: (value: number) => void;
+  onSetContactColumns: (value: number) => void;
   onSetGifPaletteSource: (value: "filter" | "auto") => void;
   onSetLoopExportScope: (value: "loop" | "range") => void;
   onSetLoopRangeStart: (value: number) => void;
   onSetLoopRangeEnd: (value: number) => void;
   onAbortExport: () => void;
   onVideoExport: () => void;
-  onExportLoop: (mode: "gif" | "sequence") => void;
   onSaveGif: () => void;
   onCopyGif: () => void | Promise<void>;
   onSaveSequence: () => void;
   onCopySequence: () => void | Promise<void>;
+  onSaveContactSheet: () => void;
+  onCopyContactSheet: () => void | Promise<void>;
 }

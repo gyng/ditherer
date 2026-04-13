@@ -1,5 +1,5 @@
 import { useCallback, type RefObject } from "react";
-import { runCurrentFrameGifExport, runCurrentFrameSequenceExport } from "../export/currentFrameExport";
+import { runCurrentFrameContactSheetExport, runCurrentFrameGifExport, runCurrentFrameSequenceExport } from "../export/currentFrameExport";
 import { runLoopExport } from "../export/loopExportOrchestrator";
 import { copyBlobWithFeedback, saveBlob } from "../export/blobActions";
 import { startCanvasRecording, startRealtimeLoopRecording } from "../export/realtimeVideoRecording";
@@ -55,6 +55,7 @@ interface UseSaveAsExportHandlersOptions {
   loopExportScope: "loop" | "range";
   loopRangeStart: number;
   loopRangeEnd: number;
+  contactColumns: number;
   mult: number;
   videoFormat: string;
   mediaRecorderRef: RefObject<MediaRecorder | null>;
@@ -66,12 +67,15 @@ interface UseSaveAsExportHandlersOptions {
   recordedBlob: Blob | null;
   gifBlob: Blob | null;
   sequenceBlob: Blob | null;
+  contactSheetBlob: Blob | null;
   clearRecordedResult: () => void;
   setRecordedResult: (blob: Blob) => void;
   clearGifResult: () => void;
   setGifResult: (blob: Blob, label: string) => void;
   clearSequenceResult: () => void;
   setSequenceResult: (blob: Blob) => void;
+  clearContactSheetResult: () => void;
+  setContactSheetResult: (blob: Blob) => void;
   setCopySuccess: (value: boolean) => void;
   setCapturing: (value: boolean) => void;
   setRecordingTime: (value: number | ((previous: number) => number)) => void;
@@ -119,6 +123,7 @@ export const useSaveAsExportHandlers = ({
   loopExportScope,
   loopRangeStart,
   loopRangeEnd,
+  contactColumns,
   mult,
   mediaRecorderRef,
   streamRef,
@@ -130,12 +135,15 @@ export const useSaveAsExportHandlers = ({
   recordedBlob,
   gifBlob,
   sequenceBlob,
+  contactSheetBlob,
   clearRecordedResult,
   setRecordedResult,
   clearGifResult,
   setGifResult,
   clearSequenceResult,
   setSequenceResult,
+  clearContactSheetResult,
+  setContactSheetResult,
   setCopySuccess,
   setCapturing,
   setRecordingTime,
@@ -269,6 +277,14 @@ export const useSaveAsExportHandlers = ({
   const handleCopySequence = useCallback(async () => {
     await copyBlobWithFeedback(sequenceBlob, setCopySuccess, "Sequence clipboard copy failed:");
   }, [sequenceBlob, setCopySuccess]);
+
+  const handleSaveContactSheet = useCallback(() => {
+    saveBlob(contactSheetBlob, "png");
+  }, [contactSheetBlob]);
+
+  const handleCopyContactSheet = useCallback(async () => {
+    await copyBlobWithFeedback(contactSheetBlob, setCopySuccess, "Contact sheet clipboard copy failed:");
+  }, [contactSheetBlob, setCopySuccess]);
 
   const handleAbortExport = useCallback(() => {
     exportAbortRef.current = true;
@@ -466,7 +482,7 @@ export const useSaveAsExportHandlers = ({
     gifFilterPalette,
   ]);
 
-  const handleExportLoop = useCallback(async (mode: "gif" | "sequence") => {
+  const handleExportLoop = useCallback(async (mode: "gif" | "sequence" | "contact") => {
     const vid = stateVideo;
     if (!vid) return;
     const source = outputCanvasRef.current;
@@ -480,6 +496,8 @@ export const useSaveAsExportHandlers = ({
         video: vid,
         sourceCanvas: source,
         mult,
+        targetFrameCount: frames,
+        contactColumns,
         loopExportScope,
         loopRangeStart,
         loopRangeEnd,
@@ -501,13 +519,22 @@ export const useSaveAsExportHandlers = ({
         clearSequenceResult,
         setGifResult,
         setSequenceResult,
+        clearContactSheetResult,
+        setContactSheetResult,
         createHiddenExportVideo,
         renderFrameForExport: (sourceCanvas, frame) => actions.renderFrameForExport(sourceCanvas, frame),
         clearExportSession: actions.clearExportSession,
         logGifExportProfile,
       });
     } catch (error) {
-      console.error(mode === "gif" ? "GIF loop export failed:" : "Sequence zip failed:", error);
+      console.error(
+        mode === "gif"
+          ? "GIF loop export failed:"
+          : mode === "sequence"
+            ? "Sequence zip failed:"
+            : "Contact sheet export failed:",
+        error,
+      );
     } finally {
       setExporting(false);
       clearProgress();
@@ -518,6 +545,7 @@ export const useSaveAsExportHandlers = ({
     exportAbortRef,
     setExporting,
     mult,
+    contactColumns,
     loopExportScope,
     loopRangeStart,
     loopRangeEnd,
@@ -538,6 +566,8 @@ export const useSaveAsExportHandlers = ({
     clearSequenceResult,
     setGifResult,
     setSequenceResult,
+    clearContactSheetResult,
+    setContactSheetResult,
     createHiddenExportVideo,
     actions,
     logGifExportProfile,
@@ -573,13 +603,69 @@ export const useSaveAsExportHandlers = ({
     setSequenceResult,
   ]);
 
+  const handleExportContactSheet = useCallback(async () => {
+    exportAbortRef.current = false;
+    setExporting(true);
+    try {
+      await runCurrentFrameContactSheetExport({
+        frameCount: frames,
+        columns: contactColumns,
+        getScaledCanvas,
+        updateProgress: (message, value) => updateProgress(message, value),
+        clearProgress,
+        isAborted: () => exportAbortRef.current,
+        clearContactSheetResult,
+        setContactSheetResult,
+      });
+    } catch (error) {
+      console.error("Contact sheet export failed:", error);
+    } finally {
+      setExporting(false);
+      clearProgress();
+    }
+  }, [
+    exportAbortRef,
+    setExporting,
+    frames,
+    contactColumns,
+    getScaledCanvas,
+    updateProgress,
+    clearProgress,
+    clearContactSheetResult,
+    setContactSheetResult,
+  ]);
+
   const handleVideoExport = useCallback(() => {
+    if (stateVideo) {
+      if (videoFormat === "gif") {
+        void handleExportLoop("gif");
+        return;
+      }
+      if (videoFormat === "contact") {
+        void handleExportLoop("contact");
+        return;
+      }
+      void handleExportLoop("sequence");
+      return;
+    }
+
     if (videoFormat === "gif") {
       void handleExportGif();
       return;
     }
+    if (videoFormat === "contact") {
+      void handleExportContactSheet();
+      return;
+    }
     void handleExportSequence();
-  }, [videoFormat, handleExportGif, handleExportSequence]);
+  }, [
+    stateVideo,
+    videoFormat,
+    handleExportLoop,
+    handleExportGif,
+    handleExportSequence,
+    handleExportContactSheet,
+  ]);
 
   return {
     handleSave,
@@ -591,11 +677,14 @@ export const useSaveAsExportHandlers = ({
     handleCopyGif,
     handleSaveSequence,
     handleCopySequence,
+    handleSaveContactSheet,
+    handleCopyContactSheet,
     handleAbortExport,
     handleRecordLoop,
     handleExportGif,
     handleExportLoop,
     handleExportSequence,
+    handleExportContactSheet,
     handleVideoExport,
   };
 };

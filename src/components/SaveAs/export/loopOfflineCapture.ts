@@ -24,7 +24,7 @@ type RenderFrameForExport = (
 
 interface CaptureLoopOfflineFramesOptions {
   video: HTMLVideoElement;
-  mode: "gif" | "sequence";
+  mode: "gif" | "sequence" | "contact";
   sourceWidth: number;
   sourceHeight: number;
   mult: number;

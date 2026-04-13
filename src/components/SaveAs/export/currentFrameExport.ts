@@ -1,4 +1,4 @@
-import { finalizeGifExport, finalizeSequenceExport } from "./finalizeFrameExports";
+import { finalizeContactSheetExport, finalizeGifExport, finalizeSequenceExport } from "./finalizeFrameExports";
 import { addFrameDelay, captureCurrentOutputFrames } from "./liveFrameExport";
 import { quantizeGifDelay } from "../helpers";
 
@@ -23,6 +23,17 @@ interface RunCurrentFrameSequenceExportOptions {
   isAborted: () => boolean;
   clearSequenceResult: () => void;
   setSequenceResult: (blob: Blob) => void;
+}
+
+interface RunCurrentFrameContactSheetExportOptions {
+  frameCount: number;
+  columns: number;
+  getScaledCanvas: () => HTMLCanvasElement | null;
+  updateProgress: (message: string, value?: number | null) => void;
+  clearProgress: () => void;
+  isAborted: () => boolean;
+  clearContactSheetResult: () => void;
+  setContactSheetResult: (blob: Blob) => void;
 }
 
 const captureCurrentFrames = async (
@@ -93,6 +104,33 @@ export const runCurrentFrameSequenceExport = async ({
     setSequenceResult,
     progressBase: 0.86,
     progressSpan: 0.08,
+  });
+  clearProgress();
+};
+
+export const runCurrentFrameContactSheetExport = async ({
+  frameCount,
+  columns,
+  getScaledCanvas,
+  updateProgress,
+  clearProgress,
+  isAborted,
+  clearContactSheetResult,
+  setContactSheetResult,
+}: RunCurrentFrameContactSheetExportOptions) => {
+  clearContactSheetResult();
+  const { capturedFrames, aborted } = await captureCurrentFrames(frameCount, getScaledCanvas, updateProgress, isAborted);
+
+  if (aborted || capturedFrames.length === 0) {
+    clearProgress();
+    return;
+  }
+
+  await finalizeContactSheetExport({
+    frames: capturedFrames.map((frame) => addFrameDelay(frame, 0)),
+    columns,
+    updateProgress,
+    setContactSheetResult,
   });
   clearProgress();
 };

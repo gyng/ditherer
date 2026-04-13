@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  finalizeContactSheetExport,
   finalizeGifExport,
   finalizeSequenceExport,
 } from "components/SaveAs/export/finalizeFrameExports";
@@ -14,6 +15,14 @@ vi.mock("components/SaveAs/export/exportArtifacts", () => ({
       fileCount: 2,
     };
   }),
+}));
+
+vi.mock("components/SaveAs/export/contactSheetExport", () => ({
+  composeContactSheetBlob: vi.fn(async () => ({
+    blob: new Blob(["sheet"], { type: "image/png" }),
+    layout: { columns: 2, rows: 1, width: 100, height: 50 },
+    frameCount: 2,
+  })),
 }));
 
 describe("finalizeGifExport", () => {
@@ -60,5 +69,24 @@ describe("finalizeSequenceExport", () => {
     expect(updateProgress.mock.calls[1]?.[1]).toBeCloseTo(0.94);
     expect(updateProgress).toHaveBeenCalledWith("Zipping 2 frames...", 0.96);
     expect(setSequenceResult).toHaveBeenCalledWith(expect.any(Blob));
+  });
+});
+
+describe("finalizeContactSheetExport", () => {
+  it("publishes PNG results after compositing the grid", async () => {
+    const updateProgress = vi.fn();
+    const setContactSheetResult = vi.fn();
+
+    await finalizeContactSheetExport({
+      frames: [
+        { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, delay: 0 },
+        { data: new Uint8ClampedArray([4, 5, 6, 255]), width: 1, height: 1, delay: 0 },
+      ],
+      columns: 2,
+      updateProgress,
+      setContactSheetResult,
+    });
+
+    expect(setContactSheetResult).toHaveBeenCalledWith(expect.any(Blob));
   });
 });

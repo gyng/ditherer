@@ -8,6 +8,8 @@ export const useSaveAsResults = () => {
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [gifResultLabel, setGifResultLabel] = useState<string | null>(null);
   const [sequenceBlob, setSequenceBlob] = useState<Blob | null>(null);
+  const [contactSheetBlob, setContactSheetBlob] = useState<Blob | null>(null);
+  const [contactSheetUrl, setContactSheetUrl] = useState<string | null>(null);
 
   const clearRecordedResult = useCallback(() => {
     setRecordedBlob(null);
@@ -39,12 +41,23 @@ export const useSaveAsResults = () => {
     setSequenceBlob(blob);
   }, []);
 
+  const clearContactSheetResult = useCallback(() => {
+    setContactSheetBlob(null);
+    setContactSheetUrl((prev) => replaceObjectUrl(prev, null));
+  }, []);
+
+  const setContactSheetResult = useCallback((blob: Blob) => {
+    setContactSheetBlob(blob);
+    setContactSheetUrl((prev) => replaceObjectUrl(prev, blob));
+  }, []);
+
   useEffect(() => {
     return () => {
       revokeObjectUrl(recordedUrl);
       revokeObjectUrl(gifUrl);
+      revokeObjectUrl(contactSheetUrl);
     };
-  }, [recordedUrl, gifUrl]);
+  }, [recordedUrl, gifUrl, contactSheetUrl]);
 
   return {
     recordedBlob,
@@ -53,11 +66,15 @@ export const useSaveAsResults = () => {
     gifUrl,
     gifResultLabel,
     sequenceBlob,
+    contactSheetBlob,
+    contactSheetUrl,
     clearRecordedResult,
     setRecordedResult,
     clearGifResult,
     setGifResult,
     clearSequenceResult,
     setSequenceResult,
+    clearContactSheetResult,
+    setContactSheetResult,
   };
 };

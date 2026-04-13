@@ -1,5 +1,6 @@
 import { encodeGifBlob, encodePngSequenceZip } from "./exportArtifacts";
-import { normalizeGifFrames, type GifFrame } from "../helpers";
+import { composeContactSheetBlob } from "./contactSheetExport";
+import { formatEta, normalizeGifFrames, type GifFrame } from "../helpers";
 
 type UpdateProgress = (message: string, value?: number | null) => void;
 
@@ -19,6 +20,13 @@ interface FinalizeSequenceExportOptions {
   setSequenceResult: (blob: Blob) => void;
   progressBase?: number;
   progressSpan?: number;
+}
+
+interface FinalizeContactSheetExportOptions {
+  frames: GifFrame[];
+  columns: number;
+  updateProgress: UpdateProgress;
+  setContactSheetResult: (blob: Blob) => void;
 }
 
 export const finalizeGifExport = async ({
@@ -62,4 +70,23 @@ export const finalizeSequenceExport = async ({
   });
   updateProgress(`Zipping ${fileCount} frames...`, 0.96);
   setSequenceResult(blob);
+};
+
+export const finalizeContactSheetExport = async ({
+  frames,
+  columns,
+  updateProgress,
+  setContactSheetResult,
+}: FinalizeContactSheetExportOptions) => {
+  const { blob } = await composeContactSheetBlob(
+    frames,
+    columns,
+    ({ frameIndex, frameCount, etaMs }) => {
+      updateProgress(
+        `Compositing contact sheet ${frameIndex + 1}/${frameCount}${etaMs ? ` · ETA ${formatEta(etaMs)}` : ""}`,
+        0.9 + ((frameIndex + 1) / Math.max(1, frameCount)) * 0.08,
+      );
+    },
+  );
+  setContactSheetResult(blob);
 };

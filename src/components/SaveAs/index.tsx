@@ -50,7 +50,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
 
   // Video settings
   const [recordingFormats] = useState(() => detectRecordingFormats());
-  const [videoFormat, setVideoFormat] = useState("recording"); // "recording" | "gif" | "sequence"
+  const [videoFormat, setVideoFormat] = useState("recording"); // "recording" | "gif" | "sequence" | "contact"
   const [selectedRecFormat, setSelectedRecFormat] = useState(0); // index into recordingFormats
   const [autoBitrate, setAutoBitrate] = useState(true);
   const [bitrate, setBitrate] = useState(2.5);
@@ -70,6 +70,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const [frames, setFrames] = useState(30);
   const [gifFps, setGifFps] = useState(10);
   const [gifPaletteSource, setGifPaletteSource] = useState<"auto" | "filter">("auto");
+  const [contactColumns, setContactColumns] = useState(5);
   const [loopAutoFps, setLoopAutoFps] = useState(true);
   const [loopCaptureMode, setLoopCaptureMode] = useState<"realtime" | "offline" | "webcodecs">("offline");
 
@@ -101,12 +102,16 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     gifUrl,
     gifResultLabel,
     sequenceBlob,
+    contactSheetBlob,
+    contactSheetUrl,
     clearRecordedResult,
     setRecordedResult,
     clearGifResult,
     setGifResult,
     clearSequenceResult,
     setSequenceResult,
+    clearContactSheetResult,
+    setContactSheetResult,
   } = useSaveAsResults();
 
   const updateProgress = useCallback((message: string | null, value?: number | null) => {
@@ -306,9 +311,10 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     handleCopyGif,
     handleSaveSequence,
     handleCopySequence,
+    handleSaveContactSheet,
+    handleCopyContactSheet,
     handleAbortExport,
     handleRecordLoop,
-    handleExportLoop,
     handleVideoExport,
   } = useSaveAsExportHandlers({
     outputCanvasRef,
@@ -340,6 +346,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     loopExportScope,
     loopRangeStart,
     loopRangeEnd,
+    contactColumns,
     mult,
     mediaRecorderRef,
     streamRef,
@@ -351,12 +358,15 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     recordedBlob,
     gifBlob,
     sequenceBlob,
+    contactSheetBlob,
     clearRecordedResult,
     setRecordedResult,
     clearGifResult,
     setGifResult,
     clearSequenceResult,
     setSequenceResult,
+    clearContactSheetResult,
+    setContactSheetResult,
     setCopySuccess,
     setCapturing,
     setRecordingTime,
@@ -379,6 +389,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
       ...(recordingFormats.length > 0 ? [{ name: "video", value: "recording" }] : []),
       { value: "gif" },
       { value: "sequence" },
+      { name: "contact sheet", value: "contact" },
     ],
   };
 
@@ -448,6 +459,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     loopCaptureMode,
     loopAutoFps,
     gifFps,
+    contactColumns,
     videoDuration: state.video?.duration || 0,
     loopExportScope,
     loopRangeStart,
@@ -460,23 +472,27 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     gifResultLabel,
     gifBlob,
     sequenceBlob,
+    contactSheetBlob,
+    contactSheetUrl,
     progress,
     progressValue,
     onSetFrames: setFrames,
     onSetLoopCaptureMode: setLoopCaptureMode,
     onSetLoopAutoFps: setLoopAutoFps,
     onSetGifFps: setGifFps,
+    onSetContactColumns: setContactColumns,
     onSetGifPaletteSource: setGifPaletteSource,
     onSetLoopExportScope: setLoopExportScope,
     onSetLoopRangeStart: setLoopRangeStart,
     onSetLoopRangeEnd: setLoopRangeEnd,
     onAbortExport: handleAbortExport,
     onVideoExport: handleVideoExport,
-    onExportLoop: handleExportLoop,
     onSaveGif: handleSaveGif,
     onCopyGif: handleCopyGif,
     onSaveSequence: handleSaveSequence,
     onCopySequence: handleCopySequence,
+    onSaveContactSheet: handleSaveContactSheet,
+    onCopyContactSheet: handleCopyContactSheet,
   };
 
   return (
@@ -541,7 +557,16 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
               videoVolume={state.videoVolume}
               videoFormat={videoFormat}
               videoFormatOptions={videoFormatOptions.options}
-              onSetVideoFormat={setVideoFormat}
+              onSetVideoFormat={(value) => {
+                setVideoFormat(value);
+                if (value === "contact" && loopCaptureMode === "offline") {
+                  setLoopCaptureMode("webcodecs");
+                }
+                if (value === "contact") {
+                  setFrames(30);
+                  setContactColumns(5);
+                }
+              }}
               recordingPanel={recordingPanelProps}
               frameExportPanel={frameExportPanelProps}
             />
