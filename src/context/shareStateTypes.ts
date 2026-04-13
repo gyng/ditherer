@@ -1,4 +1,17 @@
 export type SerializedOptionMap = Record<string, unknown>;
+export type SerializedAudioVizConnection = {
+  k: string;
+  o: string;
+  w: number;
+};
+
+export type SerializedAudioVizModulation = {
+  c?: SerializedAudioVizConnection[];
+  z?: string[];
+  m?: SerializedAudioVizConnection[];
+  t?: string[] | Array<{ o: string; w: number }>;
+  k?: string;
+};
 
 export interface SerializedPaletteState {
   name: string;
@@ -21,6 +34,7 @@ export interface SerializedChainEntry {
   d?: string;
   o?: SerializedOptionMap;
   e?: boolean;
+  m?: SerializedAudioVizModulation;
 }
 
 export interface ShareStateV1 {
@@ -28,6 +42,7 @@ export interface ShareStateV1 {
   convertGrayscale: boolean;
   linearize?: boolean;
   wasmAcceleration?: boolean;
+  r?: number;
 }
 
 export interface ShareStateV2 {
@@ -36,6 +51,7 @@ export interface ShareStateV2 {
   g: boolean;
   l: boolean;
   w: boolean;
+  r?: number;
 }
 
 export type SerializedFilterState = ShareStateV1 | ShareStateV2;

@@ -21,13 +21,21 @@ import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
 import ChainPreview from "./ChainPreview";
 import FilterCombobox from "components/FilterCombobox";
-import ModalInput from "components/ModalInput";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, buildPresetSignatureMap, getChainSignature, type PresetFilterEntry } from "./presets";
 import LibraryBrowser from "./LibraryBrowser";
+import {
+  dispatchRandomCycleSeconds,
+  getLastRandomCycleSeconds,
+  setRememberedRandomCycleSeconds,
+  getCurrentScreensaverCycleSeconds,
+  subscribeRandomCycleSeconds,
+  subscribeScreensaverCycleSeconds,
+} from "utils/randomCycleBridge";
 import s from "./styles.module.css";
 
 const HOVER_PREVIEW_OPEN_DELAY_MS = 150;
 const HOVER_PREVIEW_CLOSE_DELAY_MS = 90;
+const SCREENSAVER_PRESET_SWAP_CHANCE = 0.18;
 
 const getThemeKeys = (): string[] =>
   Object.keys(THEMES).filter((k) => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0);
@@ -139,6 +147,8 @@ const getRandomFilter = () => {
 
 const USER_CHAIN_PREFIX = "_chain_";
 
+const secondsToBpm = (seconds: number) => 240 / seconds;
+const bpmToSeconds = (bpm: number) => 240 / bpm;
 interface SavedChain {
   name: string;
   desc: string;
@@ -159,9 +169,17 @@ const loadUserChains = (): SavedChain[] => {
   return chains;
 };
 
-const ChainList = () => {
+const ChainList = ({
+  onEditAudioMod,
+  onEditChainAudioMod,
+  chainAudioActive = false,
+}: {
+  onEditAudioMod?: (entryId: string, anchorRect?: DOMRect) => void;
+  onEditChainAudioMod?: (anchorRect?: DOMRect) => void;
+  chainAudioActive?: boolean;
+}) => {
   const { state, actions } = useFilter();
-  const { chain, activeIndex } = state;
+  const { chain, activeIndex, randomCycleSeconds } = state;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
@@ -172,14 +190,20 @@ const ChainList = () => {
   const [showLibraryBrowser, setShowLibraryBrowser] = useState(false);
   const [libraryInitialTab, setLibraryInitialTab] = useState<"filters" | "presets">("filters");
   const [libraryInitialQuery, setLibraryInitialQuery] = useState("");
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [savedChains, setSavedChains] = useState<SavedChain[]>(loadUserChains);
   const [loadedSavedName, setLoadedSavedName] = useState<string | null>(null);
+  const [showRandomCycleModal, setShowRandomCycleModal] = useState(false);
+  const [randomCycleSecondsDraft, setRandomCycleSecondsDraft] = useState("2");
+  const [randomCycleBpmDraft, setRandomCycleBpmDraft] = useState("120");
+  const [screensaverCycleSeconds, setScreensaverCycleSeconds] = useState<number | null>(getCurrentScreensaverCycleSeconds());
   const dragCounter = useRef(0);
   const libraryDragRef = useRef<HTMLDivElement | null>(null);
   const libraryDrag = useDraggable(libraryDragRef, { defaultPosition: { x: 560, y: 90 } });
   const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const randomCycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const randomChainRef = useRef<() => void>(() => {});
+  const randomPresetRef = useRef<() => void>(() => {});
   const resolveDefaults = useCallback((name: string) => {
     const match = filterList.find((filter) => filter.displayName === name);
     return (match?.filter.defaults || match?.filter.options || {}) as Record<string, unknown>;
@@ -324,7 +348,7 @@ const ChainList = () => {
     if (resolved) actions.chainAdd(resolved.displayName, resolved.filter);
   };
 
-  const randomChain = () => {
+  const randomChain = useCallback(() => {
     // Usually pick 2-4 random filters, with small chances of 1- or 5-filter chains.
     const candidates = filterList.filter((f) => f && f.category !== "Advanced");
     if (candidates.length === 0) return;
@@ -359,7 +383,61 @@ const ChainList = () => {
     for (let i = 1; i < randomized.length; i++) {
       actions.chainAdd(randomized[i].displayName, randomized[i].filter);
     }
-  };
+  }, [actions]);
+
+  useEffect(() => {
+    randomChainRef.current = randomChain;
+  }, [randomChain]);
+
+  useEffect(() => {
+    if (randomCycleSeconds != null && randomCycleSeconds > 0) {
+      setRememberedRandomCycleSeconds(randomCycleSeconds);
+    }
+  }, [randomCycleSeconds]);
+
+  useEffect(() => {
+    if (randomCycleTimerRef.current) {
+      clearInterval(randomCycleTimerRef.current);
+      randomCycleTimerRef.current = null;
+    }
+
+    const activeCycleSeconds = screensaverCycleSeconds != null && screensaverCycleSeconds > 0
+      ? screensaverCycleSeconds
+      : randomCycleSeconds;
+
+    if (activeCycleSeconds == null || activeCycleSeconds <= 0) {
+      return undefined;
+    }
+
+    randomCycleTimerRef.current = setInterval(() => {
+      if (screensaverCycleSeconds != null && screensaverCycleSeconds > 0 && Math.random() < SCREENSAVER_PRESET_SWAP_CHANCE) {
+        randomPresetRef.current();
+        return;
+      }
+      randomChainRef.current();
+    }, activeCycleSeconds * 1000);
+
+    return () => {
+      if (randomCycleTimerRef.current) {
+        clearInterval(randomCycleTimerRef.current);
+        randomCycleTimerRef.current = null;
+      }
+    };
+  }, [randomCycleSeconds, screensaverCycleSeconds]);
+
+  useEffect(() => subscribeRandomCycleSeconds((seconds) => {
+    actions.setRandomCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
+  }), []);
+
+  useEffect(() => subscribeScreensaverCycleSeconds((seconds) => {
+    setScreensaverCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
+  }), []);
+
+  useEffect(() => {
+    const syncSavedChains = () => setSavedChains(loadUserChains());
+    window.addEventListener("ditherer-saved-chains-change", syncSavedChains);
+    return () => window.removeEventListener("ditherer-saved-chains-change", syncSavedChains);
+  }, []);
 
   const loadPreset = (preset: typeof CHAIN_PRESETS[0]) => {
     // Set first filter via selectFilter (resets chain to 1 entry)
@@ -378,6 +456,42 @@ const ChainList = () => {
     loadPreset(preset);
     setLoadedSavedName(null);
   };
+
+  useEffect(() => {
+    randomPresetRef.current = loadRandomPreset;
+  }, [loadRandomPreset]);
+
+  const promptRandomCycle = useCallback(() => {
+    const currentSeconds = randomCycleSeconds ?? getLastRandomCycleSeconds() ?? 2;
+    setRandomCycleSecondsDraft(currentSeconds.toString());
+    setRandomCycleBpmDraft(secondsToBpm(currentSeconds).toFixed(2).replace(/\.?0+$/, ""));
+    setShowRandomCycleModal(true);
+  }, [randomCycleSeconds]);
+
+  const handleRandomCycleSecondsChange = useCallback((value: string) => {
+    setRandomCycleSecondsDraft(value);
+    const seconds = Number.parseFloat(value);
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    setRandomCycleBpmDraft(secondsToBpm(seconds).toFixed(2).replace(/\.?0+$/, ""));
+  }, []);
+
+  const handleRandomCycleBpmChange = useCallback((value: string) => {
+    setRandomCycleBpmDraft(value);
+    const bpm = Number.parseFloat(value);
+    if (!Number.isFinite(bpm) || bpm <= 0) return;
+    setRandomCycleSecondsDraft(bpmToSeconds(bpm).toFixed(3).replace(/\.?0+$/, ""));
+  }, []);
+
+  const confirmRandomCycleModal = useCallback(() => {
+    const trimmed = randomCycleSecondsDraft.trim();
+    const seconds = Number.parseFloat(trimmed);
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      window.alert("Please enter 0 or a positive number of seconds.");
+      return;
+    }
+    dispatchRandomCycleSeconds(seconds === 0 ? null : seconds);
+    setShowRandomCycleModal(false);
+  }, [randomCycleSecondsDraft]);
 
   const openPresetBrowserForFilter = useCallback((filterDisplayName: string) => {
     setLibraryInitialTab("presets");
@@ -451,7 +565,7 @@ const ChainList = () => {
             }}
             title="Open full filter/preset browser"
           >
-            Browse
+            ▤
           </button>
           <select
             className={s.presetSelect}
@@ -488,17 +602,12 @@ const ChainList = () => {
             &#9861;
           </button>
           <button
-            className={s.addBtn}
-            onClick={() => {
-              const url = actions.getExportUrl(state);
-              setShareUrl(url);
-              if (navigator.clipboard) {
-                navigator.clipboard.writeText(url).catch(() => { /* fall through to modal */ });
-              }
-            }}
-            title="Share filter chain (copies URL to clipboard)"
+            className={[s.addBtn, s.iconBtn, randomCycleSeconds != null ? s.activeToolbarBtn : ""].join(" ")}
+            onClick={promptRandomCycle}
+            title={randomCycleSeconds != null ? `Random cycle every ${randomCycleSeconds}s (click to change or stop)` : "Prompt for random cycle interval"}
+            aria-label={randomCycleSeconds != null ? `Random cycle every ${randomCycleSeconds} seconds` : "Set random cycle interval"}
           >
-            &#8679;
+            &#8635;
           </button>
           <button
             className={s.addBtn}
@@ -507,24 +616,15 @@ const ChainList = () => {
           >
             &#10005;
           </button>
+          <button
+            className={[s.addBtn, chainAudioActive ? s.activeToolbarBtn : ""].join(" ")}
+            onClick={(event) => onEditChainAudioMod?.(event.currentTarget.getBoundingClientRect())}
+            title="Open chain audio visualizer mapping"
+          >
+            Audio viz
+          </button>
         </div>
         <div className={`${s.toolbarGroup} ${s.toolbarGroupRight}`}>
-          <button
-            className={s.addBtn}
-            onClick={() => {
-              const name = prompt("Save chain as:");
-              if (!name) return;
-              const stateJson = actions.exportState(state);
-              const filters = chain.map((e) => e.displayName);
-              const data: SavedChain = { name, desc: filters.join(" \u2192 "), filters, stateJson };
-              localStorage.setItem(USER_CHAIN_PREFIX + name, JSON.stringify(data));
-              setSavedChains(loadUserChains());
-              setLoadedSavedName(name);
-            }}
-            title="Save current chain with settings"
-          >
-            &#9660; Save
-          </button>
           {savedChains.length > 0 && (
             <select
               className={s.presetSelect}
@@ -665,6 +765,16 @@ const ChainList = () => {
                   title="Reset to defaults"
                 >
                   &#8634;
+                </button>
+                <button
+                  className={[s.removeBtn, entry.audioMod ? s.audioMappedBtn : ""].join(" ")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditAudioMod?.(entry.id, (e.currentTarget as HTMLElement).getBoundingClientRect());
+                  }}
+                  title="Map audio visualizer to this filter"
+                >
+                  ♪
                 </button>
                 <button
                   className={s.removeBtn}
@@ -884,13 +994,67 @@ const ChainList = () => {
         </div>
       )}
 
-      {shareUrl !== null && (
-        <ModalInput
-          title="Share URL (copied to clipboard)"
-          defaultValue={shareUrl}
-          onConfirm={() => setShareUrl(null)}
-          onCancel={() => setShareUrl(null)}
-        />
+      {showRandomCycleModal && (
+        <div className={s.confirmOverlay} onMouseDown={() => setShowRandomCycleModal(false)}>
+          <div
+            className={[s.confirmDialog, s.randomCycleDialog].join(" ")}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className={s.confirmTitleBar}>
+              <span className={s.confirmTitleText}>Random Chain Swap</span>
+              <button
+                className={s.confirmTitleClose}
+                onClick={() => setShowRandomCycleModal(false)}
+              >
+                x
+              </button>
+            </div>
+            <div className={s.randomCycleBody}>
+              <label className={s.randomCycleField}>
+                <span className={s.randomCycleLabel}>Seconds per swap</span>
+                <input
+                  className={s.randomCycleInput}
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  value={randomCycleSecondsDraft}
+                  onChange={(e) => handleRandomCycleSecondsChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmRandomCycleModal();
+                    if (e.key === "Escape") setShowRandomCycleModal(false);
+                  }}
+                  autoFocus
+                />
+              </label>
+              <label className={s.randomCycleField}>
+                <span className={s.randomCycleLabel}>BPM</span>
+                <input
+                  className={s.randomCycleInput}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={randomCycleBpmDraft}
+                  onChange={(e) => handleRandomCycleBpmChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmRandomCycleModal();
+                    if (e.key === "Escape") setShowRandomCycleModal(false);
+                  }}
+                />
+              </label>
+              <div className={s.randomCycleHint}>
+                4 beats = 1 swap. Enter `0` seconds to stop cycling.
+              </div>
+            </div>
+            <div className={s.confirmButtons}>
+              <button className={s.confirmBtn} onClick={confirmRandomCycleModal}>
+                OK
+              </button>
+              <button className={s.confirmBtn} onClick={() => setShowRandomCycleModal(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

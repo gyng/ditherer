@@ -15,6 +15,8 @@ const ADD_PALETTE_COLOR = "ADD_PALETTE_COLOR";
 const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
 const SET_LINEARIZE = "SET_LINEARIZE";
 const SET_WASM_ACCELERATION = "SET_WASM_ACCELERATION";
+const SET_RANDOM_CYCLE_SECONDS = "SET_RANDOM_CYCLE_SECONDS";
+const SET_CHAIN_AUDIO_MODULATION = "SET_CHAIN_AUDIO_MODULATION";
 const CHAIN_ADD = "CHAIN_ADD";
 const CHAIN_REMOVE = "CHAIN_REMOVE";
 const CHAIN_REORDER = "CHAIN_REORDER";
@@ -27,11 +29,13 @@ import { SCALING_ALGORITHM } from "constants/optionTypes";
 import {
   hasV1SelectedState,
   isShareStateV2,
+  type SerializedAudioVizModulation,
   type SerializedFilterReference,
   type SerializedFilterState,
   type SerializedPaletteState,
 } from "context/shareStateTypes";
 import type { FilterDefinition, FilterOptionValues } from "filters/types";
+import type { EntryAudioModulation } from "utils/audioVizBridge";
 
 import { floydSteinberg } from "filters/errorDiffusing";
 import { filterIndex } from "filters";
@@ -50,6 +54,7 @@ export type ChainEntry = {
   displayName: string;
   filter: FilterDefinition;
   enabled: boolean;
+  audioMod: EntryAudioModulation | null;
 };
 
 export type SelectedFilterState = {
@@ -65,7 +70,67 @@ const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEnt
   displayName,
   filter,
   enabled: true,
+  audioMod: null,
 });
+
+const deserializeAudioMod = (
+  value: SerializedAudioVizModulation | null | undefined,
+): EntryAudioModulation | null => {
+  if (!value || typeof value !== "object") return null;
+  const connections = Array.isArray(value.c)
+    ? value.c
+      .filter((connection) => typeof connection?.k === "string" && typeof connection?.o === "string" && typeof connection?.w === "number")
+      .map((connection) => ({
+        metric: connection.k as EntryAudioModulation["connections"][number]["metric"],
+        target: connection.o,
+        weight: connection.w,
+      }))
+    : [];
+  if (connections.length > 0) {
+    return {
+      connections,
+      normalizedMetrics: Array.isArray(value.z)
+        ? value.z.filter((metric): metric is EntryAudioModulation["connections"][number]["metric"] => typeof metric === "string")
+        : [],
+    };
+  }
+
+  const metrics = Array.isArray(value.m)
+    ? value.m
+      .filter((metric) => typeof metric?.k === "string" && typeof metric?.o === "string" && typeof metric?.w === "number")
+      .map((metric) => ({
+        metric: metric.k as EntryAudioModulation["connections"][number]["metric"],
+        target: metric.o,
+        weight: metric.w,
+      }))
+    : [];
+  if (metrics.length > 0) {
+    return {
+      connections: metrics,
+      normalizedMetrics: Array.isArray(value.z)
+        ? value.z.filter((metric): metric is EntryAudioModulation["connections"][number]["metric"] => typeof metric === "string")
+        : [],
+    };
+  }
+
+  if (typeof value.k !== "string" || !Array.isArray(value.t)) return null;
+  const legacyTargets = value.t
+    .filter((target): target is { o: string; w: number } =>
+      typeof target === "object"
+      && target != null
+      && typeof target.o === "string"
+      && typeof target.w === "number")
+    .map((target) => target.o);
+  if (legacyTargets.length === 0) return null;
+  return {
+    connections: legacyTargets.map((target) => ({
+      metric: value.k as EntryAudioModulation["connections"][number]["metric"],
+      target,
+      weight: 0.25,
+    })),
+    normalizedMetrics: [],
+  };
+};
 
 // Derive `selected` compat shim from chain state
 const deriveSelected = (chain: ChainEntry[], activeIndex: number): SelectedFilterState => ({
@@ -104,6 +169,7 @@ export const initialState = {
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
   linearize: true,
   wasmAcceleration: true,
+  randomCycleSeconds: null as number | null,
   frameTime: null as number | null,
   stepTimes: null as { name: string; ms: number }[] | null,
 };
@@ -219,6 +285,11 @@ type ChainMutationAction =
   | {
       type: typeof CHAIN_DUPLICATE;
       id: string;
+    }
+  | {
+      type: typeof SET_CHAIN_AUDIO_MODULATION;
+      id: string;
+      modulation: EntryAudioModulation | null;
     };
 
 type FilterSelectionAction = {
@@ -292,6 +363,10 @@ type ScalarStateAction =
   | {
       type: typeof SET_SCALING_ALGORITHM;
       algorithm: ScalingAlgorithm;
+    }
+  | {
+      type: typeof SET_RANDOM_CYCLE_SECONDS;
+      seconds: number | null;
     };
 
 type PalettePersistenceAction =
@@ -360,6 +435,7 @@ const filterReducer = (
             displayName: entry.d || entry.n,
             filter: { ...localFilter, options: mergedOpts },
             enabled: entry.e !== false,
+            audioMod: deserializeAudioMod(entry.m),
           });
         }
         if (chain.length === 0) return state;
@@ -370,6 +446,7 @@ const filterReducer = (
           convertGrayscale: data.g ?? state.convertGrayscale,
           linearize: data.l ?? state.linearize,
           wasmAcceleration: data.w ?? state.wasmAcceleration,
+          randomCycleSeconds: data.r ?? null,
         });
       }
 
@@ -388,6 +465,7 @@ const filterReducer = (
           convertGrayscale: data.convertGrayscale,
           linearize: data.linearize ?? state.linearize,
           wasmAcceleration: data.wasmAcceleration ?? state.wasmAcceleration,
+          randomCycleSeconds: data.r ?? null,
         });
       }
       return state;
@@ -460,10 +538,22 @@ const filterReducer = (
         displayName: source.displayName,
         filter: { ...source.filter, options: { ...source.filter.options } },
         enabled: source.enabled,
+        audioMod: source.audioMod
+          ? {
+              connections: source.audioMod.connections.map((connection) => ({ ...connection })),
+              normalizedMetrics: [...(source.audioMod.normalizedMetrics ?? [])],
+            }
+          : null,
       };
       const chain = [...state.chain];
       chain.splice(idx + 1, 0, clone);
       return withSelected({ ...state, chain, activeIndex: idx + 1 });
+    }
+    case SET_CHAIN_AUDIO_MODULATION: {
+      const chain = state.chain.map((entry) =>
+        entry.id === action.id ? { ...entry, audioMod: action.modulation } : entry
+      );
+      return withSelected({ ...state, chain });
     }
 
     // --- Compat: SELECT_FILTER resets to single-entry chain ---
@@ -563,11 +653,21 @@ const filterReducer = (
         state.video != null &&
         (!action.video || action.video !== state.video)
       ) {
-        const oldVideo = state.video as HTMLVideoElement & { __objectUrl?: string };
+        const oldVideo = state.video as HTMLVideoElement & { __objectUrl?: string; __manualPause?: boolean };
+        oldVideo.__manualPause = true;
+        oldVideo.onplaying = null;
+        oldVideo.onpause = null;
+        oldVideo.onloadedmetadata = null;
+        oldVideo.onloadeddata = null;
+        oldVideo.onseeked = null;
+        oldVideo.onerror = null;
         state.video.pause();
         // Avoid assigning empty src, which can resolve to the document URL ("/")
         // and trigger "text/html is not supported" media decode warnings.
         state.video.removeAttribute("src");
+        if ("srcObject" in state.video) {
+          (state.video as HTMLVideoElement & { srcObject?: MediaProvider | null }).srcObject = null;
+        }
         state.video.load();
         if (oldVideo.__objectUrl) {
           URL.revokeObjectURL(oldVideo.__objectUrl);
@@ -609,6 +709,8 @@ const filterReducer = (
       return { ...state, linearize: action.value };
     case SET_WASM_ACCELERATION:
       return { ...state, wasmAcceleration: action.value };
+    case SET_RANDOM_CYCLE_SECONDS:
+      return { ...state, randomCycleSeconds: action.seconds };
     case "SAVE_CURRENT_COLOR_PALETTE":
     case "DELETE_CURRENT_COLOR_PALETTE":
       return state;

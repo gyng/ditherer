@@ -183,6 +183,7 @@ Use Vitest. Tests live in `test/` mirroring `src/` structure.
 - Molecules compose atoms and may hold local UI state (e.g., ColorArray's extract mode toggle).
 - The Controls dispatcher (`controls/index.jsx`) is a **switch on type** — keep it flat, don't nest logic.
 - CSS Modules for component styles. Global styles only in `src/styles/`.
+- For draggable floating windows that use `position: fixed` + `transform`, compute drag offsets from the element's live `getBoundingClientRect()` at mouse-down time. Using cached position refs can cause a visible snap on the first drag after mount/remount.
 
 ### Performance
 

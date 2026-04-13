@@ -1,6 +1,10 @@
 # ditherer
 
-Browser-based image and video processing for dithering, palette reduction, glitch art, print simulation, temporal effects, and filter-chain experimentation.
+Browser-based image and video creation for dithering, palette reduction, glitch art, print simulation, temporal effects, and filter-chain experimentation.
+
+Audio-reactive too: drive visuals with live microphone or tab audio through per-filter, chain-wide, and screensaver patch panels.
+
+Also useful for lightweight VJing and live visuals too: swap sources, keep output framing stable, and drive filters from live audio.
 
 [Live Site](https://gyng.github.io/ditherer/) · [Gallery](docs/gallery/GALLERY.md)
 
@@ -13,6 +17,7 @@ Browser-based image and video processing for dithering, palette reduction, glitc
 
 - Build filter chains in the browser and reorder them with drag and drop
 - Process still images or video clips with realtime preview
+- Route live audio metrics into filter parameters with per-filter, chain-wide, or screensaver patch panels
 - Share looks through URL state or exported JSON
 - Export processed output as images, GIFs, or video
 - Explore a large built-in library of filters, palettes, and curated presets
@@ -25,9 +30,26 @@ Browser-based image and video processing for dithering, palette reduction, glitc
 - **Worker offload** for non-temporal chains so the UI stays responsive
 - **Gamma-correct pipeline** with optional linear-light processing
 - **Palette tooling** including built-in retro/art palettes plus adaptive and extracted palettes
+- **Audio-reactive modulation** with microphone or tab audio input, auto-generated mappings, and draggable patch panels
 - **WASM acceleration** for performance-critical color distance work with JS fallback
 - **Rich export flows** for PNG, JPEG, WebP, GIF, frame sequences, WebM, and browser-dependent MP4 recording paths
 - **Static gallery generation** from the live filter/preset registries
+
+## Audio Viz
+
+Ditherer can drive filter parameters from live audio analysis. You can patch metrics like level, bass, beat, spectral flux, or tempo phase into numeric filter controls either per filter, across the whole chain, or in screensaver mode.
+
+<p>
+  <img src="docs/screenshots/patch.png" alt="Audio Viz Patch Panel" width="564" style="max-width: 100%; height: auto;" />
+</p>
+<p>
+  <img src="docs/screenshots/screensaver.png" alt="Screensaver Audio Viz" width="424" style="max-width: 100%; height: auto;" />
+</p>
+
+- Use microphone or tab/system audio as the source
+- Auto-generate musical mappings with `Auto Viz` and `Reroll`
+- Reuse modulation at the chain level or target a single filter for more surgical control
+- Let screensaver mode auto-refresh its routing as the active chain changes
 
 ## Examples
 

@@ -2,6 +2,7 @@ import { createContext } from "react";
 import { filterList, grayscale } from "filters";
 import type { FilterDefinition } from "filters/types";
 import type { FilterReducerState } from "reducers/filters";
+import type { EntryAudioModulation } from "utils/audioVizBridge";
 
 export type FilterState = FilterReducerState;
 export type AnimatedVideoElement = HTMLVideoElement & {
@@ -19,8 +20,8 @@ export interface ExportFrameOptions {
 }
 
 export interface FilterActions {
-  loadMediaAsync: (file: File, volume?: number, playbackRate?: number) => Promise<void>;
-  loadVideoFromUrlAsync: (src: string, volume?: number, playbackRate?: number) => Promise<void>;
+  loadMediaAsync: (file: File, volume?: number, playbackRate?: number, options?: { preserveScale?: boolean }) => Promise<void>;
+  loadVideoFromUrlAsync: (src: string, volume?: number, playbackRate?: number, options?: { preserveScale?: boolean }) => Promise<void>;
   filterImageAsync: (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
   triggerDegauss: (inputCanvas: HTMLCanvasElement | null) => void;
   triggerBurst: (inputCanvas: HTMLCanvasElement | null, frames: number, fps?: number) => void;
@@ -37,6 +38,7 @@ export interface FilterActions {
   setConvertGrayscale: (value: boolean) => void;
   setLinearize: (value: boolean) => void;
   setWasmAcceleration: (value: boolean) => void;
+  setRandomCycleSeconds: (seconds: number | null) => void;
   setScale: (scale: number) => void;
   setOutputScale: (scale: number) => void;
   setRealtimeFiltering: (enabled: boolean) => void;
@@ -58,6 +60,7 @@ export interface FilterActions {
   chainToggle: (id: string) => void;
   chainReplace: (id: string, displayName: string, filter: FilterDefinition) => void;
   chainDuplicate: (id: string) => void;
+  setChainAudioModulation: (id: string, modulation: EntryAudioModulation | null) => void;
   copyChainToClipboard: () => void;
   pasteChainFromClipboard: () => Promise<void>;
   getExportUrl: (filterState: FilterState) => string;

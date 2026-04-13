@@ -156,6 +156,15 @@
   color: red;
 }
 
+.audioMappedBtn {
+  color: #d10000;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.audioMappedBtn:hover:not(:disabled) {
+  color: #ff2a2a;
+}
+
 .removeBtn:disabled {
   opacity: 0.3;
   cursor: default;
@@ -197,8 +206,27 @@
 
 .addBtn {
   font-weight: bold;
-  min-height: unset;
+  min-height: 28px;
+  box-sizing: border-box;
   padding: 3px 8px;
+  line-height: 1.1;
+}
+
+.iconBtn {
+  min-width: 28px;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+.activeToolbarBtn {
+  background:
+    linear-gradient(180deg, rgba(214, 192, 120, 0.98), rgba(244, 229, 174, 0.98)),
+    var(--light-gray);
+  border-left: 2px inset #8d7645;
+  border-top: 2px inset #8d7645;
+  border-bottom: 1px inset #fff7d1;
+  border-right: 1px inset #fff7d1;
+  box-shadow: none;
 }
 
 .randomAction {
@@ -233,7 +261,7 @@
 .presetSelect {
   flex: 0 0 auto !important;
   font-weight: bold;
-  min-height: unset;
+  min-height: 28px;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
@@ -249,6 +277,8 @@
   padding: 3px 8px;
   margin: 1px;
   font: inherit;
+  line-height: 1.1;
+  box-sizing: border-box;
   width: 27px;
 }
 
@@ -481,6 +511,44 @@
 .confirmBtn:focus-visible {
   outline: 1px dotted #000;
   outline-offset: -4px;
+}
+
+.randomCycleDialog {
+  min-width: 320px;
+}
+
+.randomCycleBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 8px;
+}
+
+.randomCycleField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.randomCycleLabel {
+  font-size: 12px;
+  color: black;
+}
+
+.randomCycleInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px inset #ccc;
+  padding: 5px;
+  font: inherit;
+  background: white;
+  color: black;
+}
+
+.randomCycleHint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #333;
 }
 
 .libraryBrowserFloat {

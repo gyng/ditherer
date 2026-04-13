@@ -5,6 +5,8 @@ import { filterList, grayscale, isMainThreadFilter } from "filters";
 import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
+import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
+import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getAudioVizMetricValueForMode, getGlobalAudioVizModulation, type EntryAudioModulation } from "utils/audioVizBridge";
 import { getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
@@ -12,12 +14,80 @@ import { FilterContext } from "./filterContextValue";
 import type { AnimatedVideoElement, ExportFrameOptions, FilterActions, FilterOptionValue } from "./filterContextValue";
 import { getAutoScale, roundScale } from "./autoScale";
 import { getShareHash, getShareUrl } from "./shareUrl";
-import { type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
+import { type SerializedAudioVizModulation, type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
 
 type SerializableOptions = Record<string, unknown>;
 type SerializedPaletteOption = { name?: string; options?: SerializableOptions };
 type SerializablePalette = SerializedPaletteOption & {
   getColor?: (...args: unknown[]) => unknown;
+};
+const serializeAudioModulation = (audioMod: EntryAudioModulation | null | undefined): SerializedAudioVizModulation | undefined => {
+  if (
+    !audioMod
+    || (
+      (!Array.isArray(audioMod.connections) || audioMod.connections.length === 0)
+      && (!Array.isArray(audioMod.normalizedMetrics) || audioMod.normalizedMetrics.length === 0)
+    )
+  ) {
+    return undefined;
+  }
+  return {
+    c: audioMod.connections.map((connection) => ({ k: connection.metric, o: connection.target, w: connection.weight })),
+    ...(audioMod.normalizedMetrics?.length ? { z: [...audioMod.normalizedMetrics] } : {}),
+  };
+};
+
+const applyAudioModulationToOptions = (
+  options: Record<string, unknown>,
+  optionTypes: NonNullable<ChainEntry["filter"]["optionTypes"]>,
+  audioMod: EntryAudioModulation,
+) => {
+  const nextOptions: Record<string, unknown> = { ...options };
+  const snapshot = getActiveAudioVizSnapshot();
+  const modulationByTarget = new Map<string, number>();
+  const normalizedMetrics = new Set(audioMod.normalizedMetrics ?? []);
+  for (const connection of audioMod.connections) {
+    const nextValue = (modulationByTarget.get(connection.target) ?? 0)
+      + getAudioVizMetricValueForMode(snapshot, connection.metric, snapshot.normalize || normalizedMetrics.has(connection.metric)) * connection.weight;
+    modulationByTarget.set(connection.target, nextValue);
+  }
+  for (const [optionName, modulationValue] of modulationByTarget) {
+    const optionType = optionTypes[optionName];
+    if (!optionType || optionType.type !== "RANGE" || !Array.isArray((optionType as { range?: number[] }).range)) {
+      continue;
+    }
+    const currentValue = Number(options[optionName]);
+    if (!Number.isFinite(currentValue)) continue;
+    const [min, max] = (optionType as { range: number[] }).range;
+    const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
+    const span = max - min;
+    const modulated = currentValue + modulationValue * span;
+    nextOptions[optionName] = step > 0 ? Math.round(modulated / step) * step : modulated;
+  }
+  return nextOptions;
+};
+
+const withAudioModulatedOptions = (entry: ChainEntry) => {
+  if (!entry.filter.optionTypes || !entry.filter.options) return entry.filter.options;
+  const snapshot = getActiveAudioVizSnapshot();
+  if (!snapshot.enabled || snapshot.status !== "live") return entry.filter.options;
+  let nextOptions: Record<string, unknown> = { ...entry.filter.options };
+  if (entry.audioMod) {
+    nextOptions = applyAudioModulationToOptions(
+      nextOptions,
+      entry.filter.optionTypes,
+      entry.audioMod,
+    );
+  }
+  const globalMod = getGlobalAudioVizModulation(getActiveAudioVizChannel());
+  if (globalMod) {
+    nextOptions = applyAudioModulationToOptions(
+      nextOptions,
+      entry.filter.optionTypes,
+      globalMod,
+    );
+  }
+  return nextOptions;
 };
 type FilterRunner = (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
 type AnimationParams = { inputCanvas: HTMLCanvasElement | null; fps: number };
@@ -32,6 +102,7 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
       convertGrayscale: state.convertGrayscale,
       linearize: state.linearize,
       wasmAcceleration: state.wasmAcceleration,
+      ...(state.randomCycleSeconds != null ? { r: state.randomCycleSeconds } : {}),
     };
     return v1State;
   }
@@ -71,6 +142,8 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
       result.o = cleaned;
     }
     if (!entry.enabled) result.e = false;
+    const audioMod = serializeAudioModulation(entry.audioMod);
+    if (audioMod) result.m = audioMod;
     return result;
   });
 
@@ -80,6 +153,7 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
     g: state.convertGrayscale,
     l: state.linearize,
     w: state.wasmAcceleration,
+    ...(state.randomCycleSeconds != null ? { r: state.randomCycleSeconds } : {}),
   };
   return v2State;
 };
@@ -163,12 +237,17 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.warn("Failed to sync state to URL hash:", e);
     }
-  }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration]);
+  }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration, state.randomCycleSeconds]);
+
+  useEffect(() => {
+    syncRandomCycleSeconds(state.randomCycleSeconds);
+  }, [state.randomCycleSeconds]);
 
   // Async action: load image from file
-  const loadImageAsync = useCallback((file: File) => new Promise<void>((resolve, reject) => {
+  const loadImageAsync = useCallback((file: File, options?: { preserveScale?: boolean }) => new Promise<void>((resolve, reject) => {
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
+    const loadStartedScale = stateRef.current.scale;
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
       reject(new Error("Failed to decode image"));
@@ -177,8 +256,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       URL.revokeObjectURL(objectUrl);
       resetProcessingState();
       dispatch({ type: "LOAD_IMAGE", image, time: null, frameToken: 0, video: null, dispatch });
-      const scale = roundScale(getAutoScale(image.width, image.height));
-      dispatch({ type: "SET_SCALE", scale });
+      if (!options?.preserveScale && Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
+        const scale = roundScale(getAutoScale(image.width, image.height));
+        dispatch({ type: "SET_SCALE", scale });
+      }
       resolve();
     };
     image.src = objectUrl;
@@ -189,7 +270,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     volume = 1,
     playbackRate = 1,
     perfMeta: Record<string, string> = {},
-    objectUrlForCleanup?: string
+    objectUrlForCleanup?: string,
+    options?: { preserveScale?: boolean }
   ) => new Promise<void>((resolve, reject) => {
     resetProcessingState();
     const loadStartedScale = stateRef.current.scale;
@@ -263,7 +345,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      if (Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
+      if (!options?.preserveScale && Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
         const scale = roundScale(getAutoScale(video.videoWidth, video.videoHeight));
         dispatch({ type: "SET_SCALE", scale });
       }
@@ -316,7 +398,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   }), [resetProcessingState]);
 
   // Async action: load video from file
-  const loadVideoAsync = useCallback((file: File, volume = 1, playbackRate = 1) => {
+  const loadVideoAsync = useCallback((file: File, volume = 1, playbackRate = 1, options?: { preserveScale?: boolean }) => {
     const objectUrl = URL.createObjectURL(file);
     return loadVideoSourceAsync(
       objectUrl,
@@ -327,26 +409,29 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         sizeMiB: (file.size / (1024 * 1024)).toFixed(2),
         type: file.type || "unknown",
       },
-      objectUrl
+      objectUrl,
+      options
     );
   }, [loadVideoSourceAsync]);
 
   // Async action: load video directly from URL (used for local test assets)
-  const loadVideoFromUrlAsync = useCallback((src: string, volume = 1, playbackRate = 1) =>
+  const loadVideoFromUrlAsync = useCallback((src: string, volume = 1, playbackRate = 1, options?: { preserveScale?: boolean }) =>
     loadVideoSourceAsync(
       src,
       volume,
       playbackRate,
-      { src, type: "url" }
+      { src, type: "url" },
+      undefined,
+      options
     ),
   [loadVideoSourceAsync]);
 
   // Async action: load media (routes to image or video)
-  const loadMediaAsync = useCallback((file: File, volume = 1, playbackRate = 1) => {
+  const loadMediaAsync = useCallback((file: File, volume = 1, playbackRate = 1, options?: { preserveScale?: boolean }) => {
     if (file.type.startsWith("video/")) {
-      return loadVideoAsync(file, volume, playbackRate);
+      return loadVideoAsync(file, volume, playbackRate, options);
     } else {
-      return loadImageAsync(file);
+      return loadImageAsync(file, options);
     }
   }, [loadImageAsync, loadVideoAsync]);
 
@@ -407,7 +492,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const filterOpts: Record<string, unknown> & { palette?: SerializablePalette } = {
-        ...entry.filter.options,
+        ...withAudioModulatedOptions(entry),
         _chainIndex: i,
         _linearize: curState.linearize,
         _wasmAcceleration: curState.wasmAcceleration,
@@ -563,7 +648,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         id: e.id,
         filterName: e.filter.name,
         displayName: e.displayName,
-        options: serializeOptions(e.filter.options),
+        options: serializeOptions(withAudioModulatedOptions(e)),
       }));
 
       const serializedPrevOutputs: Record<string, ArrayBuffer> = {};
@@ -912,6 +997,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: "SET_LINEARIZE", value }),
     setWasmAcceleration: (value: boolean) =>
       dispatch({ type: "SET_WASM_ACCELERATION", value }),
+    setRandomCycleSeconds: (seconds: number | null) =>
+      dispatch({ type: "SET_RANDOM_CYCLE_SECONDS", seconds }),
     setScale: (scale: number) =>
       dispatch({ type: "SET_SCALE", scale }),
     setOutputScale: (scale: number) =>
@@ -1035,6 +1122,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     chainDuplicate: (id: string) => {
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_DUPLICATE", id });
+    },
+    setChainAudioModulation: (id: string, modulation: EntryAudioModulation | null) => {
+      clearMotionVectorsState();
+      cachedOutputsRef.current.delete(id);
+      dispatch({ type: "SET_CHAIN_AUDIO_MODULATION", id, modulation });
     },
     copyChainToClipboard: () => {
       try {

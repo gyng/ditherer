@@ -239,6 +239,7 @@ button:focus-visible,
   color: white;
   font-weight: bold;
   user-select: none;
+  -webkit-user-select: none;
   margin: 1px 2px;
   cursor: move;
 }
@@ -248,6 +249,9 @@ button:focus-visible,
   border-top: 2px outset var(--button-highlight);
   border-bottom: 1px outset var(--button-shadow);
   border-right: 1px outset var(--button-shadow);
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
 }
 
 .clickable {
