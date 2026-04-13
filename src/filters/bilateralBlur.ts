@@ -22,6 +22,8 @@ export const defaults = {
 };
 
 const MAX_COLOR_DISTANCE_SQ = 3 * 255 * 255;
+const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
+const readKernel = (buf: Float32Array, index: number) => buf[index] ?? 0;
 const spatialKernelCache = new Map<string, { radius: number; kernel: Float32Array }>();
 const spatialLineKernelCache = new Map<string, { radius: number; kernel: Float32Array }>();
 const rangeKernelCache = new Map<number, Float32Array>();
@@ -95,9 +97,9 @@ const runFullBilateral = (
     const rowOffset = y * width * 4;
     for (let x = 0; x < width; x += 1) {
       const ci = rowOffset + x * 4;
-      const cr = buf[ci];
-      const cg = buf[ci + 1];
-      const cb = buf[ci + 2];
+      const cr = readU8(buf, ci);
+      const cg = readU8(buf, ci + 1);
+      const cb = readU8(buf, ci + 2);
       let sr = 0;
       let sg = 0;
       let sb = 0;
@@ -111,20 +113,20 @@ const runFullBilateral = (
         for (let kx = -radius; kx <= radius; kx += 1) {
           const nx = Math.max(0, Math.min(width - 1, x + kx));
           const ni = neighborRowOffset + nx * 4;
-          const nr = buf[ni];
-          const ng = buf[ni + 1];
-          const nb = buf[ni + 2];
+          const nr = readU8(buf, ni);
+          const ng = readU8(buf, ni + 1);
+          const nb = readU8(buf, ni + 2);
           const dr = cr - nr;
           const dg = cg - ng;
           const db = cb - nb;
           const distanceSq = dr * dr + dg * dg + db * db;
-          const weight = spatialKernel[kernelIndex] * rangeKernel[distanceSq];
+          const weight = readKernel(spatialKernel, kernelIndex) * readKernel(rangeKernel, distanceSq);
           kernelIndex += 1;
 
           sr += nr * weight;
           sg += ng * weight;
           sb += nb * weight;
-          sa += buf[ni + 3] * weight;
+          sa += readU8(buf, ni + 3) * weight;
           sw += weight;
         }
       }
@@ -154,9 +156,9 @@ const runSeparableBilateral = (
     const rowOffset = y * width * 4;
     for (let x = 0; x < width; x += 1) {
       const ci = rowOffset + x * 4;
-      const cr = buf[ci];
-      const cg = buf[ci + 1];
-      const cb = buf[ci + 2];
+      const cr = readU8(buf, ci);
+      const cg = readU8(buf, ci + 1);
+      const cb = readU8(buf, ci + 2);
       let sr = 0;
       let sg = 0;
       let sb = 0;
@@ -166,17 +168,17 @@ const runSeparableBilateral = (
       for (let k = -radius; k <= radius; k += 1) {
         const nx = Math.max(0, Math.min(width - 1, x + k));
         const ni = rowOffset + nx * 4;
-        const nr = buf[ni];
-        const ng = buf[ni + 1];
-        const nb = buf[ni + 2];
+        const nr = readU8(buf, ni);
+        const ng = readU8(buf, ni + 1);
+        const nb = readU8(buf, ni + 2);
         const dr = cr - nr;
         const dg = cg - ng;
         const db = cb - nb;
-        const weight = spatialLineKernel[k + radius] * rangeKernel[dr * dr + dg * dg + db * db];
+        const weight = readKernel(spatialLineKernel, k + radius) * readKernel(rangeKernel, dr * dr + dg * dg + db * db);
         sr += nr * weight;
         sg += ng * weight;
         sb += nb * weight;
-        sa += buf[ni + 3] * weight;
+        sa += readU8(buf, ni + 3) * weight;
         sw += weight;
       }
 
@@ -191,9 +193,9 @@ const runSeparableBilateral = (
     const rowOffset = y * width * 4;
     for (let x = 0; x < width; x += 1) {
       const ci = rowOffset + x * 4;
-      const cr = tempBuf[ci];
-      const cg = tempBuf[ci + 1];
-      const cb = tempBuf[ci + 2];
+      const cr = readU8(tempBuf, ci);
+      const cg = readU8(tempBuf, ci + 1);
+      const cb = readU8(tempBuf, ci + 2);
       let sr = 0;
       let sg = 0;
       let sb = 0;
@@ -203,17 +205,17 @@ const runSeparableBilateral = (
       for (let k = -radius; k <= radius; k += 1) {
         const ny = Math.max(0, Math.min(height - 1, y + k));
         const ni = (ny * width + x) * 4;
-        const nr = tempBuf[ni];
-        const ng = tempBuf[ni + 1];
-        const nb = tempBuf[ni + 2];
+        const nr = readU8(tempBuf, ni);
+        const ng = readU8(tempBuf, ni + 1);
+        const nb = readU8(tempBuf, ni + 2);
         const dr = cr - nr;
         const dg = cg - ng;
         const db = cb - nb;
-        const weight = spatialLineKernel[k + radius] * rangeKernel[dr * dr + dg * dg + db * db];
+        const weight = readKernel(spatialLineKernel, k + radius) * readKernel(rangeKernel, dr * dr + dg * dg + db * db);
         sr += nr * weight;
         sg += ng * weight;
         sb += nb * weight;
-        sa += tempBuf[ni + 3] * weight;
+        sa += readU8(tempBuf, ni + 3) * weight;
         sw += weight;
       }
 
@@ -248,10 +250,10 @@ const downsampleBuffer = (buf: Uint8ClampedArray, width: number, height: number,
         const rowOffset = sy * width * 4;
         for (let sx = srcX0; sx < srcX1; sx += 1) {
           const i = rowOffset + sx * 4;
-          sr += buf[i];
-          sg += buf[i + 1];
-          sb += buf[i + 2];
-          sa += buf[i + 3];
+          sr += readU8(buf, i);
+          sg += readU8(buf, i + 1);
+          sb += readU8(buf, i + 2);
+          sa += readU8(buf, i + 3);
           count += 1;
         }
       }
@@ -293,8 +295,8 @@ const upscaleBuffer = (buf: Uint8ClampedArray, width: number, height: number, ou
       const oi = (y * outWidth + x) * 4;
 
       for (let c = 0; c < 4; c += 1) {
-        const top = buf[i00 + c] * (1 - fx) + buf[i10 + c] * fx;
-        const bottom = buf[i01 + c] * (1 - fx) + buf[i11 + c] * fx;
+        const top = readU8(buf, i00 + c) * (1 - fx) + readU8(buf, i10 + c) * fx;
+        const bottom = readU8(buf, i01 + c) * (1 - fx) + readU8(buf, i11 + c) * fx;
         outBuf[oi + c] = Math.round(top * (1 - fy) + bottom * fy);
       }
     }
@@ -333,16 +335,16 @@ const bilateralBlur = (input: any, options = defaults) => {
   const outBuf = new Uint8ClampedArray(scaledBuf.length);
 
   for (let i = 0; i < scaledBuf.length; i += 4) {
-    const alpha = scaledBuf[i + 3];
+    const alpha = readU8(scaledBuf, i + 3);
     const color = paletteGetColor(palette, [
-      scaledBuf[i],
-      scaledBuf[i + 1],
-      scaledBuf[i + 2],
+      readU8(scaledBuf, i),
+      readU8(scaledBuf, i + 1),
+      readU8(scaledBuf, i + 2),
       alpha
     ], palette.options, false);
-    outBuf[i] = color[0];
-    outBuf[i + 1] = color[1];
-    outBuf[i + 2] = color[2];
+    outBuf[i] = color[0] ?? 0;
+    outBuf[i + 1] = color[1] ?? 0;
+    outBuf[i + 2] = color[2] ?? 0;
     outBuf[i + 3] = alpha;
   }
 

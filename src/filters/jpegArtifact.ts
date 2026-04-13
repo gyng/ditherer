@@ -10,6 +10,10 @@ import {
 
 const BLOCK = 8;
 const INV_SQRT2 = 1 / Math.sqrt(2);
+const readF32 = (buf: Float32Array, index: number) => buf[index] ?? 0;
+const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
+const readQ = (table: number[], index: number) => table[index] ?? 1;
+const readDct = (index: number) => DCT_C[index] ?? 0;
 
 const LUMA_Q = [
   16, 11, 10, 16, 24, 40, 51, 61,
@@ -65,14 +69,14 @@ const forwardDct8 = (input: Float32Array, out: Float32Array, tmp: Float32Array) 
     for (let u = 0; u < BLOCK; u++) {
       const ui = u * BLOCK;
       tmp[yi + u] =
-        input[yi] * DCT_C[ui] +
-        input[yi + 1] * DCT_C[ui + 1] +
-        input[yi + 2] * DCT_C[ui + 2] +
-        input[yi + 3] * DCT_C[ui + 3] +
-        input[yi + 4] * DCT_C[ui + 4] +
-        input[yi + 5] * DCT_C[ui + 5] +
-        input[yi + 6] * DCT_C[ui + 6] +
-        input[yi + 7] * DCT_C[ui + 7];
+        readF32(input, yi) * readDct(ui) +
+        readF32(input, yi + 1) * readDct(ui + 1) +
+        readF32(input, yi + 2) * readDct(ui + 2) +
+        readF32(input, yi + 3) * readDct(ui + 3) +
+        readF32(input, yi + 4) * readDct(ui + 4) +
+        readF32(input, yi + 5) * readDct(ui + 5) +
+        readF32(input, yi + 6) * readDct(ui + 6) +
+        readF32(input, yi + 7) * readDct(ui + 7);
     }
   }
 
@@ -80,14 +84,14 @@ const forwardDct8 = (input: Float32Array, out: Float32Array, tmp: Float32Array) 
     const vi = v * BLOCK;
     for (let u = 0; u < BLOCK; u++) {
       out[vi + u] =
-        DCT_C[vi] * tmp[u] +
-        DCT_C[vi + 1] * tmp[BLOCK + u] +
-        DCT_C[vi + 2] * tmp[BLOCK * 2 + u] +
-        DCT_C[vi + 3] * tmp[BLOCK * 3 + u] +
-        DCT_C[vi + 4] * tmp[BLOCK * 4 + u] +
-        DCT_C[vi + 5] * tmp[BLOCK * 5 + u] +
-        DCT_C[vi + 6] * tmp[BLOCK * 6 + u] +
-        DCT_C[vi + 7] * tmp[BLOCK * 7 + u];
+        readDct(vi) * readF32(tmp, u) +
+        readDct(vi + 1) * readF32(tmp, BLOCK + u) +
+        readDct(vi + 2) * readF32(tmp, BLOCK * 2 + u) +
+        readDct(vi + 3) * readF32(tmp, BLOCK * 3 + u) +
+        readDct(vi + 4) * readF32(tmp, BLOCK * 4 + u) +
+        readDct(vi + 5) * readF32(tmp, BLOCK * 5 + u) +
+        readDct(vi + 6) * readF32(tmp, BLOCK * 6 + u) +
+        readDct(vi + 7) * readF32(tmp, BLOCK * 7 + u);
     }
   }
 };
@@ -97,14 +101,14 @@ const inverseDct8 = (coeff: Float32Array, out: Float32Array, tmp: Float32Array) 
     const yi = y * BLOCK;
     for (let u = 0; u < BLOCK; u++) {
       tmp[yi + u] =
-        DCT_C[y] * coeff[u] +
-        DCT_C[BLOCK + y] * coeff[BLOCK + u] +
-        DCT_C[BLOCK * 2 + y] * coeff[BLOCK * 2 + u] +
-        DCT_C[BLOCK * 3 + y] * coeff[BLOCK * 3 + u] +
-        DCT_C[BLOCK * 4 + y] * coeff[BLOCK * 4 + u] +
-        DCT_C[BLOCK * 5 + y] * coeff[BLOCK * 5 + u] +
-        DCT_C[BLOCK * 6 + y] * coeff[BLOCK * 6 + u] +
-        DCT_C[BLOCK * 7 + y] * coeff[BLOCK * 7 + u];
+        readDct(y) * readF32(coeff, u) +
+        readDct(BLOCK + y) * readF32(coeff, BLOCK + u) +
+        readDct(BLOCK * 2 + y) * readF32(coeff, BLOCK * 2 + u) +
+        readDct(BLOCK * 3 + y) * readF32(coeff, BLOCK * 3 + u) +
+        readDct(BLOCK * 4 + y) * readF32(coeff, BLOCK * 4 + u) +
+        readDct(BLOCK * 5 + y) * readF32(coeff, BLOCK * 5 + u) +
+        readDct(BLOCK * 6 + y) * readF32(coeff, BLOCK * 6 + u) +
+        readDct(BLOCK * 7 + y) * readF32(coeff, BLOCK * 7 + u);
     }
   }
 
@@ -112,14 +116,14 @@ const inverseDct8 = (coeff: Float32Array, out: Float32Array, tmp: Float32Array) 
     const yi = y * BLOCK;
     for (let x = 0; x < BLOCK; x++) {
       out[yi + x] =
-        tmp[yi] * DCT_C[x] +
-        tmp[yi + 1] * DCT_C[BLOCK + x] +
-        tmp[yi + 2] * DCT_C[BLOCK * 2 + x] +
-        tmp[yi + 3] * DCT_C[BLOCK * 3 + x] +
-        tmp[yi + 4] * DCT_C[BLOCK * 4 + x] +
-        tmp[yi + 5] * DCT_C[BLOCK * 5 + x] +
-        tmp[yi + 6] * DCT_C[BLOCK * 6 + x] +
-        tmp[yi + 7] * DCT_C[BLOCK * 7 + x];
+        readF32(tmp, yi) * readDct(x) +
+        readF32(tmp, yi + 1) * readDct(BLOCK + x) +
+        readF32(tmp, yi + 2) * readDct(BLOCK * 2 + x) +
+        readF32(tmp, yi + 3) * readDct(BLOCK * 3 + x) +
+        readF32(tmp, yi + 4) * readDct(BLOCK * 4 + x) +
+        readF32(tmp, yi + 5) * readDct(BLOCK * 5 + x) +
+        readF32(tmp, yi + 6) * readDct(BLOCK * 6 + x) +
+        readF32(tmp, yi + 7) * readDct(BLOCK * 7 + x);
     }
   }
 };
@@ -143,7 +147,7 @@ const downsampleChroma = (
       for (let x = 0; x < dw; x++) {
         const sx = x * 2;
         const sx1 = Math.min(w - 1, sx + 1);
-        out[dRow + x] = (src[sRow + sx] + src[sRow + sx1]) * 0.5;
+        out[dRow + x] = (readF32(src, sRow + sx) + readF32(src, sRow + sx1)) * 0.5;
       }
     }
     return { plane: out, w: dw, h };
@@ -158,10 +162,10 @@ const downsampleChroma = (
     for (let x = 0; x < dw; x++) {
       const sx = x * 2;
       const sx1 = Math.min(w - 1, sx + 1);
-      const a = src[sy * w + sx];
-      const b = src[sy * w + sx1];
-      const c = src[sy1 * w + sx];
-      const d = src[sy1 * w + sx1];
+      const a = readF32(src, sy * w + sx);
+      const b = readF32(src, sy * w + sx1);
+      const c = readF32(src, sy1 * w + sx);
+      const d = readF32(src, sy1 * w + sx1);
       out[y * dw + x] = (a + b + c + d) * 0.25;
     }
   }
@@ -187,7 +191,7 @@ const upsampleChroma = (
       const sRow = Math.min(sh - 1, y) * sw;
       const dRow = y * dw;
       for (let x = 0; x < dw; x++) {
-        out[dRow + x] = src[sRow + Math.min(sw - 1, x >> 1)];
+        out[dRow + x] = readF32(src, sRow + Math.min(sw - 1, x >> 1));
       }
     }
     return out;
@@ -198,7 +202,7 @@ const upsampleChroma = (
     const sRow = sy * sw;
     const dRow = y * dw;
     for (let x = 0; x < dw; x++) {
-      out[dRow + x] = src[sRow + Math.min(sw - 1, x >> 1)];
+      out[dRow + x] = readF32(src, sRow + Math.min(sw - 1, x >> 1));
     }
   }
   return out;
@@ -213,8 +217,8 @@ const deblockPlane = (plane: Float32Array, w: number, h: number, strength: numbe
     for (let y = 0; y < h; y++) {
       const left = y * w + x - 1;
       const right = y * w + x;
-      const a = plane[left];
-      const b = plane[right];
+      const a = readF32(plane, left);
+      const b = readF32(plane, right);
       if (Math.abs(a - b) < 48) {
         const mid = (a + b) * 0.5;
         plane[left] = a + (mid - a) * blend;
@@ -227,8 +231,8 @@ const deblockPlane = (plane: Float32Array, w: number, h: number, strength: numbe
     for (let x = 0; x < w; x++) {
       const top = (y - 1) * w + x;
       const bot = y * w + x;
-      const a = plane[top];
-      const b = plane[bot];
+      const a = readF32(plane, top);
+      const b = readF32(plane, bot);
       if (Math.abs(a - b) < 48) {
         const mid = (a + b) * 0.5;
         plane[top] = a + (mid - a) * blend;
@@ -246,8 +250,9 @@ const addRinging = (yPlane: Float32Array, w: number, h: number, amount: number) 
     const row = y * w;
     for (let x = 1; x < w - 1; x++) {
       const i = row + x;
-      const lap = src[i - 1] + src[i + 1] + src[i - w] + src[i + w] - 4 * src[i];
-      yPlane[i] = clamp(src[i] + lap * gain, 0, 255);
+      const center = readF32(src, i);
+      const lap = readF32(src, i - 1) + readF32(src, i + 1) + readF32(src, i - w) + readF32(src, i + w) - 4 * center;
+      yPlane[i] = clamp(center + lap * gain, 0, 255);
     }
   }
 };
@@ -268,12 +273,13 @@ const addMosquito = (
     const row = y * w;
     for (let x = 1; x < w - 1; x++) {
       const i = row + x;
-      const g = Math.abs(ySrc[i] - ySrc[i + 1]) + Math.abs(ySrc[i] - ySrc[i + w]);
+      const y0 = readF32(ySrc, i);
+      const g = Math.abs(y0 - readF32(ySrc, i + 1)) + Math.abs(y0 - readF32(ySrc, i + w));
       if (g > 30) {
         const n = (rng() - 0.5) * amp;
-        yPlane[i] = clamp(yPlane[i] + n, 0, 255);
-        cbPlane[i] = clamp(cbPlane[i] + n * 0.8, 0, 255);
-        crPlane[i] = clamp(crPlane[i] - n * 0.6, 0, 255);
+        yPlane[i] = clamp(readF32(yPlane, i) + n, 0, 255);
+        cbPlane[i] = clamp(readF32(cbPlane, i) + n * 0.8, 0, 255);
+        crPlane[i] = clamp(readF32(crPlane, i) - n * 0.6, 0, 255);
       }
     }
   }
@@ -321,17 +327,17 @@ const processPlane = (
         const bRow = y * BLOCK;
         for (let x = 0; x < BLOCK; x++) {
           const sx = Math.min(w - 1, bx + x);
-          blockIn[bRow + x] = src[sRow + sx] - 128;
+          blockIn[bRow + x] = readF32(src, sRow + sx) - 128;
         }
       }
 
       forwardDct8(blockIn, coeff, tmp);
 
       for (let i = 0; i < coeff.length; i++) {
-        const highFreqPenalty = i > 10 && burst > 1 ? 1 + (burst - 1) * 0.3 : 1;
-        const q = Math.max(1, qTable[i] * qScale * burst * jitter * highFreqPenalty);
-        coeff[i] = Math.round(coeff[i] / q) * q;
-        if (i > 14 && burst > 3 && rng() < 0.15) coeff[i] = 0;
+        const highFreqPenalty = i > 10 && (burst ?? 0) > 1 ? 1 + ((burst ?? 0) - 1) * 0.3 : 1;
+        const q = Math.max(1, readQ(qTable, i) * qScale * (burst ?? 1) * (jitter ?? 1) * highFreqPenalty);
+        coeff[i] = Math.round(readF32(coeff, i) / q) * q;
+        if (i > 14 && (burst ?? 0) > 3 && rng() < 0.15) coeff[i] = 0;
       }
 
       inverseDct8(coeff, blockOut, tmp);
@@ -344,7 +350,7 @@ const processPlane = (
         for (let x = 0; x < BLOCK; x++) {
           const dx = bx + x;
           if (dx >= w) break;
-          dst[dRow + dx] = clamp(blockOut[bRow + x] + 128, 0, 255);
+          dst[dRow + dx] = clamp(readF32(blockOut, bRow + x) + 128, 0, 255);
         }
       }
     }
@@ -546,17 +552,17 @@ export const applyJpegArtifactToCanvas = (
   const outBuf = new Uint8ClampedArray(src.length);
 
   for (let p = 0, i = 0; p < yOut.length; p++, i += 4) {
-    const y = yOut[p];
-    const cb = cbOut[p] - 128;
-    const cr = crOut[p] - 128;
+    const y = readF32(yOut, p);
+    const cb = readF32(cbOut, p) - 128;
+    const cr = readF32(crOut, p) - 128;
 
     const r = clamp(y + 1.402 * cr, 0, 255);
     const g = clamp(y - 0.344136 * cb - 0.714136 * cr, 0, 255);
     const b = clamp(y + 1.772 * cb, 0, 255);
 
-    const a = preserveAlpha ? src[i + 3] : 255;
+    const a = preserveAlpha ? readU8(src, i + 3) : 255;
     const color = paletteGetColor(safePalette, rgba(r, g, b, a), safePalette.options, false);
-    fillBufferPixel(outBuf, i, color[0], color[1], color[2], a);
+    fillBufferPixel(outBuf, i, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, a);
   }
 
   if (temporalHold > 0 && prevOutput && prevOutput.length === outBuf.length) {
@@ -571,10 +577,10 @@ export const applyJpegArtifactToCanvas = (
           for (let y = by; y < yEnd; y++) {
             let idx = (y * w + bx) * 4;
             for (let x = bx; x < xEnd; x++, idx += 4) {
-              outBuf[idx] = prevOutput[idx];
-              outBuf[idx + 1] = prevOutput[idx + 1];
-              outBuf[idx + 2] = prevOutput[idx + 2];
-              if (preserveAlpha) outBuf[idx + 3] = prevOutput[idx + 3];
+              outBuf[idx] = readU8(prevOutput, idx);
+              outBuf[idx + 1] = readU8(prevOutput, idx + 1);
+              outBuf[idx + 2] = readU8(prevOutput, idx + 2);
+              if (preserveAlpha) outBuf[idx + 3] = readU8(prevOutput, idx + 3);
             }
           }
         }

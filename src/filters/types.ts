@@ -15,11 +15,15 @@ export type FilterOptionValues = Record<string, unknown>;
 
 export type FilterCanvas = HTMLCanvasElement | OffscreenCanvas;
 
-export type FilterFunction<TOptions extends FilterOptionValues = FilterOptionValues> = (
-  input: FilterCanvas,
-  options?: TOptions,
-  dispatch?: unknown,
-) => FilterCanvas;
+type BivariantCallback<TArgs extends unknown[], TResult> = {
+  bivarianceHack(...args: TArgs): TResult;
+}["bivarianceHack"];
+
+export type FilterFunction<TOptions extends FilterOptionValues = FilterOptionValues> =
+  BivariantCallback<
+    [input: FilterCanvas, options?: TOptions, dispatch?: unknown],
+    FilterCanvas
+  >;
 
 type FilterControlType =
   | typeof ACTION
@@ -54,7 +58,7 @@ interface BaseOptionDefinition<
   default?: TDefault;
   label?: string;
   desc?: string;
-  visibleWhen?: (options: TOptions) => boolean;
+  visibleWhen?: BivariantCallback<[options: TOptions], boolean>;
 }
 
 export interface RangeOptionDefinition<
@@ -94,12 +98,15 @@ export interface EnumOptionDefinition<
 export interface ActionOptionDefinition<
   TOptions extends FilterOptionValues = FilterOptionValues,
 > extends BaseOptionDefinition<TOptions, never> {
-  action: (
-    actions: unknown,
-    inputCanvas: FilterCanvas | null,
-    filterFunc?: FilterFunction<TOptions>,
-    options?: TOptions,
-  ) => void;
+  action: BivariantCallback<
+    [
+      actions: unknown,
+      inputCanvas: FilterCanvas | null,
+      filterFunc?: FilterFunction<TOptions>,
+      options?: TOptions,
+    ],
+    void
+  >;
 }
 
 export type FilterOptionDefinition<TOptions extends FilterOptionValues = FilterOptionValues> =

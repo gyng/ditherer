@@ -47,6 +47,9 @@ const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 const clampCoord = (min: number, max: number, value: number) => Math.max(min, Math.min(max, value));
+const readChannel = (buf: Uint8ClampedArray | Float32Array, index: number) => buf[index] ?? 0;
+const getMotionVector = (vectors: MotionVector[], index: number): MotionVector =>
+  vectors[index] ?? { dx: 0, dy: 0, magnitude: 0, motionStrength: 0, confidence: 0, error: 1 };
 
 export const prepareMotionAnalysisBuffers = (
   current: Uint8ClampedArray,
@@ -73,22 +76,28 @@ export const prepareMotionAnalysisBuffers = (
   const isLightnessMode = mode === MOTION_SOURCE.LIGHTNESS;
 
   for (let i = 0, p = 0; i < current.length; i += 4, p += 1) {
+    const curRByte = current[i] ?? 0;
+    const curGByte = current[i + 1] ?? 0;
+    const curBByte = current[i + 2] ?? 0;
+    const prevRByte = previous[i] ?? 0;
+    const prevGByte = previous[i + 1] ?? 0;
+    const prevBByte = previous[i + 2] ?? 0;
     if (mode === MOTION_SOURCE.RED) {
-      currentScalar[p] = current[i];
-      previousScalar[p] = previous[i];
+      currentScalar[p] = curRByte;
+      previousScalar[p] = prevRByte;
     } else if (mode === MOTION_SOURCE.GREEN) {
-      currentScalar[p] = current[i + 1];
-      previousScalar[p] = previous[i + 1];
+      currentScalar[p] = curGByte;
+      previousScalar[p] = prevGByte;
     } else if (mode === MOTION_SOURCE.BLUE) {
-      currentScalar[p] = current[i + 2];
-      previousScalar[p] = previous[i + 2];
+      currentScalar[p] = curBByte;
+      previousScalar[p] = prevBByte;
     } else if (isHueMode || isHsvSaturationMode || isValueMode || isHslSaturationMode || isLightnessMode) {
-      const curR = current[i] / 255;
-      const curG = current[i + 1] / 255;
-      const curB = current[i + 2] / 255;
-      const prevR = previous[i] / 255;
-      const prevG = previous[i + 1] / 255;
-      const prevB = previous[i + 2] / 255;
+      const curR = curRByte / 255;
+      const curG = curGByte / 255;
+      const curB = curBByte / 255;
+      const prevR = prevRByte / 255;
+      const prevG = prevGByte / 255;
+      const prevB = prevBByte / 255;
 
       const curMax = Math.max(curR, curG, curB);
       const curMin = Math.min(curR, curG, curB);
@@ -135,8 +144,8 @@ export const prepareMotionAnalysisBuffers = (
         previousScalar[p] = ((prevMax + prevMin) * 0.5) * 255;
       }
     } else {
-      currentScalar[p] = current[i] * 0.2126 + current[i + 1] * 0.7152 + current[i + 2] * 0.0722;
-      previousScalar[p] = previous[i] * 0.2126 + previous[i + 1] * 0.7152 + previous[i + 2] * 0.0722;
+      currentScalar[p] = curRByte * 0.2126 + curGByte * 0.7152 + curBByte * 0.0722;
+      previousScalar[p] = prevRByte * 0.2126 + prevGByte * 0.7152 + prevBByte * 0.0722;
     }
   }
 
@@ -327,29 +336,29 @@ export const averageBlockError = (
 
       if (mode === MOTION_SOURCE.RGB) {
         const sampleIndex = getBufferIndex(sampleX, sampleY, width);
-        error += Math.abs(current[i] - previous[sampleIndex]);
-        error += Math.abs(current[i + 1] - previous[sampleIndex + 1]);
-        error += Math.abs(current[i + 2] - previous[sampleIndex + 2]);
+        error += Math.abs(readChannel(current, i) - readChannel(previous, sampleIndex));
+        error += Math.abs(readChannel(current, i + 1) - readChannel(previous, sampleIndex + 1));
+        error += Math.abs(readChannel(current, i + 2) - readChannel(previous, sampleIndex + 2));
         count += 3;
       } else {
         const scalarIndex = rowOffset + x;
         const sampleScalarIndex = sampleRowOffset + sampleX;
         const sampleIndex = getBufferIndex(sampleX, sampleY, width);
-        const currentValue = currentScalar ? currentScalar[scalarIndex] : (
-          mode === MOTION_SOURCE.RED ? current[i]
-            : mode === MOTION_SOURCE.GREEN ? current[i + 1]
-            : mode === MOTION_SOURCE.BLUE ? current[i + 2]
-            : current[i] * 0.2126 + current[i + 1] * 0.7152 + current[i + 2] * 0.0722
+        const currentValue = currentScalar ? (currentScalar[scalarIndex] ?? 0) : (
+          mode === MOTION_SOURCE.RED ? readChannel(current, i)
+            : mode === MOTION_SOURCE.GREEN ? readChannel(current, i + 1)
+            : mode === MOTION_SOURCE.BLUE ? readChannel(current, i + 2)
+            : readChannel(current, i) * 0.2126 + readChannel(current, i + 1) * 0.7152 + readChannel(current, i + 2) * 0.0722
         );
 
         const prevValue = previousScalar
-          ? previousScalar[sampleScalarIndex]
-          : mode === MOTION_SOURCE.RED ? previous[sampleIndex]
-            : mode === MOTION_SOURCE.GREEN ? previous[sampleIndex + 1]
-            : mode === MOTION_SOURCE.BLUE ? previous[sampleIndex + 2]
-            : previous[sampleIndex] * 0.2126
-              + previous[sampleIndex + 1] * 0.7152
-              + previous[sampleIndex + 2] * 0.0722;
+          ? (previousScalar[sampleScalarIndex] ?? 0)
+          : mode === MOTION_SOURCE.RED ? readChannel(previous, sampleIndex)
+            : mode === MOTION_SOURCE.GREEN ? readChannel(previous, sampleIndex + 1)
+            : mode === MOTION_SOURCE.BLUE ? readChannel(previous, sampleIndex + 2)
+            : readChannel(previous, sampleIndex) * 0.2126
+              + readChannel(previous, sampleIndex + 1) * 0.7152
+              + readChannel(previous, sampleIndex + 2) * 0.0722;
         const diff = Math.abs(currentValue - prevValue);
         error += circularRange > 0 ? Math.min(diff, circularRange - diff) : diff;
         count += 1;
@@ -448,7 +457,7 @@ export const blurVectorGrid = (
         for (let ox = -1; ox <= 1; ox += 1) {
           const nx = x + ox;
           if (nx < 0 || nx >= cols) continue;
-          const neighbor = vectors[ny * cols + nx];
+          const neighbor = getMotionVector(vectors, ny * cols + nx);
           const weight = ox === 0 && oy === 0 ? 2 : 1;
           sumDx += neighbor.dx * weight;
           sumDy += neighbor.dy * weight;
@@ -458,7 +467,7 @@ export const blurVectorGrid = (
         }
       }
 
-      const current = vectors[y * cols + x];
+      const current = getMotionVector(vectors, y * cols + x);
       const avgDx = sumDx / weightSum;
       const avgDy = sumDy / weightSum;
       const blendedDx = current.dx * (1 - amount) + avgDx * amount;
@@ -490,8 +499,8 @@ export const blendVectorFields = (
 
   const out = new Array<MotionVector>(current.length);
   for (let i = 0; i < current.length; i += 1) {
-    const cur = current[i];
-    const prev = previous[i];
+    const cur = getMotionVector(current, i);
+    const prev = getMotionVector(previous, i);
     const dx = cur.dx * (1 - amount) + prev.dx * amount;
     const dy = cur.dy * (1 - amount) + prev.dy * amount;
     const magnitude = Math.sqrt(dx * dx + dy * dy);
@@ -511,10 +520,11 @@ export const encodeVectorState = (vectors: MotionVector[]) => {
   const out = new Float32Array(vectors.length * 4);
   for (let i = 0; i < vectors.length; i += 1) {
     const base = i * 4;
-    out[base] = vectors[i].dx;
-    out[base + 1] = vectors[i].dy;
-    out[base + 2] = vectors[i].confidence;
-    out[base + 3] = vectors[i].motionStrength;
+    const vector = getMotionVector(vectors, i);
+    out[base] = vector.dx;
+    out[base + 1] = vector.dy;
+    out[base + 2] = vector.confidence;
+    out[base + 3] = vector.motionStrength;
   }
   return out;
 };
@@ -522,18 +532,19 @@ export const encodeVectorState = (vectors: MotionVector[]) => {
 export const encodeVectorStateGroups = (vectorGroups: MotionVector[][]) => {
   let totalLength = 0;
   for (let i = 0; i < vectorGroups.length; i += 1) {
-    totalLength += vectorGroups[i].length;
+    totalLength += vectorGroups[i]?.length ?? 0;
   }
 
   const out = new Float32Array(totalLength * 4);
   let cursor = 0;
   for (let groupIndex = 0; groupIndex < vectorGroups.length; groupIndex += 1) {
-    const vectors = vectorGroups[groupIndex];
+    const vectors = vectorGroups[groupIndex] ?? [];
     for (let i = 0; i < vectors.length; i += 1) {
-      out[cursor] = vectors[i].dx;
-      out[cursor + 1] = vectors[i].dy;
-      out[cursor + 2] = vectors[i].confidence;
-      out[cursor + 3] = vectors[i].motionStrength;
+      const vector = getMotionVector(vectors, i);
+      out[cursor] = vector.dx;
+      out[cursor + 1] = vector.dy;
+      out[cursor + 2] = vector.confidence;
+      out[cursor + 3] = vector.motionStrength;
       cursor += 4;
     }
   }
@@ -545,10 +556,10 @@ export const decodeVectorState = (state: Float32Array | null | undefined, expect
   const out = new Array<MotionVector>(expectedLength);
   for (let i = 0; i < expectedLength; i += 1) {
     const base = i * 4;
-    const dx = state[base];
-    const dy = state[base + 1];
-    const confidence = state[base + 2];
-    const motionStrength = state[base + 3];
+    const dx = state[base] ?? 0;
+    const dy = state[base + 1] ?? 0;
+    const confidence = state[base + 2] ?? 0;
+    const motionStrength = state[base + 3] ?? 0;
     out[i] = {
       dx,
       dy,
@@ -563,18 +574,18 @@ export const decodeVectorState = (state: Float32Array | null | undefined, expect
 
 export const fadeBuffer = (outBuf: Uint8ClampedArray, factor: number) => {
   for (let i = 0; i < outBuf.length; i += 4) {
-    outBuf[i] = clamp255(outBuf[i] * factor);
-    outBuf[i + 1] = clamp255(outBuf[i + 1] * factor);
-    outBuf[i + 2] = clamp255(outBuf[i + 2] * factor);
+    outBuf[i] = clamp255((outBuf[i] ?? 0) * factor);
+    outBuf[i + 1] = clamp255((outBuf[i + 1] ?? 0) * factor);
+    outBuf[i + 2] = clamp255((outBuf[i + 2] ?? 0) * factor);
     outBuf[i + 3] = 255;
   }
 };
 
 export const blendSourceIntoBuffer = (outBuf: Uint8ClampedArray, source: Uint8ClampedArray, dim: number) => {
   for (let i = 0; i < outBuf.length; i += 4) {
-    outBuf[i] = clamp255(outBuf[i] + source[i] * dim);
-    outBuf[i + 1] = clamp255(outBuf[i + 1] + source[i + 1] * dim);
-    outBuf[i + 2] = clamp255(outBuf[i + 2] + source[i + 2] * dim);
+    outBuf[i] = clamp255((outBuf[i] ?? 0) + (source[i] ?? 0) * dim);
+    outBuf[i + 1] = clamp255((outBuf[i + 1] ?? 0) + (source[i + 1] ?? 0) * dim);
+    outBuf[i + 2] = clamp255((outBuf[i + 2] ?? 0) + (source[i + 2] ?? 0) * dim);
     outBuf[i + 3] = 255;
   }
 };

@@ -2,6 +2,7 @@ import { ENUM, BOOL, RANGE } from "constants/controlTypes";
 import { cloneCanvas, getBufferIndex, clamp } from "utils";
 import { applyJpegArtifactToCanvas, defaults as jpegDefaults } from "./jpegArtifact";
 import { defineFilter } from "filters/types";
+const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
 
 const QUALITY_FINE     = "FINE";
 const QUALITY_STANDARD = "STANDARD";
@@ -178,9 +179,9 @@ const computeAutoAwb = (buf: Uint8ClampedArray) => {
   const px = Math.max(1, buf.length / 4);
 
   for (let i = 0; i < buf.length; i += 4) {
-    rSum += buf[i];
-    gSum += buf[i + 1];
-    bSum += buf[i + 2];
+    rSum += readU8(buf, i);
+    gSum += readU8(buf, i + 1);
+    bSum += readU8(buf, i + 2);
   }
 
   const rAvg = rSum / px;
@@ -193,7 +194,7 @@ const computeAutoAwb = (buf: Uint8ClampedArray) => {
   const rMul = clamp(0.88, 1.16, target / Math.max(1, rAvg)) * 1.015;
   const gMul = clamp(0.88, 1.16, target / Math.max(1, gAvg)) * 1.005;
   const bMul = clamp(0.88, 1.16, target / Math.max(1, bAvg)) * 0.975;
-  return [rMul, gMul, bMul];
+  return [rMul, gMul, bMul] as const;
 };
 
 const applySoulTone = (buf: Uint8ClampedArray, w: number, h: number) => {
@@ -201,7 +202,7 @@ const applySoulTone = (buf: Uint8ClampedArray, w: number, h: number) => {
     for (let x = 0; x < w; x += 1) {
       const i = getBufferIndex(x, y, w);
       for (let c = 0; c < 3; c += 1) {
-        const v = buf[i + c] / 255;
+        const v = readU8(buf, i + c) / 255;
         // Lift deep shadows slightly, compress highlights, keep midtones gentle.
         const toe = v < 0.08 ? v * 0.65 + 0.02 : v;
         const shoulder = toe > 0.78 ? 0.78 + (toe - 0.78) * 0.58 : toe;
@@ -220,8 +221,8 @@ const applyChromaDelay = (buf: Uint8ClampedArray, w: number, h: number, pixels: 
       const sx = Math.max(0, Math.min(w - 1, x - pixels));
       const si = getBufferIndex(sx, y, w);
       // Shift chroma-dominant channels for mild camcorder-like color lag.
-      buf[di] = src[si];
-      buf[di + 2] = src[si + 2];
+      buf[di] = readU8(src, si);
+      buf[di + 2] = readU8(src, si + 2);
     }
   }
 };
@@ -236,8 +237,8 @@ const applyVerticalSoften = (buf: Uint8ClampedArray, w: number, h: number, amoun
       const iu = getBufferIndex(x, y - 1, w);
       const id = getBufferIndex(x, y + 1, w);
       for (let c = 0; c < 3; c += 1) {
-        const mid = src[i + c];
-        const avg = (src[iu + c] + src[id + c]) * 0.5;
+        const mid = readU8(src, i + c);
+        const avg = (readU8(src, iu + c) + readU8(src, id + c)) * 0.5;
         buf[i + c] = clamp(0, 255, Math.round(mid * (1 - a) + avg * a));
       }
     }
@@ -257,9 +258,9 @@ const estimateSceneComplexity = (buf: Uint8ClampedArray, w: number, h: number) =
       const i = getBufferIndex(x, y, w);
       const ix = getBufferIndex(x + step, y, w);
       const iy = getBufferIndex(x, y + step, w);
-      const l = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2];
-      const lx = 0.299 * buf[ix] + 0.587 * buf[ix + 1] + 0.114 * buf[ix + 2];
-      const ly = 0.299 * buf[iy] + 0.587 * buf[iy + 1] + 0.114 * buf[iy + 2];
+      const l = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
+      const lx = 0.299 * readU8(buf, ix) + 0.587 * readU8(buf, ix + 1) + 0.114 * readU8(buf, ix + 2);
+      const ly = 0.299 * readU8(buf, iy) + 0.587 * readU8(buf, iy + 1) + 0.114 * readU8(buf, iy + 2);
       lumSum += l;
       gradSum += Math.abs(l - lx) + Math.abs(l - ly);
       count += 1;
@@ -270,7 +271,7 @@ const estimateSceneComplexity = (buf: Uint8ClampedArray, w: number, h: number) =
   for (let y = 0; y < h; y += step) {
     for (let x = 0; x < w; x += step) {
       const i = getBufferIndex(x, y, w);
-      const l = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2];
+      const l = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
       const d = l - mean;
       varSum += d * d;
     }
@@ -312,9 +313,9 @@ const applySceneMode = (buf: Uint8ClampedArray, w: number, h: number, sceneMode:
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
       const i = getBufferIndex(x, y, w);
-      let r = buf[i];
-      let g = buf[i + 1];
-      let b = buf[i + 2];
+      let r = readU8(buf, i);
+      let g = readU8(buf, i + 1);
+      let b = readU8(buf, i + 2);
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
       if (sceneMode === SCENE_SOFT_PORTRAIT) {
@@ -364,9 +365,9 @@ const applyPictureEffect = (buf: Uint8ClampedArray, w: number, h: number, pictur
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
       const i = getBufferIndex(x, y, w);
-      const r = buf[i];
-      const g = buf[i + 1];
-      const b = buf[i + 2];
+      const r = readU8(buf, i);
+      const g = readU8(buf, i + 1);
+      const b = readU8(buf, i + 2);
 
       if (pictureEffect === FX_NEG_ART) {
         buf[i] = 255 - r;
@@ -426,9 +427,9 @@ const applyInterlacedCapture = (
         const di = getBufferIndex(x, y, w);
         const i0 = getBufferIndex(x, y0, w);
         const i1 = getBufferIndex(x, y1, w);
-        buf[di] = (src[i0] + src[i1]) >> 1;
-        buf[di + 1] = (src[i0 + 1] + src[i1 + 1]) >> 1;
-        buf[di + 2] = (src[i0 + 2] + src[i1 + 2]) >> 1;
+        buf[di] = (readU8(src, i0) + readU8(src, i1)) >> 1;
+        buf[di + 1] = (readU8(src, i0 + 1) + readU8(src, i1 + 1)) >> 1;
+        buf[di + 2] = (readU8(src, i0 + 2) + readU8(src, i1 + 2)) >> 1;
       }
     }
     return;
@@ -444,9 +445,9 @@ const applyInterlacedCapture = (
       const srcX = Math.max(0, Math.min(w - 1, x + shiftX));
       const di = getBufferIndex(x, y, w);
       const si = getBufferIndex(srcX, srcY, w);
-      buf[di] = src[si];
-      buf[di + 1] = src[si + 1];
-      buf[di + 2] = src[si + 2];
+      buf[di] = readU8(src, si);
+      buf[di + 1] = readU8(src, si + 1);
+      buf[di + 2] = readU8(src, si + 2);
     }
   }
 };
@@ -478,12 +479,12 @@ const applyDigicamFlashLighting = (
 
       // Background drops faster, foreground/hotspot rises quickly.
       const baseGain = 0.74 + illum * 1.35;
-      let r = buf[i] * baseGain * 1.02;
-      let g = buf[i + 1] * baseGain * 1.0;
-      let b = buf[i + 2] * baseGain * 0.98;
+      let r = readU8(buf, i) * baseGain * 1.02;
+      let g = readU8(buf, i + 1) * baseGain * 1.0;
+      let b = readU8(buf, i + 2) * baseGain * 0.98;
 
       // Specular pop on bright/reflective surfaces under flash.
-      const lum = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2];
+      const lum = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
       const spec = Math.pow(clamp(0, 1, (lum - 120) / 135), 2) * illum * 125;
       r += spec;
       g += spec;
@@ -552,9 +553,9 @@ const mavicaFd7 = (input: any, options = defaults) => {
       if (fluorescentFlutter) {
         gFlutter = (pixelNoise(x, y, 7) - 0.5) * 8;  // +/-4
       }
-      buf[i]     = clamp(0, 255, Math.round(buf[i]     * rMul));
-      buf[i + 1] = clamp(0, 255, Math.round(buf[i + 1] * gMul + gFlutter));
-      buf[i + 2] = clamp(0, 255, Math.round(buf[i + 2] * bMul));
+      buf[i] = clamp(0, 255, Math.round(readU8(buf, i) * rMul));
+      buf[i + 1] = clamp(0, 255, Math.round(readU8(buf, i + 1) * gMul + gFlutter));
+      buf[i + 2] = clamp(0, 255, Math.round(readU8(buf, i + 2) * bMul));
     }
   }
 
@@ -562,10 +563,10 @@ const mavicaFd7 = (input: any, options = defaults) => {
   for (let y = 0; y < workH; y += 1) {
     for (let x = 0; x < workW; x += 1) {
       const i = getBufferIndex(x, y, workW);
-      const grey = (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
-      buf[i]     = clamp(0, 255, Math.round(grey + (buf[i]     - grey) * 1.06));
-      buf[i + 1] = clamp(0, 255, Math.round(grey + (buf[i + 1] - grey) * 1.06));
-      buf[i + 2] = clamp(0, 255, Math.round(grey + (buf[i + 2] - grey) * 1.06));
+      const grey = (readU8(buf, i) + readU8(buf, i + 1) + readU8(buf, i + 2)) / 3;
+      buf[i] = clamp(0, 255, Math.round(grey + (readU8(buf, i) - grey) * 1.06));
+      buf[i + 1] = clamp(0, 255, Math.round(grey + (readU8(buf, i + 1) - grey) * 1.06));
+      buf[i + 2] = clamp(0, 255, Math.round(grey + (readU8(buf, i + 2) - grey) * 1.06));
     }
   }
 
@@ -610,7 +611,7 @@ const mavicaFd7 = (input: any, options = defaults) => {
   if (!jpegCtx) return input;
   const jpegData = jpegCtx.getImageData(0, 0, workW, workH);
   const jpegBuf = jpegData.data;
-  for (let i = 0; i < buf.length; i += 1) buf[i] = jpegBuf[i];
+  for (let i = 0; i < buf.length; i += 1) buf[i] = readU8(jpegBuf, i);
 
   // Step 8 — CCD vertical smear (optional)
   if (smear) {
@@ -621,52 +622,52 @@ const mavicaFd7 = (input: any, options = defaults) => {
     for (let y = 0; y < workH; y += 1) {
       for (let x = 0; x < workW; x += 1) {
         const i = getBufferIndex(x, y, workW);
-        const luma = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2];
-      const smearThreshold = flash ? 245 : 235;
-      if (luma <= smearThreshold) continue;
+        const luma = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
+        const smearThreshold = flash ? 245 : 235;
+        if (luma <= smearThreshold) continue;
 
         for (let d = 1; d <= smearLen; d += 1) {
           const decay = 1 - (d / smearLen) ** 1.5;
           const blend = decay * 0.85;
-          const sr = Math.round(buf[i]     + (255 - buf[i])     * blend);
-          const sg = Math.round(buf[i + 1] + (255 - buf[i + 1]) * blend);
-          const sb = Math.round(buf[i + 2] + (255 - buf[i + 2]) * blend);
+          const sr = Math.round(readU8(buf, i) + (255 - readU8(buf, i)) * blend);
+          const sg = Math.round(readU8(buf, i + 1) + (255 - readU8(buf, i + 1)) * blend);
+          const sb = Math.round(readU8(buf, i + 2) + (255 - readU8(buf, i + 2)) * blend);
 
           // Smear upward
           if (y - d >= 0) {
             const ti = getBufferIndex(x, y - d, workW);
-            smearBuf[ti]     = Math.max(smearBuf[ti],     sr);
-            smearBuf[ti + 1] = Math.max(smearBuf[ti + 1], sg);
-            smearBuf[ti + 2] = Math.max(smearBuf[ti + 2], sb);
+            smearBuf[ti] = Math.max(readU8(smearBuf, ti), sr);
+            smearBuf[ti + 1] = Math.max(readU8(smearBuf, ti + 1), sg);
+            smearBuf[ti + 2] = Math.max(readU8(smearBuf, ti + 2), sb);
           }
           // Smear downward
           if (y + d < workH) {
             const ti = getBufferIndex(x, y + d, workW);
-            smearBuf[ti]     = Math.max(smearBuf[ti],     sr);
-            smearBuf[ti + 1] = Math.max(smearBuf[ti + 1], sg);
-            smearBuf[ti + 2] = Math.max(smearBuf[ti + 2], sb);
+            smearBuf[ti] = Math.max(readU8(smearBuf, ti), sr);
+            smearBuf[ti + 1] = Math.max(readU8(smearBuf, ti + 1), sg);
+            smearBuf[ti + 2] = Math.max(readU8(smearBuf, ti + 2), sb);
           }
         }
       }
     }
 
     // Copy smear results back
-    for (let j = 0; j < buf.length; j += 1) buf[j] = smearBuf[j];
+    for (let j = 0; j < buf.length; j += 1) buf[j] = readU8(smearBuf, j);
   }
 
   // Step 9 — Shadow noise (measured: R/B sigma ~8, G sigma ~6)
-  const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] || NOISE_PARAMS[QUALITY_FINE];
+  const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] ?? NOISE_PARAMS[QUALITY_FINE];
 
   for (let y = 0; y < workH; y += 1) {
     for (let x = 0; x < workW; x += 1) {
       const i = getBufferIndex(x, y, workW);
-      const luma = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2];
+      const luma = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
       const shadowCut = flash ? 42 : 50;
       if (luma >= shadowCut) continue;
       const t = (shadowCut - luma) / shadowCut;
-      buf[i]     = clamp(0, 255, Math.round(buf[i]     + (pixelNoise(x, y, 73) - 0.5) * 2 * noiseRB * t));
-      buf[i + 1] = clamp(0, 255, Math.round(buf[i + 1] + (pixelNoise(x, y, 89) - 0.5) * 2 * noiseG  * t));
-      buf[i + 2] = clamp(0, 255, Math.round(buf[i + 2] + (pixelNoise(x, y, 97) - 0.5) * 2 * noiseRB * t));
+      buf[i] = clamp(0, 255, Math.round(readU8(buf, i) + (pixelNoise(x, y, 73) - 0.5) * 2 * noiseRB * t));
+      buf[i + 1] = clamp(0, 255, Math.round(readU8(buf, i + 1) + (pixelNoise(x, y, 89) - 0.5) * 2 * noiseG  * t));
+      buf[i + 2] = clamp(0, 255, Math.round(readU8(buf, i + 2) + (pixelNoise(x, y, 97) - 0.5) * 2 * noiseRB * t));
     }
   }
 
@@ -676,11 +677,11 @@ const mavicaFd7 = (input: any, options = defaults) => {
       const i = getBufferIndex(x, y, workW);
       // Highlight: hard clip near top-end (flash clips slightly harder)
       const clipPoint = flash ? 244 : 248;
-      if (buf[i]     > clipPoint) buf[i]     = 255;
-      if (buf[i + 1] > clipPoint) buf[i + 1] = 255;
-      if (buf[i + 2] > clipPoint) buf[i + 2] = 255;
+      if (readU8(buf, i) > clipPoint) buf[i] = 255;
+      if (readU8(buf, i + 1) > clipPoint) buf[i + 1] = 255;
+      if (readU8(buf, i + 2) > clipPoint) buf[i + 2] = 255;
       // Shadow: crush to black
-      const luma = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2];
+      const luma = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
       if (luma < 8) {
         buf[i] = 0;
         buf[i + 1] = 0;

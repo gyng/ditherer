@@ -25,7 +25,9 @@ const mulberry32 = (seed: number) => {
 const luminance = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 type PaletteLike = {
-  getColor?: (...args: unknown[]) => unknown;
+  getColor?: {
+    bivarianceHack(color: number[], options?: FilterOptionValues): number[];
+  }["bivarianceHack"];
   options?: FilterOptionValues;
 } & Record<string, unknown>;
 

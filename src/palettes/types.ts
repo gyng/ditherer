@@ -1,11 +1,14 @@
 export type PaletteColor = [number, number, number, number];
 
 export type PaletteOptions = Record<string, unknown>;
+type BivariantCallback<TArgs extends unknown[], TResult> = {
+  bivarianceHack(...args: TArgs): TResult;
+}["bivarianceHack"];
 
 export interface PaletteDefinition<TOptions extends PaletteOptions = PaletteOptions> {
   [key: string]: unknown;
   name: string;
-  getColor: (color: number[], options?: TOptions) => number[];
+  getColor: BivariantCallback<[color: number[], options?: TOptions], number[]>;
   options: TOptions;
   defaults?: TOptions;
   optionTypes?: Record<string, unknown>;

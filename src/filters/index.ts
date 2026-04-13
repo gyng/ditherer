@@ -337,6 +337,33 @@ export const filterCategories = [
   "Glitch", "Simulate", "Blur & Edges", "Advanced"
 ];
 
+const asObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? { ...(value as Record<string, unknown>) } : {};
+
+const withPaletteLevels = <T extends FilterDefinition>(
+  filter: T,
+  levels: number,
+  extraOptions: Record<string, unknown> = {},
+): T => {
+  const options = asObject(filter.options);
+  const palette = asObject(options.palette);
+  const paletteOptions = asObject(palette.options);
+  return {
+    ...filter,
+    options: {
+      ...options,
+      ...extraOptions,
+      palette: {
+        ...palette,
+        options: {
+          ...paletteOptions,
+          levels,
+        },
+      },
+    },
+  } as T;
+};
+
 // Presets — grouped by category, alphabetized within each
 export const filterList = [
   // ── None ──
@@ -680,19 +707,7 @@ export const filterList = [
     displayName: "Pixelsort",
     category: "Glitch",
     description: "Sort pixel spans by brightness for dramatic streak effects",
-    filter: {
-      ...pixelsort,
-      options: {
-        ...pixelsort.options,
-        palette: {
-          ...pixelsort.options!.palette!,
-          options: {
-            ...(pixelsort.options!.palette!.options ?? {}),
-            levels: 256
-          }
-        }
-      }
-    }
+    filter: withPaletteLevels(pixelsort, 256)
   },
   { displayName: "Scan line shift", filter: scanLineShift, category: "Glitch", description: "Offset horizontal scan line blocks for a broken display glitch effect" },
   { displayName: "Scanline Warp", filter: scanlineWarp, category: "Glitch", description: "Sinusoidal horizontal displacement with animatable phase — wavy CRT glitch" },
@@ -704,19 +719,7 @@ export const filterList = [
     displayName: "CRT emulation",
     category: "Simulate",
     description: "Simulate a CRT monitor with phosphor mask, bloom, scanlines, curvature, and vignette",
-    filter: {
-      ...rgbStripe,
-      options: {
-        ...rgbStripe.options,
-        palette: {
-          ...rgbStripe.options!.palette!,
-          options: {
-            ...(rgbStripe.options!.palette!.options ?? {}),
-            levels: 32
-          }
-        }
-      }
-    }
+    filter: withPaletteLevels(rgbStripe, 32)
   },
   { displayName: "CRT Degauss", filter: crtDegauss, category: "Simulate", description: "Fire a decaying degauss pulse with raster wobble, phosphor mislanding, and a bright magnetic flash" },
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
@@ -726,7 +729,7 @@ export const filterList = [
     displayName: "E-ink (color)",
     category: "Simulate",
     description: "Simulate a color Kaleido/Gallery e-ink display with washed-out palette",
-    filter: { ...eink, options: { ...eink.options, mode: "COLOR", palette: { ...eink.options!.palette, options: { levels: 256 } } } }
+    filter: withPaletteLevels(eink, 256, { mode: "COLOR" })
   },
   { displayName: "E-ink (grayscale)", filter: eink, category: "Simulate", description: "Simulate a 16-level grayscale e-ink display with paper texture and ghosting" },
   { displayName: "Edge glow", filter: edgeGlow, category: "Stylize", description: "Neon-colored edge outlines on a dark background — cyberpunk/Tron aesthetic" },
@@ -754,20 +757,7 @@ export const filterList = [
     displayName: "Scanline",
     category: "Simulate",
     description: "CRT-style scanlines with either classic darkened rows or RGB phosphor sub-line separation",
-    filter: {
-      ...scanline,
-      options: {
-        ...scanline.options,
-        mode: "DARKEN",
-        palette: {
-          ...scanline.options!.palette,
-          options: {
-            ...scanline.options!.palette.options,
-            levels: 256
-          }
-        }
-      }
-    }
+    filter: withPaletteLevels(scanline, 256, { mode: "DARKEN" })
   },
   { displayName: "Spectrogram", filter: spectrogram, category: "Simulate", description: "Frequency-domain visualization — columns as time, rows as frequency, with scientific colormaps" },
   {
@@ -857,19 +847,7 @@ export const filterList = [
     displayName: "Program",
     category: "Advanced",
     description: "Write custom pixel-manipulation code in a built-in editor",
-    filter: {
-      ...program,
-      options: {
-        ...program.options,
-        palette: {
-          ...program.options!.palette,
-          options: {
-            ...program.options!.palette.options,
-            levels: 256
-          }
-        }
-      }
-    }
+    filter: withPaletteLevels(program, 256)
   },
 ] satisfies FilterListEntry[];
 

@@ -74,10 +74,15 @@ const SYMMETRIC_TUPLES = [
   { dx:  0, dy:  1, weight: 1 / 8 },
   { dx:  1, dy:  1, weight: 1 / 8 },
 ];
+const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
+const readF32 = (buf: Float32Array, index: number) => buf[index] ?? 0;
+const readTuple = (tuples: Tuple[], index: number): Tuple => tuples[index] ?? { dx: 0, dy: 0, weight: 0 };
 
 type ErrorDiffusingRuntimeOptions = FilterOptionValues & {
   palette?: {
-    getColor?: (color: unknown, options?: FilterOptionValues) => number[];
+    getColor?: {
+      bivarianceHack(color: number[], options?: FilterOptionValues): number[];
+    }["bivarianceHack"];
     options?: FilterOptionValues;
   } & Record<string, unknown>;
   serpentine?: boolean;
@@ -192,10 +197,10 @@ const transposeRGBA8 = (src: Uint8ClampedArray, w: number, h: number): Uint8Clam
     for (let x = 0; x < w; x += 1) {
       const si = (y * w + x) * 4;
       const di = (x * h + y) * 4;
-      dst[di]     = src[si];
-      dst[di + 1] = src[si + 1];
-      dst[di + 2] = src[si + 2];
-      dst[di + 3] = src[si + 3];
+      dst[di] = readU8(src, si);
+      dst[di + 1] = readU8(src, si + 1);
+      dst[di + 2] = readU8(src, si + 2);
+      dst[di + 3] = readU8(src, si + 3);
     }
   }
   return dst;
@@ -236,11 +241,12 @@ const kernelToTuples = (
   const tuples: Tuple[] = [];
   let total = 0;
   for (let h = 0; h < kernel.length; h += 1) {
-    for (let w = 0; w < kernel[0].length; w += 1) {
-      const weight = kernel[h][w];
+    const row = kernel[h] ?? [];
+    for (let w = 0; w < row.length; w += 1) {
+      const weight = row[w];
       if (weight == null) continue;
-      const dx = w + offset[0];
-      const dy = h + offset[1];
+      const dx = w + (offset[0] ?? 0);
+      const dy = h + (offset[1] ?? 0);
       if (dx === 0 && dy === 0) continue;
       tuples.push({ dx, dy, weight });
       total += weight;
@@ -360,8 +366,8 @@ const randomPixelOrder = (W: number, H: number): Int32Array => {
   for (let i = order.length - 1; i > 0; i -= 1) {
     seed = ((seed * 1103515245) + 12345) >>> 0;
     const j = seed % (i + 1);
-    const tmp = order[i];
-    order[i] = order[j];
+    const tmp = order[i] ?? 0;
+    order[i] = order[j] ?? 0;
     order[j] = tmp;
   }
   return order;
@@ -385,21 +391,23 @@ const majorityColorAt = (
 
   for (let f = 0; f < filled; f += 1) {
     const frame = frames[f];
+    if (!frame) continue;
     const color = (
-      ((frame[pixelIndex] << 24) >>> 0) |
-      (frame[pixelIndex + 1] << 16) |
-      (frame[pixelIndex + 2] << 8) |
-      frame[pixelIndex + 3]
+      ((readU8(frame, pixelIndex) << 24) >>> 0) |
+      (readU8(frame, pixelIndex + 1) << 16) |
+      (readU8(frame, pixelIndex + 2) << 8) |
+      readU8(frame, pixelIndex + 3)
     ) >>> 0;
     let count = 1;
     let lastSeen = f;
     for (let g = f + 1; g < filled; g += 1) {
       const compare = frames[g];
+      if (!compare) continue;
       const compareColor = (
-        ((compare[pixelIndex] << 24) >>> 0) |
-        (compare[pixelIndex + 1] << 16) |
-        (compare[pixelIndex + 2] << 8) |
-        compare[pixelIndex + 3]
+        ((readU8(compare, pixelIndex) << 24) >>> 0) |
+        (readU8(compare, pixelIndex + 1) << 16) |
+        (readU8(compare, pixelIndex + 2) << 8) |
+        readU8(compare, pixelIndex + 3)
       ) >>> 0;
       if (compareColor === color) {
         count += 1;
@@ -507,15 +515,15 @@ export const errorDiffusingFilter = (
         const prevInputLinear = srgbBufToLinearFloat(prevInputForLoop);
         const prevOutputLinear = srgbBufToLinearFloat(prevOutputForLoop);
         for (let j = 0; j < errBuf.length; j += 4) {
-          errBuf[j]     += (prevInputLinear[j]     - prevOutputLinear[j])     * temporalBleed;
-          errBuf[j + 1] += (prevInputLinear[j + 1] - prevOutputLinear[j + 1]) * temporalBleed;
-          errBuf[j + 2] += (prevInputLinear[j + 2] - prevOutputLinear[j + 2]) * temporalBleed;
+          errBuf[j] = readF32(errBuf, j) + (readF32(prevInputLinear, j) - readF32(prevOutputLinear, j)) * temporalBleed;
+          errBuf[j + 1] = readF32(errBuf, j + 1) + (readF32(prevInputLinear, j + 1) - readF32(prevOutputLinear, j + 1)) * temporalBleed;
+          errBuf[j + 2] = readF32(errBuf, j + 2) + (readF32(prevInputLinear, j + 2) - readF32(prevOutputLinear, j + 2)) * temporalBleed;
         }
       } else {
         for (let j = 0; j < errBuf.length; j += 4) {
-          errBuf[j]     += (prevInputForLoop[j]     - prevOutputForLoop[j])     * temporalBleed;
-          errBuf[j + 1] += (prevInputForLoop[j + 1] - prevOutputForLoop[j + 1]) * temporalBleed;
-          errBuf[j + 2] += (prevInputForLoop[j + 2] - prevOutputForLoop[j + 2]) * temporalBleed;
+          errBuf[j] = readF32(errBuf, j) + (readU8(prevInputForLoop, j) - readU8(prevOutputForLoop, j)) * temporalBleed;
+          errBuf[j + 1] = readF32(errBuf, j + 1) + (readU8(prevInputForLoop, j + 1) - readU8(prevOutputForLoop, j + 1)) * temporalBleed;
+          errBuf[j + 2] = readF32(errBuf, j + 2) + (readU8(prevInputForLoop, j + 2) - readU8(prevOutputForLoop, j + 2)) * temporalBleed;
         }
       }
     }
@@ -554,7 +562,7 @@ export const errorDiffusingFilter = (
       const staticTotal = useSymmetric ? symTotal : kernelTotal;
 
       for (let step = 0; step < visitOrder.length; step += 1) {
-        const linearIdx = visitOrder[step];
+        const linearIdx = visitOrder[step] ?? 0;
         visited[linearIdx] = 1;
         const x = linearIdx % W;
         const y = (linearIdx / W) | 0;
@@ -564,26 +572,28 @@ export const errorDiffusingFilter = (
         let eg: number;
         let eb: number;
         if (useLinear) {
-          _pix[0] = errBuf[i]; _pix[1] = errBuf[i + 1];
-          _pix[2] = errBuf[i + 2]; _pix[3] = errBuf[i + 3];
+          _pix[0] = readF32(errBuf, i); _pix[1] = readF32(errBuf, i + 1);
+          _pix[2] = readF32(errBuf, i + 2); _pix[3] = readF32(errBuf, i + 3);
           const color = linearPaletteGetColor(palette, _pix, palette.options);
-          er = _pix[0] - color[0];
-          eg = _pix[1] - color[1];
-          eb = _pix[2] - color[2];
-          linearBuf![i]     = color[0];
-          linearBuf![i + 1] = color[1];
-          linearBuf![i + 2] = color[2];
+          er = _pix[0] - (color[0] ?? 0);
+          eg = _pix[1] - (color[1] ?? 0);
+          eb = _pix[2] - (color[2] ?? 0);
+          linearBuf![i] = color[0] ?? 0;
+          linearBuf![i + 1] = color[1] ?? 0;
+          linearBuf![i + 2] = color[2] ?? 0;
         } else {
-          const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
-          _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
+          const pr = readF32(errBuf, i);
+          const pg = readF32(errBuf, i + 1);
+          const pb = readF32(errBuf, i + 2);
+          _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = readF32(errBuf, i + 3);
           const color = (palette.getColor ?? palettes.nearest.getColor)(
             _pix,
             palette.options as { levels: number } | undefined
           );
-          fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
-          er = pr - color[0];
-          eg = pg - color[1];
-          eb = pb - color[2];
+          fillBufferPixel(buf, i, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, readU8(buf, i + 3));
+          er = pr - (color[0] ?? 0);
+          eg = pg - (color[1] ?? 0);
+          eb = pb - (color[2] ?? 0);
         }
 
         // Choose this step's tuple set. ROTATE looks one step ahead in the
@@ -592,10 +602,10 @@ export const errorDiffusingFilter = (
         let stepTuples: Tuple[];
         let stepTotal: number;
         if (useRotate && step + 1 < visitOrder.length) {
-          const nextIdx = visitOrder[step + 1];
+          const nextIdx = visitOrder[step + 1] ?? linearIdx;
           const nx = nextIdx % W;
           const ny = (nextIdx / W) | 0;
-          stepTuples = rotatedSets[snapDirection(nx - x, ny - y)];
+          stepTuples = rotatedSets[snapDirection(nx - x, ny - y)] ?? baseTuples;
           stepTotal = kernelTotal;
         } else {
           stepTuples = staticTuples;
@@ -608,7 +618,7 @@ export const errorDiffusingFilter = (
         if (!useDrop) {
           let unvisitedWeight = 0;
           for (let k = 0; k < tupleCount; k += 1) {
-            const t = stepTuples[k];
+            const t = readTuple(stepTuples, k);
             const tx = x + t.dx;
             const ty = y + t.dy;
             if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
@@ -622,7 +632,7 @@ export const errorDiffusingFilter = (
 
         // Push error to unvisited targets.
         for (let k = 0; k < tupleCount; k += 1) {
-          const t = stepTuples[k];
+          const t = readTuple(stepTuples, k);
           const tx = x + t.dx;
           const ty = y + t.dy;
           if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
@@ -630,9 +640,9 @@ export const errorDiffusingFilter = (
           if (visited[targetLinear]) continue;
           const ti = targetLinear * 4;
           const w = t.weight * scale;
-          errBuf[ti]     += er * w;
-          errBuf[ti + 1] += eg * w;
-          errBuf[ti + 2] += eb * w;
+          errBuf[ti] = readF32(errBuf, ti) + er * w;
+          errBuf[ti + 1] = readF32(errBuf, ti + 1) + eg * w;
+          errBuf[ti + 2] = readF32(errBuf, ti + 2) + eb * w;
         }
       }
     } else {
@@ -673,55 +683,55 @@ export const errorDiffusingFilter = (
         const i = (x + W * y) * 4;
 
         if (useLinear) {
-          _pix[0] = errBuf[i]; _pix[1] = errBuf[i + 1];
-          _pix[2] = errBuf[i + 2]; _pix[3] = errBuf[i + 3];
+          _pix[0] = readF32(errBuf, i); _pix[1] = readF32(errBuf, i + 1);
+          _pix[2] = readF32(errBuf, i + 2); _pix[3] = readF32(errBuf, i + 3);
           const color = linearPaletteGetColor(palette, _pix, palette.options);
-          const er = _pix[0] - color[0];
-          const eg = _pix[1] - color[1];
-          const eb = _pix[2] - color[2];
+          const er = _pix[0] - (color[0] ?? 0);
+          const eg = _pix[1] - (color[1] ?? 0);
+          const eb = _pix[2] - (color[2] ?? 0);
 
-          linearBuf![i]     = color[0];
-          linearBuf![i + 1] = color[1];
-          linearBuf![i + 2] = color[2];
+          linearBuf![i] = color[0] ?? 0;
+          linearBuf![i + 1] = color[1] ?? 0;
+          linearBuf![i + 2] = color[2] ?? 0;
 
           for (let h = 0; h < kernelHeight; h += 1) {
             for (let w = 0; w < kernelWidth; w += 1) {
-              const weight = errorMatrix.kernel[h][w];
+              const weight = errorMatrix.kernel[h]?.[w];
               if (weight == null) continue;
               const kx = reverse ? (kernelWidth - 1 - w) : w;
               const tx = x + (kx + offsetX) * xStep;
               const ty = y + h + offsetY;
               if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
               const ti = (tx + W * ty) * 4;
-              errBuf[ti]     += er * weight;
-              errBuf[ti + 1] += eg * weight;
-              errBuf[ti + 2] += eb * weight;
+              errBuf[ti] = readF32(errBuf, ti) + er * weight;
+              errBuf[ti + 1] = readF32(errBuf, ti + 1) + eg * weight;
+              errBuf[ti + 2] = readF32(errBuf, ti + 2) + eb * weight;
             }
           }
         } else {
-          const pr = errBuf[i], pg = errBuf[i + 1], pb = errBuf[i + 2];
-          _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = errBuf[i + 3];
+          const pr = readF32(errBuf, i), pg = readF32(errBuf, i + 1), pb = readF32(errBuf, i + 2);
+          _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = readF32(errBuf, i + 3);
           const color = (palette.getColor ?? palettes.nearest.getColor)(
             _pix,
             palette.options as { levels: number } | undefined
           );
-          fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
-          const er = pr - color[0];
-          const eg = pg - color[1];
-          const eb = pb - color[2];
+          fillBufferPixel(buf, i, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, readU8(buf, i + 3));
+          const er = pr - (color[0] ?? 0);
+          const eg = pg - (color[1] ?? 0);
+          const eb = pb - (color[2] ?? 0);
 
           for (let h = 0; h < kernelHeight; h += 1) {
             for (let w = 0; w < kernelWidth; w += 1) {
-              const weight = errorMatrix.kernel[h][w];
+              const weight = errorMatrix.kernel[h]?.[w];
               if (weight == null) continue;
               const kx = reverse ? (kernelWidth - 1 - w) : w;
               const tx = x + (kx + offsetX) * xStep;
               const ty = y + h + offsetY;
               if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
               const ti = (tx + W * ty) * 4;
-              errBuf[ti]     += er * weight;
-              errBuf[ti + 1] += eg * weight;
-              errBuf[ti + 2] += eb * weight;
+              errBuf[ti] = readF32(errBuf, ti) + er * weight;
+              errBuf[ti + 1] = readF32(errBuf, ti + 1) + eg * weight;
+              errBuf[ti + 2] = readF32(errBuf, ti + 2) + eb * weight;
             }
           }
         }
@@ -755,7 +765,8 @@ export const errorDiffusingFilter = (
       const filled = Math.min(voteHead, voteWindow);
       const orderedFrames: Uint8ClampedArray[] = [];
       for (let f = 0; f < filled; f += 1) {
-        orderedFrames.push(voteFrames[((voteHead - filled + f) % voteWindow + voteWindow) % voteWindow]);
+        const frame = voteFrames[((voteHead - filled + f) % voteWindow + voteWindow) % voteWindow];
+        if (frame) orderedFrames.push(frame);
       }
 
       const votedBuf = new Uint8ClampedArray(finalBuf.length);

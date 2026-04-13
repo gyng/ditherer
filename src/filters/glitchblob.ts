@@ -288,7 +288,7 @@ const preprocessPNG = (buffer: Uint8Array): PngContext => {
     }
     const headerType = String.fromCharCode.apply(
       null,
-      buffer.subarray(offset, offset + 4)
+      Array.from(buffer.subarray(offset, offset + 4))
     );
     offset += 4;
 
@@ -329,7 +329,7 @@ const preprocessPNG = (buffer: Uint8Array): PngContext => {
     }
     const headerType = String.fromCharCode.apply(
       null,
-      buffer.subarray(offset, offset + 4)
+      Array.from(buffer.subarray(offset, offset + 4))
     );
     offset += 4;
     if (headerType === "IDAT") {
@@ -458,12 +458,12 @@ const glitchblob = (
         .then(blobToUint8Array)
         .then(corruptor)
         .then(u8a => new Blob([Uint8Array.from(u8a)], { type: formatMap[format] }))
-        .then(blobToImage)
+        .then(blobToImage as (_value: Blob) => Promise<ImageBitmap>)
     );
   };
 
-  corruptThis(input, format).then((image: ImageBitmap) => {
-    dispatch(filterImage(image));
+  corruptThis(input, format).then((image) => {
+    dispatch(filterImage(image as ImageBitmap));
   });
 
   return ASYNC_FILTER;
