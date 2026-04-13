@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   planLoopCaptureRouting,
   planReliableVideoRouting,
-} from "components/SaveAs/exportRouting";
+} from "components/SaveAs/export/exportRouting";
 
 describe("planReliableVideoRouting", () => {
   it("attempts WebCodecs decode when requested and available", () => {

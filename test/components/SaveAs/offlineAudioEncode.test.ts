@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reconcileAudioFrameCount } from "components/SaveAs/offlineAudioEncode";
+import { reconcileAudioFrameCount } from "components/SaveAs/export/offlineAudioEncode";
 
 describe("reconcileAudioFrameCount", () => {
   it("returns the requested target frame count", () => {

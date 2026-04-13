@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOfflineTimeline } from "components/SaveAs/offlineRender";
+import { buildOfflineTimeline } from "components/SaveAs/export/offlineRender";
 
 describe("buildOfflineTimeline", () => {
   it("builds exact-cadence timestamps for a loop duration", () => {
