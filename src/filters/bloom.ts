@@ -1,5 +1,11 @@
 import { RANGE, ENUM } from "constants/controlTypes";
-import { cloneCanvas, getBufferIndex } from "utils";
+import {
+  cloneCanvas,
+  getBufferIndex,
+  wasmBloomBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 const THRESHOLD_ABSOLUTE = "ABSOLUTE";
@@ -26,7 +32,7 @@ export const defaults = {
   radius: optionTypes.radius.default
 };
 
-const bloom = (input: any, options = defaults) => {
+const bloom = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { thresholdMode, strength, radius } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -47,6 +53,15 @@ const bloom = (input: any, options = defaults) => {
     }
     threshold = maxLum * (options.threshold / 255);
   }
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    const outBuf = new Uint8ClampedArray(buf.length);
+    wasmBloomBuffer(buf, outBuf, W, H, threshold, strength, radius);
+    logFilterWasmStatus("Bloom", true, `radius=${radius}`);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Bloom", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   // Extract bright regions
   const bright = new Float32Array(buf.length);

@@ -6,7 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  wasmGaussianBlurBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
 } from "utils";
 
 export const optionTypes = {
@@ -19,7 +22,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const gaussianBlurFilter = (input: any, options = defaults) => {
+const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { sigma, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -30,6 +33,23 @@ const gaussianBlurFilter = (input: any, options = defaults) => {
   const W = input.width;
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    const outBuf = new Uint8ClampedArray(buf.length);
+    wasmGaussianBlurBuffer(buf, outBuf, W, H, sigma);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
+      }
+    }
+    logFilterWasmStatus("Gaussian Blur", true, paletteIsIdentity ? `sigma=${sigma}` : `sigma=${sigma}+palettePass`);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Gaussian Blur", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   // Build 1D Gaussian kernel
   const radius = Math.ceil(sigma * 3);

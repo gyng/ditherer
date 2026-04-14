@@ -196,6 +196,8 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmGrainMergeInner = mod.grain_merge_buffer;
   wasmMedianFilterInner = mod.median_filter_buffer;
   wasmAnimeColorGradeInner = mod.anime_color_grade_buffer;
+  wasmGaussianBlurInner = mod.gaussian_blur_buffer;
+  wasmBloomInner = mod.bloom_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -457,6 +459,26 @@ type WasmQuantizeBufferFn = {
     refZ?: number,
   ): Uint8Array<ArrayBufferLike>;
 }["bivarianceHack"];
+type WasmGaussianBlurFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    sigma: number,
+  ): void;
+}["bivarianceHack"];
+type WasmBloomFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    threshold: number,
+    strength: number,
+    radius: number,
+  ): void;
+}["bivarianceHack"];
 type WasmAnimeColorGradeFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -648,6 +670,14 @@ let wasmMedianFilterInner: WasmMedianFilterFn = () => {
 };
 
 let wasmAnimeColorGradeInner: WasmAnimeColorGradeFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmGaussianBlurInner: WasmGaussianBlurFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmBloomInner: WasmBloomFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -954,6 +984,29 @@ export const WASM_ROW_ALT = {
   PRIME: 9,
   RANDOM: 10,
 } as const;
+
+// Separable Gaussian blur in a single WASM call (builds the 1D kernel from
+// sigma internally, then does horizontal + vertical passes with clamp-to-edge).
+export const wasmGaussianBlurBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  sigma: number,
+): void => wasmGaussianBlurInner(input, output, width, height, sigma);
+
+// Bloom: threshold bright pixels, separable box blur, additive composite.
+// The JS side resolves relative threshold (needs a max-luminance scan) before
+// calling — WASM receives the resolved absolute threshold.
+export const wasmBloomBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  threshold: number,
+  strength: number,
+  radius: number,
+): void => wasmBloomInner(input, output, width, height, threshold, strength, radius);
 
 // Anime Color Grade — per-pixel tone curve → luminance-weighted cool/warm
 // tint → partial luminance restore → vibrance → mix. All in a single WASM

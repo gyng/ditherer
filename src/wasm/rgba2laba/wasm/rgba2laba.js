@@ -46,6 +46,23 @@ export function apply_channel_lut(input, output, lut_r, lut_g, lut_b) {
  * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
+ * @param {number} threshold
+ * @param {number} strength
+ * @param {number} radius
+ */
+export function bloom_buffer(input, output, width, height, threshold, strength, radius) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.bloom_buffer(ptr0, len0, ptr1, len1, output, width, height, threshold, strength, radius);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
  * @param {Float64Array} kernel
  * @param {number} kernel_width
  * @param {number} kernel_height
@@ -124,6 +141,21 @@ export function error_diffuse_custom_order(input, output, width, height, visit_o
     const ptr9 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
     const len9 = WASM_VECTOR_LEN;
     wasm.error_diffuse_custom_order(ptr0, len0, ptr1, len1, output, width, height, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6, err_strategy, linearize, ptr7, len7, ptr8, len8, temporal_bleed, palette_mode, levels, ptr9, len9, ref_x, ref_y, ref_z);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {number} sigma
+ */
+export function gaussian_blur_buffer(input, output, width, height, sigma) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.gaussian_blur_buffer(ptr0, len0, ptr1, len1, output, width, height, sigma);
 }
 
 /**

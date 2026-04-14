@@ -1468,6 +1468,254 @@ pub fn median_filter_buffer(
     }
 }
 
+// === Bloom (threshold → separable box blur → additive composite) ===
+//
+// Matches src/filters/bloom.ts. The relative-vs-absolute threshold choice
+// happens JS-side (needs a full-buffer max-luminance scan anyway); WASM just
+// receives the resolved threshold along with strength and radius. We do the
+// two separable box-blur passes via f32 running sums with clamp-to-edge
+// (not integral images, because JS's per-pixel `sr/count` normalisation
+// includes trimmed counts at the edges — this matches it bit-for-bit).
+
+#[wasm_bindgen]
+pub fn bloom_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    threshold: f32,
+    strength: f32,
+    radius: u32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    let r = radius as usize;
+    if w == 0 || h == 0 { return; }
+    let n = w * h;
+
+    // Bright buffer: max(0, channel - threshold). Alpha is passed through as-is.
+    let mut bright_r = vec![0.0f32; n];
+    let mut bright_g = vec![0.0f32; n];
+    let mut bright_b = vec![0.0f32; n];
+    for p in 0..n {
+        let si = p * 4;
+        unsafe {
+            bright_r[p] = (*input.get_unchecked(si)     as f32 - threshold).max(0.0);
+            bright_g[p] = (*input.get_unchecked(si + 1) as f32 - threshold).max(0.0);
+            bright_b[p] = (*input.get_unchecked(si + 2) as f32 - threshold).max(0.0);
+        }
+    }
+
+    // Horizontal box blur via a running sum. For each row we prime the window
+    // with clamp-to-edge left side, then slide: add the right neighbour's value,
+    // subtract the left neighbour's value. `count` always equals 2r+1 at the
+    // interior and grows/shrinks at the edges to match JS's trimmed behaviour
+    // (which keeps a smaller count near the borders — see `count += 1` in the
+    // JS loop skipping nothing).
+    //
+    // Actually the JS path uses a fixed `count += 1` inside the loop so at the
+    // edges `count = 2r+1` regardless — the clamp just duplicates an edge
+    // sample. Running sum handles that naturally: we add the clamped sample at
+    // every step.
+
+    let mut blur_h_r = vec![0.0f32; n];
+    let mut blur_h_g = vec![0.0f32; n];
+    let mut blur_h_b = vec![0.0f32; n];
+    let k_size = 2 * r + 1;
+    let count = k_size as f32;
+    for y in 0..h {
+        let row = y * w;
+        // Prime the window: sum over clamped-left samples for x=0.
+        let mut sr = 0.0f32;
+        let mut sg = 0.0f32;
+        let mut sb = 0.0f32;
+        for k in 0..k_size {
+            let raw = k as i32 - r as i32;
+            let nx = raw.clamp(0, w as i32 - 1) as usize;
+            sr += bright_r[row + nx];
+            sg += bright_g[row + nx];
+            sb += bright_b[row + nx];
+        }
+        blur_h_r[row] = sr / count;
+        blur_h_g[row] = sg / count;
+        blur_h_b[row] = sb / count;
+        // Slide for x = 1 .. w-1.
+        for x in 1..w {
+            let add_x = (x as i32 + r as i32).clamp(0, w as i32 - 1) as usize;
+            let sub_x = (x as i32 - 1 - r as i32).clamp(0, w as i32 - 1) as usize;
+            sr += bright_r[row + add_x] - bright_r[row + sub_x];
+            sg += bright_g[row + add_x] - bright_g[row + sub_x];
+            sb += bright_b[row + add_x] - bright_b[row + sub_x];
+            blur_h_r[row + x] = sr / count;
+            blur_h_g[row + x] = sg / count;
+            blur_h_b[row + x] = sb / count;
+        }
+    }
+
+    // Vertical box blur, same running-sum pattern over columns.
+    let mut blur_hv_r = vec![0.0f32; n];
+    let mut blur_hv_g = vec![0.0f32; n];
+    let mut blur_hv_b = vec![0.0f32; n];
+    for x in 0..w {
+        let mut sr = 0.0f32;
+        let mut sg = 0.0f32;
+        let mut sb = 0.0f32;
+        for k in 0..k_size {
+            let raw = k as i32 - r as i32;
+            let ny = raw.clamp(0, h as i32 - 1) as usize;
+            sr += blur_h_r[ny * w + x];
+            sg += blur_h_g[ny * w + x];
+            sb += blur_h_b[ny * w + x];
+        }
+        blur_hv_r[x] = sr / count;
+        blur_hv_g[x] = sg / count;
+        blur_hv_b[x] = sb / count;
+        for y in 1..h {
+            let add_y = (y as i32 + r as i32).clamp(0, h as i32 - 1) as usize;
+            let sub_y = (y as i32 - 1 - r as i32).clamp(0, h as i32 - 1) as usize;
+            sr += blur_h_r[add_y * w + x] - blur_h_r[sub_y * w + x];
+            sg += blur_h_g[add_y * w + x] - blur_h_g[sub_y * w + x];
+            sb += blur_h_b[add_y * w + x] - blur_h_b[sub_y * w + x];
+            blur_hv_r[y * w + x] = sr / count;
+            blur_hv_g[y * w + x] = sg / count;
+            blur_hv_b[y * w + x] = sb / count;
+        }
+    }
+
+    // Composite: original + blur * strength, clamped to 255. Alpha passes through.
+    for p in 0..n {
+        let i = p * 4;
+        unsafe {
+            let ir = *input.get_unchecked(i)     as f32;
+            let ig = *input.get_unchecked(i + 1) as f32;
+            let ib = *input.get_unchecked(i + 2) as f32;
+            let ia = *input.get_unchecked(i + 3);
+            let nr = (ir + blur_hv_r[p] * strength).min(255.0);
+            let ng = (ig + blur_hv_g[p] * strength).min(255.0);
+            let nb = (ib + blur_hv_b[p] * strength).min(255.0);
+            *output.get_unchecked_mut(i)     = nr as u8;
+            *output.get_unchecked_mut(i + 1) = ng as u8;
+            *output.get_unchecked_mut(i + 2) = nb as u8;
+            *output.get_unchecked_mut(i + 3) = ia;
+        }
+    }
+}
+
+// === Gaussian blur (separable 1D) ===
+//
+// Mirrors src/filters/gaussianBlur.ts: build a 1D Gaussian kernel of radius
+// ceil(sigma * 3), normalize, then run horizontal + vertical passes with
+// clamp-to-edge edges. The horizontal pass accumulates into an f32 scratch
+// buffer and the vertical pass writes u8 output rounded via JS Math.round
+// semantics so parity is preserved.
+
+#[wasm_bindgen]
+pub fn gaussian_blur_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    sigma: f64,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+
+    // Kernel.
+    let radius = (sigma * 3.0).ceil() as usize;
+    let k_size = radius * 2 + 1;
+    let two_sigma_sq = 2.0 * sigma * sigma;
+    let mut kernel = vec![0.0f32; k_size];
+    let mut sum = 0.0f64;
+    for i in 0..k_size {
+        let x = i as f64 - radius as f64;
+        let v = (-(x * x) / two_sigma_sq).exp();
+        kernel[i] = v as f32;
+        sum += v;
+    }
+    for k in kernel.iter_mut() { *k = (*k as f64 / sum) as f32; }
+
+    // Precomputed clamp-to-edge index tables (reusing the pattern from
+    // grain_merge_buffer — skips the per-pixel min/max on the inner loop).
+    let mut col_clamp = vec![0usize; w * k_size];
+    for x in 0..w {
+        for k in 0..k_size {
+            let raw = x as i32 + k as i32 - radius as i32;
+            let clamped = raw.clamp(0, w as i32 - 1) as usize;
+            col_clamp[x * k_size + k] = clamped;
+        }
+    }
+    let mut row_clamp = vec![0usize; h * k_size];
+    for y in 0..h {
+        for k in 0..k_size {
+            let raw = y as i32 + k as i32 - radius as i32;
+            let clamped = raw.clamp(0, h as i32 - 1) as usize;
+            row_clamp[y * k_size + k] = clamped;
+        }
+    }
+
+    // Horizontal pass — f32 scratch RGBA.
+    let mut temp = vec![0.0f32; w * h * 4];
+    for y in 0..h {
+        let row_base = y * w;
+        for x in 0..w {
+            let col_base = x * k_size;
+            let mut r = 0.0f32;
+            let mut g = 0.0f32;
+            let mut b = 0.0f32;
+            let mut a = 0.0f32;
+            for k in 0..k_size {
+                let nx = unsafe { *col_clamp.get_unchecked(col_base + k) };
+                let si = (row_base + nx) * 4;
+                let wk = unsafe { *kernel.get_unchecked(k) };
+                unsafe {
+                    r += *input.get_unchecked(si)     as f32 * wk;
+                    g += *input.get_unchecked(si + 1) as f32 * wk;
+                    b += *input.get_unchecked(si + 2) as f32 * wk;
+                    a += *input.get_unchecked(si + 3) as f32 * wk;
+                }
+            }
+            let ti = (row_base + x) * 4;
+            unsafe {
+                *temp.get_unchecked_mut(ti)     = r;
+                *temp.get_unchecked_mut(ti + 1) = g;
+                *temp.get_unchecked_mut(ti + 2) = b;
+                *temp.get_unchecked_mut(ti + 3) = a;
+            }
+        }
+    }
+
+    // Vertical pass — final u8 write. Matches the JS rounding / alpha path
+    // (note: alpha comes from the accumulated Gaussian `a`, not the source pixel).
+    for y in 0..h {
+        let y_base = y * k_size;
+        for x in 0..w {
+            let mut r = 0.0f32;
+            let mut g = 0.0f32;
+            let mut b = 0.0f32;
+            let mut a = 0.0f32;
+            for k in 0..k_size {
+                let ny = unsafe { *row_clamp.get_unchecked(y_base + k) };
+                let ti = (ny * w + x) * 4;
+                let wk = unsafe { *kernel.get_unchecked(k) };
+                unsafe {
+                    r += *temp.get_unchecked(ti)     * wk;
+                    g += *temp.get_unchecked(ti + 1) * wk;
+                    b += *temp.get_unchecked(ti + 2) * wk;
+                    a += *temp.get_unchecked(ti + 3) * wk;
+                }
+            }
+            let i = (y * w + x) * 4;
+            unsafe {
+                *output.get_unchecked_mut(i)     = js_round_f32(r).clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 3) = js_round_f32(a).clamp(0.0, 255.0) as u8;
+            }
+        }
+    }
+}
+
 // === Grain merge (box blur high-pass + mix) ===
 //
 // Replaces src/filters/grainMerge.ts's two-pass per-pixel JS loop. We compute
