@@ -3128,6 +3128,14 @@ const App = () => {
                   x
                 </button>
               </div>
+              <div className={s.screensaverButtons}>
+                <button className={s.screensaverButton} onClick={confirmScreensaverDialog}>
+                  Start
+                </button>
+                <button className={s.screensaverButton} onClick={() => setShowScreensaverDialog(false)}>
+                  Cancel
+                </button>
+              </div>
               <div className={s.screensaverBody}>
                 <div className={s.screensaverColumns}>
                 <div className={s.screensaverColumnLeft}>
@@ -3348,14 +3356,6 @@ const App = () => {
                 />
                 </div>
                 </div>
-              </div>
-              <div className={s.screensaverButtons}>
-                <button className={s.screensaverButton} onClick={confirmScreensaverDialog}>
-                  Start
-                </button>
-                <button className={s.screensaverButton} onClick={() => setShowScreensaverDialog(false)}>
-                  Cancel
-                </button>
               </div>
             </div>
             </div>

@@ -609,9 +609,9 @@
 .screensaverButtons {
   display: flex;
   flex: 0 0 auto;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
-  padding: 4px 18px 14px;
+  padding: 8px 18px;
 }
 
 .screensaverButton {
