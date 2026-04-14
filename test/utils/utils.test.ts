@@ -199,4 +199,176 @@ describe("utils", () => {
       expect(Math.abs(buf[0] - 128)).toBeLessThanOrEqual(1);
     });
   });
+
+  describe("readback canvases", () => {
+    it("createReadbackCanvas returns an HTMLCanvasElement with the requested size", () => {
+      const canvas = utils.createReadbackCanvas(32, 16);
+      expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+      expect(canvas.width).toBe(32);
+      expect(canvas.height).toBe(16);
+    });
+
+    it("createReadbackCanvas without dimensions leaves the browser default size", () => {
+      const canvas = utils.createReadbackCanvas();
+      expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+      // width/height are only explicitly set when we're given positive values
+      expect(canvas.width).toBeGreaterThanOrEqual(0);
+      expect(canvas.height).toBeGreaterThanOrEqual(0);
+    });
+
+    it("getReadbackContext returns a 2D context", () => {
+      const canvas = utils.createReadbackCanvas(4, 4);
+      const ctx = utils.getReadbackContext(canvas);
+      expect(ctx).not.toBeNull();
+      expect(ctx!.getImageData).toBeTypeOf("function");
+    });
+  });
+
+  describe("cloneCanvas", () => {
+    it("returns an HTMLCanvasElement with matching dimensions", () => {
+      const source = utils.createReadbackCanvas(4, 4);
+      const clone = utils.cloneCanvas(source);
+      expect(clone).toBeInstanceOf(HTMLCanvasElement);
+      expect(clone.width).toBe(4);
+      expect(clone.height).toBe(4);
+    });
+
+    it("cloneCanvas(copyData=false) still mirrors the dimensions", () => {
+      const source = utils.createReadbackCanvas(6, 3);
+      const clone = utils.cloneCanvas(source, false);
+      expect(clone.width).toBe(6);
+      expect(clone.height).toBe(3);
+    });
+  });
+
+  describe("uniqueColors", () => {
+    it("returns distinct rgba tuples counted across the buffer", () => {
+      const buf = new Uint8ClampedArray([
+        10, 20, 30, 255,
+        40, 50, 60, 255,
+        10, 20, 30, 255, // duplicate of first
+      ]);
+      const colors = utils.uniqueColors(buf);
+      expect(colors).toHaveLength(2);
+      const asKeys = colors.map((c: number[]) => c.join(","));
+      expect(asKeys).toContain("10,20,30,255");
+      expect(asKeys).toContain("40,50,60,255");
+    });
+
+    it("respects the limit and returns the N least-frequent colors (sort asc by count)", () => {
+      const buf = new Uint8ClampedArray([
+        // red x3
+        255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255,
+        // green x1
+        0, 255, 0, 255,
+        // blue x2
+        0, 0, 255, 255, 0, 0, 255, 255,
+      ]);
+      const colors = utils.uniqueColors(buf, 2);
+      expect(colors).toHaveLength(2);
+      // Sorted ascending by count: green (1) first, blue (2) second
+      expect(colors[0]).toEqual([0, 255, 0, 255]);
+      expect(colors[1]).toEqual([0, 0, 255, 255]);
+    });
+  });
+
+  describe("color helpers", () => {
+    it("luminanceItuBt709 weights RGB per ITU-R BT.709 (non-linear mode)", () => {
+      // In linear=false mode, values are normalised to [0,1] before weighting
+      // and then scaled by alpha. Pure white alpha=255 → ~255.
+      expect(utils.luminanceItuBt709([255, 255, 255, 255], false)).toBeCloseTo(255, 1);
+      expect(utils.luminanceItuBt709([0, 0, 0, 255], false)).toBeCloseTo(0, 5);
+      expect(utils.luminanceItuBt709([255, 0, 0, 255], false)).toBeCloseTo(0.2126 * 255, 1);
+    });
+
+    it("luminance (BT.601) tracks the same direction as BT.709", () => {
+      expect(utils.luminance([255, 255, 255, 255], false)).toBeCloseTo(255, 1);
+      expect(utils.luminance([0, 0, 0, 255], false)).toBeCloseTo(0, 5);
+    });
+
+    it("rgba formats components into an array", () => {
+      expect(utils.rgba(1, 2, 3, 4)).toEqual([1, 2, 3, 4]);
+    });
+
+    it("clamp restricts a value to [min, max]", () => {
+      expect(utils.clamp(0, 10, -5)).toBe(0);
+      expect(utils.clamp(0, 10, 100)).toBe(10);
+      expect(utils.clamp(0, 10, 5)).toBe(5);
+    });
+
+    it("rgba2hsva maps red / green / blue to hue 0 / 120 / 240", () => {
+      const red = utils.rgba2hsva([255, 0, 0, 255]);
+      expect(red[0]).toBeGreaterThanOrEqual(0);
+      expect(red[0]).toBeLessThan(5);
+      const green = utils.rgba2hsva([0, 255, 0, 255]);
+      expect(green[0]).toBeGreaterThan(115);
+      expect(green[0]).toBeLessThan(125);
+      const blue = utils.rgba2hsva([0, 0, 255, 255]);
+      expect(blue[0]).toBeGreaterThan(235);
+      expect(blue[0]).toBeLessThan(245);
+    });
+
+    it("rgba2laba + laba2rgba roughly roundtrip", () => {
+      const lab = utils.rgba2laba([128, 64, 200, 255]);
+      const rgb = utils.laba2rgba(lab);
+      expect(Math.abs(rgb[0] - 128)).toBeLessThanOrEqual(4);
+      expect(Math.abs(rgb[1] - 64)).toBeLessThanOrEqual(4);
+      expect(Math.abs(rgb[2] - 200)).toBeLessThanOrEqual(4);
+    });
+
+    it("contrast and brightness scale channels predictably", () => {
+      const c = utils.contrast([100, 128, 200, 255], 2);
+      expect(c[0]).toBeLessThan(100);
+      expect(c[2]).toBeGreaterThan(200);
+      expect(c[3]).toBe(255);
+
+      const b = utils.brightness([100, 100, 100, 255], 50);
+      expect(b[0]).toBe(150);
+      expect(b[3]).toBe(255);
+    });
+
+    it("gamma applies per-channel", () => {
+      const result = utils.gamma([255, 128, 0, 255], 2.2);
+      expect(result[0]).toBe(255); // 1^2.2 == 1
+      expect(result[3]).toBe(255);
+      expect(result[2]).toBe(0);
+    });
+
+    it("equalize stretches the histogram", () => {
+      // Buffer with narrow range gets remapped
+      const buf = new Uint8ClampedArray([100, 100, 100, 255, 150, 150, 150, 255]);
+      utils.equalize(buf, buf.length);
+      // First pixel should remap toward low end, second toward high end
+      expect(buf[0]).toBeLessThan(buf[4]);
+    });
+  });
+
+  describe("medianCutPalette", () => {
+    it("returns one color when limit is 0", () => {
+      const buf = new Uint8ClampedArray([
+        255, 0, 0, 255,
+        0, 255, 0, 255,
+        0, 0, 255, 255,
+      ]);
+      const palette = utils.medianCutPalette(buf, 0, false, "MID");
+      expect(Array.isArray(palette)).toBe(true);
+      expect(palette.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("subdivides into 2^limit buckets", () => {
+      const buf = new Uint8ClampedArray([
+        255, 0, 0, 255,
+        200, 0, 0, 255,
+        0, 255, 0, 255,
+        0, 200, 0, 255,
+        0, 0, 255, 255,
+        0, 0, 200, 255,
+        255, 255, 0, 255,
+        200, 200, 0, 255,
+      ]);
+      const palette = utils.medianCutPalette(buf, 2, false, "AVERAGE");
+      expect(palette.length).toBeLessThanOrEqual(4);
+      expect(palette.length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });

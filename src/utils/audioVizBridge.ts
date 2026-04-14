@@ -233,20 +233,36 @@ const MIN_BEAT_INTERVAL_MS = 260;
 const MAX_BEAT_INTERVAL_MS = 1600;
 const BPM_RESET_IDLE_MS = 9000;
 
-const normalizeMetric = (runtime: ChannelRuntime, metric: AudioVizMetric, value: number) => {
-  const prevLow = runtime.normalizerLow[metric] ?? value;
-  const prevHigh = runtime.normalizerHigh[metric] ?? value;
-  const low = value < prevLow
+// Pure adaptive-range calculation used by normalizeMetric. Exported for
+// unit tests; fast-attack / slow-release toward the current sample, with a
+// minimum span so silent inputs don't divide by zero.
+export const computeAdaptiveRange = (
+  value: number,
+  prevLow: number | undefined,
+  prevHigh: number | undefined,
+): { normalized: number; low: number; high: number } => {
+  const lowAnchor = prevLow ?? value;
+  const highAnchor = prevHigh ?? value;
+  const low = value < lowAnchor
     ? value
-    : prevLow + (value - prevLow) * NORMALIZER_RELEASE;
-  const high = value > prevHigh
+    : lowAnchor + (value - lowAnchor) * NORMALIZER_RELEASE;
+  const high = value > highAnchor
     ? value
-    : prevHigh + (value - prevHigh) * NORMALIZER_RELEASE;
-  runtime.normalizerLow[metric] = low;
-  runtime.normalizerHigh[metric] = high;
+    : highAnchor + (value - highAnchor) * NORMALIZER_RELEASE;
   const span = Math.max(NORMALIZER_MIN_SPAN, high - low);
   const floor = high - span;
-  return clamp01((value - floor) / span);
+  return { normalized: clamp01((value - floor) / span), low, high };
+};
+
+const normalizeMetric = (runtime: ChannelRuntime, metric: AudioVizMetric, value: number) => {
+  const { normalized, low, high } = computeAdaptiveRange(
+    value,
+    runtime.normalizerLow[metric],
+    runtime.normalizerHigh[metric],
+  );
+  runtime.normalizerLow[metric] = low;
+  runtime.normalizerHigh[metric] = high;
+  return normalized;
 };
 
 const stopRuntime = async (channel: AudioVizChannel) => {
@@ -324,26 +340,39 @@ const resetIdleBeatState = (runtime: ChannelRuntime) => {
   runtime.beatConfidence *= 0.5;
 };
 
-const evaluateTempo = (runtime: ChannelRuntime) => {
-  const buffer = runtime.noveltyBuffer;
-  const filled = runtime.noveltyFilled;
-  if (filled < TEMPO_MIN_FRAMES) return;
+/**
+ * Pure autocorrelation tempo tracker. Given an onset-novelty ring buffer,
+ * scans lag values across the musical BPM range and returns the dominant
+ * candidate BPM plus a z-score style confidence. Exported for unit tests.
+ * Returns null when the signal is too short, flat, or has no positive peak.
+ */
+export const findDominantTempo = (params: {
+  buffer: Float32Array;
+  filled: number;
+  bufferIndex: number;
+  hopMs: number;
+  minBpm: number;
+  maxBpm: number;
+  minFrames: number;
+}): { bpm: number; confidence: number } | null => {
+  const { buffer, filled, bufferIndex, hopMs, minBpm, maxBpm, minFrames } = params;
+  if (filled < minFrames) return null;
   let mean = 0;
   for (let i = 0; i < filled; i++) {
-    const idx = (runtime.noveltyIndex - filled + i + buffer.length) % buffer.length;
+    const idx = (bufferIndex - filled + i + buffer.length) % buffer.length;
     mean += buffer[idx];
   }
   mean /= filled;
   let variance = 0;
   for (let i = 0; i < filled; i++) {
-    const idx = (runtime.noveltyIndex - filled + i + buffer.length) % buffer.length;
+    const idx = (bufferIndex - filled + i + buffer.length) % buffer.length;
     const v = buffer[idx] - mean;
     variance += v * v;
   }
-  if (variance < 1e-6) return;
+  if (variance < 1e-6) return null;
 
-  const minLag = Math.max(1, Math.round(60000 / (TEMPO_MAX_BPM * NOVELTY_HOP_MS)));
-  const maxLag = Math.round(60000 / (TEMPO_MIN_BPM * NOVELTY_HOP_MS));
+  const minLag = Math.max(1, Math.round(60000 / (maxBpm * hopMs)));
+  const maxLag = Math.round(60000 / (minBpm * hopMs));
   let bestScore = -Infinity;
   let bestLag = -1;
   let scoreSum = 0;
@@ -355,12 +384,12 @@ const evaluateTempo = (runtime: ChannelRuntime) => {
     if (count <= 8) continue;
     let score = 0;
     for (let i = 0; i < count; i++) {
-      const idxA = (runtime.noveltyIndex - filled + i + buffer.length) % buffer.length;
-      const idxB = (runtime.noveltyIndex - filled + i + lag + buffer.length) % buffer.length;
+      const idxA = (bufferIndex - filled + i + buffer.length) % buffer.length;
+      const idxB = (bufferIndex - filled + i + lag + buffer.length) % buffer.length;
       score += (buffer[idxA] - mean) * (buffer[idxB] - mean);
     }
     score /= count;
-    const musicalWeight = 1 - Math.abs(120 - 60000 / (lag * NOVELTY_HOP_MS)) / 600;
+    const musicalWeight = 1 - Math.abs(120 - 60000 / (lag * hopMs)) / 600;
     const weightedScore = score * Math.max(0.35, musicalWeight);
     scoreSum += weightedScore;
     scoreSqSum += weightedScore * weightedScore;
@@ -371,13 +400,28 @@ const evaluateTempo = (runtime: ChannelRuntime) => {
     }
   }
 
-  if (bestLag < 0 || bestScore <= 0 || scoreCount === 0) return;
+  if (bestLag < 0 || bestScore <= 0 || scoreCount === 0) return null;
 
-  const bestPeriodMs = bestLag * NOVELTY_HOP_MS;
-  const candidateBpm = 60000 / bestPeriodMs;
+  const bestPeriodMs = bestLag * hopMs;
+  const bpm = 60000 / bestPeriodMs;
   const scoreMean = scoreSum / scoreCount;
   const scoreStd = Math.sqrt(Math.max(0, scoreSqSum / scoreCount - scoreMean * scoreMean));
   const confidence = clamp01(scoreStd > 1e-8 ? (bestScore - scoreMean) / (scoreStd * 4) : 0);
+  return { bpm, confidence };
+};
+
+const evaluateTempo = (runtime: ChannelRuntime) => {
+  const candidate = findDominantTempo({
+    buffer: runtime.noveltyBuffer,
+    filled: runtime.noveltyFilled,
+    bufferIndex: runtime.noveltyIndex,
+    hopMs: NOVELTY_HOP_MS,
+    minBpm: TEMPO_MIN_BPM,
+    maxBpm: TEMPO_MAX_BPM,
+    minFrames: TEMPO_MIN_FRAMES,
+  });
+  if (!candidate) return;
+  const { bpm: candidateBpm, confidence } = candidate;
 
   if (runtime.tempoBpm == null) {
     runtime.tempoBpm = candidateBpm;
@@ -420,7 +464,7 @@ const createStream = async (source: AudioVizSource, deviceId: string | null) => 
   });
 };
 
-const bucketAverage = (arr: Uint8Array, start: number, end: number) => {
+export const bucketAverage = (arr: Uint8Array, start: number, end: number) => {
   let total = 0;
   let count = 0;
   for (let i = start; i < end; i++) {
@@ -430,7 +474,7 @@ const bucketAverage = (arr: Uint8Array, start: number, end: number) => {
   return count > 0 ? total / (count * 255) : 0;
 };
 
-const zeroCrossRate = (arr: Uint8Array) => {
+export const zeroCrossRate = (arr: Uint8Array) => {
   let crossings = 0;
   let prev = arr[0] - 128;
   for (let i = 1; i < arr.length; i++) {
@@ -443,7 +487,7 @@ const zeroCrossRate = (arr: Uint8Array) => {
   return crossings / arr.length;
 };
 
-const spectralCentroid = (arr: Uint8Array) => {
+export const spectralCentroid = (arr: Uint8Array) => {
   let weighted = 0;
   let total = 0;
   for (let i = 0; i < arr.length; i++) {
@@ -454,7 +498,7 @@ const spectralCentroid = (arr: Uint8Array) => {
   return total > 0 ? weighted / (total * Math.max(1, arr.length - 1)) : 0;
 };
 
-const stereoStats = (
+export const stereoStats = (
   leftFreq: Uint8Array | null,
   rightFreq: Uint8Array | null,
   leftTime: Uint8Array | null,

@@ -6,7 +6,8 @@ import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
-import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getAudioVizMetricValueForMode, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
+import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
+import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
 import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
@@ -37,41 +38,20 @@ const serializeAudioModulation = (audioMod: EntryAudioModulation | null | undefi
   };
 };
 
+// Audio modulation math lives in src/utils/autoViz.ts so it can be unit
+// tested with a stub snapshot (no AudioContext / MediaDevices needed).
 const applyAudioModulationToOptions = (
   options: Record<string, unknown>,
   optionTypes: NonNullable<ChainEntry["filter"]["optionTypes"]>,
   audioMod: EntryAudioModulation,
   entryId?: string,
-) => {
-  const nextOptions: Record<string, unknown> = { ...options };
-  const snapshot = getActiveAudioVizSnapshot();
-  const modulationByTarget = new Map<string, number>();
-  const normalizedMetrics = new Set(audioMod.normalizedMetrics ?? []);
-  for (const connection of audioMod.connections) {
-    const nextValue = (modulationByTarget.get(connection.target) ?? 0)
-      + getAudioVizMetricValueForMode(snapshot, connection.metric, snapshot.normalize || normalizedMetrics.has(connection.metric)) * connection.weight;
-    modulationByTarget.set(connection.target, nextValue);
-  }
-  for (const [optionName, modulationValue] of modulationByTarget) {
-    let resolvedOptionName = optionName;
-    if (!(resolvedOptionName in optionTypes) && entryId && optionName.startsWith(`${entryId}:`)) {
-      resolvedOptionName = optionName.slice(entryId.length + 1);
-    }
-    const optionType = optionTypes[resolvedOptionName];
-    if (!optionType || optionType.type !== "RANGE" || !Array.isArray((optionType as { range?: number[] }).range)) {
-      continue;
-    }
-    const currentValue = Number(options[resolvedOptionName]);
-    if (!Number.isFinite(currentValue)) continue;
-    const [min, max] = (optionType as { range: number[] }).range;
-    const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
-    const span = max - min;
-    const modulated = currentValue + modulationValue * span;
-    const clamped = Math.min(max, Math.max(min, modulated));
-    nextOptions[resolvedOptionName] = step > 0 ? Math.round(clamped / step) * step : clamped;
-  }
-  return nextOptions;
-};
+) => applyAudioModulationToOptionsPure(
+  options,
+  optionTypes as never,
+  audioMod,
+  getActiveAudioVizSnapshot(),
+  entryId,
+);
 
 const withAudioModulatedOptions = (entry: ChainEntry) => {
   if (!entry.filter.optionTypes || !entry.filter.options) return entry.filter.options;

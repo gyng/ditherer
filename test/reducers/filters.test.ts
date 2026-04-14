@@ -186,4 +186,140 @@ describe("filters reducer", () => {
     expect(nextState.chain[1].filter.options).toEqual({ strength: 3 });
     expect(nextState.chain[1].filter.options).not.toBe(nextState.chain[0].filter.options);
   });
+
+  it("CHAIN_REMOVE refuses to drop the last entry and clamps activeIndex otherwise", () => {
+    const singleton = {
+      ...initialState,
+      chain: [{ id: "only", displayName: "Only", filter: { name: "only" }, enabled: true }],
+      activeIndex: 0,
+    };
+    expect(reducer(singleton, { type: "CHAIN_REMOVE", id: "only" })).toBe(singleton);
+
+    const pair = {
+      ...initialState,
+      chain: [
+        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true },
+        { id: "b", displayName: "B", filter: { name: "b" }, enabled: true },
+      ],
+      activeIndex: 1,
+    };
+    const removed = reducer(pair, { type: "CHAIN_REMOVE", id: "b" });
+    expect(removed.chain.map((e: { id: string }) => e.id)).toEqual(["a"]);
+    expect(removed.activeIndex).toBe(0);
+  });
+
+  it("CHAIN_REMOVE ignores unknown ids", () => {
+    const state = {
+      ...initialState,
+      chain: [
+        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true },
+        { id: "b", displayName: "B", filter: { name: "b" }, enabled: true },
+      ],
+      activeIndex: 0,
+    };
+    expect(reducer(state, { type: "CHAIN_REMOVE", id: "nope" })).toBe(state);
+  });
+
+  it("CHAIN_REORDER is a no-op for out-of-range or identical indices", () => {
+    const state = {
+      ...initialState,
+      chain: [
+        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true },
+        { id: "b", displayName: "B", filter: { name: "b" }, enabled: true },
+      ],
+      activeIndex: 0,
+    };
+    expect(reducer(state, { type: "CHAIN_REORDER", fromIndex: 0, toIndex: 0 })).toBe(state);
+    expect(reducer(state, { type: "CHAIN_REORDER", fromIndex: -1, toIndex: 0 })).toBe(state);
+    expect(reducer(state, { type: "CHAIN_REORDER", fromIndex: 0, toIndex: 99 })).toBe(state);
+  });
+
+  it("CHAIN_SET_ACTIVE clamps index into chain bounds", () => {
+    const state = {
+      ...initialState,
+      chain: [
+        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true },
+        { id: "b", displayName: "B", filter: { name: "b" }, enabled: true },
+      ],
+      activeIndex: 0,
+    };
+    expect(reducer(state, { type: "CHAIN_SET_ACTIVE", index: 5 }).activeIndex).toBe(1);
+    expect(reducer(state, { type: "CHAIN_SET_ACTIVE", index: -3 }).activeIndex).toBe(0);
+  });
+
+  it("CHAIN_TOGGLE flips the enabled flag on the matching entry only", () => {
+    const state = {
+      ...initialState,
+      chain: [
+        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true },
+        { id: "b", displayName: "B", filter: { name: "b" }, enabled: true },
+      ],
+      activeIndex: 0,
+    };
+    const next = reducer(state, { type: "CHAIN_TOGGLE", id: "b" });
+    expect(next.chain[0].enabled).toBe(true);
+    expect(next.chain[1].enabled).toBe(false);
+  });
+
+  it("CHAIN_REPLACE swaps filter + displayName in place", () => {
+    const state = {
+      ...initialState,
+      chain: [
+        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true },
+      ],
+      activeIndex: 0,
+    };
+    const next = reducer(state, {
+      type: "CHAIN_REPLACE",
+      id: "a",
+      displayName: "Replaced",
+      filter: { name: "replaced" },
+    });
+    expect(next.chain[0].displayName).toBe("Replaced");
+    expect(next.chain[0].filter.name).toBe("replaced");
+  });
+
+  it("CHAIN_REPLACE on an unknown id is a no-op", () => {
+    const state = {
+      ...initialState,
+      chain: [{ id: "a", displayName: "A", filter: { name: "a" }, enabled: true }],
+      activeIndex: 0,
+    };
+    expect(reducer(state, {
+      type: "CHAIN_REPLACE",
+      id: "nope",
+      displayName: "x",
+      filter: { name: "x" },
+    })).toBe(state);
+  });
+
+  it("SET_CHAIN_AUDIO_MODULATION writes the modulation onto the matching entry", () => {
+    const state = {
+      ...initialState,
+      chain: [
+        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true, audioMod: null },
+      ],
+      activeIndex: 0,
+    };
+    const modulation = { connections: [{ metric: "beat", target: "amount", weight: 0.5 }], normalizedMetrics: [] };
+    const next = reducer(state, {
+      type: "SET_CHAIN_AUDIO_MODULATION",
+      id: "a",
+      modulation,
+    });
+    expect(next.chain[0].audioMod).toEqual(modulation);
+  });
+
+  it("SET_LINEARIZE / SET_WASM_ACCELERATION / SET_SCALE / SET_OUTPUT_SCALE / SET_RANDOM_CYCLE_SECONDS are plain setters", () => {
+    let state = reducer({ ...initialState }, { type: "SET_LINEARIZE", value: true });
+    expect(state.linearize).toBe(true);
+    state = reducer(state, { type: "SET_WASM_ACCELERATION", value: false });
+    expect(state.wasmAcceleration).toBe(false);
+    state = reducer(state, { type: "SET_SCALE", scale: 2.5 });
+    expect(state.scale).toBe(2.5);
+    state = reducer(state, { type: "SET_OUTPUT_SCALE", scale: 3 });
+    expect(state.outputScale).toBe(3);
+    state = reducer(state, { type: "SET_RANDOM_CYCLE_SECONDS", seconds: 12 });
+    expect(state.randomCycleSeconds).toBe(12);
+  });
 });
