@@ -23,7 +23,7 @@ import {
   setRememberedScreensaverCycleSeconds,
 } from "utils/randomCycleBridge";
 import type { AudioVizConnection, AudioVizMetric, EntryAudioModulation, GlobalAudioVizModulation } from "utils/audioVizBridge";
-import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, updateAudioVizChannel } from "utils/audioVizBridge";
+import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, resetAudioVizTempo, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, updateAudioVizChannel } from "utils/audioVizBridge";
 import { setupWebMCP } from "@src/webmcp";
 
 import controls from "components/controls/styles.module.css";
@@ -157,14 +157,15 @@ const GRAYSCALE_HELP = "Converts the source to grayscale before the chain runs. 
 const GAMMA_HELP = "Runs the pipeline in gamma-correct space for more perceptually accurate blending and brightness. It can look better, but may change results and cost a bit more work.";
 const FIX_INPUT_WIDTH_HELP = "Keeps the current input scale when loading a new image or video so the visible canvas width stays steadier during source swaps.";
 const AUDIO_METRIC_OPTIONS: Array<{ value: AudioVizMetric; label: string }> = [
+  { value: "bpm", label: "BPM" },
+  { value: "beat", label: "Beat" },
+  { value: "beatHold", label: "Beat hold" },
+  { value: "tempoPhase", label: "Tempo phase" },
   { value: "level", label: "Level" },
   { value: "bass", label: "Bass" },
   { value: "mid", label: "Mid" },
   { value: "treble", label: "Treble" },
   { value: "pulse", label: "Pulse" },
-  { value: "beat", label: "Beat" },
-  { value: "bpm", label: "BPM" },
-  { value: "beatHold", label: "Beat hold" },
   { value: "onset", label: "Onset" },
   { value: "spectralCentroid", label: "Spectral centroid" },
   { value: "spectralFlux", label: "Spectral flux" },
@@ -180,7 +181,6 @@ const AUDIO_METRIC_OPTIONS: Array<{ value: AudioVizMetric; label: string }> = [
   { value: "roughness", label: "Roughness" },
   { value: "harmonic", label: "Harmonic" },
   { value: "percussive", label: "Percussive" },
-  { value: "tempoPhase", label: "Tempo phase" },
   { value: "beatConfidence", label: "Beat confidence" },
 ];
 const AUDIO_METRIC_HELP: Record<AudioVizMetric, string> = {
@@ -213,6 +213,9 @@ const AUDIO_METRIC_HELP: Record<AudioVizMetric, string> = {
 const DEFAULT_AUDIO_METRIC_WEIGHT = 0.5;
 const AUDIO_METRIC_WEIGHT_MIN = -30;
 const AUDIO_METRIC_WEIGHT_MAX = 30;
+const AUDIO_VIZ_BPM_OVERRIDE_MIN = 40;
+const AUDIO_VIZ_BPM_OVERRIDE_MAX = 240;
+const AUDIO_VIZ_BPM_OVERRIDE_DEFAULT = 120;
 type AutoVizMode = "balanced" | "punchy" | "flow" | "chaotic";
 const AUTO_VIZ_MODES: Array<{ value: AutoVizMode; label: string }> = [
   { value: "balanced", label: "Balanced" },
@@ -220,6 +223,15 @@ const AUTO_VIZ_MODES: Array<{ value: AutoVizMode; label: string }> = [
   { value: "flow", label: "Flow" },
   { value: "chaotic", label: "Chaotic" },
 ];
+type AudioPatchTargetOption = {
+  label?: string;
+  optionName?: string;
+  targetLabel?: string;
+  range?: number[];
+  step?: number;
+  type?: string;
+  visibleWhen?: ((options: Record<string, unknown>) => boolean) | undefined;
+};
 const buildAudioConnectionDraft = (modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined) =>
   (modulation?.connections ?? []).map((connection) => ({ ...connection }));
 const buildNormalizedMetricsDraft = (modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined) =>
@@ -273,7 +285,7 @@ const scoreParamForMetric = (metric: AudioVizMetric, optionName: string, label?:
 };
 const buildAutoVizConnections = (
   mode: AutoVizMode,
-  rangeOptions: Array<readonly [string, { label?: string }]>,
+  rangeOptions: Array<readonly [string, AudioPatchTargetOption]>,
 ): { connections: AudioVizConnection[]; normalizedMetrics: AudioVizMetric[] } => {
   if (rangeOptions.length === 0) {
     return { connections: [], normalizedMetrics: [] };
@@ -295,8 +307,16 @@ const buildAutoVizConnections = (
 
   for (const metric of chosenMetrics) {
     const rankedTargets = shuffleArray(rangeOptions)
-      .filter(([optionName]) => availableTargets.has(optionName))
-      .sort((a, b) => scoreParamForMetric(metric, b[0], b[1].label) - scoreParamForMetric(metric, a[0], a[1].label));
+      .filter(([targetKey]) => availableTargets.has(targetKey))
+      .sort((a, b) => scoreParamForMetric(
+        metric,
+        b[1].optionName || b[0],
+        b[1].label,
+      ) - scoreParamForMetric(
+        metric,
+        a[1].optionName || a[0],
+        a[1].label,
+      ));
     const targetEntry = rankedTargets[0];
     if (!targetEntry) continue;
     const [target] = targetEntry;
@@ -338,7 +358,7 @@ const formatAudioMetricReadout = (
 ) => {
   if (metric === "bpm") {
     return snapshot.detectedBpm != null
-      ? `${Math.round(snapshot.detectedBpm)} BPM`
+      ? `${Math.round(snapshot.detectedBpm)} BPM${snapshot.bpmOverride != null ? " override" : ""}`
       : "-- BPM";
   }
   return `${Math.round(value * 100)}%`;
@@ -361,7 +381,7 @@ const AudioPatchPanel = ({
   bodyTitle = "Patch panel",
 }: {
   channel: "chain" | "screensaver";
-  rangeOptions: Array<readonly [string, { label?: string }]>;
+  rangeOptions: Array<readonly [string, AudioPatchTargetOption]>;
   optionValues: Record<string, unknown>;
   connections: AudioVizConnection[];
   normalizedMetrics: AudioVizMetric[];
@@ -595,6 +615,16 @@ const AudioPatchPanel = ({
   }, [onConnectionsChange, onNormalizedMetricsChange, rangeOptions]);
   const resolvedAutoVizMode = autoVizMode ?? localAutoVizMode;
   const setResolvedAutoVizMode = onAutoVizModeChange ?? setLocalAutoVizMode;
+  const bpmOverrideEnabled = snapshot.bpmOverride != null && snapshot.bpmOverride > 0;
+  const bpmOverrideSliderValue = Math.round(
+    Math.max(
+      AUDIO_VIZ_BPM_OVERRIDE_MIN,
+      Math.min(
+        AUDIO_VIZ_BPM_OVERRIDE_MAX,
+        snapshot.bpmOverride ?? snapshot.detectedBpm ?? AUDIO_VIZ_BPM_OVERRIDE_DEFAULT,
+      ),
+    ),
+  );
 
   return (
     <div
@@ -647,13 +677,15 @@ const AudioPatchPanel = ({
         )}
       </div>
       {collapsibleBody && (
-        <button
-          type="button"
-          className={s.audioPatchCollapse}
-          onClick={() => setBodyOpen((value) => !value)}
-        >
-          {bodyOpen ? "[-]" : "[+]"} {bodyTitle}
-        </button>
+        <div className={s.audioPatchSubbar}>
+          <button
+            type="button"
+            className={s.audioPatchCollapse}
+            onClick={() => setBodyOpen((value) => !value)}
+          >
+            {bodyOpen ? "[-]" : "[+]"} {bodyTitle}
+          </button>
+        </div>
       )}
       {(!collapsibleBody || bodyOpen) && (
         <>
@@ -754,6 +786,7 @@ const AudioPatchPanel = ({
                   key={option.value}
                   className={[
                     s.audioPatchNode,
+                    option.value === "bpm" ? s.audioPatchNodeBpm : "",
                     connectedMetrics.has(option.value) ? s.audioPatchNodeActive : "",
                     hoveredMetricJack === option.value ? s.audioPatchNodeHover : "",
                   ].join(" ")}
@@ -795,6 +828,53 @@ const AudioPatchPanel = ({
                     <div className={s.audioPatchMeter}>
                       <div className={s.audioPatchMeterFill} style={meterStyle(metricValue)} />
                     </div>
+                    {option.value === "bpm" && (
+                      <div className={s.audioPatchBpmControls}>
+                        <div className={s.audioPatchBpmControlsTop}>
+                          <label className={s.audioPatchBpmToggle}>
+                            <input
+                              type="checkbox"
+                              checked={bpmOverrideEnabled}
+                              onChange={(event) => {
+                                const checked = event.target.checked;
+                                void updateAudioVizChannel(channel, {
+                                  bpmOverride: checked
+                                    ? bpmOverrideSliderValue
+                                    : null,
+                                });
+                              }}
+                            />
+                            <span>Override</span>
+                          </label>
+                          <span className={s.audioPatchBpmSliderValue}>
+                            {bpmOverrideEnabled ? `${bpmOverrideSliderValue} BPM` : "Auto"}
+                          </span>
+                          <button
+                            type="button"
+                            className={s.audioPatchBpmReset}
+                            onClick={() => {
+                              void resetAudioVizTempo(channel, { clearOverride: true });
+                            }}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                        <input
+                          className={s.audioPatchBpmSlider}
+                          type="range"
+                          min={AUDIO_VIZ_BPM_OVERRIDE_MIN}
+                          max={AUDIO_VIZ_BPM_OVERRIDE_MAX}
+                          step="1"
+                          value={bpmOverrideSliderValue}
+                          disabled={!bpmOverrideEnabled}
+                          onChange={(event) => {
+                            void updateAudioVizChannel(channel, {
+                              bpmOverride: Number(event.target.value),
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
                     <label className={s.audioPatchNormalize}>
                       <input
                         type="checkbox"
@@ -823,6 +903,17 @@ const AudioPatchPanel = ({
                 draggingMetric ? s.audioPatchTargetDroppable : "",
                 hoveredTargetName === optionName ? s.audioPatchTargetHover : "",
               ].join(" ")}
+              onMouseUp={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!draggingMetric) return;
+                toggleConnection(draggingMetric, optionName);
+                setDraggingMetric(null);
+                setDragPointer(null);
+                setHoveredTargetName(null);
+              }}
+              onMouseEnter={() => setHoveredTargetName(optionName)}
+              onMouseLeave={() => setHoveredTargetName((current) => current === optionName ? null : current)}
             >
               <button
                 ref={(element) => { targetRefs.current[optionName] = element; }}
@@ -831,21 +922,10 @@ const AudioPatchPanel = ({
                   draggingMetric ? s.audioPatchJackDroppable : "",
                   hoveredTargetName === optionName ? s.audioPatchJackHover : "",
                 ].join(" ")}
-                onMouseUp={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  if (!draggingMetric) return;
-                  toggleConnection(draggingMetric, optionName);
-                  setDraggingMetric(null);
-                  setDragPointer(null);
-                  setHoveredTargetName(null);
-                }}
-                onMouseEnter={() => setHoveredTargetName(optionName)}
-                onMouseLeave={() => setHoveredTargetName((current) => current === optionName ? null : current)}
-                title={`Patch to ${optionType.label || optionName}`}
+                title={`Patch to ${optionType.targetLabel || optionType.label || optionName}`}
               />
               <div className={s.audioPatchTargetBody}>
-                <span className={s.audioPatchTargetLabel}>{optionType.label || optionName}</span>
+                <span className={s.audioPatchTargetLabel}>{optionType.targetLabel || optionType.label || optionName}</span>
                 {Array.isArray((optionType as { range?: number[] }).range) && (() => {
                   const currentValue = Number(optionValues[optionName]);
                   if (!Number.isFinite(currentValue)) return null;
@@ -1990,23 +2070,31 @@ const App = () => {
       : []
   ), [editingAudioEntry]);
   const chainWideRangeOptions = useMemo(() => (
-    Array.from(new Map(
-      state.chain.flatMap((entry) =>
-        Object.entries(entry.filter.optionTypes || {})
-          .filter(([optionName, optionType]) =>
-            !optionName.startsWith("_") &&
-            optionType.type === "RANGE" &&
-            (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(entry.filter.options || {}))
-          )
-          .map(([optionName, optionType]) => [optionName, optionType] as const)
-      )
-    ).entries())
+    state.chain.flatMap((entry, index) =>
+      Object.entries(entry.filter.optionTypes || {})
+        .filter(([optionName, optionType]) =>
+          !optionName.startsWith("_") &&
+          optionType.type === "RANGE" &&
+          (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(entry.filter.options || {}))
+        )
+        .map(([optionName, optionType]) => [
+          `${entry.id}:${optionName}`,
+          {
+            ...optionType,
+            optionName,
+            targetLabel: `${index + 1}. ${entry.displayName} / ${optionType.label || optionName}`,
+          },
+        ] as const)
+    )
   ), [state.chain]);
   const chainWideOptionValues = useMemo(() => (
     Object.fromEntries(
-      chainWideRangeOptions.map(([optionName]) => {
-        const entry = state.chain.find((item) => optionName in (item.filter.options || {}));
-        return [optionName, entry?.filter.options?.[optionName]];
+      chainWideRangeOptions.map(([targetKey, optionType]) => {
+        const optionName = optionType.optionName || targetKey;
+        const separatorIndex = targetKey.indexOf(":");
+        const entryId = separatorIndex >= 0 ? targetKey.slice(0, separatorIndex) : targetKey;
+        const entry = state.chain.find((item) => item.id === entryId);
+        return [targetKey, entry?.filter.options?.[optionName]];
       }),
     )
   ), [chainWideRangeOptions, state.chain]);

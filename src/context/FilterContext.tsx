@@ -41,6 +41,7 @@ const applyAudioModulationToOptions = (
   options: Record<string, unknown>,
   optionTypes: NonNullable<ChainEntry["filter"]["optionTypes"]>,
   audioMod: EntryAudioModulation,
+  entryId?: string,
 ) => {
   const nextOptions: Record<string, unknown> = { ...options };
   const snapshot = getActiveAudioVizSnapshot();
@@ -52,17 +53,21 @@ const applyAudioModulationToOptions = (
     modulationByTarget.set(connection.target, nextValue);
   }
   for (const [optionName, modulationValue] of modulationByTarget) {
-    const optionType = optionTypes[optionName];
+    let resolvedOptionName = optionName;
+    if (!(resolvedOptionName in optionTypes) && entryId && optionName.startsWith(`${entryId}:`)) {
+      resolvedOptionName = optionName.slice(entryId.length + 1);
+    }
+    const optionType = optionTypes[resolvedOptionName];
     if (!optionType || optionType.type !== "RANGE" || !Array.isArray((optionType as { range?: number[] }).range)) {
       continue;
     }
-    const currentValue = Number(options[optionName]);
+    const currentValue = Number(options[resolvedOptionName]);
     if (!Number.isFinite(currentValue)) continue;
     const [min, max] = (optionType as { range: number[] }).range;
     const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
     const span = max - min;
     const modulated = currentValue + modulationValue * span;
-    nextOptions[optionName] = step > 0 ? Math.round(modulated / step) * step : modulated;
+    nextOptions[resolvedOptionName] = step > 0 ? Math.round(modulated / step) * step : modulated;
   }
   return nextOptions;
 };
@@ -77,6 +82,7 @@ const withAudioModulatedOptions = (entry: ChainEntry) => {
       nextOptions,
       entry.filter.optionTypes,
       entry.audioMod,
+      entry.id,
     );
   }
   const globalMod = getGlobalAudioVizModulation(getActiveAudioVizChannel());
@@ -85,6 +91,7 @@ const withAudioModulatedOptions = (entry: ChainEntry) => {
       nextOptions,
       entry.filter.optionTypes,
       globalMod,
+      entry.id,
     );
   }
   return nextOptions;

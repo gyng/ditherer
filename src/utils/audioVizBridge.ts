@@ -45,6 +45,7 @@ export type AudioVizChannelConfig = {
   source: AudioVizSource;
   normalize: boolean;
   deviceId: string | null;
+  bpmOverride: number | null;
 };
 
 type AudioVizMetricValues = Record<AudioVizMetric, number>;
@@ -123,6 +124,7 @@ const defaultSnapshot = (): AudioVizSnapshot => ({
   source: "microphone",
   normalize: false,
   deviceId: null,
+  bpmOverride: null,
   status: "idle",
   error: null,
   deviceLabel: null,
@@ -185,6 +187,7 @@ const NORMALIZER_RELEASE = 0.004;
 const NORMALIZER_MIN_SPAN = 0.08;
 const MIN_BEAT_INTERVAL_MS = 180;
 const MAX_BEAT_INTERVAL_MS = 1600;
+const BPM_RESET_IDLE_MS = 4000;
 
 const normalizeMetric = (runtime: ChannelRuntime, metric: AudioVizMetric, value: number) => {
   const prevLow = runtime.normalizerLow[metric] ?? value;
@@ -222,6 +225,7 @@ const stopRuntime = async (channel: AudioVizChannel) => {
   const source = runtime.snapshot.source;
   const normalize = runtime.snapshot.normalize;
   const deviceId = runtime.snapshot.deviceId;
+  const bpmOverride = runtime.snapshot.bpmOverride;
   const requestToken = runtime.requestToken;
   runtimes[channel] = {
     ...makeRuntime(),
@@ -231,10 +235,19 @@ const stopRuntime = async (channel: AudioVizChannel) => {
       source,
       normalize,
       deviceId,
+      bpmOverride,
       enabled: false,
       status: "idle",
     },
   };
+};
+
+const resetTempoState = (runtime: ChannelRuntime) => {
+  runtime.beatPulse = 0;
+  runtime.beatHold = 0;
+  runtime.lastBeatAt = null;
+  runtime.beatIntervalEma = null;
+  runtime.beatConfidence = 0;
 };
 
 const createStream = async (source: AudioVizSource, deviceId: string | null) => {
@@ -371,6 +384,9 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     const harmonic = clamp01((1 - spectralFlux) * (0.35 + mid * 0.65));
     const percussive = clamp01((onset * 0.7) + (pulse * 0.3));
     const now = performance.now();
+    const overrideBpm = current.snapshot.bpmOverride != null && current.snapshot.bpmOverride > 0
+      ? current.snapshot.bpmOverride
+      : null;
     const msSinceLastBeat = current.lastBeatAt == null ? Number.POSITIVE_INFINITY : now - current.lastBeatAt;
     const beatEnergy = Math.max(
       subKick * 1.35 + pulse * 0.85,
@@ -383,7 +399,24 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       || beatEnergy > 0.34
     );
 
-    if (beatTriggered) {
+    if (overrideBpm != null) {
+      const overrideBeatIntervalMs = 60000 / overrideBpm;
+      if (current.lastBeatAt == null) {
+        current.lastBeatAt = now;
+        current.beatPulse = 1;
+        current.beatHold = 1;
+      } else if (now - current.lastBeatAt >= overrideBeatIntervalMs) {
+        const beatsElapsed = Math.max(1, Math.floor((now - current.lastBeatAt) / overrideBeatIntervalMs));
+        current.lastBeatAt += beatsElapsed * overrideBeatIntervalMs;
+        current.beatPulse = 1;
+        current.beatHold = 1;
+      } else {
+        current.beatPulse *= 0.72;
+        current.beatHold *= 0.9;
+      }
+      current.beatConfidence = 1;
+      current.beatIntervalEma = overrideBeatIntervalMs;
+    } else if (beatTriggered) {
       if (current.lastBeatAt != null) {
         const interval = now - current.lastBeatAt;
         if (interval >= MIN_BEAT_INTERVAL_MS && interval < MAX_BEAT_INTERVAL_MS) {
@@ -401,13 +434,22 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       current.beatPulse *= 0.72;
       current.beatHold *= 0.9;
       current.beatConfidence *= 0.992;
+      if (current.lastBeatAt != null && now - current.lastBeatAt > BPM_RESET_IDLE_MS) {
+        resetTempoState(current);
+      }
     }
-    const detectedBpm = current.beatIntervalEma != null && current.beatIntervalEma > 0
+    const detectedBeatBpm = current.beatIntervalEma != null && current.beatIntervalEma > 0
       ? 60000 / current.beatIntervalEma
       : null;
+    const detectedBpm = overrideBpm ?? detectedBeatBpm;
+    const effectiveBpm = detectedBpm;
+    const effectiveBeatIntervalMs = effectiveBpm != null && effectiveBpm > 0
+      ? 60000 / effectiveBpm
+      : null;
     let tempoPhase = 0;
-    if (current.lastBeatAt != null && current.beatIntervalEma != null && current.beatIntervalEma > 0) {
-      tempoPhase = ((now - current.lastBeatAt) % current.beatIntervalEma) / current.beatIntervalEma;
+    if (effectiveBeatIntervalMs != null && effectiveBeatIntervalMs > 0) {
+      const phaseAnchor = current.lastBeatAt ?? 0;
+      tempoPhase = ((now - phaseAnchor) % effectiveBeatIntervalMs) / effectiveBeatIntervalMs;
     }
 
     const rawMetrics: AudioVizMetricValues = {
@@ -417,7 +459,7 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       treble,
       pulse,
       beat: current.beatPulse,
-      bpm: clamp01((detectedBpm ?? 0) / BPM_NORMALIZATION_MAX),
+      bpm: clamp01((effectiveBpm ?? 0) / BPM_NORMALIZATION_MAX),
       beatHold: current.beatHold,
       onset,
       spectralCentroid: centroid,
@@ -446,7 +488,7 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     updateSnapshot(channel, {
       status: "live",
       error: null,
-      detectedBpm,
+      detectedBpm: effectiveBpm,
       rawMetrics,
       normalizedMetrics,
       metrics,
@@ -585,8 +627,52 @@ export const updateAudioVizChannel = async (
   channel: AudioVizChannel,
   partial: Partial<AudioVizChannelConfig>,
 ) => {
+  const shouldRestart = "enabled" in partial || "source" in partial || "deviceId" in partial;
   updateSnapshot(channel, partial);
-  await startRuntime(channel);
+  if (shouldRestart) {
+    await startRuntime(channel);
+  }
+};
+
+export const resetAudioVizTempo = async (
+  channel: AudioVizChannel,
+  options?: { clearOverride?: boolean },
+) => {
+  const runtime = runtimes[channel];
+  resetTempoState(runtime);
+  const clearOverride = options?.clearOverride ?? false;
+  const bpmOverride = clearOverride ? null : runtime.snapshot.bpmOverride;
+  const bpmValue = bpmOverride != null && bpmOverride > 0
+    ? clamp01(bpmOverride / BPM_NORMALIZATION_MAX)
+    : 0;
+  updateSnapshot(channel, {
+    ...(clearOverride ? { bpmOverride: null } : {}),
+    detectedBpm: bpmOverride,
+    rawMetrics: {
+      ...runtime.snapshot.rawMetrics,
+      beat: 0,
+      bpm: bpmValue,
+      beatHold: 0,
+      tempoPhase: 0,
+      beatConfidence: 0,
+    },
+    normalizedMetrics: {
+      ...runtime.snapshot.normalizedMetrics,
+      beat: 0,
+      bpm: bpmValue,
+      beatHold: 0,
+      tempoPhase: 0,
+      beatConfidence: 0,
+    },
+    metrics: {
+      ...runtime.snapshot.metrics,
+      beat: 0,
+      bpm: bpmValue,
+      beatHold: 0,
+      tempoPhase: 0,
+      beatConfidence: 0,
+    },
+  });
 };
 
 export const setActiveAudioVizChannel = (channel: AudioVizChannel) => {

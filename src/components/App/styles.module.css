@@ -655,11 +655,18 @@
   min-height: 0;
 }
 
-.audioPatchCollapse {
+.audioPatchSubbar {
   position: relative;
   z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px 0;
+}
+
+.audioPatchCollapse {
   min-height: 24px;
-  margin: 8px 10px 0;
   padding: 2px 8px;
   text-align: left;
   white-space: nowrap;
@@ -743,11 +750,15 @@
   min-height: 46px;
 }
 
+.audioPatchNodeBpm {
+  min-height: 78px;
+}
+
 .audioPatchNodeGrid {
   display: grid;
   align-items: center;
   grid-template-columns: minmax(0, 1fr) 38px auto 16px;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   column-gap: 6px;
   row-gap: 3px;
   width: 100%;
@@ -808,9 +819,9 @@
   grid-row: 1 / span 2;
   align-self: center;
   justify-self: center;
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   border-radius: 999px;
   border: 2px solid #0f1116;
   background: radial-gradient(circle at 35% 35%, #87d6ff, #0b5b8a 62%, #06273b 100%);
@@ -848,16 +859,57 @@
   white-space: nowrap;
 }
 
+.audioPatchBpmControls {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.audioPatchBpmControlsTop {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.audioPatchBpmToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.audioPatchBpmSlider {
+  width: 100%;
+  min-width: 0;
+  display: block;
+  align-self: stretch;
+}
+
+.audioPatchBpmSliderValue {
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  color: #27485c;
+  white-space: nowrap;
+}
+
+.audioPatchBpmReset {
+  min-height: 22px;
+  padding: 2px 8px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 .audioPatchTarget {
   min-height: 58px;
   align-items: center;
   padding: 8px 10px;
-}
-
-.audioPatchTarget .audioPatchJack {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
 }
 
 .audioPatchTargetBody {

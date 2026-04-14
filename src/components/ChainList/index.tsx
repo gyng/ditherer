@@ -202,8 +202,8 @@ const ChainList = ({
   const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const randomCycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const randomChainRef = useRef<() => void>(() => {});
-  const randomPresetRef = useRef<() => void>(() => {});
+  const randomChainRef = useRef<(reason?: string) => void>(() => {});
+  const randomPresetRef = useRef<(reason?: string) => void>(() => {});
   const resolveDefaults = useCallback((name: string) => {
     const match = filterList.find((filter) => filter.displayName === name);
     return (match?.filter.defaults || match?.filter.options || {}) as Record<string, unknown>;
@@ -348,7 +348,11 @@ const ChainList = ({
     if (resolved) actions.chainAdd(resolved.displayName, resolved.filter);
   };
 
-  const randomChain = useCallback(() => {
+  const logGeneratedChain = useCallback((reason: string, filters: Array<{ displayName: string }>) => {
+    console.info(`[random-chain:${reason}]`, filters.map((filter) => filter.displayName).join(" -> "));
+  }, []);
+
+  const randomChain = useCallback((reason = "manual") => {
     // Usually pick 2-4 random filters, with small chances of 1- or 5-filter chains.
     const candidates = filterList.filter((f) => f && f.category !== "Advanced");
     if (candidates.length === 0) return;
@@ -379,11 +383,12 @@ const ChainList = ({
       : -1;
     const randomized = picked.map((entry, index) => createRandomFilterEntry(entry, index === forcedIndex));
 
+    logGeneratedChain(reason, randomized);
     actions.selectFilter(randomized[0].displayName, randomized[0].filter);
     for (let i = 1; i < randomized.length; i++) {
       actions.chainAdd(randomized[i].displayName, randomized[i].filter);
     }
-  }, [actions]);
+  }, [actions, logGeneratedChain]);
 
   useEffect(() => {
     randomChainRef.current = randomChain;
@@ -411,10 +416,10 @@ const ChainList = ({
 
     randomCycleTimerRef.current = setInterval(() => {
       if (screensaverCycleSeconds != null && screensaverCycleSeconds > 0 && Math.random() < SCREENSAVER_PRESET_SWAP_CHANCE) {
-        randomPresetRef.current();
+        randomPresetRef.current("screensaver-preset");
         return;
       }
-      randomChainRef.current();
+      randomChainRef.current(screensaverCycleSeconds != null && screensaverCycleSeconds > 0 ? "screensaver-chain" : "timer-chain");
     }, activeCycleSeconds * 1000);
 
     return () => {
@@ -450,9 +455,10 @@ const ChainList = ({
     }
   };
 
-  const loadRandomPreset = () => {
+  const loadRandomPreset = (reason = "manual-preset") => {
     if (CHAIN_PRESETS.length === 0) return;
     const preset = CHAIN_PRESETS[Math.floor(Math.random() * CHAIN_PRESETS.length)];
+    console.info(`[random-chain:${reason}]`, preset.filters.map((filter) => filter.name).join(" -> "));
     loadPreset(preset);
     setLoadedSavedName(null);
   };
@@ -589,14 +595,14 @@ const ChainList = ({
           </select>
           <button
             className={[s.addBtn, s.randomAction].join(" ")}
-            onClick={loadRandomPreset}
+            onClick={() => loadRandomPreset()}
             title="Random curated preset"
           >
             &#9733;?
           </button>
           <button
             className={[s.addBtn, s.randomAction].join(" ")}
-            onClick={randomChain}
+            onClick={() => randomChain()}
             title="Random filter chain"
           >
             &#9861;
