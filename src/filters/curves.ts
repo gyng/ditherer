@@ -1,6 +1,15 @@
 import { ENUM, CURVE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+  wasmApplyChannelLut,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 const CHANNEL = {
@@ -86,8 +95,9 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const curves = (input: any, options = defaults) => {
+const curves = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { channel, points, palette } = options;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -98,6 +108,41 @@ const curves = (input: any, options = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const lut = buildCurveLut(parsePoints(points));
+
+  // WASM fast path for the per-channel modes (RGB / R / G / B) — a single
+  // buffer-wide LUT apply. LUMA mode stays on JS because it cross-mixes channels.
+  // If a non-trivial palette is attached we still run the JS palette pass over
+  // the result to honor the palette match (cheap when levels >= 256 in practice).
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+  const perChannel = channel === CHANNEL.RGB || channel === CHANNEL.R || channel === CHANNEL.G || channel === CHANNEL.B;
+  const canUseWasm = perChannel && wasmIsLoaded() && options._wasmAcceleration !== false;
+
+  if (canUseWasm) {
+    const identity = new Uint8Array(256);
+    for (let i = 0; i < 256; i += 1) identity[i] = i;
+    const lutU8 = lut instanceof Uint8Array ? lut : new Uint8Array(lut);
+    const lutR = channel === CHANNEL.RGB || channel === CHANNEL.R ? lutU8 : identity;
+    const lutG = channel === CHANNEL.RGB || channel === CHANNEL.G ? lutU8 : identity;
+    const lutB = channel === CHANNEL.RGB || channel === CHANNEL.B ? lutU8 : identity;
+    wasmApplyChannelLut(buf, outBuf, lutR, lutG, lutB);
+
+    if (!paletteIsIdentity) {
+      // Follow up with the palette pass so user palettes / non-identity levels
+      // still apply. Reads from outBuf (WASM output), writes back in place.
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = getBufferIndex(x, y, W);
+          const color = srgbPaletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options);
+          fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
+        }
+      }
+    }
+    logFilterWasmStatus("Curves", true, `channel=${channel}${paletteIsIdentity ? "" : " +palettePass"}`);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+
+  logFilterWasmStatus("Curves", false, channel === CHANNEL.LUMA ? "channel=LUMA" : (options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet"));
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

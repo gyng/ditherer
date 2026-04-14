@@ -1228,3 +1228,38 @@ pub fn quantize_buffer_hsv(buffer: &[u8], palette: &[f64]) -> Vec<u8> {
     }
     out
 }
+
+// === Per-channel LUT apply ===
+//
+// Reusable primitive for any filter that reduces to "remap each channel
+// through an 8-bit LUT": Curves (RGB / R / G / B modes), Smooth Posterize,
+// Levels (when added), etc. The caller is responsible for building the LUT;
+// WASM just does the tight per-pixel dispatch.
+//
+// Each `lut_*` must be exactly 256 bytes. Alpha is copied straight through.
+
+#[wasm_bindgen]
+pub fn apply_channel_lut(
+    input: &[u8],
+    output: &mut [u8],
+    lut_r: &[u8],
+    lut_g: &[u8],
+    lut_b: &[u8],
+) {
+    // The slice-index guarantees (len == 256, caller-enforced) let the compiler
+    // elide bounds checks in the hot loop. We still gate once at entry so a
+    // mis-sized LUT fails loudly instead of reading garbage.
+    if lut_r.len() < 256 || lut_g.len() < 256 || lut_b.len() < 256 { return; }
+    let n_pixels = input.len() / 4;
+    for p in 0..n_pixels {
+        let i = p * 4;
+        // SAFETY: p < n_pixels → i + 3 < input.len() == output.len(); LUT indices
+        // are u8 values < 256 and we checked len above.
+        unsafe {
+            *output.get_unchecked_mut(i)     = *lut_r.get_unchecked(*input.get_unchecked(i)     as usize);
+            *output.get_unchecked_mut(i + 1) = *lut_g.get_unchecked(*input.get_unchecked(i + 1) as usize);
+            *output.get_unchecked_mut(i + 2) = *lut_b.get_unchecked(*input.get_unchecked(i + 2) as usize);
+            *output.get_unchecked_mut(i + 3) = *input.get_unchecked(i + 3);
+        }
+    }
+}

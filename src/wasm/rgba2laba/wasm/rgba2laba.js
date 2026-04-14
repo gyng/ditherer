@@ -3,6 +3,27 @@
 /**
  * @param {Uint8Array} input
  * @param {Uint8Array} output
+ * @param {Uint8Array} lut_r
+ * @param {Uint8Array} lut_g
+ * @param {Uint8Array} lut_b
+ */
+export function apply_channel_lut(input, output, lut_r, lut_g, lut_b) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArray8ToWasm0(lut_r, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passArray8ToWasm0(lut_g, wasm.__wbindgen_malloc);
+    const len3 = WASM_VECTOR_LEN;
+    const ptr4 = passArray8ToWasm0(lut_b, wasm.__wbindgen_malloc);
+    const len4 = WASM_VECTOR_LEN;
+    wasm.apply_channel_lut(ptr0, len0, ptr1, len1, output, ptr2, len2, ptr3, len3, ptr4, len4);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
  * @param {Float64Array} kernel

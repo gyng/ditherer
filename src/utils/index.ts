@@ -191,6 +191,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmErrorDiffuseBufferInner = mod.error_diffuse_buffer;
   wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
   wasmOrderedDitherLinearInner = mod.ordered_dither_linear_buffer;
+  wasmApplyChannelLutInner = mod.apply_channel_lut;
   wasmLoadedFlag = true;
 };
 
@@ -452,6 +453,15 @@ type WasmQuantizeBufferFn = {
     refZ?: number,
   ): Uint8Array<ArrayBufferLike>;
 }["bivarianceHack"];
+type WasmApplyChannelLutFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    lutR: Uint8Array,
+    lutG: Uint8Array,
+    lutB: Uint8Array,
+  ): void;
+}["bivarianceHack"];
 type WasmOrderedDitherLinearFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -572,6 +582,10 @@ let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = () => {
 };
 
 let wasmOrderedDitherLinearInner: WasmOrderedDitherLinearFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmApplyChannelLutInner: WasmApplyChannelLutFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -878,6 +892,18 @@ export const WASM_ROW_ALT = {
   PRIME: 9,
   RANDOM: 10,
 } as const;
+
+// Apply three 256-entry per-channel LUTs to an RGBA buffer in a single WASM
+// call. The caller is responsible for constructing the LUTs — this just does
+// the tight per-pixel dispatch. Used by Curves (RGB/R/G/B modes), Smooth
+// Posterize, and any future filter that reduces to a per-channel remap.
+export const wasmApplyChannelLut = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  lutR: Uint8Array,
+  lutG: Uint8Array,
+  lutB: Uint8Array,
+): void => wasmApplyChannelLutInner(input, output, lutR, lutG, lutB);
 
 // Linear-mode ordered dither in a single WASM call. Handles the sRGB→linear
 // input conversion, threshold-bias quantization in linear space, the linear→sRGB
