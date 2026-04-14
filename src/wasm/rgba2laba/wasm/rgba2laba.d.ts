@@ -7,6 +7,8 @@ export function error_diffuse_buffer(input: Uint8Array, output: Uint8Array, widt
 
 export function error_diffuse_custom_order(input: Uint8Array, output: Uint8Array, width: number, height: number, visit_order: Uint32Array, tuples: Float32Array, kernel_starts: Uint32Array, kernel_lens: Uint32Array, kernel_totals: Float32Array, err_strategy: number, linearize: boolean, prev_input: Uint8Array, prev_output: Uint8Array, temporal_bleed: number, palette_mode: number, levels: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
 
+export function hsv_shift_buffer(input: Uint8Array, output: Uint8Array, hue_shift: number, sat_shift: number, val_shift: number): void;
+
 /**
  * Per-pixel nearest with pre-converted Lab palette.
  * `palette_lab` is [L0,a0,b0, L1,a1,b1, …] (already in Lab space).
@@ -65,6 +67,7 @@ export interface InitOutput {
     readonly error_diffuse_custom_order: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number) => void;
     readonly ordered_dither_linear_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number) => void;
     readonly quantize_buffer_hsv: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly hsv_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

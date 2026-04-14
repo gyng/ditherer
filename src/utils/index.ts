@@ -192,6 +192,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
   wasmOrderedDitherLinearInner = mod.ordered_dither_linear_buffer;
   wasmApplyChannelLutInner = mod.apply_channel_lut;
+  wasmHsvShiftInner = mod.hsv_shift_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -453,6 +454,15 @@ type WasmQuantizeBufferFn = {
     refZ?: number,
   ): Uint8Array<ArrayBufferLike>;
 }["bivarianceHack"];
+type WasmHsvShiftFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    hueShift: number,
+    satShift: number,
+    valShift: number,
+  ): void;
+}["bivarianceHack"];
 type WasmApplyChannelLutFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -586,6 +596,10 @@ let wasmOrderedDitherLinearInner: WasmOrderedDitherLinearFn = () => {
 };
 
 let wasmApplyChannelLutInner: WasmApplyChannelLutFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmHsvShiftInner: WasmHsvShiftFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -892,6 +906,16 @@ export const WASM_ROW_ALT = {
   PRIME: 9,
   RANDOM: 10,
 } as const;
+
+// Per-pixel HSV shift (hue in degrees, sat/val in [-1, 1]) applied in a single
+// WASM call. Alpha passes through unchanged. Used by the Color shift filter.
+export const wasmHsvShiftBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  hueShift: number,
+  satShift: number,
+  valShift: number,
+): void => wasmHsvShiftInner(input, output, hueShift, satShift, valShift);
 
 // Apply three 256-entry per-channel LUTs to an RGBA buffer in a single WASM
 // call. The caller is responsible for constructing the LUTs — this just does

@@ -1,6 +1,16 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, rgba2hsva, srgbPaletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  rgba2hsva,
+  srgbPaletteGetColor,
+  wasmHsvShiftBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 // h: 0-360, s/v/a: 0-1 → r/g/b/a: 0-255
@@ -41,7 +51,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const colorShift = (input: any, options = defaults) => {
+const colorShift = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { hue, saturation, value, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -49,7 +59,23 @@ const colorShift = (input: any, options = defaults) => {
   if (!inputCtx || !outputCtx) return input;
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    wasmHsvShiftBuffer(buf, buf, hue, saturation, value);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < buf.length; i += 4) {
+        const col = srgbPaletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options);
+        fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
+      }
+    }
+    logFilterWasmStatus("Color shift", true, paletteIsIdentity ? "hsv" : "hsv+palettePass");
+    outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
+    return output;
+  }
+
+  logFilterWasmStatus("Color shift", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
   for (let x = 0; x < input.width; x += 1) {
     for (let y = 0; y < input.height; y += 1) {
       const i = getBufferIndex(x, y, input.width);

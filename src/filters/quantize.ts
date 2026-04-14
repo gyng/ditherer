@@ -1,7 +1,38 @@
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor, wasmQuantizeBuffer, wasmIsLoaded, resolvePaletteColorAlgorithm, logFilterWasmStatus } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbBufToLinearFloat,
+  linearFloatToSrgbBuf,
+  srgbPaletteGetColor,
+  linearPaletteGetColor,
+  wasmQuantizeBuffer,
+  wasmApplyChannelLut,
+  wasmIsLoaded,
+  resolvePaletteColorAlgorithm,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter, type FilterOptionValues } from "filters/types";
+
+// For the nearest-levels palette, each output channel is `round(round(x/step)*step)`
+// — depends only on the input byte, so we can collapse it into a 256-entry LUT
+// and apply with the generic WASM LUT primitive.
+const buildLevelsLut = (levels: number): Uint8Array => {
+  const lut = new Uint8Array(256);
+  if (levels >= 256) {
+    for (let i = 0; i < 256; i += 1) lut[i] = i;
+    return lut;
+  }
+  const step = 255 / (levels - 1);
+  for (let i = 0; i < 256; i += 1) {
+    const v = Math.round(Math.round(i / step) * step);
+    lut[i] = Math.max(0, Math.min(255, v));
+  }
+  return lut;
+};
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -41,7 +72,8 @@ const quantize = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
   const algo = resolvePaletteColorAlgorithm(palette);
-  const colors = (palette.options as { colors?: number[][] } | undefined)?.colors;
+  const paletteOpts = palette.options as { colors?: number[][]; levels?: number } | undefined;
+  const colors = paletteOpts?.colors;
 
   // WASM buffer quantize — single call replaces entire pixel loop.
   // Works for sRGB path (no linearize); linear path still needs per-pixel round-trip.
@@ -49,18 +81,28 @@ const quantize = (
   if (!options._wasmAcceleration) wasmReason = "_wasmAcceleration off";
   else if (!wasmIsLoaded()) wasmReason = "wasm not loaded yet";
   else if (options._linearize) wasmReason = "linearize on";
-  else if (!colors) wasmReason = "palette has no colors";
-  else if (!algo) wasmReason = "no colorDistanceAlgorithm";
 
-  if (!wasmReason && algo && colors) {
-    const result = wasmQuantizeBuffer(buf, colors, algo);
-    if (result && result.length === buf.length) {
-      buf.set(result);
-      logFilterWasmStatus("Quantize", true, `algo=${algo}`);
+  if (!wasmReason) {
+    // User palette (has colors + algorithm) → full quantize dispatcher.
+    if (colors && algo) {
+      const result = wasmQuantizeBuffer(buf, colors, algo);
+      if (result && result.length === buf.length) {
+        buf.set(result);
+        logFilterWasmStatus("Quantize", true, `algo=${algo}`);
+        outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
+        return output;
+      }
+      wasmReason = "wasm returned null";
+    } else if (typeof paletteOpts?.levels === "number") {
+      // Nearest / levels palette: round-round-snap per channel fits a 256 LUT.
+      const lut = buildLevelsLut(paletteOpts.levels);
+      wasmApplyChannelLut(buf, buf, lut, lut, lut);
+      logFilterWasmStatus("Quantize", true, `levels=${paletteOpts.levels}`);
       outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
       return output;
+    } else {
+      wasmReason = "palette unsupported";
     }
-    wasmReason = "wasm returned null";
   }
   logFilterWasmStatus("Quantize", false, wasmReason);
 

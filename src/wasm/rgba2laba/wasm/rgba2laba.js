@@ -107,6 +107,21 @@ export function error_diffuse_custom_order(input, output, width, height, visit_o
 }
 
 /**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} hue_shift
+ * @param {number} sat_shift
+ * @param {number} val_shift
+ */
+export function hsv_shift_buffer(input, output, hue_shift, sat_shift, val_shift) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.hsv_shift_buffer(ptr0, len0, ptr1, len1, output, hue_shift, sat_shift, val_shift);
+}
+
+/**
  * Per-pixel nearest with pre-converted Lab palette.
  * `palette_lab` is [L0,a0,b0, L1,a1,b1, …] (already in Lab space).
  * @param {number} r

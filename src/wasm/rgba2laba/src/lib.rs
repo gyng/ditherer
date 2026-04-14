@@ -1229,6 +1229,96 @@ pub fn quantize_buffer_hsv(buffer: &[u8], palette: &[f64]) -> Vec<u8> {
     out
 }
 
+// === HSV shift ===
+//
+// Rotate hue by `hue_shift` degrees and offset saturation/value by `sat_shift` /
+// `val_shift` (each in [-1, 1], clamped to [0, 1] after the offset). Matches
+// src/filters/colorShift.ts's hsva2rgba/rgba2hsva semantics: JS operates in
+// f64 and rounds to u8 at the end, so we do the same.
+
+#[inline]
+fn hsv_to_rgb_u8(h: f64, s: f64, v: f64) -> (u8, u8, u8) {
+    if s == 0.0 {
+        let c = (v * 255.0).round().clamp(0.0, 255.0) as u8;
+        return (c, c, c);
+    }
+    let hh_full = ((h % 360.0 + 360.0) % 360.0) / 60.0;
+    let sector = hh_full.floor();
+    let f = hh_full - sector;
+    let p = v * (1.0 - s);
+    let q = v * (1.0 - s * f);
+    let t = v * (1.0 - s * (1.0 - f));
+    let (r, g, b) = match sector as i32 {
+        0 => (v, t, p),
+        1 => (q, v, p),
+        2 => (p, v, t),
+        3 => (p, q, v),
+        4 => (t, p, v),
+        _ => (v, p, q),
+    };
+    (
+        (r * 255.0).round().clamp(0.0, 255.0) as u8,
+        (g * 255.0).round().clamp(0.0, 255.0) as u8,
+        (b * 255.0).round().clamp(0.0, 255.0) as u8,
+    )
+}
+
+#[wasm_bindgen]
+pub fn hsv_shift_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    hue_shift: f64,
+    sat_shift: f64,
+    val_shift: f64,
+) {
+    let n_pixels = input.len() / 4;
+    for p in 0..n_pixels {
+        let i = p * 4;
+        // SAFETY: p < n_pixels → i + 3 < input.len() == output.len().
+        let (ir, ig, ib, ia) = unsafe {
+            (
+                *input.get_unchecked(i) as f64,
+                *input.get_unchecked(i + 1) as f64,
+                *input.get_unchecked(i + 2) as f64,
+                *input.get_unchecked(i + 3),
+            )
+        };
+        // Match JS rgba2hsva exactly: /255 first, then max/min/delta, h in degrees.
+        let r = ir / 255.0;
+        let g = ig / 255.0;
+        let b = ib / 255.0;
+        let max = r.max(g).max(b);
+        let min = r.min(g).min(b);
+        let delta = max - min;
+        let v = max;
+        let (h, s) = if delta > 0.0 {
+            let s = delta / max;
+            let h_raw = if r == max {
+                (g - b) / delta
+            } else if g == max {
+                2.0 + (b - r) / delta
+            } else {
+                4.0 + (r - g) / delta
+            };
+            let mut h_deg = h_raw * 60.0;
+            if h_deg < 0.0 { h_deg += 360.0; }
+            (h_deg, s)
+        } else {
+            (0.0, 0.0)
+        };
+        let h_out = h + hue_shift;
+        let s_out = (s + sat_shift).clamp(0.0, 1.0);
+        let v_out = (v + val_shift).clamp(0.0, 1.0);
+        let (or, og, ob) = hsv_to_rgb_u8(h_out, s_out, v_out);
+        unsafe {
+            *output.get_unchecked_mut(i)     = or;
+            *output.get_unchecked_mut(i + 1) = og;
+            *output.get_unchecked_mut(i + 2) = ob;
+            *output.get_unchecked_mut(i + 3) = ia;
+        }
+    }
+}
+
 // === Per-channel LUT apply ===
 //
 // Reusable primitive for any filter that reduces to "remap each channel
