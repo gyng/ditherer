@@ -1635,37 +1635,32 @@ pub fn gaussian_blur_buffer(
     }
     for k in kernel.iter_mut() { *k = (*k as f64 / sum) as f32; }
 
-    // Precomputed clamp-to-edge index tables (reusing the pattern from
-    // grain_merge_buffer — skips the per-pixel min/max on the inner loop).
-    let mut col_clamp = vec![0usize; w * k_size];
-    for x in 0..w {
-        for k in 0..k_size {
-            let raw = x as i32 + k as i32 - radius as i32;
-            let clamped = raw.clamp(0, w as i32 - 1) as usize;
-            col_clamp[x * k_size + k] = clamped;
-        }
-    }
-    let mut row_clamp = vec![0usize; h * k_size];
-    for y in 0..h {
-        for k in 0..k_size {
-            let raw = y as i32 + k as i32 - radius as i32;
-            let clamped = raw.clamp(0, h as i32 - 1) as usize;
-            row_clamp[y * k_size + k] = clamped;
-        }
-    }
-
-    // Horizontal pass — f32 scratch RGBA.
     let mut temp = vec![0.0f32; w * h * 4];
+
+    // Horizontal pass. The inner accumulation is split into three regions:
+    // - Left edge (x < radius): per-sample clamp, can't auto-vectorise.
+    // - Interior (radius ≤ x < w-radius): contiguous stride-1 reads through
+    //   input, which LLVM auto-vectorises to v128 f32 multiply-adds.
+    // - Right edge (x ≥ w-radius): per-sample clamp.
+    //
+    // When w ≤ 2*radius the whole row is "edge" and we only use the clamped path.
+    //
+    // We accumulate R/G/B/A together because the packed RGBA layout gives good
+    // memory locality — SIMD still helps inside the k loop even though the
+    // four channels aren't vectorised together.
+    let interior_x_start = radius.min(w);
+    let interior_x_end = if w > radius { w - radius } else { 0 };
+
     for y in 0..h {
         let row_base = y * w;
-        for x in 0..w {
-            let col_base = x * k_size;
-            let mut r = 0.0f32;
-            let mut g = 0.0f32;
-            let mut b = 0.0f32;
-            let mut a = 0.0f32;
+        let row_px_base = row_base * 4;
+
+        // --- Left edge (and entire row when narrow) ---
+        for x in 0..interior_x_start.min(interior_x_end) {
+            let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
             for k in 0..k_size {
-                let nx = unsafe { *col_clamp.get_unchecked(col_base + k) };
+                let raw = x as i32 + k as i32 - radius as i32;
+                let nx = raw.clamp(0, w as i32 - 1) as usize;
                 let si = (row_base + nx) * 4;
                 let wk = unsafe { *kernel.get_unchecked(k) };
                 unsafe {
@@ -1683,19 +1678,72 @@ pub fn gaussian_blur_buffer(
                 *temp.get_unchecked_mut(ti + 3) = a;
             }
         }
+
+        // --- Interior: stride-1 neighbour access ---
+        if interior_x_end > interior_x_start {
+            for x in interior_x_start..interior_x_end {
+                let window_base = row_px_base + (x - radius) * 4;
+                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                for k in 0..k_size {
+                    let si = window_base + k * 4;
+                    let wk = unsafe { *kernel.get_unchecked(k) };
+                    unsafe {
+                        r += *input.get_unchecked(si)     as f32 * wk;
+                        g += *input.get_unchecked(si + 1) as f32 * wk;
+                        b += *input.get_unchecked(si + 2) as f32 * wk;
+                        a += *input.get_unchecked(si + 3) as f32 * wk;
+                    }
+                }
+                let ti = (row_base + x) * 4;
+                unsafe {
+                    *temp.get_unchecked_mut(ti)     = r;
+                    *temp.get_unchecked_mut(ti + 1) = g;
+                    *temp.get_unchecked_mut(ti + 2) = b;
+                    *temp.get_unchecked_mut(ti + 3) = a;
+                }
+            }
+        }
+
+        // --- Right edge (only when there was an interior range) ---
+        if interior_x_end > interior_x_start {
+            for x in interior_x_end..w {
+                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                for k in 0..k_size {
+                    let raw = x as i32 + k as i32 - radius as i32;
+                    let nx = raw.clamp(0, w as i32 - 1) as usize;
+                    let si = (row_base + nx) * 4;
+                    let wk = unsafe { *kernel.get_unchecked(k) };
+                    unsafe {
+                        r += *input.get_unchecked(si)     as f32 * wk;
+                        g += *input.get_unchecked(si + 1) as f32 * wk;
+                        b += *input.get_unchecked(si + 2) as f32 * wk;
+                        a += *input.get_unchecked(si + 3) as f32 * wk;
+                    }
+                }
+                let ti = (row_base + x) * 4;
+                unsafe {
+                    *temp.get_unchecked_mut(ti)     = r;
+                    *temp.get_unchecked_mut(ti + 1) = g;
+                    *temp.get_unchecked_mut(ti + 2) = b;
+                    *temp.get_unchecked_mut(ti + 3) = a;
+                }
+            }
+        }
     }
 
-    // Vertical pass — final u8 write. Matches the JS rounding / alpha path
-    // (note: alpha comes from the accumulated Gaussian `a`, not the source pixel).
-    for y in 0..h {
-        let y_base = y * k_size;
+    // Vertical pass — final u8 write. Same left/interior/right split; the
+    // interior case is stride-w through temp, which LLVM also vectorises
+    // because w is loop-invariant.
+    let interior_y_start = radius.min(h);
+    let interior_y_end = if h > radius { h - radius } else { 0 };
+
+    // Left/top edge (and entire image when short).
+    for y in 0..interior_y_start.min(interior_y_end) {
         for x in 0..w {
-            let mut r = 0.0f32;
-            let mut g = 0.0f32;
-            let mut b = 0.0f32;
-            let mut a = 0.0f32;
+            let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
             for k in 0..k_size {
-                let ny = unsafe { *row_clamp.get_unchecked(y_base + k) };
+                let raw = y as i32 + k as i32 - radius as i32;
+                let ny = raw.clamp(0, h as i32 - 1) as usize;
                 let ti = (ny * w + x) * 4;
                 let wk = unsafe { *kernel.get_unchecked(k) };
                 unsafe {
@@ -1711,6 +1759,62 @@ pub fn gaussian_blur_buffer(
                 *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
                 *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
                 *output.get_unchecked_mut(i + 3) = js_round_f32(a).clamp(0.0, 255.0) as u8;
+            }
+        }
+    }
+
+    // Interior rows — known-safe stride-w access.
+    if interior_y_end > interior_y_start {
+        for y in interior_y_start..interior_y_end {
+            let top_row_base = (y - radius) * w * 4;
+            for x in 0..w {
+                let col_base = top_row_base + x * 4;
+                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                for k in 0..k_size {
+                    let ti = col_base + k * (w * 4);
+                    let wk = unsafe { *kernel.get_unchecked(k) };
+                    unsafe {
+                        r += *temp.get_unchecked(ti)     * wk;
+                        g += *temp.get_unchecked(ti + 1) * wk;
+                        b += *temp.get_unchecked(ti + 2) * wk;
+                        a += *temp.get_unchecked(ti + 3) * wk;
+                    }
+                }
+                let i = (y * w + x) * 4;
+                unsafe {
+                    *output.get_unchecked_mut(i)     = js_round_f32(r).clamp(0.0, 255.0) as u8;
+                    *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
+                    *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
+                    *output.get_unchecked_mut(i + 3) = js_round_f32(a).clamp(0.0, 255.0) as u8;
+                }
+            }
+        }
+    }
+
+    // Bottom edge.
+    if interior_y_end > interior_y_start {
+        for y in interior_y_end..h {
+            for x in 0..w {
+                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                for k in 0..k_size {
+                    let raw = y as i32 + k as i32 - radius as i32;
+                    let ny = raw.clamp(0, h as i32 - 1) as usize;
+                    let ti = (ny * w + x) * 4;
+                    let wk = unsafe { *kernel.get_unchecked(k) };
+                    unsafe {
+                        r += *temp.get_unchecked(ti)     * wk;
+                        g += *temp.get_unchecked(ti + 1) * wk;
+                        b += *temp.get_unchecked(ti + 2) * wk;
+                        a += *temp.get_unchecked(ti + 3) * wk;
+                    }
+                }
+                let i = (y * w + x) * 4;
+                unsafe {
+                    *output.get_unchecked_mut(i)     = js_round_f32(r).clamp(0.0, 255.0) as u8;
+                    *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
+                    *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
+                    *output.get_unchecked_mut(i + 3) = js_round_f32(a).clamp(0.0, 255.0) as u8;
+                }
             }
         }
     }
