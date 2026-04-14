@@ -8,7 +8,7 @@ import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
 import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
-import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
+import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
 import { FilterContext } from "./filterContextValue";
@@ -560,6 +560,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         console.error(`Filter "${entry.displayName}" threw:`, e);
         continue;
       }
+      // One-shot "JS (no wasm path)" for filters that didn't self-report via
+      // logFilterWasmStatus. Runs after the call so a filter that does log
+      // suppresses this fallback.
+      logFilterDispatched(entry.filter.name);
       const stepMs = performance.now() - t0;
       stepTimes.push({ name: entry.displayName, ms: stepMs });
       totalTime += stepMs;

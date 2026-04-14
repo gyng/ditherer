@@ -10,7 +10,13 @@
 import { createCanvas, loadImage, ImageData as NodeImageData } from "canvas";
 import { filterList } from "filters";
 import { CHAIN_PRESETS, PRESET_CATEGORIES } from "../src/components/ChainList/presets";
-import { cloneCanvas } from "utils";
+import {
+  cloneCanvas,
+  wasmReady,
+  initWasmFromBinary,
+  getFilterWasmStatuses,
+  resetFilterWasmStatus,
+} from "utils";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -67,8 +73,28 @@ const DEFAULT_WORKER_ITEM_CONCURRENCY = Math.max(
 const PROGRESS_EVERY = Math.max(1, Number(process.env.GALLERY_PROGRESS_EVERY || "25"));
 const WORKER_MODE = process.env.GALLERY_WORKER_MODE === "1";
 const WORKER_INDEX = Number(process.env.GALLERY_WORKER_INDEX || "0");
+// Bench-only mode: run the per-filter benchmark but don't touch the preview
+// assets or GALLERY.md. PERF.md is always regenerated, but it's gitignored so
+// running `npm run bench` doesn't leave anything git-visible behind.
+const BENCH_ONLY = process.env.GALLERY_BENCH_ONLY === "1";
 
 type GalleryKind = "filters" | "presets";
+
+type VariantPerf = {
+  name: string;
+  didWasm: boolean;
+  reason: string;
+  jsMs: number;
+  wasmMs: number;
+};
+
+type FilterPerf = {
+  jsMs: number;
+  wasmMs: number;
+  didWasm: boolean;
+  reason: string;
+  variants: VariantPerf[];
+};
 
 type GalleryItem = {
   displayName: string;
@@ -77,6 +103,7 @@ type GalleryItem = {
   description: string;
   previewSource: "image" | "video";
   status: "ok" | "unavailable";
+  perf?: FilterPerf;
 };
 
 type GifColorTable = number[][];
@@ -554,12 +581,137 @@ const writeWorkerPayload = (filePath: string, payload: WorkerPayload) => {
 
 const getNpxCommand = () => (process.platform === "win32" ? "npx.cmd" : "npx");
 
+// === Benchmark helpers ===
+
+const BENCH_WARMUP = 1;
+const BENCH_RUNS = 3;
+// Per-filter bench is capped so a slow pathological filter can't blow up
+// gallery runtime. If a single run exceeds this, we keep the samples we have.
+const BENCH_MAX_TOTAL_MS = 2000;
+
+// Returns `null` if the filter blew up — callers should treat that as a bench failure.
+const timeFilterRuns = (
+  filter: FilterDefinition,
+  sourceCanvas: HTMLCanvasElement,
+  options: Record<string, unknown>
+): number | null => {
+  try {
+    // Warmup — discount JIT compile and wasm module warm-up.
+    for (let i = 0; i < BENCH_WARMUP; i += 1) {
+      const input = cloneCanvas(sourceCanvas, true) as HTMLCanvasElement;
+      filter.func(input, { ...options, _frameIndex: i }, undefined);
+    }
+    const samples: number[] = [];
+    const startAll = performance.now();
+    for (let i = 0; i < BENCH_RUNS; i += 1) {
+      const input = cloneCanvas(sourceCanvas, true) as HTMLCanvasElement;
+      const t0 = performance.now();
+      filter.func(input, { ...options, _frameIndex: i + BENCH_WARMUP }, undefined);
+      samples.push(performance.now() - t0);
+      if (performance.now() - startAll > BENCH_MAX_TOTAL_MS) break;
+    }
+    if (samples.length === 0) return null;
+    samples.sort((a, b) => a - b);
+    return samples[Math.floor(samples.length / 2)]; // median
+  } catch {
+    return null;
+  }
+};
+
+const captureWasmStatus = (filterName: string, fallbackReason: string): { didWasm: boolean; reason: string } => {
+  const status = getFilterWasmStatuses().get(filterName);
+  if (status) return status;
+  return { didWasm: false, reason: fallbackReason };
+};
+
+// Variant matrix for filters with multiple fast paths. Each entry describes a
+// configuration to benchmark and what it's meant to exercise. Filters not
+// listed here just get the default bench.
+type VariantSpec = { name: string; overrides: Record<string, unknown> };
+
+const getFilterVariants = (filterName: string, defaults: Record<string, unknown>): VariantSpec[] => {
+  const ed = new Set([
+    "Floyd-Steinberg", "False Floyd-Steinberg", "Atkinson", "Sierra",
+    "Sierra 2-row", "Sierra lite", "Jarvis", "Stucki", "Burkes",
+    "Stripe (Horizontal)", "Stripe (Vertical)",
+  ]);
+  if (ed.has(filterName)) {
+    return [
+      { name: "linearize", overrides: { _linearize: true } },
+      { name: "scanOrder=VERTICAL", overrides: { scanOrder: "VERTICAL" } },
+      { name: "scanOrder=HILBERT", overrides: { scanOrder: "HILBERT" } },
+      { name: "scanOrder=RANDOM_PIXEL", overrides: { scanOrder: "RANDOM_PIXEL" } },
+      { name: "rowAlt=RANDOM", overrides: { rowAlternation: "RANDOM" } },
+      { name: "temporalMode=VOTE", overrides: { temporalMode: "VOTE" } },
+    ];
+  }
+  if (filterName === "Ordered") {
+    return [
+      { name: "linearize", overrides: { _linearize: true } },
+    ];
+  }
+  // No known variants for other filters.
+  return defaults ? [] : [];
+};
+
+const benchFilter = (
+  entry: FilterListEntry,
+  sourceCanvas: HTMLCanvasElement
+): FilterPerf | undefined => {
+  const filter = entry.filter as FilterDefinition;
+  const defaults = resolveFilterOptions(filter);
+  // Status lookups use the underlying filter.name (what logFilterWasmStatus logs
+  // under), not the gallery's displayName — the gallery may wrap the same base
+  // filter under multiple display names (e.g. presets).
+  const statusKey = (entry.filter as unknown as { name?: string }).name ?? entry.displayName;
+  const variantsForThisFilter = getFilterVariants(statusKey, defaults);
+
+  resetFilterWasmStatus(statusKey);
+  const wasmOpts = { ...defaults, _wasmAcceleration: true };
+  const wasmMs = timeFilterRuns(filter, sourceCanvas, wasmOpts);
+  const wasmStatus = captureWasmStatus(statusKey, "no wasm path");
+
+  resetFilterWasmStatus(statusKey);
+  const jsOpts = { ...defaults, _wasmAcceleration: false };
+  const jsMs = timeFilterRuns(filter, sourceCanvas, jsOpts);
+
+  if (jsMs == null || wasmMs == null) return undefined;
+
+  const variants: VariantPerf[] = [];
+  for (const v of variantsForThisFilter) {
+    resetFilterWasmStatus(statusKey);
+    const vWasm = timeFilterRuns(filter, sourceCanvas, { ...defaults, ...v.overrides, _wasmAcceleration: true });
+    const vStatus = captureWasmStatus(statusKey, "no wasm path");
+    resetFilterWasmStatus(statusKey);
+    const vJs = timeFilterRuns(filter, sourceCanvas, { ...defaults, ...v.overrides, _wasmAcceleration: false });
+    if (vWasm != null && vJs != null) {
+      variants.push({ name: v.name, didWasm: vStatus.didWasm, reason: vStatus.reason, jsMs: vJs, wasmMs: vWasm });
+    }
+  }
+
+  return { jsMs, wasmMs, didWasm: wasmStatus.didWasm, reason: wasmStatus.reason, variants };
+};
+
 const renderFilterItem = async (
   entry: FilterListEntry,
   sourceCanvas: HTMLCanvasElement,
   animatedSourceFrames: HTMLCanvasElement[],
   outputDir: string
 ): Promise<GalleryItem> => {
+  const perf = benchFilter(entry, sourceCanvas);
+  if (BENCH_ONLY) {
+    // Skip asset generation + preview rendering entirely; the bench already
+    // exercised the filter so we know whether it's ok.
+    return {
+      displayName: entry.displayName,
+      category: entry.category,
+      assetPath: null,
+      description: entry.description,
+      previewSource: isAnimatedFilterEntry(entry) ? "video" : "image",
+      status: perf ? "ok" : "unavailable",
+      ...(perf ? { perf } : {}),
+    };
+  }
   const animatedPreview = isAnimatedFilterEntry(entry);
   if (animatedPreview) {
     const result = runAnimatedFilterPreview(entry, animatedSourceFrames);
@@ -571,6 +723,7 @@ const renderFilterItem = async (
         description: entry.description,
         previewSource: "video",
         status: "unavailable",
+        ...(perf ? { perf } : {}),
       };
     }
     const filename = `filter-${slugify(entry.displayName)}.gif`;
@@ -584,6 +737,7 @@ const renderFilterItem = async (
       description: entry.description,
       previewSource: "video",
       status: "ok",
+      ...(perf ? { perf } : {}),
     };
   }
 
@@ -596,6 +750,7 @@ const renderFilterItem = async (
       description: entry.description,
       previewSource: "image",
       status: "unavailable",
+      ...(perf ? { perf } : {}),
     };
   }
   const filename = `filter-${slugify(entry.displayName)}.png`;
@@ -609,6 +764,7 @@ const renderFilterItem = async (
     description: entry.description,
     previewSource: "image",
     status: "ok",
+    ...(perf ? { perf } : {}),
   };
 };
 
@@ -766,6 +922,20 @@ const runWorkerMain = async () => {
     throw new Error("Worker mode requires GALLERY_TASK_FILE, GALLERY_RESULT_FILE, and GALLERY_OUTPUT_DIR.");
   }
 
+  // Wait for the WASM module to load so per-filter benches can exercise the
+  // WASM path. The default wasmReady path uses fetch() which doesn't work in
+  // Node, so we also feed the .wasm bytes in directly from disk as a fallback.
+  try { await wasmReady; } catch (err) { console.error("wasmReady failed:", err); }
+  try {
+    const wasmPath = path.resolve("src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm");
+    if (fs.existsSync(wasmPath)) {
+      const wasmBytes = fs.readFileSync(wasmPath);
+      await initWasmFromBinary(wasmBytes);
+    }
+  } catch (err) {
+    console.error("initWasmFromBinary failed:", err);
+  }
+
   const payload = readWorkerPayload(taskFile);
   const allFilters = filterList.filter(Boolean) as FilterListEntry[];
   const filterByName = new Map(allFilters.map((entry) => [entry.displayName, entry] as const));
@@ -799,6 +969,95 @@ const runWorkerMain = async () => {
   );
 
   writeWorkerPayload(resultFile, { tasks: payload.tasks, items });
+};
+
+const formatMs = (ms: number) => ms < 10 ? ms.toFixed(2) : ms.toFixed(1);
+const formatSpeedup = (jsMs: number, wasmMs: number) =>
+  wasmMs <= 0 ? "—" : `${(jsMs / wasmMs).toFixed(2)}×`;
+
+const buildPerfMarkdown = (filterResults: GalleryItem[]) => {
+  const withPerf = filterResults.filter((r): r is GalleryItem & { perf: FilterPerf } => r.perf !== undefined);
+  const wasmCount = withPerf.filter((r) => r.perf.didWasm).length;
+  const jsCount = withPerf.length - wasmCount;
+  const totalFilters = filterResults.length;
+
+  let md = "# Filter Performance Report\n\n";
+  md += "> Generated by `npm run gallery` (or `npm run bench` for bench-only). ";
+  md += "All numbers are median wall-clock ms over 3 post-warmup runs at preview size ";
+  md += "(same `pepper.png` the gallery uses).\n\n";
+  md += `> Filters benched: **${withPerf.length} / ${totalFilters}** · `;
+  md += `WASM-accelerated (default config): **${wasmCount}** · `;
+  md += `JS-only (default config): **${jsCount}**\n\n`;
+
+  // Coverage summary — what's on the WASM path and what falls through.
+  const reasonsCounter = new Map<string, number>();
+  for (const r of withPerf) {
+    if (r.perf.didWasm) continue;
+    const key = r.perf.reason || "unknown";
+    reasonsCounter.set(key, (reasonsCounter.get(key) ?? 0) + 1);
+  }
+  if (reasonsCounter.size > 0) {
+    md += "## JS fall-through reasons (default config)\n\n";
+    md += "| reason | filters |\n|---|---:|\n";
+    const sorted = [...reasonsCounter.entries()].sort((a, b) => b[1] - a[1]);
+    for (const [reason, n] of sorted) md += `| ${reason} | ${n} |\n`;
+    md += "\n";
+  }
+
+  // Variant coverage for filters that have multi-path bench coverage.
+  const withVariants = withPerf.filter((r) => r.perf.variants.length > 0);
+  if (withVariants.length > 0) {
+    md += "## Variant coverage\n\n";
+    md += "Each row shows whether the WASM fast path was taken for that variant ";
+    md += "(✅ WASM, ⚠️ JS) and the JS→WASM speedup.\n\n";
+    for (const r of withVariants) {
+      md += `### ${r.displayName}\n\n`;
+      md += "| variant | path | js ms | wasm ms | speedup | reason |\n";
+      md += "|---|---|---:|---:|---:|---|\n";
+      md += `| _default_ | ${r.perf.didWasm ? "✅ WASM" : "⚠️ JS"} | ${formatMs(r.perf.jsMs)} | ${formatMs(r.perf.wasmMs)} | ${formatSpeedup(r.perf.jsMs, r.perf.wasmMs)} | ${r.perf.reason} |\n`;
+      for (const v of r.perf.variants) {
+        md += `| ${v.name} | ${v.didWasm ? "✅ WASM" : "⚠️ JS"} | ${formatMs(v.jsMs)} | ${formatMs(v.wasmMs)} | ${formatSpeedup(v.jsMs, v.wasmMs)} | ${v.reason} |\n`;
+      }
+      md += "\n";
+    }
+  }
+
+  // Candidates for porting: JS-only filters sorted by JS cost (biggest wins first).
+  const candidates = withPerf.filter((r) => !r.perf.didWasm).sort((a, b) => b.perf.jsMs - a.perf.jsMs);
+  if (candidates.length > 0) {
+    md += "## Candidates for Rust/WASM porting (JS-only, slowest first)\n\n";
+    md += "| filter | category | js ms | reason |\n|---|---|---:|---|\n";
+    for (const r of candidates.slice(0, 40)) {
+      md += `| ${r.displayName} | ${r.category} | ${formatMs(r.perf.jsMs)} | ${r.perf.reason} |\n`;
+    }
+    if (candidates.length > 40) md += `\n…and ${candidates.length - 40} more.\n`;
+    md += "\n";
+  }
+
+  // Full per-filter table, sorted by WASM speedup (biggest first among the WASM ones).
+  md += "## All filters (default config)\n\n";
+  md += "| filter | category | path | js ms | wasm ms | speedup |\n";
+  md += "|---|---|---|---:|---:|---:|\n";
+  const sortedAll = [...withPerf].sort((a, b) => {
+    // WASM-accelerated first (by speedup desc), then JS-only (by js ms desc).
+    if (a.perf.didWasm !== b.perf.didWasm) return a.perf.didWasm ? -1 : 1;
+    if (a.perf.didWasm) return (b.perf.jsMs / b.perf.wasmMs) - (a.perf.jsMs / a.perf.wasmMs);
+    return b.perf.jsMs - a.perf.jsMs;
+  });
+  for (const r of sortedAll) {
+    md += `| ${r.displayName} | ${r.category} | ${r.perf.didWasm ? "✅ WASM" : "⚠️ JS"} | ${formatMs(r.perf.jsMs)} | ${formatMs(r.perf.wasmMs)} | ${formatSpeedup(r.perf.jsMs, r.perf.wasmMs)} |\n`;
+  }
+  md += "\n";
+
+  const missing = filterResults.filter((r) => !r.perf);
+  if (missing.length > 0) {
+    md += "## No perf data\n\n";
+    md += "These filters threw during the bench and have no numbers:\n\n";
+    for (const r of missing) md += `- ${r.displayName} (${r.category})\n`;
+    md += "\n";
+  }
+
+  return md;
 };
 
 const buildGalleryMarkdown = (filterResults: GalleryItem[], presetResults: GalleryItem[]) => {
@@ -847,13 +1106,20 @@ async function main() {
   );
 
   const outputDir = path.resolve("docs/gallery");
-  ensureOutputDirectories(outputDir);
+  if (!BENCH_ONLY) {
+    ensureOutputDirectories(outputDir);
+  } else {
+    // Bench-only: ensure the output dir exists but don't wipe the existing gallery.
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
 
   const allFilters = filterList.filter(Boolean) as FilterListEntry[];
-  const tasks: GalleryTask[] = [
-    ...allFilters.map((_, index) => ({ kind: "filters", index }) satisfies GalleryTask),
-    ...CHAIN_PRESETS.map((_, index) => ({ kind: "presets", index }) satisfies GalleryTask),
-  ];
+  const tasks: GalleryTask[] = BENCH_ONLY
+    ? allFilters.map((_, index) => ({ kind: "filters", index }) satisfies GalleryTask)
+    : [
+      ...allFilters.map((_, index) => ({ kind: "filters", index }) satisfies GalleryTask),
+      ...CHAIN_PRESETS.map((_, index) => ({ kind: "presets", index }) satisfies GalleryTask),
+    ];
   const workerResults = await runWorkerPool(tasks, outputDir);
 
   const filterResults = new Array<GalleryItem>(allFilters.length);
@@ -863,10 +1129,23 @@ async function main() {
     else presetResults[result.index] = result.item;
   }
 
+  // PERF.md is always written (bench runs in both modes). It's gitignored by
+  // default so running this doesn't pollute git.
+  const perfMd = buildPerfMarkdown(filterResults);
+  fs.writeFileSync(path.resolve("docs/gallery/PERF.md"), perfMd);
+
+  if (BENCH_ONLY) {
+    const benched = filterResults.filter((r) => r?.perf).length;
+    console.log(
+      `\nBench-only: ${benched}/${filterResults.length} filters measured -> docs/gallery/PERF.md`
+    );
+    return;
+  }
+
   const md = buildGalleryMarkdown(filterResults, presetResults);
   fs.writeFileSync(path.resolve("docs/gallery/GALLERY.md"), md);
   console.log(
-    `\nDone: ${filterResults.length} filters + ${presetResults.length} presets -> docs/gallery/ + docs/gallery/GALLERY.md`
+    `\nDone: ${filterResults.length} filters + ${presetResults.length} presets -> docs/gallery/ + docs/gallery/GALLERY.md + docs/gallery/PERF.md`
   );
 }
 

@@ -18,6 +18,7 @@
     "bench": "vitest bench test/perf",
     "bench:compare": "node test/perf/compareBench.mjs",
     "gallery": "npx vite-node scripts/generate-gallery.ts",
+    "bench:filters": "GALLERY_BENCH_ONLY=1 npx vite-node scripts/generate-gallery.ts",
     "report:presets": "npx vite-node scripts/report-preset-similarities.ts"
   },
   "dependencies": {

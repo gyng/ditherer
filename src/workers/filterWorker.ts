@@ -3,6 +3,7 @@ import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "filters
 import { deserializePalette } from "palettes";
 import type { SerializedPalette } from "palettes";
 import { grayscale } from "filters";
+import { logFilterDispatched } from "utils";
 import type { WorkerFilterRequest, WorkerFilterResult, WorkerPrevOutputFrame, WorkerRequestMessage } from "./types";
 import type { SerializedOptionMap } from "context/shareStateTypes";
 
@@ -115,6 +116,7 @@ export const runWorkerFilterRequest = (
       console.error(`Worker: filter "${entry.displayName}" threw:`, err);
       continue;
     }
+    logFilterDispatched(filter.name);
     stepTimes.push({ name: entry.displayName, ms: performance.now() - t0 });
 
     if (has2dContext(output)) {

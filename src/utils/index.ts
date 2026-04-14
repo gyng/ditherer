@@ -172,23 +172,56 @@ const memoize = (fn: any) => {
   };
 };
 
+// Synchronous readiness flag — callers on the WASM fast path should check this
+// before calling WASM functions, since module init is async.
+let wasmLoadedFlag = false;
+export const wasmIsLoaded = () => wasmLoadedFlag;
+
+// Wire up the inner function references once the module has been initialised.
+// Extracted so `initWasmFromBinary` (Node/tooling path) can reuse the same wiring.
+const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => {
+  wasmRgba2labaInner = mod.rgba2laba;
+  wasmRgbaLabaDistanceInner = mod.rgba_laba_distance;
+  wasmNearestLabIndexInner = mod.rgba_nearest_lab_index;
+  wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
+  wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
+  wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
+  wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
+  wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
+  wasmErrorDiffuseBufferInner = mod.error_diffuse_buffer;
+  wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
+  wasmOrderedDitherLinearInner = mod.ordered_dither_linear_buffer;
+  wasmLoadedFlag = true;
+};
+
 export const wasmReady: Promise<boolean> = import.meta.env.MODE !== "test"
   ? import("wasm/rgba2laba/wasm/rgba2laba").then(async (mod) => {
     await mod.default();
-    wasmRgba2labaInner = mod.rgba2laba;
-    wasmRgbaLabaDistanceInner = mod.rgba_laba_distance;
-    wasmNearestLabIndexInner = mod.rgba_nearest_lab_index;
-    wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
-    wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
-    wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
-    wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
-    wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
+    bindWasmModule(mod);
     return true;
   }).catch(err => {
     console.error("WASM module failed to load, using JS fallback:", err);
     return false;
   })
   : Promise.resolve(false);
+
+// Node/tooling escape hatch: the default wasmReady path uses `fetch(new URL(...))`
+// which Node's undici can't handle for `file://` wasm URLs. Tooling (the gallery
+// script) can read the .wasm binary from disk itself and call this to get the
+// full WASM-accelerated code paths.
+export const initWasmFromBinary = async (binary: BufferSource): Promise<boolean> => {
+  try {
+    const mod = await import("wasm/rgba2laba/wasm/rgba2laba");
+    // Pass the raw binary as the module_or_path param — wasm-bindgen's init
+    // accepts a BufferSource directly (skips the fetch path).
+    await mod.default(binary as unknown as Parameters<typeof mod.default>[0]);
+    bindWasmModule(mod);
+    return true;
+  } catch (err) {
+    console.error("initWasmFromBinary failed:", err);
+    return false;
+  }
+};
 
 export const serializeState = (state: unknown) => JSON.stringify(state);
 
@@ -419,6 +452,75 @@ type WasmQuantizeBufferFn = {
     refZ?: number,
   ): Uint8Array<ArrayBufferLike>;
 }["bivarianceHack"];
+type WasmOrderedDitherLinearFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    thresholdMap: Float64Array,
+    thresholdW: number,
+    thresholdH: number,
+    temporalOx: number,
+    temporalOy: number,
+    orderedLevels: number,
+    paletteMode: number,
+    levels: number,
+    palette: Float64Array,
+    refX: number,
+    refY: number,
+    refZ: number,
+  ): void;
+}["bivarianceHack"];
+type WasmErrorDiffuseCustomFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    visitOrder: Uint32Array,
+    tuples: Float32Array,
+    kernelStarts: Uint32Array,
+    kernelLens: Uint32Array,
+    kernelTotals: Float32Array,
+    errStrategy: number,
+    linearize: boolean,
+    prevInput: Uint8Array | Uint8ClampedArray,
+    prevOutput: Uint8Array | Uint8ClampedArray,
+    temporalBleed: number,
+    paletteMode: number,
+    levels: number,
+    palette: Float64Array,
+    refX: number,
+    refY: number,
+    refZ: number,
+  ): void;
+}["bivarianceHack"];
+type WasmErrorDiffuseBufferFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    kernel: Float64Array,
+    kernelWidth: number,
+    kernelHeight: number,
+    offsetX: number,
+    offsetY: number,
+    serpentine: boolean,
+    rowAlt: number,
+    linearize: boolean,
+    prevInput: Uint8Array | Uint8ClampedArray,
+    prevOutput: Uint8Array | Uint8ClampedArray,
+    temporalBleed: number,
+    paletteMode: number,
+    levels: number,
+    palette: Float64Array,
+    refX: number,
+    refY: number,
+    refZ: number,
+  ): void;
+}["bivarianceHack"];
 
 let wasmRgba2labaInner: WasmRgba2LabaFn = (a, b, c, d, e, f, g) => {
   console.error("WASM module not loaded!", a, b, c, d, e, f, g);
@@ -458,6 +560,19 @@ let wasmQuantizeBufferRgbApproxInner: WasmQuantizeBufferFn = (_buffer, _palette)
 let wasmQuantizeBufferHsvInner: WasmQuantizeBufferFn = (_buffer, _palette) => {
   console.error("WASM module not loaded!");
   return new Uint8Array(0);
+};
+
+let wasmErrorDiffuseBufferInner: WasmErrorDiffuseBufferFn = () => {
+  console.error("WASM module not loaded!");
+  return new Uint8Array(0);
+};
+
+let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmOrderedDitherLinearInner: WasmOrderedDitherLinearFn = () => {
+  console.error("WASM module not loaded!");
 };
 
 
@@ -594,6 +709,203 @@ export const wasmQuantizeBufferHsv = (
   palette: number[][],
 ): Uint8Array =>
   wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
+
+// Resolve the colorDistanceAlgorithm for a palette, honoring the user palette's
+// runtime fallback (defaults.colorDistanceAlgorithm) so random-preset palettes
+// — which only carry `colors` in options — still take the WASM fast path.
+export const resolvePaletteColorAlgorithm = (palette: unknown): string | null => {
+  const p = palette as { options?: { colorDistanceAlgorithm?: string }; defaults?: { colorDistanceAlgorithm?: string } } | null | undefined;
+  return p?.options?.colorDistanceAlgorithm ?? p?.defaults?.colorDistanceAlgorithm ?? null;
+};
+
+// One-shot console.info dispatcher used by filters to surface their WASM/JS
+// routing decisions. Keyed on (filter, status, reason) so it fires once per
+// distinct outcome instead of every frame. We also track the most recent
+// status per filter in `filterLastStatus` for tools (the gallery benchmark)
+// that want to report which path was actually taken.
+export type FilterWasmStatus = { didWasm: boolean; reason: string };
+const filterWasmStatusLogged = new Set<string>();
+const filterNamesLogged = new Set<string>();
+const filterLastStatus = new Map<string, FilterWasmStatus>();
+
+export const logFilterWasmStatus = (filterName: string, didWasm: boolean, reason: string) => {
+  filterNamesLogged.add(filterName);
+  filterLastStatus.set(filterName, { didWasm, reason });
+  const key = `${filterName}|${didWasm}|${reason}`;
+  if (filterWasmStatusLogged.has(key)) return;
+  filterWasmStatusLogged.add(key);
+  console.info(`[filter:${filterName}] ${didWasm ? "WASM" : "JS"} (${reason})`);
+};
+
+// Called from the filter dispatcher once per frame per filter. If the filter
+// has never self-reported via logFilterWasmStatus, we record a one-shot
+// "JS (no wasm path)" — useful for auditing which filters are candidates
+// for Rust/WASM porting. Filters that DO self-report (Ordered, Quantize,
+// error diffusion etc.) suppress this fallback.
+export const logFilterDispatched = (filterName: string) => {
+  if (filterNamesLogged.has(filterName)) return;
+  filterNamesLogged.add(filterName);
+  filterLastStatus.set(filterName, { didWasm: false, reason: "no wasm path" });
+  console.info(`[filter:${filterName}] JS (no wasm path)`);
+};
+
+// Snapshot of the most recently recorded status for each filter. Returns a
+// fresh Map so callers can freely mutate/read without disturbing internal state.
+export const getFilterWasmStatuses = (): Map<string, FilterWasmStatus> =>
+  new Map(filterLastStatus);
+
+// Drop any recorded status for the named filter. Useful for the gallery's
+// per-filter benchmark which needs a clean slate before each measurement.
+export const resetFilterWasmStatus = (filterName: string) => {
+  filterLastStatus.delete(filterName);
+};
+
+// Palette mode IDs — must match PAL_MODE_* in src/wasm/rgba2laba/src/lib.rs.
+export const WASM_PALETTE_MODE = {
+  LEVELS: 0,
+  RGB: 1,
+  RGB_APPROX: 2,
+  HSV: 3,
+  LAB: 4,
+} as const;
+
+// Map a colorDistanceAlgorithm string to the WASM palette mode, or null if unsupported.
+export const colorAlgorithmToWasmMode = (algo: string | undefined): number | null => {
+  switch (algo) {
+    case RGB_NEAREST: return WASM_PALETTE_MODE.RGB;
+    case RGB_APPROX: return WASM_PALETTE_MODE.RGB_APPROX;
+    case HSV_NEAREST: return WASM_PALETTE_MODE.HSV;
+    case LAB_NEAREST: return WASM_PALETTE_MODE.LAB;
+    default: return null;
+  }
+};
+
+// Single-call error-diffusion dithering in WASM. Covers the sRGB horizontal
+// serpentine-boustrophedon path (the default Floyd-Steinberg et al.); callers
+// must pre-transpose for vertical scans and skip this for custom scan orders,
+// linear mode, temporal bleed/vote, or unsupported palettes.
+export const wasmErrorDiffuseBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  kernel: Float64Array,
+  kernelWidth: number,
+  kernelHeight: number,
+  offsetX: number,
+  offsetY: number,
+  serpentine: boolean,
+  rowAlt: number,
+  linearize: boolean,
+  prevInput: Uint8ClampedArray | Uint8Array | null,
+  prevOutput: Uint8ClampedArray | Uint8Array | null,
+  temporalBleed: number,
+  paletteMode: number,
+  levels: number,
+  palette: number[][] | null,
+  ref = referenceTable.CIE_1931.D65,
+): void =>
+  wasmErrorDiffuseBufferInner(
+    input, output, width, height,
+    kernel, kernelWidth, kernelHeight, offsetX, offsetY,
+    serpentine, rowAlt, linearize,
+    prevInput ?? EMPTY_U8,
+    prevOutput ?? EMPTY_U8,
+    temporalBleed,
+    paletteMode, levels,
+    palette ? ensurePaletteFlat(palette) : new Float64Array(0),
+    ref.x, ref.y, ref.z,
+  );
+
+const EMPTY_U8 = new Uint8Array(0);
+
+// Custom-order error diffusion (Hilbert / Spiral / Diagonal / Random Pixel).
+// JS builds the visit order and pre-rotated kernels; WASM runs the hot loop.
+export const wasmErrorDiffuseCustomOrder = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  visitOrder: Uint32Array,
+  tuples: Float32Array,
+  kernelStarts: Uint32Array,
+  kernelLens: Uint32Array,
+  kernelTotals: Float32Array,
+  errStrategy: number,
+  linearize: boolean,
+  prevInput: Uint8ClampedArray | Uint8Array | null,
+  prevOutput: Uint8ClampedArray | Uint8Array | null,
+  temporalBleed: number,
+  paletteMode: number,
+  levels: number,
+  palette: number[][] | null,
+  ref = referenceTable.CIE_1931.D65,
+): void =>
+  wasmErrorDiffuseCustomInner(
+    input, output, width, height,
+    visitOrder, tuples, kernelStarts, kernelLens, kernelTotals,
+    errStrategy, linearize,
+    prevInput ?? EMPTY_U8,
+    prevOutput ?? EMPTY_U8,
+    temporalBleed,
+    paletteMode, levels,
+    palette ? ensurePaletteFlat(palette) : new Float64Array(0),
+    ref.x, ref.y, ref.z,
+  );
+
+// Error-strategy IDs — must match ERR_STRATEGY_* in src/wasm/rgba2laba/src/lib.rs
+// and the JS-side ERR_STRATEGY enum in errorDiffusingFilterFactory.ts.
+export const WASM_ERR_STRATEGY = {
+  RENORMALIZE: 0,
+  CLAMPED: 1,
+  DROP: 2,
+  ROTATE: 3,
+  SYMMETRIC: 4,
+} as const;
+
+// Row-alternation IDs — must match ROW_ALT_* in src/wasm/rgba2laba/src/lib.rs
+// and the JS-side ROW_ALT enum in src/filters/errorDiffusingFilterFactory.ts.
+export const WASM_ROW_ALT = {
+  BOUSTROPHEDON: 0,
+  REVERSE: 1,
+  BLOCK2: 2,
+  BLOCK3: 3,
+  BLOCK4: 4,
+  BLOCK8: 5,
+  TRIANGULAR: 6,
+  GRAYCODE: 7,
+  BITREVERSE: 8,
+  PRIME: 9,
+  RANDOM: 10,
+} as const;
+
+// Linear-mode ordered dither in a single WASM call. Handles the sRGB→linear
+// input conversion, threshold-bias quantization in linear space, the linear→sRGB
+// roundtrip, and the palette match (LEVELS / RGB / RGB_APPROX / HSV / LAB).
+// Keep flattened threshold map as Float64Array to match the JS-side 2D map semantics.
+export const wasmOrderedDitherLinearBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  thresholdMap: Float64Array,
+  thresholdW: number,
+  thresholdH: number,
+  temporalOx: number,
+  temporalOy: number,
+  orderedLevels: number,
+  paletteMode: number,
+  levels: number,
+  palette: number[][] | null,
+  ref = referenceTable.CIE_1931.D65,
+): void =>
+  wasmOrderedDitherLinearInner(
+    input, output, width, height,
+    thresholdMap, thresholdW, thresholdH, temporalOx, temporalOy,
+    orderedLevels, paletteMode, levels,
+    palette ? ensurePaletteFlat(palette) : new Float64Array(0),
+    ref.x, ref.y, ref.z,
+  );
 
 // Convert CIE Lab > XYZ > RGBA, copying alpha channel
 // Unified WASM buffer quantize dispatcher — picks the right function based on algorithm.

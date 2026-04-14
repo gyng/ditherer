@@ -7,3 +7,4 @@ yarn-error.log
 bench-results/
 coverage/
 test-results/
+docs/gallery/PERF.md

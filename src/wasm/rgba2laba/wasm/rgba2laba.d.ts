@@ -1,11 +1,17 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export function error_diffuse_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, kernel: Float64Array, kernel_width: number, kernel_height: number, offset_x: number, offset_y: number, serpentine: boolean, row_alt: number, linearize: boolean, prev_input: Uint8Array, prev_output: Uint8Array, temporal_bleed: number, palette_mode: number, levels: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
+
+export function error_diffuse_custom_order(input: Uint8Array, output: Uint8Array, width: number, height: number, visit_order: Uint32Array, tuples: Float32Array, kernel_starts: Uint32Array, kernel_lens: Uint32Array, kernel_totals: Float32Array, err_strategy: number, linearize: boolean, prev_input: Uint8Array, prev_output: Uint8Array, temporal_bleed: number, palette_mode: number, levels: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
+
 /**
  * Per-pixel nearest with pre-converted Lab palette.
  * `palette_lab` is [L0,a0,b0, L1,a1,b1, …] (already in Lab space).
  */
 export function nearest_lab_precomputed(r: number, g: number, b: number, palette_lab: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
+
+export function ordered_dither_linear_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, threshold_map: Float64Array, threshold_w: number, threshold_h: number, temporal_ox: number, temporal_oy: number, ordered_levels: number, palette_mode: number, levels: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
 
 /**
  * Quantize buffer using HSV distance with circular hue.
@@ -53,6 +59,9 @@ export interface InitOutput {
     readonly quantize_buffer_lab: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly quantize_buffer_rgb: (a: number, b: number, c: number, d: number) => [number, number];
     readonly quantize_buffer_rgb_approx: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly error_diffuse_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number) => void;
+    readonly error_diffuse_custom_order: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number) => void;
+    readonly ordered_dither_linear_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number) => void;
     readonly quantize_buffer_hsv: (a: number, b: number, c: number, d: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

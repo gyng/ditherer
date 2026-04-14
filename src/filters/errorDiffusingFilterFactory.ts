@@ -3,7 +3,16 @@ import {
   fillBufferPixel,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
-  linearPaletteGetColor
+  linearPaletteGetColor,
+  wasmErrorDiffuseBuffer,
+  wasmErrorDiffuseCustomOrder,
+  wasmIsLoaded,
+  colorAlgorithmToWasmMode,
+  resolvePaletteColorAlgorithm,
+  logFilterWasmStatus,
+  WASM_PALETTE_MODE,
+  WASM_ROW_ALT,
+  WASM_ERR_STRATEGY,
 } from "utils";
 import type { FilterOptionValues } from "filters/types";
 
@@ -494,16 +503,172 @@ export const errorDiffusingFilter = (
     const H = isVertical ? realW : realH;
 
     const useLinear = options._linearize;
+
+    // WASM fast path: covers the sRGB, row-major, boustrophedon case that's
+    // ~95% of real use. Custom scan orders, linear mode, alternate row patterns,
+    // active temporal bleed, and VOTE mode all fall through to the JS loops below.
+    const bleedActive =
+      temporalMode === TEMPORAL_MODE.BLEED &&
+      temporalBleed > 0 &&
+      prevInputForLoop != null &&
+      prevOutputForLoop != null &&
+      prevInputForLoop.length === buf.length &&
+      prevOutputForLoop.length === buf.length;
+    // Translate the JS-side ROW_ALT string to the WASM enum. Anything we don't
+    // recognise falls back to BOUSTROPHEDON (the default), which is fine since
+    // we only look at this value when serpentine is on.
+    const ROW_ALT_TO_WASM: Record<string, number> = {
+      [ROW_ALT.BOUSTROPHEDON]: WASM_ROW_ALT.BOUSTROPHEDON,
+      [ROW_ALT.REVERSE]:       WASM_ROW_ALT.REVERSE,
+      [ROW_ALT.BLOCK2]:        WASM_ROW_ALT.BLOCK2,
+      [ROW_ALT.BLOCK3]:        WASM_ROW_ALT.BLOCK3,
+      [ROW_ALT.BLOCK4]:        WASM_ROW_ALT.BLOCK4,
+      [ROW_ALT.BLOCK8]:        WASM_ROW_ALT.BLOCK8,
+      [ROW_ALT.TRIANGULAR]:    WASM_ROW_ALT.TRIANGULAR,
+      [ROW_ALT.GRAYCODE]:      WASM_ROW_ALT.GRAYCODE,
+      [ROW_ALT.BITREVERSE]:    WASM_ROW_ALT.BITREVERSE,
+      [ROW_ALT.PRIME]:         WASM_ROW_ALT.PRIME,
+      [ROW_ALT.RANDOM]:        WASM_ROW_ALT.RANDOM,
+    };
+
+    let didWasm = false;
+    let wasmReason = "";
+    if (!options._wasmAcceleration) wasmReason = "_wasmAcceleration off";
+    else if (!wasmIsLoaded()) wasmReason = "wasm not loaded yet";
+
+    if (!wasmReason) {
+      const pOpts = palette?.options as
+        | { colors?: number[][]; levels?: number }
+        | undefined;
+      let paletteMode: number | null = null;
+      let paletteColors: number[][] | null = null;
+      let levelsArg = 0;
+      if (pOpts?.colors) {
+        const algo = resolvePaletteColorAlgorithm(palette);
+        const mode = algo ? colorAlgorithmToWasmMode(algo) : null;
+        if (mode !== null) {
+          paletteMode = mode;
+          paletteColors = pOpts.colors;
+        } else {
+          wasmReason = `palette algo=${algo ?? "none"}`;
+        }
+      }
+      if (paletteMode === null && typeof pOpts?.levels === "number") {
+        paletteMode = WASM_PALETTE_MODE.LEVELS;
+        levelsArg = pOpts.levels;
+      }
+      if (paletteMode === null && !wasmReason) {
+        wasmReason = `palette ${(palette as { name?: string })?.name ?? "unknown"} unsupported`;
+      }
+
+      if (paletteMode !== null) {
+        const bleedPrevIn  = bleedActive ? prevInputForLoop  : null;
+        const bleedPrevOut = bleedActive ? prevOutputForLoop : null;
+
+        if (isCustomOrder) {
+          // Build a single visit order + the kernel-set buffer the WASM
+          // function expects: for ROTATE we pre-rotate into 4 cardinal kernels;
+          // for SYMMETRIC we substitute the 8-neighbor kernel; the rest just
+          // use the filter's base kernel as the only entry.
+          const visitOrder = buildVisitOrder(scanOrder, W, H);
+          const visitOrderU32 = visitOrder instanceof Uint32Array
+            ? visitOrder
+            : new Uint32Array(visitOrder);
+
+          const { tuples: baseTuples, total: kernelTotal } = kernelToTuples(errorMatrix.kernel, errorMatrix.offset);
+          const useDrop      = errorStrategy === ERR_STRATEGY.DROP;
+          const useClamp     = errorStrategy === ERR_STRATEGY.CLAMPED;
+          const useRotate    = errorStrategy === ERR_STRATEGY.ROTATE;
+          const useSymmetric = errorStrategy === ERR_STRATEGY.SYMMETRIC;
+          const symTotal = SYMMETRIC_TUPLES.reduce((s, t) => s + t.weight, 0);
+
+          let kernelSets: { dx: number; dy: number; weight: number }[][];
+          let kernelSetTotals: number[];
+          if (useRotate) {
+            kernelSets = [0, 1, 2, 3].map(d => rotateTuples(baseTuples, d));
+            kernelSetTotals = kernelSets.map(() => kernelTotal);
+          } else if (useSymmetric) {
+            kernelSets = [SYMMETRIC_TUPLES];
+            kernelSetTotals = [symTotal];
+          } else {
+            kernelSets = [baseTuples];
+            kernelSetTotals = [kernelTotal];
+          }
+          const totalTriples = kernelSets.reduce((s, k) => s + k.length, 0);
+          const tuples = new Float32Array(totalTriples * 3);
+          const starts = new Uint32Array(kernelSets.length);
+          const lens = new Uint32Array(kernelSets.length);
+          let cursor = 0;
+          for (let i = 0; i < kernelSets.length; i += 1) {
+            starts[i] = cursor;
+            lens[i] = kernelSets[i].length;
+            for (const t of kernelSets[i]) {
+              tuples[cursor * 3]     = t.dx;
+              tuples[cursor * 3 + 1] = t.dy;
+              tuples[cursor * 3 + 2] = t.weight;
+              cursor += 1;
+            }
+          }
+          const totals = new Float32Array(kernelSetTotals);
+          const wasmStrategy = useDrop ? WASM_ERR_STRATEGY.DROP
+            : useClamp ? WASM_ERR_STRATEGY.CLAMPED
+            : useRotate ? WASM_ERR_STRATEGY.ROTATE
+            : useSymmetric ? WASM_ERR_STRATEGY.SYMMETRIC
+            : WASM_ERR_STRATEGY.RENORMALIZE;
+
+          wasmErrorDiffuseCustomOrder(
+            buf, buf, W, H,
+            visitOrderU32,
+            tuples, starts, lens, totals,
+            wasmStrategy, !!useLinear,
+            bleedPrevIn, bleedPrevOut,
+            bleedActive ? temporalBleed : 0,
+            paletteMode, levelsArg,
+            paletteColors,
+          );
+          didWasm = true;
+        } else {
+          const kw = errorMatrix.kernel[0].length;
+          const kh = errorMatrix.kernel.length;
+          const kernelFlat = new Float64Array(kw * kh);
+          for (let h = 0; h < kh; h += 1) {
+            const row = errorMatrix.kernel[h];
+            if (!row) continue;
+            for (let w = 0; w < kw; w += 1) {
+              const v = row[w];
+              if (typeof v === "number") kernelFlat[h * kw + w] = v;
+            }
+          }
+          const rowAltCode = ROW_ALT_TO_WASM[rowAlt] ?? WASM_ROW_ALT.BOUSTROPHEDON;
+          wasmErrorDiffuseBuffer(
+            buf, buf, W, H,
+            kernelFlat, kw, kh,
+            errorMatrix.offset[0], errorMatrix.offset[1],
+            !!serpentine, rowAltCode, !!useLinear,
+            bleedPrevIn, bleedPrevOut,
+            bleedActive ? temporalBleed : 0,
+            paletteMode, levelsArg,
+            paletteColors,
+          );
+          didWasm = true;
+        }
+      }
+    }
+    logFilterWasmStatus(name, didWasm, didWasm ? `palette=${(palette as { name?: string })?.name ?? "?"}${isCustomOrder ? ` order=${scanOrder}` : ""}` : (wasmReason || "unknown"));
+
     // errBuf: Float32Array for both paths — avoids boxed JS Array GC pressure.
     // Linear path: values 0.0–1.0. sRGB path: values 0–255 (float for error accumulation).
-    const linearBuf = useLinear ? srgbBufToLinearFloat(buf) : null;
-    const errBuf = useLinear
-      ? new Float32Array(linearBuf!)
-      : new Float32Array(buf);
+    const linearBuf = !didWasm && useLinear ? srgbBufToLinearFloat(buf) : null;
+    const errBuf = didWasm
+      ? new Float32Array(0)
+      : useLinear
+        ? new Float32Array(linearBuf!)
+        : new Float32Array(buf);
 
     // Temporal error bleed should carry the previous frame's quantization
     // residual, not inject the current frame's whole input delta.
     if (
+      !didWasm &&
       temporalMode === TEMPORAL_MODE.BLEED &&
       temporalBleed > 0 &&
       prevInputForLoop &&
@@ -536,6 +701,7 @@ export const errorDiffusingFilter = (
     // Scratch buffer — avoids per-pixel array allocations in palette calls
     const _pix = [0, 0, 0, 0];
 
+    if (!didWasm) {
     if (isCustomOrder) {
       // Custom-order scan: walk a precomputed visit order, push error only to
       // not-yet-visited targets. The errorStrategy option picks how the error
@@ -738,8 +904,9 @@ export const errorDiffusingFilter = (
       }
     }
     } // end row-major branch
+    } // end !didWasm
 
-    if (useLinear) {
+    if (!didWasm && useLinear) {
       linearFloatToSrgbBuf(linearBuf!, buf);
     }
 

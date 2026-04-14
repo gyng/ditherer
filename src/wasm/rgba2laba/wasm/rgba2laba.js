@@ -1,6 +1,91 @@
 /* @ts-self-types="./rgba2laba.d.ts" */
 
 /**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {Float64Array} kernel
+ * @param {number} kernel_width
+ * @param {number} kernel_height
+ * @param {number} offset_x
+ * @param {number} offset_y
+ * @param {boolean} serpentine
+ * @param {number} row_alt
+ * @param {boolean} linearize
+ * @param {Uint8Array} prev_input
+ * @param {Uint8Array} prev_output
+ * @param {number} temporal_bleed
+ * @param {number} palette_mode
+ * @param {number} levels
+ * @param {Float64Array} palette
+ * @param {number} ref_x
+ * @param {number} ref_y
+ * @param {number} ref_z
+ */
+export function error_diffuse_buffer(input, output, width, height, kernel, kernel_width, kernel_height, offset_x, offset_y, serpentine, row_alt, linearize, prev_input, prev_output, temporal_bleed, palette_mode, levels, palette, ref_x, ref_y, ref_z) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArrayF64ToWasm0(kernel, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passArray8ToWasm0(prev_input, wasm.__wbindgen_malloc);
+    const len3 = WASM_VECTOR_LEN;
+    const ptr4 = passArray8ToWasm0(prev_output, wasm.__wbindgen_malloc);
+    const len4 = WASM_VECTOR_LEN;
+    const ptr5 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len5 = WASM_VECTOR_LEN;
+    wasm.error_diffuse_buffer(ptr0, len0, ptr1, len1, output, width, height, ptr2, len2, kernel_width, kernel_height, offset_x, offset_y, serpentine, row_alt, linearize, ptr3, len3, ptr4, len4, temporal_bleed, palette_mode, levels, ptr5, len5, ref_x, ref_y, ref_z);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {Uint32Array} visit_order
+ * @param {Float32Array} tuples
+ * @param {Uint32Array} kernel_starts
+ * @param {Uint32Array} kernel_lens
+ * @param {Float32Array} kernel_totals
+ * @param {number} err_strategy
+ * @param {boolean} linearize
+ * @param {Uint8Array} prev_input
+ * @param {Uint8Array} prev_output
+ * @param {number} temporal_bleed
+ * @param {number} palette_mode
+ * @param {number} levels
+ * @param {Float64Array} palette
+ * @param {number} ref_x
+ * @param {number} ref_y
+ * @param {number} ref_z
+ */
+export function error_diffuse_custom_order(input, output, width, height, visit_order, tuples, kernel_starts, kernel_lens, kernel_totals, err_strategy, linearize, prev_input, prev_output, temporal_bleed, palette_mode, levels, palette, ref_x, ref_y, ref_z) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArray32ToWasm0(visit_order, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passArrayF32ToWasm0(tuples, wasm.__wbindgen_malloc);
+    const len3 = WASM_VECTOR_LEN;
+    const ptr4 = passArray32ToWasm0(kernel_starts, wasm.__wbindgen_malloc);
+    const len4 = WASM_VECTOR_LEN;
+    const ptr5 = passArray32ToWasm0(kernel_lens, wasm.__wbindgen_malloc);
+    const len5 = WASM_VECTOR_LEN;
+    const ptr6 = passArrayF32ToWasm0(kernel_totals, wasm.__wbindgen_malloc);
+    const len6 = WASM_VECTOR_LEN;
+    const ptr7 = passArray8ToWasm0(prev_input, wasm.__wbindgen_malloc);
+    const len7 = WASM_VECTOR_LEN;
+    const ptr8 = passArray8ToWasm0(prev_output, wasm.__wbindgen_malloc);
+    const len8 = WASM_VECTOR_LEN;
+    const ptr9 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len9 = WASM_VECTOR_LEN;
+    wasm.error_diffuse_custom_order(ptr0, len0, ptr1, len1, output, width, height, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6, err_strategy, linearize, ptr7, len7, ptr8, len8, temporal_bleed, palette_mode, levels, ptr9, len9, ref_x, ref_y, ref_z);
+}
+
+/**
  * Per-pixel nearest with pre-converted Lab palette.
  * `palette_lab` is [L0,a0,b0, L1,a1,b1, …] (already in Lab space).
  * @param {number} r
@@ -17,6 +102,36 @@ export function nearest_lab_precomputed(r, g, b, palette_lab, ref_x, ref_y, ref_
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.nearest_lab_precomputed(r, g, b, ptr0, len0, ref_x, ref_y, ref_z);
     return ret >>> 0;
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {Float64Array} threshold_map
+ * @param {number} threshold_w
+ * @param {number} threshold_h
+ * @param {number} temporal_ox
+ * @param {number} temporal_oy
+ * @param {number} ordered_levels
+ * @param {number} palette_mode
+ * @param {number} levels
+ * @param {Float64Array} palette
+ * @param {number} ref_x
+ * @param {number} ref_y
+ * @param {number} ref_z
+ */
+export function ordered_dither_linear_buffer(input, output, width, height, threshold_map, threshold_w, threshold_h, temporal_ox, temporal_oy, ordered_levels, palette_mode, levels, palette, ref_x, ref_y, ref_z) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArrayF64ToWasm0(threshold_map, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len3 = WASM_VECTOR_LEN;
+    wasm.ordered_dither_linear_buffer(ptr0, len0, ptr1, len1, output, width, height, ptr2, len2, threshold_w, threshold_h, temporal_ox, temporal_oy, ordered_levels, palette_mode, levels, ptr3, len3, ref_x, ref_y, ref_z);
 }
 
 /**
@@ -154,6 +269,9 @@ export function rgba_nearest_lab_index(r, g, b, a, palette, ref_x, ref_y, ref_z)
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
+        __wbg___wbindgen_copy_to_typed_array_a4db337751e0b328: function(arg0, arg1, arg2) {
+            new Uint8Array(arg2.buffer, arg2.byteOffset, arg2.byteLength).set(getArrayU8FromWasm0(arg0, arg1));
+        },
         __wbindgen_init_externref_table: function() {
             const table = wasm.__wbindgen_externrefs;
             const offset = table.grow(4);
@@ -180,12 +298,28 @@ function getArrayU8FromWasm0(ptr, len) {
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 
+let cachedFloat32ArrayMemory0 = null;
+function getFloat32ArrayMemory0() {
+    if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
+        cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
+    }
+    return cachedFloat32ArrayMemory0;
+}
+
 let cachedFloat64ArrayMemory0 = null;
 function getFloat64ArrayMemory0() {
     if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
         cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
     }
     return cachedFloat64ArrayMemory0;
+}
+
+let cachedUint32ArrayMemory0 = null;
+function getUint32ArrayMemory0() {
+    if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
+        cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32ArrayMemory0;
 }
 
 let cachedUint8ArrayMemory0 = null;
@@ -196,9 +330,23 @@ function getUint8ArrayMemory0() {
     return cachedUint8ArrayMemory0;
 }
 
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
@@ -216,7 +364,9 @@ let wasmModule, wasm;
 function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
+    cachedFloat32ArrayMemory0 = null;
     cachedFloat64ArrayMemory0 = null;
+    cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

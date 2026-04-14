@@ -1,6 +1,6 @@
 import { PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor, wasmQuantizeBuffer } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor, wasmQuantizeBuffer, wasmIsLoaded, resolvePaletteColorAlgorithm, logFilterWasmStatus } from "utils";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 
 export const optionTypes = {
@@ -40,18 +40,29 @@ const quantize = (
   }
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
-  const algo = palette.options?.colorDistanceAlgorithm;
+  const algo = resolvePaletteColorAlgorithm(palette);
+  const colors = (palette.options as { colors?: number[][] } | undefined)?.colors;
 
   // WASM buffer quantize — single call replaces entire pixel loop.
   // Works for sRGB path (no linearize); linear path still needs per-pixel round-trip.
-  if (options._wasmAcceleration && !options._linearize && algo && palette.options?.colors) {
-    const result = wasmQuantizeBuffer(buf, palette.options.colors, algo);
-    if (result) {
+  let wasmReason = "";
+  if (!options._wasmAcceleration) wasmReason = "_wasmAcceleration off";
+  else if (!wasmIsLoaded()) wasmReason = "wasm not loaded yet";
+  else if (options._linearize) wasmReason = "linearize on";
+  else if (!colors) wasmReason = "palette has no colors";
+  else if (!algo) wasmReason = "no colorDistanceAlgorithm";
+
+  if (!wasmReason && algo && colors) {
+    const result = wasmQuantizeBuffer(buf, colors, algo);
+    if (result && result.length === buf.length) {
       buf.set(result);
+      logFilterWasmStatus("Quantize", true, `algo=${algo}`);
       outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
       return output;
     }
+    wasmReason = "wasm returned null";
   }
+  logFilterWasmStatus("Quantize", false, wasmReason);
 
   if (options._linearize) {
     const floatBuf = srgbBufToLinearFloat(buf);

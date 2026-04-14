@@ -12,7 +12,13 @@ import {
   linearFloatToSrgbBuf,
   srgbPaletteGetColor,
   linearPaletteGetColor,
-  wasmQuantizeBuffer
+  wasmQuantizeBuffer,
+  wasmOrderedDitherLinearBuffer,
+  wasmIsLoaded,
+  resolvePaletteColorAlgorithm,
+  colorAlgorithmToWasmMode,
+  logFilterWasmStatus,
+  WASM_PALETTE_MODE,
 } from "utils";
 
 export const BAYER_2X2 = "BAYER_2X2";
@@ -423,27 +429,77 @@ const ordered = (
   const temporalOffsetY = temporalPhases > 1 ? Math.floor(phase * thresholdMapHeight / temporalPhases) : 0;
 
   if (options._linearize && palette) {
-    const floatBuf = srgbBufToLinearFloat(buf);
-    const stepF = 1.0 / (levels - 1);
-    for (let x = 0; x < input.width; x += 1) {
-      for (let y = 0; y < input.height; y += 1) {
-        const tix = (x + temporalOffsetX) % thresholdMapWidth;
-        const tiy = (y + temporalOffsetY) % thresholdMapHeight;
-        const i = getBufferIndex(x, y, input.width);
-        const thresholdValue = thresholdMapScaled[tiy][tix];
-
-        const bias = stepF * (thresholdValue - 0.5);
-        _orderedOut[0] = Math.round(Math.round((floatBuf[i] + bias) / stepF) * stepF * 1e6) / 1e6;
-        _orderedOut[1] = Math.round(Math.round((floatBuf[i + 1] + bias) / stepF) * stepF * 1e6) / 1e6;
-        _orderedOut[2] = Math.round(Math.round((floatBuf[i + 2] + bias) / stepF) * stepF * 1e6) / 1e6;
-        _orderedOut[3] = floatBuf[i + 3];
-        const orderedColor = _orderedOut;
-
-        const color = linearPaletteGetColor(palette, orderedColor, palette.options);
-        fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
+    // WASM fast path for linear ordered dither — skips three per-pixel `pow`
+    // calls (the delinearize→match→linearize trip the JS branch does) by using
+    // the same sRGB↔linear LUTs the error-diffusion fast path uses.
+    const pOpts = palette.options as { colors?: number[][]; levels?: number } | undefined;
+    const linAlgo = resolvePaletteColorAlgorithm(palette);
+    let linPaletteMode: number | null = null;
+    let linPaletteColors: number[][] | null = null;
+    let linLevelsArg = 0;
+    let linReason = "";
+    if (!options._wasmAcceleration) linReason = "_wasmAcceleration off";
+    else if (!wasmIsLoaded()) linReason = "wasm not loaded yet";
+    if (!linReason) {
+      if (pOpts?.colors) {
+        const mode = linAlgo ? colorAlgorithmToWasmMode(linAlgo) : null;
+        if (mode !== null) {
+          linPaletteMode = mode;
+          linPaletteColors = pOpts.colors;
+        } else {
+          linReason = `palette algo=${linAlgo ?? "none"}`;
+        }
+      }
+      if (linPaletteMode === null && typeof pOpts?.levels === "number") {
+        linPaletteMode = WASM_PALETTE_MODE.LEVELS;
+        linLevelsArg = pOpts.levels;
+      }
+      if (linPaletteMode === null && !linReason) {
+        linReason = `palette ${(palette as { name?: string })?.name ?? "unknown"} unsupported`;
       }
     }
-    linearFloatToSrgbBuf(floatBuf, buf);
+
+    if (linPaletteMode !== null) {
+      const tW = thresholdMapScaled[0].length;
+      const tH = thresholdMapScaled.length;
+      const flatMap = new Float64Array(tW * tH);
+      for (let ty = 0; ty < tH; ty += 1) {
+        const row = thresholdMapScaled[ty];
+        for (let tx = 0; tx < tW; tx += 1) flatMap[ty * tW + tx] = row[tx] ?? 0;
+      }
+      wasmOrderedDitherLinearBuffer(
+        buf, buf, input.width, input.height,
+        flatMap, tW, tH,
+        temporalOffsetX, temporalOffsetY,
+        levels,
+        linPaletteMode, linLevelsArg,
+        linPaletteColors,
+      );
+      logFilterWasmStatus("Ordered", true, `linear palette=${(palette as { name?: string })?.name ?? "?"}`);
+    } else {
+      logFilterWasmStatus("Ordered", false, `linearize: ${linReason || "unknown"}`);
+      const floatBuf = srgbBufToLinearFloat(buf);
+      const stepF = 1.0 / (levels - 1);
+      for (let x = 0; x < input.width; x += 1) {
+        for (let y = 0; y < input.height; y += 1) {
+          const tix = (x + temporalOffsetX) % thresholdMapWidth;
+          const tiy = (y + temporalOffsetY) % thresholdMapHeight;
+          const i = getBufferIndex(x, y, input.width);
+          const thresholdValue = thresholdMapScaled[tiy][tix];
+
+          const bias = stepF * (thresholdValue - 0.5);
+          _orderedOut[0] = Math.round(Math.round((floatBuf[i] + bias) / stepF) * stepF * 1e6) / 1e6;
+          _orderedOut[1] = Math.round(Math.round((floatBuf[i + 1] + bias) / stepF) * stepF * 1e6) / 1e6;
+          _orderedOut[2] = Math.round(Math.round((floatBuf[i + 2] + bias) / stepF) * stepF * 1e6) / 1e6;
+          _orderedOut[3] = floatBuf[i + 3];
+          const orderedColor = _orderedOut;
+
+          const color = linearPaletteGetColor(palette, orderedColor, palette.options);
+          fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
+        }
+      }
+      linearFloatToSrgbBuf(floatBuf, buf);
+    }
   } else {
     // Apply thresholds to all pixels
     const W = input.width;
@@ -461,14 +517,23 @@ const ordered = (
     }
 
     // WASM buffer quantize on the dithered pixels — single call
-    const algo = palette?.options?.colorDistanceAlgorithm;
-    const wasmResult = options._wasmAcceleration && algo && palette?.options?.colors
-      ? wasmQuantizeBuffer(ditheredBuf, palette.options.colors, algo)
+    const algo = resolvePaletteColorAlgorithm(palette);
+    const colors = (palette?.options as { colors?: number[][] } | undefined)?.colors;
+    let wasmReason = "";
+    if (!options._wasmAcceleration) wasmReason = "_wasmAcceleration off";
+    else if (!wasmIsLoaded()) wasmReason = "wasm not loaded yet";
+    else if (!colors) wasmReason = "palette has no colors";
+    else if (!algo) wasmReason = "no colorDistanceAlgorithm";
+    const wasmResult = !wasmReason && algo && colors
+      ? wasmQuantizeBuffer(ditheredBuf, colors, algo)
       : null;
 
-    if (wasmResult) {
+    if (wasmResult && wasmResult.length === buf.length) {
       buf.set(wasmResult);
+      logFilterWasmStatus("Ordered", true, `algo=${algo}`);
     } else {
+      if (!wasmReason) wasmReason = "wasm returned null";
+      logFilterWasmStatus("Ordered", false, wasmReason);
       // JS fallback — per-pixel palette match
       const _palPix = [0, 0, 0, 0];
       for (let x = 0; x < W; x += 1) {
