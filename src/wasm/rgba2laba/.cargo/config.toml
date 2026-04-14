@@ -1,0 +1,5 @@
+[build]
+# Enable WASM SIMD128 (supported everywhere modern: Chrome 91+, Firefox 89+,
+# Safari 16.4+). LLVM auto-vectorizes the tight per-pixel multiply-add loops
+# (Gaussian blur, grain merge, apply_channel_lut, etc.) when this is on.
+rustflags = ["-C", "target-feature=+simd128"]
