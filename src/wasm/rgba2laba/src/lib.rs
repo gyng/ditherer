@@ -1,4 +1,16 @@
 use wasm_bindgen::prelude::*;
+use core::arch::wasm32::*;
+
+// Persistent f32 scratch buffer for filters that need an intermediate RGBA
+// float representation (Gaussian blur horizontal + input conversion). Reused
+// across calls so we don't re-alloc every frame.
+static mut F32_SCRATCH_A: Vec<f32> = Vec::new();
+static mut F32_SCRATCH_B: Vec<f32> = Vec::new();
+
+fn ensure_scratch<'a>(scratch: &'a mut Vec<f32>, len: usize) -> &'a mut [f32] {
+    if scratch.len() < len { scratch.resize(len, 0.0); }
+    &mut scratch[..len]
+}
 
 #[rustfmt::skip]
 #[wasm_bindgen]
@@ -1635,7 +1647,25 @@ pub fn gaussian_blur_buffer(
     }
     for k in kernel.iter_mut() { *k = (*k as f64 / sum) as f32; }
 
-    let mut temp = vec![0.0f32; w * h * 4];
+    // Pre-convert input u8 -> f32 so the horizontal pass's interior inner loop
+    // is a clean `v128_load` per neighbour. Both scratch buffers are pooled
+    // across calls (see F32_SCRATCH_A/B) so there's no per-frame alloc.
+    let n_floats = w * h * 4;
+    let (input_f32, temp) = unsafe {
+        #[allow(static_mut_refs)]
+        (
+            ensure_scratch(&mut F32_SCRATCH_A, n_floats) as *mut [f32],
+            ensure_scratch(&mut F32_SCRATCH_B, n_floats) as *mut [f32],
+        )
+    };
+    // SAFETY: the two buffers are distinct pool entries; we never alias reads
+    // and writes of them after this point.
+    let input_f32: &mut [f32] = unsafe { &mut *input_f32 };
+    let temp: &mut [f32] = unsafe { &mut *temp };
+    for i in 0..n_floats {
+        // SAFETY: input.len() == n_floats.
+        unsafe { *input_f32.get_unchecked_mut(i) = *input.get_unchecked(i) as f32; }
+    }
 
     // Horizontal pass. The inner accumulation is split into three regions:
     // - Left edge (x < radius): per-sample clamp, can't auto-vectorise.
@@ -1656,77 +1686,52 @@ pub fn gaussian_blur_buffer(
         let row_px_base = row_base * 4;
 
         // --- Left edge (and entire row when narrow) ---
-        for x in 0..interior_x_start.min(interior_x_end) {
-            let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+        for x in 0..interior_x_start.min(interior_x_end.max(interior_x_start)) {
+            let mut acc = f32x4_splat(0.0);
             for k in 0..k_size {
                 let raw = x as i32 + k as i32 - radius as i32;
                 let nx = raw.clamp(0, w as i32 - 1) as usize;
                 let si = (row_base + nx) * 4;
-                let wk = unsafe { *kernel.get_unchecked(k) };
-                unsafe {
-                    r += *input.get_unchecked(si)     as f32 * wk;
-                    g += *input.get_unchecked(si + 1) as f32 * wk;
-                    b += *input.get_unchecked(si + 2) as f32 * wk;
-                    a += *input.get_unchecked(si + 3) as f32 * wk;
-                }
+                // SAFETY: si + 3 < input_f32.len().
+                let pix = unsafe { v128_load(input_f32.as_ptr().add(si) as *const v128) };
+                let wk = f32x4_splat(unsafe { *kernel.get_unchecked(k) });
+                acc = f32x4_add(acc, f32x4_mul(pix, wk));
             }
             let ti = (row_base + x) * 4;
-            unsafe {
-                *temp.get_unchecked_mut(ti)     = r;
-                *temp.get_unchecked_mut(ti + 1) = g;
-                *temp.get_unchecked_mut(ti + 2) = b;
-                *temp.get_unchecked_mut(ti + 3) = a;
-            }
+            // SAFETY: ti + 3 < temp.len().
+            unsafe { v128_store(temp.as_mut_ptr().add(ti) as *mut v128, acc); }
         }
 
-        // --- Interior: stride-1 neighbour access ---
+        // --- Interior: stride-1 neighbour access (explicit v128 FMA) ---
         if interior_x_end > interior_x_start {
             for x in interior_x_start..interior_x_end {
                 let window_base = row_px_base + (x - radius) * 4;
-                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                let mut acc = f32x4_splat(0.0);
                 for k in 0..k_size {
                     let si = window_base + k * 4;
-                    let wk = unsafe { *kernel.get_unchecked(k) };
-                    unsafe {
-                        r += *input.get_unchecked(si)     as f32 * wk;
-                        g += *input.get_unchecked(si + 1) as f32 * wk;
-                        b += *input.get_unchecked(si + 2) as f32 * wk;
-                        a += *input.get_unchecked(si + 3) as f32 * wk;
-                    }
+                    let pix = unsafe { v128_load(input_f32.as_ptr().add(si) as *const v128) };
+                    let wk = f32x4_splat(unsafe { *kernel.get_unchecked(k) });
+                    acc = f32x4_add(acc, f32x4_mul(pix, wk));
                 }
                 let ti = (row_base + x) * 4;
-                unsafe {
-                    *temp.get_unchecked_mut(ti)     = r;
-                    *temp.get_unchecked_mut(ti + 1) = g;
-                    *temp.get_unchecked_mut(ti + 2) = b;
-                    *temp.get_unchecked_mut(ti + 3) = a;
-                }
+                unsafe { v128_store(temp.as_mut_ptr().add(ti) as *mut v128, acc); }
             }
         }
 
         // --- Right edge (only when there was an interior range) ---
         if interior_x_end > interior_x_start {
             for x in interior_x_end..w {
-                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                let mut acc = f32x4_splat(0.0);
                 for k in 0..k_size {
                     let raw = x as i32 + k as i32 - radius as i32;
                     let nx = raw.clamp(0, w as i32 - 1) as usize;
                     let si = (row_base + nx) * 4;
-                    let wk = unsafe { *kernel.get_unchecked(k) };
-                    unsafe {
-                        r += *input.get_unchecked(si)     as f32 * wk;
-                        g += *input.get_unchecked(si + 1) as f32 * wk;
-                        b += *input.get_unchecked(si + 2) as f32 * wk;
-                        a += *input.get_unchecked(si + 3) as f32 * wk;
-                    }
+                    let pix = unsafe { v128_load(input_f32.as_ptr().add(si) as *const v128) };
+                    let wk = f32x4_splat(unsafe { *kernel.get_unchecked(k) });
+                    acc = f32x4_add(acc, f32x4_mul(pix, wk));
                 }
                 let ti = (row_base + x) * 4;
-                unsafe {
-                    *temp.get_unchecked_mut(ti)     = r;
-                    *temp.get_unchecked_mut(ti + 1) = g;
-                    *temp.get_unchecked_mut(ti + 2) = b;
-                    *temp.get_unchecked_mut(ti + 3) = a;
-                }
+                unsafe { v128_store(temp.as_mut_ptr().add(ti) as *mut v128, acc); }
             }
         }
     }
@@ -1737,56 +1742,52 @@ pub fn gaussian_blur_buffer(
     let interior_y_start = radius.min(h);
     let interior_y_end = if h > radius { h - radius } else { 0 };
 
-    // Left/top edge (and entire image when short).
-    for y in 0..interior_y_start.min(interior_y_end) {
+    // Helper — convert an f32x4 accumulator to four u8 output bytes using
+    // JS Math.round semantics ((x + 0.5).floor(), clamped to [0, 255]).
+    #[inline]
+    fn write_pixel_from_v128(output: &mut [u8], i: usize, acc: v128) {
+        let r_f = f32x4_extract_lane::<0>(acc);
+        let g_f = f32x4_extract_lane::<1>(acc);
+        let b_f = f32x4_extract_lane::<2>(acc);
+        let a_f = f32x4_extract_lane::<3>(acc);
+        unsafe {
+            *output.get_unchecked_mut(i)     = js_round_f32(r_f).clamp(0.0, 255.0) as u8;
+            *output.get_unchecked_mut(i + 1) = js_round_f32(g_f).clamp(0.0, 255.0) as u8;
+            *output.get_unchecked_mut(i + 2) = js_round_f32(b_f).clamp(0.0, 255.0) as u8;
+            *output.get_unchecked_mut(i + 3) = js_round_f32(a_f).clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    // Top edge (and entire image when short).
+    for y in 0..interior_y_start.min(interior_y_end.max(interior_y_start)) {
         for x in 0..w {
-            let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+            let mut acc = f32x4_splat(0.0);
             for k in 0..k_size {
                 let raw = y as i32 + k as i32 - radius as i32;
                 let ny = raw.clamp(0, h as i32 - 1) as usize;
                 let ti = (ny * w + x) * 4;
-                let wk = unsafe { *kernel.get_unchecked(k) };
-                unsafe {
-                    r += *temp.get_unchecked(ti)     * wk;
-                    g += *temp.get_unchecked(ti + 1) * wk;
-                    b += *temp.get_unchecked(ti + 2) * wk;
-                    a += *temp.get_unchecked(ti + 3) * wk;
-                }
+                let tp = unsafe { v128_load(temp.as_ptr().add(ti) as *const v128) };
+                let wk = f32x4_splat(unsafe { *kernel.get_unchecked(k) });
+                acc = f32x4_add(acc, f32x4_mul(tp, wk));
             }
-            let i = (y * w + x) * 4;
-            unsafe {
-                *output.get_unchecked_mut(i)     = js_round_f32(r).clamp(0.0, 255.0) as u8;
-                *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
-                *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
-                *output.get_unchecked_mut(i + 3) = js_round_f32(a).clamp(0.0, 255.0) as u8;
-            }
+            write_pixel_from_v128(output, (y * w + x) * 4, acc);
         }
     }
 
-    // Interior rows — known-safe stride-w access.
+    // Interior rows — known-safe stride-w access, explicit v128 FMA.
     if interior_y_end > interior_y_start {
         for y in interior_y_start..interior_y_end {
             let top_row_base = (y - radius) * w * 4;
             for x in 0..w {
                 let col_base = top_row_base + x * 4;
-                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                let mut acc = f32x4_splat(0.0);
                 for k in 0..k_size {
                     let ti = col_base + k * (w * 4);
-                    let wk = unsafe { *kernel.get_unchecked(k) };
-                    unsafe {
-                        r += *temp.get_unchecked(ti)     * wk;
-                        g += *temp.get_unchecked(ti + 1) * wk;
-                        b += *temp.get_unchecked(ti + 2) * wk;
-                        a += *temp.get_unchecked(ti + 3) * wk;
-                    }
+                    let tp = unsafe { v128_load(temp.as_ptr().add(ti) as *const v128) };
+                    let wk = f32x4_splat(unsafe { *kernel.get_unchecked(k) });
+                    acc = f32x4_add(acc, f32x4_mul(tp, wk));
                 }
-                let i = (y * w + x) * 4;
-                unsafe {
-                    *output.get_unchecked_mut(i)     = js_round_f32(r).clamp(0.0, 255.0) as u8;
-                    *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
-                    *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
-                    *output.get_unchecked_mut(i + 3) = js_round_f32(a).clamp(0.0, 255.0) as u8;
-                }
+                write_pixel_from_v128(output, (y * w + x) * 4, acc);
             }
         }
     }
@@ -1795,26 +1796,16 @@ pub fn gaussian_blur_buffer(
     if interior_y_end > interior_y_start {
         for y in interior_y_end..h {
             for x in 0..w {
-                let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+                let mut acc = f32x4_splat(0.0);
                 for k in 0..k_size {
                     let raw = y as i32 + k as i32 - radius as i32;
                     let ny = raw.clamp(0, h as i32 - 1) as usize;
                     let ti = (ny * w + x) * 4;
-                    let wk = unsafe { *kernel.get_unchecked(k) };
-                    unsafe {
-                        r += *temp.get_unchecked(ti)     * wk;
-                        g += *temp.get_unchecked(ti + 1) * wk;
-                        b += *temp.get_unchecked(ti + 2) * wk;
-                        a += *temp.get_unchecked(ti + 3) * wk;
-                    }
+                    let tp = unsafe { v128_load(temp.as_ptr().add(ti) as *const v128) };
+                    let wk = f32x4_splat(unsafe { *kernel.get_unchecked(k) });
+                    acc = f32x4_add(acc, f32x4_mul(tp, wk));
                 }
-                let i = (y * w + x) * 4;
-                unsafe {
-                    *output.get_unchecked_mut(i)     = js_round_f32(r).clamp(0.0, 255.0) as u8;
-                    *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
-                    *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
-                    *output.get_unchecked_mut(i + 3) = js_round_f32(a).clamp(0.0, 255.0) as u8;
-                }
+                write_pixel_from_v128(output, (y * w + x) * 4, acc);
             }
         }
     }
