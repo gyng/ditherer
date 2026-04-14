@@ -1,6 +1,15 @@
 import { BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+  wasmApplyChannelLut,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 export const optionTypes = {
@@ -27,7 +36,7 @@ const buildCdf = (hist: number[], total: number): number[] => {
   return cdf.map(v => (range > 0 ? Math.round(((v - cdfMin) / range) * 255) : 0));
 };
 
-const histogramEqualization = (input: any, options = defaults) => {
+const histogramEqualization = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { perChannel, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -38,6 +47,9 @@ const histogramEqualization = (input: any, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const total = W * H;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+  const wasmAvailable = wasmIsLoaded() && options._wasmAcceleration !== false;
 
   let mapR: number[], mapG: number[], mapB: number[];
 
@@ -66,6 +78,28 @@ const histogramEqualization = (input: any, options = defaults) => {
   }
 
   const outBuf = new Uint8ClampedArray(buf.length);
+
+  // Per-channel mode: collapses to three independent 256-entry LUTs — direct
+  // fit for apply_channel_lut. Luma mode requires per-pixel scaling that cross-
+  // mixes channels, so it stays on JS.
+  if (wasmAvailable && perChannel) {
+    const lutR = new Uint8Array(mapR);
+    const lutG = new Uint8Array(mapG);
+    const lutB = new Uint8Array(mapB);
+    wasmApplyChannelLut(buf, outBuf, lutR, lutG, lutB);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const col = srgbPaletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options);
+        fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
+      }
+    }
+    logFilterWasmStatus("Histogram equalization", true, paletteIsIdentity ? "perChannel lut" : "perChannel lut+palettePass");
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+
+  logFilterWasmStatus("Histogram equalization", false, perChannel ? (options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet") : "luma mode");
+
   for (let x = 0; x < W; x += 1) {
     for (let y = 0; y < H; y += 1) {
       const i = getBufferIndex(x, y, W);

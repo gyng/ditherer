@@ -1,6 +1,15 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+  wasmGrainMergeBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 export const optionTypes = {
@@ -15,7 +24,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const grainMerge = (input: any, options = defaults) => {
+const grainMerge = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { strength, radius, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -25,6 +34,23 @@ const grainMerge = (input: any, options = defaults) => {
   const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    wasmGrainMergeBuffer(buf, outBuf, W, H, radius, strength);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const col = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
+        fillBufferPixel(outBuf, i, col[0], col[1], col[2], outBuf[i + 3]);
+      }
+    }
+    logFilterWasmStatus("Grain Merge", true, paletteIsIdentity ? "integral-image" : "integral-image+palettePass");
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+
+  logFilterWasmStatus("Grain Merge", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   // Box blur for low-pass
   const blurR = new Float32Array(W * H), blurG = new Float32Array(W * H), blurB = new Float32Array(W * H);

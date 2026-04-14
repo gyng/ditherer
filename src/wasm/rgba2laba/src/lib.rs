@@ -1229,6 +1229,105 @@ pub fn quantize_buffer_hsv(buffer: &[u8], palette: &[f64]) -> Vec<u8> {
     out
 }
 
+// === Grain merge (box blur high-pass + mix) ===
+//
+// Replaces src/filters/grainMerge.ts's two-pass per-pixel JS loop. We compute
+// a box blur with clamp-to-edge semantics — matching the JS filter, where
+// every kernel position clamps to the nearest edge pixel and `cnt` is always
+// `(2r+1)^2`. To keep the blur step cheap we precompute the clamp indices per
+// row and column once and reuse them. Then subtract to get the high-pass, mix
+// with the input, and clamp to u8. Alpha passes through unchanged. Parity is
+// bit-exact with the JS impl (`sr / cnt` in f64, stored as f32).
+
+#[wasm_bindgen]
+pub fn grain_merge_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    radius: u32,
+    strength: f32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    let r = radius as usize;
+    if w == 0 || h == 0 { return; }
+
+    // Precomputed clamp-to-edge column/row indices for each offset. k_size =
+    // 2r+1. col_clamp[x * k_size + k] is the clamped x-index for the k-th
+    // kernel column at pixel column x.
+    let k_size = 2 * r + 1;
+    let mut col_clamp = vec![0usize; w * k_size];
+    for x in 0..w {
+        for k in 0..k_size {
+            let raw = x as i32 + k as i32 - r as i32;
+            let clamped = if raw < 0 { 0 } else if raw >= w as i32 { w - 1 } else { raw as usize };
+            col_clamp[x * k_size + k] = clamped;
+        }
+    }
+    let mut row_clamp = vec![0usize; h * k_size];
+    for y in 0..h {
+        for k in 0..k_size {
+            let raw = y as i32 + k as i32 - r as i32;
+            let clamped = if raw < 0 { 0 } else if raw >= h as i32 { h - 1 } else { raw as usize };
+            row_clamp[y * k_size + k] = clamped;
+        }
+    }
+    let cnt = (k_size * k_size) as f32;
+
+    for y in 0..h {
+        let row_base = y * k_size;
+        for x in 0..w {
+            let col_base = x * k_size;
+            let mut sr: u32 = 0;
+            let mut sg: u32 = 0;
+            let mut sb: u32 = 0;
+            for ky in 0..k_size {
+                let ny = unsafe { *row_clamp.get_unchecked(row_base + ky) };
+                let row_px = ny * w;
+                for kx in 0..k_size {
+                    let nx = unsafe { *col_clamp.get_unchecked(col_base + kx) };
+                    let ni = (row_px + nx) * 4;
+                    // SAFETY: nx < w, ny < h → ni + 2 < input.len().
+                    unsafe {
+                        sr += *input.get_unchecked(ni) as u32;
+                        sg += *input.get_unchecked(ni + 1) as u32;
+                        sb += *input.get_unchecked(ni + 2) as u32;
+                    }
+                }
+            }
+            // Divide in f64 then narrow to f32 so we match JS's `sr / cnt`
+            // (f64 division) followed by Float32Array storage (f32 narrow).
+            let cnt_f64 = cnt as f64;
+            let blur_r = ((sr as f64) / cnt_f64) as f32;
+            let blur_g = ((sg as f64) / cnt_f64) as f32;
+            let blur_b = ((sb as f64) / cnt_f64) as f32;
+
+            let i = (y * w + x) * 4;
+            let (ir_u, ig_u, ib_u, ia) = unsafe {
+                (
+                    *input.get_unchecked(i),
+                    *input.get_unchecked(i + 1),
+                    *input.get_unchecked(i + 2),
+                    *input.get_unchecked(i + 3),
+                )
+            };
+            // Mix in f64 to match JS's u8 - f32 → f64 promotion semantics, so
+            // per-pixel rounding agrees to the bit.
+            let strength_f64 = strength as f64;
+            let nr = ((ir_u as f64 + (ir_u as f64 - blur_r as f64) * strength_f64).round()).clamp(0.0, 255.0) as u8;
+            let ng = ((ig_u as f64 + (ig_u as f64 - blur_g as f64) * strength_f64).round()).clamp(0.0, 255.0) as u8;
+            let nb = ((ib_u as f64 + (ib_u as f64 - blur_b as f64) * strength_f64).round()).clamp(0.0, 255.0) as u8;
+            unsafe {
+                *output.get_unchecked_mut(i)     = nr;
+                *output.get_unchecked_mut(i + 1) = ng;
+                *output.get_unchecked_mut(i + 2) = nb;
+                *output.get_unchecked_mut(i + 3) = ia;
+            }
+        }
+    }
+}
+
 // === HSV shift ===
 //
 // Rotate hue by `hue_shift` degrees and offset saturation/value by `sat_shift` /

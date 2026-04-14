@@ -193,6 +193,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmOrderedDitherLinearInner = mod.ordered_dither_linear_buffer;
   wasmApplyChannelLutInner = mod.apply_channel_lut;
   wasmHsvShiftInner = mod.hsv_shift_buffer;
+  wasmGrainMergeInner = mod.grain_merge_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -454,6 +455,16 @@ type WasmQuantizeBufferFn = {
     refZ?: number,
   ): Uint8Array<ArrayBufferLike>;
 }["bivarianceHack"];
+type WasmGrainMergeFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    radius: number,
+    strength: number,
+  ): void;
+}["bivarianceHack"];
 type WasmHsvShiftFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -600,6 +611,10 @@ let wasmApplyChannelLutInner: WasmApplyChannelLutFn = () => {
 };
 
 let wasmHsvShiftInner: WasmHsvShiftFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmGrainMergeInner: WasmGrainMergeFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -906,6 +921,17 @@ export const WASM_ROW_ALT = {
   PRIME: 9,
   RANDOM: 10,
 } as const;
+
+// Box-blur high-pass + per-pixel mix for the Grain merge filter. Uses an
+// integral image internally for O(W*H) total cost regardless of radius.
+export const wasmGrainMergeBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+  strength: number,
+): void => wasmGrainMergeInner(input, output, width, height, radius, strength);
 
 // Per-pixel HSV shift (hue in degrees, sat/val in [-1, 1]) applied in a single
 // WASM call. Alpha passes through unchanged. Used by the Color shift filter.
