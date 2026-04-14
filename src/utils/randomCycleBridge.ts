@@ -5,6 +5,25 @@ let currentRandomCycleSeconds: number | null = null;
 let lastRandomCycleSeconds: number | null = null;
 let currentScreensaverCycleSeconds: number | null = null;
 let lastScreensaverCycleSeconds: number | null = null;
+let lastScreensaverChainSwapAt: number | null = null;
+let lastScreensaverVideoSwapAt: number | null = null;
+
+export const notifyScreensaverChainSwap = () => {
+  lastScreensaverChainSwapAt = performance.now();
+};
+
+export const getLastScreensaverChainSwapAt = () => lastScreensaverChainSwapAt;
+
+export const notifyScreensaverVideoSwap = () => {
+  lastScreensaverVideoSwapAt = performance.now();
+};
+
+export const getLastScreensaverVideoSwapAt = () => lastScreensaverVideoSwapAt;
+
+export const resetScreensaverSwapMarkers = () => {
+  lastScreensaverChainSwapAt = null;
+  lastScreensaverVideoSwapAt = null;
+};
 
 export const getCurrentRandomCycleSeconds = () => currentRandomCycleSeconds;
 

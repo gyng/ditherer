@@ -30,6 +30,7 @@ import {
   getCurrentScreensaverCycleSeconds,
   subscribeRandomCycleSeconds,
   subscribeScreensaverCycleSeconds,
+  notifyScreensaverChainSwap,
 } from "utils/randomCycleBridge";
 import s from "./styles.module.css";
 
@@ -415,11 +416,13 @@ const ChainList = ({
     }
 
     randomCycleTimerRef.current = setInterval(() => {
-      if (screensaverCycleSeconds != null && screensaverCycleSeconds > 0 && Math.random() < SCREENSAVER_PRESET_SWAP_CHANCE) {
+      const inScreensaver = screensaverCycleSeconds != null && screensaverCycleSeconds > 0;
+      if (inScreensaver) notifyScreensaverChainSwap();
+      if (inScreensaver && Math.random() < SCREENSAVER_PRESET_SWAP_CHANCE) {
         randomPresetRef.current("screensaver-preset");
         return;
       }
-      randomChainRef.current(screensaverCycleSeconds != null && screensaverCycleSeconds > 0 ? "screensaver-chain" : "timer-chain");
+      randomChainRef.current(inScreensaver ? "screensaver-chain" : "timer-chain");
     }, activeCycleSeconds * 1000);
 
     return () => {

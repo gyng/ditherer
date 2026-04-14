@@ -30,6 +30,42 @@
   top: -9px;
 }
 
+.optionGroup {
+  border: 2px groove var(--gray);
+  padding: 2px 8px 8px;
+  margin: 8px 0 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/*
+ * Canonical "group/section header" typography token. Use this on any sub-section
+ * header inside a panel or fieldset. If you need a header style elsewhere,
+ * compose this class — DO NOT redefine font-size / weight / casing locally,
+ * that's how drift starts. Only override colour or spacing if it has to differ.
+ */
+.groupHeader,
+.optionGroupLegend {
+  background: var(--light-gray);
+  padding: 0 6px;
+  font-weight: bold;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+}
+
+/* Inline (non-fieldset) subsection label — same typography, no chip styling. */
+.subsectionHeader {
+  font-weight: bold;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+}
+
 .enum {
   width: 100%;
   padding: 5px;

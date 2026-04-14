@@ -45,6 +45,19 @@ export interface ShareStateV1 {
   r?: number;
 }
 
+export interface SerializedAudioVizChannel {
+  // connections + normalized metrics, same shape as entry modulation
+  m?: SerializedAudioVizModulation;
+  // auto-viz mode: "balanced" | "punchy" | "flow" | "chaotic"
+  mode?: string;
+  // auto-viz re-roll on chain change
+  auto?: boolean;
+  // density override in [0,0.8]; absent = mode default
+  d?: number;
+  // BPM-driven chain swap enabled + beats per swap (string so users can type fractions like "2.5")
+  bpm?: { beats: string } | false;
+}
+
 export interface ShareStateV2 {
   v: 2;
   chain: SerializedChainEntry[];
@@ -52,6 +65,11 @@ export interface ShareStateV2 {
   l: boolean;
   w: boolean;
   r?: number;
+  // Audio viz global modulations keyed by channel ("chain"|"screensaver")
+  av?: {
+    chain?: SerializedAudioVizChannel;
+    screensaver?: SerializedAudioVizChannel;
+  };
 }
 
 export type SerializedFilterState = ShareStateV1 | ShareStateV2;

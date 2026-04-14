@@ -25,6 +25,8 @@ export type AudioVizMetric =
   | "harmonic"
   | "percussive"
   | "tempoPhase"
+  | "barPhase"
+  | "barBeat"
   | "beatConfidence";
 
 export type AudioVizConnection = {
@@ -50,11 +52,15 @@ export type AudioVizChannelConfig = {
 
 type AudioVizMetricValues = Record<AudioVizMetric, number>;
 
+export type TempoStatus = "idle" | "warmup" | "silent" | "searching" | "locked";
+
 export type AudioVizSnapshot = AudioVizChannelConfig & {
   status: "idle" | "connecting" | "live" | "error";
   error: string | null;
   deviceLabel: string | null;
   detectedBpm: number | null;
+  tempoStatus: TempoStatus;
+  tempoWarmupProgress: number;
   rawMetrics: AudioVizMetricValues;
   normalizedMetrics: AudioVizMetricValues;
   metrics: AudioVizMetricValues;
@@ -84,8 +90,28 @@ type ChannelRuntime = {
   trebleEnvelope: number;
   normalizerLow: Partial<Record<AudioVizMetric, number>>;
   normalizerHigh: Partial<Record<AudioVizMetric, number>>;
+  noveltyBuffer: Float32Array;
+  noveltyIndex: number;
+  noveltyFilled: number;
+  noveltyLastSampleAt: number;
+  tempoBpm: number | null;
+  tempoConfidence: number;
+  tempoLastEvalAt: number;
+  tempoPhaseAnchor: number | null;
+  downbeatAnchor: number | null;
+  subKickEma: number;
+  subKickEmaAtBeat: number;
+  beatsSinceAnchor: number;
   requestToken: number;
 };
+
+const NOVELTY_HOP_MS = 23;
+const NOVELTY_BUFFER_SECONDS = 8;
+const NOVELTY_BUFFER_SIZE = Math.round((NOVELTY_BUFFER_SECONDS * 1000) / NOVELTY_HOP_MS);
+const TEMPO_EVAL_INTERVAL_MS = 400;
+const TEMPO_MIN_BPM = 60;
+const TEMPO_MAX_BPM = 180;
+const TEMPO_MIN_FRAMES = Math.round((NOVELTY_BUFFER_SECONDS * 0.6 * 1000) / NOVELTY_HOP_MS);
 
 const METRIC_KEYS: AudioVizMetric[] = [
   "level",
@@ -112,8 +138,12 @@ const METRIC_KEYS: AudioVizMetric[] = [
   "harmonic",
   "percussive",
   "tempoPhase",
+  "barPhase",
+  "barBeat",
   "beatConfidence",
 ];
+
+const BEATS_PER_BAR = 4;
 
 const emptyMetrics = (): AudioVizMetricValues => Object.fromEntries(
   METRIC_KEYS.map((metric) => [metric, 0]),
@@ -129,6 +159,8 @@ const defaultSnapshot = (): AudioVizSnapshot => ({
   error: null,
   deviceLabel: null,
   detectedBpm: null,
+  tempoStatus: "idle",
+  tempoWarmupProgress: 0,
   rawMetrics: emptyMetrics(),
   normalizedMetrics: emptyMetrics(),
   metrics: emptyMetrics(),
@@ -158,6 +190,18 @@ const makeRuntime = (): ChannelRuntime => ({
   trebleEnvelope: 0,
   normalizerLow: {},
   normalizerHigh: {},
+  noveltyBuffer: new Float32Array(NOVELTY_BUFFER_SIZE),
+  noveltyIndex: 0,
+  noveltyFilled: 0,
+  noveltyLastSampleAt: 0,
+  tempoBpm: null,
+  tempoConfidence: 0,
+  tempoLastEvalAt: 0,
+  tempoPhaseAnchor: null,
+  downbeatAnchor: null,
+  subKickEma: 0,
+  subKickEmaAtBeat: 0,
+  beatsSinceAnchor: 0,
   requestToken: 0,
 });
 
@@ -185,9 +229,9 @@ const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 const BPM_NORMALIZATION_MAX = 240;
 const NORMALIZER_RELEASE = 0.004;
 const NORMALIZER_MIN_SPAN = 0.08;
-const MIN_BEAT_INTERVAL_MS = 180;
+const MIN_BEAT_INTERVAL_MS = 260;
 const MAX_BEAT_INTERVAL_MS = 1600;
-const BPM_RESET_IDLE_MS = 4000;
+const BPM_RESET_IDLE_MS = 9000;
 
 const normalizeMetric = (runtime: ChannelRuntime, metric: AudioVizMetric, value: number) => {
   const prevLow = runtime.normalizerLow[metric] ?? value;
@@ -248,6 +292,107 @@ const resetTempoState = (runtime: ChannelRuntime) => {
   runtime.lastBeatAt = null;
   runtime.beatIntervalEma = null;
   runtime.beatConfidence = 0;
+  runtime.noveltyBuffer.fill(0);
+  runtime.noveltyIndex = 0;
+  runtime.noveltyFilled = 0;
+  runtime.tempoBpm = null;
+  runtime.tempoConfidence = 0;
+  runtime.tempoLastEvalAt = 0;
+  runtime.tempoPhaseAnchor = null;
+  runtime.downbeatAnchor = null;
+  runtime.subKickEma = 0;
+  runtime.subKickEmaAtBeat = 0;
+  runtime.beatsSinceAnchor = 0;
+};
+
+export const tapDownbeat = (channel: AudioVizChannel) => {
+  const runtime = runtimes[channel];
+  const now = performance.now();
+  runtime.downbeatAnchor = now;
+  runtime.beatsSinceAnchor = 0;
+  if (runtime.tempoPhaseAnchor == null) {
+    runtime.tempoPhaseAnchor = now;
+  }
+  emitChange(channel);
+};
+
+
+const resetIdleBeatState = (runtime: ChannelRuntime) => {
+  runtime.beatPulse = 0;
+  runtime.beatHold = 0;
+  runtime.lastBeatAt = null;
+  runtime.beatConfidence *= 0.5;
+};
+
+const evaluateTempo = (runtime: ChannelRuntime) => {
+  const buffer = runtime.noveltyBuffer;
+  const filled = runtime.noveltyFilled;
+  if (filled < TEMPO_MIN_FRAMES) return;
+  let mean = 0;
+  for (let i = 0; i < filled; i++) {
+    const idx = (runtime.noveltyIndex - filled + i + buffer.length) % buffer.length;
+    mean += buffer[idx];
+  }
+  mean /= filled;
+  let variance = 0;
+  for (let i = 0; i < filled; i++) {
+    const idx = (runtime.noveltyIndex - filled + i + buffer.length) % buffer.length;
+    const v = buffer[idx] - mean;
+    variance += v * v;
+  }
+  if (variance < 1e-6) return;
+
+  const minLag = Math.max(1, Math.round(60000 / (TEMPO_MAX_BPM * NOVELTY_HOP_MS)));
+  const maxLag = Math.round(60000 / (TEMPO_MIN_BPM * NOVELTY_HOP_MS));
+  let bestScore = -Infinity;
+  let bestLag = -1;
+  let scoreSum = 0;
+  let scoreSqSum = 0;
+  let scoreCount = 0;
+
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    const count = filled - lag;
+    if (count <= 8) continue;
+    let score = 0;
+    for (let i = 0; i < count; i++) {
+      const idxA = (runtime.noveltyIndex - filled + i + buffer.length) % buffer.length;
+      const idxB = (runtime.noveltyIndex - filled + i + lag + buffer.length) % buffer.length;
+      score += (buffer[idxA] - mean) * (buffer[idxB] - mean);
+    }
+    score /= count;
+    const musicalWeight = 1 - Math.abs(120 - 60000 / (lag * NOVELTY_HOP_MS)) / 600;
+    const weightedScore = score * Math.max(0.35, musicalWeight);
+    scoreSum += weightedScore;
+    scoreSqSum += weightedScore * weightedScore;
+    scoreCount += 1;
+    if (weightedScore > bestScore) {
+      bestScore = weightedScore;
+      bestLag = lag;
+    }
+  }
+
+  if (bestLag < 0 || bestScore <= 0 || scoreCount === 0) return;
+
+  const bestPeriodMs = bestLag * NOVELTY_HOP_MS;
+  const candidateBpm = 60000 / bestPeriodMs;
+  const scoreMean = scoreSum / scoreCount;
+  const scoreStd = Math.sqrt(Math.max(0, scoreSqSum / scoreCount - scoreMean * scoreMean));
+  const confidence = clamp01(scoreStd > 1e-8 ? (bestScore - scoreMean) / (scoreStd * 4) : 0);
+
+  if (runtime.tempoBpm == null) {
+    runtime.tempoBpm = candidateBpm;
+    runtime.tempoConfidence = Math.max(0.1, confidence);
+    return;
+  }
+  const smoothing = 0.2 + confidence * 0.45;
+  const currentBpm = runtime.tempoBpm;
+  const halfCandidate = candidateBpm / 2;
+  const doubleCandidate = candidateBpm * 2;
+  const bestAligned = [candidateBpm, halfCandidate, doubleCandidate]
+    .filter((bpm) => bpm >= TEMPO_MIN_BPM && bpm <= TEMPO_MAX_BPM)
+    .reduce((best, bpm) => Math.abs(bpm - currentBpm) < Math.abs(best - currentBpm) ? bpm : best, candidateBpm);
+  runtime.tempoBpm = currentBpm * (1 - smoothing) + bestAligned * smoothing;
+  runtime.tempoConfidence = runtime.tempoConfidence * 0.7 + confidence * 0.3;
 };
 
 const createStream = async (source: AudioVizSource, deviceId: string | null) => {
@@ -269,6 +414,7 @@ const createStream = async (source: AudioVizSource, deviceId: string | null) => 
       echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: false,
+      channelCount: { ideal: 2 },
     },
     video: false,
   });
@@ -308,26 +454,45 @@ const spectralCentroid = (arr: Uint8Array) => {
   return total > 0 ? weighted / (total * Math.max(1, arr.length - 1)) : 0;
 };
 
-const stereoStats = (left: Uint8Array | null, right: Uint8Array | null) => {
-  if (!left || !right) {
+const stereoStats = (
+  leftFreq: Uint8Array | null,
+  rightFreq: Uint8Array | null,
+  leftTime: Uint8Array | null,
+  rightTime: Uint8Array | null,
+) => {
+  if (!leftFreq || !rightFreq) {
     return { width: 0, balance: 0.5 };
   }
-  const length = Math.min(left.length, right.length);
+  const freqLength = Math.min(leftFreq.length, rightFreq.length);
   let leftTotal = 0;
   let rightTotal = 0;
-  let diffTotal = 0;
-  for (let i = 0; i < length; i++) {
-    const l = left[i] / 255;
-    const r = right[i] / 255;
-    leftTotal += l;
-    rightTotal += r;
-    diffTotal += Math.abs(l - r);
+  for (let i = 0; i < freqLength; i++) {
+    leftTotal += leftFreq[i] / 255;
+    rightTotal += rightFreq[i] / 255;
   }
   const total = leftTotal + rightTotal;
-  return {
-    width: length > 0 ? diffTotal / length : 0,
-    balance: total > 0 ? clamp01((leftTotal - rightTotal) / total * 0.5 + 0.5) : 0.5,
-  };
+  const balance = total > 0 ? clamp01((leftTotal - rightTotal) / total * 0.5 + 0.5) : 0.5;
+
+  let width = 0;
+  if (leftTime && rightTime) {
+    const timeLength = Math.min(leftTime.length, rightTime.length);
+    let midSquared = 0;
+    let sideSquared = 0;
+    for (let i = 0; i < timeLength; i++) {
+      const l = (leftTime[i] - 128) / 128;
+      const r = (rightTime[i] - 128) / 128;
+      const mid = (l + r) * 0.5;
+      const side = (l - r) * 0.5;
+      midSquared += mid * mid;
+      sideSquared += side * side;
+    }
+    const midRms = Math.sqrt(midSquared / Math.max(1, timeLength));
+    const sideRms = Math.sqrt(sideSquared / Math.max(1, timeLength));
+    const denom = midRms + sideRms;
+    width = denom > 1e-5 ? sideRms / denom : 0;
+  }
+
+  return { width, balance };
 };
 
 const startMeterLoop = (channel: AudioVizChannel) => {
@@ -338,6 +503,8 @@ const startMeterLoop = (channel: AudioVizChannel) => {
   const time = new Uint8Array(runtime.analyser.fftSize);
   const leftFreq = runtime.leftAnalyser ? new Uint8Array(runtime.leftAnalyser.frequencyBinCount) : null;
   const rightFreq = runtime.rightAnalyser ? new Uint8Array(runtime.rightAnalyser.frequencyBinCount) : null;
+  const leftTime = runtime.leftAnalyser ? new Uint8Array(runtime.leftAnalyser.fftSize) : null;
+  const rightTime = runtime.rightAnalyser ? new Uint8Array(runtime.rightAnalyser.fftSize) : null;
 
   const frame = () => {
     const current = runtimes[channel];
@@ -347,6 +514,8 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     current.analyser.getByteTimeDomainData(time);
     current.leftAnalyser?.getByteFrequencyData(leftFreq!);
     current.rightAnalyser?.getByteFrequencyData(rightFreq!);
+    current.leftAnalyser?.getByteTimeDomainData(leftTime!);
+    current.rightAnalyser?.getByteTimeDomainData(rightTime!);
 
     let rms = 0;
     for (let i = 0; i < time.length; i++) {
@@ -374,12 +543,25 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     current.onsetEma = current.onsetEma * 0.9 + spectralFlux * 0.1;
     const onset = clamp01((spectralFlux - current.onsetEma) * 6);
 
+    const nowForNovelty = performance.now();
+    if (nowForNovelty - current.noveltyLastSampleAt >= NOVELTY_HOP_MS) {
+      current.noveltyLastSampleAt = nowForNovelty;
+      const novelty = Math.max(0, spectralFlux - current.onsetEma);
+      current.noveltyBuffer[current.noveltyIndex] = novelty;
+      current.noveltyIndex = (current.noveltyIndex + 1) % current.noveltyBuffer.length;
+      if (current.noveltyFilled < current.noveltyBuffer.length) current.noveltyFilled += 1;
+      if (nowForNovelty - current.tempoLastEvalAt >= TEMPO_EVAL_INTERVAL_MS) {
+        current.tempoLastEvalAt = nowForNovelty;
+        evaluateTempo(current);
+      }
+    }
+
     current.levelEma = current.levelEma * 0.82 + level * 0.18;
     const pulse = clamp01((level - current.levelEma) * 5);
     current.peakDecay = Math.max(level, current.peakDecay * 0.93);
     const centroid = spectralCentroid(freq);
     const bandRatio = clamp01(bass / Math.max(0.05, treble + 0.05));
-    const { width: stereoWidth, balance: stereoBalance } = stereoStats(leftFreq, rightFreq);
+    const { width: stereoWidth, balance: stereoBalance } = stereoStats(leftFreq, rightFreq, leftTime, rightTime);
     const roughness = clamp01((zeroCrossRate(time) * 1.5 + treble * 0.7) / 2.2);
     const harmonic = clamp01((1 - spectralFlux) * (0.35 + mid * 0.65));
     const percussive = clamp01((onset * 0.7) + (pulse * 0.3));
@@ -393,10 +575,12 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       bass * 0.95 + onset * 1.15,
       percussive * 1.2 + level * 0.45,
     );
+    const bassFloor = current.bassEnvelope * 1.3 + 0.04;
+    const energyFloor = Math.max(0.3, current.levelEma * 1.7 + current.onsetEma * 4.5);
     const beatTriggered = msSinceLastBeat >= MIN_BEAT_INTERVAL_MS && (
-      (subKick > 0.055 && pulse > 0.035)
-      || (onset > 0.1 && bass > 0.075)
-      || beatEnergy > 0.34
+      (subKick > 0.07 && pulse > 0.06)
+      || (onset > 0.12 && bass > bassFloor)
+      || beatEnergy > energyFloor
     );
 
     if (overrideBpm != null) {
@@ -435,21 +619,62 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       current.beatHold *= 0.9;
       current.beatConfidence *= 0.992;
       if (current.lastBeatAt != null && now - current.lastBeatAt > BPM_RESET_IDLE_MS) {
-        resetTempoState(current);
+        resetIdleBeatState(current);
       }
     }
-    const detectedBeatBpm = current.beatIntervalEma != null && current.beatIntervalEma > 0
-      ? 60000 / current.beatIntervalEma
-      : null;
+    const detectedBeatBpm = current.tempoBpm;
     const detectedBpm = overrideBpm ?? detectedBeatBpm;
     const effectiveBpm = detectedBpm;
     const effectiveBeatIntervalMs = effectiveBpm != null && effectiveBpm > 0
       ? 60000 / effectiveBpm
       : null;
+    current.subKickEma = current.subKickEma * 0.85 + subKick * 0.15;
+
     let tempoPhase = 0;
+    let barPhase = 0;
+    let barBeat = 0;
     if (effectiveBeatIntervalMs != null && effectiveBeatIntervalMs > 0) {
-      const phaseAnchor = current.lastBeatAt ?? 0;
+      const barIntervalMs = effectiveBeatIntervalMs * BEATS_PER_BAR;
+      if (beatTriggered) {
+        let advancedCycles = 0;
+        if (current.tempoPhaseAnchor == null) {
+          current.tempoPhaseAnchor = now;
+          current.downbeatAnchor = now;
+          current.beatsSinceAnchor = 0;
+          current.subKickEmaAtBeat = subKick;
+        } else {
+          const elapsed = now - current.tempoPhaseAnchor;
+          const cycles = elapsed / effectiveBeatIntervalMs;
+          const nearestWhole = Math.round(cycles);
+          const drift = Math.abs(cycles - nearestWhole);
+          if (nearestWhole >= 1 && drift < 0.22) {
+            current.tempoPhaseAnchor += nearestWhole * effectiveBeatIntervalMs;
+            advancedCycles = nearestWhole;
+          }
+        }
+
+        current.subKickEmaAtBeat = current.subKickEmaAtBeat * 0.75 + subKick * 0.25;
+        current.beatsSinceAnchor += advancedCycles;
+
+        const kickPeak = subKick > Math.max(0.08, current.subKickEmaAtBeat * 1.35);
+        const clearOfRecentAnchor = current.beatsSinceAnchor >= 2;
+        if (current.downbeatAnchor == null || (kickPeak && clearOfRecentAnchor)) {
+          current.downbeatAnchor = current.tempoPhaseAnchor ?? now;
+          current.beatsSinceAnchor = 0;
+        }
+      }
+      const phaseAnchor = current.tempoPhaseAnchor ?? current.lastBeatAt ?? now;
       tempoPhase = ((now - phaseAnchor) % effectiveBeatIntervalMs) / effectiveBeatIntervalMs;
+      if (tempoPhase < 0) tempoPhase += 1;
+
+      const barAnchor = current.downbeatAnchor ?? phaseAnchor;
+      barPhase = ((now - barAnchor) % barIntervalMs) / barIntervalMs;
+      if (barPhase < 0) barPhase += 1;
+      barBeat = Math.floor(barPhase * BEATS_PER_BAR) / (BEATS_PER_BAR - 1);
+    } else {
+      current.tempoPhaseAnchor = null;
+      current.downbeatAnchor = null;
+      current.beatsSinceAnchor = 0;
     }
 
     const rawMetrics: AudioVizMetricValues = {
@@ -465,7 +690,7 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       spectralCentroid: centroid,
       spectralFlux,
       bandRatio,
-      stereoWidth: clamp01(stereoWidth * 2),
+      stereoWidth: clamp01(stereoWidth * 1.6),
       stereoBalance,
       zeroCrossing: clamp01(zeroCrossRate(time) * 4),
       subKick,
@@ -477,7 +702,9 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       harmonic,
       percussive,
       tempoPhase,
-      beatConfidence: current.beatConfidence,
+      barPhase,
+      barBeat,
+      beatConfidence: overrideBpm != null ? 1 : current.tempoConfidence,
     };
 
     const normalizedMetrics = Object.fromEntries(
@@ -485,10 +712,26 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     ) as AudioVizMetricValues;
     const metrics = current.snapshot.normalize ? normalizedMetrics : rawMetrics;
 
+    const warmupProgress = clamp01(current.noveltyFilled / TEMPO_MIN_FRAMES);
+    let tempoStatus: TempoStatus;
+    if (overrideBpm != null) {
+      tempoStatus = "locked";
+    } else if (warmupProgress < 1) {
+      tempoStatus = "warmup";
+    } else if (current.levelEma < 0.015) {
+      tempoStatus = "silent";
+    } else if (current.tempoBpm == null) {
+      tempoStatus = "searching";
+    } else {
+      tempoStatus = "locked";
+    }
+
     updateSnapshot(channel, {
       status: "live",
       error: null,
       detectedBpm: effectiveBpm,
+      tempoStatus,
+      tempoWarmupProgress: warmupProgress,
       rawMetrics,
       normalizedMetrics,
       metrics,
@@ -510,7 +753,7 @@ const startRuntime = async (channel: AudioVizChannel) => {
   if (runtimes[channel].requestToken !== requestToken) return;
 
   if (!enabled) {
-    updateSnapshot(channel, { enabled: false, status: "idle", error: null, detectedBpm: null, rawMetrics: emptyMetrics(), normalizedMetrics: emptyMetrics(), metrics: emptyMetrics(), normalize });
+    updateSnapshot(channel, { enabled: false, status: "idle", error: null, detectedBpm: null, tempoStatus: "idle", tempoWarmupProgress: 0, rawMetrics: emptyMetrics(), normalizedMetrics: emptyMetrics(), metrics: emptyMetrics(), normalize });
     return;
   }
 
@@ -600,6 +843,8 @@ const startRuntime = async (channel: AudioVizChannel) => {
       error: message,
       deviceLabel: null,
       detectedBpm: null,
+      tempoStatus: "idle",
+      tempoWarmupProgress: 0,
       rawMetrics: emptyMetrics(),
       normalizedMetrics: emptyMetrics(),
       metrics: emptyMetrics(),
@@ -611,6 +856,126 @@ export const listAudioInputDevices = async () => {
   if (!navigator.mediaDevices?.enumerateDevices) return [];
   const devices = await navigator.mediaDevices.enumerateDevices();
   return devices.filter((device) => device.kind === "audioinput");
+};
+
+if (typeof window !== "undefined") {
+  (window as unknown as { __audioVizDebug: unknown }).__audioVizDebug = {
+    getRuntime: (channel: AudioVizChannel = "chain") => runtimes[channel],
+    getSnapshot: (channel: AudioVizChannel = "chain") => runtimes[channel].snapshot,
+    sampleTime: (channel: AudioVizChannel = "chain") => {
+      const analyser = runtimes[channel].analyser;
+      if (!analyser) return { hasAnalyser: false };
+      const buf = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(buf);
+      let min = 255, max = 0, sumAbs = 0;
+      for (let i = 0; i < buf.length; i++) {
+        if (buf[i] < min) min = buf[i];
+        if (buf[i] > max) max = buf[i];
+        sumAbs += Math.abs(buf[i] - 128);
+      }
+      return { min, max, meanAbs: sumAbs / buf.length, sample: Array.from(buf.slice(0, 16)) };
+    },
+    trackSettings: (channel: AudioVizChannel = "chain") => {
+      const tracks = runtimes[channel].stream?.getAudioTracks() ?? [];
+      return tracks.map((track) => ({
+        label: track.label,
+        enabled: track.enabled,
+        muted: track.muted,
+        readyState: track.readyState,
+        settings: track.getSettings(),
+      }));
+    },
+    contextState: (channel: AudioVizChannel = "chain") => runtimes[channel].audioContext?.state ?? null,
+    report: (channel: AudioVizChannel = "chain") => {
+      const runtime = runtimes[channel];
+      const analyser = runtime.analyser;
+      const leftAnalyser = runtime.leftAnalyser;
+      const rightAnalyser = runtime.rightAnalyser;
+      let timeStats: Record<string, unknown> = { hasAnalyser: false };
+      if (analyser) {
+        const buf = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(buf);
+        let min = 255, max = 0, sumAbs = 0;
+        for (let i = 0; i < buf.length; i++) {
+          if (buf[i] < min) min = buf[i];
+          if (buf[i] > max) max = buf[i];
+          sumAbs += Math.abs(buf[i] - 128);
+        }
+        timeStats = { hasAnalyser: true, min, max, meanAbs: +(sumAbs / buf.length).toFixed(2), firstBytes: Array.from(buf.slice(0, 8)) };
+      }
+      let stereoStats: Record<string, unknown> = { hasSplit: false };
+      if (leftAnalyser && rightAnalyser) {
+        const lt = new Uint8Array(leftAnalyser.fftSize);
+        const rt = new Uint8Array(rightAnalyser.fftSize);
+        leftAnalyser.getByteTimeDomainData(lt);
+        rightAnalyser.getByteTimeDomainData(rt);
+        let midSq = 0, sideSq = 0, lSq = 0, rSq = 0;
+        for (let i = 0; i < lt.length; i++) {
+          const l = (lt[i] - 128) / 128;
+          const r = (rt[i] - 128) / 128;
+          midSq += ((l + r) * 0.5) ** 2;
+          sideSq += ((l - r) * 0.5) ** 2;
+          lSq += l * l;
+          rSq += r * r;
+        }
+        stereoStats = {
+          hasSplit: true,
+          leftRms: +Math.sqrt(lSq / lt.length).toFixed(4),
+          rightRms: +Math.sqrt(rSq / rt.length).toFixed(4),
+          midRms: +Math.sqrt(midSq / lt.length).toFixed(4),
+          sideRms: +Math.sqrt(sideSq / lt.length).toFixed(4),
+        };
+      }
+      const tracks = runtime.stream?.getAudioTracks() ?? [];
+      const snapshot = runtime.snapshot;
+      return {
+        channel,
+        contextState: runtime.audioContext?.state ?? null,
+        snapshot: {
+          enabled: snapshot.enabled,
+          source: snapshot.source,
+          status: snapshot.status,
+          error: snapshot.error,
+          deviceLabel: snapshot.deviceLabel,
+          detectedBpm: snapshot.detectedBpm,
+          normalize: snapshot.normalize,
+          rawLevel: +snapshot.rawMetrics.level.toFixed(4),
+          rawBass: +snapshot.rawMetrics.bass.toFixed(4),
+          rawStereoWidth: +snapshot.rawMetrics.stereoWidth.toFixed(4),
+        },
+        tracks: tracks.map((track) => ({
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          channelCount: track.getSettings().channelCount,
+          sampleRate: track.getSettings().sampleRate,
+        })),
+        analyser: timeStats,
+        stereo: stereoStats,
+        tempo: {
+          bpm: runtime.tempoBpm,
+          confidence: +runtime.tempoConfidence.toFixed(3),
+          noveltyFilled: runtime.noveltyFilled,
+          noveltyBufferSize: runtime.noveltyBuffer.length,
+        },
+      };
+    },
+  };
+}
+
+export const requestMicPermissionAndList = async () => {
+  if (!navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.enumerateDevices) return [];
+  let stream: MediaStream | null = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch {
+    // Fall through to enumerateDevices which may still return something
+  } finally {
+    stream?.getTracks().forEach((track) => track.stop());
+  }
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((device) => device.kind === "audioinput" && device.deviceId);
 };
 
 export const getAudioVizSnapshot = (channel: AudioVizChannel) => runtimes[channel].snapshot;
@@ -640,6 +1005,14 @@ export const resetAudioVizTempo = async (
 ) => {
   const runtime = runtimes[channel];
   resetTempoState(runtime);
+  runtime.normalizerLow = {};
+  runtime.normalizerHigh = {};
+  runtime.peakDecay = 0;
+  runtime.noveltyBuffer.fill(0);
+  runtime.noveltyFilled = 0;
+  runtime.noveltyIndex = 0;
+  runtime.tempoBpm = null;
+  runtime.tempoConfidence = 0;
   const clearOverride = options?.clearOverride ?? false;
   const bpmOverride = clearOverride ? null : runtime.snapshot.bpmOverride;
   const bpmValue = bpmOverride != null && bpmOverride > 0
@@ -694,10 +1067,21 @@ export const getAudioVizMetricValueForMode = (
 
 export const getGlobalAudioVizModulation = (channel: AudioVizChannel) => globalModulations[channel];
 
+const globalModulationTarget = new EventTarget();
+
+export const subscribeGlobalAudioVizModulation = (listener: (channel: AudioVizChannel) => void) => {
+  const handleChange = (event: Event) => {
+    listener((event as CustomEvent<AudioVizChannel>).detail);
+  };
+  globalModulationTarget.addEventListener("change", handleChange);
+  return () => globalModulationTarget.removeEventListener("change", handleChange);
+};
+
 export const setGlobalAudioVizModulation = (
   channel: AudioVizChannel,
   modulation: GlobalAudioVizModulation | null,
 ) => {
   globalModulations[channel] = modulation;
   emitChange(channel);
+  globalModulationTarget.dispatchEvent(new CustomEvent<AudioVizChannel>("change", { detail: channel }));
 };

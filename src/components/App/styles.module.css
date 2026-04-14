@@ -462,7 +462,7 @@
 
 .screensaverDialog {
   min-width: 320px;
-  max-width: min(92vw, 420px);
+  max-width: min(96vw, 820px);
   max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
@@ -473,6 +473,33 @@
   border-bottom: 2px solid #404040;
   box-shadow: 1px 1px 0 #000, inset 1px 1px 0 #dfdfdf;
   overflow: hidden;
+}
+
+.screensaverColumns {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.screensaverColumnLeft,
+.screensaverColumnRight {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.screensaverColumnRight {
+  overflow: auto;
+}
+
+@media (max-width: 720px) {
+  .screensaverColumns {
+    grid-template-columns: 1fr;
+  }
 }
 
 .screensaverTitleBar {
@@ -536,6 +563,43 @@
   color: #000;
 }
 
+.screensaverFieldRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.screensaverFieldRow .screensaverField {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.screensaverRadioOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #000;
+}
+
+.screensaverRadioOption > input[type="radio"] {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.screensaverRadioRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: center;
+}
+
+/* Compose with controls.subsectionHeader for canonical typography. */
+.screensaverSubgroupLabel {
+  margin-top: 2px;
+}
+
 .screensaverHint {
   font-size: 11px;
   line-height: 1.4;
@@ -562,7 +626,7 @@
 }
 
 .audioModDialog {
-  width: min(92vw, 560px);
+  width: min(96vw, 820px);
   max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
@@ -633,10 +697,51 @@
   flex-wrap: wrap;
   min-width: 0;
   gap: 4px;
-  margin-left: auto;
   font-size: 11px;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.audioPatchToolbarButtonActive {
+  background: var(--beautiful-blue, #2b5b8a);
+  color: #fff;
+  font-weight: bold;
+}
+
+.audioPatchToolbarSettings {
+  position: sticky;
+  top: 32px;
+  z-index: 7;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  background: rgba(199, 199, 199, 0.95);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+  font-size: 11px;
+}
+
+.audioPatchToolbarDensity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.audioPatchToolbarDensity > input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+}
+
+.audioPatchToolbarDensityValue {
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  color: #27485c;
+  white-space: nowrap;
+  min-width: 90px;
+  text-align: right;
 }
 
 .audioPatchPanel {
@@ -701,6 +806,58 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+}
+
+.audioPatchSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.audioPatchSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  font: inherit;
+  font-size: 11px;
+  color: #333;
+  cursor: pointer;
+  text-align: left;
+  margin: 0;
+  min-height: 0;
+  pointer-events: auto;
+}
+
+.audioPatchSectionHeader:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.audioPatchSectionHeaderOpen {
+  background: rgba(0, 0, 0, 0.08);
+  font-weight: bold;
+}
+
+.audioPatchSectionCaret {
+  font-size: 10px;
+  color: #666;
+  width: 10px;
+  flex: 0 0 auto;
+}
+
+/* Compose with controls.subsectionHeader for canonical typography. */
+.audioPatchSectionLabel {
+  flex: 1 1 auto;
+}
+
+.audioPatchSectionCount {
+  flex: 0 0 auto;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  color: #4c4c4c;
 }
 
 .audioPatchNode,
@@ -787,6 +944,12 @@
   overflow: hidden;
 }
 
+.audioPatchBeatStripSlot {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+}
+
 .audioPatchMeterFill {
   height: 100%;
   background: linear-gradient(90deg, #62b5ff, #b6f3ff);
@@ -866,15 +1029,64 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.audioPatchBpmBadge,
+.audioPatchBpmBadgeWarn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: help;
+  color: #fff;
+  background: #5c8bb0;
+  border: 1px solid #2a4a66;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+.audioPatchBpmBadgeWarn {
+  background: #c9462b;
+  border-color: #6e1f10;
+}
+
+.audioPatchBpmBadgeHidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .audioPatchBpmControlsTop {
-  display: grid;
-  grid-template-columns: auto auto auto;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+}
+
+.audioPatchBpmControlsTop > button {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-size: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.audioPatchBpmSliderValue {
+  margin-left: auto;
+  margin-right: 4px;
+}
+
+.audioPatchBpmToggle {
+  flex: 0 0 auto;
 }
 
 .audioPatchBpmToggle {
@@ -890,6 +1102,8 @@
   min-width: 0;
   display: block;
   align-self: stretch;
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .audioPatchBpmSliderValue {

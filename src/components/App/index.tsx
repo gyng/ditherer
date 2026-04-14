@@ -10,6 +10,8 @@ import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
 import CollapsibleSection from "components/CollapsibleSection";
 import AudioVizControls from "components/AudioVizControls";
+import AudioBeatStrip from "components/AudioBeatStrip";
+import AudioBpmReadout from "components/AudioBpmReadout";
 
 import { useFilter } from "context/useFilter";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
@@ -19,11 +21,17 @@ import {
   getCurrentRandomCycleSeconds,
   getLastRandomCycleSeconds,
   dispatchScreensaverCycleSeconds,
+  getCurrentScreensaverCycleSeconds,
   getLastScreensaverCycleSeconds,
   setRememberedScreensaverCycleSeconds,
+  notifyScreensaverVideoSwap,
+  getLastScreensaverChainSwapAt,
+  getLastScreensaverVideoSwapAt,
+  resetScreensaverSwapMarkers,
 } from "utils/randomCycleBridge";
+import { createReadbackCanvas, getReadbackContext } from "utils";
 import type { AudioVizConnection, AudioVizMetric, EntryAudioModulation, GlobalAudioVizModulation } from "utils/audioVizBridge";
-import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, resetAudioVizTempo, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, updateAudioVizChannel } from "utils/audioVizBridge";
+import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, resetAudioVizTempo, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, tapDownbeat, updateAudioVizChannel } from "utils/audioVizBridge";
 import { setupWebMCP } from "@src/webmcp";
 
 import controls from "components/controls/styles.module.css";
@@ -88,7 +96,6 @@ const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
 const DEFAULT_TEST_IMAGE_ASSET = testAssetUrl("image", "pepper.png");
 const DEFAULT_TEST_VIDEO_ASSET = testAssetUrl("video", "akiyo.mp4");
 const basename = (path: string) => path.split("/").pop() || path;
-const SCREENSAVER_IDLE_DELAY_MS = 10000;
 const DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH = 250;
 const FULLSCREEN_CURSOR_IDLE_MS = 1500;
 const DEFAULT_INPUT_WINDOW_POSITION = { x: 340, y: 10 };
@@ -126,12 +133,10 @@ type PreviousCanvasProps = {
 const TEST_IMAGE_OPTIONS = TEST_IMAGE_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 const TEST_VIDEO_OPTIONS = TEST_VIDEO_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 const cloneImageToCanvas = (image: HTMLImageElement) => {
-  const canvas = document.createElement("canvas");
   const width = image.naturalWidth || image.width;
   const height = image.naturalHeight || image.height;
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
+  const canvas = createReadbackCanvas(width, height);
+  const ctx = getReadbackContext(canvas);
   if (ctx) ctx.drawImage(image, 0, 0, width, height);
   return canvas;
 };
@@ -156,33 +161,87 @@ const SCALING_ALGORITHM_HELP = "Controls how enlarged canvases are drawn on scre
 const GRAYSCALE_HELP = "Converts the source to grayscale before the chain runs. Useful for monochrome dithers or filters that should ignore color.";
 const GAMMA_HELP = "Runs the pipeline in gamma-correct space for more perceptually accurate blending and brightness. It can look better, but may change results and cost a bit more work.";
 const FIX_INPUT_WIDTH_HELP = "Keeps the current input scale when loading a new image or video so the visible canvas width stays steadier during source swaps.";
-const AUDIO_METRIC_OPTIONS: Array<{ value: AudioVizMetric; label: string }> = [
-  { value: "bpm", label: "BPM" },
-  { value: "beat", label: "Beat" },
-  { value: "beatHold", label: "Beat hold" },
-  { value: "tempoPhase", label: "Tempo phase" },
-  { value: "level", label: "Level" },
-  { value: "bass", label: "Bass" },
-  { value: "mid", label: "Mid" },
-  { value: "treble", label: "Treble" },
-  { value: "pulse", label: "Pulse" },
-  { value: "onset", label: "Onset" },
-  { value: "spectralCentroid", label: "Spectral centroid" },
-  { value: "spectralFlux", label: "Spectral flux" },
-  { value: "bandRatio", label: "Band ratio" },
-  { value: "stereoWidth", label: "Stereo width" },
-  { value: "stereoBalance", label: "Stereo balance" },
-  { value: "zeroCrossing", label: "Zero crossing" },
-  { value: "subKick", label: "Sub kick" },
-  { value: "bassEnvelope", label: "Bass envelope" },
-  { value: "midEnvelope", label: "Mid envelope" },
-  { value: "trebleEnvelope", label: "Treble envelope" },
-  { value: "peakDecay", label: "Peak decay" },
-  { value: "roughness", label: "Roughness" },
-  { value: "harmonic", label: "Harmonic" },
-  { value: "percussive", label: "Percussive" },
-  { value: "beatConfidence", label: "Beat confidence" },
+type AudioMetricSection = {
+  key: string;
+  label: string;
+  defaultOpen: boolean;
+  metrics: Array<{ value: AudioVizMetric; label: string }>;
+};
+
+const AUDIO_METRIC_SECTIONS: AudioMetricSection[] = [
+  {
+    key: "tempo",
+    label: "Tempo & rhythm",
+    defaultOpen: true,
+    metrics: [
+      { value: "bpm", label: "BPM" },
+      { value: "beat", label: "Beat" },
+      { value: "beatHold", label: "Beat hold" },
+      { value: "barBeat", label: "Bar beat" },
+      { value: "barPhase", label: "Bar phase" },
+      { value: "tempoPhase", label: "Tempo phase" },
+      { value: "beatConfidence", label: "Beat confidence" },
+    ],
+  },
+  {
+    key: "loudness",
+    label: "Loudness & transients",
+    defaultOpen: true,
+    metrics: [
+      { value: "level", label: "Level" },
+      { value: "pulse", label: "Pulse" },
+      { value: "onset", label: "Onset" },
+      { value: "peakDecay", label: "Peak decay" },
+      { value: "subKick", label: "Sub kick" },
+    ],
+  },
+  {
+    key: "bands",
+    label: "Bands (raw)",
+    defaultOpen: false,
+    metrics: [
+      { value: "bass", label: "Bass" },
+      { value: "mid", label: "Mid" },
+      { value: "treble", label: "Treble" },
+    ],
+  },
+  {
+    key: "envelopes",
+    label: "Bands (smoothed)",
+    defaultOpen: false,
+    metrics: [
+      { value: "bassEnvelope", label: "Bass envelope" },
+      { value: "midEnvelope", label: "Mid envelope" },
+      { value: "trebleEnvelope", label: "Treble envelope" },
+    ],
+  },
+  {
+    key: "character",
+    label: "Character",
+    defaultOpen: false,
+    metrics: [
+      { value: "percussive", label: "Percussive" },
+      { value: "harmonic", label: "Harmonic" },
+      { value: "roughness", label: "Roughness" },
+      { value: "spectralCentroid", label: "Spectral centroid" },
+      { value: "spectralFlux", label: "Spectral flux" },
+      { value: "bandRatio", label: "Band ratio" },
+      { value: "zeroCrossing", label: "Zero crossing" },
+    ],
+  },
+  {
+    key: "stereo",
+    label: "Stereo",
+    defaultOpen: false,
+    metrics: [
+      { value: "stereoWidth", label: "Stereo width" },
+      { value: "stereoBalance", label: "Stereo balance" },
+    ],
+  },
 ];
+
+const AUDIO_METRIC_OPTIONS: Array<{ value: AudioVizMetric; label: string }> =
+  AUDIO_METRIC_SECTIONS.flatMap((section) => section.metrics);
 const AUDIO_METRIC_HELP: Record<AudioVizMetric, string> = {
   level: "Overall RMS loudness of the incoming audio.",
   bass: "Low-frequency energy. Good for heavier, slower modulation.",
@@ -208,6 +267,8 @@ const AUDIO_METRIC_HELP: Record<AudioVizMetric, string> = {
   harmonic: "Bias toward more tonal, sustained content.",
   percussive: "Bias toward more transient, percussive content.",
   tempoPhase: "Looping phase between detected beats.",
+  barPhase: "Looping phase across one 4-beat bar, anchored to the detected downbeat.",
+  barBeat: "Which beat of the bar (0, 0.33, 0.66, 1) based on detected downbeat.",
   beatConfidence: "How stable the current beat detection seems.",
 };
 const DEFAULT_AUDIO_METRIC_WEIGHT = 0.5;
@@ -248,94 +309,203 @@ const shuffleArray = <T,>(items: T[]) => {
   return next;
 };
 const AUTO_VIZ_METRIC_GROUPS: Record<AutoVizMode, AudioVizMetric[]> = {
-  balanced: ["beatHold", "bassEnvelope", "spectralCentroid", "tempoPhase"],
-  punchy: ["beat", "beatHold", "bassEnvelope", "onset"],
-  flow: ["beatHold", "tempoPhase", "spectralCentroid", "harmonic"],
-  chaotic: ["beat", "onset", "spectralFlux", "percussive"],
+  balanced: [
+    "beatHold", "beat", "bassEnvelope", "midEnvelope", "trebleEnvelope",
+    "spectralCentroid", "tempoPhase", "barBeat", "bandRatio",
+    "percussive", "harmonic", "peakDecay",
+  ],
+  punchy: [
+    "beat", "beatHold", "subKick", "onset", "percussive", "peakDecay",
+    "bassEnvelope", "pulse", "zeroCrossing", "barBeat", "spectralFlux",
+  ],
+  flow: [
+    "tempoPhase", "barPhase", "barBeat", "spectralCentroid", "harmonic",
+    "midEnvelope", "bassEnvelope", "trebleEnvelope", "bandRatio",
+    "stereoWidth", "stereoBalance", "beatConfidence",
+  ],
+  chaotic: [
+    "beat", "onset", "spectralFlux", "percussive", "roughness", "zeroCrossing",
+    "pulse", "stereoWidth", "stereoBalance", "spectralCentroid",
+    "beatHold", "subKick",
+  ],
 };
-const AUTO_VIZ_NORMALIZE_SKIP = new Set<AudioVizMetric>(["bpm", "tempoPhase", "stereoBalance"]);
-const TRANSIENT_PARAMS = ["amount", "mix", "intensity", "strength", "threshold", "glitch", "noise", "contrast", "edge", "detail", "sharpen", "poster", "posterize"];
-const HEAVY_PARAMS = ["size", "scale", "radius", "blur", "smear", "feedback", "decay", "persistence", "block", "pixel", "distort", "warp", "offset", "displace", "line", "scan"];
-const TONE_PARAMS = ["hue", "color", "palette", "gamma", "brightness", "saturation", "tone", "warm", "cool", "channel", "rgb", "contrast"];
-const FLOW_PARAMS = ["phase", "speed", "angle", "rotate", "offset", "scroll", "drift", "wave", "wobble", "frequency", "motion"];
+const AUTO_VIZ_DEFAULT_DENSITY = 0.2;
+const AUTO_VIZ_DENSITY: Record<AutoVizMode, number> = {
+  balanced: AUTO_VIZ_DEFAULT_DENSITY,
+  punchy: AUTO_VIZ_DEFAULT_DENSITY,
+  flow: AUTO_VIZ_DEFAULT_DENSITY,
+  chaotic: AUTO_VIZ_DEFAULT_DENSITY,
+};
+const AUTO_VIZ_MIN_CONNECTIONS = 3;
+const AUTO_VIZ_MAX_CONNECTIONS = 10;
+const AUTO_VIZ_NORMALIZE_SKIP = new Set<AudioVizMetric>([
+  "bpm", "tempoPhase", "barPhase", "barBeat", "stereoBalance", "beatConfidence",
+]);
+const AUTO_VIZ_WEIGHT_RANGES: Partial<Record<AudioVizMetric, [number, number]>> = {
+  bpm: [0.3, 0.95],
+  tempoPhase: [0.15, 0.5],
+  barPhase: [0.18, 0.55],
+  barBeat: [0.25, 0.75],
+  beat: [0.55, 1.3],
+  beatHold: [0.45, 1.1],
+  bassEnvelope: [0.4, 1.05],
+  midEnvelope: [0.3, 0.9],
+  trebleEnvelope: [0.3, 0.9],
+  peakDecay: [0.3, 0.9],
+  subKick: [0.4, 1.15],
+  pulse: [0.3, 0.9],
+  onset: [0.4, 1.05],
+  spectralCentroid: [0.3, 0.85],
+  spectralFlux: [0.4, 1.0],
+  roughness: [0.3, 0.85],
+  zeroCrossing: [0.3, 0.85],
+  bandRatio: [0.3, 0.8],
+  harmonic: [0.3, 0.85],
+  percussive: [0.4, 1.05],
+  stereoWidth: [0.35, 0.95],
+  stereoBalance: [0.3, 0.8],
+  beatConfidence: [0.2, 0.65],
+  level: [0.3, 0.9],
+  bass: [0.3, 0.9],
+  mid: [0.3, 0.85],
+  treble: [0.3, 0.85],
+};
+const weightRangeFor = (metric: AudioVizMetric): [number, number] =>
+  AUTO_VIZ_WEIGHT_RANGES[metric] ?? [0.3, 0.95];
+const TRANSIENT_PARAMS = [
+  "amount", "mix", "intensity", "strength", "threshold", "glitch", "noise",
+  "contrast", "edge", "detail", "sharpen", "poster", "posterize",
+  "density", "count", "morph", "iterations", "spread", "dust", "grit",
+];
+const HEAVY_PARAMS = [
+  "size", "scale", "radius", "blur", "smear", "feedback", "decay",
+  "persistence", "block", "pixel", "distort", "warp", "offset", "displace",
+  "line", "scan", "depth", "rows", "cols", "grid", "cell", "tile", "chunk",
+];
+const TONE_PARAMS = [
+  "hue", "color", "palette", "gamma", "brightness", "saturation", "tone",
+  "warm", "cool", "channel", "rgb", "contrast",
+  "temperature", "lightness", "chroma", "tint", "shade", "value",
+];
+const FLOW_PARAMS = [
+  "phase", "speed", "angle", "rotate", "offset", "scroll", "drift", "wave",
+  "wobble", "frequency", "motion",
+  "shift", "time", "step", "cycle", "sweep",
+];
+const NOISE_PARAMS = [
+  "noise", "glitch", "detail", "edge", "grain", "jitter", "spark", "rough",
+  "scratch", "hash", "fizz", "speckle",
+];
+const SCORE_DEFAULT = 2;
 const scoreParamForMetric = (metric: AudioVizMetric, optionName: string, label?: string) => {
   const haystack = `${optionName} ${label || ""}`.toLowerCase();
   const includesKeyword = (keywords: string[]) => keywords.some((keyword) => haystack.includes(keyword));
-  let score = 1;
-  if (metric === "beat" || metric === "beatHold" || metric === "onset" || metric === "percussive") {
+  let score = SCORE_DEFAULT;
+  if (metric === "beat" || metric === "beatHold" || metric === "onset" || metric === "percussive" || metric === "pulse" || metric === "subKick") {
     score += includesKeyword(TRANSIENT_PARAMS) ? 6 : 0;
     score += includesKeyword(HEAVY_PARAMS) ? 2 : 0;
   }
-  if (metric === "bassEnvelope" || metric === "peakDecay") {
+  if (metric === "bassEnvelope" || metric === "peakDecay" || metric === "bass") {
     score += includesKeyword(HEAVY_PARAMS) ? 7 : 0;
     score += includesKeyword(TRANSIENT_PARAMS) ? 2 : 0;
   }
-  if (metric === "spectralCentroid" || metric === "treble" || metric === "harmonic") {
+  if (metric === "spectralCentroid" || metric === "treble" || metric === "harmonic" || metric === "trebleEnvelope" || metric === "bandRatio") {
     score += includesKeyword(TONE_PARAMS) ? 7 : 0;
     score += includesKeyword(TRANSIENT_PARAMS) ? 1 : 0;
   }
-  if (metric === "tempoPhase" || metric === "bpm") {
+  if (metric === "tempoPhase" || metric === "bpm" || metric === "barPhase" || metric === "barBeat") {
     score += includesKeyword(FLOW_PARAMS) ? 7 : 0;
     score += includesKeyword(HEAVY_PARAMS) ? 1 : 0;
   }
-  if (metric === "spectralFlux" || metric === "roughness") {
-    score += includesKeyword(["noise", "glitch", "detail", "edge", "grain", "jitter", "spark"]) ? 7 : 0;
+  if (metric === "spectralFlux" || metric === "roughness" || metric === "zeroCrossing") {
+    score += includesKeyword(NOISE_PARAMS) ? 7 : 0;
+    score += includesKeyword(TRANSIENT_PARAMS) ? 2 : 0;
+  }
+  if (metric === "stereoWidth" || metric === "stereoBalance") {
+    score += includesKeyword(FLOW_PARAMS) ? 3 : 0;
+    score += includesKeyword(TONE_PARAMS) ? 2 : 0;
+    score += includesKeyword(HEAVY_PARAMS) ? 2 : 0;
+  }
+  if (metric === "midEnvelope" || metric === "mid") {
+    score += includesKeyword(TRANSIENT_PARAMS) ? 3 : 0;
+    score += includesKeyword(HEAVY_PARAMS) ? 2 : 0;
+    score += includesKeyword(TONE_PARAMS) ? 2 : 0;
   }
   return score;
 };
+
+const pickMetricsForMode = (
+  mode: AutoVizMode,
+  count: number,
+  previous: AudioVizConnection[] | null,
+): AudioVizMetric[] => {
+  const pool = AUTO_VIZ_METRIC_GROUPS[mode];
+  const prevMetrics = new Set((previous ?? []).map((c) => c.metric));
+  const shuffled = shuffleArray(pool);
+  const fresh = shuffled.filter((m) => !prevMetrics.has(m));
+  const reused = shuffled.filter((m) => prevMetrics.has(m));
+  const ordered = [...fresh, ...reused];
+  const slice = ordered.slice(0, Math.min(count, pool.length));
+  if (mode !== "flow" && !slice.includes("beat") && !slice.includes("beatHold") && slice.length > 0) {
+    const inject: AudioVizMetric = Math.random() < 0.5 ? "beat" : "beatHold";
+    if (!slice.includes(inject)) slice[slice.length - 1] = inject;
+  }
+  return slice;
+};
+
 const buildAutoVizConnections = (
   mode: AutoVizMode,
   rangeOptions: Array<readonly [string, AudioPatchTargetOption]>,
+  previous: AudioVizConnection[] | null = null,
+  densityOverride: number | null = null,
 ): { connections: AudioVizConnection[]; normalizedMetrics: AudioVizMetric[] } => {
   if (rangeOptions.length === 0) {
     return { connections: [], normalizedMetrics: [] };
   }
 
-  const chosenMetrics = shuffleArray(AUTO_VIZ_METRIC_GROUPS[mode]).slice(0, Math.min(4, rangeOptions.length));
-  if (!chosenMetrics.includes("beat") && !chosenMetrics.includes("beatHold")) {
-    const replacementIndex = chosenMetrics.findIndex((metric) => metric !== "bassEnvelope" && metric !== "spectralCentroid");
-    if (replacementIndex >= 0) {
-      chosenMetrics[replacementIndex] = Math.random() < 0.5 ? "beat" : "beatHold";
-    } else if (chosenMetrics.length < Math.min(4, rangeOptions.length)) {
-      chosenMetrics.push(Math.random() < 0.5 ? "beat" : "beatHold");
-    } else if (chosenMetrics.length > 0) {
-      chosenMetrics[chosenMetrics.length - 1] = Math.random() < 0.5 ? "beat" : "beatHold";
-    }
-  }
+  const density = densityOverride != null && densityOverride > 0
+    ? densityOverride
+    : AUTO_VIZ_DENSITY[mode];
+  const desired = Math.round(rangeOptions.length * density);
+  const clamped = Math.max(
+    AUTO_VIZ_MIN_CONNECTIONS,
+    Math.min(AUTO_VIZ_MAX_CONNECTIONS, Math.min(desired, rangeOptions.length)),
+  );
+  const chosenMetrics = pickMetricsForMode(mode, clamped, previous);
+
+  const previousTargets = new Set((previous ?? []).map((c) => c.target));
   const availableTargets = new Set(rangeOptions.map(([optionName]) => optionName));
   const connections: AudioVizConnection[] = [];
 
   for (const metric of chosenMetrics) {
-    const rankedTargets = shuffleArray(rangeOptions)
-      .filter(([targetKey]) => availableTargets.has(targetKey))
-      .sort((a, b) => scoreParamForMetric(
-        metric,
-        b[1].optionName || b[0],
-        b[1].label,
-      ) - scoreParamForMetric(
-        metric,
-        a[1].optionName || a[0],
-        a[1].label,
-      ));
-    const targetEntry = rankedTargets[0];
-    if (!targetEntry) continue;
-    const [target] = targetEntry;
+    const ranked = shuffleArray(rangeOptions)
+      .filter(([key]) => availableTargets.has(key))
+      .map((entry) => {
+        const score = scoreParamForMetric(metric, entry[1].optionName || entry[0], entry[1].label);
+        const novelty = previousTargets.has(entry[0]) ? 0 : 1.5;
+        const jitter = Math.random() * 1.2;
+        return { entry, combined: score + novelty + jitter };
+      })
+      .sort((a, b) => b.combined - a.combined);
+    const winner = ranked[0]?.entry;
+    if (!winner) continue;
+    const [target] = winner;
     availableTargets.delete(target);
-    const baseWeight = metric === "bpm"
-      ? randomBetween(0.12, 0.4)
-      : metric === "tempoPhase"
-        ? randomBetween(0.2, 0.7)
-        : metric === "bassEnvelope" || metric === "beatHold"
-          ? randomBetween(0.45, 1.4)
-          : randomBetween(0.35, 1.25);
+    const [lo, hi] = weightRangeFor(metric);
+    const baseWeight = randomBetween(lo, hi);
     const sign = mode === "chaotic"
-      ? (Math.random() < 0.35 ? -1 : 1)
+      ? (Math.random() < 0.4 ? -1 : 1)
       : (Math.random() < 0.14 ? -1 : 1);
     connections.push({
       metric,
       target,
       weight: Math.max(AUDIO_METRIC_WEIGHT_MIN, Math.min(AUDIO_METRIC_WEIGHT_MAX, baseWeight * sign)),
     });
+  }
+
+  if (mode === "chaotic" && connections.length > 1 && connections.every((c) => c.weight >= 0)) {
+    const flip = Math.floor(Math.random() * connections.length);
+    connections[flip].weight = -connections[flip].weight;
   }
 
   if (connections.length === 0 && rangeOptions.length > 0) {
@@ -362,6 +532,151 @@ const formatAudioMetricReadout = (
       : "-- BPM";
   }
   return `${Math.round(value * 100)}%`;
+};
+
+const ScreensaverDebugOverlay = ({
+  chain,
+  activeIndex,
+  chainSwapSeconds,
+  videoSwapEnabled,
+  videoSwapSeconds,
+}: {
+  chain: Array<{ id: string; displayName: string; enabled: boolean }>;
+  activeIndex: number;
+  chainSwapSeconds: number | null;
+  videoSwapEnabled: boolean;
+  videoSwapSeconds: number | null;
+}) => {
+  const [snapshot, setSnapshot] = useState(() => getChannelAudioVizSnapshot("screensaver"));
+  const [, setNow] = useState(() => performance.now());
+
+  useEffect(() => subscribeAudioViz((ch) => {
+    if (ch === "screensaver") setSnapshot(getChannelAudioVizSnapshot("screensaver"));
+  }), []);
+
+  useEffect(() => {
+    let rafId: number;
+    const tick = () => {
+      setNow(performance.now());
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  const modulation = getGlobalAudioVizModulation("screensaver");
+  const tempoLabel: Record<string, string> = {
+    idle: "idle",
+    warmup: `warming up ${Math.round(snapshot.tempoWarmupProgress * 100)}%`,
+    silent: "signal too quiet",
+    searching: "searching",
+    locked: "locked",
+  };
+  const levelPct = Math.round(Math.min(1, Math.max(0, snapshot.rawMetrics.level ?? 0)) * 100);
+  const beatConfidencePct = Math.round(Math.min(1, Math.max(0, snapshot.rawMetrics.beatConfidence ?? 0)) * 100);
+
+  const now = performance.now();
+  const formatCountdown = (interval: number | null, lastAt: number | null) => {
+    if (interval == null || interval <= 0) return "--";
+    if (lastAt == null) return `~${interval.toFixed(2)}s`;
+    const elapsed = (now - lastAt) / 1000;
+    const remaining = Math.max(0, interval - elapsed);
+    return `${remaining.toFixed(2)}s / ${interval.toFixed(2)}s`;
+  };
+  const progressBar = (interval: number | null, lastAt: number | null) => {
+    if (interval == null || interval <= 0) return null;
+    const elapsed = lastAt != null ? (now - lastAt) / 1000 : 0;
+    const ratio = Math.max(0, Math.min(1, elapsed / interval));
+    return (
+      <div style={{ height: 3, background: "rgba(255,255,255,0.15)", marginTop: 2 }}>
+        <div style={{ height: "100%", width: `${ratio * 100}%`, background: "#6cf" }} />
+      </div>
+    );
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 8,
+        left: 8,
+        padding: "6px 10px",
+        background: "rgba(0,0,0,0.72)",
+        color: "#fff",
+        font: "11px/1.4 'Courier New', monospace",
+        pointerEvents: "none",
+        zIndex: 10,
+        borderRadius: 3,
+        minWidth: 220,
+        maxWidth: 360,
+      }}
+    >
+      <div style={{ fontWeight: "bold", marginBottom: 4, color: "#6cf" }}>Screensaver debug</div>
+
+      <div style={{ marginBottom: 4 }}>
+        <div style={{ color: "#aaa" }}>audio</div>
+        <div>{snapshot.enabled ? snapshot.source : "off"} / {snapshot.status} / level {levelPct}%</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <span>bpm</span>
+          <AudioBpmReadout channel="screensaver" snapshot={snapshot} showUnit={false} compact />
+          <span>/ {tempoLabel[snapshot.tempoStatus] ?? snapshot.tempoStatus} / conf {beatConfidencePct}%</span>
+        </div>
+        <div style={{ marginTop: 2 }}>
+          <AudioBeatStrip channel="screensaver" boxes={8} height={8} />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 4 }}>
+        <div style={{ color: "#aaa" }}>chain swap</div>
+        <div>next {formatCountdown(chainSwapSeconds, getLastScreensaverChainSwapAt())}</div>
+        {progressBar(chainSwapSeconds, getLastScreensaverChainSwapAt())}
+      </div>
+
+      {videoSwapEnabled && (
+        <div style={{ marginBottom: 4 }}>
+          <div style={{ color: "#aaa" }}>video swap</div>
+          <div>next {formatCountdown(videoSwapSeconds, getLastScreensaverVideoSwapAt())}</div>
+          {progressBar(videoSwapSeconds, getLastScreensaverVideoSwapAt())}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 4 }}>
+        <div style={{ color: "#aaa" }}>chain ({chain.length})</div>
+        {chain.length === 0 ? (
+          <div style={{ opacity: 0.6 }}>(empty)</div>
+        ) : chain.map((entry, idx) => (
+          <div
+            key={entry.id}
+            style={{
+              color: idx === activeIndex ? "#ffd166" : entry.enabled ? "#fff" : "rgba(255,255,255,0.45)",
+              fontWeight: idx === activeIndex ? "bold" : "normal",
+            }}
+          >
+            {idx === activeIndex ? "> " : "  "}{entry.displayName}{!entry.enabled ? " (off)" : ""}
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <div style={{ color: "#aaa" }}>patches ({modulation?.connections.length ?? 0})</div>
+        {(!modulation || modulation.connections.length === 0) ? (
+          <div style={{ opacity: 0.6 }}>(none)</div>
+        ) : modulation.connections.map((conn, idx) => {
+          const live = (snapshot.rawMetrics[conn.metric] ?? 0) * conn.weight;
+          return (
+            <div key={idx} style={{ display: "flex", gap: 4 }}>
+              <span style={{ flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {conn.metric} {"->"} {conn.target}
+              </span>
+              <span style={{ flex: "0 0 auto", color: "#6cf" }}>
+                {Math.round(conn.weight * 100)}% ({Math.round(live * 100)}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 };
 
 const AudioPatchPanel = ({
@@ -608,13 +923,31 @@ const AudioPatchPanel = ({
     });
   }, []);
 
+  const [density, setDensity] = useState(0);
+  const [sectionsOpen, setSectionsOpen] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(AUDIO_METRIC_SECTIONS.map((section) => [section.key, section.defaultOpen])));
+  const toggleSection = useCallback((key: string) => {
+    setSectionsOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+  const [, setRafTick] = useState(0);
+  useEffect(() => {
+    let id: number;
+    const tick = () => {
+      setRafTick((value) => (value + 1) % 1_000_000);
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, []);
   const applyAutoViz = useCallback((mode: AutoVizMode) => {
-    const next = buildAutoVizConnections(mode, rangeOptions);
+    const effectiveDensity = density > 0 ? density : null;
+    const next = buildAutoVizConnections(mode, rangeOptions, connections, effectiveDensity);
     onConnectionsChange(next.connections);
     onNormalizedMetricsChange(next.normalizedMetrics);
-  }, [onConnectionsChange, onNormalizedMetricsChange, rangeOptions]);
+  }, [connections, density, onConnectionsChange, onNormalizedMetricsChange, rangeOptions]);
   const resolvedAutoVizMode = autoVizMode ?? localAutoVizMode;
   const setResolvedAutoVizMode = onAutoVizModeChange ?? setLocalAutoVizMode;
+  const [showAutoVizSettings, setShowAutoVizSettings] = useState(true);
   const bpmOverrideEnabled = snapshot.bpmOverride != null && snapshot.bpmOverride > 0;
   const bpmOverrideSliderValue = Math.round(
     Math.max(
@@ -652,30 +985,54 @@ const AudioPatchPanel = ({
           type="button"
           onClick={() => applyAutoViz(resolvedAutoVizMode)}
           disabled={rangeOptions.length === 0}
-          title="Generate a musical set of metric-to-parameter patch cables."
-        >
-          Auto
-        </button>
-        <button
-          className={s.audioPatchToolbarButton}
-          type="button"
-          onClick={() => applyAutoViz(resolvedAutoVizMode)}
-          disabled={rangeOptions.length === 0}
-          title="Replace the current auto-viz routing with a fresh variation."
+          title="Reroll metric-to-parameter cables for the selected mode."
         >
           Reroll
         </button>
-        {typeof autoVizOnChainChange === "boolean" && onAutoVizOnChainChange && (
-          <label className={s.audioPatchToolbarCheck}>
-            <input
-              type="checkbox"
-              checked={autoVizOnChainChange}
-              onChange={(event) => onAutoVizOnChainChange(event.target.checked)}
-            />
-            <span>Refresh on chain change</span>
-          </label>
-        )}
+        <button
+          className={[s.audioPatchToolbarButton, showAutoVizSettings ? s.audioPatchToolbarButtonActive : ""].join(" ")}
+          type="button"
+          onClick={() => setShowAutoVizSettings((value) => !value)}
+          title="Auto Viz settings"
+          aria-label="Toggle auto viz settings"
+        >
+          ⚙
+        </button>
       </div>
+      {showAutoVizSettings && (
+        <div className={s.audioPatchToolbarSettings}>
+          <label
+            className={s.audioPatchToolbarDensity}
+            title="Fraction of available chain parameters to patch on each Reroll. Higher = more parameters wired up. Set to 0 to use the mode's default."
+          >
+            <span>
+              Density
+              <InfoHint text="Fraction of chain parameters that get patched per Reroll. Higher density = more cables. Each mode has a sensible default; nudge this if it feels too sparse or too busy." />
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="0.8"
+              step="0.05"
+              value={density}
+              onChange={(event) => setDensity(Number(event.target.value))}
+            />
+            <span className={s.audioPatchToolbarDensityValue}>
+              {density === 0 ? `auto (${Math.round(AUTO_VIZ_DENSITY[resolvedAutoVizMode] * 100)}%)` : `${Math.round(density * 100)}%`}
+            </span>
+          </label>
+          {typeof autoVizOnChainChange === "boolean" && onAutoVizOnChainChange && (
+            <label className={s.audioPatchToolbarCheck}>
+              <input
+                type="checkbox"
+                checked={autoVizOnChainChange}
+                onChange={(event) => onAutoVizOnChainChange(event.target.checked)}
+              />
+              <span>Refresh on chain change</span>
+            </label>
+          )}
+        </div>
+      )}
       {collapsibleBody && (
         <div className={s.audioPatchSubbar}>
           <button
@@ -704,11 +1061,20 @@ const AudioPatchPanel = ({
               const connectionKey = `${connection.metric}:${connection.target}`;
               const hovered = hoveredConnectionKey === connectionKey;
               const basePercent = Math.round(connection.weight * 100);
-              const effectiveWeight = (snapshot.rawMetrics[connection.metric] ?? 0) * connection.weight;
+              const liveMetric = snapshot.rawMetrics[connection.metric] ?? 0;
+              const effectiveWeight = liveMetric * connection.weight;
               const effectivePercent = Math.round(effectiveWeight * 100);
               const effectiveMagnitude = Math.min(1, Math.abs(effectiveWeight));
               const midX = (from.x + to.x) / 2;
               const path = `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
+              const metricLabel = AUDIO_METRIC_OPTIONS.find((option) => option.value === connection.metric)?.label ?? connection.metric;
+              const targetOption = rangeOptions.find(([optionName]) => optionName === connection.target)?.[1];
+              const targetLabel = targetOption?.targetLabel || targetOption?.label || connection.target;
+              const normalizedActive = snapshot.normalize || normalizedMetricSet.has(connection.metric);
+              const tooltip = `${metricLabel} -> ${targetLabel}\nWeight: ${basePercent}% | Live: ${effectivePercent}%${normalizedActive ? " (normalized)" : ""}\nDrag to adjust, right-click to remove`;
+              const isNegative = connection.weight < 0;
+              const baseStroke = isNegative ? "#a0411e" : "#0f6da5";
+              const hotStroke = isNegative ? "#ff9d3a" : "#7ad6ff";
               return (
                 <g key={connectionKey}>
                   <path
@@ -721,15 +1087,34 @@ const AudioPatchPanel = ({
                       event.preventDefault();
                       removeConnection(connection);
                     }}
-                  />
+                  >
+                    <title>{tooltip}</title>
+                  </path>
                   <path
-                    className={[s.audioPatchLine, hovered ? s.audioPatchLineHovered : ""].join(" ")}
+                    className={s.audioPatchLine}
                     d={path}
                     style={{
-                      strokeWidth: hovered ? 3 + effectiveMagnitude * 3 : 1.5 + effectiveMagnitude * 2.5,
-                      opacity: hovered ? 1 : 0.35 + effectiveMagnitude * 0.65,
+                      stroke: hovered ? "#ff7b22" : baseStroke,
+                      strokeWidth: hovered ? 4 + effectiveMagnitude * 3 : 1.5 + effectiveMagnitude * 3,
+                      opacity: hovered ? 1 : 0.4 + effectiveMagnitude * 0.6,
                     }}
-                  />
+                  >
+                    <title>{tooltip}</title>
+                  </path>
+                  {effectiveMagnitude > 0.15 && (
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke={hotStroke}
+                      strokeWidth={1 + effectiveMagnitude * 5}
+                      strokeLinecap="round"
+                      style={{
+                        opacity: Math.min(0.45, effectiveMagnitude * 0.6),
+                        filter: "blur(2px)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
                   <rect
                     className={s.audioPatchLabelHit}
                     x={midX - 34}
@@ -745,7 +1130,9 @@ const AudioPatchPanel = ({
                       event.preventDefault();
                       removeConnection(connection);
                     }}
-                  />
+                  >
+                    <title>{tooltip}</title>
+                  </rect>
                   <text
                     className={[s.audioPatchLabel, hovered ? s.audioPatchLabelHovered : ""].join(" ")}
                     x={midX}
@@ -759,7 +1146,7 @@ const AudioPatchPanel = ({
                       removeConnection(connection);
                     }}
                   >
-                    <title>{`Base ${basePercent}%, live ${effectivePercent}%`}</title>
+                    <title>{tooltip}</title>
                     {basePercent}%
                   </text>
                 </g>
@@ -774,8 +1161,25 @@ const AudioPatchPanel = ({
           </svg>
           <div className={s.audioPatchColumns}>
         <div className={s.audioPatchLeft}>
-          {AUDIO_METRIC_OPTIONS.map((option) => (
-            (() => {
+          {AUDIO_METRIC_SECTIONS.map((section) => {
+            const open = sectionsOpen[section.key] ?? section.defaultOpen;
+            const activeInSection = section.metrics.filter((m) => connectedMetrics.has(m.value));
+            const visibleMetrics = open ? section.metrics : activeInSection;
+            return (
+              <div key={section.key} className={s.audioPatchSection}>
+                <button
+                  type="button"
+                  className={[s.audioPatchSectionHeader, open ? s.audioPatchSectionHeaderOpen : ""].join(" ")}
+                  onClick={() => toggleSection(section.key)}
+                  aria-expanded={open}
+                >
+                  <span className={s.audioPatchSectionCaret}>{open ? "▾" : "▸"}</span>
+                  <span className={[s.audioPatchSectionLabel, controls.subsectionHeader].join(" ")}>{section.label}</span>
+                  <span className={s.audioPatchSectionCount}>
+                    {activeInSection.length > 0 ? `${activeInSection.length} on` : `${section.metrics.length}`}
+                  </span>
+                </button>
+                {visibleMetrics.map((option) => {
               const metricValue = getAudioVizMetricValueForMode(
                 snapshot,
                 option.value,
@@ -795,9 +1199,46 @@ const AudioPatchPanel = ({
                     <span className={s.audioPatchNodeLabel}>
                       {option.label}
                       <InfoHint text={AUDIO_METRIC_HELP[option.value]} />
+                      {option.value === "bpm" && (() => {
+                        let text: string | null = null;
+                        let severity: "warn" | "info" = "info";
+                        if (!snapshot.enabled) {
+                          text = "Audio input disabled — enable above to detect tempo.";
+                        } else if (snapshot.status === "connecting") {
+                          text = "Connecting to audio source...";
+                        } else if (snapshot.status === "error") {
+                          text = `Audio error: ${snapshot.error ?? "unknown"}`;
+                          severity = "warn";
+                        } else if (!bpmOverrideEnabled) {
+                          if (snapshot.tempoStatus === "warmup") {
+                            text = `Warming up (${Math.round(snapshot.tempoWarmupProgress * 100)}%) — needs ~5s of audio to lock tempo.`;
+                          } else if (snapshot.tempoStatus === "silent") {
+                            text = "Signal too quiet for tempo lock. Raise input level or pick a louder source.";
+                            severity = "warn";
+                          } else if (snapshot.tempoStatus === "searching") {
+                            text = "Searching for tempo — no strong periodic beat yet.";
+                          }
+                        }
+                        const visible = text != null;
+                        return (
+                          <span
+                            className={[
+                              severity === "warn" ? s.audioPatchBpmBadgeWarn : s.audioPatchBpmBadge,
+                              visible ? "" : s.audioPatchBpmBadgeHidden,
+                            ].join(" ")}
+                            title={text ?? ""}
+                            aria-label={text ?? ""}
+                            aria-hidden={visible ? undefined : true}
+                          >
+                            !
+                          </span>
+                        );
+                      })()}
                     </span>
                     <span className={s.audioPatchMetricValue}>
-                      {formatAudioMetricReadout(snapshot, option.value, metricValue)}
+                      {option.value === "bpm"
+                        ? <AudioBpmReadout channel={channel} snapshot={snapshot} />
+                        : formatAudioMetricReadout(snapshot, option.value, metricValue)}
                     </span>
                     <div className={s.audioPatchNodeMeta}>
                       {connections.filter((connection) => connection.metric === option.value).length || 0} outs
@@ -825,9 +1266,15 @@ const AudioPatchPanel = ({
                       onMouseLeave={() => setHoveredMetricJack((current) => current === option.value ? null : current)}
                       title={`Patch ${option.label}`}
                     />
-                    <div className={s.audioPatchMeter}>
-                      <div className={s.audioPatchMeterFill} style={meterStyle(metricValue)} />
-                    </div>
+                    {option.value === "bpm" ? (
+                      <div className={s.audioPatchBeatStripSlot}>
+                        <AudioBeatStrip channel={channel} boxes={4} height={8} />
+                      </div>
+                    ) : (
+                      <div className={s.audioPatchMeter}>
+                        <div className={s.audioPatchMeterFill} style={meterStyle(metricValue)} />
+                      </div>
+                    )}
                     {option.value === "bpm" && (
                       <div className={s.audioPatchBpmControls}>
                         <div className={s.audioPatchBpmControlsTop}>
@@ -852,6 +1299,14 @@ const AudioPatchPanel = ({
                           <button
                             type="button"
                             className={s.audioPatchBpmReset}
+                            onClick={() => tapDownbeat(channel)}
+                            title="Tap on felt beat 1 to realign the bar phase."
+                          >
+                            Tap
+                          </button>
+                          <button
+                            type="button"
+                            className={s.audioPatchBpmReset}
                             onClick={() => {
                               void resetAudioVizTempo(channel, { clearOverride: true });
                             }}
@@ -859,20 +1314,21 @@ const AudioPatchPanel = ({
                             Reset
                           </button>
                         </div>
-                        <input
-                          className={s.audioPatchBpmSlider}
-                          type="range"
-                          min={AUDIO_VIZ_BPM_OVERRIDE_MIN}
-                          max={AUDIO_VIZ_BPM_OVERRIDE_MAX}
-                          step="1"
-                          value={bpmOverrideSliderValue}
-                          disabled={!bpmOverrideEnabled}
-                          onChange={(event) => {
-                            void updateAudioVizChannel(channel, {
-                              bpmOverride: Number(event.target.value),
-                            });
-                          }}
-                        />
+                        {bpmOverrideEnabled && (
+                          <input
+                            className={s.audioPatchBpmSlider}
+                            type="range"
+                            min={AUDIO_VIZ_BPM_OVERRIDE_MIN}
+                            max={AUDIO_VIZ_BPM_OVERRIDE_MAX}
+                            step="1"
+                            value={bpmOverrideSliderValue}
+                            onChange={(event) => {
+                              void updateAudioVizChannel(channel, {
+                                bpmOverride: Number(event.target.value),
+                              });
+                            }}
+                          />
+                        )}
                       </div>
                     )}
                     <label className={s.audioPatchNormalize}>
@@ -890,8 +1346,10 @@ const AudioPatchPanel = ({
                   </div>
                 </div>
               );
-            })()
-          ))}
+            })}
+              </div>
+            );
+          })}
         </div>
         <div className={s.audioPatchRight}>
           {rangeOptions.length > 0 ? rangeOptions.map(([optionName, optionType]) => (
@@ -976,7 +1434,6 @@ const App = () => {
   const [inputWindowPosition, setInputWindowPosition] = useState(DEFAULT_INPUT_WINDOW_POSITION);
   const [outputWindowPosition, setOutputWindowPosition] = useState(DEFAULT_OUTPUT_WINDOW_POSITION);
   const [screensaverActive, setScreensaverActive] = useState(false);
-  const [screensaverCountdownMs, setScreensaverCountdownMs] = useState(SCREENSAVER_IDLE_DELAY_MS);
   const [showScreensaverDialog, setShowScreensaverDialog] = useState(false);
   const [screensaverDialogPosition, setScreensaverDialogPosition] = useState({ x: 640, y: 120 });
   const [audioEditorPosition, setAudioEditorPosition] = useState({ x: 500, y: 120 });
@@ -999,6 +1456,14 @@ const App = () => {
   const [chainAudioBpmSwapEnabled, setChainAudioBpmSwapEnabled] = useState(false);
   const [chainAudioBpmSwapBeats, setChainAudioBpmSwapBeats] = useState("4");
   const chainAudioBpmSwapRestoreRef = useRef<number | null | undefined>(undefined);
+  const [screensaverBpmSwapEnabled, setScreensaverBpmSwapEnabled] = useState(false);
+  const [screensaverBpmSwapBeats, setScreensaverBpmSwapBeats] = useState("4");
+  const screensaverBpmSwapRestoreRef = useRef<number | null | undefined>(undefined);
+  const [screensaverVideoBpmSwapEnabled, setScreensaverVideoBpmSwapEnabled] = useState(false);
+  const [screensaverVideoBpmSwapBeats, setScreensaverVideoBpmSwapBeats] = useState("16");
+  const screensaverVideoSwapSecondsRef = useRef<number>(8);
+  const [screensaverShowDebugDraft, setScreensaverShowDebugDraft] = useState(false);
+  const [screensaverShowDebug, setScreensaverShowDebug] = useState(false);
   const [seekDraftTime, setSeekDraftTime] = useState<number | null>(null);
   const playPauseTimerRef = useRef<number | null>(null);
   const seekCommitTimerRef = useRef<number | null>(null);
@@ -1758,17 +2223,20 @@ const App = () => {
 
   const startScreensaverVideoSwapLoop = useCallback((videoSwapSeconds: number) => {
     stopScreensaverVideoSwapLoop();
+    screensaverVideoSwapSecondsRef.current = videoSwapSeconds;
     void warmNextRandomTestVideo(lastTestVideoAssetRef.current);
 
     const scheduleNextSwap = () => {
+      const interval = Math.max(0.05, screensaverVideoSwapSecondsRef.current);
       screensaverVideoSwapTimerRef.current = window.setTimeout(async () => {
+        notifyScreensaverVideoSwap();
         const warmedSrc = warmedTestVideoSrcRef.current;
         const nextSrc = warmedSrc || getNextRandomTestVideoSrc(lastTestVideoAssetRef.current);
         clearWarmedTestVideo();
         await loadTestVideoFromSrc(nextSrc, { isRandomPick: true, forceScreensaverScale: true });
         void warmNextRandomTestVideo(nextSrc);
         scheduleNextSwap();
-      }, videoSwapSeconds * 1000);
+      }, interval * 1000);
     };
 
     scheduleNextSwap();
@@ -1784,6 +2252,7 @@ const App = () => {
       scalingAlgorithm: state.scalingAlgorithm,
     };
     screensaverHasEnteredFullscreenRef.current = false;
+    resetScreensaverSwapMarkers();
     setScreensaverActive(true);
     setOutputFullscreenMode("cover");
     screensaverConfigRef.current = config;
@@ -1801,54 +2270,6 @@ const App = () => {
     }
   }, [actions, clearWarmedTestVideo, outputFullscreenMode, startScreensaverVideoSwapLoop, state.scale, state.scalingAlgorithm, stopScreensaverVideoSwapLoop]);
 
-  useEffect(() => {
-    if (!showScreensaverDialog || screensaverActive) return undefined;
-
-    let deadline = Date.now() + SCREENSAVER_IDLE_DELAY_MS;
-    setScreensaverCountdownMs(SCREENSAVER_IDLE_DELAY_MS);
-
-    let timeoutId = window.setTimeout(() => {
-      const config = buildScreensaverConfig();
-      if (!config) return;
-      setShowScreensaverDialog(false);
-      setScreensaverCountdownMs(SCREENSAVER_IDLE_DELAY_MS);
-      void startScreensaver(config);
-    }, SCREENSAVER_IDLE_DELAY_MS);
-    let intervalId = window.setInterval(() => {
-      setScreensaverCountdownMs(Math.max(0, deadline - Date.now()));
-    }, 100);
-
-    const resetTimer = () => {
-      deadline = Date.now() + SCREENSAVER_IDLE_DELAY_MS;
-      window.clearTimeout(timeoutId);
-      window.clearInterval(intervalId);
-      setScreensaverCountdownMs(SCREENSAVER_IDLE_DELAY_MS);
-      timeoutId = window.setTimeout(() => {
-        const config = buildScreensaverConfig();
-        if (!config) return;
-        setShowScreensaverDialog(false);
-        setScreensaverCountdownMs(SCREENSAVER_IDLE_DELAY_MS);
-        void startScreensaver(config);
-      }, SCREENSAVER_IDLE_DELAY_MS);
-      intervalId = window.setInterval(() => {
-        setScreensaverCountdownMs(Math.max(0, deadline - Date.now()));
-      }, 100);
-    };
-
-    const events: Array<keyof WindowEventMap> = ["mousemove", "mousedown", "keydown", "touchstart", "wheel"];
-    for (const eventName of events) {
-      window.addEventListener(eventName, resetTimer, { passive: true });
-    }
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      window.clearInterval(intervalId);
-      setScreensaverCountdownMs(SCREENSAVER_IDLE_DELAY_MS);
-      for (const eventName of events) {
-        window.removeEventListener(eventName, resetTimer);
-      }
-    };
-  }, [buildScreensaverConfig, screensaverActive, showScreensaverDialog, startScreensaver]);
 
   const requestAudioVizPermissions = useCallback((channel: "chain" | "screensaver") => {
     const snapshot = getChannelAudioVizSnapshot(channel);
@@ -1895,6 +2316,62 @@ const App = () => {
     });
   }, [chainAudioBpmSwapBeats, chainAudioBpmSwapEnabled]);
 
+  useEffect(() => {
+    if (!screensaverVideoBpmSwapEnabled) return;
+    const beatsPerSwap = Number.parseFloat(screensaverVideoBpmSwapBeats);
+    if (!Number.isFinite(beatsPerSwap) || beatsPerSwap <= 0) return;
+
+    const syncVideoBpmSwap = () => {
+      const snapshot = getChannelAudioVizSnapshot("screensaver");
+      if (!snapshot.enabled || snapshot.status !== "live" || !snapshot.detectedBpm || snapshot.detectedBpm <= 0) return;
+      const secondsPerSwap = (60 / snapshot.detectedBpm) * beatsPerSwap;
+      if (secondsPerSwap > 0) {
+        screensaverVideoSwapSecondsRef.current = secondsPerSwap;
+        screensaverConfigRef.current.videoSwapSeconds = secondsPerSwap;
+      }
+    };
+
+    syncVideoBpmSwap();
+    return subscribeAudioViz((changedChannel) => {
+      if (changedChannel !== "screensaver") return;
+      syncVideoBpmSwap();
+    });
+  }, [screensaverVideoBpmSwapBeats, screensaverVideoBpmSwapEnabled]);
+
+  useEffect(() => {
+    if (!screensaverBpmSwapEnabled) {
+      if (screensaverBpmSwapRestoreRef.current !== undefined) {
+        dispatchScreensaverCycleSeconds(screensaverBpmSwapRestoreRef.current);
+        screensaverBpmSwapRestoreRef.current = undefined;
+      }
+      return;
+    }
+
+    if (screensaverBpmSwapRestoreRef.current === undefined) {
+      screensaverBpmSwapRestoreRef.current = getLastScreensaverCycleSeconds() ?? null;
+    }
+
+    const beatsPerSwap = Number.parseFloat(screensaverBpmSwapBeats);
+    if (!Number.isFinite(beatsPerSwap) || beatsPerSwap <= 0) {
+      return;
+    }
+
+    const syncBpmSwap = () => {
+      const snapshot = getChannelAudioVizSnapshot("screensaver");
+      if (!snapshot.enabled || snapshot.status !== "live" || !snapshot.detectedBpm || snapshot.detectedBpm <= 0) {
+        return;
+      }
+      const secondsPerSwap = (60 / snapshot.detectedBpm) * beatsPerSwap;
+      dispatchScreensaverCycleSeconds(secondsPerSwap > 0 ? secondsPerSwap : null);
+    };
+
+    syncBpmSwap();
+    return subscribeAudioViz((changedChannel) => {
+      if (changedChannel !== "screensaver") return;
+      syncBpmSwap();
+    });
+  }, [screensaverBpmSwapBeats, screensaverBpmSwapEnabled]);
+
   const openScreensaverDialog = useCallback(() => {
     const currentSwapSeconds = getLastScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? 2;
     const currentVideoSrc = state.video?.currentSrc || state.video?.src || null;
@@ -1920,6 +2397,7 @@ const App = () => {
     setScreensaverVideoMaxWidthDraft((screensaverConfigRef.current.videoMaxWidth || DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH).toString());
     setScreensaverAudioGlobalConnectionsDraft(buildAudioConnectionDraft(screensaverAudioMod));
     setScreensaverAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(screensaverAudioMod));
+    setScreensaverShowDebugDraft(screensaverShowDebug);
     setShowScreensaverDialog(true);
     requestAudioVizPermissions("screensaver");
   }, [requestAudioVizPermissions, screensaverDialogPosition.x, screensaverDialogPosition.y, state.scalingAlgorithm, state.video]);
@@ -1955,9 +2433,9 @@ const App = () => {
     if (!config) return;
     screensaverConfigRef.current = config;
     setRememberedScreensaverCycleSeconds(config.swapSeconds);
+    setScreensaverShowDebug(screensaverShowDebugDraft);
     setGlobalAudioVizModulation("screensaver", buildGlobalModulation(screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft));
     setShowScreensaverDialog(false);
-    setScreensaverCountdownMs(SCREENSAVER_IDLE_DELAY_MS);
     void startScreensaver(config);
   }, [buildGlobalModulation, buildScreensaverConfig, screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft, startScreensaver]);
 
@@ -2105,7 +2583,7 @@ const App = () => {
 
   useEffect(() => {
     if (!chainAudioAutoVizOnChainChange || chainWideRangeOptions.length === 0) return;
-    const next = buildAutoVizConnections(chainAudioAutoVizMode, chainWideRangeOptions);
+    const next = buildAutoVizConnections(chainAudioAutoVizMode, chainWideRangeOptions, chainAudioGlobalConnectionsDraft);
     setChainAudioGlobalConnectionsDraft(next.connections);
     setChainAudioGlobalNormalizedMetricsDraft(next.normalizedMetrics);
     setGlobalAudioVizModulation("chain", buildGlobalModulation(next.connections, next.normalizedMetrics));
@@ -2113,7 +2591,7 @@ const App = () => {
 
   useEffect(() => {
     if (!screensaverAudioAutoVizOnChainChange || chainWideRangeOptions.length === 0) return;
-    const next = buildAutoVizConnections(screensaverAudioAutoVizMode, chainWideRangeOptions);
+    const next = buildAutoVizConnections(screensaverAudioAutoVizMode, chainWideRangeOptions, screensaverAudioGlobalConnectionsDraft);
     setScreensaverAudioGlobalConnectionsDraft(next.connections);
     setScreensaverAudioGlobalNormalizedMetricsDraft(next.normalizedMetrics);
     setGlobalAudioVizModulation("screensaver", buildGlobalModulation(next.connections, next.normalizedMetrics));
@@ -2254,7 +2732,8 @@ const App = () => {
           </div>
           {(state.inputImage || state.video) && (
             <CollapsibleSection title="Input Tweaks">
-              <div className={s.inputTweaks}>
+              <fieldset className={[controls.optionGroup, s.inputTweaks].join(" ")}>
+                <legend className={controls.optionGroupLegend}>Input Tweaks</legend>
                 <Range
                   name="Input Scale"
                   types={{ range: [0.05, 16], desc: INPUT_SCALE_HELP }}
@@ -2370,7 +2849,7 @@ const App = () => {
                     </label>
                   </div>
                 </>)}
-              </div>
+              </fieldset>
             </CollapsibleSection>
           )}
         </div>
@@ -2804,13 +3283,9 @@ const App = () => {
                 }}
                 title={screensaverActive
                   ? "Screensaver active."
-                  : showScreensaverDialog
-                    ? `Screensaver window open. Auto-starts in ${(screensaverCountdownMs / 1000).toFixed(1)}s unless there is input.`
-                    : "Configure and start screensaver. Opening the window also auto-starts after 10 seconds of no input."}
+                  : "Configure and start screensaver."}
               >
-                {showScreensaverDialog && !screensaverActive
-                  ? `Screensaver ${Math.ceil(screensaverCountdownMs / 1000)}`
-                  : "Screensaver"}
+                Screensaver
               </button>
             </div>
             <div className={s.outputCanvasStage}>
@@ -2823,6 +3298,19 @@ const App = () => {
                 ].join(" ")}
                 ref={outputCanvasRef}
               />
+              {screensaverActive && screensaverShowDebug && (
+                <ScreensaverDebugOverlay
+                  chain={state.chain.map((entry) => ({
+                    id: entry.id,
+                    displayName: entry.displayName,
+                    enabled: entry.enabled,
+                  }))}
+                  activeIndex={state.activeIndex}
+                  chainSwapSeconds={getCurrentScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? null}
+                  videoSwapEnabled={screensaverConfigRef.current.randomVideo}
+                  videoSwapSeconds={screensaverVideoSwapSecondsRef.current}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -2860,89 +3348,209 @@ const App = () => {
                 </button>
               </div>
               <div className={s.screensaverBody}>
-                <label className={s.screensaverField}>
-                  <span>Chain swap seconds</span>
-                  <input
-                    className={s.screensaverInput}
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    value={screensaverSwapSecondsDraft}
-                    onChange={(e) => handleScreensaverSwapSecondsChange(e.target.value)}
-                  />
-                </label>
-                <label className={s.screensaverField}>
-                  <span>Chain swap BPM</span>
-                  <input
-                    className={s.screensaverInput}
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={screensaverSwapBpmDraft}
-                    onChange={(e) => handleScreensaverSwapBpmChange(e.target.value)}
-                  />
-                </label>
-                <label className={s.screensaverField}>
-                  <span>Video scaling</span>
-                  <select
-                    className={s.screensaverInput}
-                    value={screensaverScalingAlgorithmDraft}
-                    onChange={(e) => setScreensaverScalingAlgorithmDraft(e.target.value)}
-                  >
-                    {SCALING_ALGORITHM_OPTIONS.options.map((option) => (
-                      <option key={String(option.value)} value={String(option.value)}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={s.screensaverCheck}>
-                  <input
-                    type="checkbox"
-                    checked={screensaverRandomVideoDraft}
-                    onChange={(e) => {
-                      const nextChecked = e.target.checked;
-                      setScreensaverRandomVideoDraft(nextChecked);
-                      if (nextChecked) {
-                        const swapSeconds = Number.parseFloat(screensaverSwapSecondsDraft);
-                        if (Number.isFinite(swapSeconds) && swapSeconds > 0) {
-                          setScreensaverVideoSwapSecondsDraft((swapSeconds * 4).toFixed(3).replace(/\.?0+$/, ""));
+                <div className={s.screensaverColumns}>
+                <div className={s.screensaverColumnLeft}>
+                <fieldset className={controls.optionGroup}>
+                  <legend className={controls.optionGroupLegend}>Chain swap timing</legend>
+                  <div className={s.screensaverRadioRow}>
+                    <label className={s.screensaverRadioOption}>
+                      <input
+                        type="radio"
+                        name="screensaverChainSwapMode"
+                        checked={!screensaverBpmSwapEnabled}
+                        onChange={() => setScreensaverBpmSwapEnabled(false)}
+                      />
+                      <span>Fixed interval</span>
+                    </label>
+                    <label className={s.screensaverRadioOption}>
+                      <input
+                        type="radio"
+                        name="screensaverChainSwapMode"
+                        checked={screensaverBpmSwapEnabled}
+                        onChange={() => setScreensaverBpmSwapEnabled(true)}
+                      />
+                      <span>Sync to detected BPM</span>
+                    </label>
+                  </div>
+                  {!screensaverBpmSwapEnabled ? (
+                    <div className={s.screensaverFieldRow}>
+                      <label className={s.screensaverField}>
+                        <span>Seconds per swap</span>
+                        <input
+                          className={s.screensaverInput}
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          value={screensaverSwapSecondsDraft}
+                          onChange={(e) => handleScreensaverSwapSecondsChange(e.target.value)}
+                        />
+                      </label>
+                      <label className={s.screensaverField}>
+                        <span>= BPM</span>
+                        <input
+                          className={s.screensaverInput}
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={screensaverSwapBpmDraft}
+                          onChange={(e) => handleScreensaverSwapBpmChange(e.target.value)}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <>
+                      <label className={s.screensaverField}>
+                        <span>Beats per swap</span>
+                        <input
+                          className={s.screensaverInput}
+                          type="number"
+                          min="0.25"
+                          step="0.25"
+                          value={screensaverBpmSwapBeats}
+                          onChange={(event) => setScreensaverBpmSwapBeats(event.target.value)}
+                        />
+                      </label>
+                      <div className={s.screensaverHint}>
+                        {(() => {
+                          const beatsPerSwap = Number.parseFloat(screensaverBpmSwapBeats);
+                          const bpm = getChannelAudioVizSnapshot("screensaver").detectedBpm;
+                          if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
+                            return "Waiting for a detected BPM from the screensaver audio input.";
+                          }
+                          const seconds = (60 / bpm) * beatsPerSwap;
+                          return `Resolves to ~${seconds.toFixed(2)}s (${Math.round(bpm)} BPM × ${beatsPerSwap} beats). Updates live as tempo drifts.`;
+                        })()}
+                      </div>
+                    </>
+                  )}
+                </fieldset>
+                <fieldset className={controls.optionGroup}>
+                  <legend className={controls.optionGroupLegend}>Random video swaps</legend>
+                  <label className={s.screensaverCheck}>
+                    <input
+                      type="checkbox"
+                      checked={screensaverRandomVideoDraft}
+                      onChange={(e) => {
+                        const nextChecked = e.target.checked;
+                        setScreensaverRandomVideoDraft(nextChecked);
+                        if (nextChecked) {
+                          const swapSeconds = Number.parseFloat(screensaverSwapSecondsDraft);
+                          if (Number.isFinite(swapSeconds) && swapSeconds > 0) {
+                            setScreensaverVideoSwapSecondsDraft((swapSeconds * 4).toFixed(3).replace(/\.?0+$/, ""));
+                          }
                         }
-                      }
-                    }}
-                  />
-                  <span>Auto swap random video</span>
-                </label>
-                {screensaverRandomVideoDraft && (
-                  <>
-                    <label className={s.screensaverField}>
-                      <span>Video swap seconds</span>
-                      <input
-                        className={s.screensaverInput}
-                        type="number"
-                        min="0.001"
-                        step="0.001"
-                        value={screensaverVideoSwapSecondsDraft}
-                        onChange={(e) => setScreensaverVideoSwapSecondsDraft(e.target.value)}
-                      />
-                    </label>
-                    <label className={s.screensaverField}>
-                      <span>Video width (px)</span>
-                      <input
-                        className={s.screensaverInput}
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={screensaverVideoMaxWidthDraft}
-                        onChange={(e) => setScreensaverVideoMaxWidthDraft(e.target.value)}
-                      />
-                    </label>
-                  </>
-                )}
+                      }}
+                    />
+                    <span>Auto swap random video</span>
+                  </label>
+                  {screensaverRandomVideoDraft && (
+                    <>
+                      <div className={[s.screensaverSubgroupLabel, controls.subsectionHeader].join(" ")}>Video swap timing</div>
+                      <div className={s.screensaverRadioRow}>
+                        <label className={s.screensaverRadioOption}>
+                          <input
+                            type="radio"
+                            name="screensaverVideoSwapMode"
+                            checked={!screensaverVideoBpmSwapEnabled}
+                            onChange={() => setScreensaverVideoBpmSwapEnabled(false)}
+                          />
+                          <span>Fixed interval</span>
+                        </label>
+                        <label className={s.screensaverRadioOption}>
+                          <input
+                            type="radio"
+                            name="screensaverVideoSwapMode"
+                            checked={screensaverVideoBpmSwapEnabled}
+                            onChange={() => setScreensaverVideoBpmSwapEnabled(true)}
+                          />
+                          <span>Sync to detected BPM</span>
+                        </label>
+                      </div>
+                      {!screensaverVideoBpmSwapEnabled ? (
+                        <label className={s.screensaverField}>
+                          <span>Seconds per video swap</span>
+                          <input
+                            className={s.screensaverInput}
+                            type="number"
+                            min="0.001"
+                            step="0.001"
+                            value={screensaverVideoSwapSecondsDraft}
+                            onChange={(e) => setScreensaverVideoSwapSecondsDraft(e.target.value)}
+                          />
+                        </label>
+                      ) : (
+                        <>
+                          <label className={s.screensaverField}>
+                            <span>Beats per video swap</span>
+                            <input
+                              className={s.screensaverInput}
+                              type="number"
+                              min="0.25"
+                              step="0.25"
+                              value={screensaverVideoBpmSwapBeats}
+                              onChange={(event) => setScreensaverVideoBpmSwapBeats(event.target.value)}
+                            />
+                          </label>
+                          <div className={s.screensaverHint}>
+                            {(() => {
+                              const beatsPerSwap = Number.parseFloat(screensaverVideoBpmSwapBeats);
+                              const bpm = getChannelAudioVizSnapshot("screensaver").detectedBpm;
+                              if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
+                                return "Waiting for a detected BPM from the screensaver audio input.";
+                              }
+                              const seconds = (60 / bpm) * beatsPerSwap;
+                              return `Resolves to ~${seconds.toFixed(2)}s (${Math.round(bpm)} BPM × ${beatsPerSwap} beats). Updates live as tempo drifts.`;
+                            })()}
+                          </div>
+                        </>
+                      )}
+                      <div className={s.screensaverFieldRow}>
+                        <label className={s.screensaverField}>
+                          <span>Video width (px)</span>
+                          <input
+                            className={s.screensaverInput}
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={screensaverVideoMaxWidthDraft}
+                            onChange={(e) => setScreensaverVideoMaxWidthDraft(e.target.value)}
+                          />
+                        </label>
+                        <label className={s.screensaverField}>
+                          <span>Video scaling</span>
+                          <select
+                            className={s.screensaverInput}
+                            value={screensaverScalingAlgorithmDraft}
+                            onChange={(e) => setScreensaverScalingAlgorithmDraft(e.target.value)}
+                          >
+                            {SCALING_ALGORITHM_OPTIONS.options.map((option) => (
+                              <option key={String(option.value)} value={String(option.value)}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div className={s.screensaverHint}>
+                        Input scale is clamped to the video width above for performance.
+                      </div>
+                    </>
+                  )}
+                </fieldset>
                 <AudioVizControls
                   channel="screensaver"
                   title="Screensaver Audio"
                 />
+                <label className={s.screensaverCheck}>
+                  <input
+                    type="checkbox"
+                    checked={screensaverShowDebugDraft}
+                    onChange={(e) => setScreensaverShowDebugDraft(e.target.checked)}
+                  />
+                  <span>Show debug overlay on output</span>
+                </label>
+                </div>
+                <div className={s.screensaverColumnRight}>
                 <AudioPatchPanel
                   channel="screensaver"
                   rangeOptions={chainWideRangeOptions}
@@ -2955,12 +3563,9 @@ const App = () => {
                   onAutoVizModeChange={setScreensaverAudioAutoVizMode}
                   autoVizOnChainChange={screensaverAudioAutoVizOnChainChange}
                   onAutoVizOnChainChange={setScreensaverAudioAutoVizOnChainChange}
-                  collapsibleBody
-                  bodyDefaultOpen={false}
                   bodyTitle="Screensaver patch panel"
                 />
-                <div className={s.screensaverHint}>
-                  4 beats = 1 chain swap. If auto swap random video is enabled, the input scale is clamped to the video width above for performance. This window auto-starts after 10 seconds of no input.
+                </div>
                 </div>
               </div>
               <div className={s.screensaverButtons}>
@@ -3011,78 +3616,87 @@ const App = () => {
                   </button>
                 </div>
                 <div className={s.audioModBody}>
-                  <AudioVizControls channel="chain" title="Filter Chain Audio" />
-                  {!editingAudioEntry && (
-                    <>
-                      <label className={s.screensaverCheck}>
-                        <input
-                          type="checkbox"
-                          checked={chainAudioBpmSwapEnabled}
-                          onChange={(event) => setChainAudioBpmSwapEnabled(event.target.checked)}
-                        />
-                        <span>Random chain swap from detected BPM</span>
-                      </label>
-                      {chainAudioBpmSwapEnabled && (
-                        <>
-                          <label className={s.screensaverField}>
-                            <span>Beats per swap</span>
-                            <input
-                              className={s.screensaverInput}
-                              type="number"
-                              min="0.25"
-                              step="0.25"
-                              value={chainAudioBpmSwapBeats}
-                              onChange={(event) => setChainAudioBpmSwapBeats(event.target.value)}
-                            />
-                          </label>
-                          <div className={s.screensaverHint}>
-                            Uses the chain audio input BPM to drive the existing random filter-chain swap timer.
-                            {(() => {
-                              const beatsPerSwap = Number.parseFloat(chainAudioBpmSwapBeats);
-                              const bpm = getChannelAudioVizSnapshot("chain").detectedBpm;
-                              if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
-                                return " Waiting for stable BPM detection.";
-                              }
-                              const seconds = (60 / bpm) * beatsPerSwap;
-                              return ` Current estimate: ${seconds.toFixed(2).replace(/\.?0+$/, "")}s per swap at ${Math.round(bpm)} BPM.`;
-                            })()}
-                          </div>
-                        </>
+                  <div className={s.screensaverColumns}>
+                    <div className={s.screensaverColumnLeft}>
+                      {!editingAudioEntry ? (
+                        <AudioVizControls channel="chain" title="Input" />
+                      ) : (
+                        <div className={s.screensaverHint}>
+                          Audio input is shared with the chain channel. Configure source, mic and normalization from the chain-level editor.
+                        </div>
                       )}
-                    </>
-                  )}
-                  <AudioPatchPanel
-                    channel="chain"
-                    rangeOptions={editingAudioEntry ? editingAudioRangeOptions : chainWideRangeOptions}
-                    optionValues={editingAudioEntry ? (editingAudioEntry.filter.options || {}) : chainWideOptionValues}
-                    connections={editingAudioEntry ? audioModConnectionsDraft : chainAudioGlobalConnectionsDraft}
-                    normalizedMetrics={editingAudioEntry ? audioModNormalizedMetricsDraft : chainAudioGlobalNormalizedMetricsDraft}
-                    onNormalizedMetricsChange={editingAudioEntry ? setAudioModNormalizedMetricsDraft : setChainAudioGlobalNormalizedMetricsDraft}
-                    onConnectionsChange={editingAudioEntry ? setAudioModConnectionsDraft : setChainAudioGlobalConnectionsDraft}
-                    {...(editingAudioEntry ? {} : {
-                      autoVizMode: chainAudioAutoVizMode,
-                      onAutoVizModeChange: setChainAudioAutoVizMode,
-                      autoVizOnChainChange: chainAudioAutoVizOnChainChange,
-                      onAutoVizOnChainChange: setChainAudioAutoVizOnChainChange,
-                    })}
-                    collapsibleBody
-                    bodyDefaultOpen
-                    bodyTitle="Patch panel"
-                  />
+                      {!editingAudioEntry && (
+                        <fieldset className={controls.optionGroup}>
+                          <legend className={controls.optionGroupLegend}>Chain swap timing (from BPM)</legend>
+                          <div className={s.screensaverRadioRow}>
+                            <label className={s.screensaverRadioOption}>
+                              <input
+                                type="radio"
+                                name="chainAudioSwapMode"
+                                checked={!chainAudioBpmSwapEnabled}
+                                onChange={() => setChainAudioBpmSwapEnabled(false)}
+                              />
+                              <span>Off</span>
+                            </label>
+                            <label className={s.screensaverRadioOption}>
+                              <input
+                                type="radio"
+                                name="chainAudioSwapMode"
+                                checked={chainAudioBpmSwapEnabled}
+                                onChange={() => setChainAudioBpmSwapEnabled(true)}
+                              />
+                              <span>Sync to detected BPM</span>
+                            </label>
+                          </div>
+                          {chainAudioBpmSwapEnabled && (
+                            <>
+                              <label className={s.screensaverField}>
+                                <span>Beats per swap</span>
+                                <input
+                                  className={s.screensaverInput}
+                                  type="number"
+                                  min="0.25"
+                                  step="0.25"
+                                  value={chainAudioBpmSwapBeats}
+                                  onChange={(event) => setChainAudioBpmSwapBeats(event.target.value)}
+                                />
+                              </label>
+                              <div className={s.screensaverHint}>
+                                {(() => {
+                                  const beatsPerSwap = Number.parseFloat(chainAudioBpmSwapBeats);
+                                  const bpm = getChannelAudioVizSnapshot("chain").detectedBpm;
+                                  if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
+                                    return "Waiting for stable BPM detection.";
+                                  }
+                                  const seconds = (60 / bpm) * beatsPerSwap;
+                                  return `Resolves to ~${seconds.toFixed(2).replace(/\.?0+$/, "")}s per random filter-chain swap at ${Math.round(bpm)} BPM. Updates live as tempo drifts.`;
+                                })()}
+                              </div>
+                            </>
+                          )}
+                        </fieldset>
+                      )}
+                    </div>
+                    <div className={s.screensaverColumnRight}>
+                      <AudioPatchPanel
+                        channel="chain"
+                        rangeOptions={editingAudioEntry ? editingAudioRangeOptions : chainWideRangeOptions}
+                        optionValues={editingAudioEntry ? (editingAudioEntry.filter.options || {}) : chainWideOptionValues}
+                        connections={editingAudioEntry ? audioModConnectionsDraft : chainAudioGlobalConnectionsDraft}
+                        normalizedMetrics={editingAudioEntry ? audioModNormalizedMetricsDraft : chainAudioGlobalNormalizedMetricsDraft}
+                        onNormalizedMetricsChange={editingAudioEntry ? setAudioModNormalizedMetricsDraft : setChainAudioGlobalNormalizedMetricsDraft}
+                        onConnectionsChange={editingAudioEntry ? setAudioModConnectionsDraft : setChainAudioGlobalConnectionsDraft}
+                        {...(editingAudioEntry ? {} : {
+                          autoVizMode: chainAudioAutoVizMode,
+                          onAutoVizModeChange: setChainAudioAutoVizMode,
+                          autoVizOnChainChange: chainAudioAutoVizOnChainChange,
+                          onAutoVizOnChainChange: setChainAudioAutoVizOnChainChange,
+                        })}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className={s.screensaverButtons}>
-                  <button
-                    className={s.screensaverButton}
-                    onClick={() => {
-                      if (editingAudioEntry) {
-                        saveAudioModEditor();
-                      } else {
-                        saveChainAudioGlobalEditor();
-                      }
-                    }}
-                  >
-                    Done
-                  </button>
                   <button
                     className={s.screensaverButton}
                     onClick={() => {
@@ -3100,11 +3714,14 @@ const App = () => {
                   <button
                     className={s.screensaverButton}
                     onClick={() => {
-                      closeAudioModEditor();
-                      setShowChainAudioGlobalEditor(false);
+                      if (editingAudioEntry) {
+                        saveAudioModEditor();
+                      } else {
+                        saveChainAudioGlobalEditor();
+                      }
                     }}
                   >
-                    Cancel
+                    Close
                   </button>
                 </div>
               </div>

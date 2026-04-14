@@ -184,6 +184,7 @@ Use Vitest. Tests live in `test/` mirroring `src/` structure.
 - The Controls dispatcher (`controls/index.jsx`) is a **switch on type** — keep it flat, don't nest logic.
 - CSS Modules for component styles. Global styles only in `src/styles/`.
 - For draggable floating windows that use `position: fixed` + `transform`, compute drag offsets from the element's live `getBoundingClientRect()` at mouse-down time. Using cached position refs can cause a visible snap on the first drag after mount/remount.
+- **Reuse the shared chrome tokens for option/section headers.** `controls/styles.module.css` exports `.optionGroup`, `.optionGroupLegend`, and `.subsectionHeader`. Compose them at every section header instead of redefining `font-size` / `font-weight` / `text-transform` locally — that's how header styles drift across panels. If you need different spacing or color, create a local class that *composes* the canonical token.
 
 ### Performance
 

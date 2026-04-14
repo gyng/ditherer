@@ -1,4 +1,4 @@
-import React, { useReducer, useCallback, useEffect, useRef, type ReactNode } from "react";
+import React, { useReducer, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import filterReducer, { initialState, ChainEntry, type FilterReducerAction, type FilterReducerState } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
 import { filterList, grayscale, isMainThreadFilter } from "filters";
@@ -6,8 +6,8 @@ import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
-import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getAudioVizMetricValueForMode, getGlobalAudioVizModulation, type EntryAudioModulation } from "utils/audioVizBridge";
-import { getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
+import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getAudioVizMetricValueForMode, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
+import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
 import { FilterContext } from "./filterContextValue";
@@ -67,7 +67,8 @@ const applyAudioModulationToOptions = (
     const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
     const span = max - min;
     const modulated = currentValue + modulationValue * span;
-    nextOptions[resolvedOptionName] = step > 0 ? Math.round(modulated / step) * step : modulated;
+    const clamped = Math.min(max, Math.max(min, modulated));
+    nextOptions[resolvedOptionName] = step > 0 ? Math.round(clamped / step) * step : clamped;
   }
   return nextOptions;
 };
@@ -162,7 +163,31 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
     w: state.wasmAcceleration,
     ...(state.randomCycleSeconds != null ? { r: state.randomCycleSeconds } : {}),
   };
+  const av: ShareStateV2["av"] = {};
+  const chainGlobal = serializeAudioModulation(getGlobalAudioVizModulation("chain"));
+  if (chainGlobal) av.chain = { m: chainGlobal };
+  const screensaverGlobal = serializeAudioModulation(getGlobalAudioVizModulation("screensaver"));
+  if (screensaverGlobal) av.screensaver = { m: screensaverGlobal };
+  if (av.chain || av.screensaver) v2State.av = av;
   return v2State;
+};
+
+const deserializeAudioModulation = (data: SerializedAudioVizModulation | undefined): EntryAudioModulation | null => {
+  if (!data || !Array.isArray(data.c) || data.c.length === 0) return null;
+  return {
+    connections: data.c.map((connection) => ({
+      metric: connection.k as AudioVizMetric,
+      target: connection.o,
+      weight: connection.w,
+    })),
+    normalizedMetrics: Array.isArray(data.z) ? (data.z as AudioVizMetric[]) : [],
+  };
+};
+
+const restoreAudioVizFromShareState = (data: SerializedFilterState) => {
+  const av = "av" in data ? data.av : undefined;
+  setGlobalAudioVizModulation("chain", deserializeAudioModulation(av?.chain?.m));
+  setGlobalAudioVizModulation("screensaver", deserializeAudioModulation(av?.screensaver?.m));
 };
 
 // Produce JSON string for export
@@ -226,12 +251,15 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       const json = decodeShareState(hash.slice(2));
       const data = JSON.parse(json) as SerializedFilterState;
       dispatch({ type: "LOAD_STATE", data });
+      restoreAudioVizFromShareState(data);
     } catch (e) {
       console.warn("Failed to restore state from URL hash:", e);
     }
   }, []);
 
   // Sync filter state to URL hash so the address bar is always shareable
+  const [audioVizSyncKey, setAudioVizSyncKey] = useState(0);
+  useEffect(() => subscribeGlobalAudioVizModulation(() => setAudioVizSyncKey((value) => value + 1)), []);
   useEffect(() => {
     if (!state.chain || state.chain.length === 0) return;
     try {
@@ -244,7 +272,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.warn("Failed to sync state to URL hash:", e);
     }
-  }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration, state.randomCycleSeconds]);
+  }, [state.chain, state.activeIndex, state.convertGrayscale, state.linearize, state.wasmAcceleration, state.randomCycleSeconds, audioVizSyncKey]);
 
   useEffect(() => {
     syncRandomCycleSeconds(state.randomCycleSeconds);
@@ -281,6 +309,31 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     options?: { preserveScale?: boolean }
   ) => new Promise<void>((resolve, reject) => {
     resetProcessingState();
+
+    // Tear down the previously playing video immediately — waiting for the
+    // new video's first frame (LOAD_IMAGE reducer path) leaves the old video
+    // decoding and occasionally auto-recovering its own playback, stacking up
+    // multiple live decoders during rapid swaps.
+    const previousVideo = stateRef.current.video as (AnimatedVideoElement | null);
+    if (previousVideo) {
+      previousVideo.__manualPause = true;
+      previousVideo.onplaying = null;
+      previousVideo.onpause = null;
+      previousVideo.onloadeddata = null;
+      previousVideo.onseeked = null;
+      previousVideo.onerror = null;
+      previousVideo.onloadedmetadata = null;
+      try { previousVideo.pause(); } catch { /* ignore */ }
+      try {
+        previousVideo.removeAttribute("src");
+        previousVideo.load();
+      } catch { /* ignore */ }
+      if (previousVideo.__objectUrl) {
+        URL.revokeObjectURL(previousVideo.__objectUrl);
+        delete previousVideo.__objectUrl;
+      }
+    }
+
     const loadStartedScale = stateRef.current.scale;
     const video = document.createElement("video") as AnimatedVideoElement;
     const perfStart = performance.now();
@@ -309,8 +362,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const canvas = createReadbackCanvas();
+    const ctx = getReadbackContext(canvas);
     if (!ctx) {
       settleReject(new Error("Failed to initialize video canvas"));
       return;
@@ -490,10 +543,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       // Capture input pixels for _prevInput and EMA.
       // Always capture so temporal filters work on first click too.
       let inputData: Uint8ClampedArray | null = null;
-      const inputCtx = canvas.getContext("2d") as
-        | CanvasRenderingContext2D
-        | OffscreenCanvasRenderingContext2D
-        | null;
+      const inputCtx = (
+        canvas instanceof HTMLCanvasElement
+          ? canvas.getContext("2d", { willReadFrequently: true })
+          : canvas.getContext("2d")
+      ) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
       if (inputCtx) {
         inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
       }
@@ -1080,6 +1134,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       emaMapRef.current.clear();
       clearMotionVectorsState();
       dispatch({ type: "LOAD_STATE", data: deserialized });
+      restoreAudioVizFromShareState(deserialized);
     },
     saveCurrentColorPalette: (name: string, colors: number[][]) => {
       window.localStorage.setItem(

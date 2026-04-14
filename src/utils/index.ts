@@ -192,6 +192,30 @@ export const wasmReady: Promise<boolean> = import.meta.env.MODE !== "test"
 
 export const serializeState = (state: unknown) => JSON.stringify(state);
 
+/**
+ * Create a 2D canvas pre-tagged for frequent readback.
+ *
+ * Any canvas that gets `getImageData` called on it more than once per frame
+ * (the full filter pipeline reads its input canvas every filter, every frame)
+ * should be created through this helper. The browser otherwise keeps the
+ * backing store on the GPU and pays an expensive readback on each call, and
+ * warns about it in the console.
+ *
+ * NOTE: `willReadFrequently` can only be honoured if it is set on the very
+ * first `getContext("2d")` call for a given canvas — retrofitting an existing
+ * canvas doesn't work, so prefer this helper at canvas creation time.
+ */
+export const createReadbackCanvas = (width = 0, height = 0): HTMLCanvasElement => {
+  const canvas = document.createElement("canvas");
+  if (width > 0) canvas.width = width;
+  if (height > 0) canvas.height = height;
+  canvas.getContext("2d", { willReadFrequently: true });
+  return canvas;
+};
+
+export const getReadbackContext = (canvas: HTMLCanvasElement): CanvasRenderingContext2D | null =>
+  canvas.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D | null;
+
 // sRGB linearization for gamma-correct luminance
 const linearize = (c: number) => {
   const s = c / 255;
@@ -957,7 +981,15 @@ export const cloneCanvas = (
   clone.width = original.width;
   clone.height = original.height;
 
-  const cloneCtx = clone.getContext("2d") as CanvasRenderingContext2D | null;
+  // Every cloned canvas feeds back into the filter pipeline, which calls
+  // getImageData on it at least once per subsequent filter. willReadFrequently
+  // keeps the backing store CPU-side so those reads don't pay a GPU-readback
+  // cost (and don't trigger the browser's "multiple readback" console warning).
+  const isHtmlCanvas = typeof HTMLCanvasElement !== "undefined" && clone instanceof HTMLCanvasElement;
+  const cloneCtx = (isHtmlCanvas
+    ? (clone as HTMLCanvasElement).getContext("2d", { willReadFrequently: true })
+    : (clone as OffscreenCanvas).getContext("2d", { willReadFrequently: true })
+  ) as CanvasRenderingContext2D | null;
 
   if (cloneCtx && copyData) {
     cloneCtx.drawImage(original, 0, 0);
