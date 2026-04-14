@@ -1,6 +1,16 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import {
+  clamp,
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+  wasmAnimeColorGradeBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -69,7 +79,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeColorGrade = (input: any, options = defaults) => {
+const animeColorGrade = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const {
     shadowCool,
     highlightWarm,
@@ -91,7 +101,27 @@ const animeColorGrade = (input: any, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    wasmAnimeColorGradeBuffer(
+      buf, outBuf,
+      shadowCool, highlightWarm, blackPoint, whitePoint,
+      contrast, midtoneLift, vibrance, mix,
+    );
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const color = srgbPaletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
+      }
+    }
+    logFilterWasmStatus("Anime Color Grade", true, paletteIsIdentity ? "grade" : "grade+palettePass");
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+
+  logFilterWasmStatus("Anime Color Grade", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
       const i = getBufferIndex(x, y, W);

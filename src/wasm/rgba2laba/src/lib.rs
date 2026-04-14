@@ -1229,6 +1229,245 @@ pub fn quantize_buffer_hsv(buffer: &[u8], palette: &[f64]) -> Vec<u8> {
     out
 }
 
+// === Anime Color Grade ===
+//
+// Port of src/filters/animeColorGrade.ts: per-pixel tone curve (black/white
+// points, contrast, midtone lift) → luminance-weighted cool/warm tint blend
+// → partial luminance restore → vibrance boost → mix with source. Pure
+// per-pixel (no neighborhood), which lets us walk the RGBA buffer linearly.
+// All math is in f64 to match the JS semantics; the intermediate clamps and
+// Math.round/Math.pow calls are reproduced faithfully.
+
+#[inline]
+fn smoothstep_f64(edge0: f64, edge1: f64, value: f64) -> f64 {
+    let t = ((value - edge0) / (edge1 - edge0).max(1e-6)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+#[inline]
+fn lerp_f64(a: f64, b: f64, t: f64) -> f64 { a + (b - a) * t }
+
+#[inline]
+fn clamp_round_u8(x: f64) -> u8 { x.round().clamp(0.0, 255.0) as u8 }
+
+#[inline]
+fn apply_tone(value: f64, black_point: f64, white_point: f64, contrast: f64, midtone_lift: f64) -> f64 {
+    let mut n = ((value - black_point) / (white_point - black_point).max(1.0)).clamp(0.0, 1.0);
+    if contrast != 0.0 {
+        n = (0.5 + (n - 0.5) * (1.0 + contrast)).clamp(0.0, 1.0);
+    }
+    let gamma = (1.0 - midtone_lift).clamp(0.25, 3.0);
+    n = n.powf(gamma);
+    (n * 255.0).round().clamp(0.0, 255.0)
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn anime_color_grade_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    shadow_cool: f64,
+    highlight_warm: f64,
+    black_point: f64,
+    white_point: f64,
+    contrast: f64,
+    midtone_lift: f64,
+    vibrance: f64,
+    mix: f64,
+) {
+    // apply_tone only depends on the per-channel byte value plus the four
+    // option scalars, so precompute a 256-entry f64 LUT once to spare every
+    // pixel the contrast + powf round-trip.
+    let mut tone_lut = [0.0f64; 256];
+    for v in 0..256 {
+        tone_lut[v] = apply_tone(v as f64, black_point, white_point, contrast, midtone_lift);
+    }
+
+    let n_pixels = input.len() / 4;
+    for p in 0..n_pixels {
+        let i = p * 4;
+        let (sr_u, sg_u, sb_u, sa) = unsafe {
+            (
+                *input.get_unchecked(i) as usize,
+                *input.get_unchecked(i + 1) as usize,
+                *input.get_unchecked(i + 2) as usize,
+                *input.get_unchecked(i + 3),
+            )
+        };
+
+        // SAFETY: each s*_u is a u8 → always < 256.
+        let (base_r, base_g, base_b) = unsafe {
+            (
+                *tone_lut.get_unchecked(sr_u),
+                *tone_lut.get_unchecked(sg_u),
+                *tone_lut.get_unchecked(sb_u),
+            )
+        };
+
+        let tone_luma = (0.2126 * base_r + 0.7152 * base_g + 0.0722 * base_b) / 255.0;
+        let shadow_weight = 1.0 - smoothstep_f64(0.24, 0.72, tone_luma);
+        let highlight_weight = smoothstep_f64(0.34, 0.84, tone_luma);
+
+        let mut graded_r = base_r - shadow_weight * shadow_cool * 28.0 + highlight_weight * highlight_warm * 36.0;
+        let mut graded_g = base_g + shadow_weight * shadow_cool * 16.0 + highlight_weight * highlight_warm * 12.0;
+        let mut graded_b = base_b + shadow_weight * shadow_cool * 44.0 - highlight_weight * highlight_warm * 16.0;
+
+        let cool_strength = shadow_weight * shadow_cool;
+        let warm_strength = highlight_weight * highlight_warm;
+
+        let cool_tint_r = base_r * (1.0 - 0.22 * cool_strength);
+        let cool_tint_g = base_g * (1.0 + 0.05 * cool_strength);
+        let cool_tint_b = base_b * (1.0 + 0.22 * cool_strength);
+
+        let warm_tint_r = base_r * (1.0 + 0.18 * warm_strength);
+        let warm_tint_g = base_g * (1.0 + 0.07 * warm_strength);
+        let warm_tint_b = base_b * (1.0 - 0.16 * warm_strength);
+
+        graded_r = lerp_f64(graded_r, cool_tint_r, 0.65 * cool_strength);
+        graded_g = lerp_f64(graded_g, cool_tint_g, 0.65 * cool_strength);
+        graded_b = lerp_f64(graded_b, cool_tint_b, 0.65 * cool_strength);
+
+        graded_r = lerp_f64(graded_r, warm_tint_r, 0.75 * warm_strength);
+        graded_g = lerp_f64(graded_g, warm_tint_g, 0.75 * warm_strength);
+        graded_b = lerp_f64(graded_b, warm_tint_b, 0.75 * warm_strength);
+
+        let base_lum = 0.2126 * base_r + 0.7152 * base_g + 0.0722 * base_b;
+        let graded_lum = 0.2126 * graded_r + 0.7152 * graded_g + 0.0722 * graded_b;
+        let lum_delta = base_lum - graded_lum;
+        let lum_restore = 0.45;
+        let mut gr = clamp_round_u8(lerp_f64(graded_r, graded_r + lum_delta, lum_restore)) as f64;
+        let mut gg = clamp_round_u8(lerp_f64(graded_g, graded_g + lum_delta, lum_restore)) as f64;
+        let mut gb = clamp_round_u8(lerp_f64(graded_b, graded_b + lum_delta, lum_restore)) as f64;
+
+        // Vibrance boost (skip when <= 0, matching the JS short-circuit).
+        if vibrance > 0.0 {
+            let avg = (gr + gg + gb) / 3.0;
+            let max_c = gr.max(gg).max(gb);
+            let min_c = gr.min(gg).min(gb);
+            let saturation = (max_c - min_c) / 255.0;
+            let boost = 1.0 + vibrance * (1.0 - saturation);
+            gr = (avg + (gr - avg) * boost).round().clamp(0.0, 255.0);
+            gg = (avg + (gg - avg) * boost).round().clamp(0.0, 255.0);
+            gb = (avg + (gb - avg) * boost).round().clamp(0.0, 255.0);
+        }
+
+        let final_r = clamp_round_u8(base_r + (gr - base_r) * mix);
+        let final_g = clamp_round_u8(base_g + (gg - base_g) * mix);
+        let final_b = clamp_round_u8(base_b + (gb - base_b) * mix);
+
+        unsafe {
+            *output.get_unchecked_mut(i)     = final_r;
+            *output.get_unchecked_mut(i + 1) = final_g;
+            *output.get_unchecked_mut(i + 2) = final_b;
+            *output.get_unchecked_mut(i + 3) = sa;
+        }
+    }
+}
+
+// === Median filter (circular neighborhood) ===
+//
+// Mirrors src/filters/medianFilter.ts: for each pixel, collect samples from a
+// circular neighborhood (dx² + dy² ≤ r²) with clamp-to-edge, sort each RGB
+// channel, pick the middle sample. The outer (dy, dx) pattern is fixed for a
+// given radius so we precompute it once. Sort is insertion-sort (same as JS,
+// and fast for the < 300 samples the largest supported radius gives).
+
+#[wasm_bindgen]
+pub fn median_filter_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    radius: u32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    let r = radius as i32;
+    if w == 0 || h == 0 { return; }
+
+    // Precompute the (dy, dx) offset list that passes the circular test.
+    let r_sq = r * r;
+    let mut offsets: Vec<(i32, i32)> = Vec::new();
+    for dy in -r..=r {
+        for dx in -r..=r {
+            if dx * dx + dy * dy <= r_sq {
+                offsets.push((dy, dx));
+            }
+        }
+    }
+    let k = offsets.len();
+    let mid = k / 2;
+
+    // Counting-sort median. For u8 inputs this is O(256 + k) per channel per
+    // pixel, which beats insertion sort once k is ~40+. Below that the 256-
+    // bucket pass dominates and insertion sort's tight inner loop wins, so we
+    // fall back to it for small neighborhoods (radius ≤ 3).
+    //
+    // `k` is bounded by (2r+1)² which is ≤ 289 at the filter's max radius (8)
+    // so the per-bucket counter fits in u16.
+    fn median_counting(vals: &[u8], mid: usize) -> u8 {
+        let mut hist = [0u16; 256];
+        for &v in vals {
+            unsafe { *hist.get_unchecked_mut(v as usize) += 1; }
+        }
+        let mut accum: usize = 0;
+        for (i, &c) in hist.iter().enumerate() {
+            accum += c as usize;
+            if accum > mid { return i as u8; }
+        }
+        255
+    }
+
+    fn median_insertion(arr: &mut [u8], mid: usize) -> u8 {
+        for i in 1..arr.len() {
+            let key = unsafe { *arr.get_unchecked(i) };
+            let mut j = i;
+            while j > 0 && unsafe { *arr.get_unchecked(j - 1) } > key {
+                unsafe { *arr.get_unchecked_mut(j) = *arr.get_unchecked(j - 1); }
+                j -= 1;
+            }
+            unsafe { *arr.get_unchecked_mut(j) = key; }
+        }
+        unsafe { *arr.get_unchecked(mid) }
+    }
+
+    // Scratch buffers for per-pixel sample collection.
+    let mut r_arr = vec![0u8; k];
+    let mut g_arr = vec![0u8; k];
+    let mut b_arr = vec![0u8; k];
+    let use_counting = k >= 40;
+
+    let w_i = w as i32;
+    let h_i = h as i32;
+    for y in 0..h_i {
+        for x in 0..w_i {
+            // Gather samples from the circular neighborhood with clamp-to-edge.
+            for (idx, (dy, dx)) in offsets.iter().enumerate() {
+                let nx = (x + dx).clamp(0, w_i - 1) as usize;
+                let ny = (y + dy).clamp(0, h_i - 1) as usize;
+                let ni = (ny * w + nx) * 4;
+                unsafe {
+                    *r_arr.get_unchecked_mut(idx) = *input.get_unchecked(ni);
+                    *g_arr.get_unchecked_mut(idx) = *input.get_unchecked(ni + 1);
+                    *b_arr.get_unchecked_mut(idx) = *input.get_unchecked(ni + 2);
+                }
+            }
+            let (rm, gm, bm) = if use_counting {
+                (median_counting(&r_arr, mid), median_counting(&g_arr, mid), median_counting(&b_arr, mid))
+            } else {
+                (median_insertion(&mut r_arr, mid), median_insertion(&mut g_arr, mid), median_insertion(&mut b_arr, mid))
+            };
+            let i = ((y as usize) * w + (x as usize)) * 4;
+            unsafe {
+                *output.get_unchecked_mut(i)     = rm;
+                *output.get_unchecked_mut(i + 1) = gm;
+                *output.get_unchecked_mut(i + 2) = bm;
+                *output.get_unchecked_mut(i + 3) = *input.get_unchecked(i + 3);
+            }
+        }
+    }
+}
+
 // === Grain merge (box blur high-pass + mix) ===
 //
 // Replaces src/filters/grainMerge.ts's two-pass per-pixel JS loop. We compute

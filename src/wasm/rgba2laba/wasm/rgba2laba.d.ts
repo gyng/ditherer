@@ -1,6 +1,8 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export function anime_color_grade_buffer(input: Uint8Array, output: Uint8Array, shadow_cool: number, highlight_warm: number, black_point: number, white_point: number, contrast: number, midtone_lift: number, vibrance: number, mix: number): void;
+
 export function apply_channel_lut(input: Uint8Array, output: Uint8Array, lut_r: Uint8Array, lut_g: Uint8Array, lut_b: Uint8Array): void;
 
 export function error_diffuse_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, kernel: Float64Array, kernel_width: number, kernel_height: number, offset_x: number, offset_y: number, serpentine: boolean, row_alt: number, linearize: boolean, prev_input: Uint8Array, prev_output: Uint8Array, temporal_bleed: number, palette_mode: number, levels: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
@@ -10,6 +12,8 @@ export function error_diffuse_custom_order(input: Uint8Array, output: Uint8Array
 export function grain_merge_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, radius: number, strength: number): void;
 
 export function hsv_shift_buffer(input: Uint8Array, output: Uint8Array, hue_shift: number, sat_shift: number, val_shift: number): void;
+
+export function median_filter_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, radius: number): void;
 
 /**
  * Per-pixel nearest with pre-converted Lab palette.
@@ -69,6 +73,8 @@ export interface InitOutput {
     readonly error_diffuse_custom_order: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number) => void;
     readonly ordered_dither_linear_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number) => void;
     readonly quantize_buffer_hsv: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly anime_color_grade_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+    readonly median_filter_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly grain_merge_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number) => void;
     readonly hsv_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;

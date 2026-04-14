@@ -194,6 +194,8 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmApplyChannelLutInner = mod.apply_channel_lut;
   wasmHsvShiftInner = mod.hsv_shift_buffer;
   wasmGrainMergeInner = mod.grain_merge_buffer;
+  wasmMedianFilterInner = mod.median_filter_buffer;
+  wasmAnimeColorGradeInner = mod.anime_color_grade_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -455,6 +457,29 @@ type WasmQuantizeBufferFn = {
     refZ?: number,
   ): Uint8Array<ArrayBufferLike>;
 }["bivarianceHack"];
+type WasmAnimeColorGradeFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    shadowCool: number,
+    highlightWarm: number,
+    blackPoint: number,
+    whitePoint: number,
+    contrast: number,
+    midtoneLift: number,
+    vibrance: number,
+    mix: number,
+  ): void;
+}["bivarianceHack"];
+type WasmMedianFilterFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    radius: number,
+  ): void;
+}["bivarianceHack"];
 type WasmGrainMergeFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -615,6 +640,14 @@ let wasmHsvShiftInner: WasmHsvShiftFn = () => {
 };
 
 let wasmGrainMergeInner: WasmGrainMergeFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmMedianFilterInner: WasmMedianFilterFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmAnimeColorGradeInner: WasmAnimeColorGradeFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -921,6 +954,33 @@ export const WASM_ROW_ALT = {
   PRIME: 9,
   RANDOM: 10,
 } as const;
+
+// Anime Color Grade — per-pixel tone curve → luminance-weighted cool/warm
+// tint → partial luminance restore → vibrance → mix. All in a single WASM
+// call so the JS side only has to marshal the 8 scalar option values.
+export const wasmAnimeColorGradeBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  shadowCool: number,
+  highlightWarm: number,
+  blackPoint: number,
+  whitePoint: number,
+  contrast: number,
+  midtoneLift: number,
+  vibrance: number,
+  mix: number,
+): void =>
+  wasmAnimeColorGradeInner(input, output, shadowCool, highlightWarm, blackPoint, whitePoint, contrast, midtoneLift, vibrance, mix);
+
+// Median filter with circular neighborhood (dx² + dy² ≤ r²) and clamp-to-edge
+// sampling. Used by the Median Filter filter.
+export const wasmMedianFilterBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): void => wasmMedianFilterInner(input, output, width, height, radius);
 
 // Box-blur high-pass + per-pixel mix for the Grain merge filter. Uses an
 // integral image internally for O(W*H) total cost regardless of radius.

@@ -3,6 +3,26 @@
 /**
  * @param {Uint8Array} input
  * @param {Uint8Array} output
+ * @param {number} shadow_cool
+ * @param {number} highlight_warm
+ * @param {number} black_point
+ * @param {number} white_point
+ * @param {number} contrast
+ * @param {number} midtone_lift
+ * @param {number} vibrance
+ * @param {number} mix
+ */
+export function anime_color_grade_buffer(input, output, shadow_cool, highlight_warm, black_point, white_point, contrast, midtone_lift, vibrance, mix) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.anime_color_grade_buffer(ptr0, len0, ptr1, len1, output, shadow_cool, highlight_warm, black_point, white_point, contrast, midtone_lift, vibrance, mix);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
  * @param {Uint8Array} lut_r
  * @param {Uint8Array} lut_g
  * @param {Uint8Array} lut_b
@@ -135,6 +155,21 @@ export function hsv_shift_buffer(input, output, hue_shift, sat_shift, val_shift)
     var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
     var len1 = WASM_VECTOR_LEN;
     wasm.hsv_shift_buffer(ptr0, len0, ptr1, len1, output, hue_shift, sat_shift, val_shift);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {number} radius
+ */
+export function median_filter_buffer(input, output, width, height, radius) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.median_filter_buffer(ptr0, len0, ptr1, len1, output, width, height, radius);
 }
 
 /**
