@@ -45,6 +45,10 @@ const filmBurn = (input: any, options = defaults) => {
       intensity: 0.3 + rng() * 0.7
     });
   }
+  // The per-pixel work here (edge distance + per-hotspot sqrt + mulberry32
+  // grain) is trivial enough that the JS JIT beats a WASM port once you
+  // pay for the cross-boundary RGBA buffer copies — benched at ~0.4x. Stays
+  // on JS.
 
   // Edge burn: warm cast creeping from all edges
   for (let y = 0; y < H; y++) {

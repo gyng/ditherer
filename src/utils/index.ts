@@ -201,6 +201,9 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmTriangleDitherInner = mod.triangle_dither_buffer;
   wasmScanlineWarpInner = mod.scanline_warp_buffer;
   wasmLcdDisplayInner = mod.lcd_display_buffer;
+  wasmOilPaintingInner = mod.oil_painting_buffer;
+  wasmLensDistortionInner = mod.lens_distortion_buffer;
+  wasmTiltShiftInner = mod.tilt_shift_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -515,6 +518,39 @@ type WasmGrainMergeFn = {
     strength: number,
   ): void;
 }["bivarianceHack"];
+type WasmOilPaintingFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    radius: number,
+    levels: number,
+  ): void;
+}["bivarianceHack"];
+type WasmLensDistortionFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    k1: number,
+    k2: number,
+    zoom: number,
+  ): void;
+}["bivarianceHack"];
+type WasmTiltShiftFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    focusPosition: number,
+    focusWidth: number,
+    blurAmount: number,
+    saturationBoost: number,
+  ): void;
+}["bivarianceHack"];
 type WasmScanlineWarpFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -702,6 +738,18 @@ let wasmHsvShiftInner: WasmHsvShiftFn = () => {
 };
 
 let wasmTriangleDitherInner: WasmTriangleDitherFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmOilPaintingInner: WasmOilPaintingFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmLensDistortionInner: WasmLensDistortionFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmTiltShiftInner: WasmTiltShiftFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -1097,6 +1145,45 @@ export const wasmGrainMergeBuffer = (
   radius: number,
   strength: number,
 ): void => wasmGrainMergeInner(input, output, width, height, radius, strength);
+
+// Oil Painting: per-pixel histogram-binned-by-luminance averaging over a
+// (2r+1)² neighbourhood. Pure per-pixel independent; caller supplies radius
+// and bin count.
+export const wasmOilPaintingBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+  levels: number,
+): void => wasmOilPaintingInner(input, output, width, height, radius, levels);
+
+// Lens distortion: inverse radial distortion with Newton's-method
+// per-pixel radius inversion; sample is rounded-nearest. Matches the JS
+// path including the out-of-bounds transparent pixel.
+export const wasmLensDistortionBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  k1: number,
+  k2: number,
+  zoom: number,
+): void => wasmLensDistortionInner(input, output, width, height, k1, k2, zoom);
+
+// Tilt Shift: separable Gaussian blur then focus-band blend with optional
+// saturation boost. All in-line so the blur's f32 intermediate stays in
+// scope for the blend (matches the JS path bit-for-bit).
+export const wasmTiltShiftBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  focusPosition: number,
+  focusWidth: number,
+  blurAmount: number,
+  saturationBoost: number,
+): void => wasmTiltShiftInner(input, output, width, height, focusPosition, focusWidth, blurAmount, saturationBoost);
 
 // Scanline Warp: sin-driven per-row horizontal shift with bilinear sampling.
 export const wasmScanlineWarpBuffer = (

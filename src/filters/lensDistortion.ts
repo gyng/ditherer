@@ -1,6 +1,15 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+  wasmLensDistortionBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 export const optionTypes = {
@@ -32,7 +41,7 @@ const invertRadius = (rDst: number, k1: number, k2: number): number => {
   return r;
 };
 
-const lensDistortion = (input: any, options = defaults) => {
+const lensDistortion = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { k1, k2, zoom, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -43,6 +52,24 @@ const lensDistortion = (input: any, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    wasmLensDistortionBuffer(buf, outBuf, W, H, k1, k2, zoom);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        // Skip transparent OOB pixels.
+        if (outBuf[i + 3] === 0) continue;
+        const col = srgbPaletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options);
+        fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
+      }
+    }
+    logFilterWasmStatus("Lens distortion", true, paletteIsIdentity ? "distort" : "distort+palettePass");
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Lens distortion", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   const cx = W / 2;
   const cy = H / 2;

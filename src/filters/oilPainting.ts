@@ -6,7 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  wasmOilPaintingBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
 } from "utils";
 
 export const optionTypes = {
@@ -21,7 +24,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const oilPainting = (input: any, options = defaults) => {
+const oilPainting = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { radius, levels, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -33,6 +36,22 @@ const oilPainting = (input: any, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    wasmOilPaintingBuffer(buf, outBuf, W, H, radius, levels);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
+      }
+    }
+    logFilterWasmStatus("Oil Painting", true, paletteIsIdentity ? `r=${radius}` : `r=${radius}+palettePass`);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Oil Painting", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   // Per-bin accumulators (reused per pixel)
   const binCount = new Int32Array(levels);

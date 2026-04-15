@@ -212,6 +212,23 @@ export function lcd_display_buffer(input, output, width, height, pixel_size, sub
  * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
+ * @param {number} k1
+ * @param {number} k2
+ * @param {number} zoom
+ */
+export function lens_distortion_buffer(input, output, width, height, k1, k2, zoom) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.lens_distortion_buffer(ptr0, len0, ptr1, len1, output, width, height, k1, k2, zoom);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
  * @param {number} radius
  */
 export function median_filter_buffer(input, output, width, height, radius) {
@@ -239,6 +256,22 @@ export function nearest_lab_precomputed(r, g, b, palette_lab, ref_x, ref_y, ref_
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.nearest_lab_precomputed(r, g, b, ptr0, len0, ref_x, ref_y, ref_z);
     return ret >>> 0;
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {number} radius
+ * @param {number} levels
+ */
+export function oil_painting_buffer(input, output, width, height, radius, levels) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.oil_painting_buffer(ptr0, len0, ptr1, len1, output, width, height, radius, levels);
 }
 
 /**
@@ -419,6 +452,24 @@ export function scanline_warp_buffer(input, output, width, height, amplitude, fr
     var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
     var len1 = WASM_VECTOR_LEN;
     wasm.scanline_warp_buffer(ptr0, len0, ptr1, len1, output, width, height, amplitude, frequency, phase_rad, anim_offset);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {number} focus_position
+ * @param {number} focus_width
+ * @param {number} blur_amount
+ * @param {number} saturation_boost
+ */
+export function tilt_shift_buffer(input, output, width, height, focus_position, focus_width, blur_amount, saturation_boost) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.tilt_shift_buffer(ptr0, len0, ptr1, len1, output, width, height, focus_position, focus_width, blur_amount, saturation_boost);
 }
 
 /**

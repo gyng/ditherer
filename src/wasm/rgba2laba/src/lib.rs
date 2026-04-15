@@ -1910,6 +1910,310 @@ pub fn grain_merge_buffer(
     }
 }
 
+// === Oil Painting ===
+//
+// For each pixel, bin the (2r+1)² neighbourhood by luminance into `levels`
+// buckets; the most-populated bucket wins and we emit its RGB average.
+// Matches src/filters/oilPainting.ts exactly (including the tie-break on the
+// first-seen max-count bin).
+
+#[wasm_bindgen]
+pub fn oil_painting_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    radius: u32,
+    levels: u32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    let r = radius as usize;
+    let levels_u = levels as usize;
+    if w == 0 || h == 0 || levels_u == 0 { return; }
+
+    let mut bin_count = vec![0i32; levels_u];
+    let mut bin_r = vec![0.0f64; levels_u];
+    let mut bin_g = vec![0.0f64; levels_u];
+    let mut bin_b = vec![0.0f64; levels_u];
+
+    let w_i = w as i32;
+    let h_i = h as i32;
+    for y in 0..h_i {
+        for x in 0..w_i {
+            for i in 0..levels_u {
+                bin_count[i] = 0;
+                bin_r[i] = 0.0;
+                bin_g[i] = 0.0;
+                bin_b[i] = 0.0;
+            }
+            for ky in -(r as i32)..=(r as i32) {
+                let ny = (y + ky).clamp(0, h_i - 1) as usize;
+                let row = ny * w;
+                for kx in -(r as i32)..=(r as i32) {
+                    let nx = (x + kx).clamp(0, w_i - 1) as usize;
+                    let si = (row + nx) * 4;
+                    // SAFETY: si + 2 < input.len().
+                    let (sr, sg, sb) = unsafe {
+                        (
+                            *input.get_unchecked(si) as f64,
+                            *input.get_unchecked(si + 1) as f64,
+                            *input.get_unchecked(si + 2) as f64,
+                        )
+                    };
+                    let lum = (0.2126 * sr + 0.7152 * sg + 0.0722 * sb) / 255.0;
+                    let bin = ((lum * levels_u as f64).floor() as isize).max(0).min(levels_u as isize - 1) as usize;
+                    bin_count[bin] += 1;
+                    bin_r[bin] += sr;
+                    bin_g[bin] += sg;
+                    bin_b[bin] += sb;
+                }
+            }
+            let mut max_bin = 0usize;
+            for b in 1..levels_u {
+                if bin_count[b] > bin_count[max_bin] { max_bin = b; }
+            }
+            let count = bin_count[max_bin];
+            let i = ((y as usize) * w + (x as usize)) * 4;
+            if count == 0 {
+                unsafe {
+                    *output.get_unchecked_mut(i)     = *input.get_unchecked(i);
+                    *output.get_unchecked_mut(i + 1) = *input.get_unchecked(i + 1);
+                    *output.get_unchecked_mut(i + 2) = *input.get_unchecked(i + 2);
+                    *output.get_unchecked_mut(i + 3) = *input.get_unchecked(i + 3);
+                }
+                continue;
+            }
+            let cf = count as f64;
+            // Match JS: Math.round(sum / count), Uint8ClampedArray write clamps.
+            let r_u = (bin_r[max_bin] / cf).round().clamp(0.0, 255.0) as u8;
+            let g_u = (bin_g[max_bin] / cf).round().clamp(0.0, 255.0) as u8;
+            let b_u = (bin_b[max_bin] / cf).round().clamp(0.0, 255.0) as u8;
+            unsafe {
+                *output.get_unchecked_mut(i)     = r_u;
+                *output.get_unchecked_mut(i + 1) = g_u;
+                *output.get_unchecked_mut(i + 2) = b_u;
+                *output.get_unchecked_mut(i + 3) = *input.get_unchecked(i + 3);
+            }
+        }
+    }
+}
+
+// === Lens distortion ===
+//
+// Per-pixel inverse radial distortion:
+//   r_dst = r_src * (1 + k1*r_src² + k2*r_src⁴)
+// inverted via Newton's method (matches JS to the iteration). Sample the
+// source using rounded integer coords; out-of-bounds pixels are transparent.
+
+fn invert_radius(r_dst: f64, k1: f64, k2: f64) -> f64 {
+    if r_dst == 0.0 { return 0.0; }
+    let mut r = r_dst;
+    for _ in 0..8 {
+        let r2 = r * r;
+        let r4 = r2 * r2;
+        let f = r * (1.0 + k1 * r2 + k2 * r4) - r_dst;
+        let fp = 1.0 + 3.0 * k1 * r2 + 5.0 * k2 * r4;
+        if fp == 0.0 { break; }
+        r -= f / fp;
+    }
+    r
+}
+
+#[wasm_bindgen]
+pub fn lens_distortion_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    k1: f64,
+    k2: f64,
+    zoom: f64,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+    let w_i = w as i32;
+    let h_i = h as i32;
+    let cx = w as f64 / 2.0;
+    let cy = h as f64 / 2.0;
+    let r_norm = (cx * cx + cy * cy).sqrt();
+
+    for y in 0..h_i {
+        for x in 0..w_i {
+            let i = ((y as usize) * w + (x as usize)) * 4;
+            let nx = (x as f64 - cx) / r_norm;
+            let ny = (y as f64 - cy) / r_norm;
+            let r_dst = (nx * nx + ny * ny).sqrt();
+            let r_src = invert_radius(r_dst, k1, k2);
+            let scale = if r_dst > 0.0 { (r_src / r_dst) / zoom } else { 1.0 / zoom };
+            let src_x = (cx + nx * scale * r_norm).round() as i32;
+            let src_y = (cy + ny * scale * r_norm).round() as i32;
+            if src_x < 0 || src_x >= w_i || src_y < 0 || src_y >= h_i {
+                unsafe {
+                    *output.get_unchecked_mut(i)     = 0;
+                    *output.get_unchecked_mut(i + 1) = 0;
+                    *output.get_unchecked_mut(i + 2) = 0;
+                    *output.get_unchecked_mut(i + 3) = 0;
+                }
+                continue;
+            }
+            let si = ((src_y as usize) * w + (src_x as usize)) * 4;
+            unsafe {
+                *output.get_unchecked_mut(i)     = *input.get_unchecked(si);
+                *output.get_unchecked_mut(i + 1) = *input.get_unchecked(si + 1);
+                *output.get_unchecked_mut(i + 2) = *input.get_unchecked(si + 2);
+                *output.get_unchecked_mut(i + 3) = *input.get_unchecked(si + 3);
+            }
+        }
+    }
+}
+
+// === Tilt Shift ===
+//
+// Separable Gaussian blur on the input, then per-pixel blend with the source
+// driven by a vertical focus-band smoothstep, then an optional saturation
+// boost. Mirrors src/filters/tiltShift.ts including the f32 intermediate
+// precision of the blurred buffer (no u8 narrowing between passes).
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn tilt_shift_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    focus_position: f64,
+    focus_width: f64,
+    blur_amount: f64,
+    saturation_boost: f64,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+
+    // Build the 1D Gaussian kernel exactly like the JS path.
+    let sigma = blur_amount;
+    let radius = (sigma * 3.0).ceil() as usize;
+    let k_size = radius * 2 + 1;
+    let two_sigma_sq = 2.0 * sigma * sigma;
+    let mut kernel = vec![0.0f32; k_size];
+    let mut k_sum = 0.0f32;
+    for i in 0..k_size {
+        let x = i as f32 - radius as f32;
+        let v = (-(x * x) / two_sigma_sq as f32).exp();
+        kernel[i] = v;
+        k_sum += v;
+    }
+    for k in kernel.iter_mut() { *k /= k_sum; }
+
+    let mut temp = vec![0.0f32; w * h * 4];
+    let mut blurred = vec![0.0f32; w * h * 4];
+
+    // Horizontal pass.
+    for y in 0..h {
+        let row = y * w;
+        for x in 0..w {
+            let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+            for k in 0..k_size {
+                let raw = x as i32 + k as i32 - radius as i32;
+                let nx = raw.clamp(0, w as i32 - 1) as usize;
+                let si = (row + nx) * 4;
+                let wk = unsafe { *kernel.get_unchecked(k) };
+                unsafe {
+                    r += *input.get_unchecked(si)     as f32 * wk;
+                    g += *input.get_unchecked(si + 1) as f32 * wk;
+                    b += *input.get_unchecked(si + 2) as f32 * wk;
+                    a += *input.get_unchecked(si + 3) as f32 * wk;
+                }
+            }
+            let ti = (row + x) * 4;
+            unsafe {
+                *temp.get_unchecked_mut(ti)     = r;
+                *temp.get_unchecked_mut(ti + 1) = g;
+                *temp.get_unchecked_mut(ti + 2) = b;
+                *temp.get_unchecked_mut(ti + 3) = a;
+            }
+        }
+    }
+
+    // Vertical pass.
+    for y in 0..h {
+        for x in 0..w {
+            let mut r = 0.0f32; let mut g = 0.0f32; let mut b = 0.0f32; let mut a = 0.0f32;
+            for k in 0..k_size {
+                let raw = y as i32 + k as i32 - radius as i32;
+                let ny = raw.clamp(0, h as i32 - 1) as usize;
+                let ti = (ny * w + x) * 4;
+                let wk = unsafe { *kernel.get_unchecked(k) };
+                unsafe {
+                    r += *temp.get_unchecked(ti)     * wk;
+                    g += *temp.get_unchecked(ti + 1) * wk;
+                    b += *temp.get_unchecked(ti + 2) * wk;
+                    a += *temp.get_unchecked(ti + 3) * wk;
+                }
+            }
+            let bi = (y * w + x) * 4;
+            unsafe {
+                *blurred.get_unchecked_mut(bi)     = r;
+                *blurred.get_unchecked_mut(bi + 1) = g;
+                *blurred.get_unchecked_mut(bi + 2) = b;
+                *blurred.get_unchecked_mut(bi + 3) = a;
+            }
+        }
+    }
+
+    // Render: smoothstep-driven blend + saturation.
+    let focus_center = h as f64 * focus_position;
+    let band_half = h as f64 * focus_width / 2.0;
+    let transition_zone = h as f64 * 0.3;
+
+    for y in 0..h {
+        let dist = (y as f64 - focus_center).abs();
+        let t_scalar = if dist < band_half {
+            0.0
+        } else {
+            smoothstep_f64(0.0, 1.0, (dist - band_half) / transition_zone)
+        };
+        let t = t_scalar as f32;
+        let one_minus_t = 1.0 - t;
+        for x in 0..w {
+            let i = (y * w + x) * 4;
+            let (ir, ig, ib, ia) = unsafe {
+                (
+                    *input.get_unchecked(i) as f32,
+                    *input.get_unchecked(i + 1) as f32,
+                    *input.get_unchecked(i + 2) as f32,
+                    *input.get_unchecked(i + 3),
+                )
+            };
+            let (br, bg, bb) = unsafe {
+                (
+                    *blurred.get_unchecked(i),
+                    *blurred.get_unchecked(i + 1),
+                    *blurred.get_unchecked(i + 2),
+                )
+            };
+            let mut r = (ir * one_minus_t + br * t).round();
+            let mut g = (ig * one_minus_t + bg * t).round();
+            let mut b = (ib * one_minus_t + bb * t).round();
+            if saturation_boost > 0.0 {
+                let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                let boost = 1.0 + saturation_boost as f32;
+                r = (gray + (r - gray) * boost).round().clamp(0.0, 255.0);
+                g = (gray + (g - gray) * boost).round().clamp(0.0, 255.0);
+                b = (gray + (b - gray) * boost).round().clamp(0.0, 255.0);
+            }
+            unsafe {
+                *output.get_unchecked_mut(i)     = r.clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 1) = g.clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 2) = b.clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 3) = ia;
+            }
+        }
+    }
+}
+
 // === Scanline Warp ===
 //
 // Per-row horizontal shift `shift(y) = amplitude * sin(y * freq * 2π/H +

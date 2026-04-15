@@ -6,7 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  wasmTiltShiftBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
 } from "utils";
 
 export const optionTypes = {
@@ -30,7 +33,7 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-const tiltShiftFilter = (input: any, options = defaults) => {
+const tiltShiftFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { focusPosition, focusWidth, blurAmount, saturationBoost, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -41,6 +44,23 @@ const tiltShiftFilter = (input: any, options = defaults) => {
   const W = input.width;
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    const outBuf = new Uint8ClampedArray(buf.length);
+    wasmTiltShiftBuffer(buf, outBuf, W, H, focusPosition, focusWidth, blurAmount, saturationBoost);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
+      }
+    }
+    logFilterWasmStatus("Tilt Shift", true, paletteIsIdentity ? "blur+blend" : "blur+blend+palettePass");
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Tilt Shift", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   // Gaussian blur (separable)
   const sigma = blurAmount;

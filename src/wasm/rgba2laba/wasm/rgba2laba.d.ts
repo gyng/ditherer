@@ -19,6 +19,8 @@ export function hsv_shift_buffer(input: Uint8Array, output: Uint8Array, hue_shif
 
 export function lcd_display_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, pixel_size: number, subpixel_layout: number, brightness: number, gap_darkness: number): void;
 
+export function lens_distortion_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, k1: number, k2: number, zoom: number): void;
+
 export function median_filter_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, radius: number): void;
 
 /**
@@ -26,6 +28,8 @@ export function median_filter_buffer(input: Uint8Array, output: Uint8Array, widt
  * `palette_lab` is [L0,a0,b0, L1,a1,b1, …] (already in Lab space).
  */
 export function nearest_lab_precomputed(r: number, g: number, b: number, palette_lab: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
+
+export function oil_painting_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, radius: number, levels: number): void;
 
 export function ordered_dither_linear_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, threshold_map: Float64Array, threshold_w: number, threshold_h: number, temporal_ox: number, temporal_oy: number, ordered_levels: number, palette_mode: number, levels: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
 
@@ -66,6 +70,8 @@ export function rgba_nearest_lab_index(r: number, g: number, b: number, a: numbe
 
 export function scanline_warp_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, amplitude: number, frequency: number, phase_rad: number, anim_offset: number): void;
 
+export function tilt_shift_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, focus_position: number, focus_width: number, blur_amount: number, saturation_boost: number): void;
+
 export function triangle_dither_buffer(input: Uint8Array, output: Uint8Array, levels: number, seed: number, palette_mode: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -88,6 +94,9 @@ export interface InitOutput {
     readonly bloom_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number) => void;
     readonly gaussian_blur_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly grain_merge_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number) => void;
+    readonly oil_painting_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number) => void;
+    readonly lens_distortion_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number) => void;
+    readonly tilt_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly scanline_warp_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly lcd_display_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly triangle_dither_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
