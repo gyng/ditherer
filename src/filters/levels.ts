@@ -9,7 +9,10 @@ import {
   paletteGetColor,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
-  linearPaletteGetColor
+  linearPaletteGetColor,
+  wasmApplyChannelLut,
+  wasmIsLoaded,
+  logFilterWasmStatus,
 } from "utils";
 
 export const optionTypes = {
@@ -83,15 +86,30 @@ const levelsFilter = (input: any, options: LevelsOptions = defaults) => {
       lut[i] = Math.max(0, Math.min(255, Math.round(outputBlack + normalized * outputRange)));
     }
 
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = getBufferIndex(x, y, W);
-        const r = lut[buf[i]];
-        const g = lut[buf[i + 1]];
-        const b = lut[buf[i + 2]];
+    const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+    const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 
-        const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-        fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+    if (wasmIsLoaded() && (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false) {
+      wasmApplyChannelLut(buf, outBuf, lut, lut, lut);
+      if (!paletteIsIdentity) {
+        for (let i = 0; i < outBuf.length; i += 4) {
+          const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
+          fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
+        }
+      }
+      logFilterWasmStatus("Levels", true, paletteIsIdentity ? "lut" : "lut+palettePass");
+    } else {
+      logFilterWasmStatus("Levels", false, (options as { _wasmAcceleration?: boolean })._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = getBufferIndex(x, y, W);
+          const r = lut[buf[i]];
+          const g = lut[buf[i + 1]];
+          const b = lut[buf[i + 2]];
+
+          const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
+          fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+        }
       }
     }
   }

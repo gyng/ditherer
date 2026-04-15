@@ -12,7 +12,10 @@ import {
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
   srgbPaletteGetColor,
-  linearPaletteGetColor
+  linearPaletteGetColor,
+  wasmApplyChannelLut,
+  wasmIsLoaded,
+  logFilterWasmStatus,
 } from "utils";
 
 export const optionTypes = {
@@ -33,6 +36,7 @@ export const defaults = {
 
 type BrightnessContrastOptions = FilterOptionValues & typeof defaults & {
   _linearize?: boolean;
+  _wasmAcceleration?: boolean;
 };
 
 const brightnessContrast = (
@@ -93,6 +97,39 @@ const brightnessContrast = (
     );
   } else {
     const outputBuf = new Uint8ClampedArray(buf);
+    const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+    const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+    if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+      // The brightness → contrast → gamma pipeline depends only on the
+      // per-channel u8 value + the four option scalars, so we precompute its
+      // 256-entry LUT once and apply via the shared WASM primitive. Using a
+      // Uint8ClampedArray as the scratch makes JS's bankers-round semantics
+      // for u8 writes match the runtime loop exactly — bit-parity holds.
+      const scratch = new Uint8ClampedArray(256);
+      for (let i = 0; i < 256; i += 1) {
+        const arr = gammaFunc(
+          contrastFunc(
+            brightnessFunc([i, i, i, 255], brightness, exposure),
+            contrast,
+          ),
+          gamma,
+        );
+        scratch[i] = arr[0];
+      }
+      const lut = new Uint8Array(scratch);
+      wasmApplyChannelLut(buf, outputBuf, lut, lut, lut);
+      if (!paletteIsIdentity) {
+        for (let i = 0; i < outputBuf.length; i += 4) {
+          const col = srgbPaletteGetColor(palette, rgba(outputBuf[i], outputBuf[i + 1], outputBuf[i + 2], outputBuf[i + 3]), palette.options);
+          fillBufferPixel(outputBuf, i, col[0], col[1], col[2], col[3]);
+        }
+      }
+      logFilterWasmStatus("Brightness/Contrast", true, paletteIsIdentity ? "lut" : "lut+palettePass");
+      outputCtx.putImageData(new ImageData(outputBuf, output.width, output.height), 0, 0);
+      return output;
+    }
+    logFilterWasmStatus("Brightness/Contrast", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
     for (let x = 0; x < input.width; x += 1) {
       for (let y = 0; y < input.height; y += 1) {
