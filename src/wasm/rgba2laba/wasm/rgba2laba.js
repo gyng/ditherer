@@ -390,13 +390,20 @@ export function rgba_nearest_lab_index(r, g, b, a, palette, ref_x, ref_y, ref_z)
  * @param {Uint8Array} output
  * @param {number} levels
  * @param {number} seed
+ * @param {number} palette_mode
+ * @param {Float64Array} palette
+ * @param {number} ref_x
+ * @param {number} ref_y
+ * @param {number} ref_z
  */
-export function triangle_dither_buffer(input, output, levels, seed) {
+export function triangle_dither_buffer(input, output, levels, seed, palette_mode, palette, ref_x, ref_y, ref_z) {
     const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
     var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
     var len1 = WASM_VECTOR_LEN;
-    wasm.triangle_dither_buffer(ptr0, len0, ptr1, len1, output, levels, seed);
+    const ptr2 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    wasm.triangle_dither_buffer(ptr0, len0, ptr1, len1, output, levels, seed, palette_mode, ptr2, len2, ref_x, ref_y, ref_z);
 }
 
 function __wbg_get_imports() {

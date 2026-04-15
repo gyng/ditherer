@@ -519,6 +519,11 @@ type WasmTriangleDitherFn = {
     output: Uint8Array | Uint8ClampedArray,
     levels: number,
     seed: number,
+    paletteMode: number,
+    palette: Float64Array,
+    refX: number,
+    refY: number,
+    refZ: number,
   ): void;
 }["bivarianceHack"];
 type WasmHsvShiftFn = {
@@ -1059,15 +1064,25 @@ export const wasmGrainMergeBuffer = (
   strength: number,
 ): void => wasmGrainMergeInner(input, output, width, height, radius, strength);
 
-// Triangle dither: TPDF noise added per channel, snapped to `levels`. Caller
-// seeds the WASM PRNG with any non-zero u32 (use Math.random() for JS-like
-// run-to-run variation).
+// Triangle dither: TPDF noise added per channel, then either a `levels` snap
+// (paletteMode = LEVELS) or a nearest-colour match against `palette` (any of
+// the other palette modes). Caller seeds the WASM PRNG with any non-zero u32
+// (use Math.random() for JS-like run-to-run variation).
 export const wasmTriangleDitherBuffer = (
   input: Uint8ClampedArray | Uint8Array,
   output: Uint8ClampedArray | Uint8Array,
   levels: number,
   seed: number,
-): void => wasmTriangleDitherInner(input, output, levels, seed);
+  paletteMode: number,
+  palette: number[][] | null,
+  ref = referenceTable.CIE_1931.D65,
+): void =>
+  wasmTriangleDitherInner(
+    input, output, levels, seed,
+    paletteMode,
+    palette ? ensurePaletteFlat(palette) : new Float64Array(0),
+    ref.x, ref.y, ref.z,
+  );
 
 // Per-pixel HSV shift (hue in degrees, sat/val in [-1, 1]) applied in a single
 // WASM call. Alpha passes through unchanged. Used by the Color shift filter.

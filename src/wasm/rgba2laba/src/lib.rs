@@ -1936,14 +1936,42 @@ fn rand_unit_f32(state: &mut u32) -> f32 {
 }
 
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn triangle_dither_buffer(
     input: &[u8],
     output: &mut [u8],
     levels: u32,
     seed: u32,
+    // palette_mode matches the shared PAL_MODE_* constants. When it's LEVELS,
+    // `levels` drives the per-channel snap and `palette` is ignored. For the
+    // other modes we do a full nearest-colour match against the user palette
+    // (using the same distance math as the ordered / error-diffusion paths).
+    palette_mode: u32,
+    palette: &[f64],
+    ref_x: f64,
+    ref_y: f64,
+    ref_z: f64,
 ) {
     let step = if levels > 1 { 255.0 / (levels as f32 - 1.0) } else { 255.0 };
     let mut rng = if seed == 0 { 0x12345678u32 } else { seed };
+
+    // Prebuild palette tables when a user palette is passed in.
+    let n_colors = palette.len() / 4;
+    let mut pal_rgba: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
+    let mut pal_lab: Vec<[f64; 3]> = Vec::new();
+    let mut pal_hsv: Vec<[f64; 3]> = Vec::new();
+    if palette_mode != PAL_MODE_LEVELS {
+        for i in 0..n_colors {
+            let r = palette[i*4]; let g = palette[i*4+1]; let b = palette[i*4+2]; let a = palette[i*4+3];
+            pal_rgba.push([r as u8, g as u8, b as u8, a as u8]);
+            match palette_mode {
+                PAL_MODE_LAB => pal_lab.push(rgba2lab_inline(r, g, b, ref_x, ref_y, ref_z)),
+                PAL_MODE_HSV => pal_hsv.push(rgb_to_hsv(r, g, b)),
+                _ => {}
+            }
+        }
+    }
+
     let n = input.len() / 4;
     for p in 0..n {
         let i = p * 4;
@@ -1960,9 +1988,65 @@ pub fn triangle_dither_buffer(
         let nr = (rand_unit_f32(&mut rng) - rand_unit_f32(&mut rng)) * 127.5;
         let ng = (rand_unit_f32(&mut rng) - rand_unit_f32(&mut rng)) * 127.5;
         let nb = (rand_unit_f32(&mut rng) - rand_unit_f32(&mut rng)) * 127.5;
-        let qr = js_round_f32(js_round_f32((ir + nr) / step) * step).clamp(0.0, 255.0) as u8;
-        let qg = js_round_f32(js_round_f32((ig + ng) / step) * step).clamp(0.0, 255.0) as u8;
-        let qb = js_round_f32(js_round_f32((ib + nb) / step) * step).clamp(0.0, 255.0) as u8;
+        let sr = ir + nr;
+        let sg = ig + ng;
+        let sb = ib + nb;
+
+        let (qr, qg, qb) = match palette_mode {
+            PAL_MODE_LEVELS => (
+                js_round_f32(js_round_f32(sr / step) * step).clamp(0.0, 255.0) as u8,
+                js_round_f32(js_round_f32(sg / step) * step).clamp(0.0, 255.0) as u8,
+                js_round_f32(js_round_f32(sb / step) * step).clamp(0.0, 255.0) as u8,
+            ),
+            PAL_MODE_RGB => {
+                let mut best = 0usize; let mut best_d = f32::MAX;
+                for (j, c) in pal_rgba.iter().enumerate() {
+                    let dr = sr - c[0] as f32;
+                    let dg = sg - c[1] as f32;
+                    let db = sb - c[2] as f32;
+                    let d = dr*dr + dg*dg + db*db;
+                    if d < best_d { best_d = d; best = j; }
+                }
+                let c = pal_rgba[best]; (c[0], c[1], c[2])
+            }
+            PAL_MODE_RGB_APPROX => {
+                let mut best = 0usize; let mut best_d = f32::MAX;
+                for (j, c) in pal_rgba.iter().enumerate() {
+                    let rm = (sr + c[0] as f32) / 2.0;
+                    let dr = sr - c[0] as f32;
+                    let dg = sg - c[1] as f32;
+                    let db = sb - c[2] as f32;
+                    let d = (2.0 + rm / 256.0) * dr * dr
+                          + 4.0 * dg * dg
+                          + (2.0 + (255.0 - rm) / 256.0) * db * db;
+                    if d < best_d { best_d = d; best = j; }
+                }
+                let c = pal_rgba[best]; (c[0], c[1], c[2])
+            }
+            PAL_MODE_HSV => {
+                let px = rgb_to_hsv(sr as f64, sg as f64, sb as f64);
+                let mut best = 0usize; let mut best_d = f64::MAX;
+                for (j, ph) in pal_hsv.iter().enumerate() {
+                    let dh_abs = (px[0] - ph[0]).abs();
+                    let dh = dh_abs.min(360.0 - dh_abs) / 180.0;
+                    let ds = (px[1] - ph[1]).abs();
+                    let dv = (px[2] - ph[2]).abs();
+                    let d = dh*dh + ds*ds + dv*dv;
+                    if d < best_d { best_d = d; best = j; }
+                }
+                let c = pal_rgba[best]; (c[0], c[1], c[2])
+            }
+            PAL_MODE_LAB => {
+                let px = rgba2lab_inline(sr as f64, sg as f64, sb as f64, ref_x, ref_y, ref_z);
+                let mut best = 0usize; let mut best_d = f64::MAX;
+                for (j, pl) in pal_lab.iter().enumerate() {
+                    let d = (px[0]-pl[0]).powi(2)+(px[1]-pl[1]).powi(2)+(px[2]-pl[2]).powi(2);
+                    if d < best_d { best_d = d; best = j; }
+                }
+                let c = pal_rgba[best]; (c[0], c[1], c[2])
+            }
+            _ => (0, 0, 0),
+        };
         unsafe {
             *output.get_unchecked_mut(i)     = qr;
             *output.get_unchecked_mut(i + 1) = qg;

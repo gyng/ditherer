@@ -9,6 +9,9 @@ import {
   wasmTriangleDitherBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  resolvePaletteColorAlgorithm,
+  colorAlgorithmToWasmMode,
+  WASM_PALETTE_MODE,
 } from "utils";
 import { defineFilter } from "filters/types";
 
@@ -36,27 +39,47 @@ const triangleDither = (input: any, options: typeof defaults & { _wasmAccelerati
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
 
-  // WASM fast path — only for the nearest/levels palette (default). User
-  // palette still falls through to JS since we'd need per-pixel palette
-  // match after noise. Seed the Rust PRNG with a fresh u32 each call so
-  // run-to-run variation matches the JS Math.random() behaviour.
-  if (
-    wasmIsLoaded() &&
-    options._wasmAcceleration !== false &&
-    !paletteOpts?.colors &&
-    typeof paletteOpts?.levels === "number"
-  ) {
-    const seed = (Math.random() * 0xffffffff) >>> 0 || 1;
-    wasmTriangleDitherBuffer(buf, buf, paletteOpts.levels, seed);
-    logFilterWasmStatus("Triangle dither", true, `levels=${paletteOpts.levels}`);
-    outputCtx.putImageData(new ImageData(buf, W, H), 0, 0);
-    return output;
+  // WASM fast path: LEVELS (default nearest palette) or a user palette with a
+  // supported colour-distance algorithm. Seed the Rust PRNG with a fresh u32
+  // each call so run-to-run variation matches the JS Math.random() behaviour.
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    let mode: number | null = null;
+    let palColors: number[][] | null = null;
+    let levelsArg = 0;
+    let reason = "palette unsupported";
+    if (paletteOpts?.colors) {
+      const algo = resolvePaletteColorAlgorithm(palette);
+      const m = algo ? colorAlgorithmToWasmMode(algo) : null;
+      if (m !== null) {
+        mode = m;
+        palColors = paletteOpts.colors;
+      } else {
+        reason = `palette algo=${algo ?? "none"}`;
+      }
+    } else if (typeof paletteOpts?.levels === "number") {
+      mode = WASM_PALETTE_MODE.LEVELS;
+      levelsArg = paletteOpts.levels;
+    }
+
+    if (mode !== null) {
+      const seed = (Math.random() * 0xffffffff) >>> 0 || 1;
+      wasmTriangleDitherBuffer(buf, buf, levelsArg, seed, mode, palColors);
+      logFilterWasmStatus(
+        "Triangle dither",
+        true,
+        mode === WASM_PALETTE_MODE.LEVELS ? `levels=${levelsArg}` : `mode=${mode}`,
+      );
+      outputCtx.putImageData(new ImageData(buf, W, H), 0, 0);
+      return output;
+    }
+    logFilterWasmStatus("Triangle dither", false, reason);
+  } else {
+    logFilterWasmStatus(
+      "Triangle dither",
+      false,
+      options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet",
+    );
   }
-  logFilterWasmStatus("Triangle dither", false,
-    options._wasmAcceleration === false ? "_wasmAcceleration off"
-      : !wasmIsLoaded() ? "wasm not loaded yet"
-      : paletteOpts?.colors ? "user palette"
-      : "palette unsupported");
 
   for (let x = 0; x < W; x += 1) {
     for (let y = 0; y < H; y += 1) {
