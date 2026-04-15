@@ -1376,6 +1376,211 @@ pub fn anime_color_grade_buffer(
     }
 }
 
+// === Bokeh (Gaussian blur + shapes on highlights) ===
+//
+// Matches src/filters/bokeh.ts: Gaussian blur base (sigma = radius / 2),
+// then grid-based search for bright pixels (luminance > threshold) and
+// stamp shapes (Circle or Hexagon) with additive blending.
+
+const BOKEH_SHAPE_CIRCLE: u32 = 0;
+const BOKEH_SHAPE_HEXAGON: u32 = 1;
+const BOKEH_SHAPE_TRIANGLE: u32 = 2;
+const BOKEH_SHAPE_PENTAGON: u32 = 3;
+#[allow(dead_code)] const BOKEH_SHAPE_OCTAGON: u32 = 4;
+const BOKEH_SHAPE_STAR: u32 = 5;
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn bokeh_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    radius: u32,
+    threshold: f32,
+    intensity: f32,
+    shape: u32,
+    local_detect: f32,
+    softness: f32,
+    edge_fringe: f32,
+    rotation: f32,
+    cats_eye: f32,
+    edge_ring: f32,
+    bubble: f32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+
+    // 1. Gaussian blur base (sigma = radius / 2).
+    gaussian_blur_inner(input, output, width, height, radius as f64 / 2.0);
+
+    // 2. Add bokeh highlights.
+    let w_i = w as i32;
+    let h_i = h as i32;
+    let r_i = radius as i32;
+    let step = (radius / 2).max(1) as i32;
+    let r_f = radius as f32;
+
+    let half_w = w_i as f32 / 2.0;
+    let half_h = h_i as f32 / 2.0;
+
+    let rot_rad = rotation * std::f32::consts::PI / 180.0;
+    let (rot_sin, rot_cos) = rot_rad.sin_cos();
+
+    // Smoothstep falloff: softer feathering than linear clamp.
+    // Shapes: 0=circle 1=hexagon 2=triangle 3=pentagon 4=octagon 5=star
+    let get_in_shape = |d: f32, s: f32, sh: u32, dx: f32, dy: f32| -> f32 {
+        let t = if sh == BOKEH_SHAPE_CIRCLE {
+            ((d - r_f) / (s * r_f + 0.1)).clamp(0.0, 1.0)
+        } else if sh == BOKEH_SHAPE_STAR {
+            // 6-pointed diffraction star: alternating outer/inner radius per sector
+            let b = std::f32::consts::PI / 6.0;
+            let fa = (dy.atan2(dx) + b).rem_euclid(2.0 * b) - b;
+            let t_a = fa.abs() / b;
+            let ri = r_f * 0.42 + (r_f - r_f * 0.42) * (1.0 - t_a * t_a);
+            ((d - ri) / (s * r_f + 0.1)).clamp(0.0, 1.0)
+        } else {
+            // N-gon via folded-angle SDF
+            let n = if sh == BOKEH_SHAPE_HEXAGON { 6.0f32 }
+                    else if sh == BOKEH_SHAPE_TRIANGLE { 3.0 }
+                    else if sh == BOKEH_SHAPE_PENTAGON { 5.0 }
+                    else { 8.0 }; // OCTAGON
+            let sector = std::f32::consts::TAU / n;
+            let fa = (dy.atan2(dx) + std::f32::consts::PI / n).rem_euclid(sector) - std::f32::consts::PI / n;
+            let cs = (std::f32::consts::PI / n).cos();
+            let poly_d = d * fa.cos() - r_f * cs;
+            (poly_d / (s * r_f * cs + 0.1)).clamp(0.0, 1.0)
+        };
+        1.0 - t * t * (3.0 - 2.0 * t)
+    };
+
+    for y in (0..h_i).step_by(step as usize) {
+        for x in (0..w_i).step_by(step as usize) {
+            let ci = ((y as usize) * w + (x as usize)) * 4;
+            let r_src = input[ci] as f32;
+            let g_src = input[ci + 1] as f32;
+            let b_src = input[ci + 2] as f32;
+            let lum = 0.2126 * r_src + 0.7152 * g_src + 0.0722 * b_src;
+
+            // Local-contrast detection: blend global threshold with local excess over
+            // the blurred neighbourhood. output[ci] holds the blur value at this grid
+            // position because gaussian_blur_inner has already run.
+            let blur_lum = 0.2126 * output[ci] as f32 + 0.7152 * output[ci + 1] as f32 + 0.0722 * output[ci + 2] as f32;
+            let baseline = blur_lum * local_detect;
+            let adj_threshold = threshold * (1.0 - local_detect * 0.85);
+            let bokeh_strength = ((lum - baseline - adj_threshold) / (255.0 - baseline - adj_threshold).max(1.0)).max(0.0);
+            if bokeh_strength <= 0.0 { continue; }
+
+            let bokeh_intensity = bokeh_strength * intensity;
+
+            // Cat's eye: two-disc intersection creates crescent shapes near frame edges.
+            // toCenter is the direction from grid position toward the frame centre.
+            let to_cx = half_w - x as f32;
+            let to_cy = half_h - y as f32;
+            let dist_to_center = (to_cx * to_cx + to_cy * to_cy).sqrt();
+            let center_diag = (half_w * half_w + half_h * half_h).sqrt();
+            let norm_dist = (dist_to_center / center_diag.max(1.0)).min(1.0);
+
+            // Radial direction toward centre, rotated into shape space.
+            let (rad_x, rad_y) = if cats_eye > 0.0 && dist_to_center > 0.001 {
+                let rx = to_cx / dist_to_center;
+                let ry = to_cy / dist_to_center;
+                // Rotate radial dir into shape frame.
+                (rx * rot_cos - ry * rot_sin, rx * rot_sin + ry * rot_cos)
+            } else { (0.0, 0.0) };
+
+            for dy in -r_i..=r_i {
+                for dx in -r_i..=r_i {
+                    let px = x + dx;
+                    let py = y + dy;
+                    if px < 0 || px >= w_i || py < 0 || py >= h_i { continue; }
+
+                    // Rotate delta into shape space.
+                    let (r_dx, r_dy) = if shape != BOKEH_SHAPE_CIRCLE || rotation != 0.0 {
+                        let fx = dx as f32;
+                        let fy = dy as f32;
+                        (fx * rot_cos - fy * rot_sin, fx * rot_sin + fy * rot_cos)
+                    } else {
+                        (dx as f32, dy as f32)
+                    };
+
+                    let dist = (r_dx * r_dx + r_dy * r_dy).sqrt();
+                    let mut in_shape_val = get_in_shape(dist, softness, shape, r_dx, r_dy);
+                    if in_shape_val <= 0.0 { continue; }
+
+                    // Cat's eye: intersect with second disc offset toward frame centre.
+                    if cats_eye > 0.0 {
+                        let cats_offset_x = rad_x * cats_eye * norm_dist * r_f * 0.6;
+                        let cats_offset_y = rad_y * cats_eye * norm_dist * r_f * 0.6;
+                        let d2x = r_dx - cats_offset_x;
+                        let d2y = r_dy - cats_offset_y;
+                        let dist2 = (d2x * d2x + d2y * d2y).sqrt();
+                        let in_shape2 = get_in_shape(dist2, softness, shape, d2x, d2y);
+                        in_shape_val = in_shape_val.min(in_shape2);
+                        if in_shape_val <= 0.0 { continue; }
+                    }
+
+                    // Bubble: hollow out the interior — only the rim glows.
+                    if bubble > 0.0 {
+                        let t = (dist / (r_f * 0.75)).clamp(0.0, 1.0);
+                        let inner_fade = t * t * (3.0 - 2.0 * t); // smoothstep 0→1
+                        in_shape_val *= 1.0 - bubble * (1.0 - inner_fade);
+                        if in_shape_val <= 0.0 { continue; }
+                    }
+
+                    // Ring effect (soap bubble edge).
+                    let ring_fade = if edge_ring > 0.0 && dist > r_f * 0.7 {
+                        let ring_t = ((dist - r_f * 0.7) / (r_f * 0.3)).clamp(0.0, 1.0);
+                        1.0 + edge_ring * ring_t * 2.0
+                    } else {
+                        in_shape_val
+                    };
+
+                    let di = ((py as usize) * w + (px as usize)) * 4;
+                    let add_base = bokeh_intensity * ring_fade * 80.0;
+
+                    unsafe {
+                        // Edge fringe: R/B channels use slightly different disc sizes (lateral CA)
+                        // plus a UV offset so the source colour also shifts per channel.
+                        let (r_val, b_val) = if edge_fringe != 0.0 {
+                            let scale_fringe = edge_fringe * 0.05;
+                            let r_fscale = 1.0 + scale_fringe;
+                            let b_fscale = 1.0 - scale_fringe;
+                            let r_fringe = get_in_shape(dist / r_fscale, softness, shape, r_dx / r_fscale, r_dy / r_fscale);
+                            let b_fringe = get_in_shape(dist / b_fscale, softness, shape, r_dx / b_fscale, r_dy / b_fscale);
+
+                            // Lateral UV shift for source colour.
+                            let shift = edge_fringe * 0.012;
+                            // "gridUV - 0.5" in image coords = (x/w - 0.5, y/h - 0.5)
+                            let uv_x = x as f32 / w_i as f32 - 0.5;
+                            let uv_y = y as f32 / h_i as f32 - 0.5;
+                            let rx_pos = ((x as f32 + uv_x * shift * w_i as f32).round() as i32).clamp(0, w_i - 1) as usize;
+                            let ry_pos = ((y as f32 + uv_y * shift * h_i as f32).round() as i32).clamp(0, h_i - 1) as usize;
+                            let bx_pos = ((x as f32 - uv_x * shift * w_i as f32).round() as i32).clamp(0, w_i - 1) as usize;
+                            let by_pos = ((y as f32 - uv_y * shift * h_i as f32).round() as i32).clamp(0, h_i - 1) as usize;
+                            let r_ci = (ry_pos * w + rx_pos) * 4;
+                            let b_ci = (by_pos * w + bx_pos) * 4;
+
+                            (r_fringe * input[r_ci] as f32, b_fringe * input[b_ci + 2] as f32)
+                        } else {
+                            (in_shape_val * r_src, in_shape_val * b_src)
+                        };
+
+                        let nr = (output[di] as f32 + add_base * r_val / 255.0).min(255.0);
+                        let ng = (output[di + 1] as f32 + add_base * in_shape_val * g_src / 255.0).min(255.0);
+                        let nb = (output[di + 2] as f32 + add_base * b_val / 255.0).min(255.0);
+
+                        *output.get_unchecked_mut(di) = nr as u8;
+                        *output.get_unchecked_mut(di + 1) = ng as u8;
+                        *output.get_unchecked_mut(di + 2) = nb as u8;
+                    }
+                }
+            }
+        }
+    }
+}
+
 // === Median filter (circular neighborhood) ===
 //
 // Mirrors src/filters/medianFilter.ts: for each pixel, collect samples from a
@@ -1621,8 +1826,8 @@ pub fn bloom_buffer(
 // buffer and the vertical pass writes u8 output rounded via JS Math.round
 // semantics so parity is preserved.
 
-#[wasm_bindgen]
-pub fn gaussian_blur_buffer(
+#[inline]
+fn gaussian_blur_inner(
     input: &[u8],
     output: &mut [u8],
     width: u32,
@@ -1667,17 +1872,7 @@ pub fn gaussian_blur_buffer(
         unsafe { *input_f32.get_unchecked_mut(i) = *input.get_unchecked(i) as f32; }
     }
 
-    // Horizontal pass. The inner accumulation is split into three regions:
-    // - Left edge (x < radius): per-sample clamp, can't auto-vectorise.
-    // - Interior (radius ≤ x < w-radius): contiguous stride-1 reads through
-    //   input, which LLVM auto-vectorises to v128 f32 multiply-adds.
-    // - Right edge (x ≥ w-radius): per-sample clamp.
-    //
-    // When w ≤ 2*radius the whole row is "edge" and we only use the clamped path.
-    //
-    // We accumulate R/G/B/A together because the packed RGBA layout gives good
-    // memory locality — SIMD still helps inside the k loop even though the
-    // four channels aren't vectorised together.
+    // Horizontal pass.
     let interior_x_start = radius.min(w);
     let interior_x_end = if w > radius { w - radius } else { 0 };
 
@@ -1685,24 +1880,20 @@ pub fn gaussian_blur_buffer(
         let row_base = y * w;
         let row_px_base = row_base * 4;
 
-        // --- Left edge (and entire row when narrow) ---
         for x in 0..interior_x_start.min(interior_x_end.max(interior_x_start)) {
             let mut acc = f32x4_splat(0.0);
             for k in 0..k_size {
                 let raw = x as i32 + k as i32 - radius as i32;
                 let nx = raw.clamp(0, w as i32 - 1) as usize;
                 let si = (row_base + nx) * 4;
-                // SAFETY: si + 3 < input_f32.len().
                 let pix = unsafe { v128_load(input_f32.as_ptr().add(si) as *const v128) };
                 let wk = f32x4_splat(unsafe { *kernel.get_unchecked(k) });
                 acc = f32x4_add(acc, f32x4_mul(pix, wk));
             }
             let ti = (row_base + x) * 4;
-            // SAFETY: ti + 3 < temp.len().
             unsafe { v128_store(temp.as_mut_ptr().add(ti) as *mut v128, acc); }
         }
 
-        // --- Interior: stride-1 neighbour access (explicit v128 FMA) ---
         if interior_x_end > interior_x_start {
             for x in interior_x_start..interior_x_end {
                 let window_base = row_px_base + (x - radius) * 4;
@@ -1718,7 +1909,6 @@ pub fn gaussian_blur_buffer(
             }
         }
 
-        // --- Right edge (only when there was an interior range) ---
         if interior_x_end > interior_x_start {
             for x in interior_x_end..w {
                 let mut acc = f32x4_splat(0.0);
@@ -1736,14 +1926,10 @@ pub fn gaussian_blur_buffer(
         }
     }
 
-    // Vertical pass — final u8 write. Same left/interior/right split; the
-    // interior case is stride-w through temp, which LLVM also vectorises
-    // because w is loop-invariant.
+    // Vertical pass — final u8 write.
     let interior_y_start = radius.min(h);
     let interior_y_end = if h > radius { h - radius } else { 0 };
 
-    // Helper — convert an f32x4 accumulator to four u8 output bytes using
-    // JS Math.round semantics ((x + 0.5).floor(), clamped to [0, 255]).
     #[inline]
     fn write_pixel_from_v128(output: &mut [u8], i: usize, acc: v128) {
         let r_f = f32x4_extract_lane::<0>(acc);
@@ -1758,7 +1944,6 @@ pub fn gaussian_blur_buffer(
         }
     }
 
-    // Top edge (and entire image when short).
     for y in 0..interior_y_start.min(interior_y_end.max(interior_y_start)) {
         for x in 0..w {
             let mut acc = f32x4_splat(0.0);
@@ -1774,7 +1959,6 @@ pub fn gaussian_blur_buffer(
         }
     }
 
-    // Interior rows — known-safe stride-w access, explicit v128 FMA.
     if interior_y_end > interior_y_start {
         for y in interior_y_start..interior_y_end {
             let top_row_base = (y - radius) * w * 4;
@@ -1792,7 +1976,6 @@ pub fn gaussian_blur_buffer(
         }
     }
 
-    // Bottom edge.
     if interior_y_end > interior_y_start {
         for y in interior_y_end..h {
             for x in 0..w {
@@ -1810,6 +1993,18 @@ pub fn gaussian_blur_buffer(
         }
     }
 }
+
+#[wasm_bindgen]
+pub fn gaussian_blur_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    sigma: f64,
+) {
+    gaussian_blur_inner(input, output, width, height, sigma);
+}
+
 
 // === Grain merge (box blur high-pass + mix) ===
 //

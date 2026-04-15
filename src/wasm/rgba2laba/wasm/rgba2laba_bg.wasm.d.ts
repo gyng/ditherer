@@ -13,6 +13,7 @@ export const error_diffuse_custom_order: (a: number, b: number, c: number, d: nu
 export const ordered_dither_linear_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number) => void;
 export const quantize_buffer_hsv: (a: number, b: number, c: number, d: number) => [number, number];
 export const anime_color_grade_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+export const bokeh_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number) => void;
 export const median_filter_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
 export const bloom_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number) => void;
 export const gaussian_blur_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;

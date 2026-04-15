@@ -63,6 +63,31 @@ export function bloom_buffer(input, output, width, height, threshold, strength, 
  * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
+ * @param {number} radius
+ * @param {number} threshold
+ * @param {number} intensity
+ * @param {number} shape
+ * @param {number} local_detect
+ * @param {number} softness
+ * @param {number} edge_fringe
+ * @param {number} rotation
+ * @param {number} cats_eye
+ * @param {number} edge_ring
+ * @param {number} bubble
+ */
+export function bokeh_buffer(input, output, width, height, radius, threshold, intensity, shape, local_detect, softness, edge_fringe, rotation, cats_eye, edge_ring, bubble) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.bokeh_buffer(ptr0, len0, ptr1, len1, output, width, height, radius, threshold, intensity, shape, local_detect, softness, edge_fringe, rotation, cats_eye, edge_ring, bubble);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
  * @param {Float64Array} kernel
  * @param {number} kernel_width
  * @param {number} kernel_height

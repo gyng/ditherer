@@ -1,18 +1,39 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  getBufferIndex,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+  logFilterBackend,
+  wasmBokehBuffer,
+} from "utils";
 import { defineFilter } from "filters/types";
+import { applyPaletteToBuffer, paletteIsIdentity as isIdentityPalette } from "palettes/backend";
+import { bokehGLAvailable, renderBokehGL } from "./bokehGL";
 
-const SHAPE = { CIRCLE: "CIRCLE", HEXAGON: "HEXAGON" };
+const SHAPE = { CIRCLE: "CIRCLE", HEXAGON: "HEXAGON", TRIANGLE: "TRIANGLE", PENTAGON: "PENTAGON", OCTAGON: "OCTAGON", STAR: "STAR" };
+const SHAPE_TO_ID = { [SHAPE.CIRCLE]: 0, [SHAPE.HEXAGON]: 1, [SHAPE.TRIANGLE]: 2, [SHAPE.PENTAGON]: 3, [SHAPE.OCTAGON]: 4, [SHAPE.STAR]: 5 };
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [2, 20], step: 1, default: 8, desc: "Size of blur kernel and bokeh highlight shapes" },
-  threshold: { type: RANGE, range: [100, 255], step: 1, default: 200, desc: "Luminance cutoff — brighter pixels become bokeh highlights" },
+  radius: { type: RANGE, range: [2, 30], step: 1, default: 10, desc: "Size of blur kernel and bokeh highlight shapes" },
+  threshold: { type: RANGE, range: [100, 255], step: 1, default: 185, desc: "Luminance cutoff — brighter pixels become bokeh highlights" },
   intensity: { type: RANGE, range: [0, 2], step: 0.1, default: 1, desc: "Brightness multiplier for the bokeh highlight shapes" },
   shape: { type: ENUM, options: [
     { name: "Circle", value: SHAPE.CIRCLE },
-    { name: "Hexagon", value: SHAPE.HEXAGON }
-  ], default: SHAPE.CIRCLE, desc: "Shape of the bokeh highlight" },
+    { name: "Triangle (3-blade)", value: SHAPE.TRIANGLE },
+    { name: "Pentagon (5-blade)", value: SHAPE.PENTAGON },
+    { name: "Hexagon (6-blade)", value: SHAPE.HEXAGON },
+    { name: "Octagon (8-blade)", value: SHAPE.OCTAGON },
+    { name: "Star (diffraction)", value: SHAPE.STAR },
+  ], default: SHAPE.HEXAGON, desc: "Shape of the bokeh highlight" },
+  localDetect: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "0 = global threshold; 1 = only pixels brighter than their blurred neighbourhood (real light sources)" },
+  softness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.15, desc: "Feathering of the bokeh disc edges (smoothstep falloff)" },
+  bubble: { type: RANGE, range: [0, 1], step: 0.05, default: 0.25, desc: "Hollow out the disc interior — 0 = solid, 1 = ring only (soap bubble)" },
+  edgeRing: { type: RANGE, range: [0, 2], step: 0.1, default: 0.4, desc: "Boost brightness at the outer rim (combine with Bubble for a soap-bubble look)" },
+  edgeFringe: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Chromatic aberration: R/B discs shift in size and source position" },
+  rotation: { type: RANGE, range: [0, 180], step: 1, default: 15, desc: "Rotation of the bokeh shape" },
+  catsEye: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Mechanical vignetting: shapes near frame edges become crescent-shaped" },
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -20,12 +41,23 @@ export const defaults = {
   radius: optionTypes.radius.default,
   threshold: optionTypes.threshold.default,
   intensity: optionTypes.intensity.default,
-  shape: optionTypes.shape.default,
+  shape: optionTypes.shape.default as string,
+  localDetect: optionTypes.localDetect.default,
+  softness: optionTypes.softness.default,
+  bubble: optionTypes.bubble.default,
+  edgeRing: optionTypes.edgeRing.default,
+  edgeFringe: optionTypes.edgeFringe.default,
+  rotation: optionTypes.rotation.default,
+  catsEye: optionTypes.catsEye.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const bokeh = (input: any, options = defaults) => {
-  const { radius, threshold, intensity, shape, palette } = options;
+type BokehOptions = typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean };
+
+const bokeh = (input: any, options: BokehOptions = defaults) => {
+  const { radius, threshold, intensity, shape, localDetect, softness, bubble, edgeRing, edgeFringe, rotation, catsEye, palette } = options;
+  const wasmOk: boolean = (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false;
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -33,8 +65,34 @@ const bokeh = (input: any, options = defaults) => {
 
   const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
+  const paletteIdentity = isIdentityPalette(palette);
+  const shapeId = SHAPE_TO_ID[shape] ?? 0;
 
-  // Gaussian blur base
+  // GL fast path
+  if (
+    paletteIdentity
+    && wasmOk
+    && options._webglAcceleration !== false
+    && bokehGLAvailable()
+  ) {
+    const rendered = renderBokehGL(input, W, H, radius, threshold, intensity, shapeId, localDetect, softness, edgeFringe, rotation, catsEye, edgeRing, bubble);
+    if (rendered) {
+      logFilterBackend("Bokeh", "WebGL2", `gpu radius=${radius} shape=${shape}`);
+      return rendered;
+    }
+  }
+
+  if (wasmIsLoaded() && wasmOk) {
+    const outBuf = new Uint8ClampedArray(buf.length);
+    wasmBokehBuffer(buf, outBuf, W, H, radius, threshold, intensity, shapeId, localDetect, softness, edgeFringe, rotation, catsEye, edgeRing, bubble);
+    applyPaletteToBuffer(outBuf, outBuf, W, H, palette, wasmOk);
+    logFilterWasmStatus("Bokeh", true, paletteIdentity ? `radius=${radius}` : `radius=${radius}+palettePass`);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Bokeh", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
+
+  // Basic JS fallback
   const blurR = new Float32Array(W * H);
   const blurG = new Float32Array(W * H);
   const blurB = new Float32Array(W * H);
@@ -69,7 +127,6 @@ const bokeh = (input: any, options = defaults) => {
       blurR[pi] = sr / sw; blurG[pi] = sg / sw; blurB[pi] = sb / sw;
     }
 
-  // Start with blurred image
   const outBuf = new Uint8ClampedArray(buf.length);
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -78,48 +135,59 @@ const bokeh = (input: any, options = defaults) => {
       outBuf[di] = Math.round(blurR[pi]); outBuf[di + 1] = Math.round(blurG[pi]); outBuf[di + 2] = Math.round(blurB[pi]); outBuf[di + 3] = buf[di + 3];
     }
 
-  // Add bokeh highlights: find bright pixels and stamp shapes
+  // Highlights
   for (let y = 0; y < H; y += Math.max(1, Math.floor(radius / 2))) {
     for (let x = 0; x < W; x += Math.max(1, Math.floor(radius / 2))) {
       const ci = getBufferIndex(x, y, W);
       const lum = 0.2126 * buf[ci] + 0.7152 * buf[ci + 1] + 0.0722 * buf[ci + 2];
-      if (lum < threshold) continue;
-
-      const bokehIntensity = ((lum - threshold) / (255 - threshold)) * intensity;
-
+      const pi = y * W + x;
+      const blurLum = 0.2126 * blurR[pi] + 0.7152 * blurG[pi] + 0.0722 * blurB[pi];
+      const baseline = blurLum * localDetect;
+      const adjThreshold = threshold * (1 - localDetect * 0.85);
+      const bokehStrength = Math.max(0, (lum - baseline - adjThreshold) / Math.max(1, 255 - baseline - adjThreshold));
+      if (bokehStrength <= 0) continue;
+      const bokehIntensity = bokehStrength * intensity;
       for (let dy = -radius; dy <= radius; dy++) {
         for (let dx = -radius; dx <= radius; dx++) {
           const px = x + dx, py = y + dy;
           if (px < 0 || px >= W || py < 0 || py >= H) continue;
-
-          const inShape = shape === SHAPE.CIRCLE
-            ? dx * dx + dy * dy <= radius * radius
-            : Math.abs(dy) <= radius * 0.866 && Math.abs(dx) + Math.abs(dy) * 0.577 <= radius;
-          if (!inShape) continue;
-
-          // Edge falloff
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const edgeFade = Math.max(0, 1 - dist / radius);
-          const ringFade = dist > radius * 0.7 ? 1.5 : edgeFade; // Bright ring at edge
-
+          const dist2 = Math.sqrt(dx * dx + dy * dy);
+          let inShapeCoarse: boolean;
+          if (shape === SHAPE.CIRCLE) {
+            inShapeCoarse = dist2 <= radius;
+          } else if (shape === SHAPE.STAR) {
+            const b = Math.PI / 6;
+            const fa = Math.abs(((Math.atan2(dy, dx) + b) % (2 * b) + 2 * b) % (2 * b) - b);
+            const ri = radius * 0.42 + (radius - radius * 0.42) * (1 - (fa / b) ** 2);
+            inShapeCoarse = dist2 <= ri;
+          } else {
+            const n = shape === SHAPE.HEXAGON ? 6 : shape === SHAPE.TRIANGLE ? 3 : shape === SHAPE.PENTAGON ? 5 : 8;
+            const sector = 2 * Math.PI / n;
+            const fa = ((Math.atan2(dy, dx) + Math.PI / n) % sector + sector) % sector - Math.PI / n;
+            const cs = Math.cos(Math.PI / n);
+            inShapeCoarse = dist2 * Math.cos(fa) <= radius * cs;
+          }
+          if (!inShapeCoarse) continue;
+          const t = Math.max(0, Math.min(1, (dist2 - radius) / (softness * radius + 0.1)));
+          let inShapeVal = 1 - t * t * (3 - 2 * t); // smoothstep
+          // Bubble: hollow interior
+          if (bubble > 0) {
+            const bt = Math.min(1, dist2 / (radius * 0.75));
+            inShapeVal *= 1 - bubble * (1 - bt * bt * (3 - 2 * bt));
+          }
+          if (inShapeVal <= 0) continue;
+          const ringFade = dist2 > radius * 0.7 ? 1.0 + edgeRing : inShapeVal;
           const di = getBufferIndex(px, py, W);
           const add = bokehIntensity * ringFade * 80;
-          outBuf[di] = Math.min(255, outBuf[di] + Math.round(add * buf[ci] / 255));
-          outBuf[di + 1] = Math.min(255, outBuf[di + 1] + Math.round(add * buf[ci + 1] / 255));
-          outBuf[di + 2] = Math.min(255, outBuf[di + 2] + Math.round(add * buf[ci + 2] / 255));
+          outBuf[di] = Math.min(255, outBuf[di] + Math.round(add * inShapeVal * buf[ci] / 255));
+          outBuf[di + 1] = Math.min(255, outBuf[di + 1] + Math.round(add * inShapeVal * buf[ci + 1] / 255));
+          outBuf[di + 2] = Math.min(255, outBuf[di + 2] + Math.round(add * inShapeVal * buf[ci + 2] / 255));
         }
       }
     }
   }
 
-  // Apply palette
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
-    }
-
+  applyPaletteToBuffer(outBuf, outBuf, W, H, palette, wasmOk);
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
 };

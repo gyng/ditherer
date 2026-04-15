@@ -197,6 +197,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmMedianFilterInner = mod.median_filter_buffer;
   wasmAnimeColorGradeInner = mod.anime_color_grade_buffer;
   wasmGaussianBlurInner = mod.gaussian_blur_buffer;
+  wasmBokehInner = mod.bokeh_buffer;
   wasmBloomInner = mod.bloom_buffer;
   wasmTriangleDitherInner = mod.triangle_dither_buffer;
   wasmScanlineWarpInner = mod.scanline_warp_buffer;
@@ -475,6 +476,25 @@ type WasmGaussianBlurFn = {
     width: number,
     height: number,
     sigma: number,
+  ): void;
+}["bivarianceHack"];
+type WasmBokehFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    radius: number,
+    threshold: number,
+    intensity: number,
+    shape: number,
+    localDetect: number,
+    softness: number,
+    edgeFringe: number,
+    rotation: number,
+    catsEye: number,
+    edgeRing: number,
+    bubble: number,
   ): void;
 }["bivarianceHack"];
 type WasmBloomFn = {
@@ -856,6 +876,10 @@ let wasmGaussianBlurInner: WasmGaussianBlurFn = () => {
   console.error("WASM module not loaded!");
 };
 
+let wasmBokehInner: WasmBokehFn = () => {
+  console.error("WASM module not loaded!");
+};
+
 let wasmBloomInner: WasmBloomFn = () => {
   console.error("WASM module not loaded!");
 };
@@ -1185,6 +1209,24 @@ export const wasmGaussianBlurBuffer = (
   height: number,
   sigma: number,
 ): void => wasmGaussianBlurInner(input, output, width, height, sigma);
+
+export const wasmBokehBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+  threshold: number,
+  intensity: number,
+  shape: number,
+  localDetect: number,
+  softness: number,
+  edgeFringe: number,
+  rotation: number,
+  catsEye: number,
+  edgeRing: number,
+  bubble: number,
+): void => wasmBokehInner(input, output, width, height, radius, threshold, intensity, shape, localDetect, softness, edgeFringe, rotation, catsEye, edgeRing, bubble);
 
 // Bloom: threshold bright pixels, separable box blur, additive composite.
 // The JS side resolves relative threshold (needs a max-luminance scan) before
