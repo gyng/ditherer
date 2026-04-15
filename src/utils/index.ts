@@ -201,6 +201,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmTriangleDitherInner = mod.triangle_dither_buffer;
   wasmScanlineWarpInner = mod.scanline_warp_buffer;
   wasmVintageTvInner = mod.vintage_tv_buffer;
+  wasmRgbStripeInner = mod.rgbstripe_buffer;
   wasmLcdDisplayInner = mod.lcd_display_buffer;
   wasmOilPaintingInner = mod.oil_painting_buffer;
   wasmLensDistortionInner = mod.lens_distortion_buffer;
@@ -565,6 +566,41 @@ type WasmVintageTvFn = {
     glow: number,
   ): void;
 }["bivarianceHack"];
+type WasmRgbStripeFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    prevOutput: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    mask: Float64Array,
+    maskW: number,
+    maskH: number,
+    brightness: number,
+    contrast: number,
+    exposure: number,
+    gamma: number,
+    phosphorScale: number,
+    scanlineGap: number,
+    scanlineStrength: number,
+    includeScanline: number,
+    misconvergence: number,
+    beamSpread: number,
+    bloom: number,
+    bloomThreshold: number,
+    bloomRadius: number,
+    bloomStrength: number,
+    curvature: number,
+    vignette: number,
+    interlace: number,
+    interlaceField: number,
+    persistence: number,
+    flicker: number,
+    frameIndex: number,
+    degaussFrame: number,
+    paletteLevels: number,
+  ): void;
+}["bivarianceHack"];
 type WasmScanlineWarpFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -768,6 +804,10 @@ let wasmTiltShiftInner: WasmTiltShiftFn = () => {
 };
 
 let wasmVintageTvInner: WasmVintageTvFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmRgbStripeInner: WasmRgbStripeFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -1229,6 +1269,53 @@ export const wasmVintageTvBuffer = (
   frameIndex: number,
   glow: number,
 ): void => wasmVintageTvInner(input, output, width, height, banding, colorFringe, rollOffset, frameIndex, glow);
+
+// rgbStripe (CRT emulation): full pipeline port — misconvergence pre-pass,
+// curvature, degauss warp+hue rotation, RGB shadow-mask multiply, BCG chain,
+// scanlines, flicker, vignette, palette quantize (inline), beam spread,
+// bloom, persistence. `paletteLevels` sentinel: 0 or ≥256 means no palette,
+// 2–255 is nearest quantization applied before the post-passes so they
+// operate on the same values as the JS reference pipeline.
+export const wasmRgbStripeBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  prevOutput: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  mask: Float64Array,
+  maskW: number,
+  maskH: number,
+  brightness: number,
+  contrast: number,
+  exposure: number,
+  gamma: number,
+  phosphorScale: number,
+  scanlineGap: number,
+  scanlineStrength: number,
+  includeScanline: number,
+  misconvergence: number,
+  beamSpread: number,
+  bloom: number,
+  bloomThreshold: number,
+  bloomRadius: number,
+  bloomStrength: number,
+  curvature: number,
+  vignette: number,
+  interlace: number,
+  interlaceField: number,
+  persistence: number,
+  flicker: number,
+  frameIndex: number,
+  degaussFrame: number,
+  paletteLevels: number,
+): void => wasmRgbStripeInner(
+  input, output, prevOutput, width, height, mask, maskW, maskH,
+  brightness, contrast, exposure, gamma,
+  phosphorScale, scanlineGap, scanlineStrength, includeScanline,
+  misconvergence, beamSpread, bloom, bloomThreshold, bloomRadius, bloomStrength,
+  curvature, vignette, interlace, interlaceField,
+  persistence, flicker, frameIndex, degaussFrame, paletteLevels,
+);
 
 // Scanline Warp: sin-driven per-row horizontal shift with bilinear sampling.
 export const wasmScanlineWarpBuffer = (

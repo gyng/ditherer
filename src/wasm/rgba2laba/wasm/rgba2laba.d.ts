@@ -68,6 +68,8 @@ export function rgba_laba_distance(r1: number, g1: number, b1: number, a1: numbe
  */
 export function rgba_nearest_lab_index(r: number, g: number, b: number, a: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
 
+export function rgbstripe_buffer(input: Uint8Array, output: Uint8Array, prev_output: Uint8Array, width: number, height: number, mask: Float64Array, mask_w: number, mask_h: number, brightness: number, contrast: number, exposure: number, gamma: number, phosphor_scale: number, scanline_gap: number, scanline_strength: number, include_scanline: number, misconvergence: number, beam_spread: number, bloom: number, bloom_threshold: number, bloom_radius: number, bloom_strength: number, curvature: number, vignette: number, interlace: number, interlace_field: number, persistence: number, flicker: number, frame_index: number, degauss_frame: number, palette_levels: number): void;
+
 export function scanline_warp_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, amplitude: number, frequency: number, phase_rad: number, anim_offset: number): void;
 
 export function tilt_shift_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, focus_position: number, focus_width: number, blur_amount: number, saturation_boost: number): void;
@@ -100,6 +102,7 @@ export interface InitOutput {
     readonly lens_distortion_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number) => void;
     readonly tilt_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly vintage_tv_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => void;
+    readonly rgbstripe_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number) => void;
     readonly scanline_warp_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly lcd_display_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly triangle_dither_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;

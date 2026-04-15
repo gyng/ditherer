@@ -4,7 +4,6 @@ import { releasePooledCanvas, takePooledCanvas } from "utils";
 describe("canvas pool", () => {
   it("returns released canvases on subsequent takes of the same size", () => {
     const a = takePooledCanvas(32, 24);
-    a.width; // touch the API
     releasePooledCanvas(a);
     const b = takePooledCanvas(32, 24);
     expect(b).toBe(a);

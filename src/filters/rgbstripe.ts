@@ -1,20 +1,19 @@
-// Not ported to WASM. Attempted a full pipeline port (misconvergence
-// pre-pass + main loop + beam spread + bloom + persistence) with bit-exact
-// parity. Net result was ~0.77-0.95x at 1280x720 across defaults/variants.
+// Filter dispatch order (main thread, opts selecting which path runs):
+//   WebGL2 path → rgbstripeGL.ts, full pipeline on the GPU.
+//   WASM path   → src/wasm/rgba2laba `rgbstripe_buffer`, full pipeline on
+//                 the CPU with SIMD. Palette quantization is inlined at the
+//                 end of the Rust main loop (nearest only) so post-passes
+//                 match the JS reference ordering bit-exactly.
+//   JS path     → the reference implementation below. Runs when neither
+//                 accelerator is available or the palette is not shader-
+//                 portable (anything other than `nearest`).
 //
-// The blocker: the reference pipeline calls `paletteGetColor` per-pixel in
-// the main loop (default palette is `nearest` with levels=2, which heavily
-// quantizes), and the post-passes (beam spread / bloom) run on that
-// palette-quantized output. To preserve bit-parity we had to split the
-// WASM into pre-palette and post-palette halves, bouncing through a JS
-// per-pixel palette loop between them. That loop (~W*H callbacks) plus two
-// wasm-bindgen boundary crossings (each copying the buffer in and out) ate
-// the speedup of the main loop, which V8 already JITs competently.
-//
-// Making it a net win would require porting all palettes to Rust
-// (src/palettes/ includes a large user.ts with many named tables) or
-// special-casing the default nearest palette in WASM and falling back to JS
-// for anything else — both were more invasive than the gains justified.
+// Earlier history: a WASM port was rejected because the reference pipeline
+// called `paletteGetColor` per pixel between main and post-passes, which
+// required sandwiching a JS callback loop + two wasm-bindgen boundaries.
+// That was fixed by landing palette quantize as a first-class batch
+// primitive (`palettes/backend.ts`) and inlining the nearest path in the
+// Rust kernel; current measured win at 1280x720 is ~1.7x vs pure JS.
 
 import { ACTION, BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
@@ -29,7 +28,9 @@ import {
   contrast as contrastFunc,
   brightness as brightnessFunc,
   gamma as gammaFunc,
-  paletteGetColor
+  paletteGetColor,
+  wasmIsLoaded,
+  wasmRgbStripeBuffer,
 } from "utils";
 
 import convolve, {
@@ -374,9 +375,62 @@ const rgbStripe = (
       logGLPathOnce("WebGL2 (gpu)");
       return output;
     }
-  } else if (_wasmAcceleration !== false) {
+  }
+
+  // WASM fast path: runs when GL is off/unavailable but WASM is on and the
+  // palette is either identity or `nearest` — the quantization is inlined
+  // at the end of the main loop in Rust so the post-passes (beam spread,
+  // bloom, persistence) operate on the same palette-quantized values the
+  // JS reference produces. Non-nearest palettes still fall through to JS.
+  if (_wasmAcceleration !== false && paletteLevels !== null && wasmIsLoaded()) {
+    const effect = 1 - strength;
+    const maskTbl = masks[shadowMask as keyof typeof masks](effect);
+    const mH = maskTbl.length;
+    const mW = maskTbl[0].length;
+    const flat = new Float64Array(mH * mW * 3);
+    for (let my = 0; my < mH; my += 1) {
+      for (let mx = 0; mx < mW; mx += 1) {
+        const cell = maskTbl[my][mx];
+        flat[(my * mW + mx) * 3]     = cell[0];
+        flat[(my * mW + mx) * 3 + 1] = cell[1];
+        flat[(my * mW + mx) * 3 + 2] = cell[2];
+      }
+    }
+    const prev = prevOutput && prevOutput.length === buf.length
+      ? prevOutput
+      : new Uint8ClampedArray(0);
+    const interlaceField = interlace ? (frameIndex % 2) : -1;
+    const outBuf = new Uint8ClampedArray(buf.length);
+    wasmRgbStripeBuffer(
+      buf, outBuf, prev, W, H,
+      flat, mW, mH,
+      brightness, contrast, exposure, gamma,
+      Math.max(1, Math.round(phosphorScale)),
+      Math.max(1, Math.round(scanlineGap)),
+      scanlineStrength,
+      includeScanline ? 1 : 0,
+      misconvergence,
+      Math.round(beamSpread),
+      bloom ? 1 : 0,
+      bloomThreshold, bloomRadius, bloomStrength,
+      curvature, vignette,
+      interlace ? 1 : 0, interlaceField,
+      persistence, flicker,
+      frameIndex,
+      Number.isFinite(degaussFrame) ? degaussFrame : -2147483648,
+      paletteLevels,
+    );
+    outputCtx.putImageData(new ImageData(outBuf, output.width, output.height), 0, 0);
+    if (blur) {
+      const maybeBlurred = convolve.func(output, { ...convolveDefaults, kernel: GAUSSIAN_3X3_WEAK });
+      if (maybeBlurred instanceof HTMLCanvasElement) output = maybeBlurred;
+    }
+    logGLPathOnce("WASM (cpu)");
+    return output;
+  }
+  if (_wasmAcceleration !== false) {
     if (paletteLevels === null) logGLPathOnce("JS (palette not shader-portable)");
-    else if (!rgbStripeGLAvailable()) logGLPathOnce("JS (WebGL2 unavailable)");
+    else if (!rgbStripeGLAvailable() && !wasmIsLoaded()) logGLPathOnce("JS (no accelerator ready)");
   }
 
   const effectiveMisconvergence = misconvergence + degaussMisconvergence;

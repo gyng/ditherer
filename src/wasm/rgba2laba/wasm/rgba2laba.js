@@ -439,6 +439,51 @@ export function rgba_nearest_lab_index(r, g, b, a, palette, ref_x, ref_y, ref_z)
 /**
  * @param {Uint8Array} input
  * @param {Uint8Array} output
+ * @param {Uint8Array} prev_output
+ * @param {number} width
+ * @param {number} height
+ * @param {Float64Array} mask
+ * @param {number} mask_w
+ * @param {number} mask_h
+ * @param {number} brightness
+ * @param {number} contrast
+ * @param {number} exposure
+ * @param {number} gamma
+ * @param {number} phosphor_scale
+ * @param {number} scanline_gap
+ * @param {number} scanline_strength
+ * @param {number} include_scanline
+ * @param {number} misconvergence
+ * @param {number} beam_spread
+ * @param {number} bloom
+ * @param {number} bloom_threshold
+ * @param {number} bloom_radius
+ * @param {number} bloom_strength
+ * @param {number} curvature
+ * @param {number} vignette
+ * @param {number} interlace
+ * @param {number} interlace_field
+ * @param {number} persistence
+ * @param {number} flicker
+ * @param {number} frame_index
+ * @param {number} degauss_frame
+ * @param {number} palette_levels
+ */
+export function rgbstripe_buffer(input, output, prev_output, width, height, mask, mask_w, mask_h, brightness, contrast, exposure, gamma, phosphor_scale, scanline_gap, scanline_strength, include_scanline, misconvergence, beam_spread, bloom, bloom_threshold, bloom_radius, bloom_strength, curvature, vignette, interlace, interlace_field, persistence, flicker, frame_index, degauss_frame, palette_levels) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArray8ToWasm0(prev_output, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passArrayF64ToWasm0(mask, wasm.__wbindgen_malloc);
+    const len3 = WASM_VECTOR_LEN;
+    wasm.rgbstripe_buffer(ptr0, len0, ptr1, len1, output, ptr2, len2, width, height, ptr3, len3, mask_w, mask_h, brightness, contrast, exposure, gamma, phosphor_scale, scanline_gap, scanline_strength, include_scanline, misconvergence, beam_spread, bloom, bloom_threshold, bloom_radius, bloom_strength, curvature, vignette, interlace, interlace_field, persistence, flicker, frame_index, degauss_frame, palette_levels);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
  * @param {number} amplitude

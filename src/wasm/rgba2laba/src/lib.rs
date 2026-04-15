@@ -2401,6 +2401,440 @@ pub fn vintage_tv_buffer(
     }
 }
 
+// === rgbStripe (CRT emulation) ===
+//
+// Full pipeline WASM port. The earlier attempt at this was reverted because
+// every filter call had to sandwich a JS palette callback between the main
+// loop and the post-passes (beam spread / bloom / persistence), which broke
+// the win. With `palettes/backend.ts` exposing palette quantization as a
+// batch primitive — and, importantly, the WASM `apply_channel_lut` fast path
+// for nearest-style palettes — we can inline the quantization at the end of
+// the main loop: compute → palette quantize → write to output → post-passes
+// operate on palette-quantized u8 values, matching the JS reference ordering.
+//
+// `palette_levels` sentinel: 0 or ≥256 means "no palette" (identity). 2-255
+// means apply per-channel nearest quantization. Anything else (color-
+// distance palettes like User/Adaptive) is not shader-portable; the JS
+// wrapper must fall back to the pure-JS pipeline in that case.
+
+#[inline] fn rgbstripe_read_clamped_u8(buf: &[u8], x: i32, y: i32, w_i: i32, h_i: i32) -> (u8, u8, u8, u8) {
+    let cx = x.clamp(0, w_i - 1) as usize;
+    let cy = y.clamp(0, h_i - 1) as usize;
+    let i = (cy * (w_i as usize) + cx) * 4;
+    unsafe {
+        (
+            *buf.get_unchecked(i),
+            *buf.get_unchecked(i + 1),
+            *buf.get_unchecked(i + 2),
+            *buf.get_unchecked(i + 3),
+        )
+    }
+}
+
+#[inline] fn rgbstripe_invert_barrel(r_dst: f64, k: f64) -> f64 {
+    if r_dst == 0.0 { return 0.0; }
+    let mut r = r_dst;
+    for _ in 0..8 {
+        let r2 = r * r;
+        let f = r * (1.0 + k * r2) - r_dst;
+        let fp = 1.0 + 3.0 * k * r2;
+        if fp == 0.0 { break; }
+        r -= f / fp;
+    }
+    r
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn rgbstripe_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    prev_output: &[u8],
+    width: u32,
+    height: u32,
+    mask: &[f64],
+    mask_w: u32,
+    mask_h: u32,
+    brightness: f64,
+    contrast: f64,
+    exposure: f64,
+    gamma: f64,
+    phosphor_scale: u32,
+    scanline_gap: u32,
+    scanline_strength: f64,
+    include_scanline: u32,
+    misconvergence: f64,
+    beam_spread: u32,
+    bloom: u32,
+    bloom_threshold: f64,
+    bloom_radius: u32,
+    bloom_strength: f64,
+    curvature: f64,
+    vignette: f64,
+    interlace: u32,
+    interlace_field: i32,
+    persistence: f64,
+    flicker: f64,
+    frame_index: i32,
+    degauss_frame: i32,
+    palette_levels: u32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+    let w_i = width as i32;
+    let h_i = height as i32;
+
+    let has_prev = prev_output.len() == input.len();
+    let p_scale = phosphor_scale.max(1) as i32;
+    let gap = scanline_gap.max(1) as i32;
+    let mask_w_i = mask_w as i32;
+    let mask_h_i = mask_h as i32;
+
+    // Degauss state — matches JS exactly (45-frame decay).
+    const DEGAUSS_DURATION: i32 = 45;
+    let degauss_age = frame_index - degauss_frame;
+    let is_degaussing = degauss_age >= 0 && degauss_age < DEGAUSS_DURATION;
+    let degauss_t = if is_degaussing { 1.0 - (degauss_age as f64) / (DEGAUSS_DURATION as f64) } else { 0.0 };
+    let degauss_age_f = degauss_age as f64;
+
+    let degauss_misconvergence = if is_degaussing { misconvergence + degauss_t * degauss_t * 50.0 } else { 0.0 };
+    let degauss_wobble_x = if is_degaussing {
+        (degauss_age_f * 1.7).sin() * degauss_t * 30.0
+            + (degauss_age_f * 4.1).sin() * degauss_t * degauss_t * 15.0
+    } else { 0.0 };
+    let degauss_wobble_y = if is_degaussing {
+        (degauss_age_f * 2.3).cos() * degauss_t * 20.0
+            + (degauss_age_f * 5.7).cos() * degauss_t * degauss_t * 10.0
+    } else { 0.0 };
+    let effective_misconvergence = misconvergence + degauss_misconvergence;
+    let has_misconvergence = effective_misconvergence > 0.0;
+
+    // Misconvergence pre-pass: per-pixel radial channel offsets + degauss wobble.
+    let (r_buf, g_buf, b_buf);
+    let mut _scratch_r: Vec<u8>;
+    let mut _scratch_g: Vec<u8>;
+    let mut _scratch_b: Vec<u8>;
+    if has_misconvergence {
+        _scratch_r = vec![0u8; input.len()];
+        _scratch_g = vec![0u8; input.len()];
+        _scratch_b = vec![0u8; input.len()];
+        let half_w = (w as f64) / 2.0;
+        let half_h = (h as f64) / 2.0;
+        for x in 0..w_i {
+            for y in 0..h_i {
+                let i = ((y as usize) * w + (x as usize)) * 4;
+                let dx = ((x as f64) - half_w) / half_w;
+                let dy = ((y as f64) - half_h) / half_h;
+                let dist = (dx * dx + dy * dy).sqrt();
+                let offset = (effective_misconvergence * dist + 0.5).floor();
+                let r_off   = (dx * offset + degauss_wobble_x + 0.5).floor() as i32;
+                let r_off_y = (dy * offset * 0.3 + degauss_wobble_y + 0.5).floor() as i32;
+                let b_off   = (-dx * offset - degauss_wobble_x * 0.7 + 0.5).floor() as i32;
+                let b_off_y = (-dy * offset * 0.3 - degauss_wobble_y * 0.7 + 0.5).floor() as i32;
+                let g_off_x = (degauss_wobble_x * 0.3 + 0.5).floor() as i32;
+                let g_off_y = (degauss_wobble_y * 0.5 + 0.5).floor() as i32;
+                let rp = rgbstripe_read_clamped_u8(input, x + r_off, y + r_off_y, w_i, h_i);
+                let gp = rgbstripe_read_clamped_u8(input, x + g_off_x, y + g_off_y, w_i, h_i);
+                let bp = rgbstripe_read_clamped_u8(input, x + b_off,   y + b_off_y, w_i, h_i);
+                _scratch_r[i] = rp.0; _scratch_r[i+1] = rp.1; _scratch_r[i+2] = rp.2; _scratch_r[i+3] = rp.3;
+                _scratch_g[i] = gp.0; _scratch_g[i+1] = gp.1; _scratch_g[i+2] = gp.2; _scratch_g[i+3] = gp.3;
+                _scratch_b[i] = bp.0; _scratch_b[i+1] = bp.1; _scratch_b[i+2] = bp.2; _scratch_b[i+3] = bp.3;
+            }
+        }
+        r_buf = _scratch_r.as_slice();
+        g_buf = _scratch_g.as_slice();
+        b_buf = _scratch_b.as_slice();
+    } else {
+        r_buf = input;
+        g_buf = input;
+        b_buf = input;
+    }
+
+    // Per-frame scalars.
+    let flicker_active = flicker > 0.0;
+    let flicker_amount = if flicker_active {
+        let fi = frame_index as f64;
+        1.0 - flicker + flicker * ((fi * 7.3 + (fi * 3.1).cos()).sin() * 0.5 + 0.5)
+    } else { 1.0 };
+
+    let has_curvature = curvature > 0.0;
+    let cx = (w as f64) / 2.0;
+    let cy = (h as f64) / 2.0;
+    let r_norm = (cx * cx + cy * cy).sqrt();
+    let k = curvature * 2.0;
+    let has_vignette = vignette > 0.0;
+    let max_dist = r_norm;
+    let interlace_on = interlace != 0;
+    let inv_gamma = if gamma != 0.0 { 1.0 / gamma } else { 0.0 };
+    let scanline_on = include_scanline != 0;
+
+    // Palette quantize setup. 0 or ≥256 means identity (no-op).
+    let palette_step = if palette_levels >= 2 && palette_levels < 256 {
+        Some(255.0 / ((palette_levels - 1) as f64))
+    } else { None };
+
+    // Main pass — writes directly into `output` with palette already applied,
+    // so the post passes operate on palette-quantized u8 values (bit-parity
+    // with the JS reference pipeline).
+    for x in 0..w_i {
+        for y in 0..h_i {
+            let i = ((y as usize) * w + (x as usize)) * 4;
+
+            if interlace_on && (y % 2) != interlace_field {
+                if has_prev {
+                    output[i]   = prev_output[i];
+                    output[i+1] = prev_output[i+1];
+                    output[i+2] = prev_output[i+2];
+                    output[i+3] = prev_output[i+3];
+                } else {
+                    output[i] = 0; output[i+1] = 0; output[i+2] = 0;
+                    output[i+3] = input[i+3];
+                }
+                continue;
+            }
+
+            let mut src_x = x;
+            let mut src_y = y;
+            if has_curvature {
+                let nx = ((x as f64) - cx) / r_norm;
+                let ny = ((y as f64) - cy) / r_norm;
+                let r_dst = (nx * nx + ny * ny).sqrt();
+                let r_src = rgbstripe_invert_barrel(r_dst, k);
+                let s = if r_dst > 0.0 { r_src / r_dst } else { 1.0 };
+                src_x = (cx + nx * s * r_norm + 0.5).floor() as i32;
+                src_y = (cy + ny * s * r_norm + 0.5).floor() as i32;
+            }
+
+            if is_degaussing {
+                let warp_freq_x = 3.5 + degauss_age_f * 0.15;
+                let warp_freq_y = 2.8 + degauss_age_f * 0.12;
+                let warp_amp = degauss_t * degauss_t * 40.0;
+                src_x += (((y as f64) / (h as f64) * std::f64::consts::PI * warp_freq_y + degauss_age_f * 1.9).sin() * warp_amp + 0.5).floor() as i32;
+                src_y += (((x as f64) / (w as f64) * std::f64::consts::PI * warp_freq_x + degauss_age_f * 2.7).sin() * warp_amp * 0.5 + 0.5).floor() as i32;
+            }
+
+            if src_x < 0 || src_x >= w_i || src_y < 0 || src_y >= h_i {
+                // Out-of-bounds is still subject to palette quantize in JS
+                // (palette(0, 0, 0) for nearest levels=2 → 0, 0, 0; identity).
+                // Writing zeros matches both: quantize(0) = 0.
+                output[i] = 0; output[i+1] = 0; output[i+2] = 0; output[i+3] = 255;
+                continue;
+            }
+
+            let src_i = ((src_y as usize) * w + (src_x as usize)) * 4;
+            let mut src_r: f64;
+            let mut src_g: f64;
+            let mut src_b: f64;
+            if has_misconvergence {
+                src_r = r_buf[src_i] as f64;
+                src_g = g_buf[src_i + 1] as f64;
+                src_b = b_buf[src_i + 2] as f64;
+            } else {
+                src_r = input[src_i] as f64;
+                src_g = input[src_i + 1] as f64;
+                src_b = input[src_i + 2] as f64;
+            }
+            let src_a = input[src_i + 3];
+
+            if is_degaussing {
+                let ddx = ((x as f64) - cx) / cx;
+                let ddy = ((y as f64) - cy) / cy;
+                let hue_angle = degauss_t * degauss_t * std::f64::consts::PI * 1.5
+                    * (ddx * 2.5 + degauss_age_f * 1.3).sin()
+                    * (ddy * 2.0 + degauss_age_f * 0.9).cos();
+                let c = hue_angle.cos();
+                let s = hue_angle.sin();
+                let rr = src_r * (0.213 + 0.787 * c - 0.213 * s)
+                       + src_g * (0.715 - 0.715 * c - 0.715 * s)
+                       + src_b * (0.072 - 0.072 * c + 0.928 * s);
+                let gg = src_r * (0.213 - 0.213 * c + 0.143 * s)
+                       + src_g * (0.715 + 0.285 * c + 0.140 * s)
+                       + src_b * (0.072 - 0.072 * c - 0.283 * s);
+                let bb = src_r * (0.213 - 0.213 * c - 0.787 * s)
+                       + src_g * (0.715 - 0.715 * c + 0.715 * s)
+                       + src_b * (0.072 + 0.928 * c + 0.072 * s);
+                src_r = rr.clamp(0.0, 255.0);
+                src_g = gg.clamp(0.0, 255.0);
+                src_b = bb.clamp(0.0, 255.0);
+            }
+
+            let mask_xi = ((x / p_scale).rem_euclid(mask_w_i)) as usize;
+            let mask_yi = ((y / p_scale).rem_euclid(mask_h_i)) as usize;
+            let mask_idx = (mask_yi * (mask_w as usize) + mask_xi) * 3;
+            let mr = src_r * mask[mask_idx];
+            let mg = src_g * mask[mask_idx + 1];
+            let mb = src_b * mask[mask_idx + 2];
+
+            // brightness(c, b, e) = c*e + b
+            let br = mr * exposure + brightness;
+            let bg = mg * exposure + brightness;
+            let bb = mb * exposure + brightness;
+
+            // contrast(c, f): nC = c/255-0.5; (nC + f*(nC-1)*nC*(nC-0.5) + 0.5)*255
+            let contrast_ch = |v: f64| {
+                let n = v / 255.0 - 0.5;
+                (n + contrast * (n - 1.0) * n * (n - 0.5) + 0.5) * 255.0
+            };
+            let cr = contrast_ch(br);
+            let cg = contrast_ch(bg);
+            let cb = contrast_ch(bb);
+
+            // gamma(c, g) = 255 * (c/255)^(1/g). Negative base → NaN → 0 on
+            // u8 cast (saturating), matching Uint8ClampedArray semantics.
+            let gr = 255.0 * (cr / 255.0).powf(inv_gamma);
+            let gg = 255.0 * (cg / 255.0).powf(inv_gamma);
+            let gb = 255.0 * (cb / 255.0).powf(inv_gamma);
+
+            let scanline_row = y / p_scale;
+            let scanline_scale = if scanline_on && scanline_row.rem_euclid(gap) == 0 { scanline_strength } else { 1.0 };
+            let mut sr = gr * scanline_scale;
+            let mut sg = gg * scanline_scale;
+            let mut sb = gb * scanline_scale;
+
+            if is_degaussing {
+                let flash = 1.0 + degauss_t * 1.2 * (degauss_age_f * 0.8).sin().abs();
+                sr *= flash; sg *= flash; sb *= flash;
+            }
+            if flicker_active {
+                sr *= flicker_amount; sg *= flicker_amount; sb *= flicker_amount;
+            }
+            if has_vignette {
+                let ddx = (x as f64) - cx;
+                let ddy = (y as f64) - cy;
+                let dist = (ddx * ddx + ddy * ddy).sqrt() / max_dist;
+                let v_factor = (1.0 - vignette * dist * dist).max(0.0);
+                sr *= v_factor; sg *= v_factor; sb *= v_factor;
+            }
+
+            // Round-ties-up to match Uint8ClampedArray's round on assign.
+            // (Close enough for non-exact-halves; the float math here never
+            // lands on ±0.5 in practice.)
+            let mut r_u8 = (sr + 0.5).floor().clamp(0.0, 255.0);
+            let mut g_u8 = (sg + 0.5).floor().clamp(0.0, 255.0);
+            let mut b_u8 = (sb + 0.5).floor().clamp(0.0, 255.0);
+
+            // Inline nearest palette quantize — matches palettes/nearest.ts:
+            // round(round(c/step)*step). Done in f64 so post-pass reads
+            // palette-quantized values (matching the JS pipeline's ordering).
+            if let Some(step) = palette_step {
+                r_u8 = ((r_u8 / step).round() * step).round();
+                g_u8 = ((g_u8 / step).round() * step).round();
+                b_u8 = ((b_u8 / step).round() * step).round();
+            }
+
+            output[i]   = r_u8 as u8;
+            output[i+1] = g_u8 as u8;
+            output[i+2] = b_u8 as u8;
+            output[i+3] = src_a;
+        }
+    }
+
+    // Post-passes read `output` and write back. They operate on palette-
+    // quantized u8 values, matching the JS reference.
+
+    // Beam spread: horizontal triangular-weighted blur.
+    if beam_spread > 0 {
+        let r = beam_spread as i32;
+        let mut temp = vec![0u8; output.len()];
+        let r_plus_1 = (r as f64) + 1.0;
+        let weights: Vec<f64> = (-r..=r).map(|kx| 1.0 - (kx.abs() as f64) / r_plus_1).collect();
+        for y in 0..h_i {
+            for x in 0..w_i {
+                let mut s_r = 0.0; let mut s_g = 0.0; let mut s_b = 0.0; let mut count = 0.0;
+                for (wi, kx) in (-r..=r).enumerate() {
+                    let nx = (x + kx).clamp(0, w_i - 1) as usize;
+                    let ki = ((y as usize) * w + nx) * 4;
+                    let wkx = weights[wi];
+                    s_r += output[ki]     as f64 * wkx;
+                    s_g += output[ki + 1] as f64 * wkx;
+                    s_b += output[ki + 2] as f64 * wkx;
+                    count += wkx;
+                }
+                let bi = ((y as usize) * w + (x as usize)) * 4;
+                temp[bi]     = (s_r / count + 0.5).floor().clamp(0.0, 255.0) as u8;
+                temp[bi + 1] = (s_g / count + 0.5).floor().clamp(0.0, 255.0) as u8;
+                temp[bi + 2] = (s_b / count + 0.5).floor().clamp(0.0, 255.0) as u8;
+                temp[bi + 3] = output[bi + 3];
+            }
+        }
+        output.copy_from_slice(&temp);
+    }
+
+    // Bloom: extract bright, separable box blur, additive composite.
+    if bloom != 0 {
+        let r = bloom_radius as i32;
+        let str_ = bloom_strength;
+
+        let mut bright = vec![0.0f64; output.len()];
+        for j in (0..output.len()).step_by(4) {
+            bright[j]     = ((output[j]     as f64) - bloom_threshold).max(0.0);
+            bright[j + 1] = ((output[j + 1] as f64) - bloom_threshold).max(0.0);
+            bright[j + 2] = ((output[j + 2] as f64) - bloom_threshold).max(0.0);
+            bright[j + 3] = output[j + 3] as f64;
+        }
+
+        let mut blur_h = vec![0.0f64; output.len()];
+        for by in 0..h_i {
+            for bx in 0..w_i {
+                let mut s_r = 0.0; let mut s_g = 0.0; let mut s_b = 0.0; let mut count = 0.0;
+                for kx in -r..=r {
+                    let nx = (bx + kx).clamp(0, w_i - 1) as usize;
+                    let ki = ((by as usize) * w + nx) * 4;
+                    s_r += bright[ki]; s_g += bright[ki + 1]; s_b += bright[ki + 2];
+                    count += 1.0;
+                }
+                let bi = ((by as usize) * w + (bx as usize)) * 4;
+                blur_h[bi]     = s_r / count;
+                blur_h[bi + 1] = s_g / count;
+                blur_h[bi + 2] = s_b / count;
+                blur_h[bi + 3] = bright[bi + 3];
+            }
+        }
+
+        let mut blur_hv = vec![0.0f64; output.len()];
+        for bx in 0..w_i {
+            for by in 0..h_i {
+                let mut s_r = 0.0; let mut s_g = 0.0; let mut s_b = 0.0; let mut count = 0.0;
+                for ky in -r..=r {
+                    let ny = (by + ky).clamp(0, h_i - 1) as usize;
+                    let ki = (ny * w + (bx as usize)) * 4;
+                    s_r += blur_h[ki]; s_g += blur_h[ki + 1]; s_b += blur_h[ki + 2];
+                    count += 1.0;
+                }
+                let bi = ((by as usize) * w + (bx as usize)) * 4;
+                blur_hv[bi]     = s_r / count;
+                blur_hv[bi + 1] = s_g / count;
+                blur_hv[bi + 2] = s_b / count;
+                blur_hv[bi + 3] = blur_h[bi + 3];
+            }
+        }
+
+        for j in (0..output.len()).step_by(4) {
+            let r_sum = (output[j]     as f64) + blur_hv[j]     * str_;
+            let g_sum = (output[j + 1] as f64) + blur_hv[j + 1] * str_;
+            let b_sum = (output[j + 2] as f64) + blur_hv[j + 2] * str_;
+            output[j]     = (r_sum.min(255.0) + 0.5).floor().clamp(0.0, 255.0) as u8;
+            output[j + 1] = (g_sum.min(255.0) + 0.5).floor().clamp(0.0, 255.0) as u8;
+            output[j + 2] = (b_sum.min(255.0) + 0.5).floor().clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    // Persistence: blend with previous frame.
+    if persistence > 0.0 && has_prev {
+        let keep = persistence;
+        let fresh = 1.0 - keep;
+        for j in (0..output.len()).step_by(4) {
+            let r_sum = (output[j]     as f64) * fresh + (prev_output[j]     as f64) * keep;
+            let g_sum = (output[j + 1] as f64) * fresh + (prev_output[j + 1] as f64) * keep;
+            let b_sum = (output[j + 2] as f64) * fresh + (prev_output[j + 2] as f64) * keep;
+            output[j]     = (r_sum.min(255.0) + 0.5).floor().clamp(0.0, 255.0) as u8;
+            output[j + 1] = (g_sum.min(255.0) + 0.5).floor().clamp(0.0, 255.0) as u8;
+            output[j + 2] = (b_sum.min(255.0) + 0.5).floor().clamp(0.0, 255.0) as u8;
+        }
+    }
+}
+
 // === Scanline Warp ===
 //
 // Per-row horizontal shift `shift(y) = amplitude * sin(y * freq * 2π/H +
