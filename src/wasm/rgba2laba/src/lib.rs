@@ -1910,6 +1910,178 @@ pub fn grain_merge_buffer(
     }
 }
 
+// === Scanline Warp ===
+//
+// Per-row horizontal shift `shift(y) = amplitude * sin(y * freq * 2π/H +
+// phase + anim)`, then bilinear sample from (x + shift, y) with clamp-to-edge.
+// Matches the JS semantics including the per-channel `clamp` on the
+// interpolated result. Output alpha is hard-coded to 255 like the JS filter.
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn scanline_warp_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    amplitude: f64,
+    frequency: f64,
+    phase_rad: f64,
+    anim_offset: f64,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+    let w_i = w as i32;
+
+    for y in 0..h {
+        let shift = amplitude * (y as f64 * frequency * 2.0 * core::f64::consts::PI / h as f64 + phase_rad + anim_offset).sin();
+        let shift_f64 = shift;
+        for x in 0..w {
+            let src_x = x as f64 + shift_f64;
+            let x0 = src_x.floor() as i32;
+            let x1 = x0 + 1;
+            let fx = (src_x - x0 as f64) as f32;
+            let sx0 = x0.clamp(0, w_i - 1) as usize;
+            let sx1 = x1.clamp(0, w_i - 1) as usize;
+
+            let row = y * w * 4;
+            let i0 = row + sx0 * 4;
+            let i1 = row + sx1 * 4;
+            unsafe {
+                let r = *input.get_unchecked(i0) as f32 * (1.0 - fx) + *input.get_unchecked(i1) as f32 * fx;
+                let g = *input.get_unchecked(i0 + 1) as f32 * (1.0 - fx) + *input.get_unchecked(i1 + 1) as f32 * fx;
+                let b = *input.get_unchecked(i0 + 2) as f32 * (1.0 - fx) + *input.get_unchecked(i1 + 2) as f32 * fx;
+                // The JS path writes floats into a Uint8ClampedArray (which
+                // rounds); Rust `as u8` truncates, so we must round explicitly
+                // to match bit-for-bit.
+                let i = (y * w + x) * 4;
+                *output.get_unchecked_mut(i)     = js_round_f32(r).clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 1) = js_round_f32(g).clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 2) = js_round_f32(b).clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 3) = 255;
+            }
+        }
+    }
+}
+
+// === LCD Display ===
+//
+// Simulates LCD subpixels for three layouts (RGB stripe / PenTile / Diamond).
+// Per-pixel: snap to the nearest pixel-cell's center colour, then either emit
+// a gap colour (edge of cell) or a single-channel subpixel value with
+// brightness multiplier. All three layouts live in one WASM function behind a
+// layout-id parameter matching the JS constants.
+
+const LAYOUT_STRIPE: u32 = 0;
+const LAYOUT_PENTILE: u32 = 1;
+const LAYOUT_DIAMOND: u32 = 2;
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn lcd_display_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    pixel_size: u32,
+    subpixel_layout: u32,
+    brightness: f64,
+    gap_darkness: f64,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+    let ps = pixel_size as usize;
+    if ps == 0 { return; }
+    let sub_w = (ps / 3).max(1);
+    let gap_color = (10.0 * (1.0 - gap_darkness)).round().clamp(0.0, 255.0) as u8;
+
+    // Precompute the DIAMOND per-(local_x, local_y) subpixel channel (0 = R,
+    // 1 = G, 2 = B) so we skip atan2 on the hot path. Only built when needed.
+    let diamond_channel: Vec<u8> = if subpixel_layout == LAYOUT_DIAMOND {
+        let mut t = vec![0u8; ps * ps];
+        let half = ps as f64 / 2.0;
+        for ly in 0..ps {
+            for lx in 0..ps {
+                let cx = lx as f64 - half;
+                let cy = ly as f64 - half;
+                let angle = ((cy.atan2(cx) * 180.0 / core::f64::consts::PI) + 360.0) % 360.0;
+                t[ly * ps + lx] = if angle < 120.0 { 0 } else if angle < 240.0 { 1 } else { 2 };
+            }
+        }
+        t
+    } else {
+        Vec::new()
+    };
+
+    for y in 0..h {
+        for x in 0..w {
+            let gx = (x / ps) * ps + ps / 2;
+            let gy = (y / ps) * ps + ps / 2;
+            let sx = gx.min(w - 1);
+            let sy = gy.min(h - 1);
+            let si = (sy * w + sx) * 4;
+            let sr = unsafe { *input.get_unchecked(si) } as f64;
+            let sg = unsafe { *input.get_unchecked(si + 1) } as f64;
+            let sb = unsafe { *input.get_unchecked(si + 2) } as f64;
+
+            let local_x = x % ps;
+            let local_y = y % ps;
+            let di = (y * w + x) * 4;
+
+            if local_x >= ps - 1 || local_y >= ps - 1 {
+                unsafe {
+                    *output.get_unchecked_mut(di)     = gap_color;
+                    *output.get_unchecked_mut(di + 1) = gap_color;
+                    *output.get_unchecked_mut(di + 2) = gap_color;
+                    *output.get_unchecked_mut(di + 3) = 255;
+                }
+                continue;
+            }
+
+            let (mut r, mut g, mut b) = (0.0f64, 0.0f64, 0.0f64);
+            match subpixel_layout {
+                LAYOUT_STRIPE => {
+                    let sub_idx = local_x / sub_w;
+                    if sub_idx == 0 { r = (sr * brightness).round(); }
+                    else if sub_idx == 1 { g = (sg * brightness).round(); }
+                    else { b = (sb * brightness).round(); }
+                }
+                LAYOUT_PENTILE => {
+                    let even_row = ((y / ps) % 2) == 0;
+                    let sub_idx = local_x / sub_w;
+                    if even_row {
+                        if sub_idx == 0 { r = (sr * brightness).round(); }
+                        else { g = (sg * brightness).round(); }
+                    } else if sub_idx == 0 {
+                        b = (sb * brightness).round();
+                    } else {
+                        g = (sg * brightness).round();
+                    }
+                }
+                LAYOUT_DIAMOND => {
+                    // SAFETY: local_x/local_y both < ps; diamond_channel is ps*ps.
+                    let ch = unsafe { *diamond_channel.get_unchecked(local_y * ps + local_x) };
+                    match ch {
+                        0 => r = (sr * brightness).round(),
+                        1 => g = (sg * brightness).round(),
+                        _ => b = (sb * brightness).round(),
+                    }
+                }
+                _ => {}
+            };
+
+            unsafe {
+                *output.get_unchecked_mut(di)     = r.clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(di + 1) = g.clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(di + 2) = b.clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(di + 3) = 255;
+            }
+        }
+    }
+}
+
 // === Triangle dither ===
 //
 // Port of src/filters/triangleDither.ts: add TPDF noise (triangular

@@ -1,9 +1,25 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+  wasmLcdDisplayBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+  LCD_SUBPIXEL_LAYOUT,
+} from "utils";
 import { defineFilter } from "filters/types";
 
 const LAYOUT = { STRIPE: "STRIPE", PENTILE: "PENTILE", DIAMOND: "DIAMOND" };
+
+const LAYOUT_TO_WASM: Record<string, number> = {
+  [LAYOUT.STRIPE]: LCD_SUBPIXEL_LAYOUT.STRIPE,
+  [LAYOUT.PENTILE]: LCD_SUBPIXEL_LAYOUT.PENTILE,
+  [LAYOUT.DIAMOND]: LCD_SUBPIXEL_LAYOUT.DIAMOND,
+};
 
 export const optionTypes = {
   pixelSize: { type: RANGE, range: [3, 20], step: 1, default: 6, desc: "LCD pixel cell size" },
@@ -25,7 +41,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lcdDisplay = (input: any, options = defaults) => {
+const lcdDisplay = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
   const { pixelSize, subpixelLayout, brightness, gapDarkness, palette } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -35,6 +51,23 @@ const lcdDisplay = (input: any, options = defaults) => {
   const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    const layoutCode = LAYOUT_TO_WASM[subpixelLayout] ?? LCD_SUBPIXEL_LAYOUT.STRIPE;
+    wasmLcdDisplayBuffer(buf, outBuf, W, H, pixelSize, layoutCode, brightness, gapDarkness);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], 255), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+      }
+    }
+    logFilterWasmStatus("LCD Display", true, paletteIsIdentity ? `layout=${subpixelLayout}` : `layout=${subpixelLayout}+palettePass`);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("LCD Display", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   const subW = Math.max(1, Math.floor(pixelSize / 3));
   const gapColor = Math.round(10 * (1 - gapDarkness));

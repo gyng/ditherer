@@ -6,7 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  wasmScanlineWarpBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
 } from "utils";
 
 export const optionTypes = {
@@ -40,7 +43,7 @@ const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
 const scanlineWarp = (
   input: any,
-  options = defaults
+  options: typeof defaults & { _frameIndex?: number; _wasmAcceleration?: boolean } = defaults
 ) => {
   const {
     amplitude,
@@ -49,7 +52,7 @@ const scanlineWarp = (
     palette
   } = options;
 
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const frameIndex = options._frameIndex || 0;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -62,6 +65,23 @@ const scanlineWarp = (
   const outBuf = new Uint8ClampedArray(buf.length);
 
   const phaseRad = (phase * Math.PI) / 180;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    wasmScanlineWarpBuffer(buf, outBuf, W, H, amplitude, frequency, phaseRad, frameIndex * 0.2);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], 255), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+      }
+    }
+    logFilterWasmStatus("Scanline Warp", true, paletteIsIdentity ? "warp" : "warp+palettePass");
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+
+  logFilterWasmStatus("Scanline Warp", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   for (let y = 0; y < H; y++) {
     const shift = amplitude * Math.sin(

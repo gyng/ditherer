@@ -102,6 +102,9 @@ const abaBounce = (input: any, options: AbaBounceOptions = defaults) => {
 
   const bBuf = heldBBuf || source;
   const outBuf = new Uint8ClampedArray(source.length);
+  // The reflection math is read-two-buffers write-one — memory-bandwidth
+  // bound. WASM doesn't beat the JS JIT here once you pay for three
+  // cross-boundary u8 buffer copies, so this stays on the JS path.
   for (let i = 0; i < source.length; i += 4) {
     const dr = bBuf[i] - heldABuf[i];
     const dg = bBuf[i + 1] - heldABuf[i + 1];

@@ -199,6 +199,8 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmGaussianBlurInner = mod.gaussian_blur_buffer;
   wasmBloomInner = mod.bloom_buffer;
   wasmTriangleDitherInner = mod.triangle_dither_buffer;
+  wasmScanlineWarpInner = mod.scanline_warp_buffer;
+  wasmLcdDisplayInner = mod.lcd_display_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -513,6 +515,30 @@ type WasmGrainMergeFn = {
     strength: number,
   ): void;
 }["bivarianceHack"];
+type WasmScanlineWarpFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    amplitude: number,
+    frequency: number,
+    phaseRad: number,
+    animOffset: number,
+  ): void;
+}["bivarianceHack"];
+type WasmLcdDisplayFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    pixelSize: number,
+    subpixelLayout: number,
+    brightness: number,
+    gapDarkness: number,
+  ): void;
+}["bivarianceHack"];
 type WasmTriangleDitherFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -676,6 +702,14 @@ let wasmHsvShiftInner: WasmHsvShiftFn = () => {
 };
 
 let wasmTriangleDitherInner: WasmTriangleDitherFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmScanlineWarpInner: WasmScanlineWarpFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmLcdDisplayInner: WasmLcdDisplayFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -1063,6 +1097,33 @@ export const wasmGrainMergeBuffer = (
   radius: number,
   strength: number,
 ): void => wasmGrainMergeInner(input, output, width, height, radius, strength);
+
+// Scanline Warp: sin-driven per-row horizontal shift with bilinear sampling.
+export const wasmScanlineWarpBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  amplitude: number,
+  frequency: number,
+  phaseRad: number,
+  animOffset: number,
+): void => wasmScanlineWarpInner(input, output, width, height, amplitude, frequency, phaseRad, animOffset);
+
+// LCD Display subpixel simulation. `subpixelLayout`: 0 = STRIPE, 1 = PENTILE,
+// 2 = DIAMOND (must match LCD_SUBPIXEL_LAYOUT).
+export const LCD_SUBPIXEL_LAYOUT = { STRIPE: 0, PENTILE: 1, DIAMOND: 2 } as const;
+
+export const wasmLcdDisplayBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  pixelSize: number,
+  subpixelLayout: number,
+  brightness: number,
+  gapDarkness: number,
+): void => wasmLcdDisplayInner(input, output, width, height, pixelSize, subpixelLayout, brightness, gapDarkness);
 
 // Triangle dither: TPDF noise added per channel, then either a `levels` snap
 // (paletteMode = LEVELS) or a nearest-colour match against `palette` (any of

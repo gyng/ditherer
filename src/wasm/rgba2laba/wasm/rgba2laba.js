@@ -194,6 +194,24 @@ export function hsv_shift_buffer(input, output, hue_shift, sat_shift, val_shift)
  * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
+ * @param {number} pixel_size
+ * @param {number} subpixel_layout
+ * @param {number} brightness
+ * @param {number} gap_darkness
+ */
+export function lcd_display_buffer(input, output, width, height, pixel_size, subpixel_layout, brightness, gap_darkness) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.lcd_display_buffer(ptr0, len0, ptr1, len1, output, width, height, pixel_size, subpixel_layout, brightness, gap_darkness);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
  * @param {number} radius
  */
 export function median_filter_buffer(input, output, width, height, radius) {
@@ -383,6 +401,24 @@ export function rgba_nearest_lab_index(r, g, b, a, palette, ref_x, ref_y, ref_z)
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.rgba_nearest_lab_index(r, g, b, a, ptr0, len0, ref_x, ref_y, ref_z);
     return ret >>> 0;
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {number} amplitude
+ * @param {number} frequency
+ * @param {number} phase_rad
+ * @param {number} anim_offset
+ */
+export function scanline_warp_buffer(input, output, width, height, amplitude, frequency, phase_rad, anim_offset) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.scanline_warp_buffer(ptr0, len0, ptr1, len1, output, width, height, amplitude, frequency, phase_rad, anim_offset);
 }
 
 /**

@@ -17,6 +17,8 @@ export function grain_merge_buffer(input: Uint8Array, output: Uint8Array, width:
 
 export function hsv_shift_buffer(input: Uint8Array, output: Uint8Array, hue_shift: number, sat_shift: number, val_shift: number): void;
 
+export function lcd_display_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, pixel_size: number, subpixel_layout: number, brightness: number, gap_darkness: number): void;
+
 export function median_filter_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, radius: number): void;
 
 /**
@@ -62,6 +64,8 @@ export function rgba_laba_distance(r1: number, g1: number, b1: number, a1: numbe
  */
 export function rgba_nearest_lab_index(r: number, g: number, b: number, a: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
 
+export function scanline_warp_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, amplitude: number, frequency: number, phase_rad: number, anim_offset: number): void;
+
 export function triangle_dither_buffer(input: Uint8Array, output: Uint8Array, levels: number, seed: number, palette_mode: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -84,6 +88,8 @@ export interface InitOutput {
     readonly bloom_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number) => void;
     readonly gaussian_blur_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly grain_merge_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number) => void;
+    readonly scanline_warp_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+    readonly lcd_display_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly triangle_dither_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
     readonly hsv_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
