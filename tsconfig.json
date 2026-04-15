@@ -24,6 +24,7 @@
       "context/*": ["context/*"],
       "filters": ["filters/index"],
       "filters/*": ["filters/*"],
+      "gl": ["gl/index"],
       "palettes/*": ["palettes/*"],
       "reducers/*": ["reducers/*"],
       "styles/*": ["styles/*"],

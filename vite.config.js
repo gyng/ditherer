@@ -12,6 +12,7 @@ export default defineConfig({
       constants: path.resolve(__dirname, "src/constants"),
       context: path.resolve(__dirname, "src/context"),
       filters: path.resolve(__dirname, "src/filters"),
+      gl: path.resolve(__dirname, "src/gl"),
       palettes: path.resolve(__dirname, "src/palettes"),
       reducers: path.resolve(__dirname, "src/reducers"),
       styles: path.resolve(__dirname, "src/styles"),

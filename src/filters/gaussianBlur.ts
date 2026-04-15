@@ -11,6 +11,7 @@ import {
   wasmIsLoaded,
   logFilterWasmStatus,
 } from "utils";
+import { gaussianBlurGLAvailable, renderGaussianBlurGL } from "./gaussianBlurGL";
 
 export const optionTypes = {
   sigma: { type: RANGE, range: [0.5, 20], step: 0.5, default: 3, desc: "Blur radius — higher values produce a softer image" },
@@ -35,6 +36,16 @@ const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAccele
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
   const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  // GL fast path: only identity palette (the default). Non-identity palettes
+  // fall through to WASM/JS below, which apply the palette per pixel.
+  if (paletteIsIdentity && options._wasmAcceleration !== false && gaussianBlurGLAvailable()) {
+    const rendered = renderGaussianBlurGL(input, W, H, sigma);
+    if (rendered) {
+      logFilterWasmStatus("Gaussian Blur", true, `gpu sigma=${sigma}`);
+      return rendered;
+    }
+  }
 
   if (wasmIsLoaded() && options._wasmAcceleration !== false) {
     const outBuf = new Uint8ClampedArray(buf.length);
