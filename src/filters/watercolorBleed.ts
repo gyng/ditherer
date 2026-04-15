@@ -31,6 +31,13 @@ const watercolorBleed = (input: any, options = defaults) => {
 
   const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
+  // This is a bilateral-style weighted blur — O(K²) per pixel with data-dependent
+  // weights that don't separate, so there's no algorithmic reduction. A
+  // naïve WASM port benched at 0.7-0.85x across radii: V8 turbofan
+  // vectorises the tight inner loop better than LLVM does for WASM, and
+  // there's no "do less work" lever to pull. Stays on JS until either
+  // (a) we add a cross-bilateral or spatial-approximation variant, or
+  // (b) WASM SIMD coverage in LLVM improves enough to auto-vectorise this.
   const rng = mulberry32(42);
 
   // Directional blur weighted by luminance similarity (edge-preserving bleed)
