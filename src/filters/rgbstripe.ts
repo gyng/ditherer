@@ -1,3 +1,21 @@
+// Not ported to WASM. Attempted a full pipeline port (misconvergence
+// pre-pass + main loop + beam spread + bloom + persistence) with bit-exact
+// parity. Net result was ~0.77-0.95x at 1280x720 across defaults/variants.
+//
+// The blocker: the reference pipeline calls `paletteGetColor` per-pixel in
+// the main loop (default palette is `nearest` with levels=2, which heavily
+// quantizes), and the post-passes (beam spread / bloom) run on that
+// palette-quantized output. To preserve bit-parity we had to split the
+// WASM into pre-palette and post-palette halves, bouncing through a JS
+// per-pixel palette loop between them. That loop (~W*H callbacks) plus two
+// wasm-bindgen boundary crossings (each copying the buffer in and out) ate
+// the speedup of the main loop, which V8 already JITs competently.
+//
+// Making it a net win would require porting all palettes to Rust
+// (src/palettes/ includes a large user.ts with many named tables) or
+// special-casing the default nearest palette in WASM and falling back to JS
+// for anything else — both were more invasive than the gains justified.
+
 import { ACTION, BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import * as palettes from "palettes";
