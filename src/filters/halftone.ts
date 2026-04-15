@@ -48,7 +48,7 @@ const halftone = (
   // WebGL fast path: applies when palette is the nearest type (handles any levels
   // count with in-shader quantisation) and the background colour is parseable.
   // Falls through to JS for custom palettes or unrecognised CSS colours.
-  if (halftoneGLAvailable() && (palette as any).name === "nearest") {
+  if (halftoneGLAvailable() && (options as any)._webglAcceleration !== false && (palette as any).name === "nearest") {
     const bgRgb = parseCssColorRgb(typeof background === "string" ? background : "black");
     if (bgRgb) {
       const W = input.width, H = input.height;

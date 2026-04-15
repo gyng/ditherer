@@ -6,8 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { motionBlurGLAvailable, renderMotionBlurGL } from "./motionBlurGL";
 
 export const optionTypes = {
   angle: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Direction of the blur in degrees" },
@@ -23,14 +25,27 @@ export const defaults = {
 
 const motionBlurFilter = (input: any, options = defaults) => {
   const { angle, length, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    motionBlurGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+  ) {
+    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const rendered = renderMotionBlurGL(input, W, H, angle, length, levels);
+    if (rendered) {
+      logFilterBackend("Motion Blur", "WebGL2", `angle=${angle} length=${length}`);
+      return rendered;
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

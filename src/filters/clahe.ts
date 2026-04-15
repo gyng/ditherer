@@ -1,7 +1,8 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { claheGLAvailable, renderClaheGL } from "./claheGL";
 
 export const optionTypes = {
   tileSize: { type: RANGE, range: [8, 64], step: 4, default: 32, desc: "Size of local histogram regions" },
@@ -87,6 +88,21 @@ const clahe = (input: any, options: ClaheOptions = defaults) => {
   }
 
   const getCdf = (tx: number, ty: number) => cdfs[ty * tilesX + tx];
+
+  // GL fast path: CDF build ran on CPU (histograms don't port well to GPU);
+  // the bilinear-interpolated CDF lookup per pixel runs in a fragment shader.
+  // Only taken when the palette is nearest so RGB scaling stays consistent.
+  if (
+    claheGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+  ) {
+    const rendered = renderClaheGL(input, W, H, tileSize, cdfs, tilesX, tilesY);
+    if (rendered) {
+      logFilterBackend("CLAHE", "WebGL2", `tileSize=${tileSize} clipLimit=${clipLimit} tiles=${tilesX}x${tilesY}`);
+      return rendered;
+    }
+  }
 
   // Apply with bilinear interpolation between tiles
   for (let y = 0; y < H; y++) {

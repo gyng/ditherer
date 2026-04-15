@@ -1,7 +1,8 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { spherizeGLAvailable, renderSpherizeGL } from "./spherizeGL";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [-1, 1], step: 0.05, default: 0.5, desc: "Spherize (+) or flatten (-) intensity" },
@@ -21,12 +22,26 @@ export const defaults = {
 
 const spherize = (input: any, options = defaults) => {
   const { strength, centerX, centerY, radius, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (
+    spherizeGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+  ) {
+    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const rendered = renderSpherizeGL(input, W, H, strength, centerX, centerY, radius, levels);
+    if (rendered) {
+      logFilterBackend("Spherize", "WebGL2", `strength=${strength} levels=${levels}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

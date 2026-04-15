@@ -9,9 +9,11 @@ import {
   wasmLcdDisplayBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
   LCD_SUBPIXEL_LAYOUT,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { lcdDisplayGLAvailable, renderLcdDisplayGL } from "./lcdDisplayGL";
 
 const LAYOUT = { STRIPE: "STRIPE", PENTILE: "PENTILE", DIAMOND: "DIAMOND" };
 
@@ -41,18 +43,35 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lcdDisplay = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const lcdDisplay = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { pixelSize, subpixelLayout, brightness, gapDarkness, palette } = options;
+  const W = input.width, H = input.height;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  // GL fast path: the whole filter maps to a single fragment shader. Only
+  // applies for nearest-type palettes (handled via in-shader quantisation);
+  // custom palettes fall through to the WASM/JS paths that run a palette pass.
+  if (
+    lcdDisplayGLAvailable()
+    && options._webglAcceleration !== false
+    && (palette as { name?: string })?.name === "nearest"
+  ) {
+    const levels = paletteOpts?.levels ?? 256;
+    const rendered = renderLcdDisplayGL(input, W, H, pixelSize, subpixelLayout, brightness, gapDarkness, levels);
+    if (rendered) {
+      logFilterBackend("LCD Display", "WebGL2", `layout=${subpixelLayout} levels=${levels}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 
   if (wasmIsLoaded() && options._wasmAcceleration !== false) {
     const layoutCode = LAYOUT_TO_WASM[subpixelLayout] ?? LCD_SUBPIXEL_LAYOUT.STRIPE;

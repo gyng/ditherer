@@ -6,8 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { mirrorGLAvailable, renderMirrorGL } from "./mirrorGL";
 
 const MODE = {
   HORIZONTAL: "HORIZONTAL",
@@ -44,14 +46,27 @@ export const defaults = {
 
 const mirror = (input: any, options = defaults) => {
   const { mode, segments, offsetX, offsetY, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    mirrorGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+  ) {
+    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const rendered = renderMirrorGL(input, W, H, mode, segments, offsetX, offsetY, levels);
+    if (rendered) {
+      logFilterBackend("Mirror", "WebGL2", `${mode}${mode === "KALEIDOSCOPE" ? ` segments=${segments}` : ""}`);
+      return rendered;
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

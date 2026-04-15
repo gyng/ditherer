@@ -26,14 +26,14 @@ export const optionTypes = {
     { name: "Hexagon (6-blade)", value: SHAPE.HEXAGON },
     { name: "Octagon (8-blade)", value: SHAPE.OCTAGON },
     { name: "Star (diffraction)", value: SHAPE.STAR },
-  ], default: SHAPE.HEXAGON, desc: "Shape of the bokeh highlight" },
+  ], default: SHAPE.CIRCLE, desc: "Shape of the bokeh highlight" },
   localDetect: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "0 = global threshold; 1 = only pixels brighter than their blurred neighbourhood (real light sources)" },
   softness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.15, desc: "Feathering of the bokeh disc edges (smoothstep falloff)" },
   bubble: { type: RANGE, range: [0, 1], step: 0.05, default: 0.25, desc: "Hollow out the disc interior — 0 = solid, 1 = ring only (soap bubble)" },
   edgeRing: { type: RANGE, range: [0, 2], step: 0.1, default: 0.4, desc: "Boost brightness at the outer rim (combine with Bubble for a soap-bubble look)" },
   edgeFringe: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Chromatic aberration: R/B discs shift in size and source position" },
   rotation: { type: RANGE, range: [0, 180], step: 1, default: 15, desc: "Rotation of the bokeh shape" },
-  catsEye: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Mechanical vignetting: shapes near frame edges become crescent-shaped" },
+  catsEye: { type: RANGE, range: [0, 1], step: 0.05, default: 0.85, desc: "Mechanical vignetting: shapes near frame edges become crescent-shaped" },
   palette: { type: PALETTE, default: nearest }
 };
 

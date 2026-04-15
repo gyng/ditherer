@@ -1,7 +1,8 @@
 import { ACTION, RANGE, BOOL, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, sampleBilinear } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, sampleBilinear, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { mode7GLAvailable, renderMode7GL } from "./mode7GL";
 
 export const optionTypes = {
   fly: { type: BOOL, label: "Auto Flight", default: true, desc: "Continuously move forward across the track plane" },
@@ -279,15 +280,9 @@ const mode7 = (input: any, options = defaults) => {
     skyTwist,
     palette
   } = options;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
 
   const W = input.width;
   const H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const forwardOffset = fly ? frameIndex * forwardSpeed * 0.05 : 0;
   const strafeOffset = fly ? frameIndex * strafeSpeed * 0.05 : 0;
@@ -295,16 +290,47 @@ const mode7 = (input: any, options = defaults) => {
   const yawRad = yaw * Math.PI / 180;
   const pitchRad = (pitch * Math.PI) / 180;
   const rollRad = roll * Math.PI / 180;
-  const tanHalfFov = Math.tan((fov * Math.PI) / 360);
-  const horizonShift = (0.5 - horizon) * 2;
-  const aspect = H / Math.max(1, W);
-  const textureScale = 0.35;
   const planarForwardDir = rotateVector(0, 0, 1, yawRad, 0, 0);
   const rightDir = rotateVector(1, 0, 0, yawRad, pitchRad, rollRad);
   const upDir = rotateVector(0, 1, 0, yawRad, pitchRad, rollRad);
   const animatedCameraX = cameraX + planarForwardDir[0] * forwardOffset + rightDir[0] * strafeOffset + upDir[0] * liftOffset;
   const animatedCameraY = Math.max(0.05, cameraY + upDir[1] * liftOffset);
   const animatedCameraZ = cameraZ + planarForwardDir[2] * forwardOffset + rightDir[2] * strafeOffset + upDir[2] * liftOffset;
+
+  // WebGL2 fast path: single draw call covers projection, sky, palette
+  // quantisation. Only for nearest palette (in-shader quantise); the sy wrap
+  // branch assumes `tile || fly`, so fall through to JS when neither is set.
+  if (
+    mode7GLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+    && (tile || fly)
+  ) {
+    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const rendered = renderMode7GL(input, W, H, {
+      horizon, fov,
+      yawDeg: yaw, pitchDeg: pitch, rollDeg: roll,
+      cameraX: animatedCameraX, cameraY: animatedCameraY, cameraZ: animatedCameraZ,
+      tile, sky, skyStyle, skyGlow, skyBands, skyTwist,
+      levels,
+    });
+    if (rendered) {
+      logFilterBackend("Mode 7", "WebGL2", `levels=${levels} tile=${tile} sky=${sky}`);
+      return rendered;
+    }
+  }
+
+  const output = cloneCanvas(input, false);
+  const inputCtx = input.getContext("2d");
+  const outputCtx = output.getContext("2d");
+  if (!inputCtx || !outputCtx) return input;
+
+  const buf = inputCtx.getImageData(0, 0, W, H).data;
+  const outBuf = new Uint8ClampedArray(buf.length);
+  const tanHalfFov = Math.tan((fov * Math.PI) / 360);
+  const horizonShift = (0.5 - horizon) * 2;
+  const aspect = H / Math.max(1, W);
+  const textureScale = 0.35;
   const sample = [0, 0, 0, 255];
 
   for (let y = 0; y < H; y++) {

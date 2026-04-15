@@ -7,7 +7,12 @@
 import { floydSteinberg } from "filters/errorDiffusing";
 import ordered from "filters/ordered";
 import convolve from "filters/convolve";
+import gaussianBlur from "filters/gaussianBlur";
+import oilPainting from "filters/oilPainting";
+import bokeh from "filters/bokeh";
+import halftone from "filters/halftone";
 import * as palettes from "palettes";
+import { wasmIsLoaded } from "utils";
 
 const palette = palettes.nearest;
 
@@ -114,6 +119,16 @@ const runSuite = async () => {
   log("Preparing 640×480 noise canvas...");
   const canvas640 = makeNoiseCanvas(640, 480);
 
+  // Wait for WASM module to finish its async init. Without this, filters that
+  // check `wasmIsLoaded()` fall back to JS and produce misleadingly slow numbers.
+  if (!wasmIsLoaded()) {
+    log("Waiting for WASM module...");
+    await new Promise<void>(resolve => {
+      const t = setInterval(() => { if (wasmIsLoaded()) { clearInterval(t); resolve(); } }, 50);
+    });
+    log("WASM ready.");
+  }
+
   const suites: { title: string; benches: (() => BenchResult | Promise<BenchResult>)[] }[] = [
     {
       title: "Filter only (640×480)",
@@ -168,6 +183,38 @@ const runSuite = async () => {
             ctx.getImageData(0, 0, output.width, output.height);
           });
         },
+      ],
+    },
+    {
+      // NOTE: WebGL2 may run on software swiftshader in headless/CI environments
+      // (e.g. WSL without a real GPU). Numbers here reflect that context — on real
+      // hardware with a discrete GPU the GL path will be considerably faster.
+      title: "GL vs WASM vs JS (640×480) [GL may be swiftshader in CI]",
+      benches: [
+        () => runBench("gaussianBlur  JS  (_wasmAcceleration=off)", () => {
+          gaussianBlur.func(canvas640, { ...gaussianBlur.defaults, _wasmAcceleration: false } as any);
+        }),
+        () => runBench("gaussianBlur  WASM (GL off)", () => {
+          gaussianBlur.func(canvas640, { ...gaussianBlur.defaults, _webglAcceleration: false } as any);
+        }),
+        () => runBench("gaussianBlur  GL   (default path)", () => {
+          gaussianBlur.func(canvas640, gaussianBlur.defaults as any);
+        }),
+        () => runBench("oilPainting   JS  (_wasmAcceleration=off)", () => {
+          oilPainting.func(canvas640, { ...oilPainting.defaults, _wasmAcceleration: false } as any);
+        }),
+        () => runBench("oilPainting   WASM (default path)", () => {
+          oilPainting.func(canvas640, oilPainting.defaults as any);
+        }),
+        () => runBench("bokeh         JS (no WASM port yet)", () => {
+          bokeh.func(canvas640, bokeh.defaults as any);
+        }),
+        () => runBench("halftone      JS  (_webglAcceleration=off)", () => {
+          halftone.func(canvas640, { ...halftone.defaults, _webglAcceleration: false } as any);
+        }),
+        () => runBench("halftone      GL   (default path)", () => {
+          halftone.func(canvas640, halftone.defaults as any);
+        }),
       ],
     },
   ];

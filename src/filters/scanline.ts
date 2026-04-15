@@ -1,7 +1,8 @@
 import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import * as palettes from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { scanlineGLAvailable, renderScanlineGL } from "./scanlineGL";
 
 const MODE = {
   DARKEN: "DARKEN",
@@ -73,13 +74,27 @@ export const defaults = {
 
 const scanline = (input: any, options = defaults) => {
   const { mode, intensity, gap, height, lineHeight, brightness, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    scanlineGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+  ) {
+    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const rendered = renderScanlineGL(input, W, H, mode, intensity, gap, height, lineHeight, brightness, levels);
+    if (rendered) {
+      logFilterBackend("Scanline", "WebGL2", `${mode} levels=${levels}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

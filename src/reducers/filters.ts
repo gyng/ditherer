@@ -45,7 +45,7 @@ import { createPalette, THEMES } from "palettes/user";
 
 type FilterOptionMap = FilterOptionValues;
 type PaletteColor = number[];
-type StepTime = { name: string; ms: number };
+type StepTime = { name: string; ms: number; backend?: string };
 type ScalingAlgorithm = typeof SCALING_ALGORITHM[keyof typeof SCALING_ALGORITHM];
 type PaletteOptionState = SerializedPaletteState & { options?: FilterOptionMap };
 type DrawableImage = CanvasImageSource & { width: number; height: number };
@@ -169,11 +169,11 @@ export const initialState = {
   videoPlaybackRate: 1,
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
   linearize: true,
-  wasmAcceleration: true,
-  webglAcceleration: true,
+  wasmAcceleration: localStorage.getItem("ditherer-wasm-accel") !== "0",
+  webglAcceleration: localStorage.getItem("ditherer-webgl-accel") !== "0",
   randomCycleSeconds: null as number | null,
   frameTime: null as number | null,
-  stepTimes: null as { name: string; ms: number }[] | null,
+  stepTimes: null as StepTime[] | null,
 };
 
 export type FilterReducerState = typeof initialState;
@@ -710,8 +710,10 @@ const filterReducer = (
     case SET_LINEARIZE:
       return { ...state, linearize: action.value };
     case SET_WASM_ACCELERATION:
+      localStorage.setItem("ditherer-wasm-accel", action.value ? "1" : "0");
       return { ...state, wasmAcceleration: action.value };
     case SET_WEBGL_ACCELERATION:
+      localStorage.setItem("ditherer-webgl-accel", action.value ? "1" : "0");
       return { ...state, webglAcceleration: action.value };
     case SET_RANDOM_CYCLE_SECONDS:
       return { ...state, randomCycleSeconds: action.seconds };

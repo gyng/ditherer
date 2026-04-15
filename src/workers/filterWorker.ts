@@ -3,7 +3,7 @@ import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "filters
 import { deserializePalette } from "palettes";
 import type { SerializedPalette } from "palettes";
 import { grayscale } from "filters";
-import { logFilterDispatched, releasePooledCanvas } from "utils";
+import { logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas } from "utils";
 import type { WorkerFilterRequest, WorkerFilterResult, WorkerPrevOutputFrame, WorkerRequestMessage } from "./types";
 import type { SerializedOptionMap } from "context/shareStateTypes";
 
@@ -67,7 +67,7 @@ export const runWorkerFilterRequest = (
   createCanvas: WorkerCanvasFactory = defaultCanvasFactory,
 ): WorkerFilterResult => {
   let canvas = createCanvas(width, height);
-  const initCtx = canvas.getContext("2d") as
+  const initCtx = canvas.getContext("2d", { willReadFrequently: true }) as
     | OffscreenCanvasRenderingContext2D
     | CanvasRenderingContext2D
     | null;
@@ -83,7 +83,7 @@ export const runWorkerFilterRequest = (
     }
   }
 
-  const stepTimes: { name: string; ms: number }[] = [];
+  const stepTimes: { name: string; ms: number; backend?: string }[] = [];
   const newPrevOutputs: Record<string, WorkerPrevOutputFrame> = {};
 
   for (const entry of chain) {
@@ -119,7 +119,11 @@ export const runWorkerFilterRequest = (
       continue;
     }
     logFilterDispatched(filter.name);
-    stepTimes.push({ name: entry.displayName, ms: performance.now() - t0 });
+    const stepMs = performance.now() - t0;
+    const backend = getFilterWasmStatuses().get(filter.name)?.label;
+    stepTimes.push(backend
+      ? { name: entry.displayName, ms: stepMs, backend }
+      : { name: entry.displayName, ms: stepMs });
 
     if (has2dContext(output)) {
       const outCtx = output.getContext("2d") as
@@ -142,7 +146,7 @@ export const runWorkerFilterRequest = (
     }
   }
 
-  const resultCtx = canvas.getContext("2d") as
+  const resultCtx = canvas.getContext("2d", { willReadFrequently: true }) as
     | OffscreenCanvasRenderingContext2D
     | CanvasRenderingContext2D
     | null;

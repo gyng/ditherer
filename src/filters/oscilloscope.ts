@@ -6,8 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { oscilloscopeGLAvailable, renderOscilloscopeGL } from "./oscilloscopeGL";
 
 const PHOSPHOR_GREEN = "GREEN";     // P1/P31 classic
 const PHOSPHOR_BLUE = "BLUE";       // P11
@@ -128,18 +130,35 @@ const oscilloscope = (
 
   const prevOutput = options._prevOutput ?? null;
   const frameIndex = Number(options._frameIndex ?? 0);
+  const W = input.width;
+  const H = input.height;
+  const pColor = phosphorColors[phosphor as keyof typeof phosphorColors] || phosphorColors[PHOSPHOR_GREEN];
+
+  if (
+    oscilloscopeGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && ((palette as { name?: string }).name === "nearest")
+  ) {
+    const rendered = renderOscilloscopeGL(input, W, H, {
+      phosphorColor: [pColor[0], pColor[1], pColor[2]],
+      threshold, intensity, bloom, bloomStrength, persistence,
+      graticule, graticuleDivs, scanlines, scanlineSpacing, noiseFloor,
+      frameIndex,
+      prevOutput,
+    });
+    if (rendered) {
+      logFilterBackend("Oscilloscope", "WebGL2", `${phosphor} bloom=${bloom} persistence=${persistence}`);
+      return rendered;
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const len = buf.length;
-
-  const pColor = phosphorColors[phosphor as keyof typeof phosphorColors] || phosphorColors[PHOSPHOR_GREEN];
   const rng = mulberry32(frameIndex * 3571 + 41);
 
   // Step 1: Convert to luminance intensity — how bright the beam is at each pixel

@@ -6,8 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { liquifyGLAvailable, renderLiquifyGL } from "./liquifyGL";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Maximum warp displacement" },
@@ -25,14 +27,27 @@ export const defaults = {
 
 const liquify = (input: any, options = defaults) => {
   const { strength, smoothness, direction, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    liquifyGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+  ) {
+    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const rendered = renderLiquifyGL(input, W, H, strength, smoothness, direction, levels);
+    if (rendered) {
+      logFilterBackend("Liquify", "WebGL2", `strength=${strength} smoothness=${smoothness}`);
+      return rendered;
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

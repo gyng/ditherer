@@ -399,7 +399,7 @@ const ordered = (
 
   const output = cloneCanvas(input, false);
 
-  const inputCtx = input.getContext("2d");
+  const inputCtx = input.getContext("2d", { willReadFrequently: true });
   const outputCtx = output.getContext("2d");
 
   if (!inputCtx || !outputCtx) {

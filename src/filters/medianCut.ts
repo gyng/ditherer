@@ -1,6 +1,7 @@
 import { RANGE, ENUM } from "constants/controlTypes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, medianCutPalette } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, medianCutPalette, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { MAX_PALETTE, medianCutGLAvailable, renderMedianCutGL } from "./medianCutGL";
 
 const ADAPT = {
   MID: "MID",
@@ -89,6 +90,21 @@ const medianCutFilter = (input: any, options = defaults) => {
     adaptMode,
     colorMode
   );
+
+  // GL fast path: build pass ran on CPU (recursive tree partition doesn't
+  // port well), but the per-pixel nearest-colour scan dominates on larger
+  // canvases and maps cleanly to a fragment shader.
+  if (
+    medianCutGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && palette.length > 0 && palette.length <= MAX_PALETTE
+  ) {
+    const rendered = renderMedianCutGL(input, W, H, palette);
+    if (rendered) {
+      logFilterBackend("Median Cut", "WebGL2", `levels=${palette.length}`);
+      return rendered;
+    }
+  }
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

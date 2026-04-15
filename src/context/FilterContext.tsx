@@ -8,7 +8,7 @@ import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
 import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
-import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched, releasePooledCanvas } from "utils";
+import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas } from "utils";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
 import { FilterContext } from "./filterContextValue";
@@ -519,7 +519,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     dispatchOverride = dispatch,
     cacheOutputs = true,
   ) => {
-    const stepTimes: { name: string; ms: number }[] = [];
+    const stepTimes: { name: string; ms: number; backend?: string }[] = [];
     let totalTime = 0;
 
     for (let i = startIdx; i < enabledEntries.length; i++) {
@@ -531,7 +531,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       const inputCtx = (
         canvas instanceof HTMLCanvasElement
           ? canvas.getContext("2d", { willReadFrequently: true })
-          : canvas.getContext("2d")
+          : canvas.getContext("2d", { willReadFrequently: true })
       ) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
       if (inputCtx) {
         inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -571,7 +571,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       // suppresses this fallback.
       logFilterDispatched(entry.filter.name);
       const stepMs = performance.now() - t0;
-      stepTimes.push({ name: entry.displayName, ms: stepMs });
+      const backend = getFilterWasmStatuses().get(entry.filter.name)?.label;
+      stepTimes.push(backend
+        ? { name: entry.displayName, ms: stepMs, backend }
+        : { name: entry.displayName, ms: stepMs });
       totalTime += stepMs;
 
       // Update temporal buffers
@@ -594,7 +597,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (output instanceof HTMLCanvasElement) {
-        const outCtx = output.getContext("2d");
+        const outCtx = output.getContext("2d", { willReadFrequently: true });
         if (outCtx) {
           temporalState.prevOutputMap.set(
             entry.id,
@@ -620,7 +623,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const emitOutput = (
     canvas: HTMLCanvasElement | OffscreenCanvas,
     totalTime: number,
-    stepTimes: { name: string; ms: number }[],
+    stepTimes: { name: string; ms: number; backend?: string }[],
     frameToken: number,
     sourceTime: number,
   ) => {
@@ -670,7 +673,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    const stepTimes: { name: string; ms: number }[] = [];
+    const stepTimes: { name: string; ms: number; backend?: string }[] = [];
 
     const enabledEntries = chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
 
@@ -694,7 +697,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
     if (useWorker && entriesToRun.length > 0) {
       // Worker path — async, dispatches output when done
-      const ctx = canvas.getContext("2d") as
+      const ctx = (canvas instanceof HTMLCanvasElement
+        ? canvas.getContext("2d", { willReadFrequently: true })
+        : canvas.getContext("2d", { willReadFrequently: true })
+      ) as
         | CanvasRenderingContext2D
         | OffscreenCanvasRenderingContext2D
         | null;
@@ -741,7 +747,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         const outCanvas = document.createElement("canvas");
         outCanvas.width = result.width;
         outCanvas.height = result.height;
-        outCanvas.getContext("2d")!.putImageData(outData, 0, 0);
+        // willReadFrequently on the first getContext call — subsequent filter
+        // passes will do getImageData on this canvas repeatedly, and the flag
+        // is sticky from the first call.
+        outCanvas.getContext("2d", { willReadFrequently: true })!.putImageData(outData, 0, 0);
 
         for (const [entryId, payload] of Object.entries(result.prevOutputs)) {
           const { pixels, width, height } = getWorkerPrevOutputFrame(
@@ -759,7 +768,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
             stepCanvas.width = width;
             stepCanvas.height = height;
           }
-          stepCanvas.getContext("2d")!.putImageData(
+          stepCanvas.getContext("2d", { willReadFrequently: true })!.putImageData(
             new ImageData(pixels, width, height), 0, 0
           );
           cachedOutputsRef.current.set(entryId, stepCanvas);
@@ -1015,7 +1024,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = inputCanvas.width;
     exportCanvas.height = inputCanvas.height;
-    const exportCtx = exportCanvas.getContext("2d");
+    const exportCtx = exportCanvas.getContext("2d", { willReadFrequently: true });
     if (!exportCtx) return null;
     exportCtx.drawImage(inputCanvas, 0, 0);
 

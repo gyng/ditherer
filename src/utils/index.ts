@@ -1032,18 +1032,19 @@ export const resolvePaletteColorAlgorithm = (palette: unknown): string | null =>
 // distinct outcome instead of every frame. We also track the most recent
 // status per filter in `filterLastStatus` for tools (the gallery benchmark)
 // that want to report which path was actually taken.
-export type FilterWasmStatus = { didWasm: boolean; reason: string };
+export type FilterWasmStatus = { didWasm: boolean; reason: string; label: string };
 const filterWasmStatusLogged = new Set<string>();
 const filterNamesLogged = new Set<string>();
 const filterLastStatus = new Map<string, FilterWasmStatus>();
 
 export const logFilterWasmStatus = (filterName: string, didWasm: boolean, reason: string) => {
   filterNamesLogged.add(filterName);
-  filterLastStatus.set(filterName, { didWasm, reason });
+  const label = `${didWasm ? "WASM" : "JS"} (${reason})`;
+  filterLastStatus.set(filterName, { didWasm, reason, label });
   const key = `${filterName}|${didWasm}|${reason}`;
   if (filterWasmStatusLogged.has(key)) return;
   filterWasmStatusLogged.add(key);
-  console.info(`[filter:${filterName}] ${didWasm ? "WASM" : "JS"} (${reason})`);
+  console.info(`[filter:${filterName}] ${label}`);
 };
 
 // Like logFilterWasmStatus but lets the caller label the backend explicitly
@@ -1051,11 +1052,12 @@ export const logFilterWasmStatus = (filterName: string, didWasm: boolean, reason
 // didWasm=true in the status map so audit tools count GL as "not pure JS".
 export const logFilterBackend = (filterName: string, backend: string, reason: string) => {
   filterNamesLogged.add(filterName);
-  filterLastStatus.set(filterName, { didWasm: true, reason: `${backend} ${reason}` });
+  const label = `${backend} (${reason})`;
+  filterLastStatus.set(filterName, { didWasm: true, reason: `${backend} ${reason}`, label });
   const key = `${filterName}|${backend}|${reason}`;
   if (filterWasmStatusLogged.has(key)) return;
   filterWasmStatusLogged.add(key);
-  console.info(`[filter:${filterName}] ${backend} (${reason})`);
+  console.info(`[filter:${filterName}] ${label}`);
 };
 
 // Called from the filter dispatcher once per frame per filter. If the filter
@@ -1066,7 +1068,7 @@ export const logFilterBackend = (filterName: string, backend: string, reason: st
 export const logFilterDispatched = (filterName: string) => {
   if (filterNamesLogged.has(filterName)) return;
   filterNamesLogged.add(filterName);
-  filterLastStatus.set(filterName, { didWasm: false, reason: "no wasm/gpu path" });
+  filterLastStatus.set(filterName, { didWasm: false, reason: "no wasm/gpu path", label: "JS (no wasm/gpu path)" });
   console.info(`[filter:${filterName}] JS (no wasm/gpu path)`);
 };
 

@@ -6,8 +6,10 @@ import {
   fillBufferPixel,
   scaleMatrix,
   srgbBufToLinearFloat,
-  linearFloatToSrgbBuf
+  linearFloatToSrgbBuf,
+  logFilterBackend,
 } from "utils";
+import { convolveGLAvailable, renderConvolveGL } from "./convolveGL";
 
 export const SHARPEN_3X3 = "SHARPEN_3X3";
 export const UNSHARP_5X5 = "UNSHARP_5X5";
@@ -190,6 +192,24 @@ const convolve = (
 ) => {
   const kernel = kernels[String(options.kernel) as keyof typeof kernels];
   const matrix = scaleMatrix(kernel.matrix, options.strength);
+  const W = input.width;
+  const H = input.height;
+
+  // GL fast path: single-pass 2D convolution. Linearisation is done in-shader
+  // via the sRGB transfer function, matching the CPU LUT to within 1 LSB per
+  // channel on round-tripped integer inputs.
+  if (
+    convolveGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const rendered = renderConvolveGL(input, W, H, matrix, kernel.width, !!options._linearize);
+    if (rendered) {
+      const space = options._linearize ? "linear" : "sRGB";
+      logFilterBackend("Convolve", "WebGL2", `${options.kernel} ${kernel.width}x${kernel.width} strength=${options.strength} ${space}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -201,8 +221,6 @@ const convolve = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const W = input.width;
-  const H = input.height;
   const half = Math.floor(kernel.width / 2);
 
   // Separable fast path: two 1D passes instead of one 2D pass.

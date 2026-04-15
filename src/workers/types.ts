@@ -30,6 +30,7 @@ export interface WorkerPrevOutputFrame {
 export interface WorkerStepTime {
   name: string;
   ms: number;
+  backend?: string;
 }
 
 export interface WorkerFilterResult {

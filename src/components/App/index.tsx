@@ -1292,6 +1292,19 @@ const App = () => {
 
   const inputCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const outputCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Ref callbacks run synchronously when the DOM node is attached, before any
+  // effect or render-driven getContext call. willReadFrequently is a sticky
+  // flag set on the very first getContext call per canvas, so claim the
+  // context here to guarantee filterOnMainThread's downstream getImageData
+  // reads don't pay a GPU readback cost.
+  const bindReadbackCanvasRef = (
+    ref: { current: HTMLCanvasElement | null },
+  ) => (el: HTMLCanvasElement | null) => {
+    ref.current = el;
+    if (el) el.getContext("2d", { willReadFrequently: true });
+  };
+  const inputCanvasRefCb = bindReadbackCanvasRef(inputCanvasRef);
+  const outputCanvasRefCb = bindReadbackCanvasRef(outputCanvasRef);
   const outputWindowRef = useRef<HTMLDivElement | null>(null);
   const fullscreenMenuRef = useRef<HTMLDivElement | null>(null);
   const screensaverButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -1629,7 +1642,10 @@ const App = () => {
       const finalHeight = image.height * scale;
       canvas.width = finalWidth;
       canvas.height = finalHeight;
-      const ctx = canvas.getContext("2d");
+      // willReadFrequently on first access — this canvas (the React-mounted
+      // input/output <canvas>) is repeatedly sampled by filterOnMainThread
+      // via getImageData, and the flag is sticky from the first getContext call.
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (ctx) {
         ctx.imageSmoothingEnabled = state.scalingAlgorithm === SCALING_ALGORITHM.AUTO;
         ctx.drawImage(image, 0, 0, finalWidth, finalHeight);
@@ -2963,7 +2979,7 @@ const App = () => {
               )}
               <canvas
                 className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
-                ref={inputCanvasRef}
+                ref={inputCanvasRefCb}
                 onClick={() => {
                   if (state.video && !inputDrag.didDrag.current) {
                     actions.toggleVideo();
@@ -3092,7 +3108,7 @@ const App = () => {
                   outputFullscreen ? s.outputCanvasFullscreen : "",
                   outputFullscreenMode === "cover" ? s.outputCanvasCover : s.outputCanvasContain,
                 ].join(" ")}
-                ref={outputCanvasRef}
+                ref={outputCanvasRefCb}
               />
               {screensaverActive && screensaverShowDebug && (
                 <ScreensaverDebugOverlay

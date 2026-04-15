@@ -231,7 +231,9 @@ export const readoutToCanvas = (
 ): GLCanvas | null => {
   const out = createGLCanvas(w, h);
   if (!out) return null;
-  const ctx = out.getContext("2d") as (
+  // willReadFrequently so the next filter's getImageData on this canvas
+  // doesn't pay a GPU readback cost. Sticky from the first getContext call.
+  const ctx = out.getContext("2d", { willReadFrequently: true }) as (
     CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
   );
   if (!ctx) return null;

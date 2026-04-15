@@ -31,7 +31,7 @@ uniform float u_edgeRing;
 uniform float u_bubble;
 uniform float u_localDetect;
 
-const float PI = PI;
+const float PI = 3.14159265;
 
 float getLuminance(vec3 color) {
     return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;

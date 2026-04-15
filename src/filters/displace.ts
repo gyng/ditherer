@@ -1,7 +1,9 @@
 import { RANGE, PALETTE, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
+import { applyPaletteToBuffer, paletteIsIdentity as isIdentityPalette } from "palettes/backend";
 import { defineFilter } from "filters/types";
+import { displaceGLAvailable, renderDisplaceGL } from "./displaceGL";
 
 const DIRECTION_X    = "X";
 const DIRECTION_Y    = "Y";
@@ -71,13 +73,49 @@ const blurLuminance = (lum: Float32Array, W: number, H: number, r: number): Floa
 
 const displace = (input: any, options = defaults) => {
   const { strength, direction, warpSource, blurRadius, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    displaceGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    // Run the warp in GL regardless of palette. For nearest palettes the
+    // shader quantises in-line; for custom palettes we read back the warped
+    // image and run the standard palette pass (matches gaussianBlur's approach).
+    const identity = isIdentityPalette(palette);
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
+    const rendered = renderDisplaceGL(input, W, H, strength, direction, warpSource, blurRadius, levels);
+    // HTMLCanvasElement is undefined inside a Web Worker; rendered is an
+    // OffscreenCanvas there. Feature-check getContext instead of instanceof.
+    if (rendered && typeof (rendered as { getContext?: unknown }).getContext === "function") {
+      if (identity || isNearest) {
+        logFilterBackend("Displace", "WebGL2",
+          `${direction} ${warpSource} strength=${strength}${isNearest && !identity ? ` levels=${levels}` : ""}`);
+        return rendered;
+      }
+      // Custom palette: read back and apply palette on CPU.
+      const rCtx = (rendered as HTMLCanvasElement | OffscreenCanvas).getContext("2d", { willReadFrequently: true }) as
+        | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+      if (rCtx) {
+        const pixels = rCtx.getImageData(0, 0, W, H).data;
+        applyPaletteToBuffer(pixels, pixels, W, H, palette, true);
+        rCtx.putImageData(new ImageData(pixels, W, H), 0, 0);
+        logFilterBackend("Displace", "WebGL2",
+          `${direction} ${warpSource} strength=${strength}+palettePass`);
+        return rendered;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
 
   // Build luminance map

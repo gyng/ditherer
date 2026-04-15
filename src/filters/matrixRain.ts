@@ -139,7 +139,7 @@ const getCharBitmaps = (cellSize: number, chars: string): Uint8Array[] => {
     : new OffscreenCanvas(cellSize, cellSize);
   c.width = cellSize;
   c.height = cellSize;
-  const ctx = c.getContext("2d") as CanvasRenderingContext2D;
+  const ctx = c.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
   if (!ctx) return bitmaps;
 
   const fontSize = Math.max(6, cellSize - 1);

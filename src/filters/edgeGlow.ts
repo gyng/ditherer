@@ -5,10 +5,12 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
 import { defineFilter } from "filters/types";
+import { edgeGlowGLAvailable, renderEdgeGlowGL } from "./edgeGlowGL";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
@@ -28,14 +30,32 @@ export const defaults = {
 
 const edgeGlow = (input: any, options = defaults) => {
   const { threshold, glowRadius, edgeColor, backgroundColor, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    edgeGlowGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && (palette as { name?: string }).name === "nearest"
+  ) {
+    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const rendered = renderEdgeGlowGL(
+      input, W, H, threshold, glowRadius,
+      edgeColor as [number, number, number],
+      backgroundColor as [number, number, number],
+      levels,
+    );
+    if (rendered) {
+      logFilterBackend("Edge Glow", "WebGL2", `threshold=${threshold} glow=${glowRadius}`);
+      return rendered;
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
