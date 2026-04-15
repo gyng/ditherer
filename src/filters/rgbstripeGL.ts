@@ -91,6 +91,11 @@ export const rgbStripeGLAvailable = (): boolean => getCtx() !== null;
 
 // ── shader plumbing ────────────────────────────────────────────────────────
 
+// Standard no-flip vertex shader. v_uv is in framebuffer space:
+// (0,0) bottom-left, (1,1) top-right. With UNPACK_FLIP_Y_WEBGL=true on
+// input upload, texture row 0 = source row 0 (top). drawImage from the GL
+// canvas to the 2D canvas flips the framebuffer, so 2D-canvas row N ends
+// up at framebuffer y=H-1-N. Main shader converts px.y → JS-y explicitly.
 const VS = `#version 300 es
 in vec2 a_pos;
 out vec2 v_uv;
@@ -156,15 +161,23 @@ float invertRadius(float rDst, float k) {
   return r;
 }
 
+// Takes a JS-oriented pixel position (y=0 at top). UNPACK_FLIP_Y_WEBGL=true
+// stores the texture upside-down relative to the source (row 0 = source
+// bottom), so we flip y when sampling.
 vec4 readClamped(sampler2D s, vec2 px) {
   vec2 cp = clamp(px, vec2(0.0), u_res - vec2(1.0));
-  return texture(s, (cp + 0.5) / u_res);
+  return texture(s, vec2(cp.x + 0.5, u_res.y - 0.5 - cp.y) / u_res);
 }
 
 void main() {
-  vec2 px = floor(v_uv * u_res);
-  float x = px.x;
-  float y = px.y;
+  // Framebuffer-space pixel coord (y=0 at bottom).
+  vec2 px_fb = floor(v_uv * u_res);
+  float x = px_fb.x;
+  // JS-space y (0 at top) — matches the reference loop's y. drawImage flips
+  // the framebuffer on copy to the 2D canvas so fb-bottom ends up at
+  // 2D-canvas bottom; rewriting y here makes the shader's per-pixel math
+  // identical to the JS path without rewiring sampling helpers.
+  float y = u_res.y - 1.0 - px_fb.y;
 
   // Interlace early-out: copy prev frame on inactive scanlines.
   if (u_interlace == 1 && int(mod(y, 2.0)) != u_interlaceField) {
@@ -259,7 +272,7 @@ void main() {
   }
 
   // Mask multiply (mask cell selected by floor(px / phosphorScale) mod size).
-  vec2 maskCoord = mod(floor(px / u_phosphorScale), u_maskSize);
+  vec2 maskCoord = mod(floor(vec2(x, y) / u_phosphorScale), u_maskSize);
   vec3 m = texture(u_mask, (maskCoord + 0.5) / u_maskSize).rgb;
   src *= m;
 
@@ -586,14 +599,15 @@ export const renderRgbStripeGL = (
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, o.maskW, o.maskH, 0, gl.RGBA, gl.UNSIGNED_BYTE, maskBytes);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
-  // Previous-frame texture (for interlace + persistence). Empty if no prev.
+  // Previous-frame texture (for interlace + persistence). Uploaded with
+  // UNPACK_FLIP_Y_WEBGL=true so its orientation matches the input texture —
+  // sampling at v_uv gives the same canvas pixel for both, and the shader's
+  // JS-y readClamped helper handles both identically.
   const hasPrev = !!(o.prevOutput && o.prevOutput.length === W * H * 4);
   const prevEntry = ensureTexture(gl, "prev", W, H);
   if (hasPrev) {
     gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, o.prevOutput as Uint8ClampedArray);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   }
 
   // Pass 1: main → texA.
