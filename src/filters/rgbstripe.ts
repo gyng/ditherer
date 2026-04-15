@@ -19,6 +19,7 @@
 import { ACTION, BOOL, ENUM, RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import * as palettes from "palettes";
+import { renderRgbStripeGL, rgbStripeGLAvailable, paletteShaderLevels } from "./rgbstripeGL";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -213,6 +214,15 @@ type RgbStripeOptions = FilterOptionValues & {
   _degaussFrame?: number;
 };
 
+// One-shot logger so flipping the GL fast path on/off shows up clearly in
+// the console without spamming every frame.
+let _lastGLLog: string | null = null;
+const logGLPathOnce = (label: string): void => {
+  if (_lastGLLog === label) return;
+  _lastGLLog = label;
+  console.info(`[filter:rgbStripe] ${label}`);
+};
+
 // Newton's method to invert barrel distortion: r_dst = r_src * (1 + k * r_src^2)
 const invertRadius = (rDst: number, k: number): number => {
   if (rDst === 0) return 0;
@@ -301,6 +311,66 @@ const rgbStripe = (
     ? Math.cos(degaussAge * 2.3) * degaussT * 20
       + Math.cos(degaussAge * 5.7) * degaussT * degaussT * 10
     : 0;
+
+  // GL fast path: if the WebGL renderer is available and the palette is
+  // either identity or `nearest` (the only one the shader implements), run
+  // the full pipeline on the GPU. Anything that requires palette logic the
+  // shader can't reproduce falls through to the JS path below.
+  const _wasmAcceleration = (options as { _wasmAcceleration?: boolean })._wasmAcceleration;
+  const paletteLevels = paletteShaderLevels(palette);
+  if (_wasmAcceleration !== false && paletteLevels !== null && rgbStripeGLAvailable()) {
+    const effect = 1 - strength;
+    const maskTbl = masks[shadowMask as keyof typeof masks](effect);
+    const mH = maskTbl.length;
+    const mW = maskTbl[0].length;
+    const flat = new Float32Array(mH * mW * 3);
+    for (let y = 0; y < mH; y += 1) {
+      for (let x = 0; x < mW; x += 1) {
+        const cell = maskTbl[y][x];
+        flat[(y * mW + x) * 3]     = cell[0];
+        flat[(y * mW + x) * 3 + 1] = cell[1];
+        flat[(y * mW + x) * 3 + 2] = cell[2];
+      }
+    }
+    const rendered = renderRgbStripeGL(input, {
+      width: W, height: H,
+      mask: flat, maskW: mW, maskH: mH,
+      brightness, contrast, exposure, gamma,
+      phosphorScale: Math.max(1, Math.round(phosphorScale)),
+      scanlineGap: Math.max(1, Math.round(scanlineGap)),
+      scanlineStrength,
+      includeScanline,
+      misconvergence,
+      curvature, vignette,
+      interlace,
+      interlaceField: interlace ? (frameIndex % 2) : -1,
+      flicker,
+      frameIndex,
+      isDegaussing,
+      degaussAge,
+      degaussT,
+      degaussWobbleX,
+      degaussWobbleY,
+      beamSpread: Math.round(beamSpread),
+      bloom,
+      bloomThreshold, bloomRadius, bloomStrength,
+      persistence,
+      paletteLevels,
+      prevOutput,
+    });
+    if (rendered) {
+      output = rendered;
+      if (blur) {
+        const maybeBlurred = convolve.func(output, { ...convolveDefaults, kernel: GAUSSIAN_3X3_WEAK });
+        if (maybeBlurred instanceof HTMLCanvasElement) output = maybeBlurred;
+      }
+      logGLPathOnce("WebGL2 (gpu)");
+      return output;
+    }
+  } else if (_wasmAcceleration !== false) {
+    if (paletteLevels === null) logGLPathOnce("JS (palette not shader-portable)");
+    else if (!rgbStripeGLAvailable()) logGLPathOnce("JS (WebGL2 unavailable)");
+  }
 
   const effectiveMisconvergence = misconvergence + degaussMisconvergence;
   let rBuf = buf, gBuf = buf, bBuf = buf;
