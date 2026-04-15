@@ -301,6 +301,11 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const baseWobbleY = Math.cos(age * 2.3) * envelope * height * 0.035 + Math.cos(age * 5.7) * envelope * decay * height * 0.018;
   const flashAmount = 1 + flash * envelope * (0.4 + 0.8 * Math.abs(Math.sin(age * 0.8)));
 
+  // A WASM burst renderer was written but benched at 0.81x — the per-pixel
+  // mix of sin/cos/sqrt/round + three clamped neighbour reads + a 3x3 hue
+  // rotate is JS-JIT-friendly and the cross-boundary cost pushed it into a
+  // net regression. Stays on JS.
+
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const index = getBufferIndex(x, y, width);
