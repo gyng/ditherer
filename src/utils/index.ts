@@ -1702,16 +1702,64 @@ export const addBufferPixel = (
 // Returns HTMLCanvasElement in the main thread, OffscreenCanvas in workers.
 // Typed as HTMLCanvasElement because both share the same 2D API and this
 // avoids 180+ downstream TS errors from the union return type.
+// Filter chains churn through canvas allocations — at 1280×720 RGBA each
+// canvas is ~3.7 MB, and a 5-step chain at 60 Hz hands the GC ~1 GB/s of
+// short-lived canvases. Pool them: once a filter hands its output down-
+// chain, the previous step's canvas becomes reusable. `releasePooledCanvas`
+// is called by the chain dispatcher (FilterContext / filterWorker) after
+// each step to return the superseded canvas to the pool.
+//
+// Entries are keyed by "WxH" — mixed-resolution chains still pool correctly
+// per size. We cap each size bucket to avoid accidentally holding huge
+// amounts of memory when a chain briefly runs at a bigger resolution.
+const CANVAS_POOL_MAX_PER_SIZE = 6;
+const _canvasPool = new Map<string, (HTMLCanvasElement | OffscreenCanvas)[]>();
+
+const poolKey = (w: number, h: number): string => `${w}x${h}`;
+
+const createRawCanvas = (w: number, h: number): HTMLCanvasElement | OffscreenCanvas => {
+  if (typeof document !== "undefined") {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    return c;
+  }
+  return new OffscreenCanvas(w, h);
+};
+
+// Grab a canvas for the given size — pooled if available, fresh otherwise.
+// Caller must treat the contents as undefined (the 2D context is cleared as
+// needed by the caller, e.g., via drawImage or putImageData).
+export const takePooledCanvas = (w: number, h: number): HTMLCanvasElement | OffscreenCanvas => {
+  const key = poolKey(w, h);
+  const bucket = _canvasPool.get(key);
+  if (bucket && bucket.length > 0) {
+    return bucket.pop() as HTMLCanvasElement | OffscreenCanvas;
+  }
+  return createRawCanvas(w, h);
+};
+
+// Return a no-longer-used canvas to the pool. Safe to call with null. The
+// caller must not retain references to the canvas or its context after
+// release — assume the pool may hand it out to another filter immediately.
+export const releasePooledCanvas = (
+  canvas: HTMLCanvasElement | OffscreenCanvas | null | undefined,
+): void => {
+  if (!canvas) return;
+  const key = poolKey(canvas.width, canvas.height);
+  let bucket = _canvasPool.get(key);
+  if (!bucket) {
+    bucket = [];
+    _canvasPool.set(key, bucket);
+  }
+  if (bucket.length >= CANVAS_POOL_MAX_PER_SIZE) return;
+  bucket.push(canvas);
+};
+
 export const cloneCanvas = (
   original: HTMLCanvasElement | OffscreenCanvas,
   copyData = true
 ): HTMLCanvasElement => {
-  const clone = typeof document !== "undefined"
-    ? document.createElement("canvas")
-    : new OffscreenCanvas(original.width, original.height);
-
-  clone.width = original.width;
-  clone.height = original.height;
+  const clone = takePooledCanvas(original.width, original.height);
 
   // Every cloned canvas feeds back into the filter pipeline, which calls
   // getImageData on it at least once per subsequent filter. willReadFrequently
@@ -1723,8 +1771,16 @@ export const cloneCanvas = (
     : (clone as OffscreenCanvas).getContext("2d", { willReadFrequently: true })
   ) as CanvasRenderingContext2D | null;
 
-  if (cloneCtx && copyData) {
-    cloneCtx.drawImage(original, 0, 0);
+  if (cloneCtx) {
+    if (copyData) {
+      cloneCtx.drawImage(original, 0, 0);
+    } else if (typeof cloneCtx.clearRect === "function") {
+      // Pool may hand back a canvas with stale pixels from the previous
+      // frame; callers that asked not to copy data expect a blank surface.
+      // The feature check is for unit tests that run against a minimal
+      // canvas mock (`vitest-canvas-mock`) that doesn't implement clearRect.
+      cloneCtx.clearRect(0, 0, clone.width, clone.height);
+    }
   }
 
   return clone as HTMLCanvasElement;

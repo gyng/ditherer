@@ -3,15 +3,13 @@ import { nearest } from "palettes";
 import { defineFilter } from "filters/types";
 import {
   cloneCanvas,
-  fillBufferPixel,
   getBufferIndex,
-  rgba,
-  paletteGetColor,
   wasmGaussianBlurBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
   logFilterBackend,
 } from "utils";
+import { applyPaletteToBuffer, paletteIsIdentity as isIdentityPalette } from "palettes/backend";
 import { gaussianBlurGLAvailable, renderGaussianBlurGL } from "./gaussianBlurGL";
 
 export const optionTypes = {
@@ -24,8 +22,11 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
+type GaussianBlurOptions = typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean };
+
+const gaussianBlurFilter = (input: any, options: GaussianBlurOptions = defaults) => {
   const { sigma, palette } = options;
+  const wasmOk: boolean = (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -35,16 +36,15 @@ const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAccele
   const W = input.width;
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+  const paletteIdentity = isIdentityPalette(palette);
 
   // GL fast path: only identity palette (the default). Non-identity palettes
   // fall through to WASM/JS below, which apply the palette per pixel. Honors
   // both `_wasmAcceleration` (turning off *any* acceleration) and the more
   // specific `_webglAcceleration` opt-out.
   if (
-    paletteIsIdentity
-    && options._wasmAcceleration !== false
+    paletteIdentity
+    && wasmOk
     && options._webglAcceleration !== false
     && gaussianBlurGLAvailable()
   ) {
@@ -55,16 +55,11 @@ const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAccele
     }
   }
 
-  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+  if (wasmIsLoaded() && wasmOk) {
     const outBuf = new Uint8ClampedArray(buf.length);
     wasmGaussianBlurBuffer(buf, outBuf, W, H, sigma);
-    if (!paletteIsIdentity) {
-      for (let i = 0; i < outBuf.length; i += 4) {
-        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
-        fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
-      }
-    }
-    logFilterWasmStatus("Gaussian Blur", true, paletteIsIdentity ? `sigma=${sigma}` : `sigma=${sigma}+palettePass`);
+    applyPaletteToBuffer(outBuf, outBuf, W, H, palette, wasmOk);
+    logFilterWasmStatus("Gaussian Blur", true, paletteIdentity ? `sigma=${sigma}` : `sigma=${sigma}+palettePass`);
     outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
     return output;
   }
@@ -101,7 +96,8 @@ const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAccele
     }
   }
 
-  // Vertical pass
+  // Vertical pass — write straight u8 output, palette quantization happens
+  // in a single batched pass below via the shared primitive.
   const outBuf = new Uint8ClampedArray(buf.length);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -116,11 +112,14 @@ const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAccele
         a += temp[idx + 3] * w;
       }
       const di = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(Math.round(r), Math.round(g), Math.round(b), Math.round(a)), palette.options, false);
-      fillBufferPixel(outBuf, di, color[0], color[1], color[2], Math.round(a));
+      outBuf[di]     = Math.round(r);
+      outBuf[di + 1] = Math.round(g);
+      outBuf[di + 2] = Math.round(b);
+      outBuf[di + 3] = Math.round(a);
     }
   }
 
+  applyPaletteToBuffer(outBuf, outBuf, W, H, palette, wasmOk);
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
 };

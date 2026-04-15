@@ -3,7 +3,7 @@ import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "filters
 import { deserializePalette } from "palettes";
 import type { SerializedPalette } from "palettes";
 import { grayscale } from "filters";
-import { logFilterDispatched } from "utils";
+import { logFilterDispatched, releasePooledCanvas } from "utils";
 import type { WorkerFilterRequest, WorkerFilterResult, WorkerPrevOutputFrame, WorkerRequestMessage } from "./types";
 import type { SerializedOptionMap } from "context/shareStateTypes";
 
@@ -134,6 +134,10 @@ export const runWorkerFilterRequest = (
           height: output.height,
         };
       }
+      // The worker has no step cache, so the previous canvas becomes
+      // garbage the moment `canvas = output` lands. Return it to the
+      // pool first; the next filter's `cloneCanvas` picks it up.
+      if (canvas !== output) releasePooledCanvas(canvas);
       canvas = output;
     }
   }
