@@ -198,6 +198,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const animLoopRef = useRef<number | null>(null);
   const animLastTimeRef = useRef(0);
   const animParamsRef = useRef<AnimationParams | null>(null);
+  // True when the current animation loop was started automatically by an
+  // `autoAnimate` filter on chain add (rather than by the user clicking a
+  // Play ACTION). When the last autoAnimate filter leaves the chain, we
+  // stop the loop; user-started loops are never auto-stopped.
+  const animLoopAutoStartedRef = useRef(false);
   const filteringRef = useRef(false);
   const pendingFilterRef = useRef(false);
   const videoFrameTokenRef = useRef(0);
@@ -218,7 +223,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     prevOutputMapRef.current.clear();
     prevInputMapRef.current.clear();
     emaMapRef.current.clear();
-    cachedOutputsRef.current.clear();
+    clearCachedOutputs();
     cachedChainOrderRef.current = "";
     clearMotionVectorsState();
   }, []);
@@ -653,7 +658,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
     const chainKey = chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(",");
     if (chainKey !== cachedChainOrderRef.current) {
-      cachedOutputsRef.current.clear();
+      clearCachedOutputs();
       cachedChainOrderRef.current = chainKey;
     }
 
@@ -957,9 +962,37 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       cancelAnimationFrame(animLoopRef.current);
       animLoopRef.current = null;
     }
+    animLoopAutoStartedRef.current = false;
   };
 
   const isAnimating = () => animLoopRef.current != null;
+
+  // Called after any chain mutation. If the current animation loop was
+  // started by `autoAnimate` and no filter in the chain still opts in,
+  // stop the loop so we don't keep running the pipeline for no visible
+  // reason. User-started loops (clicking Play on a filter) are left
+  // alone so removing one filter doesn't kill an animation the user
+  // explicitly started on another.
+  const maybeStopAutoAnimLoop = () => {
+    if (!animLoopAutoStartedRef.current) return;
+    const chain = stateRef.current.chain;
+    const stillWantsAuto = chain.some((e) => e.enabled && e.filter?.autoAnimate);
+    if (!stillWantsAuto) stopAnimLoop();
+  };
+
+  // Release a cached chain-step canvas back to the pool instead of just
+  // dropping the reference — the pool is only useful if someone feeds it.
+  // Safe to call with a missing id.
+  const evictCachedOutput = (id: string) => {
+    const c = cachedOutputsRef.current.get(id);
+    if (c) releasePooledCanvas(c);
+    cachedOutputsRef.current.delete(id);
+  };
+
+  const clearCachedOutputs = () => {
+    for (const c of cachedOutputsRef.current.values()) releasePooledCanvas(c);
+    cachedOutputsRef.current.clear();
+  };
 
   const renderFrameForExport = (inputCanvas: HTMLCanvasElement | null, {
     sessionId,
@@ -1041,8 +1074,9 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
       clearMotionVectorsState();
-      cachedOutputsRef.current.clear();
+      clearCachedOutputs();
       dispatch({ type: "SELECT_FILTER", name, filter });
+      maybeStopAutoAnimLoop();
     },
     setConvertGrayscale: (value: boolean) =>
       dispatch({ type: "SET_GRAYSCALE", value }),
@@ -1084,7 +1118,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       // Invalidate cache from this entry onward
       const chain = stateRef.current.chain;
       for (let i = ci; i < chain.length; i++) {
-        cachedOutputsRef.current.delete(chain[i].id);
+        evictCachedOutput(chain[i].id);
       }
       clearMotionVectorsState();
       dispatch({
@@ -1098,7 +1132,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
       const chain = stateRef.current.chain;
       for (let i = ci; i < chain.length; i++) {
-        cachedOutputsRef.current.delete(chain[i].id);
+        evictCachedOutput(chain[i].id);
       }
       clearMotionVectorsState();
       dispatch({
@@ -1112,7 +1146,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       const ci = chainIndex ?? stateRef.current.activeIndex;
       const chain = stateRef.current.chain;
       for (let i = ci; i < chain.length; i++) {
-        cachedOutputsRef.current.delete(chain[i].id);
+        evictCachedOutput(chain[i].id);
       }
       clearMotionVectorsState();
       dispatch({
@@ -1155,6 +1189,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         const canvas = stateRef.current.inputCanvas;
         if (canvas instanceof HTMLCanvasElement) {
           startAnimLoop(canvas, filter.autoAnimateFps ?? 20);
+          animLoopAutoStartedRef.current = true;
         }
       }
     },
@@ -1162,13 +1197,19 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
+      evictCachedOutput(id);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REMOVE", id });
+      maybeStopAutoAnimLoop();
     },
     chainReorder: (fromIndex: number, toIndex: number) => {
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
+      // Reordering invalidates every cached step — a canvas cached at
+      // position N is no longer the right output for whatever filter
+      // ends up at N after the swap.
+      clearCachedOutputs();
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REORDER", fromIndex, toIndex });
     },
@@ -1177,13 +1218,26 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     },
     chainToggle: (id: string) => {
       dispatch({ type: "CHAIN_TOGGLE", id });
+      maybeStopAutoAnimLoop();
     },
     chainReplace: (id: string, displayName: string, filter) => {
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
+      evictCachedOutput(id);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REPLACE", id, displayName, filter });
+      // If the new filter is autoAnimate and no loop is running, start
+      // one; otherwise maybe stop an auto-loop whose trigger is gone.
+      if (filter?.autoAnimate && animLoopRef.current == null) {
+        const canvas = stateRef.current.inputCanvas;
+        if (canvas instanceof HTMLCanvasElement) {
+          startAnimLoop(canvas, filter.autoAnimateFps ?? 20);
+          animLoopAutoStartedRef.current = true;
+        }
+      } else {
+        maybeStopAutoAnimLoop();
+      }
     },
     chainDuplicate: (id: string) => {
       clearMotionVectorsState();
@@ -1191,7 +1245,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     },
     setChainAudioModulation: (id: string, modulation: EntryAudioModulation | null) => {
       clearMotionVectorsState();
-      cachedOutputsRef.current.delete(id);
+      evictCachedOutput(id);
       dispatch({ type: "SET_CHAIN_AUDIO_MODULATION", id, modulation });
     },
     copyChainToClipboard: () => {
@@ -1210,8 +1264,9 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         prevInputMapRef.current.clear();
         emaMapRef.current.clear();
         clearMotionVectorsState();
-        cachedOutputsRef.current.clear();
+        clearCachedOutputs();
         dispatch({ type: "LOAD_STATE", data });
+        maybeStopAutoAnimLoop();
       } catch (e) {
         console.warn("Failed to paste chain:", e);
       }
