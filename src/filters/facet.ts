@@ -1,6 +1,17 @@
 import { RANGE, COLOR, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+  wasmFacetBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+  FACET_FILL_MODE,
+} from "utils";
+import { paletteIsIdentity } from "palettes/backend";
 import { defineFilter } from "filters/types";
 
 const FILL_MODE = {
@@ -44,8 +55,11 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const facet = (input: any, options = defaults) => {
+type FacetOptions = typeof defaults & { _wasmAcceleration?: boolean };
+
+const facet = (input: any, options: FacetOptions = defaults) => {
   const { facetSize, jitter, seamWidth, lineColor, fillMode, palette } = options;
+  const wasmOk = (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -56,6 +70,32 @@ const facet = (input: any, options = defaults) => {
   const height = input.height;
   const buf = inputCtx.getImageData(0, 0, width, height).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+
+  // WASM fast path: spatial-grid nearest-two lookup + inline nearest
+  // palette quantize. Falls through to the JS reference when WASM isn't
+  // loaded yet, acceleration is disabled, or the palette isn't `nearest`
+  // (the only one the Rust kernel knows how to quantize inline).
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const isNearestPalette = !palette?.name || palette.name === "nearest";
+  const canInlinePalette = isNearestPalette && !paletteOpts?.colors;
+  const paletteLevels = paletteIsIdentity(palette) ? 256
+    : canInlinePalette ? (paletteOpts?.levels ?? 256)
+    : -1;
+  if (wasmOk && wasmIsLoaded() && paletteLevels >= 0) {
+    wasmFacetBuffer(
+      buf, outBuf, width, height,
+      Math.max(1, Math.round(facetSize)),
+      jitter,
+      Math.max(0, Math.round(seamWidth)),
+      lineColor[0] | 0, lineColor[1] | 0, lineColor[2] | 0,
+      fillMode === "CENTER" ? FACET_FILL_MODE.CENTER : FACET_FILL_MODE.AVERAGE,
+      paletteLevels,
+    );
+    logFilterWasmStatus("Facet", true, `size=${facetSize}, fill=${fillMode}`);
+    outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Facet", false, !wasmOk ? "_wasmAcceleration off" : !wasmIsLoaded() ? "wasm not loaded yet" : "palette not LUT-able");
   const cols = Math.ceil(width / facetSize) + 2;
   const rows = Math.ceil(height / facetSize) + 2;
   const seeds: { x: number; y: number }[] = [];

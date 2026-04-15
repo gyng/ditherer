@@ -2401,6 +2401,217 @@ pub fn vintage_tv_buffer(
     }
 }
 
+// === Facet (Voronoi tessellation) ===
+//
+// Port of src/filters/facet.ts. The JS reference is O(W·H·N) brute force —
+// every pixel scans every seed to find its nearest/second-nearest. At
+// defaults (facetSize=18, 1280×720) that's ~2.8B distance computations per
+// frame. This port replaces the inner scan with a 3×3 spatial-grid lookup:
+// seeds are generated one per grid cell with jitter capped at ±0.5·size,
+// so the nearest-two seeds for any pixel are always in the current cell's
+// 3×3 neighborhood. Work becomes O(W·H·9) — two orders of magnitude less.
+//
+// Parity hinges on reproducing JS's mulberry32 sequence exactly (including
+// the int32 coercion JS performs on the seed expression `width * big ^
+// height * big ^ round(jitter*1000)`) and on matching `Math.sqrt` /
+// rounding behavior in the seam-distance + averaging math.
+
+const FACET_FILL_AVERAGE: u32 = 0;
+const FACET_FILL_CENTER: u32 = 1;
+
+// Mulberry32 matching the JS implementation bit-for-bit. JS `Math.imul`
+// is int32 multiply mod 2^32; `wrapping_mul` on u32 gives the same bit
+// pattern. The `>>> 0` that JS does on input is implicit here since we
+// accept u32 directly.
+#[inline] fn mulberry32_next(state: &mut u32) -> f64 {
+    *state = state.wrapping_add(0x6D2B79F5);
+    let mut v = (*state ^ (*state >> 15)).wrapping_mul(*state | 1);
+    v ^= v.wrapping_add((v ^ (v >> 7)).wrapping_mul(v | 61));
+    ((v ^ (v >> 14)) as f64) / 4294967296.0
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn facet_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    facet_size: u32,
+    jitter: f64,
+    seam_width: u32,
+    line_r: u8,
+    line_g: u8,
+    line_b: u8,
+    fill_mode: u32,
+    palette_levels: u32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+    let w_i = width as i32;
+    let h_i = height as i32;
+    let fs = facet_size.max(1) as f64;
+
+    // Seed RNG: JS computes `(width * 73856093) ^ (height * 19349663) ^
+    // Math.round(jitter*1000)` with implicit ToInt32 on each XOR operand.
+    // Widen to i64 for the multiply so we match JS's double-precision
+    // product before truncation.
+    let s1 = ((width as i64).wrapping_mul(73856093)) as i32;
+    let s2 = ((height as i64).wrapping_mul(19349663)) as i32;
+    let s3 = (jitter * 1000.0).round() as i32;
+    let seed_u = (s1 ^ s2 ^ s3) as u32;
+
+    let cols_i = ((width as f64) / fs).ceil() as i32 + 2;
+    let rows_i = ((height as f64) / fs).ceil() as i32 + 2;
+    let cols = cols_i as usize;
+    let rows = rows_i as usize;
+    let n_seeds = cols * rows;
+
+    // Generate seeds in the same (gy, gx) order the JS reference pushes
+    // them, so the seed index layout matches and the RNG sequence lines up.
+    // seed_idx(gx, gy) = (gy + 1) * cols + (gx + 1), with gx/gy ∈ [-1..rows-2].
+    let mut seed_x = vec![0.0f64; n_seeds];
+    let mut seed_y = vec![0.0f64; n_seeds];
+    {
+        let mut state = seed_u;
+        let mut idx = 0usize;
+        for gy in -1..(rows_i - 1) {
+            for gx in -1..(cols_i - 1) {
+                let rx = mulberry32_next(&mut state);
+                let ry = mulberry32_next(&mut state);
+                seed_x[idx] = (gx as f64 + 0.5) * fs + (rx - 0.5) * fs * jitter;
+                seed_y[idx] = (gy as f64 + 0.5) * fs + (ry - 0.5) * fs * jitter;
+                idx += 1;
+            }
+        }
+    }
+
+    // Storage per pixel: assignment (seed index) + border distance for seam
+    // detection. Rendering pass reads these back without recomputing sqrts.
+    let mut assignment = vec![0u32; w * h];
+    let mut border_dist = vec![0.0f32; w * h];
+
+    // Per-seed color accumulators (AVERAGE mode). Kept as primitive arrays
+    // for cache-friendly inner loop; struct-of-arrays.
+    let accumulate_average = fill_mode == FACET_FILL_AVERAGE;
+    let mut sum_r = vec![0u64; n_seeds];
+    let mut sum_g = vec![0u64; n_seeds];
+    let mut sum_b = vec![0u64; n_seeds];
+    let mut sum_a = vec![0u64; n_seeds];
+    let mut count = vec![0u32; n_seeds];
+
+    // Pass 1: nearest-two seed lookup via 3x3 cell neighborhood.
+    for y in 0..h_i {
+        // Grid cell for this pixel. For jitter ≤ 1 (max), a seed is
+        // displaced by ≤ ±0.5·size from its cell center, so the pixel's
+        // nearest seed lives in the cell itself or an adjacent one.
+        let cy = (y as f64 / fs).floor() as i32;
+        for x in 0..w_i {
+            let cx = (x as f64 / fs).floor() as i32;
+            let xf = x as f64;
+            let yf = y as f64;
+
+            let mut best_idx = 0usize;
+            let mut best_dist = f64::INFINITY;
+            let mut second_dist = f64::INFINITY;
+
+            // 3x3 neighborhood. Guard against the edge cells where a
+            // neighbor row/col falls outside [-1, rows-2] / [-1, cols-2].
+            for dy in -1..=1 {
+                let gy = cy + dy;
+                if gy < -1 || gy > rows_i - 2 { continue; }
+                let sy_row = ((gy + 1) as usize) * cols;
+                for dx in -1..=1 {
+                    let gx = cx + dx;
+                    if gx < -1 || gx > cols_i - 2 { continue; }
+                    let sidx = sy_row + ((gx + 1) as usize);
+                    let ddx = xf - seed_x[sidx];
+                    let ddy = yf - seed_y[sidx];
+                    let dist = ddx * ddx + ddy * ddy;
+                    if dist < best_dist {
+                        second_dist = best_dist;
+                        best_dist = dist;
+                        best_idx = sidx;
+                    } else if dist < second_dist {
+                        second_dist = dist;
+                    }
+                }
+            }
+
+            let pi = (y as usize) * w + (x as usize);
+            assignment[pi] = best_idx as u32;
+            // JS computes `(sqrt(second) - sqrt(best)) * 0.5` for the
+            // border-distance seam test.
+            border_dist[pi] = ((second_dist.sqrt() - best_dist.sqrt()) * 0.5) as f32;
+
+            if accumulate_average {
+                let bi = pi * 4;
+                sum_r[best_idx] += input[bi] as u64;
+                sum_g[best_idx] += input[bi + 1] as u64;
+                sum_b[best_idx] += input[bi + 2] as u64;
+                sum_a[best_idx] += input[bi + 3] as u64;
+                count[best_idx] += 1;
+            }
+        }
+    }
+
+    // Resolve per-seed colors (AVERAGE: sum/count with JS-style round-half-
+    // up via `(v + 0.5).floor()`; CENTER: sample input at round(seed.xy)).
+    let mut color_r = vec![0u8; n_seeds];
+    let mut color_g = vec![0u8; n_seeds];
+    let mut color_b = vec![0u8; n_seeds];
+    let mut color_a = vec![0u8; n_seeds];
+    for i in 0..n_seeds {
+        if fill_mode == FACET_FILL_CENTER {
+            let sx = seed_x[i].round().clamp(0.0, (w_i - 1) as f64) as i32;
+            let sy = seed_y[i].round().clamp(0.0, (h_i - 1) as f64) as i32;
+            let bi = ((sy as usize) * w + (sx as usize)) * 4;
+            color_r[i] = input[bi];
+            color_g[i] = input[bi + 1];
+            color_b[i] = input[bi + 2];
+            color_a[i] = input[bi + 3];
+        } else {
+            let c = count[i].max(1) as f64;
+            color_r[i] = (sum_r[i] as f64 / c + 0.5).floor().clamp(0.0, 255.0) as u8;
+            color_g[i] = (sum_g[i] as f64 / c + 0.5).floor().clamp(0.0, 255.0) as u8;
+            color_b[i] = (sum_b[i] as f64 / c + 0.5).floor().clamp(0.0, 255.0) as u8;
+            color_a[i] = (sum_a[i] as f64 / c + 0.5).floor().clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    // Inline nearest-palette quantize when active so we don't need a post
+    // WASM call.
+    let palette_step = if palette_levels >= 2 && palette_levels < 256 {
+        Some(255.0 / ((palette_levels - 1) as f64))
+    } else { None };
+    let quantize = |c: u8| -> u8 {
+        match palette_step {
+            Some(step) => ((c as f64 / step).round() * step).round().clamp(0.0, 255.0) as u8,
+            None => c,
+        }
+    };
+
+    // Pass 2: render output. Seam pixels are a constant colour, non-seam
+    // pixels use the facet's resolved+quantized colour.
+    let seam_w_f = seam_width as f32;
+    for pi in 0..(w * h) {
+        let oi = pi * 4;
+        if border_dist[pi] < seam_w_f {
+            output[oi] = line_r;
+            output[oi + 1] = line_g;
+            output[oi + 2] = line_b;
+            output[oi + 3] = 255;
+        } else {
+            let s = assignment[pi] as usize;
+            output[oi]     = quantize(color_r[s]);
+            output[oi + 1] = quantize(color_g[s]);
+            output[oi + 2] = quantize(color_b[s]);
+            output[oi + 3] = color_a[s];
+        }
+    }
+}
+
 // === rgbStripe (CRT emulation) ===
 //
 // Full pipeline WASM port. The earlier attempt at this was reverted because

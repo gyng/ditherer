@@ -148,6 +148,28 @@ export function error_diffuse_custom_order(input, output, width, height, visit_o
  * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
+ * @param {number} facet_size
+ * @param {number} jitter
+ * @param {number} seam_width
+ * @param {number} line_r
+ * @param {number} line_g
+ * @param {number} line_b
+ * @param {number} fill_mode
+ * @param {number} palette_levels
+ */
+export function facet_buffer(input, output, width, height, facet_size, jitter, seam_width, line_r, line_g, line_b, fill_mode, palette_levels) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.facet_buffer(ptr0, len0, ptr1, len1, output, width, height, facet_size, jitter, seam_width, line_r, line_g, line_b, fill_mode, palette_levels);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
  * @param {number} sigma
  */
 export function gaussian_blur_buffer(input, output, width, height, sigma) {

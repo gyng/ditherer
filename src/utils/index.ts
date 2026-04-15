@@ -202,6 +202,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmScanlineWarpInner = mod.scanline_warp_buffer;
   wasmVintageTvInner = mod.vintage_tv_buffer;
   wasmRgbStripeInner = mod.rgbstripe_buffer;
+  wasmFacetInner = mod.facet_buffer;
   wasmLcdDisplayInner = mod.lcd_display_buffer;
   wasmOilPaintingInner = mod.oil_painting_buffer;
   wasmLensDistortionInner = mod.lens_distortion_buffer;
@@ -566,6 +567,22 @@ type WasmVintageTvFn = {
     glow: number,
   ): void;
 }["bivarianceHack"];
+type WasmFacetFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    facetSize: number,
+    jitter: number,
+    seamWidth: number,
+    lineR: number,
+    lineG: number,
+    lineB: number,
+    fillMode: number,
+    paletteLevels: number,
+  ): void;
+}["bivarianceHack"];
 type WasmRgbStripeFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -808,6 +825,10 @@ let wasmVintageTvInner: WasmVintageTvFn = () => {
 };
 
 let wasmRgbStripeInner: WasmRgbStripeFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmFacetInner: WasmFacetFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -1315,6 +1336,33 @@ export const wasmRgbStripeBuffer = (
   misconvergence, beamSpread, bloom, bloomThreshold, bloomRadius, bloomStrength,
   curvature, vignette, interlace, interlaceField,
   persistence, flicker, frameIndex, degaussFrame, paletteLevels,
+);
+
+// Facet: Voronoi-ish tessellation with optional seams. The WASM kernel
+// uses a 3x3 spatial-grid lookup for nearest-two seeds, dropping the
+// inner loop from O(N) to O(9). `fillMode`: 0 = AVERAGE (per-facet mean
+// colour), 1 = CENTER (sample at the seed pixel). `paletteLevels`:
+// 0/≥256 = identity, 2-255 = inline nearest quantize.
+export const FACET_FILL_MODE = { AVERAGE: 0, CENTER: 1 } as const;
+
+export const wasmFacetBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  facetSize: number,
+  jitter: number,
+  seamWidth: number,
+  lineR: number,
+  lineG: number,
+  lineB: number,
+  fillMode: number,
+  paletteLevels: number,
+): void => wasmFacetInner(
+  input, output, width, height,
+  facetSize, jitter, seamWidth,
+  lineR, lineG, lineB,
+  fillMode, paletteLevels,
 );
 
 // Scanline Warp: sin-driven per-row horizontal shift with bilinear sampling.
