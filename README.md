@@ -31,7 +31,7 @@ Also useful for lightweight VJing and live visuals too: swap sources, keep outpu
 - **Gamma-correct pipeline** with optional linear-light processing
 - **Palette tooling** including built-in retro/art palettes plus adaptive and extracted palettes
 - **Audio-reactive modulation** with microphone or tab audio input, auto-generated mappings, and draggable patch panels
-- **WASM acceleration** for performance-critical color distance work with JS fallback
+- **WASM + WebGL2 acceleration** for the heavier filters, with a shared `src/gl/` pipeline (single context, pooled textures, JS-y sampling helpers) so new ports only need a shader + orchestration. Current consumers: rgbStripe (GL + WASM), Gaussian Blur (GL + WASM), Facet (WASM, 140× over JS via spatial-grid Voronoi), Bit Crush (WASM LUT), plus older WASM filters (Floyd-Steinberg, Ordered, Quantize, Levels, etc.). Each backend can be toggled from the settings pane; filters fall through cleanly on unsupported devices or when the palette isn't shader-portable
 - **Rich export flows** for PNG, JPEG, WebP, GIF, frame sequences, WebM, and browser-dependent MP4 recording paths
 - **Static gallery generation** from the live filter/preset registries
 
