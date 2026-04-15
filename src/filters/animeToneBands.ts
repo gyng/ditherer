@@ -46,6 +46,10 @@ const animeToneBands = (input: any, options = defaults) => {
   const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  // Pure per-pixel f64 math (luma, smoothstep, lerp, skin compares) with no
+  // expensive transfer functions to LUT away — V8 turbofan wins against a
+  // straight WASM port (benched at 0.82x). Stays on JS; revisit if we find a
+  // luma-indexed LUT or SIMD approach that actually helps.
 
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
