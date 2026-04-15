@@ -1932,49 +1932,151 @@ pub fn oil_painting_buffer(
     let levels_u = levels as usize;
     if w == 0 || h == 0 || levels_u == 0 { return; }
 
-    let mut bin_count = vec![0i32; levels_u];
-    let mut bin_r = vec![0.0f64; levels_u];
-    let mut bin_g = vec![0.0f64; levels_u];
-    let mut bin_b = vec![0.0f64; levels_u];
+    // Sliding 2D histogram. Precompute per-pixel bin index, then maintain per-
+    // column per-bin counts and RGB sums over the current vertical y-window;
+    // and per x-pixel, a window sum over (2r+1) adjacent column histograms.
+    // Per output pixel the work is O(levels) for the column-diff slide and
+    // O(levels) for the max-bin scan — independent of r. Since we accumulate
+    // u8 values into integer bin sums (not floats), there's no precision
+    // drift vs the JS f64 accumulator and parity is bit-exact.
+
+    let n = w * h;
+    let mut bin_idx = vec![0u8; n];
+    for p in 0..n {
+        let i = p * 4;
+        // SAFETY: p < n → i + 2 < input.len().
+        let (pr, pg, pb) = unsafe {
+            (
+                *input.get_unchecked(i) as f64,
+                *input.get_unchecked(i + 1) as f64,
+                *input.get_unchecked(i + 2) as f64,
+            )
+        };
+        let lum = (0.2126 * pr + 0.7152 * pg + 0.0722 * pb) / 255.0;
+        let bin = ((lum * levels_u as f64).floor() as isize).max(0).min(levels_u as isize - 1) as u8;
+        unsafe { *bin_idx.get_unchecked_mut(p) = bin; }
+    }
 
     let w_i = w as i32;
     let h_i = h as i32;
-    for y in 0..h_i {
-        for x in 0..w_i {
-            for i in 0..levels_u {
-                bin_count[i] = 0;
-                bin_r[i] = 0.0;
-                bin_g[i] = 0.0;
-                bin_b[i] = 0.0;
+    let r_i = r as i32;
+    let k_len = 2 * r + 1; // window side length
+
+    // Per-column per-bin state for the current y-window.
+    let mut col_count: Vec<u32> = vec![0; w * levels_u];
+    let mut col_r:     Vec<u32> = vec![0; w * levels_u];
+    let mut col_g:     Vec<u32> = vec![0; w * levels_u];
+    let mut col_b:     Vec<u32> = vec![0; w * levels_u];
+
+    // Running x-window over `k_len` column histograms.
+    let mut win_count: Vec<u32> = vec![0; levels_u];
+    let mut win_r:     Vec<u32> = vec![0; levels_u];
+    let mut win_g:     Vec<u32> = vec![0; levels_u];
+    let mut win_b:     Vec<u32> = vec![0; levels_u];
+
+    // Initialise columns for y=0: sum across the k_len row-samples, each
+    // clamped. For the default radius this just replicates row 0 a few times
+    // and walks rows 1..r — whatever clamp-to-edge produces.
+    for ky_sample in 0..k_len as i32 {
+        let ny = (ky_sample - r_i).clamp(0, h_i - 1) as usize;
+        let row = ny * w;
+        for x in 0..w {
+            let px = row + x;
+            let si = px * 4;
+            let bin = unsafe { *bin_idx.get_unchecked(px) as usize };
+            let col_off = x * levels_u + bin;
+            unsafe {
+                *col_count.get_unchecked_mut(col_off) += 1;
+                *col_r.get_unchecked_mut(col_off) += *input.get_unchecked(si) as u32;
+                *col_g.get_unchecked_mut(col_off) += *input.get_unchecked(si + 1) as u32;
+                *col_b.get_unchecked_mut(col_off) += *input.get_unchecked(si + 2) as u32;
             }
-            for ky in -(r as i32)..=(r as i32) {
-                let ny = (y + ky).clamp(0, h_i - 1) as usize;
-                let row = ny * w;
-                for kx in -(r as i32)..=(r as i32) {
-                    let nx = (x + kx).clamp(0, w_i - 1) as usize;
-                    let si = (row + nx) * 4;
-                    // SAFETY: si + 2 < input.len().
-                    let (sr, sg, sb) = unsafe {
-                        (
-                            *input.get_unchecked(si) as f64,
-                            *input.get_unchecked(si + 1) as f64,
-                            *input.get_unchecked(si + 2) as f64,
-                        )
-                    };
-                    let lum = (0.2126 * sr + 0.7152 * sg + 0.0722 * sb) / 255.0;
-                    let bin = ((lum * levels_u as f64).floor() as isize).max(0).min(levels_u as isize - 1) as usize;
-                    bin_count[bin] += 1;
-                    bin_r[bin] += sr;
-                    bin_g[bin] += sg;
-                    bin_b[bin] += sb;
+        }
+    }
+
+    for y in 0..h_i {
+        // After y=0 the column histograms need to slide down one row: remove
+        // the row that fell off the top, add the new row at the bottom.
+        if y > 0 {
+            let old_y = (y - 1 - r_i).clamp(0, h_i - 1) as usize;
+            let new_y = (y + r_i).clamp(0, h_i - 1) as usize;
+            let old_row = old_y * w;
+            let new_row = new_y * w;
+            for x in 0..w {
+                let old_px = old_row + x;
+                let new_px = new_row + x;
+                let old_si = old_px * 4;
+                let new_si = new_px * 4;
+                let old_bin = unsafe { *bin_idx.get_unchecked(old_px) as usize };
+                let new_bin = unsafe { *bin_idx.get_unchecked(new_px) as usize };
+                let old_off = x * levels_u + old_bin;
+                let new_off = x * levels_u + new_bin;
+                unsafe {
+                    *col_count.get_unchecked_mut(old_off) -= 1;
+                    *col_r.get_unchecked_mut(old_off) -= *input.get_unchecked(old_si) as u32;
+                    *col_g.get_unchecked_mut(old_off) -= *input.get_unchecked(old_si + 1) as u32;
+                    *col_b.get_unchecked_mut(old_off) -= *input.get_unchecked(old_si + 2) as u32;
+
+                    *col_count.get_unchecked_mut(new_off) += 1;
+                    *col_r.get_unchecked_mut(new_off) += *input.get_unchecked(new_si) as u32;
+                    *col_g.get_unchecked_mut(new_off) += *input.get_unchecked(new_si + 1) as u32;
+                    *col_b.get_unchecked_mut(new_off) += *input.get_unchecked(new_si + 2) as u32;
                 }
             }
+        }
+
+        // Reset and seed the x-window from k_len column histograms at x=0.
+        for b in 0..levels_u {
+            unsafe {
+                *win_count.get_unchecked_mut(b) = 0;
+                *win_r.get_unchecked_mut(b) = 0;
+                *win_g.get_unchecked_mut(b) = 0;
+                *win_b.get_unchecked_mut(b) = 0;
+            }
+        }
+        for kx_sample in 0..k_len as i32 {
+            let nx = (kx_sample - r_i).clamp(0, w_i - 1) as usize;
+            let base = nx * levels_u;
+            for b in 0..levels_u {
+                unsafe {
+                    *win_count.get_unchecked_mut(b) += *col_count.get_unchecked(base + b);
+                    *win_r.get_unchecked_mut(b) += *col_r.get_unchecked(base + b);
+                    *win_g.get_unchecked_mut(b) += *col_g.get_unchecked(base + b);
+                    *win_b.get_unchecked_mut(b) += *col_b.get_unchecked(base + b);
+                }
+            }
+        }
+
+        // Emit x=0, then slide across the row.
+        let row_base = (y as usize) * w;
+        for x in 0..w_i {
+            if x > 0 {
+                let old_x = (x - 1 - r_i).clamp(0, w_i - 1) as usize;
+                let new_x = (x + r_i).clamp(0, w_i - 1) as usize;
+                let old_base = old_x * levels_u;
+                let new_base = new_x * levels_u;
+                for b in 0..levels_u {
+                    unsafe {
+                        *win_count.get_unchecked_mut(b) -= *col_count.get_unchecked(old_base + b);
+                        *win_r.get_unchecked_mut(b)     -= *col_r.get_unchecked(old_base + b);
+                        *win_g.get_unchecked_mut(b)     -= *col_g.get_unchecked(old_base + b);
+                        *win_b.get_unchecked_mut(b)     -= *col_b.get_unchecked(old_base + b);
+                        *win_count.get_unchecked_mut(b) += *col_count.get_unchecked(new_base + b);
+                        *win_r.get_unchecked_mut(b)     += *col_r.get_unchecked(new_base + b);
+                        *win_g.get_unchecked_mut(b)     += *col_g.get_unchecked(new_base + b);
+                        *win_b.get_unchecked_mut(b)     += *col_b.get_unchecked(new_base + b);
+                    }
+                }
+            }
+
             let mut max_bin = 0usize;
             for b in 1..levels_u {
-                if bin_count[b] > bin_count[max_bin] { max_bin = b; }
+                if unsafe { *win_count.get_unchecked(b) > *win_count.get_unchecked(max_bin) } {
+                    max_bin = b;
+                }
             }
-            let count = bin_count[max_bin];
-            let i = ((y as usize) * w + (x as usize)) * 4;
+            let count = unsafe { *win_count.get_unchecked(max_bin) };
+            let i = (row_base + x as usize) * 4;
             if count == 0 {
                 unsafe {
                     *output.get_unchecked_mut(i)     = *input.get_unchecked(i);
@@ -1985,10 +2087,16 @@ pub fn oil_painting_buffer(
                 continue;
             }
             let cf = count as f64;
-            // Match JS: Math.round(sum / count), Uint8ClampedArray write clamps.
-            let r_u = (bin_r[max_bin] / cf).round().clamp(0.0, 255.0) as u8;
-            let g_u = (bin_g[max_bin] / cf).round().clamp(0.0, 255.0) as u8;
-            let b_u = (bin_b[max_bin] / cf).round().clamp(0.0, 255.0) as u8;
+            let (sr, sg, sb) = unsafe {
+                (
+                    *win_r.get_unchecked(max_bin) as f64,
+                    *win_g.get_unchecked(max_bin) as f64,
+                    *win_b.get_unchecked(max_bin) as f64,
+                )
+            };
+            let r_u = (sr / cf).round().clamp(0.0, 255.0) as u8;
+            let g_u = (sg / cf).round().clamp(0.0, 255.0) as u8;
+            let b_u = (sb / cf).round().clamp(0.0, 255.0) as u8;
             unsafe {
                 *output.get_unchecked_mut(i)     = r_u;
                 *output.get_unchecked_mut(i + 1) = g_u;
