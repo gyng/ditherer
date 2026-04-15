@@ -1910,6 +1910,68 @@ pub fn grain_merge_buffer(
     }
 }
 
+// === Triangle dither ===
+//
+// Port of src/filters/triangleDither.ts: add TPDF noise (triangular
+// probability density function, ±127.5) to each RGB channel then snap to
+// levels. The JS path uses `Math.random()` so its output already varies per
+// run — we don't need bit-exact parity, just the same statistical behaviour.
+// Caller passes a `seed` (any non-zero u32); we drive an xorshift32 PRNG
+// from there, so output is stable for a given seed but varies across calls
+// when the JS side seeds with a fresh random.
+
+#[inline]
+fn xorshift32(state: &mut u32) -> u32 {
+    let mut x = *state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *state = x;
+    x
+}
+
+#[inline]
+fn rand_unit_f32(state: &mut u32) -> f32 {
+    xorshift32(state) as f32 / u32::MAX as f32
+}
+
+#[wasm_bindgen]
+pub fn triangle_dither_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    levels: u32,
+    seed: u32,
+) {
+    let step = if levels > 1 { 255.0 / (levels as f32 - 1.0) } else { 255.0 };
+    let mut rng = if seed == 0 { 0x12345678u32 } else { seed };
+    let n = input.len() / 4;
+    for p in 0..n {
+        let i = p * 4;
+        // SAFETY: p < n → i + 3 < input.len().
+        let (ir, ig, ib, ia) = unsafe {
+            (
+                *input.get_unchecked(i) as f32,
+                *input.get_unchecked(i + 1) as f32,
+                *input.get_unchecked(i + 2) as f32,
+                *input.get_unchecked(i + 3),
+            )
+        };
+        // TPDF noise in (-1, 1) scaled by 127.5 (matches JS: tpdf() * 255 * 0.5).
+        let nr = (rand_unit_f32(&mut rng) - rand_unit_f32(&mut rng)) * 127.5;
+        let ng = (rand_unit_f32(&mut rng) - rand_unit_f32(&mut rng)) * 127.5;
+        let nb = (rand_unit_f32(&mut rng) - rand_unit_f32(&mut rng)) * 127.5;
+        let qr = js_round_f32(js_round_f32((ir + nr) / step) * step).clamp(0.0, 255.0) as u8;
+        let qg = js_round_f32(js_round_f32((ig + ng) / step) * step).clamp(0.0, 255.0) as u8;
+        let qb = js_round_f32(js_round_f32((ib + nb) / step) * step).clamp(0.0, 255.0) as u8;
+        unsafe {
+            *output.get_unchecked_mut(i)     = qr;
+            *output.get_unchecked_mut(i + 1) = qg;
+            *output.get_unchecked_mut(i + 2) = qb;
+            *output.get_unchecked_mut(i + 3) = ia;
+        }
+    }
+}
+
 // === HSV shift ===
 //
 // Rotate hue by `hue_shift` degrees and offset saturation/value by `sat_shift` /

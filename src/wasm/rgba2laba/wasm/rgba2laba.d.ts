@@ -62,6 +62,8 @@ export function rgba_laba_distance(r1: number, g1: number, b1: number, a1: numbe
  */
 export function rgba_nearest_lab_index(r: number, g: number, b: number, a: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
 
+export function triangle_dither_buffer(input: Uint8Array, output: Uint8Array, levels: number, seed: number): void;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -82,6 +84,7 @@ export interface InitOutput {
     readonly bloom_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number) => void;
     readonly gaussian_blur_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly grain_merge_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number) => void;
+    readonly triangle_dither_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number) => void;
     readonly hsv_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly __wbindgen_externrefs: WebAssembly.Table;

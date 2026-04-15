@@ -76,11 +76,15 @@ const quantize = (
   const colors = paletteOpts?.colors;
 
   // WASM buffer quantize — single call replaces entire pixel loop.
-  // Works for sRGB path (no linearize); linear path still needs per-pixel round-trip.
   let wasmReason = "";
   if (!options._wasmAcceleration) wasmReason = "_wasmAcceleration off";
   else if (!wasmIsLoaded()) wasmReason = "wasm not loaded yet";
-  else if (options._linearize) wasmReason = "linearize on";
+  // Linearize is fine for levels — the linear→sRGB→snap→linear→sRGB
+  // pipeline reduces to a pure u8-domain levels snap (input and output are
+  // both sRGB u8; our LUT-based roundtrips are identity at u8 precision). For
+  // user palette + linearize, the linear-space distance still matters, so
+  // fall through to the JS loop there.
+  else if (options._linearize && colors) wasmReason = "linearize on (user palette)";
 
   if (!wasmReason) {
     // User palette (has colors + algorithm) → full quantize dispatcher.
@@ -97,7 +101,7 @@ const quantize = (
       // Nearest / levels palette: round-round-snap per channel fits a 256 LUT.
       const lut = buildLevelsLut(paletteOpts.levels);
       wasmApplyChannelLut(buf, buf, lut, lut, lut);
-      logFilterWasmStatus("Quantize", true, `levels=${paletteOpts.levels}`);
+      logFilterWasmStatus("Quantize", true, `levels=${paletteOpts.levels}${options._linearize ? " (linear)" : ""}`);
       outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
       return output;
     } else {

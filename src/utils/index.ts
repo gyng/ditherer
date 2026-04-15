@@ -198,6 +198,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmAnimeColorGradeInner = mod.anime_color_grade_buffer;
   wasmGaussianBlurInner = mod.gaussian_blur_buffer;
   wasmBloomInner = mod.bloom_buffer;
+  wasmTriangleDitherInner = mod.triangle_dither_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -512,6 +513,14 @@ type WasmGrainMergeFn = {
     strength: number,
   ): void;
 }["bivarianceHack"];
+type WasmTriangleDitherFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    levels: number,
+    seed: number,
+  ): void;
+}["bivarianceHack"];
 type WasmHsvShiftFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -658,6 +667,10 @@ let wasmApplyChannelLutInner: WasmApplyChannelLutFn = () => {
 };
 
 let wasmHsvShiftInner: WasmHsvShiftFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmTriangleDitherInner: WasmTriangleDitherFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -1045,6 +1058,16 @@ export const wasmGrainMergeBuffer = (
   radius: number,
   strength: number,
 ): void => wasmGrainMergeInner(input, output, width, height, radius, strength);
+
+// Triangle dither: TPDF noise added per channel, snapped to `levels`. Caller
+// seeds the WASM PRNG with any non-zero u32 (use Math.random() for JS-like
+// run-to-run variation).
+export const wasmTriangleDitherBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  levels: number,
+  seed: number,
+): void => wasmTriangleDitherInner(input, output, levels, seed);
 
 // Per-pixel HSV shift (hue in degrees, sat/val in [-1, 1]) applied in a single
 // WASM call. Alpha passes through unchanged. Used by the Color shift filter.
