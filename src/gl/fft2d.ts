@@ -449,6 +449,191 @@ export const inverseFFT2D = (
   return src;
 };
 
+// Run forward FFT starting from a pre-extracted float texture. Useful
+// for filters that want to pre-process luminance (e.g. homomorphic's
+// log(lum)) before the butterfly stages. The caller is responsible for
+// writing a complex image (R=real, G=imag) into a padded-size texture
+// with zero-padding beyond the source region.
+export const forwardFFT2DFromExtract = (
+  gl: WebGL2RenderingContext,
+  extracted: { tex: WebGLTexture; fbo: WebGLFramebuffer },
+  paddedW: number,
+  paddedH: number,
+): FloatEntry | null => {
+  if (!fft2dAvailable()) return null;
+  const cache = initCache(gl);
+  const vao = getQuadVAO(gl);
+  const logW = log2Int(paddedW);
+  const logH = log2Int(paddedH);
+
+  const pingA = ensureFloatTex(gl, "fft2d:ping", paddedW, paddedH);
+  const pingB = ensureFloatTex(gl, "fft2d:pong", paddedW, paddedH);
+  if (!pingA || !pingB) return null;
+
+  drawPass(gl, pingA, paddedW, paddedH, cache.bitrev, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, extracted.tex);
+    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+    gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
+    gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
+  }, vao);
+  let src = pingA;
+  let dst = pingB;
+
+  for (let s = 1; s <= logW; s++) {
+    const m = 1 << s;
+    const halfM = m >> 1;
+    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
+      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+    }, vao);
+    [src, dst] = [dst, src];
+  }
+
+  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, src.tex);
+    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+    gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
+    gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
+  }, vao);
+  [src, dst] = [dst, src];
+
+  for (let s = 1; s <= logH; s++) {
+    const m = 1 << s;
+    const halfM = m >> 1;
+    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
+      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+    }, vao);
+    [src, dst] = [dst, src];
+  }
+  return src;
+};
+
+// Run the forward FFT up to a specific pipeline stage — used by the
+// Butterfly Plot to visualise intermediate state. Stage numbering:
+//   0                 → post-extract (spatial luminance, zero-padded)
+//   1 … logW          → after that many row butterflies (bit-reverse is
+//                       included in stage 1 to match Cooley-Tukey order)
+//   logW + 1          → bit-reverse along columns
+//   logW + 1 + k      → after k column butterflies
+//   totalStages       → fully-forward FFT (equivalent to forwardFFT2D)
+export const forwardFFT2DToStage = (
+  gl: WebGL2RenderingContext,
+  sourceTex: TexEntry,
+  srcW: number,
+  srcH: number,
+  stopStage: number,
+): FFTResult | null => {
+  if (!fft2dAvailable()) return null;
+  const cache = initCache(gl);
+  const vao = getQuadVAO(gl);
+
+  const paddedW = nextPow2(srcW);
+  const paddedH = nextPow2(srcH);
+  const logW = log2Int(paddedW);
+  const logH = log2Int(paddedH);
+
+  const pingA = ensureFloatTex(gl, "fft2d:ping", paddedW, paddedH);
+  const pingB = ensureFloatTex(gl, "fft2d:pong", paddedW, paddedH);
+  if (!pingA || !pingB) return null;
+
+  // Stage 0: extract → pingA.
+  drawPass(gl, pingA, paddedW, paddedH, cache.extract, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(cache.extract.uniforms.u_source, 0);
+    gl.uniform2f(cache.extract.uniforms.u_srcRes, srcW, srcH);
+    gl.uniform2f(cache.extract.uniforms.u_padRes, paddedW, paddedH);
+  }, vao);
+
+  let src = pingA;
+  let dst = pingB;
+  let stage = 0;
+  if (stage >= stopStage) return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
+
+  // Row bit-reverse + butterflies count as stages 1..logW+1 in this scheme.
+  // We treat the bit-reverse as part of stage 1 so the first butterfly runs
+  // next — match Cooley-Tukey convention.
+  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, src.tex);
+    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+    gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
+    gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
+  }, vao);
+  [src, dst] = [dst, src];
+
+  for (let s = 1; s <= logW; s++) {
+    const m = 1 << s;
+    const halfM = m >> 1;
+    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
+      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+    }, vao);
+    [src, dst] = [dst, src];
+    stage++;
+    if (stage >= stopStage) return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
+  }
+
+  // Column bit-reverse.
+  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, src.tex);
+    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+    gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
+    gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
+  }, vao);
+  [src, dst] = [dst, src];
+
+  for (let s = 1; s <= logH; s++) {
+    const m = 1 << s;
+    const halfM = m >> 1;
+    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
+      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+    }, vao);
+    [src, dst] = [dst, src];
+    stage++;
+    if (stage >= stopStage) return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
+  }
+  return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
+};
+
+// Total pipeline stages for a given padded size — used by Butterfly Plot's
+// "which stage" control.
+export const fft2dStageCount = (paddedW: number, paddedH: number): number =>
+  log2Int(paddedW) + log2Int(paddedH);
+
 // Finalise an IFFT result — divide by N and composite against the source
 // RGB (preserving hue) into the GL canvas at srcW × srcH. Caller should
 // call `readoutToCanvas` after this.

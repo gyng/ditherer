@@ -89,6 +89,17 @@ import fftRadialNotch from "./fftRadialNotch";
 import fftSpectralGate from "./fftSpectralGate";
 import fftMagnitudePlot from "./fftMagnitudePlot";
 import fftPhasePlot from "./fftPhasePlot";
+import fftButterflyPlot from "./fftButterflyPlot";
+import fftDephase from "./fftDephase";
+import fftAngularWedge from "./fftAngularWedge";
+import fftComponentPlot from "./fftComponentPlot";
+import fftPhaseOnly from "./fftPhaseOnly";
+import fftHomomorphic from "./fftHomomorphic";
+import fftRadialProfile from "./fftRadialProfile";
+import fftCepstrum from "./fftCepstrum";
+import fftLogPolar from "./fftLogPolar";
+import fftPolarHeatmap from "./fftPolarHeatmap";
+import fftDeconvolve from "./fftDeconvolve";
 import bilateralBlur from "./bilateralBlur";
 import bokeh from "./bokeh";
 import morphology from "./morphology";
@@ -852,6 +863,17 @@ export const filterList = [
   { displayName: "FFT Spectral Gate", filter: fftSpectralGate, category: "Advanced", description: "Keep only frequency bins above a magnitude threshold — frequency-domain denoise that preserves dominant structure" },
   { displayName: "FFT Magnitude Plot", filter: fftMagnitudePlot, category: "Advanced", description: "Log-magnitude visualisation of the 2D FFT — DC centred, false-colour" },
   { displayName: "FFT Phase Plot", filter: fftPhasePlot, category: "Advanced", description: "Hue-mapped phase of the 2D FFT" },
+  { displayName: "FFT Butterfly Plot", filter: fftButterflyPlot, category: "Advanced", description: "Render the FFT at any intermediate pipeline stage — watch the spatial image crystallise into its Fourier representation" },
+  { displayName: "FFT Dephase", filter: fftDephase, category: "Advanced", description: "Zero the FFT phase, keep magnitude — inverse transform becomes the image's autocorrelation (symmetric feature halo)" },
+  { displayName: "FFT Angular Wedge", filter: fftAngularWedge, category: "Advanced", description: "Keep or kill FFT bins within a wedge of angles — isolates or removes directional patterns (horizontal lines, diagonal weaves, etc.)" },
+  { displayName: "FFT Component Plot", filter: fftComponentPlot, category: "Advanced", description: "Diverging-colormap plot of the FFT's real or imaginary component — reveals even/odd symmetry in the source" },
+  { displayName: "FFT Phase Only", filter: fftPhaseOnly, category: "Advanced", description: "Keep FFT phase, replace all magnitudes with a constant — classic demo that phase carries structure" },
+  { displayName: "FFT Homomorphic", filter: fftHomomorphic, category: "Advanced", description: "Flatten uneven illumination while boosting local contrast — log(image) → FFT → high-freq emphasis → IFFT → exp" },
+  { displayName: "FFT Radial Profile", filter: fftRadialProfile, category: "Advanced", description: "1D graph of angular-averaged power spectrum vs spatial frequency — natural images show 1/f slope" },
+  { displayName: "FFT Cepstrum", filter: fftCepstrum, category: "Advanced", description: "Cepstrum = IFFT(log |FFT|). Repeating patterns / echoes show up as bright points at their spatial period" },
+  { displayName: "FFT Log-Polar", filter: fftLogPolar, category: "Advanced", description: "Log-polar remap of the FFT magnitude — rotation/scale invariance up to translation" },
+  { displayName: "FFT Polar Heatmap", filter: fftPolarHeatmap, category: "Advanced", description: "FFT magnitude on a polar disc — directional streaks become spokes, periodic patterns become rings" },
+  { displayName: "FFT Deconvolve", filter: fftDeconvolve, category: "Advanced", description: "Wiener deconvolution against a built-in Gaussian or motion-blur kernel — undoes blur" },
   { displayName: "Fractal", filter: fractal, category: "Advanced", description: "Render Mandelbrot or Julia set fractals, optionally colored from the input image" },
   { displayName: "Noise generator", filter: noiseGenerator, category: "Advanced", description: "Procedural noise patterns — Perlin, Simplex, or Worley — mixable with the input" },
   { displayName: "Motion Vectors", filter: motionVectors, category: "Advanced", description: "Estimate local motion between frames and render stable arrows, trails, or heat overlays for debugging and stylized analysis" },

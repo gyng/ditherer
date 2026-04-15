@@ -1,4 +1,4 @@
-import { BOOL, PALETTE } from "constants/controlTypes";
+import { ENUM, RANGE, BOOL, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { defineFilter } from "filters/types";
 import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "utils";
@@ -17,8 +17,13 @@ import {
 } from "gl";
 import { fft2dAvailable, forwardFFT2D } from "gl/fft2d";
 
-// Phase-angle visualisation: map atan2(im, re) ∈ [-π, π] to hue via HSV.
-// Darkness = low magnitude (so noise floor bins don't dominate).
+// Visualise the real or imaginary component of the 2D FFT. Both are signed
+// (can be negative), so we use a diverging blue-grey-red colormap where
+// mid-grey = zero. The magnitude plot sits next to this as the non-signed
+// view; real/imag are most useful for seeing even/odd symmetry in the
+// source (even symmetry → big real part, odd symmetry → big imaginary).
+
+const COMPONENT = { REAL: "REAL", IMAGINARY: "IMAGINARY", BOTH: "BOTH" };
 
 const PLOT_FS = `#version 300 es
 precision highp float;
@@ -28,14 +33,18 @@ out vec4 fragColor;
 uniform sampler2D u_fft;
 uniform vec2  u_padRes;
 uniform vec2  u_outRes;
+uniform float u_scale;
+uniform int   u_mode;        // 0 REAL, 1 IMAGINARY, 2 BOTH (R=re, G=im)
 uniform int   u_shift;
-uniform int   u_weighted;
 uniform float u_levels;
 
-vec3 hsv2rgb(vec3 hsv) {
-  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-  vec3 p = abs(fract(vec3(hsv.x) + K.xyz) * 6.0 - vec3(K.w));
-  return hsv.z * mix(vec3(K.x), clamp(p - vec3(K.x), 0.0, 1.0), hsv.y);
+vec3 diverging(float v) {
+  // v in [-1, 1]. Blue → grey → red. Matches scientific "coolwarm" roughly.
+  float t = clamp((v + 1.0) * 0.5, 0.0, 1.0);
+  vec3 neg = vec3(33.0, 89.0, 201.0);
+  vec3 mid = vec3(220.0, 220.0, 220.0);
+  vec3 pos = vec3(201.0, 45.0, 33.0);
+  return t < 0.5 ? mix(neg, mid, t * 2.0) : mix(mid, pos, (t - 0.5) * 2.0);
 }
 
 void main() {
@@ -53,18 +62,25 @@ void main() {
   }
 
   vec4 c = texelFetch(u_fft, ivec2(fx, fy), 0);
-  float phase = atan(c.g, c.r);
-  float hue = phase / 6.28318530718 + 0.5;  // [0, 1]
-
-  float val = 1.0;
-  if (u_weighted == 1) {
-    float mag = length(c.rg);
-    // Log-compress magnitude to modulate value. Centre around ~0.5 so
-    // most bins are visible instead of washing out to white.
-    val = clamp(log(1.0 + mag * 100.0) / log(101.0), 0.0, 1.0);
+  vec3 rgb;
+  if (u_mode == 2) {
+    // Both: log-compress |re| and |im|, route to R and G, centre-grey for
+    // small values (neither dominant).
+    float re = c.r * u_scale * 0.001;
+    float im = c.g * u_scale * 0.001;
+    float reMag = min(abs(re), 1.0);
+    float imMag = min(abs(im), 1.0);
+    rgb = vec3(
+      128.0 + sign(re) * reMag * 127.0,
+      128.0 + sign(im) * imMag * 127.0,
+      128.0
+    );
+  } else if (u_mode == 0) {
+    rgb = diverging(c.r * u_scale * 0.001);
+  } else {
+    rgb = diverging(c.g * u_scale * 0.001);
   }
-
-  vec3 rgb = hsv2rgb(vec3(hue, 0.9, val));
+  rgb = clamp(rgb, 0.0, 255.0) / 255.0;
   if (u_levels > 1.5) {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
@@ -74,29 +90,44 @@ void main() {
 `;
 
 export const optionTypes = {
-  centred: { type: BOOL, default: true, desc: "fftshift — place DC at the image centre" },
-  weightByMagnitude: { type: BOOL, default: true, desc: "Dim low-magnitude bins so noise floor phase doesn't dominate" },
+  component: {
+    type: ENUM,
+    options: [
+      { name: "Real part", value: COMPONENT.REAL },
+      { name: "Imaginary part", value: COMPONENT.IMAGINARY },
+      { name: "Both (R=re, G=im)", value: COMPONENT.BOTH },
+    ],
+    default: COMPONENT.REAL,
+    desc: "Which component to visualise"
+  },
+  scale: { type: RANGE, range: [1, 10000], step: 10, default: 300, desc: "Brightness scale" },
+  centred: { type: BOOL, default: true, desc: "fftshift — DC at centre" },
   palette: { type: PALETTE, default: nearest }
 };
 
 export const defaults = {
+  component: optionTypes.component.default,
+  scale: optionTypes.scale.default,
   centred: optionTypes.centred.default,
-  weightByMagnitude: optionTypes.weightByMagnitude.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
+
+const MODE_ID: Record<string, number> = { REAL: 0, IMAGINARY: 1, BOTH: 2 };
 
 type Cache = { plot: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    plot: linkProgram(gl, PLOT_FS, ["u_fft", "u_padRes", "u_outRes", "u_shift", "u_weighted", "u_levels"] as const),
+    plot: linkProgram(gl, PLOT_FS, [
+      "u_fft", "u_padRes", "u_outRes", "u_scale", "u_mode", "u_shift", "u_levels",
+    ] as const),
   };
   return _cache;
 };
 
-const fftPhasePlot = (input: any, options = defaults) => {
-  const { centred, weightByMagnitude, palette } = options;
+const fftComponentPlot = (input: any, options = defaults) => {
+  const { component, scale, centred, palette } = options;
   const W = input.width;
   const H = input.height;
 
@@ -111,7 +142,7 @@ const fftPhasePlot = (input: any, options = defaults) => {
       const cache = initCache(gl);
       const vao = getQuadVAO(gl);
       resizeGLCanvas(canvas, W, H);
-      const sourceTex = ensureTexture(gl, "fftPhasePlot:source", W, H);
+      const sourceTex = ensureTexture(gl, "fftComponentPlot:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
       const fwd = forwardFFT2D(gl, sourceTex, W, H);
       if (fwd) {
@@ -121,12 +152,9 @@ const fftPhasePlot = (input: any, options = defaults) => {
           gl.uniform1i(cache.plot.uniforms.u_fft, 0);
           gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
           gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
+          gl.uniform1f(cache.plot.uniforms.u_scale, scale);
+          gl.uniform1i(cache.plot.uniforms.u_mode, MODE_ID[component] ?? 0);
           gl.uniform1i(cache.plot.uniforms.u_shift, centred ? 1 : 0);
-          gl.uniform1i(cache.plot.uniforms.u_weighted, weightByMagnitude ? 1 : 0);
-          // Only pass in-shader levels quant when the palette is identity
-          // (no colors, levels≥256). Any other palette is handled by the
-          // CPU palette pass on readback so nearest-with-colours actually
-          // picks from that colour list rather than getting silently skipped.
           const identity = paletteIsIdentity(palette);
           const pOpts = (palette as { options?: { levels?: number } }).options;
           const levels = identity ? (pOpts?.levels ?? 256) : 256;
@@ -137,24 +165,24 @@ const fftPhasePlot = (input: any, options = defaults) => {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("FFT Phase Plot", "WebGL2",
-              `${weightByMagnitude ? "weighted" : "raw"}${identity ? "" : "+palettePass"}`);
+            logFilterBackend("FFT Component Plot", "WebGL2",
+              `${component} scale=${scale}${identity ? "" : "+palettePass"}`);
             return out;
           }
         }
       }
     }
   }
-  logFilterWasmStatus("FFT Phase Plot", false, "needs WebGL2 + EXT_color_buffer_float");
+  logFilterWasmStatus("FFT Component Plot", false, "needs WebGL2 + EXT_color_buffer_float");
   return cloneCanvas(input, true);
 };
 
 export default defineFilter({
-  name: "FFT Phase Plot",
-  func: fftPhasePlot,
+  name: "FFT Component Plot",
+  func: fftComponentPlot,
   optionTypes,
   options: defaults,
   defaults,
-  description: "Hue-mapped phase of the 2D FFT — shows orientation/direction of frequency components",
+  description: "Diverging-colormap plot of the FFT's real or imaginary component (or both in R/G). Even-symmetric structure in the source shows up mostly in Re; odd-symmetric in Im",
   noWASM: "Needs GPU 2D FFT.",
 });
