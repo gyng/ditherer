@@ -1042,8 +1042,8 @@ export const logFilterBackend = (filterName: string, backend: string, reason: st
 export const logFilterDispatched = (filterName: string) => {
   if (filterNamesLogged.has(filterName)) return;
   filterNamesLogged.add(filterName);
-  filterLastStatus.set(filterName, { didWasm: false, reason: "no wasm path" });
-  console.info(`[filter:${filterName}] JS (no wasm path)`);
+  filterLastStatus.set(filterName, { didWasm: false, reason: "no wasm/gpu path" });
+  console.info(`[filter:${filterName}] JS (no wasm/gpu path)`);
 };
 
 // Snapshot of the most recently recorded status for each filter. Returns a

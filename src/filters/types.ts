@@ -132,6 +132,14 @@ export interface FilterDefinition<TOptions extends FilterOptionValues = FilterOp
   defaults?: TOptions;
   description?: string;
   mainThread?: boolean;
+  // When true, adding this filter to the chain also kicks off the animation
+  // loop. Intended for filters whose "interesting" state is a transient burst
+  // (CRT Degauss's decaying wobble, etc.) that a first-time user won't see
+  // unless time advances.
+  autoAnimate?: boolean;
+  // Animation speed to use when `autoAnimate` is true. Defaults to 20 fps if
+  // unspecified (matching the hand-coded Play/Stop ACTION handlers).
+  autoAnimateFps?: number;
 }
 
 export interface FilterListEntry<TOptions extends FilterOptionValues = FilterOptionValues> {

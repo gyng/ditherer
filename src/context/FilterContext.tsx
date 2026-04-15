@@ -1147,6 +1147,16 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     chainAdd: (displayName: string, filter) => {
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_ADD", displayName, filter });
+      // Filters with `autoAnimate: true` in their metadata (e.g., CRT
+      // Degauss) kick off the animation loop on add so the user doesn't
+      // have to hunt for a Play/Stop control. Skip if a loop is already
+      // running (another filter may have started it).
+      if (filter?.autoAnimate && animLoopRef.current == null) {
+        const canvas = stateRef.current.inputCanvas;
+        if (canvas instanceof HTMLCanvasElement) {
+          startAnimLoop(canvas, filter.autoAnimateFps ?? 20);
+        }
+      }
     },
     chainRemove: (id: string) => {
       prevOutputMapRef.current.delete(id);

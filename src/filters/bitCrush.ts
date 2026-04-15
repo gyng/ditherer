@@ -1,6 +1,16 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+  wasmApplyChannelLut,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+} from "utils";
+import { applyPaletteToBuffer, paletteIsIdentity } from "palettes/backend";
 import { defineFilter } from "filters/types";
 
 export const optionTypes = {
@@ -13,20 +23,44 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const bitCrush = (input: any, options = defaults) => {
+type BitCrushOptions = typeof defaults & { _wasmAcceleration?: boolean };
+
+const bitCrush = (input: any, options: BitCrushOptions = defaults) => {
   const { bits, palette } = options;
+  const wasmOk = (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  const W = input.width;
+  const H = input.height;
+  const buf = inputCtx.getImageData(0, 0, W, H).data;
   const levels = 2 ** bits;
   const step = 255 / (levels - 1);
 
-  for (let x = 0; x < input.width; x += 1) {
-    for (let y = 0; y < input.height; y += 1) {
-      const i = getBufferIndex(x, y, input.width);
+  // WASM fast path: the inner loop is a pure per-channel u8 → u8 remap, so
+  // the whole filter reduces to one 256-entry LUT (bit-crush quantize) +
+  // a palette pass (shared primitive). Applies uniformly to all palettes —
+  // nearest goes through the WASM LUT path, others loop in JS after the
+  // bit-crush LUT has already done its work.
+  if (wasmOk && wasmIsLoaded()) {
+    const lut = new Uint8Array(256);
+    for (let i = 0; i < 256; i += 1) {
+      lut[i] = Math.round(Math.round(i / step) * step);
+    }
+    const outBuf = new Uint8ClampedArray(buf.length);
+    wasmApplyChannelLut(buf, outBuf, lut, lut, lut);
+    applyPaletteToBuffer(outBuf, outBuf, W, H, palette, wasmOk);
+    logFilterWasmStatus("Bit crush", true, `bits=${bits}${paletteIsIdentity(palette) ? "" : "+palette"}`);
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Bit crush", false, !wasmOk ? "_wasmAcceleration off" : "wasm not loaded yet");
+
+  for (let x = 0; x < W; x += 1) {
+    for (let y = 0; y < H; y += 1) {
+      const i = getBufferIndex(x, y, W);
       const r = Math.round(Math.round(buf[i] / step) * step);
       const g = Math.round(Math.round(buf[i + 1] / step) * step);
       const b = Math.round(Math.round(buf[i + 2] / step) * step);
