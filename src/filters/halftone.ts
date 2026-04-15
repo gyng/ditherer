@@ -1,6 +1,7 @@
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { halftoneGLAvailable, parseCssColorRgb, renderHalftoneGL } from "./halftoneGL";
 
@@ -45,22 +46,27 @@ const halftone = (
   const { background, palette } = options;
   const size = parseInt(String(options.size), 10);
 
-  // WebGL fast path: applies when palette is the nearest type (handles any levels
-  // count with in-shader quantisation) and the background colour is parseable.
-  // Falls through to JS for custom palettes or unrecognised CSS colours.
-  if (halftoneGLAvailable() && (options as any)._webglAcceleration !== false && (palette as any).name === "nearest") {
+  // WebGL fast path. Renders the dots + screen-composite in shader; for
+  // nearest palettes the shader also handles quantisation, for custom
+  // palettes we apply the standard palette pass on readback.
+  // Still falls through when the background colour can't be parsed.
+  if (halftoneGLAvailable() && (options as any)._webglAcceleration !== false) {
     const bgRgb = parseCssColorRgb(typeof background === "string" ? background : "black");
     if (bgRgb) {
       const W = input.width, H = input.height;
-      const levels = (palette as any).options?.levels ?? 1;
+      const isNearest = (palette as any).name === "nearest";
+      const levels = isNearest ? ((palette as any).options?.levels ?? 1) : 256;
       const rendered = renderHalftoneGL(
         input, W, H, size,
         options.sizeMultiplier, options.offset,
         levels, options.squareDots, bgRgb,
       );
       if (rendered) {
-        logFilterBackend("Halftone", "WebGL2", `size=${size} levels=${levels}`);
-        return rendered;
+        const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Halftone", "WebGL2", `size=${size}${isNearest ? ` levels=${levels}` : "+palettePass"}`);
+          return out;
+        }
       }
     }
   }

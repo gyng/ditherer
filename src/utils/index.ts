@@ -129,13 +129,19 @@ const readPaletteColor = (palette: readonly RgbaLike[] | number[][], index: numb
 
 // For filters that work in sRGB [0-255] space. No isLinear parameter —
 // impossible to accidentally request linear conversion.
+//
+// Guards `palette.getColor` missing: options deserialised from URL hash or
+// localStorage lose function references. Rather than crash the filter, pass
+// the pixel through — matches the identity behaviour of
+// `applyPaletteToBuffer` and keeps the user's image visible.
 export const srgbPaletteGetColor = (palette: any, pixel: SrgbPixel, options: any) =>
-  palette.getColor(pixel, options);
+  typeof palette?.getColor === "function" ? palette.getColor(pixel, options) : pixel;
 
 // For filters that have done their own sRGB→linear conversion and are
 // working in linear float [0-1] space. Converts pixel to sRGB for palette
 // matching, then converts the matched color back to linear.
 export const linearPaletteGetColor = (palette: any, pixel: LinearPixel, options: any) => {
+  if (typeof palette?.getColor !== "function") return pixel;
   const srgbPixel = delinearizeColorF(pixel);
   const match = palette.getColor(srgbPixel, options);
   return linearizeColorF(match);
@@ -205,6 +211,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmRgbStripeInner = mod.rgbstripe_buffer;
   wasmFacetInner = mod.facet_buffer;
   wasmLcdDisplayInner = mod.lcd_display_buffer;
+  wasmJpegArtifactInner = mod.jpeg_artifact_buffer;
   wasmOilPaintingInner = mod.oil_painting_buffer;
   wasmLensDistortionInner = mod.lens_distortion_buffer;
   wasmTiltShiftInner = mod.tilt_shift_buffer;
@@ -662,6 +669,25 @@ type WasmLcdDisplayFn = {
     gapDarkness: number,
   ): void;
 }["bivarianceHack"];
+type WasmJpegArtifactFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    qualityLuma: number,
+    qualityChroma: number,
+    subsampling: number,
+    blockSize: number,
+    ringing: number,
+    mosquito: number,
+    gridJitter: number,
+    corruptBurstChance: number,
+    deblock: number,
+    preserveAlpha: number,
+    frameIndex: number,
+  ): void;
+}["bivarianceHack"];
 type WasmTriangleDitherFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -857,6 +883,10 @@ let wasmScanlineWarpInner: WasmScanlineWarpFn = () => {
 };
 
 let wasmLcdDisplayInner: WasmLcdDisplayFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmJpegArtifactInner: WasmJpegArtifactFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -1065,11 +1095,21 @@ export const logFilterBackend = (filterName: string, backend: string, reason: st
 // "JS (no wasm path)" — useful for auditing which filters are candidates
 // for Rust/WASM porting. Filters that DO self-report (Ordered, Quantize,
 // error diffusion etc.) suppress this fallback.
-export const logFilterDispatched = (filterName: string) => {
+//
+// Filter defs that declare `noGL` / `noWASM` reasons pass them here so the
+// status label explains *why* this filter is JS-only, and the inline-timing
+// tooltip can surface the reason instead of inviting another "optimise this"
+// request.
+export const logFilterDispatched = (filterName: string, capabilities?: { noGL?: string | undefined; noWASM?: string | undefined }) => {
   if (filterNamesLogged.has(filterName)) return;
   filterNamesLogged.add(filterName);
-  filterLastStatus.set(filterName, { didWasm: false, reason: "no wasm/gpu path", label: "JS (no wasm/gpu path)" });
-  console.info(`[filter:${filterName}] JS (no wasm/gpu path)`);
+  const reasons: string[] = [];
+  if (capabilities?.noWASM) reasons.push(`no WASM: ${capabilities.noWASM}`);
+  if (capabilities?.noGL) reasons.push(`no GL: ${capabilities.noGL}`);
+  const reason = reasons.length > 0 ? reasons.join("; ") : "no wasm/gpu path";
+  const label = `JS (${reason})`;
+  filterLastStatus.set(filterName, { didWasm: false, reason, label });
+  console.info(`[filter:${filterName}] ${label}`);
 };
 
 // Snapshot of the most recently recorded status for each filter. Returns a
@@ -1435,6 +1475,34 @@ export const wasmLcdDisplayBuffer = (
   brightness: number,
   gapDarkness: number,
 ): void => wasmLcdDisplayInner(input, output, width, height, pixelSize, subpixelLayout, brightness, gapDarkness);
+
+// JPEG-artifact simulation: forward/inverse 8×8 DCT per YCbCr plane, chroma
+// subsampled by `subsampling` (0=4:4:4, 1=4:2:2, 2=4:2:0), with per-macroblock
+// burst/jitter corruption + deblock + ringing + mosquito. Output is RGBA
+// pre-palette; caller applies palette + temporal hold on the JS side.
+export const JPEG_SUBSAMPLING = { YUV444: 0, YUV422: 1, YUV420: 2 } as const;
+export const wasmJpegArtifactBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  qualityLuma: number,
+  qualityChroma: number,
+  subsampling: number,
+  blockSize: number,
+  ringing: number,
+  mosquito: number,
+  gridJitter: number,
+  corruptBurstChance: number,
+  deblock: number,
+  preserveAlpha: boolean,
+  frameIndex: number,
+): void => wasmJpegArtifactInner(
+  input, output, width, height,
+  qualityLuma, qualityChroma, subsampling, blockSize,
+  ringing, mosquito, gridJitter, corruptBurstChance, deblock,
+  preserveAlpha ? 1 : 0, frameIndex,
+);
 
 // Triangle dither: TPDF noise added per channel, then either a `levels` snap
 // (paletteMode = LEVELS) or a nearest-colour match against `palette` (any of

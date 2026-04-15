@@ -3683,3 +3683,386 @@ pub fn apply_channel_lut(
         }
     }
 }
+
+// === JPEG Artifact codec simulation ===
+//
+// Full forward/inverse 8×8 DCT on each YCbCr plane (chroma subsampled at the
+// caller-specified rate), with per-macroblock quantisation jitter, burst
+// corruption, seam deblocking, ringing (Laplacian sharpen on Y), and
+// mosquito-noise on edges. This is a direct port of the JS reference in
+// `filters/jpegArtifact.ts`; palette application and temporal hold remain on
+// the JS side (palette because `applyPaletteToBuffer` is already reusable;
+// temporal hold because it's a per-block copy from prevOutput, faster with
+// the JS buffer than an extra WASM round-trip).
+
+const JPEG_LUMA_Q: [f32; 64] = [
+    16.0, 11.0, 10.0, 16.0, 24.0, 40.0, 51.0, 61.0,
+    12.0, 12.0, 14.0, 19.0, 26.0, 58.0, 60.0, 55.0,
+    14.0, 13.0, 16.0, 24.0, 40.0, 57.0, 69.0, 56.0,
+    14.0, 17.0, 22.0, 29.0, 51.0, 87.0, 80.0, 62.0,
+    18.0, 22.0, 37.0, 56.0, 68.0, 109.0, 103.0, 77.0,
+    24.0, 35.0, 55.0, 64.0, 81.0, 104.0, 113.0, 92.0,
+    49.0, 64.0, 78.0, 87.0, 103.0, 121.0, 120.0, 101.0,
+    72.0, 92.0, 95.0, 98.0, 112.0, 100.0, 103.0, 99.0,
+];
+const JPEG_CHROMA_Q: [f32; 64] = [
+    17.0, 18.0, 24.0, 47.0, 99.0, 99.0, 99.0, 99.0,
+    18.0, 21.0, 26.0, 66.0, 99.0, 99.0, 99.0, 99.0,
+    24.0, 26.0, 56.0, 99.0, 99.0, 99.0, 99.0, 99.0,
+    47.0, 66.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0,
+    99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0,
+    99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0,
+    99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0,
+    99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0,
+];
+
+// Precomputed 8×8 DCT basis (row-major; DCT_C[u*8+x] = 0.5 * au * cos((2x+1)uπ/16)).
+fn jpeg_dct_c() -> [f32; 64] {
+    let mut c = [0.0_f32; 64];
+    let inv_sqrt2 = 1.0_f32 / (2.0_f32).sqrt();
+    for u in 0..8 {
+        let au = if u == 0 { inv_sqrt2 } else { 1.0 };
+        for x in 0..8 {
+            let phase = ((2 * x + 1) as f32) * (u as f32) * std::f32::consts::PI / 16.0;
+            c[u * 8 + x] = 0.5 * au * phase.cos();
+        }
+    }
+    c
+}
+
+fn jpeg_quality_scale(quality: f32) -> f32 {
+    let q = quality.round().clamp(1.0, 100.0);
+    let scale = if q < 50.0 { 5000.0 / q } else { 200.0 - q * 2.0 };
+    (scale / 100.0).max(0.01)
+}
+
+// Same mulberry32 as the JS reference so the corruption pattern is
+// frame-seed-deterministic and matches the CPU path.
+fn jpeg_mulberry32_next(state: &mut u32) -> f32 {
+    *state = state.wrapping_add(0x6D2B79F5);
+    let mut t: u32 = (*state ^ (*state >> 15)).wrapping_mul(*state | 1);
+    t = (t.wrapping_add((t ^ (t >> 7)).wrapping_mul(t | 61))) ^ t;
+    let r = (t ^ (t >> 14)) as f32;
+    r / 4_294_967_296.0
+}
+
+fn jpeg_forward_dct(block: &[f32; 64], out: &mut [f32; 64], tmp: &mut [f32; 64], dct: &[f32; 64]) {
+    for y in 0..8 {
+        let yi = y * 8;
+        for u in 0..8 {
+            let ui = u * 8;
+            let mut acc = 0.0;
+            for x in 0..8 {
+                acc += block[yi + x] * dct[ui + x];
+            }
+            tmp[yi + u] = acc;
+        }
+    }
+    for v in 0..8 {
+        let vi = v * 8;
+        for u in 0..8 {
+            let mut acc = 0.0;
+            for y in 0..8 {
+                acc += dct[vi + y] * tmp[y * 8 + u];
+            }
+            out[vi + u] = acc;
+        }
+    }
+}
+
+fn jpeg_inverse_dct(coeff: &[f32; 64], out: &mut [f32; 64], tmp: &mut [f32; 64], dct: &[f32; 64]) {
+    for y in 0..8 {
+        let yi = y * 8;
+        for u in 0..8 {
+            let mut acc = 0.0;
+            for v in 0..8 {
+                acc += dct[v * 8 + y] * coeff[v * 8 + u];
+            }
+            tmp[yi + u] = acc;
+        }
+    }
+    for y in 0..8 {
+        let yi = y * 8;
+        for x in 0..8 {
+            let mut acc = 0.0;
+            for u in 0..8 {
+                acc += tmp[yi + u] * dct[u * 8 + x];
+            }
+            out[yi + x] = acc;
+        }
+    }
+}
+
+fn jpeg_process_plane(
+    src: &[f32], dst: &mut [f32], w: usize, h: usize,
+    q_table: &[f32; 64], q_scale: f32,
+    block_size: usize, grid_jitter: f32, corrupt_burst_chance: f32,
+    rng: &mut u32,
+    dct: &[f32; 64],
+) {
+    let macro_w = ((w as f32) / (block_size as f32)).ceil().max(1.0) as usize;
+    let macro_h = ((h as f32) / (block_size as f32)).ceil().max(1.0) as usize;
+    let macro_count = macro_w * macro_h;
+    let mut burst_map = vec![1.0_f32; macro_count];
+    let mut jitter_map = vec![1.0_f32; macro_count];
+    for i in 0..macro_count {
+        let r1 = jpeg_mulberry32_next(rng);
+        burst_map[i] = if r1 < corrupt_burst_chance {
+            1.8 + jpeg_mulberry32_next(rng) * 4.5
+        } else { 1.0 };
+        let r2 = jpeg_mulberry32_next(rng);
+        jitter_map[i] = (1.0 + (r2 - 0.5) * 2.0 * grid_jitter).clamp(0.25, 3.0);
+    }
+
+    let mut block_in = [0.0_f32; 64];
+    let mut coeff = [0.0_f32; 64];
+    let mut block_out = [0.0_f32; 64];
+    let mut tmp = [0.0_f32; 64];
+
+    let mut by = 0;
+    while by < h {
+        let mut bx = 0;
+        while bx < w {
+            let mx = (bx / block_size).min(macro_w - 1);
+            let my = (by / block_size).min(macro_h - 1);
+            let m = my * macro_w + mx;
+            let burst = burst_map[m];
+            let jitter = jitter_map[m];
+
+            for y in 0..8 {
+                let sy = (by + y).min(h - 1);
+                let s_row = sy * w;
+                let b_row = y * 8;
+                for x in 0..8 {
+                    let sx = (bx + x).min(w - 1);
+                    block_in[b_row + x] = src[s_row + sx] - 128.0;
+                }
+            }
+
+            jpeg_forward_dct(&block_in, &mut coeff, &mut tmp, dct);
+
+            for i in 0..64 {
+                let high_freq_penalty = if i > 10 && burst > 1.0 { 1.0 + (burst - 1.0) * 0.3 } else { 1.0 };
+                let q = (q_table[i] * q_scale * burst * jitter * high_freq_penalty).max(1.0);
+                coeff[i] = (coeff[i] / q).round() * q;
+                if i > 14 && burst > 3.0 && jpeg_mulberry32_next(rng) < 0.15 {
+                    coeff[i] = 0.0;
+                }
+            }
+
+            jpeg_inverse_dct(&coeff, &mut block_out, &mut tmp, dct);
+
+            for y in 0..8 {
+                let dy = by + y;
+                if dy >= h { break; }
+                let d_row = dy * w;
+                let b_row = y * 8;
+                for x in 0..8 {
+                    let dx = bx + x;
+                    if dx >= w { break; }
+                    dst[d_row + dx] = (block_out[b_row + x] + 128.0).clamp(0.0, 255.0);
+                }
+            }
+
+            bx += 8;
+        }
+        by += 8;
+    }
+}
+
+fn jpeg_deblock(plane: &mut [f32], w: usize, h: usize, strength: f32) {
+    if strength <= 0.0 { return; }
+    let blend = strength.clamp(0.0, 1.0) * 0.5;
+    let mut x = 8;
+    while x < w {
+        for y in 0..h {
+            let left = y * w + x - 1;
+            let right = y * w + x;
+            let a = plane[left]; let b = plane[right];
+            if (a - b).abs() < 48.0 {
+                let mid = (a + b) * 0.5;
+                plane[left] = a + (mid - a) * blend;
+                plane[right] = b + (mid - b) * blend;
+            }
+        }
+        x += 8;
+    }
+    let mut y = 8;
+    while y < h {
+        for x in 0..w {
+            let top = (y - 1) * w + x;
+            let bot = y * w + x;
+            let a = plane[top]; let b = plane[bot];
+            if (a - b).abs() < 48.0 {
+                let mid = (a + b) * 0.5;
+                plane[top] = a + (mid - a) * blend;
+                plane[bot] = b + (mid - b) * blend;
+            }
+        }
+        y += 8;
+    }
+}
+
+fn jpeg_ringing(plane: &mut [f32], w: usize, h: usize, amount: f32) {
+    if amount <= 0.0 { return; }
+    let src: Vec<f32> = plane.to_vec();
+    let gain = amount * 0.35;
+    for y in 1..h.saturating_sub(1) {
+        let row = y * w;
+        for x in 1..w.saturating_sub(1) {
+            let i = row + x;
+            let c = src[i];
+            let lap = src[i - 1] + src[i + 1] + src[i - w] + src[i + w] - 4.0 * c;
+            plane[i] = (c + lap * gain).clamp(0.0, 255.0);
+        }
+    }
+}
+
+fn jpeg_mosquito(
+    y_plane: &mut [f32], cb_plane: &mut [f32], cr_plane: &mut [f32],
+    w: usize, h: usize, amount: f32, rng: &mut u32,
+) {
+    if amount <= 0.0 { return; }
+    let y_src: Vec<f32> = y_plane.to_vec();
+    let amp = amount * 20.0;
+    for y in 1..h.saturating_sub(1) {
+        let row = y * w;
+        for x in 1..w.saturating_sub(1) {
+            let i = row + x;
+            let y0 = y_src[i];
+            let g = (y0 - y_src[i + 1]).abs() + (y0 - y_src[i + w]).abs();
+            if g > 30.0 {
+                let n = (jpeg_mulberry32_next(rng) - 0.5) * amp;
+                y_plane[i] = (y_plane[i] + n).clamp(0.0, 255.0);
+                cb_plane[i] = (cb_plane[i] + n * 0.8).clamp(0.0, 255.0);
+                cr_plane[i] = (cr_plane[i] - n * 0.6).clamp(0.0, 255.0);
+            }
+        }
+    }
+}
+
+fn jpeg_downsample_chroma(src: &[f32], w: usize, h: usize, subsampling: u32) -> (Vec<f32>, usize, usize) {
+    if subsampling == 0 { return (src.to_vec(), w, h); } // 4:4:4
+    if subsampling == 1 { // 4:2:2
+        let dw = (w + 1) / 2;
+        let mut out = vec![0.0; dw * h];
+        for y in 0..h {
+            for x in 0..dw {
+                let sx = x * 2;
+                let sx1 = (sx + 1).min(w - 1);
+                out[y * dw + x] = (src[y * w + sx] + src[y * w + sx1]) * 0.5;
+            }
+        }
+        return (out, dw, h);
+    }
+    let dw = (w + 1) / 2;
+    let dh = (h + 1) / 2;
+    let mut out = vec![0.0; dw * dh];
+    for y in 0..dh {
+        let sy = y * 2;
+        let sy1 = (sy + 1).min(h - 1);
+        for x in 0..dw {
+            let sx = x * 2;
+            let sx1 = (sx + 1).min(w - 1);
+            let a = src[sy * w + sx]; let b = src[sy * w + sx1];
+            let c = src[sy1 * w + sx]; let d = src[sy1 * w + sx1];
+            out[y * dw + x] = (a + b + c + d) * 0.25;
+        }
+    }
+    (out, dw, dh)
+}
+
+fn jpeg_upsample_chroma(src: &[f32], sw: usize, sh: usize, dw: usize, dh: usize, subsampling: u32) -> Vec<f32> {
+    if subsampling == 0 && sw == dw && sh == dh { return src.to_vec(); }
+    let mut out = vec![0.0; dw * dh];
+    if subsampling == 1 {
+        for y in 0..dh {
+            let s_row = y.min(sh - 1) * sw;
+            let d_row = y * dw;
+            for x in 0..dw { out[d_row + x] = src[s_row + (x >> 1).min(sw - 1)]; }
+        }
+        return out;
+    }
+    for y in 0..dh {
+        let sy = (y >> 1).min(sh - 1);
+        let s_row = sy * sw;
+        let d_row = y * dw;
+        for x in 0..dw { out[d_row + x] = src[s_row + (x >> 1).min(sw - 1)]; }
+    }
+    out
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn jpeg_artifact_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    quality_luma: f32,
+    quality_chroma: f32,
+    subsampling: u32,   // 0=444, 1=422, 2=420
+    block_size: u32,
+    ringing: f32,
+    mosquito: f32,
+    grid_jitter: f32,
+    corrupt_burst_chance: f32,
+    deblock: f32,
+    preserve_alpha: u32,
+    frame_index: u32,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    let n = w * h;
+    if input.len() < n * 4 || output.len() < n * 4 { return; }
+
+    let mut y_plane = vec![0.0_f32; n];
+    let mut cb_full = vec![0.0_f32; n];
+    let mut cr_full = vec![0.0_f32; n];
+    for p in 0..n {
+        let i = p * 4;
+        let r = input[i] as f32;
+        let g = input[i + 1] as f32;
+        let b = input[i + 2] as f32;
+        y_plane[p] = 0.299 * r + 0.587 * g + 0.114 * b;
+        cb_full[p] = 128.0 - 0.168_736 * r - 0.331_264 * g + 0.5 * b;
+        cr_full[p] = 128.0 + 0.5 * r - 0.418_688 * g - 0.081_312 * b;
+    }
+
+    let (cb_sub, c_w, c_h) = jpeg_downsample_chroma(&cb_full, w, h, subsampling);
+    let (cr_sub, _, _) = jpeg_downsample_chroma(&cr_full, w, h, subsampling);
+
+    let mut y_out = vec![0.0_f32; n];
+    let mut cb_out_sub = vec![0.0_f32; c_w * c_h];
+    let mut cr_out_sub = vec![0.0_f32; c_w * c_h];
+    let mut rng: u32 = frame_index.wrapping_mul(7919).wrapping_add(31337);
+    let dct = jpeg_dct_c();
+
+    let bs = (block_size as usize).max(8);
+    jpeg_process_plane(&y_plane, &mut y_out, w, h, &JPEG_LUMA_Q, jpeg_quality_scale(quality_luma), bs, grid_jitter, corrupt_burst_chance, &mut rng, &dct);
+    jpeg_process_plane(&cb_sub, &mut cb_out_sub, c_w, c_h, &JPEG_CHROMA_Q, jpeg_quality_scale(quality_chroma), bs, grid_jitter, corrupt_burst_chance, &mut rng, &dct);
+    jpeg_process_plane(&cr_sub, &mut cr_out_sub, c_w, c_h, &JPEG_CHROMA_Q, jpeg_quality_scale(quality_chroma), bs, grid_jitter, corrupt_burst_chance, &mut rng, &dct);
+
+    let mut cb_out = jpeg_upsample_chroma(&cb_out_sub, c_w, c_h, w, h, subsampling);
+    let mut cr_out = jpeg_upsample_chroma(&cr_out_sub, c_w, c_h, w, h, subsampling);
+
+    jpeg_deblock(&mut y_out, w, h, deblock);
+    jpeg_deblock(&mut cb_out, w, h, deblock * 0.8);
+    jpeg_deblock(&mut cr_out, w, h, deblock * 0.8);
+    jpeg_ringing(&mut y_out, w, h, ringing);
+    jpeg_mosquito(&mut y_out, &mut cb_out, &mut cr_out, w, h, mosquito, &mut rng);
+
+    for p in 0..n {
+        let i = p * 4;
+        let y = y_out[p];
+        let cb = cb_out[p] - 128.0;
+        let cr = cr_out[p] - 128.0;
+        let r = (y + 1.402 * cr).clamp(0.0, 255.0) as u8;
+        let g = (y - 0.344_136 * cb - 0.714_136 * cr).clamp(0.0, 255.0) as u8;
+        let b = (y + 1.772 * cb).clamp(0.0, 255.0) as u8;
+        output[i] = r;
+        output[i + 1] = g;
+        output[i + 2] = b;
+        output[i + 3] = if preserve_alpha != 0 { input[i + 3] } else { 255 };
+    }
+}

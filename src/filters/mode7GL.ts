@@ -32,6 +32,7 @@ uniform float u_cameraX;
 uniform float u_cameraY;
 uniform float u_cameraZ;
 uniform float u_tile;         // 0 or 1
+uniform float u_fly;          // 0 or 1 — toggles sy wrap when tile is off
 uniform float u_sky;          // 0 or 1
 uniform int   u_skyStyle;     // 0 sunsetCircuit, 1 muteCity, 2 stormRun
 uniform float u_skyGlow;
@@ -204,9 +205,8 @@ void main() {
     sy = mod(sy, maxY);
   } else {
     sx = clamp(sx, 0.0, W - 1.0);
-    // JS wraps sy when tile OR fly; we assume fly on the GL path. Callers fall
-    // back to JS for the tile=false AND fly=false combination.
-    sy = mod(sy, maxY);
+    // JS wraps sy when (tile || fly); clamp otherwise. Mirror both cases here.
+    sy = u_fly > 0.5 ? mod(sy, maxY) : clamp(sy, 0.0, H - 1.0);
   }
 
   // UNPACK_FLIP_Y=true means uv.y=1 samples JS row 0, uv.y=0 samples JS row H-1.
@@ -231,7 +231,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
       "u_source", "u_res", "u_horizon", "u_fov",
       "u_yaw", "u_pitch", "u_roll",
       "u_cameraX", "u_cameraY", "u_cameraZ",
-      "u_tile", "u_sky", "u_skyStyle", "u_skyGlow", "u_skyBands", "u_skyTwist",
+      "u_tile", "u_fly", "u_sky", "u_skyStyle", "u_skyGlow", "u_skyBands", "u_skyTwist",
       "u_levels", "u_yawDeg", "u_rollDeg",
     ] as const),
   };
@@ -260,6 +260,7 @@ export const renderMode7GL = (
     cameraY: number;
     cameraZ: number;
     tile: boolean;
+    fly: boolean;
     sky: boolean;
     skyStyle: string;
     skyGlow: number;
@@ -292,6 +293,7 @@ export const renderMode7GL = (
     gl.uniform1f(cache.prog.uniforms.u_cameraY, params.cameraY);
     gl.uniform1f(cache.prog.uniforms.u_cameraZ, params.cameraZ);
     gl.uniform1f(cache.prog.uniforms.u_tile, params.tile ? 1 : 0);
+    gl.uniform1f(cache.prog.uniforms.u_fly, params.fly ? 1 : 0);
     gl.uniform1f(cache.prog.uniforms.u_sky, params.sky ? 1 : 0);
     gl.uniform1i(cache.prog.uniforms.u_skyStyle, SKY_STYLE_ID[params.skyStyle] ?? 0);
     gl.uniform1f(cache.prog.uniforms.u_skyGlow, params.skyGlow);

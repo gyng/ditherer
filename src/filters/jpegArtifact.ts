@@ -5,8 +5,23 @@ import {
   cloneCanvas,
   fillBufferPixel,
   paletteGetColor,
-  rgba
+  rgba,
+  wasmJpegArtifactBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
+  logFilterBackend,
+  JPEG_SUBSAMPLING,
 } from "utils";
+import { applyPaletteToBuffer, paletteIsIdentity } from "palettes/backend";
+import { jpegArtifactGLAvailable, renderJpegArtifactGL } from "./jpegArtifactGL";
+
+// Match the JS qualityScale helper so the GL/WASM paths can share the same
+// logic and only upload the scaled values to the shader.
+const qualityScaleShared = (quality: number): number => {
+  const q = Math.max(1, Math.min(100, Math.round(quality)));
+  const scale = q < 50 ? 5000 / q : 200 - q * 2;
+  return Math.max(0.01, scale / 100);
+};
 
 const BLOCK = 8;
 const INV_SQRT2 = 1 / Math.sqrt(2);
@@ -475,6 +490,147 @@ export const applyJpegArtifactToCanvas = (
   const w = input.width;
   const h = input.height;
   const src = inputCtx.getImageData(0, 0, w, h).data;
+
+  // GL fast path. Processes everything at 4:4:4 (full-res chroma) regardless
+  // of the user's subsampling choice — the GL pipeline doesn't have a
+  // separate sub-res chroma path. If the user explicitly picked 4:2:2 / 4:2:0
+  // and cares about that visual, they can toggle WebGL off to get WASM's
+  // subsampled path. Needs EXT_color_buffer_float for the RGBA32F
+  // intermediates holding DCT coefficients.
+  const hasTemporal = (temporalHold ?? 0) > 0;
+  if (
+    jpegArtifactGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const rendered = renderJpegArtifactGL(
+      input, w, h,
+      qualityScaleShared(qualityLuma ?? quality ?? 30),
+      qualityScaleShared(qualityChroma ?? quality ?? 30),
+      gridJitter ?? 0,
+      corruptBurstChance ?? 0,
+      deblock ?? 0,
+      ringing ?? 0,
+      mosquito ?? 0,
+      frameIndex,
+      preserveAlpha ?? true,
+    );
+    if (rendered && typeof (rendered as { getContext?: unknown }).getContext === "function") {
+      // Read the GL output back once so we can apply both the palette pass
+      // (for custom palettes) and the temporal-hold block composite (for
+      // temporalHold > 0). The composite is identical to the WASM path's
+      // CPU composite — same seed, same block size, same keyframe rule.
+      const rCtx = (rendered as HTMLCanvasElement | OffscreenCanvas).getContext(
+        "2d", { willReadFrequently: true }
+      ) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+      let appliedPalette = false;
+      let appliedHold = false;
+      if (rCtx) {
+        const needPalette = !paletteIsIdentity(safePalette);
+        const needHold = hasTemporal && prevOutput && prevOutput.length === w * h * 4;
+        if (needPalette || needHold) {
+          const pixels = rCtx.getImageData(0, 0, w, h).data;
+          if (needPalette) {
+            applyPaletteToBuffer(pixels, pixels, w, h, safePalette, true);
+            appliedPalette = true;
+          }
+          if (needHold) {
+            const kf = Math.max(1, Math.round(keyframeInterval ?? 12));
+            const isKeyframe = frameIndex % kf === 0;
+            if (!isKeyframe) {
+              const holdRng = mulberry32(frameIndex * 10007 + 17);
+              const bs = blockSize ?? 16;
+              for (let by = 0; by < h; by += bs) {
+                const yEnd = Math.min(h, by + bs);
+                for (let bx = 0; bx < w; bx += bs) {
+                  if (holdRng() >= (temporalHold ?? 0)) continue;
+                  const xEnd = Math.min(w, bx + bs);
+                  for (let y = by; y < yEnd; y++) {
+                    let idx = (y * w + bx) * 4;
+                    for (let x = bx; x < xEnd; x++, idx += 4) {
+                      pixels[idx] = prevOutput![idx] ?? 0;
+                      pixels[idx + 1] = prevOutput![idx + 1] ?? 0;
+                      pixels[idx + 2] = prevOutput![idx + 2] ?? 0;
+                      if (preserveAlpha) pixels[idx + 3] = prevOutput![idx + 3] ?? 0;
+                    }
+                  }
+                }
+              }
+              appliedHold = true;
+            }
+          }
+          rCtx.putImageData(new ImageData(pixels, w, h), 0, 0);
+        }
+      }
+      const subNote = subsampling === "444" ? "" : ` sub=${subsampling}-ignored`;
+      const extras = `${appliedPalette ? "+palettePass" : ""}${appliedHold ? "+hold" : ""}`;
+      logFilterBackend("JPEG Artifact", "WebGL2",
+        `qL=${qualityLuma} qC=${qualityChroma} block=${blockSize}${subNote}${extras}`);
+      return rendered as HTMLCanvasElement;
+    }
+  }
+
+  // WASM fast path: identical semantics to the JS reference below (same
+  // mulberry32 seed, same block-order RNG consumption, same post passes)
+  // except palette and temporal hold still run on the JS side below.
+  if (
+    wasmIsLoaded()
+    && (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false
+  ) {
+    const subIdx = subsampling === "444" ? JPEG_SUBSAMPLING.YUV444
+      : subsampling === "422" ? JPEG_SUBSAMPLING.YUV422
+      : JPEG_SUBSAMPLING.YUV420;
+    const outBufWasm = new Uint8ClampedArray(src.length);
+    wasmJpegArtifactBuffer(
+      src, outBufWasm, w, h,
+      qualityLuma ?? quality ?? 30,
+      qualityChroma ?? quality ?? 30,
+      subIdx,
+      blockSize ?? 16,
+      ringing ?? 0,
+      mosquito ?? 0,
+      gridJitter ?? 0,
+      corruptBurstChance ?? 0,
+      deblock ?? 0,
+      preserveAlpha ?? true,
+      frameIndex,
+    );
+    // Palette post-pass (identity → no-op) and temporal hold (JS, needs
+    // prevOutput buffer that we already have here).
+    if (!paletteIsIdentity(safePalette)) {
+      applyPaletteToBuffer(outBufWasm, outBufWasm, w, h, safePalette, true);
+    }
+    if ((temporalHold ?? 0) > 0 && prevOutput && prevOutput.length === outBufWasm.length) {
+      const kf = Math.max(1, Math.round(keyframeInterval ?? 12));
+      const isKeyframe = frameIndex % kf === 0;
+      if (!isKeyframe) {
+        // Mirror the JS block-level copy. Use a local mulberry RNG with a
+        // distinct seed so the rng() consumption doesn't collide with the
+        // WASM path's internal RNG.
+        const holdRng = mulberry32(frameIndex * 10007 + 17);
+        const bs = blockSize ?? 16;
+        for (let by = 0; by < h; by += bs) {
+          const yEnd = Math.min(h, by + bs);
+          for (let bx = 0; bx < w; bx += bs) {
+            if (holdRng() >= (temporalHold ?? 0)) continue;
+            const xEnd = Math.min(w, bx + bs);
+            for (let y = by; y < yEnd; y++) {
+              let idx = (y * w + bx) * 4;
+              for (let x = bx; x < xEnd; x++, idx += 4) {
+                outBufWasm[idx] = prevOutput[idx] ?? 0;
+                outBufWasm[idx + 1] = prevOutput[idx + 1] ?? 0;
+                outBufWasm[idx + 2] = prevOutput[idx + 2] ?? 0;
+                if (preserveAlpha) outBufWasm[idx + 3] = prevOutput[idx + 3] ?? 0;
+              }
+            }
+          }
+        }
+      }
+    }
+    logFilterBackend("JPEG Artifact", "WASM", `sub=${subsampling} qL=${qualityLuma} qC=${qualityChroma} block=${blockSize}`);
+    outputCtx.putImageData(new ImageData(outBufWasm, w, h), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("JPEG Artifact", false, (options as { _wasmAcceleration?: boolean })._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   const yPlane = new Float32Array(w * h);
   const cbFull = new Float32Array(w * h);

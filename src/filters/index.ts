@@ -83,6 +83,12 @@ import clahe from "./clahe";
 import scale2x from "./scale2x";
 import medianFilter from "./medianFilter";
 import spectrogram from "./spectrogram";
+import fftBandpass from "./fftBandpass";
+import fftPhaseScramble from "./fftPhaseScramble";
+import fftRadialNotch from "./fftRadialNotch";
+import fftSpectralGate from "./fftSpectralGate";
+import fftMagnitudePlot from "./fftMagnitudePlot";
+import fftPhasePlot from "./fftPhasePlot";
 import bilateralBlur from "./bilateralBlur";
 import bokeh from "./bokeh";
 import morphology from "./morphology";
@@ -840,6 +846,12 @@ export const filterList = [
   { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Flow field", filter: flowField, category: "Advanced", description: "Displace pixels along curl noise streamlines for organic swirling patterns" },
   { displayName: "Frequency Filter", filter: frequencyFilter, category: "Advanced", description: "Approximate low, high, or band-pass image frequencies in the spatial domain" },
+  { displayName: "FFT Bandpass", filter: fftBandpass, category: "Advanced", description: "Real 2D FFT low/high/band-pass — radial frequency mask, not a blur proxy" },
+  { displayName: "FFT Phase Scramble", filter: fftPhaseScramble, category: "Advanced", description: "Randomise 2D FFT phase while keeping magnitude — same spectral energy, scrambled geometry" },
+  { displayName: "FFT Radial Notch", filter: fftRadialNotch, category: "Advanced", description: "Zero out a circular ring in the 2D FFT — kills periodic patterns (scan lines, dot screens, weaves)" },
+  { displayName: "FFT Spectral Gate", filter: fftSpectralGate, category: "Advanced", description: "Keep only frequency bins above a magnitude threshold — frequency-domain denoise that preserves dominant structure" },
+  { displayName: "FFT Magnitude Plot", filter: fftMagnitudePlot, category: "Advanced", description: "Log-magnitude visualisation of the 2D FFT — DC centred, false-colour" },
+  { displayName: "FFT Phase Plot", filter: fftPhasePlot, category: "Advanced", description: "Hue-mapped phase of the 2D FFT" },
   { displayName: "Fractal", filter: fractal, category: "Advanced", description: "Render Mandelbrot or Julia set fractals, optionally colored from the input image" },
   { displayName: "Noise generator", filter: noiseGenerator, category: "Advanced", description: "Procedural noise patterns — Perlin, Simplex, or Worley — mixable with the input" },
   { displayName: "Motion Vectors", filter: motionVectors, category: "Advanced", description: "Estimate local motion between frames and render stable arrows, trails, or heat overlays for debugging and stylized analysis" },

@@ -9,8 +9,11 @@ import {
   wasmLensDistortionBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
+import { lensDistortionGLAvailable, renderLensDistortionGL } from "./lensDistortionGL";
 
 export const optionTypes = {
   k1: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3, desc: "Primary distortion (+barrel, -pincushion)" },
@@ -41,19 +44,38 @@ const invertRadius = (rDst: number, k1: number, k2: number): number => {
   return r;
 };
 
-const lensDistortion = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const lensDistortion = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { k1, k2, zoom, palette } = options;
+  const W = input.width;
+  const H = input.height;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  // GL fast path — covers the "wasm not loaded yet" window and scales
+  // better on real GPUs. Custom palettes get a CPU palette-pass on readback.
+  if (
+    lensDistortionGLAvailable()
+    && options._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string })?.name === "nearest";
+    const levels = isNearest ? (paletteOpts?.levels ?? 256) : 256;
+    const rendered = renderLensDistortionGL(input, W, H, k1, k2, zoom, levels);
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Lens Distortion", "WebGL2", `k1=${k1} k2=${k2} zoom=${zoom}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 
   if (wasmIsLoaded() && options._wasmAcceleration !== false) {
     wasmLensDistortionBuffer(buf, outBuf, W, H, k1, k2, zoom);

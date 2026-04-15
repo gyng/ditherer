@@ -7,8 +7,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
+import { risographGLAvailable, renderRisographGL } from "./risographGL";
 
 export const optionTypes = {
   color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3), desc: "First ink color" },
@@ -68,14 +71,35 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
     palette = defaults.palette,
   } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    risographGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderRisographGL(input, W, H, {
+      color1: [color1[0], color1[1], color1[2]],
+      color2: [color2[0], color2[1], color2[2]],
+      misregX, misregY, grain, inkBleed, threshold,
+      frameIndex, levels,
+    });
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Risograph", "WebGL2", `inkBleed=${inkBleed} misreg=(${misregX},${misregY})${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

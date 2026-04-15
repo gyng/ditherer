@@ -9,6 +9,7 @@ import {
   paletteGetColor,
   logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { mirrorGLAvailable, renderMirrorGL } from "./mirrorGL";
 
 const MODE = {
@@ -52,13 +53,16 @@ const mirror = (input: any, options = defaults) => {
   if (
     mirrorGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
   ) {
-    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
     const rendered = renderMirrorGL(input, W, H, mode, segments, offsetX, offsetY, levels);
     if (rendered) {
-      logFilterBackend("Mirror", "WebGL2", `${mode}${mode === "KALEIDOSCOPE" ? ` segments=${segments}` : ""}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Mirror", "WebGL2", `${mode}${mode === "KALEIDOSCOPE" ? ` segments=${segments}` : ""}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

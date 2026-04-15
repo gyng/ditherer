@@ -21,6 +21,8 @@ export function grain_merge_buffer(input: Uint8Array, output: Uint8Array, width:
 
 export function hsv_shift_buffer(input: Uint8Array, output: Uint8Array, hue_shift: number, sat_shift: number, val_shift: number): void;
 
+export function jpeg_artifact_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, quality_luma: number, quality_chroma: number, subsampling: number, block_size: number, ringing: number, mosquito: number, grid_jitter: number, corrupt_burst_chance: number, deblock: number, preserve_alpha: number, frame_index: number): void;
+
 export function lcd_display_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, pixel_size: number, subpixel_layout: number, brightness: number, gap_darkness: number): void;
 
 export function lens_distortion_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, k1: number, k2: number, zoom: number): void;
@@ -114,6 +116,7 @@ export interface InitOutput {
     readonly triangle_dither_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
     readonly hsv_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
     readonly apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+    readonly jpeg_artifact_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number) => void;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;

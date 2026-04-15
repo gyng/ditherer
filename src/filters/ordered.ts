@@ -18,8 +18,11 @@ import {
   resolvePaletteColorAlgorithm,
   colorAlgorithmToWasmMode,
   logFilterWasmStatus,
+  logFilterBackend,
   WASM_PALETTE_MODE,
 } from "utils";
+import { orderedGLAvailable, renderOrderedGL, ORDERED_PAL_MODE } from "./orderedGL";
+import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST } from "constants/color";
 
 export const BAYER_2X2 = "BAYER_2X2";
 export const BAYER_3X3 = "BAYER_3X3";
@@ -377,6 +380,18 @@ const defaults: OrderedOptions = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
+// Ordered (matrix) dither. For each pixel, a deterministic threshold value is
+// looked up from a small tileable map (Bayer / blue-noise / custom pattern),
+// biased against the pixel's channel value, then quantised to `levels` steps.
+// The bias swings each channel up or down by up to ±step/2, so uniform regions
+// produce the matrix pattern at the quantisation boundary. A final palette
+// match snaps the quantised colour to the nearest palette entry. The linear
+// path does the bias + quant in sRGB-linear space (cleaner gradients, closer
+// to perceptual); the sRGB path is faster and matches the classic look.
+//
+// Dispatch: WebGL2 (preferred) → WASM → JS. The GL path (orderedGL.ts) bundles
+// dither + palette match into one fragment-shader pass with all four palette
+// algorithms (RGB / redmean / HSV / LAB) implemented in-shader.
 const ordered = (
   input: any,
   options: OrderedOptions = defaults
@@ -427,6 +442,46 @@ const ordered = (
   const phase = temporalPhases > 1 ? (frameIndex % temporalPhases) : 0;
   const temporalOffsetX = temporalPhases > 1 ? Math.floor(phase * thresholdMapWidth / temporalPhases) : 0;
   const temporalOffsetY = temporalPhases > 1 ? Math.floor(phase * thresholdMapHeight / temporalPhases) : 0;
+
+  // WebGL2 fast path. Handles LEVELS + RGB/RGB_APPROX/HSV/LAB palettes,
+  // sRGB and linear modes, temporal phases. Falls through to WASM/JS for
+  // anything unsupported (e.g. palettes without a known distance algorithm).
+  if (
+    orderedGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && palette
+  ) {
+    const pOpts = palette.options as { levels?: number; colors?: number[][]; colorDistanceAlgorithm?: string } | undefined;
+    const algo = resolvePaletteColorAlgorithm(palette);
+    let palMode: number | null = null;
+    if (pOpts?.colors) {
+      if (algo === RGB_NEAREST) palMode = ORDERED_PAL_MODE.RGB;
+      else if (algo === RGB_APPROX) palMode = ORDERED_PAL_MODE.RGB_APPROX;
+      else if (algo === HSV_NEAREST) palMode = ORDERED_PAL_MODE.HSV;
+      else if (algo === LAB_NEAREST) palMode = ORDERED_PAL_MODE.LAB;
+    }
+    if (palMode === null) palMode = ORDERED_PAL_MODE.LEVELS;
+
+    const rendered = renderOrderedGL(input, input.width, input.height, {
+      thresholdMap: threshold.thresholdMap,
+      thresholdMapKey: String(thresholdMapKey),
+      mapScaleX: thresholdMapScaleX,
+      mapScaleY: thresholdMapScaleY,
+      tempOffsetX: temporalOffsetX,
+      tempOffsetY: temporalOffsetY,
+      levels,
+      linearize: !!options._linearize,
+      palMode,
+      paletteRgb: palMode === ORDERED_PAL_MODE.LEVELS ? null : (pOpts?.colors ?? null),
+      labRef: [95.047, 100, 108.883],
+    });
+    if (rendered) {
+      const space = options._linearize ? "linear" : "sRGB";
+      const palLabel = palMode === ORDERED_PAL_MODE.LEVELS ? `levels=${pOpts?.levels ?? levels}` : `algo=${algo}`;
+      logFilterBackend("Ordered", "WebGL2", `${space} ${thresholdMapKey} ${palLabel}`);
+      return rendered;
+    }
+  }
 
   if (options._linearize && palette) {
     // WASM fast path for linear ordered dither — skips three per-pixel `pow`

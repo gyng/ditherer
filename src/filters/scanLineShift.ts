@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
+import { scanLineShiftGLAvailable, renderScanLineShiftGL } from "./scanLineShiftGL";
 
 export const optionTypes = {
   maxShift: { type: RANGE, range: [0, 200], step: 1, default: 30, desc: "Maximum horizontal shift in pixels" },
@@ -50,14 +53,30 @@ const mulberry32 = (seed: number) => {
 const scanLineShift = (input: any, options = defaults) => {
   const { maxShift, blockHeight, chance, colorShift, wrap, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    scanLineShiftGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderScanLineShiftGL(input, W, H, maxShift, blockHeight, chance, colorShift, wrap, frameIndex, levels);
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Scan Line Shift", "WebGL2", `block=${blockHeight} max=${maxShift} chance=${chance}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

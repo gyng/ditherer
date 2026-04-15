@@ -9,6 +9,7 @@ import {
   paletteGetColor,
   logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { motionBlurGLAvailable, renderMotionBlurGL } from "./motionBlurGL";
 
 export const optionTypes = {
@@ -31,13 +32,16 @@ const motionBlurFilter = (input: any, options = defaults) => {
   if (
     motionBlurGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
   ) {
-    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
     const rendered = renderMotionBlurGL(input, W, H, angle, length, levels);
     if (rendered) {
-      logFilterBackend("Motion Blur", "WebGL2", `angle=${angle} length=${length}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Motion Blur", "WebGL2", `angle=${angle} length=${length}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

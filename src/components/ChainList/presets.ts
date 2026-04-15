@@ -175,6 +175,10 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Motion Neon", desc: "Neon-traced motion outlines with chromatic splitting", filters: [f("Temporal Edge"), f("Bloom"), f("Chromatic aberration")], category: "Blur & Edges" },
 
   { name: "Band Pass", desc: "Middle image frequencies isolated into a technical texture-study view", filters: [f("Frequency Filter"), f("Bloom")], category: "Advanced" },
+  { name: "Spectral Ghost", desc: "Full-strength FFT phase scramble — same frequency signature, scrambled geometry becomes textural noise clouds", filters: [f("FFT Phase Scramble", { amount: 1 }), f("Bloom")], category: "Advanced" },
+  { name: "Phase Drift", desc: "Animated phase scramble with motion trails — structure melts continuously into itself", filters: [f("FFT Phase Scramble", { amount: 0.85 }), f("After-image"), f("Chromatic aberration")], category: "Advanced" },
+  { name: "Phase Painter", desc: "Hue-mapped FFT phase plot with soft bloom — turns any input into a directional frequency-orientation painting", filters: [f("FFT Phase Plot"), f("Bloom")], category: "Advanced" },
+  { name: "Spectral X-Ray", desc: "Dual-view FFT: phase-plot overlay reveals structure orientations the magnitude alone misses", filters: [f("FFT Phase Plot", { weightByMagnitude: true }), f("Posterize"), f("Sharpen")], category: "Advanced" },
   { name: "Cellular Life", desc: "Conway's Game of Life with neon-glowing cell boundaries", filters: [f("Cellular automata"), f("Edge glow"), f("Bloom")], category: "Advanced" },
   { name: "Flow Painting", desc: "Curl noise streamlines blended with thick painterly strokes", filters: [f("Flow field"), f("Oil painting"), f("Bloom")], category: "Advanced" },
   { name: "Fractal Overlay", desc: "Mandelbrot fractal with source image colors and edge glow", filters: [f("Fractal"), f("Edge glow"), f("Bloom")], category: "Advanced" },

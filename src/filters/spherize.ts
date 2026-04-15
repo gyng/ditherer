@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
 import { spherizeGLAvailable, renderSpherizeGL } from "./spherizeGL";
 
@@ -27,13 +28,16 @@ const spherize = (input: any, options = defaults) => {
   if (
     spherizeGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
   ) {
-    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
     const rendered = renderSpherizeGL(input, W, H, strength, centerX, centerY, radius, levels);
     if (rendered) {
-      logFilterBackend("Spherize", "WebGL2", `strength=${strength} levels=${levels}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Spherize", "WebGL2", `strength=${strength}${isNearest ? ` levels=${levels}` : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

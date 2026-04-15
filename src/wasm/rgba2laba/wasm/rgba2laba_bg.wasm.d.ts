@@ -29,6 +29,7 @@ export const lcd_display_buffer: (a: number, b: number, c: number, d: number, e:
 export const triangle_dither_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
 export const hsv_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number) => void;
 export const apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+export const jpeg_artifact_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number) => void;
 export const __wbindgen_externrefs: WebAssembly.Table;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_free: (a: number, b: number, c: number) => void;

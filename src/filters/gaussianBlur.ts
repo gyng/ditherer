@@ -38,20 +38,30 @@ const gaussianBlurFilter = (input: any, options: GaussianBlurOptions = defaults)
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const paletteIdentity = isIdentityPalette(palette);
 
-  // GL fast path: only identity palette (the default). Non-identity palettes
-  // fall through to WASM/JS below, which apply the palette per pixel. Honors
-  // both `_wasmAcceleration` (turning off *any* acceleration) and the more
-  // specific `_webglAcceleration` opt-out.
+  // GL fast path. The blur always runs in GL when available; for custom
+  // palettes we read the result back and run the standard CPU palette pass
+  // (matches the Displace / Mode 7 pattern). Honors both `_wasmAcceleration`
+  // (turning off *any* acceleration) and the more specific `_webglAcceleration`.
   if (
-    paletteIdentity
-    && wasmOk
+    wasmOk
     && options._webglAcceleration !== false
     && gaussianBlurGLAvailable()
   ) {
     const rendered = renderGaussianBlurGL(input, W, H, sigma);
-    if (rendered) {
-      logFilterBackend("Gaussian Blur", "WebGL2", `gpu sigma=${sigma}`);
-      return rendered;
+    if (rendered && typeof (rendered as { getContext?: unknown }).getContext === "function") {
+      if (paletteIdentity) {
+        logFilterBackend("Gaussian Blur", "WebGL2", `gpu sigma=${sigma}`);
+        return rendered;
+      }
+      const rCtx = (rendered as HTMLCanvasElement | OffscreenCanvas).getContext("2d", { willReadFrequently: true }) as
+        | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+      if (rCtx) {
+        const pixels = rCtx.getImageData(0, 0, W, H).data;
+        applyPaletteToBuffer(pixels, pixels, W, H, palette, wasmOk);
+        rCtx.putImageData(new ImageData(pixels, W, H), 0, 0);
+        logFilterBackend("Gaussian Blur", "WebGL2", `gpu sigma=${sigma}+palettePass`);
+        return rendered;
+      }
     }
   }
 

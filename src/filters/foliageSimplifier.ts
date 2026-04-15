@@ -1,7 +1,9 @@
 import { PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
+import { foliageSimplifierGLAvailable, renderFoliageSimplifierGL } from "./foliageSimplifierGL";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -78,13 +80,30 @@ export const defaults = {
 
 const foliageSimplifier = (input: any, options = defaults) => {
   const { radius, regionMerge, edgePreserve, brushiness, shadowRetention, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    foliageSimplifierGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderFoliageSimplifierGL(input, W, H, radius, regionMerge, edgePreserve, brushiness, shadowRetention, levels);
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Foliage Simplifier", "WebGL2", `radius=${radius} merge=${regionMerge}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const blurred = boxBlur(buf, W, H, radius);
   const outBuf = new Uint8ClampedArray(buf.length);

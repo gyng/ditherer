@@ -118,7 +118,7 @@ export const runWorkerFilterRequest = (
       console.error(`Worker: filter "${entry.displayName}" threw:`, err);
       continue;
     }
-    logFilterDispatched(filter.name);
+    logFilterDispatched(filter.name, { noGL: filter.noGL, noWASM: filter.noWASM });
     const stepMs = performance.now() - t0;
     const backend = getFilterWasmStatuses().get(filter.name)?.label;
     stepTimes.push(backend

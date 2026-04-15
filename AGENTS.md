@@ -125,6 +125,30 @@ Existing temporal filters: motion detect, motion heatmap, motion pixelate, long 
 
 `src/wasm/rgba2laba/` contains a Rust crate compiled to WASM for performance-critical color space conversions (RGB to CIE Lab). Loaded via dynamic import with JS fallback if WASM fails to load.
 
+### Acceleration capability flags (`noGL` / `noWASM`)
+
+Filters can declare on their `defineFilter` export when a backend fundamentally can't accelerate them. The string is the short reason shown in the inline-timing tooltip — so the UI tells you "don't ask us to port this" instead of inviting another optimise request.
+
+```ts
+export default defineFilter({
+  name: "Floyd-Steinberg",
+  func: /* … */,
+  noGL: "error diffusion is sequential; GL is gather-only. Use Ordered for parallel dithering.",
+});
+```
+
+When to set these:
+
+- **`noGL`** — the algorithm has a hard sequential dependency on previous output pixels that a fragment shader can't express (error-diffusion kernels: Floyd-Steinberg, Atkinson, Jarvis, Sierra, Stucki, Burkes, etc.). Anything gather-parallel (per-pixel compute, separable blurs, coordinate remaps, threshold-matrix dither) is GL-friendly and should be ported rather than flagged.
+- **`noWASM`** — the filter's hot path is dominated by Canvas2D calls (graphics primitives, `fillRect`, `drawImage` composites) that Rust/WASM can't replace without re-implementing Canvas2D, OR it's so trivial that WASM marshalling overhead dominates.
+
+What's already covered:
+
+- `errorDiffusingFilterFactory.ts` sets `noGL` on every kernel it produces.
+- Parallel dithering (Ordered, Halftone) has no `noGL` and is GL-accelerated.
+
+Don't flag a filter just because its GL port hasn't landed yet — only flag when the algorithm fundamentally can't be expressed in a fragment shader.
+
 ### Filter Chains
 
 Filters compose into chains (max 16 entries). The chain is the unit of work — `FilterContext` runs each enabled entry sequentially, feeding the output of one as the input to the next, with caching of intermediate canvases. State is serialized to URL hash and localStorage so users can share or save chains.
@@ -192,6 +216,8 @@ Use Vitest. Tests live in `test/` mirroring `src/` structure.
 - WASM for expensive color math (Lab distance). JS fallback must exist.
 - Memoize expensive conversions (e.g., `wasmRgba2labaMemo`).
 - `requestAnimationFrame` for video frame processing — don't block the main thread.
+- **WebGL2 benchmarks in this harness use swiftshader (software renderer)** — GL numbers are slower than real GPU hardware. When benchmarking GL vs WASM, use `_webglAcceleration: false` to isolate the WASM path. The GL fast path is still correct and will outperform WASM on a real GPU; swiftshader results do not indicate a regression for end users.
+- **WASM load timing**: `wasmIsLoaded()` returns false until the async WASM init resolves. Benchmarks that run immediately after page load will see JS fallback numbers for all WASM-accelerated filters. Always wait for WASM before measuring (see `bench.ts` for the pattern).
 
 ---
 

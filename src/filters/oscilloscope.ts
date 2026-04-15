@@ -9,6 +9,7 @@ import {
   paletteGetColor,
   logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { oscilloscopeGLAvailable, renderOscilloscopeGL } from "./oscilloscopeGL";
 
 const PHOSPHOR_GREEN = "GREEN";     // P1/P31 classic
@@ -137,8 +138,8 @@ const oscilloscope = (
   if (
     oscilloscopeGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && ((palette as { name?: string }).name === "nearest")
   ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
     const rendered = renderOscilloscopeGL(input, W, H, {
       phosphorColor: [pColor[0], pColor[1], pColor[2]],
       threshold, intensity, bloom, bloomStrength, persistence,
@@ -147,8 +148,11 @@ const oscilloscope = (
       prevOutput,
     });
     if (rendered) {
-      logFilterBackend("Oscilloscope", "WebGL2", `${phosphor} bloom=${bloom} persistence=${persistence}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Oscilloscope", "WebGL2", `${phosphor} bloom=${bloom} persistence=${persistence}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

@@ -569,7 +569,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       // One-shot "JS (no wasm path)" for filters that didn't self-report via
       // logFilterWasmStatus. Runs after the call so a filter that does log
       // suppresses this fallback.
-      logFilterDispatched(entry.filter.name);
+      logFilterDispatched(entry.filter.name, { noGL: entry.filter.noGL, noWASM: entry.filter.noWASM });
       const stepMs = performance.now() - t0;
       const backend = getFilterWasmStatuses().get(entry.filter.name)?.label;
       stepTimes.push(backend

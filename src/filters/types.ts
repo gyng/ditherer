@@ -140,6 +140,12 @@ export interface FilterDefinition<TOptions extends FilterOptionValues = FilterOp
   // Animation speed to use when `autoAnimate` is true. Defaults to 20 fps if
   // unspecified (matching the hand-coded Play/Stop ACTION handlers).
   autoAnimateFps?: number;
+  // Declare when a backend fundamentally can't accelerate this filter so the
+  // UI can communicate "don't ask us to optimise this further" and we don't
+  // waste effort porting. The string is the short reason shown in the tooltip.
+  // Example: error-diffusion has a serial pixel dependency → `noGL: "..."`.
+  noGL?: string;
+  noWASM?: string;
 }
 
 export interface FilterListEntry<TOptions extends FilterOptionValues = FilterOptionValues> {

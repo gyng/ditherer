@@ -1,6 +1,7 @@
 import { RANGE, BOOL, ACTION } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
-import { cloneCanvas, getBufferIndex } from "utils";
+import { cloneCanvas, getBufferIndex, logFilterBackend } from "utils";
+import { freezeFrameGlitchGLAvailable, renderFreezeFrameGlitchGL } from "./freezeFrameGlitchGL";
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
@@ -80,6 +81,25 @@ const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defau
   for (let b = 0; b < gridSize; b++) {
     if (freezeGrid[b] && rng() < thawRate) freezeGrid[b] = 0;
     else if (!freezeGrid[b] && rng() < freezeChance) freezeGrid[b] = 1;
+  }
+
+  // GL fast path: CPU keeps the mutable freeze/thaw grid (stateful across
+  // frames, so must live on the main thread), uploads it as a tiny R8
+  // texture along with prevOutput, and the shader does the per-pixel freeze
+  // lookup + composite.
+  if (
+    freezeFrameGlitchGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const rendered = renderFreezeFrameGlitchGL(
+      input, W, H, blockSize, blocksX, blocksY,
+      freezeGrid, channelIndependent, prevOutput ?? null,
+    );
+    if (rendered) {
+      logFilterBackend("Freeze Frame Glitch", "WebGL2",
+        `block=${blockSize} freeze=${freezeChance} thaw=${thawRate}${channelIndependent ? " channelIndep" : ""}`);
+      return rendered;
+    }
   }
 
   // Apply freeze/thaw per pixel

@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
+import { stainedGlassGLAvailable, renderStainedGlassGL } from "./stainedGlassGL";
 
 const COLOR_MODE = {
   AVERAGE: "AVERAGE",
@@ -77,6 +80,36 @@ const stainedGlass = (input: any, options = defaults) => {
         x: (gx + 0.5) * cellSize + jx,
         y: (gy + 0.5) * cellSize + jy
       });
+    }
+  }
+
+  // GL fast path. The CPU still builds seed positions (tiny), but the
+  // per-pixel Voronoi search + second-nearest distance + final composite
+  // run on the GPU. Per-cell colour averages happen on the CPU between the
+  // two GL passes (reduction doesn't fit a fragment shader cleanly).
+  if (
+    stainedGlassGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const gridCols = cols + 1;
+    const gridRows = rows + 1;
+    if (gridCols * gridRows <= 65536) {
+      const isNearest = (palette as { name?: string }).name === "nearest";
+      const levels = isNearest
+        ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+        : 256;
+      const rendered = renderStainedGlassGL(
+        input, buf, W, H, seeds, gridCols, gridRows, cellSize,
+        leadingWidth, leadingColor as [number, number, number], levels,
+      );
+      if (rendered) {
+        const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Stained Glass", "WebGL2",
+            `cells=${gridCols * gridRows} cellSize=${cellSize}${isNearest ? "" : "+palettePass"}`);
+          return out;
+        }
+      }
     }
   }
 

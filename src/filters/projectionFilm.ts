@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
+import { projectionFilmGLAvailable, renderProjectionFilmGL, type DustSpec, type ScratchSpec } from "./projectionFilmGL";
 
 export const optionTypes = {
   gateWeave: { type: RANGE, range: [0, 10], step: 0.5, default: 2, desc: "Projector gate weave jitter in pixels" },
@@ -77,18 +80,12 @@ const projectionFilm = (
   } = options;
 
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
   const W = input.width;
   const H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
 
-  // Per-frame seeded random
+  // Per-frame seeded random. The GL path samples `rng` just enough to
+  // produce the same weave + flicker + scratch/dust positions as the CPU
+  // path (grain is hash-based per-pixel there), so the visual output tracks.
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
   // --- Gate weave: random per-frame horizontal + vertical jitter ---
@@ -137,6 +134,43 @@ const projectionFilm = (
 
   // --- Grain RNG (separate seed so grain is independent) ---
   const grainRng = mulberry32(frameIndex * 2731 + 5381);
+
+  // GL fast path. Per-pixel composite + bloom all live in shaders; dust and
+  // scratch positions are built here on the CPU (they need the seeded RNG
+  // sequence used by the JS reference) and uploaded as uniform arrays.
+  if (
+    projectionFilmGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const dust: DustSpec[] = dustSpecs.map(d => ({ x: d.x, y: d.y, radius: d.radius, opacity: d.opacity }));
+    const scr: ScratchSpec[] = scratches.map(s => ({ x: s.x, opacity: s.opacity }));
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderProjectionFilmGL(input, W, H, {
+      weaveX, weaveY, warmth, flickerMul, grain,
+      grainSeed: frameIndex * 2731 + 5381,
+      vignette,
+      dust, scratches: scr,
+      bloom, bloomRadius,
+      levels,
+    });
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Projection film", "WebGL2",
+          `weave=${gateWeave} dust=${dust.length} scratches=${scr.length} bloom=${bloom}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
+  const output = cloneCanvas(input, false);
+  const inputCtx = input.getContext("2d");
+  const outputCtx = output.getContext("2d");
+  if (!inputCtx || !outputCtx) return input;
+
+  const buf = inputCtx.getImageData(0, 0, W, H).data;
+  const outBuf = new Uint8ClampedArray(buf.length);
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

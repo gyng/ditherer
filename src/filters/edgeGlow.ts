@@ -8,6 +8,7 @@ import {
   paletteGetColor,
   logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { computeLuminance, sobelEdges } from "utils/edges";
 import { defineFilter } from "filters/types";
 import { edgeGlowGLAvailable, renderEdgeGlowGL } from "./edgeGlowGL";
@@ -36,9 +37,9 @@ const edgeGlow = (input: any, options = defaults) => {
   if (
     edgeGlowGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
   ) {
-    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
     const rendered = renderEdgeGlowGL(
       input, W, H, threshold, glowRadius,
       edgeColor as [number, number, number],
@@ -46,8 +47,11 @@ const edgeGlow = (input: any, options = defaults) => {
       levels,
     );
     if (rendered) {
-      logFilterBackend("Edge Glow", "WebGL2", `threshold=${threshold} glow=${glowRadius}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Edge Glow", "WebGL2", `threshold=${threshold} glow=${glowRadius}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

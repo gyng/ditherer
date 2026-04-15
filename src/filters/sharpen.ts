@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
+import { sharpenGLAvailable, renderSharpenGL } from "./sharpenGL";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [0, 5], step: 0.1, default: 1.5, desc: "Sharpening intensity applied via unsharp mask" },
@@ -25,14 +28,30 @@ export const defaults = {
 
 const sharpenFilter = (input: any, options = defaults) => {
   const { strength, radius, threshold, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (
+    sharpenGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderSharpenGL(input, W, H, strength, radius, threshold, levels);
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Sharpen", "WebGL2", `strength=${strength} radius=${radius}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

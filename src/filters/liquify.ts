@@ -9,6 +9,7 @@ import {
   paletteGetColor,
   logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { liquifyGLAvailable, renderLiquifyGL } from "./liquifyGL";
 
 export const optionTypes = {
@@ -33,13 +34,16 @@ const liquify = (input: any, options = defaults) => {
   if (
     liquifyGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
   ) {
-    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
     const rendered = renderLiquifyGL(input, W, H, strength, smoothness, direction, levels);
     if (rendered) {
-      logFilterBackend("Liquify", "WebGL2", `strength=${strength} smoothness=${smoothness}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Liquify", "WebGL2", `strength=${strength} smoothness=${smoothness}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

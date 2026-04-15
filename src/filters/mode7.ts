@@ -1,6 +1,7 @@
 import { ACTION, RANGE, BOOL, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, sampleBilinear, logFilterBackend } from "utils";
+import { applyPaletteToBuffer, paletteIsIdentity as isIdentityPalette } from "palettes/backend";
 import { defineFilter } from "filters/types";
 import { mode7GLAvailable, renderMode7GL } from "./mode7GL";
 
@@ -297,26 +298,40 @@ const mode7 = (input: any, options = defaults) => {
   const animatedCameraY = Math.max(0.05, cameraY + upDir[1] * liftOffset);
   const animatedCameraZ = cameraZ + planarForwardDir[2] * forwardOffset + rightDir[2] * strafeOffset + upDir[2] * liftOffset;
 
-  // WebGL2 fast path: single draw call covers projection, sky, palette
-  // quantisation. Only for nearest palette (in-shader quantise); the sy wrap
-  // branch assumes `tile || fly`, so fall through to JS when neither is set.
+  // WebGL2 fast path: single draw call covers projection, sky, and (for
+  // nearest palettes) in-shader quantisation. Custom palettes fall through
+  // the GL warp and get a standard CPU palette pass on readback.
   if (
     mode7GLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
-    && (tile || fly)
   ) {
-    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const identity = isIdentityPalette(palette);
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderMode7GL(input, W, H, {
       horizon, fov,
       yawDeg: yaw, pitchDeg: pitch, rollDeg: roll,
       cameraX: animatedCameraX, cameraY: animatedCameraY, cameraZ: animatedCameraZ,
-      tile, sky, skyStyle, skyGlow, skyBands, skyTwist,
+      tile, fly, sky, skyStyle, skyGlow, skyBands, skyTwist,
       levels,
     });
-    if (rendered) {
-      logFilterBackend("Mode 7", "WebGL2", `levels=${levels} tile=${tile} sky=${sky}`);
-      return rendered;
+    if (rendered && typeof (rendered as { getContext?: unknown }).getContext === "function") {
+      if (identity || isNearest) {
+        logFilterBackend("Mode 7", "WebGL2", `levels=${levels} tile=${tile} fly=${fly} sky=${sky}`);
+        return rendered;
+      }
+      // Custom palette: read back and apply palette on CPU.
+      const rCtx = (rendered as HTMLCanvasElement | OffscreenCanvas).getContext("2d", { willReadFrequently: true }) as
+        | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+      if (rCtx) {
+        const pixels = rCtx.getImageData(0, 0, W, H).data;
+        applyPaletteToBuffer(pixels, pixels, W, H, palette, true);
+        rCtx.putImageData(new ImageData(pixels, W, H), 0, 0);
+        logFilterBackend("Mode 7", "WebGL2", `tile=${tile} fly=${fly} sky=${sky}+palettePass`);
+        return rendered;
+      }
     }
   }
 

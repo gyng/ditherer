@@ -241,6 +241,31 @@ export function hsv_shift_buffer(input, output, hue_shift, sat_shift, val_shift)
  * @param {Uint8Array} output
  * @param {number} width
  * @param {number} height
+ * @param {number} quality_luma
+ * @param {number} quality_chroma
+ * @param {number} subsampling
+ * @param {number} block_size
+ * @param {number} ringing
+ * @param {number} mosquito
+ * @param {number} grid_jitter
+ * @param {number} corrupt_burst_chance
+ * @param {number} deblock
+ * @param {number} preserve_alpha
+ * @param {number} frame_index
+ */
+export function jpeg_artifact_buffer(input, output, width, height, quality_luma, quality_chroma, subsampling, block_size, ringing, mosquito, grid_jitter, corrupt_burst_chance, deblock, preserve_alpha, frame_index) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.jpeg_artifact_buffer(ptr0, len0, ptr1, len1, output, width, height, quality_luma, quality_chroma, subsampling, block_size, ringing, mosquito, grid_jitter, corrupt_burst_chance, deblock, preserve_alpha, frame_index);
+}
+
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
  * @param {number} pixel_size
  * @param {number} subpixel_layout
  * @param {number} brightness

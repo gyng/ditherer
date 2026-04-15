@@ -1,6 +1,7 @@
 import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import * as palettes from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
 import { scanlineGLAvailable, renderScanlineGL } from "./scanlineGL";
 
@@ -80,13 +81,16 @@ const scanline = (input: any, options = defaults) => {
   if (
     scanlineGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
   ) {
-    const levels = (palette as { options?: { levels?: number } }).options?.levels ?? 256;
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
     const rendered = renderScanlineGL(input, W, H, mode, intensity, gap, height, lineHeight, brightness, levels);
     if (rendered) {
-      logFilterBackend("Scanline", "WebGL2", `${mode} levels=${levels}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Scanline", "WebGL2", `${mode}${isNearest ? ` levels=${levels}` : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

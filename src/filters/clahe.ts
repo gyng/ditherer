@@ -2,6 +2,7 @@ import { RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { claheGLAvailable, renderClaheGL } from "./claheGL";
 
 export const optionTypes = {
@@ -95,12 +96,15 @@ const clahe = (input: any, options: ClaheOptions = defaults) => {
   if (
     claheGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && (palette as { name?: string }).name === "nearest"
   ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
     const rendered = renderClaheGL(input, W, H, tileSize, cdfs, tilesX, tilesY);
     if (rendered) {
-      logFilterBackend("CLAHE", "WebGL2", `tileSize=${tileSize} clipLimit=${clipLimit} tiles=${tilesX}x${tilesY}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("CLAHE", "WebGL2", `tileSize=${tileSize} clipLimit=${clipLimit} tiles=${tilesX}x${tilesY}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

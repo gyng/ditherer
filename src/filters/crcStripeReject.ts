@@ -1,7 +1,9 @@
 import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
+import { crcStripeRejectGLAvailable, renderCrcStripeRejectGL } from "./crcStripeRejectGL";
 
 const PATTERN = {
   STRIPE: "STRIPE",
@@ -100,14 +102,34 @@ const crcStripeReject = (input: any, options: CrcStripeRejectOptions = defaults)
   } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
   const prevOutput = options._prevOutput ?? null;
+  const w = input.width;
+  const h = input.height;
+
+  if (
+    crcStripeRejectGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderCrcStripeRejectGL(
+      input, w, h, pattern, rejectChance, stripeHeight, tileSize,
+      conceal, jitter, frameIndex, prevOutput, levels,
+    );
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, w, h, palette);
+      if (out) {
+        logFilterBackend("CRC Stripe Reject", "WebGL2",
+          `${pattern} reject=${rejectChance} conceal=${conceal}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const w = input.width;
-  const h = input.height;
   const src = inputCtx.getImageData(0, 0, w, h).data;
   const outBuf = new Uint8ClampedArray(src);
 

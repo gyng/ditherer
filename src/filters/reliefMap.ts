@@ -1,7 +1,9 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
+import { reliefMapGLAvailable, renderReliefMapGL } from "./reliefMapGL";
 
 const BASE_MODE = {
   ORIGINAL: "ORIGINAL",
@@ -40,14 +42,31 @@ const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
 const reliefMap = (input: any, options = defaults) => {
   const { lightAngle, height, specular, baseColorMode, tintColor, palette } = options;
+  const width = input.width;
+  const heightPx = input.height;
+
+  if (
+    reliefMapGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderReliefMapGL(input, width, heightPx, lightAngle, height, specular, baseColorMode,
+      tintColor as [number, number, number], levels);
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, width, heightPx, palette);
+      if (out) {
+        logFilterBackend("Relief Map", "WebGL2", `${baseColorMode} height=${height} spec=${specular}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const width = input.width;
-  const heightPx = input.height;
   const buf = inputCtx.getImageData(0, 0, width, heightPx).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const lightRad = (lightAngle * Math.PI) / 180;

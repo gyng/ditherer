@@ -1,7 +1,8 @@
 import { ACTION, BOOL, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba, logFilterBackend } from "utils";
+import { paletteIndexDriftGLAvailable, renderPaletteIndexDriftGL, MAX_PALETTE as DRIFT_MAX_PALETTE } from "./paletteIndexDriftGL";
 
 const DRIFT = {
   ROTATE: "ROTATE",
@@ -203,6 +204,25 @@ const paletteIndexDrift = (input: any, options: PaletteIndexDriftOptions = defau
 
   const rng = mulberry32(frameIndex * 4591 + 71);
   applyDrift(driftMode, driftRate, rng);
+
+  // GL fast path: CPU still builds the indexed palette + evolves driftMap
+  // (histogram / sort / mutable LUT state across frames don't fit GL cleanly),
+  // but the per-pixel nearest-index + LUT-remap + luma-lock loop runs in a
+  // fragment shader.
+  if (
+    paletteIndexDriftGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && indexPalette.length <= DRIFT_MAX_PALETTE
+  ) {
+    const ditherSeed = frameIndex * 10007 + 13;
+    const rendered = renderPaletteIndexDriftGL(
+      input, w, h, indexPalette, driftMap, lockLuma, ditherBeforeIndex, ditherSeed,
+    );
+    if (rendered) {
+      logFilterBackend("Palette Index Drift", "WebGL2", `mode=${driftMode} N=${indexPalette.length}`);
+      return rendered;
+    }
+  }
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {

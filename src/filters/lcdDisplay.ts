@@ -12,6 +12,7 @@ import {
   logFilterBackend,
   LCD_SUBPIXEL_LAYOUT,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
 import { lcdDisplayGLAvailable, renderLcdDisplayGL } from "./lcdDisplayGL";
 
@@ -49,19 +50,21 @@ const lcdDisplay = (input: any, options: typeof defaults & { _wasmAcceleration?:
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
   const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 
-  // GL fast path: the whole filter maps to a single fragment shader. Only
-  // applies for nearest-type palettes (handled via in-shader quantisation);
-  // custom palettes fall through to the WASM/JS paths that run a palette pass.
+  // GL fast path. The whole filter maps to a single fragment shader; for
+  // custom palettes we add a CPU palette-pass on readback.
   if (
     lcdDisplayGLAvailable()
     && options._webglAcceleration !== false
-    && (palette as { name?: string })?.name === "nearest"
   ) {
-    const levels = paletteOpts?.levels ?? 256;
+    const isNearest = (palette as { name?: string })?.name === "nearest";
+    const levels = isNearest ? (paletteOpts?.levels ?? 256) : 256;
     const rendered = renderLcdDisplayGL(input, W, H, pixelSize, subpixelLayout, brightness, gapDarkness, levels);
     if (rendered) {
-      logFilterBackend("LCD Display", "WebGL2", `layout=${subpixelLayout} levels=${levels}`);
-      return rendered;
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("LCD Display", "WebGL2", `layout=${subpixelLayout}${isNearest ? ` levels=${levels}` : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

@@ -124,6 +124,28 @@ export const applyPaletteToBuffer = (
   }
 };
 
+// Readback a freshly-rendered GL canvas, apply the palette in-place via the
+// standard LUT/JS pass, and put the result back. No-op (returns the canvas
+// unchanged) when the palette is identity. Used by GL filter ports that
+// support arbitrary palettes by doing the heavy work in the shader and the
+// final palette match on CPU.
+export const applyPalettePassToCanvas = (
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  width: number,
+  height: number,
+  palette: PaletteLike | undefined,
+  wasmAcceleration = true,
+): HTMLCanvasElement | OffscreenCanvas | null => {
+  if (!palette || paletteIsIdentity(palette)) return canvas;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true }) as
+    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!ctx) return null;
+  const pixels = ctx.getImageData(0, 0, width, height).data;
+  applyPaletteToBuffer(pixels, pixels, width, height, palette, wasmAcceleration);
+  ctx.putImageData(new ImageData(pixels, width, height), 0, 0);
+  return canvas;
+};
+
 // GLSL snippet: call `applyNearestLevels(v, levels)` per channel in a
 // fragment shader to apply the `nearest` palette quantization. Matches JS
 // semantics for levels ∈ [1, 255]; 256 is the identity and callers should

@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
+import { thermalCameraGLAvailable, renderThermalCameraGL } from "./thermalCameraGL";
 
 const COLORMAP_IRONBOW = "IRONBOW";
 const COLORMAP_RAINBOW = "RAINBOW";
@@ -133,18 +136,36 @@ const thermalCamera = (input: any, options = defaults) => {
   } = options;
 
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const W = input.width;
+  const H = input.height;
+
+  const stops = colormaps[colormap] || colormaps[COLORMAP_IRONBOW];
+
+  if (
+    thermalCameraGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderThermalCameraGL(input, W, H, stops, contrast, noiseAmount, crosshair, frameIndex, levels);
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Thermal camera", "WebGL2",
+          `${colormap} contrast=${contrast} noise=${noiseAmount}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const stops = colormaps[colormap] || colormaps[COLORMAP_IRONBOW];
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
   for (let y = 0; y < H; y++) {

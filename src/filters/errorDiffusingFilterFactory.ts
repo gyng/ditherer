@@ -1,3 +1,13 @@
+// NO WEBGL PATH:
+// Error-diffusion dithering (Floyd-Steinberg, Atkinson, Jarvis, Stucki,
+// Sierra, Burkes, and every other kernel this factory produces) has a hard
+// sequential data dependency — each pixel's quantised output feeds error into
+// forward neighbours that haven't been processed yet. Fragment shaders are
+// strictly gather-only and process all pixels in parallel, so the algorithm
+// can't be expressed in GL without changing the output semantics. The WASM
+// path handles this well and is the permanent home for these filters.
+// Parallel dithering (Bayer matrices, blue noise, halftone) is covered by
+// `ordered.ts` / `halftone.ts`, both of which are GL-accelerated.
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -961,7 +971,13 @@ export const errorDiffusingFilter = (
     defaults: defaultOptions,
     // Reads _prevOutput when temporalBleed > 0 — must run on main thread
     // so the temporal pipeline state is available.
-    mainThread: true
+    mainThread: true,
+    // Error diffusion pushes quantisation error forward into neighbours that
+    // haven't been processed yet — a strict sequential dependency. Fragment
+    // shaders are gather-only and fully parallel, so this algorithm can't be
+    // expressed in GL without changing its output. Use the Ordered filter for
+    // the parallel-dithering equivalent.
+    noGL: "error diffusion is sequential (each pixel's output feeds errors forward); GL is gather-only. Use Ordered for parallel dithering.",
   };
 };
 

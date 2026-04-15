@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
+import { pinchGLAvailable, renderPinchGL } from "./pinchGL";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [-1, 1], step: 0.05, default: 0.5, desc: "Pinch (+) or bulge (-) intensity" },
@@ -21,12 +23,29 @@ export const defaults = {
 
 const pinch = (input: any, options = defaults) => {
   const { strength, radius, centerX, centerY, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (
+    pinchGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+  ) {
+    const isNearest = (palette as { name?: string }).name === "nearest";
+    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const rendered = renderPinchGL(input, W, H, strength, centerX, centerY, radius, levels);
+    if (rendered) {
+      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Pinch", "WebGL2", `strength=${strength} radius=${radius}${isNearest ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
