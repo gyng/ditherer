@@ -1,7 +1,8 @@
 import { PALETTE, RANGE, STRING, BOOL } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter, type FilterOptionValues } from "filters/types";
+import { halftoneGLAvailable, parseCssColorRgb, renderHalftoneGL } from "./halftoneGL";
 
 export const optionTypes = {
   size: { type: RANGE, range: [1, 512], step: 1, default: 6, desc: "Sampling grid cell size in pixels" },
@@ -43,6 +44,27 @@ const halftone = (
   };
   const { background, palette } = options;
   const size = parseInt(String(options.size), 10);
+
+  // WebGL fast path: applies when palette is the nearest type (handles any levels
+  // count with in-shader quantisation) and the background colour is parseable.
+  // Falls through to JS for custom palettes or unrecognised CSS colours.
+  if (halftoneGLAvailable() && (palette as any).name === "nearest") {
+    const bgRgb = parseCssColorRgb(typeof background === "string" ? background : "black");
+    if (bgRgb) {
+      const W = input.width, H = input.height;
+      const levels = (palette as any).options?.levels ?? 1;
+      const rendered = renderHalftoneGL(
+        input, W, H, size,
+        options.sizeMultiplier, options.offset,
+        levels, options.squareDots, bgRgb,
+      );
+      if (rendered) {
+        logFilterBackend("Halftone", "WebGL2", `size=${size} levels=${levels}`);
+        return rendered;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
