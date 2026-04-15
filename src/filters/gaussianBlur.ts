@@ -10,6 +10,7 @@ import {
   wasmGaussianBlurBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
 import { gaussianBlurGLAvailable, renderGaussianBlurGL } from "./gaussianBlurGL";
 
@@ -23,7 +24,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { sigma, palette } = options;
 
   const output = cloneCanvas(input, false);
@@ -38,11 +39,18 @@ const gaussianBlurFilter = (input: any, options: typeof defaults & { _wasmAccele
   const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 
   // GL fast path: only identity palette (the default). Non-identity palettes
-  // fall through to WASM/JS below, which apply the palette per pixel.
-  if (paletteIsIdentity && options._wasmAcceleration !== false && gaussianBlurGLAvailable()) {
+  // fall through to WASM/JS below, which apply the palette per pixel. Honors
+  // both `_wasmAcceleration` (turning off *any* acceleration) and the more
+  // specific `_webglAcceleration` opt-out.
+  if (
+    paletteIsIdentity
+    && options._wasmAcceleration !== false
+    && options._webglAcceleration !== false
+    && gaussianBlurGLAvailable()
+  ) {
     const rendered = renderGaussianBlurGL(input, W, H, sigma);
     if (rendered) {
-      logFilterWasmStatus("Gaussian Blur", true, `gpu sigma=${sigma}`);
+      logFilterBackend("Gaussian Blur", "WebGL2", `gpu sigma=${sigma}`);
       return rendered;
     }
   }

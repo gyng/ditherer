@@ -316,9 +316,16 @@ const rgbStripe = (
   // either identity or `nearest` (the only one the shader implements), run
   // the full pipeline on the GPU. Anything that requires palette logic the
   // shader can't reproduce falls through to the JS path below.
-  const _wasmAcceleration = (options as { _wasmAcceleration?: boolean })._wasmAcceleration;
+  const accelOpts = options as { _wasmAcceleration?: boolean; _webglAcceleration?: boolean };
+  const _wasmAcceleration = accelOpts._wasmAcceleration;
+  const _webglAcceleration = accelOpts._webglAcceleration;
   const paletteLevels = paletteShaderLevels(palette);
-  if (_wasmAcceleration !== false && paletteLevels !== null && rgbStripeGLAvailable()) {
+  if (
+    _wasmAcceleration !== false
+    && _webglAcceleration !== false
+    && paletteLevels !== null
+    && rgbStripeGLAvailable()
+  ) {
     const effect = 1 - strength;
     const maskTbl = masks[shadowMask as keyof typeof masks](effect);
     const mH = maskTbl.length;

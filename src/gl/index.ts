@@ -10,29 +10,47 @@
 // - Texture pool is keyed by caller-provided names. Namespace with a filter
 //   prefix (e.g., "gaussian:temp") to avoid collisions.
 
+type GLCanvas = HTMLCanvasElement | OffscreenCanvas;
+
 let _gl: WebGL2RenderingContext | null = null;
-let _glCanvas: HTMLCanvasElement | null = null;
+let _glCanvas: GLCanvas | null = null;
 let _supportChecked = false;
 let _supported = false;
 
 export type GLCtx = {
   gl: WebGL2RenderingContext;
-  canvas: HTMLCanvasElement;
+  canvas: GLCanvas;
+};
+
+// Allocate a drawing canvas that works on both main thread (HTMLCanvasElement)
+// and Web Workers (OffscreenCanvas). Filters run inside the filter worker
+// for throughput; limiting GL to the main thread would starve most of the
+// pipeline.
+const createGLCanvas = (w = 1, h = 1): GLCanvas | null => {
+  if (typeof document !== "undefined") {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    return c;
+  }
+  if (typeof OffscreenCanvas !== "undefined") {
+    return new OffscreenCanvas(w, h);
+  }
+  return null;
 };
 
 export const getGLCtx = (): GLCtx | null => {
   if (_gl && _glCanvas) return { gl: _gl, canvas: _glCanvas };
   if (_supportChecked && !_supported) return null;
   _supportChecked = true;
-  if (typeof document === "undefined") return null;
-  const c = document.createElement("canvas");
-  const gl = c.getContext("webgl2", {
+  const c = createGLCanvas();
+  if (!c) return null;
+  const gl = (c.getContext("webgl2", {
     premultipliedAlpha: false,
     preserveDrawingBuffer: true,
     antialias: false,
     depth: false,
     stencil: false,
-  });
+  }) as WebGL2RenderingContext | null);
   if (!gl) return null;
   _supported = true;
   _gl = gl;
@@ -200,28 +218,32 @@ export const drawPass = (
   gl.bindVertexArray(null);
 };
 
-// Copy the GL canvas's current framebuffer to a fresh 2D canvas and return
-// it. drawImage handles the WebGL-y-up → 2D-y-down flip so the filter
-// caller gets a right-side-up image (assuming input was uploaded with
-// UNPACK_FLIP_Y=true and shaders use JS-y conventions).
+// Copy the GL canvas's current framebuffer to a fresh canvas and return it.
+// drawImage handles the WebGL-y-up → 2D-y-down flip so the filter caller
+// gets a right-side-up image (assuming input was uploaded with
+// UNPACK_FLIP_Y=true and shaders use JS-y conventions). Returns
+// OffscreenCanvas when running in a Web Worker, HTMLCanvasElement on the
+// main thread — both satisfy the FilterCanvas contract.
 export const readoutToCanvas = (
-  glCanvas: HTMLCanvasElement,
+  glCanvas: GLCanvas,
   w: number,
   h: number,
-): HTMLCanvasElement | null => {
-  const out = document.createElement("canvas");
-  out.width = w;
-  out.height = h;
-  const ctx = out.getContext("2d");
+): GLCanvas | null => {
+  const out = createGLCanvas(w, h);
+  if (!out) return null;
+  const ctx = out.getContext("2d") as (
+    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
+  );
   if (!ctx) return null;
-  ctx.drawImage(glCanvas, 0, 0);
+  // TS can't narrow the drawImage overloads across the union.
+  (ctx as CanvasRenderingContext2D).drawImage(glCanvas as CanvasImageSource, 0, 0);
   return out;
 };
 
 // Resize the GL canvas to match the current render target. Cheap — only
 // assigns on size change. Must be called before rendering to the default
 // framebuffer (the GL canvas) so the viewport and readout match.
-export const resizeGLCanvas = (canvas: HTMLCanvasElement, w: number, h: number): void => {
+export const resizeGLCanvas = (canvas: GLCanvas, w: number, h: number): void => {
   if (canvas.width !== w) canvas.width = w;
   if (canvas.height !== h) canvas.height = h;
 };

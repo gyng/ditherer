@@ -16,6 +16,7 @@ export interface WorkerFilterRequest {
   isAnimating: boolean;
   linearize: boolean;
   wasmAcceleration: boolean;
+  webglAcceleration: boolean;
   convertGrayscale: boolean;
   prevOutputs: Record<string, ArrayBuffer>;
 }

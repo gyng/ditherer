@@ -60,6 +60,7 @@ export const runWorkerFilterRequest = (
     isAnimating,
     linearize,
     wasmAcceleration,
+    webglAcceleration,
     convertGrayscale,
     prevOutputs,
   }: WorkerFilterRequest,
@@ -94,6 +95,7 @@ export const runWorkerFilterRequest = (
     opts._isAnimating = isAnimating;
     opts._linearize = linearize;
     opts._wasmAcceleration = wasmAcceleration;
+    opts._webglAcceleration = webglAcceleration;
     opts._prevOutput = prevOutputs?.[entry.id]
       ? new Uint8ClampedArray(prevOutputs[entry.id])
       : null;

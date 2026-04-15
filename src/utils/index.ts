@@ -961,6 +961,18 @@ export const logFilterWasmStatus = (filterName: string, didWasm: boolean, reason
   console.info(`[filter:${filterName}] ${didWasm ? "WASM" : "JS"} (${reason})`);
 };
 
+// Like logFilterWasmStatus but lets the caller label the backend explicitly
+// (e.g., "WebGL2"). Useful when a filter has more than two code paths. Flags
+// didWasm=true in the status map so audit tools count GL as "not pure JS".
+export const logFilterBackend = (filterName: string, backend: string, reason: string) => {
+  filterNamesLogged.add(filterName);
+  filterLastStatus.set(filterName, { didWasm: true, reason: `${backend} ${reason}` });
+  const key = `${filterName}|${backend}|${reason}`;
+  if (filterWasmStatusLogged.has(key)) return;
+  filterWasmStatusLogged.add(key);
+  console.info(`[filter:${filterName}] ${backend} (${reason})`);
+};
+
 // Called from the filter dispatcher once per frame per filter. If the filter
 // has never self-reported via logFilterWasmStatus, we record a one-shot
 // "JS (no wasm path)" — useful for auditing which filters are candidates

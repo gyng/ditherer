@@ -66,7 +66,7 @@ export const renderGaussianBlurGL = (
   width: number,
   height: number,
   sigma: number,
-): HTMLCanvasElement | null => {
+): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
   const { gl, canvas } = ctx;

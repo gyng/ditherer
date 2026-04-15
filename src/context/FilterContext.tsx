@@ -537,6 +537,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         _chainIndex: i,
         _linearize: curState.linearize,
         _wasmAcceleration: curState.wasmAcceleration,
+        _webglAcceleration: curState.webglAcceleration,
         _hasVideoInput: !!curState.video,
         _prevOutput: temporalState.prevOutputMap.get(entry.id) || null,
         _prevInput: temporalState.prevInputMap.get(entry.id) || null,
@@ -719,6 +720,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         isAnimating,
         linearize: curState.linearize,
         wasmAcceleration: curState.wasmAcceleration,
+        webglAcceleration: curState.webglAcceleration,
         convertGrayscale: false,
         prevOutputs: serializedPrevOutputs,
       }, transfers).then((result) => {
@@ -1042,6 +1044,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: "SET_LINEARIZE", value }),
     setWasmAcceleration: (value: boolean) =>
       dispatch({ type: "SET_WASM_ACCELERATION", value }),
+    setWebglAcceleration: (value: boolean) =>
+      dispatch({ type: "SET_WEBGL_ACCELERATION", value }),
     setRandomCycleSeconds: (seconds: number | null) =>
       dispatch({ type: "SET_RANDOM_CYCLE_SECONDS", seconds }),
     setScale: (scale: number) =>

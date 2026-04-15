@@ -15,6 +15,7 @@ const ADD_PALETTE_COLOR = "ADD_PALETTE_COLOR";
 const SET_SCALING_ALGORITHM = "SET_SCALING_ALGORITHM";
 const SET_LINEARIZE = "SET_LINEARIZE";
 const SET_WASM_ACCELERATION = "SET_WASM_ACCELERATION";
+const SET_WEBGL_ACCELERATION = "SET_WEBGL_ACCELERATION";
 const SET_RANDOM_CYCLE_SECONDS = "SET_RANDOM_CYCLE_SECONDS";
 const SET_CHAIN_AUDIO_MODULATION = "SET_CHAIN_AUDIO_MODULATION";
 const CHAIN_ADD = "CHAIN_ADD";
@@ -169,6 +170,7 @@ export const initialState = {
   scalingAlgorithm: SCALING_ALGORITHM.PIXELATED,
   linearize: true,
   wasmAcceleration: true,
+  webglAcceleration: true,
   randomCycleSeconds: null as number | null,
   frameTime: null as number | null,
   stepTimes: null as { name: string; ms: number }[] | null,
@@ -337,7 +339,7 @@ type ImageAction =
 
 type ScalarStateAction =
   | {
-      type: typeof SET_GRAYSCALE | typeof SET_LINEARIZE | typeof SET_WASM_ACCELERATION;
+      type: typeof SET_GRAYSCALE | typeof SET_LINEARIZE | typeof SET_WASM_ACCELERATION | typeof SET_WEBGL_ACCELERATION;
       value: boolean;
     }
   | {
@@ -709,6 +711,8 @@ const filterReducer = (
       return { ...state, linearize: action.value };
     case SET_WASM_ACCELERATION:
       return { ...state, wasmAcceleration: action.value };
+    case SET_WEBGL_ACCELERATION:
+      return { ...state, webglAcceleration: action.value };
     case SET_RANDOM_CYCLE_SECONDS:
       return { ...state, randomCycleSeconds: action.seconds };
     case "SAVE_CURRENT_COLOR_PALETTE":

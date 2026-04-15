@@ -2861,6 +2861,21 @@ const App = () => {
               WASM acceleration
             </span>
           </div>
+          <div className={controls.checkbox}>
+            <input
+              name="webglAcceleration"
+              type="checkbox"
+              checked={state.webglAcceleration}
+              onChange={e => actions.setWebglAcceleration(e.target.checked)}
+            />
+            <span
+              role="presentation"
+              onClick={() => actions.setWebglAcceleration(!state.webglAcceleration)}
+              className={controls.label}
+            >
+              WebGL acceleration
+            </span>
+          </div>
           <div className={controls.separator} />
           <div className={controls.checkbox}>
             <input

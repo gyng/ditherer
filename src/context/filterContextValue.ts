@@ -38,6 +38,7 @@ export interface FilterActions {
   setConvertGrayscale: (value: boolean) => void;
   setLinearize: (value: boolean) => void;
   setWasmAcceleration: (value: boolean) => void;
+  setWebglAcceleration: (value: boolean) => void;
   setRandomCycleSeconds: (seconds: number | null) => void;
   setScale: (scale: number) => void;
   setOutputScale: (scale: number) => void;
