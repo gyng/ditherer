@@ -2322,6 +2322,85 @@ pub fn tilt_shift_buffer(
     }
 }
 
+// === Vintage TV ===
+//
+// Port of src/filters/vintageTV.ts. Rolls Y by a frame-constant, bands each
+// row by a per-row constant, offsets the R channel by `colorFringe` pixels
+// for RGB separation, and adds a conditional glow on bright pixels. Per-row
+// and per-frame constants are precomputed once so the hot loop is a handful
+// of adds + a luma dot-product.
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn vintage_tv_buffer(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    banding: f64,
+    color_fringe: u32,
+    roll_offset: i32,
+    frame_index: i32,
+    glow: f64,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    if w == 0 || h == 0 { return; }
+    let w_i = w as i32;
+    let fringe = color_fringe as i32;
+    let band_mul = banding * 40.0;
+    let glow_active = glow > 0.0;
+    let glow_scale = glow * 50.0;
+
+    // Per-row scratch: bandVal depends only on y (and frame_index, a per-call
+    // constant), so cache it and avoid h*w redundant `sin` calls.
+    let mut band_vals = vec![0.0f64; h];
+    if band_mul > 0.0 {
+        let fi = frame_index as f64;
+        for y in 0..h {
+            band_vals[y] = (y as f64 * 0.05 + fi * 0.3).sin() * band_mul;
+        }
+    }
+
+    for y in 0..h as i32 {
+        // JS: ((y + rollOffset) % H + H) % H — positive modulo, handles negatives.
+        let raw_y = y + roll_offset;
+        let src_y = ((raw_y % h as i32) + h as i32) % h as i32;
+        let row_base = (src_y as usize) * w;
+        let band_val = if band_mul > 0.0 { band_vals[y as usize] } else { 0.0 };
+
+        for x in 0..w_i {
+            let src_xr = (x + fringe).clamp(0, w_i - 1) as usize;
+            let ir = (row_base + src_xr) * 4;
+            let ig = (row_base + x as usize) * 4;
+            unsafe {
+                let mut r = *input.get_unchecked(ir) as f64 + band_val;
+                let mut g = *input.get_unchecked(ig + 1) as f64 + band_val;
+                let mut b = *input.get_unchecked(ig + 2) as f64 + band_val;
+
+                if glow_active {
+                    let luma = r * 0.2126 + g * 0.7152 + b * 0.0722;
+                    if luma > 180.0 {
+                        let boost = (luma - 180.0) / 75.0 * glow_scale;
+                        r += boost;
+                        g += boost;
+                        b += boost;
+                    }
+                }
+
+                // JS writes floats into Uint8ClampedArray (ToUint8Clamp: round
+                // ties to even). `(x + 0.5).floor()` matches on non-ties; ties
+                // are effectively unreachable here given the sin/luma math.
+                let i = ((y as usize) * w + (x as usize)) * 4;
+                *output.get_unchecked_mut(i)     = (r + 0.5).floor().clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 1) = (g + 0.5).floor().clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 2) = (b + 0.5).floor().clamp(0.0, 255.0) as u8;
+                *output.get_unchecked_mut(i + 3) = 255;
+            }
+        }
+    }
+}
+
 // === Scanline Warp ===
 //
 // Per-row horizontal shift `shift(y) = amplitude * sin(y * freq * 2π/H +

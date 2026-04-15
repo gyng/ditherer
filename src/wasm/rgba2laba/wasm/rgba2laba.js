@@ -493,6 +493,25 @@ export function triangle_dither_buffer(input, output, levels, seed, palette_mode
     wasm.triangle_dither_buffer(ptr0, len0, ptr1, len1, output, levels, seed, palette_mode, ptr2, len2, ref_x, ref_y, ref_z);
 }
 
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {number} banding
+ * @param {number} color_fringe
+ * @param {number} roll_offset
+ * @param {number} frame_index
+ * @param {number} glow
+ */
+export function vintage_tv_buffer(input, output, width, height, banding, color_fringe, roll_offset, frame_index, glow) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    wasm.vintage_tv_buffer(ptr0, len0, ptr1, len1, output, width, height, banding, color_fringe, roll_offset, frame_index, glow);
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

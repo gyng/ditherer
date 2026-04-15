@@ -74,6 +74,8 @@ export function tilt_shift_buffer(input: Uint8Array, output: Uint8Array, width: 
 
 export function triangle_dither_buffer(input: Uint8Array, output: Uint8Array, levels: number, seed: number, palette_mode: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
 
+export function vintage_tv_buffer(input: Uint8Array, output: Uint8Array, width: number, height: number, banding: number, color_fringe: number, roll_offset: number, frame_index: number, glow: number): void;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -97,6 +99,7 @@ export interface InitOutput {
     readonly oil_painting_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number) => void;
     readonly lens_distortion_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number) => void;
     readonly tilt_shift_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+    readonly vintage_tv_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => void;
     readonly scanline_warp_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly lcd_display_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly triangle_dither_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;

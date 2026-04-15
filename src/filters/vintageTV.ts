@@ -6,7 +6,10 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  wasmVintageTvBuffer,
+  wasmIsLoaded,
+  logFilterWasmStatus,
 } from "utils";
 
 export const optionTypes = {
@@ -42,7 +45,7 @@ const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
 const vintageTV = (
   input: any,
-  options = defaults
+  options: typeof defaults & { _frameIndex?: number; _wasmAcceleration?: boolean } = defaults
 ) => {
   const {
     banding,
@@ -52,7 +55,7 @@ const vintageTV = (
     palette
   } = options;
 
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const frameIndex = options._frameIndex || 0;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -66,6 +69,22 @@ const vintageTV = (
 
   // Vertical roll offset
   const rollOffset = Math.round(verticalRoll * Math.sin(frameIndex * 0.1));
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
+
+  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
+    wasmVintageTvBuffer(buf, outBuf, W, H, banding, colorFringe, rollOffset, frameIndex, glow);
+    if (!paletteIsIdentity) {
+      for (let i = 0; i < outBuf.length; i += 4) {
+        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], 255), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+      }
+    }
+    logFilterWasmStatus("Vintage TV", true, paletteIsIdentity ? "tv" : "tv+palettePass");
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+  logFilterWasmStatus("Vintage TV", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

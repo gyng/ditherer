@@ -200,6 +200,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmBloomInner = mod.bloom_buffer;
   wasmTriangleDitherInner = mod.triangle_dither_buffer;
   wasmScanlineWarpInner = mod.scanline_warp_buffer;
+  wasmVintageTvInner = mod.vintage_tv_buffer;
   wasmLcdDisplayInner = mod.lcd_display_buffer;
   wasmOilPaintingInner = mod.oil_painting_buffer;
   wasmLensDistortionInner = mod.lens_distortion_buffer;
@@ -551,6 +552,19 @@ type WasmTiltShiftFn = {
     saturationBoost: number,
   ): void;
 }["bivarianceHack"];
+type WasmVintageTvFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    banding: number,
+    colorFringe: number,
+    rollOffset: number,
+    frameIndex: number,
+    glow: number,
+  ): void;
+}["bivarianceHack"];
 type WasmScanlineWarpFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -750,6 +764,10 @@ let wasmLensDistortionInner: WasmLensDistortionFn = () => {
 };
 
 let wasmTiltShiftInner: WasmTiltShiftFn = () => {
+  console.error("WASM module not loaded!");
+};
+
+let wasmVintageTvInner: WasmVintageTvFn = () => {
   console.error("WASM module not loaded!");
 };
 
@@ -1184,6 +1202,21 @@ export const wasmTiltShiftBuffer = (
   blurAmount: number,
   saturationBoost: number,
 ): void => wasmTiltShiftInner(input, output, width, height, focusPosition, focusWidth, blurAmount, saturationBoost);
+
+// Vintage TV: y-rolled sampling with R-channel fringe, per-row sin-driven
+// banding, and a conditional highlight glow. Per-row bandVal is cached in
+// the Rust function so the hot loop skips redundant `sin` calls.
+export const wasmVintageTvBuffer = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  banding: number,
+  colorFringe: number,
+  rollOffset: number,
+  frameIndex: number,
+  glow: number,
+): void => wasmVintageTvInner(input, output, width, height, banding, colorFringe, rollOffset, frameIndex, glow);
 
 // Scanline Warp: sin-driven per-row horizontal shift with bilinear sampling.
 export const wasmScanlineWarpBuffer = (
