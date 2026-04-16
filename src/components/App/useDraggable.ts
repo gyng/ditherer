@@ -229,5 +229,5 @@ export default function useDraggable(
     return () => window.removeEventListener("resize", handleResize);
   }, [ensureInitializedPosition, ref]);
 
-  return { onMouseDown, onMouseMove, didDrag };
+  return { onMouseDown, onMouseMove, didDrag, ensureInitializedPosition };
 }

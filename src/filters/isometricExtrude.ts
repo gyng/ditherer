@@ -1,7 +1,9 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { isometricExtrudeGLAvailable, renderIsometricExtrudeGL } from "./isometricExtrudeGL";
 
 const DIRECTION = {
   NE: "NE",
@@ -49,19 +51,37 @@ const directionVector = (direction: string) => {
   }
 };
 
-const isometricExtrude = (input: any, options = defaults) => {
+type IsometricExtrudeOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const isometricExtrude = (input: any, options: IsometricExtrudeOptions = defaults) => {
   const { depth, direction, threshold, shadowColor, shadeFalloff, palette } = options;
+  const width = input.width;
+  const height = input.height;
+  const [stepX, stepY] = directionVector(direction);
+
+  // GL fast path — per-pixel inverse painter's algorithm. Palette pass on
+  // CPU after readout (preserves behaviour for non-identity palettes).
+  if (options._webglAcceleration !== false && isometricExtrudeGLAvailable()) {
+    const rendered = renderIsometricExtrudeGL(
+      input, width, height, depth, stepX, stepY, threshold, shadowColor, shadeFalloff,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+      if (out) {
+        logFilterBackend("Isometric Extrude", "WebGL2", `depth=${depth} dir=${direction}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const width = input.width;
-  const height = input.height;
   const buf = inputCtx.getImageData(0, 0, width, height).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const [stepX, stepY] = directionVector(direction);
 
   for (let i = 0; i < outBuf.length; i += 4) outBuf[i + 3] = 0;
 

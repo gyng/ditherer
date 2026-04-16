@@ -9,7 +9,7 @@ import {
   wasmBokehBuffer,
 } from "utils";
 import { defineFilter } from "filters/types";
-import { applyPaletteToBuffer, paletteIsIdentity as isIdentityPalette } from "palettes/backend";
+import { applyPaletteToBuffer, applyPalettePassToCanvas, paletteIsIdentity as isIdentityPalette } from "palettes/backend";
 import { bokehGLAvailable, renderBokehGL } from "./bokehGL";
 
 const SHAPE = { CIRCLE: "CIRCLE", HEXAGON: "HEXAGON", TRIANGLE: "TRIANGLE", PENTAGON: "PENTAGON", OCTAGON: "OCTAGON", STAR: "STAR" };
@@ -68,17 +68,18 @@ const bokeh = (input: any, options: BokehOptions = defaults) => {
   const paletteIdentity = isIdentityPalette(palette);
   const shapeId = SHAPE_TO_ID[shape] ?? 0;
 
-  // GL fast path
+  // GL fast path — bokeh render on GPU, palette pass on CPU after readout.
   if (
-    paletteIdentity
-    && wasmOk
-    && options._webglAcceleration !== false
+    options._webglAcceleration !== false
     && bokehGLAvailable()
   ) {
     const rendered = renderBokehGL(input, W, H, radius, threshold, intensity, shapeId, localDetect, softness, edgeFringe, rotation, catsEye, edgeRing, bubble);
     if (rendered) {
-      logFilterBackend("Bokeh", "WebGL2", `gpu radius=${radius} shape=${shape}`);
-      return rendered;
+      const out = paletteIdentity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette, wasmOk);
+      if (out) {
+        logFilterBackend("Bokeh", "WebGL2", `gpu radius=${radius} shape=${shape}${paletteIdentity ? "" : "+palettePass"}`);
+        return out;
+      }
     }
   }
 

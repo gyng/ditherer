@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import * as palettes from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter, type FilterOptionValues } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { binarizeGLAvailable, renderBinarizeGL } from "./binarizeGL";
 
 export const optionTypes = {
   thresholdR: { type: RANGE, range: [0, 255], step: 0.5, default: 127.5, desc: "Red channel threshold for black/white split" },
@@ -21,6 +23,7 @@ export const defaults = {
 
 type BinarizeOptions = FilterOptionValues & typeof defaults & {
   _linearize?: boolean;
+  _webglAcceleration?: boolean;
 };
 
 const binarize = (
@@ -31,6 +34,24 @@ const binarize = (
     val > threshold ? 255 : 0;
 
   const { thresholdR, thresholdG, thresholdB, thresholdA, palette } = options;
+  const W = input.width, H = input.height;
+
+  // GL fast path — per-channel threshold on GPU, palette pass on CPU.
+  // Identity palette is the default, so it's a no-op most of the time.
+  if (options._webglAcceleration !== false && binarizeGLAvailable()) {
+    const rendered = renderBinarizeGL(
+      input, W, H, thresholdR, thresholdG, thresholdB, thresholdA, !!options._linearize,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Binarize", "WebGL2", `thresholds=${thresholdR}/${thresholdG}/${thresholdB}/${thresholdA}${identity ? "" : "+palettePass"}${options._linearize ? " linear" : ""}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -40,7 +61,7 @@ const binarize = (
     return input;
   }
 
-  const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  const buf = inputCtx.getImageData(0, 0, W, H).data;
 
   if (options._linearize) {
     const floatBuf = srgbBufToLinearFloat(buf);

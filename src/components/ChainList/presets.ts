@@ -381,6 +381,15 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Noir", desc: "High-contrast black and white with grain and vignette", filters: [f("Grayscale"), f("Levels"), f("Sharpen"), f("Vignette"), f("Film grain")], category: "Photo" },
   { name: "Polaroid", desc: "Instant film look with faded edges and subtle grain", filters: [f("Polaroid"), f("Vignette"), f("Film grain")], category: "Photo" },
   { name: "Vintage Photo", desc: "Warm sepia toning with chemical grain and light bleed", filters: [f("Sepia"), f("Film grain"), f("Vignette"), f("Light leak")], category: "Photo" },
+
+  // Top LUT-based packs — one halation showcase, two film stocks, one
+  // saturated landscape, one cinematic look. The full LUT list is still
+  // available as a single-filter option inside the LUT filter itself.
+  { name: "CineStill 800T", desc: "Tungsten-balanced CineStill with signature pink halation around highlights", filters: [f("LUT", { preset: "CINESTILL_800T" }), f("Halation"), f("Film grain")], category: "Photo" },
+  { name: "Kodak Portra", desc: "Portra 400 skin-tone friendly — muted saturation, warm lift, subtle grain", filters: [f("LUT", { preset: "PORTRA" }), f("Film grain")], category: "Photo" },
+  { name: "Kodak Tri-X B&W", desc: "Punchy Kodak Tri-X B&W film with grain and vignette", filters: [f("LUT", { preset: "TRIX_BW" }), f("Film grain"), f("Vignette")], category: "Photo" },
+  { name: "Fuji Velvia Landscape", desc: "Ultra-saturated Fuji Velvia slide-film landscape grade with sharpening", filters: [f("LUT", { preset: "VELVIA" }), f("Sharpen")], category: "Photo" },
+  { name: "Blade Runner 2049", desc: "Amber noir with bloom and halation — Deakins' Blade Runner 2049 palette", filters: [f("LUT", { preset: "AMBER_NOIR" }), f("Bloom"), f("Halation")], category: "Photo" },
 ];
 
 export const PRESET_CATEGORIES = [...new Set(CHAIN_PRESETS.map((preset) => preset.category))];

@@ -1,7 +1,9 @@
 import { COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { duotoneGLAvailable, renderDuotoneGL } from "./duotoneGL";
 
 // Parse color that may be hex string (legacy URLs) or [r,g,b] array
 const parseColor = (c: unknown): [number, number, number] => {
@@ -26,19 +28,32 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const duotone = (input: any, options = defaults) => {
+type DuotoneOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const duotone = (input: any, options: DuotoneOptions = defaults) => {
   const { shadowColor, highlightColor, palette } = options;
+  const W = input.width, H = input.height;
+  const shadow = parseColor(shadowColor);
+  const highlight = parseColor(highlightColor);
+
+  if (options._webglAcceleration !== false && duotoneGLAvailable()) {
+    const rendered = renderDuotoneGL(input, W, H, shadow, highlight);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Duotone", "WebGL2", identity ? "" : "+palettePass");
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
-
-  const shadow = parseColor(shadowColor);
-  const highlight = parseColor(highlightColor);
 
   const outBuf = new Uint8ClampedArray(buf.length);
   for (let x = 0; x < W; x += 1) {

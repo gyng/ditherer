@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { useFilter } from "context/useFilter";
 import useDraggable from "components/App/useDraggable";
 import { filterList, noop } from "filters";
@@ -85,6 +85,14 @@ const ChainList = ({
   const dragCounter = useRef(0);
   const libraryDragRef = useRef<HTMLDivElement | null>(null);
   const libraryDrag = useDraggable(libraryDragRef, { defaultPosition: { x: 560, y: 90 } });
+  const ensureLibraryDragInit = libraryDrag.ensureInitializedPosition;
+  // The library-browser wrapper mounts lazily, so useDraggable's own
+  // init effect (which runs before ref.current is attached) never applies
+  // the initial transform. Without this nudge the first drag computes its
+  // offset against (0,0) and snaps the window to the right of the cursor.
+  useLayoutEffect(() => {
+    if (showLibraryBrowser) ensureLibraryDragInit();
+  }, [showLibraryBrowser, ensureLibraryDragInit]);
   const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const randomCycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);

@@ -26,6 +26,8 @@ import solarize from "./solarize";
 import posterize from "./posterize";
 import chromaticAberration from "./chromaticAberration";
 import bloom from "./bloom";
+import orton from "./orton";
+import halation from "./halation";
 import colorShift from "./colorShift";
 import bitCrush from "./bitCrush";
 import bitplaneDropout from "./bitplaneDropout";
@@ -207,6 +209,9 @@ import stamp from "./stamp";
 import stopMotion from "./stopMotion";
 import toon from "./toon";
 import inkBleed from "./inkBleed";
+import sumiE from "./sumiE";
+import lut from "./lut";
+import paperTexture from "./paperTexture";
 import curves from "./curves";
 import mode7 from "./mode7";
 import trianglePixelate from "./trianglePixelate";
@@ -582,6 +587,7 @@ export const filterList = [
   { displayName: "Channel mixer", filter: channelMixer, category: "Color", description: "Arbitrary RGB matrix multiplication — swap, mix, or invert channels" },
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
+  { displayName: "LUT", filter: lut, category: "Color", description: "Iconic colour-grade lookups — ACES, Reinhard, Hable, Teal & Orange, Bleach Bypass, Kodachrome, Technicolor, Cross Process, Matrix, Amber Noir, Faded Film, Cold Winter" },
   { displayName: "Anime Color Grade", filter: animeColorGrade, category: "Color", description: "Anime-background style grading — cooler cyan shadows, warmer highlights, and controlled vibrance" },
   { displayName: "Anime Ink Lines", filter: animeInkLines, category: "Color", description: "Turn image edges into anime-style ink lines, either overlaid on the source or on a flat background" },
   { displayName: "Anime Sky", filter: animeSky, category: "Color", description: "Simplify likely sky regions into a painted anime-style gradient or clouded sky" },
@@ -787,6 +793,8 @@ export const filterList = [
   { displayName: "Film burn", filter: filmBurn, category: "Simulate", description: "Aged film stock — warm edge cast, overexposed hotspots, grain intensification" },
   { displayName: "Film grain", filter: filmGrain, category: "Stylize", description: "Add film-like noise grain with adjustable size and intensity" },
   { displayName: "Ink Bleed", filter: inkBleed, category: "Simulate", description: "Spread dark regions into the paper like wet ink on cheap stock" },
+  { displayName: "Paper Texture", filter: paperTexture, category: "Simulate", description: "Procedural paper, canvas, linen, cardboard, or parchment texture overlay — grounds digital images on material substrate" },
+  { displayName: "Sumi-e", filter: sumiE, category: "Stylize", description: "Japanese ink-wash painting — quantized tonal washes with Sobel brush strokes on paper" },
   { displayName: "Gameboy Camera", filter: gameboyCamera, category: "Simulate", description: "Simulate the Gameboy Camera — 4-shade green palette with edge enhancement and ordered dithering" },
   { displayName: "Infrared photography", filter: infrared, category: "Simulate", description: "IR film look — foliage turns white/pink, skies go dark, color shift" },
   { displayName: "LCD display", filter: lcdDisplay, category: "Simulate", description: "Visible sub-pixel grid — RGB stripe, PenTile, or diamond layout" },
@@ -838,6 +846,8 @@ export const filterList = [
   { displayName: "Bilateral blur", filter: bilateralBlur, category: "Blur & Edges", description: "Edge-preserving smooth — blurs flat areas while keeping edges crisp" },
   { displayName: "Bloom", filter: bloom, category: "Blur & Edges", description: "Add a soft glow around bright areas" },
   { displayName: "Bokeh", filter: bokeh, category: "Blur & Edges", description: "Simulate out-of-focus highlights with hexagonal or circular bokeh shapes" },
+  { displayName: "Orton", filter: orton, category: "Blur & Edges", description: "Dreamy photographic glow — screen-blends a blurred copy over the image for a painterly soft look" },
+  { displayName: "Halation", filter: halation, category: "Blur & Edges", description: "Red/pink bleed around bright highlights — emulates CineStill 800T and missing anti-halation film layers" },
   { displayName: "Convolve", filter: convolve, category: "Blur & Edges", description: "Apply a custom convolution kernel — blur, sharpen, emboss, and more" },
   {
     displayName: "Convolve (edge detection)",

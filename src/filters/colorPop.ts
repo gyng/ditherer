@@ -1,6 +1,7 @@
 import { RANGE } from "constants/controlTypes";
-import { cloneCanvas, getBufferIndex } from "utils";
+import { cloneCanvas, getBufferIndex, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { colorPopGLAvailable, renderColorPopGL } from "./colorPopGL";
 
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   if (edge0 === edge1) return x < edge0 ? 0 : 1;
@@ -22,15 +23,25 @@ export const defaults = {
   softness: optionTypes.softness.default
 };
 
-const colorPop = (input: any, options = defaults) => {
+type ColorPopOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const colorPop = (input: any, options: ColorPopOptions = defaults) => {
   const { targetHue, hueWidth, desaturateOthers, softness } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && colorPopGLAvailable()) {
+    const rendered = renderColorPopGL(input, W, H, targetHue, hueWidth, desaturateOthers, softness);
+    if (rendered) {
+      logFilterBackend("Color Pop", "WebGL2", `hue=${targetHue} w=${hueWidth}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const softEdge = hueWidth + softness * 90;
