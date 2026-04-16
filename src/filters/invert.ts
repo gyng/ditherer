@@ -6,8 +6,10 @@ import {
   wasmApplyChannelLut,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { invertGLAvailable, renderInvertGL } from "./invertGL";
 
 export const optionTypes = {
   invertR: { type: BOOL, default: true, desc: "Invert red channel" },
@@ -25,15 +27,26 @@ export const defaults = {
 
 const invert = (
   input: any,
-  options: typeof defaults & { _wasmAcceleration?: boolean } = defaults
+  options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults
 ) => {
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && invertGLAvailable()) {
+    const rendered = renderInvertGL(input, W, H, options.invertR, options.invertG, options.invertB, options.invertA);
+    if (rendered) {
+      logFilterBackend("Invert", "WebGL2", `r=${options.invertR ? 1 : 0} g=${options.invertG ? 1 : 0} b=${options.invertB ? 1 : 0} a=${options.invertA ? 1 : 0}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
 
   if (!inputCtx || !outputCtx) return input;
 
-  const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
+  const buf = inputCtx.getImageData(0, 0, W, H).data;
 
   // WASM fast path for the common case (alpha not inverted) — R/G/B/A are
   // fully independent so three 256-entry per-channel LUTs cover it, and

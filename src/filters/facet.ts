@@ -9,10 +9,12 @@ import {
   wasmFacetBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
   FACET_FILL_MODE,
 } from "utils";
-import { paletteIsIdentity } from "palettes/backend";
+import { paletteIsIdentity, applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
+import { facetGLAvailable, renderFacetGL } from "./facetGL";
 
 const FILL_MODE = {
   AVERAGE: "AVERAGE",
@@ -57,17 +59,35 @@ const mulberry32 = (seed: number) => {
 
 type FacetOptions = typeof defaults & { _wasmAcceleration?: boolean };
 
-const facet = (input: any, options: FacetOptions = defaults) => {
+const facet = (input: any, options: FacetOptions & { _webglAcceleration?: boolean } = defaults) => {
   const { facetSize, jitter, seamWidth, lineColor, fillMode, palette } = options;
   const wasmOk = (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false;
+  const width = input.width;
+  const height = input.height;
+
+  // GL path: only CENTER fill mode (AVERAGE requires per-cell accumulation
+  // which isn't easy without atomics).
+  if (options._webglAcceleration !== false && fillMode === FILL_MODE.CENTER && facetGLAvailable()) {
+    const rendered = renderFacetGL(
+      input, width, height,
+      Math.max(1, Math.round(facetSize)), jitter, Math.max(0, Math.round(seamWidth)),
+      [lineColor[0], lineColor[1], lineColor[2]],
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+      if (out) {
+        logFilterBackend("Facet", "WebGL2", `size=${facetSize} fill=CENTER${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const width = input.width;
-  const height = input.height;
   const buf = inputCtx.getImageData(0, 0, width, height).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

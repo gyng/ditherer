@@ -9,9 +9,11 @@ import {
   wasmApplyChannelLut,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
-import { applyPaletteToBuffer, paletteIsIdentity } from "palettes/backend";
+import { applyPaletteToBuffer, paletteIsIdentity, applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
+import { bitCrushGLAvailable, renderBitCrushGL } from "./bitCrushGL";
 
 export const optionTypes = {
   bits: { type: RANGE, range: [1, 8], step: 1, default: 3, desc: "Bits per channel — fewer bits = harsher posterization" },
@@ -25,16 +27,29 @@ export const defaults = {
 
 type BitCrushOptions = typeof defaults & { _wasmAcceleration?: boolean };
 
-const bitCrush = (input: any, options: BitCrushOptions = defaults) => {
+const bitCrush = (input: any, options: BitCrushOptions & { _webglAcceleration?: boolean } = defaults) => {
   const { bits, palette } = options;
   const wasmOk = (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && bitCrushGLAvailable()) {
+    const rendered = renderBitCrushGL(input, W, H, bits);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Bit crush", "WebGL2", `bits=${bits}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const levels = 2 ** bits;
   const step = 255 / (levels - 1);

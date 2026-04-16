@@ -9,8 +9,11 @@ import {
   wasmMedianFilterBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
+import { medianFilterGLAvailable, renderMedianFilterGL } from "./medianFilterGL";
 
 export const optionTypes = {
   radius: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Neighborhood radius for median calculation" },
@@ -22,14 +25,27 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const medianFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const medianFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { radius, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && medianFilterGLAvailable()) {
+    const rendered = renderMedianFilterGL(input, W, H, radius);
+    if (rendered) {
+      const identity = paletteIsIdentityFn(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Median Filter", "WebGL2", `r=${radius}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
