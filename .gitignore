@@ -8,3 +8,4 @@ bench-results/
 coverage/
 test-results/
 docs/gallery/PERF.md
+.agents/
