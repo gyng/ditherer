@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { gradientMapGLAvailable, renderGradientMapGL } from "./gradientMapGL";
 
 export const optionTypes = {
   color1: { type: COLOR, default: [0, 0, 40], desc: "Shadow color (darkest tones)" },
@@ -27,16 +30,35 @@ export const defaults = {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-const gradientMap = (input: any, options = defaults) => {
+type GradientMapOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const gradientMap = (input: any, options: GradientMapOptions = defaults) => {
   const { color1, color2, color3, mix, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && gradientMapGLAvailable()) {
+    const rendered = renderGradientMapGL(
+      input, W, H,
+      [color1[0], color1[1], color1[2]],
+      [color2[0], color2[1], color2[2]],
+      [color3[0], color3[1], color3[2]],
+      mix,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Gradient Map", "WebGL2", identity ? "direct" : "direct+palettePass");
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

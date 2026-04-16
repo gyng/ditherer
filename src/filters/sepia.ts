@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { sepiaGLAvailable, renderSepiaGL } from "./sepiaGL";
 
 export const optionTypes = {
   intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Sepia tone intensity" },
@@ -19,16 +22,29 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const sepiaFilter = (input: any, options = defaults) => {
+type SepiaOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const sepiaFilter = (input: any, options: SepiaOptions = defaults) => {
   const { intensity, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && sepiaGLAvailable()) {
+    const rendered = renderSepiaGL(input, W, H, intensity);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Sepia", "WebGL2", `intensity=${intensity}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

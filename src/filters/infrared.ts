@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { infraredGLAvailable, renderInfraredGL } from "./infraredGL";
 
 export const optionTypes = {
   intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Infrared effect strength" },
@@ -15,14 +17,29 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const infrared = (input: any, options = defaults) => {
+type InfraredOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const infrared = (input: any, options: InfraredOptions = defaults) => {
   const { intensity, falseColor, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && infraredGLAvailable()) {
+    const rendered = renderInfraredGL(input, W, H, intensity, falseColor);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Infrared", "WebGL2", `intensity=${intensity}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
