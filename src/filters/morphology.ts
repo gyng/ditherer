@@ -1,7 +1,9 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { morphologyGLAvailable, renderMorphologyGL, type MorphMode } from "./morphologyGL";
 
 const MODE = { DILATE: "DILATE", ERODE: "ERODE", OPEN: "OPEN", CLOSE: "CLOSE" };
 
@@ -52,14 +54,29 @@ const applyMorphOp = (buf: Uint8ClampedArray, W: number, H: number, radius: numb
   return out;
 };
 
-const morphology = (input: any, options = defaults) => {
+type MorphologyOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const morphology = (input: any, options: MorphologyOptions = defaults) => {
   const { mode, radius, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && morphologyGLAvailable()) {
+    const rendered = renderMorphologyGL(input, W, H, mode as MorphMode, radius);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Dilate / Erode", "WebGL2", `mode=${mode} r=${radius}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
 
   let result: Uint8ClampedArray;

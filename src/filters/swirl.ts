@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { swirlGLAvailable, renderSwirlGL } from "./swirlGL";
 
 export const optionTypes = {
   angle: { type: RANGE, range: [-720, 720], step: 5, default: 180, desc: "Maximum rotation in degrees at the center of the swirl" },
@@ -25,24 +28,38 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const swirlFilter = (input: any, options = defaults) => {
+type SwirlOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const swirlFilter = (input: any, options: SwirlOptions = defaults) => {
   const { angle, radius, centerX, centerY, palette } = options;
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
   const W = input.width;
   const H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
 
   const cx = W * centerX;
   const cy = H * centerY;
   const maxDim = Math.max(W, H);
   const effectRadius = radius * maxDim;
   const angleRad = (angle * Math.PI) / 180;
+
+  if (options._webglAcceleration !== false && swirlGLAvailable()) {
+    const rendered = renderSwirlGL(input, W, H, cx, cy, effectRadius, angleRad);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Swirl", "WebGL2", `angle=${angle} r=${radius}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
+  const output = cloneCanvas(input, false);
+  const inputCtx = input.getContext("2d");
+  const outputCtx = output.getContext("2d");
+  if (!inputCtx || !outputCtx) return input;
+
+  const buf = inputCtx.getImageData(0, 0, W, H).data;
+  const outBuf = new Uint8ClampedArray(buf.length);
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

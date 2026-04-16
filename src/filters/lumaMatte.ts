@@ -1,6 +1,7 @@
 import { RANGE, BOOL, ENUM } from "constants/controlTypes";
-import { cloneCanvas } from "utils";
+import { cloneCanvas, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { lumaMatteGLAvailable, renderLumaMatteGL } from "./lumaMatteGL";
 
 const BG_MODE = {
   TRANSPARENT: "TRANSPARENT",
@@ -37,19 +38,32 @@ export const defaults = {
   backgroundMode: optionTypes.backgroundMode.default
 };
 
-const lumaMatte = (input: any, options = defaults) => {
+type LumaMatteOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const lumaMatte = (input: any, options: LumaMatteOptions = defaults) => {
   const { threshold, feather, invert, backgroundMode } = options;
+  const W = input.width;
+  const H = input.height;
+
+  const low = Math.max(0, threshold - feather);
+  const high = Math.min(255, threshold + feather);
+  const bgModeInt = backgroundMode === BG_MODE.TRANSPARENT ? 0 : backgroundMode === BG_MODE.BLACK ? 1 : 2;
+
+  if (options._webglAcceleration !== false && lumaMatteGLAvailable()) {
+    const rendered = renderLumaMatteGL(input, W, H, low, high, invert, bgModeInt as 0 | 1 | 2);
+    if (rendered) {
+      logFilterBackend("Luma Matte", "WebGL2", `t=${threshold} feather=${feather} bg=${backgroundMode}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const out = new Uint8ClampedArray(buf.length);
-  const low = Math.max(0, threshold - feather);
-  const high = Math.min(255, threshold + feather);
   const bgValue = backgroundMode === BG_MODE.WHITE ? 255 : 0;
 
   for (let i = 0; i < buf.length; i += 4) {

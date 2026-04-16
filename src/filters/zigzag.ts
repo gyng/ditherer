@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { zigzagGLAvailable, renderZigzagGL } from "./zigzagGL";
 
 export const optionTypes = {
   lineSpacing: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Distance between zigzag lines" },
@@ -25,9 +28,11 @@ export const defaults = {
 
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
+type ZigzagOptions = typeof defaults & { _webglAcceleration?: boolean };
+
 const zigzag = (
   input: any,
-  options = defaults
+  options: ZigzagOptions = defaults
 ) => {
   const {
     lineSpacing,
@@ -36,17 +41,30 @@ const zigzag = (
     palette
   } = options;
 
+  const W = input.width;
+  const H = input.height;
+  const angleRad = (angle * Math.PI) / 180;
+
+  if (options._webglAcceleration !== false && zigzagGLAvailable()) {
+    const rendered = renderZigzagGL(input, W, H, lineSpacing, amplitude, angleRad);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Zigzag", "WebGL2", `spacing=${lineSpacing} angle=${angle}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const angleRad = (angle * Math.PI) / 180;
   const cosA = Math.cos(angleRad);
   const sinA = Math.sin(angleRad);
 
