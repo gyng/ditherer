@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { mezzotintGLAvailable, renderMezzotintGL } from "./mezzotintGL";
 
 export const optionTypes = {
   density: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.5, desc: "Overall dot coverage density" },
@@ -20,14 +22,29 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const mezzotint = (input: any, options = defaults) => {
+type MezzotintOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const mezzotint = (input: any, options: MezzotintOptions = defaults) => {
   const { density, dotSize, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && mezzotintGLAvailable()) {
+    const rendered = renderMezzotintGL(input, W, H, density, dotSize);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Mezzotint", "WebGL2", `density=${density} dotSize=${dotSize}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

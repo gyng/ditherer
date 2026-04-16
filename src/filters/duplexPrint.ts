@@ -1,6 +1,7 @@
 import { COLOR, RANGE } from "constants/controlTypes";
-import { cloneCanvas } from "utils";
+import { cloneCanvas, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { duplexPrintGLAvailable, renderDuplexPrintGL } from "./duplexPrintGL";
 
 export const optionTypes = {
   inkA: { type: COLOR, default: [28, 24, 24], desc: "Shadow ink color used for the darker end of the print" },
@@ -16,15 +17,32 @@ export const defaults = {
   paperColor: optionTypes.paperColor.default
 };
 
-const duplexPrint = (input: any, options = defaults) => {
+type DuplexPrintOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const duplexPrint = (input: any, options: DuplexPrintOptions = defaults) => {
   const { inkA, inkB, mixCurve, paperColor } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && duplexPrintGLAvailable()) {
+    const rendered = renderDuplexPrintGL(
+      input, W, H,
+      [inkA[0], inkA[1], inkA[2]],
+      [inkB[0], inkB[1], inkB[2]],
+      [paperColor[0], paperColor[1], paperColor[2]],
+      mixCurve,
+    );
+    if (rendered) {
+      logFilterBackend("Duplex Print", "WebGL2", `curve=${mixCurve}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

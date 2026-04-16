@@ -1,7 +1,9 @@
 import { RANGE, COLOR, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { lightLeakGLAvailable, renderLightLeakGL } from "./lightLeakGL";
 
 const POS = { TL: "TL", TR: "TR", BL: "BL", BR: "BR" };
 
@@ -24,20 +26,40 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lightLeak = (input: any, options = defaults) => {
+type LightLeakOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const lightLeak = (input: any, options: LightLeakOptions = defaults) => {
   const { intensity, position, color: leakColor, spread, palette } = options;
+  const W = input.width, H = input.height;
+
+  const srcX = position === POS.TR || position === POS.BR ? W : 0;
+  const srcY = position === POS.BL || position === POS.BR ? H : 0;
+  const maxDist = Math.sqrt(W * W + H * H) * spread;
+
+  if (options._webglAcceleration !== false && lightLeakGLAvailable()) {
+    const rendered = renderLightLeakGL(
+      input, W, H,
+      srcX, srcY,
+      [leakColor[0], leakColor[1], leakColor[2]],
+      intensity, maxDist,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Light Leak", "WebGL2", identity ? `pos=${position}` : `pos=${position}+palettePass`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-
-  const srcX = position === POS.TR || position === POS.BR ? W : 0;
-  const srcY = position === POS.BL || position === POS.BR ? H : 0;
-  const maxDist = Math.sqrt(W * W + H * H) * spread;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
