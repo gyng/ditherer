@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { nokiaLcdGLAvailable, renderNokiaLcdGL } from "./nokiaLcdGL";
 
 // Nokia 3310 LCD colors (classic greenish monochrome)
 const PIXEL_ON: [number, number, number] = [67, 82, 61];   // dark (ink)
@@ -33,9 +36,11 @@ export const defaults = {
 
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
+type NokiaLcdOptions = typeof defaults & { _webglAcceleration?: boolean };
+
 const nokiaLcd = (
   input: any,
-  options = defaults
+  options: NokiaLcdOptions = defaults
 ) => {
   const {
     columns,
@@ -46,11 +51,23 @@ const nokiaLcd = (
     palette
   } = options;
 
-  const inputCtx = input.getContext("2d");
-  if (!inputCtx) return input;
-
   const origW = input.width;
   const origH = input.height;
+
+  if (options._webglAcceleration !== false && nokiaLcdGLAvailable()) {
+    const rendered = renderNokiaLcdGL(input, origW, origH, columns, rows, threshold, contrast, pixelGrid);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, origW, origH, palette);
+      if (out) {
+        logFilterBackend("Nokia LCD", "WebGL2", `${columns}x${rows}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
+  const inputCtx = input.getContext("2d");
+  if (!inputCtx) return input;
 
   // Step 1 — Downscale by sampling from input buffer (nearest neighbor)
   const srcBuf = inputCtx.getImageData(0, 0, origW, origH).data;
@@ -138,7 +155,7 @@ const nokiaLcd = (
 export default defineFilter({
   name: "Nokia LCD",
   func: nokiaLcd,
-  options: defaults,
   optionTypes,
+  options: defaults,
   defaults
 });

@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { polaroidGLAvailable, renderPolaroidGL } from "./polaroidGL";
 
 export const optionTypes = {
   warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Warm color cast intensity" },
@@ -48,9 +51,11 @@ const mulberry32 = (seed: number) => {
   };
 };
 
+type PolaroidOptions = typeof defaults & { _frameIndex?: number; _webglAcceleration?: boolean };
+
 const polaroid = (
   input: any,
-  options = defaults
+  options: PolaroidOptions = defaults
 ) => {
   const {
     warmth,
@@ -61,15 +66,27 @@ const polaroid = (
     palette
   } = options;
 
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const frameIndex = options._frameIndex || 0;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && polaroidGLAvailable()) {
+    const rendered = renderPolaroidGL(input, W, H, warmth, fadedBlacks, saturation, grain, vignette, frameIndex);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Polaroid", "WebGL2", `warmth=${warmth} grain=${grain}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const len = buf.length;
 

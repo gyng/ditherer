@@ -1,7 +1,9 @@
 import { COLOR, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { animeSkyGLAvailable, renderAnimeSkyGL } from "./animeSkyGL";
 
 const SKY_MODE = {
   GRADIENT: "GRADIENT",
@@ -53,16 +55,36 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeSky = (input: any, options = defaults) => {
+type AnimeSkyOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const animeSky = (input: any, options: AnimeSkyOptions = defaults) => {
   const { mode, skyStart, gradientTop, gradientBottom, cloudAmount, cloudSoftness, blend, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && animeSkyGLAvailable()) {
+    const rendered = renderAnimeSkyGL(
+      input, W, H,
+      mode === SKY_MODE.CLOUDS, skyStart,
+      [gradientTop[0], gradientTop[1], gradientTop[2]],
+      [gradientBottom[0], gradientBottom[1], gradientBottom[2]],
+      cloudAmount, cloudSoftness, blend,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Anime Sky", "WebGL2", `mode=${mode}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

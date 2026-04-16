@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { gameboyCameraGLAvailable, renderGameboyCameraGL } from "./gameboyCameraGL";
 
 // Classic DMG Gameboy green palette (darkest to lightest)
 const GB_PALETTE: [number, number, number][] = [
@@ -51,9 +54,11 @@ export const defaults = {
 
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
+type GameboyCameraOptions = typeof defaults & { _webglAcceleration?: boolean };
+
 const gameboyCamera = (
   input: any,
-  options = defaults
+  options: GameboyCameraOptions = defaults
 ) => {
   const {
     resolution,
@@ -63,18 +68,28 @@ const gameboyCamera = (
     palette
   } = options;
 
-  const inputCtx = input.getContext("2d");
-  if (!inputCtx) return input;
-
   const origW = input.width;
   const origH = input.height;
-
-  // Calculate downscaled dimensions maintaining aspect ratio
   const aspect = origW / origH;
-  // Gameboy Camera native is 128x112 (aspect ~1.14), but we scale based on
-  // the user-chosen resolution as the width, deriving height from aspect
   const downW = resolution;
   const downH = Math.round(resolution / aspect);
+
+  if (options._webglAcceleration !== false && gameboyCameraGLAvailable()) {
+    const rendered = renderGameboyCameraGL(
+      input, origW, origH, downW, downH, contrast, edgeEnhance, ditherStrength,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, origW, origH, palette);
+      if (out) {
+        logFilterBackend("Gameboy Camera", "WebGL2", `res=${resolution}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
+  const inputCtx = input.getContext("2d");
+  if (!inputCtx) return input;
 
   // Step 1 — Downscale by sampling from input buffer (nearest neighbor)
   const srcBuf = inputCtx.getImageData(0, 0, origW, origH).data;
