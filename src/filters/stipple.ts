@@ -1,7 +1,9 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { stippleGLAvailable, renderStippleGL } from "./stippleGL";
 
 export const optionTypes = {
   density: { type: RANGE, range: [1, 20], step: 1, default: 4, desc: "Dot spacing — lower = denser stippling" },
@@ -24,14 +26,29 @@ const mulberry32 = (seed: number) => {
   return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-const stipple = (input: any, options = defaults) => {
+type StippleOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const stipple = (input: any, options: StippleOptions = defaults) => {
   const { density, maxDotSize, inkColor, paperColor, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && stippleGLAvailable()) {
+    const rendered = renderStippleGL(input, W, H, density, maxDotSize, inkColor, paperColor);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Stipple", "WebGL2", `density=${density} max=${maxDotSize}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const rng = mulberry32(42);

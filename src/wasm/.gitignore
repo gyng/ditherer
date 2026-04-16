@@ -1,7 +1,9 @@
 **/target/debug
 **/target/release
 **/target/.rustc_info.json
+**/target/CACHEDIR.TAG
 **/wasm32-unknown-unknown/release
 !**/wasm32-unknown-unknown/release/*.js
 !**/wasm32-unknown-unknown/release/*.wasm
 **/wasm32-unknown-unknown/debug
+**/wasm32-unknown-unknown/CACHEDIR.TAG

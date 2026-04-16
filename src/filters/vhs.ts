@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { vhsGLAvailable, renderVHSGL } from "./vhsGL";
 
 import convolve, {
   GAUSSIAN_3X3_WEAK,
@@ -28,6 +31,7 @@ export const optionTypes = {
   ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Previous-frame bleed-through (temporal smear)" },
   brightness: { type: RANGE, range: [-100, 100], step: 1, default: -15, desc: "Overall brightness offset applied after VHS processing" },
   saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 1.1, desc: "Chroma saturation multiplier" },
+  chromaBandwidth: { type: RANGE, range: [0, 16], step: 1, default: 0, desc: "Horizontal chroma low-pass radius — VHS smeared colour relative to luma (0 = off; raise for stronger tape look)" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -58,6 +62,7 @@ export const defaults = {
   ghosting: optionTypes.ghosting.default,
   brightness: optionTypes.brightness.default,
   saturation: optionTypes.saturation.default,
+  chromaBandwidth: optionTypes.chromaBandwidth.default,
   animSpeed: optionTypes.animSpeed.default,
   blur: optionTypes.blur.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
@@ -81,11 +86,13 @@ type VhsOptions = FilterOptionValues & {
   ghosting?: number;
   brightness?: number;
   saturation?: number;
+  chromaBandwidth?: number;
   animSpeed?: number;
   blur?: boolean;
   palette?: VhsPalette;
   _prevOutput?: Uint8ClampedArray | null;
   _frameIndex?: number;
+  _webglAcceleration?: boolean;
 };
 
 // Simple seeded pseudo-random for deterministic per-frame noise
@@ -117,6 +124,7 @@ const vhs = (
     ghosting = defaults.ghosting,
     brightness = defaults.brightness,
     saturation = defaults.saturation,
+    chromaBandwidth = defaults.chromaBandwidth,
     blur: doBlur = defaults.blur,
     palette = defaults.palette,
   } = options;
@@ -205,6 +213,44 @@ const vhs = (
     }
   }
 
+  // GL fast path — hand the pre-computed row state to the shader. Ghosting
+  // needs the previous output; we pass it along as a texture and the
+  // shader does the final blend. Palette is applied post-readout.
+  if (options._webglAcceleration !== false && vhsGLAvailable()) {
+    const staticBar = new Uint8Array(H);
+    for (const bar of noiseBars) {
+      for (let dy = 0; dy < bar.h; dy++) {
+        const row = bar.y + dy;
+        if (row >= 0 && row < H) staticBar[row] = 1;
+      }
+    }
+    const rendered = renderVHSGL(input, W, H, {
+      rowShift,
+      rowNoise,
+      staticBar,
+      vJitter,
+      chromaOffX,
+      chromaOffY,
+      chromaBandwidth,
+      saturation,
+      brightness,
+      ghosting,
+      dropoutProb: dropout,
+      tapeNoise,
+      frameIndex,
+      prevOutput,
+      doBlur,
+    });
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("VHS emulation", "WebGL2", `chromaBW=${chromaBandwidth}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   for (let y = 0; y < H; y++) {
     const shift = rowShift[y];
     const noise = rowNoise[y];
@@ -248,18 +294,24 @@ const vhs = (
       const lumaX = Math.max(0, Math.min(W - 1, x + shift));
       const lumaI = getBufferIndex(lumaX, srcY, W);
 
-      // Chroma from delayed/offset position (VHS records chroma separately)
-      const chromaX = Math.max(0, Math.min(W - 1, x + shift + chromaOffX));
+      // Chroma from delayed/offset position, optionally low-pass filtered
+      // horizontally (VHS has ~1/4 the chroma bandwidth of luma).
       const chromaY = Math.max(0, Math.min(H - 1, srcY + chromaOffY));
-      const chromaI = getBufferIndex(chromaX, chromaY, W);
 
       // Extract luma from shifted position
       const luma = buf[lumaI] * 0.2126 + buf[lumaI + 1] * 0.7152 + buf[lumaI + 2] * 0.0722;
 
-      // Extract chroma from delayed position
-      const cR = buf[chromaI] - (buf[chromaI] * 0.2126 + buf[chromaI + 1] * 0.7152 + buf[chromaI + 2] * 0.0722);
-      const cG = buf[chromaI + 1] - (buf[chromaI] * 0.2126 + buf[chromaI + 1] * 0.7152 + buf[chromaI + 2] * 0.0722);
-      const cB = buf[chromaI + 2] - (buf[chromaI] * 0.2126 + buf[chromaI + 1] * 0.7152 + buf[chromaI + 2] * 0.0722);
+      let cR = 0, cG = 0, cB = 0, chromaCount = 0;
+      for (let k = -chromaBandwidth; k <= chromaBandwidth; k++) {
+        const cx = Math.max(0, Math.min(W - 1, x + shift + chromaOffX + k));
+        const ci = getBufferIndex(cx, chromaY, W);
+        const chromaLum = buf[ci] * 0.2126 + buf[ci + 1] * 0.7152 + buf[ci + 2] * 0.0722;
+        cR += buf[ci] - chromaLum;
+        cG += buf[ci + 1] - chromaLum;
+        cB += buf[ci + 2] - chromaLum;
+        chromaCount++;
+      }
+      cR /= chromaCount; cG /= chromaCount; cB /= chromaCount;
 
       // Recombine luma + chroma with reduced saturation and brightness adjust
       let r = (luma + cR * saturation + brightness) * noise;
