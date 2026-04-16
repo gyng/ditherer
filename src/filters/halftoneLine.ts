@@ -1,8 +1,10 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
 import { defineFilter } from "filters/types";
+import { paletteIsIdentity } from "palettes/backend";
+import { halftoneLineGLAvailable, renderHalftoneLineGL } from "./halftoneLineGL";
 
 const ANGLE_MODE = {
   CONSTANT: "CONSTANT",
@@ -68,15 +70,37 @@ const drawLine = (
   }
 };
 
-const halftoneLine = (input: any, options = defaults) => {
+type HalftoneLineOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const halftoneLine = (input: any, options: HalftoneLineOptions = defaults) => {
   const { cellSize, angleMode, baseAngle, inkColor, paperColor, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  // GL path safe when palette is identity — the JS pre-palette-maps ink
+  // and paper colours (not the drawn result), so a post-readout palette
+  // pass would change the visual outcome. Default palette is identity.
+  const identity = paletteIsIdentity(palette);
+  if (options._webglAcceleration !== false && identity && halftoneLineGLAvailable()) {
+    const modeInt = angleMode === ANGLE_MODE.CONSTANT ? 0 : angleMode === ANGLE_MODE.LUMINANCE ? 1 : 2;
+    const rendered = renderHalftoneLineGL(
+      input, W, H, cellSize,
+      modeInt as 0 | 1 | 2,
+      (baseAngle * Math.PI) / 180,
+      [inkColor[0], inkColor[1], inkColor[2]],
+      [paperColor[0], paperColor[1], paperColor[2]],
+    );
+    if (rendered) {
+      logFilterBackend("Halftone Line", "WebGL2", `cell=${cellSize} mode=${angleMode}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const lum = computeLuminance(buf, W, H);

@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { cmykHalftoneGLAvailable, renderCmykHalftoneGL } from "./cmykHalftoneGL";
 
 export const optionTypes = {
   dotSize: { type: RANGE, range: [2, 20], step: 1, default: 6, desc: "Halftone dot diameter" },
@@ -29,16 +32,34 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const cmykHalftone = (input: any, options = defaults) => {
+type CmykHalftoneOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const cmykHalftone = (input: any, options: CmykHalftoneOptions = defaults) => {
   const { dotSize, angleC, angleM, angleY, angleK, paperColor, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && cmykHalftoneGLAvailable()) {
+    const rendered = renderCmykHalftoneGL(
+      input, W, H,
+      dotSize, angleC, angleM, angleY, angleK,
+      [paperColor[0], paperColor[1], paperColor[2]],
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("CMYK Halftone", "WebGL2", `dotSize=${dotSize}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
 
   // Convert to CMYK

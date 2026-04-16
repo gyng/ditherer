@@ -1,6 +1,7 @@
 import { RANGE, COLOR } from "constants/controlTypes";
-import { cloneCanvas } from "utils";
+import { cloneCanvas, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { stampGLAvailable, renderStampGL } from "./stampGL";
 
 const hashNoise = (x: number, y: number) => {
   const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
@@ -21,15 +22,31 @@ export const defaults = {
   roughness: optionTypes.roughness.default
 };
 
-const stamp = (input: any, options = defaults) => {
+type StampOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const stamp = (input: any, options: StampOptions = defaults) => {
   const { threshold, inkColor, paperColor, roughness } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && stampGLAvailable()) {
+    const rendered = renderStampGL(
+      input, W, H,
+      threshold, roughness,
+      [inkColor[0], inkColor[1], inkColor[2]],
+      [paperColor[0], paperColor[1], paperColor[2]],
+    );
+    if (rendered) {
+      logFilterBackend("Stamp", "WebGL2", `threshold=${threshold} roughness=${roughness}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const out = new Uint8ClampedArray(buf.length);
 
