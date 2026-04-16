@@ -5,10 +5,13 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { posterizeEdgesGLAvailable, renderPosterizeEdgesGL } from "./posterizeEdgesGL";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 16], step: 1, default: 5, desc: "Color posterization levels" },
@@ -26,16 +29,34 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const posterizeEdges = (input: any, options = defaults) => {
+type PosterizeEdgesOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const posterizeEdges = (input: any, options: PosterizeEdgesOptions = defaults) => {
   const { levels, edgeThreshold, edgeWidth, edgeColor, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && posterizeEdgesGLAvailable()) {
+    const rendered = renderPosterizeEdgesGL(
+      input, W, H,
+      levels, edgeThreshold, edgeWidth,
+      [edgeColor[0], edgeColor[1], edgeColor[2]],
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Posterize Edges", "WebGL2", `levels=${levels} edge>${edgeThreshold}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

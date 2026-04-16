@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { flowFieldGLAvailable, renderFlowFieldGL } from "./flowFieldGL";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [5, 200], step: 5, default: 50, desc: "Flow noise feature size" },
@@ -44,14 +46,29 @@ const curlAngle = (px: number, py: number, seed: number) => {
   return Math.atan2(dndx, -dndy);
 };
 
-const flowField = (input: any, options = defaults) => {
+type FlowFieldOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const flowField = (input: any, options: FlowFieldOptions = defaults) => {
   const { scale, strength, steps, seed, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && flowFieldGLAvailable()) {
+    const rendered = renderFlowFieldGL(input, W, H, scale, strength, steps, seed);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Flow Field", "WebGL2", `scale=${scale} strength=${strength} steps=${steps}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const stepDist = strength / Math.max(1, steps);

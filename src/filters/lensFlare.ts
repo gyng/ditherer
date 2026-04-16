@@ -1,7 +1,9 @@
 import { RANGE, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { lensFlareGLAvailable, renderLensFlareGL } from "./lensFlareGL";
 
 export const optionTypes = {
   positionX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Horizontal light source position" },
@@ -21,20 +23,40 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lensFlare = (input: any, options = defaults) => {
+type LensFlareOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const lensFlare = (input: any, options: LensFlareOptions = defaults) => {
   const { positionX, positionY, intensity, flareColor, ghosts, palette } = options;
+  const W = input.width, H = input.height;
+  const cx = W * positionX, cy = H * positionY;
+  const imgCx = W / 2, imgCy = H / 2;
+
+  if (options._webglAcceleration !== false && lensFlareGLAvailable()) {
+    const rendered = renderLensFlareGL(
+      input, W, H,
+      cx, cy,
+      intensity,
+      [flareColor[0], flareColor[1], flareColor[2]],
+      ghosts,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Lens Flare", "WebGL2", `intensity=${intensity} ghosts=${ghosts}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   outBuf.set(buf);
-
-  const cx = W * positionX, cy = H * positionY;
-  const imgCx = W / 2, imgCy = H / 2;
 
   // Additive blend helper
   const addLight = (px: number, py: number, fr: number, fg: number, fb: number, brightness: number) => {
