@@ -1066,11 +1066,34 @@ export type FilterWasmStatus = { didWasm: boolean; reason: string; label: string
 const filterWasmStatusLogged = new Set<string>();
 const filterNamesLogged = new Set<string>();
 const filterLastStatus = new Map<string, FilterWasmStatus>();
+// Accumulates every distinct backend label ("WebGL2", "WASM", "JS") we've
+// ever observed a filter take. Populated opportunistically as filters run,
+// which includes the thumbnail/preview renders in the library browser.
+const filterBackends = new Map<string, Set<string>>();
+
+const filterBackendsListeners = new Set<() => void>();
+const recordBackend = (filterName: string, backend: string) => {
+  let s = filterBackends.get(filterName);
+  if (!s) { s = new Set(); filterBackends.set(filterName, s); }
+  const before = s.size;
+  s.add(backend);
+  if (s.size !== before) filterBackendsListeners.forEach(l => { try { l(); } catch { /* ignore */ } });
+};
+
+// Subscribe to new-backend notifications. Listener fires whenever a filter
+// records a backend it hasn't recorded before (the set grew). Returns an
+// unsubscribe function. Used by the library browser to refresh its tags
+// as presets/filters render.
+export const subscribeFilterBackends = (listener: () => void) => {
+  filterBackendsListeners.add(listener);
+  return () => { filterBackendsListeners.delete(listener); };
+};
 
 export const logFilterWasmStatus = (filterName: string, didWasm: boolean, reason: string) => {
   filterNamesLogged.add(filterName);
   const label = `${didWasm ? "WASM" : "JS"} (${reason})`;
   filterLastStatus.set(filterName, { didWasm, reason, label });
+  recordBackend(filterName, didWasm ? "WASM" : "JS");
   const key = `${filterName}|${didWasm}|${reason}`;
   if (filterWasmStatusLogged.has(key)) return;
   filterWasmStatusLogged.add(key);
@@ -1084,6 +1107,7 @@ export const logFilterBackend = (filterName: string, backend: string, reason: st
   filterNamesLogged.add(filterName);
   const label = `${backend} (${reason})`;
   filterLastStatus.set(filterName, { didWasm: true, reason: `${backend} ${reason}`, label });
+  recordBackend(filterName, backend);
   const key = `${filterName}|${backend}|${reason}`;
   if (filterWasmStatusLogged.has(key)) return;
   filterWasmStatusLogged.add(key);
@@ -1109,6 +1133,7 @@ export const logFilterDispatched = (filterName: string, capabilities?: { noGL?: 
   const reason = reasons.length > 0 ? reasons.join("; ") : "no wasm/gpu path";
   const label = `JS (${reason})`;
   filterLastStatus.set(filterName, { didWasm: false, reason, label });
+  recordBackend(filterName, "JS");
   console.info(`[filter:${filterName}] ${label}`);
 };
 
@@ -1116,6 +1141,13 @@ export const logFilterDispatched = (filterName: string, capabilities?: { noGL?: 
 // fresh Map so callers can freely mutate/read without disturbing internal state.
 export const getFilterWasmStatuses = (): Map<string, FilterWasmStatus> =>
   new Map(filterLastStatus);
+
+// Returns every distinct backend we've observed each filter running under.
+// Populates opportunistically as filters fire (preset thumbnails, live
+// preview, chain execution), so the set grows the more the user pokes at
+// the filter library.
+export const getFilterBackends = (): Map<string, Set<string>> =>
+  new Map([...filterBackends.entries()].map(([k, v]) => [k, new Set(v)]));
 
 // Drop any recorded status for the named filter. Useful for the gallery's
 // per-filter benchmark which needs a clean slate before each measurement.

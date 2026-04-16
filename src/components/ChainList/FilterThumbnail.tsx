@@ -1,24 +1,23 @@
 import { useMemo } from "react";
 import type { FilterDefinition } from "filters/types";
-import type { ChainPreset } from "./presets";
 import Thumbnail, { type ThumbChainStep } from "./Thumbnail";
 
 type FilterEntry = { displayName: string; filter: FilterDefinition; category: string };
 
 type Props = {
-  preset: ChainPreset;
+  filter: FilterEntry;
   filterByName: Map<string, FilterEntry>;
   source: HTMLImageElement | HTMLCanvasElement | null;
 };
 
-export const PresetThumbnail = ({ preset, filterByName, source }: Props) => {
+export const FilterThumbnail = ({ filter, filterByName, source }: Props) => {
   const chain = useMemo<ThumbChainStep[]>(
-    () => preset.filters.map(f => ({ name: f.name, options: f.options })),
-    [preset],
+    () => [{ name: filter.displayName }],
+    [filter.displayName],
   );
   return (
     <Thumbnail
-      cacheKey={`preset:${preset.name}`}
+      cacheKey={`filter:${filter.displayName}`}
       chain={chain}
       filterByName={filterByName}
       source={source}
@@ -26,4 +25,4 @@ export const PresetThumbnail = ({ preset, filterByName, source }: Props) => {
   );
 };
 
-export default PresetThumbnail;
+export default FilterThumbnail;

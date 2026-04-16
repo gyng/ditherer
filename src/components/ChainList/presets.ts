@@ -329,6 +329,15 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Metadata Mistake", desc: "Wrong decode assumptions with compression wear and hard edge recovery", filters: [f("Metadata Mismatch Decode"), f("JPEG artifact"), f("Sharpen")], category: "Simulate" },
   { name: "Mavica Photo", desc: "Sony Mavica floppy disk camera — 640x480, heavy JPEG, CCD noise", filters: [f("Mavica FD7"), f("JPEG artifact"), f("Film grain")], category: "Simulate" },
   { name: "Matrix", desc: "Digital rain — source image visible through falling katakana characters", filters: [f("Levels"), f("Matrix rain")], category: "Simulate" },
+  {
+    name: "Motion Rain",
+    desc: "Motion-mask reveal driving Matrix rain — rain only falls where the camera actually sees movement",
+    filters: [
+      f("Motion Analysis", { renderMode: "MASK", source: "EMA", threshold: 8, sensitivity: 5 }),
+      f("Matrix rain", { sourceInfluence: 1, classicGreen: true, motionSensitivity: 0, density: 1.5, trailLength: 20 }),
+    ],
+    category: "Simulate",
+  },
   { name: "Misprint", desc: "Silkscreen poster layers drift slightly out of register over warm paper", filters: [f("Screen Print / Misregistration"), f("Film grain")], category: "Simulate" },
   { name: "Newsprint", desc: "Black-and-white newspaper with coarse halftone dots", filters: [f("Grayscale"), f("Newspaper"), f("Sharpen")], category: "Simulate" },
   { name: "Photocopier", desc: "High-contrast office copier with speckle and generation loss", filters: [f("Photocopier"), f("Film grain")], category: "Simulate" },

@@ -157,10 +157,25 @@
 
 .thumbnail {
   flex: 0 0 auto;
-  background: #000;
+  background: #111;
+  background-image: linear-gradient(
+    90deg,
+    #111 0%,
+    #222 40%,
+    #333 50%,
+    #222 60%,
+    #111 100%
+  );
+  background-size: 200% 100%;
+  animation: thumbShimmer 1.6s linear infinite;
   border: 1px solid #444;
   overflow: hidden;
   display: block;
+}
+
+.thumbnail[data-loaded="true"] {
+  background: #000;
+  animation: none;
 }
 
 .thumbnail img {
@@ -169,6 +184,11 @@
   height: 100%;
   object-fit: cover;
   image-rendering: auto;
+}
+
+@keyframes thumbShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .listItemActive {
@@ -218,6 +238,18 @@
   border-color: #7b4a2d;
   background: #ffe8d6;
   color: #5c2f15;
+}
+
+.tagGL {
+  border-color: #255e2d;
+  background: #d9f6d6;
+  color: #113f15;
+}
+
+.tagWasm {
+  border-color: #5a2d7b;
+  background: #e8d6ff;
+  color: #2f155c;
 }
 
 .details {

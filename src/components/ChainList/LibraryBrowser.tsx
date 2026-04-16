@@ -15,6 +15,8 @@ import type {
 } from "filters/types";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, type ChainPreset } from "./presets";
 import PresetThumbnail from "./PresetThumbnail";
+import FilterThumbnail from "./FilterThumbnail";
+import BackendTags from "./BackendTags";
 import s from "./libraryBrowser.module.css";
 
 type FilterEntry = (typeof filterList)[number];
@@ -592,15 +594,19 @@ const LibraryBrowser = ({
                 return (
               <button
                 key={entry.displayName}
-                className={`${s.listItem} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}`}
+                className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}`}
                 onClick={() => setSelectedFilterName(entry.displayName)}
                 onDoubleClick={() => onAddFilter(entry)}
               >
-                <div className={s.itemName}>{entry.displayName}</div>
-                <div className={s.itemMeta}>
-                  {entry.category}
-                  {anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
-                  {temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                <FilterThumbnail filter={entry} filterByName={filterByName} source={previewSource || fallbackImage} />
+                <div className={s.listItemText}>
+                  <div className={s.itemName}>{entry.displayName}</div>
+                  <div className={s.itemMeta}>
+                    {entry.category}
+                    {anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
+                    {temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                    <BackendTags filterNames={[entry.displayName]} />
+                  </div>
                 </div>
               </button>
                 );
@@ -805,6 +811,7 @@ const LibraryBrowser = ({
                     {preset.category}
                     {flags.anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
                     {flags.temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                    <BackendTags filterNames={preset.filters.map(f => f.name)} />
                   </div>
                 </div>
               </button>
