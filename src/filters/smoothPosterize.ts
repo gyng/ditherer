@@ -9,8 +9,11 @@ import {
   wasmApplyChannelLut,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
+import { smoothPosterizeGLAvailable, renderSmoothPosterizeGL } from "./smoothPosterizeGL";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 16], step: 1, default: 5, desc: "Number of color levels" },
@@ -56,14 +59,27 @@ const buildSmoothPosterizeLut = (levels: number, smoothness: number): Uint8Array
   return lut;
 };
 
-const smoothPosterize = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const smoothPosterize = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { levels, smoothness, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && smoothPosterizeGLAvailable()) {
+    const rendered = renderSmoothPosterizeGL(input, W, H, levels, smoothness);
+    if (rendered) {
+      const identity = paletteIsIdentityFn(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Smooth Posterize", "WebGL2", `levels=${levels} smooth=${smoothness}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const lut = buildSmoothPosterizeLut(levels, smoothness);

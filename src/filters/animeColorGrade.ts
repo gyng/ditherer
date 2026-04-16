@@ -10,8 +10,11 @@ import {
   wasmAnimeColorGradeBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
+import { animeColorGradeGLAvailable, renderAnimeColorGradeGL } from "./animeColorGradeGL";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -79,7 +82,7 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeColorGrade = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const animeColorGrade = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const {
     shadowCool,
     highlightWarm,
@@ -92,13 +95,30 @@ const animeColorGrade = (input: any, options: typeof defaults & { _wasmAccelerat
     palette,
   } = options;
 
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && animeColorGradeGLAvailable()) {
+    const rendered = renderAnimeColorGradeGL(
+      input, W, H,
+      shadowCool, highlightWarm, blackPoint, whitePoint,
+      contrast, midtoneLift, vibrance, mix,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentityFn(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Anime Color Grade", "WebGL2", identity ? "grade" : "grade+palettePass");
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;

@@ -9,8 +9,11 @@ import {
   wasmApplyChannelLut,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
+import { posterizeGLAvailable, renderPosterizeGL } from "./posterizeGL";
 
 export const optionTypes = {
   levels: { type: RANGE, range: [2, 32], step: 1, default: 4, desc: "Number of distinct color levels per channel" },
@@ -22,8 +25,23 @@ export const defaults = {
   palette: optionTypes.palette.default
 };
 
-const posterize = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const posterize = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { levels, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && posterizeGLAvailable()) {
+    const rendered = renderPosterizeGL(input, W, H, levels);
+    if (rendered) {
+      const identity = paletteIsIdentityFn(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Posterize", "WebGL2", `levels=${levels}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");

@@ -12,8 +12,10 @@ import {
   resolvePaletteColorAlgorithm,
   colorAlgorithmToWasmMode,
   WASM_PALETTE_MODE,
+  logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { triangleDitherGLAvailable, renderTriangleDitherGL } from "./triangleDitherGL";
 
 export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
@@ -27,17 +29,31 @@ export const defaults = {
 // Better spectral properties than uniform noise: blue-ish noise distribution
 const tpdf = () => Math.random() - Math.random();
 
-const triangleDither = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const triangleDither = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { palette } = options;
+  const W = input.width;
+  const H = input.height;
+  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
+
+  // GL path only supports LEVELS palette (including identity levels=256).
+  // Custom-colour palettes require WASM/JS colour-distance quantisation.
+  const canGL = !paletteOpts?.colors;
+  if (options._webglAcceleration !== false && canGL && triangleDitherGLAvailable()) {
+    const seed = (Math.random() * 0xffffffff) >>> 0 || 1;
+    const levels = paletteOpts?.levels ?? 256;
+    const rendered = renderTriangleDitherGL(input, W, H, seed, levels);
+    if (rendered) {
+      logFilterBackend("Triangle dither", "WebGL2", `levels=${levels}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
 
   // WASM fast path: LEVELS (default nearest palette) or a user palette with a
   // supported colour-distance algorithm. Seed the Rust PRNG with a fresh u32
