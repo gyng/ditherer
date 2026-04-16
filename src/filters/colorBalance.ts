@@ -1,7 +1,29 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, clamp } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+  clamp,
+  logFilterBackend,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 export const optionTypes = {
   shadowR:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in shadows" },
@@ -23,7 +45,46 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-// Smooth masks for shadow / midtone / highlight regions
+const CB_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec3  u_shadow;       // (R, G, B) shift -100..100
+uniform vec3  u_midtone;
+uniform vec3  u_highlight;
+uniform float u_levels;
+
+void main() {
+  vec4 c = texture(u_source, v_uv);
+  float t = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  float sw = max(0.0, 1.0 - t * 4.0);
+  float hw = max(0.0, t * 4.0 - 3.0);
+  float mw = 1.0 - sw - hw;
+
+  vec3 d = sw * u_shadow + mw * u_midtone + hw * u_highlight;
+  vec3 rgb = clamp(c.rgb + d * (2.55 / 255.0), 0.0, 1.0);
+  if (u_levels > 1.5) {
+    float q = u_levels - 1.0;
+    rgb = floor(rgb * q + 0.5) / q;
+  }
+  fragColor = vec4(rgb, c.a);
+}
+`;
+
+type Cache = { cb: Program };
+let _cache: Cache | null = null;
+const initCache = (gl: WebGL2RenderingContext): Cache => {
+  if (_cache) return _cache;
+  _cache = {
+    cb: linkProgram(gl, CB_FS, [
+      "u_source", "u_shadow", "u_midtone", "u_highlight", "u_levels",
+    ] as const),
+  };
+  return _cache;
+};
+
 const shadowMask    = (t: number) => Math.max(0, 1 - t * 4);
 const highlightMask = (t: number) => Math.max(0, t * 4 - 3);
 const midtoneMask   = (t: number) => 1 - shadowMask(t) - highlightMask(t);
@@ -35,14 +96,48 @@ const colorBalance = (input: any, options = defaults) => {
     highlightR, highlightG, highlightB,
     palette
   } = options;
+  const W = input.width, H = input.height;
 
+  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+    const ctx = getGLCtx();
+    if (ctx) {
+      const { gl, canvas } = ctx;
+      const cache = initCache(gl);
+      const vao = getQuadVAO(gl);
+      resizeGLCanvas(canvas, W, H);
+      const sourceTex = ensureTexture(gl, "colorBalance:source", W, H);
+      uploadSourceTexture(gl, sourceTex, input);
+
+      drawPass(gl, null, W, H, cache.cb, () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.cb.uniforms.u_source, 0);
+        gl.uniform3f(cache.cb.uniforms.u_shadow, shadowR, shadowG, shadowB);
+        gl.uniform3f(cache.cb.uniforms.u_midtone, midtoneR, midtoneG, midtoneB);
+        gl.uniform3f(cache.cb.uniforms.u_highlight, highlightR, highlightG, highlightB);
+        const identity = paletteIsIdentity(palette);
+        const pOpts = (palette as { options?: { levels?: number } }).options;
+        gl.uniform1f(cache.cb.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+      }, vao);
+
+      const rendered = readoutToCanvas(canvas, W, H);
+      if (rendered) {
+        const identity = paletteIsIdentity(palette);
+        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Color balance", "WebGL2", identity ? "direct" : "direct+palettePass");
+          return out;
+        }
+      }
+    }
+  }
+
+  logFilterWasmStatus("Color balance", false, "fallback JS");
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
