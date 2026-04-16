@@ -61,6 +61,66 @@ export const getGLCtx = (): GLCtx | null => {
 
 export const glAvailable = (): boolean => getGLCtx() !== null;
 
+// ── GL resource diagnostics ─────────────────────────────────────────────
+// Counters track cumulative allocations for autonomous leak detection.
+// Call `getGLStats()` from devtools or a test harness; `resetGLStats()`
+// zeros the counters. `getGLPoolSizes()` returns the current live count
+// of pooled entries (not cumulative).
+export type GLStats = {
+  programs: number;
+  textures: number;
+  framebuffers: number;
+  readoutCanvases: number;
+  readoutCanvasReuses: number;
+};
+const _glStats: GLStats = {
+  programs: 0,
+  textures: 0,
+  framebuffers: 0,
+  readoutCanvases: 0,
+  readoutCanvasReuses: 0,
+};
+export const getGLStats = (): Readonly<GLStats> => ({ ..._glStats });
+export const resetGLStats = (): void => {
+  _glStats.programs = 0;
+  _glStats.textures = 0;
+  _glStats.framebuffers = 0;
+  _glStats.readoutCanvases = 0;
+  _glStats.readoutCanvasReuses = 0;
+};
+export const getGLPoolSizes = (): { texPool: number; readoutPool: number } => ({
+  texPool: Object.keys(_texPool).length,
+  readoutPool: _readoutPool.length,
+});
+
+// ── Readout canvas pool ─────────────────────────────────────────────────
+// Instead of creating a fresh canvas per readoutToCanvas call (the biggest
+// leak vector during animation), reuse canvases from a small pool keyed by
+// size. Callers that hold a reference past the next filter call (e.g., the
+// output cache) are fine — the pool only recycles canvases explicitly
+// returned via `releaseReadoutCanvas`.
+const _readoutPool: GLCanvas[] = [];
+const READOUT_POOL_MAX = 8;
+
+const acquireReadoutCanvas = (w: number, h: number): GLCanvas | null => {
+  for (let i = _readoutPool.length - 1; i >= 0; i--) {
+    const c = _readoutPool[i];
+    if (c.width === w && c.height === h) {
+      _readoutPool.splice(i, 1);
+      _glStats.readoutCanvasReuses++;
+      return c;
+    }
+  }
+  _glStats.readoutCanvases++;
+  return createGLCanvas(w, h);
+};
+
+export const releaseReadoutCanvas = (canvas: GLCanvas): void => {
+  if (_readoutPool.length < READOUT_POOL_MAX) {
+    _readoutPool.push(canvas);
+  }
+};
+
 // Standard full-screen-quad vertex shader. No flip — shaders compute JS-y
 // explicitly (y = u_res.y - 1.0 - floor(v_uv.y * u_res.y)).
 export const STD_VS = `#version 300 es
@@ -115,10 +175,18 @@ export const linkProgram = (
   gl.attachShader(prog, fs);
   gl.bindAttribLocation(prog, 0, "a_pos");
   gl.linkProgram(prog);
+  // Shaders can be detached+deleted after a successful link — the program
+  // retains the compiled code. This frees the shader source strings and
+  // intermediate objects the driver was holding.
+  gl.detachShader(prog, vs);
+  gl.detachShader(prog, fs);
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
     const log = gl.getProgramInfoLog(prog) || "(no log)";
     throw new Error(`program link failed: ${log}`);
   }
+  _glStats.programs++;
   const uniforms: Record<string, WebGLUniformLocation | null> = {};
   for (const n of uniformNames) uniforms[n] = gl.getUniformLocation(prog, n);
   return { prog, uniforms };
@@ -173,6 +241,8 @@ export const ensureTexture = (
   const tex = gl.createTexture();
   const fbo = gl.createFramebuffer();
   if (!tex || !fbo) throw new Error("createTexture/Framebuffer failed");
+  _glStats.textures++;
+  _glStats.framebuffers++;
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -185,6 +255,28 @@ export const ensureTexture = (
   _texPool[name] = entry;
   return entry;
 };
+
+// Evict texture pool entries whose key starts with `prefix`. Call when a
+// filter is removed from the chain or the chain is cleared. Pass no
+// argument to flush the entire pool.
+export const releasePooledTextures = (prefix?: string): number => {
+  const ctx = getGLCtx();
+  if (!ctx) return 0;
+  const { gl } = ctx;
+  let freed = 0;
+  for (const key of Object.keys(_texPool)) {
+    if (prefix && !key.startsWith(prefix)) continue;
+    const e = _texPool[key];
+    gl.deleteTexture(e.tex);
+    gl.deleteFramebuffer(e.fbo);
+    delete _texPool[key];
+    freed++;
+  }
+  return freed;
+};
+
+// Snapshot of all live pool entry keys — useful for diagnostics.
+export const getTexPoolKeys = (): string[] => Object.keys(_texPool);
 
 // Upload a source canvas/image as texture data. UNPACK_FLIP_Y_WEBGL is
 // left in the pipeline-global `true` state so orientation is consistent
@@ -229,7 +321,7 @@ export const readoutToCanvas = (
   w: number,
   h: number,
 ): GLCanvas | null => {
-  const out = createGLCanvas(w, h);
+  const out = acquireReadoutCanvas(w, h);
   if (!out) return null;
   // willReadFrequently so the next filter's getImageData on this canvas
   // doesn't pay a GPU readback cost. Sticky from the first getContext call.
@@ -249,3 +341,16 @@ export const resizeGLCanvas = (canvas: GLCanvas, w: number, h: number): void => 
   if (canvas.width !== w) canvas.width = w;
   if (canvas.height !== h) canvas.height = h;
 };
+
+// Expose diagnostics on the global for console / Playwright / test harness
+// access. Lazy-attached on first import so it doesn't break SSR or workers
+// that lack `globalThis.window`.
+if (typeof globalThis !== "undefined") {
+  (globalThis as Record<string, unknown>).__glDiag = {
+    getStats: getGLStats,
+    resetStats: resetGLStats,
+    getPoolSizes: getGLPoolSizes,
+    getTexPoolKeys,
+    releaseTextures: releasePooledTextures,
+  };
+}

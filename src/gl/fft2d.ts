@@ -247,6 +247,26 @@ export const ensureFloatTex = (
   return entry;
 };
 
+// Evict float-pool entries whose key starts with `prefix`. Pass no
+// argument to flush the entire pool.
+export const releaseFloatTextures = (prefix?: string): number => {
+  const ctx = getGLCtx();
+  if (!ctx) return 0;
+  const { gl } = ctx;
+  let freed = 0;
+  for (const key of Object.keys(_floatPool)) {
+    if (prefix && !key.startsWith(prefix)) continue;
+    const e = _floatPool[key];
+    gl.deleteTexture(e.tex);
+    gl.deleteFramebuffer(e.fbo);
+    delete _floatPool[key];
+    freed++;
+  }
+  return freed;
+};
+
+export const getFloatPoolKeys = (): string[] => Object.keys(_floatPool);
+
 let _floatSupported: boolean | null = null;
 export const fft2dAvailable = (): boolean => {
   const ctx = getGLCtx();

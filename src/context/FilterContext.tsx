@@ -9,6 +9,8 @@ import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
 import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
 import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas } from "utils";
+import { releasePooledTextures } from "gl";
+import { releaseFloatTextures } from "gl/fft2d";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
 import { FilterContext } from "./filterContextValue";
@@ -226,6 +228,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     clearCachedOutputs();
     cachedChainOrderRef.current = "";
     clearMotionVectorsState();
+    // Flush GPU texture pools so stale entries from removed filters don't
+    // accumulate. Programs are kept (they're process-lifetime singletons
+    // and re-creating them on next use would be more expensive than the
+    // ~100-200 KB per program they hold).
+    releasePooledTextures();
+    releaseFloatTextures();
   }, []);
 
   // Restore state from #! hash on initial load
