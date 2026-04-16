@@ -1,7 +1,9 @@
 import { COLOR, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { atmosphericHazeGLAvailable, renderAtmosphericHazeGL } from "./atmosphericHazeGL";
 
 const DEPTH_MODE = {
   LUMA: "LUMA",
@@ -43,16 +45,36 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const atmosphericHaze = (input: any, options = defaults) => {
+type AtmosphericHazeOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const atmosphericHaze = (input: any, options: AtmosphericHazeOptions = defaults) => {
   const { strength, horizon, softness, highlightBloom, tint, depthMode, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && atmosphericHazeGLAvailable()) {
+    const depthModeInt = depthMode === DEPTH_MODE.HYBRID ? 0 : depthMode === DEPTH_MODE.VERTICAL ? 1 : 2;
+    const rendered = renderAtmosphericHazeGL(
+      input, W, H,
+      strength, horizon, softness, highlightBloom,
+      [tint[0], tint[1], tint[2]],
+      depthModeInt as 0 | 1 | 2,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Atmospheric Haze", "WebGL2", `mode=${depthMode} strength=${strength}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

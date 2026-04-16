@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { lenticularGLAvailable, renderLenticularGL } from "./lenticularGL";
 
 export const optionTypes = {
   stripWidth: { type: RANGE, range: [2, 20], step: 1, default: 6, desc: "Width of each lenticular strip" },
@@ -34,18 +36,33 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 };
 
-const lenticular = (input: any, options = defaults) => {
+type LenticularOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const lenticular = (input: any, options: LenticularOptions = defaults) => {
   const { stripWidth, angle, sheenIntensity, rainbowSpread, palette } = options;
+  const W = input.width, H = input.height;
+  const rad = (angle * Math.PI) / 180;
+
+  if (options._webglAcceleration !== false && lenticularGLAvailable()) {
+    const rendered = renderLenticularGL(input, W, H, stripWidth, sheenIntensity, rainbowSpread, rad);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Lenticular", "WebGL2", `strip=${stripWidth} angle=${angle}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const rad = (angle * Math.PI) / 180;
   const cosA = Math.cos(rad);
   const sinA = Math.sin(rad);
 

@@ -1,7 +1,9 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { displacementMapXYGLAvailable, renderDisplacementMapXYGL } from "./displacementMapXYGL";
 
 const CHANNEL = { R: 0, G: 1, B: 2 };
 
@@ -25,14 +27,33 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const displacementMapXY = (input: any, options = defaults) => {
+type DisplacementMapXYOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const displacementMapXY = (input: any, options: DisplacementMapXYOptions = defaults) => {
   const { strength, blurRadius, channelX, channelY, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && displacementMapXYGLAvailable()) {
+    const rendered = renderDisplacementMapXYGL(
+      input, W, H,
+      strength, blurRadius,
+      channelX as 0 | 1 | 2, channelY as 0 | 1 | 2,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Displacement Map XY", "WebGL2", `strength=${strength} blur=${blurRadius}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

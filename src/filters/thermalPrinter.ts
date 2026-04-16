@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { thermalPrinterGLAvailable, renderThermalPrinterGL } from "./thermalPrinterGL";
 
 export const optionTypes = {
   resolution: { type: RANGE, range: [50, 400], step: 10, default: 200, desc: "Print resolution in pixels wide" },
@@ -30,6 +32,7 @@ type ThermalPrinterOptions = FilterOptionValues & {
     options?: FilterOptionValues;
   } & Record<string, unknown>;
   _frameIndex?: number;
+  _webglAcceleration?: boolean;
 };
 
 const thermalPrinter = (input: any, options: ThermalPrinterOptions = defaults) => {
@@ -40,17 +43,29 @@ const thermalPrinter = (input: any, options: ThermalPrinterOptions = defaults) =
     palette = defaults.palette,
   } = options;
   const frameIndex = Number(options._frameIndex ?? 0);
+  const W = input.width, H = input.height;
+  const scale = Math.max(1, Math.round(W / resolution));
+
+  if (options._webglAcceleration !== false && thermalPrinterGLAvailable()) {
+    const rendered = renderThermalPrinterGL(input, W, H, scale, fadeGradient, dotDensity, frameIndex);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Thermal Printer", "WebGL2", `res=${resolution} density=${dotDensity}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const rng = mulberry32(frameIndex * 31 + 42);
-
-  const scale = Math.max(1, Math.round(W / resolution));
 
   for (let y = 0; y < H; y++) {
     // Paper curl: slight vertical fade at top and bottom
