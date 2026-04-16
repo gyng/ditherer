@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { teletextGLAvailable, renderTeletextGL } from "./teletextGL";
 
 const TELETEXT_COLORS: [number, number, number][] = [
   [0, 0, 0],       // black
@@ -58,11 +61,36 @@ const nearestTeletextColor = (
   return best;
 };
 
+type TeletextOptions = typeof defaults & { _webglAcceleration?: boolean };
+
 const teletext = (
   input: any,
-  options = defaults
+  options: TeletextOptions = defaults
 ) => {
   const { columns, threshold, blockGap, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  const cellW = Math.max(1, Math.floor(W / columns));
+  const cellH = Math.max(1, Math.round(cellW * (10 / 12)));
+  const rows = Math.ceil(H / cellH);
+  const blockW = Math.max(1, Math.floor(cellW / 2));
+  const blockH = Math.max(1, Math.floor(cellH / 3));
+
+  if (options._webglAcceleration !== false && teletextGLAvailable()) {
+    const rendered = renderTeletextGL(
+      input, W, H, columns, threshold, blockGap,
+      cellW, cellH, rows, blockW, blockH,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Teletext", "WebGL2", `columns=${columns} cell=${cellW}x${cellH}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -70,20 +98,8 @@ const teletext = (
 
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-
-  // Calculate cell dimensions based on column count
-  // Teletext aspect ratio: each cell is 2 blocks wide x 3 blocks tall
-  const cellW = Math.max(1, Math.floor(W / columns));
-  const cellH = Math.max(1, Math.round(cellW * (10 / 12))); // maintain ~10:12 aspect
-  const rows = Math.ceil(H / cellH);
-
-  // Sub-block dimensions (2 columns x 3 rows per cell)
-  const blockW = Math.max(1, Math.floor(cellW / 2));
-  const blockH = Math.max(1, Math.floor(cellH / 3));
 
   // Fill background black first
   for (let i = 0; i < outBuf.length; i += 4) {

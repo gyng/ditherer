@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { noiseGeneratorGLAvailable, renderNoiseGeneratorGL, type NoiseType } from "./noiseGeneratorGL";
 
 const NOISE_TYPE = {
   PERLIN: "PERLIN",
@@ -145,17 +148,35 @@ const worleyNoise = (px: number, py: number, seed: number) => {
   return Math.sqrt(minDist);
 };
 
-const noiseGenerator = (input: any, options = defaults) => {
+type NoiseGeneratorOptions = typeof defaults & { _frameIndex?: number; _webglAcceleration?: boolean };
+
+const noiseGenerator = (input: any, options: NoiseGeneratorOptions = defaults) => {
   const { type, scale, octaves, seed: seedOpt, colorize, mix, palette } = options;
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const frameIndex = options._frameIndex || 0;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && noiseGeneratorGLAvailable()) {
+    const typeInt = type === NOISE_TYPE.SIMPLEX ? 1 : type === NOISE_TYPE.WORLEY ? 2 : 0;
+    const rendered = renderNoiseGeneratorGL(
+      input, W, H,
+      typeInt as NoiseType, scale, octaves, seedOpt, frameIndex, colorize, mix,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Noise Generator", "WebGL2", `type=${type} octaves=${octaves}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
