@@ -273,6 +273,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Checksum Storm", desc: "Rejected packet stripes with unstable concealment and downstream decode wear", filters: [f("CRC Stripe Reject"), f("Scan line shift"), f("JPEG artifact")], category: "Glitch" },
   { name: "Color Freeze", desc: "Freeze-frame glitch with optional RGB channel splitting, from subtle holds to hard color-split corruption", filters: [f("Freeze frame glitch"), f("Chromatic aberration")], category: "Glitch" },
   { name: "Data Corruption", desc: "Broken compression — smeared blocks and DCT artifacts", filters: [f("Glitch blocks"), f("Data bend"), f("JPEG artifact")], category: "Glitch" },
+  { name: "Deep Fried", desc: "Extreme contrast, crushed colours, blown highlights, re-compressed through JPEG", filters: [f("Deep fry"), f("JPEG artifact", { qualityLuma: 25, qualityChroma: 15, ringing: 0.3 }), f("Bloom")], category: "Glitch" },
   { name: "Glitch Art", desc: "Sorted pixel streaks, split channels, shifted scan lines", filters: [f("Pixelsort"), f("Chromatic aberration"), f("Scan line shift"), f("JPEG artifact")], category: "Glitch" },
   { name: "Legacy LUT Collapse", desc: "Indexed palette table drifts while bitplane bursts erode color significance", filters: [f("Palette Index Drift"), f("Bitplane Dropout"), f("Ordered")], category: "Glitch" },
   { name: "Panorama Glitch", desc: "Temporal slit scan with JPEG corruption", filters: [f("Slit scan"), f("JPEG artifact")], category: "Glitch" },
