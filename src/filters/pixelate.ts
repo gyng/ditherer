@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { pixelateGLAvailable, renderPixelateGL } from "./pixelateGL";
 
 export const optionTypes = {
   scale: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.25, desc: "Downscale factor for both axes (smaller = bigger pixels)" },
@@ -22,6 +24,27 @@ const pixelate = (
   options: any
 ) => {
   const { scale, scaleXOverride, scaleYOverride, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  const effScaleX = scaleXOverride || scale;
+  const effScaleY = scaleYOverride || scale;
+  const downW = Math.max(1, Math.floor(W * effScaleX));
+  const downH = Math.max(1, Math.floor(H * effScaleY));
+
+  // GL path valid when palette is identity (no palette pass) and linearize
+  // is off (palette-linear-sRGB round-trip has no effect without a palette).
+  const identity = paletteIsIdentity(palette);
+  if (options._webglAcceleration !== false && identity && !options._linearize && pixelateGLAvailable()) {
+    const rendered = renderPixelateGL(input, W, H, downW, downH);
+    if (rendered) {
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Pixelate", "WebGL2", `scale=${effScaleX}x${effScaleY}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");

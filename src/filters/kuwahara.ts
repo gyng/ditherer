@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { kuwaharaGLAvailable, renderKuwaharaGL } from "./kuwaharaGL";
 
 export const optionTypes = {
   radius: { type: RANGE, range: [1, 16], step: 1, default: 3, desc: "Filter kernel radius — larger = more painterly" },
@@ -60,15 +62,30 @@ const buildKuwaharaSats = (buf: Uint8ClampedArray, W: number, H: number) => {
   return { stride, satR, satG, satB, satR2, satG2, satB2 };
 };
 
-const kuwahara = (input: any, options = defaults) => {
+type KuwaharaOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const kuwahara = (input: any, options: KuwaharaOptions = defaults) => {
   const { radius, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && kuwaharaGLAvailable()) {
+    const rendered = renderKuwaharaGL(input, W, H, radius);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Kuwahara", "WebGL2", `radius=${radius}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const r = Math.max(1, Math.round(radius));
 

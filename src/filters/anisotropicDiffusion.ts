@@ -1,7 +1,9 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { anisotropicDiffusionGLAvailable, renderAnisotropicDiffusionGL } from "./anisotropicDiffusionGL";
 
 const CONDUCTANCE_EXP = "EXP";
 const CONDUCTANCE_QUADRATIC = "QUADRATIC";
@@ -30,15 +32,34 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const anisotropicDiffusion = (input: any, options = defaults) => {
+type AnisotropicDiffusionOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const anisotropicDiffusion = (input: any, options: AnisotropicDiffusionOptions = defaults) => {
   const { iterations, kappa, lambda, conductance, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && anisotropicDiffusionGLAvailable()) {
+    const rendered = renderAnisotropicDiffusionGL(
+      input, W, H,
+      iterations, kappa, lambda,
+      conductance === CONDUCTANCE_EXP,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Anisotropic diffusion", "WebGL2", `iter=${iterations} kappa=${kappa}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
 
   // Work in Float32 for precision

@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { fractalGLAvailable, renderFractalGL } from "./fractalGL";
 
 const FRACTAL_TYPE = {
   MANDELBROT: "MANDELBROT",
@@ -59,16 +62,35 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const fractalFilter = (input: any, options = defaults) => {
+type FractalOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const fractalFilter = (input: any, options: FractalOptions = defaults) => {
   const { type, zoom, centerX, centerY, iterations, juliaR, juliaI, colorSource, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && fractalGLAvailable()) {
+    const rendered = renderFractalGL(
+      input, W, H,
+      type === FRACTAL_TYPE.JULIA,
+      colorSource === COLOR_SOURCE.IMAGE,
+      zoom, centerX, centerY, iterations, juliaR, juliaI,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Fractal", "WebGL2", `type=${type} iter=${iterations}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
