@@ -2,7 +2,9 @@ import { ACTION, BOOL, ENUM, RANGE, PALETTE, TEXT } from "constants/controlTypes
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { CHARSET, SHARED_CHARSET_GROUPS, getCharsetString } from "./charsets";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, srgbPaletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, srgbPaletteGetColor, logFilterBackend } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { matrixRainGLAvailable, renderMatrixRainGL } from "./matrixRainGL";
 
 const MOTION_MODE = {
   GATE: "GATE",
@@ -394,6 +396,63 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
             }
           }
         }
+      }
+    }
+  }
+
+  // GL fast path — package the already-computed lane/illum state into
+  // textures and let the shader handle the final per-pixel glyph
+  // rasterisation. CPU keeps all temporal state (mainThread: true).
+  if ((options as { _webglAcceleration?: boolean })._webglAcceleration !== false && matrixRainGLAvailable()) {
+    const laneInfo = new Float32Array(laneCount * 4);
+    const cellData = new Float32Array(laneCount * rows * 4);
+
+    for (let lane = 0; lane < laneCount; lane++) {
+      const { center, widthScale } = laneSeeds[lane] ?? { center: 0, widthScale: 1 };
+      const laneWidthPx = Math.max(3, Math.round(columnWidth * widthScale));
+      const laneCenterPx = center * columnWidth + laneWidthPx * 0.5;
+      laneInfo[lane * 4] = laneCenterPx;
+      laneInfo[lane * 4 + 1] = laneWidthPx;
+    }
+
+    for (let lane = 0; lane < laneCount; lane++) {
+      for (let row = 0; row < rows; row++) {
+        const cellIdx = lane + laneCount * row;
+        const illum = illumination[cellIdx];
+        let charIdx = laneGrid[cellIdx];
+        const period = cyclePeriod[cellIdx];
+        if (period > 0) {
+          charIdx = (charIdx + Math.floor(frameIndex / period)) % charBitmaps.length;
+        }
+        const cellRng = mulberry32((lane + 1) * 13007 + (row + 1) * 17011);
+        const glyphScale = 1 + (cellRng() - 0.5) * 2 * characterSizeVariation;
+        const flipRoll = cellRng();
+        const transformMode = flipRoll < characterFlip ? 1 + Math.floor(cellRng() * 5) : 0;
+        const di = (row * laneCount + lane) * 4;
+        cellData[di] = charIdx;
+        cellData[di + 1] = transformMode;
+        cellData[di + 2] = illum;
+        cellData[di + 3] = glyphScale;
+      }
+    }
+
+    const rendered = renderMatrixRainGL(input, W, H, {
+      charBitmaps,
+      bitmapCellSize,
+      laneCount,
+      rows,
+      charH,
+      laneInfo,
+      cellData,
+      sourceInfluence,
+      classicGreen,
+    });
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Matrix Rain", "WebGL2", `lanes=${laneCount} rows=${rows}${identity ? "" : "+palettePass"}`);
+        return out;
       }
     }
   }

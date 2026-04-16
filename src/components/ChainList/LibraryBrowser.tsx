@@ -14,6 +14,7 @@ import type {
   RangeOptionDefinition,
 } from "filters/types";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, type ChainPreset } from "./presets";
+import PresetThumbnail from "./PresetThumbnail";
 import s from "./libraryBrowser.module.css";
 
 type FilterEntry = (typeof filterList)[number];
@@ -790,18 +791,21 @@ const LibraryBrowser = ({
                 return (
               <button
                 key={preset.name}
-                className={`${s.listItem} ${selectedPreset?.name === preset.name ? s.listItemActive : ""}`}
+                className={`${s.listItem} ${s.listItemWithThumb} ${selectedPreset?.name === preset.name ? s.listItemActive : ""}`}
                 onClick={() => setSelectedPresetName(preset.name)}
                 onDoubleClick={() => {
                   onLoadPreset(preset);
                   onClose();
                 }}
               >
-                <div className={s.itemName}>{preset.name}</div>
-                <div className={s.itemMeta}>
-                  {preset.category}
-                  {flags.anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
-                  {flags.temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                <PresetThumbnail preset={preset} filterByName={filterByName} source={previewSource || fallbackImage} />
+                <div className={s.listItemText}>
+                  <div className={s.itemName}>{preset.name}</div>
+                  <div className={s.itemMeta}>
+                    {preset.category}
+                    {flags.anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
+                    {flags.temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                  </div>
                 </div>
               </button>
                 );
