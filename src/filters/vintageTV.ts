@@ -10,7 +10,10 @@ import {
   wasmVintageTvBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
+import { vintageTVGLAvailable, renderVintageTVGL } from "./vintageTVGL";
 
 export const optionTypes = {
   banding: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Horizontal interference banding intensity" },
@@ -45,7 +48,7 @@ const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
 const vintageTV = (
   input: any,
-  options: typeof defaults & { _frameIndex?: number; _wasmAcceleration?: boolean } = defaults
+  options: typeof defaults & { _frameIndex?: number; _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults
 ) => {
   const {
     banding,
@@ -56,19 +59,31 @@ const vintageTV = (
   } = options;
 
   const frameIndex = options._frameIndex || 0;
+  const W = input.width;
+  const H = input.height;
+
+  // Vertical roll offset
+  const rollOffset = Math.round(verticalRoll * Math.sin(frameIndex * 0.1));
+
+  if (options._webglAcceleration !== false && vintageTVGLAvailable()) {
+    const rendered = renderVintageTVGL(input, W, H, banding, colorFringe, rollOffset, frameIndex, glow);
+    if (rendered) {
+      const identity = paletteIsIdentityFn(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Vintage TV", "WebGL2", `banding=${banding} fringe=${colorFringe}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-
-  // Vertical roll offset
-  const rollOffset = Math.round(verticalRoll * Math.sin(frameIndex * 0.1));
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
   const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 

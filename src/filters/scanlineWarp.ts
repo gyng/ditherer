@@ -10,7 +10,10 @@ import {
   wasmScanlineWarpBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
+import { scanlineWarpGLAvailable, renderScanlineWarpGL } from "./scanlineWarpGL";
 
 export const optionTypes = {
   amplitude: { type: RANGE, range: [0, 50], step: 1, default: 10, desc: "Horizontal wave displacement" },
@@ -43,7 +46,7 @@ const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
 const scanlineWarp = (
   input: any,
-  options: typeof defaults & { _frameIndex?: number; _wasmAcceleration?: boolean } = defaults
+  options: typeof defaults & { _frameIndex?: number; _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults
 ) => {
   const {
     amplitude,
@@ -53,18 +56,29 @@ const scanlineWarp = (
   } = options;
 
   const frameIndex = options._frameIndex || 0;
+  const W = input.width;
+  const H = input.height;
+  const phaseRad = (phase * Math.PI) / 180;
+
+  if (options._webglAcceleration !== false && scanlineWarpGLAvailable()) {
+    const rendered = renderScanlineWarpGL(input, W, H, amplitude, frequency, phaseRad + frameIndex * 0.2);
+    if (rendered) {
+      const identity = paletteIsIdentityFn(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Scanline Warp", "WebGL2", `amp=${amplitude} freq=${frequency}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-
-  const phaseRad = (phase * Math.PI) / 180;
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
   const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
 

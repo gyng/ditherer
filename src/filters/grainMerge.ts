@@ -9,8 +9,11 @@ import {
   wasmGrainMergeBuffer,
   wasmIsLoaded,
   logFilterWasmStatus,
+  logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
+import { grainMergeGLAvailable, renderGrainMergeGL } from "./grainMergeGL";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [0, 2], step: 0.1, default: 0.5, desc: "Grain merge intensity" },
@@ -24,14 +27,27 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const grainMerge = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean } = defaults) => {
+const grainMerge = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
   const { strength, radius, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && grainMergeGLAvailable()) {
+    const rendered = renderGrainMergeGL(input, W, H, radius, strength);
+    if (rendered) {
+      const identity = paletteIsIdentityFn(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Grain Merge", "WebGL2", `r=${radius} strength=${strength}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
