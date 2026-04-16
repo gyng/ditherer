@@ -1,7 +1,9 @@
 import { BOOL, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "utils";
+import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { animeToneBandsGLAvailable, renderAnimeToneBandsGL } from "./animeToneBandsGL";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const smoothstep = (edge0: number, edge1: number, value: number) => {
@@ -35,21 +37,35 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const animeToneBands = (input: any, options = defaults) => {
+type AnimeToneBandsOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const animeToneBands = (input: any, options: AnimeToneBandsOptions = defaults) => {
   const { shadowSteps, highlightSteps, edgeSoftness, bandBias, preserveSkin, mix, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && animeToneBandsGLAvailable()) {
+    const rendered = renderAnimeToneBandsGL(
+      input, W, H,
+      shadowSteps, highlightSteps, edgeSoftness, bandBias, preserveSkin, mix,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Anime Tone Bands", "WebGL2", `sh=${shadowSteps} hl=${highlightSteps}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  // Pure per-pixel f64 math (luma, smoothstep, lerp, skin compares) with no
-  // expensive transfer functions to LUT away — V8 turbofan wins against a
-  // straight WASM port (benched at 0.82x). Stays on JS; revisit if we find a
-  // luma-indexed LUT or SIMD approach that actually helps.
 
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {

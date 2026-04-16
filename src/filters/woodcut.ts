@@ -5,10 +5,13 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { woodcutGLAvailable, renderWoodcutGL } from "./woodcutGL";
 
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Black/white carving threshold" },
@@ -28,16 +31,35 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const woodcut = (input: any, options = defaults) => {
+type WoodcutOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const woodcut = (input: any, options: WoodcutOptions = defaults) => {
   const { threshold, lineWeight, edgeStrength, inkColor, paperColor, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && woodcutGLAvailable()) {
+    const rendered = renderWoodcutGL(
+      input, W, H,
+      threshold, lineWeight, edgeStrength,
+      [inkColor[0], inkColor[1], inkColor[2]],
+      [paperColor[0], paperColor[1], paperColor[2]],
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Woodcut", "WebGL2", `t=${threshold} lw=${lineWeight}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

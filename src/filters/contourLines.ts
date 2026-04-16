@@ -1,7 +1,9 @@
 import { RANGE, COLOR, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { contourLinesGLAvailable, renderContourLinesGL, type ContourFillMode } from "./contourLinesGL";
 
 const FILL_MODE = { LINES: "LINES", FILLED: "FILLED", BOTH: "BOTH" };
 
@@ -25,14 +27,35 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const contourLines = (input: any, options = defaults) => {
+type ContourLinesOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const contourLines = (input: any, options: ContourLinesOptions = defaults) => {
   const { levels, lineWidth, lineColor, fillMode, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && contourLinesGLAvailable()) {
+    const fillInt = fillMode === FILL_MODE.LINES ? 0 : fillMode === FILL_MODE.FILLED ? 1 : 2;
+    const rendered = renderContourLinesGL(
+      input, W, H,
+      levels, lineWidth,
+      [lineColor[0], lineColor[1], lineColor[2]],
+      fillInt as ContourFillMode,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Contour Lines", "WebGL2", `levels=${levels} lw=${lineWidth}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const edgeAlpha = Math.min(1, Math.max(0.1, lineWidth));

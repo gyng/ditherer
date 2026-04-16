@@ -1,7 +1,9 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, rgba, srgbPaletteGetColor, fillBufferPixel } from "utils";
+import { cloneCanvas, getBufferIndex, rgba, srgbPaletteGetColor, fillBufferPixel, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { paletteIsIdentity } from "palettes/backend";
+import { crossStitchGLAvailable, renderCrossStitchGL } from "./crossStitchGL";
 
 const THREAD = {
   SOURCE: "SOURCE",
@@ -32,15 +34,39 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const crossStitch = (input: any, options = defaults) => {
+type CrossStitchOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const crossStitch = (input: any, options: CrossStitchOptions = defaults) => {
   const { stitchSize, threadColor, fabricColor, gapBetween, palette } = options;
+  const W = input.width;
+  const H = input.height;
+
+  // GL path is safe when palette is identity (palette pass is a noop). In
+  // PALETTE thread mode with a non-identity palette the JS applies the
+  // palette to thread pixels only — a post-readout palette pass would
+  // also recolour the fabric, which differs from the reference, so we
+  // fall back to JS in that case.
+  const identity = paletteIsIdentity(palette);
+  const glSafe = identity || threadColor === THREAD.SOURCE;
+
+  if (options._webglAcceleration !== false && glSafe && crossStitchGLAvailable()) {
+    const rendered = renderCrossStitchGL(
+      input, W, H,
+      stitchSize, gapBetween,
+      [fabricColor[0], fabricColor[1], fabricColor[2]],
+      threadColor === THREAD.PALETTE,
+    );
+    if (rendered) {
+      logFilterBackend("Cross Stitch", "WebGL2", `size=${stitchSize} mode=${threadColor}`);
+      return rendered;
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
