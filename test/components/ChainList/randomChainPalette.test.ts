@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { filterList } from "filters";
-import { createRandomFilterEntry } from "components/ChainList";
+import { createRandomFilterEntry } from "components/ChainList/randomize";
 
 describe("ChainList random palette selection", () => {
   afterEach(() => {
