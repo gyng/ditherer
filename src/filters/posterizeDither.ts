@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { posterizeDitherGLAvailable, renderPosterizeDitherGL } from "./posterizeDitherGL";
 
 const MATRIX_SIZE = { "2x2": "2x2", "4x4": "4x4", "8x8": "8x8" };
 
@@ -71,9 +74,11 @@ export const defaults = {
 
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
+type PosterizeDitherOptions = typeof defaults & { _webglAcceleration?: boolean };
+
 const posterizeDither = (
   input: any,
-  options = defaults
+  options: PosterizeDitherOptions = defaults
 ) => {
   const {
     levelsR,
@@ -83,17 +88,30 @@ const posterizeDither = (
     palette
   } = options;
 
+  const W = input.width;
+  const H = input.height;
+  const { matrix, n } = getBayerMatrix(matrixSize);
+
+  if (options._webglAcceleration !== false && posterizeDitherGLAvailable()) {
+    const rendered = renderPosterizeDitherGL(input, W, H, matrix, n, levelsR, levelsG, levelsB);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Posterize Dither", "WebGL2", `matrix=${matrixSize}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const { matrix, n } = getBayerMatrix(matrixSize);
   const maxVal = n * n;
 
   for (let y = 0; y < H; y++) {

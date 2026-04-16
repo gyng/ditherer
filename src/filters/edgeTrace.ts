@@ -7,9 +7,12 @@ import {
   rgba,
   paletteGetColor,
   clamp,
+  logFilterBackend,
 } from "utils";
 import { computeLuminance, sobelEdges } from "utils/edges";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { edgeTraceGLAvailable, renderEdgeTraceGL } from "./edgeTraceGL";
 
 const RENDER_MODE = {
   SOLID: "SOLID",
@@ -44,9 +47,11 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+type EdgeTraceOptions = typeof defaults & { _webglAcceleration?: boolean };
+
 const edgeTrace = (
   input: any,
-  options = defaults
+  options: EdgeTraceOptions = defaults
 ) => {
   const {
     threshold,
@@ -58,13 +63,32 @@ const edgeTrace = (
     palette
   } = options;
 
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && edgeTraceGLAvailable()) {
+    const rendered = renderEdgeTraceGL(
+      input, W, H,
+      threshold, lineWidth,
+      [lineColor[0], lineColor[1], lineColor[2]],
+      [bgColor[0], bgColor[1], bgColor[2]],
+      renderMode === RENDER_MODE.OVERLAY, overlayMix,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Edge Trace", "WebGL2", `threshold=${threshold} mode=${renderMode}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
   const edgeAlpha = Math.min(1, Math.max(0.1, lineWidth));

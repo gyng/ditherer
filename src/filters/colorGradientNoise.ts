@@ -6,8 +6,11 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { colorGradientNoiseGLAvailable, renderColorGradientNoiseGL } from "./colorGradientNoiseGL";
 
 // Simple Perlin-like noise using a hash-based gradient approach
 const fade = (t: number): number => t * t * t * (t * (t * 6 - 15) + 10);
@@ -75,9 +78,11 @@ export const defaults = {
 
 const clamp = (v: number): number => Math.max(0, Math.min(255, v));
 
+type ColorGradientNoiseOptions = typeof defaults & { _webglAcceleration?: boolean };
+
 const colorGradientNoise = (
   input: any,
-  options = defaults
+  options: ColorGradientNoiseOptions = defaults
 ) => {
   const {
     scale,
@@ -88,13 +93,31 @@ const colorGradientNoise = (
     palette
   } = options;
 
+  const W = input.width;
+  const H = input.height;
+
+  if (options._webglAcceleration !== false && colorGradientNoiseGLAvailable()) {
+    const rendered = renderColorGradientNoiseGL(
+      input, W, H, scale,
+      [color1[0], color1[1], color1[2]],
+      [color2[0], color2[1], color2[2]],
+      mix, seed,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Color Gradient Noise", "WebGL2", `scale=${scale} mix=${mix}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 

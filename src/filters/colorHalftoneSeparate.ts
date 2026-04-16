@@ -1,7 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { colorHalftoneSeparateGLAvailable, renderColorHalftoneSeparateGL } from "./colorHalftoneSeparateGL";
 
 export const optionTypes = {
   dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, desc: "Halftone dot diameter" },
@@ -19,14 +21,29 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const colorHalftoneSeparate = (input: any, options = defaults) => {
+type ColorHalftoneSeparateOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const colorHalftoneSeparate = (input: any, options: ColorHalftoneSeparateOptions = defaults) => {
   const { dotSize, offsetR, offsetG, offsetB, palette } = options;
+  const W = input.width, H = input.height;
+
+  if (options._webglAcceleration !== false && colorHalftoneSeparateGLAvailable()) {
+    const rendered = renderColorHalftoneSeparateGL(input, W, H, dotSize, offsetR, offsetG, offsetB);
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      if (out) {
+        logFilterBackend("Color Halftone Separate", "WebGL2", `dotSize=${dotSize}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
+
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
