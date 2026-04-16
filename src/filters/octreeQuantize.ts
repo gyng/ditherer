@@ -211,5 +211,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Adaptive palette reduction using octree subdivision, with a different bias than median-cut"
+  description: "Adaptive palette reduction using octree subdivision, with a different bias than median-cut",
+  noWASM: "Builds an octree by incrementally inserting every pixel and walking the reducible-node list — pointer-chasing across a shared tree is the inverse of what SIMD or threads accelerate.",
+  noGL: "Octree construction is a serial insertion algorithm with a shared mutable tree; fragment shaders can't express it even with atomics.",
 });

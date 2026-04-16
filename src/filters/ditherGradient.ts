@@ -1,7 +1,28 @@
 import { RANGE, COLOR, PALETTE, ENUM } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+  logFilterBackend,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 const BAYER_4X4 = [
   [0, 8, 2, 10],
@@ -47,6 +68,98 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
+const STYLE_ID: Record<string, number> = { PRINT: 0, DREAMY: 1 };
+
+const DITHER_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2  u_res;
+uniform vec3  u_color1;
+uniform vec3  u_color2;
+uniform float u_cosA;
+uniform float u_sinA;
+uniform float u_minProj;
+uniform float u_range;
+uniform int   u_style;        // 0 PRINT, 1 DREAMY
+uniform float u_amount;
+uniform float u_sourceInfluence;
+uniform float u_detailInfluence;
+uniform float u_sourceColorMix;
+
+const float BAYER[16] = float[16](
+  0.0,  8.0,  2.0, 10.0,
+  12.0, 4.0, 14.0,  6.0,
+  3.0, 11.0,  1.0,  9.0,
+  15.0, 7.0, 13.0,  5.0
+);
+
+float lum(vec3 c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+  vec2 onePx = 1.0 / u_res;
+  vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+
+  vec3 srcRGB = texture(u_source, suv).rgb;
+  float srcLuma = lum(srcRGB);
+
+  vec3 l = texture(u_source, suv - vec2(onePx.x, 0.0)).rgb;
+  vec3 r = texture(u_source, suv + vec2(onePx.x, 0.0)).rgb;
+  vec3 d = texture(u_source, suv - vec2(0.0, onePx.y)).rgb;
+  vec3 t = texture(u_source, suv + vec2(0.0, onePx.y)).rgb;
+  float neighborAvg = (lum(l) + lum(r) + lum(d) + lum(t)) * 0.25;
+  float edge = clamp(abs(srcLuma - neighborAvg) * 3.0, 0.0, 1.0);
+
+  float proj = x * u_cosA + y * u_sinA;
+  float baseT = (proj - u_minProj) / u_range;
+  float warpedT = u_style == 0
+    ? clamp(baseT * (1.0 - u_sourceInfluence) + srcLuma * u_sourceInfluence, 0.0, 1.0)
+    : clamp(baseT * (1.0 - u_sourceInfluence * 0.65) + srcLuma * u_sourceInfluence * 0.65 + edge * 0.12, 0.0, 1.0);
+
+  vec3 rgb = mix(u_color1, u_color2, warpedT);
+
+  if (u_style == 1) {
+    float tintMix = u_sourceColorMix * (0.55 + edge * 0.45);
+    float haze = 0.12 + u_sourceInfluence * 0.1;
+    vec3 src255 = srcRGB * 255.0;
+    rgb = rgb * (1.0 - tintMix) + src255 * tintMix
+        + vec3(255.0 * haze * 0.35, 255.0 * haze * 0.22, 255.0 * haze * 0.5);
+  } else {
+    float contrast = 1.15 + edge * u_detailInfluence * 1.4;
+    rgb = (rgb - 127.5) * contrast + 127.5;
+  }
+
+  int bx = int(mod(x, 4.0));
+  int by = int(mod(y, 4.0));
+  float threshold = (BAYER[by * 4 + bx] + 0.5) / 16.0 - 0.5;
+  float ditherBias = u_style == 0
+    ? threshold * 255.0 * u_amount * (1.0 + edge * u_detailInfluence * 2.0)
+    : threshold * 255.0 * u_amount * (0.55 + edge * u_detailInfluence);
+
+  rgb = clamp(rgb + ditherBias, 0.0, 255.0) / 255.0;
+  fragColor = vec4(rgb, 1.0);
+}
+`;
+
+type Cache = { dither: Program };
+let _cache: Cache | null = null;
+const initCache = (gl: WebGL2RenderingContext): Cache => {
+  if (_cache) return _cache;
+  _cache = {
+    dither: linkProgram(gl, DITHER_FS, [
+      "u_source", "u_res", "u_color1", "u_color2", "u_cosA", "u_sinA",
+      "u_minProj", "u_range", "u_style", "u_amount", "u_sourceInfluence",
+      "u_detailInfluence", "u_sourceColorMix",
+    ] as const),
+  };
+  return _cache;
+};
+
 const ditherGradient = (input: any, options: any = defaults) => {
   const {
     color1,
@@ -59,19 +172,10 @@ const ditherGradient = (input: any, options: any = defaults) => {
     sourceColorMix = defaults.sourceColorMix,
     palette,
   } = options;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
   const W = input.width, H = input.height;
-  const src = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(W * H * 4);
 
   const rad = (angle * Math.PI) / 180;
   const cosA = Math.cos(rad), sinA = Math.sin(rad);
-
-  // Find max projection for normalization
   const corners = [[0, 0], [W, 0], [0, H], [W, H]];
   let minProj = Infinity, maxProj = -Infinity;
   for (const [cx, cy] of corners) {
@@ -80,6 +184,56 @@ const ditherGradient = (input: any, options: any = defaults) => {
     if (proj > maxProj) maxProj = proj;
   }
   const range = maxProj - minProj || 1;
+
+  if (glAvailable() && (options._webglAcceleration) !== false) {
+    const ctx = getGLCtx();
+    if (ctx) {
+      const { gl, canvas } = ctx;
+      const cache = initCache(gl);
+      const vao = getQuadVAO(gl);
+      resizeGLCanvas(canvas, W, H);
+      const sourceTex = ensureTexture(gl, "ditherGradient:source", W, H);
+      uploadSourceTexture(gl, sourceTex, input);
+
+      drawPass(gl, null, W, H, cache.dither, () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.dither.uniforms.u_source, 0);
+        gl.uniform2f(cache.dither.uniforms.u_res, W, H);
+        gl.uniform3f(cache.dither.uniforms.u_color1, color1[0], color1[1], color1[2]);
+        gl.uniform3f(cache.dither.uniforms.u_color2, color2[0], color2[1], color2[2]);
+        gl.uniform1f(cache.dither.uniforms.u_cosA, cosA);
+        gl.uniform1f(cache.dither.uniforms.u_sinA, sinA);
+        gl.uniform1f(cache.dither.uniforms.u_minProj, minProj);
+        gl.uniform1f(cache.dither.uniforms.u_range, range);
+        gl.uniform1i(cache.dither.uniforms.u_style, STYLE_ID[style] ?? 0);
+        gl.uniform1f(cache.dither.uniforms.u_amount, amount);
+        gl.uniform1f(cache.dither.uniforms.u_sourceInfluence, sourceInfluence);
+        gl.uniform1f(cache.dither.uniforms.u_detailInfluence, detailInfluence);
+        gl.uniform1f(cache.dither.uniforms.u_sourceColorMix, sourceColorMix);
+      }, vao);
+
+      const rendered = readoutToCanvas(canvas, W, H);
+      if (rendered) {
+        const identity = paletteIsIdentity(palette);
+        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Dither Gradient", "WebGL2",
+            `${style}${identity ? "" : "+palettePass"}`);
+          return out;
+        }
+      }
+    }
+  }
+
+  logFilterWasmStatus("Dither Gradient", false, "fallback JS");
+  const output = cloneCanvas(input, false);
+  const inputCtx = input.getContext("2d");
+  const outputCtx = output.getContext("2d");
+  if (!inputCtx || !outputCtx) return input;
+
+  const src = inputCtx.getImageData(0, 0, W, H).data;
+  const outBuf = new Uint8ClampedArray(W * H * 4);
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

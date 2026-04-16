@@ -6,8 +6,23 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
+  logFilterWasmStatus,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 export const optionTypes = {
   noiseAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Intensity of per-pixel random static noise" },
@@ -65,6 +80,126 @@ type AnalogStaticOptions = FilterOptionValues & {
   } & Record<string, unknown>;
   _frameIndex?: number;
   _prevOutput?: Uint8ClampedArray | null;
+  _webglAcceleration?: boolean;
+};
+
+// Shader replicates the JS per-row bar noise (one random value per bar,
+// shared across all pixels in that bar) and the per-pixel static noise,
+// both seeded from frameIndex so the visual matches the JS path frame to
+// frame. Ghosting samples a horizontally-shifted copy; persistence blends
+// with the previous output texture.
+const AS_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform sampler2D u_prev;
+uniform vec2  u_res;
+uniform int   u_hasPrev;
+uniform float u_noiseAmount;
+uniform float u_barHeight;
+uniform float u_barIntensity;
+uniform int   u_vShift;
+uniform float u_ghosting;
+uniform int   u_color;
+uniform float u_persistence;
+uniform float u_seed;
+uniform float u_frameIndex;
+uniform float u_levels;
+
+float hash(vec2 p, float s) {
+  p = fract(p * vec2(443.897, 441.423) + s);
+  p += dot(p, p.yx + 19.19);
+  return fract((p.x + p.y) * p.x);
+}
+
+vec3 samplePx(float sx, float sy) {
+  float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
+  float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
+  vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
+  return texture(u_source, uv).rgb;
+}
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+
+  float srcY = mod(y - float(u_vShift), u_res.y);
+  if (srcY < 0.0) srcY += u_res.y;
+
+  vec3 c = samplePx(x, srcY);
+
+  if (u_ghosting > 0.0) {
+    float ghostX = clamp(x - 3.0, 0.0, u_res.x - 1.0);
+    float gr = samplePx(ghostX, srcY).r;   // JS uses the R channel for all three (copy of buf[gi])
+    float mix1 = u_ghosting * 0.5;
+    c = c * (1.0 - mix1) + vec3(gr) * mix1;
+  }
+
+  float barY = floor(y / max(u_barHeight, 1.0));
+  float barR = hash(vec2(barY, 0.0), u_seed + u_frameIndex * 31.0);
+  float bar = (barR - 0.5) * 2.0 * u_barIntensity;
+  c += vec3(bar);
+
+  if (u_noiseAmount > 0.0) {
+    if (u_color == 1) {
+      float nr = (hash(vec2(x, y), u_seed + 1.0) - 0.5) * u_noiseAmount * 2.0;
+      float ng = (hash(vec2(x, y), u_seed + 2.0) - 0.5) * u_noiseAmount * 2.0;
+      float nb = (hash(vec2(x, y), u_seed + 3.0) - 0.5) * u_noiseAmount * 2.0;
+      c += vec3(nr, ng, nb);
+    } else {
+      float n = (hash(vec2(x, y), u_seed) - 0.5) * u_noiseAmount * 2.0;
+      c += vec3(n);
+    }
+  }
+
+  vec3 rgb = clamp(c, 0.0, 1.0);
+
+  if (u_persistence > 0.0 && u_hasPrev == 1) {
+    vec4 prev = texture(u_prev, vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y));
+    rgb = rgb * (1.0 - u_persistence) + prev.rgb * u_persistence;
+  }
+
+  if (u_levels > 1.5) {
+    float q = u_levels - 1.0;
+    rgb = floor(rgb * q + 0.5) / q;
+  }
+  fragColor = vec4(rgb, 1.0);
+}
+`;
+
+type Cache = { prog: Program; prevTex: WebGLTexture | null; prevBuf: Uint8ClampedArray | null; w: number; h: number };
+let _cache: Cache | null = null;
+const initCache = (gl: WebGL2RenderingContext): Cache => {
+  if (_cache) return _cache;
+  const prog = linkProgram(gl, AS_FS, [
+    "u_source", "u_prev", "u_res", "u_hasPrev",
+    "u_noiseAmount", "u_barHeight", "u_barIntensity",
+    "u_vShift", "u_ghosting", "u_color", "u_persistence",
+    "u_seed", "u_frameIndex", "u_levels",
+  ] as const);
+  _cache = { prog, prevTex: null, prevBuf: null, w: 0, h: 0 };
+  return _cache;
+};
+
+const ensurePrevTex = (gl: WebGL2RenderingContext, cache: Cache, w: number, h: number) => {
+  if (cache.prevTex && cache.w === w && cache.h === h) return cache.prevTex;
+  if (cache.prevTex) gl.deleteTexture(cache.prevTex);
+  const tex = gl.createTexture();
+  if (!tex) return null;
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  cache.prevTex = tex;
+  cache.prevBuf = null;
+  cache.w = w;
+  cache.h = h;
+  return tex;
 };
 
 const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
@@ -79,26 +214,82 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
   const frameIndex = Number(options._frameIndex ?? 0);
   const prevOutput = options._prevOutput ?? null;
 
+  const W = input.width;
+  const H = input.height;
+  const vShift = Math.round(verticalHold * Math.sin(frameIndex * 0.3));
+
+  if (glAvailable() && options._webglAcceleration !== false) {
+    const ctx = getGLCtx();
+    if (ctx) {
+      const { gl, canvas } = ctx;
+      const cache = initCache(gl);
+      const vao = getQuadVAO(gl);
+      resizeGLCanvas(canvas, W, H);
+      const sourceTex = ensureTexture(gl, "analogStatic:source", W, H);
+      uploadSourceTexture(gl, sourceTex, input);
+
+      const prevTex = ensurePrevTex(gl, cache, W, H);
+      const hasPrev = !!(prevOutput && prevTex && prevOutput.length === W * H * 4);
+      if (hasPrev && prevTex && prevOutput) {
+        if (!cache.prevBuf || cache.prevBuf.length !== prevOutput.length) {
+          cache.prevBuf = new Uint8ClampedArray(prevOutput.length);
+        }
+        cache.prevBuf.set(prevOutput);
+        gl.bindTexture(gl.TEXTURE_2D, prevTex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, cache.prevBuf);
+      }
+
+      drawPass(gl, null, W, H, cache.prog, () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.prog.uniforms.u_source, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, prevTex);
+        gl.uniform1i(cache.prog.uniforms.u_prev, 1);
+        gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+        gl.uniform1i(cache.prog.uniforms.u_hasPrev, hasPrev ? 1 : 0);
+        gl.uniform1f(cache.prog.uniforms.u_noiseAmount, noiseAmount);
+        gl.uniform1f(cache.prog.uniforms.u_barHeight, Math.max(1, barHeight));
+        gl.uniform1f(cache.prog.uniforms.u_barIntensity, barIntensity);
+        gl.uniform1i(cache.prog.uniforms.u_vShift, vShift);
+        gl.uniform1f(cache.prog.uniforms.u_ghosting, ghosting);
+        gl.uniform1i(cache.prog.uniforms.u_color, colorNoise ? 1 : 0);
+        gl.uniform1f(cache.prog.uniforms.u_persistence, persistence);
+        gl.uniform1f(cache.prog.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
+        gl.uniform1f(cache.prog.uniforms.u_frameIndex, frameIndex);
+        const identity = paletteIsIdentity(palette);
+        const pOpts = (palette as { options?: { levels?: number } }).options;
+        gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+      }, vao);
+
+      const rendered = readoutToCanvas(canvas, W, H);
+      if (rendered) {
+        const identity = paletteIsIdentity(palette);
+        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Analog Static", "WebGL2",
+            `noise=${noiseAmount}${identity ? "" : "+palettePass"}`);
+          return out;
+        }
+      }
+    }
+  }
+
+  logFilterWasmStatus("Analog Static", false, "fallback JS");
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
-  // Vertical hold: shift entire image
-  const vShift = Math.round(verticalHold * Math.sin(frameIndex * 0.3));
-
-  // Generate horizontal noise bars
   const barNoise = new Float32Array(H);
   for (let y = 0; y < H; y++) {
     const barY = Math.floor(y / barHeight);
-    // Each bar has a consistent brightness
     const barRng = mulberry32(barY * 997 + frameIndex * 31);
     barNoise[y] = (barRng() - 0.5) * 2 * barIntensity;
   }
@@ -110,12 +301,10 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
       const si = getBufferIndex(x, srcY, W);
       const di = getBufferIndex(x, y, W);
 
-      // Start with source pixel (with vertical hold shift)
       let r = buf[si];
       let g = buf[si + 1];
       let b = buf[si + 2];
 
-      // Mix with ghosting (previous frame via prevOutput or shifted copy)
       if (ghosting > 0) {
         const ghostX = Math.max(0, Math.min(W - 1, x - 3));
         const gi = getBufferIndex(ghostX, srcY, W);
@@ -124,13 +313,11 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
         b = Math.round(b * (1 - ghosting * 0.5) + buf[gi] * ghosting * 0.5);
       }
 
-      // Horizontal bar noise
       const bar = barNoise[y] * 255;
       r = Math.max(0, Math.min(255, Math.round(r + bar)));
       g = Math.max(0, Math.min(255, Math.round(g + bar)));
       b = Math.max(0, Math.min(255, Math.round(b + bar)));
 
-      // Per-pixel static noise
       if (noiseAmount > 0) {
         if (colorNoise) {
           r = Math.max(0, Math.min(255, Math.round(r + (rng() - 0.5) * noiseAmount * 510)));
@@ -149,7 +336,6 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
     }
   }
 
-  // Temporal persistence: blend with previous frame's output for lingering noise
   if (persistence > 0 && prevOutput && prevOutput.length === outBuf.length) {
     const keep = persistence;
     const fresh = 1 - keep;

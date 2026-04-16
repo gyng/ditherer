@@ -63,7 +63,7 @@ const lensDistortion = (input: any, options: typeof defaults & { _wasmAccelerati
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Lens Distortion", "WebGL2", `k1=${k1} k2=${k2} zoom=${zoom}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend("Lens distortion", "WebGL2", `k1=${k1} k2=${k2} zoom=${zoom}${isNearest ? "" : "+palettePass"}`);
         return out;
       }
     }

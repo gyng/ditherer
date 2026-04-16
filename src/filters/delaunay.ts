@@ -185,4 +185,12 @@ const delaunay = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Delaunay", func: delaunay, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Delaunay",
+  func: delaunay,
+  optionTypes,
+  options: defaults,
+  defaults,
+  noWASM: "Bowyer-Watson triangulation is an incremental pointer-chasing algorithm with per-insertion work dominated by bad-triangle searches — no parallelism to unlock.",
+  noGL: "Triangulation is irreducibly sequential; even rendering the per-triangle fills from CPU-computed triangles would be dwarfed by the triangulation itself.",
+});

@@ -582,15 +582,21 @@ const filterReducer = (
     case SET_FILTER_PALETTE_OPTION: {
       const ci = action.chainIndex ?? state.activeIndex;
       const entry = state.chain[ci];
-      const paletteState = getPaletteState(entry?.filter?.options?.palette);
-      if (!paletteState) {
+      const currentPalette = entry?.filter?.options?.palette;
+      if (!getPaletteState(currentPalette)) {
         console.warn("Tried to set option on null palette", state);
         return state;
       }
+      // Preserve the full palette object (optionTypes, getColor, etc.) —
+      // getPaletteState() strips everything except {name, options}, which
+      // broke the nested Palette <Controls> rendering because
+      // `props.value.optionTypes` became undefined and the inner Controls
+      // fell back to the owning filter's optionTypes (manifesting as the
+      // filter's own sliders appearing duplicated inside the palette).
       const chain = updateChainEntryOptions(state.chain, ci, opts => ({
         ...opts,
         palette: {
-          ...paletteState,
+          ...(currentPalette as Record<string, unknown>),
           options: {
             ...getPaletteOptionMap(opts?.palette),
             [action.optionName]: action.value,
@@ -602,15 +608,15 @@ const filterReducer = (
     case ADD_PALETTE_COLOR: {
       const ci = action.chainIndex ?? state.activeIndex;
       const entry = state.chain[ci];
-      const paletteState = getPaletteState(entry?.filter?.options?.palette);
-      if (!paletteState) {
+      const currentPalette = entry?.filter?.options?.palette;
+      if (!getPaletteState(currentPalette)) {
         console.warn("Tried to add color to null palette", state);
         return state;
       }
       const chain = updateChainEntryOptions(state.chain, ci, opts => ({
         ...opts,
         palette: {
-          ...paletteState,
+          ...(currentPalette as Record<string, unknown>),
           options: {
             ...getPaletteOptionMap(opts?.palette),
             colors: [...getPaletteColors(getPaletteState(opts?.palette)), action.color],

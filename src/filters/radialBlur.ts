@@ -6,8 +6,23 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
+  logFilterWasmStatus,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 export const optionTypes = {
   strength: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Blur intensity — increases with distance from center" },
@@ -23,47 +38,143 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+const BLUR_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2  u_res;
+uniform vec2  u_center;
+uniform float u_strength;
+uniform float u_maxDist;
+uniform int   u_samples;
+uniform float u_levels;
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+  vec2 d = vec2(x, y) - u_center;
+  float dist = length(d);
+  float blurDist = (dist / u_maxDist) * u_strength;
+
+  vec3 rgb;
+  float a;
+  if (blurDist < 0.5) {
+    vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+    vec4 c = texture(u_source, suv);
+    rgb = c.rgb; a = c.a;
+  } else {
+    vec4 accum = vec4(0.0);
+    int n = u_samples;
+    for (int t = 0; t < 64; t++) {
+      if (t >= n) break;
+      float frac = (float(t) / float(n - 1) - 0.5) * 2.0;
+      float scale = 1.0 + frac * (blurDist / u_maxDist);
+      vec2 s = u_center + d * scale;
+      s = clamp(floor(s + 0.5), vec2(0.0), u_res - vec2(1.0));
+      vec2 suv = vec2((s.x + 0.5) / u_res.x, 1.0 - (s.y + 0.5) / u_res.y);
+      accum += texture(u_source, suv);
+    }
+    accum /= float(n);
+    rgb = accum.rgb; a = accum.a;
+  }
+  if (u_levels > 1.5) {
+    float q = u_levels - 1.0;
+    rgb = floor(rgb * q + 0.5) / q;
+  }
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), a);
+}
+`;
+
+type Cache = { blur: Program };
+let _cache: Cache | null = null;
+const initCache = (gl: WebGL2RenderingContext): Cache => {
+  if (_cache) return _cache;
+  _cache = {
+    blur: linkProgram(gl, BLUR_FS, [
+      "u_source", "u_res", "u_center", "u_strength",
+      "u_maxDist", "u_samples", "u_levels",
+    ] as const),
+  };
+  return _cache;
+};
+
 const radialBlurFilter = (input: any, options = defaults) => {
   const { strength, centerX, centerY, palette } = options;
+  const W = input.width;
+  const H = input.height;
+  const cx = W * centerX;
+  const cy = H * centerY;
+  const maxDist = Math.sqrt(W * W + H * H) / 2;
+  const samples = Math.max(3, Math.min(64, Math.round(strength)));
 
+  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+    const ctx = getGLCtx();
+    if (ctx) {
+      const { gl, canvas } = ctx;
+      const cache = initCache(gl);
+      const vao = getQuadVAO(gl);
+      resizeGLCanvas(canvas, W, H);
+      const sourceTex = ensureTexture(gl, "radialBlur:source", W, H);
+      uploadSourceTexture(gl, sourceTex, input);
+
+      drawPass(gl, null, W, H, cache.blur, () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.blur.uniforms.u_source, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+        gl.uniform2f(cache.blur.uniforms.u_center, cx, cy);
+        gl.uniform1f(cache.blur.uniforms.u_strength, strength);
+        gl.uniform1f(cache.blur.uniforms.u_maxDist, maxDist);
+        gl.uniform1i(cache.blur.uniforms.u_samples, samples);
+        const identity = paletteIsIdentity(palette);
+        const pOpts = (palette as { options?: { levels?: number } }).options;
+        gl.uniform1f(cache.blur.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+      }, vao);
+
+      const rendered = readoutToCanvas(canvas, W, H);
+      if (rendered) {
+        const identity = paletteIsIdentity(palette);
+        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Radial Blur", "WebGL2",
+            `strength=${strength}${identity ? "" : "+palettePass"}`);
+          return out;
+        }
+      }
+    }
+  }
+
+  logFilterWasmStatus("Radial Blur", false, "fallback JS");
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-
-  const cx = W * centerX;
-  const cy = H * centerY;
-  const maxDist = Math.sqrt(W * W + H * H) / 2;
-  const samples = Math.max(3, strength);
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const dx = x - cx;
       const dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
-
-      // Blur amount scales with distance from center
       const blurDist = (dist / maxDist) * strength;
 
       if (blurDist < 0.5) {
-        // Near center: no blur
         const i = getBufferIndex(x, y, W);
         const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options, false);
         fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
         continue;
       }
 
-      // Sample along the line from center through this pixel
       let sr = 0, sg = 0, sb = 0, sa = 0;
       let count = 0;
 
       for (let t = 0; t < samples; t++) {
-        const frac = (t / (samples - 1) - 0.5) * 2; // -1 to 1
+        const frac = (t / (samples - 1) - 0.5) * 2;
         const scale = 1 + frac * (blurDist / maxDist);
         const sx = Math.round(cx + dx * scale);
         const sy = Math.round(cy + dy * scale);

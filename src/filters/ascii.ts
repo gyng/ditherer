@@ -193,5 +193,7 @@ export default defineFilter({
   func: ascii,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  noWASM: "Uses 2D canvas fillText for glyph rasterization — no WASM equivalent, browser text rendering is already native-accelerated.",
+  noGL: "Arbitrary-charset text rasterization per cell needs a glyph atlas per charset and CPU-driven layout; not a fragment-shader problem.",
 });

@@ -1,7 +1,25 @@
 import { BOOL, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, paletteGetColor } from "utils";
+import {
+  cloneCanvas,
+  paletteGetColor,
+  logFilterBackend,
+  logFilterWasmStatus,
+} from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 export const optionTypes = {
   sigmaSpatial: { type: RANGE, range: [1, 20], step: 1, default: 5, desc: "Spatial kernel size — larger blurs over a wider area" },
@@ -305,6 +323,71 @@ const upscaleBuffer = (buf: Uint8ClampedArray, width: number, height: number, ou
   return outBuf;
 };
 
+// GPU full-2D bilateral — the JS path has separable/downsample shortcuts
+// to stay interactive on CPU, but the GPU can afford the full cross
+// product so we always do the exact kernel here.
+const BILATERAL_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2  u_res;
+uniform int   u_radius;        // clamped to 20 below
+uniform float u_spatialDenom;
+uniform float u_rangeDenom;
+uniform float u_levels;
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+  vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+  vec4 self = texture(u_source, suv);
+  vec3 c = self.rgb * 255.0;
+
+  vec4 sum = vec4(0.0);
+  float sw = 0.0;
+  for (int ky = -20; ky <= 20; ky++) {
+    if (ky < -u_radius || ky > u_radius) continue;
+    for (int kx = -20; kx <= 20; kx++) {
+      if (kx < -u_radius || kx > u_radius) continue;
+      float nx = clamp(x + float(kx), 0.0, u_res.x - 1.0);
+      float ny = clamp(y + float(ky), 0.0, u_res.y - 1.0);
+      vec2 nuv = vec2((nx + 0.5) / u_res.x, 1.0 - (ny + 0.5) / u_res.y);
+      vec4 n = texture(u_source, nuv);
+      vec3 nc = n.rgb * 255.0;
+      vec3 d = c - nc;
+      float distSq = dot(d, d);
+      float spatialW = exp(-(float(kx * kx + ky * ky)) / u_spatialDenom);
+      float rangeW = exp(-distSq / u_rangeDenom);
+      float w = spatialW * rangeW;
+      sum += vec4(nc, n.a * 255.0) * w;
+      sw += w;
+    }
+  }
+  vec4 out4 = sum / max(sw, 1e-6);
+  vec3 rgb = clamp(out4.rgb / 255.0, 0.0, 1.0);
+  if (u_levels > 1.5) {
+    float q = u_levels - 1.0;
+    rgb = floor(rgb * q + 0.5) / q;
+  }
+  fragColor = vec4(rgb, clamp(out4.a / 255.0, 0.0, 1.0));
+}
+`;
+
+type Cache = { bl: Program };
+let _cache: Cache | null = null;
+const initCache = (gl: WebGL2RenderingContext): Cache => {
+  if (_cache) return _cache;
+  _cache = {
+    bl: linkProgram(gl, BILATERAL_FS, [
+      "u_source", "u_res", "u_radius", "u_spatialDenom", "u_rangeDenom", "u_levels",
+    ] as const),
+  };
+  return _cache;
+};
+
 const bilateralBlur = (input: any, options = defaults) => {
   const {
     sigmaSpatial,
@@ -314,12 +397,55 @@ const bilateralBlur = (input: any, options = defaults) => {
     downsampleFactor,
     palette
   } = options;
+  const W = input.width, H = input.height;
+
+  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+    const ctx = getGLCtx();
+    if (ctx) {
+      const { gl, canvas } = ctx;
+      const cache = initCache(gl);
+      const vao = getQuadVAO(gl);
+      resizeGLCanvas(canvas, W, H);
+      const sourceTex = ensureTexture(gl, "bilateralBlur:source", W, H);
+      uploadSourceTexture(gl, sourceTex, input);
+
+      // GPU handles full 2D up to radius 20 in-shader; sigmaSpatial=20
+      // would mean radius=40 (ceil(2·σ)) on CPU, but at that point even
+      // GPU gets slow — cap for stable real-time behaviour.
+      const radius = Math.max(1, Math.min(20, Math.ceil(sigmaSpatial * 2)));
+
+      drawPass(gl, null, W, H, cache.bl, () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.bl.uniforms.u_source, 0);
+        gl.uniform2f(cache.bl.uniforms.u_res, W, H);
+        gl.uniform1i(cache.bl.uniforms.u_radius, radius);
+        gl.uniform1f(cache.bl.uniforms.u_spatialDenom, 2 * sigmaSpatial * sigmaSpatial);
+        gl.uniform1f(cache.bl.uniforms.u_rangeDenom, 2 * sigmaRange * sigmaRange);
+        const identity = paletteIsIdentity(palette);
+        const pOpts = (palette as { options?: { levels?: number } }).options;
+        gl.uniform1f(cache.bl.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+      }, vao);
+
+      const rendered = readoutToCanvas(canvas, W, H);
+      if (rendered) {
+        const identity = paletteIsIdentity(palette);
+        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Bilateral Blur", "WebGL2",
+            `σs=${sigmaSpatial} σr=${sigmaRange}${identity ? "" : "+palettePass"}`);
+          return out;
+        }
+      }
+    }
+  }
+
+  logFilterWasmStatus("Bilateral Blur", false, "fallback JS");
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const factor = useDownsample ? Math.max(1, Math.round(downsampleFactor)) : 1;
   const downsampled = factor > 1 ? downsampleBuffer(buf, W, H, factor) : { width: W, height: H, buf };

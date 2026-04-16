@@ -628,5 +628,7 @@ export default defineFilter({
   func: pixelsortFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  noWASM: "Segmenting scan-spans by luminance thresholds then sorting each run in place is inherently serial; the win from native code doesn't offset the call overhead for realistic span lengths.",
+  noGL: "Sorting a pixel run in place isn't a fragment-shader operation — would need bitonic sort per row in compute shaders, which WebGL2 doesn't provide.",
 });

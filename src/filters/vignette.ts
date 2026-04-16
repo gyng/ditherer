@@ -6,8 +6,23 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
+  logFilterWasmStatus,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 const SHAPE = { CIRCLE: "CIRCLE", ELLIPSE: "ELLIPSE" };
 
@@ -35,6 +50,59 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+const VIG_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2  u_res;
+uniform float u_strength;
+uniform float u_radius;
+uniform float u_softness;
+uniform int   u_shape;        // 0 CIRCLE, 1 ELLIPSE
+uniform float u_levels;
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+  vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+  vec4 c = texture(u_source, suv);
+
+  float dx = (x / u_res.x - 0.5) * 2.0;
+  float dy = (y / u_res.y - 0.5) * 2.0;
+  if (u_shape == 1) {
+    float aspect = u_res.x / u_res.y;
+    if (aspect > 1.0) dx /= aspect;
+    else dy *= aspect;
+  }
+  float dist = sqrt(dx * dx + dy * dy);
+  float vign = smoothstep(u_radius - u_softness, u_radius + u_softness, dist);
+  float factor = 1.0 - vign * u_strength;
+
+  vec3 rgb = clamp(c.rgb * factor, 0.0, 1.0);
+  if (u_levels > 1.5) {
+    float q = u_levels - 1.0;
+    rgb = floor(rgb * q + 0.5) / q;
+  }
+  fragColor = vec4(rgb, c.a);
+}
+`;
+
+type Cache = { vig: Program };
+let _cache: Cache | null = null;
+const initCache = (gl: WebGL2RenderingContext): Cache => {
+  if (_cache) return _cache;
+  _cache = {
+    vig: linkProgram(gl, VIG_FS, [
+      "u_source", "u_res", "u_strength", "u_radius",
+      "u_softness", "u_shape", "u_levels",
+    ] as const),
+  };
+  return _cache;
+};
+
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
@@ -42,14 +110,51 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
 
 const vignetteFilter = (input: any, options = defaults) => {
   const { strength, radius, softness, shape, palette } = options;
+  const W = input.width, H = input.height;
 
+  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+    const ctx = getGLCtx();
+    if (ctx) {
+      const { gl, canvas } = ctx;
+      const cache = initCache(gl);
+      const vao = getQuadVAO(gl);
+      resizeGLCanvas(canvas, W, H);
+      const sourceTex = ensureTexture(gl, "vignette:source", W, H);
+      uploadSourceTexture(gl, sourceTex, input);
+
+      drawPass(gl, null, W, H, cache.vig, () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.vig.uniforms.u_source, 0);
+        gl.uniform2f(cache.vig.uniforms.u_res, W, H);
+        gl.uniform1f(cache.vig.uniforms.u_strength, strength);
+        gl.uniform1f(cache.vig.uniforms.u_radius, radius);
+        gl.uniform1f(cache.vig.uniforms.u_softness, softness);
+        gl.uniform1i(cache.vig.uniforms.u_shape, shape === SHAPE.ELLIPSE ? 1 : 0);
+        const identity = paletteIsIdentity(palette);
+        const pOpts = (palette as { options?: { levels?: number } }).options;
+        gl.uniform1f(cache.vig.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+      }, vao);
+
+      const rendered = readoutToCanvas(canvas, W, H);
+      if (rendered) {
+        const identity = paletteIsIdentity(palette);
+        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Vignette", "WebGL2",
+            `${shape} s=${strength}${identity ? "" : "+palettePass"}`);
+          return out;
+        }
+      }
+    }
+  }
+
+  logFilterWasmStatus("Vignette", false, "fallback JS");
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
@@ -61,7 +166,6 @@ const vignetteFilter = (input: any, options = defaults) => {
       let dy = (y / H - 0.5) * 2;
 
       if (shape === SHAPE.ELLIPSE) {
-        // Correct for aspect ratio so vignette is elliptical
         const aspect = W / H;
         if (aspect > 1) dx /= aspect;
         else dy *= aspect;

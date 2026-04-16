@@ -1,7 +1,26 @@
 import { ENUM, BOOL, RANGE } from "constants/controlTypes";
-import { cloneCanvas, getBufferIndex, clamp } from "utils";
+import {
+  cloneCanvas,
+  getBufferIndex,
+  clamp,
+  logFilterBackend,
+  logFilterWasmStatus,
+} from "utils";
 import { applyJpegArtifactToCanvas, defaults as jpegDefaults } from "./jpegArtifact";
 import { defineFilter } from "filters/types";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+  type TexEntry,
+} from "gl";
 const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
 
 const QUALITY_FINE     = "FINE";
@@ -497,6 +516,446 @@ const applyDigicamFlashLighting = (
   }
 };
 
+// ===== GL pre/post color stages =====
+// Pre-JPEG shader: AWB → saturation → flash illum → scene mode → picture
+// effect → soul tone → chroma delay. Interlace + vertical soften handled by
+// separate passes since they depend on post-color-pipeline neighbours.
+const PRE_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2  u_res;
+uniform vec3  u_awb;          // (rMul, gMul, bMul)
+uniform int   u_fluorescent;  // 1 = add green flutter noise
+uniform float u_seed;
+
+uniform int   u_flash;
+uniform float u_flashPower;
+uniform float u_flashFalloff;
+uniform vec2  u_flashCenter;  // pixel coords
+uniform float u_flashMaxR;
+
+uniform int   u_sceneMode;    // 0 AUTO, 1 SOFT_PORTRAIT, 2 SPORTS, 3 BEACH_SKI, 4 SUNSET_MOON, 5 LANDSCAPE
+uniform int   u_fx;           // 0 NONE, 1 PASTEL, 2 NEG_ART, 3 SEPIA, 4 BW
+
+float hash2(vec2 p, float s) {
+  p = fract(p * vec2(443.897, 441.423) + s);
+  p += dot(p, p.yx + 19.19);
+  return fract((p.x + p.y) * p.x);
+}
+
+vec3 samplePx(float sx, float sy) {
+  float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
+  float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
+  vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
+  return texture(u_source, uv).rgb * 255.0;
+}
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+
+  // Chroma delay: R and B sampled from x-1, G from x.
+  vec3 self = samplePx(x, y);
+  vec3 shifted = samplePx(x - 1.0, y);
+  vec3 c = vec3(shifted.r, self.g, shifted.b);
+
+  // AWB
+  c *= u_awb;
+  if (u_fluorescent == 1) {
+    c.g += (hash2(vec2(x, y), u_seed + 7.0) - 0.5) * 8.0;
+  }
+
+  // Mild saturation (×1.06 around channel mean)
+  float grey = (c.r + c.g + c.b) / 3.0;
+  c = grey + (c - vec3(grey)) * 1.06;
+
+  // Flash illumination
+  if (u_flash == 1) {
+    float dx = x - u_flashCenter.x;
+    float dy = y - u_flashCenter.y;
+    float dist = sqrt(dx * dx + dy * dy) / u_flashMaxR;
+    float radial = clamp(1.0 - dist, 0.0, 1.0);
+    float illum = u_flashPower * pow(radial, u_flashFalloff);
+    float baseGain = 0.74 + illum * 1.35;
+    c.r = c.r * baseGain * 1.02;
+    c.g = c.g * baseGain;
+    c.b = c.b * baseGain * 0.98;
+    float lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+    float spec = pow(clamp((lum - 120.0) / 135.0, 0.0, 1.0), 2.0) * illum * 125.0;
+    c.r += spec;
+    c.g += spec;
+    c.b += spec * 0.95;
+  }
+
+  // Scene mode
+  if (u_sceneMode != 0) {
+    float lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+    if (u_sceneMode == 1) {              // SOFT_PORTRAIT
+      c.r = c.r * 1.04 + 6.0;
+      c.g = c.g * 1.01 + 3.0;
+      c.b = c.b * 0.98 + 1.0;
+      float t = lum / 255.0;
+      float lift = (0.18 - abs(t - 0.5)) * 24.0;
+      c += vec3(lift);
+    } else if (u_sceneMode == 2) {       // SPORTS
+      c = (c - vec3(128.0)) * 1.08 + vec3(128.0);
+    } else if (u_sceneMode == 3) {       // BEACH_SKI
+      float hp = lum > 210.0 ? 0.86 : 1.04;
+      c.r = c.r * hp * 0.98;
+      c.g = c.g * hp * 1.01;
+      c.b = c.b * hp * 1.08;
+    } else if (u_sceneMode == 4) {       // SUNSET_MOON
+      c.r = c.r * 1.12 + 6.0;
+      c.g = c.g * 0.98;
+      c.b = c.b * 0.86;
+      if (lum < 70.0) { c.r += 4.0; c.g += 2.0; }
+    } else if (u_sceneMode == 5) {       // LANDSCAPE
+      c = (c - vec3(128.0)) * 1.12 + vec3(128.0);
+      c.g *= 1.06;
+    }
+  }
+
+  // Picture effect
+  if (u_fx == 1) {                       // PASTEL
+    float lum = (c.r + c.g + c.b) / 3.0;
+    vec3 boosted = vec3(lum) + (c - vec3(lum)) * 1.18;
+    c = floor(boosted / 18.0 + 0.5) * 18.0;
+  } else if (u_fx == 2) {                // NEG_ART
+    c = vec3(255.0) - c;
+  } else if (u_fx == 3) {                // SEPIA
+    c = mat3(
+      0.393, 0.349, 0.272,
+      0.769, 0.686, 0.534,
+      0.189, 0.168, 0.131
+    ) * c;
+  } else if (u_fx == 4) {                // BW
+    float y2 = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+    c = vec3(y2);
+  }
+
+  // Soul tone: toe/shoulder
+  for (int k = 0; k < 3; k++) {
+    float v = c[k] / 255.0;
+    float toe = v < 0.08 ? v * 0.65 + 0.02 : v;
+    float shoulder = toe > 0.78 ? 0.78 + (toe - 0.78) * 0.58 : toe;
+    c[k] = clamp(shoulder * 255.0, 0.0, 255.0);
+  }
+
+  fragColor = vec4(c / 255.0, 1.0);
+}
+`;
+
+// Interlace shader: field vs frame capture mode. Reads from pre-color
+// output; samples the appropriate neighbour lines per row.
+const INTERLACE_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_input;
+uniform vec2  u_res;
+uniform int   u_captureField;   // 1 = FIELD mode, 0 = FRAME mode
+uniform float u_jitter;         // frame-mode jitter strength (0..3)
+uniform float u_seed;
+
+float hash2(vec2 p, float s) {
+  p = fract(p * vec2(443.897, 441.423) + s);
+  p += dot(p, p.yx + 19.19);
+  return fract((p.x + p.y) * p.x);
+}
+
+vec4 samplePx(float sx, float sy) {
+  float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
+  float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
+  vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
+  return texture(u_input, uv);
+}
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+  bool isOdd = mod(y, 2.0) > 0.5;
+
+  if (u_captureField == 1) {
+    // FIELD: odd rows become average of their even neighbours.
+    if (isOdd) {
+      vec4 a = samplePx(x, y - 1.0);
+      vec4 b = samplePx(x, min(u_res.y - 1.0, y + 1.0));
+      fragColor = vec4((a.rgb + b.rgb) * 0.5, 1.0);
+    } else {
+      fragColor = samplePx(x, y);
+    }
+  } else {
+    // FRAME: odd rows shifted by jitter (simulates second-field motion).
+    if (isOdd && u_jitter > 0.0) {
+      float sx = floor((hash2(vec2(y, 0.0), u_seed + 211.0) - 0.5) * 2.0 * u_jitter);
+      float sy = floor((hash2(vec2(y, 0.0), u_seed + 223.0) - 0.5) * u_jitter);
+      fragColor = samplePx(x + sx, y + sy);
+    } else {
+      fragColor = samplePx(x, y);
+    }
+  }
+}
+`;
+
+// Vertical soften (FIELD mode only): 3-tap vertical average with 22% mix.
+const SOFTEN_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_input;
+uniform vec2  u_res;
+uniform float u_amount;
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+  vec2 uv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+  vec4 mid = texture(u_input, uv);
+  if (y < 1.0 || y >= u_res.y - 1.0) {
+    fragColor = mid;
+    return;
+  }
+  vec2 uvUp = vec2((x + 0.5) / u_res.x, 1.0 - (y - 1.0 + 0.5) / u_res.y);
+  vec2 uvDn = vec2((x + 0.5) / u_res.x, 1.0 - (y + 1.0 + 0.5) / u_res.y);
+  vec3 avg = (texture(u_input, uvUp).rgb + texture(u_input, uvDn).rgb) * 0.5;
+  fragColor = vec4(mid.rgb * (1.0 - u_amount) + avg * u_amount, 1.0);
+}
+`;
+
+// Post-JPEG shader: CCD smear + shadow noise + hard highlight/shadow clip.
+// Smear scans ±25 vertical px for bright source pixels and brightens the
+// output toward white by a decay factor. Noise and clip are per-pixel.
+const POST_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_input;
+uniform vec2  u_res;
+uniform int   u_smear;
+uniform float u_smearThreshold;
+uniform int   u_flash;
+uniform float u_noiseRB;
+uniform float u_noiseG;
+uniform float u_shadowCut;
+uniform float u_clipPoint;
+uniform float u_seed;
+
+float hash2(vec2 p, float s) {
+  p = fract(p * vec2(443.897, 441.423) + s);
+  p += dot(p, p.yx + 19.19);
+  return fract((p.x + p.y) * p.x);
+}
+
+vec3 samplePx(float sx, float sy) {
+  float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
+  float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
+  vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
+  return texture(u_input, uv).rgb * 255.0;
+}
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+
+  vec3 c = samplePx(x, y);
+
+  // Smear: for each vertical offset d in ±25, look at the pixel at (x, y+d).
+  // If that pixel is above threshold, it projects a smear onto us whose
+  // strength is decay^1.5 times 0.85; blend toward white.
+  if (u_smear == 1) {
+    for (int d = 1; d <= 25; d++) {
+      for (int side = 0; side < 2; side++) {
+        float yy = side == 0 ? y - float(d) : y + float(d);
+        if (yy < 0.0 || yy >= u_res.y) continue;
+        vec3 bright = samplePx(x, yy);
+        float lum = 0.299 * bright.r + 0.587 * bright.g + 0.114 * bright.b;
+        if (lum <= u_smearThreshold) continue;
+        float decay = 1.0 - pow(float(d) / 25.0, 1.5);
+        float blend = decay * 0.85;
+        vec3 smeared = bright + (vec3(255.0) - bright) * blend;
+        c = max(c, smeared);
+      }
+    }
+  }
+
+  // Shadow noise
+  float lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  if (lum < u_shadowCut) {
+    float t = (u_shadowCut - lum) / u_shadowCut;
+    c.r += (hash2(vec2(x, y), u_seed + 73.0) - 0.5) * 2.0 * u_noiseRB * t;
+    c.g += (hash2(vec2(x, y), u_seed + 89.0) - 0.5) * 2.0 * u_noiseG  * t;
+    c.b += (hash2(vec2(x, y), u_seed + 97.0) - 0.5) * 2.0 * u_noiseRB * t;
+  }
+
+  // Hard highlight clip + shadow crush
+  c = vec3(
+    c.r > u_clipPoint ? 255.0 : c.r,
+    c.g > u_clipPoint ? 255.0 : c.g,
+    c.b > u_clipPoint ? 255.0 : c.b
+  );
+  float lum2 = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  if (lum2 < 8.0) c = vec3(0.0);
+
+  fragColor = vec4(clamp(c, 0.0, 255.0) / 255.0, 1.0);
+}
+`;
+
+type GLCache = { pre: Program; interlace: Program; soften: Program; post: Program };
+let _glCache: GLCache | null = null;
+const initGLCache = (gl: WebGL2RenderingContext): GLCache => {
+  if (_glCache) return _glCache;
+  _glCache = {
+    pre: linkProgram(gl, PRE_FS, [
+      "u_source", "u_res", "u_awb", "u_fluorescent", "u_seed",
+      "u_flash", "u_flashPower", "u_flashFalloff", "u_flashCenter", "u_flashMaxR",
+      "u_sceneMode", "u_fx",
+    ] as const),
+    interlace: linkProgram(gl, INTERLACE_FS, [
+      "u_input", "u_res", "u_captureField", "u_jitter", "u_seed",
+    ] as const),
+    soften: linkProgram(gl, SOFTEN_FS, ["u_input", "u_res", "u_amount"] as const),
+    post: linkProgram(gl, POST_FS, [
+      "u_input", "u_res", "u_smear", "u_smearThreshold", "u_flash",
+      "u_noiseRB", "u_noiseG", "u_shadowCut", "u_clipPoint", "u_seed",
+    ] as const),
+  };
+  return _glCache;
+};
+
+const SCENE_MODE_ID: Record<string, number> = {
+  [SCENE_AUTO]: 0, [SCENE_SOFT_PORTRAIT]: 1, [SCENE_SPORTS]: 2,
+  [SCENE_BEACH_SKI]: 3, [SCENE_SUNSET_MOON]: 4, [SCENE_LANDSCAPE]: 5,
+};
+const FX_ID: Record<string, number> = {
+  [FX_NONE]: 0, [FX_PASTEL]: 1, [FX_NEG_ART]: 2, [FX_SEPIA]: 3, [FX_BW]: 4,
+};
+
+const runGLPipeline = (
+  src: HTMLCanvasElement | OffscreenCanvas,
+  W: number, H: number,
+  awb: readonly [number, number, number],
+  fluorescent: boolean,
+  flashOn: boolean,
+  flashPower: number, flashFalloff: number,
+  flashOffsetX: number, flashOffsetY: number,
+  sceneMode: string, pictureEffect: string,
+  captureMode: string, frameJitter: number,
+  smear: boolean,
+  quality: string,
+  frameIndex: number,
+): HTMLCanvasElement | OffscreenCanvas | null => {
+  const ctx = getGLCtx();
+  if (!ctx) return null;
+  const { gl, canvas } = ctx;
+  const cache = initGLCache(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+
+  const sourceTex = ensureTexture(gl, "mavicaFd7:source", W, H);
+  uploadSourceTexture(gl, sourceTex, src);
+  const preTex: TexEntry = ensureTexture(gl, "mavicaFd7:pre", W, H);
+  const interlaceTex: TexEntry = ensureTexture(gl, "mavicaFd7:interlace", W, H);
+  const softenTex: TexEntry = ensureTexture(gl, "mavicaFd7:soften", W, H);
+
+  const seed = ((frameIndex * 7919 + 31337) % 1000000) * 0.001;
+
+  // Pass 1: color pipeline.
+  const flashCx = W * (0.5 + Math.max(-1, Math.min(1, flashOffsetX)) * 0.2);
+  const flashCy = H * (0.45 + Math.max(-1, Math.min(1, flashOffsetY)) * 0.2);
+  const flashMaxR = Math.max(W, H) * 0.9;
+  drawPass(gl, preTex, W, H, cache.pre, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(cache.pre.uniforms.u_source, 0);
+    gl.uniform2f(cache.pre.uniforms.u_res, W, H);
+    gl.uniform3f(cache.pre.uniforms.u_awb, awb[0], awb[1], awb[2]);
+    gl.uniform1i(cache.pre.uniforms.u_fluorescent, fluorescent ? 1 : 0);
+    gl.uniform1f(cache.pre.uniforms.u_seed, seed);
+    gl.uniform1i(cache.pre.uniforms.u_flash, flashOn ? 1 : 0);
+    gl.uniform1f(cache.pre.uniforms.u_flashPower, flashPower);
+    gl.uniform1f(cache.pre.uniforms.u_flashFalloff, flashFalloff);
+    gl.uniform2f(cache.pre.uniforms.u_flashCenter, flashCx, H - 1 - flashCy);
+    gl.uniform1f(cache.pre.uniforms.u_flashMaxR, flashMaxR);
+    gl.uniform1i(cache.pre.uniforms.u_sceneMode, SCENE_MODE_ID[sceneMode] ?? 0);
+    gl.uniform1i(cache.pre.uniforms.u_fx, FX_ID[pictureEffect] ?? 0);
+  }, vao);
+
+  // Pass 2: interlace. Target = softenTex (soften follows in FIELD mode)
+  // or the default framebuffer (null = the GL canvas) in FRAME mode so we
+  // can readoutToCanvas it directly.
+  const effectiveFieldMode = flashOn && captureMode === CAPTURE_FRAME
+    ? CAPTURE_FIELD
+    : captureMode;
+  const fieldMode = effectiveFieldMode === CAPTURE_FIELD;
+  const interlaceTarget = fieldMode ? interlaceTex : null;
+  drawPass(gl, interlaceTarget, W, H, cache.interlace, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, preTex.tex);
+    gl.uniform1i(cache.interlace.uniforms.u_input, 0);
+    gl.uniform2f(cache.interlace.uniforms.u_res, W, H);
+    gl.uniform1i(cache.interlace.uniforms.u_captureField, fieldMode ? 1 : 0);
+    gl.uniform1f(cache.interlace.uniforms.u_jitter, Math.max(0, Math.min(3, frameJitter)));
+    gl.uniform1f(cache.interlace.uniforms.u_seed, seed);
+  }, vao);
+
+  // Pass 3: vertical soften (FIELD only) → default framebuffer.
+  if (fieldMode) {
+    drawPass(gl, null, W, H, cache.soften, () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, interlaceTex.tex);
+      gl.uniform1i(cache.soften.uniforms.u_input, 0);
+      gl.uniform2f(cache.soften.uniforms.u_res, W, H);
+      gl.uniform1f(cache.soften.uniforms.u_amount, 0.22);
+    }, vao);
+  }
+  void softenTex;
+
+  // GL canvas now holds the pre-JPEG result. Hand off to JPEG (GL when
+  // eligible, WASM fallback) then run the post pass.
+  const preJpegCanvas = readoutToCanvas(canvas, W, H);
+  if (!preJpegCanvas) return null;
+
+  const preCtx = (preJpegCanvas as HTMLCanvasElement | OffscreenCanvas).getContext("2d") as
+    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  const complexityBuf = preCtx?.getImageData(0, 0, W, H).data;
+  const complexity = complexityBuf ? estimateSceneComplexity(complexityBuf, W, H) : 0.5;
+  const jpegPreset = getBudgetedJpegPreset(quality, complexity, flashOn);
+  const jpegCanvas = applyJpegArtifactToCanvas(preJpegCanvas, jpegPreset);
+
+  // Pass 4: post (smear + noise + clip) reading from the JPEG result.
+  resizeGLCanvas(canvas, W, H);
+  const postSrcTex = ensureTexture(gl, "mavicaFd7:postSrc", W, H);
+  uploadSourceTexture(gl, postSrcTex, jpegCanvas);
+
+  const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] ?? NOISE_PARAMS[QUALITY_FINE];
+  drawPass(gl, null, W, H, cache.post, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, postSrcTex.tex);
+    gl.uniform1i(cache.post.uniforms.u_input, 0);
+    gl.uniform2f(cache.post.uniforms.u_res, W, H);
+    gl.uniform1i(cache.post.uniforms.u_smear, smear ? 1 : 0);
+    gl.uniform1f(cache.post.uniforms.u_smearThreshold, flashOn ? 245 : 235);
+    gl.uniform1i(cache.post.uniforms.u_flash, flashOn ? 1 : 0);
+    gl.uniform1f(cache.post.uniforms.u_noiseRB, noiseRB);
+    gl.uniform1f(cache.post.uniforms.u_noiseG, noiseG);
+    gl.uniform1f(cache.post.uniforms.u_shadowCut, flashOn ? 42 : 50);
+    gl.uniform1f(cache.post.uniforms.u_clipPoint, flashOn ? 244 : 248);
+    gl.uniform1f(cache.post.uniforms.u_seed, seed);
+  }, vao);
+
+  return readoutToCanvas(canvas, W, H);
+};
+
 const mavicaFd7 = (input: any, options = defaults) => {
   const {
     captureMode,
@@ -540,10 +999,63 @@ const mavicaFd7 = (input: any, options = defaults) => {
   const imgData = workCtx.getImageData(0, 0, workW, workH);
   const buf = imgData.data;
 
-  // Step 2 — AWB colour temperature (auto by default, or user override)
+  // Step 2 — AWB colour temperature (auto by default, or user override).
+  // Auto path is a reduction so it stays on CPU either way; results feed
+  // both the GL and JS paths as a uniform.
   const [rMul, gMul, bMul] = lighting === LIGHTING_AUTO
     ? computeAutoAwb(buf)
     : (AWB[lighting as keyof typeof AWB] || AWB[LIGHTING_AUTO]);
+
+  // GL fast path: pre-color → interlace → [soften] → JPEG (GL-dispatched by
+  // applyJpegArtifactToCanvas when eligible) → post. Three readback/upload
+  // bridges at 640×480 add ~6-10ms; faster than the JS pipeline at scale.
+  const wantGL = glAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false;
+  if (wantGL) {
+    const glResult = runGLPipeline(
+      workCanvas, workW, workH,
+      [rMul, gMul, bMul],
+      lighting === LIGHTING_FLUORESCENT,
+      Boolean(flash),
+      Number(flashPower ?? 1),
+      Number(flashFalloff ?? 1.55),
+      Number(flashOffsetX ?? 0),
+      Number(flashOffsetY ?? -0.08),
+      sceneMode,
+      pictureEffect,
+      captureMode,
+      Number(frameJitter || 0),
+      smear,
+      quality,
+      Number((options as { _frameIndex?: number })._frameIndex || 0),
+    );
+    if (glResult) {
+      const output = cloneCanvas(input, false);
+      if (nativeVgaOutput) {
+        output.width = workW;
+        output.height = workH;
+      }
+      const outputCtx = output.getContext("2d");
+      if (outputCtx) {
+        if (nativeVgaOutput) {
+          outputCtx.drawImage(glResult, 0, 0);
+        } else if (needsScale) {
+          outputCtx.imageSmoothingEnabled = false;
+          outputCtx.drawImage(glResult, 0, 0, origW, origH);
+        } else {
+          outputCtx.drawImage(glResult, 0, 0);
+        }
+        logFilterBackend("Mavica FD7", "WebGL2",
+          `${quality} ${sceneMode} ${captureMode}${flash ? " flash" : ""}`);
+        return output;
+      }
+    }
+  }
+  logFilterWasmStatus("Mavica FD7", false, "fallback JS");
+
+  // === JS fallback below — identical to the pre-GL pipeline ===
+  const [rMulJs, gMulJs, bMulJs] = [rMul, gMul, bMul];
+  void rMulJs; void gMulJs; void bMulJs;
   const fluorescentFlutter = lighting === LIGHTING_FLUORESCENT;
 
   for (let y = 0; y < workH; y += 1) {

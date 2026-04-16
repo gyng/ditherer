@@ -228,6 +228,18 @@ import octreeQuantize from "./octreeQuantize";
 import frequencyFilter from "./frequencyFilter";
 import metadataMismatchDecode from "./metadataMismatchDecode";
 import temporalMedian from "./temporalMedian";
+import mobius from "./mobius";
+import droste from "./droste";
+import anamorphicCylinder from "./anamorphicCylinder";
+import wallpaperTiling from "./wallpaperTiling";
+import cyanotype from "./cyanotype";
+import sdfStylize from "./sdfStylize";
+import caustics from "./caustics";
+import reactionDiffusion from "./reactionDiffusion";
+import stableFluids from "./stableFluids";
+import lic from "./lic";
+import flowCrosshatch from "./flowCrosshatch";
+import fractalFlame from "./fractalFlame";
 import {
   atkinson,
   burkes,
@@ -331,6 +343,18 @@ export { default as crcStripeReject } from "./crcStripeReject";
 export { default as infiniteCallWindows } from "./infiniteCallWindows";
 export { default as flipDotDisplay } from "./flipDotDisplay";
 export { default as temporalMedian } from "./temporalMedian";
+export { default as mobius } from "./mobius";
+export { default as droste } from "./droste";
+export { default as anamorphicCylinder } from "./anamorphicCylinder";
+export { default as wallpaperTiling } from "./wallpaperTiling";
+export { default as cyanotype } from "./cyanotype";
+export { default as sdfStylize } from "./sdfStylize";
+export { default as caustics } from "./caustics";
+export { default as reactionDiffusion } from "./reactionDiffusion";
+export { default as stableFluids } from "./stableFluids";
+export { default as lic } from "./lic";
+export { default as flowCrosshatch } from "./flowCrosshatch";
+export { default as fractalFlame } from "./fractalFlame";
 export { default as temporalPosterHold } from "./temporalPosterHold";
 export { default as temporalInkDrying } from "./temporalInkDrying";
 export { default as temporalRelief } from "./temporalRelief";
@@ -661,6 +685,11 @@ export const filterList = [
     }
   },
   { displayName: "Zigzag", filter: zigzag, category: "Stylize", description: "Zigzag herringbone pattern where line thickness encodes luminance" },
+  { displayName: "Cyanotype", filter: cyanotype, category: "Stylize", description: "Prussian-blue sun-print tone mapping with paper grain and warm highlight tint" },
+  { displayName: "SDF Stylize", filter: sdfStylize, category: "Stylize", description: "Distance-field stylisation via jump-flood: isolines, offset bands, or bevelled fills from a luminance iso-threshold" },
+  { displayName: "Flow Crosshatch", filter: flowCrosshatch, category: "Stylize", description: "Crosshatch ink strokes that follow the image's edge flow rather than a fixed angle" },
+  { displayName: "Line Integral Convolution", filter: lic, category: "Stylize", description: "Convolve noise along the gradient-tangent flow field — silky directional streaks" },
+  { displayName: "Wallpaper Tiling", filter: wallpaperTiling, category: "Stylize", description: "Crystallographic symmetry groups (P1, P2, PMM, P4M, P6M) fold the image into repeated tiles" },
 
   // ── Distort ──
   { displayName: "Chromatic aberration", filter: chromaticAberration, category: "Distort", description: "Offset color channels to simulate lens fringing" },
@@ -703,6 +732,10 @@ export const filterList = [
   { displayName: "Time-warp Displacement", filter: timeWarpDisplacement, category: "Distort", description: "Use luminance or position to sample different recent moments per pixel" },
   { displayName: "Turbulence", filter: turbulence, category: "Distort", description: "Perlin noise-driven displacement for organic warping" },
   { displayName: "Wave", filter: wave, category: "Distort", description: "Displace pixels along sine waves for a ripple effect" },
+  { displayName: "Möbius transform", filter: mobius, category: "Distort", description: "Complex-plane Möbius transformation z → (az+b)/(cz+d) — conformal warp with spiralling fixed-point structure" },
+  { displayName: "Droste spiral", filter: droste, category: "Distort", description: "Log-polar spiral recursion à la Escher's Prentententoonstelling — the image wraps into itself with an adjustable twist" },
+  { displayName: "Anamorphic Cylinder", filter: anamorphicCylinder, category: "Distort", description: "Cylindrical anamorphosis — image stays normal inside a mirror radius and stretches logarithmically outside it" },
+  { displayName: "Fractal Flame", filter: fractalFlame, category: "Distort", description: "Per-pixel fractal-flame-style IFS variations: swirl, spherical, horseshoe, heart, and more with layered multi-tap accumulation" },
 
   // ── Glitch ──
   { displayName: "Analog static", filter: analogStatic, category: "Glitch", description: "Analog TV static — noise bars, vertical hold drift, and ghosting" },
@@ -853,6 +886,9 @@ export const filterList = [
 
   // ── Advanced ──
   { displayName: "Cellular automata", filter: cellularAutomata, category: "Advanced", description: "Conway's Game of Life and other rulesets applied to the image — animatable" },
+  { displayName: "Reaction-Diffusion", filter: reactionDiffusion, category: "Advanced", description: "Gray-Scott reaction-diffusion seeded from image luminance — spots, stripes, coral, mitosis, labyrinth Turing patterns grow out of the picture" },
+  { displayName: "Stable Fluids", filter: stableFluids, category: "Advanced", description: "Stam-style semi-Lagrangian fluid advection — smoke flows along the image's edges, picking up gradients as forcing each frame" },
+  { displayName: "Caustics", filter: caustics, category: "Advanced", description: "Refract light through the image as through a glass surface — bright caustic webs where gradients converge, shadows where they diverge" },
   { displayName: "Color gradient noise", filter: colorGradientNoise, category: "Advanced", description: "Perlin noise mapped to a two-color gradient, blended with the input image" },
   { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Flow field", filter: flowField, category: "Advanced", description: "Displace pixels along curl noise streamlines for organic swirling patterns" },

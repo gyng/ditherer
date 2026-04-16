@@ -125,5 +125,7 @@ export default defineFilter({
   func: voronoi,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  noWASM: "Two-pass per-cell colour averaging needs a reduction over all assigned pixels — hard to vectorise without randomised-access atomics and not a win over the existing spatial-grid JS path.",
+  noGL: "Per-cell colour averaging is a reduction; WebGL2 fragment shaders can't accumulate into shared per-cell bins without compute shaders or float blend extensions.",
 });

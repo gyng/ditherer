@@ -6,8 +6,23 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
+  logFilterBackend,
+  logFilterWasmStatus,
 } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 const MODE = {
   MULTIPLY: "MULTIPLY",
@@ -17,6 +32,10 @@ const MODE = {
   HARD_LIGHT: "HARD_LIGHT",
   DIFFERENCE: "DIFFERENCE",
   EXCLUSION: "EXCLUSION"
+};
+const MODE_ID: Record<string, number> = {
+  MULTIPLY: 0, SCREEN: 1, OVERLAY: 2, SOFT_LIGHT: 3,
+  HARD_LIGHT: 4, DIFFERENCE: 5, EXCLUSION: 6,
 };
 
 export const optionTypes = {
@@ -46,7 +65,61 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-// Blend mode math (all operate on 0-255 values)
+const BLEND_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec3  u_color;      // 0..1
+uniform int   u_mode;       // 0 MUL..6 EXCL
+uniform float u_opacity;
+uniform float u_levels;
+
+vec3 blendAll(vec3 a, vec3 b, int mode) {
+  if (mode == 0) return a * b;                          // MULTIPLY
+  if (mode == 1) return vec3(1.0) - (vec3(1.0) - a) * (vec3(1.0) - b); // SCREEN
+  if (mode == 2) return mix(                            // OVERLAY
+    2.0 * a * b,
+    vec3(1.0) - 2.0 * (vec3(1.0) - a) * (vec3(1.0) - b),
+    step(vec3(0.5), a));
+  if (mode == 3) {                                      // SOFT_LIGHT
+    vec3 lo = a - (vec3(1.0) - 2.0 * b) * a * (vec3(1.0) - a);
+    vec3 hi = a + (2.0 * b - vec3(1.0)) * (sqrt(a) - a);
+    return mix(lo, hi, step(vec3(0.5), b));
+  }
+  if (mode == 4) return mix(                            // HARD_LIGHT
+    2.0 * a * b,
+    vec3(1.0) - 2.0 * (vec3(1.0) - a) * (vec3(1.0) - b),
+    step(vec3(0.5), b));
+  if (mode == 5) return abs(a - b);                     // DIFFERENCE
+  return a + b - 2.0 * a * b;                           // EXCLUSION
+}
+
+void main() {
+  vec4 c = texture(u_source, v_uv);
+  vec3 blended = clamp(blendAll(c.rgb, u_color, u_mode), 0.0, 1.0);
+  vec3 rgb = mix(c.rgb, blended, u_opacity);
+  if (u_levels > 1.5) {
+    float q = u_levels - 1.0;
+    rgb = floor(rgb * q + 0.5) / q;
+  }
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), c.a);
+}
+`;
+
+type Cache = { blend: Program };
+let _cache: Cache | null = null;
+const initCache = (gl: WebGL2RenderingContext): Cache => {
+  if (_cache) return _cache;
+  _cache = {
+    blend: linkProgram(gl, BLEND_FS, [
+      "u_source", "u_color", "u_mode", "u_opacity", "u_levels",
+    ] as const),
+  };
+  return _cache;
+};
+
 const blendChannel = (a: number, b: number, mode: string): number => {
   const an = a / 255;
   const bn = b / 255;
@@ -85,14 +158,50 @@ const blendChannel = (a: number, b: number, mode: string): number => {
 
 const blendFilter = (input: any, options = defaults) => {
   const { mode, color, opacity, palette } = options;
+  const W = input.width;
+  const H = input.height;
 
+  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+    const ctx = getGLCtx();
+    if (ctx) {
+      const { gl, canvas } = ctx;
+      const cache = initCache(gl);
+      const vao = getQuadVAO(gl);
+      resizeGLCanvas(canvas, W, H);
+      const sourceTex = ensureTexture(gl, "blend:source", W, H);
+      uploadSourceTexture(gl, sourceTex, input);
+
+      drawPass(gl, null, W, H, cache.blend, () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.blend.uniforms.u_source, 0);
+        gl.uniform3f(cache.blend.uniforms.u_color, color[0] / 255, color[1] / 255, color[2] / 255);
+        gl.uniform1i(cache.blend.uniforms.u_mode, MODE_ID[mode] ?? 0);
+        gl.uniform1f(cache.blend.uniforms.u_opacity, opacity);
+        const identity = paletteIsIdentity(palette);
+        const pOpts = (palette as { options?: { levels?: number } }).options;
+        gl.uniform1f(cache.blend.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+      }, vao);
+
+      const rendered = readoutToCanvas(canvas, W, H);
+      if (rendered) {
+        const identity = paletteIsIdentity(palette);
+        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+        if (out) {
+          logFilterBackend("Blend", "WebGL2",
+            `${mode}${identity ? "" : "+palettePass"}`);
+          return out;
+        }
+      }
+    }
+  }
+
+  logFilterWasmStatus("Blend", false, "fallback JS");
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width;
-  const H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
@@ -104,7 +213,6 @@ const blendFilter = (input: any, options = defaults) => {
       const bg = blendChannel(buf[i + 1], color[1], mode);
       const bb = blendChannel(buf[i + 2], color[2], mode);
 
-      // Lerp with original by opacity
       const r = Math.round(buf[i] + (br - buf[i]) * opacity);
       const g = Math.round(buf[i + 1] + (bg - buf[i + 1]) * opacity);
       const b = Math.round(buf[i + 2] + (bb - buf[i + 2]) * opacity);

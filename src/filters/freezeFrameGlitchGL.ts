@@ -110,10 +110,14 @@ const uploadFreezeGrid = (
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  // R8 format (WebGL2 guaranteed) — multiply values so 1→255 for the >0.5 check.
+  // Single-channel R8 rows aren't 4-byte aligned unless w happens to be a
+  // multiple of 4; default UNPACK_ALIGNMENT=4 then makes the driver read
+  // past the end of `data` and throw INVALID_OPERATION. Force 1-byte rows.
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   const data = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) data[i] = grid[i] ? 255 : 0;
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, w, h, 0, gl.RED, gl.UNSIGNED_BYTE, data);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   return tex;
 };
