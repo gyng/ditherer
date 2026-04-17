@@ -4,8 +4,15 @@ import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } f
 import { computeLuminance, sobelEdges } from "utils/edges";
 import { defineFilter } from "filters/types";
 
+// Upper bound that the audio-modulation path can't push past. Bowyer-Watson
+// is O(n²) in the bad-triangle edge-sharing inner loop, and in pathological
+// inputs (duplicate/nearly-collinear points) the constant gets large enough
+// to trip Firefox's slow-script timeout. 800 tops out around 400ms on a
+// modern laptop; above that we saw slideshow chains hang on beat spikes.
+const POINT_COUNT_CAP = 800;
+
 export const optionTypes = {
-  pointCount: { type: RANGE, range: [50, 2000], step: 10, default: 300, desc: "Number of triangulation vertices" },
+  pointCount: { type: RANGE, range: [50, POINT_COUNT_CAP], step: 10, default: 300, desc: "Number of triangulation vertices" },
   edgeWeight: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Bias points toward image edges vs random" },
   showEdges: { type: BOOL, default: false, desc: "Draw triangle outlines" },
   seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for point placement" },
@@ -99,9 +106,12 @@ const delaunay = (input: any, options = defaults) => {
   const outBuf = new Uint8ClampedArray(buf.length);
   const rng = mulberry32(seed);
 
-  // Performance guard: cap points for large images
+  // Performance guard: cap points for large images, and clamp against the
+  // module-level ceiling in case audio modulation pushed the raw pointCount
+  // above the option range (modulation bypasses the slider bounds).
   const totalPixels = W * H;
-  const effectivePoints = totalPixels > 500000 ? Math.min(pointCount, 500) : pointCount;
+  const cap = Math.min(POINT_COUNT_CAP, totalPixels > 500000 ? 500 : POINT_COUNT_CAP);
+  const effectivePoints = Math.max(1, Math.min(pointCount | 0, cap));
 
   // Generate points weighted toward edges
   const lum = computeLuminance(buf, W, H);
