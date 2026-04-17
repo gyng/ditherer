@@ -252,6 +252,21 @@
   color: #2f155c;
 }
 
+.tagGlRequired {
+  border-color: #8a3d00;
+  background: #ffd9b3;
+  color: #5a2800;
+}
+
+.listItemDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.listItemDisabled:hover {
+  background: inherit;
+}
+
 .details {
   border: 2px inset var(--input-border, #808080);
   background: #fff;

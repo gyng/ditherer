@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BOOL, COLOR, ENUM, RANGE, STRING, TEXT } from "constants/controlTypes";
 import { filterList, hasTemporalBehavior } from "filters";
+import { glAvailable } from "gl";
 import type {
   ActionOptionDefinition,
   EnumOption,
@@ -22,6 +23,11 @@ import s from "./libraryBrowser.module.css";
 type FilterEntry = (typeof filterList)[number];
 const ALL_FILTERS = filterList.filter((f) => f) as FilterEntry[];
 const FILTER_CATEGORIES = ["All", ...new Set(ALL_FILTERS.map((f) => f.category))];
+
+// Computed once at module load. If GL fails to initialise (unsupported
+// browser, blacklisted GPU) this stays false for the lifetime of the
+// session — probe-once matches how the filter dispatcher behaves.
+const GL_AVAILABLE_AT_LOAD = glAvailable();
 const testAssetUrl = (kind: "image" | "video", file: string) =>
   `${import.meta.env.BASE_URL}test-assets/${kind}/${file}`;
 const FALLBACK_IMAGE_SRC = testAssetUrl("image", "pepper.png");
@@ -591,12 +597,15 @@ const LibraryBrowser = ({
               (() => {
                 const anim = hasAnimatedOption(entry);
                 const temp = hasTemporalBehavior(entry);
+                const glBlocked = entry.filter.requiresGL === true && !GL_AVAILABLE_AT_LOAD;
                 return (
               <button
                 key={entry.displayName}
-                className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}`}
+                className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}${glBlocked ? " " + s.listItemDisabled : ""}`}
                 onClick={() => setSelectedFilterName(entry.displayName)}
-                onDoubleClick={() => onAddFilter(entry)}
+                onDoubleClick={() => !glBlocked && onAddFilter(entry)}
+                disabled={glBlocked}
+                title={glBlocked ? "WebGL2 is required for this filter but isn't available on this device." : undefined}
               >
                 <FilterThumbnail filter={entry} filterByName={filterByName} source={previewSource || fallbackImage} />
                 <div className={s.listItemText}>
@@ -605,6 +614,7 @@ const LibraryBrowser = ({
                     {entry.category}
                     {anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
                     {temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                    {glBlocked ? <span className={`${s.tag} ${s.tagGlRequired}`}>GL req</span> : null}
                     <BackendTags filterNames={[entry.displayName]} />
                   </div>
                 </div>

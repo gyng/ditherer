@@ -61,6 +61,29 @@ export const getGLCtx = (): GLCtx | null => {
 
 export const glAvailable = (): boolean => getGLCtx() !== null;
 
+// Render a "WebGL2 required" placeholder canvas at the given size. Used by
+// the filter dispatcher when a `requiresGL` filter runs on a device without
+// WebGL2 so the pipeline output stays the expected shape. Returns an
+// HTMLCanvasElement on the main thread and an OffscreenCanvas inside a
+// worker — both satisfy the filter output contract.
+export const glUnavailableStub = (w: number, h: number): GLCanvas => {
+  const canvas = (typeof document !== "undefined"
+    ? (() => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; })()
+    : new OffscreenCanvas(w, h)) as GLCanvas;
+  const ctx = canvas.getContext("2d") as (CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null);
+  if (!ctx) return canvas;
+  // Dark plate, amber text — stays recognisable against most source images.
+  (ctx as CanvasRenderingContext2D).fillStyle = "#1a1a1a";
+  (ctx as CanvasRenderingContext2D).fillRect(0, 0, w, h);
+  const fontPx = Math.max(10, Math.min(28, Math.round(Math.min(w, h) / 16)));
+  (ctx as CanvasRenderingContext2D).fillStyle = "#ffb74d";
+  (ctx as CanvasRenderingContext2D).font = `${fontPx}px monospace`;
+  (ctx as CanvasRenderingContext2D).textAlign = "center";
+  (ctx as CanvasRenderingContext2D).textBaseline = "middle";
+  (ctx as CanvasRenderingContext2D).fillText("WebGL2 required", w / 2, h / 2);
+  return canvas;
+};
+
 // ── GL resource diagnostics ─────────────────────────────────────────────
 // Counters track cumulative allocations for autonomous leak detection.
 // Call `getGLStats()` from devtools or a test harness; `resetGLStats()`

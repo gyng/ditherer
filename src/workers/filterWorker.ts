@@ -3,7 +3,8 @@ import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "filters
 import { deserializePalette } from "palettes";
 import type { SerializedPalette } from "palettes";
 import { grayscale } from "filters";
-import { logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas } from "utils";
+import { logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas, logFilterBackend } from "utils";
+import { glAvailable, glUnavailableStub } from "gl";
 import type { WorkerFilterRequest, WorkerFilterResult, WorkerPrevOutputFrame, WorkerRequestMessage } from "./types";
 import type { SerializedOptionMap } from "context/shareStateTypes";
 
@@ -112,11 +113,16 @@ export const runWorkerFilterRequest = (
 
     const t0 = performance.now();
     let output: FilterCanvas | undefined;
-    try {
-      output = filter.func(canvas, opts);
-    } catch (err) {
-      console.error(`Worker: filter "${entry.displayName}" threw:`, err);
-      continue;
+    if (filter.requiresGL && !glAvailable()) {
+      output = glUnavailableStub(canvas.width, canvas.height) as FilterCanvas;
+      logFilterBackend(filter.name, "GL-unavailable", "WebGL2 required but unavailable");
+    } else {
+      try {
+        output = filter.func(canvas, opts);
+      } catch (err) {
+        console.error(`Worker: filter "${entry.displayName}" threw:`, err);
+        continue;
+      }
     }
     logFilterDispatched(filter.name, { noGL: filter.noGL, noWASM: filter.noWASM });
     const stepMs = performance.now() - t0;

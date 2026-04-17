@@ -8,8 +8,8 @@ import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
 import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
-import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas } from "utils";
-import { releasePooledTextures } from "gl";
+import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas, logFilterBackend } from "utils";
+import { releasePooledTextures, glAvailable, glUnavailableStub } from "gl";
 import { releaseFloatTextures } from "gl/fft2d";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
 import { clearMotionVectorsState } from "filters/motionVectors";
@@ -568,11 +568,16 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
       const t0 = performance.now();
       let output: unknown;
-      try {
-        output = entry.filter.func(canvas, filterOpts, dispatchOverride);
-      } catch (e) {
-        console.error(`Filter "${entry.displayName}" threw:`, e);
-        continue;
+      if (entry.filter.requiresGL && !glAvailable()) {
+        output = glUnavailableStub(canvas.width, canvas.height);
+        logFilterBackend(entry.filter.name, "GL-unavailable", "WebGL2 required but unavailable");
+      } else {
+        try {
+          output = entry.filter.func(canvas, filterOpts, dispatchOverride);
+        } catch (e) {
+          console.error(`Filter "${entry.displayName}" threw:`, e);
+          continue;
+        }
       }
       // One-shot "JS (no wasm path)" for filters that didn't self-report via
       // logFilterWasmStatus. Runs after the call so a filter that does log

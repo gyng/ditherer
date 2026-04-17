@@ -24,7 +24,7 @@ import {
   WASM_ROW_ALT,
   WASM_ERR_STRATEGY,
 } from "utils";
-import type { FilterOptionValues } from "filters/types";
+import type { FilterDefinition, FilterOptionValues } from "filters/types";
 
 import { BOOL, ENUM, PALETTE, RANGE, ACTION } from "constants/controlTypes";
 import * as palettes from "palettes";
@@ -447,7 +447,7 @@ export const errorDiffusingFilter = (
   name: string,
   errorMatrix: any,
   defaultOptions: any
-) => {
+): FilterDefinition => {
   let voteFrames: Uint8ClampedArray[] = [];
   let voteHead = 0;
   let voteWidth = 0;

@@ -146,6 +146,12 @@ export interface FilterDefinition<TOptions extends FilterOptionValues = FilterOp
   // Example: error-diffusion has a serial pixel dependency → `noGL: "..."`.
   noGL?: string;
   noWASM?: string;
+  // When true, this filter has no JS or WASM implementation — it only runs
+  // via its GL renderer. On devices where WebGL2 isn't available the
+  // dispatcher renders a "WebGL2 required" stub canvas instead of calling
+  // the filter function. Library-browser rows for `requiresGL` filters are
+  // disabled on unsupported hardware.
+  requiresGL?: boolean;
 }
 
 export interface FilterListEntry<TOptions extends FilterOptionValues = FilterOptionValues> {
