@@ -46,6 +46,12 @@ export type AudioVizChannelConfig = {
   enabled: boolean;
   source: AudioVizSource;
   normalize: boolean;
+  // When true, ask the browser to run automatic gain control on the input
+  // stream (via the `autoGainControl` MediaTrackConstraint). This is a
+  // hardware-level AGC riding the raw signal before any metric is
+  // computed — different from `normalize`, which scales per-metric
+  // adaptive ranges. Off by default so loud inputs stay loud.
+  autoGainInput: boolean;
   deviceId: string | null;
   bpmOverride: number | null;
 };
@@ -153,6 +159,7 @@ const defaultSnapshot = (): AudioVizSnapshot => ({
   enabled: false,
   source: "microphone",
   normalize: false,
+  autoGainInput: false,
   deviceId: null,
   bpmOverride: null,
   status: "idle",
@@ -284,6 +291,7 @@ const stopRuntime = async (channel: AudioVizChannel) => {
   }
   const source = runtime.snapshot.source;
   const normalize = runtime.snapshot.normalize;
+  const autoGainInput = runtime.snapshot.autoGainInput;
   const deviceId = runtime.snapshot.deviceId;
   const bpmOverride = runtime.snapshot.bpmOverride;
   const requestToken = runtime.requestToken;
@@ -294,6 +302,7 @@ const stopRuntime = async (channel: AudioVizChannel) => {
       ...defaultSnapshot(),
       source,
       normalize,
+      autoGainInput,
       deviceId,
       bpmOverride,
       enabled: false,
@@ -439,7 +448,11 @@ const evaluateTempo = (runtime: ChannelRuntime) => {
   runtime.tempoConfidence = runtime.tempoConfidence * 0.7 + confidence * 0.3;
 };
 
-const createStream = async (source: AudioVizSource, deviceId: string | null) => {
+const createStream = async (
+  source: AudioVizSource,
+  deviceId: string | null,
+  autoGainInput: boolean,
+) => {
   if (source === "display") {
     const stream = await navigator.mediaDevices.getDisplayMedia({
       audio: true,
@@ -457,7 +470,9 @@ const createStream = async (source: AudioVizSource, deviceId: string | null) => 
       ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
       echoCancellation: false,
       noiseSuppression: false,
-      autoGainControl: false,
+      // Browser-side AGC. `normalize` handles per-metric software range;
+      // this rides the raw input level before any metric is computed.
+      autoGainControl: autoGainInput,
       channelCount: { ideal: 2 },
     },
     video: false,
@@ -791,7 +806,7 @@ const startRuntime = async (channel: AudioVizChannel) => {
   const requestToken = runtimes[channel].requestToken + 1;
   runtimes[channel].requestToken = requestToken;
   const initialSnapshot = runtimes[channel].snapshot;
-  const { enabled, source, normalize, deviceId } = initialSnapshot;
+  const { enabled, source, normalize, autoGainInput, deviceId } = initialSnapshot;
   await stopRuntime(channel);
 
   if (runtimes[channel].requestToken !== requestToken) return;
@@ -804,7 +819,7 @@ const startRuntime = async (channel: AudioVizChannel) => {
   updateSnapshot(channel, { enabled: true, status: "connecting", error: null, normalize });
 
   try {
-    const stream = await createStream(source, deviceId);
+    const stream = await createStream(source, deviceId, autoGainInput);
     if (runtimes[channel].requestToken !== requestToken) {
       stream.getTracks().forEach((track) => track.stop());
       return;
@@ -1036,7 +1051,7 @@ export const updateAudioVizChannel = async (
   channel: AudioVizChannel,
   partial: Partial<AudioVizChannelConfig>,
 ) => {
-  const shouldRestart = "enabled" in partial || "source" in partial || "deviceId" in partial;
+  const shouldRestart = "enabled" in partial || "source" in partial || "deviceId" in partial || "autoGainInput" in partial;
   updateSnapshot(channel, partial);
   if (shouldRestart) {
     await startRuntime(channel);

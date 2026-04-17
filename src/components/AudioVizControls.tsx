@@ -271,8 +271,22 @@ const AudioVizControls = ({
         />
         <span>Auto-normalize all metrics</span>
       </label>
+      <label
+        className={s.row}
+        title="Enable the browser's automatic gain control on the raw input stream. Useful when the source level varies a lot (quiet phone recording vs. loud concert). Toggling this re-acquires the mic."
+      >
+        <input
+          type="checkbox"
+          checked={snapshot.autoGainInput}
+          disabled={!snapshot.enabled || snapshot.source !== "microphone"}
+          onChange={(event) => {
+            void updateAudioVizChannel(channel, { autoGainInput: event.target.checked });
+          }}
+        />
+        <span>Auto-normalize input</span>
+      </label>
       <div className={s.hint}>
-        Stretches every metric to its recent range. Per-metric overrides are available on each patch-panel node.
+        Stretches every metric to its recent range (per-metric overrides on each patch-panel node). Input-level AGC rides the raw signal at the hardware layer — mic only.
       </div>
       {snapshot.source !== "microphone" && (
         <div className={s.status}>{statusText}</div>
