@@ -299,37 +299,57 @@ const ChainList = ({
     }
   }, [randomCycleSeconds]);
 
-  useEffect(() => {
-    if (randomCycleTimerRef.current) {
-      clearInterval(randomCycleTimerRef.current);
-      randomCycleTimerRef.current = null;
-    }
+  // BPM-synced cycling updates the target period on every detected-tempo
+  // frame. Driving the swap with setInterval(activeCycleSeconds) would
+  // reset elapsed=0 on each tempo update, so the swap never fires for the
+  // fast-drifting case the sync is meant to power. Instead, run a fixed-
+  // cadence tick that checks accumulated elapsed against a live target
+  // pulled from refs — tempo drift only updates the target, not the
+  // running clock.
+  const cycleTickStateRef = useRef<{ seconds: number | null; inScreensaver: boolean }>({
+    seconds: null,
+    inScreensaver: false,
+  });
+  const cycleLastSwapAtRef = useRef<number>(0);
 
+  useEffect(() => {
     const activeCycleSeconds = screensaverCycleSeconds != null && screensaverCycleSeconds > 0
       ? screensaverCycleSeconds
       : randomCycleSeconds;
+    const seconds = activeCycleSeconds != null && activeCycleSeconds > 0 ? activeCycleSeconds : null;
+    const inScreensaver = screensaverCycleSeconds != null && screensaverCycleSeconds > 0;
+    const wasInactive = cycleTickStateRef.current.seconds == null;
+    cycleTickStateRef.current = { seconds, inScreensaver };
+    // Re-anchor when transitioning from inactive → active so the first
+    // swap fires a full period from now rather than immediately.
+    if (seconds != null && wasInactive) cycleLastSwapAtRef.current = performance.now();
+    if (seconds == null) cycleLastSwapAtRef.current = 0;
+  }, [randomCycleSeconds, screensaverCycleSeconds]);
 
-    if (activeCycleSeconds == null || activeCycleSeconds <= 0) {
-      return undefined;
-    }
-
-    randomCycleTimerRef.current = setInterval(() => {
-      const inScreensaver = screensaverCycleSeconds != null && screensaverCycleSeconds > 0;
+  useEffect(() => {
+    // 200ms tick gives at most ±200ms jitter on swap timing — well below
+    // the shortest useful beat interval (60bpm = 1s) and imperceptible to
+    // the user. Cheap enough to run continuously while the app is alive.
+    const TICK_MS = 200;
+    const id = setInterval(() => {
+      const { seconds, inScreensaver } = cycleTickStateRef.current;
+      if (seconds == null) return;
+      const now = performance.now();
+      if (now - cycleLastSwapAtRef.current < seconds * 1000) return;
+      cycleLastSwapAtRef.current = now;
       if (inScreensaver) notifyScreensaverChainSwap();
       if (inScreensaver && Math.random() < SCREENSAVER_PRESET_SWAP_CHANCE) {
         randomPresetRef.current("screensaver-preset");
         return;
       }
       randomChainRef.current(inScreensaver ? "screensaver-chain" : "timer-chain");
-    }, activeCycleSeconds * 1000);
-
+    }, TICK_MS);
+    randomCycleTimerRef.current = id;
     return () => {
-      if (randomCycleTimerRef.current) {
-        clearInterval(randomCycleTimerRef.current);
-        randomCycleTimerRef.current = null;
-      }
+      clearInterval(id);
+      randomCycleTimerRef.current = null;
     };
-  }, [randomCycleSeconds, screensaverCycleSeconds]);
+  }, []);
 
   useEffect(() => subscribeRandomCycleSeconds((seconds) => {
     actions.setRandomCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
