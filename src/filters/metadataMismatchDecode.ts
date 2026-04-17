@@ -1,7 +1,9 @@
 import { ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba } from "utils";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { metadataMismatchDecodeGLAvailable, renderMetadataMismatchDecodeGL } from "./metadataMismatchDecodeGL";
 
 const MATRIX = {
   REC601: "REC601",
@@ -91,16 +93,37 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const metadataMismatchDecode = (input: any, options = defaults) => {
+type MetadataMismatchDecodeOptions = typeof defaults & { _webglAcceleration?: boolean };
+
+const metadataMismatchDecode = (input: any, options: MetadataMismatchDecodeOptions = defaults) => {
   const { gammaAssumption, matrixAssumption, rangeAssumption, chromaPlacement, recoveryMix, palette } = options;
+  const w = input.width;
+  const h = input.height;
+
+  if (options._webglAcceleration !== false && metadataMismatchDecodeGLAvailable()) {
+    const matrixInt = matrixAssumption === MATRIX.REC709 ? 1 : matrixAssumption === MATRIX.REC2020 ? 2 : 0;
+    const rangeInt = rangeAssumption === RANGE_MODE.LIMITED ? 1 : 0;
+    const chromaInt = chromaPlacement === CHROMA.LEFT ? 1 : 0;
+    const rendered = renderMetadataMismatchDecodeGL(
+      input, w, h,
+      matrixInt, rangeInt, chromaInt,
+      gammaAssumption, recoveryMix,
+    );
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, w, h, palette);
+      if (out) {
+        logFilterBackend("Metadata Mismatch Decode", "WebGL2", `matrix=${matrixAssumption} range=${rangeAssumption}${identity ? "" : "+palettePass"}`);
+        return out;
+      }
+    }
+  }
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const w = input.width;
-  const h = input.height;
   const src = inputCtx.getImageData(0, 0, w, h).data;
   const outBuf = new Uint8ClampedArray(src.length);
 
@@ -168,5 +191,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures"
+  description: "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures",
 });

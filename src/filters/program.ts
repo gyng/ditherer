@@ -120,5 +120,7 @@ export default defineFilter({
   func: programFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  noGL: "Runs arbitrary user-typed JavaScript per pixel via eval — can't lower to GLSL.",
+  noWASM: "Arbitrary user-typed JavaScript per pixel — stays on the JS engine.",
 });

@@ -115,4 +115,11 @@ const dataBend = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Data Bend", func: dataBend, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Data Bend",
+  func: dataBend,
+  optionTypes,
+  options: defaults,
+  defaults,
+  noGL: "Operates on the raw byte stream (echo/reverb/bitcrush/reverse) rather than pixel neighbourhoods — not a fragment-shader problem.",
+});

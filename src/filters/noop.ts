@@ -14,5 +14,7 @@ export default defineFilter({
   func: noop,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  noGL: "Passthrough — no pixel work to accelerate.",
+  noWASM: "Passthrough — no pixel work to accelerate.",
 });

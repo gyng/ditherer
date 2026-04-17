@@ -116,5 +116,6 @@ export default defineFilter({
   func: kmeans,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  noGL: "Iterative centroid refinement with scatter-gather over a global k-centroid array — no straightforward fragment-shader mapping without atomics.",
 });

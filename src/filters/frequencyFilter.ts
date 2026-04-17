@@ -126,5 +126,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Approximate low, high, or mid-band frequency separation using spatial-domain filtering"
+  description: "Approximate low, high, or mid-band frequency separation using spatial-domain filtering",
+  noGL: "Needs iterative FFT-like passes with cross-pixel dependencies that don't map to a fragment shader without compute.",
 });

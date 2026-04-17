@@ -123,5 +123,6 @@ export default defineFilter({
   func: pixelDrift,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  noGL: "Sequential per-column/row drift accumulator with branchy RNG-driven state advance — no fragment-shader equivalent without compute-shader prefix-scans.",
 });

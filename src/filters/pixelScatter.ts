@@ -76,4 +76,11 @@ const pixelScatter = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Pixel Scatter", func: pixelScatter, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Pixel Scatter",
+  func: pixelScatter,
+  optionTypes,
+  options: defaults,
+  defaults,
+  noGL: "Scatter-push model: each edge source writes to a random nearby pixel with last-write-wins ordering. Pull-model equivalent would require scanning a window around every output pixel to find any sources that might have landed there — ordering semantics and cost make this unwieldy in a fragment shader.",
+});
