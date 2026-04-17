@@ -281,6 +281,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Take the per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure",
 });

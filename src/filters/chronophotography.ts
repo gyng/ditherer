@@ -165,4 +165,4 @@ const chronophotography = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Chronophotography", func: chronophotography, optionTypes, options: defaults, defaults, mainThread: true, description: "Multiple exposures of moving subjects — Marey's stroboscopic photography" });
+export default defineFilter({ name: "Chronophotography", func: chronophotography, optionTypes, options: defaults, defaults, description: "Multiple exposures of moving subjects — Marey's stroboscopic photography" });

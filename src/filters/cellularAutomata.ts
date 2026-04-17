@@ -163,4 +163,4 @@ export const __testing = {
   injectSourceState,
 };
 
-export default defineFilter({ name: "Cellular Automata", func: cellularAutomata, optionTypes, options: defaults, defaults, mainThread: true });
+export default defineFilter({ name: "Cellular Automata", func: cellularAutomata, optionTypes, options: defaults, defaults });

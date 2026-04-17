@@ -137,4 +137,4 @@ const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defau
   return output;
 };
 
-export default defineFilter({ name: "Freeze Frame Glitch", func: freezeFrameGlitch, optionTypes, options: defaults, defaults, mainThread: true, description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic" });
+export default defineFilter({ name: "Freeze Frame Glitch", func: freezeFrameGlitch, optionTypes, options: defaults, defaults, description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic" });

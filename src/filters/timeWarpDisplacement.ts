@@ -241,4 +241,4 @@ const timeWarpDisplacement = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Time-warp Displacement", func: timeWarpDisplacement, optionTypes, options: defaults, defaults, mainThread: true, description: "Sample different moments from recent history on a per-pixel basis for surreal time-sliced motion warping" });
+export default defineFilter({ name: "Time-warp Displacement", func: timeWarpDisplacement, optionTypes, options: defaults, defaults, description: "Sample different moments from recent history on a per-pixel basis for surreal time-sliced motion warping" });

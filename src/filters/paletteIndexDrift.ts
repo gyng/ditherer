@@ -268,6 +268,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Map into an indexed palette, then drift the lookup table over time so colors break while geometry stays stable"
 });

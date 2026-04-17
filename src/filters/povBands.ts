@@ -68,4 +68,4 @@ const povBands = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "POV Bands", func: povBands, optionTypes, options: defaults, defaults, mainThread: true, description: "Split the frame into horizontal bands that each show a different recent moment in time" });
+export default defineFilter({ name: "POV Bands", func: povBands, optionTypes, options: defaults, defaults, description: "Split the frame into horizontal bands that each show a different recent moment in time" });

@@ -94,6 +94,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Capture sparse keyframes and drag them through the in-between frames for compressed, smeared temporal interpolation",
 });

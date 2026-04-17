@@ -125,6 +125,5 @@ export default defineFilter<AbaBounceOptions>({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Store A and B, then turn the emphasized beat into a reflected reverse frame whose cadence can drift off the strict ABA grid",
 });

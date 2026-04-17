@@ -129,6 +129,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Posterized tone bands update with temporal hysteresis so broad regions stick before snapping to a new tone",
 });

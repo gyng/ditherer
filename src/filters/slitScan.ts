@@ -113,4 +113,4 @@ const slitScan = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Slit Scan", func: slitScan, optionTypes, options: defaults, defaults, mainThread: true, description: "Each column/row shows a different point in time — surreal temporal stretching" });
+export default defineFilter({ name: "Slit Scan", func: slitScan, optionTypes, options: defaults, defaults, description: "Each column/row shows a different point in time — surreal temporal stretching" });

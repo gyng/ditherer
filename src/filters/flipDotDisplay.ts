@@ -299,6 +299,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Electromechanical split-flap style dot board with hysteresis, flip-rate limits, and subtle mechanical imperfections",
 });

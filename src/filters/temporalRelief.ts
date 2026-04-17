@@ -140,6 +140,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Convert recent motion history into embossed grayscale surface shading so change reads like raised relief",
 });

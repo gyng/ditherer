@@ -216,6 +216,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Separate moving and static regions to isolate foreground, reconstruct the background, or freeze still parts of the scene",
 });

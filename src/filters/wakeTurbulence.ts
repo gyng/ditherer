@@ -86,4 +86,4 @@ const wakeTurbulence = (input: any, options: WakeTurbulenceOptions = defaults) =
   return output;
 };
 
-export default defineFilter({ name: "Wake Turbulence", func: wakeTurbulence, optionTypes, options: defaults, defaults, mainThread: true, description: "Moving objects leave rippling distortion in their wake — heat shimmer effect" });
+export default defineFilter({ name: "Wake Turbulence", func: wakeTurbulence, optionTypes, options: defaults, defaults, description: "Moving objects leave rippling distortion in their wake — heat shimmer effect" });

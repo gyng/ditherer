@@ -364,7 +364,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  mainThread: true,
   // First-time add kicks off the animation loop so the degauss burst is
   // visible without requiring the user to click Play on a hidden ACTION.
   // User can still stop via the same Play/Stop control.
