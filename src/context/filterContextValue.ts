@@ -31,7 +31,7 @@ export interface FilterActions {
   renderFrameForExport: (
     inputCanvas: HTMLCanvasElement | null,
     options: ExportFrameOptions,
-  ) => HTMLCanvasElement | OffscreenCanvas | null;
+  ) => Promise<HTMLCanvasElement | OffscreenCanvas | null>;
   clearExportSession: (sessionId: string) => void;
   loadImage: (image: CanvasImageSource, time?: number | null, video?: AnimatedVideoElement | null) => void;
   selectFilter: (name: string, filter: FilterDefinition | { filter: FilterDefinition }) => void;

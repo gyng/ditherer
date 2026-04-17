@@ -7,7 +7,7 @@ import { planReliableVideoRouting, type ReliableSourcePath, type ReliableVideoMo
 type RenderFrameForExport = (
   sourceCanvas: HTMLCanvasElement,
   frame: { sessionId: string; time: number; video: null },
-) => HTMLCanvasElement | OffscreenCanvas | null;
+) => Promise<HTMLCanvasElement | OffscreenCanvas | null>;
 
 type ReliableRenderMetrics = {
   seekMs: number;
@@ -155,7 +155,7 @@ export const runReliableVideoExport = async ({
           );
           sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
           sourceCtx.drawImage(decodedFrame.frame, 0, 0, sourceCanvas.width, sourceCanvas.height);
-          const rendered = renderFrameForExport(sourceCanvas, {
+          const rendered = await renderFrameForExport(sourceCanvas, {
             sessionId: exportSessionId,
             time: timelineFrame.timeSec,
             video: null,

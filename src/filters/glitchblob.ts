@@ -1,9 +1,6 @@
 /* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
   // lots of mutation
 
-const ASYNC_FILTER = "ASYNC_FILTER";
-const filterImage = (image: ImageBitmap) => ({ type: "FILTER_IMAGE", image });
-
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { cloneCanvas } from "utils";
 import { deflateSync, inflateSync } from "fflate";
@@ -88,16 +85,25 @@ class PngError extends Error {
   }
 }
 
+// Serialise a canvas to a Blob. Works on both HTMLCanvasElement (main thread,
+// uses the callback-based toBlob) and OffscreenCanvas (worker thread, uses
+// the Promise-returning convertToBlob) so glitchblob can run in either.
 const canvasToBlob = (
-  image: HTMLCanvasElement,
-  format: string
-): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    image.toBlob(blob => {
+  image: HTMLCanvasElement | OffscreenCanvas,
+  format: string,
+): Promise<Blob> => {
+  const mime = formatMap[format];
+  const offscreen = image as OffscreenCanvas;
+  if (typeof offscreen.convertToBlob === "function") {
+    return offscreen.convertToBlob({ type: mime });
+  }
+  return new Promise((resolve, reject) => {
+    (image as HTMLCanvasElement).toBlob(blob => {
       if (blob) resolve(blob);
       else reject(new Error("Canvas export failed"));
-    }, formatMap[format]);
+    }, mime);
   });
+};
 
 const blobToImage = (blob: Blob) => createImageBitmap(blob);
 
@@ -375,118 +381,86 @@ const preprocessPNG = (buffer: Uint8Array): PngContext => {
   };
 };
 
-const glitchblob = (
-  input: any,
+const glitchblob = async (
+  input: HTMLCanvasElement | OffscreenCanvas,
   options: GlitchblobOptions = defaults,
-  dispatch?: (_action: { type: string; image: ImageBitmap }) => void
-) => {
-  if (typeof dispatch !== "function") {
-    return input;
-  }
-
+): Promise<HTMLCanvasElement | OffscreenCanvas> => {
   const { errRepeat, errSubstitute, errTranspose, errors, format } = options;
   const output = cloneCanvas(input, false);
-
-  const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
+  if (!outputCtx) return output;
 
-  if (!inputCtx || !outputCtx) {
-    return input;
-  }
+  const corruptor = (corruptedArg: Uint8Array, fmt: string): Uint8Array => {
+    let corrupted = corruptedArg;
+    let context: PngContext | undefined;
+    let header = Math.round(Math.min(100, 0.9 * corrupted.length));
 
-  const corruptThis = (
-    image: HTMLCanvasElement,
-    fmt: string
-  ) => {
-    const retry = (
-      limit: number,
-      promiseChainFactory: () => Promise<ImageBitmap>
-    ) =>
-      promiseChainFactory().catch(
-        (e: unknown) =>
-          new Promise((reso, rej) => {
-            if (limit === 0) {
-              rej(e);
-            } else {
-              reso(retry(limit - 1, promiseChainFactory));
-            }
-          })
-      );
+    if (fmt === IMAGE_PNG) {
+      context = preprocessPNG(corrupted);
+      corrupted = context.filter;
+      header = 0;
+    }
 
-    const corruptor = (corruptedArg: Uint8Array): Uint8Array => {
-      let corrupted = corruptedArg;
-      let context: PngContext | undefined;
-      let header = Math.round(Math.min(100, 0.9 * corrupted.length));
+    const corruptors: Array<(
+      _header: number,
+      _inputBytes: Uint8Array,
+      _width: number,
+      _height: number,
+      _currentX: number,
+      _currentY: number
+    ) => Uint8Array> = [];
 
-      if (fmt === IMAGE_PNG) {
-        context = preprocessPNG(corrupted);
-        corrupted = context.filter;
-        header = 0;
+    if (errTranspose) corruptors.push(transformTranspose);
+    if (errSubstitute) corruptors.push(transformSubstitute);
+    if (errRepeat) corruptors.push(transformRepeat);
+
+    if (corruptors.length > 0) {
+      for (let i = 0; i < errors; i += 1) {
+        const cIdx = Math.floor(Math.random() * corruptors.length);
+        const currentX = cIdx % input.width;
+        const currentY = Math.floor(cIdx / input.width);
+        corrupted = corruptors[cIdx](
+          header,
+          corrupted,
+          input.width,
+          input.height,
+          currentX,
+          currentY,
+        );
       }
+    }
 
-      const corruptors: Array<(
-        _header: number,
-        _inputBytes: Uint8Array,
-        _width: number,
-        _height: number,
-        _currentX: number,
-        _currentY: number
-      ) => Uint8Array> = [];
-
-      if (errTranspose) {
-        corruptors.push(transformTranspose);
-      }
-
-      if (errSubstitute) {
-        corruptors.push(transformSubstitute);
-      }
-
-      if (errRepeat) {
-        corruptors.push(transformRepeat);
-      }
-
-      if (corruptors.length > 0) {
-        for (let i = 0; i < errors; i += 1) {
-          const cIdx = Math.floor(Math.random() * corruptors.length);
-          const currentX = cIdx % input.width;
-          const currentY = Math.floor(cIdx / input.width);
-          corrupted = corruptors[cIdx](
-            header,
-            corrupted,
-            input.width,
-            input.height,
-            currentX,
-            currentY
-          );
-        }
-      }
-
-      if (fmt === IMAGE_PNG && context != null) {
-        corrupted = postprocessPNG(context);
-      }
-      return corrupted;
-    };
-
-    return retry(10, () =>
-      canvasToBlob(image, format)
-        .then(blobToUint8Array)
-        .then(corruptor)
-        .then(u8a => new Blob([Uint8Array.from(u8a)], { type: formatMap[format] }))
-        .then(blobToImage as (_value: Blob) => Promise<ImageBitmap>)
-    );
+    if (fmt === IMAGE_PNG && context != null) {
+      corrupted = postprocessPNG(context);
+    }
+    return corrupted;
   };
 
-  corruptThis(input, format)
-    .then((image) => {
-      dispatch(filterImage(image as ImageBitmap));
-    })
-    .catch((error: unknown) => {
-      if (!isExpectedGlitchFailure(error)) {
-        console.warn("[glitchblob] async corruption failed", error);
+  // Random corruption can produce an unrecoverable byte stream; decoders
+  // then throw. Retry up to ten times before giving up (identical policy
+  // to the prior dispatch-based implementation).
+  const MAX_RETRIES = 10;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      const blob = await canvasToBlob(input, format);
+      const bytes = await blobToUint8Array(blob);
+      const corrupted = corruptor(bytes, format);
+      const bitmap = await blobToImage(
+        new Blob([Uint8Array.from(corrupted)], { type: formatMap[format] }),
+      );
+      outputCtx.drawImage(bitmap, 0, 0);
+      return output;
+    } catch (error) {
+      if (attempt === MAX_RETRIES) {
+        if (!isExpectedGlitchFailure(error)) {
+          console.warn("[glitchblob] async corruption failed", error);
+        }
+        return output;
       }
-    });
-
-  return ASYNC_FILTER;
+      // otherwise: loop and retry with a fresh round of corruption
+    }
+  }
+  return output;
 };
 
 export default defineFilter({
@@ -495,5 +469,4 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  mainThread: true
 });

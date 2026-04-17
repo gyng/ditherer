@@ -13,7 +13,7 @@ type PlaybackFrameStatus = {
 type RenderFrameForExport = (
   sourceCanvas: HTMLCanvasElement,
   frame: { sessionId: string; time: number; video: null },
-) => HTMLCanvasElement | OffscreenCanvas | null;
+) => Promise<HTMLCanvasElement | OffscreenCanvas | null>;
 
 interface RunLoopExportOptions {
   mode: "gif" | "sequence" | "contact";

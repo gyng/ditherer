@@ -22,7 +22,7 @@ type BivariantCallback<TArgs extends unknown[], TResult> = {
 export type FilterFunction<TOptions extends FilterOptionValues = FilterOptionValues> =
   BivariantCallback<
     [input: FilterCanvas, options?: TOptions, dispatch?: unknown],
-    FilterCanvas
+    FilterCanvas | Promise<FilterCanvas>
   >;
 
 type FilterControlType =

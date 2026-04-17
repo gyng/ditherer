@@ -51,7 +51,7 @@ const has2dContext = (canvas: unknown): canvas is WorkerCanvasLike =>
   && "height" in canvas
   && typeof (canvas as WorkerCanvasLike).getContext === "function";
 
-export const runWorkerFilterRequest = (
+export const runWorkerFilterRequest = async (
   {
     imageData,
     width,
@@ -69,7 +69,7 @@ export const runWorkerFilterRequest = (
     degaussFrame,
   }: WorkerFilterRequest,
   createCanvas: WorkerCanvasFactory = defaultCanvasFactory,
-): WorkerFilterResult => {
+): Promise<WorkerFilterResult> => {
   let canvas = createCanvas(width, height);
   const initCtx = canvas.getContext("2d", { willReadFrequently: true }) as
     | OffscreenCanvasRenderingContext2D
@@ -146,7 +146,14 @@ export const runWorkerFilterRequest = (
       logFilterBackend(filter.name, "GL-unavailable", "WebGL2 required but unavailable");
     } else {
       try {
-        output = filter.func(canvas, opts);
+        const raw = filter.func(canvas, opts) as FilterCanvas | Promise<FilterCanvas> | undefined;
+        // Filters may return a Promise for async work (e.g. glitchblob
+        // round-trips the canvas through Blob+ImageBitmap). The sync
+        // return shape stays untouched; the promise branch just gives
+        // us a uniform contract for both.
+        output = (raw && typeof (raw as { then?: unknown }).then === "function")
+          ? await (raw as Promise<FilterCanvas>)
+          : (raw as FilterCanvas | undefined);
       } catch (err) {
         console.error(`Worker: filter "${entry.displayName}" threw:`, err);
         continue;
@@ -219,12 +226,12 @@ export const runWorkerFilterRequest = (
 };
 
 if (typeof self !== "undefined") {
-  self.onmessage = (e: MessageEvent<WorkerRequestMessage>) => {
+  self.onmessage = async (e: MessageEvent<WorkerRequestMessage>) => {
     const workerScope = self as unknown as WorkerMessageTarget;
     const { id, ...request } = e.data;
 
     try {
-      const result = runWorkerFilterRequest(request);
+      const result = await runWorkerFilterRequest(request);
 
       const transfers: ArrayBuffer[] = [result.imageData];
       for (const frame of Object.values(result.prevOutputs)) {

@@ -20,7 +20,7 @@ export type LoopGifProfile = {
 type RenderFrameForExport = (
   sourceCanvas: HTMLCanvasElement,
   frame: { sessionId: string; time: number; video: null },
-) => HTMLCanvasElement | OffscreenCanvas | null;
+) => Promise<HTMLCanvasElement | OffscreenCanvas | null>;
 
 interface CaptureLoopOfflineFramesOptions {
   video: HTMLVideoElement;
@@ -174,14 +174,14 @@ export const captureLoopOfflineFrames = async ({
     decodedFrames: 0,
   };
 
-  const renderFromCanvasFrame = (
+  const renderFromCanvasFrame = async (
     sourceCanvas: HTMLCanvasElement,
     scaledCanvas: HTMLCanvasElement,
     scaledCtx: CanvasRenderingContext2D,
     timeSec: number,
     durationUs: number,
   ) => {
-    const rendered = renderFrameForExport(sourceCanvas, {
+    const rendered = await renderFrameForExport(sourceCanvas, {
       sessionId: exportSessionId,
       time: timeSec,
       video: null,
@@ -326,7 +326,7 @@ export const captureLoopOfflineFrames = async ({
           getFrameCanvas: async (frame) => {
             sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
             sourceCtx.drawImage(exportVideo, 0, 0, sourceCanvas.width, sourceCanvas.height);
-            const rendered = renderFrameForExport(sourceCanvas, {
+            const rendered = await renderFrameForExport(sourceCanvas, {
               sessionId: exportSessionId,
               time: frame.timeSec,
               video: null,

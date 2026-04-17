@@ -24,6 +24,19 @@ const seedImageData = (width: number, height: number): ArrayBuffer => {
   return data.buffer;
 };
 
+const baseRequest = () => ({
+  frameIndex: 0,
+  isAnimating: false,
+  linearize: false,
+  wasmAcceleration: false,
+  webglAcceleration: false,
+  convertGrayscale: false,
+  prevOutputs: {},
+  prevInputs: {},
+  emaMaps: {},
+  degaussFrame: -2147483648,
+});
+
 describe("runWorkerFilterRequest", () => {
   beforeAll(() => {
     // JSDOM exposes HTMLCanvasElement but the dispatcher defaults to
@@ -32,8 +45,9 @@ describe("runWorkerFilterRequest", () => {
     expect(typeof document).toBe("object");
   });
 
-  it("runs a non-GL chain end-to-end and reports step timings", () => {
-    const result = runWorkerFilterRequest({
+  it("runs a non-GL chain end-to-end and reports step timings", async () => {
+    const result = await runWorkerFilterRequest({
+      ...baseRequest(),
       imageData: seedImageData(4, 4),
       width: 4,
       height: 4,
@@ -45,13 +59,6 @@ describe("runWorkerFilterRequest", () => {
           options: filterIndex.Grayscale.defaults,
         },
       ],
-      frameIndex: 0,
-      isAnimating: false,
-      linearize: false,
-      wasmAcceleration: false,
-      webglAcceleration: false,
-      convertGrayscale: false,
-      prevOutputs: {},
     }, makeCanvas);
 
     expect(result.width).toBe(4);
@@ -66,10 +73,11 @@ describe("runWorkerFilterRequest", () => {
     expect(result.prevOutputs.grayscale.height).toBe(4);
   });
 
-  it("draws the GL-unavailable stub for requiresGL filters in jsdom", () => {
+  it("draws the GL-unavailable stub for requiresGL filters in jsdom", async () => {
     // "Invert" is requiresGL: true — with no WebGL2 the dispatcher swaps in
     // the amber error tile rather than letting the filter pass-through.
-    const result = runWorkerFilterRequest({
+    const result = await runWorkerFilterRequest({
+      ...baseRequest(),
       imageData: seedImageData(16, 16),
       width: 16,
       height: 16,
@@ -81,13 +89,6 @@ describe("runWorkerFilterRequest", () => {
           options: filterIndex.Invert.defaults,
         },
       ],
-      frameIndex: 0,
-      isAnimating: false,
-      linearize: false,
-      wasmAcceleration: false,
-      webglAcceleration: false,
-      convertGrayscale: false,
-      prevOutputs: {},
     }, makeCanvas);
 
     expect(result.stepTimes[0].name).toBe("Invert");
@@ -97,8 +98,9 @@ describe("runWorkerFilterRequest", () => {
     expect(result.height).toBe(16);
   });
 
-  it("skips unknown filter names without throwing", () => {
-    const result = runWorkerFilterRequest({
+  it("skips unknown filter names without throwing", async () => {
+    const result = await runWorkerFilterRequest({
+      ...baseRequest(),
       imageData: seedImageData(2, 2),
       width: 2,
       height: 2,
@@ -110,35 +112,23 @@ describe("runWorkerFilterRequest", () => {
           options: {},
         },
       ],
-      frameIndex: 0,
-      isAnimating: false,
-      linearize: false,
-      wasmAcceleration: false,
-      webglAcceleration: false,
-      convertGrayscale: false,
-      prevOutputs: {},
     }, makeCanvas);
 
     expect(result.stepTimes).toHaveLength(0);
     expect(result.width).toBe(2);
   });
 
-  it("applies grayscale preprocessing when convertGrayscale is true", () => {
+  it("applies grayscale preprocessing when convertGrayscale is true", async () => {
     // The preprocess step runs before the chain; easiest smoke is to ask
     // for grayscale + an empty chain and confirm the output is free of
     // non-grayscale pixels (R == G == B per pixel).
-    const result = runWorkerFilterRequest({
+    const result = await runWorkerFilterRequest({
+      ...baseRequest(),
       imageData: seedImageData(3, 3),
       width: 3,
       height: 3,
       chain: [],
-      frameIndex: 0,
-      isAnimating: false,
-      linearize: false,
-      wasmAcceleration: false,
-      webglAcceleration: false,
       convertGrayscale: true,
-      prevOutputs: {},
     }, makeCanvas);
 
     const pixels = new Uint8ClampedArray(result.imageData);

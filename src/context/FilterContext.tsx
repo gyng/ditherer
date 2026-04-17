@@ -512,8 +512,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const chainNeedsMainThread = (entries: ChainEntry[]) =>
     entries.some(e => isMainThreadFilter(e.filter));
 
-  // Main-thread filter execution (fallback path)
-  const filterOnMainThread = (
+  // Main-thread filter execution (fallback path). Async so filters that
+  // return a Promise<canvas> (e.g. glitchblob — async Blob round-trip)
+  // fit the same contract as the worker path does.
+  const filterOnMainThread = async (
     canvas: HTMLCanvasElement | OffscreenCanvas,
     enabledEntries: ChainEntry[],
     startIdx: number,
@@ -597,7 +599,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         logFilterBackend(entry.filter.name, "GL-unavailable", "WebGL2 required but unavailable");
       } else {
         try {
-          output = entry.filter.func(canvas, filterOpts, dispatchOverride);
+          const raw: unknown = entry.filter.func(canvas, filterOpts, dispatchOverride);
+          output = (raw && typeof (raw as { then?: unknown }).then === "function")
+            ? await (raw as Promise<unknown>)
+            : raw;
         } catch (e) {
           console.error(`Filter "${entry.displayName}" threw:`, e);
           continue;
@@ -853,16 +858,19 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
           recordFilterStepMs(step.filterName ?? step.name, step.ms);
         }
         emitOutput(outCanvas, workerTotalTime, workerStepTimes, sourceFrameToken, sourceTime);
-      }).catch((err) => {
+      }).catch(async (err) => {
         console.error("Worker failed, falling back to main thread:", err);
-        const fallback = filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
+        const fallback = await filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
         emitOutput(fallback.canvas, fallback.totalTime, [...stepTimes, ...fallback.stepTimes], sourceFrameToken, sourceTime);
       });
     } else {
-      // Main thread path — synchronous
-      const result = filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
-      stepTimes.push(...result.stepTimes);
-      emitOutput(result.canvas, result.totalTime, stepTimes, sourceFrameToken, sourceTime);
+      // Main thread path — may await filters that return a Promise
+      // (e.g. glitchblob's async Blob round-trip).
+      void (async () => {
+        const result = await filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
+        stepTimes.push(...result.stepTimes);
+        emitOutput(result.canvas, result.totalTime, stepTimes, sourceFrameToken, sourceTime);
+      })();
     }
   };
   filterImageAsyncRef.current = filterImageAsync;
@@ -1079,7 +1087,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     cachedOutputsRef.current.clear();
   };
 
-  const renderFrameForExport = (inputCanvas: HTMLCanvasElement | null, {
+  const renderFrameForExport = async (inputCanvas: HTMLCanvasElement | null, {
     sessionId,
     time = 0,
     video = null,
@@ -1119,7 +1127,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const enabledEntries = exportState.chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
-    const result = filterOnMainThread(
+    const result = await filterOnMainThread(
       canvas,
       enabledEntries,
       0,
