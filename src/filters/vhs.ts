@@ -345,8 +345,10 @@ const vhs = (
       ...convolveDefaults,
       kernel: GAUSSIAN_3X3_WEAK
     });
-    if (maybeBlurred instanceof HTMLCanvasElement) {
-      output = maybeBlurred;
+    // Duck-type check — HTMLCanvasElement is undefined in Worker scope,
+    // so `instanceof HTMLCanvasElement` would ReferenceError there.
+    if (maybeBlurred && typeof (maybeBlurred as { getContext?: unknown }).getContext === "function") {
+      output = maybeBlurred as HTMLCanvasElement;
     }
   }
 
@@ -359,5 +361,4 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  mainThread: true
 });

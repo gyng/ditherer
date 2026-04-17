@@ -110,4 +110,4 @@ const videoFeedback = (input: any, options: VideoFeedbackOptions = defaults) => 
   return output;
 };
 
-export default defineFilter({ name: "Video Feedback", func: videoFeedback, optionTypes, options: defaults, defaults, mainThread: true, description: "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns" });
+export default defineFilter({ name: "Video Feedback", func: videoFeedback, optionTypes, options: defaults, defaults, description: "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns" });

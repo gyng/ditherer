@@ -282,7 +282,11 @@ const rgbStripe = (input: any, options: RgbStripeOptions = defaults) => {
   }
   if (blur) {
     const maybeBlurred = convolve.func(output, { ...convolveDefaults, kernel: GAUSSIAN_3X3_WEAK });
-    if (maybeBlurred instanceof HTMLCanvasElement) output = maybeBlurred;
+    // Duck-type check — HTMLCanvasElement is undefined in Worker scope,
+    // so `instanceof HTMLCanvasElement` would ReferenceError there.
+    if (maybeBlurred && typeof (maybeBlurred as { getContext?: unknown }).getContext === "function") {
+      output = maybeBlurred as HTMLCanvasElement | OffscreenCanvas;
+    }
   }
   logFilterBackend("rgbStripe", "WebGL2", `mask=${shadowMask}${quantizeInShader ? "" : "+palettePass"}${blur ? "+blur" : ""}`);
   return output;
@@ -294,6 +298,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   requiresGL: true,
 });

@@ -199,7 +199,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  mainThread: true,
   noWASM: "Per-block motion detection is a reduction over each block's pixels plus a per-block branch on current/previous/corrupted content; the heavy inner work is the reduction, not vectorisable pixel math.",
   noGL: "Would need per-block motion-detection reduction plus a per-block branching lookup (prev-frame/current-displaced/offset-copy) — reduction is unfriendly to fragment shaders without compute.",
 });

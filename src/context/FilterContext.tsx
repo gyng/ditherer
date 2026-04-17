@@ -778,6 +778,11 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         webglAcceleration: curState.webglAcceleration,
         convertGrayscale: false,
         prevOutputs: serializedPrevOutputs,
+        // Propagate degauss trigger to rgbStripe in the worker. -Infinity
+        // (the "never degaussed" sentinel) doesn't survive structured-clone
+        // cleanly — use a large negative sentinel instead so the worker
+        // sees a finite number.
+        degaussFrame: Number.isFinite(degaussFrameRef.current) ? degaussFrameRef.current : -2147483648,
       }, transfers).then((result) => {
         const outData = new ImageData(
           new Uint8ClampedArray(result.imageData), result.width, result.height

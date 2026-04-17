@@ -218,6 +218,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Reject stripes or tiles like failed CRC packets, then conceal with hold, row-copy, or nearest-valid fill"
 });

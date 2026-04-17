@@ -19,6 +19,11 @@ export interface WorkerFilterRequest {
   webglAcceleration: boolean;
   convertGrayscale: boolean;
   prevOutputs: Record<string, ArrayBuffer>;
+  // Frame index of the most recent degauss trigger, propagated to
+  // filters that consume it (rgbStripe). -Infinity is the "never
+  // triggered" sentinel; wire format uses a finite small number so it
+  // survives JSON/structured-clone.
+  degaussFrame: number;
 }
 
 export interface WorkerPrevOutputFrame {

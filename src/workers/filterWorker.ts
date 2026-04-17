@@ -64,6 +64,7 @@ export const runWorkerFilterRequest = (
     webglAcceleration,
     convertGrayscale,
     prevOutputs,
+    degaussFrame,
   }: WorkerFilterRequest,
   createCanvas: WorkerCanvasFactory = defaultCanvasFactory,
 ): WorkerFilterResult => {
@@ -100,6 +101,7 @@ export const runWorkerFilterRequest = (
     opts._prevOutput = prevOutputs?.[entry.id]
       ? new Uint8ClampedArray(prevOutputs[entry.id])
       : null;
+    opts._degaussFrame = degaussFrame;
 
     if (opts.palette?.options) {
       opts.palette = {
