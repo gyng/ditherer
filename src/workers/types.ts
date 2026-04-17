@@ -28,7 +28,13 @@ export interface WorkerPrevOutputFrame {
 }
 
 export interface WorkerStepTime {
+  // User-visible label for the chain entry (may differ from the canonical
+  // filter name when a chain entry has been renamed).
   name: string;
+  // Canonical filter name from the FilterDefinition — used by the slow-
+  // filter registry so runtime throttling is consistent regardless of
+  // the user's display-label choices.
+  filterName?: string;
   ms: number;
   backend?: string;
 }

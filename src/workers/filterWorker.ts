@@ -84,7 +84,7 @@ export const runWorkerFilterRequest = (
     }
   }
 
-  const stepTimes: { name: string; ms: number; backend?: string }[] = [];
+  const stepTimes: { name: string; filterName?: string; ms: number; backend?: string }[] = [];
   const newPrevOutputs: Record<string, WorkerPrevOutputFrame> = {};
 
   for (const entry of chain) {
@@ -128,8 +128,8 @@ export const runWorkerFilterRequest = (
     const stepMs = performance.now() - t0;
     const backend = getFilterWasmStatuses().get(filter.name)?.label;
     stepTimes.push(backend
-      ? { name: entry.displayName, ms: stepMs, backend }
-      : { name: entry.displayName, ms: stepMs });
+      ? { name: entry.displayName, filterName: filter.name, ms: stepMs, backend }
+      : { name: entry.displayName, filterName: filter.name, ms: stepMs });
 
     if (has2dContext(output)) {
       const outCtx = output.getContext("2d") as

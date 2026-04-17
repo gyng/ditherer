@@ -9,6 +9,7 @@ import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
 import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
 import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas, logFilterBackend } from "utils";
+import { recordFilterStepMs } from "utils/slowFilterRegistry";
 import { releasePooledTextures, glAvailable, glUnavailableStub } from "gl";
 import { releaseFloatTextures } from "gl/fft2d";
 import { workerRPC, USE_WORKER } from "workers/workerRPC";
@@ -584,6 +585,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       // suppresses this fallback.
       logFilterDispatched(entry.filter.name, { noGL: entry.filter.noGL, noWASM: entry.filter.noWASM });
       const stepMs = performance.now() - t0;
+      recordFilterStepMs(entry.filter.name, stepMs);
       const backend = getFilterWasmStatuses().get(entry.filter.name)?.label;
       stepTimes.push(backend
         ? { name: entry.displayName, ms: stepMs, backend }
@@ -789,6 +791,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
         const workerStepTimes = [...stepTimes, ...result.stepTimes];
         const workerTotalTime = result.stepTimes.reduce((a, s) => a + s.ms, 0);
+        // Record worker-side durations too — a filter that hangs the worker
+        // shouldn't get reselected by the random-chain cycler. Prefer the
+        // canonical filterName; fall back to displayName for older payloads.
+        for (const step of result.stepTimes) {
+          recordFilterStepMs(step.filterName ?? step.name, step.ms);
+        }
         emitOutput(outCanvas, workerTotalTime, workerStepTimes, sourceFrameToken, sourceTime);
       }).catch((err) => {
         console.error("Worker failed, falling back to main thread:", err);

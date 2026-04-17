@@ -20,6 +20,7 @@ import {
   subscribeScreensaverCycleSeconds,
   notifyScreensaverChainSwap,
 } from "utils/randomCycleBridge";
+import { isSlowFilter } from "utils/slowFilterRegistry";
 import s from "./styles.module.css";
 
 const HOVER_PREVIEW_OPEN_DELAY_MS = 150;
@@ -248,7 +249,11 @@ const ChainList = ({
 
   const randomChain = useCallback((reason = "manual") => {
     // Usually pick 2-4 random filters, with small chances of 1- or 5-filter chains.
-    const candidates = filterList.filter((f) => f && f.category !== "Advanced");
+    // Skip filters the runtime flagged as slow this session so slideshow mode
+    // can't land on a filter that just hung the UI.
+    const candidates = filterList.filter((f) =>
+      f && f.category !== "Advanced" && !isSlowFilter(f.filter.name),
+    );
     if (candidates.length === 0) return;
     const roll = Math.random();
     const count = roll < 0.08 ? 1 : roll < 0.92 ? 2 + Math.floor(Math.random() * 3) : 5;
@@ -353,7 +358,15 @@ const ChainList = ({
 
   const loadRandomPreset = (reason = "manual-preset") => {
     if (CHAIN_PRESETS.length === 0) return;
-    const preset = CHAIN_PRESETS[Math.floor(Math.random() * CHAIN_PRESETS.length)];
+    // Same slow-filter guard as randomChain: refuse presets whose chain
+    // contains a filter the runtime has flagged. Falls back to the full
+    // pool only if every preset is blocked, so the user never sees a
+    // silent no-op.
+    const safePresets = CHAIN_PRESETS.filter(
+      (p) => !p.filters.some((entry) => isSlowFilter(entry.name)),
+    );
+    const pool = safePresets.length > 0 ? safePresets : CHAIN_PRESETS;
+    const preset = pool[Math.floor(Math.random() * pool.length)];
     console.info(`[random-chain:${reason}]`, preset.filters.map((filter) => filter.name).join(" -> "));
     loadPreset(preset);
     setLoadedSavedName(null);
