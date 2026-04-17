@@ -211,5 +211,6 @@ export default defineFilter({
   options: defaults,
   defaults,
   requiresGL: true,
-  description: "Codec-style JPEG degradation with DCT quantization, chroma subsampling, and optional temporal hold corruption"
+  description: "Codec-style JPEG degradation with DCT quantization, chroma subsampling, and optional temporal hold corruption",
+  temporal: true,
 });

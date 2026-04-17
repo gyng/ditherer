@@ -282,4 +282,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Take the per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure",
+  temporal: true,
 });

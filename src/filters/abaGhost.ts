@@ -141,4 +141,5 @@ export default defineFilter<AbaGhostOptions>({
   options: defaults,
   defaults,
   description: "Store A and B, then replay a persistent mostly-B double exposure whose emphasized beat can drift off the strict ABA grid for a looser variable-frame ghost trail",
+  temporal: true,
 });

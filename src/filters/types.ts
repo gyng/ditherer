@@ -131,7 +131,10 @@ export interface FilterDefinition<TOptions extends FilterOptionValues = FilterOp
   options?: TOptions;
   defaults?: TOptions;
   description?: string;
-  mainThread?: boolean;
+  // UI hint — the filter reacts to frame-to-frame state (phosphor decay,
+  // after-image trails, VHS ghosting, …). Used by the library browser to
+  // show a "temporal" badge and by the chain preview to animate the pill.
+  temporal?: boolean;
   // When true, adding this filter to the chain also kicks off the animation
   // loop. Intended for filters whose "interesting" state is a transient burst
   // (CRT Degauss's decaying wobble, etc.) that a first-time user won't see
@@ -180,9 +183,8 @@ export function defineFilter<TOptions extends FilterOptionValues>(
   return filter;
 }
 
-export const isMainThreadFilter = (
-  filter: Pick<FilterDefinition, "mainThread"> | null | undefined,
-): boolean => filter?.mainThread === true;
-
+// UI hint — "this filter reacts to frame-to-frame state" (temporal smoothing,
+// motion trails, phosphor decay, …). Independent of dispatch routing; the
+// library browser shows a "temp" badge and the chain-preview animates it.
 export const hasTemporalBehavior = (entry: FilterListEntry): boolean =>
-  isMainThreadFilter(entry.filter);
+  entry.filter?.temporal === true;

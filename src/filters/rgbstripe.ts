@@ -299,4 +299,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   requiresGL: true,
+  temporal: true,
 });

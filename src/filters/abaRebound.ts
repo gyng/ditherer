@@ -134,4 +134,5 @@ export default defineFilter<AbaReboundOptions>({
   options: defaults,
   defaults,
   description: "Store A and B, then slam the emphasized beat forward into an extreme overshoot whose cadence can drift off the strict ABA grid",
+  temporal: true,
 });

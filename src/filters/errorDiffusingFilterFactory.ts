@@ -969,6 +969,10 @@ export const errorDiffusingFilter = (
     optionTypes,
     options: defaults,
     defaults: defaultOptions,
+    // Error diffusion is inherently temporal-style when temporalBleed > 0 —
+    // UI flags it alongside the other frame-to-frame effects regardless of
+    // the slider's current value, since saved chains often flip it on.
+    temporal: true,
     // Error diffusion pushes quantisation error forward into neighbours that
     // haven't been processed yet — a strict sequential dependency. Fragment
     // shaders are gather-only and fully parallel, so this algorithm can't be

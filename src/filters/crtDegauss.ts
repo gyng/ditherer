@@ -369,5 +369,6 @@ export default defineFilter({
   // User can still stop via the same Play/Stop control.
   autoAnimate: true,
   autoAnimateFps: 20,
-  description: "A decaying CRT degauss pulse with raster wobble, RGB mislanding, rainbow shimmer, and a bright magnetic flash"
+  description: "A decaying CRT degauss pulse with raster wobble, RGB mislanding, rainbow shimmer, and a bright magnetic flash",
+  temporal: true,
 });

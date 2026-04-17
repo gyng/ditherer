@@ -141,4 +141,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Convert recent motion history into embossed grayscale surface shading so change reads like raised relief",
+  temporal: true,
 });

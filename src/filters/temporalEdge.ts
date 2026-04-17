@@ -76,4 +76,4 @@ const temporalEdge = (input: any, options: TemporalEdgeOptions = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Temporal Edge", func: temporalEdge, optionTypes, options: defaults, defaults, description: "Detect edges in time — moving edges glow, static edges are invisible" });
+export default defineFilter({ name: "Temporal Edge", func: temporalEdge, optionTypes, options: defaults, defaults, description: "Detect edges in time — moving edges glow, static edges are invisible" , temporal: true });

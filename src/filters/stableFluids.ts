@@ -348,4 +348,5 @@ export default defineFilter({
   defaults,
   description: "Stam-style semi-Lagrangian fluid advection — smoke flows along the image's edges, picking up gradients as forcing terms each frame",
   noWASM: "Semi-Lagrangian advection is textures all the way down.",
+  temporal: true,
 });

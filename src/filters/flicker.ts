@@ -151,4 +151,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Aggressive projector/monitor flicker with live ghost, strobe, and held-frame flash modes",
+  temporal: true,
 });

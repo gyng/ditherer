@@ -249,4 +249,4 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views" });
+export default defineFilter({ name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views" , temporal: true });

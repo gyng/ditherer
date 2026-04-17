@@ -620,4 +620,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Estimate local motion between frames and render stable arrows, trails, or heat overlays for debugging and stylized analysis",
+  temporal: true,
 });

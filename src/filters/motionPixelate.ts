@@ -105,4 +105,4 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
   return output;
 };
 
-export default defineFilter({ name: "Motion Pixelate", func: motionPixelate, optionTypes, options: defaults, defaults, description: "Moving areas become pixelated — privacy/censorship or artistic motion effect" });
+export default defineFilter({ name: "Motion Pixelate", func: motionPixelate, optionTypes, options: defaults, defaults, description: "Moving areas become pixelated — privacy/censorship or artistic motion effect" , temporal: true });

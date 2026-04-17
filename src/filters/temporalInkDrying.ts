@@ -165,4 +165,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Fresh marks dry like fountain pen lines, brush ink washes, or marker bleed depending on the chosen paper-and-ink style",
+  temporal: true,
 });

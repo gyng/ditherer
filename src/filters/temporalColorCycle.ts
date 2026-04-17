@@ -253,4 +253,4 @@ const temporalColorCycle = (input: any, options: TemporalColorCycleOptions = def
   return output;
 };
 
-export default defineFilter({ name: "Color Cycle", func: temporalColorCycle, optionTypes, options: defaults, defaults, description: "Hue rotates over time — moving areas cycle faster creating rainbow trails" });
+export default defineFilter({ name: "Color Cycle", func: temporalColorCycle, optionTypes, options: defaults, defaults, description: "Hue rotates over time — moving areas cycle faster creating rainbow trails" , temporal: true });

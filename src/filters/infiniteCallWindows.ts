@@ -448,4 +448,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Recursive meeting panes with digital UI chrome, blocky compression wear, and endless self-view nesting",
+  temporal: true,
 });

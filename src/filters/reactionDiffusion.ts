@@ -308,4 +308,5 @@ export default defineFilter({
   defaults,
   description: "Gray-Scott reaction-diffusion seeded from image luminance — spots, stripes, coral, mitosis, labyrinth Turing patterns grow out of the picture over time",
   noWASM: "Iterative on GPU only — CPU would be seconds per frame at 1280×720.",
+  temporal: true,
 });

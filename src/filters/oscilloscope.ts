@@ -323,4 +323,5 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
+  temporal: true,
 });

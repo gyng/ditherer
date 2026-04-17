@@ -268,5 +268,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Map into an indexed palette, then drift the lookup table over time so colors break while geometry stays stable"
+  description: "Map into an indexed palette, then drift the lookup table over time so colors break while geometry stays stable",
+  temporal: true,
 });

@@ -190,4 +190,4 @@ const afterImage = (input: any, options: AfterImageOptions = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "After-Image", func: afterImage, optionTypes, options: defaults, defaults, description: "Complementary-colored ghost when bright objects move away — retinal fatigue simulation" });
+export default defineFilter({ name: "After-Image", func: afterImage, optionTypes, options: defaults, defaults, description: "Complementary-colored ghost when bright objects move away — retinal fatigue simulation" , temporal: true });

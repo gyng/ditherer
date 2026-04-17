@@ -157,5 +157,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Corrupt specific RGB bitplanes in bursts so significance levels drop, freeze, or flip like real digital faults"
+  description: "Corrupt specific RGB bitplanes in bursts so significance levels drop, freeze, or flip like real digital faults",
+  temporal: true,
 });

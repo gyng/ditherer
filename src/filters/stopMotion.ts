@@ -48,4 +48,4 @@ const stopMotion = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Stop Motion", func: stopMotion, optionTypes, options: defaults, defaults, description: "Hold each captured frame for several beats to create a choppy stop-motion feel" });
+export default defineFilter({ name: "Stop Motion", func: stopMotion, optionTypes, options: defaults, defaults, description: "Hold each captured frame for several beats to create a choppy stop-motion feel" , temporal: true });

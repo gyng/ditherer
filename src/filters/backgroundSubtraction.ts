@@ -217,4 +217,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Separate moving and static regions to isolate foreground, reconstruct the background, or freeze still parts of the scene",
+  temporal: true,
 });

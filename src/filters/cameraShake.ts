@@ -234,5 +234,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "More realistic handheld shake with drift targets, inertia, settling, and fine tremor"
+  description: "More realistic handheld shake with drift targets, inertia, settling, and fine tremor",
+  temporal: true,
 });

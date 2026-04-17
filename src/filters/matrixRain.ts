@@ -402,7 +402,7 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
 
   // GL fast path — package the already-computed lane/illum state into
   // textures and let the shader handle the final per-pixel glyph
-  // rasterisation. CPU keeps all temporal state (mainThread: true).
+  // rasterisation. CPU (worker or main) keeps all temporal state.
   if ((options as { _webglAcceleration?: boolean })._webglAcceleration !== false && matrixRainGLAvailable()) {
     const laneInfo = new Float32Array(laneCount * 4);
     const cellData = new Float32Array(laneCount * rows * 4);
@@ -569,6 +569,6 @@ export default defineFilter<MatrixRainOptions>({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Digital rain — static character grid with illumination sweep, source overlay, motion gating, and movement-triggered drops",
+  temporal: true,
 });

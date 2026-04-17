@@ -356,4 +356,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
+  temporal: true,
 });

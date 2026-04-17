@@ -1,6 +1,6 @@
 import * as palettes from "palettes";
 import { THEMES } from "palettes/user";
-import { hasTemporalBehavior, isMainThreadFilter, type FilterDefinition, type FilterListEntry } from "./types";
+import { hasTemporalBehavior, type FilterDefinition, type FilterListEntry } from "./types";
 
 import noop from "./noop";
 import binarize from "./binarize";
@@ -939,7 +939,7 @@ export const filterIndex = filterList.reduce((acc, entry) => {
   return acc;
 }, {} as Record<string, FilterDefinition>);
 
-export { hasTemporalBehavior, isMainThreadFilter };
+export { hasTemporalBehavior };
 
 if (import.meta.hot) {
   import.meta.hot.accept(() => {

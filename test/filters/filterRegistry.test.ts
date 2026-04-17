@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { filterIndex, filterList, hasTemporalBehavior, isMainThreadFilter } from "filters";
+import { filterIndex, filterList, hasTemporalBehavior } from "filters";
 
 describe("filter registry", () => {
   it("keeps display names unique across the picker list", () => {
@@ -16,7 +16,6 @@ describe("filter registry", () => {
   it("exposes every listed filter through filterIndex for worker execution", () => {
     const missing = filterList
       .filter((entry) => entry.displayName !== "None")
-      .filter((entry) => !isMainThreadFilter(entry.filter))
       .filter((entry) => !filterIndex[entry.filter.name])
       .map((entry) => `${entry.displayName} (${entry.filter.name})`);
 
@@ -27,6 +26,6 @@ describe("filter registry", () => {
     const temporalEntries = filterList.filter(hasTemporalBehavior);
 
     expect(temporalEntries.length).toBeGreaterThan(0);
-    expect(temporalEntries.every((entry) => entry.filter.mainThread === true)).toBe(true);
+    expect(temporalEntries.every((entry) => entry.filter.temporal === true)).toBe(true);
   });
 });

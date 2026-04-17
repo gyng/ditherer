@@ -1,7 +1,7 @@
 import React, { useReducer, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import filterReducer, { initialState, ChainEntry, type FilterReducerAction, type FilterReducerState } from "reducers/filters";
 import * as optionTypes from "constants/optionTypes";
-import { filterList, grayscale, isMainThreadFilter } from "filters";
+import { filterList, grayscale } from "filters";
 import { THEMES } from "palettes/user";
 import { serializePalette } from "palettes";
 import { decodeShareState } from "utils/shareState";
@@ -504,14 +504,6 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     return opts;
   };
 
-  // A filter must run on the main thread if it reads temporal pipeline state
-  // (_prevOutput / _prevInput / _ema), holds module-level state that needs to
-  // persist across calls, or uses dispatch. Filters declare this by setting
-  // `mainThread: true` on their default export. The flag is the source of
-  // truth — no hand-maintained name list here.
-  const chainNeedsMainThread = (entries: ChainEntry[]) =>
-    entries.some(e => isMainThreadFilter(e.filter));
-
   // Main-thread filter execution (fallback path). Async so filters that
   // return a Promise<canvas> (e.g. glitchblob — async Blob round-trip)
   // fit the same contract as the worker path does.
@@ -736,7 +728,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const entriesToRun = enabledEntries.slice(startIdx);
-    const useWorker = USE_WORKER && !chainNeedsMainThread(entriesToRun);
+    const useWorker = USE_WORKER;
 
     if (useWorker && entriesToRun.length > 0) {
       // Worker path — async, dispatches output when done

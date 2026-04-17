@@ -191,4 +191,5 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting",
+  temporal: true,
 });
