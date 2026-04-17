@@ -1,9 +1,9 @@
 import { ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { flipGLAvailable, renderFlipGL } from "./flipGL";
+import { renderFlipGL } from "./flipGL";
 
 const MODE = { HORIZONTAL: "HORIZONTAL", VERTICAL: "VERTICAL", BOTH: "BOTH" };
 
@@ -21,47 +21,24 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-type FlipOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const flipFilter = (input: any, options: FlipOptions = defaults) => {
+const flipFilter = (input: any, options: typeof defaults = defaults) => {
   const { mode, palette } = options;
   const W = input.width, H = input.height;
-
-  if (options._webglAcceleration !== false && flipGLAvailable()) {
-    const flipX = mode === MODE.HORIZONTAL || mode === MODE.BOTH;
-    const flipY = mode === MODE.VERTICAL || mode === MODE.BOTH;
-    const rendered = renderFlipGL(input, W, H, flipX, flipY);
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Flip", "WebGL2", `mode=${mode}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const sx = (mode === MODE.HORIZONTAL || mode === MODE.BOTH) ? W - 1 - x : x;
-      const sy = (mode === MODE.VERTICAL || mode === MODE.BOTH) ? H - 1 - y : y;
-      const si = getBufferIndex(sx, sy, W);
-      const di = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(buf[si], buf[si+1], buf[si+2], buf[si+3]), palette.options, false);
-      fillBufferPixel(outBuf, di, color[0], color[1], color[2], buf[si+3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const flipX = mode === MODE.HORIZONTAL || mode === MODE.BOTH;
+  const flipY = mode === MODE.VERTICAL || mode === MODE.BOTH;
+  const rendered = renderFlipGL(input, W, H, flipX, flipY);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Flip", "WebGL2", `mode=${mode}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
-export default defineFilter({ name: "Flip", func: flipFilter, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Flip",
+  func: flipFilter,
+  optionTypes,
+  options: defaults,
+  defaults,
+  requiresGL: true,
+});

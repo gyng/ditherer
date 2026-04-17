@@ -1,9 +1,9 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, getBufferIndex, logFilterBackend, logFilterWasmStatus } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { lutGLAvailable, renderLUTGL, LUT_PRESET } from "./lutGL";
+import { renderLUTGL, LUT_PRESET } from "./lutGL";
 
 const PRESET_NAMES = {
   ACES:          "ACES Filmic",
@@ -49,8 +49,7 @@ const PRESET_NAMES = {
   INCEPTION:     "Inception",
   DRIVE:         "Drive",
   STRANGER_THINGS: "Stranger Things",
-  JOKER_2019:    "Joker (2019)",
-} as const;
+  JOKER_2019:    "Joker (2019)" } as const;
 
 const PRESET_KEYS = [
   "ACES", "REINHARD", "UNCHARTED2", "TEAL_ORANGE", "BLEACH_BYPASS",
@@ -71,21 +70,16 @@ export const optionTypes = {
     type: ENUM,
     options: PRESET_KEYS.map(k => ({ name: PRESET_NAMES[k], value: k })),
     default: "ACES" as typeof PRESET_KEYS[number],
-    desc: "Colour-grade lookup — iconic tonemap and film-style looks",
-  },
+    desc: "Colour-grade lookup — iconic tonemap and film-style looks" },
   strength: { type: RANGE, range: [0, 1.5], step: 0.05, default: 1, desc: "Blend/overshoot toward graded image (0 = source, 1 = fully graded, >1 = push past grade for extreme looks)" },
   exposure: { type: RANGE, range: [-5, 5], step: 0.1, default: 0, desc: "Pre-grade exposure in stops (2^exposure multiplier)" },
-  palette: { type: PALETTE, default: nearest },
-};
+  palette: { type: PALETTE, default: nearest } };
 
 export const defaults = {
   preset: optionTypes.preset.default,
   strength: optionTypes.strength.default,
   exposure: optionTypes.exposure.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
-};
-
-type LUTOptions = typeof defaults & { _webglAcceleration?: boolean };
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } } };
 
 const sat01 = (v: number) => Math.max(0, Math.min(1, v));
 const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -432,52 +426,17 @@ const grade = (preset: string, r: number, g: number, b: number): [number, number
   }
 };
 
-const lut = (input: any, options: LUTOptions = defaults) => {
+const lut = (input: any, options: typeof defaults = defaults) => {
   const { preset, strength, exposure, palette } = options;
   const W = input.width, H = input.height;
   const presetId = LUT_PRESET[preset] ?? 0;
 
-  if (options._webglAcceleration !== false && lutGLAvailable()) {
-    const rendered = renderLUTGL(input, W, H, presetId, strength, exposure);
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("LUT", "WebGL2", `${preset} str=${strength}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  logFilterWasmStatus("LUT", false, "fallback JS");
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const expMul = Math.pow(2, exposure);
-
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      const r = (buf[i] / 255) * expMul;
-      const g = (buf[i + 1] / 255) * expMul;
-      const b = (buf[i + 2] / 255) * expMul;
-      const [gr, gg, gb] = grade(preset, r, g, b);
-      const mr = r * (1 - strength) + gr * strength;
-      const mg = g * (1 - strength) + gg * strength;
-      const mb = b * (1 - strength) + gb * strength;
-      outBuf[i] = Math.round(sat01(mr) * 255);
-      outBuf[i + 1] = Math.round(sat01(mg) * 255);
-      outBuf[i + 2] = Math.round(sat01(mb) * 255);
-      outBuf[i + 3] = buf[i + 3];
-    }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+  const rendered = renderLUTGL(input, W, H, presetId, strength, exposure);
+  if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
-  return identity ? output : (applyPalettePassToCanvas(output, W, H, palette) ?? output);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("LUT", "WebGL2", `${preset} str=${strength}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -487,4 +446,4 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Colour grading lookup with iconic tonemaps (ACES, Reinhard, Hable) and film styles (Teal & Orange, Bleach Bypass, Kodachrome, Technicolor, Cross Process, Matrix Green, Amber Noir, Faded Film, Cold Winter)",
-});
+  requiresGL: true });

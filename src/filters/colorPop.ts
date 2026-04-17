@@ -1,7 +1,7 @@
 import { RANGE } from "constants/controlTypes";
-import { cloneCanvas, getBufferIndex, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
-import { colorPopGLAvailable, renderColorPopGL } from "./colorPopGL";
+import { renderColorPopGL } from "./colorPopGL";
 
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   if (edge0 === edge1) return x < edge0 ? 0 : 1;
@@ -23,62 +23,14 @@ export const defaults = {
   softness: optionTypes.softness.default
 };
 
-type ColorPopOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const colorPop = (input: any, options: ColorPopOptions = defaults) => {
+const colorPop = (input: any, options: typeof defaults = defaults) => {
   const { targetHue, hueWidth, desaturateOthers, softness } = options;
   const W = input.width, H = input.height;
 
-  if (options._webglAcceleration !== false && colorPopGLAvailable()) {
-    const rendered = renderColorPopGL(input, W, H, targetHue, hueWidth, desaturateOthers, softness);
-    if (rendered) {
-      logFilterBackend("Color Pop", "WebGL2", `hue=${targetHue} w=${hueWidth}`);
-      return rendered;
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const softEdge = hueWidth + softness * 90;
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      const r = buf[i] / 255;
-      const g = buf[i + 1] / 255;
-      const b = buf[i + 2] / 255;
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const delta = max - min;
-      let hue = 0;
-
-      if (delta !== 0) {
-        if (max === r) hue = ((g - b) / delta + (g < b ? 6 : 0)) / 6;
-        else if (max === g) hue = ((b - r) / delta + 2) / 6;
-        else hue = ((r - g) / delta + 4) / 6;
-      }
-
-      let hueDist = Math.abs(hue * 360 - targetHue);
-      if (hueDist > 180) hueDist = 360 - hueDist;
-
-      const protectedMix = 1 - smoothstep(hueWidth, softEdge, hueDist);
-      const mute = desaturateOthers * (1 - protectedMix);
-      const gray = Math.round(0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]);
-
-      outBuf[i] = Math.round(buf[i] * (1 - mute) + gray * mute);
-      outBuf[i + 1] = Math.round(buf[i + 1] * (1 - mute) + gray * mute);
-      outBuf[i + 2] = Math.round(buf[i + 2] * (1 - mute) + gray * mute);
-      outBuf[i + 3] = buf[i + 3];
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = renderColorPopGL(input, W, H, targetHue, hueWidth, desaturateOthers, softness);
+  if (!rendered) return input;
+  logFilterBackend("Color Pop", "WebGL2", `hue=${targetHue} w=${hueWidth}`);
+  return rendered;
 };
 
 export default defineFilter({
@@ -86,5 +38,5 @@ export default defineFilter({
   func: colorPop,
   optionTypes,
   options: defaults,
-  defaults
-});
+  defaults,
+  requiresGL: true });

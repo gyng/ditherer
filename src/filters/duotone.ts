@@ -1,9 +1,9 @@
 import { COLOR, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { duotoneGLAvailable, renderDuotoneGL } from "./duotoneGL";
+import { renderDuotoneGL } from "./duotoneGL";
 
 // Parse color that may be hex string (legacy URLs) or [r,g,b] array
 const parseColor = (c: unknown): [number, number, number] => {
@@ -28,48 +28,18 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-type DuotoneOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const duotone = (input: any, options: DuotoneOptions = defaults) => {
+const duotone = (input: any, options: typeof defaults = defaults) => {
   const { shadowColor, highlightColor, palette } = options;
   const W = input.width, H = input.height;
   const shadow = parseColor(shadowColor);
   const highlight = parseColor(highlightColor);
 
-  if (options._webglAcceleration !== false && duotoneGLAvailable()) {
-    const rendered = renderDuotoneGL(input, W, H, shadow, highlight);
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Duotone", "WebGL2", identity ? "" : "+palettePass");
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-
-  const outBuf = new Uint8ClampedArray(buf.length);
-  for (let x = 0; x < W; x += 1) {
-    for (let y = 0; y < H; y += 1) {
-      const i = getBufferIndex(x, y, W);
-      const t = (buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722) / 255;
-      const r = Math.round(shadow[0] + t * (highlight[0] - shadow[0]));
-      const g = Math.round(shadow[1] + t * (highlight[1] - shadow[1]));
-      const b = Math.round(shadow[2] + t * (highlight[2] - shadow[2]));
-      const col = srgbPaletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options);
-      fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = renderDuotoneGL(input, W, H, shadow, highlight);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Duotone", "WebGL2", identity ? "" : "+palettePass");
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -77,5 +47,5 @@ export default defineFilter({
   func: duotone,
   options: defaults,
   optionTypes,
-  defaults
-});
+  defaults,
+  requiresGL: true });

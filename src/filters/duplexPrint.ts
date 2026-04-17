@@ -1,7 +1,7 @@
 import { COLOR, RANGE } from "constants/controlTypes";
-import { cloneCanvas, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
-import { duplexPrintGLAvailable, renderDuplexPrintGL } from "./duplexPrintGL";
+import { renderDuplexPrintGL } from "./duplexPrintGL";
 
 export const optionTypes = {
   inkA: { type: COLOR, default: [28, 24, 24], desc: "Shadow ink color used for the darker end of the print" },
@@ -17,60 +17,19 @@ export const defaults = {
   paperColor: optionTypes.paperColor.default
 };
 
-type DuplexPrintOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const duplexPrint = (input: any, options: DuplexPrintOptions = defaults) => {
+const duplexPrint = (input: any, options: typeof defaults = defaults) => {
   const { inkA, inkB, mixCurve, paperColor } = options;
   const W = input.width;
   const H = input.height;
 
-  if (options._webglAcceleration !== false && duplexPrintGLAvailable()) {
-    const rendered = renderDuplexPrintGL(
-      input, W, H,
+  const rendered = renderDuplexPrintGL(input, W, H,
       [inkA[0], inkA[1], inkA[2]],
       [inkB[0], inkB[1], inkB[2]],
       [paperColor[0], paperColor[1], paperColor[2]],
-      mixCurve,
-    );
-    if (rendered) {
-      logFilterBackend("Duplex Print", "WebGL2", `curve=${mixCurve}`);
-      return rendered;
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let i = 0; i < buf.length; i += 4) {
-    const lum = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
-    const darkPlate = Math.pow(1 - lum, mixCurve);
-    const accentPlate = Math.pow(lum, 1 / Math.max(0.001, mixCurve));
-
-    outBuf[i] = Math.max(0, Math.min(255, Math.round(
-      paperColor[0] * (1 - darkPlate * 0.9 - accentPlate * 0.65) +
-      inkA[0] * darkPlate * 0.9 +
-      inkB[0] * accentPlate * 0.65
-    )));
-    outBuf[i + 1] = Math.max(0, Math.min(255, Math.round(
-      paperColor[1] * (1 - darkPlate * 0.9 - accentPlate * 0.65) +
-      inkA[1] * darkPlate * 0.9 +
-      inkB[1] * accentPlate * 0.65
-    )));
-    outBuf[i + 2] = Math.max(0, Math.min(255, Math.round(
-      paperColor[2] * (1 - darkPlate * 0.9 - accentPlate * 0.65) +
-      inkA[2] * darkPlate * 0.9 +
-      inkB[2] * accentPlate * 0.65
-    )));
-    outBuf[i + 3] = 255;
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+      mixCurve,);
+  if (!rendered) return input;
+  logFilterBackend("Duplex Print", "WebGL2", `curve=${mixCurve}`);
+  return rendered;
 };
 
 export default defineFilter({
@@ -78,5 +37,5 @@ export default defineFilter({
   func: duplexPrint,
   optionTypes,
   options: defaults,
-  defaults
-});
+  defaults,
+  requiresGL: true });

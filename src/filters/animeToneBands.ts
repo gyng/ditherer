@@ -1,9 +1,9 @@
 import { BOOL, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
+import { clamp, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { animeToneBandsGLAvailable, renderAnimeToneBandsGL } from "./animeToneBandsGL";
+import { renderAnimeToneBandsGL } from "./animeToneBandsGL";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const smoothstep = (edge0: number, edge1: number, value: number) => {
@@ -24,8 +24,7 @@ export const optionTypes = {
   bandBias: { type: RANGE, range: [-0.4, 0.4], step: 0.05, default: 0.05, desc: "Bias more band detail toward shadows or highlights" },
   preserveSkin: { type: BOOL, default: true, desc: "Reduce banding on likely skin tones" },
   mix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.85, desc: "Blend the tone-banded result over the source image" },
-  palette: { type: PALETTE, default: nearest },
-};
+  palette: { type: PALETTE, default: nearest } };
 
 export const defaults = {
   shadowSteps: optionTypes.shadowSteps.default,
@@ -34,79 +33,20 @@ export const defaults = {
   bandBias: optionTypes.bandBias.default,
   preserveSkin: optionTypes.preserveSkin.default,
   mix: optionTypes.mix.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
-};
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } } };
 
-type AnimeToneBandsOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const animeToneBands = (input: any, options: AnimeToneBandsOptions = defaults) => {
+const animeToneBands = (input: any, options: typeof defaults = defaults) => {
   const { shadowSteps, highlightSteps, edgeSoftness, bandBias, preserveSkin, mix, palette } = options;
   const W = input.width;
   const H = input.height;
 
-  if (options._webglAcceleration !== false && animeToneBandsGLAvailable()) {
-    const rendered = renderAnimeToneBandsGL(
-      input, W, H,
-      shadowSteps, highlightSteps, edgeSoftness, bandBias, preserveSkin, mix,
-    );
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Anime Tone Bands", "WebGL2", `sh=${shadowSteps} hl=${highlightSteps}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      const i = getBufferIndex(x, y, W);
-      const r = buf[i];
-      const g = buf[i + 1];
-      const b = buf[i + 2];
-      const a = buf[i + 3];
-
-      const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-      const biased = clamp(0, 1, luma + bandBias * (0.5 - luma));
-      const useShadowSteps = biased < 0.5;
-      const steps = useShadowSteps ? shadowSteps : highlightSteps;
-      const quantized = quantizeTone(biased, steps);
-      const softMix = edgeSoftness > 0
-        ? smoothstep(0, edgeSoftness, Math.abs(biased - quantized))
-        : 1;
-      let targetLuma = lerp(quantized, biased, softMix * 0.5);
-
-      if (preserveSkin) {
-        const skinish = r > g && g > b && r - b > 18 && g - b > 8;
-        if (skinish) {
-          targetLuma = lerp(targetLuma, luma, 0.45);
-        }
-      }
-
-      const scale = luma <= 0.001 ? targetLuma : targetLuma / luma;
-      const bandR = clamp(0, 255, Math.round(r * scale));
-      const bandG = clamp(0, 255, Math.round(g * scale));
-      const bandB = clamp(0, 255, Math.round(b * scale));
-
-      const finalR = clamp(0, 255, Math.round(lerp(r, bandR, mix)));
-      const finalG = clamp(0, 255, Math.round(lerp(g, bandG, mix)));
-      const finalB = clamp(0, 255, Math.round(lerp(b, bandB, mix)));
-      const color = srgbPaletteGetColor(palette, rgba(finalR, finalG, finalB, a), palette.options);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], a);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = renderAnimeToneBandsGL(input, W, H,
+      shadowSteps, highlightSteps, edgeSoftness, bandBias, preserveSkin, mix,);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Anime Tone Bands", "WebGL2", `sh=${shadowSteps} hl=${highlightSteps}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -115,4 +55,4 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-});
+  requiresGL: true });

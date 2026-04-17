@@ -1,7 +1,7 @@
 import { RANGE, BOOL, ENUM } from "constants/controlTypes";
-import { cloneCanvas, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
-import { lumaMatteGLAvailable, renderLumaMatteGL } from "./lumaMatteGL";
+import { renderLumaMatteGL } from "./lumaMatteGL";
 
 const BG_MODE = {
   TRANSPARENT: "TRANSPARENT",
@@ -38,9 +38,7 @@ export const defaults = {
   backgroundMode: optionTypes.backgroundMode.default
 };
 
-type LumaMatteOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const lumaMatte = (input: any, options: LumaMatteOptions = defaults) => {
+const lumaMatte = (input: any, options: typeof defaults = defaults) => {
   const { threshold, feather, invert, backgroundMode } = options;
   const W = input.width;
   const H = input.height;
@@ -49,43 +47,10 @@ const lumaMatte = (input: any, options: LumaMatteOptions = defaults) => {
   const high = Math.min(255, threshold + feather);
   const bgModeInt = backgroundMode === BG_MODE.TRANSPARENT ? 0 : backgroundMode === BG_MODE.BLACK ? 1 : 2;
 
-  if (options._webglAcceleration !== false && lumaMatteGLAvailable()) {
-    const rendered = renderLumaMatteGL(input, W, H, low, high, invert, bgModeInt as 0 | 1 | 2);
-    if (rendered) {
-      logFilterBackend("Luma Matte", "WebGL2", `t=${threshold} feather=${feather} bg=${backgroundMode}`);
-      return rendered;
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const out = new Uint8ClampedArray(buf.length);
-  const bgValue = backgroundMode === BG_MODE.WHITE ? 255 : 0;
-
-  for (let i = 0; i < buf.length; i += 4) {
-    const lum = 0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2];
-    let mask = smoothstep(low, high, lum);
-    if (invert) mask = 1 - mask;
-
-    if (backgroundMode === BG_MODE.TRANSPARENT) {
-      out[i] = buf[i];
-      out[i + 1] = buf[i + 1];
-      out[i + 2] = buf[i + 2];
-      out[i + 3] = Math.round(mask * 255);
-    } else {
-      out[i] = Math.round(buf[i] * mask + bgValue * (1 - mask));
-      out[i + 1] = Math.round(buf[i + 1] * mask + bgValue * (1 - mask));
-      out[i + 2] = Math.round(buf[i + 2] * mask + bgValue * (1 - mask));
-      out[i + 3] = 255;
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(out, W, H), 0, 0);
-  return output;
+  const rendered = renderLumaMatteGL(input, W, H, low, high, invert, bgModeInt as 0 | 1 | 2);
+  if (!rendered) return input;
+  logFilterBackend("Luma Matte", "WebGL2", `t=${threshold} feather=${feather} bg=${backgroundMode}`);
+  return rendered;
 };
 
 export default defineFilter({
@@ -93,5 +58,5 @@ export default defineFilter({
   func: lumaMatte,
   optionTypes,
   options: defaults,
-  defaults
-});
+  defaults,
+  requiresGL: true });

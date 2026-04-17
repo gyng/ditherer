@@ -1,9 +1,9 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, paletteGetColor, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { rhythmicWobbleGLAvailable, renderRhythmicWobbleGL } from "./rhythmicWobbleGL";
+import { renderRhythmicWobbleGL } from "./rhythmicWobbleGL";
 
 export const optionTypes = {
   amountX: { type: RANGE, range: [0, 40], step: 1, default: 6, desc: "Maximum horizontal wobble in pixels" },
@@ -36,13 +36,12 @@ export const defaults = {
 const samplePhase = (frameIndex: number, frequency: number, seed: number) =>
   frameIndex * frequency * 0.14 + seed;
 
-type RhythmicWobbleOptions = typeof defaults & { _frameIndex?: number; _webglAcceleration?: boolean };
+type RhythmicWobbleOptions = typeof defaults & { _frameIndex?: number };
 
 const rhythmicWobble = (input: any, options: RhythmicWobbleOptions = defaults) => {
   const { amountX, amountY, rotation, zoomJitter, frequency, palette } = options;
   const frameIndex = options._frameIndex || 0;
-  const width = input.width;
-  const height = input.height;
+  const W = input.width, H = input.height;
 
   const phaseX = samplePhase(frameIndex, frequency, 0.37);
   const phaseY = samplePhase(frameIndex, frequency, 1.91);
@@ -55,56 +54,12 @@ const rhythmicWobble = (input: any, options: RhythmicWobbleOptions = defaults) =
   ) * (Math.PI / 180);
   const zoom = 1 + Math.sin(samplePhase(frameIndex, frequency, 4.12)) * zoomJitter;
 
-  if (options._webglAcceleration !== false && rhythmicWobbleGLAvailable()) {
-    const rendered = renderRhythmicWobbleGL(input, width, height, offsetX, offsetY, angle, zoom);
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
-      if (out) {
-        logFilterBackend("Rhythmic Wobble", "WebGL2", `offsetX=${offsetX.toFixed(2)} offsetY=${offsetY.toFixed(2)}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, width, height).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
-  const cx = (width - 1) * 0.5;
-  const cy = (height - 1) * 0.5;
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const dx = (x - cx) / zoom;
-      const dy = (y - cy) / zoom;
-      const srcX = Math.max(0, Math.min(width - 1, Math.round(cx + dx * cosA - dy * sinA + offsetX)));
-      const srcY = Math.max(0, Math.min(height - 1, Math.round(cy + dx * sinA + dy * cosA + offsetY)));
-      const srcI = (srcY * width + srcX) * 4;
-      const dstI = (y * width + x) * 4;
-
-      const color = paletteGetColor(palette, [
-        buf[srcI],
-        buf[srcI + 1],
-        buf[srcI + 2],
-        buf[srcI + 3]
-      ], palette.options, false);
-
-      outBuf[dstI] = color[0];
-      outBuf[dstI + 1] = color[1];
-      outBuf[dstI + 2] = color[2];
-      outBuf[dstI + 3] = color[3];
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
-  return output;
+  const rendered = renderRhythmicWobbleGL(input, W, H, offsetX, offsetY, angle, zoom);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Rhythmic Wobble", "WebGL2", `offsetX=${offsetX.toFixed(2)} offsetY=${offsetY.toFixed(2)}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -113,5 +68,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Periodic whole-frame wobble with sinusoidal drift and gentle zoom breathing"
+  description: "Periodic whole-frame wobble with sinusoidal drift and gentle zoom breathing",
+  requiresGL: true,
 });

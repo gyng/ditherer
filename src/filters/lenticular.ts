@@ -1,9 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { lenticularGLAvailable, renderLenticularGL } from "./lenticularGL";
+import { renderLenticularGL } from "./lenticularGL";
 
 export const optionTypes = {
   stripWidth: { type: RANGE, range: [2, 20], step: 1, default: 6, desc: "Width of each lenticular strip" },
@@ -36,67 +36,17 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 };
 
-type LenticularOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const lenticular = (input: any, options: LenticularOptions = defaults) => {
+const lenticular = (input: any, options: typeof defaults = defaults) => {
   const { stripWidth, angle, sheenIntensity, rainbowSpread, palette } = options;
   const W = input.width, H = input.height;
   const rad = (angle * Math.PI) / 180;
 
-  if (options._webglAcceleration !== false && lenticularGLAvailable()) {
-    const rendered = renderLenticularGL(input, W, H, stripWidth, sheenIntensity, rainbowSpread, rad);
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Lenticular", "WebGL2", `strip=${stripWidth} angle=${angle}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  const cosA = Math.cos(rad);
-  const sinA = Math.sin(rad);
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-
-      // Project onto strip direction
-      const proj = x * cosA + y * sinA;
-      const stripPos = ((proj / stripWidth) % 1 + 1) % 1;
-
-      // Rainbow hue based on position
-      const hue = (proj / stripWidth * rainbowSpread * 60) % 360;
-      const [sheenR, sheenG, sheenB] = hslToRgb(hue, 0.8, 0.6);
-
-      // Lenticular lens effect: brightness varies across each strip
-      const lensFactor = 0.7 + 0.3 * Math.cos(stripPos * Math.PI * 2);
-
-      // Blend original with rainbow sheen
-      const r = Math.round(buf[i] * lensFactor * (1 - sheenIntensity) + sheenR * sheenIntensity * lensFactor);
-      const g = Math.round(buf[i + 1] * lensFactor * (1 - sheenIntensity) + sheenG * sheenIntensity * lensFactor);
-      const b = Math.round(buf[i + 2] * lensFactor * (1 - sheenIntensity) + sheenB * sheenIntensity * lensFactor);
-
-      const color = paletteGetColor(palette, rgba(
-        Math.max(0, Math.min(255, r)),
-        Math.max(0, Math.min(255, g)),
-        Math.max(0, Math.min(255, b)), buf[i + 3]
-      ), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = renderLenticularGL(input, W, H, stripWidth, sheenIntensity, rainbowSpread, rad);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Lenticular", "WebGL2", `strip=${stripWidth} angle=${angle}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({ name: "Lenticular", func: lenticular, optionTypes, options: defaults, defaults });

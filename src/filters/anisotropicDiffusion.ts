@@ -1,9 +1,9 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { anisotropicDiffusionGLAvailable, renderAnisotropicDiffusionGL } from "./anisotropicDiffusionGL";
+import { renderAnisotropicDiffusionGL } from "./anisotropicDiffusionGL";
 
 const CONDUCTANCE_EXP = "EXP";
 const CONDUCTANCE_QUADRATIC = "QUADRATIC";
@@ -32,95 +32,19 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-type AnisotropicDiffusionOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const anisotropicDiffusion = (input: any, options: AnisotropicDiffusionOptions = defaults) => {
+const anisotropicDiffusion = (input: any, options: typeof defaults = defaults) => {
   const { iterations, kappa, lambda, conductance, palette } = options;
   const W = input.width;
   const H = input.height;
 
-  if (options._webglAcceleration !== false && anisotropicDiffusionGLAvailable()) {
-    const rendered = renderAnisotropicDiffusionGL(
-      input, W, H,
+  const rendered = renderAnisotropicDiffusionGL(input, W, H,
       iterations, kappa, lambda,
-      conductance === CONDUCTANCE_EXP,
-    );
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Anisotropic diffusion", "WebGL2", `iter=${iterations} kappa=${kappa}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-
-  // Work in Float32 for precision
-  const channels = 3;
-  const grid = new Float32Array(W * H * channels);
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      const bi = getBufferIndex(x, y, W);
-      const gi = (y * W + x) * channels;
-      grid[gi]     = buf[bi];
-      grid[gi + 1] = buf[bi + 1];
-      grid[gi + 2] = buf[bi + 2];
-    }
-  }
-
-  const c = (grad: number) =>
-    conductance === CONDUCTANCE_EXP
-      ? Math.exp(-((grad / kappa) ** 2))
-      : 1 / (1 + (grad / kappa) ** 2);
-
-  const next = new Float32Array(grid.length);
-
-  for (let iter = 0; iter < iterations; iter += 1) {
-    for (let y = 0; y < H; y += 1) {
-      for (let x = 0; x < W; x += 1) {
-        const gi = (y * W + x) * channels;
-        const gN = ((Math.max(0, y - 1)) * W + x) * channels;
-        const gS = ((Math.min(H - 1, y + 1)) * W + x) * channels;
-        const gW = (y * W + Math.max(0, x - 1)) * channels;
-        const gE = (y * W + Math.min(W - 1, x + 1)) * channels;
-
-        for (let ch = 0; ch < channels; ch += 1) {
-          const v = grid[gi + ch];
-          const dN = grid[gN + ch] - v;
-          const dS = grid[gS + ch] - v;
-          const dW = grid[gW + ch] - v;
-          const dE = grid[gE + ch] - v;
-          next[gi + ch] = v + lambda * (
-            c(dN) * dN + c(dS) * dS + c(dW) * dW + c(dE) * dE
-          );
-        }
-      }
-    }
-    grid.set(next);
-  }
-
-  const outBuf = new Uint8ClampedArray(buf.length);
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      const bi = getBufferIndex(x, y, W);
-      const gi = (y * W + x) * channels;
-      const r = Math.round(Math.max(0, Math.min(255, grid[gi])));
-      const g = Math.round(Math.max(0, Math.min(255, grid[gi + 1])));
-      const b = Math.round(Math.max(0, Math.min(255, grid[gi + 2])));
-      const col = srgbPaletteGetColor(palette, rgba(r, g, b, buf[bi + 3]), palette.options);
-      fillBufferPixel(outBuf, bi, col[0], col[1], col[2], col[3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+      conductance === CONDUCTANCE_EXP,);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Anisotropic diffusion", "WebGL2", `iter=${iterations} kappa=${kappa}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -128,5 +52,5 @@ export default defineFilter({
   func: anisotropicDiffusion,
   options: defaults,
   optionTypes,
-  defaults
-});
+  defaults,
+  requiresGL: true });

@@ -1,9 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
-import { kuwaharaGLAvailable, renderKuwaharaGL } from "./kuwaharaGL";
+import { renderKuwaharaGL } from "./kuwaharaGL";
 
 export const optionTypes = {
   radius: { type: RANGE, range: [1, 16], step: 1, default: 3, desc: "Filter kernel radius — larger = more painterly" },
@@ -62,95 +62,17 @@ const buildKuwaharaSats = (buf: Uint8ClampedArray, W: number, H: number) => {
   return { stride, satR, satG, satB, satR2, satG2, satB2 };
 };
 
-type KuwaharaOptions = typeof defaults & { _webglAcceleration?: boolean };
-
-const kuwahara = (input: any, options: KuwaharaOptions = defaults) => {
+const kuwahara = (input: any, options: typeof defaults = defaults) => {
   const { radius, palette } = options;
   const W = input.width;
   const H = input.height;
 
-  if (options._webglAcceleration !== false && kuwaharaGLAvailable()) {
-    const rendered = renderKuwaharaGL(input, W, H, radius);
-    if (rendered) {
-      const identity = paletteIsIdentity(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Kuwahara", "WebGL2", `radius=${radius}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const r = Math.max(1, Math.round(radius));
-
-  const { stride, satR, satG, satB, satR2, satG2, satB2 } = buildKuwaharaSats(buf, W, H);
-
-  // Four Kuwahara quadrants: [x_min_offset, x_max_offset, y_min_offset, y_max_offset]
-  const QUADRANTS = [
-    [-r, 0, -r, 0],
-    [0, r, -r, 0],
-    [-r, 0, 0, r],
-    [0, r, 0, r]
-  ] as const;
-
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      let bestVar = Infinity;
-      let bestR = 0, bestG = 0, bestB = 0;
-
-      for (const [qx0, qx1, qy0, qy1] of QUADRANTS) {
-        const x0 = Math.max(0, x + qx0);
-        const x1 = Math.min(W - 1, x + qx1);
-        const y0 = Math.max(0, y + qy0);
-        const y1 = Math.min(H - 1, y + qy1);
-        const n = (x1 - x0 + 1) * (y1 - y0 + 1);
-        if (n === 0) continue;
-
-        const xa = x0;
-        const xb = x1 + 1;
-        const ya = y0;
-        const yb = y1 + 1;
-        const topLeft = ya * stride + xa;
-        const topRight = ya * stride + xb;
-        const bottomLeft = yb * stride + xa;
-        const bottomRight = yb * stride + xb;
-
-        const sr = satR[bottomRight] - satR[topRight] - satR[bottomLeft] + satR[topLeft];
-        const sg = satG[bottomRight] - satG[topRight] - satG[bottomLeft] + satG[topLeft];
-        const sb = satB[bottomRight] - satB[topRight] - satB[bottomLeft] + satB[topLeft];
-        const sr2 = satR2[bottomRight] - satR2[topRight] - satR2[bottomLeft] + satR2[topLeft];
-        const sg2 = satG2[bottomRight] - satG2[topRight] - satG2[bottomLeft] + satG2[topLeft];
-        const sb2 = satB2[bottomRight] - satB2[topRight] - satB2[bottomLeft] + satB2[topLeft];
-
-        const mr = sr / n, mg = sg / n, mb = sb / n;
-        const variance = (sr2 / n - mr * mr) + (sg2 / n - mg * mg) + (sb2 / n - mb * mb);
-
-        if (variance < bestVar) {
-          bestVar = variance;
-          bestR = mr; bestG = mg; bestB = mb;
-        }
-      }
-
-      const i = getBufferIndex(x, y, W);
-      const col = srgbPaletteGetColor(
-        palette,
-        rgba(Math.round(bestR), Math.round(bestG), Math.round(bestB), buf[i + 3]),
-        palette.options
-      );
-      fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = renderKuwaharaGL(input, W, H, radius);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Kuwahara", "WebGL2", `radius=${radius}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -158,5 +80,5 @@ export default defineFilter({
   func: kuwahara,
   options: defaults,
   optionTypes,
-  defaults
-});
+  defaults,
+  requiresGL: true });
