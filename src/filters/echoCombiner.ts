@@ -69,4 +69,4 @@ const echoCombiner = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Echo Combiner", func: echoCombiner, optionTypes, options: defaults, defaults, mainThread: true, description: "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded" });
+export default defineFilter({ name: "Echo Combiner", func: echoCombiner, optionTypes, options: defaults, defaults, description: "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded" });

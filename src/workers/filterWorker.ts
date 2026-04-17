@@ -64,6 +64,8 @@ export const runWorkerFilterRequest = (
     webglAcceleration,
     convertGrayscale,
     prevOutputs,
+    prevInputs,
+    emaMaps,
     degaussFrame,
   }: WorkerFilterRequest,
   createCanvas: WorkerCanvasFactory = defaultCanvasFactory,
@@ -87,6 +89,10 @@ export const runWorkerFilterRequest = (
 
   const stepTimes: { name: string; filterName?: string; ms: number; backend?: string }[] = [];
   const newPrevOutputs: Record<string, WorkerPrevOutputFrame> = {};
+  const newPrevInputs: Record<string, ArrayBuffer> = {};
+  const newEmaMaps: Record<string, ArrayBuffer> = {};
+  // Matches FilterContext's main-thread EMA alpha — ~10-frame window.
+  const EMA_ALPHA = 0.1;
 
   for (const entry of chain) {
     const filter: FilterDefinition | undefined = filterIndex[entry.filterName];
@@ -101,7 +107,27 @@ export const runWorkerFilterRequest = (
     opts._prevOutput = prevOutputs?.[entry.id]
       ? new Uint8ClampedArray(prevOutputs[entry.id])
       : null;
+    opts._prevInput = prevInputs?.[entry.id]
+      ? new Uint8ClampedArray(prevInputs[entry.id])
+      : null;
+    opts._ema = emaMaps?.[entry.id]
+      ? new Float32Array(emaMaps[entry.id])
+      : null;
     opts._degaussFrame = degaussFrame;
+
+    // Capture input BEFORE the filter runs — same semantics as the main-
+    // thread path: this frame's input becomes next frame's prev-input,
+    // and feeds the EMA update after the filter finishes.
+    let inputSnapshot: Uint8ClampedArray | null = null;
+    const inCtx = canvas.getContext("2d", { willReadFrequently: true }) as
+      | OffscreenCanvasRenderingContext2D
+      | CanvasRenderingContext2D
+      | null;
+    if (inCtx) {
+      inputSnapshot = new Uint8ClampedArray(
+        inCtx.getImageData(0, 0, canvas.width, canvas.height).data,
+      );
+    }
 
     if (opts.palette?.options) {
       opts.palette = {
@@ -152,6 +178,26 @@ export const runWorkerFilterRequest = (
       if (canvas !== output) releasePooledCanvas(canvas);
       canvas = output;
     }
+
+    // Update per-entry temporal state after the filter finishes — this
+    // frame's captured input becomes next frame's _prevInput, and feeds
+    // the EMA blend. Mirrors FilterContext.filterOnMainThread so both
+    // dispatch paths write to state the same way.
+    if (inputSnapshot) {
+      newPrevInputs[entry.id] = inputSnapshot.buffer as ArrayBuffer;
+      const prevEmaBuf = emaMaps?.[entry.id];
+      let ema: Float32Array;
+      if (prevEmaBuf && prevEmaBuf.byteLength === inputSnapshot.length * 4) {
+        ema = new Float32Array(prevEmaBuf);
+        const oneMinusAlpha = 1 - EMA_ALPHA;
+        for (let j = 0; j < ema.length; j++) {
+          ema[j] = ema[j] * oneMinusAlpha + inputSnapshot[j] * EMA_ALPHA;
+        }
+      } else {
+        ema = new Float32Array(inputSnapshot);
+      }
+      newEmaMaps[entry.id] = ema.buffer as ArrayBuffer;
+    }
   }
 
   const resultCtx = canvas.getContext("2d", { willReadFrequently: true }) as
@@ -162,11 +208,13 @@ export const runWorkerFilterRequest = (
   const resultData = resultCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 
   return {
-    imageData: resultData.buffer,
+    imageData: resultData.buffer as ArrayBuffer,
     width: canvas.width,
     height: canvas.height,
     stepTimes,
     prevOutputs: newPrevOutputs,
+    prevInputs: newPrevInputs,
+    emaMaps: newEmaMaps,
   };
 };
 

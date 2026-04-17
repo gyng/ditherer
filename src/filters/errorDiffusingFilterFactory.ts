@@ -969,9 +969,6 @@ export const errorDiffusingFilter = (
     optionTypes,
     options: defaults,
     defaults: defaultOptions,
-    // Reads _prevOutput when temporalBleed > 0 — must run on main thread
-    // so the temporal pipeline state is available.
-    mainThread: true,
     // Error diffusion pushes quantisation error forward into neighbours that
     // haven't been processed yet — a strict sequential dependency. Fragment
     // shaders are gather-only and fully parallel, so this algorithm can't be

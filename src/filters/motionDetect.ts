@@ -237,6 +237,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true,
   description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap",
 });

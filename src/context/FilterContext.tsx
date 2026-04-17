@@ -757,14 +757,30 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         const prev = prevOutputMapRef.current.get(entry.id);
         if (prev) {
           const copy = new Uint8ClampedArray(prev);
-          serializedPrevOutputs[entry.id] = copy.buffer;
+          serializedPrevOutputs[entry.id] = copy.buffer as ArrayBuffer;
+        }
+      }
+      const serializedPrevInputs: Record<string, ArrayBuffer> = {};
+      for (const entry of entriesToRun) {
+        const prev = prevInputMapRef.current.get(entry.id);
+        if (prev) {
+          const copy = new Uint8ClampedArray(prev);
+          serializedPrevInputs[entry.id] = copy.buffer as ArrayBuffer;
+        }
+      }
+      const serializedEmaMaps: Record<string, ArrayBuffer> = {};
+      for (const entry of entriesToRun) {
+        const ema = emaMapRef.current.get(entry.id);
+        if (ema) {
+          const copy = new Float32Array(ema);
+          serializedEmaMaps[entry.id] = copy.buffer as ArrayBuffer;
         }
       }
 
       const transfers: ArrayBuffer[] = [imageData.data.buffer];
-      for (const buf of Object.values(serializedPrevOutputs)) {
-        transfers.push(buf);
-      }
+      for (const buf of Object.values(serializedPrevOutputs)) transfers.push(buf);
+      for (const buf of Object.values(serializedPrevInputs)) transfers.push(buf);
+      for (const buf of Object.values(serializedEmaMaps)) transfers.push(buf);
 
       workerRPC({
         imageData: imageData.data.buffer,
@@ -778,6 +794,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         webglAcceleration: curState.webglAcceleration,
         convertGrayscale: false,
         prevOutputs: serializedPrevOutputs,
+        prevInputs: serializedPrevInputs,
+        emaMaps: serializedEmaMaps,
         // Propagate degauss trigger to rgbStripe in the worker. -Infinity
         // (the "never degaussed" sentinel) doesn't survive structured-clone
         // cleanly — use a large negative sentinel instead so the worker
@@ -815,6 +833,15 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
             new ImageData(pixels, width, height), 0, 0
           );
           cachedOutputsRef.current.set(entryId, stepCanvas);
+        }
+
+        // Merge the worker's updated temporal state back into the refs so
+        // next frame's request carries fresh prev-input / EMA buffers.
+        for (const [entryId, buffer] of Object.entries(result.prevInputs ?? {})) {
+          prevInputMapRef.current.set(entryId, new Uint8ClampedArray(buffer));
+        }
+        for (const [entryId, buffer] of Object.entries(result.emaMaps ?? {})) {
+          emaMapRef.current.set(entryId, new Float32Array(buffer));
         }
 
         const workerStepTimes = [...stepTimes, ...result.stepTimes];

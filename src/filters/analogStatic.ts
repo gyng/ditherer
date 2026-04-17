@@ -356,5 +356,4 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  mainThread: true
 });

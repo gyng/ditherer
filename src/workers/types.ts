@@ -19,6 +19,14 @@ export interface WorkerFilterRequest {
   webglAcceleration: boolean;
   convertGrayscale: boolean;
   prevOutputs: Record<string, ArrayBuffer>;
+  // Previous-frame *input* (pre-filter) bytes, keyed by chain-entry id.
+  // Used by filters that compare the current frame to its predecessor
+  // (motion vectors, error-diffusion temporal bleed, temporal-edge).
+  prevInputs: Record<string, ArrayBuffer>;
+  // Per-entry EMA (exponential moving average of input across frames),
+  // stored as the underlying Float32 ArrayBuffer so structured-clone can
+  // pass it across the worker boundary without copying into JSON.
+  emaMaps: Record<string, ArrayBuffer>;
   // Frame index of the most recent degauss trigger, propagated to
   // filters that consume it (rgbStripe). -Infinity is the "never
   // triggered" sentinel; wire format uses a finite small number so it
@@ -50,6 +58,11 @@ export interface WorkerFilterResult {
   height: number;
   stepTimes: WorkerStepTime[];
   prevOutputs: Record<string, WorkerPrevOutputFrame>;
+  // Snapshot of per-entry previous-input buffers after the chain ran,
+  // for the main thread to forward into the next frame's request.
+  prevInputs: Record<string, ArrayBuffer>;
+  // Updated EMA buffers keyed by entry id.
+  emaMaps: Record<string, ArrayBuffer>;
 }
 
 export interface WorkerRequestMessage extends WorkerFilterRequest {
