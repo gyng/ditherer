@@ -3,12 +3,6 @@ import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { renderColorPopGL } from "./colorPopGL";
 
-const smoothstep = (edge0: number, edge1: number, x: number) => {
-  if (edge0 === edge1) return x < edge0 ? 0 : 1;
-  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-};
-
 export const optionTypes = {
   targetHue: { type: RANGE, range: [0, 360], step: 1, default: 0, desc: "Hue family to preserve in degrees" },
   hueWidth: { type: RANGE, range: [5, 180], step: 1, default: 25, desc: "Half-width of the protected hue band" },

@@ -3,11 +3,6 @@ import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { renderStampGL } from "./stampGL";
 
-const hashNoise = (x: number, y: number) => {
-  const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
-  return n - Math.floor(n);
-};
-
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 136, desc: "Brightness cutoff between paper and ink" },
   inkColor: { type: COLOR, default: [24, 16, 16], desc: "Color of the stamped ink" },

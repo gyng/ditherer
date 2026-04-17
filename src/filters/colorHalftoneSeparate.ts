@@ -33,4 +33,4 @@ const colorHalftoneSeparate = (input: any, options: typeof defaults = defaults) 
   return out ?? input;
 };
 
-export default defineFilter({ name: "Color Halftone Separate", func: colorHalftoneSeparate, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Color Halftone Separate", func: colorHalftoneSeparate, optionTypes, options: defaults, defaults, requiresGL: true });

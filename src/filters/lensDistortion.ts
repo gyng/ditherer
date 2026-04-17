@@ -1,19 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  srgbPaletteGetColor,
-  wasmLensDistortionBuffer,
-  wasmIsLoaded,
-  logFilterWasmStatus,
-  logFilterBackend,
-} from "utils";
+import { logFilterBackend } from "utils";
 import { applyPalettePassToCanvas } from "palettes/backend";
 import { defineFilter } from "filters/types";
-import { lensDistortionGLAvailable, renderLensDistortionGL } from "./lensDistortionGL";
+import { renderLensDistortionGL } from "./lensDistortionGL";
 
 export const optionTypes = {
   k1: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3, desc: "Primary distortion (+barrel, -pincushion)" },
@@ -29,108 +19,17 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-// Newton's method to invert r_dst = r_src*(1 + k1*r_src^2 + k2*r_src^4)
-const invertRadius = (rDst: number, k1: number, k2: number): number => {
-  if (rDst === 0) return 0;
-  let r = rDst;
-  for (let n = 0; n < 8; n += 1) {
-    const r2 = r * r;
-    const r4 = r2 * r2;
-    const f = r * (1 + k1 * r2 + k2 * r4) - rDst;
-    const fp = 1 + 3 * k1 * r2 + 5 * k2 * r4;
-    if (fp === 0) break;
-    r -= f / fp;
-  }
-  return r;
-};
-
-const lensDistortion = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
+const lensDistortion = (input: any, options: typeof defaults = defaults) => {
   const { k1, k2, zoom, palette } = options;
-  const W = input.width;
-  const H = input.height;
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
-
-  // GL fast path — covers the "wasm not loaded yet" window and scales
-  // better on real GPUs. Custom palettes get a CPU palette-pass on readback.
-  if (
-    lensDistortionGLAvailable()
-    && options._webglAcceleration !== false
-  ) {
-    const isNearest = (palette as { name?: string })?.name === "nearest";
-    const levels = isNearest ? (paletteOpts?.levels ?? 256) : 256;
-    const rendered = renderLensDistortionGL(input, W, H, k1, k2, zoom, levels);
-    if (rendered) {
-      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Lens distortion", "WebGL2", `k1=${k1} k2=${k2} zoom=${zoom}${isNearest ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
-    wasmLensDistortionBuffer(buf, outBuf, W, H, k1, k2, zoom);
-    if (!paletteIsIdentity) {
-      for (let i = 0; i < outBuf.length; i += 4) {
-        // Skip transparent OOB pixels.
-        if (outBuf[i + 3] === 0) continue;
-        const col = srgbPaletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options);
-        fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
-      }
-    }
-    logFilterWasmStatus("Lens distortion", true, paletteIsIdentity ? "distort" : "distort+palettePass");
-    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-    return output;
-  }
-  logFilterWasmStatus("Lens distortion", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
-
-  const cx = W / 2;
-  const cy = H / 2;
-  // Normalize radius so corners = 1
-  const rNorm = Math.sqrt(cx * cx + cy * cy);
-
-  for (let x = 0; x < W; x += 1) {
-    for (let y = 0; y < H; y += 1) {
-      const i = getBufferIndex(x, y, W);
-      // Normalized destination coords [-1, 1]
-      const nx = (x - cx) / rNorm;
-      const ny = (y - cy) / rNorm;
-      const rDst = Math.sqrt(nx * nx + ny * ny);
-
-      // Find source radius
-      const rSrc = invertRadius(rDst, k1, k2);
-      const scale = rDst > 0 ? (rSrc / rDst) / zoom : 1 / zoom;
-
-      const srcX = Math.round(cx + nx * scale * rNorm);
-      const srcY = Math.round(cy + ny * scale * rNorm);
-
-      if (srcX < 0 || srcX >= W || srcY < 0 || srcY >= H) {
-        // Out of bounds — leave transparent
-        fillBufferPixel(outBuf, i, 0, 0, 0, 0);
-        continue;
-      }
-
-      const srcI = getBufferIndex(srcX, srcY, W);
-      const col = srgbPaletteGetColor(
-        palette,
-        rgba(buf[srcI], buf[srcI + 1], buf[srcI + 2], buf[srcI + 3]),
-        palette.options
-      );
-      fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const W = input.width, H = input.height;
+  const paletteOpts = palette?.options as { levels?: number } | undefined;
+  const isNearest = (palette as { name?: string })?.name === "nearest";
+  const levels = isNearest ? (paletteOpts?.levels ?? 256) : 256;
+  const rendered = renderLensDistortionGL(input, W, H, k1, k2, zoom, levels);
+  if (!rendered) return input;
+  const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Lens distortion", "WebGL2", `k1=${k1} k2=${k2} zoom=${zoom}${isNearest ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -138,5 +37,6 @@ export default defineFilter({
   func: lensDistortion,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  requiresGL: true,
 });

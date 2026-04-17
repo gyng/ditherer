@@ -1,19 +1,9 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { defineFilter } from "filters/types";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  paletteGetColor,
-  wasmScanlineWarpBuffer,
-  wasmIsLoaded,
-  logFilterWasmStatus,
-  logFilterBackend,
-} from "utils";
-import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
-import { scanlineWarpGLAvailable, renderScanlineWarpGL } from "./scanlineWarpGL";
+import { logFilterBackend } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { renderScanlineWarpGL } from "./scanlineWarpGL";
 
 export const optionTypes = {
   amplitude: { type: RANGE, range: [0, 50], step: 1, default: 10, desc: "Horizontal wave displacement" },
@@ -42,93 +32,21 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const clamp = (v: number): number => Math.max(0, Math.min(255, v));
-
 const scanlineWarp = (
   input: any,
-  options: typeof defaults & { _frameIndex?: number; _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults
+  options: typeof defaults & { _frameIndex?: number } = defaults
 ) => {
-  const {
-    amplitude,
-    frequency,
-    phase,
-    palette
-  } = options;
-
+  const { amplitude, frequency, phase, palette } = options;
   const frameIndex = options._frameIndex || 0;
-  const W = input.width;
-  const H = input.height;
+  const W = input.width, H = input.height;
   const phaseRad = (phase * Math.PI) / 180;
 
-  if (options._webglAcceleration !== false && scanlineWarpGLAvailable()) {
-    const rendered = renderScanlineWarpGL(input, W, H, amplitude, frequency, phaseRad + frameIndex * 0.2);
-    if (rendered) {
-      const identity = paletteIsIdentityFn(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Scanline Warp", "WebGL2", `amp=${amplitude} freq=${frequency}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
-
-  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
-    wasmScanlineWarpBuffer(buf, outBuf, W, H, amplitude, frequency, phaseRad, frameIndex * 0.2);
-    if (!paletteIsIdentity) {
-      for (let i = 0; i < outBuf.length; i += 4) {
-        const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], 255), palette.options, false);
-        fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
-      }
-    }
-    logFilterWasmStatus("Scanline Warp", true, paletteIsIdentity ? "warp" : "warp+palettePass");
-    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-    return output;
-  }
-
-  logFilterWasmStatus("Scanline Warp", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
-
-  for (let y = 0; y < H; y++) {
-    const shift = amplitude * Math.sin(
-      y * frequency * 2 * Math.PI / H + phaseRad + frameIndex * 0.2
-    );
-
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-
-      // Bilinear sample from shifted x position
-      const srcX = x + shift;
-      const x0 = Math.floor(srcX);
-      const x1 = x0 + 1;
-      const fx = srcX - x0;
-
-      const sx0 = Math.max(0, Math.min(W - 1, x0));
-      const sx1 = Math.max(0, Math.min(W - 1, x1));
-
-      const i0 = getBufferIndex(sx0, y, W);
-      const i1 = getBufferIndex(sx1, y, W);
-
-      const r = clamp(buf[i0] * (1 - fx) + buf[i1] * fx);
-      const g = clamp(buf[i0 + 1] * (1 - fx) + buf[i1 + 1] * fx);
-      const b = clamp(buf[i0 + 2] * (1 - fx) + buf[i1 + 2] * fx);
-
-      const color = paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-
-  return output;
+  const rendered = renderScanlineWarpGL(input, W, H, amplitude, frequency, phaseRad + frameIndex * 0.2);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Scanline Warp", "WebGL2", `amp=${amplitude} freq=${frequency}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -136,5 +54,6 @@ export default defineFilter({
   func: scanlineWarp,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  requiresGL: true,
 });

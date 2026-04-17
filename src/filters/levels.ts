@@ -1,27 +1,13 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  paletteGetColor,
-  srgbBufToLinearFloat,
-  linearFloatToSrgbBuf,
-  linearPaletteGetColor,
-  wasmApplyChannelLut,
-  wasmIsLoaded,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "utils";
-import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityShared } from "palettes/backend";
+import { logFilterBackend } from "utils";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import {
   drawPass,
   ensureTexture,
   getGLCtx,
   getQuadVAO,
-  glAvailable,
   linkProgram,
   readoutToCanvas,
   resizeGLCanvas,
@@ -49,7 +35,6 @@ export const defaults = {
 
 type LevelsOptions = FilterOptionValues & typeof defaults & {
   _linearize?: boolean;
-  _webglAcceleration?: boolean;
 };
 
 const LEVELS_FS = `#version 300 es
@@ -119,123 +104,40 @@ const initGLCache = (gl: WebGL2RenderingContext): GLCache => {
 const levelsFilter = (input: any, options: LevelsOptions = defaults) => {
   const { blackPoint, whitePoint, gamma, outputBlack, outputWhite, palette } = options;
   const linearize = options._linearize === true;
-
   const W = input.width;
   const H = input.height;
 
-  if (glAvailable() && options._webglAcceleration !== false) {
-    const ctx = getGLCtx();
-    if (ctx) {
-      const { gl, canvas } = ctx;
-      const cache = initGLCache(gl);
-      const vao = getQuadVAO(gl);
-      resizeGLCanvas(canvas, W, H);
-      const sourceTex = ensureTexture(gl, "levels:source", W, H);
-      uploadSourceTexture(gl, sourceTex, input);
+  const ctx = getGLCtx();
+  if (!ctx) return input;
+  const { gl, canvas } = ctx;
+  const cache = initGLCache(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+  const sourceTex = ensureTexture(gl, "levels:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.levels, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.levels.uniforms.u_source, 0);
-        gl.uniform2f(cache.levels.uniforms.u_res, W, H);
-        gl.uniform1f(cache.levels.uniforms.u_inBlack, blackPoint / 255);
-        gl.uniform1f(cache.levels.uniforms.u_inWhite, whitePoint / 255);
-        gl.uniform1f(cache.levels.uniforms.u_outBlack, outputBlack / 255);
-        gl.uniform1f(cache.levels.uniforms.u_outWhite, outputWhite / 255);
-        gl.uniform1f(cache.levels.uniforms.u_invGamma, 1 / Math.max(1e-4, gamma));
-        gl.uniform1i(cache.levels.uniforms.u_linearize, linearize ? 1 : 0);
-        const identity = paletteIsIdentityShared(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.levels.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+  const identity = paletteIsIdentity(palette);
+  drawPass(gl, null, W, H, cache.levels, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(cache.levels.uniforms.u_source, 0);
+    gl.uniform2f(cache.levels.uniforms.u_res, W, H);
+    gl.uniform1f(cache.levels.uniforms.u_inBlack, blackPoint / 255);
+    gl.uniform1f(cache.levels.uniforms.u_inWhite, whitePoint / 255);
+    gl.uniform1f(cache.levels.uniforms.u_outBlack, outputBlack / 255);
+    gl.uniform1f(cache.levels.uniforms.u_outWhite, outputWhite / 255);
+    gl.uniform1f(cache.levels.uniforms.u_invGamma, 1 / Math.max(1e-4, gamma));
+    gl.uniform1i(cache.levels.uniforms.u_linearize, linearize ? 1 : 0);
+    const pOpts = (palette as { options?: { levels?: number } }).options;
+    gl.uniform1f(cache.levels.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+  }, vao);
 
-      const rendered = readoutToCanvas(canvas, W, H);
-      if (rendered) {
-        const identity = paletteIsIdentityShared(palette);
-        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-        if (out) {
-          logFilterBackend("Levels", "WebGL2",
-            `${linearize ? "linearized" : "direct"}${identity ? "" : "+palettePass"}`);
-          return out;
-        }
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const inputRange = Math.max(1, whitePoint - blackPoint);
-  const outputRange = outputWhite - outputBlack;
-
-  if (options._linearize) {
-    const inBlack = blackPoint / 255;
-    const inWhite = whitePoint / 255;
-    const outBlack = outputBlack / 255;
-    const outWhite = outputWhite / 255;
-    const linearBuf = srgbBufToLinearFloat(buf);
-
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = getBufferIndex(x, y, W);
-        for (let c = 0; c < 3; c++) {
-          let normalized = (linearBuf[i + c] - inBlack) / Math.max(1e-6, inWhite - inBlack);
-          normalized = Math.max(0, Math.min(1, normalized));
-          normalized = Math.pow(normalized, 1 / gamma);
-          linearBuf[i + c] = Math.max(0, Math.min(1, outBlack + normalized * (outWhite - outBlack)));
-        }
-        const pixel = [linearBuf[i], linearBuf[i + 1], linearBuf[i + 2], linearBuf[i + 3]];
-        const color = linearPaletteGetColor(palette, pixel, palette.options);
-        linearBuf[i] = color[0];
-        linearBuf[i + 1] = color[1];
-        linearBuf[i + 2] = color[2];
-      }
-    }
-
-    linearFloatToSrgbBuf(linearBuf, outBuf);
-  } else {
-    const lut = new Uint8Array(256);
-    for (let i = 0; i < 256; i++) {
-      let normalized = (i - blackPoint) / inputRange;
-      normalized = Math.max(0, Math.min(1, normalized));
-      normalized = Math.pow(normalized, 1 / gamma);
-      lut[i] = Math.max(0, Math.min(255, Math.round(outputBlack + normalized * outputRange)));
-    }
-
-    const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-    const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
-
-    if (wasmIsLoaded() && (options as { _wasmAcceleration?: boolean })._wasmAcceleration !== false) {
-      wasmApplyChannelLut(buf, outBuf, lut, lut, lut);
-      if (!paletteIsIdentity) {
-        for (let i = 0; i < outBuf.length; i += 4) {
-          const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
-          fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
-        }
-      }
-      logFilterWasmStatus("Levels", true, paletteIsIdentity ? "lut" : "lut+palettePass");
-    } else {
-      logFilterWasmStatus("Levels", false, (options as { _wasmAcceleration?: boolean })._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = getBufferIndex(x, y, W);
-          const r = lut[buf[i]];
-          const g = lut[buf[i + 1]];
-          const b = lut[buf[i + 2]];
-
-          const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-          fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
-        }
-      }
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (!rendered) return input;
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Levels", "WebGL2",
+    `${linearize ? "linearized" : "direct"}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter<LevelsOptions>({
@@ -243,5 +145,6 @@ export default defineFilter<LevelsOptions>({
   func: levelsFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  requiresGL: true,
 });

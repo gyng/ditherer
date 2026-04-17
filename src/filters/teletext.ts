@@ -5,17 +5,6 @@ import { logFilterBackend } from "utils";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import { renderTeletextGL } from "./teletextGL";
 
-const TELETEXT_COLORS: [number, number, number][] = [
-  [0, 0, 0],       // black
-  [255, 0, 0],     // red
-  [0, 255, 0],     // green
-  [255, 255, 0],   // yellow
-  [0, 0, 255],     // blue
-  [255, 0, 255],   // magenta
-  [0, 255, 255],   // cyan
-  [255, 255, 255]  // white
-];
-
 export const optionTypes = {
   columns: { type: RANGE, range: [20, 80], step: 1, default: 40, desc: "Character grid width" },
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance threshold per block cell" },
@@ -28,30 +17,6 @@ export const defaults = {
   threshold: optionTypes.threshold.default,
   blockGap: optionTypes.blockGap.default,
   palette: { ...optionTypes.palette.default, options: { levels: 8 } }
-};
-
-const luminance = (r: number, g: number, b: number): number =>
-  0.2126 * r + 0.7152 * g + 0.0722 * b;
-
-const nearestTeletextColor = (
-  r: number,
-  g: number,
-  b: number
-): [number, number, number] => {
-  let bestDist = Infinity;
-  let best = TELETEXT_COLORS[0];
-  for (let i = 0; i < TELETEXT_COLORS.length; i++) {
-    const c = TELETEXT_COLORS[i];
-    const dr = r - c[0];
-    const dg = g - c[1];
-    const db = b - c[2];
-    const dist = dr * dr + dg * dg + db * db;
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = c;
-    }
-  }
-  return best;
 };
 
 const teletext = (

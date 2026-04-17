@@ -29,4 +29,4 @@ const infrared = (input: any, options: typeof defaults = defaults) => {
   return out ?? input;
 };
 
-export default defineFilter({ name: "Infrared", func: infrared, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Infrared", func: infrared, optionTypes, options: defaults, defaults, requiresGL: true });

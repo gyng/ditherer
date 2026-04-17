@@ -186,35 +186,11 @@ export const wasmIsLoaded = () => wasmLoadedFlag;
 // Wire up the inner function references once the module has been initialised.
 // Extracted so `initWasmFromBinary` (Node/tooling path) can reuse the same wiring.
 const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => {
-  wasmRgba2labaInner = mod.rgba2laba;
-  wasmRgbaLabaDistanceInner = mod.rgba_laba_distance;
-  wasmNearestLabIndexInner = mod.rgba_nearest_lab_index;
   wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
-  wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
   wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
-  wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
-  wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
   wasmErrorDiffuseBufferInner = mod.error_diffuse_buffer;
   wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
-  wasmOrderedDitherLinearInner = mod.ordered_dither_linear_buffer;
   wasmApplyChannelLutInner = mod.apply_channel_lut;
-  wasmHsvShiftInner = mod.hsv_shift_buffer;
-  wasmGrainMergeInner = mod.grain_merge_buffer;
-  wasmMedianFilterInner = mod.median_filter_buffer;
-  wasmAnimeColorGradeInner = mod.anime_color_grade_buffer;
-  wasmGaussianBlurInner = mod.gaussian_blur_buffer;
-  wasmBokehInner = mod.bokeh_buffer;
-  wasmBloomInner = mod.bloom_buffer;
-  wasmTriangleDitherInner = mod.triangle_dither_buffer;
-  wasmScanlineWarpInner = mod.scanline_warp_buffer;
-  wasmVintageTvInner = mod.vintage_tv_buffer;
-  wasmRgbStripeInner = mod.rgbstripe_buffer;
-  wasmFacetInner = mod.facet_buffer;
-  wasmLcdDisplayInner = mod.lcd_display_buffer;
-  wasmJpegArtifactInner = mod.jpeg_artifact_buffer;
-  wasmOilPaintingInner = mod.oil_painting_buffer;
-  wasmLensDistortionInner = mod.lens_distortion_buffer;
-  wasmTiltShiftInner = mod.tilt_shift_buffer;
   wasmLoadedFlag = true;
 };
 
@@ -426,38 +402,6 @@ export const rgba2laba = (
   return [outL, outA, outB, ia];
 };
 
-type WasmRgba2LabaFn = (
-  r: number,
-  g: number,
-  b: number,
-  a: number,
-  refX: number,
-  refY: number,
-  refZ: number,
-) => ArrayLike<number>;
-type WasmDistanceFn = (
-  ar: number,
-  ag: number,
-  ab: number,
-  aa: number,
-  br: number,
-  bg: number,
-  bb: number,
-  ba: number,
-  refX: number,
-  refY: number,
-  refZ: number,
-) => number;
-type WasmNearestLabIndexFn = (
-  r: number,
-  g: number,
-  b: number,
-  a: number,
-  palette: Float64Array,
-  refX: number,
-  refY: number,
-  refZ: number,
-) => number;
 type WasmNearestLabPrecomputedFn = (
   r: number,
   g: number,
@@ -476,240 +420,6 @@ type WasmQuantizeBufferFn = {
     refZ?: number,
   ): Uint8Array<ArrayBufferLike>;
 }["bivarianceHack"];
-type WasmGaussianBlurFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    sigma: number,
-  ): void;
-}["bivarianceHack"];
-type WasmBokehFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    radius: number,
-    threshold: number,
-    intensity: number,
-    shape: number,
-    localDetect: number,
-    softness: number,
-    edgeFringe: number,
-    rotation: number,
-    catsEye: number,
-    edgeRing: number,
-    bubble: number,
-  ): void;
-}["bivarianceHack"];
-type WasmBloomFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    threshold: number,
-    strength: number,
-    radius: number,
-  ): void;
-}["bivarianceHack"];
-type WasmAnimeColorGradeFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    shadowCool: number,
-    highlightWarm: number,
-    blackPoint: number,
-    whitePoint: number,
-    contrast: number,
-    midtoneLift: number,
-    vibrance: number,
-    mix: number,
-  ): void;
-}["bivarianceHack"];
-type WasmMedianFilterFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    radius: number,
-  ): void;
-}["bivarianceHack"];
-type WasmGrainMergeFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    radius: number,
-    strength: number,
-  ): void;
-}["bivarianceHack"];
-type WasmOilPaintingFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    radius: number,
-    levels: number,
-  ): void;
-}["bivarianceHack"];
-type WasmLensDistortionFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    k1: number,
-    k2: number,
-    zoom: number,
-  ): void;
-}["bivarianceHack"];
-type WasmTiltShiftFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    focusPosition: number,
-    focusWidth: number,
-    blurAmount: number,
-    saturationBoost: number,
-  ): void;
-}["bivarianceHack"];
-type WasmVintageTvFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    banding: number,
-    colorFringe: number,
-    rollOffset: number,
-    frameIndex: number,
-    glow: number,
-  ): void;
-}["bivarianceHack"];
-type WasmFacetFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    facetSize: number,
-    jitter: number,
-    seamWidth: number,
-    lineR: number,
-    lineG: number,
-    lineB: number,
-    fillMode: number,
-    paletteLevels: number,
-  ): void;
-}["bivarianceHack"];
-type WasmRgbStripeFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    prevOutput: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    mask: Float64Array,
-    maskW: number,
-    maskH: number,
-    brightness: number,
-    contrast: number,
-    exposure: number,
-    gamma: number,
-    phosphorScale: number,
-    scanlineGap: number,
-    scanlineStrength: number,
-    includeScanline: number,
-    misconvergence: number,
-    beamSpread: number,
-    bloom: number,
-    bloomThreshold: number,
-    bloomRadius: number,
-    bloomStrength: number,
-    curvature: number,
-    vignette: number,
-    interlace: number,
-    interlaceField: number,
-    persistence: number,
-    flicker: number,
-    frameIndex: number,
-    degaussFrame: number,
-    paletteLevels: number,
-  ): void;
-}["bivarianceHack"];
-type WasmScanlineWarpFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    amplitude: number,
-    frequency: number,
-    phaseRad: number,
-    animOffset: number,
-  ): void;
-}["bivarianceHack"];
-type WasmLcdDisplayFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    pixelSize: number,
-    subpixelLayout: number,
-    brightness: number,
-    gapDarkness: number,
-  ): void;
-}["bivarianceHack"];
-type WasmJpegArtifactFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    qualityLuma: number,
-    qualityChroma: number,
-    subsampling: number,
-    blockSize: number,
-    ringing: number,
-    mosquito: number,
-    gridJitter: number,
-    corruptBurstChance: number,
-    deblock: number,
-    preserveAlpha: number,
-    frameIndex: number,
-  ): void;
-}["bivarianceHack"];
-type WasmTriangleDitherFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    levels: number,
-    seed: number,
-    paletteMode: number,
-    palette: Float64Array,
-    refX: number,
-    refY: number,
-    refZ: number,
-  ): void;
-}["bivarianceHack"];
-type WasmHsvShiftFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    hueShift: number,
-    satShift: number,
-    valShift: number,
-  ): void;
-}["bivarianceHack"];
 type WasmApplyChannelLutFn = {
   bivarianceHack(
     input: Uint8Array | Uint8ClampedArray,
@@ -717,26 +427,6 @@ type WasmApplyChannelLutFn = {
     lutR: Uint8Array,
     lutG: Uint8Array,
     lutB: Uint8Array,
-  ): void;
-}["bivarianceHack"];
-type WasmOrderedDitherLinearFn = {
-  bivarianceHack(
-    input: Uint8Array | Uint8ClampedArray,
-    output: Uint8Array | Uint8ClampedArray,
-    width: number,
-    height: number,
-    thresholdMap: Float64Array,
-    thresholdW: number,
-    thresholdH: number,
-    temporalOx: number,
-    temporalOy: number,
-    orderedLevels: number,
-    paletteMode: number,
-    levels: number,
-    palette: Float64Array,
-    refX: number,
-    refY: number,
-    refZ: number,
   ): void;
 }["bivarianceHack"];
 type WasmErrorDiffuseCustomFn = {
@@ -789,195 +479,37 @@ type WasmErrorDiffuseBufferFn = {
   ): void;
 }["bivarianceHack"];
 
-let wasmRgba2labaInner: WasmRgba2LabaFn = (a, b, c, d, e, f, g) => {
-  console.error("WASM module not loaded!", a, b, c, d, e, f, g);
-  return [0, 0, 0, 0];
-};
-
-let wasmRgbaLabaDistanceInner: WasmDistanceFn = (a, b, c, d, e, f, g, h, i, j, k) => {
-  console.error("WASM module not loaded!", a, b, c, d, e, f, g, h, i, j, k);
-  return 0;
-};
-
-let wasmNearestLabIndexInner: WasmNearestLabIndexFn = (_r, _g, _b, _a, _palette, _rx, _ry, _rz) => {
+const wasmNearestLabPrecomputedInnerDefault: WasmNearestLabPrecomputedFn = () => {
   console.error("WASM module not loaded!");
   return 0;
 };
-
-let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn = (_r, _g, _b, _palette_lab, _rx, _ry, _rz) => {
-  console.error("WASM module not loaded!");
-  return 0;
-};
-
-let wasmQuantizeBufferLabInner: WasmQuantizeBufferFn = (_buffer, _palette, _rx, _ry, _rz) => {
+const wasmQuantizeBufferRgbInnerDefault: WasmQuantizeBufferFn = () => {
   console.error("WASM module not loaded!");
   return new Uint8Array(0);
 };
-
-let wasmQuantizeBufferRgbInner: WasmQuantizeBufferFn = (_buffer, _palette) => {
+const wasmErrorDiffuseBufferInnerDefault: WasmErrorDiffuseBufferFn = () => {
   console.error("WASM module not loaded!");
   return new Uint8Array(0);
 };
-
-let wasmQuantizeBufferRgbApproxInner: WasmQuantizeBufferFn = (_buffer, _palette) => {
+const wasmErrorDiffuseCustomInnerDefault: WasmErrorDiffuseCustomFn = () => {
   console.error("WASM module not loaded!");
-  return new Uint8Array(0);
 };
-
-let wasmQuantizeBufferHsvInner: WasmQuantizeBufferFn = (_buffer, _palette) => {
-  console.error("WASM module not loaded!");
-  return new Uint8Array(0);
-};
-
-let wasmErrorDiffuseBufferInner: WasmErrorDiffuseBufferFn = () => {
-  console.error("WASM module not loaded!");
-  return new Uint8Array(0);
-};
-
-let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = () => {
+const wasmApplyChannelLutInnerDefault: WasmApplyChannelLutFn = () => {
   console.error("WASM module not loaded!");
 };
 
-let wasmOrderedDitherLinearInner: WasmOrderedDitherLinearFn = () => {
-  console.error("WASM module not loaded!");
-};
+let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn = wasmNearestLabPrecomputedInnerDefault;
+let wasmQuantizeBufferRgbInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
+let wasmErrorDiffuseBufferInner: WasmErrorDiffuseBufferFn = wasmErrorDiffuseBufferInnerDefault;
+let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = wasmErrorDiffuseCustomInnerDefault;
+let wasmApplyChannelLutInner: WasmApplyChannelLutFn = wasmApplyChannelLutInnerDefault;
 
-let wasmApplyChannelLutInner: WasmApplyChannelLutFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmHsvShiftInner: WasmHsvShiftFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmTriangleDitherInner: WasmTriangleDitherFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmOilPaintingInner: WasmOilPaintingFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmLensDistortionInner: WasmLensDistortionFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmTiltShiftInner: WasmTiltShiftFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmVintageTvInner: WasmVintageTvFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmRgbStripeInner: WasmRgbStripeFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmFacetInner: WasmFacetFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmScanlineWarpInner: WasmScanlineWarpFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmLcdDisplayInner: WasmLcdDisplayFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmJpegArtifactInner: WasmJpegArtifactFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmGrainMergeInner: WasmGrainMergeFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmMedianFilterInner: WasmMedianFilterFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmAnimeColorGradeInner: WasmAnimeColorGradeFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmGaussianBlurInner: WasmGaussianBlurFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmBokehInner: WasmBokehFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-let wasmBloomInner: WasmBloomFn = () => {
-  console.error("WASM module not loaded!");
-};
-
-
-export const wasmRgbaLabaDistance = (
-  a: RgbaLike,
-  b: RgbaLike,
-  ref = referenceTable.CIE_1931.D65
-) =>
-  wasmRgbaLabaDistanceInner(
-    readValue(a, 0),
-    readValue(a, 1),
-    readValue(a, 2),
-    readValue(a, 3),
-    readValue(b, 0),
-    readValue(b, 1),
-    readValue(b, 2),
-    readValue(b, 3),
-    ref.x,
-    ref.y,
-    ref.z
-  );
-
-export const wasmRgba2laba = (
-  input: RgbaLike,
-  ref = referenceTable.CIE_1931.D65
-) =>
-  wasmRgba2labaInner(
-    readValue(input, 0),
-    readValue(input, 1),
-    readValue(input, 2),
-    readValue(input, 3),
-    ref.x,
-    ref.y,
-    ref.z
-  );
-
-export const wasmRgba2labaMemo = memoize(wasmRgba2laba);
 export const rgba2labaMemo = memoize(rgba2laba);
 export const rgba2hsvaMemo = memoize(rgba2hsva);
 
-// Batch nearest-colour search in WASM — one JS/WASM crossing per pixel
-// instead of O(palette_size). Palette is cached as a flat Float64Array.
+// Shared palette flat-array cache for WASM calls that receive a palette.
 let cachedPaletteFlat: Float64Array | null = null;
 let cachedPaletteRef: readonly RgbaLike[] | null = null;
-export const wasmNearestLabIndex = (
-  pixel: RgbaLike,
-  palette: readonly RgbaLike[],
-  ref = referenceTable.CIE_1931.D65
-) => {
-  if (cachedPaletteRef !== palette) {
-    cachedPaletteFlat = new Float64Array(palette.length * 4);
-    for (let i = 0; i < palette.length; i++) {
-      const [r, g, b, a] = readPaletteColor(palette, i);
-      cachedPaletteFlat[i * 4] = r;
-      cachedPaletteFlat[i * 4 + 1] = g;
-      cachedPaletteFlat[i * 4 + 2] = b;
-      cachedPaletteFlat[i * 4 + 3] = a;
-    }
-    cachedPaletteRef = palette;
-  }
-  return wasmNearestLabIndexInner(
-    readValue(pixel, 0), readValue(pixel, 1), readValue(pixel, 2), readValue(pixel, 3),
-    cachedPaletteFlat!,
-    ref.x, ref.y, ref.z
-  );
-};
 
 // Per-pixel nearest with pre-converted Lab palette — avoids re-converting
 // palette to Lab on every pixel. Palette Lab is cached alongside the RGBA cache.
@@ -1006,16 +538,8 @@ export const wasmNearestLabPrecomputed = (
   );
 };
 
-// Quantize an entire u8 RGBA buffer in a single WASM call.
-// Palette is cached as a flat Float64Array.
-export const wasmQuantizeBufferLab = (
-  buffer: Uint8ClampedArray | Uint8Array,
-  palette: number[][],
-  ref = referenceTable.CIE_1931.D65
-): Uint8Array =>
-  wasmQuantizeBufferLabInner(buffer, ensurePaletteFlat(palette), ref.x, ref.y, ref.z);
-
-// Helper: ensure cached palette flat is fresh
+// Cache a palette as a flat Float64Array keyed by array identity, so repeated
+// WASM calls with the same palette skip the copy.
 const ensurePaletteFlat = (palette: number[][]) => {
   if (cachedPaletteRef !== palette) {
     cachedPaletteFlat = new Float64Array(palette.length * 4);
@@ -1031,23 +555,13 @@ const ensurePaletteFlat = (palette: number[][]) => {
   return cachedPaletteFlat!;
 };
 
+// Retained for the wasmSmoke binding sanity check. No production filter calls
+// this anymore — the quantize dispatch lives on the GL side.
 export const wasmQuantizeBufferRgb = (
   buffer: Uint8ClampedArray | Uint8Array,
   palette: number[][],
 ): Uint8Array =>
   wasmQuantizeBufferRgbInner(buffer, ensurePaletteFlat(palette));
-
-export const wasmQuantizeBufferRgbApprox = (
-  buffer: Uint8ClampedArray | Uint8Array,
-  palette: number[][],
-): Uint8Array =>
-  wasmQuantizeBufferRgbApproxInner(buffer, ensurePaletteFlat(palette));
-
-export const wasmQuantizeBufferHsv = (
-  buffer: Uint8ClampedArray | Uint8Array,
-  palette: number[][],
-): Uint8Array =>
-  wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
 
 // Resolve the colorDistanceAlgorithm for a palette, honoring the user palette's
 // runtime fallback (defaults.colorDistanceAlgorithm) so random-preset palettes
@@ -1274,302 +788,10 @@ export const WASM_ROW_ALT = {
   RANDOM: 10,
 } as const;
 
-// Separable Gaussian blur in a single WASM call (builds the 1D kernel from
-// sigma internally, then does horizontal + vertical passes with clamp-to-edge).
-export const wasmGaussianBlurBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  sigma: number,
-): void => wasmGaussianBlurInner(input, output, width, height, sigma);
-
-export const wasmBokehBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  radius: number,
-  threshold: number,
-  intensity: number,
-  shape: number,
-  localDetect: number,
-  softness: number,
-  edgeFringe: number,
-  rotation: number,
-  catsEye: number,
-  edgeRing: number,
-  bubble: number,
-): void => wasmBokehInner(input, output, width, height, radius, threshold, intensity, shape, localDetect, softness, edgeFringe, rotation, catsEye, edgeRing, bubble);
-
-// Bloom: threshold bright pixels, separable box blur, additive composite.
-// The JS side resolves relative threshold (needs a max-luminance scan) before
-// calling — WASM receives the resolved absolute threshold.
-export const wasmBloomBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  threshold: number,
-  strength: number,
-  radius: number,
-): void => wasmBloomInner(input, output, width, height, threshold, strength, radius);
-
-// Anime Color Grade — per-pixel tone curve → luminance-weighted cool/warm
-// tint → partial luminance restore → vibrance → mix. All in a single WASM
-// call so the JS side only has to marshal the 8 scalar option values.
-export const wasmAnimeColorGradeBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  shadowCool: number,
-  highlightWarm: number,
-  blackPoint: number,
-  whitePoint: number,
-  contrast: number,
-  midtoneLift: number,
-  vibrance: number,
-  mix: number,
-): void =>
-  wasmAnimeColorGradeInner(input, output, shadowCool, highlightWarm, blackPoint, whitePoint, contrast, midtoneLift, vibrance, mix);
-
-// Median filter with circular neighborhood (dx² + dy² ≤ r²) and clamp-to-edge
-// sampling. Used by the Median Filter filter.
-export const wasmMedianFilterBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  radius: number,
-): void => wasmMedianFilterInner(input, output, width, height, radius);
-
-// Box-blur high-pass + per-pixel mix for the Grain merge filter. Uses an
-// integral image internally for O(W*H) total cost regardless of radius.
-export const wasmGrainMergeBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  radius: number,
-  strength: number,
-): void => wasmGrainMergeInner(input, output, width, height, radius, strength);
-
-// Oil Painting: per-pixel histogram-binned-by-luminance averaging over a
-// (2r+1)² neighbourhood. Pure per-pixel independent; caller supplies radius
-// and bin count.
-export const wasmOilPaintingBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  radius: number,
-  levels: number,
-): void => wasmOilPaintingInner(input, output, width, height, radius, levels);
-
-// Lens distortion: inverse radial distortion with Newton's-method
-// per-pixel radius inversion; sample is rounded-nearest. Matches the JS
-// path including the out-of-bounds transparent pixel.
-export const wasmLensDistortionBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  k1: number,
-  k2: number,
-  zoom: number,
-): void => wasmLensDistortionInner(input, output, width, height, k1, k2, zoom);
-
-// Tilt Shift: separable Gaussian blur then focus-band blend with optional
-// saturation boost. All in-line so the blur's f32 intermediate stays in
-// scope for the blend (matches the JS path bit-for-bit).
-export const wasmTiltShiftBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  focusPosition: number,
-  focusWidth: number,
-  blurAmount: number,
-  saturationBoost: number,
-): void => wasmTiltShiftInner(input, output, width, height, focusPosition, focusWidth, blurAmount, saturationBoost);
-
-// Vintage TV: y-rolled sampling with R-channel fringe, per-row sin-driven
-// banding, and a conditional highlight glow. Per-row bandVal is cached in
-// the Rust function so the hot loop skips redundant `sin` calls.
-export const wasmVintageTvBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  banding: number,
-  colorFringe: number,
-  rollOffset: number,
-  frameIndex: number,
-  glow: number,
-): void => wasmVintageTvInner(input, output, width, height, banding, colorFringe, rollOffset, frameIndex, glow);
-
-// rgbStripe (CRT emulation): full pipeline port — misconvergence pre-pass,
-// curvature, degauss warp+hue rotation, RGB shadow-mask multiply, BCG chain,
-// scanlines, flicker, vignette, palette quantize (inline), beam spread,
-// bloom, persistence. `paletteLevels` sentinel: 0 or ≥256 means no palette,
-// 2–255 is nearest quantization applied before the post-passes so they
-// operate on the same values as the JS reference pipeline.
-export const wasmRgbStripeBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  prevOutput: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  mask: Float64Array,
-  maskW: number,
-  maskH: number,
-  brightness: number,
-  contrast: number,
-  exposure: number,
-  gamma: number,
-  phosphorScale: number,
-  scanlineGap: number,
-  scanlineStrength: number,
-  includeScanline: number,
-  misconvergence: number,
-  beamSpread: number,
-  bloom: number,
-  bloomThreshold: number,
-  bloomRadius: number,
-  bloomStrength: number,
-  curvature: number,
-  vignette: number,
-  interlace: number,
-  interlaceField: number,
-  persistence: number,
-  flicker: number,
-  frameIndex: number,
-  degaussFrame: number,
-  paletteLevels: number,
-): void => wasmRgbStripeInner(
-  input, output, prevOutput, width, height, mask, maskW, maskH,
-  brightness, contrast, exposure, gamma,
-  phosphorScale, scanlineGap, scanlineStrength, includeScanline,
-  misconvergence, beamSpread, bloom, bloomThreshold, bloomRadius, bloomStrength,
-  curvature, vignette, interlace, interlaceField,
-  persistence, flicker, frameIndex, degaussFrame, paletteLevels,
-);
-
-// Facet: Voronoi-ish tessellation with optional seams. The WASM kernel
-// uses a 3x3 spatial-grid lookup for nearest-two seeds, dropping the
-// inner loop from O(N) to O(9). `fillMode`: 0 = AVERAGE (per-facet mean
-// colour), 1 = CENTER (sample at the seed pixel). `paletteLevels`:
-// 0/≥256 = identity, 2-255 = inline nearest quantize.
-export const FACET_FILL_MODE = { AVERAGE: 0, CENTER: 1 } as const;
-
-export const wasmFacetBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  facetSize: number,
-  jitter: number,
-  seamWidth: number,
-  lineR: number,
-  lineG: number,
-  lineB: number,
-  fillMode: number,
-  paletteLevels: number,
-): void => wasmFacetInner(
-  input, output, width, height,
-  facetSize, jitter, seamWidth,
-  lineR, lineG, lineB,
-  fillMode, paletteLevels,
-);
-
-// Scanline Warp: sin-driven per-row horizontal shift with bilinear sampling.
-export const wasmScanlineWarpBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  amplitude: number,
-  frequency: number,
-  phaseRad: number,
-  animOffset: number,
-): void => wasmScanlineWarpInner(input, output, width, height, amplitude, frequency, phaseRad, animOffset);
-
-// LCD Display subpixel simulation. `subpixelLayout`: 0 = STRIPE, 1 = PENTILE,
-// 2 = DIAMOND (must match LCD_SUBPIXEL_LAYOUT).
-export const LCD_SUBPIXEL_LAYOUT = { STRIPE: 0, PENTILE: 1, DIAMOND: 2 } as const;
-
-export const wasmLcdDisplayBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  pixelSize: number,
-  subpixelLayout: number,
-  brightness: number,
-  gapDarkness: number,
-): void => wasmLcdDisplayInner(input, output, width, height, pixelSize, subpixelLayout, brightness, gapDarkness);
-
-// JPEG-artifact simulation: forward/inverse 8×8 DCT per YCbCr plane, chroma
-// subsampled by `subsampling` (0=4:4:4, 1=4:2:2, 2=4:2:0), with per-macroblock
-// burst/jitter corruption + deblock + ringing + mosquito. Output is RGBA
-// pre-palette; caller applies palette + temporal hold on the JS side.
-export const JPEG_SUBSAMPLING = { YUV444: 0, YUV422: 1, YUV420: 2 } as const;
-export const wasmJpegArtifactBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  qualityLuma: number,
-  qualityChroma: number,
-  subsampling: number,
-  blockSize: number,
-  ringing: number,
-  mosquito: number,
-  gridJitter: number,
-  corruptBurstChance: number,
-  deblock: number,
-  preserveAlpha: boolean,
-  frameIndex: number,
-): void => wasmJpegArtifactInner(
-  input, output, width, height,
-  qualityLuma, qualityChroma, subsampling, blockSize,
-  ringing, mosquito, gridJitter, corruptBurstChance, deblock,
-  preserveAlpha ? 1 : 0, frameIndex,
-);
-
-// Triangle dither: TPDF noise added per channel, then either a `levels` snap
-// (paletteMode = LEVELS) or a nearest-colour match against `palette` (any of
-// the other palette modes). Caller seeds the WASM PRNG with any non-zero u32
-// (use Math.random() for JS-like run-to-run variation).
-export const wasmTriangleDitherBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  levels: number,
-  seed: number,
-  paletteMode: number,
-  palette: number[][] | null,
-  ref = referenceTable.CIE_1931.D65,
-): void =>
-  wasmTriangleDitherInner(
-    input, output, levels, seed,
-    paletteMode,
-    palette ? ensurePaletteFlat(palette) : new Float64Array(0),
-    ref.x, ref.y, ref.z,
-  );
-
-// Per-pixel HSV shift (hue in degrees, sat/val in [-1, 1]) applied in a single
-// WASM call. Alpha passes through unchanged. Used by the Color shift filter.
-export const wasmHsvShiftBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  hueShift: number,
-  satShift: number,
-  valShift: number,
-): void => wasmHsvShiftInner(input, output, hueShift, satShift, valShift);
-
 // Apply three 256-entry per-channel LUTs to an RGBA buffer in a single WASM
 // call. The caller is responsible for constructing the LUTs — this just does
-// the tight per-pixel dispatch. Used by Curves (RGB/R/G/B modes), Smooth
-// Posterize, and any future filter that reduces to a per-channel remap.
+// the tight per-pixel dispatch. Used by the shared palette-pass primitive for
+// levels-only palettes.
 export const wasmApplyChannelLut = (
   input: Uint8ClampedArray | Uint8Array,
   output: Uint8ClampedArray | Uint8Array,
@@ -1577,57 +799,6 @@ export const wasmApplyChannelLut = (
   lutG: Uint8Array,
   lutB: Uint8Array,
 ): void => wasmApplyChannelLutInner(input, output, lutR, lutG, lutB);
-
-// Linear-mode ordered dither in a single WASM call. Handles the sRGB→linear
-// input conversion, threshold-bias quantization in linear space, the linear→sRGB
-// roundtrip, and the palette match (LEVELS / RGB / RGB_APPROX / HSV / LAB).
-// Keep flattened threshold map as Float64Array to match the JS-side 2D map semantics.
-export const wasmOrderedDitherLinearBuffer = (
-  input: Uint8ClampedArray | Uint8Array,
-  output: Uint8ClampedArray | Uint8Array,
-  width: number,
-  height: number,
-  thresholdMap: Float64Array,
-  thresholdW: number,
-  thresholdH: number,
-  temporalOx: number,
-  temporalOy: number,
-  orderedLevels: number,
-  paletteMode: number,
-  levels: number,
-  palette: number[][] | null,
-  ref = referenceTable.CIE_1931.D65,
-): void =>
-  wasmOrderedDitherLinearInner(
-    input, output, width, height,
-    thresholdMap, thresholdW, thresholdH, temporalOx, temporalOy,
-    orderedLevels, paletteMode, levels,
-    palette ? ensurePaletteFlat(palette) : new Float64Array(0),
-    ref.x, ref.y, ref.z,
-  );
-
-// Convert CIE Lab > XYZ > RGBA, copying alpha channel
-// Unified WASM buffer quantize dispatcher — picks the right function based on algorithm.
-// Returns a Uint8Array of matched palette colors, or null if no WASM function available.
-export const wasmQuantizeBuffer = (
-  buffer: Uint8ClampedArray | Uint8Array,
-  palette: number[][],
-  colorDistanceAlgorithm: string,
-  ref = referenceTable.CIE_1931.D65
-): Uint8Array | null => {
-  switch (colorDistanceAlgorithm) {
-    case RGB_NEAREST:
-      return wasmQuantizeBufferRgbInner(buffer, ensurePaletteFlat(palette));
-    case RGB_APPROX:
-      return wasmQuantizeBufferRgbApproxInner(buffer, ensurePaletteFlat(palette));
-    case HSV_NEAREST:
-      return wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
-    case LAB_NEAREST:
-      return wasmQuantizeBufferLabInner(buffer, ensurePaletteFlat(palette), ref.x, ref.y, ref.z);
-    default:
-      return null;
-  }
-};
 
 export const laba2rgba = (
   input: RgbaLike,

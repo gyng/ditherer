@@ -1,55 +1,19 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  rgba2hsva,
-  srgbPaletteGetColor,
-  wasmHsvShiftBuffer,
-  wasmIsLoaded,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
-import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityShared } from "palettes/backend";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import {
   drawPass,
   ensureTexture,
   getGLCtx,
   getQuadVAO,
-  glAvailable,
   linkProgram,
   readoutToCanvas,
   resizeGLCanvas,
   uploadSourceTexture,
   type Program,
 } from "gl";
-
-// h: 0-360, s/v/a: 0-1 → r/g/b/a: 0-255
-const hsva2rgba = ([h, s, v, a]: readonly number[]) => {
-  if (s === 0) {
-    const c = Math.round(v * 255);
-    return [c, c, c, Math.round(a * 255)];
-  }
-  const hh = (((h % 360) + 360) % 360) / 60;
-  const sector = Math.floor(hh);
-  const f = hh - sector;
-  const p = v * (1 - s);
-  const q = v * (1 - s * f);
-  const t = v * (1 - s * (1 - f));
-  let r, g, b;
-  switch (sector) {
-    case 0: r = v; g = t; b = p; break;
-    case 1: r = q; g = v; b = p; break;
-    case 2: r = p; g = v; b = t; break;
-    case 3: r = p; g = q; b = v; break;
-    case 4: r = t; g = p; b = v; break;
-    default: r = v; g = p; b = q; break;
-  }
-  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), Math.round(a * 255)];
-};
 
 export const optionTypes = {
   hue: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Hue rotation in degrees" },
@@ -137,86 +101,37 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const colorShift = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
+const colorShift = (input: any, options: typeof defaults = defaults) => {
   const { hue, saturation, value, palette } = options;
   const W = input.width;
   const H = input.height;
 
-  if (glAvailable() && options._webglAcceleration !== false) {
-    const ctx = getGLCtx();
-    if (ctx) {
-      const { gl, canvas } = ctx;
-      const cache = initCache(gl);
-      const vao = getQuadVAO(gl);
-      resizeGLCanvas(canvas, W, H);
-      const sourceTex = ensureTexture(gl, "colorShift:source", W, H);
-      uploadSourceTexture(gl, sourceTex, input);
+  const ctx = getGLCtx();
+  if (!ctx) return input;
+  const { gl, canvas } = ctx;
+  const cache = initCache(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+  const sourceTex = ensureTexture(gl, "colorShift:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.cs, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.cs.uniforms.u_source, 0);
-        gl.uniform1f(cache.cs.uniforms.u_hue, hue);
-        gl.uniform1f(cache.cs.uniforms.u_saturation, saturation);
-        gl.uniform1f(cache.cs.uniforms.u_value, value);
-        const identity = paletteIsIdentityShared(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.cs.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+  const identity = paletteIsIdentity(palette);
+  drawPass(gl, null, W, H, cache.cs, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(cache.cs.uniforms.u_source, 0);
+    gl.uniform1f(cache.cs.uniforms.u_hue, hue);
+    gl.uniform1f(cache.cs.uniforms.u_saturation, saturation);
+    gl.uniform1f(cache.cs.uniforms.u_value, value);
+    const pOpts = (palette as { options?: { levels?: number } }).options;
+    gl.uniform1f(cache.cs.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+  }, vao);
 
-      const rendered = readoutToCanvas(canvas, W, H);
-      if (rendered) {
-        const identity = paletteIsIdentityShared(palette);
-        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-        if (out) {
-          logFilterBackend("Color shift", "WebGL2",
-            `hsv${identity ? "" : "+palettePass"}`);
-          return out;
-        }
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
-
-  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
-    wasmHsvShiftBuffer(buf, buf, hue, saturation, value);
-    if (!paletteIsIdentity) {
-      for (let i = 0; i < buf.length; i += 4) {
-        const col = srgbPaletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options);
-        fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
-      }
-    }
-    logFilterWasmStatus("Color shift", true, paletteIsIdentity ? "hsv" : "hsv+palettePass");
-    outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
-    return output;
-  }
-
-  logFilterWasmStatus("Color shift", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
-  for (let x = 0; x < input.width; x += 1) {
-    for (let y = 0; y < input.height; y += 1) {
-      const i = getBufferIndex(x, y, input.width);
-      const [h, s, v, a] = rgba2hsva(rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]));
-      const shifted = hsva2rgba([
-        h + hue,
-        Math.max(0, Math.min(1, s + saturation)),
-        Math.max(0, Math.min(1, v + value)),
-        a
-      ]);
-      const col = srgbPaletteGetColor(palette, shifted, palette.options);
-      fillBufferPixel(buf, i, col[0], col[1], col[2], col[3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
-  return output;
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (!rendered) return input;
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Color shift", "WebGL2", `hsv${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -224,5 +139,6 @@ export default defineFilter({
   func: colorShift,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  requiresGL: true,
 });

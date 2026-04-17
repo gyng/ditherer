@@ -19,8 +19,6 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const clamp = (v: number): number => Math.max(0, Math.min(255, v));
-
 const zigzag = (
   input: any,
   options: typeof defaults = defaults

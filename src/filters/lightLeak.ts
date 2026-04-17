@@ -45,4 +45,4 @@ const lightLeak = (input: any, options: typeof defaults = defaults) => {
   return out ?? input;
 };
 
-export default defineFilter({ name: "Light Leak", func: lightLeak, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Light Leak", func: lightLeak, optionTypes, options: defaults, defaults, requiresGL: true });

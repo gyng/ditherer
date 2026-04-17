@@ -21,8 +21,6 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
 const gradientMap = (input: any, options: typeof defaults = defaults) => {
   const { color1, color2, color3, mix, palette } = options;
   const W = input.width, H = input.height;

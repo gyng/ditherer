@@ -1,21 +1,9 @@
 import { BOOL, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import { renderAnimeToneBandsGL } from "./animeToneBandsGL";
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const smoothstep = (edge0: number, edge1: number, value: number) => {
-  const t = clamp(0, 1, (value - edge0) / Math.max(1e-6, edge1 - edge0));
-  return t * t * (3 - 2 * t);
-};
-
-const quantizeTone = (value: number, steps: number) => {
-  const clamped = clamp(0, 1, value);
-  const count = Math.max(2, Math.round(steps));
-  return Math.round(clamped * (count - 1)) / Math.max(1, count - 1);
-};
 
 export const optionTypes = {
   shadowSteps: { type: RANGE, range: [2, 8], step: 1, default: 3, desc: "How many broad bands to keep in darker regions" },

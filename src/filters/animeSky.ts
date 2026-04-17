@@ -1,6 +1,6 @@
 import { COLOR, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { clamp, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import { renderAnimeSkyGL } from "./animeSkyGL";
@@ -8,21 +8,6 @@ import { renderAnimeSkyGL } from "./animeSkyGL";
 const SKY_MODE = {
   GRADIENT: "GRADIENT",
   CLOUDS: "CLOUDS" };
-
-const smoothstep = (edge0: number, edge1: number, value: number) => {
-  const t = clamp(0, 1, (value - edge0) / Math.max(1e-6, edge1 - edge0));
-  return t * t * (3 - 2 * t);
-};
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-const pseudoCloud = (xNorm: number, yNorm: number, cloudSoftness: number) => {
-  const bandA = Math.sin(xNorm * 8.4 + yNorm * 6.2);
-  const bandB = Math.sin(xNorm * 17.1 - yNorm * 11.6);
-  const bandC = Math.sin((xNorm + yNorm * 0.75) * 29.3);
-  const value = (bandA * 0.45 + bandB * 0.35 + bandC * 0.2 + 1) * 0.5;
-  return smoothstep(0.55 - cloudSoftness * 0.25, 0.82 + cloudSoftness * 0.15, value);
-};
 
 export const optionTypes = {
   mode: {

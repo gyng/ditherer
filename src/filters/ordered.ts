@@ -2,26 +2,8 @@ import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { BLUE_NOISE_MAP, BLUE_NOISE_SIZE, BLUE_NOISE_LEVELS } from "./blueNoise64";
-
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  scaleMatrix,
-  srgbBufToLinearFloat,
-  linearFloatToSrgbBuf,
-  srgbPaletteGetColor,
-  linearPaletteGetColor,
-  wasmQuantizeBuffer,
-  wasmOrderedDitherLinearBuffer,
-  wasmIsLoaded,
-  resolvePaletteColorAlgorithm,
-  colorAlgorithmToWasmMode,
-  logFilterWasmStatus,
-  logFilterBackend,
-  WASM_PALETTE_MODE,
-} from "utils";
-import { orderedGLAvailable, renderOrderedGL, ORDERED_PAL_MODE } from "./orderedGL";
+import { scaleMatrix, resolvePaletteColorAlgorithm, logFilterBackend } from "utils";
+import { renderOrderedGL, ORDERED_PAL_MODE } from "./orderedGL";
 import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST } from "constants/color";
 
 export const BAYER_2X2 = "BAYER_2X2";
@@ -201,66 +183,11 @@ const thresholdMaps = {
     levels: 256
   },
   // 64×64 blue noise generated via void-and-cluster algorithm
-  // Best quality — organic, film-grain-like dithering with no visible tiling
   [BLUE_NOISE_64X64]: {
     width: BLUE_NOISE_SIZE,
     thresholdMap: BLUE_NOISE_MAP,
     levels: BLUE_NOISE_LEVELS
   }
-};
-
-const scaleThresholdMap = (
-  map: number[][],
-  timesX: number,
-  timesY: number
-) => {
-  if (timesX === 1 && timesY === 1) {
-    return map;
-  }
-
-  const out: number[][] = [];
-
-  for (let i = 0; i < map.length; i += 1) {
-    for (let y = 0; y < timesY; y += 1) {
-      const row: number[] = [];
-
-      for (let j = 0; j < map[i].length; j += 1) {
-        for (let x = 0; x < timesX; x += 1) {
-          row.push(map[i][j]);
-        }
-      }
-      out.push(row);
-    }
-  }
-
-  return out;
-};
-
-// Scratch buffer reused across getOrderedColor calls — avoids per-pixel allocations
-const _orderedOut = [0, 0, 0, 0];
-
-const getOrderedColor = (
-  color: number[],
-  levels: number,
-  tx: number,
-  ty: number,
-  threshold: number[][]
-) => {
-  const thresholdValue = threshold[ty][tx];
-
-  if (thresholdValue == null) {
-    _orderedOut[0] = 255; _orderedOut[1] = 255; _orderedOut[2] = 0; _orderedOut[3] = 255;
-    return _orderedOut;
-  }
-
-  const step = 255 / (levels - 1);
-  const bias = step * (thresholdValue - 0.5);
-
-  _orderedOut[0] = Math.round(Math.round((color[0] + bias) / step) * step);
-  _orderedOut[1] = Math.round(Math.round((color[1] + bias) / step) * step);
-  _orderedOut[2] = Math.round(Math.round((color[2] + bias) / step) * step);
-  _orderedOut[3] = color[3];
-  return _orderedOut;
 };
 
 type OrderedPalette = {
@@ -280,81 +207,29 @@ type OrderedOptions = FilterOptionValues & {
   animSpeed?: number;
   _frameIndex?: number;
   _linearize?: boolean;
-  _wasmAcceleration?: boolean;
 };
 
 export const optionTypes = {
   thresholdMap: {
     type: ENUM,
     options: [
-      {
-        name: "Bayer 2×2",
-        value: BAYER_2X2
-      },
-      {
-        name: "Bayer 3×3",
-        value: BAYER_3X3
-      },
-      {
-        name: "Bayer 4×4",
-        value: BAYER_4X4
-      },
-      {
-        name: "Bayer 8×8",
-        value: BAYER_8X8
-      },
-      {
-        name: "Bayer 16×16",
-        value: BAYER_16X16
-      },
-      {
-        name: "Dispersed Dot 3×3",
-        value: DISPERSED_DOT_3X3
-      },
-      {
-        name: "Digital Halftone 5×8",
-        value: SQUARE_5X5
-      },
-      {
-        name: "Corner 4×4",
-        value: CORNER_4X4
-      },
-      {
-        name: "Block Vertical 4×4",
-        value: BLOCK_VERTICAL_4X4
-      },
-      {
-        name: "Block Horizontal 4×4",
-        value: BLOCK_HORIZONTAL_4X4
-      },
-      {
-        name: "Hatch 2×2",
-        value: HATCH_2X2
-      },
-      {
-        name: "Hatch 3×3",
-        value: HATCH_3X3
-      },
-      {
-        name: "Hatch 4×4",
-        value: HATCH_4X4
-      },
-      {
-        name: "Alternate 3×3",
-        value: ALTERNATE_3X3
-      },
-      {
-        name: "Hatch 2×2 ×3",
-        value: PATTERN_5X5
-      },
-      {
-        name: "Blue Noise 16×16",
-        value: BLUE_NOISE_16X16
-      },
-      {
-        name: "Blue Noise 64×64",
-        value: BLUE_NOISE_64X64
-      }
+      { name: "Bayer 2×2", value: BAYER_2X2 },
+      { name: "Bayer 3×3", value: BAYER_3X3 },
+      { name: "Bayer 4×4", value: BAYER_4X4 },
+      { name: "Bayer 8×8", value: BAYER_8X8 },
+      { name: "Bayer 16×16", value: BAYER_16X16 },
+      { name: "Dispersed Dot 3×3", value: DISPERSED_DOT_3X3 },
+      { name: "Digital Halftone 5×8", value: SQUARE_5X5 },
+      { name: "Corner 4×4", value: CORNER_4X4 },
+      { name: "Block Vertical 4×4", value: BLOCK_VERTICAL_4X4 },
+      { name: "Block Horizontal 4×4", value: BLOCK_HORIZONTAL_4X4 },
+      { name: "Hatch 2×2", value: HATCH_2X2 },
+      { name: "Hatch 3×3", value: HATCH_3X3 },
+      { name: "Hatch 4×4", value: HATCH_4X4 },
+      { name: "Alternate 3×3", value: ALTERNATE_3X3 },
+      { name: "Hatch 2×2 ×3", value: PATTERN_5X5 },
+      { name: "Blue Noise 16×16", value: BLUE_NOISE_16X16 },
+      { name: "Blue Noise 64×64", value: BLUE_NOISE_64X64 }
     ],
     default: HATCH_2X2,
     desc: "Dither pattern — larger matrices produce smoother gradients"
@@ -380,48 +255,16 @@ const defaults: OrderedOptions = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } }
 };
 
-// Ordered (matrix) dither. For each pixel, a deterministic threshold value is
-// looked up from a small tileable map (Bayer / blue-noise / custom pattern),
-// biased against the pixel's channel value, then quantised to `levels` steps.
-// The bias swings each channel up or down by up to ±step/2, so uniform regions
-// produce the matrix pattern at the quantisation boundary. A final palette
-// match snaps the quantised colour to the nearest palette entry. The linear
-// path does the bias + quant in sRGB-linear space (cleaner gradients, closer
-// to perceptual); the sRGB path is faster and matches the classic look.
-//
-// Dispatch: WebGL2 (preferred) → WASM → JS. The GL path (orderedGL.ts) bundles
-// dither + palette match into one fragment-shader pass with all four palette
-// algorithms (RGB / redmean / HSV / LAB) implemented in-shader.
-const ordered = (
-  input: any,
-  options: OrderedOptions = defaults
-) => {
+// Ordered (matrix) dither. The GL path (orderedGL.ts) bundles dither + palette
+// match into one fragment-shader pass with all four palette algorithms
+// (RGB / redmean / HSV / LAB) implemented in-shader, plus sRGB / linear modes.
+const ordered = (input: any, options: OrderedOptions = defaults) => {
   const palette = options.palette ?? defaults.palette;
   const thresholdMapKey = options.thresholdMap ?? defaultThresholdMap;
-  const thresholdMapScaleX =
-    typeof options.thresholdMapScaleX === "number"
-      ? options.thresholdMapScaleX
-      : defaults.thresholdMapScaleX ?? 1;
-  const thresholdMapScaleY =
-    typeof options.thresholdMapScaleY === "number"
-      ? options.thresholdMapScaleY
-      : defaults.thresholdMapScaleY ?? 1;
-  const temporalPhases =
-    typeof options.temporalPhases === "number"
-      ? options.temporalPhases
-      : defaults.temporalPhases ?? 1;
+  const thresholdMapScaleX = typeof options.thresholdMapScaleX === "number" ? options.thresholdMapScaleX : defaults.thresholdMapScaleX ?? 1;
+  const thresholdMapScaleY = typeof options.thresholdMapScaleY === "number" ? options.thresholdMapScaleY : defaults.thresholdMapScaleY ?? 1;
+  const temporalPhases = typeof options.temporalPhases === "number" ? options.temporalPhases : defaults.temporalPhases ?? 1;
   const frameIndex = typeof options._frameIndex === "number" ? options._frameIndex : 0;
-
-  const output = cloneCanvas(input, false);
-
-  const inputCtx = input.getContext("2d", { willReadFrequently: true });
-  const outputCtx = output.getContext("2d");
-
-  if (!inputCtx || !outputCtx) {
-    return input;
-  }
-
-  const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
   const threshold = thresholdMaps[thresholdMapKey] as {
     width: number;
@@ -430,181 +273,42 @@ const ordered = (
   };
   const explicitLevels = "levels" in threshold ? threshold.levels : undefined;
   const levels = explicitLevels || threshold.width * threshold.width;
-  const thresholdMapScaled = scaleThresholdMap(
-    threshold.thresholdMap,
-    thresholdMapScaleX,
-    thresholdMapScaleY
-  );
   const thresholdMapWidth = threshold.width * thresholdMapScaleX;
   const thresholdMapHeight = threshold.width * thresholdMapScaleY;
 
-  // Temporal dither: offset threshold map position per frame
   const phase = temporalPhases > 1 ? (frameIndex % temporalPhases) : 0;
   const temporalOffsetX = temporalPhases > 1 ? Math.floor(phase * thresholdMapWidth / temporalPhases) : 0;
   const temporalOffsetY = temporalPhases > 1 ? Math.floor(phase * thresholdMapHeight / temporalPhases) : 0;
 
-  // WebGL2 fast path. Handles LEVELS + RGB/RGB_APPROX/HSV/LAB palettes,
-  // sRGB and linear modes, temporal phases. Falls through to WASM/JS for
-  // anything unsupported (e.g. palettes without a known distance algorithm).
-  if (
-    orderedGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && palette
-  ) {
-    const pOpts = palette.options as { levels?: number; colors?: number[][]; colorDistanceAlgorithm?: string } | undefined;
-    const algo = resolvePaletteColorAlgorithm(palette);
-    let palMode: number | null = null;
-    if (pOpts?.colors) {
-      if (algo === RGB_NEAREST) palMode = ORDERED_PAL_MODE.RGB;
-      else if (algo === RGB_APPROX) palMode = ORDERED_PAL_MODE.RGB_APPROX;
-      else if (algo === HSV_NEAREST) palMode = ORDERED_PAL_MODE.HSV;
-      else if (algo === LAB_NEAREST) palMode = ORDERED_PAL_MODE.LAB;
-    }
-    if (palMode === null) palMode = ORDERED_PAL_MODE.LEVELS;
-
-    const rendered = renderOrderedGL(input, input.width, input.height, {
-      thresholdMap: threshold.thresholdMap,
-      thresholdMapKey: String(thresholdMapKey),
-      mapScaleX: thresholdMapScaleX,
-      mapScaleY: thresholdMapScaleY,
-      tempOffsetX: temporalOffsetX,
-      tempOffsetY: temporalOffsetY,
-      levels,
-      linearize: !!options._linearize,
-      palMode,
-      paletteRgb: palMode === ORDERED_PAL_MODE.LEVELS ? null : (pOpts?.colors ?? null),
-      labRef: [95.047, 100, 108.883],
-    });
-    if (rendered) {
-      const space = options._linearize ? "linear" : "sRGB";
-      const palLabel = palMode === ORDERED_PAL_MODE.LEVELS ? `levels=${pOpts?.levels ?? levels}` : `algo=${algo}`;
-      logFilterBackend("Ordered", "WebGL2", `${space} ${thresholdMapKey} ${palLabel}`);
-      return rendered;
-    }
+  const pOpts = palette?.options as { levels?: number; colors?: number[][]; colorDistanceAlgorithm?: string } | undefined;
+  const algo = resolvePaletteColorAlgorithm(palette);
+  let palMode: number | null = null;
+  if (pOpts?.colors) {
+    if (algo === RGB_NEAREST) palMode = ORDERED_PAL_MODE.RGB;
+    else if (algo === RGB_APPROX) palMode = ORDERED_PAL_MODE.RGB_APPROX;
+    else if (algo === HSV_NEAREST) palMode = ORDERED_PAL_MODE.HSV;
+    else if (algo === LAB_NEAREST) palMode = ORDERED_PAL_MODE.LAB;
   }
+  if (palMode === null) palMode = ORDERED_PAL_MODE.LEVELS;
 
-  if (options._linearize && palette) {
-    // WASM fast path for linear ordered dither — skips three per-pixel `pow`
-    // calls (the delinearize→match→linearize trip the JS branch does) by using
-    // the same sRGB↔linear LUTs the error-diffusion fast path uses.
-    const pOpts = palette.options as { colors?: number[][]; levels?: number } | undefined;
-    const linAlgo = resolvePaletteColorAlgorithm(palette);
-    let linPaletteMode: number | null = null;
-    let linPaletteColors: number[][] | null = null;
-    let linLevelsArg = 0;
-    let linReason = "";
-    if (!options._wasmAcceleration) linReason = "_wasmAcceleration off";
-    else if (!wasmIsLoaded()) linReason = "wasm not loaded yet";
-    if (!linReason) {
-      if (pOpts?.colors) {
-        const mode = linAlgo ? colorAlgorithmToWasmMode(linAlgo) : null;
-        if (mode !== null) {
-          linPaletteMode = mode;
-          linPaletteColors = pOpts.colors;
-        } else {
-          linReason = `palette algo=${linAlgo ?? "none"}`;
-        }
-      }
-      if (linPaletteMode === null && typeof pOpts?.levels === "number") {
-        linPaletteMode = WASM_PALETTE_MODE.LEVELS;
-        linLevelsArg = pOpts.levels;
-      }
-      if (linPaletteMode === null && !linReason) {
-        linReason = `palette ${(palette as { name?: string })?.name ?? "unknown"} unsupported`;
-      }
-    }
-
-    if (linPaletteMode !== null) {
-      const tW = thresholdMapScaled[0].length;
-      const tH = thresholdMapScaled.length;
-      const flatMap = new Float64Array(tW * tH);
-      for (let ty = 0; ty < tH; ty += 1) {
-        const row = thresholdMapScaled[ty];
-        for (let tx = 0; tx < tW; tx += 1) flatMap[ty * tW + tx] = row[tx] ?? 0;
-      }
-      wasmOrderedDitherLinearBuffer(
-        buf, buf, input.width, input.height,
-        flatMap, tW, tH,
-        temporalOffsetX, temporalOffsetY,
-        levels,
-        linPaletteMode, linLevelsArg,
-        linPaletteColors,
-      );
-      logFilterWasmStatus("Ordered", true, `linear palette=${(palette as { name?: string })?.name ?? "?"}`);
-    } else {
-      logFilterWasmStatus("Ordered", false, `linearize: ${linReason || "unknown"}`);
-      const floatBuf = srgbBufToLinearFloat(buf);
-      const stepF = 1.0 / (levels - 1);
-      for (let x = 0; x < input.width; x += 1) {
-        for (let y = 0; y < input.height; y += 1) {
-          const tix = (x + temporalOffsetX) % thresholdMapWidth;
-          const tiy = (y + temporalOffsetY) % thresholdMapHeight;
-          const i = getBufferIndex(x, y, input.width);
-          const thresholdValue = thresholdMapScaled[tiy][tix];
-
-          const bias = stepF * (thresholdValue - 0.5);
-          _orderedOut[0] = Math.round(Math.round((floatBuf[i] + bias) / stepF) * stepF * 1e6) / 1e6;
-          _orderedOut[1] = Math.round(Math.round((floatBuf[i + 1] + bias) / stepF) * stepF * 1e6) / 1e6;
-          _orderedOut[2] = Math.round(Math.round((floatBuf[i + 2] + bias) / stepF) * stepF * 1e6) / 1e6;
-          _orderedOut[3] = floatBuf[i + 3];
-          const orderedColor = _orderedOut;
-
-          const color = linearPaletteGetColor(palette, orderedColor, palette.options);
-          fillBufferPixel(floatBuf, i, color[0], color[1], color[2], floatBuf[i + 3]);
-        }
-      }
-      linearFloatToSrgbBuf(floatBuf, buf);
-    }
-  } else {
-    // Apply thresholds to all pixels
-    const W = input.width;
-    const H = input.height;
-    const ditheredBuf = new Uint8Array(buf.length);
-    const _pix = [0, 0, 0, 0];
-    for (let x = 0; x < W; x += 1) {
-      for (let y = 0; y < H; y += 1) {
-        const i = getBufferIndex(x, y, W);
-        _pix[0] = buf[i]; _pix[1] = buf[i + 1]; _pix[2] = buf[i + 2]; _pix[3] = buf[i + 3];
-        const oc = getOrderedColor(_pix, levels, (x + temporalOffsetX) % thresholdMapWidth, (y + temporalOffsetY) % thresholdMapHeight, thresholdMapScaled);
-        ditheredBuf[i] = oc[0]; ditheredBuf[i + 1] = oc[1];
-        ditheredBuf[i + 2] = oc[2]; ditheredBuf[i + 3] = oc[3];
-      }
-    }
-
-    // WASM buffer quantize on the dithered pixels — single call
-    const algo = resolvePaletteColorAlgorithm(palette);
-    const colors = (palette?.options as { colors?: number[][] } | undefined)?.colors;
-    let wasmReason = "";
-    if (!options._wasmAcceleration) wasmReason = "_wasmAcceleration off";
-    else if (!wasmIsLoaded()) wasmReason = "wasm not loaded yet";
-    else if (!colors) wasmReason = "palette has no colors";
-    else if (!algo) wasmReason = "no colorDistanceAlgorithm";
-    const wasmResult = !wasmReason && algo && colors
-      ? wasmQuantizeBuffer(ditheredBuf, colors, algo)
-      : null;
-
-    if (wasmResult && wasmResult.length === buf.length) {
-      buf.set(wasmResult);
-      logFilterWasmStatus("Ordered", true, `algo=${algo}`);
-    } else {
-      if (!wasmReason) wasmReason = "wasm returned null";
-      logFilterWasmStatus("Ordered", false, wasmReason);
-      // JS fallback — per-pixel palette match
-      const _palPix = [0, 0, 0, 0];
-      for (let x = 0; x < W; x += 1) {
-        for (let y = 0; y < H; y += 1) {
-          const i = getBufferIndex(x, y, W);
-          _palPix[0] = ditheredBuf[i]; _palPix[1] = ditheredBuf[i + 1];
-          _palPix[2] = ditheredBuf[i + 2]; _palPix[3] = ditheredBuf[i + 3];
-          const color = srgbPaletteGetColor(palette, _palPix, palette?.options);
-          fillBufferPixel(buf, i, color[0], color[1], color[2], buf[i + 3]);
-        }
-      }
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(buf, output.width, output.height), 0, 0);
-  return output;
+  const rendered = renderOrderedGL(input, input.width, input.height, {
+    thresholdMap: threshold.thresholdMap,
+    thresholdMapKey: String(thresholdMapKey),
+    mapScaleX: thresholdMapScaleX,
+    mapScaleY: thresholdMapScaleY,
+    tempOffsetX: temporalOffsetX,
+    tempOffsetY: temporalOffsetY,
+    levels,
+    linearize: !!options._linearize,
+    palMode,
+    paletteRgb: palMode === ORDERED_PAL_MODE.LEVELS ? null : (pOpts?.colors ?? null),
+    labRef: [95.047, 100, 108.883],
+  });
+  if (!rendered) return input;
+  const space = options._linearize ? "linear" : "sRGB";
+  const palLabel = palMode === ORDERED_PAL_MODE.LEVELS ? `levels=${pOpts?.levels ?? levels}` : `algo=${algo}`;
+  logFilterBackend("Ordered", "WebGL2", `${space} ${thresholdMapKey} ${palLabel}`);
+  return rendered;
 };
 
 export default defineFilter({
@@ -612,5 +316,6 @@ export default defineFilter({
   func: ordered,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  requiresGL: true,
 });

@@ -31,11 +31,6 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const hash2D = (x: number, y: number) => {
-  const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-  return s - Math.floor(s);
-};
-
 const sumiE = (input: any, options: typeof defaults = defaults) => {
   const { brushSoftness, washLevels, washStrength, washSoftness, edgeThreshold, edgeStrength, inkColor, paperColor, grain, palette } = options;
   const W = input.width, H = input.height;

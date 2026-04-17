@@ -1,24 +1,13 @@
 import { ENUM, CURVE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  srgbPaletteGetColor,
-  wasmApplyChannelLut,
-  wasmIsLoaded,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
-import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityShared } from "palettes/backend";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import {
   drawPass,
   ensureTexture,
   getGLCtx,
   getQuadVAO,
-  glAvailable,
   linkProgram,
   readoutToCanvas,
   resizeGLCanvas,
@@ -191,122 +180,42 @@ const uploadLut = (gl: WebGL2RenderingContext, tex: WebGLTexture, lut: Uint8Arra
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 };
 
-const curves = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
+const curves = (input: any, options: typeof defaults = defaults) => {
   const { channel, points, palette } = options;
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
   const W = input.width;
   const H = input.height;
   const lut = buildCurveLut(parsePoints(points));
 
-  if (glAvailable() && options._webglAcceleration !== false) {
-    const ctx = getGLCtx();
-    if (ctx) {
-      const { gl, canvas } = ctx;
-      const cache = initCache(gl);
-      const vao = getQuadVAO(gl);
-      const lutTex = ensureLutTex(gl);
-      if (lutTex) {
-        uploadLut(gl, lutTex, lut);
-        resizeGLCanvas(canvas, W, H);
-        const sourceTex = ensureTexture(gl, "curves:source", W, H);
-        uploadSourceTexture(gl, sourceTex, input);
+  const ctx = getGLCtx();
+  if (!ctx) return input;
+  const { gl, canvas } = ctx;
+  const cache = initCache(gl);
+  const vao = getQuadVAO(gl);
+  const lutTex = ensureLutTex(gl);
+  if (!lutTex) return input;
+  uploadLut(gl, lutTex, lut);
+  resizeGLCanvas(canvas, W, H);
+  const sourceTex = ensureTexture(gl, "curves:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
 
-        drawPass(gl, null, W, H, cache.cv, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.cv.uniforms.u_source, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, lutTex);
-          gl.uniform1i(cache.cv.uniforms.u_lut, 1);
-          gl.uniform1i(cache.cv.uniforms.u_channel, CHANNEL_ID[channel] ?? 0);
-          const identity = paletteIsIdentityShared(palette);
-          const pOpts2 = (palette as { options?: { levels?: number } }).options;
-          gl.uniform1f(cache.cv.uniforms.u_levels, identity ? (pOpts2?.levels ?? 256) : 256);
-        }, vao);
+  const identity = paletteIsIdentity(palette);
+  drawPass(gl, null, W, H, cache.cv, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(cache.cv.uniforms.u_source, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, lutTex);
+    gl.uniform1i(cache.cv.uniforms.u_lut, 1);
+    gl.uniform1i(cache.cv.uniforms.u_channel, CHANNEL_ID[channel] ?? 0);
+    const pOpts = (palette as { options?: { levels?: number } }).options;
+    gl.uniform1f(cache.cv.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+  }, vao);
 
-        const rendered = readoutToCanvas(canvas, W, H);
-        if (rendered) {
-          const identity = paletteIsIdentityShared(palette);
-          const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-          if (out) {
-            logFilterBackend("Curves", "WebGL2",
-              `channel=${channel}${identity ? "" : " +palettePass"}`);
-            return out;
-          }
-        }
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
-  const perChannel = channel === CHANNEL.RGB || channel === CHANNEL.R || channel === CHANNEL.G || channel === CHANNEL.B;
-  const canUseWasm = perChannel && wasmIsLoaded() && options._wasmAcceleration !== false;
-
-  if (canUseWasm) {
-    const identity = new Uint8Array(256);
-    for (let i = 0; i < 256; i += 1) identity[i] = i;
-    const lutU8 = lut instanceof Uint8Array ? lut : new Uint8Array(lut);
-    const lutR = channel === CHANNEL.RGB || channel === CHANNEL.R ? lutU8 : identity;
-    const lutG = channel === CHANNEL.RGB || channel === CHANNEL.G ? lutU8 : identity;
-    const lutB = channel === CHANNEL.RGB || channel === CHANNEL.B ? lutU8 : identity;
-    wasmApplyChannelLut(buf, outBuf, lutR, lutG, lutB);
-
-    if (!paletteIsIdentity) {
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = getBufferIndex(x, y, W);
-          const color = srgbPaletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options);
-          fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
-        }
-      }
-    }
-    logFilterWasmStatus("Curves", true, `channel=${channel}${paletteIsIdentity ? "" : " +palettePass"}`);
-    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-    return output;
-  }
-
-  logFilterWasmStatus("Curves", false, channel === CHANNEL.LUMA ? "channel=LUMA" : (options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet"));
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      let r = buf[i];
-      let g = buf[i + 1];
-      let b = buf[i + 2];
-
-      if (channel === CHANNEL.RGB) {
-        r = lut[r];
-        g = lut[g];
-        b = lut[b];
-      } else if (channel === CHANNEL.R) {
-        r = lut[r];
-      } else if (channel === CHANNEL.G) {
-        g = lut[g];
-      } else if (channel === CHANNEL.B) {
-        b = lut[b];
-      } else {
-        const lum = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
-        const mappedLum = lut[lum];
-        const scale = lum === 0 ? mappedLum / 255 : mappedLum / lum;
-        r = Math.max(0, Math.min(255, Math.round(r * scale)));
-        g = Math.max(0, Math.min(255, Math.round(g * scale)));
-        b = Math.max(0, Math.min(255, Math.round(b * scale)));
-      }
-
-      const color = srgbPaletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (!rendered) return input;
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Curves", "WebGL2", `channel=${channel}${identity ? "" : " +palettePass"}`);
+  return out ?? input;
 };
 
 export default defineFilter({
@@ -314,5 +223,6 @@ export default defineFilter({
   func: curves,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  requiresGL: true,
 });

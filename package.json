@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e:wasm": "env -u NO_COLOR -u FORCE_COLOR playwright test test/e2e/wasm.smoke.spec.ts",
+    "test:e2e:gl": "env -u NO_COLOR -u FORCE_COLOR playwright test test/e2e/gl.smoke.spec.ts",
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
     "test:watch": "vitest",
     "bench": "vitest bench test/perf",

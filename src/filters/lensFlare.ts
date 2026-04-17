@@ -27,8 +27,6 @@ const lensFlare = (input: any, options: typeof defaults = defaults) => {
   const { positionX, positionY, intensity, flareColor, ghosts, palette } = options;
   const W = input.width, H = input.height;
   const cx = W * positionX, cy = H * positionY;
-  const imgCx = W / 2, imgCy = H / 2;
-
   const rendered = renderLensFlareGL(input, W, H,
       cx, cy,
       intensity,
@@ -41,4 +39,4 @@ const lensFlare = (input: any, options: typeof defaults = defaults) => {
   return out ?? input;
 };
 
-export default defineFilter({ name: "Lens Flare", func: lensFlare, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Lens Flare", func: lensFlare, optionTypes, options: defaults, defaults, requiresGL: true });

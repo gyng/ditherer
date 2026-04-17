@@ -1,19 +1,9 @@
 import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  paletteGetColor,
-  wasmMedianFilterBuffer,
-  wasmIsLoaded,
-  logFilterWasmStatus,
-  logFilterBackend,
-} from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
-import { applyPalettePassToCanvas, paletteIsIdentity as paletteIsIdentityFn } from "palettes/backend";
-import { medianFilterGLAvailable, renderMedianFilterGL } from "./medianFilterGL";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { renderMedianFilterGL } from "./medianFilterGL";
 
 export const optionTypes = {
   radius: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Neighborhood radius for median calculation" },
@@ -25,93 +15,22 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const medianFilter = (input: any, options: typeof defaults & { _wasmAcceleration?: boolean; _webglAcceleration?: boolean } = defaults) => {
+const medianFilter = (input: any, options: typeof defaults = defaults) => {
   const { radius, palette } = options;
   const W = input.width, H = input.height;
-
-  if (options._webglAcceleration !== false && medianFilterGLAvailable()) {
-    const rendered = renderMedianFilterGL(input, W, H, radius);
-    if (rendered) {
-      const identity = paletteIsIdentityFn(palette);
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Median Filter", "WebGL2", `r=${radius}${identity ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
-  const paletteIsIdentity = (paletteOpts?.levels ?? 256) >= 256 && !paletteOpts?.colors;
-
-  if (wasmIsLoaded() && options._wasmAcceleration !== false) {
-    wasmMedianFilterBuffer(buf, outBuf, W, H, radius);
-    if (!paletteIsIdentity) {
-      for (let i = 0; i < outBuf.length; i += 4) {
-        const col = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
-        fillBufferPixel(outBuf, i, col[0], col[1], col[2], outBuf[i + 3]);
-      }
-    }
-    logFilterWasmStatus("Median Filter", true, paletteIsIdentity ? `r=${radius}` : `r=${radius}+palettePass`);
-    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-    return output;
-  }
-
-  logFilterWasmStatus("Median Filter", false, options._wasmAcceleration === false ? "_wasmAcceleration off" : "wasm not loaded yet");
-
-  const maxSamples = (radius * 2 + 1) * (radius * 2 + 1);
-  const rArr = new Uint8Array(maxSamples);
-  const gArr = new Uint8Array(maxSamples);
-  const bArr = new Uint8Array(maxSamples);
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      let count = 0;
-
-      for (let ky = -radius; ky <= radius; ky++) {
-        const ny = Math.max(0, Math.min(H - 1, y + ky));
-        for (let kx = -radius; kx <= radius; kx++) {
-          // Circular neighborhood
-          if (kx * kx + ky * ky > radius * radius) continue;
-          const nx = Math.max(0, Math.min(W - 1, x + kx));
-          const ni = getBufferIndex(nx, ny, W);
-          rArr[count] = buf[ni];
-          gArr[count] = buf[ni + 1];
-          bArr[count] = buf[ni + 2];
-          count++;
-        }
-      }
-
-      // Sort and pick median (insertion sort for small arrays)
-      const sort = (arr: Uint8Array, n: number) => {
-        for (let i = 1; i < n; i++) {
-          const key = arr[i];
-          let j = i - 1;
-          while (j >= 0 && arr[j] > key) { arr[j + 1] = arr[j]; j--; }
-          arr[j + 1] = key;
-        }
-      };
-
-      sort(rArr, count);
-      sort(gArr, count);
-      sort(bArr, count);
-
-      const mid = count >> 1;
-      const di = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(rArr[mid], gArr[mid], bArr[mid], buf[di + 3]), palette.options, false);
-      fillBufferPixel(outBuf, di, color[0], color[1], color[2], buf[di + 3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = renderMedianFilterGL(input, W, H, radius);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+  logFilterBackend("Median Filter", "WebGL2", `r=${radius}${identity ? "" : "+palettePass"}`);
+  return out ?? input;
 };
 
-export default defineFilter({ name: "Median Filter", func: medianFilter, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Median Filter",
+  func: medianFilter,
+  optionTypes,
+  options: defaults,
+  defaults,
+  requiresGL: true,
+});

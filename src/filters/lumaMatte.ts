@@ -9,12 +9,6 @@ const BG_MODE = {
   WHITE: "WHITE"
 };
 
-const smoothstep = (edge0: number, edge1: number, x: number) => {
-  if (edge0 === edge1) return x < edge0 ? 0 : 1;
-  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-};
-
 export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance threshold used to build the matte" },
   feather: { type: RANGE, range: [0, 80], step: 1, default: 16, desc: "Soft transition width around the threshold" },

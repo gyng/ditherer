@@ -21,31 +21,6 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const hash = (x: number, y: number, seed: number) => {
-  let h = seed + x * 374761393 + y * 668265263;
-  h = (h ^ (h >> 13)) * 1274126177;
-  return ((h ^ (h >> 16)) >>> 0) / 4294967296;
-};
-
-const noise2d = (px: number, py: number, seed: number) => {
-  const x0 = Math.floor(px), y0 = Math.floor(py);
-  const fx = px - x0, fy = py - y0;
-  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
-  const n00 = hash(x0, y0, seed) * 2 - 1;
-  const n10 = hash(x0 + 1, y0, seed) * 2 - 1;
-  const n01 = hash(x0, y0 + 1, seed) * 2 - 1;
-  const n11 = hash(x0 + 1, y0 + 1, seed) * 2 - 1;
-  return n00 * (1 - u) * (1 - v) + n10 * u * (1 - v) + n01 * (1 - u) * v + n11 * u * v;
-};
-
-// Curl noise: divergence-free 2D flow from scalar noise
-const curlAngle = (px: number, py: number, seed: number) => {
-  const eps = 0.01;
-  const dndx = (noise2d(px + eps, py, seed) - noise2d(px - eps, py, seed)) / (2 * eps);
-  const dndy = (noise2d(px, py + eps, seed) - noise2d(px, py - eps, seed)) / (2 * eps);
-  return Math.atan2(dndx, -dndy);
-};
-
 const flowField = (input: any, options: typeof defaults = defaults) => {
   const { scale, strength, steps, seed, palette } = options;
   const W = input.width, H = input.height;
@@ -58,4 +33,4 @@ const flowField = (input: any, options: typeof defaults = defaults) => {
   return out ?? input;
 };
 
-export default defineFilter({ name: "Flow Field", func: flowField, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Flow Field", func: flowField, optionTypes, options: defaults, defaults, requiresGL: true });

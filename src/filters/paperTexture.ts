@@ -43,59 +43,6 @@ export const defaults = {
   contrast: optionTypes.contrast.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } } };
 
-const sat01 = (v: number) => Math.max(0, Math.min(1, v));
-const hash = (x: number, y: number) => {
-  const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-  return s - Math.floor(s);
-};
-const vnoise = (x: number, y: number) => {
-  const ix = Math.floor(x), iy = Math.floor(y);
-  const fx = x - ix, fy = y - iy;
-  const a = hash(ix, iy);
-  const b = hash(ix + 1, iy);
-  const c = hash(ix, iy + 1);
-  const d = hash(ix + 1, iy + 1);
-  const ux = fx * fx * (3 - 2 * fx);
-  const uy = fy * fy * (3 - 2 * fy);
-  return (a * (1 - ux) + b * ux) * (1 - uy) + (c * (1 - ux) + d * ux) * uy;
-};
-const fbm = (x: number, y: number) => {
-  let v = 0, a = 0.5;
-  for (let i = 0; i < 5; i++) { v += a * vnoise(x, y); x *= 2; y *= 2; a *= 0.5; }
-  return v;
-};
-
-const texValue = (type: string, px: number, py: number) => {
-  switch (type) {
-    case "PAPER":
-      return 0.5 + (vnoise(px * 12, py * 12) - 0.5) * 0.15 + (fbm(px * 2, py * 2) - 0.5) * 0.12;
-    case "CANVAS": {
-      const weave = (Math.abs(Math.sin(px * 6.28318 * 16)) - 0.5 + Math.abs(Math.sin(py * 6.28318 * 16)) - 0.5) * 0.08;
-      return 0.5 + weave + (fbm(px * 8, py * 8) - 0.5) * 0.12;
-    }
-    case "LINEN": {
-      const weave = Math.sin(px * 6.28318 * 8) * Math.sin(py * 6.28318 * 10) * 0.1;
-      return 0.5 + weave + (fbm(px * 6, py * 6) - 0.5) * 0.18;
-    }
-    case "CARDBOARD": {
-      const corrug = Math.sin(py * 6.28318 * 24) * 0.08;
-      const big = (fbm(px * 0.5, py * 3) - 0.5) * 0.25;
-      return 0.5 + corrug + big;
-    }
-    case "PARCHMENT": {
-      const clouds = (fbm(px * 1.5, py * 1.5) - 0.5) * 0.35;
-      const blotchRaw = fbm(px * 0.8, py * 0.8);
-      const blotchT = Math.max(0, Math.min(1, (blotchRaw - 0.65) / (0.9 - 0.65)));
-      const blotch = blotchT * blotchT * (3 - 2 * blotchT) * -0.2;
-      return 0.5 + clouds + blotch + (vnoise(px * 20, py * 20) - 0.5) * 0.05;
-    }
-    default:
-      return 0.5;
-  }
-};
-
-const softLight = (base: number, blend: number) =>
-  (1 - 2 * blend) * base * base + 2 * blend * base;
 
 const paperTexture = (input: any, options: typeof defaults = defaults) => {
   const { type, blendMode, scale, strength, contrast, palette } = options;

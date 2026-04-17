@@ -41,4 +41,4 @@ const displacementMapXY = (input: any, options: typeof defaults = defaults) => {
   return out ?? input;
 };
 
-export default defineFilter({ name: "Displacement Map XY", func: displacementMapXY, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Displacement Map XY", func: displacementMapXY, optionTypes, options: defaults, defaults, requiresGL: true });

@@ -31,4 +31,4 @@ const popArt = (input: any, options: typeof defaults = defaults) => {
   return out ?? input;
 };
 
-export default defineFilter({ name: "Pop Art", func: popArt, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Pop Art", func: popArt, optionTypes, options: defaults, defaults, requiresGL: true });

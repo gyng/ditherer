@@ -1,6 +1,6 @@
 import { RANGE, ENUM, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
-import { getBufferIndex, logFilterBackend } from "utils";
+import { logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import { renderMorphologyGL, type MorphMode } from "./morphologyGL";
@@ -24,36 +24,6 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const applyMorphOp = (buf: Uint8ClampedArray, W: number, H: number, radius: number, isDilate: boolean): Uint8ClampedArray => {
-  const out = new Uint8ClampedArray(buf.length);
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const di = getBufferIndex(x, y, W);
-      let bestR = isDilate ? 0 : 255;
-      let bestG = isDilate ? 0 : 255;
-      let bestB = isDilate ? 0 : 255;
-      let bestLum = isDilate ? -1 : 256;
-
-      for (let ky = -radius; ky <= radius; ky++) {
-        const ny = Math.max(0, Math.min(H - 1, y + ky));
-        for (let kx = -radius; kx <= radius; kx++) {
-          if (kx * kx + ky * ky > radius * radius) continue;
-          const nx = Math.max(0, Math.min(W - 1, x + kx));
-          const ni = getBufferIndex(nx, ny, W);
-          const lum = 0.2126 * buf[ni] + 0.7152 * buf[ni + 1] + 0.0722 * buf[ni + 2];
-          if (isDilate ? lum > bestLum : lum < bestLum) {
-            bestLum = lum;
-            bestR = buf[ni]; bestG = buf[ni + 1]; bestB = buf[ni + 2];
-          }
-        }
-      }
-
-      out[di] = bestR; out[di + 1] = bestG; out[di + 2] = bestB; out[di + 3] = buf[di + 3];
-    }
-  }
-  return out;
-};
-
 const morphology = (input: any, options: typeof defaults = defaults) => {
   const { mode, radius, palette } = options;
   const W = input.width, H = input.height;
@@ -66,4 +36,4 @@ const morphology = (input: any, options: typeof defaults = defaults) => {
   return out ?? input;
 };
 
-export default defineFilter({ name: "Dilate / Erode", func: morphology, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Dilate / Erode", func: morphology, optionTypes, options: defaults, defaults, requiresGL: true });
