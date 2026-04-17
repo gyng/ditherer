@@ -524,32 +524,9 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   ) => {
     const stepTimes: { name: string; ms: number; backend?: string }[] = [];
     let totalTime = 0;
-    // Chain-level frame budget — if the cumulative main-thread time blows
-    // past this we bail out of the rest of the chain so the UI doesn't
-    // lock up on pathological combos (e.g. an O(n²) filter + a large
-    // image + animation ticks). Each skipped filter still gets a 0ms
-    // step entry so ChainList timing labels don't disappear; the slow-
-    // filter registry already flagged the one that ran long via its own
-    // per-step record below.
-    const CHAIN_FRAME_BUDGET_MS = 3500;
-    const chainStart = performance.now();
 
     for (let i = startIdx; i < enabledEntries.length; i++) {
       const entry = enabledEntries[i];
-
-      // Frame-budget early-out. After the threshold, every remaining filter
-      // records a 0ms entry (so UI labels don't go blank) and we return the
-      // canvas as-is. One slow filter no longer stalls every subsequent
-      // cheap one.
-      if (performance.now() - chainStart > CHAIN_FRAME_BUDGET_MS) {
-        for (let j = i; j < enabledEntries.length; j++) {
-          stepTimes.push({ name: enabledEntries[j].displayName, ms: 0, backend: "budget-skipped" });
-        }
-        console.warn(
-          `[chain] main-thread frame budget exhausted after ${Math.round(performance.now() - chainStart)}ms — skipping ${enabledEntries.length - i} remaining filter(s)`,
-        );
-        break;
-      }
 
       // Capture input pixels for _prevInput and EMA.
       // Always capture so temporal filters work on first click too.
