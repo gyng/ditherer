@@ -30,6 +30,9 @@ import {
   rgba,
   wasmApplyChannelLut,
   wasmIsLoaded,
+  srgbBufToLinearFloat,
+  linearFloatToSrgbBuf,
+  linearPaletteGetColor,
 } from "utils";
 
 // Bivariant hack on getColor so we accept specialized palette definitions
@@ -142,6 +145,41 @@ export const applyPalettePassToCanvas = (
   if (!ctx) return null;
   const pixels = ctx.getImageData(0, 0, width, height).data;
   applyPaletteToBuffer(pixels, pixels, width, height, palette, wasmAcceleration);
+  ctx.putImageData(new ImageData(pixels, width, height), 0, 0);
+  return canvas;
+};
+
+// Linear-light palette pass: reads canvas bytes as sRGB, linearises to
+// float, applies the palette in linear space, then back to sRGB. Used by
+// GL filter ports whose JS reference applied its palette in linear space
+// (e.g., pixelate's `_linearize` mode).
+export const applyLinearPalettePassToCanvas = (
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  width: number,
+  height: number,
+  palette: PaletteLike | undefined,
+): HTMLCanvasElement | OffscreenCanvas | null => {
+  if (!palette || paletteIsIdentity(palette)) return canvas;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true }) as
+    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!ctx) return null;
+  const pixels = ctx.getImageData(0, 0, width, height).data;
+  const floatBuf = srgbBufToLinearFloat(pixels);
+  for (let i = 0; i < floatBuf.length; i += 4) {
+    const pixel: [number, number, number, number] = [
+      floatBuf[i], floatBuf[i + 1], floatBuf[i + 2], floatBuf[i + 3],
+    ];
+    const col = linearPaletteGetColor(
+      palette as Parameters<typeof linearPaletteGetColor>[0],
+      pixel,
+      palette.options,
+    );
+    floatBuf[i] = col[0];
+    floatBuf[i + 1] = col[1];
+    floatBuf[i + 2] = col[2];
+    // alpha preserved by linearPaletteGetColor via options
+  }
+  linearFloatToSrgbBuf(floatBuf, pixels);
   ctx.putImageData(new ImageData(pixels, width, height), 0, 0);
   return canvas;
 };

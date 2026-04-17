@@ -65,19 +65,21 @@ const facet = (input: any, options: FacetOptions & { _webglAcceleration?: boolea
   const width = input.width;
   const height = input.height;
 
-  // GL path: only CENTER fill mode (AVERAGE requires per-cell accumulation
-  // which isn't easy without atomics).
-  if (options._webglAcceleration !== false && fillMode === FILL_MODE.CENTER && facetGLAvailable()) {
+  // GL path: CENTER samples source at seed position directly; AVERAGE
+  // approximates per-cell averaging via a separable box-blur pre-pass
+  // with radius facetSize/2.
+  if (options._webglAcceleration !== false && facetGLAvailable()) {
     const rendered = renderFacetGL(
       input, width, height,
       Math.max(1, Math.round(facetSize)), jitter, Math.max(0, Math.round(seamWidth)),
       [lineColor[0], lineColor[1], lineColor[2]],
+      fillMode === FILL_MODE.AVERAGE,
     );
     if (rendered) {
       const identity = paletteIsIdentity(palette);
       const out = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
       if (out) {
-        logFilterBackend("Facet", "WebGL2", `size=${facetSize} fill=CENTER${identity ? "" : "+palettePass"}`);
+        logFilterBackend("Facet", "WebGL2", `size=${facetSize} fill=${fillMode}${identity ? "" : "+palettePass"}`);
         return out;
       }
     }

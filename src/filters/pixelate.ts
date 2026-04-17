@@ -2,7 +2,7 @@ import { RANGE, PALETTE } from "constants/controlTypes";
 import { nearest } from "palettes";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbBufToLinearFloat, linearFloatToSrgbBuf, srgbPaletteGetColor, linearPaletteGetColor, logFilterBackend } from "utils";
 import { defineFilter } from "filters/types";
-import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
+import { applyPalettePassToCanvas, applyLinearPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
 import { pixelateGLAvailable, renderPixelateGL } from "./pixelateGL";
 
 export const optionTypes = {
@@ -32,15 +32,22 @@ const pixelate = (
   const downW = Math.max(1, Math.floor(W * effScaleX));
   const downH = Math.max(1, Math.floor(H * effScaleY));
 
-  // GL path valid when palette is identity (no palette pass) and linearize
-  // is off (palette-linear-sRGB round-trip has no effect without a palette).
-  const identity = paletteIsIdentity(palette);
-  if (options._webglAcceleration !== false && identity && !options._linearize && pixelateGLAvailable()) {
+  // GL always takes the downsample + nearest upsample. Palette pass lives
+  // post-readout: linear-space when `_linearize` is on and palette isn't
+  // identity, sRGB otherwise.
+  if (options._webglAcceleration !== false && pixelateGLAvailable()) {
     const rendered = renderPixelateGL(input, W, H, downW, downH);
     if (rendered) {
-      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      const identity = paletteIsIdentity(palette);
+      let out: HTMLCanvasElement | OffscreenCanvas | null = rendered;
+      if (!identity) {
+        out = options._linearize
+          ? applyLinearPalettePassToCanvas(rendered, W, H, palette)
+          : applyPalettePassToCanvas(rendered, W, H, palette);
+      }
       if (out) {
-        logFilterBackend("Pixelate", "WebGL2", `scale=${effScaleX}x${effScaleY}`);
+        const suffix = identity ? "" : options._linearize ? "+linearPalette" : "+palette";
+        logFilterBackend("Pixelate", "WebGL2", `scale=${effScaleX}x${effScaleY}${suffix}`);
         return out;
       }
     }

@@ -15,6 +15,7 @@ import {
   logFilterBackend,
 } from "utils";
 import { defineFilter } from "filters/types";
+import { applyPalettePassToCanvas } from "palettes/backend";
 import { triangleDitherGLAvailable, renderTriangleDitherGL } from "./triangleDitherGL";
 
 export const optionTypes = {
@@ -35,16 +36,21 @@ const triangleDither = (input: any, options: typeof defaults & { _wasmAccelerati
   const H = input.height;
   const paletteOpts = palette?.options as { levels?: number; colors?: number[][] } | undefined;
 
-  // GL path only supports LEVELS palette (including identity levels=256).
-  // Custom-colour palettes require WASM/JS colour-distance quantisation.
-  const canGL = !paletteOpts?.colors;
-  if (options._webglAcceleration !== false && canGL && triangleDitherGLAvailable()) {
+  // Shader adds TPDF noise, then quantises to LEVELS when the palette is
+  // LEVELS-only. Custom-colour palettes skip shader quantise (pass
+  // levels=256) and run the standard post-readout palette pass to do the
+  // colour-distance snap on CPU.
+  if (options._webglAcceleration !== false && triangleDitherGLAvailable()) {
     const seed = (Math.random() * 0xffffffff) >>> 0 || 1;
-    const levels = paletteOpts?.levels ?? 256;
-    const rendered = renderTriangleDitherGL(input, W, H, seed, levels);
+    const hasCustomColors = Array.isArray(paletteOpts?.colors) && (paletteOpts!.colors as unknown[]).length > 0;
+    const levelsForShader = hasCustomColors ? 256 : (paletteOpts?.levels ?? 256);
+    const rendered = renderTriangleDitherGL(input, W, H, seed, levelsForShader);
     if (rendered) {
-      logFilterBackend("Triangle dither", "WebGL2", `levels=${levels}`);
-      return rendered;
+      const out = hasCustomColors ? applyPalettePassToCanvas(rendered, W, H, palette) : rendered;
+      if (out) {
+        logFilterBackend("Triangle dither", "WebGL2", hasCustomColors ? "noise+palettePass" : `levels=${levelsForShader}`);
+        return out;
+      }
     }
   }
 
