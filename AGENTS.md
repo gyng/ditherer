@@ -149,6 +149,8 @@ What's already covered:
 
 Don't flag a filter just because its GL port hasn't landed yet — only flag when the algorithm fundamentally can't be expressed in a fragment shader.
 
+**New filters: GL-only (`requiresGL: true`) by default.** When the filter is gather-parallel (per-pixel compute, neighborhood reads, coordinate remaps, sampling history textures) write the GL path and skip the JS fallback. A naive JS implementation is too slow for video and just adds dead code paths to maintain. Only ship a JS fallback when the algorithm is genuinely sequential (error diffusion) or trivially cheap, or when the filter must run in environments where WebGL2 is unavailable. The dispatcher renders a "WebGL2 required" stub for `requiresGL` filters on unsupported hardware, so users see why it didn't run.
+
 ### Filter Chains
 
 Filters compose into chains (max 16 entries). The chain is the unit of work — `FilterContext` runs each enabled entry sequentially, feeding the output of one as the input to the next, with caching of intermediate canvases. State is serialized to URL hash and localStorage so users can share or save chains.

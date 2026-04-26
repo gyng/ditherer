@@ -1,7 +1,24 @@
 import { ACTION, RANGE, PALETTE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
-import { cloneCanvas, paletteGetColor } from "utils";
+import { logFilterBackend } from "utils";
+import {
+  applyPalettePassToCanvas,
+  paletteIsIdentity,
+  PALETTE_NEAREST_GLSL,
+} from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 type RigState = {
   x: number;
@@ -26,6 +43,7 @@ type CameraShakeOptions = FilterOptionValues & {
     options?: FilterOptionValues;
   } & Record<string, unknown>;
   _frameIndex?: number;
+  _wasmAcceleration?: boolean;
 };
 
 let rigState: RigState = {
@@ -168,60 +186,109 @@ const getStateKey = (width: number, height: number, options: CameraShakeOptions)
   options.tremor,
 ].join("|");
 
+// Reverse-map sample with NEAREST snapping + edge clamp, then optionally
+// quantize via the shared `nearest` palette GLSL (no-op when levels >= 256).
+// Color-distance palettes are handled by the post-pass below.
+const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2  u_resolution;
+uniform vec2  u_centerPx;
+uniform vec2  u_offsetPx;
+uniform float u_cosA;
+uniform float u_sinA;
+uniform float u_invZoom;
+uniform int   u_paletteLevels;
+
+${PALETTE_NEAREST_GLSL}
+
+void main() {
+  vec2 p = v_uv * u_resolution;
+  vec2 d = (p - u_centerPx) * u_invZoom;
+  // [c -s; s c] * d  matches the JS: srcX = cx + dx*c - dy*s + offX
+  vec2 sample = u_centerPx + vec2(d.x * u_cosA - d.y * u_sinA, d.x * u_sinA + d.y * u_cosA) + u_offsetPx;
+  vec2 snapped = clamp(floor(sample + 0.5) + 0.5, vec2(0.5), u_resolution - vec2(0.5));
+  vec4 c = texture(u_source, snapped / u_resolution);
+  vec3 q = c.rgb * 255.0;
+  if (u_paletteLevels >= 2 && u_paletteLevels < 256) {
+    q = applyNearestLevelsRGB(q, u_paletteLevels);
+  }
+  fragColor = vec4(q / 255.0, c.a);
+}
+`;
+
+let _prog: Program | null = null;
+const getProg = (gl: WebGL2RenderingContext): Program => {
+  if (_prog) return _prog;
+  _prog = linkProgram(gl, FS, [
+    "u_source", "u_resolution", "u_centerPx", "u_offsetPx",
+    "u_cosA", "u_sinA", "u_invZoom", "u_paletteLevels",
+  ] as const);
+  return _prog;
+};
+
 const cameraShake = (input: any, options: CameraShakeOptions = defaults) => {
   const frameIndex = typeof options._frameIndex === "number" ? options._frameIndex : 0;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
+  const W = input.width, H = input.height;
 
-  const width = input.width;
-  const height = input.height;
-  const currentStateKey = getStateKey(width, height, options);
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
+  const { gl, canvas } = ctx;
+
+  const currentStateKey = getStateKey(W, H, options);
   if (currentStateKey !== stateKey || frameIndex <= lastFrameIndex) {
     stateKey = currentStateKey;
     resetRigState();
   }
-
-  for (let i = lastFrameIndex + 1; i <= frameIndex; i += 1) {
-    stepRig(i, options);
-  }
+  for (let i = lastFrameIndex + 1; i <= frameIndex; i++) stepRig(i, options);
   lastFrameIndex = frameIndex;
 
-  const buf = inputCtx.getImageData(0, 0, width, height).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const { palette = defaults.palette } = options;
+  const palette = options.palette ?? defaults.palette;
+  const pOpts = (palette as { options?: { levels?: number } }).options;
+  // Default `nearest` palette with levels=256 is identity → skip quantization.
+  // Custom levels go in-shader; color-distance palettes get a post-pass.
+  const isNearestPalette = palette === defaults.palette ||
+    (palette as { name?: string }).name === "nearest";
+  const shaderLevels = isNearestPalette ? (pOpts?.levels ?? 256) : 256;
+
+  const prog = getProg(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+
+  const sourceTex = ensureTexture(gl, "cameraShake:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
+
   const cosA = Math.cos(rigState.rotation);
   const sinA = Math.sin(rigState.rotation);
-  const cx = (width - 1) * 0.5;
-  const cy = (height - 1) * 0.5;
   const zoom = Math.max(0.75, rigState.zoom);
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const dx = (x - cx) / zoom;
-      const dy = (y - cy) / zoom;
-      const srcX = Math.max(0, Math.min(width - 1, Math.round(cx + dx * cosA - dy * sinA + rigState.x)));
-      const srcY = Math.max(0, Math.min(height - 1, Math.round(cy + dx * sinA + dy * cosA + rigState.y)));
-      const srcI = (srcY * width + srcX) * 4;
-      const dstI = (y * width + x) * 4;
+  drawPass(gl, null, W, H, prog, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(prog.uniforms.u_source, 0);
+    gl.uniform2f(prog.uniforms.u_resolution, W, H);
+    gl.uniform2f(prog.uniforms.u_centerPx, (W - 1) * 0.5, (H - 1) * 0.5);
+    gl.uniform2f(prog.uniforms.u_offsetPx, rigState.x, rigState.y);
+    gl.uniform1f(prog.uniforms.u_cosA, cosA);
+    gl.uniform1f(prog.uniforms.u_sinA, sinA);
+    gl.uniform1f(prog.uniforms.u_invZoom, 1 / zoom);
+    gl.uniform1i(prog.uniforms.u_paletteLevels, Math.max(1, Math.min(256, Math.round(shaderLevels))));
+  }, vao);
 
-      const color = paletteGetColor(palette, [
-        buf[srcI],
-        buf[srcI + 1],
-        buf[srcI + 2],
-        buf[srcI + 3]
-      ], palette.options, false);
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (!rendered) return glUnavailableStub(W, H);
 
-      outBuf[dstI] = color[0];
-      outBuf[dstI + 1] = color[1];
-      outBuf[dstI + 2] = color[2];
-      outBuf[dstI + 3] = color[3];
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
-  return output;
+  // Color-distance palettes (User/Adaptive/etc.) need a CPU-side post-pass.
+  // No-op when the palette is identity or already handled in-shader.
+  const skipPostPass = isNearestPalette || paletteIsIdentity(palette);
+  const out = skipPostPass
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) || rendered);
+  logFilterBackend("Camera Shake", "WebGL2", `rot=${rigState.rotation.toFixed(3)} zoom=${zoom.toFixed(3)}${skipPostPass ? "" : "+palettePass"}`);
+  return out;
 };
 
 export const __testing = {
@@ -236,4 +303,5 @@ export default defineFilter({
   defaults,
   description: "More realistic handheld shake with drift targets, inertia, settling, and fine tremor",
   temporal: true,
+  requiresGL: true,
 });

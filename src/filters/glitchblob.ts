@@ -470,4 +470,6 @@ export default defineFilter({
   optionTypes,
   defaults,
   temporal: true,
+  noGL: "JPEG bitstream corruption; needs Blob encode/decode roundtrip, not pixel math",
+  noWASM: "Hot path is Canvas2D + Blob encode/decode, no shared kernel for WASM to accelerate",
 });

@@ -1,11 +1,20 @@
 import { RANGE, ENUM, ACTION } from "constants/controlTypes";
-import { cloneCanvas } from "utils";
-import { defineFilter } from "filters/types";
+import { defineFilter, type FilterOptionValues } from "filters/types";
+import { logFilterBackend } from "utils";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
-const BASELINE = {
-  BLACK: "BLACK",
-  ORIGINAL: "ORIGINAL"
-};
+const BASELINE = { BLACK: "BLACK", ORIGINAL: "ORIGINAL" };
 
 export const optionTypes = {
   gain: { type: RANGE, range: [0.5, 5], step: 0.1, default: 2, desc: "Strength of the motion-reactive echo against the static background" },
@@ -30,43 +39,102 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-const echoCombiner = (input: any, options = defaults) => {
-  const { gain, baseline } = options;
-  const ema: Float32Array | null = (options as { _ema?: Float32Array | null })._ema || null;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const W = input.width, H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let i = 0; i < buf.length; i += 4) {
-    const baseR = baseline === BASELINE.ORIGINAL ? buf[i] : 0;
-    const baseG = baseline === BASELINE.ORIGINAL ? buf[i + 1] : 0;
-    const baseB = baseline === BASELINE.ORIGINAL ? buf[i + 2] : 0;
-
-    if (!ema) {
-      outBuf[i] = baseR;
-      outBuf[i + 1] = baseG;
-      outBuf[i + 2] = baseB;
-      outBuf[i + 3] = 255;
-      continue;
-    }
-
-    const dr = Math.abs(buf[i] - ema[i]) * gain;
-    const dg = Math.abs(buf[i + 1] - ema[i + 1]) * gain;
-    const db = Math.abs(buf[i + 2] - ema[i + 2]) * gain;
-
-    outBuf[i] = Math.max(0, Math.min(255, Math.round(baseR + dr)));
-    outBuf[i + 1] = Math.max(0, Math.min(255, Math.round(baseG + dg)));
-    outBuf[i + 2] = Math.max(0, Math.min(255, Math.round(baseB + db)));
-    outBuf[i + 3] = 255;
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+type EchoCombinerOptions = FilterOptionValues & {
+  gain?: number;
+  baseline?: string;
+  animSpeed?: number;
+  _ema?: Float32Array | null;
 };
 
-export default defineFilter({ name: "Echo Combiner", func: echoCombiner, optionTypes, options: defaults, defaults, description: "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded" , temporal: true });
+const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_source;
+uniform sampler2D u_ema;
+uniform float u_gain;
+uniform int   u_baseline; // 0 BLACK, 1 ORIGINAL
+uniform float u_haveEma;
+
+void main() {
+  vec3 cur = texture(u_source, v_uv).rgb;
+  vec3 base = u_baseline == 1 ? cur : vec3(0.0);
+  if (u_haveEma < 0.5) {
+    fragColor = vec4(base, 1.0);
+    return;
+  }
+  vec3 e = texture(u_ema, v_uv).rgb;
+  vec3 d = abs(cur - e) * u_gain;
+  fragColor = vec4(clamp(base + d, 0.0, 1.0), 1.0);
+}
+`;
+
+let _prog: Program | null = null;
+let _emaScratch: Uint8ClampedArray | null = null;
+
+const getProg = (gl: WebGL2RenderingContext): Program => {
+  if (_prog) return _prog;
+  _prog = linkProgram(gl, FS, ["u_source", "u_ema", "u_gain", "u_baseline", "u_haveEma"] as const);
+  return _prog;
+};
+
+const echoCombiner = (input: any, options: EchoCombinerOptions = defaults) => {
+  const gain = Number(options.gain ?? defaults.gain);
+  const baseline = String(options.baseline ?? defaults.baseline);
+  const ema = options._ema ?? null;
+  const W = input.width, H = input.height;
+
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
+
+  const { gl, canvas } = ctx;
+  const prog = getProg(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+
+  const sourceTex = ensureTexture(gl, "echoCombiner:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
+
+  const emaTex = ensureTexture(gl, "echoCombiner:ema", W, H);
+  let haveEma = false;
+  if (ema && ema.length === W * H * 4) {
+    if (!_emaScratch || _emaScratch.length !== ema.length) {
+      _emaScratch = new Uint8ClampedArray(ema.length);
+    }
+    for (let i = 0; i < ema.length; i++) _emaScratch[i] = ema[i];
+    gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, _emaScratch);
+    haveEma = true;
+  }
+
+  drawPass(gl, null, W, H, prog, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(prog.uniforms.u_source, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
+    gl.uniform1i(prog.uniforms.u_ema, 1);
+    gl.uniform1f(prog.uniforms.u_gain, gain);
+    gl.uniform1i(prog.uniforms.u_baseline, baseline === BASELINE.ORIGINAL ? 1 : 0);
+    gl.uniform1f(prog.uniforms.u_haveEma, haveEma ? 1 : 0);
+  }, vao);
+
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (rendered) {
+    logFilterBackend("Echo Combiner", "WebGL2", `gain=${gain} baseline=${baseline}`);
+    return rendered;
+  }
+  return glUnavailableStub(W, H);
+};
+
+export default defineFilter({
+  name: "Echo Combiner",
+  func: echoCombiner,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded",
+  temporal: true,
+  requiresGL: true,
+});

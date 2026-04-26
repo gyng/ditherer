@@ -1,6 +1,18 @@
 import { ACTION, ENUM, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
-import { cloneCanvas } from "utils";
+import { logFilterBackend } from "utils";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 const MODE = {
   BLEND: "BLEND",
@@ -8,22 +20,6 @@ const MODE = {
   MAX: "MAX",
   ADDITIVE: "ADDITIVE",
   RUNNING_AVERAGE: "RUNNING_AVERAGE",
-};
-
-let shutterFrames: Uint8ClampedArray[] = [];
-let shutterHead = 0;
-let shutterW = 0;
-let shutterH = 0;
-let shutterWindow = 0;
-
-const resetShutterState = (width: number, height: number, windowSize: number) => {
-  if (shutterW !== width || shutterH !== height || shutterWindow !== windowSize) {
-    shutterFrames = [];
-    shutterHead = 0;
-    shutterW = width;
-    shutterH = height;
-    shutterWindow = windowSize;
-  }
 };
 
 export const optionTypes = {
@@ -40,34 +36,22 @@ export const optionTypes = {
     desc: "Choose between soft ghosting, slow-shutter averaging, or brighter long-exposure accumulation",
   },
   blendFactor: {
-    type: RANGE,
-    range: [0.1, 0.95],
-    step: 0.05,
-    default: 0.7,
+    type: RANGE, range: [0.1, 0.95], step: 0.05, default: 0.7,
     desc: "Weight of the previous frame in blend mode",
     visibleWhen: (options: LongExposureOptions) => options.mode === MODE.BLEND,
   },
   windowSize: {
-    type: RANGE,
-    range: [2, 30],
-    step: 1,
-    default: 8,
+    type: RANGE, range: [2, 30], step: 1, default: 8,
     desc: "How many recent frames get averaged in shutter mode",
     visibleWhen: (options: LongExposureOptions) => options.mode === MODE.SHUTTER,
   },
   decay: {
-    type: RANGE,
-    range: [0.01, 0.3],
-    step: 0.01,
-    default: 0.05,
+    type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.05,
     desc: "How fast old light fades in accumulation modes",
     visibleWhen: (options: LongExposureOptions) => options.mode !== MODE.SHUTTER,
   },
   brightnessThreshold: {
-    type: RANGE,
-    range: [0, 255],
-    step: 5,
-    default: 30,
+    type: RANGE, range: [0, 255], step: 5, default: 30,
     desc: "Only accumulate pixels brighter than this in long-exposure modes",
     visibleWhen: (options: LongExposureOptions) => options.mode === MODE.MAX || options.mode === MODE.ADDITIVE,
   },
@@ -95,101 +79,200 @@ type LongExposureOptions = FilterOptionValues & {
   brightnessThreshold?: number;
   animSpeed?: number;
   _prevOutput?: Uint8ClampedArray | null;
+  _frameIndex?: number;
 };
 
-const temporalExposure = (input: any, options: LongExposureOptions = defaults) => {
+const MAX_SHUTTER = 30;
+
+const SHUTTER_FS = `#version 300 es
+precision highp float;
+precision highp sampler2DArray;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2DArray u_frames;
+uniform int u_filled;
+
+void main() {
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < ${MAX_SHUTTER}; i++) {
+    if (i >= u_filled) break;
+    acc += texture(u_frames, vec3(v_uv, float(i))).rgb;
+  }
+  fragColor = vec4(acc / float(u_filled), 1.0);
+}
+`;
+
+const ACCUM_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform sampler2D u_prev;
+uniform float u_havePrev;
+uniform int   u_mode;          // 0 BLEND, 1 MAX, 2 ADDITIVE, 3 RUNNING_AVERAGE
+uniform float u_blendFactor;
+uniform float u_decay;
+uniform float u_brightThresh;  // 0..1
+
+void main() {
+  vec3 cur = texture(u_source, v_uv).rgb;
+  if (u_havePrev < 0.5) {
+    fragColor = vec4(cur, 1.0);
+    return;
+  }
+  vec3 prev = texture(u_prev, v_uv).rgb;
+  float retain = 1.0 - u_decay;
+
+  if (u_mode == 0) {
+    fragColor = vec4(prev * u_blendFactor + cur * (1.0 - u_blendFactor), 1.0);
+    return;
+  }
+  if (u_mode == 1 || u_mode == 2) {
+    float lum = (cur.r + cur.g + cur.b) / 3.0;
+    bool above = lum >= u_brightThresh;
+    if (u_mode == 1) {
+      vec3 dec = prev * retain;
+      fragColor = vec4(above ? max(cur, dec) : dec, 1.0);
+    } else {
+      float add = above ? 0.3 : 0.0;
+      fragColor = vec4(clamp(prev * retain + cur * add, 0.0, 1.0), 1.0);
+    }
+    return;
+  }
+  // RUNNING_AVERAGE
+  fragColor = vec4(prev * retain + cur * u_decay, 1.0);
+}
+`;
+
+let _shutterProg: Program | null = null;
+let _accumProg: Program | null = null;
+let _shutterHead = 0;
+let _shutterFilled = 0;
+let _shutterW = 0;
+let _shutterH = 0;
+let _shutterWindow = 0;
+
+const getShutterProg = (gl: WebGL2RenderingContext): Program => {
+  if (_shutterProg) return _shutterProg;
+  _shutterProg = linkProgram(gl, SHUTTER_FS, ["u_frames", "u_filled"] as const);
+  return _shutterProg;
+};
+
+const getAccumProg = (gl: WebGL2RenderingContext): Program => {
+  if (_accumProg) return _accumProg;
+  _accumProg = linkProgram(gl, ACCUM_FS, [
+    "u_source", "u_prev", "u_havePrev", "u_mode",
+    "u_blendFactor", "u_decay", "u_brightThresh",
+  ] as const);
+  return _accumProg;
+};
+
+let _shutterArrayTex: WebGLTexture | null = null;
+
+const ensureShutterArray = (gl: WebGL2RenderingContext, w: number, h: number) => {
+  if (_shutterArrayTex && _shutterW === w && _shutterH === h) return _shutterArrayTex;
+  if (_shutterArrayTex) gl.deleteTexture(_shutterArrayTex);
+  const tex = gl.createTexture();
+  if (!tex) return null;
+  gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, w, h, MAX_SHUTTER, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  _shutterArrayTex = tex;
+  return tex;
+};
+
+const modeId = (m: string) =>
+  m === MODE.MAX ? 1 : m === MODE.ADDITIVE ? 2 : m === MODE.RUNNING_AVERAGE ? 3 : 0;
+
+const longExposure = (input: any, options: LongExposureOptions = defaults) => {
   const mode = String(options.mode ?? defaults.mode);
   const blendFactor = Number(options.blendFactor ?? defaults.blendFactor);
-  const windowSize = Number(options.windowSize ?? defaults.windowSize);
+  const windowSize = Math.max(2, Math.min(MAX_SHUTTER, Math.round(Number(options.windowSize ?? defaults.windowSize))));
   const decay = Number(options.decay ?? defaults.decay);
   const brightnessThreshold = Number(options.brightnessThreshold ?? defaults.brightnessThreshold);
-  const prevOutput = options._prevOutput ?? null;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
+  const prev = options._prevOutput ?? null;
+  const frameIndex = Number(options._frameIndex ?? 0);
+  const W = input.width, H = input.height;
 
-  const W = input.width;
-  const H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
+
+  const { gl, canvas } = ctx;
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+
+  const sourceTex = ensureTexture(gl, "longExposure:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
 
   if (mode === MODE.SHUTTER) {
-    resetShutterState(W, H, windowSize);
-    shutterFrames[shutterHead % windowSize] = new Uint8ClampedArray(buf);
-    shutterHead += 1;
-    const filled = Math.min(shutterHead, windowSize);
+    const prog = getShutterProg(gl);
+    const arrTex = ensureShutterArray(gl, W, H);
+    if (!arrTex) return glUnavailableStub(W, H);
 
-    for (let i = 0; i < buf.length; i += 4) {
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      for (let f = 0; f < filled; f += 1) {
-        const frame = shutterFrames[f];
-        r += frame[i];
-        g += frame[i + 1];
-        b += frame[i + 2];
-      }
-      outBuf[i] = Math.round(r / filled);
-      outBuf[i + 1] = Math.round(g / filled);
-      outBuf[i + 2] = Math.round(b / filled);
-      outBuf[i + 3] = 255;
+    if (_shutterW !== W || _shutterH !== H || _shutterWindow !== windowSize || frameIndex === 0) {
+      _shutterW = W; _shutterH = H; _shutterWindow = windowSize;
+      _shutterHead = 0; _shutterFilled = 0;
     }
 
-    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-    return output;
-  }
+    const layer = _shutterHead % windowSize;
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, layer, W, H, 1,
+      gl.RGBA, gl.UNSIGNED_BYTE, input as TexImageSource);
+    _shutterHead++;
+    _shutterFilled = Math.min(_shutterFilled + 1, windowSize);
 
-  const oneMinusDecay = 1 - decay;
-  const blendCurrentWeight = 1 - blendFactor;
-
-  for (let i = 0; i < buf.length; i += 4) {
-    const prevR = prevOutput ? prevOutput[i] : 0;
-    const prevG = prevOutput ? prevOutput[i + 1] : 0;
-    const prevB = prevOutput ? prevOutput[i + 2] : 0;
-
-    if (mode === MODE.BLEND) {
-      if (prevOutput) {
-        outBuf[i] = Math.round(prevR * blendFactor + buf[i] * blendCurrentWeight);
-        outBuf[i + 1] = Math.round(prevG * blendFactor + buf[i + 1] * blendCurrentWeight);
-        outBuf[i + 2] = Math.round(prevB * blendFactor + buf[i + 2] * blendCurrentWeight);
-      } else {
-        outBuf[i] = buf[i];
-        outBuf[i + 1] = buf[i + 1];
-        outBuf[i + 2] = buf[i + 2];
-      }
-    } else if (mode === MODE.MAX || mode === MODE.ADDITIVE) {
-      const srcLum = (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
-      const aboveThreshold = srcLum >= brightnessThreshold;
-      if (mode === MODE.MAX) {
-        outBuf[i] = aboveThreshold ? Math.max(buf[i], Math.round(prevR * oneMinusDecay)) : Math.round(prevR * oneMinusDecay);
-        outBuf[i + 1] = aboveThreshold ? Math.max(buf[i + 1], Math.round(prevG * oneMinusDecay)) : Math.round(prevG * oneMinusDecay);
-        outBuf[i + 2] = aboveThreshold ? Math.max(buf[i + 2], Math.round(prevB * oneMinusDecay)) : Math.round(prevB * oneMinusDecay);
-      } else {
-        const add = aboveThreshold ? 0.3 : 0;
-        outBuf[i] = Math.min(255, Math.round(prevR * oneMinusDecay + buf[i] * add));
-        outBuf[i + 1] = Math.min(255, Math.round(prevG * oneMinusDecay + buf[i + 1] * add));
-        outBuf[i + 2] = Math.min(255, Math.round(prevB * oneMinusDecay + buf[i + 2] * add));
-      }
-    } else {
-      outBuf[i] = Math.round(prevR * oneMinusDecay + buf[i] * decay);
-      outBuf[i + 1] = Math.round(prevG * oneMinusDecay + buf[i + 1] * decay);
-      outBuf[i + 2] = Math.round(prevB * oneMinusDecay + buf[i + 2] * decay);
+    drawPass(gl, null, W, H, prog, () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
+      gl.uniform1i(prog.uniforms.u_frames, 0);
+      gl.uniform1i(prog.uniforms.u_filled, _shutterFilled);
+    }, vao);
+  } else {
+    const prog = getAccumProg(gl);
+    const prevTex = ensureTexture(gl, "longExposure:prev", W, H);
+    const havePrev = !!prev && prev.length === W * H * 4;
+    if (havePrev) {
+      gl.bindTexture(gl.TEXTURE_2D, prevTex.tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prev!);
     }
 
-    outBuf[i + 3] = 255;
+    drawPass(gl, null, W, H, prog, () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, prevTex.tex);
+      gl.uniform1i(prog.uniforms.u_prev, 1);
+      gl.uniform1f(prog.uniforms.u_havePrev, havePrev ? 1 : 0);
+      gl.uniform1i(prog.uniforms.u_mode, modeId(mode));
+      gl.uniform1f(prog.uniforms.u_blendFactor, blendFactor);
+      gl.uniform1f(prog.uniforms.u_decay, decay);
+      gl.uniform1f(prog.uniforms.u_brightThresh, brightnessThreshold / 255);
+    }, vao);
   }
 
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (rendered) {
+    logFilterBackend("Long Exposure", "WebGL2", `mode=${mode}`);
+    return rendered;
+  }
+  return glUnavailableStub(W, H);
 };
 
 export default defineFilter({
   name: "Long Exposure",
-  func: temporalExposure,
+  func: longExposure,
   optionTypes,
   options: defaults,
   defaults,
   description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting",
   temporal: true,
+  requiresGL: true,
 });

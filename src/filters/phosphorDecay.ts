@@ -1,6 +1,18 @@
 import { RANGE, ACTION } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
-import { cloneCanvas } from "utils";
+import { logFilterBackend } from "utils";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 export const optionTypes = {
   redDecay: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.15, desc: "Red channel persistence — higher = faster fade" },
@@ -27,38 +39,86 @@ type PhosphorDecayOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
+const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform sampler2D u_history;
+uniform vec3  u_retain;
+uniform float u_haveHist;
+
+void main() {
+  vec3 cur = texture(u_source, v_uv).rgb;
+  if (u_haveHist > 0.5) {
+    vec3 hist = texture(u_history, v_uv).rgb * u_retain;
+    fragColor = vec4(max(cur, hist), 1.0);
+  } else {
+    fragColor = vec4(cur, 1.0);
+  }
+}
+`;
+
+let _prog: Program | null = null;
+const getProg = (gl: WebGL2RenderingContext): Program => {
+  if (_prog) return _prog;
+  _prog = linkProgram(gl, FS, ["u_source", "u_history", "u_retain", "u_haveHist"] as const);
+  return _prog;
+};
+
 const phosphorDecay = (input: any, options: PhosphorDecayOptions = defaults) => {
   const redDecay = Number(options.redDecay ?? defaults.redDecay);
   const greenDecay = Number(options.greenDecay ?? defaults.greenDecay);
   const blueDecay = Number(options.blueDecay ?? defaults.blueDecay);
-  const prevOutput = options._prevOutput ?? null;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
+  const prev = options._prevOutput ?? null;
   const W = input.width, H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
 
-  const rRetain = 1 - redDecay;
-  const gRetain = 1 - greenDecay;
-  const bRetain = 1 - blueDecay;
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
 
-  for (let i = 0; i < buf.length; i += 4) {
-    if (prevOutput) {
-      // Each channel: keep whichever is brighter — current input or decayed previous
-      outBuf[i]     = Math.max(buf[i], Math.round(prevOutput[i] * rRetain));
-      outBuf[i + 1] = Math.max(buf[i + 1], Math.round(prevOutput[i + 1] * gRetain));
-      outBuf[i + 2] = Math.max(buf[i + 2], Math.round(prevOutput[i + 2] * bRetain));
-    } else {
-      outBuf[i] = buf[i]; outBuf[i + 1] = buf[i + 1]; outBuf[i + 2] = buf[i + 2];
-    }
-    outBuf[i + 3] = 255;
+  const { gl, canvas } = ctx;
+  const prog = getProg(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+
+  const sourceTex = ensureTexture(gl, "phosphorDecay:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
+
+  const histEntry = ensureTexture(gl, "phosphorDecay:history", W, H);
+  const haveHist = !!prev && prev.length === W * H * 4;
+  if (haveHist) {
+    gl.bindTexture(gl.TEXTURE_2D, histEntry.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prev!);
   }
 
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  drawPass(gl, null, W, H, prog, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(prog.uniforms.u_source, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, haveHist ? histEntry.tex : sourceTex.tex);
+    gl.uniform1i(prog.uniforms.u_history, 1);
+    gl.uniform3f(prog.uniforms.u_retain, 1 - redDecay, 1 - greenDecay, 1 - blueDecay);
+    gl.uniform1f(prog.uniforms.u_haveHist, haveHist ? 1 : 0);
+  }, vao);
+
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (rendered) {
+    logFilterBackend("Phosphor Decay", "WebGL2", `r=${redDecay} g=${greenDecay} b=${blueDecay}`);
+    return rendered;
+  }
+  return glUnavailableStub(W, H);
 };
 
-export default defineFilter({ name: "Phosphor Decay", func: phosphorDecay, optionTypes, options: defaults, defaults, description: "CRT phosphor persistence — each RGB channel decays at a different rate" , temporal: true });
+export default defineFilter({
+  name: "Phosphor Decay",
+  func: phosphorDecay,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "CRT phosphor persistence — each RGB channel decays at a different rate",
+  temporal: true,
+  requiresGL: true,
+});

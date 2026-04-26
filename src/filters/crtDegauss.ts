@@ -1,13 +1,24 @@
 import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
+import { cloneCanvas, logFilterBackend } from "utils";
 import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  paletteGetColor
-} from "utils";
+  applyPalettePassToCanvas,
+  paletteIsIdentity,
+  PALETTE_NEAREST_GLSL,
+} from "palettes/backend";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 import {
   MOTION_SOURCE,
   estimateMotionVector,
@@ -50,31 +61,7 @@ type CrtDegaussOptions = FilterOptionValues & {
   _isAnimating?: boolean;
   _prevInput?: Uint8ClampedArray | null;
   _ema?: Float32Array | null;
-};
-
-const clamp = (value: number) => Math.max(0, Math.min(255, value));
-
-const readChannel = (buf: Uint8ClampedArray, x: number, y: number, width: number, height: number, channel: number) => {
-  const clampedX = Math.max(0, Math.min(width - 1, x));
-  const clampedY = Math.max(0, Math.min(height - 1, y));
-  return buf[getBufferIndex(clampedX, clampedY, width) + channel];
-};
-
-const rotateHue = (r: number, g: number, b: number, angle: number): [number, number, number] => {
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-
-  const nextR = r * (0.213 + 0.787 * cos - 0.213 * sin)
-    + g * (0.715 - 0.715 * cos - 0.715 * sin)
-    + b * (0.072 - 0.072 * cos + 0.928 * sin);
-  const nextG = r * (0.213 - 0.213 * cos + 0.143 * sin)
-    + g * (0.715 + 0.285 * cos + 0.140 * sin)
-    + b * (0.072 - 0.072 * cos - 0.283 * sin);
-  const nextB = r * (0.213 - 0.213 * cos - 0.787 * sin)
-    + g * (0.715 - 0.715 * cos + 0.715 * sin)
-    + b * (0.072 + 0.928 * cos + 0.072 * sin);
-
-  return [clamp(nextR), clamp(nextG), clamp(nextB)];
+  _wasmAcceleration?: boolean;
 };
 
 const sampleTemporalEnergy = (
@@ -83,13 +70,11 @@ const sampleTemporalEnergy = (
   mode: string
 ) => {
   if (!reference || reference.length !== current.length) return 0;
-
   const maxSamples = 2048;
   const pixelCount = Math.max(1, current.length / 4);
   const pixelStride = Math.max(1, Math.floor(pixelCount / maxSamples));
   let total = 0;
   let samples = 0;
-
   for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += pixelStride) {
     const i = pixelIndex * 4;
     if (mode === TRIGGER.LUMA_SPIKE || mode === TRIGGER.SCENE_CUT) {
@@ -105,7 +90,6 @@ const sampleTemporalEnergy = (
     }
     samples += 1;
   }
-
   return samples > 0 ? total / samples : 0;
 };
 
@@ -116,7 +100,6 @@ const sampleFlowEnergy = (
   height: number,
 ) => {
   if (!previous || previous.length !== current.length) return 0;
-
   const cellSize = Math.max(6, Math.min(20, Math.round(Math.min(width, height) / 18) || 6));
   const searchRadius = Math.max(2, Math.min(8, Math.round(cellSize * 0.45)));
   const threshold = 18;
@@ -124,27 +107,16 @@ const sampleFlowEnergy = (
   const stride = Math.max(cellSize, cellSize * 2);
   let total = 0;
   let count = 0;
-
   for (let y = 0; y < height; y += stride) {
     for (let x = 0; x < width; x += stride) {
       const vector = estimateMotionVector(
-        current,
-        previous,
-        width,
-        height,
-        x,
-        y,
-        cellSize,
-        searchRadius,
-        threshold,
-        MOTION_SOURCE.LUMA,
-        analysisBuffers,
+        current, previous, width, height, x, y,
+        cellSize, searchRadius, threshold, MOTION_SOURCE.LUMA, analysisBuffers,
       );
       total += vector.motionStrength * (0.35 + vector.confidence * 0.65);
       count += 1;
     }
   }
-
   return count > 0 ? total / count : 0;
 };
 
@@ -214,6 +186,101 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2  u_resolution;
+uniform float u_age;
+uniform float u_envelope;
+uniform float u_decay;
+uniform float u_warp;
+uniform float u_misconvergence;
+uniform float u_hueShimmer;
+uniform float u_flashAmount;
+uniform vec2  u_baseWobble;
+uniform int   u_paletteLevels;
+
+${PALETTE_NEAREST_GLSL}
+
+vec3 readChannel(vec2 px) {
+  vec2 snapped = clamp(floor(px + 0.5) + 0.5, vec2(0.5), u_resolution - vec2(0.5));
+  return texture(u_source, snapped / u_resolution).rgb * 255.0;
+}
+
+vec3 rotateHue(vec3 c, float angle) {
+  float cs = cos(angle);
+  float sn = sin(angle);
+  float r = c.r * (0.213 + 0.787 * cs - 0.213 * sn)
+          + c.g * (0.715 - 0.715 * cs - 0.715 * sn)
+          + c.b * (0.072 - 0.072 * cs + 0.928 * sn);
+  float g = c.r * (0.213 - 0.213 * cs + 0.143 * sn)
+          + c.g * (0.715 + 0.285 * cs + 0.140 * sn)
+          + c.b * (0.072 - 0.072 * cs - 0.283 * sn);
+  float b = c.r * (0.213 - 0.213 * cs - 0.787 * sn)
+          + c.g * (0.715 - 0.715 * cs + 0.715 * sn)
+          + c.b * (0.072 + 0.928 * cs + 0.072 * sn);
+  return clamp(vec3(r, g, b), 0.0, 255.0);
+}
+
+void main() {
+  vec2 px = v_uv * u_resolution;
+  float x = px.x;
+  float y = px.y;
+  vec2 center = u_resolution * 0.5;
+  float dx = (x - center.x) / max(1.0, center.x);
+  float dy = (y - center.y) / max(1.0, center.y);
+  float radial = sqrt(dx * dx + dy * dy);
+
+  float ring = sin(radial * 18.0 - u_age * 1.85) * u_envelope * u_warp * min(u_resolution.x, u_resolution.y) * 0.04;
+  float sweepX = sin(y / max(1.0, u_resolution.y) * 3.14159265 * (2.8 + u_age * 0.12) + u_age * 1.9)
+               * u_envelope * u_warp * u_resolution.x * 0.045;
+  float sweepY = sin(x / max(1.0, u_resolution.x) * 3.14159265 * (3.5 + u_age * 0.08) + u_age * 2.7)
+               * u_envelope * u_warp * u_resolution.y * 0.024;
+
+  vec2 src = vec2(x + sweepX + dx * ring, y + sweepY + dy * ring * 0.7);
+  // Match the JS path: pixels mapping outside the frame collapse to black.
+  if (src.x < 0.0 || src.x >= u_resolution.x || src.y < 0.0 || src.y >= u_resolution.y) {
+    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
+  float channelOffset = u_misconvergence * u_envelope * (2.0 + radial * 6.0);
+  vec2 wob = u_baseWobble * (0.3 + radial * 0.7);
+
+  vec3 r = readChannel(vec2(src.x + dx * channelOffset + wob.x, src.y + dy * channelOffset * 0.35 + wob.y));
+  vec3 g = readChannel(vec2(src.x + wob.x * 0.18, src.y + wob.y * 0.22));
+  vec3 b = readChannel(vec2(src.x - dx * channelOffset - wob.x * 0.7, src.y - dy * channelOffset * 0.35 - wob.y * 0.7));
+
+  vec3 rgb = vec3(r.r, g.g, b.b);
+  float hueAngle = u_hueShimmer * u_envelope * 3.14159265 * 1.35
+                 * sin(dx * 2.7 + u_age * 1.25)
+                 * cos(dy * 2.1 + u_age * 0.92);
+  rgb = rotateHue(rgb, hueAngle);
+
+  float edgeDarken = 1.0 - min(0.22, radial * radial * u_envelope * 0.2);
+  vec3 lit = clamp(rgb * u_flashAmount * edgeDarken, 0.0, 255.0);
+  if (u_paletteLevels >= 2 && u_paletteLevels < 256) {
+    lit = applyNearestLevelsRGB(lit, u_paletteLevels);
+  }
+  fragColor = vec4(lit / 255.0, 1.0);
+}
+`;
+
+let _prog: Program | null = null;
+const getProg = (gl: WebGL2RenderingContext): Program => {
+  if (_prog) return _prog;
+  _prog = linkProgram(gl, FS, [
+    "u_source", "u_resolution",
+    "u_age", "u_envelope", "u_decay",
+    "u_warp", "u_misconvergence", "u_hueShimmer", "u_flashAmount",
+    "u_baseWobble", "u_paletteLevels",
+  ] as const);
+  return _prog;
+};
+
 const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const {
     intensity = defaults.intensity,
@@ -227,31 +294,20 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
     duration = defaults.duration,
     palette = defaults.palette,
   } = options;
-
   const frameIndex = Number(options._frameIndex ?? 0);
   const isAnimating = Boolean(options._isAnimating);
   const prevInput = options._prevInput ?? null;
   const ema = options._ema ?? null;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-
-  if (!inputCtx || !outputCtx) return input;
-
-  const width = input.width;
-  const height = input.height;
-  const buf = inputCtx.getImageData(0, 0, width, height).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
+  const W = input.width, H = input.height;
   const safeDuration = Math.max(6, Math.round(duration || 45));
 
+  // ── Trigger detection (small JS pass; bounded ~2k samples or coarse flow) ──
   if (frameIndex <= lastFrameIndex || triggerMode !== lastTriggerMode) {
     burstStartFrame = -Infinity;
     burstEndFrame = -Infinity;
     burstCooldownUntil = -Infinity;
     pendingManualBurst = false;
-    if (triggerMode !== lastTriggerMode) {
-      previewLoopEnabled = false;
-    }
+    if (triggerMode !== lastTriggerMode) previewLoopEnabled = false;
   }
   lastTriggerMode = triggerMode;
 
@@ -259,9 +315,7 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
     burstStartFrame = -Infinity;
     burstEndFrame = -Infinity;
     lastFrameIndex = frameIndex;
-    outBuf.set(buf);
-    outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
-    return output;
+    return cloneCanvas(input, true);
   }
 
   if (pendingManualBurst) {
@@ -269,93 +323,78 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
     pendingManualBurst = false;
   } else if (previewLoopEnabled && isAnimating && frameIndex >= burstEndFrame) {
     startBurst(frameIndex, safeDuration, 0);
-  } else if (
-    triggerMode !== TRIGGER.MANUAL
-    && frameIndex >= burstCooldownUntil
-  ) {
-    const reference = triggerMode === TRIGGER.MOTION || triggerMode === TRIGGER.FLOW ? prevInput : ema;
-    const energy = triggerMode === TRIGGER.FLOW
-      ? sampleFlowEnergy(buf, prevInput, width, height)
-      : sampleTemporalEnergy(buf, reference, triggerMode);
-    if (energy >= triggerThreshold) {
-      startBurst(frameIndex, safeDuration, Math.round(cooldownFrames || 0));
+  } else if (triggerMode !== TRIGGER.MANUAL && frameIndex >= burstCooldownUntil) {
+    // Trigger detection only runs on input pixels — we need them. Read once.
+    const inCtx = input.getContext("2d");
+    if (inCtx) {
+      const buf = inCtx.getImageData(0, 0, W, H).data;
+      const reference = triggerMode === TRIGGER.MOTION || triggerMode === TRIGGER.FLOW
+        ? prevInput : ema;
+      const energy = triggerMode === TRIGGER.FLOW
+        ? sampleFlowEnergy(buf, prevInput, W, H)
+        : sampleTemporalEnergy(buf, reference, triggerMode);
+      if (energy >= triggerThreshold) {
+        startBurst(frameIndex, safeDuration, Math.round(cooldownFrames || 0));
+      }
     }
   }
   lastFrameIndex = frameIndex;
 
   const isBurstActive = frameIndex >= burstStartFrame && frameIndex < burstEndFrame;
-  if (!isBurstActive) {
-    outBuf.set(buf);
-    outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
-    return output;
-  }
+  if (!isBurstActive) return cloneCanvas(input, true);
+
+  // ── GL burst render ──
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
+  const { gl, canvas } = ctx;
 
   const age = frameIndex - burstStartFrame;
   const normalizedAge = age / Math.max(1, safeDuration - 1);
   const decay = 1 - normalizedAge;
   const envelope = Math.max(0, decay * decay * intensity);
-
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const baseWobbleX = Math.sin(age * 1.7) * envelope * width * 0.05 + Math.sin(age * 4.1) * envelope * decay * width * 0.025;
-  const baseWobbleY = Math.cos(age * 2.3) * envelope * height * 0.035 + Math.cos(age * 5.7) * envelope * decay * height * 0.018;
+  const baseWobbleX = Math.sin(age * 1.7) * envelope * W * 0.05
+                    + Math.sin(age * 4.1) * envelope * decay * W * 0.025;
+  const baseWobbleY = Math.cos(age * 2.3) * envelope * H * 0.035
+                    + Math.cos(age * 5.7) * envelope * decay * H * 0.018;
   const flashAmount = 1 + flash * envelope * (0.4 + 0.8 * Math.abs(Math.sin(age * 0.8)));
 
-  // A WASM burst renderer was written but benched at 0.81x — the per-pixel
-  // mix of sin/cos/sqrt/round + three clamped neighbour reads + a 3x3 hue
-  // rotate is JS-JIT-friendly and the cross-boundary cost pushed it into a
-  // net regression. Stays on JS.
+  const pOpts = (palette as { options?: { levels?: number } }).options;
+  const isNearestPalette = palette === defaults.palette ||
+    (palette as { name?: string }).name === "nearest";
+  const shaderLevels = isNearestPalette ? (pOpts?.levels ?? 256) : 256;
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const index = getBufferIndex(x, y, width);
-      const dx = (x - centerX) / Math.max(1, centerX);
-      const dy = (y - centerY) / Math.max(1, centerY);
-      const radial = Math.sqrt(dx * dx + dy * dy);
-      const ring = Math.sin(radial * 18 - age * 1.85) * envelope * warp * Math.min(width, height) * 0.04;
-      const sweepX = Math.sin(y / Math.max(1, height) * Math.PI * (2.8 + age * 0.12) + age * 1.9) * envelope * warp * width * 0.045;
-      const sweepY = Math.sin(x / Math.max(1, width) * Math.PI * (3.5 + age * 0.08) + age * 2.7) * envelope * warp * height * 0.024;
+  const prog = getProg(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
 
-      const srcX = Math.round(x + sweepX + dx * ring);
-      const srcY = Math.round(y + sweepY + dy * ring * 0.7);
+  const sourceTex = ensureTexture(gl, "crtDegauss:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
 
-      if (srcX < 0 || srcX >= width || srcY < 0 || srcY >= height) {
-        fillBufferPixel(outBuf, index, 0, 0, 0, buf[index + 3]);
-        continue;
-      }
+  drawPass(gl, null, W, H, prog, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(prog.uniforms.u_source, 0);
+    gl.uniform2f(prog.uniforms.u_resolution, W, H);
+    gl.uniform1f(prog.uniforms.u_age, age);
+    gl.uniform1f(prog.uniforms.u_envelope, envelope);
+    gl.uniform1f(prog.uniforms.u_decay, decay);
+    gl.uniform1f(prog.uniforms.u_warp, warp);
+    gl.uniform1f(prog.uniforms.u_misconvergence, misconvergence);
+    gl.uniform1f(prog.uniforms.u_hueShimmer, hueShimmer);
+    gl.uniform1f(prog.uniforms.u_flashAmount, flashAmount);
+    gl.uniform2f(prog.uniforms.u_baseWobble, baseWobbleX, baseWobbleY);
+    gl.uniform1i(prog.uniforms.u_paletteLevels, Math.max(1, Math.min(256, Math.round(shaderLevels))));
+  }, vao);
 
-      const channelOffset = misconvergence * envelope * (2 + radial * 6);
-      const wobbleX = baseWobbleX * (0.3 + radial * 0.7);
-      const wobbleY = baseWobbleY * (0.3 + radial * 0.7);
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (!rendered) return glUnavailableStub(W, H);
 
-      const r = readChannel(buf, Math.round(srcX + dx * channelOffset + wobbleX), Math.round(srcY + dy * channelOffset * 0.35 + wobbleY), width, height, 0);
-      const g = readChannel(buf, Math.round(srcX + wobbleX * 0.18), Math.round(srcY + wobbleY * 0.22), width, height, 1);
-      const b = readChannel(buf, Math.round(srcX - dx * channelOffset - wobbleX * 0.7), Math.round(srcY - dy * channelOffset * 0.35 - wobbleY * 0.7), width, height, 2);
-
-      const hueAngle = hueShimmer * envelope * Math.PI * 1.35
-        * Math.sin(dx * 2.7 + age * 1.25)
-        * Math.cos(dy * 2.1 + age * 0.92);
-      const [shiftedR, shiftedG, shiftedB] = rotateHue(r, g, b, hueAngle);
-
-      const edgeDarken = 1 - Math.min(0.22, radial * radial * envelope * 0.2);
-      const color = paletteGetColor(
-        palette,
-        rgba(
-          clamp(shiftedR * flashAmount * edgeDarken),
-          clamp(shiftedG * flashAmount * edgeDarken),
-          clamp(shiftedB * flashAmount * edgeDarken),
-          buf[index + 3]
-        ),
-        palette.options,
-        false
-      );
-
-      fillBufferPixel(outBuf, index, color[0], color[1], color[2], buf[index + 3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
-  return output;
+  const skipPostPass = isNearestPalette || paletteIsIdentity(palette);
+  const out = skipPostPass
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) || rendered);
+  logFilterBackend("CRT Degauss", "WebGL2", `age=${age}/${safeDuration}${skipPostPass ? "" : "+palettePass"}`);
+  return out;
 };
 
 export default defineFilter({
@@ -371,4 +410,5 @@ export default defineFilter({
   autoAnimateFps: 20,
   description: "A decaying CRT degauss pulse with raster wobble, RGB mislanding, rainbow shimmer, and a bright magnetic flash",
   temporal: true,
+  requiresGL: true,
 });

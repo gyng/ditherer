@@ -1,47 +1,25 @@
 import { ACTION, COLOR, ENUM, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
-import { cloneCanvas } from "utils";
+import { logFilterBackend } from "utils";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
-const SOURCE = {
-  EMA: "EMA",
-  PREVIOUS_FRAME: "PREVIOUS_FRAME",
-};
-
+const SOURCE = { EMA: "EMA", PREVIOUS_FRAME: "PREVIOUS_FRAME" };
 const RENDER = {
-  MASK: "MASK",
-  HEATMAP: "HEATMAP",
-  SOURCE: "SOURCE",
-  DIFFERENCE: "DIFFERENCE",
-  ACCUMULATED_HEAT: "ACCUMULATED_HEAT",
+  MASK: "MASK", HEATMAP: "HEATMAP", SOURCE: "SOURCE",
+  DIFFERENCE: "DIFFERENCE", ACCUMULATED_HEAT: "ACCUMULATED_HEAT",
 };
-
-const COLORMAP = {
-  INFERNO: "INFERNO",
-  VIRIDIS: "VIRIDIS",
-  HOT: "HOT",
-};
-
-const infernoMap = (t: number): [number, number, number] => {
-  if (t < 0.25) { const s = t * 4; return [Math.round(s * 100), 0, Math.round(s * 150)]; }
-  if (t < 0.5) { const s = (t - 0.25) * 4; return [Math.round(100 + s * 155), Math.round(s * 50), Math.round(150 - s * 100)]; }
-  if (t < 0.75) { const s = (t - 0.5) * 4; return [255, Math.round(50 + s * 150), Math.round(50 - s * 50)]; }
-  const s = (t - 0.75) * 4; return [255, Math.round(200 + s * 55), Math.round(s * 200)];
-};
-
-const viridisMap = (t: number): [number, number, number] => {
-  if (t < 0.33) { const s = t * 3; return [Math.round(68 - s * 40), Math.round(1 + s * 120), Math.round(84 + s * 80)]; }
-  if (t < 0.66) { const s = (t - 0.33) * 3; return [Math.round(28 + s * 60), Math.round(121 + s * 70), Math.round(164 - s * 80)]; }
-  const s = (t - 0.66) * 3; return [Math.round(88 + s * 165), Math.round(191 + s * 40), Math.round(84 - s * 40)];
-};
-
-const hotMap = (t: number): [number, number, number] => {
-  if (t < 0.33) { const s = t * 3; return [Math.round(s * 255), 0, 0]; }
-  if (t < 0.66) { const s = (t - 0.33) * 3; return [255, Math.round(s * 255), 0]; }
-  const s = (t - 0.66) * 3; return [255, 255, Math.round(s * 255)];
-};
-
-const getMapFn = (mode: string) =>
-  mode === COLORMAP.VIRIDIS ? viridisMap : mode === COLORMAP.HOT ? hotMap : infernoMap;
+const COLORMAP = { INFERNO: "INFERNO", VIRIDIS: "VIRIDIS", HOT: "HOT" };
 
 export const optionTypes = {
   source: {
@@ -67,16 +45,12 @@ export const optionTypes = {
   },
   threshold: { type: RANGE, range: [0, 50], step: 1, default: 10, desc: "Minimum pixel change to register as motion" },
   sensitivity: {
-    type: RANGE,
-    range: [1, 10],
-    step: 0.5,
-    default: 3,
+    type: RANGE, range: [1, 10], step: 0.5, default: 3,
     desc: "Amplify detected motion intensity",
     visibleWhen: (options: any) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
   },
   backgroundColor: {
-    type: COLOR,
-    default: [0, 0, 0],
+    type: COLOR, default: [0, 0, 0],
     desc: "Background color where no motion is detected",
     visibleWhen: (options: any) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
   },
@@ -92,18 +66,12 @@ export const optionTypes = {
     visibleWhen: (options: any) => options.renderMode === RENDER.HEATMAP || options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
   accumRate: {
-    type: RANGE,
-    range: [0.01, 0.2],
-    step: 0.01,
-    default: 0.05,
+    type: RANGE, range: [0.01, 0.2], step: 0.01, default: 0.05,
     desc: "How quickly motion builds heat over time",
     visibleWhen: (options: any) => options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
   coolRate: {
-    type: RANGE,
-    range: [0.001, 0.05],
-    step: 0.001,
-    default: 0.01,
+    type: RANGE, range: [0.001, 0.05], step: 0.001, default: 0.01,
     desc: "How quickly idle areas cool in accumulated heat mode",
     visibleWhen: (options: any) => options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
@@ -141,94 +109,182 @@ type MotionDetectOptions = FilterOptionValues & {
   _prevOutput?: Uint8ClampedArray | null;
 };
 
+const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform sampler2D u_reference;
+uniform sampler2D u_prevOutput;
+uniform vec3  u_bg;
+uniform float u_threshold;     // 0..1
+uniform float u_sensitivity;
+uniform float u_accumRate;
+uniform float u_coolRate;
+uniform float u_haveRef;
+uniform float u_havePrev;
+uniform int   u_renderMode;    // 0 MASK, 1 HEATMAP, 2 SOURCE, 3 DIFFERENCE, 4 ACCUM_HEAT
+uniform int   u_colorMap;      // 0 INFERNO, 1 VIRIDIS, 2 HOT
+
+vec3 inferno(float t) {
+  if (t < 0.25) { float s = t * 4.0; return vec3(s * 100.0, 0.0, s * 150.0) / 255.0; }
+  if (t < 0.5)  { float s = (t - 0.25) * 4.0; return vec3(100.0 + s * 155.0, s * 50.0, 150.0 - s * 100.0) / 255.0; }
+  if (t < 0.75) { float s = (t - 0.5) * 4.0; return vec3(255.0, 50.0 + s * 150.0, 50.0 - s * 50.0) / 255.0; }
+  float s = (t - 0.75) * 4.0;
+  return vec3(255.0, 200.0 + s * 55.0, s * 200.0) / 255.0;
+}
+vec3 viridis(float t) {
+  if (t < 0.33) { float s = t * 3.0; return vec3(68.0 - s * 40.0, 1.0 + s * 120.0, 84.0 + s * 80.0) / 255.0; }
+  if (t < 0.66) { float s = (t - 0.33) * 3.0; return vec3(28.0 + s * 60.0, 121.0 + s * 70.0, 164.0 - s * 80.0) / 255.0; }
+  float s = (t - 0.66) * 3.0;
+  return vec3(88.0 + s * 165.0, 191.0 + s * 40.0, 84.0 - s * 40.0) / 255.0;
+}
+vec3 hot(float t) {
+  if (t < 0.33) { float s = t * 3.0; return vec3(s * 255.0, 0.0, 0.0) / 255.0; }
+  if (t < 0.66) { float s = (t - 0.33) * 3.0; return vec3(255.0, s * 255.0, 0.0) / 255.0; }
+  float s = (t - 0.66) * 3.0;
+  return vec3(255.0, 255.0, s * 255.0) / 255.0;
+}
+vec3 mapHeat(float t, int mode) {
+  t = clamp(t, 0.0, 1.0);
+  if (mode == 1) return viridis(t);
+  if (mode == 2) return hot(t);
+  return inferno(t);
+}
+
+void main() {
+  vec4 c = texture(u_source, v_uv);
+  vec3 cur = c.rgb;
+  if (u_haveRef < 0.5) {
+    if (u_renderMode == 4) fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    else fragColor = vec4(cur * 0.3, 1.0);
+    return;
+  }
+  vec3 ref = texture(u_reference, v_uv).rgb;
+  float diff = (abs(cur.r - ref.r) + abs(cur.g - ref.g) + abs(cur.b - ref.b)) / 3.0;
+  float motion = clamp(((diff - u_threshold) / (80.0/255.0)) * u_sensitivity, 0.0, 1.0);
+
+  if (u_renderMode == 4) {
+    float prevHeat = u_havePrev > 0.5 ? texture(u_prevOutput, v_uv).r : 0.0;
+    float heat = clamp(prevHeat * (1.0 - u_coolRate) + diff * u_accumRate, 0.0, 1.0);
+    fragColor = vec4(mapHeat(heat, u_colorMap), 1.0);
+    return;
+  }
+
+  if (diff < u_threshold) {
+    fragColor = vec4(u_bg, 1.0);
+    return;
+  }
+
+  if (u_renderMode == 0) {
+    fragColor = vec4(vec3(motion), 1.0);
+  } else if (u_renderMode == 1) {
+    fragColor = vec4(mapHeat(motion, u_colorMap), 1.0);
+  } else if (u_renderMode == 2) {
+    fragColor = vec4(cur, 1.0);
+  } else {
+    float v = clamp(64.0/255.0 + diff * 3.0, 0.0, 1.0);
+    fragColor = vec4(vec3(v), 1.0);
+  }
+}
+`;
+
+let _prog: Program | null = null;
+let _emaScratch: Uint8ClampedArray | null = null;
+
+const getProg = (gl: WebGL2RenderingContext): Program => {
+  if (_prog) return _prog;
+  _prog = linkProgram(gl, FS, [
+    "u_source", "u_reference", "u_prevOutput", "u_bg",
+    "u_threshold", "u_sensitivity", "u_accumRate", "u_coolRate",
+    "u_haveRef", "u_havePrev", "u_renderMode", "u_colorMap",
+  ] as const);
+  return _prog;
+};
+
+const renderModeId = (m: string) =>
+  m === RENDER.HEATMAP ? 1 : m === RENDER.SOURCE ? 2 : m === RENDER.DIFFERENCE ? 3 : m === RENDER.ACCUMULATED_HEAT ? 4 : 0;
+const colorMapId = (m: string) => m === COLORMAP.VIRIDIS ? 1 : m === COLORMAP.HOT ? 2 : 0;
+
 const motionAnalysis = (input: any, options: MotionDetectOptions = defaults) => {
-  const source = String(options.source ?? defaults.source);
+  const sourceMode = String(options.source ?? defaults.source);
   const renderMode = String(options.renderMode ?? defaults.renderMode);
   const threshold = Number(options.threshold ?? defaults.threshold);
   const sensitivity = Number(options.sensitivity ?? defaults.sensitivity);
-  const backgroundColor = Array.isArray(options.backgroundColor)
-    ? options.backgroundColor
-    : defaults.backgroundColor;
+  const bg = Array.isArray(options.backgroundColor) ? options.backgroundColor : defaults.backgroundColor;
   const colorMap = String(options.colorMap ?? defaults.colorMap);
   const accumRate = Number(options.accumRate ?? defaults.accumRate);
   const coolRate = Number(options.coolRate ?? defaults.coolRate);
   const ema = options._ema ?? null;
   const prevInput = options._prevInput ?? null;
   const prevOutput = options._prevOutput ?? null;
-  const reference = source === SOURCE.PREVIOUS_FRAME ? prevInput : ema;
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
+  const W = input.width, H = input.height;
 
-  const W = input.width;
-  const H = input.height;
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-  const mapFn = getMapFn(colorMap);
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
 
-  for (let i = 0; i < buf.length; i += 4) {
-    if (!reference) {
-      if (renderMode === RENDER.ACCUMULATED_HEAT) {
-        outBuf[i] = 0;
-        outBuf[i + 1] = 0;
-        outBuf[i + 2] = 0;
-      } else {
-        outBuf[i] = Math.round(buf[i] * 0.3);
-        outBuf[i + 1] = Math.round(buf[i + 1] * 0.3);
-        outBuf[i + 2] = Math.round(buf[i + 2] * 0.3);
-      }
-      outBuf[i + 3] = 255;
-      continue;
+  const { gl, canvas } = ctx;
+  const prog = getProg(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
+
+  const sourceTex = ensureTexture(gl, "motionDetect:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
+
+  const refTex = ensureTexture(gl, "motionDetect:reference", W, H);
+  let haveRef = false;
+  if (sourceMode === SOURCE.PREVIOUS_FRAME && prevInput && prevInput.length === W * H * 4) {
+    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prevInput);
+    haveRef = true;
+  } else if (sourceMode === SOURCE.EMA && ema && ema.length === W * H * 4) {
+    if (!_emaScratch || _emaScratch.length !== ema.length) {
+      _emaScratch = new Uint8ClampedArray(ema.length);
     }
-
-    const diff = (Math.abs(buf[i] - reference[i]) + Math.abs(buf[i + 1] - reference[i + 1]) + Math.abs(buf[i + 2] - reference[i + 2])) / 3;
-    const motion = Math.min(1, Math.max(0, ((diff - threshold) / 80) * sensitivity));
-
-    if (renderMode === RENDER.ACCUMULATED_HEAT) {
-      const prevHeat = prevOutput ? prevOutput[i] / 255 : 0;
-      const heat = Math.min(1, prevHeat * (1 - coolRate) + (diff / 255) * accumRate);
-      const [r, g, b] = mapFn(heat);
-      outBuf[i] = r;
-      outBuf[i + 1] = g;
-      outBuf[i + 2] = b;
-      outBuf[i + 3] = 255;
-      continue;
-    }
-
-    if (diff < threshold) {
-      outBuf[i] = backgroundColor[0];
-      outBuf[i + 1] = backgroundColor[1];
-      outBuf[i + 2] = backgroundColor[2];
-      outBuf[i + 3] = 255;
-      continue;
-    }
-
-    if (renderMode === RENDER.MASK) {
-      const v = Math.round(motion * 255);
-      outBuf[i] = v;
-      outBuf[i + 1] = v;
-      outBuf[i + 2] = v;
-    } else if (renderMode === RENDER.HEATMAP) {
-      const [r, g, b] = mapFn(motion);
-      outBuf[i] = r;
-      outBuf[i + 1] = g;
-      outBuf[i + 2] = b;
-    } else if (renderMode === RENDER.SOURCE) {
-      outBuf[i] = buf[i];
-      outBuf[i + 1] = buf[i + 1];
-      outBuf[i + 2] = buf[i + 2];
-    } else {
-      const v = Math.round(Math.min(255, 64 + diff * 3));
-      outBuf[i] = v;
-      outBuf[i + 1] = v;
-      outBuf[i + 2] = v;
-    }
-    outBuf[i + 3] = 255;
+    for (let i = 0; i < ema.length; i++) _emaScratch[i] = ema[i];
+    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, _emaScratch);
+    haveRef = true;
   }
 
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const prevOutTex = ensureTexture(gl, "motionDetect:prevOutput", W, H);
+  const havePrev = !!prevOutput && prevOutput.length === W * H * 4;
+  if (havePrev) {
+    gl.bindTexture(gl.TEXTURE_2D, prevOutTex.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prevOutput!);
+  }
+
+  drawPass(gl, null, W, H, prog, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(prog.uniforms.u_source, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+    gl.uniform1i(prog.uniforms.u_reference, 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, prevOutTex.tex);
+    gl.uniform1i(prog.uniforms.u_prevOutput, 2);
+    gl.uniform3f(prog.uniforms.u_bg, bg[0] / 255, bg[1] / 255, bg[2] / 255);
+    gl.uniform1f(prog.uniforms.u_threshold, threshold / 255);
+    gl.uniform1f(prog.uniforms.u_sensitivity, sensitivity);
+    gl.uniform1f(prog.uniforms.u_accumRate, accumRate);
+    gl.uniform1f(prog.uniforms.u_coolRate, coolRate);
+    gl.uniform1f(prog.uniforms.u_haveRef, haveRef ? 1 : 0);
+    gl.uniform1f(prog.uniforms.u_havePrev, havePrev ? 1 : 0);
+    gl.uniform1i(prog.uniforms.u_renderMode, renderModeId(renderMode));
+    gl.uniform1i(prog.uniforms.u_colorMap, colorMapId(colorMap));
+  }, vao);
+
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (rendered) {
+    logFilterBackend("Motion Analysis", "WebGL2", `mode=${renderMode} thr=${threshold}`);
+    return rendered;
+  }
+  return glUnavailableStub(W, H);
 };
 
 export default defineFilter({
@@ -239,4 +295,5 @@ export default defineFilter({
   defaults,
   description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap",
   temporal: true,
+  requiresGL: true,
 });

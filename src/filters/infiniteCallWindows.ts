@@ -449,4 +449,6 @@ export default defineFilter({
   defaults,
   description: "Recursive meeting panes with digital UI chrome, blocky compression wear, and endless self-view nesting",
   temporal: true,
+  noGL: "hot path is Canvas2D drawImage + fillRect + strokeRect + fillText for window chrome and stacked pane composites; pane scaling is GL-friendly but the chrome rendering doesn't fit a fragment-shader gather-only model",
+  noWASM: "Canvas2D primitives (fillRect/strokeRect/fillText/drawImage) dominate; WASM can't replace those without re-implementing Canvas2D",
 });

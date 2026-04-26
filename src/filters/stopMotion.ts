@@ -48,4 +48,14 @@ const stopMotion = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Stop Motion", func: stopMotion, optionTypes, options: defaults, defaults, description: "Hold each captured frame for several beats to create a choppy stop-motion feel" , temporal: true });
+export default defineFilter({
+  name: "Stop Motion",
+  func: stopMotion,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Hold each captured frame for several beats to create a choppy stop-motion feel",
+  temporal: true,
+  noGL: "frame-hold has no per-pixel math; a GL roundtrip would only add upload+readback latency",
+  noWASM: "no per-pixel math; one-time canvas copy only",
+});

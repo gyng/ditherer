@@ -1,23 +1,22 @@
 import { ACTION, BOOL, ENUM, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
-import { cloneCanvas } from "utils";
+import { logFilterBackend } from "utils";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 const SOURCE = {
   EMA: "EMA",
   PREVIOUS_FRAME: "PREVIOUS_FRAME",
-};
-
-let energyMap: Float32Array | null = null;
-let energyWidth = 0;
-let energyHeight = 0;
-let lastFrameIndex = -1;
-
-const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
-
-const resetEnergy = (width: number, height: number) => {
-  energyMap = new Float32Array(width * height);
-  energyWidth = width;
-  energyHeight = height;
 };
 
 export const optionTypes = {
@@ -66,72 +65,167 @@ type TemporalReliefOptions = FilterOptionValues & {
   _ema?: Float32Array | null;
 };
 
+// Pass 1: write per-pixel energy = max(currentDiff, prevEnergy * (1 - decay)).
+// Energy is packed into the R channel of an 8-bit texture. Two textures are
+// used as ping-pong (frameIndex parity) so we can read prev energy and write
+// new energy in the same draw.
+const ENERGY_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform sampler2D u_reference;
+uniform sampler2D u_prevEnergy;
+uniform float u_decayRetain;
+uniform float u_haveRef;
+uniform float u_havePrev;
+
+void main() {
+  vec3 cur = texture(u_source, v_uv).rgb;
+  float diff = 0.0;
+  if (u_haveRef > 0.5) {
+    vec3 ref = texture(u_reference, v_uv).rgb;
+    diff = (abs(cur.r - ref.r) + abs(cur.g - ref.g) + abs(cur.b - ref.b)) / 3.0;
+  }
+  float prev = u_havePrev > 0.5 ? texture(u_prevEnergy, v_uv).r : 0.0;
+  float energy = max(diff, prev * u_decayRetain);
+  fragColor = vec4(energy, energy, energy, 1.0);
+}
+`;
+
+// Pass 2: relight the energy field as embossed grayscale.
+const RELIEF_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform sampler2D u_energy;
+uniform vec2  u_texel;
+uniform vec2  u_lightDir;
+uniform float u_depthSign;
+
+void main() {
+  vec3 cur = texture(u_source, v_uv).rgb;
+  float l = texture(u_energy, v_uv - vec2(u_texel.x, 0.0)).r;
+  float r = texture(u_energy, v_uv + vec2(u_texel.x, 0.0)).r;
+  float u = texture(u_energy, v_uv - vec2(0.0, u_texel.y)).r;
+  float d = texture(u_energy, v_uv + vec2(0.0, u_texel.y)).r;
+  float c = texture(u_energy, v_uv).r;
+
+  float gx = r - l;
+  float gy = d - u;
+  float shade = clamp(0.5 + (gx * u_lightDir.x + gy * u_lightDir.y) * u_depthSign + c * 0.35, 0.0, 1.0);
+  float baseLuma = dot(cur, vec3(0.2126, 0.7152, 0.0722));
+  float relief = clamp(baseLuma * 0.35 + shade * 0.65, 0.0, 1.0);
+  fragColor = vec4(relief, relief, relief, 1.0);
+}
+`;
+
+let _energyProg: Program | null = null;
+let _reliefProg: Program | null = null;
+let _emaScratch: Uint8ClampedArray | null = null;
+
+const getEnergyProg = (gl: WebGL2RenderingContext): Program => {
+  if (_energyProg) return _energyProg;
+  _energyProg = linkProgram(gl, ENERGY_FS, [
+    "u_source", "u_reference", "u_prevEnergy",
+    "u_decayRetain", "u_haveRef", "u_havePrev",
+  ] as const);
+  return _energyProg;
+};
+
+const getReliefProg = (gl: WebGL2RenderingContext): Program => {
+  if (_reliefProg) return _reliefProg;
+  _reliefProg = linkProgram(gl, RELIEF_FS, [
+    "u_source", "u_energy", "u_texel", "u_lightDir", "u_depthSign",
+  ] as const);
+  return _reliefProg;
+};
+
 const temporalRelief = (input: any, options: TemporalReliefOptions = defaults) => {
   const sourceMode = options.source ?? defaults.source;
   const depth = Number(options.depth ?? defaults.depth);
-  const decay = clamp01(Number(options.decay ?? defaults.decay));
+  const decay = Math.max(0, Math.min(1, Number(options.decay ?? defaults.decay)));
   const lightAngle = Number(options.lightAngle ?? defaults.lightAngle) * Math.PI / 180;
   const invert = Boolean(options.invert ?? defaults.invert);
   const frameIndex = Number(options._frameIndex ?? 0);
+  const prevInput = options._prevInput ?? null;
+  const ema = options._ema ?? null;
+  const W = input.width, H = input.height;
 
-  const reference: Float32Array | Uint8ClampedArray | null = sourceMode === SOURCE.PREVIOUS_FRAME
-    ? (options._prevInput ?? null)
-    : (options._ema ?? null);
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
 
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
+  const { gl, canvas } = ctx;
+  const energyProg = getEnergyProg(gl);
+  const reliefProg = getReliefProg(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
 
-  const width = input.width;
-  const height = input.height;
-  const source = inputCtx.getImageData(0, 0, width, height).data;
-  const restartedAnimation = frameIndex === 0 && lastFrameIndex > 0;
+  const sourceTex = ensureTexture(gl, "temporalRelief:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
 
-  if (!energyMap || energyWidth !== width || energyHeight !== height || restartedAnimation) {
-    resetEnergy(width, height);
-  }
-  lastFrameIndex = frameIndex;
-
-  for (let i = 0; i < source.length; i += 4) {
-    const pixelIndex = i >> 2;
-    const diff = reference
-      ? (Math.abs(source[i] - reference[i]) + Math.abs(source[i + 1] - reference[i + 1]) + Math.abs(source[i + 2] - reference[i + 2])) / 765
-      : 0;
-    energyMap![pixelIndex] = Math.max(diff, energyMap![pixelIndex] * (1 - decay));
-  }
-
-  const outBuf = new Uint8ClampedArray(source.length);
-  const lightX = Math.cos(lightAngle);
-  const lightY = Math.sin(lightAngle);
-  const depthSign = invert ? -depth : depth;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const pixelIndex = y * width + x;
-      const i = pixelIndex * 4;
-      const left = energyMap![y * width + Math.max(0, x - 1)];
-      const right = energyMap![y * width + Math.min(width - 1, x + 1)];
-      const up = energyMap![Math.max(0, y - 1) * width + x];
-      const down = energyMap![Math.min(height - 1, y + 1) * width + x];
-      const center = energyMap![pixelIndex];
-
-      const gx = right - left;
-      const gy = down - up;
-      const shade = clamp01(0.5 + (gx * lightX + gy * lightY) * depthSign + center * 0.35);
-      const baseLuma = (0.2126 * source[i] + 0.7152 * source[i + 1] + 0.0722 * source[i + 2]) / 255;
-      const relief = clamp01(baseLuma * 0.35 + shade * 0.65);
-      const value = Math.round(relief * 255);
-
-      outBuf[i] = value;
-      outBuf[i + 1] = value;
-      outBuf[i + 2] = value;
-      outBuf[i + 3] = source[i + 3];
+  const refTex = ensureTexture(gl, "temporalRelief:reference", W, H);
+  let haveRef = false;
+  if (sourceMode === SOURCE.PREVIOUS_FRAME && prevInput && prevInput.length === W * H * 4) {
+    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prevInput);
+    haveRef = true;
+  } else if (sourceMode === SOURCE.EMA && ema && ema.length === W * H * 4) {
+    if (!_emaScratch || _emaScratch.length !== ema.length) {
+      _emaScratch = new Uint8ClampedArray(ema.length);
     }
+    for (let i = 0; i < ema.length; i++) _emaScratch[i] = ema[i];
+    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, _emaScratch);
+    haveRef = true;
   }
 
-  outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
-  return output;
+  const energyA = ensureTexture(gl, "temporalRelief:energyA", W, H);
+  const energyB = ensureTexture(gl, "temporalRelief:energyB", W, H);
+  const writeEnergy = frameIndex % 2 === 0 ? energyA : energyB;
+  const readEnergy  = frameIndex % 2 === 0 ? energyB : energyA;
+  const havePrev = frameIndex > 0;
+
+  // Pass 1 — write new energy.
+  drawPass(gl, writeEnergy, W, H, energyProg, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(energyProg.uniforms.u_source, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+    gl.uniform1i(energyProg.uniforms.u_reference, 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, readEnergy.tex);
+    gl.uniform1i(energyProg.uniforms.u_prevEnergy, 2);
+    gl.uniform1f(energyProg.uniforms.u_decayRetain, 1 - decay);
+    gl.uniform1f(energyProg.uniforms.u_haveRef, haveRef ? 1 : 0);
+    gl.uniform1f(energyProg.uniforms.u_havePrev, havePrev ? 1 : 0);
+  }, vao);
+
+  // Pass 2 — relight energy as embossed grayscale to the GL canvas.
+  drawPass(gl, null, W, H, reliefProg, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(reliefProg.uniforms.u_source, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, writeEnergy.tex);
+    gl.uniform1i(reliefProg.uniforms.u_energy, 1);
+    gl.uniform2f(reliefProg.uniforms.u_texel, 1 / W, 1 / H);
+    gl.uniform2f(reliefProg.uniforms.u_lightDir, Math.cos(lightAngle), Math.sin(lightAngle));
+    gl.uniform1f(reliefProg.uniforms.u_depthSign, invert ? -depth : depth);
+  }, vao);
+
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (rendered) {
+    logFilterBackend("Motion Relief", "WebGL2", `depth=${depth} decay=${decay}`);
+    return rendered;
+  }
+  return glUnavailableStub(W, H);
 };
 
 export default defineFilter({
@@ -142,4 +236,5 @@ export default defineFilter({
   defaults,
   description: "Convert recent motion history into embossed grayscale surface shading so change reads like raised relief",
   temporal: true,
+  requiresGL: true,
 });

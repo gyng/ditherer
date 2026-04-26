@@ -233,6 +233,7 @@ import octreeQuantize from "./octreeQuantize";
 import frequencyFilter from "./frequencyFilter";
 import metadataMismatchDecode from "./metadataMismatchDecode";
 import temporalMedian from "./temporalMedian";
+import temporalAA from "./temporalAA";
 import mobius from "./mobius";
 import droste from "./droste";
 import anamorphicCylinder from "./anamorphicCylinder";
@@ -348,6 +349,7 @@ export { default as crcStripeReject } from "./crcStripeReject";
 export { default as infiniteCallWindows } from "./infiniteCallWindows";
 export { default as flipDotDisplay } from "./flipDotDisplay";
 export { default as temporalMedian } from "./temporalMedian";
+export { default as temporalAA } from "./temporalAA";
 export { default as mobius } from "./mobius";
 export { default as droste } from "./droste";
 export { default as anamorphicCylinder } from "./anamorphicCylinder";
@@ -886,6 +888,7 @@ export const filterList = [
   { displayName: "Keyframe Smear", filter: keyframeSmear, category: "Stylize", description: "Capture sparse keyframes and drag them through in-between frames for compressed temporal smearing" },
   { displayName: "Ink Drying", filter: temporalInkDrying, category: "Stylize", description: "Fresh dark marks stay wet, bleed slightly, and then dry back toward the page" },
   { displayName: "Time Median", filter: temporalMedian, category: "Simulate", description: "Per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure" },
+  { displayName: "Temporal AA", filter: temporalAA, category: "Blur & Edges", description: "Blend previous output into the current frame with neighborhood color clamping — temporal anti-aliasing that smooths flicker and shimmer without ghosting" },
   { displayName: "Color Cycle", filter: temporalColorCycle, category: "Color", description: "Hue rotates over time — moving areas cycle faster into rainbow trails" },
   { displayName: "Poster Hold", filter: temporalPosterHold, category: "Color", description: "Posterized tone bands update with hysteresis so broad regions hold before snapping to new values" },
   { displayName: "Motion Relief", filter: temporalRelief, category: "Blur & Edges", description: "Turn recent change history into embossed grayscale relief shading" },

@@ -1,21 +1,18 @@
 import { ACTION, RANGE } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
-import { cloneCanvas } from "utils";
-
-let keyframeBuf: Uint8ClampedArray | null = null;
-let keyframeWidth = 0;
-let keyframeHeight = 0;
-let keyframeIntervalCache = 0;
-let framesSinceCapture = 0;
-let lastFrameIndex = -1;
-
-const resetKeyframe = (source: Uint8ClampedArray, width: number, height: number, interval: number) => {
-  keyframeBuf = new Uint8ClampedArray(source);
-  keyframeWidth = width;
-  keyframeHeight = height;
-  keyframeIntervalCache = interval;
-  framesSinceCapture = 0;
-};
+import { logFilterBackend } from "utils";
+import {
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+} from "gl";
 
 export const optionTypes = {
   keyframeInterval: { type: RANGE, range: [2, 30], step: 1, default: 8, desc: "How many frames pass before a new keyframe is captured" },
@@ -44,48 +41,84 @@ type KeyframeSmearOptions = FilterOptionValues & {
   _frameIndex?: number;
 };
 
+const FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_source;
+uniform sampler2D u_keyframe;
+uniform float u_smearMix;
+
+void main() {
+  vec3 cur = texture(u_source, v_uv).rgb;
+  vec3 key = texture(u_keyframe, v_uv).rgb;
+  fragColor = vec4(key * u_smearMix + cur * (1.0 - u_smearMix), 1.0);
+}
+`;
+
+let _prog: Program | null = null;
+let _intervalCache = 0;
+let _framesSinceCapture = 0;
+let _lastFrameIndex = -1;
+
+const getProg = (gl: WebGL2RenderingContext): Program => {
+  if (_prog) return _prog;
+  _prog = linkProgram(gl, FS, ["u_source", "u_keyframe", "u_smearMix"] as const);
+  return _prog;
+};
+
 const keyframeSmear = (input: any, options: KeyframeSmearOptions = defaults) => {
   const keyframeInterval = Math.max(2, Math.round(Number(options.keyframeInterval ?? defaults.keyframeInterval)));
   const smear = Math.max(0, Math.min(1, Number(options.smear ?? defaults.smear)));
   const frameIndex = Number(options._frameIndex ?? 0);
+  const W = input.width, H = input.height;
 
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
+  const ctx = getGLCtx();
+  if (!ctx) return glUnavailableStub(W, H);
 
-  const width = input.width;
-  const height = input.height;
-  const source = inputCtx.getImageData(0, 0, width, height).data;
-  const restartedAnimation = frameIndex === 0 && lastFrameIndex > 0;
+  const { gl, canvas } = ctx;
+  const prog = getProg(gl);
+  const vao = getQuadVAO(gl);
+  resizeGLCanvas(canvas, W, H);
 
-  if (
-    !keyframeBuf ||
-    keyframeWidth !== width ||
-    keyframeHeight !== height ||
-    keyframeIntervalCache !== keyframeInterval ||
-    restartedAnimation
-  ) {
-    resetKeyframe(source, width, height, keyframeInterval);
-  } else if (framesSinceCapture >= keyframeInterval) {
-    resetKeyframe(source, width, height, keyframeInterval);
+  const sourceTex = ensureTexture(gl, "keyframeSmear:source", W, H);
+  uploadSourceTexture(gl, sourceTex, input);
+
+  const keyTex = ensureTexture(gl, "keyframeSmear:keyframe", W, H);
+  const restarted = frameIndex === 0 && _lastFrameIndex > 0;
+  if (_intervalCache !== keyframeInterval || restarted) {
+    _intervalCache = keyframeInterval;
+    _framesSinceCapture = keyframeInterval; // force capture this frame
   }
-  lastFrameIndex = frameIndex;
+  if (_framesSinceCapture >= keyframeInterval) {
+    gl.bindTexture(gl.TEXTURE_2D, keyTex.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, input as TexImageSource);
+    _framesSinceCapture = 0;
+  }
+  _lastFrameIndex = frameIndex;
 
-  const phase = Math.min(1, framesSinceCapture / Math.max(1, keyframeInterval));
+  const phase = Math.min(1, _framesSinceCapture / Math.max(1, keyframeInterval));
   const smearMix = smear * (1 - phase * 0.45);
-  const outBuf = new Uint8ClampedArray(source.length);
 
-  for (let i = 0; i < source.length; i += 4) {
-    outBuf[i] = Math.round(keyframeBuf![i] * smearMix + source[i] * (1 - smearMix));
-    outBuf[i + 1] = Math.round(keyframeBuf![i + 1] * smearMix + source[i + 1] * (1 - smearMix));
-    outBuf[i + 2] = Math.round(keyframeBuf![i + 2] * smearMix + source[i + 2] * (1 - smearMix));
-    outBuf[i + 3] = source[i + 3];
+  drawPass(gl, null, W, H, prog, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(prog.uniforms.u_source, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, keyTex.tex);
+    gl.uniform1i(prog.uniforms.u_keyframe, 1);
+    gl.uniform1f(prog.uniforms.u_smearMix, smearMix);
+  }, vao);
+
+  _framesSinceCapture++;
+
+  const rendered = readoutToCanvas(canvas, W, H);
+  if (rendered) {
+    logFilterBackend("Keyframe Smear", "WebGL2", `interval=${keyframeInterval} smear=${smear}`);
+    return rendered;
   }
-
-  framesSinceCapture += 1;
-  outputCtx.putImageData(new ImageData(outBuf, width, height), 0, 0);
-  return output;
+  return glUnavailableStub(W, H);
 };
 
 export default defineFilter({
@@ -96,4 +129,5 @@ export default defineFilter({
   defaults,
   description: "Capture sparse keyframes and drag them through the in-between frames for compressed, smeared temporal interpolation",
   temporal: true,
+  requiresGL: true,
 });

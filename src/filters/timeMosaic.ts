@@ -249,4 +249,13 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Time Mosaic", func: timeMosaic, optionTypes, options: defaults, defaults, description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views" , temporal: true });
+export default defineFilter({
+  name: "Time Mosaic",
+  func: timeMosaic,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views",
+  temporal: true,
+  noGL: "DELAY_MAP behavior is GL-portable (per-tile delay → sampler2DArray) but STABILIZER needs per-tile motion accumulators + age counters that would require a second small render target keyed by tile. Move once the stabilizer is split out or the tile-state pass lands.",
+});
