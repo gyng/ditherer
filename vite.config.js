@@ -85,6 +85,34 @@ export default defineConfig({
         "src/gl/**",
         "src/glSmoke.ts",
         "src/wasmSmoke.ts",
+        // requiresGL: true filters bundle the GL pass directly instead of
+        // delegating to a *GL.ts sibling. Same coverage story as above:
+        // shader bodies run only under gl-smoke. The dispatcher's stub path
+        // means the filter func itself is never called in jsdom, so even
+        // the early returns are dead in this report.
+        "src/filters/abaBounce.ts",
+        "src/filters/abaGhost.ts",
+        "src/filters/abaRebound.ts",
+        "src/filters/backgroundSubtraction.ts",
+        "src/filters/cameraShake.ts",
+        "src/filters/chronophotography.ts",
+        "src/filters/crtDegauss.ts",
+        "src/filters/echoCombiner.ts",
+        "src/filters/flicker.ts",
+        "src/filters/frequencyFilter.ts",
+        "src/filters/keyframeSmear.ts",
+        "src/filters/longExposure.ts",
+        "src/filters/motionDetect.ts",
+        "src/filters/phosphorDecay.ts",
+        "src/filters/povBands.ts",
+        "src/filters/slitScan.ts",
+        "src/filters/temporalAA.ts",
+        "src/filters/temporalEdge.ts",
+        "src/filters/temporalInkDrying.ts",
+        "src/filters/temporalPosterHold.ts",
+        "src/filters/temporalRelief.ts",
+        "src/filters/videoFeedback.ts",
+        "src/filters/wakeTurbulence.ts",
         // Integration-only surfaces — no discrete unit-testable functions,
         // exercised end-to-end by Playwright against the running app.
         //   • App/index.tsx is a 3500-line component shell
@@ -109,12 +137,14 @@ export default defineConfig({
       //     therefore caps around 20-25%. Raising this floor meaningfully
       //     will require routing Playwright coverage through istanbul-merge.
       // Bump these back up when either a Playwright coverage merge lands
-      // or when a given area gets unit-testable coverage.
+      // or when a given area gets unit-testable coverage. (Floors stepped
+      // down after porting 21 temporal filters from JS reference paths to
+      // requiresGL: true — gl-smoke covers them, this report can't see it.)
       thresholds: {
-        lines: 55,
+        lines: 53,
         functions: 44,
-        statements: 55,
-        branches: 36,
+        statements: 54,
+        branches: 34,
       },
     },
     deps: {
