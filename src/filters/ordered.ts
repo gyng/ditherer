@@ -1,4 +1,4 @@
-import { ACTION, ENUM, PALETTE, RANGE } from "constants/controlTypes";
+import { ACTION, ENUM, PALETTE, RANGE, THRESHOLD_MAP_PREVIEW } from "constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "filters/types";
 import { nearest } from "palettes";
 import { BLUE_NOISE_MAP, BLUE_NOISE_SIZE, BLUE_NOISE_LEVELS } from "./blueNoise64";
@@ -23,6 +23,39 @@ export const DISPERSED_DOT_3X3 = "DISPERSED_DOT_3X3";
 export const PATTERN_5X5 = "PATTERN_5X5";
 export const BLUE_NOISE_16X16 = "BLUE_NOISE_16X16";
 export const BLUE_NOISE_64X64 = "BLUE_NOISE_64X64";
+export const WHITE_NOISE_64X64 = "WHITE_NOISE_64X64";
+
+export const THRESHOLD_POLARITY = {
+  SHADOW: "SHADOW",
+  CLASSIC: "CLASSIC",
+} as const;
+
+const WHITE_NOISE_SIZE = 64;
+const WHITE_NOISE_LEVELS = WHITE_NOISE_SIZE * WHITE_NOISE_SIZE;
+
+const hash32 = (value: number) => {
+  let x = value >>> 0;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x7feb352d);
+  x ^= x >>> 15;
+  x = Math.imul(x, 0x846ca68b);
+  x ^= x >>> 16;
+  return x >>> 0;
+};
+
+const generateWhiteNoiseMap = (size: number, seed: number) => {
+  const cells = Array.from({ length: size * size }, (_, i) => ({
+    i,
+    v: hash32(i + seed),
+  })).sort((a, b) => a.v - b.v || a.i - b.i);
+  const ranks = new Array<number>(size * size);
+  for (let rank = 0; rank < cells.length; rank++) ranks[cells[rank].i] = rank / cells.length;
+  const map: number[][] = [];
+  for (let y = 0; y < size; y++) {
+    map.push(ranks.slice(y * size, (y + 1) * size));
+  }
+  return map;
+};
 
 // map[y][x]
 const thresholdMaps = {
@@ -187,7 +220,62 @@ const thresholdMaps = {
     width: BLUE_NOISE_SIZE,
     thresholdMap: BLUE_NOISE_MAP,
     levels: BLUE_NOISE_LEVELS
+  },
+  [WHITE_NOISE_64X64]: {
+    width: WHITE_NOISE_SIZE,
+    thresholdMap: generateWhiteNoiseMap(WHITE_NOISE_SIZE, 0xd17b3d),
+    levels: WHITE_NOISE_LEVELS
   }
+};
+
+type ThresholdMapKey = keyof typeof thresholdMaps;
+
+const thresholdMapLabels: Record<ThresholdMapKey, string> = {
+  [BAYER_2X2]: "Bayer 2x2",
+  [BAYER_3X3]: "Bayer 3x3",
+  [BAYER_4X4]: "Bayer 4x4",
+  [BAYER_8X8]: "Bayer 8x8",
+  [BAYER_16X16]: "Bayer 16x16",
+  [SQUARE_5X5]: "Digital Halftone 5x8",
+  [CORNER_4X4]: "Corner 4x4",
+  [BLOCK_VERTICAL_4X4]: "Block Vertical 4x4",
+  [BLOCK_HORIZONTAL_4X4]: "Block Horizontal 4x4",
+  [HATCH_2X2]: "Hatch 2x2",
+  [HATCH_3X3]: "Hatch 3x3",
+  [HATCH_4X4]: "Hatch 4x4",
+  [ALTERNATE_3X3]: "Alternate 3x3",
+  [DISPERSED_DOT_3X3]: "Dispersed Dot 3x3",
+  [PATTERN_5X5]: "Hatch 2x2 x3",
+  [BLUE_NOISE_16X16]: "Blue Noise 16x16",
+  [BLUE_NOISE_64X64]: "Blue Noise 64x64",
+  [WHITE_NOISE_64X64]: "White Noise 64x64",
+};
+
+const resolveThresholdMapKey = (key: string): ThresholdMapKey =>
+  key in thresholdMaps ? key as ThresholdMapKey : HATCH_2X2;
+
+const applyThresholdPolarity = (
+  map: Array<Array<number | null>>,
+  polarity: string,
+) => polarity === THRESHOLD_POLARITY.CLASSIC
+  ? map.map(row => row.map(value => 1 - (value ?? 0)))
+  : map.map(row => row.map(value => value ?? 0));
+
+export const getOrderedThresholdMapPreview = (
+  key: string,
+  polarity: string = THRESHOLD_POLARITY.SHADOW,
+) => {
+  const resolvedKey = resolveThresholdMapKey(key);
+  const threshold = thresholdMaps[resolvedKey];
+  const thresholdMap = applyThresholdPolarity(threshold.thresholdMap, polarity);
+  return {
+    key: resolvedKey,
+    name: thresholdMapLabels[resolvedKey],
+    width: threshold.thresholdMap[0]?.length ?? threshold.width,
+    height: threshold.thresholdMap.length,
+    levels: "levels" in threshold ? threshold.levels : threshold.width * threshold.width,
+    thresholdMap,
+  };
 };
 
 type OrderedPalette = {
@@ -200,7 +288,8 @@ type OrderedPalette = {
 
 type OrderedOptions = FilterOptionValues & {
   palette?: OrderedPalette;
-  thresholdMap?: keyof typeof thresholdMaps;
+  thresholdMap?: ThresholdMapKey;
+  thresholdPolarity?: string;
   thresholdMapScaleX?: number;
   thresholdMapScaleY?: number;
   temporalPhases?: number;
@@ -229,10 +318,27 @@ export const optionTypes = {
       { name: "Alternate 3×3", value: ALTERNATE_3X3 },
       { name: "Hatch 2×2 ×3", value: PATTERN_5X5 },
       { name: "Blue Noise 16×16", value: BLUE_NOISE_16X16 },
-      { name: "Blue Noise 64×64", value: BLUE_NOISE_64X64 }
+      { name: "Blue Noise 64×64", value: BLUE_NOISE_64X64 },
+      { name: "White Noise 64×64", value: WHITE_NOISE_64X64 }
     ],
     default: HATCH_2X2,
     desc: "Dither pattern — larger matrices produce smoother gradients"
+  },
+  thresholdPolarity: {
+    type: ENUM,
+    options: [
+      { name: "Shadow-preserving", value: THRESHOLD_POLARITY.SHADOW },
+      { name: "Classic bright", value: THRESHOLD_POLARITY.CLASSIC },
+    ],
+    default: THRESHOLD_POLARITY.SHADOW,
+    desc: "Threshold polarity. Classic Bayer brightens near-black regions; shadow-preserving keeps the existing darker bias."
+  },
+  thresholdPreview: {
+    type: THRESHOLD_MAP_PREVIEW,
+    label: "Threshold map",
+    sourceOption: "thresholdMap",
+    polarityOption: "thresholdPolarity",
+    desc: "Preview of the tiled threshold texture"
   },
   thresholdMapScaleX: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern horizontally" },
   thresholdMapScaleY: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern vertically" },
@@ -244,10 +350,11 @@ export const optionTypes = {
   palette: { type: PALETTE, default: nearest }
 };
 
-const defaultThresholdMap = optionTypes.thresholdMap.default as keyof typeof thresholdMaps;
+const defaultThresholdMap = optionTypes.thresholdMap.default as ThresholdMapKey;
 
 const defaults: OrderedOptions = {
   thresholdMap: defaultThresholdMap,
+  thresholdPolarity: optionTypes.thresholdPolarity.default,
   thresholdMapScaleX: optionTypes.thresholdMapScaleX.default,
   thresholdMapScaleY: optionTypes.thresholdMapScaleY.default,
   temporalPhases: optionTypes.temporalPhases.default,
@@ -260,7 +367,8 @@ const defaults: OrderedOptions = {
 // (RGB / redmean / HSV / LAB) implemented in-shader, plus sRGB / linear modes.
 const ordered = (input: any, options: OrderedOptions = defaults) => {
   const palette = options.palette ?? defaults.palette;
-  const thresholdMapKey = options.thresholdMap ?? defaultThresholdMap;
+  const thresholdMapKey = resolveThresholdMapKey(options.thresholdMap ?? defaultThresholdMap);
+  const thresholdPolarity = options.thresholdPolarity ?? defaults.thresholdPolarity;
   const thresholdMapScaleX = typeof options.thresholdMapScaleX === "number" ? options.thresholdMapScaleX : defaults.thresholdMapScaleX ?? 1;
   const thresholdMapScaleY = typeof options.thresholdMapScaleY === "number" ? options.thresholdMapScaleY : defaults.thresholdMapScaleY ?? 1;
   const temporalPhases = typeof options.temporalPhases === "number" ? options.temporalPhases : defaults.temporalPhases ?? 1;
@@ -299,6 +407,7 @@ const ordered = (input: any, options: OrderedOptions = defaults) => {
     tempOffsetX: temporalOffsetX,
     tempOffsetY: temporalOffsetY,
     levels,
+    invertThreshold: thresholdPolarity === THRESHOLD_POLARITY.CLASSIC,
     linearize: !!options._linearize,
     palMode,
     paletteRgb: palMode === ORDERED_PAL_MODE.LEVELS ? null : (pOpts?.colors ?? null),
@@ -307,7 +416,7 @@ const ordered = (input: any, options: OrderedOptions = defaults) => {
   if (!rendered) return input;
   const space = options._linearize ? "linear" : "sRGB";
   const palLabel = palMode === ORDERED_PAL_MODE.LEVELS ? `levels=${pOpts?.levels ?? levels}` : `algo=${algo}`;
-  logFilterBackend("Ordered", "WebGL2", `${space} ${thresholdMapKey} ${palLabel}`);
+  logFilterBackend("Ordered", "WebGL2", `${space} ${thresholdMapKey} ${thresholdPolarity} ${palLabel}`);
   return rendered;
 };
 

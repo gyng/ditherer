@@ -377,6 +377,268 @@ fn lin_to_srgb_u8(l: f32, lut: &[u8; LIN_LUT_SIZE], thresholds: &[f32; 255]) -> 
     u
 }
 
+#[inline]
+fn next_power_of_two_usize(value: usize) -> usize {
+    let mut n = 1usize;
+    while n < value { n <<= 1; }
+    n
+}
+
+#[inline]
+fn rotate_hilbert(n: usize, mut x: usize, mut y: usize, rx: usize, ry: usize) -> (usize, usize) {
+    if ry != 0 { return (x, y); }
+    if rx == 1 {
+        x = n - 1 - x;
+        y = n - 1 - y;
+    }
+    (y, x)
+}
+
+#[inline]
+fn hilbert_index_to_xy(n: usize, mut d: usize) -> (usize, usize) {
+    let mut x = 0usize;
+    let mut y = 0usize;
+    let mut s = 1usize;
+    while s < n {
+        let rx = 1 & (d >> 1);
+        let ry = 1 & (d ^ rx);
+        (x, y) = rotate_hilbert(s, x, y, rx, ry);
+        x += s * rx;
+        y += s * ry;
+        d >>= 2;
+        s <<= 1;
+    }
+    (x, y)
+}
+
+#[inline]
+fn build_palette_tables(
+    palette_mode: u32,
+    palette: &[f64],
+    ref_x: f64,
+    ref_y: f64,
+    ref_z: f64,
+) -> (Vec<[u8; 4]>, Vec<[f64; 3]>, Vec<[f64; 3]>) {
+    let n_colors = palette.len() / 4;
+    let mut pal_rgba: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
+    let mut pal_lab: Vec<[f64; 3]> = Vec::new();
+    let mut pal_hsv: Vec<[f64; 3]> = Vec::new();
+    for i in 0..n_colors {
+        let r = palette[i*4]; let g = palette[i*4+1]; let b = palette[i*4+2]; let a = palette[i*4+3];
+        pal_rgba.push([r as u8, g as u8, b as u8, a as u8]);
+        match palette_mode {
+            PAL_MODE_LAB => pal_lab.push(rgba2lab_inline(r, g, b, ref_x, ref_y, ref_z)),
+            PAL_MODE_HSV => pal_hsv.push(rgb_to_hsv(r, g, b)),
+            _ => {}
+        }
+    }
+    (pal_rgba, pal_lab, pal_hsv)
+}
+
+#[inline]
+fn palette_match_rgb(
+    sr: f32,
+    sg: f32,
+    sb: f32,
+    palette_mode: u32,
+    levels: u32,
+    pal_rgba: &[[u8; 4]],
+    pal_lab: &[[f64; 3]],
+    pal_hsv: &[[f64; 3]],
+    ref_x: f64,
+    ref_y: f64,
+    ref_z: f64,
+) -> (f32, f32, f32, u8, u8, u8) {
+    let step = if levels > 1 { 255.0 / (levels as f32 - 1.0) } else { 255.0 };
+    match palette_mode {
+        PAL_MODE_LEVELS => {
+            let qr = quant_levels_channel(sr, step);
+            let qg = quant_levels_channel(sg, step);
+            let qb = quant_levels_channel(sb, step);
+            (qr, qg, qb, clamp_u8_f32(qr), clamp_u8_f32(qg), clamp_u8_f32(qb))
+        }
+        PAL_MODE_RGB => {
+            let mut best = 0usize;
+            let mut best_d = f32::MAX;
+            for (j, c) in pal_rgba.iter().enumerate() {
+                let dr = sr - c[0] as f32;
+                let dg = sg - c[1] as f32;
+                let db = sb - c[2] as f32;
+                let d = dr*dr + dg*dg + db*db;
+                if d < best_d { best_d = d; best = j; }
+            }
+            let c = pal_rgba[best];
+            (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
+        }
+        PAL_MODE_RGB_APPROX => {
+            let mut best = 0usize;
+            let mut best_d = f32::MAX;
+            for (j, c) in pal_rgba.iter().enumerate() {
+                let rm = (sr + c[0] as f32) / 2.0;
+                let dr = sr - c[0] as f32;
+                let dg = sg - c[1] as f32;
+                let db = sb - c[2] as f32;
+                let d = (2.0 + rm / 256.0) * dr * dr
+                    + 4.0 * dg * dg
+                    + (2.0 + (255.0 - rm) / 256.0) * db * db;
+                if d < best_d { best_d = d; best = j; }
+            }
+            let c = pal_rgba[best];
+            (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
+        }
+        PAL_MODE_HSV => {
+            let px = rgb_to_hsv(sr as f64, sg as f64, sb as f64);
+            let mut best = 0usize;
+            let mut best_d = f64::MAX;
+            for (j, ph) in pal_hsv.iter().enumerate() {
+                let dh_abs = (px[0] - ph[0]).abs();
+                let dh = dh_abs.min(360.0 - dh_abs) / 180.0;
+                let ds = (px[1] - ph[1]).abs();
+                let dv = (px[2] - ph[2]).abs();
+                let d = dh*dh + ds*ds + dv*dv;
+                if d < best_d { best_d = d; best = j; }
+            }
+            let c = pal_rgba[best];
+            (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
+        }
+        PAL_MODE_LAB => {
+            let px = rgba2lab_inline(sr as f64, sg as f64, sb as f64, ref_x, ref_y, ref_z);
+            let mut best = 0usize;
+            let mut best_d = f64::MAX;
+            for (j, pl) in pal_lab.iter().enumerate() {
+                let d = (px[0]-pl[0]).powi(2)+(px[1]-pl[1]).powi(2)+(px[2]-pl[2]).powi(2);
+                if d < best_d { best_d = d; best = j; }
+            }
+            let c = pal_rgba[best];
+            (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
+        }
+        _ => (0.0, 0.0, 0.0, 0, 0, 0),
+    }
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn riemersma_dither(
+    input: &[u8],
+    output: &mut [u8],
+    width: u32,
+    height: u32,
+    memory_length: u32,
+    falloff_ratio: f32,
+    error_strength: f32,
+    linearize: bool,
+    palette_mode: u32,
+    levels: u32,
+    palette: &[f64],
+    ref_x: f64,
+    ref_y: f64,
+    ref_z: f64,
+) {
+    let w = width as usize;
+    let h = height as usize;
+    let n_pixels = w * h;
+    if input.len() < n_pixels * 4 || output.len() < n_pixels * 4 { return; }
+
+    let memory_len = memory_length.max(1) as usize;
+    let ratio = falloff_ratio.clamp(0.0001, 1.0);
+    let mut weights = vec![0.0f32; memory_len];
+    let mut weight_total = 0.0f32;
+    for age in 0..memory_len {
+        let t = if memory_len == 1 { 0.0 } else { age as f32 / (memory_len as f32 - 1.0) };
+        let weight = ratio.powf(t);
+        weights[age] = weight;
+        weight_total += weight;
+    }
+
+    let mut err_r = vec![0.0f32; memory_len];
+    let mut err_g = vec![0.0f32; memory_len];
+    let mut err_b = vec![0.0f32; memory_len];
+    let mut err_head = 0usize;
+    let mut err_count = 0usize;
+
+    let lut = srgb_to_lin_lut();
+    let (lin_lut, lin_thresholds) = init_lin_luts();
+    let (pal_rgba, pal_lab, pal_hsv) = build_palette_tables(palette_mode, palette, ref_x, ref_y, ref_z);
+    if palette_mode != PAL_MODE_LEVELS && pal_rgba.is_empty() { return; }
+
+    let curve_size = next_power_of_two_usize(w.max(h));
+    let curve_pixels = curve_size * curve_size;
+    let scale = if linearize { 1.0 } else { 255.0 };
+
+    for d in 0..curve_pixels {
+        let (x, y) = hilbert_index_to_xy(curve_size, d);
+        if x >= w || y >= h { continue; }
+        let i = (y * w + x) * 4;
+
+        let active = err_count.min(memory_len);
+        let mut carry_r = 0.0f32;
+        let mut carry_g = 0.0f32;
+        let mut carry_b = 0.0f32;
+        for age in 0..active {
+            let slot = (err_head + memory_len - 1 - age) % memory_len;
+            let weight = weights[age] / weight_total;
+            carry_r += err_r[slot] * weight;
+            carry_g += err_g[slot] * weight;
+            carry_b += err_b[slot] * weight;
+        }
+
+        let (base_r, base_g, base_b) = unsafe {
+            if linearize {
+                (
+                    *lut.get_unchecked(*input.get_unchecked(i) as usize),
+                    *lut.get_unchecked(*input.get_unchecked(i + 1) as usize),
+                    *lut.get_unchecked(*input.get_unchecked(i + 2) as usize),
+                )
+            } else {
+                (
+                    *input.get_unchecked(i) as f32,
+                    *input.get_unchecked(i + 1) as f32,
+                    *input.get_unchecked(i + 2) as f32,
+                )
+            }
+        };
+
+        let r = (base_r + carry_r * error_strength).clamp(0.0, scale);
+        let g = (base_g + carry_g * error_strength).clamp(0.0, scale);
+        let b = (base_b + carry_b * error_strength).clamp(0.0, scale);
+
+        let (sr, sg, sb) = if linearize {
+            (
+                lin_to_srgb_u8(r, lin_lut, lin_thresholds) as f32,
+                lin_to_srgb_u8(g, lin_lut, lin_thresholds) as f32,
+                lin_to_srgb_u8(b, lin_lut, lin_thresholds) as f32,
+            )
+        } else {
+            (r, g, b)
+        };
+
+        let (mut qr_f, mut qg_f, mut qb_f, qr_u8, qg_u8, qb_u8) = palette_match_rgb(
+            sr, sg, sb, palette_mode, levels,
+            &pal_rgba, &pal_lab, &pal_hsv,
+            ref_x, ref_y, ref_z,
+        );
+
+        if linearize {
+            qr_f = lut[qr_u8 as usize];
+            qg_f = lut[qg_u8 as usize];
+            qb_f = lut[qb_u8 as usize];
+        }
+
+        unsafe {
+            *output.get_unchecked_mut(i) = qr_u8;
+            *output.get_unchecked_mut(i + 1) = qg_u8;
+            *output.get_unchecked_mut(i + 2) = qb_u8;
+            *output.get_unchecked_mut(i + 3) = *input.get_unchecked(i + 3);
+        }
+
+        err_r[err_head] = r - qr_f;
+        err_g[err_head] = g - qg_f;
+        err_b[err_head] = b - qb_f;
+        err_head = (err_head + 1) % memory_len;
+        err_count += 1;
+    }
+}
+
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn error_diffuse_buffer(
@@ -977,4 +1239,3 @@ pub fn apply_channel_lut(
 // the JS side (palette because `applyPaletteToBuffer` is already reusable;
 // temporal hold because it's a per-block copy from prevOutput, faster with
 // the JS buffer than an extra WASM round-trip).
-

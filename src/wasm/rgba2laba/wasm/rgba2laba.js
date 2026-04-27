@@ -201,6 +201,32 @@ export function rgba_nearest_lab_index(r, g, b, a, palette, ref_x, ref_y, ref_z)
     return ret >>> 0;
 }
 
+/**
+ * @param {Uint8Array} input
+ * @param {Uint8Array} output
+ * @param {number} width
+ * @param {number} height
+ * @param {number} memory_length
+ * @param {number} falloff_ratio
+ * @param {number} error_strength
+ * @param {boolean} linearize
+ * @param {number} palette_mode
+ * @param {number} levels
+ * @param {Float64Array} palette
+ * @param {number} ref_x
+ * @param {number} ref_y
+ * @param {number} ref_z
+ */
+export function riemersma_dither(input, output, width, height, memory_length, falloff_ratio, error_strength, linearize, palette_mode, levels, palette, ref_x, ref_y, ref_z) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = passArray8ToWasm0(output, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    wasm.riemersma_dither(ptr0, len0, ptr1, len1, output, width, height, memory_length, falloff_ratio, error_strength, linearize, palette_mode, levels, ptr2, len2, ref_x, ref_y, ref_z);
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

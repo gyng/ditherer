@@ -6,6 +6,7 @@ import type {
   FilterOptionValues,
   PaletteOptionDefinition,
   RangeOptionDefinition,
+  ThresholdMapPreviewOptionDefinition,
 } from "filters/types";
 import type { NestedControlsProps, PaletteValue } from "./types";
 
@@ -19,7 +20,8 @@ import {
   STRING,
   TEXT,
   PALETTE,
-  CURVE
+  CURVE,
+  THRESHOLD_MAP_PREVIEW
 } from "constants/controlTypes";
 
 import { useFilter } from "context/useFilter";
@@ -33,6 +35,7 @@ import Textly from "./Textly";
 import ColorArray from "./ColorArray";
 import ColorPicker from "./ColorPicker";
 import Curve from "./Curve";
+import ThresholdMapPreview from "./ThresholdMapPreview";
 
 import s from "./styles.module.css";
 
@@ -176,6 +179,21 @@ const Controls = (props: NestedControlsProps) => {
                 onSetFilterOption={onSetFilterOption}
               />
             );
+          case THRESHOLD_MAP_PREVIEW:
+            {
+              const previewType = oType as ThresholdMapPreviewOptionDefinition;
+            return (
+              <ThresholdMapPreview
+                key={name}
+                name={name}
+                label={previewType.label}
+                desc={previewType.desc}
+                options={options}
+                sourceOption={previewType.sourceOption}
+                polarityOption={previewType.polarityOption}
+              />
+            );
+            }
           case BOOL:
             return (
               <Bool

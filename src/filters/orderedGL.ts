@@ -35,6 +35,7 @@ uniform ivec2 u_mapBaseSize;        // unscaled threshold-map dimensions
 uniform ivec2 u_mapScale;           // thresholdMapScaleX, thresholdMapScaleY
 uniform ivec2 u_tempOffset;         // temporalOffsetX, temporalOffsetY
 uniform float u_levels;
+uniform int   u_invertThreshold;    // 1 = 1.0 - threshold before bias
 uniform int   u_linearize;          // 0 = sRGB, 1 = linear
 uniform int   u_palMode;            // 0 LEVELS, 1 RGB, 2 RGB_APPROX, 3 HSV, 4 LAB
 uniform int   u_paletteCount;
@@ -99,6 +100,7 @@ void main() {
   int tix = tixAbs / u_mapScale.x;
   int tiy = tiyAbs / u_mapScale.y;
   float threshold = texelFetch(u_threshold, ivec2(tix, tiy), 0).r;
+  if (u_invertThreshold == 1) threshold = 1.0 - threshold;
 
   // --- Dither + quantise ---
   vec3 quant;
@@ -167,7 +169,7 @@ let _cache: Cache | null = null;
 
 const uniformNames = [
   "u_source", "u_threshold", "u_res", "u_mapBaseSize", "u_mapScale",
-  "u_tempOffset", "u_levels", "u_linearize", "u_palMode", "u_paletteCount",
+  "u_tempOffset", "u_levels", "u_invertThreshold", "u_linearize", "u_palMode", "u_paletteCount",
   "u_paletteRgb[0]", "u_paletteAux[0]", "u_labRef",
 ];
 
@@ -261,6 +263,7 @@ export const renderOrderedGL = (
     tempOffsetX: number;
     tempOffsetY: number;
     levels: number;
+    invertThreshold: boolean;
     linearize: boolean;
     palMode: number;
     paletteRgb: number[][] | null;   // 0..255 RGB list, or null for LEVELS mode
@@ -313,6 +316,7 @@ export const renderOrderedGL = (
     gl.uniform2i(cache.prog.uniforms.u_mapScale, opts.mapScaleX, opts.mapScaleY);
     gl.uniform2i(cache.prog.uniforms.u_tempOffset, opts.tempOffsetX, opts.tempOffsetY);
     gl.uniform1f(cache.prog.uniforms.u_levels, opts.levels);
+    gl.uniform1i(cache.prog.uniforms.u_invertThreshold, opts.invertThreshold ? 1 : 0);
     gl.uniform1i(cache.prog.uniforms.u_linearize, opts.linearize ? 1 : 0);
     gl.uniform1i(cache.prog.uniforms.u_palMode, opts.palMode);
     gl.uniform1i(cache.prog.uniforms.u_paletteCount, paletteCount);

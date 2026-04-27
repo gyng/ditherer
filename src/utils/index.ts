@@ -190,6 +190,7 @@ const bindWasmModule = (mod: typeof import("wasm/rgba2laba/wasm/rgba2laba")) => 
   wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
   wasmErrorDiffuseBufferInner = mod.error_diffuse_buffer;
   wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
+  wasmRiemersmaDitherInner = mod.riemersma_dither;
   wasmApplyChannelLutInner = mod.apply_channel_lut;
   wasmLoadedFlag = true;
 };
@@ -214,7 +215,7 @@ export const initWasmFromBinary = async (binary: BufferSource): Promise<boolean>
     const mod = await import("wasm/rgba2laba/wasm/rgba2laba");
     // Pass the raw binary as the module_or_path param — wasm-bindgen's init
     // accepts a BufferSource directly (skips the fetch path).
-    await mod.default(binary as unknown as Parameters<typeof mod.default>[0]);
+    await mod.default({ module_or_path: binary });
     bindWasmModule(mod);
     return true;
   } catch (err) {
@@ -478,6 +479,24 @@ type WasmErrorDiffuseBufferFn = {
     refZ: number,
   ): void;
 }["bivarianceHack"];
+type WasmRiemersmaDitherFn = {
+  bivarianceHack(
+    input: Uint8Array | Uint8ClampedArray,
+    output: Uint8Array | Uint8ClampedArray,
+    width: number,
+    height: number,
+    memoryLength: number,
+    falloffRatio: number,
+    errorStrength: number,
+    linearize: boolean,
+    paletteMode: number,
+    levels: number,
+    palette: Float64Array,
+    refX: number,
+    refY: number,
+    refZ: number,
+  ): void;
+}["bivarianceHack"];
 
 const wasmNearestLabPrecomputedInnerDefault: WasmNearestLabPrecomputedFn = () => {
   console.error("WASM module not loaded!");
@@ -494,6 +513,9 @@ const wasmErrorDiffuseBufferInnerDefault: WasmErrorDiffuseBufferFn = () => {
 const wasmErrorDiffuseCustomInnerDefault: WasmErrorDiffuseCustomFn = () => {
   console.error("WASM module not loaded!");
 };
+const wasmRiemersmaDitherInnerDefault: WasmRiemersmaDitherFn = () => {
+  console.error("WASM module not loaded!");
+};
 const wasmApplyChannelLutInnerDefault: WasmApplyChannelLutFn = () => {
   console.error("WASM module not loaded!");
 };
@@ -502,6 +524,7 @@ let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn = wasmNearestLab
 let wasmQuantizeBufferRgbInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 let wasmErrorDiffuseBufferInner: WasmErrorDiffuseBufferFn = wasmErrorDiffuseBufferInnerDefault;
 let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = wasmErrorDiffuseCustomInnerDefault;
+let wasmRiemersmaDitherInner: WasmRiemersmaDitherFn = wasmRiemersmaDitherInnerDefault;
 let wasmApplyChannelLutInner: WasmApplyChannelLutFn = wasmApplyChannelLutInnerDefault;
 
 export const rgba2labaMemo = memoize(rgba2laba);
@@ -758,6 +781,28 @@ export const wasmErrorDiffuseCustomOrder = (
     prevOutput ?? EMPTY_U8,
     temporalBleed,
     paletteMode, levels,
+    palette ? ensurePaletteFlat(palette) : new Float64Array(0),
+    ref.x, ref.y, ref.z,
+  );
+
+export const wasmRiemersmaDither = (
+  input: Uint8ClampedArray | Uint8Array,
+  output: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  memoryLength: number,
+  falloffRatio: number,
+  errorStrength: number,
+  linearize: boolean,
+  paletteMode: number,
+  levels: number,
+  palette: number[][] | null,
+  ref = referenceTable.CIE_1931.D65,
+): void =>
+  wasmRiemersmaDitherInner(
+    input, output, width, height,
+    memoryLength, falloffRatio, errorStrength,
+    linearize, paletteMode, levels,
     palette ? ensurePaletteFlat(palette) : new Float64Array(0),
     ref.x, ref.y, ref.z,
   );

@@ -9,6 +9,7 @@ import type {
   RANGE,
   STRING,
   TEXT,
+  THRESHOLD_MAP_PREVIEW,
 } from "constants/controlTypes";
 
 export type FilterOptionValues = Record<string, unknown>;
@@ -35,6 +36,7 @@ type FilterControlType =
   | typeof PALETTE
   | typeof RANGE
   | typeof STRING
+  | typeof THRESHOLD_MAP_PREVIEW
   | typeof TEXT
   | string;
 
@@ -89,6 +91,12 @@ export type CurveOptionDefinition<TOptions extends FilterOptionValues = FilterOp
 export type PaletteOptionDefinition<TOptions extends FilterOptionValues = FilterOptionValues> =
   BaseOptionDefinition<TOptions, Record<string, unknown>>;
 
+export type ThresholdMapPreviewOptionDefinition<TOptions extends FilterOptionValues = FilterOptionValues> =
+  BaseOptionDefinition<TOptions, never> & {
+    sourceOption?: string;
+    polarityOption?: string;
+  };
+
 export interface EnumOptionDefinition<
   TOptions extends FilterOptionValues = FilterOptionValues,
 > extends BaseOptionDefinition<TOptions, EnumOptionValue> {
@@ -119,6 +127,7 @@ export type FilterOptionDefinition<TOptions extends FilterOptionValues = FilterO
   | PaletteOptionDefinition<TOptions>
   | RangeOptionDefinition<TOptions>
   | StringOptionDefinition<TOptions>
+  | ThresholdMapPreviewOptionDefinition<TOptions>
   | TextOptionDefinition<TOptions>;
 
 export type FilterOptionDefinitions<TOptions extends FilterOptionValues = FilterOptionValues> =

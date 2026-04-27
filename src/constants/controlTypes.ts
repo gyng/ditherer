@@ -17,6 +17,7 @@ export const PALETTE = "PALETTE";
 export const COLOR = "COLOR";
 export const COLOR_ARRAY = "COLOR_ARRAY";
 export const CURVE = "CURVE";
+export const THRESHOLD_MAP_PREVIEW = "THRESHOLD_MAP_PREVIEW";
 
 export const COLOR_DISTANCE_ALGORITHM = {
   type: ENUM,

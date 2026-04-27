@@ -96,10 +96,14 @@ export const findDuplicatePresetGroups = (presets: ChainPreset[], resolveDefault
 // Chain presets: curated multi-filter combos, alphabetized within each category
 export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Amber Terminal", desc: "Monochrome amber phosphor dithering with CRT glow", filters: [f("Ordered (Amber CRT)"), f("Scanline"), f("Bloom")], category: "Dithering" },
+  { name: "Ditherpunk Blue Noise", desc: "Organic 1-bit blue-noise monochrome with tightened levels", filters: [f("Levels", { blackPoint: 8, whitePoint: 246 }), f("Ordered (Blue Noise 1-bit)")], category: "Dithering" },
+  { name: "Ditherpunk Detective", desc: "Warm cream-and-black mystery-game look with blue-noise texture and vignette", filters: [f("Levels", { blackPoint: 12, whitePoint: 238 }), f("Ordered (Cream Detective)"), f("Vignette")], category: "Dithering" },
   { name: "Gameboy Screen", desc: "4-shade green LCD with visible scan lines and edge darkening", filters: [f("Ordered (Gameboy)"), f("Scanline"), f("Vignette")], category: "Dithering" },
   { name: "Median Palette", desc: "Adaptive median-cut palette reduction for a compact posterized color set", filters: [f("Median Cut"), f("Sharpen")], category: "Dithering" },
   { name: "Octree Palette", desc: "Adaptive octree palette reduction with a slightly harsher retro posterization bias", filters: [f("Octree Quantize"), f("Sharpen")], category: "Dithering" },
+  { name: "Obra Hybrid", desc: "Structured Bayer subject marks over a harsh 1-bit adventure-game silhouette", filters: [f("Levels", { blackPoint: 10, whitePoint: 245 }), f("Ordered (Bayer Subject)"), f("Edge trace", { renderMode: "OVERLAY", overlayMix: 0.5, lineWidth: 1 })], category: "Dithering" },
   { name: "PICO-8 Demake", desc: "Chunky pixels quantized to the PICO-8 16-color palette", filters: [f("Pixelate"), f("Ordered (PICO-8)"), f("Sharpen")], category: "Dithering" },
+  { name: "Riemersma Mono", desc: "Hilbert-curve error diffusion with organic non-rowlike texture", filters: [f("Riemersma"), f("Sharpen")], category: "Dithering" },
   { name: "Vaporwave Dither", desc: "Pastel error-diffused dithering with dreamy bloom and color fringe", filters: [f("Floyd-Steinberg (Vaporwave test)"), f("Bloom"), f("Chromatic aberration")], category: "Dithering" },
 
   { name: "Acid Trip", desc: "Temporal color cycling through solarized bloom", filters: [f("Color Cycle"), f("Solarize"), f("Bloom")], category: "Color" },

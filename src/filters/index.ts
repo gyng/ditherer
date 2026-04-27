@@ -16,9 +16,16 @@ import pixelsort from "./pixelsort";
 import glitchblob from "./glitchblob";
 import halftone from "./halftone";
 import invert from "./invert";
-import ordered, { BAYER_4X4 } from "./ordered";
+import ordered, {
+  BAYER_4X4,
+  BAYER_8X8,
+  BLUE_NOISE_64X64,
+  THRESHOLD_POLARITY,
+  WHITE_NOISE_64X64,
+} from "./ordered";
 import quantize from "./quantize";
 import random from "./random";
+import riemersma from "./riemersma";
 import scanline from "./scanline";
 import rgbStripe from "./rgbstripe";
 import crtDegauss from "./crtDegauss";
@@ -496,6 +503,34 @@ export const filterList = [
   { displayName: "Jarvis", filter: jarvis, category: "Dithering", description: "Three-row error diffusion for smoother gradients at the cost of speed" },
   { displayName: "Ordered", filter: ordered, category: "Dithering", description: "Bayer matrix threshold dithering — fast, tiled, no error diffusion" },
   {
+    displayName: "Ordered (Blue Noise 1-bit)",
+    category: "Dithering",
+    description: "Organic 1-bit ordered dithering with a void-and-cluster blue-noise threshold map",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        thresholdMap: BLUE_NOISE_64X64,
+        thresholdPolarity: THRESHOLD_POLARITY.SHADOW,
+        palette: { ...palettes.nearest, options: { levels: 2 } }
+      }
+    }
+  },
+  {
+    displayName: "Ordered (Bayer Subject)",
+    category: "Dithering",
+    description: "High-structure 1-bit Bayer dither intended for edges, figures, and foreground emphasis",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        thresholdMap: BAYER_8X8,
+        thresholdPolarity: THRESHOLD_POLARITY.CLASSIC,
+        palette: { ...palettes.nearest, options: { levels: 2 } }
+      }
+    }
+  },
+  {
     displayName: "Ordered (Amber CRT)",
     category: "Dithering",
     description: "Ordered dithering with 4-shade amber phosphor CRT tones",
@@ -506,6 +541,23 @@ export const filterList = [
         palette: {
           ...palettes.user,
           options: { colors: THEMES.PHOSPHOR_AMBER }
+        }
+      }
+    }
+  },
+  {
+    displayName: "Ordered (Cream Detective)",
+    category: "Dithering",
+    description: "Cream-and-black 1-bit ordered dithering for monochrome mystery-game art",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        thresholdMap: BLUE_NOISE_64X64,
+        thresholdPolarity: THRESHOLD_POLARITY.SHADOW,
+        palette: {
+          ...palettes.user,
+          options: { colors: [[22, 18, 16, 255], [236, 218, 176, 255]] }
         }
       }
     }
@@ -571,11 +623,26 @@ export const filterList = [
       }
     }
   },
+  {
+    displayName: "Ordered (White Noise 1-bit)",
+    category: "Dithering",
+    description: "Deterministic white-noise threshold dithering — noisy but shader-friendly and repeatable",
+    filter: {
+      ...ordered,
+      options: {
+        ...ordered.options,
+        thresholdMap: WHITE_NOISE_64X64,
+        thresholdPolarity: THRESHOLD_POLARITY.CLASSIC,
+        palette: { ...palettes.nearest, options: { levels: 2 } }
+      }
+    }
+  },
   { displayName: "Posterize dither", filter: posterizeDither, category: "Dithering", description: "Per-channel Bayer ordered dithering with configurable levels per channel" },
   { displayName: "Median Cut", filter: medianCut, category: "Dithering", description: "Build an adaptive palette with median-cut partitioning and remap the image to it" },
   { displayName: "Octree Quantize", filter: octreeQuantize, category: "Dithering", description: "Adaptive palette reduction using octree subdivision for a different quantization bias" },
   { displayName: "Quantize (No dithering)", filter: quantize, category: "Dithering", description: "Reduce colors by snapping each pixel to the nearest palette color" },
   { displayName: "Random", filter: random, category: "Dithering", description: "Add random noise before quantizing for a stippled, noisy texture" },
+  { displayName: "Riemersma", filter: riemersma, category: "Dithering", description: "Hilbert-curve error diffusion with rolling exponential error memory" },
   { displayName: "Sierra (full)", filter: sierra, category: "Dithering", description: "Three-row error diffusion similar to Jarvis but with different weights" },
   { displayName: "Sierra (lite)", filter: sierraLite, category: "Dithering", description: "Minimal Sierra variant — fast with only two neighbors" },
   { displayName: "Sierra (two-row)", filter: sierra2, category: "Dithering", description: "Two-row Sierra for a balance between speed and quality" },

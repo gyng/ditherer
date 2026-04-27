@@ -31,18 +31,21 @@ export function rgba_laba_distance(r1: number, g1: number, b1: number, a1: numbe
  */
 export function rgba_nearest_lab_index(r: number, g: number, b: number, a: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
 
+export function riemersma_dither(input: Uint8Array, output: Uint8Array, width: number, height: number, memory_length: number, falloff_ratio: number, error_strength: number, linearize: boolean, palette_mode: number, levels: number, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): void;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+    readonly error_diffuse_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number) => void;
+    readonly error_diffuse_custom_order: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number) => void;
+    readonly nearest_lab_precomputed: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly quantize_buffer_rgb: (a: number, b: number, c: number, d: number) => [number, number];
     readonly rgba2laba: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly rgba_laba_distance: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
     readonly rgba_nearest_lab_index: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
-    readonly nearest_lab_precomputed: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
-    readonly quantize_buffer_rgb: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly error_diffuse_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number) => void;
-    readonly error_diffuse_custom_order: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number) => void;
-    readonly apply_channel_lut: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+    readonly riemersma_dither: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number) => void;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
