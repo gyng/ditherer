@@ -261,6 +261,15 @@ import moireAliasing from "./moireAliasing";
 import waveletCodec from "./waveletCodec";
 import refractiveGlass from "./refractiveGlass";
 import cameraMonitor from "./cameraMonitor";
+import heightfieldRaymarch from "./heightfieldRaymarch";
+import silhouetteExtrusion from "./silhouetteExtrusion";
+import voxelLandscape from "./voxelLandscape";
+import glassSurface from "./glassSurface";
+import reliefReflections from "./reliefReflections";
+import volumetricLight from "./volumetricLight";
+import sdfMelt from "./sdfMelt";
+import fractalPortal from "./fractalPortal";
+import pathTracedDiorama from "./pathTracedDiorama";
 import {
   atkinson,
   burkes,
@@ -385,6 +394,15 @@ export { default as moireAliasing } from "./moireAliasing";
 export { default as waveletCodec } from "./waveletCodec";
 export { default as refractiveGlass } from "./refractiveGlass";
 export { default as cameraMonitor } from "./cameraMonitor";
+export { default as heightfieldRaymarch } from "./heightfieldRaymarch";
+export { default as silhouetteExtrusion } from "./silhouetteExtrusion";
+export { default as voxelLandscape } from "./voxelLandscape";
+export { default as glassSurface } from "./glassSurface";
+export { default as reliefReflections } from "./reliefReflections";
+export { default as volumetricLight } from "./volumetricLight";
+export { default as sdfMelt } from "./sdfMelt";
+export { default as fractalPortal } from "./fractalPortal";
+export { default as pathTracedDiorama } from "./pathTracedDiorama";
 export { default as temporalPosterHold } from "./temporalPosterHold";
 export { default as temporalInkDrying } from "./temporalInkDrying";
 export { default as temporalRelief } from "./temporalRelief";
@@ -993,6 +1011,15 @@ export const filterList = [
   { displayName: "Reaction-Diffusion", filter: reactionDiffusion, category: "Advanced", description: "Gray-Scott reaction-diffusion seeded from image luminance — spots, stripes, coral, mitosis, labyrinth Turing patterns grow out of the picture" },
   { displayName: "Stable Fluids", filter: stableFluids, category: "Advanced", description: "Stam-style semi-Lagrangian fluid advection — smoke flows along the image's edges, picking up gradients as forcing each frame" },
   { displayName: "Caustics", filter: caustics, category: "Advanced", description: "Refract light through the image as through a glass surface — bright caustic webs where gradients converge, shadows where they diverge" },
+  { displayName: "Heightfield Raymarch", filter: heightfieldRaymarch, category: "Advanced", description: "Ray-march image luminance as a deep, self-shadowing 2.5D relief" },
+  { displayName: "Silhouette Extrusion", filter: silhouetteExtrusion, category: "Advanced", description: "Ray-trace a luminance or alpha silhouette into a bevelled 3D slab" },
+  { displayName: "Voxel Landscape", filter: voxelLandscape, category: "Advanced", description: "Raycast source-colored voxel columns into a tiny image-derived landscape" },
+  { displayName: "Glass Surface", filter: glassSurface, category: "Advanced", description: "Trace refracted rays through image-shaped animated glass and droplets" },
+  { displayName: "Relief Reflections", filter: reliefReflections, category: "Advanced", description: "Trace screen-space reflections across a luminance-derived relief surface" },
+  { displayName: "Volumetric Light", filter: volumetricLight, category: "Advanced", description: "Integrate bright source pixels through animated fog into volumetric light shafts" },
+  { displayName: "SDF Melt", filter: sdfMelt, category: "Advanced", description: "Inflate, erode, and melt a source-derived signed-distance silhouette" },
+  { displayName: "Fractal Portal", filter: fractalPortal, category: "Advanced", description: "Sphere-trace a Mandelbulb or Julia bulb textured by the source image" },
+  { displayName: "Path-Traced Diorama", filter: pathTracedDiorama, category: "Advanced", description: "Progressively path-trace the source as a framed image inside a softly lit miniature room" },
   { displayName: "Color gradient noise", filter: colorGradientNoise, category: "Advanced", description: "Perlin noise mapped to a two-color gradient, blended with the input image" },
   { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Flow field", filter: flowField, category: "Advanced", description: "Displace pixels along curl noise streamlines for organic swirling patterns" },

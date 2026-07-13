@@ -151,6 +151,21 @@ Don't flag a filter just because its GL port hasn't landed yet — only flag whe
 
 **New filters: GL-only (`requiresGL: true`) by default.** When the filter is gather-parallel (per-pixel compute, neighborhood reads, coordinate remaps, sampling history textures) write the GL path and skip the JS fallback. A naive JS implementation is too slow for video and just adds dead code paths to maintain. Only ship a JS fallback when the algorithm is genuinely sequential (error diffusion) or trivially cheap, or when the filter must run in environments where WebGL2 is unavailable. The dispatcher renders a "WebGL2 required" stub for `requiresGL` filters on unsupported hardware, so users see why it didn't run.
 
+### Raymarching and ray tracing
+
+The raymarching family treats the loaded image as height, silhouette, material,
+emission, or environment data. Its registered filters are Heightfield Raymarch,
+Silhouette Extrusion, Voxel Landscape, Glass Surface, Relief Reflections,
+Volumetric Light, SDF Melt, Fractal Portal, and Path-Traced Diorama.
+
+- Keep shader loops compile-time bounded and use uniform-controlled early exits.
+- Use `src/utils/glSinglePass.ts` only for generic source-backed full-screen
+  passes; filters continue to own their shader, controls, and uniforms.
+- Filters that evolve procedural samples set `temporal` and `autoAnimate`.
+  Path-Traced Diorama accumulates through its per-entry `_prevOutput` history.
+- These filters are WebGL2-only and must pass `npm run test:gl`; the browser gate
+  is the authoritative shader compile, enum-branch, and real-draw validation.
+
 ### Filter Chains
 
 Filters compose into chains (max 16 entries). The chain is the unit of work — `FilterContext` runs each enabled entry sequentially, feeding the output of one as the input to the next, with caching of intermediate canvases. State is serialized to URL hash and localStorage so users can share or save chains.

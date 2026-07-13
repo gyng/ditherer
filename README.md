@@ -25,6 +25,7 @@ Also useful for lightweight VJing and live visuals too: swap sources, keep outpu
 ## Highlights
 
 - **200+ registered filter entries** spanning dithering, color, stylize, distort, glitch, blur, temporal, simulation, and analysis workflows
+- **Image-driven raymarching and tracing** with heightfield relief, silhouette extrusion, voxel terrain, refractive glass, relief reflections, volumetric light, SDF melting, 3D fractal portals, and a progressively accumulated path-traced diorama
 - **129 curated chain presets** for looks like VHS pause, cyberpunk, lo-fi webcam, CRT, print, anime, and glitch-art variants
 - **Temporal pipeline** with previous-frame input/output buffers, EMA history, and frame index injection for motion- and persistence-based effects
 - **Worker offload** for non-temporal chains so the UI stays responsive
