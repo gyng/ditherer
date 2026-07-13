@@ -209,8 +209,8 @@ void main() {
   vec2 p = v_uv * u_resolution;
   vec2 d = (p - u_centerPx) * u_invZoom;
   // [c -s; s c] * d  matches the JS: srcX = cx + dx*c - dy*s + offX
-  vec2 sample = u_centerPx + vec2(d.x * u_cosA - d.y * u_sinA, d.x * u_sinA + d.y * u_cosA) + u_offsetPx;
-  vec2 snapped = clamp(floor(sample + 0.5) + 0.5, vec2(0.5), u_resolution - vec2(0.5));
+  vec2 samplePx = u_centerPx + vec2(d.x * u_cosA - d.y * u_sinA, d.x * u_sinA + d.y * u_cosA) + u_offsetPx;
+  vec2 snapped = clamp(floor(samplePx + 0.5) + 0.5, vec2(0.5), u_resolution - vec2(0.5));
   vec4 c = texture(u_source, snapped / u_resolution);
   vec3 q = c.rgb * 255.0;
   if (u_paletteLevels >= 2 && u_paletteLevels < 256) {

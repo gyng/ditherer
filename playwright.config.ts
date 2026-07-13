@@ -9,6 +9,12 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:4173",
     headless: true,
+    launchOptions: {
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+      args: process.env.PLAYWRIGHT_ANGLE === "1"
+        ? ["--use-gl=angle", "--use-angle=gl"]
+        : undefined,
+    },
   },
   webServer: {
     command: "env -u NO_COLOR -u FORCE_COLOR npm run dev -- --host 127.0.0.1 --port 4173",
