@@ -7,6 +7,7 @@ import binarize from "./binarize";
 import channelSeparation from "./channelSeparation";
 import jitter from "./jitter";
 import vhs from "./vhs";
+import vhsNtsc from "./vhsNtsc";
 import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
@@ -271,6 +272,7 @@ export { default as noop } from "./noop";
 export { default as channelSeparation } from "./channelSeparation";
 export { default as jitter } from "./jitter";
 export { default as vhs } from "./vhs";
+export { default as vhsNtsc } from "./vhsNtsc";
 export { default as binarize } from "./binarize";
 export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
@@ -906,6 +908,7 @@ export const filterList = [
   { displayName: "Thermal printer", filter: thermalPrinter, category: "Simulate", description: "Receipt printer — low-res dots, paper curl gradient, thermal ink fade" },
   { displayName: "Ultrasound", filter: ultrasound, category: "Simulate", description: "Medical ultrasound display — fan-shaped sector scan with speckle noise" },
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
+  { displayName: "VHS / NTSC", filter: vhsNtsc, category: "Simulate", description: "Signal-model VHS — YIQ composite modulation, NTSC decoding, tape-speed bandwidth, tracking, snow, and chroma loss" },
   { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
   { displayName: "Motion Analysis", filter: motionDetect, category: "Simulate", description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap" },
   { displayName: "Long Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },

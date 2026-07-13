@@ -4,19 +4,16 @@ import {
   type Program,
 } from "gl";
 
-// Row-wise state (tracking/noise/dropouts) is pre-computed on CPU with
-// the same mulberry32 seeds as the JS reference and uploaded as an RG16F
-// texture: .r = horizontal shift in pixels, .g = brightness multiplier.
-// Dropouts and noise bars become an RGBA32F "overlay" texture: .r > 0
-// marks static bars (value = row-noise brightness so the bar is visible),
-// .g > 0 marks dropouts with their x-extent packed in .b/.a.
+// Row-wise state is pre-computed on CPU and uploaded as RGBA32F:
+// shift, brightness multiplier, static-bar flag, packed dropout geometry.
+// That keeps artifact placement consistent with the CPU fallback.
 const VHS_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 
 uniform sampler2D u_source;
-uniform sampler2D u_rowState;   // per row: (shift, rowNoise, barBrightness, dropoutHash)
+uniform sampler2D u_rowState;   // per row: (shift, rowNoise, staticBar, packedDropout)
 uniform sampler2D u_prev;       // previous frame (optional, same-size)
 uniform vec2  u_res;
 uniform float u_vJitter;
@@ -27,17 +24,35 @@ uniform float u_saturation;
 uniform float u_brightness;     // -100..100
 uniform float u_ghosting;       // 0..1
 uniform int   u_hasPrev;        // 1 if prev provided
-uniform float u_dropoutProb;
 uniform float u_tapeNoise;
 uniform float u_frameIndex;     // per-frame hash seed
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-float luma3(vec3 c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }
+
+vec3 rgbToYiq(vec3 c) {
+  return vec3(
+    dot(c, vec3(0.299, 0.587, 0.114)),
+    dot(c, vec3(0.5959, -0.2746, -0.3213)),
+    dot(c, vec3(0.2115, -0.5227, 0.3112))
+  );
+}
+
+vec3 yiqToRgb(vec3 c) {
+  return vec3(
+    c.x + 0.956 * c.y + 0.619 * c.z,
+    c.x - 0.272 * c.y - 0.647 * c.z,
+    c.x - 1.106 * c.y + 1.703 * c.z
+  );
+}
 
 vec4 sampleJS(float sx, float sy) {
   float cx = clamp(sx, 0.0, u_res.x - 1.0);
   float cy = clamp(sy, 0.0, u_res.y - 1.0);
   return texture(u_source, vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y));
+}
+
+vec3 sampleYiq(float sx, float sy) {
+  return rgbToYiq(sampleJS(sx, sy).rgb);
 }
 
 void main() {
@@ -49,95 +64,113 @@ void main() {
   float shift = rs.r;
   float rowNoise = rs.g;
   float barBri = rs.b;
+  float dropoutPacked = rs.a;
+  bool inDropout = false;
+  if (dropoutPacked > 0.0) {
+    float dropStart = floor(dropoutPacked) - 1.0;
+    float dropW = fract(dropoutPacked) * (u_res.x + 1.0);
+    inDropout = x >= dropStart && x < dropStart + dropW;
+  }
 
-  // Static bar: the whole row is random grey.
+  vec3 rgb;
+  float alpha = 1.0;
+
   if (barBri > 0.5) {
-    float n = hash(vec2(x, y + u_frameIndex));
-    fragColor = vec4(vec3(n), 1.0);
-    return;
-  }
-
-  // Dropout streaks — hashed start/length per row. A row either has one
-  // or none in GL (approximates the multi-streak CPU behaviour visibly).
-  if (u_dropoutProb > 0.0) {
-    float dh = hash(vec2(y + 3.0, u_frameIndex));
-    if (dh < clamp(u_dropoutProb, 0.0, 1.0)) {
-      float dropStart = hash(vec2(y + 11.0, u_frameIndex)) * u_res.x;
-      float dropW = 20.0 + hash(vec2(y + 23.0, u_frameIndex)) * u_res.x * 0.4;
-      if (x >= dropStart && x < dropStart + dropW) {
-        float n = 180.0 + hash(vec2(x + 7.0, y + u_frameIndex)) * 75.0;
-        fragColor = vec4(vec3(n / 255.0), 1.0);
-        return;
-      }
-    }
-  }
-
-  // Tape-noise bars — hashed per-row at low probability.
-  if (u_tapeNoise > 0.0 && hash(vec2(y + 97.0, u_frameIndex)) < u_tapeNoise * 0.02) {
-    float n = hash(vec2(x, y + u_frameIndex));
-    fragColor = vec4(vec3(n), 1.0);
-    return;
-  }
+    float n = hash(vec2(x, y + u_frameIndex * 19.0));
+    rgb = vec3(n);
+  } else if (inDropout) {
+    float n = (180.0 + hash(vec2(x + 7.0, y + u_frameIndex * 13.0)) * 75.0) / 255.0;
+    rgb = vec3(n);
+  } else {
 
   // Luma tap at the row's tracking-shifted position + frame vertical jitter.
   float srcY = clamp(y + u_vJitter, 0.0, u_res.y - 1.0);
   float lumaX = clamp(x + shift, 0.0, u_res.x - 1.0);
-  vec4 ls = sampleJS(lumaX, srcY);
-  float lumaV = luma3(ls.rgb) * 255.0;
+    vec4 ls = sampleJS(lumaX, srcY);
+    vec3 lumaTap = rgbToYiq(ls.rgb);
+    float lumaV = lumaTap.x;
+    alpha = ls.a;
 
   // Chroma tap at the delayed position, optionally low-pass filtered
   // horizontally to reproduce VHS 3.58 MHz chroma bandwidth (~250-line
   // colour vs ~330-line luma).
-  vec3 chromaSum = vec3(0.0);
-  float wsum = 0.0;
-  int band = int(clamp(u_chromaBandwidth, 0.0, 16.0));
-  for (int k = -16; k <= 16; k++) {
-    if (k < -band || k > band) continue;
-    float cx = clamp(x + shift + u_chromaOffX + float(k), 0.0, u_res.x - 1.0);
-    float cy = clamp(srcY + u_chromaOffY, 0.0, u_res.y - 1.0);
-    vec4 cs = sampleJS(cx, cy);
-    chromaSum += cs.rgb * 255.0;
-    wsum += 1.0;
-  }
-  vec3 chromaMean = chromaSum / wsum;
-  float chromaLuma = luma3(chromaMean / 255.0) * 255.0;
-  vec3 chroma = chromaMean - vec3(chromaLuma);
+    vec2 chromaSum = vec2(0.0);
+    float wsum = 0.0;
+    int band = int(clamp(u_chromaBandwidth, 0.0, 16.0));
+    for (int k = -16; k <= 16; k++) {
+      if (k < -band || k > band) continue;
+      float radius = max(float(band) + 1.0, 1.0);
+      float weight = 1.0 - abs(float(k)) / radius;
+      float cx = x + shift + u_chromaOffX + float(k);
+      float cy = srcY + u_chromaOffY;
+      vec3 centerYiq = sampleYiq(cx, cy);
+      vec3 aboveYiq = sampleYiq(cx, cy - 1.0);
+      chromaSum += mix(centerYiq.yz, aboveYiq.yz, 0.22) * weight;
+      wsum += weight;
+    }
+    vec2 chroma = chromaSum / max(wsum, 0.0001);
+
+    // Time-base error rotates the chroma vector by a small, scanline-specific
+    // amount. This produces tape-like hue flutter instead of RGB splitting.
+    float phaseNoise = (hash(vec2(y * 0.17, floor(u_frameIndex * 0.5))) - 0.5)
+      * u_tapeNoise * 0.42;
+    float cp = cos(phaseNoise);
+    float sp = sin(phaseNoise);
+    chroma = mat2(cp, sp, -sp, cp) * chroma;
+
+    // A short delayed luma echo approximates RF reflections/head crosstalk.
+    float echoOffset = 5.0 + floor(hash(vec2(y, 71.0)) * 5.0);
+    float echoY = sampleYiq(lumaX - echoOffset, srcY).x;
+    lumaV = mix(lumaV, lumaV * 0.88 + echoY * 0.12, u_ghosting);
 
   // Recombine: luma + chroma * saturation + brightness offset, then
   // multiply by per-row tape noise.
-  vec3 rgb = (vec3(lumaV) + chroma * u_saturation + vec3(u_brightness)) * rowNoise;
-  rgb = clamp(rgb, vec3(0.0), vec3(255.0)) / 255.0;
+    vec3 yiq = vec3(lumaV + u_brightness / 255.0, chroma * u_saturation);
+    rgb = clamp(yiqToRgb(yiq) * rowNoise, 0.0, 1.0);
+  }
 
   if (u_hasPrev == 1 && u_ghosting > 0.0) {
     vec3 prev = texture(u_prev, v_uv).rgb;
-    rgb = mix(rgb, prev, u_ghosting);
+    rgb = mix(rgb, prev, u_ghosting * 0.72);
   }
 
-  fragColor = vec4(rgb, ls.a);
+  fragColor = vec4(rgb, alpha);
 }
 `;
 
-// Optional 3x3 blur reproduces the "blur" checkbox's GAUSSIAN_3X3_WEAK.
+// Optional tape-softness pass. Luma trails asymmetrically while chroma also
+// blends vertically, closer to helical-scan playback than a generic Gaussian.
 const BLUR_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 uniform sampler2D u_input;
 uniform vec2  u_res;
+vec3 rgbToYiq(vec3 c) {
+  return vec3(
+    dot(c, vec3(0.299, 0.587, 0.114)),
+    dot(c, vec3(0.5959, -0.2746, -0.3213)),
+    dot(c, vec3(0.2115, -0.5227, 0.3112))
+  );
+}
+vec3 yiqToRgb(vec3 c) {
+  return vec3(
+    c.x + 0.956 * c.y + 0.619 * c.z,
+    c.x - 0.272 * c.y - 0.647 * c.z,
+    c.x - 1.106 * c.y + 1.703 * c.z
+  );
+}
 void main() {
   vec2 texel = 1.0 / u_res;
-  // Matches convolve's GAUSSIAN_3X3_WEAK: [1 2 1; 2 4 2; 1 2 1] / 16.
-  vec4 acc = vec4(0.0);
-  acc += texture(u_input, v_uv + texel * vec2(-1.0, -1.0)) * 1.0;
-  acc += texture(u_input, v_uv + texel * vec2( 0.0, -1.0)) * 2.0;
-  acc += texture(u_input, v_uv + texel * vec2( 1.0, -1.0)) * 1.0;
-  acc += texture(u_input, v_uv + texel * vec2(-1.0,  0.0)) * 2.0;
-  acc += texture(u_input, v_uv + texel * vec2( 0.0,  0.0)) * 4.0;
-  acc += texture(u_input, v_uv + texel * vec2( 1.0,  0.0)) * 2.0;
-  acc += texture(u_input, v_uv + texel * vec2(-1.0,  1.0)) * 1.0;
-  acc += texture(u_input, v_uv + texel * vec2( 0.0,  1.0)) * 2.0;
-  acc += texture(u_input, v_uv + texel * vec2( 1.0,  1.0)) * 1.0;
-  fragColor = acc / 16.0;
+  vec4 c = texture(u_input, v_uv);
+  vec3 yc = rgbToYiq(c.rgb);
+  vec3 yl1 = rgbToYiq(texture(u_input, v_uv - texel * vec2(1.0, 0.0)).rgb);
+  vec3 yl2 = rgbToYiq(texture(u_input, v_uv - texel * vec2(2.0, 0.0)).rgb);
+  vec3 yr1 = rgbToYiq(texture(u_input, v_uv + texel * vec2(1.0, 0.0)).rgb);
+  vec3 ya = rgbToYiq(texture(u_input, v_uv + texel * vec2(0.0, 1.0)).rgb);
+  float y = yc.x * 0.55 + yl1.x * 0.25 + yl2.x * 0.12 + yr1.x * 0.08;
+  vec2 iq = yc.yz * 0.40 + yl1.yz * 0.22 + yr1.yz * 0.18 + ya.yz * 0.20;
+  fragColor = vec4(clamp(yiqToRgb(vec3(y, iq)), 0.0, 1.0), c.a);
 }
 `;
 
@@ -150,7 +183,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
       "u_source", "u_rowState", "u_prev", "u_res",
       "u_vJitter", "u_chromaOffX", "u_chromaOffY",
       "u_chromaBandwidth", "u_saturation", "u_brightness",
-      "u_ghosting", "u_hasPrev", "u_dropoutProb", "u_tapeNoise", "u_frameIndex",
+      "u_ghosting", "u_hasPrev", "u_tapeNoise", "u_frameIndex",
     ] as const),
     blur: linkProgram(gl, BLUR_FS, ["u_input", "u_res"] as const),
   };
@@ -158,12 +191,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 };
 
 // Row-state texture: one row per scanline, RGBA channels = (shift,
-// rowNoise, isStaticBar, _unused).
+// rowNoise, isStaticBar, packed dropout geometry).
 const uploadRowState = (
   gl: WebGL2RenderingContext,
   rowShift: Int32Array,
   rowNoise: Float32Array,
   staticBar: Uint8Array,
+  dropoutPacked: Float32Array,
   height: number,
 ) => {
   const data = new Float32Array(height * 4);
@@ -171,7 +205,7 @@ const uploadRowState = (
     data[y * 4] = rowShift[y];
     data[y * 4 + 1] = rowNoise[y];
     data[y * 4 + 2] = staticBar[y];
-    data[y * 4 + 3] = 0;
+    data[y * 4 + 3] = dropoutPacked[y];
   }
   const tex = gl.createTexture();
   gl.activeTexture(gl.TEXTURE1);
@@ -200,7 +234,8 @@ const uploadPrevOutputTexture = (
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texImage2D(
     gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,
-    gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(prevOutput.buffer),
+    gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array(prevOutput.buffer, prevOutput.byteOffset, prevOutput.byteLength),
   );
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevUpload);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -216,6 +251,7 @@ export type VHSGLParams = {
   rowShift: Int32Array;
   rowNoise: Float32Array;
   staticBar: Uint8Array;      // 1 per row in a noise bar
+  dropoutPacked: Float32Array;
   vJitter: number;
   chromaOffX: number;
   chromaOffY: number;
@@ -223,7 +259,6 @@ export type VHSGLParams = {
   saturation: number;
   brightness: number;
   ghosting: number;
-  dropoutProb: number;
   tapeNoise: number;
   frameIndex: number;
   prevOutput: Uint8ClampedArray | null;
@@ -249,7 +284,14 @@ export const renderVHSGL = (
   const sourceTex = ensureTexture(gl, "vhs:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  const rowStateTex = uploadRowState(gl, params.rowShift, params.rowNoise, params.staticBar, height);
+  const rowStateTex = uploadRowState(
+    gl,
+    params.rowShift,
+    params.rowNoise,
+    params.staticBar,
+    params.dropoutPacked,
+    height,
+  );
   const prevTex = uploadPrevOutputTexture(gl, params.prevOutput, width, height);
 
   // When blur is enabled we render VHS into a scratch texture and then
@@ -275,7 +317,6 @@ export const renderVHSGL = (
     gl.uniform1f(cache.vhs.uniforms.u_brightness, params.brightness);
     gl.uniform1f(cache.vhs.uniforms.u_ghosting, params.ghosting);
     gl.uniform1i(cache.vhs.uniforms.u_hasPrev, prevTex ? 1 : 0);
-    gl.uniform1f(cache.vhs.uniforms.u_dropoutProb, params.dropoutProb);
     gl.uniform1f(cache.vhs.uniforms.u_tapeNoise, params.tapeNoise);
     gl.uniform1f(cache.vhs.uniforms.u_frameIndex, params.frameIndex);
   }, vao);

@@ -62,7 +62,7 @@ export default defineConfig({
   test: {
     globals: false,
     environment: "jsdom",
-    setupFiles: ["vitest-canvas-mock"],
+    setupFiles: ["vitest-canvas-mock", "./test/setup.ts"],
     disableConsoleIntercept: true,
     exclude: [...configDefaults.exclude, "test/e2e/**"],
     coverage: {

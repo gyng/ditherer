@@ -5,8 +5,6 @@ import {
   cloneCanvas,
   fillBufferPixel,
   getBufferIndex,
-  rgba,
-  paletteGetColor,
   logFilterBackend,
 } from "utils";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "palettes/backend";
@@ -28,10 +26,10 @@ export const optionTypes = {
   headSwitchingHeight: { type: RANGE, range: [0, 80], step: 1, default: 20, desc: "Height of the bottom-edge head switching band" },
   dropout: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Probability of white signal-loss streaks per frame" },
   tapeNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Per-row brightness noise and static bar frequency" },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Previous-frame bleed-through (temporal smear)" },
+  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Short RF echo plus previous-frame bleed-through" },
   brightness: { type: RANGE, range: [-100, 100], step: 1, default: -15, desc: "Overall brightness offset applied after VHS processing" },
   saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 1.1, desc: "Chroma saturation multiplier" },
-  chromaBandwidth: { type: RANGE, range: [0, 16], step: 1, default: 0, desc: "Horizontal chroma low-pass radius — VHS smeared colour relative to luma (0 = off; raise for stronger tape look)" },
+  chromaBandwidth: { type: RANGE, range: [0, 16], step: 1, default: 4, desc: "Horizontal chroma low-pass radius — VHS smeared colour relative to luma (0 = off; raise for stronger tape look)" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -44,7 +42,7 @@ export const optionTypes = {
       }
     }
   },
-  blur: { type: BOOL, default: true, desc: "Apply soft Gaussian blur to simulate analog softness" },
+  blur: { type: BOOL, default: true, desc: "Apply asymmetric luma smear and extra chroma softness" },
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -106,6 +104,37 @@ const mulberry32 = (seed: number) => {
   };
 };
 
+export const stochasticEventCount = (expected: number, roll: number): number => {
+  const base = Math.max(0, Math.floor(expected));
+  return base + (roll < expected - base ? 1 : 0);
+};
+
+export const buildTrackingRowShift = (
+  height: number,
+  tracking: number,
+  trackingSpread: number,
+  frameIndex: number,
+): Int32Array => {
+  const profileDuration = 8;
+  const phase = Math.max(0, frameIndex) / profileDuration;
+  const profileIndex = Math.floor(phase);
+  const rawBlend = phase - profileIndex;
+  const blend = rawBlend * rawBlend * (3 - 2 * rawBlend);
+  const rngA = mulberry32(profileIndex * 7919 + 31337);
+  const rngB = mulberry32((profileIndex + 1) * 7919 + 31337);
+  const rowShift = new Int32Array(height);
+  let driftA = 0;
+  let driftB = 0;
+
+  for (let y = 0; y < height; y++) {
+    driftA = (driftA + (rngA() - 0.5) * tracking * 2) * trackingSpread;
+    driftB = (driftB + (rngB() - 0.5) * tracking * 2) * trackingSpread;
+    rowShift[y] = Math.round(driftA * (1 - blend) + driftB * blend);
+  }
+
+  return rowShift;
+};
+
 const vhs = (
   input: any,
   options: VhsOptions = defaults
@@ -142,7 +171,7 @@ const vhs = (
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  // Per-frame seeded random for consistent-looking noise within a frame
+  // Per-frame seeded random for consistent-looking noise within a frame.
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
   // Vertical jitter — whole frame shifts up/down per frame
@@ -150,14 +179,9 @@ const vhs = (
     ? Math.round(Math.sin(frameIndex * 3.7 + Math.cos(frameIndex * 1.3)) * verticalJitter)
     : 0;
 
-  // Pre-compute horizontal tracking jitter per row (random walk)
-  const rowShift = new Int32Array(H);
-  let drift = 0;
-  for (let y = 0; y < H; y++) {
-    drift += (rng() - 0.5) * tracking * 2;
-    drift *= trackingSpread;
-    rowShift[y] = Math.round(drift);
-  }
+  // Pre-compute horizontal tracking jitter per row. Profiles crossfade over
+  // eight frames so tracking crawls instead of popping to unrelated geometry.
+  const rowShift = buildTrackingRowShift(H, tracking, trackingSpread, frameIndex);
 
   // Flagging — top rows bend/hook horizontally, worse at very top
   if (flagging > 0 && flaggingHeight > 0) {
@@ -181,7 +205,7 @@ const vhs = (
   const dropouts: Array<{ y: number; x: number; w: number }> = [];
   if (dropout > 0) {
     const dropRng = mulberry32(frameIndex * 4391 + 17);
-    const dropCount = Math.floor(dropRng() * 8 * dropout);
+    const dropCount = stochasticEventCount(8 * dropout, dropRng());
     for (let d = 0; d < dropCount; d++) {
       dropouts.push({
         y: Math.floor(dropRng() * H),
@@ -204,7 +228,7 @@ const vhs = (
   // Occasional horizontal noise bars (2-4px tall bands of static)
   const noiseBars: Array<{ y: number; h: number }> = [];
   if (tapeNoise > 0) {
-    const barCount = Math.floor(rng() * 4 * tapeNoise);
+    const barCount = stochasticEventCount(4 * tapeNoise, rng());
     for (let b = 0; b < barCount; b++) {
       noiseBars.push({
         y: Math.floor(rng() * H),
@@ -218,16 +242,23 @@ const vhs = (
   // shader does the final blend. Palette is applied post-readout.
   if (options._webglAcceleration !== false && vhsGLAvailable()) {
     const staticBar = new Uint8Array(H);
+    const dropoutPacked = new Float32Array(H);
     for (const bar of noiseBars) {
       for (let dy = 0; dy < bar.h; dy++) {
         const row = bar.y + dy;
         if (row >= 0 && row < H) staticBar[row] = 1;
       }
     }
+    for (const drop of dropouts) {
+      // One packed streak per scanline: integer = start + 1, fraction = width.
+      // Multiple generated streaks on one row coalesce to the latest one.
+      dropoutPacked[drop.y] = drop.x + 1 + drop.w / (W + 1);
+    }
     const rendered = renderVHSGL(input, W, H, {
       rowShift,
       rowNoise,
       staticBar,
+      dropoutPacked,
       vJitter,
       chromaOffX,
       chromaOffY,
@@ -235,7 +266,6 @@ const vhs = (
       saturation,
       brightness,
       ghosting,
-      dropoutProb: dropout,
       tapeNoise,
       frameIndex,
       prevOutput,
@@ -322,8 +352,7 @@ const vhs = (
       g = Math.max(0, Math.min(255, g));
       b = Math.max(0, Math.min(255, b));
 
-      const color = paletteGetColor(palette, rgba(r, g, b, buf[lumaI + 3]), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[lumaI + 3]);
+      fillBufferPixel(outBuf, i, r, g, b, buf[lumaI + 3]);
     }
   }
 
@@ -352,7 +381,8 @@ const vhs = (
     }
   }
 
-  return output;
+  const identity = paletteIsIdentity(palette);
+  return identity ? output : (applyPalettePassToCanvas(output, W, H, palette) ?? output);
 };
 
 export default defineFilter({
