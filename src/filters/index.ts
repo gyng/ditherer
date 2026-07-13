@@ -254,6 +254,13 @@ import stableFluids from "./stableFluids";
 import lic from "./lic";
 import flowCrosshatch from "./flowCrosshatch";
 import fractalFlame from "./fractalFlame";
+import rollingShutter from "./rollingShutter";
+import bayerSensor from "./bayerSensor";
+import ccdChargeSmear from "./ccdChargeSmear";
+import moireAliasing from "./moireAliasing";
+import waveletCodec from "./waveletCodec";
+import refractiveGlass from "./refractiveGlass";
+import cameraMonitor from "./cameraMonitor";
 import {
   atkinson,
   burkes,
@@ -371,6 +378,13 @@ export { default as stableFluids } from "./stableFluids";
 export { default as lic } from "./lic";
 export { default as flowCrosshatch } from "./flowCrosshatch";
 export { default as fractalFlame } from "./fractalFlame";
+export { default as rollingShutter } from "./rollingShutter";
+export { default as bayerSensor } from "./bayerSensor";
+export { default as ccdChargeSmear } from "./ccdChargeSmear";
+export { default as moireAliasing } from "./moireAliasing";
+export { default as waveletCodec } from "./waveletCodec";
+export { default as refractiveGlass } from "./refractiveGlass";
+export { default as cameraMonitor } from "./cameraMonitor";
 export { default as temporalPosterHold } from "./temporalPosterHold";
 export { default as temporalInkDrying } from "./temporalInkDrying";
 export { default as temporalRelief } from "./temporalRelief";
@@ -801,6 +815,7 @@ export const filterList = [
   { displayName: "Polar transform", filter: polarTransform, category: "Distort", description: "Wrap a rectangle into a circle or unwrap a circular image into a strip" },
   { displayName: "Pinch", filter: pinch, category: "Distort", description: "Squeeze pixels toward or away from center — radial scale distortion" },
   { displayName: "Ripple", filter: ripple, category: "Distort", description: "Concentric circular waves radiating from center" },
+  { displayName: "Refractive Glass", filter: refractiveGlass, category: "Distort", description: "Refract the image through luminance relief, cut edges, or frosted procedural glass" },
   { displayName: "Rotate", filter: rotate, category: "Distort", description: "Arbitrary angle rotation with bilinear sampling" },
   { displayName: "Smudge", filter: smudge, category: "Distort", description: "Paint-like smudging — drags color along a direction" },
   { displayName: "Spherize", filter: spherize, category: "Distort", description: "Wrap image onto a sphere surface with adjustable strength" },
@@ -842,6 +857,9 @@ export const filterList = [
   // ── Simulate ──
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Advanced", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
   { displayName: "Anaglyph 3D", filter: anaglyph, category: "Simulate", description: "Split channels into stereoscopic color pairs for a fake 3D glasses effect" },
+  { displayName: "Bayer Sensor", filter: bayerSensor, category: "Simulate", description: "Camera CFA capture with selectable Bayer layout, demosaic reconstruction, noise, and defective photosites" },
+  { displayName: "Camera Monitor", filter: cameraMonitor, category: "Simulate", description: "Focus peaking, exposure zebras, false color, and clipping warnings for a production-monitor view" },
+  { displayName: "CCD Charge Smear", filter: ccdChargeSmear, category: "Simulate", description: "Overloaded CCD highlights spill into directional vertical charge trails" },
   {
     displayName: "CRT emulation",
     category: "Simulate",
@@ -873,6 +891,7 @@ export const filterList = [
   { displayName: "Light leak", filter: lightLeak, category: "Simulate", description: "Film light leak — warm chromatic glow bleeding from edges/corners" },
   { displayName: "Mavica FD7", filter: mavicaFd7, category: "Simulate", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
   { displayName: "Metadata Mismatch Decode", filter: metadataMismatchDecode, category: "Simulate", description: "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures" },
+  { displayName: "Moiré / Aliasing", filter: moireAliasing, category: "Simulate", description: "Rotated sensor, display, or print grids create interference bands and colored sampling aliases" },
   { displayName: "Newspaper", filter: newspaper, category: "Simulate", description: "Coarse halftone on yellowed paper with fold creases and ink smear" },
   { displayName: "Night vision", filter: nightVision, category: "Simulate", description: "Gen 3 image intensifier tube — green phosphor, heavy grain, bloom, and circular vignette" },
   { displayName: "Nokia LCD", filter: nokiaLcd, category: "Simulate", description: "Simulate the Nokia 3310 monochrome LCD — 84x48 pixels with greenish tint" },
@@ -881,6 +900,7 @@ export const filterList = [
   { displayName: "Polaroid", filter: polaroid, category: "Simulate", description: "Instant film look — warm tones, faded blacks, soft highlights, and film grain" },
   { displayName: "Projection film", filter: projectionFilm, category: "Simulate", description: "16mm/35mm projector — gate weave, dust, scratches, grain, and lamp flicker" },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
+  { displayName: "Rolling Shutter", filter: rollingShutter, category: "Simulate", description: "Temporal CMOS readout bends motion progressively across rows or columns" },
   { displayName: "Screen Print / Misregistration", filter: screenPrint, category: "Simulate", description: "Layer flat spot-color plates with visible offset on warm paper for a silkscreen poster look" },
   {
     displayName: "Scanline",
@@ -910,6 +930,7 @@ export const filterList = [
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
   { displayName: "VHS / NTSC", filter: vhsNtsc, category: "Simulate", description: "Signal-model VHS — YIQ composite modulation, NTSC decoding, tape-speed bandwidth, tracking, snow, and chroma loss" },
   { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
+  { displayName: "Wavelet Codec", filter: waveletCodec, category: "Simulate", description: "Haar-style coefficient loss, multiscale softness, and reconstruction ringing" },
   { displayName: "Motion Analysis", filter: motionDetect, category: "Simulate", description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap" },
   { displayName: "Long Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },
   { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "CRT phosphor persistence — each RGB channel decays at a different rate" },
