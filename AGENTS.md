@@ -187,13 +187,52 @@ docs/plan/            # Numbered implementation plans (010 = filter audit, etc.)
 
 ### Test-Driven Development
 
-Write tests first for:
-- **Bug fixes** — reproduce the bug in a test before fixing. This prevents regressions.
-- **Pure functions** — color math, buffer operations, equalize, quantize. These are easy to test and critical to get right.
-- **Filter logic** — test with known input buffers and verify output pixel values.
-- **Reducers/state** — test action → state transitions.
+Write tests when they protect behavior that could realistically regress. A good
+test fails for the bug or missing capability, passes only when the intended
+behavior works, and survives harmless refactors.
 
-Use Vitest. Tests live in `test/` mirroring `src/` structure.
+Write tests first for:
+
+- **Bug fixes** — reproduce the user-visible failure before fixing it.
+- **Pure functions** — color math, buffer operations, equalize, quantize, and
+  deterministic state generation. Cover boundaries and meaningful branches.
+- **Filter logic** — use small known buffers or signal patterns and assert the
+  important output property or pixel values.
+- **Reducers/state** — test action → externally observable state transitions.
+- **Contracts** — verify registries resolve, serialized state round-trips, and
+  backends agree where parity is promised.
+
+Do not add a test merely to mirror edited literals or prove that a line of
+configuration changed. Avoid assertions tied to private helper calls, exact
+internal names, incidental ordering, or a fixed list of hand-picked records
+unless that exact shape is a product contract. For data-only edits such as a
+preset swapping one registered filter for another, prefer the existing
+registry, signature, and end-to-end validation. Add a new test only when the
+edit reveals an uncovered invariant worth protecting.
+
+### Testing Pyramid
+
+Keep the suite weighted toward fast, deterministic tests:
+
+1. **Unit tests (most)** — pure utilities, reducers, option normalization,
+   deterministic temporal state, and small-buffer filter math.
+2. **Integration and contract tests (fewer)** — filter registration, chain
+   execution, serialization, worker/main-thread parity, palette passes, and
+   CPU/GL/WASM backend agreement.
+3. **Browser end-to-end tests (few)** — WebGL shader compilation, real Canvas
+   behavior, media playback/export, and critical user workflows that jsdom
+   cannot represent.
+4. **Visual and performance checks (targeted)** — reference images, signal
+   metrics, and benchmarks for effects where appearance or throughput is the
+   contract. Use tolerances and document the renderer/hardware.
+
+Before adding an expensive browser test, ask whether a lower layer can protect
+the same behavior. Before adding a unit test, ask whether it asserts a durable
+outcome rather than restating the implementation. Use the smallest layer that
+would have caught the regression.
+
+Use Vitest for unit/integration tests and Playwright for real-browser behavior.
+Tests live in `test/` mirroring `src/` structure.
 
 ### Code Style
 

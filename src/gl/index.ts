@@ -279,6 +279,69 @@ export const ensureTexture = (
   return entry;
 };
 
+// RGBA16F render target for signal-processing pipelines which must preserve
+// signed/out-of-gamut intermediates. EXT_color_buffer_float is required by
+// WebGL2 for rendering into the texture. A completeness check protects ANGLE
+// implementations which expose the extension but reject the exact format.
+export const ensureFloatTexture = (
+  gl: WebGL2RenderingContext,
+  name: string,
+  w: number,
+  h: number,
+): TexEntry | null => {
+  if (!gl.getExtension("EXT_color_buffer_float")) return null;
+  const existing = _texPool[name];
+  if (existing && existing.w === w && existing.h === h) return existing;
+  if (existing) {
+    gl.deleteTexture(existing.tex);
+    gl.deleteFramebuffer(existing.fbo);
+  }
+  const tex = gl.createTexture();
+  const fbo = gl.createFramebuffer();
+  if (!tex || !fbo) return null;
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+    gl.deleteTexture(tex);
+    gl.deleteFramebuffer(fbo);
+    return null;
+  }
+  _glStats.textures++;
+  _glStats.framebuffers++;
+  const entry = { tex, fbo, w, h };
+  _texPool[name] = entry;
+  return entry;
+};
+
+export const uploadFloatTexture = (
+  gl: WebGL2RenderingContext,
+  entry: TexEntry,
+  width: number,
+  height: number,
+  data: Float32Array,
+): void => {
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.bindTexture(gl.TEXTURE_2D, entry.tex);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA16F,
+    width,
+    height,
+    0,
+    gl.RGBA,
+    gl.FLOAT,
+    data,
+  );
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+};
+
 // Evict texture pool entries whose key starts with `prefix`. Call when a
 // filter is removed from the chain or the chain is cleared. Pass no
 // argument to flush the entire pool.

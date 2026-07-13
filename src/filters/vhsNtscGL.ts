@@ -10,6 +10,15 @@ import {
   uploadSourceTexture,
   type Program,
 } from "gl";
+import {
+  markVHSNTSCFloatFailure,
+  renderVHSNTSCConformanceGL,
+  vhsNtscFloatStatus,
+  vhsNtscUsingFloatPath,
+} from "./vhsNtscConformanceGL";
+
+export const vhsNtscGLFloatStatus = (): string => vhsNtscFloatStatus();
+export const vhsNtscGLUsingFloatPath = (): boolean => vhsNtscUsingFloatPath();
 
 // Pass 1 follows the first half of the ntsc-rs pipeline: RGB -> YIQ,
 // bandwidth-limited chroma, carrier modulation, then disturbances applied to
@@ -381,6 +390,7 @@ export type VHSNTSCGLParams = {
   fieldMode: number;
   filterType: number;
   demodulation: number;
+  tapeSpeed: number;
   lumaRadius: number;
   chromaRadius: number;
   tapeChromaDelay: number;
@@ -400,7 +410,10 @@ export type VHSNTSCGLParams = {
   chromaPhaseNoise: number;
   chromaPhaseError: number;
   lumaSmear: number;
+  tapeSharpness: number;
   ringing: number;
+  ringingFrequency: number;
+  ringingPower: number;
   lumaNoise: number;
   chromaNoise: number;
 };
@@ -411,6 +424,13 @@ export const renderVHSNTSCGL = (
   height: number,
   params: VHSNTSCGLParams,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
+  try {
+    const conformance = renderVHSNTSCConformanceGL(source, width, height, params);
+    if (conformance) return conformance;
+  } catch (error) {
+    markVHSNTSCFloatFailure(error instanceof Error ? error.message : String(error));
+    console.warn("VHS / NTSC float conformance path failed; using RGBA8 fallback", error);
+  }
   const ctx = getGLCtx();
   if (!ctx) return null;
   const { gl, canvas } = ctx;

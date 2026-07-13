@@ -281,7 +281,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Glitch Art", desc: "Sorted pixel streaks, split channels, shifted scan lines", filters: [f("Pixelsort"), f("Chromatic aberration"), f("Scan line shift"), f("JPEG artifact")], category: "Glitch" },
   { name: "Legacy LUT Collapse", desc: "Indexed palette table drifts while bitplane bursts erode color significance", filters: [f("Palette Index Drift"), f("Bitplane Dropout"), f("Ordered")], category: "Glitch" },
   { name: "Panorama Glitch", desc: "Temporal slit scan with JPEG corruption", filters: [f("Slit scan"), f("JPEG artifact")], category: "Glitch" },
-  { name: "VHS Pause", desc: "Frozen VHS frame — tracking errors, torn fields, and static snow", filters: [f("VHS emulation"), f("Interlace tear"), f("Analog static")], category: "Glitch" },
+  { name: "VHS Pause", desc: "Frozen VHS frame — tracking errors, torn fields, and static snow", filters: [f("VHS / NTSC"), f("Interlace tear"), f("Analog static")], category: "Glitch" },
 
   { name: "ASCII Art", desc: "Render the image as a grid of ASCII characters sized by luminance", filters: [f("ASCII"), f("Sharpen")], category: "Stylize" },
   { name: "Cel Panel", desc: "Flat cartoon shading with crisp ink contours", filters: [f("Toon / Cel Shade"), f("Vignette")], category: "Stylize" },
@@ -349,7 +349,7 @@ export const CHAIN_PRESETS: ChainPreset[] = [
   { name: "Receipt Printer", desc: "Narrow thermal receipt — low-res dots with ink fade", filters: [f("Thermal printer"), f("Film grain")], category: "Simulate" },
   { name: "Retinal Burn", desc: "Bright objects leave complementary-colored after-images", filters: [f("After-image"), f("Bloom")], category: "Simulate" },
   { name: "Retro 3D", desc: "Classic red/cyan glasses effect with posterized comic contrast", filters: [f("Anaglyph 3D"), f("Sharpen")], category: "Simulate" },
-  { name: "Retro TV", desc: "Consumer tape playback through a CRT tube with tracking wear and rounded-screen falloff", filters: [f("VHS emulation"), f("CRT emulation"), f("Vignette")], category: "Simulate" },
+  { name: "Retro TV", desc: "Consumer tape playback through a CRT tube with tracking wear and rounded-screen falloff", filters: [f("VHS / NTSC"), f("CRT emulation"), f("Vignette")], category: "Simulate" },
   { name: "Security Camera", desc: "Monochrome security feed with an explicit motion-analysis overlay for moving subjects", filters: [f("Grayscale"), f("Motion Analysis", { renderMode: "MASK", source: "EMA" }), f("Scanline"), f("Film grain")], category: "Simulate" },
   { name: "Shutter Smear", desc: "Slow-shutter averaging with soft tonal drag across motion", filters: [f("Long Exposure", { mode: "SHUTTER", windowSize: 8 }), f("Levels")], category: "Simulate" },
   { name: "Surveillance DVR Failure", desc: "Near-failure CCTV feed with CRC stripe loss, bitplane bursts, and codec breakup", filters: [f("Grayscale"), f("CRC Stripe Reject"), f("Bitplane Dropout"), f("JPEG artifact")], category: "Simulate" },

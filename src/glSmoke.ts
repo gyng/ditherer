@@ -11,8 +11,9 @@
 // page's status node; the Playwright spec reads both.
 
 import { filterIndex } from "filters";
-import { glAvailable, glUnavailableStub } from "gl";
+import { getGLCtx, glAvailable, glUnavailableStub } from "gl";
 import { ENUM } from "constants/controlTypes";
+import { vhsNtscGLUsingFloatPath } from "filters/vhsNtscGL";
 
 declare global {
   interface Window {
@@ -63,6 +64,23 @@ const maxAlpha = (canvas: HTMLCanvasElement | OffscreenCanvas): number => {
   return m;
 };
 
+const lumaRange = (canvas: HTMLCanvasElement | OffscreenCanvas): number => {
+  const ctx = (canvas as HTMLCanvasElement).getContext(
+    "2d",
+    { willReadFrequently: true },
+  ) as CanvasRenderingContext2D | null;
+  if (!ctx) return -1;
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let low = 255;
+  let high = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const luma = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114;
+    low = Math.min(low, luma);
+    high = Math.max(high, luma);
+  }
+  return high - low;
+};
+
 type FilterLike = {
   func: (input: unknown, options: unknown) => unknown;
   defaults?: Record<string, unknown>;
@@ -72,6 +90,7 @@ type FilterLike = {
 const runOne = (
   filter: FilterLike,
   options: Record<string, unknown>,
+  requireDynamicRange = false,
 ): { ok: true } | { ok: false; reason: string } => {
   const input = makeGradientCanvas(16, 16);
   let output: unknown;
@@ -90,6 +109,10 @@ const runOne = (
   const a = maxAlpha(canvas);
   if (a <= 100) {
     return { ok: false, reason: `maxAlpha=${a} (expected > 100, a linearize bug likely)` };
+  }
+  if (requireDynamicRange) {
+    const range = lumaRange(canvas);
+    if (range < 8) return { ok: false, reason: `lumaRange=${range.toFixed(2)} (black/flat output)` };
   }
   return { ok: true };
 };
@@ -179,6 +202,18 @@ const main = () => {
     for (const branch of enumBranches(f)) {
       const options = { ...defaults, [branch.key]: branch.value };
       record(name, `${branch.key}=${branch.label}`, runOne(f, options));
+    }
+    if (name === "VHS / NTSC") {
+      const legacyOptions = { ...defaults };
+      delete legacyOptions.tapeSharpness;
+      record(name, "legacy-state-without-tapeSharpness", runOne(f, legacyOptions, true));
+      const floatCapable = Boolean(getGLCtx()?.gl.getExtension("EXT_color_buffer_float"));
+      if (floatCapable && !vhsNtscGLUsingFloatPath()) {
+        record(name, "RGBA16F-capability-selection", {
+          ok: false,
+          reason: "EXT_color_buffer_float is available but the RGBA8 fallback was used",
+        });
+      }
     }
   }
 

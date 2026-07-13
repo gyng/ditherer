@@ -58,6 +58,10 @@ describe("VHS / NTSC filter", () => {
     expect(vhsNtscDefaults.snow).toBe(0.00025);
     expect(vhsNtscDefaults.chromaPhaseNoise).toBe(0.001);
     expect(vhsNtscDefaults.chromaLoss).toBe(0.000025);
+    expect(vhsNtscDefaults.tapeSharpness).toBe(0.25);
+    expect(vhsNtscDefaults.edgeWave).toBe(0.5);
+    expect(vhsNtscDefaults.ringing).toBe(4);
+    expect(vhsNtscDefaults.ringingFrequency).toBe(0.45);
   });
 
   it("exposes the main transmission and tape controls", () => {

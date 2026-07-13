@@ -57,7 +57,10 @@ export const optionTypes = {
   trackingHeight: { type: RANGE, range: [0, 96], step: 1, default: 12, desc: "Height of the tracking disturbance region" },
   edgeWave: { type: RANGE, range: [0, 8], step: 0.1, default: 0.5, desc: "Slow whole-frame VHS edge waviness" },
   lumaSmear: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Asymmetric horizontal luminance smear" },
-  ringing: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Luma ringing from imperfect notch and tape filters" },
+  tapeSharpness: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "ntsc-rs VHS luma sharpen stage, applied after tape filtering and chroma loss" },
+  ringing: { type: RANGE, range: [0, 8], step: 0.1, default: 4, desc: "ntsc-rs ringing intensity applied through a calibrated notch filter" },
+  ringingFrequency: { type: RANGE, range: [0, 1], step: 0.01, default: 0.45, desc: "Normalized frequency of the ntsc-rs luma ringing notch" },
+  ringingPower: { type: RANGE, range: [0.25, 8], step: 0.25, default: 4, desc: "Quality factor (power) of the ntsc-rs luma ringing notch" },
   lumaNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.01, desc: "Noise added after luma demodulation" },
   chromaNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Low-frequency noise in the decoded color signal" },
   chromaPhaseNoise: { type: RANGE, range: [0, 1], step: 0.001, default: 0.001, desc: "Random per-line hue flutter from chroma carrier timing error" },
@@ -97,7 +100,10 @@ export const defaults = {
   trackingHeight: optionTypes.trackingHeight.default,
   edgeWave: optionTypes.edgeWave.default,
   lumaSmear: optionTypes.lumaSmear.default,
+  tapeSharpness: optionTypes.tapeSharpness.default,
   ringing: optionTypes.ringing.default,
+  ringingFrequency: optionTypes.ringingFrequency.default,
+  ringingPower: optionTypes.ringingPower.default,
   lumaNoise: optionTypes.lumaNoise.default,
   chromaNoise: optionTypes.chromaNoise.default,
   chromaPhaseNoise: optionTypes.chromaPhaseNoise.default,
@@ -129,11 +135,11 @@ const DEMODULATION: Record<string, number> = {
   TWO_LINE_COMB: 2,
 };
 
-const TAPE_PROFILE: Record<string, { lumaRadius: number; chromaRadius: number; chromaDelay: number }> = {
-  NONE: { lumaRadius: 0, chromaRadius: 0, chromaDelay: 0 },
-  SP: { lumaRadius: 1, chromaRadius: 4, chromaDelay: 4 },
-  LP: { lumaRadius: 2, chromaRadius: 6, chromaDelay: 5 },
-  EP: { lumaRadius: 3, chromaRadius: 8, chromaDelay: 6 },
+const TAPE_PROFILE: Record<string, { id: number; lumaRadius: number; chromaRadius: number; chromaDelay: number }> = {
+  NONE: { id: 0, lumaRadius: 0, chromaRadius: 0, chromaDelay: 0 },
+  SP: { id: 1, lumaRadius: 1, chromaRadius: 4, chromaDelay: 4 },
+  LP: { id: 2, lumaRadius: 2, chromaRadius: 6, chromaDelay: 5 },
+  EP: { id: 3, lumaRadius: 3, chromaRadius: 8, chromaDelay: 6 },
 };
 
 type VHSNTSCOptions = typeof defaults & { _frameIndex?: number };
@@ -153,6 +159,7 @@ const vhsNtsc = (
     fieldMode: FIELD_MODE[options.fieldMode] ?? FIELD_MODE.INTERLEAVED,
     filterType: FILTER_TYPE[options.filterType] ?? FILTER_TYPE.BUTTERWORTH,
     demodulation: DEMODULATION[options.demodulation] ?? DEMODULATION.NOTCH,
+    tapeSpeed: tape.id,
     lumaRadius: tape.lumaRadius,
     chromaRadius: tape.chromaRadius,
     tapeChromaDelay: tape.chromaDelay,
@@ -172,7 +179,18 @@ const vhsNtsc = (
     chromaPhaseNoise: options.chromaPhaseNoise,
     chromaPhaseError: options.chromaPhaseError,
     lumaSmear: options.lumaSmear,
+    // Saved chains created before the conformance port do not contain this
+    // option. Never allow a missing legacy value to become a NaN FIR kernel.
+    tapeSharpness: Number.isFinite(options.tapeSharpness)
+      ? options.tapeSharpness
+      : defaults.tapeSharpness,
     ringing: options.ringing,
+    ringingFrequency: Number.isFinite(options.ringingFrequency)
+      ? options.ringingFrequency
+      : defaults.ringingFrequency,
+    ringingPower: Number.isFinite(options.ringingPower)
+      ? options.ringingPower
+      : defaults.ringingPower,
     lumaNoise: options.lumaNoise,
     chromaNoise: options.chromaNoise,
   });
