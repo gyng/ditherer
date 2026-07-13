@@ -158,6 +158,12 @@ emission, or environment data. Its registered filters are Heightfield Raymarch,
 Silhouette Extrusion, Voxel Landscape, Glass Surface, Relief Reflections,
 Volumetric Light, SDF Melt, Fractal Portal, and Path-Traced Diorama.
 
+The extended worlds/materials suite adds Luminance Caverns, Black Hole Lens,
+Thin-Film Iridescence, Subsurface Wax, Cone-Traced AO, Chromatic Prism Tracer,
+Portal Hall, Image Fossil, Volumetric Cloud Sculpture, and Raymarched Maze. The
+maze uses a connected binary-tree layout and derives a guaranteed route to the
+exit in shader; keep that connectivity invariant if its wall logic changes.
+
 - Keep shader loops compile-time bounded and use uniform-controlled early exits.
 - Use `src/utils/glSinglePass.ts` only for generic source-backed full-screen
   passes; filters continue to own their shader, controls, and uniforms.

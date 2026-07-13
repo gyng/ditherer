@@ -270,6 +270,16 @@ import volumetricLight from "./volumetricLight";
 import sdfMelt from "./sdfMelt";
 import fractalPortal from "./fractalPortal";
 import pathTracedDiorama from "./pathTracedDiorama";
+import luminanceCaverns from "./luminanceCaverns";
+import blackHoleLens from "./blackHoleLens";
+import thinFilmIridescence from "./thinFilmIridescence";
+import subsurfaceWax from "./subsurfaceWax";
+import coneTracedAO from "./coneTracedAO";
+import chromaticPrismTracer from "./chromaticPrismTracer";
+import portalHall from "./portalHall";
+import imageFossil from "./imageFossil";
+import volumetricCloudSculpture from "./volumetricCloudSculpture";
+import raymarchedMaze from "./raymarchedMaze";
 import {
   atkinson,
   burkes,
@@ -403,6 +413,16 @@ export { default as volumetricLight } from "./volumetricLight";
 export { default as sdfMelt } from "./sdfMelt";
 export { default as fractalPortal } from "./fractalPortal";
 export { default as pathTracedDiorama } from "./pathTracedDiorama";
+export { default as luminanceCaverns } from "./luminanceCaverns";
+export { default as blackHoleLens } from "./blackHoleLens";
+export { default as thinFilmIridescence } from "./thinFilmIridescence";
+export { default as subsurfaceWax } from "./subsurfaceWax";
+export { default as coneTracedAO } from "./coneTracedAO";
+export { default as chromaticPrismTracer } from "./chromaticPrismTracer";
+export { default as portalHall } from "./portalHall";
+export { default as imageFossil } from "./imageFossil";
+export { default as volumetricCloudSculpture } from "./volumetricCloudSculpture";
+export { default as raymarchedMaze } from "./raymarchedMaze";
 export { default as temporalPosterHold } from "./temporalPosterHold";
 export { default as temporalInkDrying } from "./temporalInkDrying";
 export { default as temporalRelief } from "./temporalRelief";
@@ -1020,6 +1040,16 @@ export const filterList = [
   { displayName: "SDF Melt", filter: sdfMelt, category: "Advanced", description: "Inflate, erode, and melt a source-derived signed-distance silhouette" },
   { displayName: "Fractal Portal", filter: fractalPortal, category: "Advanced", description: "Sphere-trace a Mandelbulb or Julia bulb textured by the source image" },
   { displayName: "Path-Traced Diorama", filter: pathTracedDiorama, category: "Advanced", description: "Progressively path-trace the source as a framed image inside a softly lit miniature room" },
+  { displayName: "Luminance Caverns", filter: luminanceCaverns, category: "Advanced", description: "Fly through glowing cavern walls carved and colored by the source image" },
+  { displayName: "Black Hole Lens", filter: blackHoleLens, category: "Advanced", description: "Bend source-image rays around an event horizon and glowing accretion disc" },
+  { displayName: "Thin-Film Iridescence", filter: thinFilmIridescence, category: "Advanced", description: "Simulate wavelength-dependent soap, oil, shell, and holographic-film interference" },
+  { displayName: "Subsurface Wax", filter: subsurfaceWax, category: "Advanced", description: "Diffuse light beneath the source surface like wax, skin, jade, or stained resin" },
+  { displayName: "Cone-Traced AO", filter: coneTracedAO, category: "Advanced", description: "Horizon-trace a luminance heightfield to deepen creases and contact shadows" },
+  { displayName: "Chromatic Prism Tracer", filter: chromaticPrismTracer, category: "Advanced", description: "Trace separate red, green, and blue rays through a virtual triangular prism" },
+  { displayName: "Portal Hall", filter: portalHall, category: "Advanced", description: "Travel through a source-textured corridor of twisting, scale-changing portals" },
+  { displayName: "Image Fossil", filter: imageFossil, category: "Advanced", description: "Compress source structure into cracked sediment, mineral veins, and fossil relief" },
+  { displayName: "Volumetric Cloud Sculpture", filter: volumetricCloudSculpture, category: "Advanced", description: "Integrate source luminance and color into an animated three-dimensional cloud statue" },
+  { displayName: "Raymarched Maze", filter: raymarchedMaze, category: "Advanced", description: "Navigate a connected procedural maze with source-textured walls and an exit beacon" },
   { displayName: "Color gradient noise", filter: colorGradientNoise, category: "Advanced", description: "Perlin noise mapped to a two-color gradient, blended with the input image" },
   { displayName: "Displacement map XY", filter: displacementMapXY, category: "Advanced", description: "Use separate R/G channels as X/Y displacement maps for organic warping" },
   { displayName: "Flow field", filter: flowField, category: "Advanced", description: "Displace pixels along curl noise streamlines for organic swirling patterns" },
