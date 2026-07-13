@@ -14,6 +14,7 @@ import { filterIndex } from "filters";
 import { getGLCtx, glAvailable, glUnavailableStub } from "gl";
 import { ENUM } from "constants/controlTypes";
 import { vhsNtscGLUsingFloatPath } from "filters/vhsNtscGL";
+import { workerRPC } from "workers/workerRPC";
 
 declare global {
   interface Window {
@@ -81,6 +82,52 @@ const lumaRange = (canvas: HTMLCanvasElement | OffscreenCanvas): number => {
   return high - low;
 };
 
+const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason: string }> => {
+  const width = 16;
+  const height = 16;
+  const inputCanvas = makeGradientCanvas(width, height);
+  const inputContext = inputCanvas.getContext("2d", { willReadFrequently: true });
+  if (!inputContext) return { ok: false, reason: "worker CRT input has no 2d context" };
+  const input = inputContext.getImageData(0, 0, width, height).data;
+  const { palette: _palette, ...workerDefaults } = filterIndex.rgbStripe.defaults ?? {};
+
+  try {
+    const result = await workerRPC({
+      imageData: input.slice().buffer,
+      width,
+      height,
+      chain: [{
+        id: "crt-worker-smoke",
+        filterName: "rgbStripe",
+        displayName: "CRT emulation",
+        options: workerDefaults,
+      }],
+      frameIndex: 0,
+      isAnimating: false,
+      linearize: false,
+      wasmAcceleration: false,
+      webglAcceleration: true,
+      convertGrayscale: false,
+      prevOutputs: {},
+      prevInputs: {},
+      emaMaps: {},
+      degaussFrame: -2147483648,
+    });
+    const output = new Uint8ClampedArray(result.imageData);
+    let changedChannels = 0;
+    for (let i = 0; i < output.length; i += 4) {
+      if (output[i] !== input[i]) changedChannels += 1;
+      if (output[i + 1] !== input[i + 1]) changedChannels += 1;
+      if (output[i + 2] !== input[i + 2]) changedChannels += 1;
+    }
+    return changedChannels > width * height
+      ? { ok: true }
+      : { ok: false, reason: `worker CRT changed only ${changedChannels} color channels` };
+  } catch (error) {
+    return { ok: false, reason: `worker CRT threw: ${error instanceof Error ? error.message : String(error)}` };
+  }
+};
+
 type FilterLike = {
   func: (input: unknown, options: unknown) => unknown;
   defaults?: Record<string, unknown>;
@@ -138,7 +185,7 @@ const enumBranches = (
   return out;
 };
 
-const main = () => {
+const main = async () => {
   if (!glAvailable()) {
     const details = { reason: "WebGL2 unavailable in this browser" };
     if (statusNode) statusNode.textContent = "failed";
@@ -217,6 +264,8 @@ const main = () => {
     }
   }
 
+  record("rgbStripe", "worker", await runWorkerCrt());
+
   const status: "ok" | "failed" = failed === 0 ? "ok" : "failed";
   const details = { passed, failed, skipped, failures };
   if (statusNode) statusNode.textContent = status;
@@ -224,12 +273,10 @@ const main = () => {
   window.__glSmokeResult = { status, ...details };
 };
 
-try {
-  main();
-} catch (error) {
+void main().catch((error) => {
   const reason = error instanceof Error ? error.message : String(error);
   if (statusNode) statusNode.textContent = "failed";
   if (detailsNode) detailsNode.textContent = JSON.stringify({ reason }, null, 2);
   window.__glSmokeResult = { status: "failed", passed: 0, failed: 0, skipped: 0, failures: [{ name: "<runtime>", mode: "boot", reason }] };
   console.error("GL smoke failed:", error);
-}
+});

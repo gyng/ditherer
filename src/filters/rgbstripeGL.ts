@@ -58,17 +58,32 @@ type RenderOpts = {
   prevOutput: Uint8ClampedArray | null;
 };
 
+type RgbStripeCanvas = HTMLCanvasElement | OffscreenCanvas;
+
 let _gl: WebGL2RenderingContext | null = null;
-let _glCanvas: HTMLCanvasElement | null = null;
+let _glCanvas: RgbStripeCanvas | null = null;
 let _supportChecked = false;
 let _supported = false;
+
+const createCanvas = (width = 1, height = 1): RgbStripeCanvas | null => {
+  if (typeof document !== "undefined") {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+  if (typeof OffscreenCanvas !== "undefined") {
+    return new OffscreenCanvas(width, height);
+  }
+  return null;
+};
 
 const getCtx = (): WebGL2RenderingContext | null => {
   if (_gl) return _gl;
   if (_supportChecked && !_supported) return null;
   _supportChecked = true;
-  if (typeof document === "undefined") return null;
-  const c = document.createElement("canvas");
+  const c = createCanvas();
+  if (!c) return null;
   // Premultiplied-alpha off so we can pass straight 0-255 byte data round trip.
   const gl = c.getContext("webgl2", {
     premultipliedAlpha: false,
@@ -76,7 +91,7 @@ const getCtx = (): WebGL2RenderingContext | null => {
     antialias: false,
     depth: false,
     stencil: false,
-  });
+  }) as WebGL2RenderingContext | null;
   if (!gl) return null;
   _supported = true;
   _gl = gl;
@@ -559,12 +574,12 @@ const drawTo = (
   gl.bindVertexArray(null);
 };
 
-// Render. Returns a fresh HTMLCanvasElement holding the result. Caller is
-// responsible for null-checking via rgbStripeGLAvailable() first.
+// Render. Returns a fresh 2D canvas of the kind supported by the current
+// execution scope. Caller is responsible for null-checking first.
 export const renderRgbStripeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
   o: RenderOpts,
-): HTMLCanvasElement | null => {
+): RgbStripeCanvas | null => {
   const gl = getCtx();
   if (!gl || !_glCanvas) return null;
   const cache = initCache(gl);
@@ -723,10 +738,12 @@ export const renderRgbStripeGL = (
   // Build the output 2D canvas via drawImage — the browser handles the
   // framebuffer flip so the result is correctly oriented relative to the
   // input source canvas.
-  const outCanvas = document.createElement("canvas");
-  outCanvas.width = W;
-  outCanvas.height = H;
-  const ctx = outCanvas.getContext("2d");
+  const outCanvas = createCanvas(W, H);
+  if (!outCanvas) return null;
+  const ctx = outCanvas.getContext("2d") as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!ctx) return null;
   ctx.drawImage(_glCanvas, 0, 0);
   return outCanvas;
