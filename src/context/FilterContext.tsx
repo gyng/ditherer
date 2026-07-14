@@ -18,6 +18,7 @@ import { FilterContext } from "./filterContextValue";
 import type { AnimatedVideoElement, ExportFrameOptions, FilterActions, FilterOptionValue } from "./filterContextValue";
 import { getAutoScale, roundScale } from "./autoScale";
 import { getShareHash, getShareUrl } from "./shareUrl";
+import { getShareableTestMediaSearch } from "utils/testMediaShare";
 import { type SerializedAudioVizModulation, type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
 
 type SerializableOptions = Record<string, unknown>;
@@ -209,6 +210,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const filteringRef = useRef(false);
   const pendingFilterRef = useRef(false);
   const videoFrameTokenRef = useRef(0);
+  const mediaLoadGenerationRef = useRef(0);
+  const pendingMediaLoadRejectRef = useRef<((error: Error) => void) | null>(null);
   const exportSessionsRef = useRef<Map<string, {
     prevOutputMap: Map<string, Uint8ClampedArray>;
     prevInputMap: Map<string, Uint8ClampedArray>;
@@ -274,22 +277,41 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
   // Async action: load image from file
   const loadImageAsync = useCallback((file: File, options?: { preserveScale?: boolean }) => new Promise<void>((resolve, reject) => {
+    pendingMediaLoadRejectRef.current?.(new DOMException("Media load was superseded", "AbortError"));
+    const generation = ++mediaLoadGenerationRef.current;
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
     const loadStartedScale = stateRef.current.scale;
-    image.onerror = () => {
+    let settled = false;
+    const settleReject = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      if (pendingMediaLoadRejectRef.current === settleReject) pendingMediaLoadRejectRef.current = null;
       URL.revokeObjectURL(objectUrl);
-      reject(new Error("Failed to decode image"));
+      reject(error);
     };
-    image.onload = () => {
+    const settleResolve = () => {
+      if (settled) return;
+      settled = true;
+      if (pendingMediaLoadRejectRef.current === settleReject) pendingMediaLoadRejectRef.current = null;
       URL.revokeObjectURL(objectUrl);
+      resolve();
+    };
+    pendingMediaLoadRejectRef.current = settleReject;
+    image.onerror = () => settleReject(new Error("Failed to decode image"));
+    image.onload = () => {
+      if (generation !== mediaLoadGenerationRef.current) {
+        settleReject(new DOMException("Media load was superseded", "AbortError"));
+        return;
+      }
       resetProcessingState();
-      dispatch({ type: "LOAD_IMAGE", image, time: null, frameToken: 0, video: null, dispatch });
+      const frameToken = ++videoFrameTokenRef.current;
+      dispatch({ type: "LOAD_IMAGE", image, time: null, frameToken, video: null, dispatch });
       if (!options?.preserveScale && Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
         const scale = roundScale(getAutoScale(image.width, image.height));
         dispatch({ type: "SET_SCALE", scale });
       }
-      resolve();
+      settleResolve();
     };
     image.src = objectUrl;
   }), [resetProcessingState]);
@@ -302,6 +324,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     objectUrlForCleanup?: string,
     options?: { preserveScale?: boolean }
   ) => new Promise<void>((resolve, reject) => {
+    pendingMediaLoadRejectRef.current?.(new DOMException("Media load was superseded", "AbortError"));
+    const generation = ++mediaLoadGenerationRef.current;
     resetProcessingState();
 
     // Tear down the previously playing video immediately — waiting for the
@@ -343,18 +367,21 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     const settleResolve = () => {
       if (!settled) {
         settled = true;
+        if (pendingMediaLoadRejectRef.current === settleReject) pendingMediaLoadRejectRef.current = null;
         resolve();
       }
     };
     const settleReject = (error: Error) => {
       if (!settled) {
         settled = true;
+        if (pendingMediaLoadRejectRef.current === settleReject) pendingMediaLoadRejectRef.current = null;
         if (objectUrlForCleanup) {
           URL.revokeObjectURL(objectUrlForCleanup);
         }
         reject(error);
       }
     };
+    pendingMediaLoadRejectRef.current = settleReject;
 
     const canvas = createReadbackCanvas();
     const ctx = getReadbackContext(canvas);
@@ -365,6 +392,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
     let rafId: number | null = null;
     const dispatchCurrentFrame = () => {
+      if (generation !== mediaLoadGenerationRef.current) return;
       try {
         if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
           ctx.drawImage(video, 0, 0);
@@ -380,6 +408,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const loadFrame = () => {
+      if (generation !== mediaLoadGenerationRef.current) {
+        rafId = null;
+        return;
+      }
       if (!video.paused && video.src !== "") {
         if (!hasLoggedFirstFrame) {
           hasLoggedFirstFrame = true;
@@ -397,6 +429,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     let hasLoggedFirstFrame = false;
     video.onerror = () => settleReject(new Error("Failed to decode video"));
     video.onloadedmetadata = () => {
+      if (generation !== mediaLoadGenerationRef.current) return;
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       if (!options?.preserveScale && Math.abs(stateRef.current.scale - loadStartedScale) < 0.0001) {
@@ -413,6 +446,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatchCurrentFrame();
     };
     video.onplaying = () => {
+      if (generation !== mediaLoadGenerationRef.current) return;
       logPerf("playing");
       // Restart the frame loop every time playback resumes
       video.__manualPause = false;
@@ -422,6 +456,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     };
     video.onpause = () => {
       rafId = null;
+      if (generation !== mediaLoadGenerationRef.current) return;
       // Recover from unexpected pauses caused by decode/buffering edge cases.
       // Respect explicit user pauses and teardown state (empty src).
       if (!video.__manualPause && video.src !== "" && !video.ended) {
@@ -1035,9 +1070,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   // reason. User-started loops (clicking Play on a filter) are left
   // alone so removing one filter doesn't kill an animation the user
   // explicitly started on another.
-  const maybeStopAutoAnimLoop = () => {
+  const maybeStopAutoAnimLoop = (chain = stateRef.current.chain) => {
     if (!animLoopAutoStartedRef.current) return;
-    const chain = stateRef.current.chain;
     const stillWantsAuto = chain.some((e) => e.enabled && e.filter?.autoAnimate);
     if (!stillWantsAuto) stopAnimLoop();
   };
@@ -1256,13 +1290,14 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
     },
     chainRemove: (id: string) => {
+      const nextChain = stateRef.current.chain.filter((entry) => entry.id !== id);
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
       evictCachedOutput(id);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REMOVE", id });
-      maybeStopAutoAnimLoop();
+      maybeStopAutoAnimLoop(nextChain);
     },
     chainReorder: (fromIndex: number, toIndex: number) => {
       prevOutputMapRef.current.clear();
@@ -1279,10 +1314,16 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: "CHAIN_SET_ACTIVE", index });
     },
     chainToggle: (id: string) => {
+      const nextChain = stateRef.current.chain.map((entry) =>
+        entry.id === id ? { ...entry, enabled: !entry.enabled } : entry,
+      );
       dispatch({ type: "CHAIN_TOGGLE", id });
-      maybeStopAutoAnimLoop();
+      maybeStopAutoAnimLoop(nextChain);
     },
     chainReplace: (id: string, displayName: string, filter) => {
+      const nextChain = stateRef.current.chain.map((entry) =>
+        entry.id === id ? { ...entry, displayName, filter } : entry,
+      );
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
@@ -1298,7 +1339,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
           animLoopAutoStartedRef.current = true;
         }
       } else {
-        maybeStopAutoAnimLoop();
+        maybeStopAutoAnimLoop(nextChain);
       }
     },
     chainDuplicate: (id: string) => {
@@ -1336,7 +1377,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     getExportUrl: (filterState: FilterReducerState) => {
       const json = serializeStateJson(filterState);
       const hash = getShareHash(json, DEFAULT_SHARE_STATE_JSON);
-      return `${window.location.origin}${getShareUrl(window.location.pathname, "", hash)}`;
+      const search = getShareableTestMediaSearch(window.location.search);
+      return `${window.location.origin}${getShareUrl(window.location.pathname, search, hash)}`;
     },
     exportState: (filterState: FilterReducerState) => {
       return serializeStateJson(filterState, true);

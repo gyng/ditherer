@@ -61,6 +61,7 @@ export const ImageTab = ({
         types={{ range: [0.01, 1] }}
         step={0.01}
         value={quality}
+        defaultValue={0.92}
         onSetFilterOption={(_, value) => setQuality(Number(value))}
       />
     )}
@@ -94,6 +95,7 @@ export const ImageTab = ({
           <input
             type="number"
             className={s.customInput}
+            aria-label="Custom resolution multiplier"
             min={1}
             max={8}
             step={1}

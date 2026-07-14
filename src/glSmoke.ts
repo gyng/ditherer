@@ -1,10 +1,14 @@
 // GL filter smoke check. Runs in a real browser so WebGL2 is available.
 //
-// For every filter tagged requiresGL: true we:
+// For every registered filter we force WebGL acceleration and observe whether
+// the browser actually compiles or draws through WebGL2. For every discovered
+// GL path we:
 //   1. render with default options in default and _linearize=true modes
 //   2. render once per non-default ENUM value to exercise alternate shader
 //      branches (e.g. bokeh shape, morphology mode, LCD subpixel layout)
-//   3. confirm each output is a 16×16 canvas with non-trivial alpha (catches
+//   3. require GL-only filters to issue a draw rather than silently returning
+//      their input after a renderer failure
+//   4. confirm each output is a contract-sized canvas with non-trivial alpha (catches
 //      the "float-in-u8-clamped" bug the jsdom smoke was originally guarding,
 //      plus any shader-compile/link failure on an enum branch)
 // Aggregate pass/fail counts get written to window.__glSmokeResult and the
@@ -23,6 +27,12 @@ declare global {
       passed: number;
       failed: number;
       skipped: number;
+      glFilters: number;
+      requiredGLFilters: number;
+      shaderCompiles: number;
+      programLinks: number;
+      shaderFailures: number;
+      drawCalls: number;
       failures: { name: string; mode: string; reason: string }[];
     };
   }
@@ -41,9 +51,19 @@ const makeGradientCanvas = (w: number, h: number): HTMLCanvasElement => {
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
-      data.data[i] = Math.round((x / Math.max(1, w - 1)) * 255);
-      data.data[i + 1] = Math.round((y / Math.max(1, h - 1)) * 255);
+      const xBand = Math.floor((x / Math.max(1, w)) * 4) / 3;
+      const yBand = Math.floor((y / Math.max(1, h)) * 4) / 3;
+      data.data[i] = Math.round(Math.min(1, xBand) * 255);
+      data.data[i + 1] = Math.round(Math.min(1, yBand) * 255);
       data.data[i + 2] = 255 - data.data[i];
+      // Broad flat bands give edge shaders non-edge interiors, while the
+      // central checker and color steps retain high-frequency signal content.
+      if (x >= w / 4 && x < (w * 3) / 4 && y >= h / 4 && y < (h * 3) / 4) {
+        const high = (Math.floor(x / 2) + Math.floor(y / 2)) % 2 === 0;
+        data.data[i] = high ? 245 : 10;
+        data.data[i + 1] = high ? 245 : 24;
+        data.data[i + 2] = high ? 245 : 48;
+      }
       data.data[i + 3] = 255;
     }
   }
@@ -82,6 +102,23 @@ const lumaRange = (canvas: HTMLCanvasElement | OffscreenCanvas): number => {
   return high - low;
 };
 
+const peakLuma = (canvas: HTMLCanvasElement | OffscreenCanvas): number => {
+  const ctx = (canvas as HTMLCanvasElement).getContext(
+    "2d",
+    { willReadFrequently: true },
+  ) as CanvasRenderingContext2D | null;
+  if (!ctx) return -1;
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let high = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    high = Math.max(
+      high,
+      pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114,
+    );
+  }
+  return high;
+};
+
 const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason: string }> => {
   const width = 16;
   const height = 16;
@@ -89,7 +126,8 @@ const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason: strin
   const inputContext = inputCanvas.getContext("2d", { willReadFrequently: true });
   if (!inputContext) return { ok: false, reason: "worker CRT input has no 2d context" };
   const input = inputContext.getImageData(0, 0, width, height).data;
-  const { palette: _palette, ...workerDefaults } = filterIndex.rgbStripe.defaults ?? {};
+  const workerDefaults = { ...(filterIndex.rgbStripe.defaults ?? {}) };
+  delete workerDefaults.palette;
 
   try {
     const result = await workerRPC({
@@ -132,34 +170,173 @@ type FilterLike = {
   func: (input: unknown, options: unknown) => unknown;
   defaults?: Record<string, unknown>;
   optionTypes?: Record<string, { type?: string; options?: { value: unknown }[] }>;
+  requiresGL?: boolean;
+  temporal?: boolean;
 };
+
+// Intercept the browser's WebGL2 entry points instead of relying on filter
+// metadata. This covers shared-pipeline renderers, older self-contained GL
+// renderers, and worker-safe OffscreenCanvas implementations alike. A compile
+// attempt lets us attribute an exception to GL even when drawing never starts.
+let shaderCompiles = 0;
+let programLinks = 0;
+let drawCalls = 0;
+const shaderFailureLogs: string[] = [];
+
+const installGLCallTracking = (): void => {
+  const proto = WebGL2RenderingContext.prototype;
+  const compileShader = proto.compileShader;
+  const linkProgram = proto.linkProgram;
+  const drawArrays = proto.drawArrays;
+  proto.compileShader = function trackedCompileShader(shader: WebGLShader): void {
+    shaderCompiles += 1;
+    compileShader.call(this, shader);
+    if (!this.getShaderParameter(shader, this.COMPILE_STATUS)) {
+      shaderFailureLogs.push(`compile: ${this.getShaderInfoLog(shader) || "no driver log"}`);
+    }
+  };
+  proto.linkProgram = function trackedLinkProgram(program: WebGLProgram): void {
+    programLinks += 1;
+    linkProgram.call(this, program);
+    if (!this.getProgramParameter(program, this.LINK_STATUS)) {
+      shaderFailureLogs.push(`link: ${this.getProgramInfoLog(program) || "no driver log"}`);
+    }
+  };
+  proto.drawArrays = function trackedDrawArrays(mode: number, first: number, count: number): void {
+    drawCalls += 1;
+    drawArrays.call(this, mode, first, count);
+  };
+};
+
+const runtimeOptions = (): Record<string, unknown> => {
+  const input = makeGradientCanvas(16, 16);
+  const ctx = input.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("temporal fixture has no 2d context");
+  const previous = ctx.getImageData(0, 0, input.width, input.height).data;
+  // An inverted previous frame activates motion/EMA shaders instead of merely
+  // compiling their idle passthrough. Keeping spatial detail avoids falsely
+  // diagnosing filters that intentionally render history as black-frame bugs.
+  for (let i = 0; i < previous.length; i += 4) {
+    previous[i] = 255 - previous[i];
+    previous[i + 1] = 255 - previous[i + 1];
+    previous[i + 2] = 255 - previous[i + 2];
+    previous[i + 3] = 255;
+  }
+  return {
+    _webglAcceleration: true,
+    _wasmAcceleration: false,
+    _frameIndex: 2,
+    _isAnimating: true,
+    _prevInput: previous.slice(),
+    _prevOutput: previous.slice(),
+    _ema: Float32Array.from(previous),
+  };
+};
+
+// A few filters have a meaningful GL path that their UI default deliberately
+// leaves idle. These fixtures activate the real shader contract; they are not
+// output snapshots or implementation-specific source assertions.
+const shaderValidationOverrides = (
+  name: string,
+  defaults: Record<string, unknown>,
+): Record<string, unknown> => {
+  if (name === "Quantize") {
+    const palette = defaults.palette as Record<string, unknown> | undefined;
+    return {
+      palette: {
+        ...palette,
+        options: {
+          ...((palette?.options as Record<string, unknown> | undefined) ?? {}),
+          colors: [[0, 0, 0], [255, 255, 255], [255, 64, 32]],
+          colorDistanceAlgorithm: "RGB",
+        },
+      },
+    };
+  }
+  if (name === "CRT Degauss") {
+    return { triggerMode: "MOTION", triggerThreshold: 0.01 };
+  }
+  return {};
+};
+
+const outputScaleFor = (name: string): number =>
+  name === "Pixel Art Upscale" ? 2 : 1;
+
+type RunResult =
+  | { ok: true; attemptedGL: boolean; drewGL: boolean }
+  | { ok: false; attemptedGL: boolean; drewGL: boolean; reason: string };
 
 const runOne = (
   filter: FilterLike,
   options: Record<string, unknown>,
   requireDynamicRange = false,
-): { ok: true } | { ok: false; reason: string } => {
+  requireGLDraw = false,
+  outputScale = 1,
+): RunResult => {
+  const compilesBefore = shaderCompiles;
+  const drawsBefore = drawCalls;
+  const failuresBefore = shaderFailureLogs.length;
+  const result = (ok: boolean, reason?: string): RunResult => {
+    const attemptedGL = shaderCompiles > compilesBefore || drawCalls > drawsBefore;
+    const drewGL = drawCalls > drawsBefore;
+    if (ok) return { ok: true, attemptedGL, drewGL };
+    return { ok: false, attemptedGL, drewGL, reason: reason ?? "unknown failure" };
+  };
   const input = makeGradientCanvas(16, 16);
   let output: unknown;
   try {
     output = filter.func(input, options);
   } catch (e) {
-    return { ok: false, reason: `threw: ${e instanceof Error ? e.message : String(e)}` };
+    return result(false, `threw: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (shaderFailureLogs.length > failuresBefore) {
+    const logs = shaderFailureLogs.slice(failuresBefore).join(" | ");
+    return result(false, `shader compile/link failure: ${logs}`);
+  }
+  if (requireGLDraw && drawCalls === drawsBefore) {
+    return result(false, "declares requiresGL but issued no WebGL draw (silent fallback)");
   }
   if (!output || typeof (output as { getContext?: unknown }).getContext !== "function") {
-    return { ok: false, reason: `returned non-canvas: ${typeof output}` };
+    return result(false, `returned non-canvas: ${typeof output}`);
   }
   const canvas = output as HTMLCanvasElement;
-  if (canvas.width !== 16 || canvas.height !== 16) {
-    return { ok: false, reason: `size drift ${canvas.width}x${canvas.height}` };
+  const expectedSize = 16 * outputScale;
+  if (canvas.width !== expectedSize || canvas.height !== expectedSize) {
+    return result(false, `size drift ${canvas.width}x${canvas.height} (expected ${expectedSize}x${expectedSize})`);
   }
   const a = maxAlpha(canvas);
   if (a <= 100) {
-    return { ok: false, reason: `maxAlpha=${a} (expected > 100, a linearize bug likely)` };
+    return result(false, `maxAlpha=${a} (expected > 100, a linearize bug likely)`);
+  }
+  const peak = peakLuma(canvas);
+  if (peak < 8) {
+    return result(false, `peakLuma=${peak.toFixed(2)} (opaque black output)`);
   }
   if (requireDynamicRange) {
     const range = lumaRange(canvas);
-    if (range < 8) return { ok: false, reason: `lumaRange=${range.toFixed(2)} (black/flat output)` };
+    if (range < 8) return result(false, `lumaRange=${range.toFixed(2)} (black/flat output)`);
+  }
+  return result(true);
+};
+
+const warmTemporalState = (
+  filter: FilterLike,
+  options: Record<string, unknown>,
+): { ok: true } | { ok: false; reason: string } => {
+  const failuresBefore = shaderFailureLogs.length;
+  try {
+    filter.func(makeGradientCanvas(16, 16), options);
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `temporal warm-up threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+  if (shaderFailureLogs.length > failuresBefore) {
+    return {
+      ok: false,
+      reason: `temporal warm-up shader failure: ${shaderFailureLogs.slice(failuresBefore).join(" | ")}`,
+    };
   }
   return { ok: true };
 };
@@ -186,20 +363,27 @@ const enumBranches = (
 };
 
 const main = async () => {
+  installGLCallTracking();
   if (!glAvailable()) {
     const details = { reason: "WebGL2 unavailable in this browser" };
     if (statusNode) statusNode.textContent = "failed";
     if (detailsNode) detailsNode.textContent = JSON.stringify(details, null, 2);
-    window.__glSmokeResult = { status: "failed", passed: 0, failed: 0, skipped: 0, failures: [{ name: "<runtime>", mode: "init", reason: details.reason }] };
+    window.__glSmokeResult = { status: "failed", passed: 0, failed: 0, skipped: 0, glFilters: 0, requiredGLFilters: 0, shaderCompiles, programLinks, shaderFailures: shaderFailureLogs.length, drawCalls, failures: [{ name: "<runtime>", mode: "init", reason: details.reason }] };
     return;
   }
 
   let passed = 0;
   let failed = 0;
   let skipped = 0;
+  let requiredGLFilters = 0;
+  const glFilterNames = new Set<string>();
   const failures: { name: string; mode: string; reason: string }[] = [];
 
-  const record = (name: string, mode: string, result: ReturnType<typeof runOne>) => {
+  const record = (
+    name: string,
+    mode: string,
+    result: { ok: true } | { ok: false; reason: string },
+  ) => {
     if (result.ok) passed += 1;
     else { failed += 1; failures.push({ name, mode, reason: result.reason }); }
   };
@@ -239,21 +423,76 @@ const main = async () => {
   }
 
   for (const [name, filter] of Object.entries(filterIndex)) {
-    const f = filter as FilterLike & { requiresGL?: boolean };
-    if (!f.requiresGL) { skipped += 1; continue; }
-
+    const f = filter as FilterLike;
+    if (f.requiresGL) requiredGLFilters += 1;
     const defaults = (f.defaults as Record<string, unknown>) ?? {};
-    record(name, "default", runOne(f, { ...defaults }));
-    record(name, "linearize", runOne(f, { ...defaults, _linearize: true }));
+    const activated = shaderValidationOverrides(name, defaults);
+    const scale = outputScaleFor(name);
+    const requireDynamicRange = name === "VHS / NTSC";
+    if (f.temporal) {
+      const warmup0 = warmTemporalState(f, {
+        ...defaults,
+        ...activated,
+        ...runtimeOptions(),
+        _frameIndex: 0,
+      });
+      if (!warmup0.ok) {
+        record(name, "warmup-frame-0", warmup0);
+        continue;
+      }
+      const warmup1 = warmTemporalState(f, {
+        ...defaults,
+        ...activated,
+        ...runtimeOptions(),
+        _frameIndex: 1,
+      });
+      if (!warmup1.ok) {
+        record(name, "warmup-frame-1", warmup1);
+        continue;
+      }
+    }
+    const defaultResult = runOne(
+      f,
+      { ...defaults, ...activated, ...runtimeOptions() },
+      requireDynamicRange,
+      f.requiresGL,
+      scale,
+    );
+
+    // A CPU-only filter is just a discovery miss, not a GL validation result.
+    // Exceptions from one are covered by the normal filter tests. If it tried
+    // to compile or draw, however, it belongs to this gate and must pass.
+    if (!f.requiresGL && !defaultResult.attemptedGL) {
+      skipped += 1;
+      continue;
+    }
+
+    glFilterNames.add(name);
+    record(name, "default", defaultResult);
+    if (!defaultResult.ok) continue;
+
+    record(name, "linearize", runOne(
+      f,
+      { ...defaults, ...activated, ...runtimeOptions(), _linearize: true },
+      requireDynamicRange,
+      true,
+      scale,
+    ));
 
     for (const branch of enumBranches(f)) {
-      const options = { ...defaults, [branch.key]: branch.value };
-      record(name, `${branch.key}=${branch.label}`, runOne(f, options));
+      const options = { ...defaults, ...activated, ...runtimeOptions(), [branch.key]: branch.value };
+      record(name, `${branch.key}=${branch.label}`, runOne(
+        f,
+        options,
+        requireDynamicRange,
+        true,
+        scale,
+      ));
     }
     if (name === "VHS / NTSC") {
-      const legacyOptions = { ...defaults };
+      const legacyOptions = { ...defaults, ...runtimeOptions() };
       delete legacyOptions.tapeSharpness;
-      record(name, "legacy-state-without-tapeSharpness", runOne(f, legacyOptions, true));
+      record(name, "legacy-state-without-tapeSharpness", runOne(f, legacyOptions, true, true));
       const floatCapable = Boolean(getGLCtx()?.gl.getExtension("EXT_color_buffer_float"));
       if (floatCapable && !vhsNtscGLUsingFloatPath()) {
         record(name, "RGBA16F-capability-selection", {
@@ -267,7 +506,18 @@ const main = async () => {
   record("rgbStripe", "worker", await runWorkerCrt());
 
   const status: "ok" | "failed" = failed === 0 ? "ok" : "failed";
-  const details = { passed, failed, skipped, failures };
+  const details = {
+    passed,
+    failed,
+    skipped,
+    glFilters: glFilterNames.size,
+    requiredGLFilters,
+    shaderCompiles,
+    programLinks,
+    shaderFailures: shaderFailureLogs.length,
+    drawCalls,
+    failures,
+  };
   if (statusNode) statusNode.textContent = status;
   if (detailsNode) detailsNode.textContent = JSON.stringify(details, null, 2);
   window.__glSmokeResult = { status, ...details };
@@ -277,6 +527,6 @@ void main().catch((error) => {
   const reason = error instanceof Error ? error.message : String(error);
   if (statusNode) statusNode.textContent = "failed";
   if (detailsNode) detailsNode.textContent = JSON.stringify({ reason }, null, 2);
-  window.__glSmokeResult = { status: "failed", passed: 0, failed: 0, skipped: 0, failures: [{ name: "<runtime>", mode: "boot", reason }] };
+  window.__glSmokeResult = { status: "failed", passed: 0, failed: 0, skipped: 0, glFilters: 0, requiredGLFilters: 0, shaderCompiles, programLinks, shaderFailures: shaderFailureLogs.length, drawCalls, failures: [{ name: "<runtime>", mode: "boot", reason }] };
   console.error("GL smoke failed:", error);
 });

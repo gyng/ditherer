@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import type { ColorControlProps } from "./types";
 
+import ControlLabel from "./ControlLabel";
+import { humanizeControlName } from "./labels";
 import s from "./styles.module.css";
 
 // COLOR type is always [r, g, b] arrays
@@ -16,17 +18,33 @@ const hexToRgb = (hex: string): number[] => [
 
 const ColorPicker = (props: ColorControlProps) => {
   const [open, setOpen] = useState(false);
+  const inputId = useId();
   const hex = Array.isArray(props.value) ? rgbToHex(props.value) : (props.value || "#000000");
 
   return (
-    <div>
-      <div className={s.label}>{props.name}</div>
+    <div className={s.controlField}>
+      <ControlLabel
+        htmlFor={inputId}
+        name={props.name}
+        label={props.types?.label}
+        desc={props.types?.desc}
+        currentValue={props.value}
+        defaultValue={props.defaultValue}
+        onReset={props.defaultValue !== undefined
+          ? () => props.onSetFilterOption(props.name, props.defaultValue)
+          : undefined}
+      />
       <div className={s.colorPickerRow}>
-        <div
+        <button
+          id={inputId}
+          type="button"
           className={s.colorPickerSwatch}
           style={{ backgroundColor: hex }}
           onClick={() => setOpen(!open)}
           title={hex}
+          aria-label={`${open ? "Close" : "Open"} ${humanizeControlName(props.types?.label || props.name)} color picker, current color ${hex}`}
+          aria-expanded={open}
+          aria-describedby={props.types?.desc ? `${inputId}-help` : undefined}
         />
         <span className={s.colorPickerHex}>{hex}</span>
       </div>

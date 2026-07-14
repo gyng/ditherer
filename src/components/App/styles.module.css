@@ -18,7 +18,7 @@
   align-content: flex-start;
   display: flex;
   flex-direction: row;
-  min-height: 100%;
+  min-height: 100vh;
   justify-content: flex-start;
   margin: 0;
   padding: 0;
@@ -29,9 +29,280 @@
   display: flex;
   flex-direction: column;
   background: var(--light-gray);
+  box-sizing: border-box;
+  height: 100vh;
   min-width: 320px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+  /* Sticky establishes a stacking context. Keep sidebar-owned dialogs above
+     the later workspace sibling so their full-screen overlays remain usable. */
+  z-index: 200;
   width: 10vw;
   padding: 15px;
+}
+
+/* The task navigator is the app's information architecture, not a mobile-only
+   display mode. Keep the canvas workspace stable while the sidebar presents
+   one decision class at a time. */
+.app[data-active-task="source"] .composeTask,
+.app[data-active-task="source"] .outputSettingsTask,
+.app[data-active-task="compose"] .sourceTask,
+.app[data-active-task="compose"] .outputSettingsTask,
+.app[data-active-task="adjust"] .sourceTask,
+.app[data-active-task="adjust"] .outputSettingsTask,
+.app[data-active-task="preview"] .sourceTask,
+.app[data-active-task="preview"] .composeTask,
+.app[data-active-task="export"] .sourceTask,
+.app[data-active-task="export"] .composeTask {
+  display: none;
+}
+
+.app[data-active-task="compose"] .filterInspector,
+.app[data-active-task="compose"] .pipelineOptions,
+.app[data-active-task="adjust"] .chainComposer {
+  display: none;
+}
+
+.workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 100vh;
+  background-color: #6c7478;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.workspaceToolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 5px 7px;
+  background: var(--light-gray);
+  border-bottom: 2px outset var(--button-highlight);
+  box-shadow: 0 1px 0 var(--button-dk-shadow);
+}
+
+.taskNav,
+.layoutTools,
+.exportTools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.toolbarLabel {
+  margin-right: 3px;
+  color: #4d4d4d;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.taskNav {
+  padding-right: 10px;
+  border-right: 1px solid #808080;
+}
+
+.taskNav button,
+.layoutTools button,
+.exportTools button {
+  min-height: 28px;
+  margin: 0;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.taskNav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: bold;
+}
+
+.taskNumber {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #777;
+  background: #d7d7d7;
+  color: #333;
+  font: bold 9px/1 "Courier New", monospace;
+}
+
+.taskNav button[aria-current="page"] .taskNumber {
+  border-color: #174b85;
+  background: var(--beautiful-blue);
+  color: #fff;
+}
+
+.exportTools {
+  margin-left: auto;
+}
+
+.layoutTools {
+  justify-content: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.layoutTools button {
+  padding-inline: 6px;
+}
+
+.workspaceToolbar button[aria-pressed="true"] {
+  border-style: inset;
+  background: #e8e8e8;
+  box-shadow: none;
+}
+
+/* At laptop widths the task, layout, and export groups cannot all fit on one
+   row beside the sidebar. Give layout its own row instead of allowing the
+   task navigation to paint over (and intercept clicks from) Undo/Redo. */
+@media (min-width: 769px) and (max-width: 1600px) {
+  .workspaceToolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .taskNav {
+    min-width: 0;
+  }
+
+  .layoutTools {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+  }
+
+  .exportTools {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+.workspaceStatus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  min-height: 25px;
+  box-sizing: border-box;
+  padding: 3px 9px;
+  background: #292d30;
+  color: #d8dfdf;
+  border-bottom: 1px solid #0f1112;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.1);
+  font: 10px/1.2 "Courier New", monospace;
+  letter-spacing: 0.2px;
+}
+
+.statusMode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #ffdca2;
+  font-weight: bold;
+}
+
+.statusMode[data-active="true"] {
+  color: #b7f5c6;
+}
+
+.statusLamp {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #080808;
+  border-radius: 50%;
+  background: #d48e23;
+  box-shadow: 0 0 4px rgba(255, 184, 73, 0.7);
+}
+
+.statusMode[data-active="true"] .statusLamp {
+  background: #55d574;
+  box-shadow: 0 0 5px rgba(85, 213, 116, 0.75);
+}
+
+.statusHint {
+  margin-left: auto;
+  color: #aeb6b6;
+}
+
+.taskNav button[aria-current="page"] {
+  border-style: inset;
+  background: #fff;
+  box-shadow: none;
+}
+
+.taskContext {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0 9px;
+  padding: 8px 9px 9px;
+  border: 2px inset #b7c3d1;
+  border-left: 5px solid var(--beautiful-blue);
+  background: #edf3fa;
+  color: #222;
+}
+
+.taskContextStep {
+  color: #485665;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.taskContext strong {
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.taskContext > span:last-child {
+  color: #46505a;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.taskProgress {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  margin: 11px 0 2px;
+  padding-top: 8px;
+  border-top: 1px solid #8b8b8b;
+}
+
+.taskProgress button {
+  min-height: 32px;
+  margin: 0;
+}
+
+.taskBack {
+  justify-self: start;
+}
+
+.taskNext {
+  justify-self: end;
+  font-weight: bold;
+}
+
+.pipelineOptions {
+  display: block;
 }
 
 .inputTweaks {
@@ -136,8 +407,106 @@
   color: #888;
 }
 
+.chrome .perfStatsSlow {
+  color: #7a1f00;
+  background: #ffe1c7;
+  padding: 4px;
+  border: 1px solid #b45c22;
+}
+
 .chrome .github {
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.webMCPBadgeWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.webMCPBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  padding: 1px 5px 1px 4px;
+  border: 1px solid #777;
+  background: #d7d7d7;
+  box-shadow: 1px 1px 0 #fff;
+  color: #333;
+  font: 10px/1.2 "Courier New", monospace;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.webMCPBadge:focus-visible {
+  outline: 2px dotted var(--beautiful-blue);
+  outline-offset: 2px;
+}
+
+.webMCPBadgeLamp {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #555;
+  border-radius: 50%;
+  background: #868686;
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.55);
+}
+
+.webMCPBadge[data-phase="registering"] .webMCPBadgeLamp,
+.webMCPBadge[data-phase="partial"] .webMCPBadgeLamp {
+  background: #f0ad19;
+}
+
+.webMCPBadge[data-phase="ready"] {
+  border-color: #2a6650;
+  background: #d9f2e5;
+  color: #103f2e;
+}
+
+.webMCPBadge[data-phase="ready"] .webMCPBadgeLamp {
+  border-color: #18593f;
+  background: #20b46b;
+  box-shadow: 0 0 3px rgba(32, 180, 107, 0.85), inset 1px 1px rgba(255, 255, 255, 0.65);
+}
+
+.webMCPBadge[data-phase="error"] .webMCPBadgeLamp {
+  background: #c33;
+}
+
+.webMCPBadgeCount {
+  padding-left: 4px;
+  border-left: 1px solid currentColor;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.78;
+}
+
+.webMCPTooltip {
+  position: absolute;
+  z-index: 12020;
+  left: 0;
+  bottom: calc(100% + 6px);
+  width: min(280px, calc(100vw - 32px));
+  padding: 7px 8px;
+  border: 2px outset var(--button-highlight);
+  background: #ffffe1;
+  color: #222;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
+  font-size: 11px;
+  line-height: 1.35;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.webMCPBadgeWrap:hover .webMCPTooltip,
+.webMCPBadge:focus + .webMCPTooltip {
+  visibility: visible;
+  opacity: 1;
 }
 
 .filterDescription {
@@ -150,6 +519,165 @@
 
 .filterBar {
   margin-top: 10px;
+}
+
+.applyStatus {
+  margin-top: 4px;
+  min-height: 1.3em;
+  color: #333;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.inspectorSearch {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 7px;
+  padding: 7px 8px;
+  border: 2px inset var(--input-border);
+  background: var(--window-bg);
+  color: var(--window-text);
+  font: inherit;
+}
+
+.filterInspector {
+  padding: 4px 5px 6px;
+}
+
+.filterInspectorHeader {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 7px;
+  padding: 7px 8px;
+  border-left: 4px solid var(--beautiful-blue);
+  background: #e3e8ef;
+  color: #181818;
+}
+
+.filterInspectorKicker {
+  color: #4c5663;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.09em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.filterInspectorTitle {
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filterInspectorDescription {
+  display: none;
+  color: #3f4750;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.inspectorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--separator-bottom);
+}
+
+.inspectorActions button {
+  flex: 1 1 auto;
+  min-height: 28px;
+  font-size: 11px;
+}
+
+.onboarding {
+  display: grid;
+  gap: 5px;
+  margin: 6px 0 10px;
+  padding: 8px;
+  background: #fffbd7;
+  border: 2px inset #d9c96e;
+  color: #2f2a10;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.onboarding > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.commandPalette {
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(640px, calc(100dvh - 32px));
+  display: flex;
+  flex-direction: column;
+  padding: 3px;
+  background: var(--light-gray);
+  border: 2px outset #fff;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.commandTitleBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 4px;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #fff;
+}
+
+.commandTitleBar button {
+  min-height: 24px;
+  margin: 0;
+  padding: 1px 7px;
+}
+
+.commandSearch {
+  margin: 8px;
+  padding: 7px;
+  border: 2px inset #808080;
+  font: inherit;
+}
+
+.commandList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 0 8px 8px;
+  overflow: auto;
+}
+
+.commandList button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  margin: 0;
+  padding: 5px 8px;
+  text-align: left;
+}
+
+.commandList .commandActive:not(:disabled) {
+  background: var(--beautiful-blue);
+  color: #fff;
+  border-color: #fff #000 #000 #fff;
+}
+
+.commandList .commandActive kbd {
+  color: #fff;
+}
+
+.commandList kbd {
+  color: #444;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .nativeFileInput {
@@ -372,10 +900,11 @@
 
 
 .canvases {
-  display: grid;
+  min-width: 0;
+  min-height: calc(100vh - 69px);
 }
 
-.canvases > div {
+.canvasesFloating .canvasWindow {
   background-color: var(--light-gray);
   position: fixed;
   top: 0;
@@ -384,6 +913,62 @@
   display: table;
   grid-column: 1;
   grid-row: 1;
+}
+
+.canvasesDocked {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.canvasesDocked .canvasWindow {
+  position: static !important;
+  transform: none !important;
+  display: block;
+  min-width: 0;
+  margin: 0;
+  overflow: auto;
+}
+
+.canvasesDocked .canvasWindow > div {
+  width: 100%;
+  min-width: min(100%, 240px);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.canvasesDocked .canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.canvasesDocked .canvasArea,
+.canvasesDocked .outputCanvasStage {
+  justify-content: center;
+  background-color: #363a3c;
+  background-image:
+    linear-gradient(45deg, rgba(255,255,255,0.035) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,0.035) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.035) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.035) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.canvasesDocked .canvasArea {
+  display: flex;
+  align-items: flex-start;
+}
+
+.canvasesOutputOnly {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.canvasesOutputOnly .inputCanvasWindow {
+  display: none;
 }
 
 .canvases .canvas {
@@ -406,6 +991,84 @@
 
 .outputCanvasStage {
   display: flex;
+  position: relative;
+  overflow: auto;
+}
+
+.comparisonCanvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  clip-path: inset(0 calc(100% - var(--compare-position)) 0 0);
+  pointer-events: none;
+}
+
+.comparisonCanvasHold {
+  clip-path: inset(0);
+}
+
+.comparisonDivider {
+  position: absolute;
+  inset-block: 0;
+  width: 2px;
+  transform: translateX(-1px);
+  background: #fff;
+  box-shadow: 1px 0 #000;
+  pointer-events: none;
+}
+
+.comparisonControl {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: rgba(192, 192, 192, 0.94);
+  border: 2px outset #fff;
+  font-size: 11px;
+}
+
+.comparisonControl input {
+  flex: 1;
+}
+
+.comparisonSlider {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.comparisonControl button {
+  flex: 0 0 auto;
+  min-height: 26px;
+  margin: 0;
+  padding: 2px 8px;
+}
+
+.comparisonControl button[aria-pressed="true"] {
+  border-style: inset;
+  background: #fff;
+}
+
+.dialogHost {
+  position: fixed !important;
+  inset: 0;
+  z-index: 10010;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.42);
 }
 
 .outputWindowFullscreen {
@@ -1248,6 +1911,26 @@
   right: auto;
 }
 
+.inputError {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid #8b1f1f;
+  background: #ffe8e8;
+  color: #5f1111;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.inputError button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 2px 6px;
+}
+
 .dropPlaceholder {
   position: absolute;
   inset: 0;
@@ -1266,19 +1949,145 @@
 }
 
 @media (max-width: 768px) {
+  .filterInspectorHeader {
+    padding: 9px 10px;
+  }
+
+  .filterInspectorTitle {
+    font-size: 18px;
+  }
+
+  .filterInspectorDescription {
+    display: block;
+  }
+
+  .inspectorSearch,
+  .inspectorActions button {
+    min-height: 42px;
+  }
+
   .app {
     flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
   }
 
   .chrome {
+    order: 2;
+    flex: 1 1 auto;
+    height: auto;
+    position: static;
     width: 100%;
     min-width: unset;
     padding: 8px;
-    max-height: min(44dvh, 360px);
+    max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
+  }
+
+  .app[data-active-task="preview"] .chrome,
+  .app[data-active-task="export"] .chrome {
+    display: none;
+  }
+
+  .app[data-active-task="source"] .canvases,
+  .app[data-active-task="compose"] .canvases,
+  .app[data-active-task="adjust"] .canvases,
+  .app[data-active-task="export"] .canvases {
+    display: none;
+  }
+
+  .app[data-active-task="preview"] .inputCanvasWindow {
+    display: none !important;
+  }
+
+  .workspace {
+    order: 1;
+    flex: 0 0 auto;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .app[data-active-task="preview"] .workspace,
+  .app[data-active-task="export"] .workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .workspaceToolbar {
+    position: sticky;
+    top: 0;
+    padding: 4px;
+    display: flex;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .taskNav,
+  .layoutTools,
+  .exportTools {
+    flex-wrap: nowrap;
+  }
+
+  .taskNav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    flex: 0 0 100%;
+    width: 100%;
+    gap: 2px;
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .taskNav button {
+    min-width: 0;
+    padding-inline: 3px;
+    font-size: 12px;
+  }
+
+  .taskNumber {
+    display: none;
+  }
+
+  .taskContext {
+    margin-top: 3px;
+  }
+
+  .taskNav button,
+  .layoutTools button,
+  .exportTools button {
+    min-height: 44px;
+  }
+
+  .layoutTools {
+    display: none;
+  }
+
+  .toolbarLabel {
+    display: none;
+  }
+
+  .workspaceStatus {
+    min-height: 22px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 10px;
+    padding-inline: 7px;
+  }
+
+  .workspaceStatus > span {
+    flex: 0 0 auto;
+  }
+
+  .statusHint {
+    margin-left: 0;
+  }
+
+  .exportTools {
+    display: none;
   }
 
   .chrome h1 {
@@ -1299,7 +2108,7 @@
     width: 100%;
   }
 
-  .canvases > div {
+  .canvases .canvasWindow {
     position: static !important;
     transform: none !important;
     display: block;
@@ -1310,9 +2119,59 @@
     overflow: hidden;
   }
 
-  .canvases > div:nth-child(1) { order: 2; }
-  .canvases > div:nth-child(2) { order: 1; }
-  .canvases > div:nth-child(3) { order: 3; }
+  .app[data-active-task="preview"] .canvases,
+  .app[data-active-task="preview"] .outputCanvasWindow,
+  .app[data-active-task="preview"] .outputCanvasWindow > .outputWindow {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .app[data-active-task="preview"] .canvases {
+    flex: 1 1 auto;
+  }
+
+  .app[data-active-task="preview"] .outputCanvasWindow {
+    margin: 0;
+  }
+
+  .app[data-active-task="preview"] .outputWindow > .windowChrome {
+    flex: 0 0 auto;
+  }
+
+  .app[data-active-task="preview"] .outputCanvasStage {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app[data-active-task="preview"] .outputCanvasStage .canvas {
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .app[data-active-task="preview"] .menuBar {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .app[data-active-task="preview"] .menuBar > * {
+    flex: 0 0 auto;
+  }
+
+  .comparisonControl {
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+  }
+
+  .comparisonControl button {
+    min-height: 36px;
+  }
+
+  .inputCanvasWindow { order: 2; }
+  .outputCanvasWindow { order: 1; }
 
   .canvases .canvas {
     max-width: 100%;
@@ -1344,13 +2203,13 @@
   }
 
   .titleBarBtn {
-    min-height: 28px;
+    min-height: 44px;
     padding: 2px 6px;
     font-size: 14px;
   }
 
   .menuItem {
-    min-height: 32px;
+    min-height: 44px;
     padding: 4px 12px;
     font-size: 14px;
   }

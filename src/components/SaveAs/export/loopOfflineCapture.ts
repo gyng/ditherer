@@ -274,7 +274,7 @@ export const captureLoopOfflineFrames = async ({
           );
           sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
           sourceCtx.drawImage(decodedFrame.frame, 0, 0, sourceCanvas.width, sourceCanvas.height);
-          renderFromCanvasFrame(
+          await renderFromCanvasFrame(
             sourceCanvas,
             scaledCanvas,
             scaledCtx,

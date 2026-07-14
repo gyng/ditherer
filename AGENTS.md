@@ -151,6 +151,14 @@ Don't flag a filter just because its GL port hasn't landed yet — only flag whe
 
 **New filters: GL-only (`requiresGL: true`) by default.** When the filter is gather-parallel (per-pixel compute, neighborhood reads, coordinate remaps, sampling history textures) write the GL path and skip the JS fallback. A naive JS implementation is too slow for video and just adds dead code paths to maintain. Only ship a JS fallback when the algorithm is genuinely sequential (error diffusion) or trivially cheap, or when the filter must run in environments where WebGL2 is unavailable. The dispatcher renders a "WebGL2 required" stub for `requiresGL` filters on unsupported hardware, so users see why it didn't run.
 
+**WebGL shader validation is a release gate.** `npm run test:gl` launches a real
+Chromium WebGL2 context, forces GPU acceleration across the complete filter
+registry, and validates every path that compiles or draws. It also requires
+`requiresGL` filters to issue an actual draw, initializes temporal GPU state,
+and rejects transparent or opaque-black output, preventing silent passthrough
+and black-frame regressions.
+Run it after adding or changing GLSL; unit/jsdom tests cannot compile shaders.
+
 ### Raymarching and ray tracing
 
 The raymarching family treats the loaded image as height, silhouette, material,
@@ -254,6 +262,15 @@ would have caught the regression.
 
 Use Vitest for unit/integration tests and Playwright for real-browser behavior.
 Tests live in `test/` mirroring `src/` structure.
+
+Coverage follows the same pyramid. `npm run test:coverage` measures the Vitest
+layer; browser suites emit source-mapped V8 coverage for WebGL, WASM, workers,
+media, and React integration; `npm run coverage:merge` combines both. CI uses
+`npm run test:coverage:gate`. Do not remove a difficult module from the
+denominator to raise the percentage—route it through the browser layer or
+extract deterministic decision logic. A “does not throw” sweep is useful smoke
+coverage, but it does not replace branch, failure-recovery, or output-contract
+tests.
 
 ### Code Style
 

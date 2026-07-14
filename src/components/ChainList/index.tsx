@@ -10,6 +10,7 @@ import ChainPreview from "./ChainPreview";
 import FilterCombobox from "components/FilterCombobox";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, buildPresetSignatureMap, getChainSignature, type PresetFilterEntry } from "./presets";
 import LibraryBrowser from "./LibraryBrowser";
+import WindowDialog from "components/WindowDialog";
 import { createRandomFilterEntry, isPaletteOption, randomizeOptions } from "./randomize";
 import {
   dispatchRandomCycleSeconds,
@@ -60,16 +61,19 @@ const ChainList = ({
   onEditAudioMod,
   onEditChainAudioMod,
   chainAudioActive = false,
+  openPresetLibraryRequest = 0,
 }: {
   onEditAudioMod?: (entryId: string, anchorRect?: DOMRect) => void;
   onEditChainAudioMod?: (anchorRect?: DOMRect) => void;
   chainAudioActive?: boolean;
+  openPresetLibraryRequest?: number;
 }) => {
   const { state, actions } = useFilter();
   const { chain, activeIndex, randomCycleSeconds } = state;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [mobileActionsEntryId, setMobileActionsEntryId] = useState<string | null>(null);
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
   const [pinnedPreviews, setPinnedPreviews] = useState<Map<string, { top: number; left: number }>>(new Map());
@@ -94,6 +98,12 @@ const ChainList = ({
   useLayoutEffect(() => {
     if (showLibraryBrowser) ensureLibraryDragInit();
   }, [showLibraryBrowser, ensureLibraryDragInit]);
+  useEffect(() => {
+    if (openPresetLibraryRequest <= 0) return;
+    setLibraryInitialTab("presets");
+    setLibraryInitialQuery("");
+    setShowLibraryBrowser(true);
+  }, [openPresetLibraryRequest]);
   const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const randomCycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -488,6 +498,16 @@ const ChainList = ({
 
   return (
     <div>
+      <div className={s.chainHeader}>
+        <div>
+          <span className={s.chainKicker}>Filter chain</span>
+          <strong className={s.chainCount}>
+            {chain.length} {chain.length === 1 ? "stage" : "stages"}
+          </strong>
+        </div>
+        <span className={s.chainDirection}>Runs top to bottom</span>
+      </div>
+
       {/* Chain toolbar */}
       <div className={s.addRow}>
         <div className={s.toolbarGroup}>
@@ -499,6 +519,7 @@ const ChainList = ({
               setShowLibraryBrowser(true);
             }}
             title="Open full filter/preset browser"
+            aria-label="Open filter and preset library"
           >
             ▤
           </button>
@@ -510,6 +531,7 @@ const ChainList = ({
               if (preset) { loadPreset(preset); setLoadedSavedName(null); }
             }}
             title="Load a preset"
+            aria-label="Load a preset"
           >
             <option value="" disabled>&#9733;</option>
             {PRESET_CATEGORIES.map((cat) => (
@@ -526,6 +548,7 @@ const ChainList = ({
             className={[s.addBtn, s.randomAction].join(" ")}
             onClick={() => loadRandomPreset()}
             title="Random curated preset"
+            aria-label="Load a random curated preset"
           >
             &#9733;?
           </button>
@@ -533,6 +556,7 @@ const ChainList = ({
             className={[s.addBtn, s.randomAction].join(" ")}
             onClick={() => randomChain()}
             title="Random filter chain"
+            aria-label="Create a random filter chain"
           >
             &#9861;
           </button>
@@ -548,6 +572,7 @@ const ChainList = ({
             className={s.addBtn}
             onClick={() => setShowClearConfirm(true)}
             title="Clear filter chain"
+            aria-label="Clear filter chain"
           >
             &#10005;
           </button>
@@ -572,6 +597,7 @@ const ChainList = ({
                 }
               }}
               title="Load a saved chain"
+              aria-label="Load a saved chain"
             >
               <option value="" disabled>&#9650; Load</option>
               {savedChains.map((c) => (
@@ -620,6 +646,8 @@ const ChainList = ({
             <div
               key={entry.id}
               className={classes}
+              data-stage-active={isActive ? "true" : "false"}
+              data-stage-enabled={entry.enabled ? "true" : "false"}
               data-preview-hover-anchor="true"
               draggable
               role="option"
@@ -637,13 +665,16 @@ const ChainList = ({
                 className={s.entryCheckbox}
                 type="checkbox"
                 checked={entry.enabled}
+                aria-label={`${entry.enabled ? "Disable" : "Enable"} ${entry.displayName}`}
                 onChange={(e) => {
                   e.stopPropagation();
                   actions.chainToggle(entry.id);
                 }}
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className={s.entryNumber}>{index + 1}.</span>
+              <span className={s.entryNumber} aria-label={`Stage ${index + 1}`}>
+                {String(index + 1).padStart(2, "0")}
+              </span>
               {editingEntryId === entry.id ? (
                 <FilterCombobox
                   inline
@@ -678,7 +709,18 @@ const ChainList = ({
               >
                 {stepTime ? `${stepTime.ms.toFixed(0)}ms` : ""}
               </span>
-              <div className={s.entryActions}>
+              <div className={`${s.entryActions} ${mobileActionsEntryId === entry.id ? s.entryActionsExpanded : ""}`}>
+                <button
+                  className={`${s.removeBtn} ${s.mobileMore}`}
+                  aria-label={`More actions for ${entry.displayName}`}
+                  aria-expanded={mobileActionsEntryId === entry.id}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMobileActionsEntryId((current) => current === entry.id ? null : entry.id);
+                  }}
+                >
+                  ⋯
+                </button>
                 {entry.filter?.optionTypes?.animate && (
                   <button
                     className={`${s.removeBtn} ${actions.isAnimating() ? s.animActive : ""}`}
@@ -689,6 +731,7 @@ const ChainList = ({
                       );
                     }}
                     title={actions.isAnimating() ? "Stop animation" : "Play animation"}
+                    aria-label={actions.isAnimating() ? `Stop ${entry.displayName} animation` : `Play ${entry.displayName} animation`}
                   >
                     {actions.isAnimating() ? "\u23F9" : "\u25B6"}
                   </button>
@@ -701,6 +744,7 @@ const ChainList = ({
                     if (match) actions.chainReplace(entry.id, entry.displayName, match.filter);
                   }}
                   title="Reset to defaults"
+                  aria-label={`Reset ${entry.displayName} to defaults`}
                 >
                   &#8634;
                 </button>
@@ -711,6 +755,7 @@ const ChainList = ({
                     onEditAudioMod?.(entry.id, (e.currentTarget as HTMLElement).getBoundingClientRect());
                   }}
                   title="Map audio visualizer to this filter"
+                  aria-label={`Map audio visualizer to ${entry.displayName}`}
                 >
                   ♪
                 </button>
@@ -723,6 +768,7 @@ const ChainList = ({
                     actions.chainReplace(entry.id, entry.displayName, { ...base, options: opts });
                   }}
                   title="Re-roll options"
+                  aria-label={`Randomize options for ${entry.displayName}`}
                 >
                   ~
                 </button>
@@ -733,6 +779,7 @@ const ChainList = ({
                     openPresetBrowserForFilter(entry.displayName);
                   }}
                   title="Open preset browser and search for presets using this filter"
+                  aria-label={`Find presets using ${entry.displayName}`}
                 >
                   &#9734;
                 </button>
@@ -747,6 +794,7 @@ const ChainList = ({
                     }
                   }}
                   title="Remove"
+                  aria-label={`Remove ${entry.displayName}`}
                 >
                   x
                 </button>
@@ -757,6 +805,7 @@ const ChainList = ({
                     actions.chainDuplicate(entry.id);
                   }}
                   title="Duplicate"
+                  aria-label={`Duplicate ${entry.displayName}`}
                 >
                   +
                 </button>
@@ -780,6 +829,7 @@ const ChainList = ({
                     setPinnedPreviews(next);
                   }}
                   title={pinnedPreviews.has(entry.id) ? "Unpin preview" : "Pin preview"}
+                  aria-label={`${pinnedPreviews.has(entry.id) ? "Unpin" : "Pin"} preview for ${entry.displayName}`}
                 >
                   &#9673;
                 </button>
@@ -788,7 +838,7 @@ const ChainList = ({
           );
         })}
         <div className={`${s.entry} ${s.addEntry}`} aria-label="Add filter row">
-          <span className={s.addEntrySpacer} aria-hidden="true" />
+          <span className={s.addEntrySpacer} aria-hidden="true">+</span>
           <div className={s.addEntryPicker}>
             <FilterCombobox
               inline
@@ -804,6 +854,7 @@ const ChainList = ({
               actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
             }}
             title="Add a random filter"
+            aria-label="Add a random filter"
           >
             ⚄
           </button>
@@ -841,7 +892,7 @@ const ChainList = ({
         );
       })()}
 
-      {/* Active filter / preset description */}
+      {/* Preset / saved chain description */}
       {(() => {
         const activeEntry = chain[activeIndex];
         if (!activeEntry) return null;
@@ -849,26 +900,32 @@ const ChainList = ({
         if (matchedPreset) {
           return (
             <div className={s.description}>
-              <strong>{matchedPreset.name}</strong>: {matchedPreset.desc}
+              <span className={s.descriptionLabel}>Matched preset</span>
+              <span><strong>{matchedPreset.name}</strong>: {matchedPreset.desc}</span>
             </div>
           );
         }
         // Show saved chain name if loaded
         if (loadedSavedName) {
           const saved = savedChains.find((c) => c.name === loadedSavedName);
-          if (saved) return <div className={s.description}>{saved.name}: {saved.desc}</div>;
+          if (saved) return (
+            <div className={s.description}>
+              <span className={s.descriptionLabel}>Saved chain</span>
+              <span><strong>{saved.name}</strong>: {saved.desc}</span>
+            </div>
+          );
         }
-        const match = filterList.find(
-          (f) => f && f.displayName === activeEntry.displayName
-        );
-        return match?.description ? (
-          <div className={s.description}>{match.description}</div>
-        ) : null;
+        return null;
       })()}
 
       {showClearConfirm && (
         <div className={s.confirmOverlay} onClick={() => setShowClearConfirm(false)}>
-          <div className={s.confirmDialog} onClick={(e) => e.stopPropagation()}>
+          <WindowDialog
+            className={s.confirmDialog}
+            title="Clear filter chain"
+            onClose={() => setShowClearConfirm(false)}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className={s.confirmTitleBar}>
               <span className={s.confirmTitleText}>ditherer.exe</span>
               <button
@@ -882,7 +939,7 @@ const ChainList = ({
               <div className={s.confirmIcon}>&#9888;</div>
               <div className={s.confirmMessage}>
                 Clear the filter chain?<br />
-                <span className={s.confirmSub}>This action cannot be undone.</span>
+                <span className={s.confirmSub}>You can restore it with Undo.</span>
               </div>
             </div>
             <div className={s.confirmButtons}>
@@ -905,11 +962,14 @@ const ChainList = ({
                 Cancel
               </button>
             </div>
-          </div>
+          </WindowDialog>
         </div>
       )}
 
       {showLibraryBrowser && (
+        <div className={s.libraryOverlay} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setShowLibraryBrowser(false);
+        }}>
         <div
           ref={libraryDragRef}
           role="presentation"
@@ -930,12 +990,15 @@ const ChainList = ({
             previewVideo={state.video}
           />
         </div>
+        </div>
       )}
 
       {showRandomCycleModal && (
         <div className={s.confirmOverlay} onMouseDown={() => setShowRandomCycleModal(false)}>
-          <div
+          <WindowDialog
             className={[s.confirmDialog, s.randomCycleDialog].join(" ")}
+            title="Random chain swap"
+            onClose={() => setShowRandomCycleModal(false)}
             onMouseDown={e => e.stopPropagation()}
           >
             <div className={s.confirmTitleBar}>
@@ -991,7 +1054,7 @@ const ChainList = ({
                 Cancel
               </button>
             </div>
-          </div>
+          </WindowDialog>
         </div>
       )}
     </div>

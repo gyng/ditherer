@@ -37,3 +37,8 @@ export const getAutoScale = (
 
 export const roundScale = (scale: number) =>
   Math.round(scale * 10) / 10 || 0.1;
+
+export const getScaleForMaxWidth = (sourceWidth: number, maxWidth: number) => {
+  const targetScale = Math.max(0.05, Math.min(16, maxWidth / sourceWidth));
+  return Math.floor((targetScale + Number.EPSILON) * 100) / 100;
+};

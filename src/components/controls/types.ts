@@ -13,6 +13,7 @@ export interface ControlProps<TDefinition = FilterOptionDefinition, TValue = unk
   name: string;
   types: TDefinition;
   value: TValue;
+  defaultValue?: TValue;
   hideLabel?: boolean;
   onSetFilterOption: ControlSetter;
 }
@@ -29,13 +30,10 @@ export type RangeControlProps = ControlProps<ControlMeta & { range: number[] }, 
 };
 export type StringControlProps = ControlProps<ControlMeta, string>;
 export type TextControlProps = ControlProps<ControlMeta, string>;
-export type ColorControlProps = {
-  name: string;
-  value: string | number[];
-  onSetFilterOption: ControlSetter;
-};
+export type ColorControlProps = ControlProps<ControlMeta, string | number[]>;
 
 export interface NestedControlsProps {
+  query?: string;
   optionTypes?: FilterOptionDefinitions;
   options?: FilterOptionValues;
   inputCanvas?: HTMLCanvasElement | null;

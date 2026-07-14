@@ -12,7 +12,10 @@ export const optionTypes = {
 
 export const defaults = {
   threshold: optionTypes.threshold.default,
-  palette: optionTypes.palette.default
+  // Solarize with threshold 96 can only emit channel values <= 96. The
+  // nearest palette's own 2-level default therefore rounds every channel to
+  // zero and makes the filter's default output an opaque black frame.
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
 const solarize = (input: any, options: typeof defaults = defaults) => {

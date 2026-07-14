@@ -1,6 +1,36 @@
 .controls {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+.controlField {
+  min-width: 0;
+  padding: 8px 7px 9px;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid #c3c3c3;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.controlField:first-child {
+  border-top: 1px solid #c3c3c3;
+}
+
+.controlField:focus-within {
+  border-left-color: var(--beautiful-blue);
+  background: #edf5ff;
+}
+
+.actionControl {
+  min-height: 30px;
+  margin: 6px 3px;
+  font-weight: bold;
+}
+
+.emptyControls {
+  margin: 6px 0;
+  color: #444;
+  font-size: 11px;
 }
 
 .control {
@@ -28,6 +58,32 @@
   padding: 0 3px;
   position: relative;
   top: -9px;
+}
+
+.groupDisclosure {
+  display: block;
+  border: 0;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.groupDisclosure:focus-visible {
+  outline: 2px solid var(--beautiful-blue);
+  outline-offset: 1px;
+}
+
+.groupLabelRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.groupLabelRow .name {
+  flex: 1 1 auto;
 }
 
 .optionGroup {
@@ -68,6 +124,7 @@
 
 .enum {
   width: 100%;
+  min-height: 32px;
   padding: 5px;
   background: var(--window-bg);
   color: var(--window-text);
@@ -82,7 +139,7 @@
 
 .themeDesc {
   font-size: 11px;
-  color: #555;
+  color: #3f3f3f;
   line-height: 1.3;
   margin: 2px 0 4px;
 }
@@ -112,24 +169,54 @@
 }
 
 .range {
-  margin-top: 5px;
+  margin-top: 0;
 }
 
 .range .rangeGroup {
   display: flex;
   flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
 }
 
 .range .rangeGroup > input[type=range] {
   flex: 1;
+  min-width: 0;
   margin: 0;
 }
 
-.range .value {
+.numberInput {
+  width: 68px;
+  min-width: 68px;
+  box-sizing: border-box;
+  padding: 5px 4px;
+  border: 2px inset var(--input-border);
+  background: var(--window-bg);
+  color: var(--window-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
   text-align: right;
-  min-width: 35px;
-  user-select: none;
-  cursor: default;
+}
+
+.numberInput[aria-invalid="true"] {
+  background: #fff1ef;
+  color: #7b120b;
+}
+
+.enum:focus-visible,
+.numberInput:focus-visible,
+.textInput:focus-visible,
+.textArea:focus-visible,
+.rangeGroup > input[type=range]:focus-visible {
+  outline: 2px solid var(--beautiful-blue);
+  outline-offset: 1px;
+}
+
+.checkboxToggle input:focus-visible {
+  outline: 2px solid var(--beautiful-blue);
+  outline-offset: 2px;
 }
 
 .file {
@@ -145,24 +232,140 @@
 }
 
 .checkbox {
-  margin: 3px 0;
+  margin: 0;
   display: flex;
   align-items: center;
+  gap: 5px;
+}
+
+.checkboxToggle {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 24px;
+  cursor: pointer;
 }
 
 .label {
   text-transform: capitalize;
   margin-bottom: 1px;
+  font-weight: 600;
+  line-height: 1.25;
   user-select: none;
   cursor: default;
 }
 
-.info {
+.controlField .label {
+  color: #343434;
   font-size: 10px;
-  color: #888;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.labelRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 20px;
+  margin-bottom: 2px;
+}
+
+.info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0 2px;
+  margin: 0;
+  border: 1px solid #7b7b7b;
+  box-shadow: 1px 1px 0 #fff;
+  background: #d7d7d7;
+  font-weight: bold;
+  font-size: 10px;
+  line-height: 1;
+  color: #3f3f3f;
   cursor: help;
-  margin-left: 3px;
   text-transform: none;
+}
+
+.resetControl {
+  flex: 0 0 auto;
+  min-height: 22px;
+  margin: 0 0 0 auto;
+  padding: 1px 5px;
+  box-shadow: none;
+  font-size: 10px;
+  font-weight: normal;
+}
+
+.resetControl:disabled {
+  display: none;
+}
+
+.info:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: 1px;
+}
+
+.helpHint {
+  position: relative;
+  display: inline-flex;
+}
+
+.helpHint summary {
+  list-style: none;
+}
+
+.helpHint summary::-webkit-details-marker {
+  display: none;
+}
+
+.helpPopover {
+  position: absolute;
+  z-index: 12000;
+  top: calc(100% + 3px);
+  left: 0;
+  width: min(260px, calc(100vw - 32px));
+  padding: 7px 8px;
+  border: 2px outset var(--button-highlight);
+  background: #ffffe1;
+  color: #222;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.themeSelectLabel {
+  display: block;
+}
+
+.paletteSearchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.paletteSearch {
+  min-width: 0;
+  border: 2px inset var(--input-border);
+  padding: 5px;
+  background: var(--window-bg);
+  color: var(--window-text);
+  font: inherit;
+}
+
+.paletteFavoriteButton {
+  min-width: 34px;
+  margin: 0;
+  padding: 2px;
+  font-size: 16px;
 }
 
 input[type=text],
@@ -175,8 +378,15 @@ textarea,
   color: var(--window-text);
 }
 
+.textInput,
+.textArea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+
 textarea {
-  width: 90%;
+  width: 100%;
   min-height: 200px;
 }
 
@@ -313,14 +523,6 @@ button:focus-visible,
   overflow: auto;
 }
 
-.clickable {
-  cursor: text !important;
-}
-
-.clickable:hover {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
-}
-
 .unselectable {
   user-select: none !important;
 }
@@ -336,19 +538,24 @@ button:focus-visible,
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  min-height: 30px;
 }
 
 .colorPickerSwatch {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border: 2px inset #808080;
   flex-shrink: 0;
   cursor: pointer;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
 }
 
 .colorPickerHex {
   font-family: monospace;
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .pickerContainer {
@@ -419,6 +626,40 @@ button:focus-visible,
   border-radius: 0;
 }
 
+@media (max-width: 768px) {
+  .controlField {
+    padding: 10px 9px 11px;
+  }
+
+  .enum,
+  .numberInput,
+  .textInput {
+    min-height: 40px;
+  }
+
+  .range .rangeGroup > input[type=range] {
+    min-height: 40px;
+  }
+
+  .checkboxToggle {
+    min-height: 40px;
+  }
+
+  .info,
+  .resetControl {
+    min-height: 30px;
+  }
+
+  .resetControl span {
+    display: none;
+  }
+
+  .colorPickerSwatch {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 .pickerContainer .pickerPreview {
   display: flex;
   align-items: center;
@@ -470,15 +711,6 @@ button:focus-visible,
     height: 36px;
   }
 
-  .range .value {
-    min-width: 50px;
-    min-height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    font-size: 13px;
-  }
-
   .colorArray .color {
     min-height: 28px;
     min-width: 28px;
@@ -493,7 +725,7 @@ button:focus-visible,
   }
 
   button, .button {
-    min-height: 34px;
+    min-height: 44px;
     padding: 4px 8px;
     font-size: 13px;
   }
@@ -509,6 +741,21 @@ button:focus-visible,
     padding: 6px 8px;
   }
 
+  .info {
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 12px;
+  }
+
+  .helpPopover {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    top: auto;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    width: auto;
+  }
+
   textarea {
     width: 100%;
     font-size: 14px;
@@ -519,5 +766,16 @@ button:focus-visible,
     padding: 6px;
     width: 100%;
     box-sizing: border-box;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
+import {
+  startBrowserCoverage,
+  writeBrowserCoverage,
+} from "./browserCoverage";
 
 test("browser loads the WASM path without fallback noise", async ({ page }) => {
+  await startBrowserCoverage(page);
   const consoleMessages: Array<{ type: string; text: string }> = [];
   page.on("console", (message) => {
     consoleMessages.push({ type: message.type(), text: message.text() });
@@ -18,4 +23,5 @@ test("browser loads the WASM path without fallback noise", async ({ page }) => {
     /instantiateStreaming|WASM module failed|WASM module not loaded|unsupported MIME type/i.test(text),
   );
   expect(noisyMessages).toEqual([]);
+  await writeBrowserCoverage(page, "wasm-smoke");
 });

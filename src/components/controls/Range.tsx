@@ -1,70 +1,98 @@
-import React, { useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import type { RangeControlProps } from "./types";
 
+import ControlLabel from "./ControlLabel";
+import { humanizeControlName } from "./labels";
 import s from "./styles.module.css";
 
 const Range = (props: RangeControlProps) => {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState("");
-  const label = props.types?.label || props.name;
+  const [editValue, setEditValue] = useState(String(props.value));
+  const cancelEditRef = useRef(false);
+  const inputId = useId();
+  const label = humanizeControlName(props.types?.label || props.name);
+  const min = props.types.range[0];
+  const max = props.types.range[1];
+  const step = props.step ?? 1;
+  const parsedEditValue = Number(editValue);
+  const editValueInvalid = editValue.trim() === ""
+    || !Number.isFinite(parsedEditValue)
+    || parsedEditValue < min
+    || parsedEditValue > max;
+
+  useEffect(() => {
+    setEditValue(String(props.value));
+  }, [props.value]);
+
+  const commitEditValue = (rawValue: string) => {
+    if (cancelEditRef.current) {
+      cancelEditRef.current = false;
+      setEditValue(String(props.value));
+      return;
+    }
+
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) {
+      setEditValue(String(props.value));
+      return;
+    }
+
+    const nextValue = Math.min(max, Math.max(min, parsed));
+    setEditValue(String(nextValue));
+    if (!Object.is(nextValue, props.value)) {
+      props.onSetFilterOption(props.name, nextValue);
+    }
+  };
 
   return (
-    <div className={s.range}>
-      <div className={s.label}>
-        {label}
-        {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
-      </div>
+    <div className={[s.controlField, s.range].join(" ")}>
+      <ControlLabel
+        htmlFor={inputId}
+        name={props.name}
+        label={props.types?.label}
+        desc={props.types?.desc}
+        currentValue={props.value}
+        defaultValue={props.defaultValue}
+        onReset={props.defaultValue !== undefined
+          ? () => props.onSetFilterOption(props.name, props.defaultValue)
+          : undefined}
+      />
       <div className={s.rangeGroup}>
         <input
+          id={inputId}
           type="range"
-          min={props.types.range[0]}
-          max={props.types.range[1]}
+          aria-describedby={props.types?.desc ? `${inputId}-help` : undefined}
+          min={min}
+          max={max}
           value={props.value}
-          step={props.step || 1}
-          onChange={e =>
-            props.onSetFilterOption(props.name, parseFloat(e.target.value))
-          }
+          step={step}
+          onChange={event => {
+            const nextValue = Number(event.target.value);
+            setEditValue(event.target.value);
+            props.onSetFilterOption(props.name, nextValue);
+          }}
         />
-
-        {editing ? (
-          <input
-            type="number"
-            className={[s.value, s.clickable].join(" ")}
-            value={editValue}
-            step={props.step || 1}
-            autoFocus
-            onChange={e => setEditValue(e.target.value)}
-            onBlur={() => {
-              const parsed = parseFloat(editValue);
-              if (!isNaN(parsed)) {
-                props.onSetFilterOption(props.name, parsed);
-              }
-              setEditing(false);
-            }}
-            onKeyDown={e => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              if (e.key === "Escape") setEditing(false);
-            }}
-          />
-        ) : (
-          <span
-            role="button"
-            tabIndex={0}
-            className={[s.value, s.clickable].join(" ")}
-            onClick={() => {
+        <input
+          type="number"
+          className={s.numberInput}
+          aria-label={`${label} value`}
+          aria-describedby={props.types?.desc ? `${inputId}-help` : undefined}
+          aria-invalid={editValueInvalid}
+          min={min}
+          max={max}
+          value={editValue}
+          step={step}
+          inputMode="decimal"
+          onChange={event => setEditValue(event.target.value)}
+          onBlur={event => commitEditValue(event.currentTarget.value)}
+          onKeyDown={event => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              cancelEditRef.current = true;
               setEditValue(String(props.value));
-              setEditing(true);
-            }}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                setEditValue(String(props.value));
-                setEditing(true);
-              }
-            }}
-          >
-            {props.value}
-          </span>
-        )}
+              event.currentTarget.blur();
+            }
+          }}
+        />
       </div>
     </div>
   );

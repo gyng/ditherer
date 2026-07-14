@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ControlProps } from "./types";
 
+import ControlLabel from "./ControlLabel";
+import { humanizeControlName } from "./labels";
 import s from "./styles.module.css";
 
 type CurvePoint = [number, number];
@@ -43,6 +45,7 @@ const serializePoints = (points: CurvePoint[]) =>
 
 const Curve = (props: ControlProps) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const editorId = useId();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState(typeof props.value === "string" ? props.value : serializePoints(DEFAULT_POINTS));
   const points = useMemo(() => parsePoints(draft), [draft]);
@@ -106,14 +109,18 @@ const Curve = (props: ControlProps) => {
 
   return (
     <div className={s.curveControl}>
-      <div className={s.label}>
-        {props.name}
-        {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
-      </div>
+      <ControlLabel
+        name={props.name}
+        label={props.types?.label}
+        desc={props.types?.desc}
+      />
       <div className={s.curveMeta}>Click to add points, drag to shape, double-click a point to remove it.</div>
       <svg
         ref={svgRef}
+        id={editorId}
         className={s.curveEditor}
+        role="application"
+        aria-label={`${humanizeControlName(props.types?.label || props.name)} curve editor`}
         viewBox="0 0 255 255"
         onPointerDown={(event) => {
           const target = event.target as HTMLElement;
@@ -174,6 +181,7 @@ const Curve = (props: ControlProps) => {
       </div>
       <textarea
         className={s.curveTextarea}
+        aria-label={`${humanizeControlName(props.types?.label || props.name)} control points JSON`}
         value={draft}
         wrap="off"
         spellCheck={false}

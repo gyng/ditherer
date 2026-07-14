@@ -18,11 +18,26 @@ import { CHAIN_PRESETS, PRESET_CATEGORIES, type ChainPreset } from "./presets";
 import PresetThumbnail from "./PresetThumbnail";
 import FilterThumbnail from "./FilterThumbnail";
 import BackendTags from "./BackendTags";
+import WindowDialog from "components/WindowDialog";
+import useMediaQuery from "../../hooks/useMediaQuery";
 import s from "./libraryBrowser.module.css";
 
 type FilterEntry = (typeof filterList)[number];
 const ALL_FILTERS = filterList.filter((f) => f) as FilterEntry[];
 const FILTER_CATEGORIES = ["All", ...new Set(ALL_FILTERS.map((f) => f.category))];
+const FAVORITES_KEY = "ditherer-filter-favorites";
+const RECENTS_KEY = "ditherer-filter-recents";
+type CapabilityFilter = "All" | "Favorites" | "Recent" | "Animated" | "Temporal" | "GPU";
+const CAPABILITY_FILTERS: CapabilityFilter[] = ["All", "Favorites", "Recent", "Animated", "Temporal", "GPU"];
+
+const readStoredNames = (key: string) => {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]") as unknown;
+    return new Set(Array.isArray(value) ? value.filter((name): name is string => typeof name === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+};
 
 // Computed once at module load. If GL fails to initialise (unsupported
 // browser, blacklisted GPU) this stays false for the lifetime of the
@@ -150,6 +165,11 @@ const LibraryBrowser = ({
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [presetCategory, setPresetCategory] = useState("All");
+  const [capability, setCapability] = useState<CapabilityFilter>("All");
+  const [favorites, setFavorites] = useState<Set<string>>(() => readStoredNames(FAVORITES_KEY));
+  const [recents, setRecents] = useState<string[]>(() => [...readStoredNames(RECENTS_KEY)]);
+  const [mobileView, setMobileView] = useState<"list" | "details">("list");
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [selectedFilterName, setSelectedFilterName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, FilterOptionValues>>({});
@@ -163,6 +183,11 @@ const LibraryBrowser = ({
     const needle = query.trim().toLowerCase();
     return ALL_FILTERS.filter((entry) => {
       if (!needle && filterCategory !== "All" && entry.category !== filterCategory) return false;
+      if (capability === "Favorites" && !favorites.has(entry.displayName)) return false;
+      if (capability === "Recent" && !recents.includes(entry.displayName)) return false;
+      if (capability === "Animated" && !hasAnimatedOption(entry)) return false;
+      if (capability === "Temporal" && !hasTemporalBehavior(entry)) return false;
+      if (capability === "GPU" && entry.filter.noGL) return false;
       if (!needle) return true;
       const anim = hasAnimatedOption(entry);
       const temp = hasTemporalBehavior(entry);
@@ -174,7 +199,7 @@ const LibraryBrowser = ({
         includesNeedle(tagSearch, needle)
       );
     });
-  }, [filterCategory, query]);
+  }, [capability, favorites, filterCategory, query, recents]);
 
   const filteredPresets = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -231,6 +256,36 @@ const LibraryBrowser = ({
     }));
   };
 
+  const toggleFavorite = (filterName: string) => {
+    setFavorites((current) => {
+      const next = new Set(current);
+      if (next.has(filterName)) next.delete(filterName);
+      else next.add(filterName);
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const rememberRecent = (filterName: string) => {
+    setRecents((current) => {
+      const next = [filterName, ...current.filter((name) => name !== filterName)].slice(0, 12);
+      localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const addSelectedFilter = (entry: FilterEntry) => {
+    rememberRecent(entry.displayName);
+    const override = previewOverrides[entry.displayName];
+    onAddFilter({
+      ...entry,
+      filter: {
+        ...entry.filter,
+        options: resolveFilterOptions(entry.filter, override),
+      },
+    });
+  };
+
   const queryFilteredFilterCount = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return ALL_FILTERS.length;
@@ -273,6 +328,7 @@ const LibraryBrowser = ({
 
   useEffect(() => {
     if (!open) return;
+    setMobileView("list");
     setTab(initialTab);
     setQuery(initialQuery);
     if (initialTab === "presets") {
@@ -310,18 +366,6 @@ const LibraryBrowser = ({
     if (!open) return;
     detailsRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [open, tab, selectedFilterName, selectedPresetName]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
 
   useEffect(() => {
     if (!open || fallbackImage) return;
@@ -544,7 +588,13 @@ const LibraryBrowser = ({
   if (!open) return null;
 
   return (
-    <div className={s.dialog} onMouseDown={onDialogMouseDown}>
+    <WindowDialog
+      className={s.dialog}
+      title="Filter Library"
+      data-testid="filter-library-dialog"
+      onClose={onClose}
+      onMouseDown={onDialogMouseDown}
+    >
       <div className={s.titleBar}>
         <span className={s.titleText}>ditherer.exe - Filter Library</span>
         <button className={s.closeBtn} onClick={onClose} title="Close">
@@ -555,13 +605,13 @@ const LibraryBrowser = ({
       <div className={s.tabs}>
         <button
           className={`${s.tab} ${tab === "filters" ? s.tabActive : ""}`}
-          onClick={() => setTab("filters")}
+          onClick={() => { setTab("filters"); setMobileView("list"); }}
         >
           Filters ({queryFilteredFilterCount})
         </button>
         <button
           className={`${s.tab} ${tab === "presets" ? s.tabActive : ""}`}
-          onClick={() => setTab("presets")}
+          onClick={() => { setTab("presets"); setMobileView("list"); }}
         >
           Presets ({queryFilteredPresetCount})
         </button>
@@ -570,43 +620,60 @@ const LibraryBrowser = ({
       <div className={s.searchRow}>
         <input
           ref={queryRef}
+          data-dialog-initial-focus="true"
           className={s.searchInput}
           type="text"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => { setQuery(event.target.value); setMobileView("list"); }}
           placeholder={tab === "filters" ? "Search filters..." : "Search presets..."}
+          aria-label={tab === "filters" ? "Search filters" : "Search presets"}
         />
       </div>
 
+      {tab === "filters" && (
+        <div className={s.capabilities} aria-label="Filter capabilities">
+          {CAPABILITY_FILTERS.map((value) => (
+            <button
+              key={value}
+              className={`${s.capabilityBtn} ${capability === value ? s.capabilityActive : ""}`}
+              aria-pressed={capability === value}
+              onClick={() => { setCapability(value); setMobileView("list"); }}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      )}
+
       {tab === "filters" ? (
-        <div className={s.content}>
+        <div className={`${s.content} ${mobileView === "details" ? s.mobileDetailsOpen : ""}`}>
           <div className={s.categories}>
             {FILTER_CATEGORIES.map((category) => (
               <button
                 key={category}
                 className={`${s.categoryBtn} ${filterCategory === category ? s.categoryActive : ""}`}
-                onClick={() => setFilterCategory(category)}
+                onClick={() => { setFilterCategory(category); setMobileView("list"); }}
               >
                 {category}
               </button>
             ))}
           </div>
 
-          <div className={s.listPane}>
+          <div className={s.listPane} data-testid="filter-library-list">
             {filteredFilters.map((entry) => (
               (() => {
                 const anim = hasAnimatedOption(entry);
                 const temp = hasTemporalBehavior(entry);
                 const glBlocked = entry.filter.requiresGL === true && !GL_AVAILABLE_AT_LOAD;
                 return (
-              <button
-                key={entry.displayName}
-                className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}${glBlocked ? " " + s.listItemDisabled : ""}`}
-                onClick={() => setSelectedFilterName(entry.displayName)}
-                onDoubleClick={() => !glBlocked && onAddFilter(entry)}
-                disabled={glBlocked}
-                title={glBlocked ? "WebGL2 is required for this filter but isn't available on this device." : undefined}
-              >
+              <div key={entry.displayName} className={s.listItemRow}>
+                <button
+                  className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}${glBlocked ? " " + s.listItemDisabled : ""}`}
+                  onClick={() => { setSelectedFilterName(entry.displayName); if (isMobile) setMobileView("details"); }}
+                  onDoubleClick={() => !glBlocked && addSelectedFilter(entry)}
+                  disabled={glBlocked}
+                  title={glBlocked ? "WebGL2 is required for this filter but isn't available on this device." : undefined}
+                >
                 <FilterThumbnail filter={entry} filterByName={filterByName} source={previewSource || fallbackImage} />
                 <div className={s.listItemText}>
                   <div className={s.itemName}>{entry.displayName}</div>
@@ -618,7 +685,17 @@ const LibraryBrowser = ({
                     <BackendTags filterNames={[entry.displayName]} />
                   </div>
                 </div>
-              </button>
+                </button>
+                <button
+                  className={s.favoriteBtn}
+                  aria-label={`${favorites.has(entry.displayName) ? "Remove" : "Add"} ${entry.displayName} ${favorites.has(entry.displayName) ? "from" : "to"} favorites`}
+                  aria-pressed={favorites.has(entry.displayName)}
+                  onClick={() => toggleFavorite(entry.displayName)}
+                  title={favorites.has(entry.displayName) ? "Remove from favorites" : "Add to favorites"}
+                >
+                  {favorites.has(entry.displayName) ? "★" : "☆"}
+                </button>
+              </div>
                 );
               })()
             ))}
@@ -627,9 +704,10 @@ const LibraryBrowser = ({
             )}
           </div>
 
-          <div ref={detailsRef} className={s.details} data-no-drag="true">
+          <div ref={detailsRef} className={s.details} data-testid="filter-library-details" data-no-drag="true">
             {selectedFilter ? (
               <>
+                <button className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to filters</button>
                 <div className={s.detailTitle}>{selectedFilter.displayName}</div>
                 <div className={s.detailMeta}>{selectedFilter.category}</div>
                 <div className={s.detailMeta}>
@@ -672,6 +750,7 @@ const LibraryBrowser = ({
                           <div>
                             <input
                               type="range"
+                              aria-label={option.name}
                               min={option.optionSpec.range[0]}
                               max={option.optionSpec.range[1]}
                               step={option.optionSpec.step ?? 1}
@@ -689,6 +768,7 @@ const LibraryBrowser = ({
                           <label>
                             <input
                               type="checkbox"
+                              aria-label={option.name}
                               checked={Boolean(option.rawValue)}
                               onChange={(e) => setPreviewOption(
                                 selectedFilter.displayName,
@@ -701,6 +781,7 @@ const LibraryBrowser = ({
                         ) : null}
                         {option.type === ENUM && isEnumOption(option.optionSpec) ? (
                           <select
+                            aria-label={option.name}
                             value={String(option.rawValue)}
                             onChange={(e) => setPreviewOption(
                               selectedFilter.displayName,
@@ -720,6 +801,7 @@ const LibraryBrowser = ({
                         {option.type === STRING ? (
                           <input
                             type="text"
+                            aria-label={option.name}
                             value={String(option.rawValue ?? "")}
                             onChange={(e) => setPreviewOption(
                               selectedFilter.displayName,
@@ -730,6 +812,7 @@ const LibraryBrowser = ({
                         ) : null}
                         {option.type === TEXT ? (
                           <textarea
+                            aria-label={option.name}
                             rows={2}
                             value={String(option.rawValue ?? "")}
                             onChange={(e) => setPreviewOption(
@@ -742,6 +825,7 @@ const LibraryBrowser = ({
                         {option.type === COLOR && Array.isArray(option.rawValue) ? (
                           <input
                             type="color"
+                            aria-label={option.name}
                             value={rgbToHex(option.rawValue as number[])}
                             onChange={(e) => setPreviewOption(
                               selectedFilter.displayName,
@@ -761,7 +845,7 @@ const LibraryBrowser = ({
                   )}
                 </div>
                 <div className={s.detailActions}>
-                  <button onClick={() => onAddFilter(selectedFilter)}>Add to Chain</button>
+                  <button onClick={() => addSelectedFilter(selectedFilter)}>Add to Chain</button>
                   <button onClick={onClose}>Close</button>
                 </div>
               </>
@@ -771,11 +855,11 @@ const LibraryBrowser = ({
           </div>
         </div>
       ) : (
-        <div className={s.content}>
+        <div className={`${s.content} ${mobileView === "details" ? s.mobileDetailsOpen : ""}`}>
           <div className={s.categories}>
             <button
               className={`${s.categoryBtn} ${presetCategory === "All" ? s.categoryActive : ""}`}
-              onClick={() => setPresetCategory("All")}
+                onClick={() => { setPresetCategory("All"); setMobileView("list"); }}
             >
               All
             </button>
@@ -783,14 +867,14 @@ const LibraryBrowser = ({
               <button
                 key={category}
                 className={`${s.categoryBtn} ${presetCategory === category ? s.categoryActive : ""}`}
-                onClick={() => setPresetCategory(category)}
+                onClick={() => { setPresetCategory(category); setMobileView("list"); }}
               >
                 {category}
               </button>
             ))}
           </div>
 
-          <div className={s.listPane}>
+          <div className={s.listPane} data-testid="preset-library-list">
             {filteredPresets.map((preset) => (
               (() => {
                 const flags = preset.filters.reduce(
@@ -808,7 +892,7 @@ const LibraryBrowser = ({
               <button
                 key={preset.name}
                 className={`${s.listItem} ${s.listItemWithThumb} ${selectedPreset?.name === preset.name ? s.listItemActive : ""}`}
-                onClick={() => setSelectedPresetName(preset.name)}
+                onClick={() => { setSelectedPresetName(preset.name); if (isMobile) setMobileView("details"); }}
                 onDoubleClick={() => {
                   onLoadPreset(preset);
                   onClose();
@@ -833,9 +917,10 @@ const LibraryBrowser = ({
             )}
           </div>
 
-          <div ref={detailsRef} className={s.details} data-no-drag="true">
+          <div ref={detailsRef} className={s.details} data-testid="preset-library-details" data-no-drag="true">
             {selectedPreset ? (
               <>
+                <button className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to presets</button>
                 <div className={s.detailTitle}>{selectedPreset.name}</div>
                 <div className={s.detailMeta}>{selectedPreset.category}</div>
                 <div className={s.previewWrap}>
@@ -850,6 +935,7 @@ const LibraryBrowser = ({
                         onClick={() => {
                           setTab("filters");
                           setFilterCategory("All");
+                          setQuery("");
                           setSelectedFilterName(filter.name);
                         }}
                         title={`Jump to filter: ${filter.name}`}
@@ -909,7 +995,7 @@ const LibraryBrowser = ({
           </div>
         </div>
       )}
-    </div>
+    </WindowDialog>
   );
 };
 

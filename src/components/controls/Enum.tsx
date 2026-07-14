@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useId } from "react";
 import type { EnumControlProps } from "./types";
 
+import ControlLabel from "./ControlLabel";
 import s from "./styles.module.css";
 
 const Enum = (props: EnumControlProps) => {
-  const label = props.types?.label || props.name;
+  const inputId = useId();
   const renderOption = (option: { name?: string; value: string | number }) => (
     <option key={option.value} value={option.value}>
       {option.name || option.value}
@@ -12,15 +13,25 @@ const Enum = (props: EnumControlProps) => {
   );
 
   return (
-    <div>
+    <div className={props.hideLabel ? undefined : s.controlField}>
       {!props.hideLabel && (
-        <div className={s.label}>
-          {label}
-          {props.types?.desc && <span className={s.info} title={props.types.desc}>(i)</span>}
-        </div>
+        <ControlLabel
+          htmlFor={inputId}
+          name={props.name}
+          label={props.types?.label}
+          desc={props.types?.desc}
+          currentValue={props.value}
+          defaultValue={props.defaultValue}
+          onReset={props.defaultValue !== undefined
+            ? () => props.onSetFilterOption(props.name, props.defaultValue)
+            : undefined}
+        />
       )}
 
       <select
+        id={inputId}
+        aria-label={props.hideLabel ? props.types?.label || props.name : undefined}
+        aria-describedby={!props.hideLabel && props.types?.desc ? `${inputId}-help` : undefined}
         className={s.enum}
         value={props.value}
         onChange={e => props.onSetFilterOption(props.name, e.target.value)}

@@ -85,6 +85,26 @@
   font-size: 12px;
 }
 
+.capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px 8px;
+}
+
+.capabilityBtn {
+  min-height: 26px;
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.capabilityActive {
+  border-style: inset;
+  background: #fff;
+  font-weight: bold;
+}
+
 .content {
   display: grid;
   grid-template-columns: 180px 1fr 320px;
@@ -132,6 +152,21 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.listItemRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.favoriteBtn {
+  min-width: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 2px;
+  font-size: 16px;
 }
 
 .listItem {
@@ -277,6 +312,10 @@
   position: relative;
 }
 
+.mobileBack {
+  display: none;
+}
+
 .detailTitle {
   font-size: 14px;
   font-weight: bold;
@@ -416,11 +455,112 @@
   padding-top: 10px;
 }
 
+@media (max-width: 768px) {
+  .dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    min-width: 0;
+    min-height: 0;
+    resize: none;
+    overflow: hidden;
+  }
+
+  .titleBar {
+    cursor: default;
+  }
+
+  .closeBtn,
+  .tab,
+  .capabilityBtn,
+  .categoryBtn,
+  .listItem,
+  .favoriteBtn,
+  .detailActions button,
+  .mobileBack {
+    min-height: 44px;
+  }
+
+  .capabilities {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  .content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 0 6px 6px;
+  }
+
+  .categories {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px;
+  }
+
+  .categoryBtn {
+    flex: 0 0 auto;
+  }
+
+  .details {
+    display: none;
+    padding: 8px 8px 0;
+  }
+
+  .mobileDetailsOpen {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .mobileDetailsOpen .categories,
+  .mobileDetailsOpen .listPane {
+    display: none;
+  }
+
+  .mobileDetailsOpen .details {
+    display: flex;
+  }
+
+  .mobileBack {
+    display: block;
+    flex: 0 0 auto;
+    margin: 0 0 8px;
+    text-align: left;
+  }
+
+  .detailActions {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    margin-top: auto;
+    padding: 8px 0;
+    background: #fff;
+    border-top: 1px solid #808080;
+  }
+
+  .detailActions button:first-child {
+    flex: 1 1 auto;
+  }
+
+  .previewWrap {
+    position: static;
+  }
+}
+
 .detailActions button {
   margin: 0;
   box-sizing: border-box;
   border-width: 2px 1px 1px 2px;
   border-style: outset;
+}
+
+.detailActions button:first-child {
+  background: var(--beautiful-blue, #000080);
+  color: #fff;
+  font-weight: bold;
+  border-color: #8ca7e8 #00144f #00144f #8ca7e8;
 }
 
 .empty {
@@ -455,5 +595,24 @@
 
   .detailActions button {
     min-height: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .categories {
+    flex-wrap: nowrap;
+  }
+
+  .detailActions button {
+    min-height: 44px;
   }
 }

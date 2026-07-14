@@ -18,6 +18,7 @@ import { useSaveAsResults } from "./hooks/useSaveAsResults";
 import { useSaveAsExportHandlers } from "./hooks/useSaveAsExportHandlers";
 import { useSaveAsRenderSync } from "./hooks/useSaveAsRenderSync";
 import controls from "components/controls/styles.module.css";
+import WindowDialog from "components/WindowDialog";
 import s from "./styles.module.css";
 
 interface SaveAsProps {
@@ -231,22 +232,24 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     }
   }, [capturing, recordedUrl]);
 
-  // Keyboard
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !capturing && !exporting) onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose, capturing, exporting]);
-
   // -- Helpers --
 
   const canvas = outputCanvasRef.current;
-  const canvasReady = canvas && canvas.width > 0 && canvas.height > 0;
+  // The App updates the mounted output canvas in a parent effect. Reading only
+  // the ref during this child render can therefore expose the previous frame's
+  // dimensions in the dialog while the save handler later encodes the updated
+  // canvas. Derive the advertised size from the same output state that triggers
+  // that parent draw, with the live canvas as the initial/fallback source.
+  const canvasWidth = state.outputImage
+    ? Math.round(state.outputImage.width * state.outputScale)
+    : (canvas?.width ?? 0);
+  const canvasHeight = state.outputImage
+    ? Math.round(state.outputImage.height * state.outputScale)
+    : (canvas?.height ?? 0);
+  const canvasReady = canvasWidth > 0 && canvasHeight > 0;
   const mult = resolution === "custom" ? customMultiplier : parseInt(resolution);
-  const exportW = (canvas?.width ?? 0) * mult;
-  const exportH = (canvas?.height ?? 0) * mult;
+  const exportW = canvasWidth * mult;
+  const exportH = canvasHeight * mult;
   const largeExport = exportW > 4096 || exportH > 4096;
 
   const {
@@ -496,7 +499,11 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   };
 
   return (
-      <div className={[controls.window, s.dialog].join(" ")}>
+      <WindowDialog
+        className={[controls.window, s.dialog].join(" ")}
+        title="Save As"
+        onClose={capturing || exporting ? () => undefined : onClose}
+      >
         <div className={["handle", controls.titleBar, s.titleBar].join(" ")}>
           <span>Save As</span>
           <button
@@ -510,20 +517,28 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
         </div>
 
         {/* Tabs */}
-        <div className={s.tabs}>
-          <div
+        <div className={s.tabs} role="tablist" aria-label="Export type">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "image"}
+            data-dialog-initial-focus={activeTab === "image" ? "true" : undefined}
             className={[s.tab, activeTab === "image" ? s.tabActive : ""].join(" ")}
             onClick={() => setActiveTab("image")}
           >
             Image
-          </div>
+          </button>
           {showVideoTab && (
-            <div
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "video"}
+              data-dialog-initial-focus={activeTab === "video" ? "true" : undefined}
               className={[s.tab, activeTab === "video" ? s.tabActive : ""].join(" ")}
               onClick={() => setActiveTab("video")}
             >
               Video
-            </div>
+            </button>
           )}
         </div>
 
@@ -535,8 +550,8 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
               quality={quality}
               resolution={resolution}
               customMultiplier={customMultiplier}
-              canvasWidth={canvas?.width ?? 0}
-              canvasHeight={canvas?.height ?? 0}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
               exportWidth={exportW}
               exportHeight={exportH}
               largeExport={largeExport}
@@ -572,7 +587,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
             />
           )}
         </div>
-      </div>
+      </WindowDialog>
   );
 };
 

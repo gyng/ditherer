@@ -49,13 +49,28 @@ interface ColorArrayState {
   pickerOpen: boolean;
   pickerColor: RgbaColor;
   extractCollapsed: boolean;
+  paletteQuery: string;
+  favoritePalettes: string[];
+  recentPalettes: string[];
 }
+
+const readPaletteNames = (key: string): string[] => {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]") as unknown;
+    return Array.isArray(value) ? value.filter((name): name is string => typeof name === "string") : [];
+  } catch {
+    return [];
+  }
+};
+
+const PALETTE_FAVORITES_KEY = "ditherer-palette-favorites";
+const PALETTE_RECENTS_KEY = "ditherer-palette-recents";
 
 const onDeleteColor = (
   e: React.KeyboardEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>,
   props: ColorArrayProps
 ) => {
-  const colorIndex = parseInt(e.currentTarget.dataset.idx || "0", 10) - 1;
+  const colorIndex = parseInt(e.currentTarget.dataset.idx || "0", 10);
   props.onSetPaletteOption(
     "colors",
     props.value.filter(
@@ -75,7 +90,28 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
     modal: null as ModalState,
     pickerOpen: false,
     pickerColor: { r: 255, g: 0, b: 0, a: 1 },
-    extractCollapsed: true
+    extractCollapsed: true,
+    paletteQuery: "",
+    favoritePalettes: readPaletteNames(PALETTE_FAVORITES_KEY),
+    recentPalettes: readPaletteNames(PALETTE_RECENTS_KEY)
+  };
+
+  selectTheme = (name: string) => {
+    const colors = THEMES[name];
+    if (!colors) return;
+    const recentPalettes = [name, ...this.state.recentPalettes.filter((entry) => entry !== name)].slice(0, 8);
+    localStorage.setItem(PALETTE_RECENTS_KEY, JSON.stringify(recentPalettes));
+    this.setState({ recentPalettes });
+    this.props.onSetPaletteOption("colors", colors);
+  };
+
+  toggleFavoriteTheme = (name: string) => {
+    if (!THEMES[name]) return;
+    const favoritePalettes = this.state.favoritePalettes.includes(name)
+      ? this.state.favoritePalettes.filter((entry) => entry !== name)
+      : [...this.state.favoritePalettes, name];
+    localStorage.setItem(PALETTE_FAVORITES_KEY, JSON.stringify(favoritePalettes));
+    this.setState({ favoritePalettes });
   };
 
   handleModalConfirm = (value: string) => {
@@ -146,19 +182,30 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
     const customThemeName = "Custom";
     const currentThemeName = currentThemeKey || customThemeName;
     const currentThemeDescription = currentThemeKey ? getThemeDescription(currentThemeKey) : null;
+    const paletteNeedle = this.state.paletteQuery.trim().toLowerCase();
+    const matchesPaletteQuery = (name: string, desc = "") =>
+      !paletteNeedle || `${name} ${desc}`.toLowerCase().includes(paletteNeedle);
+    const namedOptions = (names: string[]) => names
+      .filter((name) => THEMES[name] && matchesPaletteQuery(name, getThemeDescription(name) || ""))
+      .map((name) => <option key={name} value={name}>{name}</option>);
 
     const themePicker = (
       <select
         className={s.enum}
+        aria-label="Palette theme"
         value={currentThemeName}
-        onChange={e =>
-          this.props.onSetPaletteOption("colors", THEMES[e.target.value as keyof typeof THEMES])
-        }
+        onChange={e => this.selectTheme(e.target.value)}
       >
+        {this.state.favoritePalettes.length > 0 && (
+          <optgroup label="Favorites">{namedOptions(this.state.favoritePalettes)}</optgroup>
+        )}
+        {this.state.recentPalettes.length > 0 && (
+          <optgroup label="Recent">{namedOptions(this.state.recentPalettes)}</optgroup>
+        )}
         {Object.entries(THEME_CATEGORIES).map(([cat, entries]) => (
           <optgroup key={cat} label={cat}>
             {entries
-              .filter(e => THEMES[e.key])
+              .filter(e => THEMES[e.key] && matchesPaletteQuery(e.key, e.desc))
               .map(e => (
                 <option key={e.key} value={e.key} title={e.desc}>
                   {e.key}
@@ -168,7 +215,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
         ))}
         {/* User-saved palettes (prefixed with 🎨) not in categories */}
         {Object.keys(THEMES)
-          .filter(k => k.startsWith("🎨"))
+          .filter(k => k.startsWith("🎨") && matchesPaletteQuery(k))
           .map(k => (
             <option key={k} value={k}>
               {k}
@@ -180,22 +227,23 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
       </select>
     );
 
-    let i = 0;
     const colorSwatch = (
       <div className={s.colorArray}>
-        {this.props.value.map(c => {
+        {this.props.value.map((c, colorIndex) => {
           const color = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3]})`;
 
           return (
             <div
-              key={`${c}-${i++}`}
+              key={`${c}-${colorIndex}`}
               className={s.color}
-              data-idx={i}
+              data-idx={colorIndex}
               title={`${color} - click to remove`}
+              aria-label={`Remove palette color ${colorIndex + 1}, ${color}`}
               role="button"
               tabIndex={0}
-              onKeyPress={e => {
-                if (e.key === "Enter") {
+              onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
                   onDeleteColor(e, this.props);
                 }
               }}
@@ -344,21 +392,46 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
 
     return (
       <div>
-        <div className={s.label}>Theme</div>
-        {themePicker}
+        <div className={s.paletteSearchRow}>
+          <input
+            className={s.paletteSearch}
+            type="search"
+            value={this.state.paletteQuery}
+            onChange={(event) => this.setState({ paletteQuery: event.target.value })}
+            placeholder="Search palettes…"
+            aria-label="Search palette themes"
+          />
+          <button
+            className={s.paletteFavoriteButton}
+            disabled={!currentThemeKey}
+            aria-label={currentThemeKey && this.state.favoritePalettes.includes(currentThemeKey)
+              ? `Remove ${currentThemeKey} from favorite palettes`
+              : `Add ${currentThemeKey || "current palette"} to favorite palettes`}
+            aria-pressed={Boolean(currentThemeKey && this.state.favoritePalettes.includes(currentThemeKey))}
+            onClick={() => currentThemeKey && this.toggleFavoriteTheme(currentThemeKey)}
+            title="Favorite this palette"
+          >
+            {currentThemeKey && this.state.favoritePalettes.includes(currentThemeKey) ? "★" : "☆"}
+          </button>
+        </div>
+        <label className={s.themeSelectLabel}>
+          <span className={s.label}>Theme</span>
+          {themePicker}
+        </label>
         {currentThemeName !== customThemeName && currentThemeDescription && (
           <div className={s.themeDesc}>{currentThemeDescription}</div>
         )}
         {colorSwatch}
         {colorPicker}
         <div className={s.group}>
-          <span
-            className={s.name}
+          <button
+            type="button"
+            className={[s.name, s.groupDisclosure].join(" ")}
+            aria-expanded={!this.state.extractCollapsed}
             onClick={() => this.setState({ extractCollapsed: !this.state.extractCollapsed })}
-            style={{ cursor: "pointer" }}
           >
             Extract from input {this.state.extractCollapsed ? "[+]" : "[-]"}
-          </span>
+          </button>
           {!this.state.extractCollapsed && extractOptions}
         </div>
         {!currentTheme ? savePaletteButton : null}

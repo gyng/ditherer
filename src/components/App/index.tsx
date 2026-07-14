@@ -5,15 +5,19 @@ import Controls from "components/controls";
 import ChainList from "components/ChainList";
 import { CHAIN_PRESETS, type PresetFilterEntry } from "components/ChainList/presets";
 import Exporter from "components/App/Exporter";
+import WebMCPBadge from "components/App/WebMCPBadge";
 import SaveAs from "components/SaveAs";
 import Range from "components/controls/Range";
 import Enum from "components/controls/Enum";
+import { HelpHint } from "components/controls/ControlLabel";
+import WindowDialog from "components/WindowDialog";
 import CollapsibleSection from "components/CollapsibleSection";
 import AudioVizControls from "components/AudioVizControls";
 import AudioBeatStrip from "components/AudioBeatStrip";
 import AudioBpmReadout from "components/AudioBpmReadout";
 
 import { useFilter } from "context/useFilter";
+import { getScaleForMaxWidth } from "context/autoScale";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
 import {
@@ -33,7 +37,15 @@ import { createReadbackCanvas, getReadbackContext } from "utils";
 import { AUTO_VIZ_DENSITY, buildAutoVizConnections } from "utils/autoViz";
 import type { AudioVizConnection, AudioVizMetric, EntryAudioModulation, GlobalAudioVizModulation } from "utils/audioVizBridge";
 import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, resetAudioVizTempo, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, tapDownbeat, updateAudioVizChannel } from "utils/audioVizBridge";
-import { setupWebMCP } from "@src/webmcp";
+import { getWebMCPAvailability, setupWebMCP, type WebMCPStatus } from "@src/webmcp";
+import {
+  TEST_IMAGE_FILES,
+  TEST_VIDEO_FILES,
+  parseSharedTestMedia,
+  sharedTestMediaForSource,
+  updateTestMediaSearch,
+  type SharedTestMedia,
+} from "utils/testMediaShare";
 
 import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
@@ -41,49 +53,8 @@ import s from "./styles.module.css";
 const testAssetUrl = (kind: "image" | "video", file: string) =>
   `${import.meta.env.BASE_URL}test-assets/${kind}/${file}`;
 
-const TEST_IMAGE_ASSETS = [
-  "BoatsColor.png",
-  "DSCF0491.JPG@800.avif",
-  "DSCF1248.JPG@1600.avif",
-  "ZeldaColor.png",
-  "airplane.png",
-  "baboon.png",
-  "barbara.png",
-  "fruits.png",
-  "goldhill.png",
-  "lenna.png",
-  "monarch.png",
-  "pepper.png",
-  "sailboat.png",
-  "soccer.png",
-].map((file) => testAssetUrl("image", file));
-
-const TEST_VIDEO_ASSETS = [
-  "118-60i.mp4",
-  "120-60i.mp4",
-  "164-60i.mp4",
-  "207-60p.mp4",
-  "DSCF0159.MOV@1280.mp4",
-  "akiyo.mp4",
-  "badapple-trimp.mp4",
-  "bowing_cif.mp4",
-  "c01_Fireworks_willow_4K_960x540.mp4",
-  "carphone_qcif.mp4",
-  "city_4cif.mp4",
-  "degauss.webm",
-  "highway_cif.mp4",
-  "ice_4cif.mp4",
-  "kumiko.webm",
-  "pamphlet_cif.mp4",
-  "rush_hour_1080p25.mp4",
-  "salesman_qcif.mp4",
-  "stefan_sif.mp4",
-  "suzie.mp4",
-  "tempete_cif.mp4",
-  "tt_sif.mp4",
-  "vtc1nw_422_cif.mp4",
-  "waterfall_cif.mp4",
-].map((file) => testAssetUrl("video", file));
+const TEST_IMAGE_ASSETS = TEST_IMAGE_FILES.map((file) => testAssetUrl("image", file));
+const TEST_VIDEO_ASSETS = TEST_VIDEO_FILES.map((file) => testAssetUrl("video", file));
 
 const pickRandom = <T,>(items: T[]): T =>
   items[Math.floor(Math.random() * items.length)];
@@ -97,10 +68,57 @@ const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
 const DEFAULT_TEST_IMAGE_ASSET = testAssetUrl("image", "pepper.png");
 const DEFAULT_TEST_VIDEO_ASSET = testAssetUrl("video", "akiyo.mp4");
 const basename = (path: string) => path.split("/").pop() || path;
+const syncSharedTestMediaUrl = (kind: "image" | "video" | null, src?: string) => {
+  const media = kind && src ? sharedTestMediaForSource(kind, src) : null;
+  const search = updateTestMediaSearch(window.location.search, media);
+  const next = `${window.location.pathname}${search}${window.location.hash}`;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next !== current) history.replaceState(null, "", next);
+};
 const DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH = 250;
 const FULLSCREEN_CURSOR_IDLE_MS = 1500;
 const DEFAULT_INPUT_WINDOW_POSITION = { x: 340, y: 10 };
 const DEFAULT_OUTPUT_WINDOW_POSITION = { x: 660, y: 20 };
+type WorkspaceLayout = "docked" | "floating" | "output";
+type WorkbenchTask = "source" | "compose" | "adjust" | "preview" | "export";
+
+const WORKBENCH_TASKS: ReadonlyArray<{
+  id: WorkbenchTask;
+  label: string;
+  title: string;
+  description: string;
+}> = [
+  {
+    id: "source",
+    label: "Source",
+    title: "Choose source media",
+    description: "Load an image or video, then prepare its size and playback.",
+  },
+  {
+    id: "compose",
+    label: "Compose",
+    title: "Build the filter chain",
+    description: "Choose a look, add stages, and arrange the processing order.",
+  },
+  {
+    id: "adjust",
+    label: "Adjust",
+    title: "Tune the active stage",
+    description: "Refine parameters and input processing for the selected filter.",
+  },
+  {
+    id: "preview",
+    label: "Preview",
+    title: "Review the output",
+    description: "Check the result, compare it with the source, and set output scaling.",
+  },
+  {
+    id: "export",
+    label: "Export",
+    title: "Export the result",
+    description: "Choose a still or video format and save the finished work.",
+  },
+];
 
 const secondsToBpm = (seconds: number) => 240 / seconds;
 const bpmToSeconds = (bpm: number) => 240 / bpm;
@@ -133,13 +151,41 @@ type PreviousCanvasProps = {
 };
 const TEST_IMAGE_OPTIONS = TEST_IMAGE_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 const TEST_VIDEO_OPTIONS = TEST_VIDEO_ASSETS.map((src) => ({ value: src, label: basename(src) }));
-const cloneImageToCanvas = (image: HTMLImageElement) => {
+const cloneImageToCanvas = (image: CanvasImageSource & {
+  width: number;
+  height: number;
+  naturalWidth?: number;
+  naturalHeight?: number;
+}) => {
   const width = image.naturalWidth || image.width;
   const height = image.naturalHeight || image.height;
   const canvas = createReadbackCanvas(width, height);
   const ctx = getReadbackContext(canvas);
   if (ctx) ctx.drawImage(image, 0, 0, width, height);
   return canvas;
+};
+
+type ScreensaverMediaRestore = {
+  filename: string | null;
+  sharedMedia: SharedTestMedia | null;
+  wasRandomTestVideo: boolean;
+} & (
+  | { kind: "image"; image: HTMLCanvasElement }
+  | {
+      kind: "video";
+      source: string | File;
+      time: number;
+      paused: boolean;
+      volume: number;
+      playbackRate: number;
+    }
+);
+
+type ScreensaverRestore = {
+  fullscreenMode: "contain" | "cover";
+  scale: number;
+  scalingAlgorithm: string;
+  media: Promise<ScreensaverMediaRestore | null>;
 };
 
 const formatVideoTime = (seconds?: number | null) => {
@@ -150,11 +196,7 @@ const formatVideoTime = (seconds?: number | null) => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
-const InfoHint = ({ text }: { text: string }) => (
-  <span className={controls.info} title={text}>
-    (i)
-  </span>
-);
+const InfoHint = ({ text }: { text: string }) => <HelpHint label="this setting" text={text} />;
 
 const INPUT_SCALE_HELP = "Scales the source image or video before filtering. Lower values reduce processing cost; higher values give the filter more pixels to work with.";
 const OUTPUT_SCALE_HELP = "Scales the rendered output view. This changes display size only and does not change how the filter itself processes the source.";
@@ -315,7 +357,7 @@ const formatAudioMetricReadout = (
   return `${Math.round(value * 100)}%`;
 };
 
-const ScreensaverDebugOverlay = ({
+export const ScreensaverDebugOverlay = ({
   chain,
   activeIndex,
   chainSwapSeconds,
@@ -460,7 +502,7 @@ const ScreensaverDebugOverlay = ({
   );
 };
 
-const AudioPatchPanel = ({
+export const AudioPatchPanel = ({
   channel,
   rangeOptions,
   optionValues,
@@ -752,6 +794,7 @@ const AudioPatchPanel = ({
         <span className={s.audioPatchToolbarLabel}>Auto Viz</span>
         <select
           className={s.audioPatchToolbarSelect}
+          aria-label="Auto Viz mode"
           value={resolvedAutoVizMode}
           onChange={(event) => setResolvedAutoVizMode(event.target.value as AutoVizMode)}
         >
@@ -1099,6 +1142,7 @@ const AudioPatchPanel = ({
                           <input
                             className={s.audioPatchBpmSlider}
                             type="range"
+                            aria-label="BPM override"
                             min={AUDIO_VIZ_BPM_OVERRIDE_MIN}
                             max={AUDIO_VIZ_BPM_OVERRIDE_MAX}
                             step="1"
@@ -1207,6 +1251,7 @@ const App = () => {
   const [showChainAudioGlobalEditor, setShowChainAudioGlobalEditor] = useState(false);
   const [playPauseIndicator, setPlayPauseIndicator] = useState<"play" | "pause" | null>(null);
   const [inputLoadingLabel, setInputLoadingLabel] = useState<string | null>(null);
+  const [inputLoadError, setInputLoadError] = useState<string | null>(null);
   const [inputFilename, setInputFilename] = useState<string | null>(null);
   const [outputFullscreen, setOutputFullscreen] = useState(false);
   const [outputFullscreenMode, setOutputFullscreenMode] = useState<"contain" | "cover">("contain");
@@ -1214,6 +1259,28 @@ const App = () => {
   const [showFullscreenMenu, setShowFullscreenMenu] = useState(false);
   const [inputWindowPosition, setInputWindowPosition] = useState(DEFAULT_INPUT_WINDOW_POSITION);
   const [outputWindowPosition, setOutputWindowPosition] = useState(DEFAULT_OUTPUT_WINDOW_POSITION);
+  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() =>
+    (localStorage.getItem("ditherer-workspace-layout") as WorkspaceLayout | null) || "docked"
+  );
+  const [windowsLocked, setWindowsLocked] = useState(true);
+  const [comparisonEnabled, setComparisonEnabled] = useState(false);
+  const [comparisonPosition, setComparisonPosition] = useState(50);
+  const [comparisonHold, setComparisonHold] = useState(false);
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [commandActiveIndex, setCommandActiveIndex] = useState(0);
+  const [webMCPStatus, setWebMCPStatus] = useState<WebMCPStatus>(getWebMCPAvailability);
+  const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem("ditherer-onboarding-complete") !== "1");
+  const [openPresetLibraryRequest, setOpenPresetLibraryRequest] = useState(0);
+  const [activeTask, setActiveTask] = useState<WorkbenchTask>("source");
+  const [inspectorQuery, setInspectorQuery] = useState("");
+  const historyRef = useRef<string[]>([]);
+  const historyIndexRef = useRef(-1);
+  const historyApplyingRef = useRef<string | null>(null);
+  const historyChainStructureRef = useRef<string | null>(null);
+  const historyActionsRef = useRef(actions);
+  historyActionsRef.current = actions;
   const [screensaverActive, setScreensaverActive] = useState(false);
   const [showScreensaverDialog, setShowScreensaverDialog] = useState(false);
   const [screensaverDialogPosition, setScreensaverDialogPosition] = useState({ x: 640, y: 120 });
@@ -1249,8 +1316,11 @@ const App = () => {
   const playPauseTimerRef = useRef<number | null>(null);
   const seekCommitTimerRef = useRef<number | null>(null);
   const chromeRef = useRef<HTMLDivElement | null>(null);
+  const workspaceToolbarRef = useRef<HTMLElement | null>(null);
+  const sourceFileInputRef = useRef<HTMLInputElement | null>(null);
+  const onboardingInitialChainRef = useRef(state.chain);
   const estimatedFrameStepRef = useRef(1 / 30);
-  const screensaverRestoreRef = useRef<{ fullscreenMode: "contain" | "cover"; scale: number; scalingAlgorithm: string } | null>(null);
+  const screensaverRestoreRef = useRef<ScreensaverRestore | null>(null);
   const screensaverHasEnteredFullscreenRef = useRef(false);
   const screensaverConfigRef = useRef<{ swapSeconds: number; randomVideo: boolean; videoSwapSeconds: number; scalingAlgorithm: string; videoMaxWidth: number }>({
     swapSeconds: 2,
@@ -1260,12 +1330,15 @@ const App = () => {
     videoMaxWidth: DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH,
   });
   const screensaverVideoSwapTimerRef = useRef<number | null>(null);
+  const screensaverVideoSwapGenerationRef = useRef(0);
+  const screensaverVideoSwapInFlightRef = useRef<Promise<void> | null>(null);
   const currentInputIsRandomTestVideoRef = useRef(false);
   const warmedTestVideoRef = useRef<HTMLVideoElement | null>(null);
   const warmedTestVideoSrcRef = useRef<string | null>(null);
   const warmedTestVideoPromiseRef = useRef<Promise<string | null> | null>(null);
 
   const stopScreensaverVideoSwapLoop = useCallback(() => {
+    screensaverVideoSwapGenerationRef.current += 1;
     if (screensaverVideoSwapTimerRef.current != null) {
       window.clearTimeout(screensaverVideoSwapTimerRef.current);
       screensaverVideoSwapTimerRef.current = null;
@@ -1292,6 +1365,7 @@ const App = () => {
 
   const inputCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const outputCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const comparisonCanvasRef = useRef<HTMLCanvasElement | null>(null);
   // Ref callbacks run synchronously when the DOM node is attached, before any
   // effect or render-driven getContext call. willReadFrequently is a sticky
   // flag set on the very first getContext call per canvas, so claim the
@@ -1310,7 +1384,10 @@ const App = () => {
   const screensaverButtonRef = useRef<HTMLButtonElement | null>(null);
   const screensaverDialogRef = useRef<HTMLDivElement | null>(null);
   const audioEditorRef = useRef<HTMLDivElement | null>(null);
-  const zIndexRef = useRef(0);
+  // Draggable canvas windows live below the fixed 10,000+ modal layer. Keeping
+  // these bands separate prevents a raised canvas stacking context from
+  // intercepting controls inside Save As, screensaver, or audio dialogs.
+  const zIndexRef = useRef(100);
   const canvasWindowPositionsSeededRef = useRef(false);
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
@@ -1319,12 +1396,82 @@ const App = () => {
   const hasLoadedTestImageRef = useRef(false);
   const hasLoadedTestVideoRef = useRef(false);
   const hasAutoLoadedDefaultMediaRef = useRef(false);
+  const initialSharedTestMediaRef = useRef(parseSharedTestMedia(window.location.search));
   const lastTestImageAssetRef = useRef<string | null>(null);
   const lastTestVideoAssetRef = useRef<string | null>(null);
   const imageAssetPromiseCacheRef = useRef<Map<string, Promise<HTMLImageElement>>>(new Map());
   const pendingLoadedMediaFilterRef = useRef(false);
+
+  const completeOnboarding = useCallback(() => {
+    localStorage.setItem("ditherer-onboarding-complete", "1");
+    setShowOnboarding(false);
+  }, []);
+
+  const navigateToTask = useCallback((task: WorkbenchTask) => {
+    setActiveTask(task);
+    requestAnimationFrame(() => {
+      chromeRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    });
+  }, []);
+
+  const openExport = useCallback(() => {
+    setActiveTask("export");
+    setShowSaveAs(true);
+  }, []);
+
+  const closeExport = useCallback(() => {
+    setShowSaveAs(false);
+    setActiveTask("preview");
+  }, []);
+
+  useEffect(() => {
+    if (!showOnboarding || state.chain === onboardingInitialChainRef.current) return;
+    completeOnboarding();
+  }, [completeOnboarding, showOnboarding, state.chain]);
   const webmcpRefs = useRef({ state, actions, filterList });
   webmcpRefs.current = { state, actions, filterList };
+  const waitForWebMCPMediaReady = useCallback((previousState: Pick<typeof state, "inputImage" | "outputImage">) => (
+    new Promise<void>((resolve, reject) => {
+      const deadline = performance.now() + 10_000;
+      let filterRequested = false;
+      const check = () => {
+        const current = webmcpRefs.current.state;
+        const inputReady = Boolean(current.inputImage) && current.inputImage !== previousState.inputImage;
+        const inputCanvasReady = inputReady
+          && Boolean(inputCanvasRef.current)
+          && inputCanvasRef.current?.width === Math.floor((current.inputImage?.width || 0) * current.scale)
+          && inputCanvasRef.current?.height === Math.floor((current.inputImage?.height || 0) * current.scale);
+        const outputReady = Boolean(current.outputImage)
+          && current.outputImage !== previousState.outputImage
+          && current.outputFrameToken === current.inputFrameToken;
+        if (inputCanvasReady && outputReady) {
+          requestAnimationFrame(() => resolve());
+          return;
+        }
+        if (performance.now() >= deadline) {
+          const diagnostic = {
+            inputFrameToken: current.inputFrameToken,
+            outputFrameToken: current.outputFrameToken,
+            inputSize: current.inputImage
+              ? [current.inputImage.width, current.inputImage.height]
+              : null,
+            outputSize: current.outputImage
+              ? [current.outputImage.width, current.outputImage.height]
+              : null,
+          };
+          console.error("[webmcp] Media output readiness timed out", diagnostic);
+          reject(new Error(`Media loaded, but the filtered output did not become ready: ${JSON.stringify(diagnostic)}`));
+          return;
+        }
+        if (inputCanvasReady && !filterRequested) {
+          filterRequested = true;
+          webmcpRefs.current.actions.filterImageAsync(inputCanvasRef.current);
+        }
+        requestAnimationFrame(check);
+      };
+      requestAnimationFrame(check);
+    })
+  ), []);
 
   const inputDrag = useDraggable(inputDragRef, {
     defaultPosition: inputWindowPosition,
@@ -1481,10 +1628,90 @@ const App = () => {
     if (canvasWindowPositionsSeededRef.current) return;
     const sidebarRight = chromeRef.current?.getBoundingClientRect().right;
     if (!sidebarRight) return;
-    setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: 10 });
-    setOutputWindowPosition({ x: Math.round(sidebarRight + 330), y: 20 });
+    const toolbarBottom = workspaceToolbarRef.current?.getBoundingClientRect().bottom ?? 44;
+    const windowTop = Math.round(toolbarBottom + 10);
+    setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: windowTop });
+    setOutputWindowPosition({ x: Math.round(sidebarRight + 330), y: windowTop + 10 });
     canvasWindowPositionsSeededRef.current = true;
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("ditherer-workspace-layout", workspaceLayout);
+  }, [workspaceLayout]);
+
+  useEffect(() => {
+    setInspectorQuery("");
+  }, [state.activeIndex, state.chain[state.activeIndex]?.displayName]);
+
+  useEffect(() => {
+    const snapshot = historyActionsRef.current.exportState(state);
+    const chainStructure = JSON.stringify(state.chain.map((entry) => [
+      entry.id,
+      entry.displayName,
+      entry.enabled,
+    ]));
+    const commitSnapshot = () => {
+      if (historyApplyingRef.current === snapshot) {
+        historyApplyingRef.current = null;
+        return;
+      }
+      const current = historyRef.current[historyIndexRef.current];
+      if (current === snapshot) return;
+      const next = historyRef.current.slice(0, historyIndexRef.current + 1);
+      next.push(snapshot);
+      historyRef.current = next.slice(-50);
+      historyIndexRef.current = historyRef.current.length - 1;
+      setHistoryVersion((version) => version + 1);
+    };
+
+    // Chain structure changes are discrete commands: never merge a quick
+    // reorder/toggle/remove into the slider debounce or Undo can skip it.
+    if (historyChainStructureRef.current !== chainStructure) {
+      historyChainStructureRef.current = chainStructure;
+      commitSnapshot();
+      return;
+    }
+
+    const timeout = window.setTimeout(commitSnapshot, 220);
+    return () => window.clearTimeout(timeout);
+  }, [state.chain, state.convertGrayscale, state.linearize, state.outputScale, state.realtimeFiltering, state.scale, state.scalingAlgorithm, state.wasmAcceleration, state.webglAcceleration]);
+
+  const restoreHistory = useCallback((offset: -1 | 1) => {
+    const nextIndex = historyIndexRef.current + offset;
+    const snapshot = historyRef.current[nextIndex];
+    if (!snapshot) return;
+    historyIndexRef.current = nextIndex;
+    historyApplyingRef.current = snapshot;
+    historyActionsRef.current.importState(snapshot);
+    setHistoryVersion((version) => version + 1);
+  }, []);
+
+  const canUndo = historyVersion >= 0 && historyIndexRef.current > 0;
+  const canRedo = historyVersion >= 0 && historyIndexRef.current < historyRef.current.length - 1;
+
+  useEffect(() => {
+    const handleWorkbenchShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || Boolean(target?.isContentEditable);
+      const commandKey = event.ctrlKey || event.metaKey;
+      if (commandKey && event.key.toLowerCase() === "z" && !isTyping) {
+        event.preventDefault();
+        restoreHistory(event.shiftKey ? 1 : -1);
+        return;
+      }
+      if ((event.key === "/" || (commandKey && event.key.toLowerCase() === "k")) && !isTyping) {
+        event.preventDefault();
+        setCommandQuery("");
+        setCommandActiveIndex(0);
+        setShowCommandPalette(true);
+      }
+    };
+    window.addEventListener("keydown", handleWorkbenchShortcut);
+    return () => window.removeEventListener("keydown", handleWorkbenchShortcut);
+  }, [restoreHistory]);
 
   useEffect(() => {
     if (screensaverActive && outputFullscreen) {
@@ -1494,6 +1721,7 @@ const App = () => {
     if (!screensaverHasEnteredFullscreenRef.current) return;
     if (outputFullscreen || !screensaverActive) return;
     const restore = screensaverRestoreRef.current;
+    const pendingVideoSwap = screensaverVideoSwapInFlightRef.current;
     setScreensaverActive(false);
     screensaverHasEnteredFullscreenRef.current = false;
     if (!restore) return;
@@ -1501,9 +1729,62 @@ const App = () => {
     clearWarmedTestVideo();
     dispatchScreensaverCycleSeconds(null);
     setOutputFullscreenMode(restore.fullscreenMode);
-    actions.setScale(restore.scale);
-    actions.setScalingAlgorithm(restore.scalingAlgorithm);
     screensaverRestoreRef.current = null;
+    void (async () => {
+      if (pendingVideoSwap) await pendingVideoSwap.catch(() => undefined);
+      const media = await restore.media.catch((error) => {
+        console.error("Failed to preserve the pre-screensaver input:", error);
+        return null;
+      });
+
+      if (media?.kind === "image") {
+        actions.loadImage(media.image);
+      } else if (media?.kind === "video") {
+        if (typeof media.source === "string") {
+          await actions.loadVideoFromUrlAsync(
+            media.source,
+            media.volume,
+            media.playbackRate,
+            { preserveScale: true },
+          );
+        } else {
+          await actions.loadMediaAsync(
+            media.source,
+            media.volume,
+            media.playbackRate,
+            { preserveScale: true },
+          );
+        }
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const restoredVideo = webmcpRefs.current.state.video as (HTMLVideoElement & { __manualPause?: boolean }) | null;
+        if (restoredVideo) {
+          if (Number.isFinite(media.time) && media.time > 0) {
+            try { restoredVideo.currentTime = media.time; } catch { /* media may not be seekable */ }
+          }
+          if (media.paused) {
+            restoredVideo.__manualPause = true;
+            restoredVideo.pause();
+          } else {
+            restoredVideo.play().catch(() => undefined);
+          }
+        }
+      }
+
+      if (media) {
+        setInputFilename(media.filename);
+        currentInputIsRandomTestVideoRef.current = media.wasRandomTestVideo;
+        if (media.sharedMedia) {
+          const restoredSrc = testAssetUrl(media.sharedMedia.kind, media.sharedMedia.file);
+          syncSharedTestMediaUrl(media.sharedMedia.kind, restoredSrc);
+          if (media.sharedMedia.kind === "image") lastTestImageAssetRef.current = restoredSrc;
+          else lastTestVideoAssetRef.current = restoredSrc;
+        } else {
+          syncSharedTestMediaUrl(null);
+        }
+      }
+      actions.setScale(restore.scale);
+      actions.setScalingAlgorithm(restore.scalingAlgorithm);
+    })();
   }, [actions, clearWarmedTestVideo, outputFullscreen, screensaverActive, stopScreensaverVideoSwapLoop]);
 
   const buildScreensaverConfig = useCallback(() => {
@@ -1542,8 +1823,7 @@ const App = () => {
     if (!screensaverActive || !screensaverConfigRef.current.randomVideo) return;
     if (!state.video || !state.inputImage || !currentInputIsRandomTestVideoRef.current) return;
 
-    const targetScale = Math.max(0.05, Math.min(16, screensaverConfigRef.current.videoMaxWidth / state.inputImage.width));
-    const rounded = Math.round(targetScale * 100) / 100;
+    const rounded = getScaleForMaxWidth(state.inputImage.width, screensaverConfigRef.current.videoMaxWidth);
     if (Math.abs(rounded - state.scale) > 0.001) {
       actions.setScale(rounded);
     }
@@ -1610,16 +1890,20 @@ const App = () => {
     }
   }, []);
 
-  // Register WebMCP tools once (if the browser exposes navigator.modelContext).
+  // Register WebMCP tools once (current document API, with a legacy navigator fallback).
   // Tool handlers read latest app state/actions via refs.
   useEffect(() => {
-    return setupWebMCP({
-      getState: () => webmcpRefs.current.state,
-      getActions: () => webmcpRefs.current.actions,
-      getFilterList: () => webmcpRefs.current.filterList,
-      getOutputCanvas: () => outputCanvasRef.current,
-    });
-  }, []);
+    return setupWebMCP(
+      {
+        getState: () => webmcpRefs.current.state,
+        getActions: () => webmcpRefs.current.actions,
+        getFilterList: () => webmcpRefs.current.filterList,
+        getOutputCanvas: () => outputCanvasRef.current,
+        waitForMediaReady: waitForWebMCPMediaReady,
+      },
+      { onStatus: setWebMCPStatus },
+    );
+  }, [waitForWebMCPMediaReady]);
 
   // Register input canvas with state
   useEffect(() => {
@@ -1664,13 +1948,26 @@ const App = () => {
       drawToCanvas(outputCanvasRef.current, state.outputImage, state.outputScale);
     }
 
+    if (comparisonCanvasRef.current && inputCanvasRef.current) {
+      const comparison = comparisonCanvasRef.current;
+      const output = outputCanvasRef.current;
+      comparison.width = output?.width || inputCanvasRef.current.width;
+      comparison.height = output?.height || inputCanvasRef.current.height;
+      const comparisonContext = comparison.getContext("2d");
+      if (comparisonContext) {
+        comparisonContext.imageSmoothingEnabled = state.scalingAlgorithm !== SCALING_ALGORITHM.PIXELATED;
+        comparisonContext.clearRect(0, 0, comparison.width, comparison.height);
+        comparisonContext.drawImage(inputCanvasRef.current, 0, 0, comparison.width, comparison.height);
+      }
+    }
+
     prevPropsRef.current = {
       inputImage: state.inputImage,
       outputImage: state.outputImage,
       scale: state.scale,
       time: state.time,
     };
-  }, [state.inputImage, state.outputImage, state.scale, state.outputScale, state.time, state.scalingAlgorithm]);
+  }, [comparisonEnabled, state.inputImage, state.outputImage, state.scale, state.outputScale, state.time, state.scalingAlgorithm]);
 
   // Auto-filter when settings change and realtimeFiltering is on
   useEffect(() => {
@@ -1693,14 +1990,48 @@ const App = () => {
     if (!showScreensaverDialog || !screensaverDialogRef.current) return;
     zIndexRef.current += 1;
     screensaverDialogRef.current.style.zIndex = `${zIndexRef.current}`;
+    screensaverDialogRef.current.focus({ preventScroll: true });
   }, [showScreensaverDialog]);
 
+  useEffect(() => {
+    if (!showScreensaverDialog) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      setShowScreensaverDialog(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showScreensaverDialog]);
+
+  useEffect(() => {
+    if ((!editingAudioEntryId && !showChainAudioGlobalEditor) || !audioEditorRef.current) return;
+    audioEditorRef.current.focus({ preventScroll: true });
+  }, [editingAudioEntryId, showChainAudioGlobalEditor]);
+
+  useLayoutEffect(() => {
+    if ((!editingAudioEntryId && !showChainAudioGlobalEditor) || !audioEditorRef.current) return;
+    const rect = audioEditorRef.current.getBoundingClientRect();
+    const maxX = Math.max(16, window.innerWidth - rect.width - 16);
+    const maxY = Math.max(16, window.innerHeight - rect.height - 16);
+    setAudioEditorPosition((current) => {
+      const next = {
+        x: Math.min(Math.max(16, current.x), maxX),
+        y: Math.min(Math.max(16, current.y), maxY),
+      };
+      return next.x === current.x && next.y === current.y ? current : next;
+    });
+  }, [audioEditorPosition, editingAudioEntryId, showChainAudioGlobalEditor]);
+
   const withInputLoading = useCallback(async (label: string, loader: () => Promise<void> | void) => {
+    setInputLoadError(null);
     setInputLoadingLabel(label);
     try {
       await loader();
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       console.error("Failed to load input asset:", error);
+      setInputLoadError(error instanceof Error ? error.message : "Failed to load the selected media.");
     } finally {
       setInputLoadingLabel(null);
     }
@@ -1749,6 +2080,8 @@ const App = () => {
 
   const loadUserFile = useCallback((file?: File | null) => {
     if (!file) return;
+    completeOnboarding();
+    syncSharedTestMediaUrl(null);
     const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
     pendingLoadedMediaFilterRef.current = true;
     currentInputIsRandomTestVideoRef.current = false;
@@ -1758,7 +2091,7 @@ const App = () => {
         preserveScale: preserveInputWidthOnNewMedia,
       })
     );
-  }, [actions, preserveInputWidthOnNewMedia, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+  }, [actions, completeOnboarding, preserveInputWidthOnNewMedia, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
@@ -1864,6 +2197,7 @@ const App = () => {
     lastTestImageAssetRef.current = src;
     pendingLoadedMediaFilterRef.current = true;
     currentInputIsRandomTestVideoRef.current = false;
+    syncSharedTestMediaUrl("image", src);
     setInputFilename(basename(src));
     void withInputLoading("LOADING IMAGE", async () => {
       const perfStart = performance.now();
@@ -1900,6 +2234,7 @@ const App = () => {
     lastTestVideoAssetRef.current = src;
     pendingLoadedMediaFilterRef.current = true;
     currentInputIsRandomTestVideoRef.current = Boolean(options?.isRandomPick);
+    syncSharedTestMediaUrl("video", src);
     setInputFilename(basename(src));
     return withInputLoading("LOADING VIDEO", async () => {
       const perfStart = performance.now();
@@ -1917,8 +2252,7 @@ const App = () => {
       if (options?.forceScreensaverScale) {
         const loadedVideo = webmcpRefs.current.state.video;
         if (loadedVideo?.videoWidth) {
-          const forcedScale = Math.max(0.05, Math.min(16, screensaverConfigRef.current.videoMaxWidth / loadedVideo.videoWidth));
-          actions.setScale(Math.round(forcedScale * 100) / 100);
+          actions.setScale(getScaleForMaxWidth(loadedVideo.videoWidth, screensaverConfigRef.current.videoMaxWidth));
         }
       }
       logPerf("loadVideoFromUrlAsync-resolved");
@@ -1930,8 +2264,17 @@ const App = () => {
     if (hasAutoLoadedDefaultMediaRef.current) return;
     if (state.inputImage || state.video) return;
     hasAutoLoadedDefaultMediaRef.current = true;
-    loadTestVideoFromSrc(DEFAULT_TEST_VIDEO_ASSET);
-  }, [loadTestVideoFromSrc, state.inputImage, state.video]);
+    const sharedMedia = initialSharedTestMediaRef.current;
+    if (sharedMedia?.kind === "image") {
+      const src = testAssetUrl("image", sharedMedia.file);
+      loadTestImageFromSrc(src);
+      return;
+    }
+    const src = sharedMedia?.kind === "video"
+      ? testAssetUrl("video", sharedMedia.file)
+      : DEFAULT_TEST_VIDEO_ASSET;
+    void loadTestVideoFromSrc(src);
+  }, [loadTestImageFromSrc, loadTestVideoFromSrc, state.inputImage, state.video]);
 
   const loadRandomTestVideo = useCallback(() => {
     const src = hasLoadedTestVideoRef.current
@@ -2018,19 +2361,69 @@ const App = () => {
     return warmTestVideoSrc(nextSrc);
   }, [getNextRandomTestVideoSrc, warmTestVideoSrc]);
 
+  const captureScreensaverMedia = useCallback(async (): Promise<ScreensaverMediaRestore | null> => {
+    const inputImage = state.inputImage;
+    if (!inputImage) return null;
+
+    const common = {
+      filename: inputFilename,
+      sharedMedia: parseSharedTestMedia(window.location.search),
+      wasRandomTestVideo: currentInputIsRandomTestVideoRef.current,
+    };
+    const video = state.video;
+    if (!video) {
+      return {
+        ...common,
+        kind: "image",
+        image: cloneImageToCanvas(inputImage),
+      };
+    }
+
+    const src = video.currentSrc || video.src;
+    if (!src) return null;
+    let source: string | File = src;
+    if (src.startsWith("blob:")) {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`Unable to snapshot uploaded video (${response.status})`);
+      const blob = await response.blob();
+      source = new File([blob], inputFilename || "screensaver-input.webm", {
+        type: blob.type || "video/webm",
+      });
+    }
+
+    return {
+      ...common,
+      kind: "video",
+      source,
+      time: video.currentTime,
+      paused: video.paused,
+      volume: state.videoVolume,
+      playbackRate: state.videoPlaybackRate,
+    };
+  }, [inputFilename, state.inputImage, state.video, state.videoPlaybackRate, state.videoVolume]);
+
   const startScreensaverVideoSwapLoop = useCallback((videoSwapSeconds: number) => {
     stopScreensaverVideoSwapLoop();
+    const generation = screensaverVideoSwapGenerationRef.current;
     screensaverVideoSwapSecondsRef.current = videoSwapSeconds;
     void warmNextRandomTestVideo(lastTestVideoAssetRef.current);
 
     const scheduleNextSwap = () => {
+      if (generation !== screensaverVideoSwapGenerationRef.current) return;
       const interval = Math.max(0.05, screensaverVideoSwapSecondsRef.current);
       screensaverVideoSwapTimerRef.current = window.setTimeout(async () => {
+        if (generation !== screensaverVideoSwapGenerationRef.current) return;
         notifyScreensaverVideoSwap();
         const warmedSrc = warmedTestVideoSrcRef.current;
         const nextSrc = warmedSrc || getNextRandomTestVideoSrc(lastTestVideoAssetRef.current);
         clearWarmedTestVideo();
-        await loadTestVideoFromSrc(nextSrc, { isRandomPick: true, forceScreensaverScale: true });
+        const load = loadTestVideoFromSrc(nextSrc, { isRandomPick: true, forceScreensaverScale: true });
+        screensaverVideoSwapInFlightRef.current = load;
+        await load;
+        if (screensaverVideoSwapInFlightRef.current === load) {
+          screensaverVideoSwapInFlightRef.current = null;
+        }
+        if (generation !== screensaverVideoSwapGenerationRef.current) return;
         void warmNextRandomTestVideo(nextSrc);
         scheduleNextSwap();
       }, interval * 1000);
@@ -2043,10 +2436,14 @@ const App = () => {
     const outputWindow = outputWindowRef.current;
     if (!outputWindow) return;
 
+    const media = config.randomVideo
+      ? captureScreensaverMedia()
+      : Promise.resolve<ScreensaverMediaRestore | null>(null);
     screensaverRestoreRef.current = {
       fullscreenMode: outputFullscreenMode,
       scale: state.scale,
       scalingAlgorithm: state.scalingAlgorithm,
+      media,
     };
     screensaverHasEnteredFullscreenRef.current = false;
     resetScreensaverSwapMarkers();
@@ -2055,9 +2452,7 @@ const App = () => {
     screensaverConfigRef.current = config;
     dispatchScreensaverCycleSeconds(config.swapSeconds);
     actions.setScalingAlgorithm(config.scalingAlgorithm);
-    if (config.randomVideo) {
-      startScreensaverVideoSwapLoop(config.videoSwapSeconds);
-    } else {
+    if (!config.randomVideo) {
       stopScreensaverVideoSwapLoop();
       clearWarmedTestVideo();
     }
@@ -2065,7 +2460,13 @@ const App = () => {
     if (document.fullscreenElement !== outputWindow) {
       await outputWindow.requestFullscreen();
     }
-  }, [actions, clearWarmedTestVideo, outputFullscreenMode, startScreensaverVideoSwapLoop, state.scale, state.scalingAlgorithm, stopScreensaverVideoSwapLoop]);
+    if (config.randomVideo) {
+      await media;
+      if (screensaverRestoreRef.current?.media === media) {
+        startScreensaverVideoSwapLoop(config.videoSwapSeconds);
+      }
+    }
+  }, [actions, captureScreensaverMedia, clearWarmedTestVideo, outputFullscreenMode, startScreensaverVideoSwapLoop, state.scale, state.scalingAlgorithm, stopScreensaverVideoSwapLoop]);
 
 
   const requestAudioVizPermissions = useCallback((channel: "chain" | "screensaver") => {
@@ -2184,7 +2585,7 @@ const App = () => {
     setScreensaverDialogPosition(getAnchoredDialogPosition(
       buttonRect,
       screensaverDialogPosition,
-      { width: 420, height: 360 },
+      { width: 820, height: 760 },
     ));
     setScreensaverSwapSecondsDraft(currentSwapSeconds.toString());
     setScreensaverSwapBpmDraft(secondsToBpm(currentSwapSeconds).toFixed(2).replace(/\.?0+$/, ""));
@@ -2234,7 +2635,14 @@ const App = () => {
     setGlobalAudioVizModulation("screensaver", buildGlobalModulation(screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft));
     setShowScreensaverDialog(false);
     void startScreensaver(config);
-  }, [buildGlobalModulation, buildScreensaverConfig, screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft, startScreensaver]);
+  }, [
+    buildGlobalModulation,
+    buildScreensaverConfig,
+    screensaverAudioGlobalConnectionsDraft,
+    screensaverAudioGlobalNormalizedMetricsDraft,
+    screensaverShowDebugDraft,
+    startScreensaver,
+  ]);
 
   const openAudioModEditor = useCallback((entryId: string, anchorRect?: DOMRect) => {
     const entry = state.chain.find((item) => item.id === entryId);
@@ -2243,7 +2651,7 @@ const App = () => {
     setEditingAudioEntryId(entryId);
     setAudioModConnectionsDraft(buildAudioConnectionDraft(entry.audioMod));
     setAudioModNormalizedMetricsDraft(buildNormalizedMetricsDraft(entry.audioMod));
-    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 560, height: 520 }));
+    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 820, height: 760 }));
     requestAudioVizPermissions("chain");
   }, [requestAudioVizPermissions, state.chain]);
 
@@ -2269,7 +2677,7 @@ const App = () => {
     setShowChainAudioGlobalEditor(true);
     setChainAudioGlobalConnectionsDraft(buildAudioConnectionDraft(modulation));
     setChainAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(modulation));
-    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 560, height: 520 }));
+    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 820, height: 760 }));
     requestAudioVizPermissions("chain");
   }, [requestAudioVizPermissions]);
 
@@ -2450,13 +2858,91 @@ const App = () => {
     loadPresetFromFilters(matches[picked - 1].filters);
   }, [loadPresetFromFilters, state.activeIndex, state.chain]);
 
+  const applyChain = useCallback(() => {
+    setFiltering(true);
+    document.body.style.cursor = "wait";
+    requestAnimationFrame(() => {
+      actions.filterImageAsync(inputCanvasRef.current);
+      setFiltering(false);
+      document.body.style.cursor = "";
+    });
+  }, [actions]);
+
+  const workbenchCommands = [
+    { label: "Apply filter chain", hint: "Enter", run: applyChain },
+    { label: "Undo", hint: "Ctrl/⌘ Z", disabled: !canUndo, run: () => restoreHistory(-1) },
+    { label: "Redo", hint: "Ctrl/⌘ Shift Z", disabled: !canRedo, run: () => restoreHistory(1) },
+    { label: "Dock canvases", hint: "Layout", run: () => { setWorkspaceLayout("docked"); setWindowsLocked(true); } },
+    { label: "Float canvases", hint: "Layout", run: () => { setWorkspaceLayout("floating"); setWindowsLocked(false); } },
+    { label: "Toggle output-only view", hint: "Layout", run: () => setWorkspaceLayout((layout) => layout === "output" ? "docked" : "output") },
+    { label: "Toggle before/after comparison", hint: "Preview", run: () => setComparisonEnabled((value) => !value) },
+    { label: "Save current chain", hint: "Project", run: saveCurrentChain },
+    { label: "Copy share link", hint: "Project", run: exportCurrentChain },
+    { label: "Export image or video", hint: "Export", run: openExport },
+  ].filter((command) => command.label.toLowerCase().includes(commandQuery.trim().toLowerCase()));
+  const activeCommand = workbenchCommands[commandActiveIndex];
+  const effectiveCommandActiveIndex = activeCommand && !activeCommand.disabled
+    ? commandActiveIndex
+    : workbenchCommands.findIndex((command) => !command.disabled);
+
+  const moveCommandSelection = (direction: -1 | 1) => {
+    const enabledIndexes = workbenchCommands
+      .map((command, index) => command.disabled ? -1 : index)
+      .filter((index) => index >= 0);
+    if (enabledIndexes.length === 0) return;
+    const position = enabledIndexes.indexOf(effectiveCommandActiveIndex);
+    const nextPosition = position < 0
+      ? (direction > 0 ? 0 : enabledIndexes.length - 1)
+      : (position + direction + enabledIndexes.length) % enabledIndexes.length;
+    setCommandActiveIndex(enabledIndexes[nextPosition]);
+  };
+
+  const runActiveCommand = () => {
+    const command = workbenchCommands[effectiveCommandActiveIndex];
+    if (!command || command.disabled) return;
+    command.run();
+    setShowCommandPalette(false);
+  };
+
   return (
-    <div className={s.app}>
+    <div className={s.app} data-active-task={activeTask}>
       <div className={s.chrome} ref={chromeRef}>
         <h1>ＤＩＴＨＥＲＥＲ ▓▒░</h1>
+        {showOnboarding && (
+          <aside className={s.onboarding} aria-label="Getting started">
+            <strong>Ready to remix</strong>
+            <span>A sample video and starter dither are already running. Choose a look, tune it, then swap in your own media.</span>
+            <span>1 Choose a look → 2 Adjust → 3 Replace media → 4 Export</span>
+            <div>
+              <button onClick={() => {
+                completeOnboarding();
+                navigateToTask("compose");
+                setOpenPresetLibraryRequest((request) => request + 1);
+              }}>Browse looks</button>
+              <button onClick={() => {
+                completeOnboarding();
+                navigateToTask("source");
+                sourceFileInputRef.current?.click();
+              }}>Use my media</button>
+              <button onClick={completeOnboarding}>Dismiss</button>
+            </div>
+          </aside>
+        )}
+
+        {(() => {
+          const taskIndex = WORKBENCH_TASKS.findIndex((task) => task.id === activeTask);
+          const task = WORKBENCH_TASKS[taskIndex];
+          return (
+            <section className={s.taskContext} aria-labelledby="active-task-title" aria-live="polite">
+              <span className={s.taskContextStep}>Step {taskIndex + 1} of {WORKBENCH_TASKS.length}</span>
+              <strong id="active-task-title">{task.title}</strong>
+              <span>{task.description}</span>
+            </section>
+          );
+        })()}
 
         {/* Input section */}
-        <div>
+        <div id="source-task" className={s.sourceTask}>
           <h2>Input</h2>
           <div
             className={[controls.group, dropping ? controls.dropping : null].join(" ")}
@@ -2467,6 +2953,8 @@ const App = () => {
           >
             <span className={controls.name}>File</span>
             <input
+              id="imageLoader"
+              ref={sourceFileInputRef}
               className={[controls.file, s.nativeFileInput].join(" ")}
               type="file"
               accept="image/*,video/*"
@@ -2475,13 +2963,22 @@ const App = () => {
                 e.target.value = "";
               }}
               title="Load an image or video file"
+              aria-label="Choose an image or video file"
             />
             <p className={s.inputHelpText}>
-              Paste, drag, or choose an image or video to get started.
+              {state.inputImage || state.video
+                ? "Paste, drag, or choose media to replace the current input."
+                : "Paste, drag, or choose an image or video to get started."}
             </p>
+            {inputLoadError && (
+              <div className={s.inputError} role="alert">
+                <span>{inputLoadError}</span>
+                <button type="button" onClick={() => setInputLoadError(null)}>Dismiss</button>
+              </div>
+            )}
           </div>
           <div className={[controls.group, s.testMediaPicker].join(" ")}>
-            <span className={controls.name}>Test Media</span>
+            <span className={controls.name}>Examples</span>
             <div className={s.testMediaToolbar}>
               <select
                 id="test-image-select"
@@ -2489,6 +2986,7 @@ const App = () => {
                 value=""
                 onChange={(e) => loadTestImageFromSrc(e.target.value)}
                 title="Load a test image"
+                aria-label="Choose an example image"
               >
                 <option value="" disabled>Image...</option>
                 {TEST_IMAGE_OPTIONS.map((option) => (
@@ -2510,6 +3008,7 @@ const App = () => {
                 value=""
                 onChange={(e) => loadTestVideoFromSrc(e.target.value)}
                 title="Load a test video"
+                aria-label="Choose an example video"
               >
                 <option value="" disabled>Video...</option>
                 {TEST_VIDEO_OPTIONS.map((option) => (
@@ -2537,6 +3036,7 @@ const App = () => {
                   step={0.05}
                   onSetFilterOption={(_, value) => actions.setScale(Number(value))}
                   value={state.scale}
+                  defaultValue={1}
                 />
                 {state.video && state.inputImage ? (
                   <div className={s.inputTweakRow}>
@@ -2560,22 +3060,18 @@ const App = () => {
                     </label>
                   </div>
                 ) : (
-                  <div className={controls.checkbox}>
+                  <label className={controls.checkbox}>
                     <input
                       name="preserveInputWidthOnNewMedia"
                       type="checkbox"
                       checked={preserveInputWidthOnNewMedia}
                       onChange={e => setPreserveInputWidthOnNewMedia(e.target.checked)}
                     />
-                    <span
-                      role="presentation"
-                      onClick={() => setPreserveInputWidthOnNewMedia(!preserveInputWidthOnNewMedia)}
-                      className={controls.label}
-                    >
+                    <span className={controls.label}>
                       Fix input width on new media
                       <InfoHint text={FIX_INPUT_WIDTH_HELP} />
                     </span>
-                  </div>
+                  </label>
                 )}
                 {state.video && (<>
                   <div className={controls.separator} />
@@ -2602,6 +3098,7 @@ const App = () => {
                       onChange={(e) => flushSeekVideo(Number(e.target.value))}
                       disabled={!state.video || !Number.isFinite(state.video.duration) || state.video.duration <= 0}
                       title="Seek through the loaded video"
+                      aria-label="Video position"
                     />
                     <button
                       className={s.videoFrameStep}
@@ -2652,41 +3149,70 @@ const App = () => {
         </div>
 
         {/* Algorithm section */}
-        <CollapsibleSection title="Algorithm" defaultOpen>
+        <div id="compose-task" className={s.composeTask}>
+        <CollapsibleSection title={activeTask === "adjust" ? "Filter settings" : "Stages"} defaultOpen>
           <div className={["filterOptions", s.filterOptions].join(" ")}>
-            <ChainList
-              onEditAudioMod={openAudioModEditor}
-              onEditChainAudioMod={openChainAudioGlobalEditor}
-              chainAudioActive={chainAudioGlobalActive}
-            />
-            <div className={controls.group}>
-              <span className={controls.name}>
-                {state.chain[state.activeIndex]?.displayName ?? "Options"}
-              </span>
-              <Controls inputCanvas={inputCanvasRef.current} />
-              {state.selected?.filter?.defaults && (
-                <button
-                  onClick={() => {
-                    const name = state.selected.displayName || state.selected.name;
-                    const filter = filterList.find(f => f && f.displayName === name);
-                    if (filter) {
-                      const entry = state.chain[state.activeIndex];
-                      if (entry) actions.chainReplace(entry.id, name, filter.filter);
-                    }
-                  }}
-                >
-                  Reset defaults
-                </button>
-              )}
-              {state.chain[state.activeIndex] && (
-                <button
-                  onClick={findPresetsForActiveFilter}
-                  title="Find presets that include the active filter"
-                >
-                  Find presets
-                </button>
-              )}
-              <div className={s.optionActionRow}>
+            <div className={s.chainComposer} id="chain-composer">
+              <ChainList
+                onEditAudioMod={openAudioModEditor}
+                onEditChainAudioMod={openChainAudioGlobalEditor}
+                chainAudioActive={chainAudioGlobalActive}
+                openPresetLibraryRequest={openPresetLibraryRequest}
+              />
+            </div>
+            <div
+              className={[controls.group, s.filterInspector].join(" ")}
+              id="active-filter-options"
+              role="region"
+              aria-label="Active filter parameters"
+            >
+              <div className={s.filterInspectorHeader}>
+                <span className={s.filterInspectorKicker}>
+                  Stage {state.activeIndex + 1} of {state.chain.length} · Parameters
+                </span>
+                <strong className={s.filterInspectorTitle}>
+                  {state.chain[state.activeIndex]?.displayName ?? "Options"}
+                </strong>
+                {(() => {
+                  const activeName = state.chain[state.activeIndex]?.displayName;
+                  const activeFilter = filterList.find((entry) => entry?.displayName === activeName);
+                  return activeFilter?.description ? (
+                    <span className={s.filterInspectorDescription}>{activeFilter.description}</span>
+                  ) : null;
+                })()}
+              </div>
+              <input
+                className={s.inspectorSearch}
+                type="search"
+                value={inspectorQuery}
+                onChange={(event) => setInspectorQuery(event.target.value)}
+                placeholder="Search this filter’s settings…"
+                aria-label="Search active filter settings"
+              />
+              <Controls inputCanvas={inputCanvasRef.current} query={inspectorQuery} />
+              <div className={s.inspectorActions} aria-label="Active filter actions">
+                {state.selected?.filter?.defaults && (
+                  <button
+                    onClick={() => {
+                      const name = state.selected.displayName || state.selected.name;
+                      const filter = filterList.find(f => f && f.displayName === name);
+                      if (filter) {
+                        const entry = state.chain[state.activeIndex];
+                        if (entry) actions.chainReplace(entry.id, name, filter.filter);
+                      }
+                    }}
+                  >
+                    Reset all
+                  </button>
+                )}
+                {state.chain[state.activeIndex] && (
+                  <button
+                    onClick={findPresetsForActiveFilter}
+                    title="Find presets that include the active filter"
+                  >
+                    Find presets
+                  </button>
+                )}
                 {state.chain[state.activeIndex] && (
                   <button
                     onClick={(event) => openAudioModEditor(
@@ -2695,79 +3221,64 @@ const App = () => {
                     )}
                     title="Map audio visualizer to this filter's numeric parameters"
                   >
-                    Per-filter audio viz...
+                    Audio mapping…
                   </button>
                 )}
-                <button
-                  onClick={saveCurrentChain}
-                  title="Save current chain with settings"
-                >
-                  Save Chain
-                </button>
-                <button
-                  onClick={exportCurrentChain}
-                  title="Share filter chain (copies URL to clipboard)"
-                >
-                  Export Link
-                </button>
               </div>
             </div>
-            <div className={controls.separator} />
-            <div className={controls.checkbox}>
-              <input
-                name="convertGrayscale"
-                type="checkbox"
-                checked={state.convertGrayscale}
-                onChange={e => actions.setConvertGrayscale(e.target.checked)}
-              />
-              <span
-                role="presentation"
-                onClick={() => actions.setConvertGrayscale(!state.convertGrayscale)}
-                className={controls.label}
-              >
-                Pre-convert to grayscale
-                <InfoHint text={GRAYSCALE_HELP} />
-              </span>
-            </div>
-            <div className={controls.checkbox}>
-              <input
-                name="linearize"
-                type="checkbox"
-                checked={state.linearize}
-                onChange={e => actions.setLinearize(e.target.checked)}
-              />
-              <span
-                role="presentation"
-                onClick={() => actions.setLinearize(!state.linearize)}
-                className={controls.label}
-              >
-                Gamma-correct input
-                <InfoHint text={GAMMA_HELP} />
-              </span>
+            <div className={s.pipelineOptions}>
+              <div className={controls.separator} />
+              <label className={controls.checkbox}>
+                <input
+                  name="convertGrayscale"
+                  type="checkbox"
+                  checked={state.convertGrayscale}
+                  onChange={e => actions.setConvertGrayscale(e.target.checked)}
+                />
+                <span className={controls.label}>
+                  Pre-convert to grayscale
+                  <InfoHint text={GRAYSCALE_HELP} />
+                </span>
+              </label>
+              <label className={controls.checkbox}>
+                <input
+                  name="linearize"
+                  type="checkbox"
+                  checked={state.linearize}
+                  onChange={e => actions.setLinearize(e.target.checked)}
+                />
+                <span className={controls.label}>
+                  Gamma-correct input
+                  <InfoHint text={GAMMA_HELP} />
+                </span>
+              </label>
             </div>
           </div>
         </CollapsibleSection>
+        </div>
 
         {/* Filter button — always visible, sticky on mobile */}
-        <div className={s.filterBar}>
+        <div className={[s.filterBar, s.composeTask].join(" ")}>
           <button
             className={[s.filterButton, s.waitButton].join(" ")}
             disabled={filtering}
-            onClick={() => {
-              setFiltering(true);
-              document.body.style.cursor = "wait";
-              requestAnimationFrame(() => {
-                actions.filterImageAsync(inputCanvasRef.current);
-                setFiltering(false);
-                document.body.style.cursor = "";
-              });
-            }}
+            onClick={applyChain}
           >
-            {filtering ? "▓░ Processing…" : "Filter"}
+            {filtering ? "▓░ Processing…" : "Apply Chain"}
           </button>
+          <div className={s.applyStatus} role="status" aria-live="polite">
+            {filtering
+              ? "Processing current chain"
+              : state.realtimeFiltering
+                ? "Auto apply on · output updates as you edit"
+                : state.inputFrameToken !== state.outputFrameToken
+                  ? "Output is stale · apply the chain to refresh"
+                  : "Manual apply · output is current"}
+          </div>
         </div>
 
         {/* Output section */}
+        <div className={s.outputSettingsTask} id="preview-output-settings">
         <CollapsibleSection title="Output" defaultOpen>
           <Range
             name="Output Scale"
@@ -2775,11 +3286,13 @@ const App = () => {
             step={0.05}
             onSetFilterOption={(_, value) => actions.setOutputScale(Number(value))}
             value={state.outputScale}
+            defaultValue={1}
           />
           <Enum
             name="Scaling algorithm"
             onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(String(algorithm))}
             value={state.scalingAlgorithm}
+            defaultValue={SCALING_ALGORITHM.PIXELATED}
             types={{ ...SCALING_ALGORITHM_OPTIONS, desc: SCALING_ALGORITHM_HELP }}
           />
           <button
@@ -2804,6 +3317,7 @@ const App = () => {
                 recorder.onstop = () => {
                   const blob = new Blob(chunks, { type: mimeType });
                   const file = new File([blob], "filtered.webm", { type: mimeType });
+                  syncSharedTestMediaUrl(null);
                   setInputFilename(file.name);
                   void withInputLoading("LOADING VIDEO", () =>
                     actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
@@ -2830,6 +3344,7 @@ const App = () => {
                 void withInputLoading("LOADING IMAGE", () => new Promise<void>((resolve, reject) => {
                   const image = new Image();
                   image.onload = () => {
+                    syncSharedTestMediaUrl(null);
                     actions.loadImage(image);
                     actions.setScale(1);
                     setInputFilename("filtered-output.png");
@@ -2844,56 +3359,69 @@ const App = () => {
             {"<< Copy output to input"}
           </button>
         </CollapsibleSection>
+        </div>
+
+        {activeTask !== "export" && (() => {
+          const taskIndex = WORKBENCH_TASKS.findIndex((task) => task.id === activeTask);
+          const previousTask = WORKBENCH_TASKS[taskIndex - 1];
+          const nextTask = WORKBENCH_TASKS[taskIndex + 1];
+          return (
+            <nav className={s.taskProgress} aria-label="Workflow progress">
+              {previousTask ? (
+                <button className={s.taskBack} onClick={() => navigateToTask(previousTask.id)}>
+                  ← {previousTask.label}
+                </button>
+              ) : <span />}
+              {nextTask && (
+                <button
+                  className={s.taskNext}
+                  onClick={() => nextTask.id === "export" ? openExport() : navigateToTask(nextTask.id)}
+                >
+                  Next: {nextTask.label} →
+                </button>
+              )}
+            </nav>
+          );
+        })()}
 
         {/* Settings section */}
+        <div className={s.settingsTask}>
         <CollapsibleSection title="Settings" collapsible>
-          <div className={controls.checkbox}>
+          <label className={controls.checkbox}>
             <input
               name="realtimeFiltering"
               type="checkbox"
               checked={state.realtimeFiltering}
               onChange={e => actions.setRealtimeFiltering(e.target.checked)}
             />
-            <span
-              role="presentation"
-              onClick={() => actions.setRealtimeFiltering(!state.realtimeFiltering)}
-              className={controls.label}
-            >
+            <span className={controls.label}>
               Apply automatically
             </span>
-          </div>
-          <div className={controls.checkbox}>
+          </label>
+          <label className={controls.checkbox}>
             <input
               name="wasmAcceleration"
               type="checkbox"
               checked={state.wasmAcceleration}
               onChange={e => actions.setWasmAcceleration(e.target.checked)}
             />
-            <span
-              role="presentation"
-              onClick={() => actions.setWasmAcceleration(!state.wasmAcceleration)}
-              className={controls.label}
-            >
+            <span className={controls.label}>
               WASM acceleration
             </span>
-          </div>
-          <div className={controls.checkbox}>
+          </label>
+          <label className={controls.checkbox}>
             <input
               name="webglAcceleration"
               type="checkbox"
               checked={state.webglAcceleration}
               onChange={e => actions.setWebglAcceleration(e.target.checked)}
             />
-            <span
-              role="presentation"
-              onClick={() => actions.setWebglAcceleration(!state.webglAcceleration)}
-              className={controls.label}
-            >
+            <span className={controls.label}>
               WebGL acceleration
             </span>
-          </div>
+          </label>
           <div className={controls.separator} />
-          <div className={controls.checkbox}>
+          <label className={controls.checkbox}>
             <input
               name="theme"
               type="checkbox"
@@ -2909,48 +3437,126 @@ const App = () => {
                 }
               }}
             />
-            <span
-              role="presentation"
-              onClick={() => {
-                const newTheme = theme === "rainy-day" ? "default" : "rainy-day";
-                setTheme(newTheme);
-                localStorage.setItem("ditherer-theme", newTheme);
-                if (newTheme === "rainy-day") {
-                  document.documentElement.setAttribute("data-theme", "rainy-day");
-                } else {
-                  document.documentElement.removeAttribute("data-theme");
-                }
-              }}
-              className={controls.label}
-            >
+            <span className={controls.label}>
               Rainy Day theme
             </span>
-          </div>
+          </label>
           <div className={controls.separator} />
           <Exporter />
         </CollapsibleSection>
+        </div>
 
         {state.frameTime != null && (
-          <div className={s.perfStats}>
+          <div className={[s.perfStats, state.frameTime > 50 ? s.perfStatsSlow : ""].join(" ")}>
             {state.stepTimes && state.stepTimes.length > 1
               ? `${state.stepTimes.length} filters`
               : state.stepTimes?.[0]?.name ?? "Filter"
             } | {state.frameTime.toFixed(0)}ms | {(1000 / state.frameTime).toFixed(1)} fps
+            {state.frameTime > 50 ? " · Try a lower input scale or fewer temporal filters" : " · Realtime ready"}
           </div>
         )}
         <div className={s.github}>
           <a href="https://github.com/gyng/ditherer/">GitHub</a>
+          <WebMCPBadge status={webMCPStatus} />
         </div>
       </div>
 
-      {/* Canvases */}
-      <div className={s.canvases}>
+      {/* Task navigation and canvas workbench */}
+      <main className={s.workspace}>
+        <nav ref={workspaceToolbarRef} className={s.workspaceToolbar} aria-label="Workbench tasks and layout">
+          <div className={s.taskNav}>
+            <span className={s.toolbarLabel}>Workflow</span>
+            {WORKBENCH_TASKS.map((task, index) => (
+              <button
+                key={task.id}
+                aria-current={activeTask === task.id ? "page" : undefined}
+                title={`Step ${index + 1}: ${task.title}`}
+                onClick={() => {
+                  if (task.id === "export") {
+                    openExport();
+                  } else {
+                    navigateToTask(task.id);
+                    if (task.id === "preview") {
+                      requestAnimationFrame(() => outputWindowRef.current?.focus());
+                    }
+                  }
+                }}
+              >
+                <span className={s.taskNumber} aria-hidden="true">{index + 1}</span>
+                <span>{task.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className={s.layoutTools}>
+            <span className={s.toolbarLabel}>Layout</span>
+            <button onClick={() => restoreHistory(-1)} disabled={!canUndo} title="Undo (Ctrl/Command Z)" aria-label="Undo">↶</button>
+            <button onClick={() => restoreHistory(1)} disabled={!canRedo} title="Redo (Ctrl/Command Shift Z)" aria-label="Redo">↷</button>
+            <button
+              aria-pressed={workspaceLayout === "docked"}
+              onClick={() => { setWorkspaceLayout("docked"); setWindowsLocked(true); }}
+              title="Dock input and output side by side"
+            >Dock</button>
+            <button
+              aria-pressed={workspaceLayout === "floating"}
+              onClick={() => { setWorkspaceLayout("floating"); setWindowsLocked(false); }}
+              title="Float canvas windows"
+            >Float</button>
+            <button
+              aria-pressed={workspaceLayout === "output"}
+              onClick={() => setWorkspaceLayout(workspaceLayout === "output" ? "docked" : "output")}
+              title="Show only the output canvas"
+            >Output only</button>
+            <button
+              aria-pressed={comparisonEnabled}
+              onClick={() => setComparisonEnabled((value) => !value)}
+              title="Compare source and output with a split view"
+            >Compare</button>
+            <button
+              aria-pressed={windowsLocked}
+              disabled={workspaceLayout !== "floating"}
+              onClick={() => setWindowsLocked((value) => !value)}
+              title="Lock floating canvas positions"
+            >Lock</button>
+            <button onClick={() => {
+              const sidebarRight = chromeRef.current?.getBoundingClientRect().right || 350;
+              const toolbarBottom = workspaceToolbarRef.current?.getBoundingClientRect().bottom ?? 44;
+              const windowTop = Math.round(toolbarBottom + 10);
+              setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: windowTop });
+              setOutputWindowPosition({ x: Math.round(sidebarRight + 430), y: windowTop });
+            }} title="Reset floating canvas positions">Reset</button>
+            <button onClick={fitInputToWindow} title="Fit the input in the available workspace">Fit</button>
+            <button onClick={() => { setCommandQuery(""); setCommandActiveIndex(0); setShowCommandPalette(true); }} title="Open command palette (Ctrl/Command K or /)">Commands…</button>
+          </div>
+          <div className={s.exportTools} role="group" aria-label="Save and export">
+            <span className={s.toolbarLabel}>Project</span>
+            <button onClick={saveCurrentChain}>Save chain</button>
+            <button onClick={exportCurrentChain}>Share</button>
+            <button onClick={openExport}>Export…</button>
+          </div>
+        </nav>
+        <div className={s.workspaceStatus} role="status" aria-live="polite">
+          <span className={s.statusMode} data-active={state.realtimeFiltering ? "true" : "false"}>
+            <span className={s.statusLamp} aria-hidden="true" />
+            {state.realtimeFiltering ? "AUTO" : "MANUAL"}
+          </span>
+          <span>{state.chain.filter((entry) => entry.enabled).length}/{state.chain.length} stages active</span>
+          {state.inputCanvas ? <span>IN {state.inputCanvas.width}×{state.inputCanvas.height}</span> : <span>NO INPUT</span>}
+          {state.outputImage ? <span>OUT {state.outputImage.width}×{state.outputImage.height}</span> : <span>OUTPUT PENDING</span>}
+          {state.frameTime != null ? <span>{state.frameTime.toFixed(1)}ms · {(1000 / state.frameTime).toFixed(1)} fps</span> : null}
+          <span className={s.statusHint}>/ commands · Ctrl/⌘ Z undo</span>
+        </div>
+      <div className={[
+        s.canvases,
+        workspaceLayout === "floating" ? s.canvasesFloating : s.canvasesDocked,
+        workspaceLayout === "output" ? s.canvasesOutputOnly : "",
+      ].join(" ")}>
         <div
+          className={[s.canvasWindow, s.inputCanvasWindow].join(" ")}
           ref={inputDragRef}
           role="presentation"
-          onMouseDown={inputDrag.onMouseDown}
+          onMouseDown={workspaceLayout === "floating" && !windowsLocked ? inputDrag.onMouseDown : undefined}
           onMouseDownCapture={bringToTop}
-          onMouseMove={inputDrag.onMouseMove}
+          onMouseMove={workspaceLayout === "floating" && !windowsLocked ? inputDrag.onMouseMove : undefined}
           onDragOver={e => { e.preventDefault(); setCanvasDropping(true); }}
           onDragLeave={() => setCanvasDropping(false)}
           onDrop={e => {
@@ -3005,20 +3611,23 @@ const App = () => {
         </div>
 
         <div
+          className={[s.canvasWindow, s.outputCanvasWindow].join(" ")}
           ref={outputDragRef}
           role="presentation"
-          onMouseDown={outputFullscreen ? undefined : outputDrag.onMouseDown}
+          onMouseDown={outputFullscreen || workspaceLayout !== "floating" || windowsLocked ? undefined : outputDrag.onMouseDown}
           onMouseDownCapture={bringToTop}
-          onMouseMove={outputFullscreen ? undefined : outputDrag.onMouseMove}
+          onMouseMove={outputFullscreen || workspaceLayout !== "floating" || windowsLocked ? undefined : outputDrag.onMouseMove}
         >
           <div
             className={[
               controls.window,
               s.outputWindow,
+              comparisonEnabled ? s.outputWindowComparing : "",
               outputFullscreen ? s.outputWindowFullscreen : "",
               outputFullscreen && fullscreenCursorHidden ? s.outputWindowFullscreenCursorHidden : "",
             ].join(" ")}
             ref={outputWindowRef}
+            tabIndex={-1}
           >
             <div className={["handle", controls.titleBar, s.windowChrome].join(" ")}>
               {inputFilename ? `Output - ${inputFilename}` : "Output"}
@@ -3028,11 +3637,7 @@ const App = () => {
                 className={s.menuItem}
                 onMouseDown={e => e.stopPropagation()}
                 onClick={() => {
-                  setShowSaveAs(true);
-                  zIndexRef.current += 1;
-                  if (saveAsDragRef.current) {
-                    (saveAsDragRef.current as HTMLElement).style.zIndex = `${zIndexRef.current}`;
-                  }
+                  openExport();
                 }}
               >
                 Save As...
@@ -3043,6 +3648,7 @@ const App = () => {
                   value={state.scalingAlgorithm}
                   onChange={(e) => actions.setScalingAlgorithm(e.target.value)}
                   title="Set output display scaling"
+                  aria-label="Output display scaling"
                 >
                   {SCALING_ALGORITHM_OPTIONS.options.map((option) => (
                     <option key={String(option.value)} value={String(option.value)}>
@@ -3110,6 +3716,56 @@ const App = () => {
                 ].join(" ")}
                 ref={outputCanvasRefCb}
               />
+              {comparisonEnabled && (
+                <>
+                  <canvas
+                    ref={comparisonCanvasRef}
+                    className={[
+                      s.canvas,
+                      s.comparisonCanvas,
+                      comparisonHold ? s.comparisonCanvasHold : "",
+                      s[state.scalingAlgorithm],
+                    ].join(" ")}
+                    style={{ "--compare-position": `${comparisonPosition}%` } as React.CSSProperties}
+                    aria-label="Source side of before and after comparison"
+                  />
+                  <div
+                    className={s.comparisonDivider}
+                    style={{ left: `${comparisonPosition}%` }}
+                    aria-hidden="true"
+                  />
+                  <div className={s.comparisonControl}>
+                    <label className={s.comparisonSlider}>
+                      <span>Split</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={comparisonPosition}
+                        onChange={(event) => setComparisonPosition(Number(event.target.value))}
+                        aria-label="Before / after"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      aria-pressed={comparisonHold}
+                      onPointerDown={() => setComparisonHold(true)}
+                      onPointerUp={() => setComparisonHold(false)}
+                      onPointerCancel={() => setComparisonHold(false)}
+                      onPointerLeave={() => setComparisonHold(false)}
+                      onKeyDown={(event) => {
+                        if (event.key === " " || event.key === "Enter") setComparisonHold(true);
+                      }}
+                      onKeyUp={(event) => {
+                        if (event.key === " " || event.key === "Enter") setComparisonHold(false);
+                      }}
+                      onBlur={() => setComparisonHold(false)}
+                    >
+                      Hold before
+                    </button>
+                  </div>
+                </>
+              )}
               {screensaverActive && screensaverShowDebug && (
                 <ScreensaverDebugOverlay
                   chain={state.chain.map((entry) => ({
@@ -3131,7 +3787,10 @@ const App = () => {
           <div className={s.screensaverOverlay} onMouseDown={() => setShowScreensaverDialog(false)}>
             <div
               ref={screensaverDialogRef}
-              role="presentation"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Screensaver settings"
+              tabIndex={-1}
               className={s.screensaverFloat}
               style={{ transform: `translate(${screensaverDialogPosition.x}px, ${screensaverDialogPosition.y}px)` }}
               onMouseDownCapture={bringToTop}
@@ -3154,6 +3813,7 @@ const App = () => {
                 <span>Screensaver</span>
                 <button
                   className={s.screensaverClose}
+                  aria-label="Close screensaver settings"
                   onClick={() => setShowScreensaverDialog(false)}
                 >
                   x
@@ -3403,6 +4063,10 @@ const App = () => {
           >
             <div
               ref={audioEditorRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={editingAudioEntry ? `Audio visualizer settings for ${editingAudioEntry.displayName}` : "Chain audio visualizer settings"}
+              tabIndex={-1}
               className={s.audioModFloat}
               style={{ transform: `translate(${audioEditorPosition.x}px, ${audioEditorPosition.y}px)` }}
               onMouseDownCapture={bringToTop}
@@ -3419,6 +4083,7 @@ const App = () => {
                   <span>{editingAudioEntry ? `Audio Viz - ${editingAudioEntry.displayName}` : "Chain Audio Viz"}</span>
                   <button
                     className={s.screensaverClose}
+                    aria-label="Close audio visualizer settings"
                     onClick={() => {
                       closeAudioModEditor();
                       setShowChainAudioGlobalEditor(false);
@@ -3542,6 +4207,7 @@ const App = () => {
         )}
 
         <div
+          className={s.dialogHost}
           ref={saveAsDragRef}
           role="presentation"
           onMouseDown={(e) => {
@@ -3549,18 +4215,75 @@ const App = () => {
             if (!target?.closest(".handle")) return;
             saveAsDrag.onMouseDown(e);
           }}
-          onMouseDownCapture={bringToTop}
           onMouseMove={saveAsDrag.onMouseMove}
           style={showSaveAs ? undefined : { display: "none" }}
         >
           {showSaveAs && (
+            <div className={s.dialogOverlay} onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeExport();
+            }}>
             <SaveAs
               outputCanvasRef={outputCanvasRef}
-              onClose={() => setShowSaveAs(false)}
+              onClose={closeExport}
             />
+            </div>
           )}
         </div>
       </div>
+      {showCommandPalette && (
+        <div className={s.dialogOverlay}>
+          <WindowDialog className={s.commandPalette} title="Command palette" onClose={() => setShowCommandPalette(false)}>
+            <div className={s.commandTitleBar}>
+              <strong>Commands</strong>
+              <button onClick={() => setShowCommandPalette(false)} aria-label="Close command palette">×</button>
+            </div>
+            <input
+              data-dialog-initial-focus="true"
+              className={s.commandSearch}
+              value={commandQuery}
+              onChange={(event) => {
+                setCommandQuery(event.target.value);
+                setCommandActiveIndex(0);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  moveCommandSelection(1);
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  moveCommandSelection(-1);
+                } else if (event.key === "Enter") {
+                  event.preventDefault();
+                  runActiveCommand();
+                }
+              }}
+              placeholder="Type a command…"
+              aria-label="Search commands"
+              role="combobox"
+              aria-expanded="true"
+              aria-controls="command-list"
+              aria-activedescendant={workbenchCommands[effectiveCommandActiveIndex] ? `command-${effectiveCommandActiveIndex}` : undefined}
+            />
+            <div id="command-list" className={s.commandList}>
+              {workbenchCommands.map((command, index) => (
+                <button
+                  id={`command-${index}`}
+                  key={command.label}
+                  disabled={command.disabled}
+                  className={index === effectiveCommandActiveIndex ? s.commandActive : ""}
+                  aria-current={index === effectiveCommandActiveIndex ? "true" : undefined}
+                  onMouseEnter={() => setCommandActiveIndex(index)}
+                  onClick={() => { command.run(); setShowCommandPalette(false); }}
+                >
+                  <span>{command.label}</span><kbd>{command.hint}</kbd>
+                </button>
+              ))}
+              {workbenchCommands.length === 0 && <p>No matching commands.</p>}
+            </div>
+          </WindowDialog>
+        </div>
+      )}
+      </main>
     </div>
   );
 };

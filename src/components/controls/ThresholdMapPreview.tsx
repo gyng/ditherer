@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import type { FilterOptionValues } from "filters/types";
 import { getOrderedThresholdMapPreview } from "filters/ordered";
 
+import ControlLabel from "./ControlLabel";
 import s from "./styles.module.css";
 
 type ThresholdMapPreviewProps = {
@@ -67,10 +68,7 @@ const ThresholdMapPreview = ({
 
   return (
     <div className={s.thresholdPreview}>
-      <div className={s.label}>
-        {label || name}
-        {desc && <span className={s.info} title={desc}>(i)</span>}
-      </div>
+      <ControlLabel name={name} label={label} desc={desc} />
       <canvas
         ref={canvasRef}
         className={s.thresholdPreviewCanvas}

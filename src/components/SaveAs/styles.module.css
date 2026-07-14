@@ -240,6 +240,37 @@
     );
 }
 
+@media (max-width: 768px) {
+  .dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    min-width: 0;
+  }
+
+  .closeBtn,
+  .tab,
+  .btn,
+  .row select,
+  .row input:not([type="range"]) {
+    min-height: 44px;
+  }
+
+  .tabContent {
+    margin: 0 4px 4px;
+    padding: 10px 8px;
+  }
+
+  .buttons {
+    position: sticky;
+    bottom: 0;
+    padding: 8px 0;
+    background: var(--light-gray);
+    border-top: 1px solid #808080;
+  }
+}
+
 .sliderRow {
   display: flex;
   align-items: center;
@@ -379,8 +410,11 @@
 /* Mobile */
 @media (max-width: 768px) {
   .dialog {
-    min-width: unset;
-    width: calc(100vw - 32px);
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    min-width: 0;
   }
 
   .tab {
@@ -402,5 +436,24 @@
 
   .radioGroup {
     font-size: 14px;
+  }
+
+  .closeBtn,
+  .row select,
+  .row input:not([type="range"]) {
+    min-height: 44px;
+  }
+
+  .tabContent {
+    margin: 0 4px 4px;
+    padding: 10px 8px;
+  }
+
+  .buttons {
+    position: sticky;
+    bottom: 0;
+    padding: 8px 0;
+    background: var(--light-gray);
+    border-top: 1px solid #808080;
   }
 }

@@ -36,6 +36,7 @@ import ColorArray from "./ColorArray";
 import ColorPicker from "./ColorPicker";
 import Curve from "./Curve";
 import ThresholdMapPreview from "./ThresholdMapPreview";
+import { humanizeControlName } from "./labels";
 
 import s from "./styles.module.css";
 
@@ -60,13 +61,16 @@ const Controls = (props: NestedControlsProps) => {
 
   return (
     <div className={s.controls}>
-      {Object.entries(optionTypes).filter(([, oType]) => {
+      {Object.entries(optionTypes).filter(([name, oType]) => {
         // Optional visibility predicate — option types may declare a
         // visibleWhen(options) callback to hide controls that are no-ops
         // given the current option values (e.g. rowAlternation when the
         // scan order isn't row-major).
         const vw = oType.visibleWhen;
-        return typeof vw !== "function" || vw(options);
+        const isVisible = typeof vw !== "function" || vw(options);
+        const needle = props.query?.trim().toLowerCase();
+        const matchesQuery = !needle || `${humanizeControlName(oType.label || name)} ${oType.desc || ""}`.toLowerCase().includes(needle);
+        return isVisible && matchesQuery;
       }).map(e => {
         const [name, oType] = e;
         // Coalesce missing values to the optionType's default so controls
@@ -83,6 +87,7 @@ const Controls = (props: NestedControlsProps) => {
             return (
               <button
                 key={name}
+                className={s.actionControl}
                 onClick={() => {
                   actionType.action(actions, inputCanvas ?? null, state.selected?.filter?.func, options);
                 }}
@@ -100,6 +105,7 @@ const Controls = (props: NestedControlsProps) => {
                 name={name}
                 types={{ ...controlMeta(rangeType.label, rangeType.desc), range: rangeType.range }}
                 value={typeof value === "number" ? value : Number(value ?? rangeType.default ?? 0)}
+                {...(typeof rangeType.default === "number" ? { defaultValue: rangeType.default } : {})}
                 {...(rangeType.step !== undefined ? { step: rangeType.step } : {})}
                 onSetFilterOption={onSetFilterOption}
               />
@@ -145,7 +151,11 @@ const Controls = (props: NestedControlsProps) => {
               <ColorPicker
                 key={name}
                 name={name}
+                types={controlMeta(oType.label, oType.desc)}
                 value={typeof value === "string" || Array.isArray(value) ? value : String(value ?? "")}
+                {...(typeof oType.default === "string" || Array.isArray(oType.default)
+                  ? { defaultValue: oType.default }
+                  : {})}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -156,6 +166,7 @@ const Controls = (props: NestedControlsProps) => {
                 name={name}
                 types={controlMeta(oType.label, oType.desc)}
                 value={typeof value === "string" ? value : String(value ?? "")}
+                {...(typeof oType.default === "string" ? { defaultValue: oType.default } : {})}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -166,6 +177,7 @@ const Controls = (props: NestedControlsProps) => {
                 name={name}
                 types={controlMeta(oType.label, oType.desc)}
                 value={typeof value === "string" ? value : String(value ?? "")}
+                {...(typeof oType.default === "string" ? { defaultValue: oType.default } : {})}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -201,6 +213,7 @@ const Controls = (props: NestedControlsProps) => {
                 name={name}
                 types={controlMeta(oType.label, oType.desc)}
                 value={Boolean(value)}
+                {...(typeof oType.default === "boolean" ? { defaultValue: oType.default } : {})}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -213,6 +226,9 @@ const Controls = (props: NestedControlsProps) => {
                 name={name}
                 types={{ ...controlMeta(enumType.label, enumType.desc), options: enumType.options }}
                 value={typeof value === "number" || typeof value === "string" ? value : String(value ?? "")}
+                {...(typeof enumType.default === "number" || typeof enumType.default === "string"
+                  ? { defaultValue: enumType.default }
+                  : {})}
                 onSetFilterOption={onSetFilterOption}
               />
             );
@@ -221,6 +237,10 @@ const Controls = (props: NestedControlsProps) => {
             return <div>Unknown setting type</div>;
         }
       })}
+      {props.query?.trim() && Object.entries(optionTypes).every(([name, option]) => {
+        const needle = props.query!.trim().toLowerCase();
+        return !`${humanizeControlName(option.label || name)} ${option.desc || ""}`.toLowerCase().includes(needle);
+      }) ? <p className={s.emptyControls}>No settings match “{props.query.trim()}”.</p> : null}
     </div>
   );
 };

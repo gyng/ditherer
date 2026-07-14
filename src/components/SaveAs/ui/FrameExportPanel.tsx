@@ -109,6 +109,7 @@ export const FrameExportPanel = ({
           <input
             className={s.slider}
             type="range"
+            aria-label={videoFormat === "contact" ? "Samples" : "Frames"}
             min={1}
             max={videoFormat === "contact" ? 64 : 120}
             step={1}
@@ -144,6 +145,7 @@ export const FrameExportPanel = ({
               <input
                 className={s.slider}
                 type="range"
+                aria-label="Manual FPS"
                 min={1}
                 max={60}
                 step={1}
@@ -166,6 +168,7 @@ export const FrameExportPanel = ({
           <input
             className={s.slider}
             type="range"
+            aria-label="Columns"
             min={1}
             max={Math.max(1, frames)}
             step={1}
@@ -241,6 +244,7 @@ export const FrameExportPanel = ({
             <input
               className={s.slider}
               type="range"
+              aria-label="Export range start"
               min={0}
               max={Math.max(0, videoDuration)}
               step={0.01}
@@ -256,6 +260,7 @@ export const FrameExportPanel = ({
             <input
               className={s.slider}
               type="range"
+              aria-label="Export range end"
               min={0.01}
               max={Math.max(0.01, videoDuration)}
               step={0.01}

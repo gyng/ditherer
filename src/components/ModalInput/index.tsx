@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
+import WindowDialog from "components/WindowDialog";
 import s from "./styles.module.css";
 
 const ModalInput = ({
@@ -17,19 +18,19 @@ const ModalInput = ({
   const [value, setValue] = useState(defaultValue);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !multiline) onConfirm(value);
-    if (e.key === "Escape") onCancel();
   };
 
   return (
     <div className={s.overlay} onMouseDown={onCancel}>
-      <div className={s.dialog} onMouseDown={e => e.stopPropagation()}>
+      <WindowDialog
+        className={s.dialog}
+        title={title}
+        onClose={onCancel}
+        initialFocusRef={inputRef}
+        onMouseDown={e => e.stopPropagation()}
+      >
         <div className={s.titleBar}>{title}</div>
         <div className={s.body}>
           {multiline ? (
@@ -39,6 +40,7 @@ const ModalInput = ({
               onChange={e => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
               spellCheck={false}
+              aria-label={title}
             />
           ) : (
             <input
@@ -47,6 +49,7 @@ const ModalInput = ({
               value={value}
               onChange={e => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              aria-label={title}
             />
           )}
           <div className={s.buttons}>
@@ -59,7 +62,7 @@ const ModalInput = ({
             <button onClick={onCancel}>Cancel</button>
           </div>
         </div>
-      </div>
+      </WindowDialog>
     </div>
   );
 };

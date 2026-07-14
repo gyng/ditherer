@@ -32,8 +32,17 @@ const Exporter = () => {
           title="Paste JSON"
           multiline
           onConfirm={json => {
-            setModal(null);
-            if (json) actions.importState(json);
+            if (!json) {
+              setModal(null);
+              return;
+            }
+            try {
+              actions.importState(json);
+              setModal(null);
+            } catch (error) {
+              const detail = error instanceof Error ? error.message : "Unknown parsing error";
+              window.alert(`Could not import project JSON.\n\n${detail}`);
+            }
           }}
           onCancel={() => setModal(null)}
         />

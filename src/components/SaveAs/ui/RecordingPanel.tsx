@@ -164,6 +164,7 @@ export const RecordingPanel = ({
               <input
                 className={s.slider}
                 type="range"
+                aria-label="Max encoding FPS"
                 min={6}
                 max={30}
                 step={1}
@@ -182,6 +183,7 @@ export const RecordingPanel = ({
         types={{ range: [1, 60] }}
         step={1}
         value={recordFps}
+        defaultValue={30}
         onSetFilterOption={(_, value) => onSetRecordFps(Number(value))}
       />
     )}
@@ -211,6 +213,7 @@ export const RecordingPanel = ({
           <input
             className={s.slider}
             type="range"
+            aria-label="Bitrate Mbps"
             min={0.5}
             max={20}
             step={0.5}
@@ -233,6 +236,7 @@ export const RecordingPanel = ({
             <input
               className={s.slider}
               type="range"
+              aria-label="Settle frames"
               min={1}
               max={2}
               step={1}
@@ -287,6 +291,7 @@ export const RecordingPanel = ({
             <input
               className={s.slider}
               type="range"
+              aria-label="Reliable range start"
               min={0}
               max={Math.max(0, videoDuration)}
               step={0.01}
@@ -302,6 +307,7 @@ export const RecordingPanel = ({
             <input
               className={s.slider}
               type="range"
+              aria-label="Reliable range end"
               min={0.01}
               max={Math.max(0.01, videoDuration)}
               step={0.01}

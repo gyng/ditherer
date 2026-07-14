@@ -67,84 +67,28 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, "test/e2e/**"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "json-summary"],
+      reporter: ["text", "html", "json", "json-summary"],
       include: ["src/**/*.ts", "src/**/*.tsx"],
       exclude: [
-        "src/index.tsx",
         "src/bench.ts",
         "src/vite-env.d.ts",
         "src/global.d.ts",
         "src/types/**/*.d.ts",
         "src/wasm/**",
         "src/**/__mocks__/**",
-        // GL renderers only run with a real WebGL2 context. They're covered
-        // by the Playwright gl-smoke suite, which can't feed its v8 traces
-        // back into this report, so including them would permanently peg the
-        // floor ~20 points below reality.
-        "src/**/*GL.ts",
-        "src/gl/**",
+        // Browser harnesses are tests, not shipped application modules. Their
+        // coverage is collected, but it must not raise the product numerator.
         "src/glSmoke.ts",
         "src/wasmSmoke.ts",
-        // requiresGL: true filters bundle the GL pass directly instead of
-        // delegating to a *GL.ts sibling. Same coverage story as above:
-        // shader bodies run only under gl-smoke. The dispatcher's stub path
-        // means the filter func itself is never called in jsdom, so even
-        // the early returns are dead in this report.
-        "src/filters/abaBounce.ts",
-        "src/filters/abaGhost.ts",
-        "src/filters/abaRebound.ts",
-        "src/filters/backgroundSubtraction.ts",
-        "src/filters/cameraShake.ts",
-        "src/filters/chronophotography.ts",
-        "src/filters/crtDegauss.ts",
-        "src/filters/echoCombiner.ts",
-        "src/filters/flicker.ts",
-        "src/filters/frequencyFilter.ts",
-        "src/filters/keyframeSmear.ts",
-        "src/filters/longExposure.ts",
-        "src/filters/motionDetect.ts",
-        "src/filters/phosphorDecay.ts",
-        "src/filters/povBands.ts",
-        "src/filters/slitScan.ts",
-        "src/filters/temporalAA.ts",
-        "src/filters/temporalEdge.ts",
-        "src/filters/temporalInkDrying.ts",
-        "src/filters/temporalPosterHold.ts",
-        "src/filters/temporalRelief.ts",
-        "src/filters/videoFeedback.ts",
-        "src/filters/wakeTurbulence.ts",
-        // Integration-only surfaces — no discrete unit-testable functions,
-        // exercised end-to-end by Playwright against the running app.
-        //   • App/index.tsx is a 3500-line component shell
-        //   • webmcp.ts wires the app into the Model Context Protocol runtime
-        "src/components/App/index.tsx",
-        "src/webmcp.ts",
-        // Pure-view React components — every line is JSX + event-callback
-        // wiring. Meaningful tests need React Testing Library + user-event
-        // and still only cover "does it render". Left to Playwright.
-        "src/components/App/Exporter.tsx",
-        "src/components/ChainList/BackendTags.tsx",
-        "src/components/ChainList/Thumbnail.tsx",
-        "src/components/SaveAs/ui/**/*.tsx",
-        "src/components/controls/**/*.tsx",
       ],
-      // Thresholds track the floor of currently-tested code. Big remaining
-      // gaps:
-      //   • SaveAs export pipelines — WebCodecs/MediaRecorder, hostile to JSDOM
-      //   • Every filter wrapper with a GL renderer — the dispatch frame runs
-      //     in jsdom but the shader body only runs under gl-smoke.spec.ts,
-      //     whose v8 trace isn't merged into this report. Each such file
-      //     therefore caps around 20-25%. Raising this floor meaningfully
-      //     will require routing Playwright coverage through istanbul-merge.
-      // Bump these back up when either a Playwright coverage merge lands
-      // or when a given area gets unit-testable coverage. (Floors stepped
-      // down after porting 21 temporal filters from JS reference paths to
-      // requiresGL: true — gl-smoke covers them, this report can't see it.)
+      // The unit floor catches a vanished Vitest layer. The release threshold
+      // is enforced after merging this map with Chromium coverage, where GL,
+      // workers, media, and component integration actually execute.
       thresholds: {
-        lines: 53,
-        functions: 44,
-        statements: 54,
-        branches: 34,
+        lines: 35,
+        functions: 30,
+        statements: 35,
+        branches: 25,
       },
     },
     deps: {
