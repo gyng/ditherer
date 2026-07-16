@@ -23,9 +23,10 @@ npm run test:gl
 ```
 
 `npm run build:packed-app` is included in `npm run check`. It builds the
-library, packs and installs its tarball in an isolated fixture, builds the real
-Ditherer application from those installed public entries, and verifies the
-filter worker and RGB-to-Lab WASM payload survived bundling.
+library, packs and installs its tarball in the standalone example, enforces the
+selective-import bundle ceiling, builds the real Ditherer application from
+those installed public entries, and verifies the filter worker and RGB-to-Lab
+WASM payload survived bundling.
 
 Open a pull request and wait for both the main CI and WebGL shader gate to pass.
 
@@ -35,8 +36,8 @@ After merging, tag the exact merge commit with the package version:
 
 ```sh
 git fetch origin master
-git tag -a filters-v0.1.1 origin/master -m "Release @gyng/ditherer-filters 0.1.1"
-git push origin filters-v0.1.1
+git tag -a filters-v0.2.0 origin/master -m "Release @gyng/ditherer-filters 0.2.0"
+git push origin filters-v0.2.0
 ```
 
 The `Publish filter package` workflow validates that the tag and manifest
@@ -47,3 +48,11 @@ expected `+ @gyng/ditherer-filters@<version>` line.
 The same workflow may be run manually with an exact version input when a tag
 event must be recovered. It will refuse a version that differs from the
 manifest.
+
+## npmjs distribution
+
+GitHub Packages remains the authoritative automated registry. Publishing the
+same version to npmjs requires a repository `NPM_TOKEN`, npm trusted publishing
+or provenance configuration, and an explicit workflow step reviewed before
+merge. Do not use ambient developer credentials or republish a version whose
+GitHub Packages artifact differs.

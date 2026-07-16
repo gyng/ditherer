@@ -18,6 +18,9 @@
     "paths": {
       "@gyng/ditherer-filters": ["../packages/ditherer-filters/src/index.ts"],
       "@gyng/ditherer-filters/client": ["../packages/ditherer-filters/src/client.ts"],
+      "@gyng/ditherer-filters/catalog": ["../packages/ditherer-filters/src/catalog.ts"],
+      "@gyng/ditherer-filters/lazy": ["../packages/ditherer-filters/src/lazy.ts"],
+      "@gyng/ditherer-filters/filters/*": ["../packages/ditherer-filters/src/filters/*"],
       "@gyng/ditherer-filters/worker": ["../packages/ditherer-filters/src/worker.ts"],
       "@gyng/ditherer-filters/wasm-bindings": ["../packages/ditherer-filters/src/wasm-bindings.ts"],
       "@src/*": ["./*"],

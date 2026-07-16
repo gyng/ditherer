@@ -407,6 +407,7 @@ const ordered = (input: any, options: OrderedOptions = defaults) => {
     tempOffsetX: temporalOffsetX,
     tempOffsetY: temporalOffsetY,
     levels,
+    paletteLevels: pOpts?.levels ?? 256,
     invertThreshold: thresholdPolarity === THRESHOLD_POLARITY.CLASSIC,
     linearize: !!options._linearize,
     palMode,

@@ -170,6 +170,51 @@ const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason: strin
   }
 };
 
+const runOrderedPaletteLevels = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex.Ordered;
+  const render = (levels: number): Uint8ClampedArray | null => {
+    const source = makeGradientCanvas(16, 16);
+    const defaults = { ...(filter.defaults ?? {}) } as Record<string, unknown>;
+    const basePalette = defaults.palette as Record<string, unknown>;
+    const output = filter.func(source, {
+      ...defaults,
+      palette: {
+        ...basePalette,
+        options: {
+          ...((basePalette.options as Record<string, unknown>) ?? {}),
+          levels,
+        },
+      },
+      _linearize: false,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    const context = output.getContext("2d", { willReadFrequently: true });
+    return context?.getImageData(0, 0, output.width, output.height).data ?? null;
+  };
+
+  const binary = render(2);
+  const expanded = render(32);
+  if (!binary || !expanded) return { ok: false, reason: "Ordered palette-level readback failed" };
+  const binaryChannels = new Set<number>();
+  const expandedChannels = new Set<number>();
+  let changed = 0;
+  for (let i = 0; i < binary.length; i += 4) {
+    for (let channel = 0; channel < 3; channel += 1) {
+      binaryChannels.add(binary[i + channel]);
+      expandedChannels.add(expanded[i + channel]);
+      if (binary[i + channel] !== expanded[i + channel]) changed += 1;
+    }
+  }
+  const binaryOnly = [...binaryChannels].every((value) => value === 0 || value === 255);
+  if (!binaryOnly || expandedChannels.size <= binaryChannels.size || changed === 0) {
+    return {
+      ok: false,
+      reason: `Nearest levels ignored: binary=${[...binaryChannels]} expanded=${[...expandedChannels]} changed=${changed}`,
+    };
+  }
+  return { ok: true };
+};
+
 type FilterLike = {
   func: (input: unknown, options: unknown) => unknown;
   defaults?: Record<string, unknown>;
@@ -508,6 +553,7 @@ const main = async () => {
   }
 
   record("rgbStripe", "worker", await runWorkerCrt());
+  record("Ordered", "nearest-palette-levels", runOrderedPaletteLevels());
 
   const status: "ok" | "failed" = failed === 0 ? "ok" : "failed";
   const details = {

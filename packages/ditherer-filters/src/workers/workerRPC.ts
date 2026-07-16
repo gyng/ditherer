@@ -80,6 +80,10 @@ export const workerRPC = (
   });
 };
 
+export const disposeFilterWorker = (): void => {
+  resetWorker(new Error("Filter worker disposed"));
+};
+
 export const USE_WORKER = typeof OffscreenCanvas !== "undefined";
 
 // Pre-warm the worker so the first filter call doesn't pay startup cost

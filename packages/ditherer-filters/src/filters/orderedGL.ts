@@ -35,6 +35,7 @@ uniform ivec2 u_mapBaseSize;        // unscaled threshold-map dimensions
 uniform ivec2 u_mapScale;           // thresholdMapScaleX, thresholdMapScaleY
 uniform ivec2 u_tempOffset;         // temporalOffsetX, temporalOffsetY
 uniform float u_levels;
+uniform int   u_paletteLevels;      // final Nearest-palette channel levels
 uniform int   u_invertThreshold;    // 1 = 1.0 - threshold before bias
 uniform int   u_linearize;          // 0 = sRGB, 1 = linear
 uniform int   u_palMode;            // 0 LEVELS, 1 RGB, 2 RGB_APPROX, 3 HSV, 4 LAB
@@ -124,7 +125,14 @@ void main() {
   // --- Palette match ---
   vec3 outRgb;
   if (u_palMode == 0 || u_paletteCount <= 0) {
-    outRgb = quant;
+    if (u_paletteLevels <= 1) {
+      outRgb = vec3(0.0);
+    } else if (u_paletteLevels < 256) {
+      float paletteStep = 255.0 / float(u_paletteLevels - 1);
+      outRgb = jsRoundV(jsRoundV(quant / paletteStep) * paletteStep);
+    } else {
+      outRgb = quant;
+    }
   } else {
     vec3 aux = vec3(0.0);
     if (u_palMode == 4) aux = rgbToLab(quant);
@@ -169,7 +177,7 @@ let _cache: Cache | null = null;
 
 const uniformNames = [
   "u_source", "u_threshold", "u_res", "u_mapBaseSize", "u_mapScale",
-  "u_tempOffset", "u_levels", "u_invertThreshold", "u_linearize", "u_palMode", "u_paletteCount",
+  "u_tempOffset", "u_levels", "u_paletteLevels", "u_invertThreshold", "u_linearize", "u_palMode", "u_paletteCount",
   "u_paletteRgb[0]", "u_paletteAux[0]", "u_labRef",
 ];
 
@@ -263,6 +271,7 @@ export const renderOrderedGL = (
     tempOffsetX: number;
     tempOffsetY: number;
     levels: number;
+    paletteLevels: number;
     invertThreshold: boolean;
     linearize: boolean;
     palMode: number;
@@ -315,7 +324,11 @@ export const renderOrderedGL = (
     gl.uniform2i(cache.prog.uniforms.u_mapBaseSize, threshTex.w, threshTex.h);
     gl.uniform2i(cache.prog.uniforms.u_mapScale, opts.mapScaleX, opts.mapScaleY);
     gl.uniform2i(cache.prog.uniforms.u_tempOffset, opts.tempOffsetX, opts.tempOffsetY);
-    gl.uniform1f(cache.prog.uniforms.u_levels, opts.levels);
+    gl.uniform1f(
+      cache.prog.uniforms.u_levels,
+      opts.palMode === ORDERED_PAL_MODE.LEVELS ? opts.paletteLevels : opts.levels,
+    );
+    gl.uniform1i(cache.prog.uniforms.u_paletteLevels, opts.paletteLevels);
     gl.uniform1i(cache.prog.uniforms.u_invertThreshold, opts.invertThreshold ? 1 : 0);
     gl.uniform1i(cache.prog.uniforms.u_linearize, opts.linearize ? 1 : 0);
     gl.uniform1i(cache.prog.uniforms.u_palMode, opts.palMode);

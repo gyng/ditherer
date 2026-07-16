@@ -1,4 +1,4 @@
-export { USE_WORKER, workerRPC } from "./workers/workerRPC";
+export { disposeFilterWorker, USE_WORKER, workerRPC } from "./workers/workerRPC";
 export type {
   WorkerChainEntry,
   WorkerFilterRequest,

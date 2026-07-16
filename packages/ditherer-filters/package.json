@@ -1,6 +1,6 @@
 {
   "name": "@gyng/ditherer-filters",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Ditherer's browser-native Canvas2D, WebGL2, and WASM image filter engine",
   "type": "module",
   "license": "MIT",
@@ -39,6 +39,18 @@
       "types": "./types/client.d.ts",
       "import": "./dist/client.js"
     },
+    "./catalog": {
+      "types": "./types/catalog.d.ts",
+      "import": "./dist/catalog.js"
+    },
+    "./lazy": {
+      "types": "./types/lazy.d.ts",
+      "import": "./dist/lazy.js"
+    },
+    "./filters/*": {
+      "types": "./types/filters/*.d.ts",
+      "import": "./dist/filters/*.js"
+    },
     "./wasm-bindings": {
       "types": "./types/wasm-bindings.d.ts",
       "import": "./dist/wasm-bindings.js"
@@ -48,7 +60,9 @@
   "module": "./dist/index.js",
   "types": "./types/index.d.ts",
   "scripts": {
-    "build": "vite build --config vite.config.ts && npm run build:types",
+    "generate": "node scripts/generate-selective-entries.mjs",
+    "generate:check": "node scripts/generate-selective-entries.mjs --check",
+    "build": "npm run generate && vite build --config vite.config.ts && npm run build:types",
     "build:types": "node scripts/clean-types.mjs && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "validate:release": "node scripts/validate-release.mjs"
