@@ -6,20 +6,25 @@ import path from "path";
 export default defineConfig({
   plugins: [react({ include: /\.(jsx|tsx)$/ })],
   resolve: {
-    alias: {
-      "@src": path.resolve(__dirname, "src"),
-      components: path.resolve(__dirname, "src/components"),
-      constants: path.resolve(__dirname, "src/constants"),
-      context: path.resolve(__dirname, "src/context"),
-      filters: path.resolve(__dirname, "src/filters"),
-      gl: path.resolve(__dirname, "src/gl"),
-      palettes: path.resolve(__dirname, "src/palettes"),
-      reducers: path.resolve(__dirname, "src/reducers"),
-      styles: path.resolve(__dirname, "src/styles"),
-      utils: path.resolve(__dirname, "src/utils"),
-      workers: path.resolve(__dirname, "src/workers"),
-      wasm: path.resolve(__dirname, "src/wasm"),
-    },
+    alias: [
+      { find: "@gyng/ditherer-filters/worker", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/worker.ts") },
+      { find: "@gyng/ditherer-filters/client", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/client.ts") },
+      { find: "@gyng/ditherer-filters/wasm-bindings", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/wasm-bindings.ts") },
+      { find: "@gyng/ditherer-filters", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/index.ts") },
+      { find: "@src", replacement: path.resolve(__dirname, "src") },
+      { find: "components", replacement: path.resolve(__dirname, "src/components") },
+      { find: "constants", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/constants") },
+      { find: "context", replacement: path.resolve(__dirname, "src/context") },
+      { find: "filters", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/filters") },
+      { find: "gl", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/gl") },
+      { find: "palettes", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/palettes") },
+      { find: "reducers", replacement: path.resolve(__dirname, "src/reducers") },
+      { find: "styles", replacement: path.resolve(__dirname, "src/styles") },
+      { find: /^utils$/, replacement: path.resolve(__dirname, "packages/ditherer-filters/src/utils/index.ts") },
+      { find: "utils", replacement: path.resolve(__dirname, "src/utils") },
+      { find: "workers", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/workers") },
+      { find: "wasm", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/wasm") },
+    ],
   },
   build: {
     outDir: "build",
@@ -68,13 +73,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json", "json-summary"],
-      include: ["src/**/*.ts", "src/**/*.tsx"],
+      include: ["src/**/*.ts", "src/**/*.tsx", "packages/ditherer-filters/src/**/*.ts"],
       exclude: [
         "src/bench.ts",
         "src/vite-env.d.ts",
         "src/global.d.ts",
         "src/types/**/*.d.ts",
-        "src/wasm/**",
+        "packages/ditherer-filters/src/wasm/**",
         "src/**/__mocks__/**",
         // Browser harnesses are tests, not shipped application modules. Their
         // coverage is collected, but it must not raise the product numerator.

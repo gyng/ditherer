@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import reducer, { initialState } from "reducers/filters";
-import { filterIndex } from "filters";
+import { filterIndex } from "@gyng/ditherer-filters";
 
 // Complementary coverage for the reducer's larger code paths that the
 // original suite doesn't touch: LOAD_STATE deserialization (v1 + v2),

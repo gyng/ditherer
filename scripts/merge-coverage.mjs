@@ -123,7 +123,7 @@ map.filter((filename) => {
   const relative = path.relative(root, filename).replaceAll(path.sep, "/");
   return relative !== "src/glSmoke.ts"
     && relative !== "src/wasmSmoke.ts"
-    && !relative.startsWith("src/wasm/");
+    && !relative.startsWith("packages/ditherer-filters/src/wasm/");
 });
 
 const thresholds = {

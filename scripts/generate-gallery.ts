@@ -8,7 +8,7 @@
  */
 
 import { createCanvas, loadImage, ImageData as NodeImageData } from "canvas";
-import { filterList } from "filters";
+import { filterList } from "@gyng/ditherer-filters";
 import { CHAIN_PRESETS, PRESET_CATEGORIES } from "../src/components/ChainList/presets";
 import {
   cloneCanvas,
@@ -16,7 +16,7 @@ import {
   initWasmFromBinary,
   getFilterWasmStatuses,
   resetFilterWasmStatus,
-} from "utils";
+} from "@gyng/ditherer-filters";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -927,7 +927,7 @@ const runWorkerMain = async () => {
   // Node, so we also feed the .wasm bytes in directly from disk as a fallback.
   try { await wasmReady; } catch (err) { console.error("wasmReady failed:", err); }
   try {
-    const wasmPath = path.resolve("src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm");
+    const wasmPath = path.resolve("packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm");
     if (fs.existsSync(wasmPath)) {
       const wasmBytes = fs.readFileSync(wasmPath);
       await initWasmFromBinary(wasmBytes);

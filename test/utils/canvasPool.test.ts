@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { releasePooledCanvas, takePooledCanvas } from "utils";
+import { releasePooledCanvas, takePooledCanvas } from "@gyng/ditherer-filters";
 
 describe("canvas pool", () => {
   it("returns released canvases on subsequent takes of the same size", () => {

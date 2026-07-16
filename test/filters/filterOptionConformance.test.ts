@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { BOOL, ENUM, RANGE } from "constants/controlTypes";
-import { filterIndex } from "filters";
+import { filterIndex } from "@gyng/ditherer-filters";
 import type {
   EnumOption,
   EnumOptionGroup,

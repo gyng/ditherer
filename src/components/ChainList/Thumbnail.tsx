@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { FilterDefinition, FilterOptionValues } from "filters/types";
+import type { FilterDefinition, FilterOptionValues } from "@gyng/ditherer-filters";
 import s from "./libraryBrowser.module.css";
 
 type FilterEntry = { displayName: string; filter: FilterDefinition; category: string };

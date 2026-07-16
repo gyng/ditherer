@@ -14,11 +14,15 @@
 // Aggregate pass/fail counts get written to window.__glSmokeResult and the
 // page's status node; the Playwright spec reads both.
 
-import { filterIndex } from "filters";
-import { getGLCtx, glAvailable, glUnavailableStub } from "gl";
-import { ENUM } from "constants/controlTypes";
-import { vhsNtscGLUsingFloatPath } from "filters/vhsNtscGL";
-import { workerRPC } from "workers/workerRPC";
+import {
+  ENUM,
+  filterIndex,
+  getGLCtx,
+  glAvailable,
+  glUnavailableStub,
+  vhsNtscGLUsingFloatPath,
+} from "@gyng/ditherer-filters";
+import { workerRPC } from "@gyng/ditherer-filters/client";
 
 declare global {
   interface Window {

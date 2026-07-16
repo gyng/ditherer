@@ -24,7 +24,7 @@ Also useful for lightweight VJing and live visuals too: swap sources, keep outpu
 
 ## Highlights
 
-- **200+ registered filter entries** spanning dithering, color, stylize, distort, glitch, blur, temporal, simulation, and analysis workflows
+- **300+ registered filter entries** spanning dithering, color, stylize, distort, glitch, blur, temporal, simulation, and analysis workflows
 - **Image-driven raymarching and tracing** with heightfield relief, silhouette extrusion, voxel terrain, refractive glass, relief reflections, volumetric light, SDF melting, 3D fractal portals, and a progressively accumulated path-traced diorama
 - **Raymarched worlds and optical materials** including luminance caverns, gravitational lensing, thin-film color, subsurface scattering, cone-traced occlusion, spectral prisms, recursive portal halls, fossils, cloud sculpture, and a connected procedural maze
 - **129 curated chain presets** for looks like VHS pause, cyberpunk, lo-fi webcam, CRT, print, anime, and glitch-art variants
@@ -33,7 +33,7 @@ Also useful for lightweight VJing and live visuals too: swap sources, keep outpu
 - **Gamma-correct pipeline** with optional linear-light processing
 - **Palette tooling** including built-in retro/art palettes plus adaptive and extracted palettes
 - **Audio-reactive modulation** with microphone or tab audio input, auto-generated mappings, and draggable patch panels
-- **WASM + WebGL2 acceleration** for the heavier filters, with a shared `src/gl/` pipeline (single context, pooled textures, JS-y sampling helpers) so new ports only need a shader + orchestration. Current consumers: rgbStripe (GL + WASM), Gaussian Blur (GL + WASM), Facet (WASM, 140× over JS via spatial-grid Voronoi), Bit Crush (WASM LUT), plus older WASM filters (Floyd-Steinberg, Ordered, Quantize, Levels, etc.). Each backend can be toggled from the settings pane; filters fall through cleanly on unsupported devices or when the palette isn't shader-portable
+- **WASM + WebGL2 acceleration** for the heavier filters, with a shared `packages/ditherer-filters/src/gl/` pipeline (single context, pooled textures, JS-y sampling helpers) so new ports only need a shader + orchestration. Current consumers: rgbStripe (GL + WASM), Gaussian Blur (GL + WASM), Facet (WASM, 140× over JS via spatial-grid Voronoi), Bit Crush (WASM LUT), plus older WASM filters (Floyd-Steinberg, Ordered, Quantize, Levels, etc.). Each backend can be toggled from the settings pane; filters fall through cleanly on unsupported devices or when the palette isn't shader-portable
 - **Rich export flows** for PNG, JPEG, WebP, GIF, frame sequences, WebM, and browser-dependent MP4 recording paths
 - **Static gallery generation** from the live filter/preset registries
 
@@ -67,6 +67,32 @@ Representative animated previews from the generated gallery:
 - Browse the generated gallery in [docs/gallery/GALLERY.md](docs/gallery/GALLERY.md)
 - Regenerate gallery previews with `npm run gallery`
 
+## Filter library
+
+The React-independent browser engine is prepared for distribution through
+GitHub Packages as `@gyng/ditherer-filters`; source and authenticated install
+instructions live in
+[`packages/ditherer-filters`](packages/ditherer-filters/README.md).
+It exports the catalog, option metadata, palettes, Canvas2D/WebGL/WASM runtime,
+stateful temporal sessions, capability checks, and a worker entry point.
+
+```ts
+import { createFilterSession } from "@gyng/ditherer-filters";
+
+const session = createFilterSession([
+  { id: "mono", filter: "Grayscale" },
+  { id: "dither", filter: "Floyd-Steinberg" },
+]);
+
+const { canvas } = await session.process(inputCanvas);
+outputContext.drawImage(canvas, 0, 0);
+session.dispose();
+```
+
+Build and validate the distributable package with `npm run build:lib` and
+`npm run test:lib`. The initial package target is modern browser bundlers and
+accepts `HTMLCanvasElement` or `OffscreenCanvas` input.
+
 ## Development
 
 ```bash
@@ -93,6 +119,7 @@ Extra repo utilities:
 ## Architecture and contributing
 
 - [AGENTS.md](AGENTS.md) covers architecture, filter registration, the temporal pipeline, and contribution expectations
-- [`src/filters/index.ts`](src/filters/index.ts) is the registry for filter metadata and worker-visible entries
-- [`src/context/FilterContext.tsx`](src/context/FilterContext.tsx) owns chain execution, temporal state, sharing, and worker orchestration
+- [`packages/ditherer-filters/src/filters/index.ts`](packages/ditherer-filters/src/filters/index.ts) is the registry for filter metadata and worker-visible entries
+- [`packages/ditherer-filters/src/runtime.ts`](packages/ditherer-filters/src/runtime.ts) owns reusable chain execution and temporal state
+- [`src/context/FilterContext.tsx`](src/context/FilterContext.tsx) connects the library runtime to React, sharing, audio modulation, previews, and worker orchestration
 - [docs/plan/](docs/plan/) contains numbered implementation plans

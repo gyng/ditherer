@@ -16,7 +16,7 @@ import {
   neutralMotionBackground,
   prepareMotionAnalysisBuffers,
   type MotionVector,
-} from "utils/motionVectors";
+} from "@gyng/ditherer-filters";
 
 const vector = (dx: number, dy: number, confidence = 0.5): MotionVector => ({
   dx,

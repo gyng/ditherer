@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { useFilter } from "context/useFilter";
 import useDraggable from "components/App/useDraggable";
-import { filterList, noop } from "filters";
+import { filterIndex, filterList } from "@gyng/ditherer-filters";
 import type {
   ActionOptionDefinition,
   FilterOptionDefinitions,
-} from "filters/types";
+} from "@gyng/ditherer-filters";
 import ChainPreview from "./ChainPreview";
 import FilterCombobox from "components/FilterCombobox";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, buildPresetSignatureMap, getChainSignature, type PresetFilterEntry } from "./presets";
@@ -22,6 +22,8 @@ import {
   notifyScreensaverChainSwap,
 } from "utils/randomCycleBridge";
 import { isSlowFilter } from "utils/slowFilterRegistry";
+
+const noop = filterIndex.None;
 import s from "./styles.module.css";
 
 const HOVER_PREVIEW_OPEN_DELAY_MS = 150;

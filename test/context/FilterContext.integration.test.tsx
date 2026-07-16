@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterProvider } from "context/FilterContext";
 import { FilterContext, type FilterContextValue } from "context/filterContextValue";
-import { filterIndex } from "filters";
+import { filterIndex } from "@gyng/ditherer-filters";
 import type { FilterDefinition } from "filters/types";
 import { setGlobalAudioVizModulation } from "utils/audioVizBridge";
 

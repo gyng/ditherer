@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { filterList, filterIndex } from "filters";
-import { cloneCanvas } from "utils";
+import { filterList, filterIndex } from "@gyng/ditherer-filters";
+import { cloneCanvas } from "@gyng/ditherer-filters";
 
 // Create a test canvas with known pixel data
 const createTestCanvas = (width, height, fillColor = [128, 64, 32, 255]) => {

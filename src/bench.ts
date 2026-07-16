@@ -4,15 +4,20 @@
  *
  * Open /bench.html in the browser to run.
  */
-import { floydSteinberg } from "filters/errorDiffusing";
-import ordered from "filters/ordered";
-import convolve from "filters/convolve";
-import gaussianBlur from "filters/gaussianBlur";
-import oilPainting from "filters/oilPainting";
-import bokeh from "filters/bokeh";
-import halftone from "filters/halftone";
-import * as palettes from "palettes";
-import { wasmIsLoaded } from "utils";
+import {
+  bokeh,
+  convolve,
+  floydSteinberg,
+  gaussianBlur,
+  halftone,
+  nearest,
+  oilPainting,
+  ordered,
+  user,
+  wasmIsLoaded,
+} from "@gyng/ditherer-filters";
+
+const palettes = { nearest, user };
 
 const palette = palettes.nearest;
 

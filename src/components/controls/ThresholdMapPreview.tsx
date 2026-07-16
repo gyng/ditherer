@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import type { FilterOptionValues } from "filters/types";
-import { getOrderedThresholdMapPreview } from "filters/ordered";
+import type { FilterOptionValues } from "@gyng/ditherer-filters";
+import { getOrderedThresholdMapPreview } from "@gyng/ditherer-filters";
 
 import ControlLabel from "./ControlLabel";
 import s from "./styles.module.css";

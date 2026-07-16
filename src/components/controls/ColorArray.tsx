@@ -1,8 +1,15 @@
 import React from "react";
 import { RgbaColorPicker, type RgbaColor } from "react-colorful";
 
-import { THEMES, THEME_CATEGORIES, findMatchingThemeKey, getThemeDescription } from "palettes/user";
-import { rgba, uniqueColors, medianCutPalette } from "utils";
+import {
+  findMatchingThemeKey,
+  getThemeDescription,
+  medianCutPalette,
+  rgba,
+  THEMES,
+  THEME_CATEGORIES,
+  uniqueColors,
+} from "@gyng/ditherer-filters";
 import ModalInput from "components/ModalInput";
 
 import Enum from "./Enum";

@@ -10,7 +10,7 @@ import { floydSteinberg } from "filters/errorDiffusing";
 import convolve from "filters/convolve";
 import ordered from "filters/ordered";
 import binarize from "filters/binarize";
-import * as palettes from "palettes";
+import * as palettes from "@gyng/ditherer-filters";
 
 // ---------------------------------------------------------------------------
 // Canvas helpers

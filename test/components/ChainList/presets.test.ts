@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterList } from "filters";
+import { filterList } from "@gyng/ditherer-filters";
 import { CHAIN_PRESETS, findDuplicatePresetGroups, getChainSignature, getPresetSignature } from "components/ChainList/presets";
 
 describe("ChainList presets", () => {

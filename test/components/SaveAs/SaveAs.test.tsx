@@ -28,7 +28,7 @@ const bridge = vi.hoisted(() => ({
 }));
 
 vi.mock("context/useFilter", () => ({ useFilter: () => bridge.context }));
-vi.mock("filters", () => ({
+vi.mock("@gyng/ditherer-filters", () => ({
   filterList: [{ filter: { name: "Temporal Test", temporal: true } }],
   hasTemporalBehavior: (entry: { filter: { temporal?: boolean } }) => entry.filter.temporal === true,
 }));

@@ -9,11 +9,24 @@ import type {
   FilterOptionValues,
   PaletteOptionDefinition,
   RangeOptionDefinition,
-} from "filters/types";
-import { ACTION, STRING, TEXT, COLOR_ARRAY, RANGE, BOOL, ENUM, PALETTE, COLOR } from "constants/controlTypes";
-import { paletteList } from "palettes";
-import * as palettes from "palettes";
-import { THEMES } from "palettes/user";
+} from "@gyng/ditherer-filters";
+import {
+  ACTION,
+  BOOL,
+  COLOR,
+  COLOR_ARRAY,
+  ENUM,
+  nearest,
+  PALETTE,
+  paletteList,
+  RANGE,
+  STRING,
+  TEXT,
+  THEMES,
+  user,
+} from "@gyng/ditherer-filters";
+
+const palettes = { nearest, user };
 
 const getThemeKeys = (): string[] =>
   Object.keys(THEMES).filter((k) => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0);

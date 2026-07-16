@@ -52,11 +52,11 @@ Key state shape:
 - `video` — video element for realtime filtering
 - Scale, grayscale, playback, linearize, wasmAcceleration
 
-`FilterContext.tsx` owns the chain execution: temporal pipeline buffers (`prevOutputMapRef`, `prevInputMapRef`, `emaMapRef`), worker offload, and frame loop scheduling. The reducer is pure data shape; the context handles side effects.
+The package runtime owns ordered chain execution and temporal-state semantics. `FilterContext.tsx` bridges its persistent maps (`prevOutputMapRef`, `prevInputMapRef`, `emaMapRef`) into that runtime and owns worker selection, app caching, dispatch, and frame-loop scheduling. The reducer is pure data shape; the context handles side effects.
 
 ### Filter System
 
-Filters are the core domain (~160 filters). Each filter is a self-contained module in `src/filters/` exporting:
+Filters are the core domain (more than 300 catalog entries). Each filter is a self-contained module in `packages/ditherer-filters/src/filters/` exporting:
 
 ```typescript
 // Every filter exports this shape
@@ -97,7 +97,7 @@ The `optionTypes` declaration drives the UI — the Controls component reads it 
 | `PALETTE` | `Palette` |
 | `ACTION` | button (e.g., `animate` for play/stop) |
 
-**Adding a new filter:** Create a new file in `src/filters/`, define `optionTypes`, `defaults`, and the filter function, then register it in `src/filters/index.ts` (both the import and a `filterList` entry with `displayName`/`category`/`description`). If the filter is worker-capable (`mainThread` is not `true`), it must also be present in the `filterIndex` registry in that same file or the browser worker path will silently skip it. The UI controls are generated automatically from `optionTypes`.
+**Adding a new filter:** Create a new file in `packages/ditherer-filters/src/filters/`, define `optionTypes`, `defaults`, and the filter function, then register it in `packages/ditherer-filters/src/filters/index.ts` (both the import and a `filterList` entry with `displayName`/`category`/`description`). If the filter is worker-capable (`mainThread` is not `true`), it must also be present in the `filterIndex` registry in that same file or the browser worker path will silently skip it. The UI controls are generated automatically from `optionTypes`.
 
 ### Temporal Pipeline
 
@@ -123,7 +123,7 @@ Existing temporal filters: motion detect, motion heatmap, motion pixelate, long 
 
 ### WASM Module
 
-`src/wasm/rgba2laba/` contains a Rust crate compiled to WASM for performance-critical color space conversions (RGB to CIE Lab). Loaded via dynamic import with JS fallback if WASM fails to load.
+`packages/ditherer-filters/src/wasm/rgba2laba/` contains a Rust crate compiled to WASM for performance-critical color space conversions (RGB to CIE Lab). Loaded via dynamic import with JS fallback if WASM fails to load.
 
 ### Acceleration capability flags (`noGL` / `noWASM`)
 
@@ -173,7 +173,7 @@ maze uses a connected binary-tree layout and derives a guaranteed route to the
 exit in shader; keep that connectivity invariant if its wall logic changes.
 
 - Keep shader loops compile-time bounded and use uniform-controlled early exits.
-- Use `src/utils/glSinglePass.ts` only for generic source-backed full-screen
+- Use `packages/ditherer-filters/src/utils/glSinglePass.ts` only for generic source-backed full-screen
   passes; filters continue to own their shader, controls, and uniforms.
 - Filters that evolve procedural samples set `temporal` and `autoAnimate`.
   Path-Traced Diorama accumulates through its per-entry `_prevOutput` history.
@@ -182,7 +182,7 @@ exit in shader; keep that connectivity invariant if its wall logic changes.
 
 ### Filter Chains
 
-Filters compose into chains (max 16 entries). The chain is the unit of work — `FilterContext` runs each enabled entry sequentially, feeding the output of one as the input to the next, with caching of intermediate canvases. State is serialized to URL hash and localStorage so users can share or save chains.
+Filters compose into chains (max 16 entries). The chain is the unit of work — the package runtime runs each enabled entry sequentially, feeding one output into the next, while `FilterContext` supplies app-level caching and scheduling. State is serialized to URL hash and localStorage so users can share or save chains.
 
 Curated chain presets live in `src/components/ChainList/presets.ts` (`CHAIN_PRESETS`). To add a preset, append an entry referencing existing filter `displayName`s — no code change needed.
 
@@ -191,21 +191,25 @@ When auditing or pruning presets, run `npm run report:presets` first. The report
 ### Directory Structure
 
 ```
+packages/ditherer-filters/
+  src/
+    filters/          # Filter modules and canonical registry
+    gl/               # Shared WebGL2 execution and texture pools
+    palettes/         # Palette definitions and registry
+    constants/        # Control and color-space tokens used by the engine
+    utils/            # Core color, canvas, sampling, and buffer helpers
+    wasm/rgba2laba/   # Rust/WASM RGB-to-Lab acceleration
+    workers/          # Worker executor, RPC client, and wire types
+    index.ts          # Public catalog/runtime entry
 src/
   components/
     App/              # App organism, Exporter, SaveAs export dialog
     ChainList/        # Filter chain editor + presets
     controls/         # Atom and molecule UI controls
     FilterCombobox.tsx # Searchable filter picker (cmdk + Radix popover)
-  filters/            # ~160 filter modules — the core domain
-    blueNoise64.ts    # Generated 64×64 void-and-cluster threshold map
-    errorDiffusingFilterFactory.ts  # Builds Floyd-Steinberg, Atkinson, etc.
-  context/            # FilterContext — state, chain execution, temporal pipeline
+  context/            # FilterContext — app bridge, scheduling, and dispatch
   reducers/           # App state reducer
-  palettes/           # Color palette definitions and registry
-  constants/          # Enums: control types, color algorithms, action types
-  utils/              # Color math, buffer ops, canvas helpers, palette generation
-  wasm/rgba2laba/     # Rust/WASM color conversion module
+  utils/              # App-only media, sharing, audio-viz, and policy helpers
   styles/             # Global styles
 docs/plan/            # Numbered implementation plans (010 = filter audit, etc.)
 ```

@@ -3,15 +3,13 @@ import { createRoot } from "react-dom/client";
 
 import "styles/global.css";
 
-// Eagerly load heavy modules during the boot screen
-import "utils"; // triggers WASM init
-import "filters"; // loads all filter modules
-import "workers/workerRPC"; // pre-warms the Web Worker
+// Eagerly load the library and pre-warm its worker during the boot screen.
+import "@gyng/ditherer-filters";
+import "@gyng/ditherer-filters/client";
 
 import App from "components/App";
 import { FilterProvider } from "context/FilterContext";
-import { PALETTE } from "constants/optionTypes";
-import { THEMES } from "palettes/user";
+import { PALETTE, THEMES } from "@gyng/ditherer-filters";
 
 // Load localStorage palettes
 Object.values(localStorage).forEach(json => {

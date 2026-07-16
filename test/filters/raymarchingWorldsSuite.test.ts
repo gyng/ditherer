@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { filterIndex, filterList } from "filters";
+import { filterIndex, filterList } from "@gyng/ditherer-filters";
 import { traceMazeSolution } from "filters/raymarchedMaze";
 
 const suite = [

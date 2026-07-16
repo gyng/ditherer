@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { glUnavailableStub } from "gl";
+import { glUnavailableStub } from "@gyng/ditherer-filters";
 
 // The stub is what the filter dispatcher draws when a requiresGL filter
 // runs on a device without WebGL2. Pixel-content assertions live in the

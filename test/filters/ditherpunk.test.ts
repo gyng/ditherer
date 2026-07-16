@@ -17,8 +17,8 @@ import {
   getOrderedThresholdMapPreview,
 } from "filters/ordered";
 import riemersma from "filters/riemersma";
-import { filterList } from "filters";
-import { initWasmFromBinary, wasmIsLoaded } from "utils";
+import { filterList } from "@gyng/ditherer-filters";
+import { initWasmFromBinary, wasmIsLoaded } from "@gyng/ditherer-filters";
 
 const binaryPalette = {
   name: "Binary",
@@ -107,7 +107,7 @@ describe("ditherpunk ordered maps", () => {
 describe("Riemersma dither", () => {
   beforeAll(async () => {
     if (!wasmIsLoaded()) {
-      const wasm = readFileSync(resolve(process.cwd(), "src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm"));
+      const wasm = readFileSync(resolve(process.cwd(), "packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm"));
       await initWasmFromBinary(wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength));
     }
   });

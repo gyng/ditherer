@@ -1,6 +1,6 @@
 import { CHAIN_PRESETS, type PresetFilterEntry } from "components/ChainList/presets";
 import type { FilterActions, FilterState } from "context/filterContextValue";
-import type { FilterDefinition, FilterListEntry, FilterOptionDefinition } from "filters/types";
+import type { FilterDefinition, FilterListEntry, FilterOptionDefinition } from "@gyng/ditherer-filters";
 
 type ChainSnapshotEntry = FilterState["chain"][number];
 type ResolvedPresetFilter = {

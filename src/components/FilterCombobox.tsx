@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Command } from "cmdk";
 import * as Popover from "@radix-ui/react-popover";
-import { filterList } from "filters";
+import { filterList } from "@gyng/ditherer-filters";
 import {
   buildFilterSearchIndex,
   normalizeFilterSearchText,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { HSV_NEAREST, LAB_NEAREST, RGB_APPROX, RGB_NEAREST } from "constants/color";
-import * as utils from "utils";
+import * as utils from "@gyng/ditherer-filters";
 
 describe("utility decision boundaries", () => {
   it("treats missing RGBA channels as zero in float and byte transfer functions", () => {

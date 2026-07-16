@@ -1,0 +1,302 @@
+import { filterIndex } from "./filters/index";
+import type {
+  FilterCanvas,
+  FilterDefinition,
+  FilterOptionValues,
+} from "./filters/types";
+import { releasePooledTextures, glAvailable, glUnavailableStub } from "./gl/index";
+import { releaseFloatTextures } from "./gl/fft2d";
+import {
+  getFilterWasmStatuses,
+  logFilterBackend,
+  logFilterDispatched,
+} from "./utils/index";
+import { clearMotionVectorsState } from "./filters/motionVectors";
+
+export interface FilterChainEntry {
+  id: string;
+  filter: string | FilterDefinition;
+  displayName?: string;
+  options?: FilterOptionValues;
+  enabled?: boolean;
+}
+
+export interface TemporalFilterState {
+  prevOutputs: Map<string, Uint8ClampedArray>;
+  prevInputs: Map<string, Uint8ClampedArray>;
+  ema: Map<string, Float32Array>;
+  frameIndex: number;
+}
+
+export interface FilterRuntimeOptions {
+  linearize?: boolean;
+  wasmAcceleration?: boolean;
+  webglAcceleration?: boolean;
+  emaAlpha?: number;
+  onError?: (error: Error, entry: FilterChainEntry) => void;
+}
+
+export interface FilterStepResult {
+  id: string;
+  name: string;
+  filterName: string;
+  canvas: FilterCanvas;
+  ms: number;
+  backend?: string;
+  error?: string;
+}
+
+export interface ProcessFrameOptions {
+  frameIndex?: number;
+  isAnimating?: boolean;
+  linearize?: boolean;
+  wasmAcceleration?: boolean;
+  webglAcceleration?: boolean;
+  hasVideoInput?: boolean;
+  degaussFrame?: number;
+  startIndex?: number;
+  dispatch?: unknown;
+  temporalState?: TemporalFilterState;
+  resolveOptions?: (
+    entry: FilterChainEntry,
+    index: number,
+    defaults: FilterOptionValues,
+  ) => FilterOptionValues | undefined;
+  onStep?: (step: FilterStepResult, index: number) => void;
+}
+
+export interface FilterChainResult {
+  canvas: FilterCanvas;
+  steps: FilterStepResult[];
+  totalTime: number;
+  frameIndex: number;
+}
+
+export interface FilterSession {
+  readonly state: TemporalFilterState;
+  getChain(): readonly FilterChainEntry[];
+  setChain(chain: readonly FilterChainEntry[]): void;
+  process(input: FilterCanvas, options?: ProcessFrameOptions): Promise<FilterChainResult>;
+  reset(): void;
+  dispose(): void;
+}
+
+const createTemporalState = (): TemporalFilterState => ({
+  prevOutputs: new Map(),
+  prevInputs: new Map(),
+  ema: new Map(),
+  frameIndex: 0,
+});
+
+const isCanvas = (value: unknown): value is FilterCanvas =>
+  typeof value === "object"
+  && value !== null
+  && "width" in value
+  && "height" in value
+  && "getContext" in value
+  && typeof (value as { getContext?: unknown }).getContext === "function";
+
+const get2dContext = (canvas: FilterCanvas) => canvas.getContext(
+  "2d",
+  { willReadFrequently: true },
+) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+
+const clonePaletteOption = (value: unknown): unknown => {
+  if (typeof value !== "object" || value === null) return value;
+  const palette = value as Record<string, unknown>;
+  const paletteOptions = typeof palette.options === "object" && palette.options !== null
+    ? { ...(palette.options as Record<string, unknown>) }
+    : palette.options;
+  return { ...palette, options: paletteOptions };
+};
+
+const resolveEntry = (entry: FilterChainEntry): FilterDefinition | undefined =>
+  typeof entry.filter === "string" ? filterIndex[entry.filter] : entry.filter;
+
+const resolveEntryOptions = (
+  entry: FilterChainEntry,
+  filter: FilterDefinition,
+): FilterOptionValues => {
+  const base = filter.options ?? filter.defaults ?? {};
+  const options: FilterOptionValues = { ...base, ...entry.options };
+  if ("palette" in options) options.palette = clonePaletteOption(options.palette);
+  return options;
+};
+
+const now = (): number => typeof performance !== "undefined" ? performance.now() : Date.now();
+
+export const runFilterChain = async (
+  input: FilterCanvas,
+  chain: readonly FilterChainEntry[],
+  runtime: FilterRuntimeOptions = {},
+  frame: ProcessFrameOptions = {},
+): Promise<FilterChainResult> => {
+  const temporal = frame.temporalState ?? createTemporalState();
+  const frameIndex = frame.frameIndex ?? temporal.frameIndex;
+  const enabled = chain.filter((entry) => entry.enabled !== false);
+  const startIndex = Math.max(0, frame.startIndex ?? 0);
+  const emaAlpha = Math.min(1, Math.max(0, runtime.emaAlpha ?? 0.1));
+  const linearize = frame.linearize ?? runtime.linearize ?? true;
+  const wasmAcceleration = frame.wasmAcceleration ?? runtime.wasmAcceleration ?? true;
+  const webglAcceleration = frame.webglAcceleration ?? runtime.webglAcceleration ?? true;
+  const isAnimating = frame.isAnimating ?? false;
+  let canvas = input;
+  let totalTime = 0;
+  const steps: FilterStepResult[] = [];
+
+  for (let index = startIndex; index < enabled.length; index += 1) {
+    const entry = enabled[index];
+    const filter = resolveEntry(entry);
+    if (!filter) {
+      const error = new Error(`Unknown filter: ${String(entry.filter)}`);
+      runtime.onError?.(error, entry);
+      steps.push({
+        id: entry.id,
+        name: entry.displayName ?? String(entry.filter),
+        filterName: String(entry.filter),
+        canvas,
+        ms: 0,
+        error: error.message,
+      });
+      continue;
+    }
+
+    const inputContext = get2dContext(canvas);
+    const inputSnapshot = inputContext
+      ? new Uint8ClampedArray(
+        inputContext.getImageData(0, 0, canvas.width, canvas.height).data,
+      )
+      : null;
+    const defaults = resolveEntryOptions(entry, filter);
+    const resolved = frame.resolveOptions?.(entry, index, defaults) ?? defaults;
+    const options: FilterOptionValues & { palette?: Record<string, unknown> } = {
+      ...resolved,
+      _chainIndex: index,
+      _linearize: linearize,
+      _wasmAcceleration: wasmAcceleration,
+      _webglAcceleration: webglAcceleration,
+      _hasVideoInput: frame.hasVideoInput ?? false,
+      _prevOutput: temporal.prevOutputs.get(entry.id) ?? null,
+      _prevInput: temporal.prevInputs.get(entry.id) ?? null,
+      _ema: temporal.ema.get(entry.id) ?? null,
+      _frameIndex: frameIndex,
+      _degaussFrame: frame.degaussFrame ?? -2147483648,
+      _isAnimating: isAnimating,
+    };
+    if (options.palette?.options && typeof options.palette.options === "object") {
+      options.palette = {
+        ...options.palette,
+        options: {
+          ...(options.palette.options as Record<string, unknown>),
+          _wasmAcceleration: wasmAcceleration,
+        },
+      };
+    }
+
+    const started = now();
+    let errorMessage: string | undefined;
+    let output: FilterCanvas = canvas;
+    try {
+      if (filter.requiresGL && !glAvailable()) {
+        output = glUnavailableStub(canvas.width, canvas.height);
+        logFilterBackend(filter.name, "GL-unavailable", "WebGL2 required but unavailable");
+      } else {
+        const candidate = await filter.func(canvas, options, frame.dispatch);
+        if (isCanvas(candidate)) output = candidate;
+      }
+    } catch (cause) {
+      const error = cause instanceof Error ? cause : new Error(String(cause));
+      errorMessage = error.message;
+      runtime.onError?.(error, entry);
+    }
+    logFilterDispatched(filter.name, { noGL: filter.noGL, noWASM: filter.noWASM });
+    const elapsed = now() - started;
+    totalTime += elapsed;
+
+    if (inputSnapshot) {
+      temporal.prevInputs.set(entry.id, inputSnapshot);
+      const previousEma = temporal.ema.get(entry.id);
+      if (!previousEma || previousEma.length !== inputSnapshot.length) {
+        temporal.ema.set(entry.id, new Float32Array(inputSnapshot));
+      } else {
+        const inverseAlpha = 1 - emaAlpha;
+        for (let pixel = 0; pixel < previousEma.length; pixel += 1) {
+          previousEma[pixel] = previousEma[pixel] * inverseAlpha + inputSnapshot[pixel] * emaAlpha;
+        }
+      }
+    }
+
+    const outputContext = get2dContext(output);
+    if (outputContext) {
+      temporal.prevOutputs.set(
+        entry.id,
+        new Uint8ClampedArray(
+          outputContext.getImageData(0, 0, output.width, output.height).data,
+        ),
+      );
+    }
+    canvas = output;
+
+    const backend = getFilterWasmStatuses().get(filter.name)?.label;
+    const step: FilterStepResult = {
+      id: entry.id,
+      name: entry.displayName ?? filter.name,
+      filterName: filter.name,
+      canvas,
+      ms: elapsed,
+      ...(backend ? { backend } : {}),
+      ...(errorMessage ? { error: errorMessage } : {}),
+    };
+    steps.push(step);
+    frame.onStep?.(step, index);
+  }
+
+  temporal.frameIndex = frameIndex + 1;
+  return { canvas, steps, totalTime, frameIndex };
+};
+
+export const createFilterSession = (
+  initialChain: readonly FilterChainEntry[] = [],
+  runtime: FilterRuntimeOptions = {},
+): FilterSession => {
+  const state = createTemporalState();
+  let chain = [...initialChain];
+  let disposed = false;
+
+  return {
+    state,
+    getChain: () => chain,
+    setChain: (next) => {
+      if (disposed) throw new Error("FilterSession has been disposed");
+      chain = [...next];
+      const activeIds = new Set(chain.map((entry) => entry.id));
+      for (const id of state.prevOutputs.keys()) if (!activeIds.has(id)) state.prevOutputs.delete(id);
+      for (const id of state.prevInputs.keys()) if (!activeIds.has(id)) state.prevInputs.delete(id);
+      for (const id of state.ema.keys()) if (!activeIds.has(id)) state.ema.delete(id);
+    },
+    process: async (input, options = {}) => {
+      if (disposed) throw new Error("FilterSession has been disposed");
+      return runFilterChain(input, chain, runtime, { ...options, temporalState: state });
+    },
+    reset: () => {
+      state.prevOutputs.clear();
+      state.prevInputs.clear();
+      state.ema.clear();
+      state.frameIndex = 0;
+      clearMotionVectorsState();
+    },
+    dispose: () => {
+      state.prevOutputs.clear();
+      state.prevInputs.clear();
+      state.ema.clear();
+      chain = [];
+      disposed = true;
+    },
+  };
+};
+
+export const disposeSharedFilterResources = (): void => {
+  clearMotionVectorsState();
+  releasePooledTextures();
+  releaseFloatTextures();
+};

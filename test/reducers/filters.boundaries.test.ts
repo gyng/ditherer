@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import reducer, { initialState, type ChainEntry } from "reducers/filters";
-import { filterIndex } from "filters";
+import { filterIndex } from "@gyng/ditherer-filters";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
 const entry = (id: string, overrides: Partial<ChainEntry> = {}): ChainEntry => ({

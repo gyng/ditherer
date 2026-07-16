@@ -1,4 +1,4 @@
-import type { FilterOptionDefinition, FilterOptionDefinitions, FilterOptionValues } from "filters/types";
+import type { FilterOptionDefinition, FilterOptionDefinitions, FilterOptionValues } from "@gyng/ditherer-filters";
 
 export type ControlSetter = (optionName: string, value: unknown, chainIndex?: number) => void;
 export type PaletteColorSaver = (name: string, colors: number[][]) => void;
