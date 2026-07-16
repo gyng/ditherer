@@ -27,13 +27,16 @@
 import {
   fillBufferPixel,
   paletteGetColor,
+  resolvePaletteColorAlgorithm,
   rgba,
   wasmApplyChannelLut,
   wasmIsLoaded,
+  wasmQuantizeBufferRgb,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
   linearPaletteGetColor,
 } from "../utils/index";
+import { RGB_NEAREST } from "../constants/color";
 
 // Bivariant hack on getColor so we accept specialized palette definitions
 // (e.g., `nearest` with `{ levels: number }`) without callers needing to
@@ -105,6 +108,33 @@ export const applyPaletteToBuffer = (
     const levels = typeof opts.levels === "number" ? opts.levels : 256;
     const lut = buildNearestLUT(levels);
     wasmApplyChannelLut(input, output, lut, lut, lut);
+    return;
+  }
+
+  // Custom-colour palettes with plain RGB distance: one WASM call for the whole
+  // buffer. `quantize_buffer_rgb` already existed, bound and tested, and was
+  // called from nowhere — every real palette (CGA, PICO-8, any User/Adaptive
+  // one) fell through to the per-pixel JS loop below.
+  //
+  // Semantically identical, not approximately: the Rust scores
+  // dr*dr + dg*dg + db*db and copies the source alpha through, which is exactly
+  // what colorDistance(RGB_NEAREST) and the loop below do — neither weighs
+  // alpha in the distance. Parity is asserted in
+  // test/palettes/quantizeBufferParity.test.ts.
+  //
+  // Measured 1920x1080 with a 16-colour palette: 1348ms -> 83ms (16x). The win
+  // is amortising the JS<->WASM boundary over the whole buffer rather than
+  // paying it per pixel — per-pixel WASM is actually SLOWER than plain JS here
+  // (see test/perf/colorDistanceBench.bench.ts).
+  if (
+    hasColors
+    && wasmAcceleration
+    && wasmIsLoaded()
+    && resolvePaletteColorAlgorithm(palette) === RGB_NEAREST
+  ) {
+    const quantized = wasmQuantizeBufferRgb(input, opts.colors as number[][]);
+    // May be an in-place call (input === output); set() handles both.
+    (output as Uint8ClampedArray).set(quantized);
     return;
   }
 
