@@ -2,7 +2,7 @@ import { ACTION, BOOL, ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { cloneCanvas } from "../utils/index";
 
-const LAYOUT = {
+export const LAYOUT = {
   CENTER_STACK: "CENTER_STACK",
   GRID_2X2: "GRID_2X2",
   GRID_3X3: "GRID_3X3",
@@ -11,10 +11,10 @@ const LAYOUT = {
 
 type Rect = { x: number; y: number; w: number; h: number };
 
-const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+export const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+export const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
+export const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
   const hue = ((h % 360) + 360) % 360;
   const sat = clamp01(s);
   const lig = clamp01(l);
@@ -45,7 +45,7 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
 
 const minPaneSize = 8;
 
-const centeredRect = (W: number, H: number, scale: number, dx = 0, dy = 0): Rect => {
+export const centeredRect = (W: number, H: number, scale: number, dx = 0, dy = 0): Rect => {
   const w = Math.max(minPaneSize, Math.round(W * scale));
   const h = Math.max(minPaneSize, Math.round(H * scale));
   const x = Math.round((W - w) / 2 + dx);
@@ -53,7 +53,7 @@ const centeredRect = (W: number, H: number, scale: number, dx = 0, dy = 0): Rect
   return { x, y, w, h };
 };
 
-const clampRect = (rect: Rect, W: number, H: number): Rect | null => {
+export const clampRect = (rect: Rect, W: number, H: number): Rect | null => {
   let { x, y, w, h } = rect;
   if (w < minPaneSize || h < minPaneSize) return null;
   if (x >= W || y >= H || x + w <= 0 || y + h <= 0) return null;
@@ -72,7 +72,7 @@ const clampRect = (rect: Rect, W: number, H: number): Rect | null => {
   return { x, y, w, h };
 };
 
-const layoutRect = (
+export const layoutRect = (
   layout: string,
   level: number,
   frameIndex: number,
