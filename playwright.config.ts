@@ -23,13 +23,21 @@ const launchArgs = [
     : []),
 ];
 
-// Mesa picks its driver from the environment, not from a Chrome flag, so the
-// GPU route needs this as well as a window. GALLIUM_DRIVER is the knob that
-// lands on the adapter; MESA_LOADER_DRIVER_OVERRIDE alone leaves Chrome with no
-// GPU context at all. Setting it here keeps PLAYWRIGHT_GPU=1 meaning the GPU
-// rather than depending on the caller's shell, and an explicit value still
-// wins. A benchmark whose answer depends on GPU behaviour must still assert the
-// RENDERER it actually got (see nc-bench.spec.ts).
+// Mesa picks its driver from the environment, not from a Chrome flag, so this
+// is what the GPU route actually turns on. GALLIUM_DRIVER is the knob that lands
+// on the adapter; MESA_LOADER_DRIVER_OVERRIDE alone leaves Chrome with no GPU
+// context at all. Setting it here keeps PLAYWRIGHT_GPU=1 meaning the GPU rather
+// than depending on the caller's shell, and an explicit value still wins.
+//
+// This is the only thing that matters — measured with google-chrome under WSLg,
+// headless and headed alike: with GALLIUM_DRIVER=d3d12 both report "ANGLE
+// (Microsoft Corporation, D3D12 (NVIDIA GeForce RTX 3080), OpenGL 4.6)";
+// without it both report llvmpipe, window or no window. So GPU runs stay
+// headless and keep working where there is no display.
+//
+// A benchmark whose answer depends on GPU behaviour must still assert the
+// RENDERER it actually got (see nc-bench.spec.ts) — note EXT_disjoint_timer_-
+// query_webgl2 is exposed on llvmpipe too, so its presence proves nothing.
 const inheritedEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(
     (entry): entry is [string, string] => entry[1] !== undefined,
@@ -39,8 +47,6 @@ const launchEnv = wantsGpu
   ? {
       ...inheritedEnvironment,
       GALLIUM_DRIVER: process.env.GALLIUM_DRIVER ?? "d3d12",
-      MESA_D3D12_DEFAULT_ADAPTER_NAME:
-        process.env.MESA_D3D12_DEFAULT_ADAPTER_NAME ?? "NVIDIA",
     }
   : undefined;
 const serverPort = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
@@ -58,11 +64,7 @@ export default defineConfig({
   },
   use: {
     baseURL: serverUrl,
-    // Headless cannot reach the GPU under WSLg: it falls back to SwiftShader
-    // whatever the ANGLE backend and Mesa driver say, and SwiftShader reports
-    // no EXT_disjoint_timer_query_webgl2 to time with. PLAYWRIGHT_GPU=1 has to
-    // open a window to mean anything, so it needs a display (WSLg provides one).
-    headless: !wantsGpu,
+    headless: true,
     launchOptions: {
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
       args: launchArgs.length > 0 ? launchArgs : undefined,
