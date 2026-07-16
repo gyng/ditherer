@@ -6,6 +6,8 @@ const launchArgs = [
     ? ["--enable-features=WebMCPTesting,DevToolsWebMCPSupport"]
     : []),
 ];
+const serverPort = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
+const serverUrl = `http://127.0.0.1:${serverPort}`;
 
 export default defineConfig({
   testDir: "./test/e2e",
@@ -18,7 +20,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: serverUrl,
     headless: true,
     launchOptions: {
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
@@ -26,8 +28,8 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "env -u NO_COLOR -u FORCE_COLOR npm run dev -- --host 127.0.0.1 --port 4173",
-    url: "http://127.0.0.1:4173/wasm-smoke.html",
+    command: `env -u NO_COLOR -u FORCE_COLOR npm run dev -- --host 127.0.0.1 --port ${serverPort} --strictPort`,
+    url: `${serverUrl}/wasm-smoke.html`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

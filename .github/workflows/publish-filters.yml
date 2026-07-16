@@ -38,7 +38,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
-      - run: npm run build:lib
+      - run: npm run build:packed-app
       - name: Publish to GitHub Packages
         working-directory: packages/ditherer-filters
         run: npm publish --access public

@@ -115,9 +115,10 @@ describe("useSaveAsRenderSync", () => {
   });
 
   it("uses the advertised output size while the mounted canvas is still stale", () => {
+    const retainedGetScaledCanvas = latest.getScaledCanvas;
     render(2, 10, 10, 7);
 
-    const scaled = latest.getScaledCanvas()!;
+    const scaled = retainedGetScaledCanvas()!;
     expect(source.width).toBe(8);
     expect(source.height).toBe(6);
     expect(scaled.width).toBe(20);

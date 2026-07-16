@@ -3,6 +3,17 @@ import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+const filterPackageSource = path.resolve(__dirname, "packages/ditherer-filters/src");
+const legacyEngineTestAliases = [
+  { find: "constants", replacement: path.join(filterPackageSource, "constants") },
+  { find: "filters", replacement: path.join(filterPackageSource, "filters") },
+  { find: "gl", replacement: path.join(filterPackageSource, "gl") },
+  { find: "palettes", replacement: path.join(filterPackageSource, "palettes") },
+  { find: /^utils$/, replacement: path.join(filterPackageSource, "utils/index.ts") },
+  { find: "workers", replacement: path.join(filterPackageSource, "workers") },
+  { find: "wasm", replacement: path.join(filterPackageSource, "wasm") },
+];
+
 export default defineConfig({
   plugins: [react({ include: /\.(jsx|tsx)$/ })],
   resolve: {
@@ -13,17 +24,10 @@ export default defineConfig({
       { find: "@gyng/ditherer-filters", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/index.ts") },
       { find: "@src", replacement: path.resolve(__dirname, "src") },
       { find: "components", replacement: path.resolve(__dirname, "src/components") },
-      { find: "constants", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/constants") },
       { find: "context", replacement: path.resolve(__dirname, "src/context") },
-      { find: "filters", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/filters") },
-      { find: "gl", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/gl") },
-      { find: "palettes", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/palettes") },
       { find: "reducers", replacement: path.resolve(__dirname, "src/reducers") },
       { find: "styles", replacement: path.resolve(__dirname, "src/styles") },
-      { find: /^utils$/, replacement: path.resolve(__dirname, "packages/ditherer-filters/src/utils/index.ts") },
       { find: "utils", replacement: path.resolve(__dirname, "src/utils") },
-      { find: "workers", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/workers") },
-      { find: "wasm", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/wasm") },
     ],
   },
   build: {
@@ -65,6 +69,7 @@ export default defineConfig({
   },
   base: "./",
   test: {
+    alias: legacyEngineTestAliases,
     globals: false,
     environment: "jsdom",
     setupFiles: ["vitest-canvas-mock", "./test/setup.ts"],

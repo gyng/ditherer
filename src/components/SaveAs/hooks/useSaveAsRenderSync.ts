@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from "react";
+import { useCallback, useRef, type RefObject } from "react";
 import type { FilterState } from "context/filterContextValue";
 import type { SourceVideoWithObjectUrl, VideoFrameCallbackVideo, VideoFrameMetadata } from "../helpers";
 
@@ -31,6 +31,9 @@ export const useSaveAsRenderSync = ({
   mult,
   gifFps,
 }: UseSaveAsRenderSyncOptions) => {
+  const targetSizeRef = useRef({ canvasWidth, canvasHeight, mult });
+  targetSizeRef.current = { canvasWidth, canvasHeight, mult };
+
   const getScaledCanvas = useCallback((): HTMLCanvasElement | null => {
     const source = outputCanvasRef.current;
     if (!source) return null;
@@ -39,8 +42,8 @@ export const useSaveAsRenderSync = ({
       scaled = document.createElement("canvas");
       scaledCanvasRef.current = scaled;
     }
-    const targetWidth = canvasWidth * mult;
-    const targetHeight = canvasHeight * mult;
+    const targetWidth = targetSizeRef.current.canvasWidth * targetSizeRef.current.mult;
+    const targetHeight = targetSizeRef.current.canvasHeight * targetSizeRef.current.mult;
     if (scaled.width !== targetWidth) scaled.width = targetWidth;
     if (scaled.height !== targetHeight) scaled.height = targetHeight;
     const ctx = scaled.getContext("2d");
@@ -49,7 +52,7 @@ export const useSaveAsRenderSync = ({
     ctx.clearRect(0, 0, scaled.width, scaled.height);
     ctx.drawImage(source, 0, 0, scaled.width, scaled.height);
     return scaled;
-  }, [outputCanvasRef, scaledCanvasRef, canvasWidth, canvasHeight, mult]);
+  }, [outputCanvasRef, scaledCanvasRef]);
 
   const estimateVideoFps = useCallback((vid: HTMLVideoElement, fallback: number) => {
     const duration = vid.duration || 0;
