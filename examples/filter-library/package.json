@@ -1,0 +1,8 @@
+{
+  "name": "ditherer-filter-library-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@gyng/ditherer-filters": "0.2.0"
+  }
+}

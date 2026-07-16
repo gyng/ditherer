@@ -7,7 +7,7 @@ import baseConfig from "../../vite.config.js";
 const repositoryRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const installedPackageRoot = path.join(
   repositoryRoot,
-  "test/library-consumer/fixture/node_modules/@gyng/ditherer-filters",
+  "examples/filter-library/node_modules/@gyng/ditherer-filters",
 );
 const packageManifestPath = path.join(installedPackageRoot, "package.json");
 
@@ -32,7 +32,13 @@ const packedPackageAliases = [
   { find: "@gyng/ditherer-filters/worker", replacement: packageEntry("dist/worker.js") },
   { find: "@gyng/ditherer-filters/client", replacement: packageEntry("dist/client.js") },
   { find: "@gyng/ditherer-filters/wasm-bindings", replacement: packageEntry("dist/wasm-bindings.js") },
-  { find: "@gyng/ditherer-filters", replacement: packageEntry("dist/index.js") },
+  { find: "@gyng/ditherer-filters/catalog", replacement: packageEntry("dist/catalog.js") },
+  { find: "@gyng/ditherer-filters/lazy", replacement: packageEntry("dist/lazy.js") },
+  {
+    find: /^@gyng\/ditherer-filters\/filters\/(.+)$/,
+    replacement: path.join(installedPackageRoot, "dist/filters/$1.js"),
+  },
+  { find: /^@gyng\/ditherer-filters$/, replacement: packageEntry("dist/index.js") },
 ];
 const applicationAliases = (baseConfig.resolve?.alias ?? []).filter(({ find }) =>
   typeof find !== "string" || !find.startsWith("@gyng/ditherer-filters"));

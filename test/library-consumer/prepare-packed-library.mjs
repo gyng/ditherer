@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const packageRoot = path.join(repositoryRoot, "packages/ditherer-filters");
-const fixtureRoot = path.join(repositoryRoot, "test/library-consumer/fixture");
+const fixtureRoot = path.join(repositoryRoot, "examples/filter-library");
 const packDirectory = path.join("/tmp", "ditherer-library-pack");
 const npmCache = path.join("/tmp", "ditherer-library-npm-cache");
 

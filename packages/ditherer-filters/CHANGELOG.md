@@ -3,6 +3,21 @@
 All notable changes to `@gyng/ditherer-filters` are documented here. The
 package follows semantic versioning.
 
+## [0.2.0] - 2026-07-16
+
+### Added
+
+- Stable per-filter subpath imports under `filters/*`.
+- An implementation-free metadata catalog and lazy canonical loader.
+- Deterministic registry-derived generation and bundle-size contracts.
+- A standalone packed-package example covering direct imports, lazy loading,
+  sessions, workers, WASM readiness, and explicit cleanup.
+
+### Fixed
+
+- Ordered dithering now applies Nearest palette levels independently of the
+  threshold map's quantization levels.
+
 ## [0.1.1] - 2026-07-16
 
 ### Changed
