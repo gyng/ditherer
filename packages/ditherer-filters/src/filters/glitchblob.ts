@@ -124,7 +124,7 @@ const isExpectedGlitchFailure = (error: unknown) => {
 const blobToUint8Array = async (blob: Blob) =>
   new Uint8Array(await blob.arrayBuffer());
 
-const transformTranspose = (
+export const transformTranspose = (
   header: number,
   input: Uint8Array,
   ..._rest: unknown[]
@@ -136,7 +136,7 @@ const transformTranspose = (
   return input;
 };
 
-const transformSubstitute = (
+export const transformSubstitute = (
   header: number,
   input: Uint8Array,
   ..._rest: unknown[]
@@ -147,7 +147,7 @@ const transformSubstitute = (
   return input;
 };
 
-const transformRepeat = (
+export const transformRepeat = (
   header: number,
   input: Uint8Array,
   ..._rest: unknown[]
@@ -169,7 +169,7 @@ const transformRepeat = (
   return newOut;
 };
 
-const setU32 = (data: Uint8Array, value: number) => {
+export const setU32 = (data: Uint8Array, value: number) => {
   const tmpBuf = new ArrayBuffer(4);
   new DataView(tmpBuf).setUint32(0, value);
    
@@ -180,7 +180,7 @@ const setU32 = (data: Uint8Array, value: number) => {
    
 };
 
-const getU32 = (data: Uint8Array) => {
+export const getU32 = (data: Uint8Array) => {
   const tmpBuf = new ArrayBuffer(4);
    
   new Uint8Array(tmpBuf)[0] = data[0];
@@ -191,7 +191,7 @@ const getU32 = (data: Uint8Array) => {
   return new DataView(tmpBuf).getUint32(0);
 };
 
-const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
+export const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
    
   function buildCRC32Table(poly: number) {
     const table = new Uint32Array(256);
