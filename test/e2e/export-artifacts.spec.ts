@@ -160,7 +160,7 @@ test("offline and realtime recording paths both produce downloadable video", asy
   await page.getByRole("button", { name: "Export…", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Save As" });
   await dialog.getByRole("tab", { name: "Video" }).click();
-  await dialog.getByRole("radio", { name: "video" }).check();
+  await dialog.getByRole("radio", { name: "video", exact: true }).check();
   const captureMode = dialog.getByRole("combobox", { name: "Capture Mode" });
   await captureMode.selectOption({ label: "Offline Render (Browser, Slower)" });
   await dialog.getByRole("checkbox", { name: "Include source audio" }).uncheck();
