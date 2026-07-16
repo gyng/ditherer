@@ -1,5 +1,5 @@
 import { RANGE, ENUM } from "../constants/controlTypes";
-import { cloneCanvas, fillBufferPixel, getBufferIndex } from "../utils/index";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, reducePaletteToCap } from "../utils/index";
 import { defineFilter } from "./types";
 
 const REDUCE = {
@@ -16,6 +16,10 @@ type OctreeNode = {
   bSum: number;
   level: number;
   nextReducible: OctreeNode | null;
+  // Set when the node has been absorbed into an ancestor. It may still be
+  // linked into `reducible[level]`, and reducing it again would corrupt
+  // leafCount.
+  detached?: boolean;
 };
 
 const createNode = (level: number, leafLevel: number): OctreeNode => ({
@@ -26,7 +30,8 @@ const createNode = (level: number, leafLevel: number): OctreeNode => ({
   gSum: 0,
   bSum: 0,
   level,
-  nextReducible: null
+  nextReducible: null,
+  detached: false
 });
 
 const colorIndexForLevel = (r: number, g: number, b: number, level: number) => {
@@ -128,7 +133,7 @@ const octreeQuantize = (input: any, options = defaults) => {
     insertColor(node.children[index] as OctreeNode, r, g, b);
   };
 
-  const reduceTree = () => {
+  const reduceTree = (): boolean => {
     for (let level = leafLevel - 1; level >= 0; level -= 1) {
       let best: OctreeNode | null = null;
       let bestPrev: OctreeNode | null = null;
@@ -136,6 +141,13 @@ const octreeQuantize = (input: any, options = defaults) => {
       let node = reducible[level];
 
       while (node) {
+        if (node.detached) {
+          // Unlink and skip: absorbed into an ancestor, no longer in the tree.
+          if (prev) prev.nextReducible = node.nextReducible;
+          else reducible[level] = node.nextReducible;
+          node = node.nextReducible;
+          continue;
+        }
         const score = reduceMode === REDUCE.POPULARITY ? node.pixelCount : -node.pixelCount;
         const bestScore = best
           ? (reduceMode === REDUCE.POPULARITY ? best.pixelCount : -best.pixelCount)
@@ -153,22 +165,51 @@ const octreeQuantize = (input: any, options = defaults) => {
       if (bestPrev) bestPrev.nextReducible = best.nextReducible;
       else reducible[level] = best.nextReducible;
 
-      let childLeaves = 0;
+      // Absorb the whole subtree, not just the direct children.
+      //
+      // Only leaves accumulate colour, so summing direct children alone
+      // contributed nothing whenever those children were themselves inner nodes
+      // — the merged node came out with pixelCount 0 (dropped from the palette)
+      // and the leaves below it stayed counted in leafCount. Since leafCount
+      // could then never fall to maxColors, `while (leafCount > maxColors)`
+      // span forever: Octree Quantize hung the tab outright for any image with
+      // enough distinct colours to push reduction above the leaf's parent level
+      // (reproducibly at levels 2-4, which the slider allows).
+      let absorbedLeaves = 0;
+      const absorb = (node: OctreeNode) => {
+        if (node.isLeaf) {
+          best!.rSum += node.rSum;
+          best!.gSum += node.gSum;
+          best!.bSum += node.bSum;
+          best!.pixelCount += node.pixelCount;
+          absorbedLeaves += 1;
+          return;
+        }
+        // Detached inner nodes may still be sitting in `reducible[node.level]`;
+        // mark them so the scan above can drop them instead of "reducing" a node
+        // that is no longer in the tree.
+        node.detached = true;
+        for (let i = 0; i < 8; i += 1) {
+          const child = node.children[i];
+          if (child) absorb(child);
+        }
+        node.children = [null, null, null, null, null, null, null, null];
+      };
       for (let i = 0; i < 8; i += 1) {
         const child = best.children[i];
-        if (!child) continue;
-        best.rSum += child.rSum;
-        best.gSum += child.gSum;
-        best.bSum += child.bSum;
-        best.pixelCount += child.pixelCount;
-        if (child.isLeaf) childLeaves += 1;
+        if (child) absorb(child);
       }
 
       best.children = [null, null, null, null, null, null, null, null];
       best.isLeaf = true;
-      leafCount -= Math.max(0, childLeaves - 1);
-      return;
+      // The subtree's leaves are gone and `best` is a leaf now.
+      leafCount -= absorbedLeaves;
+      leafCount += 1;
+      return true;
     }
+    // Nothing left to merge. The root is never registered as reducible, so the
+    // tree bottoms out at one leaf per occupied top-level octant — at most 8.
+    return false;
   };
 
   const step = Math.max(1, Math.round(sampleRate));
@@ -177,7 +218,7 @@ const octreeQuantize = (input: any, options = defaults) => {
       const i = getBufferIndex(x, y, width);
       if (buf[i + 3] === 0) continue;
       insertColor(root, buf[i], buf[i + 1], buf[i + 2]);
-      while (leafCount > maxColors) reduceTree();
+      while (leafCount > maxColors && reduceTree()) { /* keep merging */ }
     }
   }
 
@@ -191,7 +232,14 @@ const octreeQuantize = (input: any, options = defaults) => {
       Math.round(node.bSum / node.pixelCount)
     ]);
 
-  const resolvedPalette = palette.length > 0 ? palette : [[0, 0, 0]];
+  // The octree cannot merge below its top-level octants, so for small
+  // maxColors it stops short of what was asked. Finish on the palette itself
+  // rather than returning more colours than requested.
+  const capped = palette.length > maxColors
+    ? reducePaletteToCap(palette.map(c => [c[0], c[1], c[2], 255]), maxColors)
+    : palette;
+
+  const resolvedPalette = capped.length > 0 ? capped : [[0, 0, 0]];
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
