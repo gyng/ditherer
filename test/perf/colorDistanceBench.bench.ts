@@ -16,6 +16,7 @@
 import { describe, bench, beforeAll } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import wasmInit, * as wasmMod from "../../packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba";
 import { colorDistance, rgba2laba } from "@gyng/ditherer-filters";
 import {
   RGB_NEAREST,
@@ -87,11 +88,7 @@ let BENCH_BUF: Uint8Array | null = null;
 
 // Buffer quantize functions (one per algorithm)
 type WasmQuantizeFn = (buf: Uint8Array, palette: Float64Array) => Uint8Array;
-type WasmQuantizeLabFn = (buf: Uint8Array, palette: Float64Array) => Uint8Array;
-let wasmQuantize: WasmQuantizeLabFn | null = null;
 let wasmQuantizeRgb: WasmQuantizeFn | null = null;
-let wasmQuantizeRgbApprox: WasmQuantizeFn | null = null;
-let wasmQuantizeHsv: WasmQuantizeFn | null = null;
 
 // Pre-computed per-pixel function
 type WasmPrecomputedFn = (pixel: number[], paletteLab: Float64Array) => number;
@@ -122,83 +119,42 @@ beforeAll(async () => {
     BENCH_BUF[i] = (i * 2654435761) & 0xff;
   }
 
-  try {
-    const wasmPath = resolve(process.cwd(), "packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm");
-    const buf = await readFile(wasmPath);
-    const imports = {
-      "./rgba2laba_bg.js": {
-        __wbindgen_init_externref_table: () => {},
-      },
-    };
-    const { instance } = await WebAssembly.instantiate(buf, imports);
-    const exports = instance.exports as any;
+  // Load through wasm-bindgen's own wrapper rather than hand-rolling
+  // WebAssembly.instantiate with a hand-written import object.
+  //
+  // The hand-rolled version had been throwing a LinkError for some time — the
+  // import object was missing __wbg___wbindgen_copy_to_typed_array_* — and the
+  // catch below swallowed it, so every binding stayed null and every WASM bench
+  // ran `if (!fn) return;`. It reported WASM as 6.4x faster than JS while
+  // measuring an early return, and clocked a 76,800-pixel buffer quantize at
+  // 17M hz. The giveaway was that a single-pixel distance, a 16-colour scan and
+  // a full-buffer quantize all came out at ~17-20M hz — identical throughput for
+  // wildly different work.
+  //
+  // The wrapper supplies the correct imports and marshalling, and is the same
+  // path errorDiffusionOracle/ditherpunk use, where WASM demonstrably runs.
+  const wasmPath = resolve(
+    process.cwd(),
+    "packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm",
+  );
+  const bin = await readFile(wasmPath);
+  await wasmInit({ module_or_path: bin });
 
-    wasmDist = exports.rgba_laba_distance as WasmDistFn;
+  wasmDist = wasmMod.rgba_laba_distance as unknown as WasmDistFn;
+  wasmBatch = (pixel: number[], palette: Float64Array): number =>
+    wasmMod.rgba_nearest_lab_index(
+      pixel[0], pixel[1], pixel[2], pixel[3],
+      palette, REF_X, REF_Y, REF_Z,
+    );
+  wasmPrecomputed = (pixel: number[], paletteLab: Float64Array): number =>
+    wasmMod.nearest_lab_precomputed(pixel[0], pixel[1], pixel[2], pixel[3], paletteLab);
+  wasmQuantizeRgb = (buf: Uint8Array, palette: Float64Array): Uint8Array =>
+    wasmMod.quantize_buffer_rgb(buf, palette);
 
-    const malloc = exports.__wbindgen_malloc as (size: number, align: number) => number;
-
-    // Helper: copy f64 array into WASM memory, return (ptr, len)
-    const passF64 = (arr: Float64Array): [number, number] => {
-      const ptr = malloc(arr.length * 8, 8) >>> 0;
-      new Float64Array(exports.memory.buffer).set(arr, ptr / 8);
-      return [ptr, arr.length];
-    };
-
-    // Helper: copy u8 array into WASM memory, return (ptr, len)
-    const passU8 = (arr: Uint8Array): [number, number] => {
-      const ptr = malloc(arr.length, 1) >>> 0;
-      new Uint8Array(exports.memory.buffer).set(arr, ptr);
-      return [ptr, arr.length];
-    };
-
-    // Batch per-pixel: palette RGBA re-converted each pixel (old)
-    if (malloc && exports.rgba_nearest_lab_index) {
-      wasmBatch = (pixel: number[], palette: Float64Array): number => {
-        const [ptr, len] = passF64(palette);
-        return exports.rgba_nearest_lab_index(
-          pixel[0], pixel[1], pixel[2], pixel[3],
-          ptr, len, REF_X, REF_Y, REF_Z,
-        ) >>> 0;
-      };
-    }
-
-    // Pre-computed Lab palette per-pixel search
-    if (malloc && exports.nearest_lab_precomputed) {
-      wasmPrecomputed = (pixel: number[], paletteLab: Float64Array): number => {
-        const [ptr, len] = passF64(paletteLab);
-        return exports.nearest_lab_precomputed(
-          pixel[0], pixel[1], pixel[2],
-          ptr, len, REF_X, REF_Y, REF_Z,
-        ) >>> 0;
-      };
-    }
-
-    // Helper: call a WASM buffer quantize fn and return the result Vec<u8>
-    const makeQuantizeFn = (wasmFn: Function, ...extraArgs: number[]) => {
-      return (buf: Uint8Array, palette: Float64Array): Uint8Array => {
-        const [bPtr, bLen] = passU8(buf);
-        const [pPtr, pLen] = passF64(palette);
-        const ret = wasmFn(bPtr, bLen, pPtr, pLen, ...extraArgs);
-        const outPtr = ret[0] >>> 0;
-        const outLen = ret[1] >>> 0;
-        const result = new Uint8Array(exports.memory.buffer, outPtr, outLen).slice();
-        exports.__wbindgen_free(outPtr, outLen, 1);
-        return result;
-      };
-    };
-
-    if (malloc) {
-      if (exports.quantize_buffer_lab)
-        wasmQuantize = makeQuantizeFn(exports.quantize_buffer_lab, REF_X, REF_Y, REF_Z);
-      if (exports.quantize_buffer_rgb)
-        wasmQuantizeRgb = makeQuantizeFn(exports.quantize_buffer_rgb);
-      if (exports.quantize_buffer_rgb_approx)
-        wasmQuantizeRgbApprox = makeQuantizeFn(exports.quantize_buffer_rgb_approx);
-      if (exports.quantize_buffer_hsv)
-        wasmQuantizeHsv = makeQuantizeFn(exports.quantize_buffer_hsv);
-    }
-  } catch (e) {
-    console.warn("WASM load failed — skipping WASM benches:", (e as Error).message);
+  // A silent skip is what let this rot. If WASM is unavailable the numbers are
+  // meaningless, so say so rather than benchmark `return;`.
+  if (!wasmDist || !wasmQuantizeRgb) {
+    throw new Error("WASM failed to load — WASM benches would measure nothing");
   }
 });
 
@@ -327,23 +283,13 @@ describe("palette scan — 16 CGA colors", () => {
 // ---------------------------------------------------------------------------
 
 describe("buffer quantize — 320×240 (76,800 pixels, single WASM call)", () => {
-  bench("RGB_NEAREST", () => {
-    if (!wasmQuantizeRgb) return;
-    wasmQuantizeRgb(BENCH_BUF!, CGA_16_FLAT!);
-  });
-
-  bench("RGB_APPROX", () => {
-    if (!wasmQuantizeRgbApprox) return;
-    wasmQuantizeRgbApprox(BENCH_BUF!, CGA_16_FLAT!);
-  });
-
-  bench("HSV_NEAREST", () => {
-    if (!wasmQuantizeHsv) return;
-    wasmQuantizeHsv(BENCH_BUF!, CGA_16_FLAT!);
-  });
-
-  bench("LAB_NEAREST", () => {
-    if (!wasmQuantize) return;
-    wasmQuantize(BENCH_BUF!, CGA_16_FLAT!);
+  // Only quantize_buffer_rgb exists in the Rust. The RGB_APPROX / HSV / LAB
+  // buffer benches that used to sit here referenced quantize_buffer_rgb_approx,
+  // quantize_buffer_hsv and quantize_buffer_lab — none of which have ever been
+  // implemented, so their `if (!fn) return;` guards made them permanent no-ops
+  // reporting ~17M hz. Removed rather than left as decorative zeros; add them
+  // back alongside the Rust functions if those get written.
+  bench("RGB_NEAREST (whole buffer, 1 WASM call)", () => {
+    wasmQuantizeRgb!(BENCH_BUF!, CGA_16_FLAT!);
   });
 });
