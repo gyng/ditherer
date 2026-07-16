@@ -1,19 +1,29 @@
 import React, { useReducer, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import filterReducer, { initialState, ChainEntry, type FilterReducerAction, type FilterReducerState } from "reducers/filters";
-import * as optionTypes from "constants/optionTypes";
-import { filterList, grayscale } from "filters";
-import { THEMES } from "palettes/user";
-import { serializePalette } from "palettes";
+import {
+  clearMotionVectorsState,
+  createReadbackCanvas,
+  filterIndex,
+  filterList,
+  getReadbackContext,
+  getWorkerPrevOutputFrame,
+  PALETTE,
+  releaseFloatTextures,
+  releasePooledCanvas,
+  releasePooledTextures,
+  runFilterChain,
+  serializePalette,
+  THEMES,
+  type FilterChainEntry,
+  type TemporalFilterState,
+  type WorkerPrevOutputPayload,
+} from "@gyng/ditherer-filters";
 import { decodeShareState } from "utils/shareState";
 import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
 import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
-import { createReadbackCanvas, getReadbackContext, getWorkerPrevOutputFrame, WorkerPrevOutputPayload, logFilterDispatched, getFilterWasmStatuses, releasePooledCanvas, logFilterBackend } from "utils";
 import { recordFilterStepMs } from "utils/slowFilterRegistry";
-import { releasePooledTextures, glAvailable, glUnavailableStub } from "gl";
-import { releaseFloatTextures } from "gl/fft2d";
-import { workerRPC, USE_WORKER } from "workers/workerRPC";
-import { clearMotionVectorsState } from "filters/motionVectors";
+import { workerRPC, USE_WORKER } from "@gyng/ditherer-filters/client";
 import { FilterContext } from "./filterContextValue";
 import type { AnimatedVideoElement, ExportFrameOptions, FilterActions, FilterOptionValue } from "./filterContextValue";
 import { getAutoScale, roundScale } from "./autoScale";
@@ -22,6 +32,7 @@ import { getShareableTestMediaSearch } from "utils/testMediaShare";
 import { type SerializedAudioVizModulation, type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
 
 type SerializableOptions = Record<string, unknown>;
+const grayscale = filterIndex.Grayscale;
 type SerializedPaletteOption = { name?: string; options?: SerializableOptions };
 type SerializablePalette = SerializedPaletteOption & {
   getColor?: (...args: unknown[]) => unknown;
@@ -557,114 +568,47 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     dispatchOverride = dispatch,
     cacheOutputs = true,
   ) => {
-    const stepTimes: { name: string; ms: number; backend?: string }[] = [];
-    let totalTime = 0;
-
-    for (let i = startIdx; i < enabledEntries.length; i++) {
-      const entry = enabledEntries[i];
-
-      // Capture input pixels for _prevInput and EMA.
-      // Always capture so temporal filters work on first click too.
-      let inputData: Uint8ClampedArray | null = null;
-      const inputCtx = (
-        canvas instanceof HTMLCanvasElement
-          ? canvas.getContext("2d", { willReadFrequently: true })
-          : canvas.getContext("2d", { willReadFrequently: true })
-      ) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-      if (inputCtx) {
-        inputData = inputCtx.getImageData(0, 0, canvas.width, canvas.height).data;
-      }
-
-      const filterOpts: Record<string, unknown> & { palette?: SerializablePalette } = {
-        ...withAudioModulatedOptions(entry),
-        _chainIndex: i,
-        _linearize: curState.linearize,
-        _wasmAcceleration: curState.wasmAcceleration,
-        _webglAcceleration: curState.webglAcceleration,
-        _hasVideoInput: !!curState.video,
-        _prevOutput: temporalState.prevOutputMap.get(entry.id) || null,
-        _prevInput: temporalState.prevInputMap.get(entry.id) || null,
-        _ema: temporalState.emaMap.get(entry.id) || null,
-        _frameIndex: temporalState.frameIndex,
-        _degaussFrame: degaussFrameRef.current,
-        _isAnimating: isAnimating,
-      };
-      if (filterOpts.palette?.options) {
-        filterOpts.palette = {
-          ...filterOpts.palette,
-          options: { ...filterOpts.palette.options, _wasmAcceleration: curState.wasmAcceleration },
-        };
-      }
-
-      const t0 = performance.now();
-      let output: unknown;
-      if (entry.filter.requiresGL && !glAvailable()) {
-        output = glUnavailableStub(canvas.width, canvas.height);
-        logFilterBackend(entry.filter.name, "GL-unavailable", "WebGL2 required but unavailable");
-      } else {
-        try {
-          const raw: unknown = entry.filter.func(canvas, filterOpts, dispatchOverride);
-          output = (raw && typeof (raw as { then?: unknown }).then === "function")
-            ? await (raw as Promise<unknown>)
-            : raw;
-        } catch (e) {
-          console.error(`Filter "${entry.displayName}" threw:`, e);
-          continue;
+    const chain: FilterChainEntry[] = enabledEntries.map((entry) => ({
+      id: entry.id,
+      filter: entry.filter,
+      displayName: entry.displayName,
+      ...(entry.filter.options ? { options: entry.filter.options } : {}),
+    }));
+    const libraryTemporalState: TemporalFilterState = {
+      prevOutputs: temporalState.prevOutputMap,
+      prevInputs: temporalState.prevInputMap,
+      ema: temporalState.emaMap,
+      frameIndex: temporalState.frameIndex,
+    };
+    const result = await runFilterChain(canvas, chain, {
+      linearize: curState.linearize,
+      wasmAcceleration: curState.wasmAcceleration,
+      webglAcceleration: curState.webglAcceleration,
+      onError: (error, entry) => {
+        console.error(`Filter "${entry.displayName ?? String(entry.filter)}" threw:`, error);
+      },
+    }, {
+      frameIndex: temporalState.frameIndex,
+      isAnimating,
+      hasVideoInput: !!curState.video,
+      degaussFrame: degaussFrameRef.current,
+      startIndex: startIdx,
+      dispatch: dispatchOverride,
+      temporalState: libraryTemporalState,
+      resolveOptions: (_entry, index) => withAudioModulatedOptions(enabledEntries[index]),
+      onStep: (step) => {
+        recordFilterStepMs(step.filterName, step.ms);
+        if (cacheOutputs && step.canvas instanceof HTMLCanvasElement) {
+          const previous = cachedOutputsRef.current.get(step.id);
+          if (previous && previous !== step.canvas) releasePooledCanvas(previous);
+          cachedOutputsRef.current.set(step.id, step.canvas);
         }
-      }
-      // One-shot "JS (no wasm path)" for filters that didn't self-report via
-      // logFilterWasmStatus. Runs after the call so a filter that does log
-      // suppresses this fallback.
-      logFilterDispatched(entry.filter.name, { noGL: entry.filter.noGL, noWASM: entry.filter.noWASM });
-      const stepMs = performance.now() - t0;
-      recordFilterStepMs(entry.filter.name, stepMs);
-      const backend = getFilterWasmStatuses().get(entry.filter.name)?.label;
-      stepTimes.push(backend
-        ? { name: entry.displayName, ms: stepMs, backend }
-        : { name: entry.displayName, ms: stepMs });
-      totalTime += stepMs;
-
-      // Update temporal buffers
-      if (inputData) {
-        temporalState.prevInputMap.set(entry.id, inputData);
-
-        // Update EMA: ema = ema * (1 - alpha) + input * alpha
-        // Alpha 0.1 ≈ ~10 frame averaging window
-        const EMA_ALPHA = 0.1;
-        let ema = temporalState.emaMap.get(entry.id);
-        if (!ema || ema.length !== inputData.length) {
-          ema = new Float32Array(inputData);
-        } else {
-          const oneMinusAlpha = 1 - EMA_ALPHA;
-          for (let j = 0; j < ema.length; j++) {
-            ema[j] = ema[j] * oneMinusAlpha + inputData[j] * EMA_ALPHA;
-          }
-        }
-        temporalState.emaMap.set(entry.id, ema);
-      }
-
-      if (output instanceof HTMLCanvasElement) {
-        const outCtx = output.getContext("2d", { willReadFrequently: true });
-        if (outCtx) {
-          temporalState.prevOutputMap.set(
-            entry.id,
-            outCtx.getImageData(0, 0, output.width, output.height).data
-          );
-        }
-        if (cacheOutputs) {
-          // Returning the previous frame's cached canvas (now being
-          // replaced) to the pool is where the pooling actually pays off
-          // on steady-state animation — without this the cache is a
-          // ratchet holding ~chain-length canvases of memory forever.
-          const prev = cachedOutputsRef.current.get(entry.id);
-          if (prev && prev !== output) releasePooledCanvas(prev);
-          cachedOutputsRef.current.set(entry.id, output);
-        }
-        canvas = output;
-      }
-    }
-
-    return { canvas, stepTimes, totalTime };
+      },
+    });
+    const stepTimes = result.steps.map((step) => step.backend
+      ? { name: step.name, ms: step.ms, backend: step.backend }
+      : { name: step.name, ms: step.ms });
+    return { canvas: result.canvas, stepTimes, totalTime: result.totalTime };
   };
 
   const emitOutput = (
@@ -1263,7 +1207,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     saveCurrentColorPalette: (name: string, colors: number[][]) => {
       window.localStorage.setItem(
         `_palette_${name.replace(" ", "")}`,
-        JSON.stringify({ type: optionTypes.PALETTE, name, colors })
+        JSON.stringify({ type: PALETTE, name, colors })
       );
       THEMES[name] = colors;
       dispatch({ type: "SAVE_CURRENT_COLOR_PALETTE", name });

@@ -9,7 +9,7 @@ const bridge = vi.hoisted(() => ({
   uniqueColors: vi.fn(() => [[21, 22, 23, 255]]),
 }));
 
-vi.mock("utils", async (importOriginal) => {
+vi.mock("@gyng/ditherer-filters", async (importOriginal) => {
   const original = await importOriginal<typeof import("utils")>();
   return {
     ...original,

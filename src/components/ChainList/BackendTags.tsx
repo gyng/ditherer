@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getFilterBackends, subscribeFilterBackends } from "utils";
+import { getFilterBackends, subscribeFilterBackends } from "@gyng/ditherer-filters";
 import s from "./libraryBrowser.module.css";
 
 type Props = {

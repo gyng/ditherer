@@ -1,6 +1,5 @@
 import { createContext } from "react";
-import { filterList, grayscale } from "filters";
-import type { FilterDefinition } from "filters/types";
+import { filterIndex, filterList, type FilterDefinition } from "@gyng/ditherer-filters";
 import type { FilterReducerState } from "reducers/filters";
 import type { EntryAudioModulation } from "utils/audioVizBridge";
 
@@ -73,7 +72,7 @@ export interface FilterContextValue {
   state: FilterState;
   actions: FilterActions;
   filterList: typeof filterList;
-  grayscale: typeof grayscale;
+  grayscale: typeof filterIndex.Grayscale;
 }
 
 export const FilterContext = createContext<FilterContextValue | null>(null);

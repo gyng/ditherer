@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BOOL, COLOR, ENUM, RANGE, STRING, TEXT } from "constants/controlTypes";
-import { filterList, hasTemporalBehavior } from "filters";
-import { glAvailable } from "gl";
+import { BOOL, COLOR, ENUM, RANGE, STRING, TEXT, filterList, glAvailable, hasTemporalBehavior } from "@gyng/ditherer-filters";
 import type {
   ActionOptionDefinition,
   EnumOption,
@@ -13,7 +11,7 @@ import type {
   FilterOptionDefinitions,
   FilterOptionValues,
   RangeOptionDefinition,
-} from "filters/types";
+} from "@gyng/ditherer-filters";
 import { CHAIN_PRESETS, PRESET_CATEGORIES, type ChainPreset } from "./presets";
 import PresetThumbnail from "./PresetThumbnail";
 import FilterThumbnail from "./FilterThumbnail";

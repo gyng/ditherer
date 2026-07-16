@@ -16,23 +16,30 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": "src",
     "paths": {
+      "@gyng/ditherer-filters": ["../packages/ditherer-filters/src/index.ts"],
+      "@gyng/ditherer-filters/client": ["../packages/ditherer-filters/src/client.ts"],
+      "@gyng/ditherer-filters/worker": ["../packages/ditherer-filters/src/worker.ts"],
+      "@gyng/ditherer-filters/wasm-bindings": ["../packages/ditherer-filters/src/wasm-bindings.ts"],
       "@src/*": ["./*"],
       "actions/*": ["actions/*"],
       "components/*": ["components/*"],
-      "constants/*": ["constants/*"],
+      "constants/*": ["../packages/ditherer-filters/src/constants/*"],
       "containers/*": ["containers/*"],
       "context/*": ["context/*"],
-      "filters": ["filters/index"],
-      "filters/*": ["filters/*"],
-      "gl": ["gl/index"],
-      "palettes/*": ["palettes/*"],
+      "filters": ["../packages/ditherer-filters/src/filters/index.ts"],
+      "filters/*": ["../packages/ditherer-filters/src/filters/*"],
+      "gl": ["../packages/ditherer-filters/src/gl/index.ts"],
+      "gl/*": ["../packages/ditherer-filters/src/gl/*"],
+      "palettes": ["../packages/ditherer-filters/src/palettes/index.ts"],
+      "palettes/*": ["../packages/ditherer-filters/src/palettes/*"],
       "reducers/*": ["reducers/*"],
       "styles/*": ["styles/*"],
-      "utils": ["utils/index"],
+      "utils": ["../packages/ditherer-filters/src/utils/index.ts"],
       "types/*": ["types/*"],
       "utils/*": ["utils/*"],
-      "wasm/*": ["wasm/*"]
+      "wasm/*": ["../packages/ditherer-filters/src/wasm/*"],
+      "workers/*": ["../packages/ditherer-filters/src/workers/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "packages/ditherer-filters/src"]
 }

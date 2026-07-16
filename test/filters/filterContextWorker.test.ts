@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWorkerPrevOutputFrame } from "utils";
+import { getWorkerPrevOutputFrame } from "@gyng/ditherer-filters";
 
 describe("getWorkerPrevOutputFrame", () => {
   it("uses the intermediate frame dimensions from the worker payload", () => {

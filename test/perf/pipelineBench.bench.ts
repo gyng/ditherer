@@ -13,7 +13,7 @@ import { describe, bench, beforeAll } from "vitest";
 import { floydSteinberg } from "filters/errorDiffusing";
 import ordered from "filters/ordered";
 import convolve from "filters/convolve";
-import * as palettes from "palettes";
+import * as palettes from "@gyng/ditherer-filters";
 
 // ---------------------------------------------------------------------------
 // Canvas helpers

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { runWorkerFilterRequest } from "workers/filterWorker";
-import { filterIndex } from "filters";
+import { filterIndex } from "@gyng/ditherer-filters";
 import type { FilterCanvas } from "filters/types";
 
 // Node/jsdom env: use real HTMLCanvasElement from jsdom so filters that need

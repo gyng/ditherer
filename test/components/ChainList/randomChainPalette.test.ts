@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { filterList } from "filters";
+import { filterList } from "@gyng/ditherer-filters";
 import { createRandomFilterEntry } from "components/ChainList/randomize";
 
 describe("ChainList random palette selection", () => {

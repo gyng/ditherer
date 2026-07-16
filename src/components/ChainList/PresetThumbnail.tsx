@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { FilterDefinition } from "filters/types";
+import type { FilterDefinition } from "@gyng/ditherer-filters";
 import type { ChainPreset } from "./presets";
 import Thumbnail, { type ThumbChainStep } from "./Thumbnail";
 

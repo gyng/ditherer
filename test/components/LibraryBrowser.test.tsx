@@ -112,11 +112,17 @@ const fixture = vi.hoisted(() => {
   return { filters, passthrough, presets, throws };
 });
 
-vi.mock("filters", () => ({
+vi.mock("@gyng/ditherer-filters", () => ({
+  BOOL: "BOOL",
+  COLOR: "COLOR",
+  ENUM: "ENUM",
+  RANGE: "RANGE",
+  STRING: "STRING",
+  TEXT: "TEXT",
   filterList: fixture.filters,
   hasTemporalBehavior: (entry: { filter?: { temporal?: boolean } }) => entry.filter?.temporal === true,
+  glAvailable: () => true,
 }));
-vi.mock("gl", () => ({ glAvailable: () => true }));
 vi.mock("components/ChainList/presets", () => ({
   CHAIN_PRESETS: fixture.presets,
   PRESET_CATEGORIES: ["Looks", "Motion"],

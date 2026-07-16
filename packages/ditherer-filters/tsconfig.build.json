@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {},
+    "types": ["vite/client"],
+    "rootDir": "src",
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": true,
+    "declarationDir": "types",
+    "composite": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "types", "src/wasm/rgba2laba/target"]
+}

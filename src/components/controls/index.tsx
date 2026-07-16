@@ -7,7 +7,7 @@ import type {
   PaletteOptionDefinition,
   RangeOptionDefinition,
   ThresholdMapPreviewOptionDefinition,
-} from "filters/types";
+} from "@gyng/ditherer-filters";
 import type { NestedControlsProps, PaletteValue } from "./types";
 
 import {
@@ -22,7 +22,7 @@ import {
   PALETTE,
   CURVE,
   THRESHOLD_MAP_PREVIEW
-} from "constants/controlTypes";
+} from "@gyng/ditherer-filters";
 
 import { useFilter } from "context/useFilter";
 

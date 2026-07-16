@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useFilter } from "context/useFilter";
-import { filterList, hasTemporalBehavior } from "filters";
+import { filterList, hasTemporalBehavior } from "@gyng/ditherer-filters";
 import {
   DEFAULT_RELIABLE_MAX_FPS,
   DEFAULT_RELIABLE_SETTLE_FRAMES,
@@ -265,6 +265,8 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     latestStateRef,
     renderVersionRef,
     exportAbortRef,
+    canvasWidth,
+    canvasHeight,
     mult,
     gifFps,
   });

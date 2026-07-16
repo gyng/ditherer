@@ -3,11 +3,11 @@ import {
   rgba2laba,
   wasmReady,
   wasmQuantizeBufferRgb,
-} from "utils";
+} from "@gyng/ditherer-filters";
 import initWasm, {
   quantize_buffer_rgb as rawQuantizeBufferRgb,
   rgba2laba as rawWasmRgba2laba,
-} from "./wasm/rgba2laba/wasm/rgba2laba";
+} from "@gyng/ditherer-filters/wasm-bindings";
 
 declare global {
   interface Window {

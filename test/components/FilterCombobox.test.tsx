@@ -19,7 +19,7 @@ const filterEntries = vi.hoisted(() => Array.from({ length: 55 }, (_, index) => 
   };
 }));
 
-vi.mock("filters", () => ({ filterList: filterEntries }));
+vi.mock("@gyng/ditherer-filters", () => ({ filterList: filterEntries }));
 
 import FilterCombobox from "components/FilterCombobox";
 

@@ -18,8 +18,12 @@ import AudioBpmReadout from "components/AudioBpmReadout";
 
 import { useFilter } from "context/useFilter";
 import { getScaleForMaxWidth } from "context/autoScale";
-import { SCALING_ALGORITHM } from "constants/optionTypes";
-import { SCALING_ALGORITHM_OPTIONS } from "constants/controlTypes";
+import {
+  createReadbackCanvas,
+  getReadbackContext,
+  SCALING_ALGORITHM,
+  SCALING_ALGORITHM_OPTIONS,
+} from "@gyng/ditherer-filters";
 import {
   dispatchRandomCycleSeconds,
   getCurrentRandomCycleSeconds,
@@ -33,7 +37,6 @@ import {
   getLastScreensaverVideoSwapAt,
   resetScreensaverSwapMarkers,
 } from "utils/randomCycleBridge";
-import { createReadbackCanvas, getReadbackContext } from "utils";
 import { AUTO_VIZ_DENSITY, buildAutoVizConnections } from "utils/autoViz";
 import type { AudioVizConnection, AudioVizMetric, EntryAudioModulation, GlobalAudioVizModulation } from "utils/audioVizBridge";
 import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, resetAudioVizTempo, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, tapDownbeat, updateAudioVizChannel } from "utils/audioVizBridge";

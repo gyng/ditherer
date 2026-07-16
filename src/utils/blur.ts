@@ -1,4 +1,4 @@
-import { getBufferIndex } from "utils";
+import { getBufferIndex } from "@gyng/ditherer-filters";
 
 /** Build a 1D Gaussian kernel */
 const buildKernel = (sigma: number): { kernel: Float32Array; radius: number } => {

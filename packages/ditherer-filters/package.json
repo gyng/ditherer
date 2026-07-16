@@ -1,0 +1,60 @@
+{
+  "name": "@gyng/ditherer-filters",
+  "version": "0.1.0",
+  "description": "Ditherer's browser-native Canvas2D, WebGL2, and WASM image filter engine",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gyng/ditherer.git",
+    "directory": "packages/ditherer-filters"
+  },
+  "homepage": "https://github.com/gyng/ditherer/tree/master/packages/ditherer-filters#readme",
+  "bugs": {
+    "url": "https://github.com/gyng/ditherer/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "sideEffects": true,
+  "files": [
+    "dist",
+    "types",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./types/worker.d.ts",
+      "import": "./dist/worker.js"
+    },
+    "./client": {
+      "types": "./types/client.d.ts",
+      "import": "./dist/client.js"
+    },
+    "./wasm-bindings": {
+      "types": "./types/wasm-bindings.d.ts",
+      "import": "./dist/wasm-bindings.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./types/index.d.ts",
+  "scripts": {
+    "build": "vite build --config vite.config.ts && npm run build:types",
+    "build:types": "node scripts/clean-types.mjs && tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "validate:release": "node scripts/validate-release.mjs"
+  },
+  "devDependencies": {
+    "fflate": "^0.8.2"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

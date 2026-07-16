@@ -16,7 +16,7 @@
 import { describe, bench, beforeAll } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { colorDistance, rgba2laba } from "utils";
+import { colorDistance, rgba2laba } from "@gyng/ditherer-filters";
 import {
   RGB_NEAREST,
   RGB_APPROX,
@@ -123,7 +123,7 @@ beforeAll(async () => {
   }
 
   try {
-    const wasmPath = resolve(process.cwd(), "src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm");
+    const wasmPath = resolve(process.cwd(), "packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm");
     const buf = await readFile(wasmPath);
     const imports = {
       "./rgba2laba_bg.js": {

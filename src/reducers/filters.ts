@@ -26,7 +26,16 @@ const CHAIN_TOGGLE = "CHAIN_TOGGLE";
 const CHAIN_REPLACE = "CHAIN_REPLACE";
 const CHAIN_DUPLICATE = "CHAIN_DUPLICATE";
 
-import { SCALING_ALGORITHM } from "constants/optionTypes";
+import {
+  createPalette,
+  filterIndex,
+  floydSteinberg,
+  paletteList,
+  SCALING_ALGORITHM,
+  THEMES,
+  type FilterDefinition,
+  type FilterOptionValues,
+} from "@gyng/ditherer-filters";
 import {
   hasV1SelectedState,
   isShareStateV2,
@@ -35,13 +44,7 @@ import {
   type SerializedFilterState,
   type SerializedPaletteState,
 } from "context/shareStateTypes";
-import type { FilterDefinition, FilterOptionValues } from "filters/types";
 import type { EntryAudioModulation } from "utils/audioVizBridge";
-
-import { floydSteinberg } from "filters/errorDiffusing";
-import { filterIndex } from "filters";
-import { paletteList } from "palettes";
-import { createPalette, THEMES } from "palettes/user";
 
 type FilterOptionMap = FilterOptionValues;
 type PaletteColor = number[];

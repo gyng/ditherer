@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { filterIndex, filterList, hasTemporalBehavior } from "filters";
+import { filterIndex, filterList, hasTemporalBehavior } from "@gyng/ditherer-filters";
 
 describe("filter registry", () => {
   it("keeps display names unique across the picker list", () => {
@@ -11,6 +11,13 @@ describe("filter registry", () => {
   it("keeps every unique filter name addressable through filterIndex", () => {
     const filterNames = [...new Set(filterList.map((entry) => entry.filter.name))];
     expect(filterNames.every((name) => filterIndex[name] != null)).toBe(true);
+  });
+
+  it("maps duplicate preset names to the first canonical catalog definition", () => {
+    const canonical = filterList.find((entry) => entry.displayName === "Floyd-Steinberg");
+
+    expect(canonical).toBeDefined();
+    expect(filterIndex["Floyd-Steinberg"]).toBe(canonical?.filter);
   });
 
   it("exposes every listed filter through filterIndex for worker execution", () => {

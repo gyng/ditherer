@@ -2,7 +2,7 @@ import React, { useId } from "react";
 import type { PaletteControlProps } from "./types";
 
 import Controls from "components/controls";
-import { paletteList } from "palettes";
+import { paletteList } from "@gyng/ditherer-filters";
 
 import { HelpHint } from "./ControlLabel";
 import { humanizeControlName } from "./labels";

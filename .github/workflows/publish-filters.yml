@@ -1,0 +1,46 @@
+name: Publish filter package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version from packages/ditherer-filters/package.json
+        required: true
+        type: string
+  push:
+    tags:
+      - filters-v*
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-filters-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: "@gyng"
+      - run: npm ci --legacy-peer-deps
+      - name: Validate requested version
+        run: >-
+          npm --prefix packages/ditherer-filters run validate:release --
+          "${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}"
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build:lib
+      - name: Publish to GitHub Packages
+        working-directory: packages/ditherer-filters
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
