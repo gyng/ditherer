@@ -7,6 +7,7 @@
 // comparison happens across the process boundary: this page renders, the spec
 // checks. See docs/plan/055-n-candidate-dithering.md.
 import nCandidateDither from "@gyng/ditherer-filters/filters/nCandidateDither";
+import { getGLCtx } from "@gyng/ditherer-filters";
 import { renderNCandidateGL, NC_ALGO, NC_SPACE } from "@gyng/ditherer-filters/filters/nCandidateDitherGL";
 
 type RenderRequest = {
@@ -42,17 +43,55 @@ const render = ({ width, height, rgba, options }: RenderRequest): number[] | nul
   return Array.from(outCtx.getImageData(0, 0, width, height).data);
 };
 
+// Resolve one TIME_ELAPSED query, or null if the driver flagged the measurement
+// as disjoint (a clock glitch / power-state change mid-measurement — the spec
+// says such a result must be thrown away, not merely distrusted).
+const resolveQuery = (
+  gl: WebGL2RenderingContext,
+  ext: { GPU_DISJOINT_EXT: number },
+  query: WebGLQuery,
+): Promise<number | null> =>
+  new Promise((resolve) => {
+    const poll = () => {
+      if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) {
+        setTimeout(poll, 1);
+        return;
+      }
+      const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
+      const ns = disjoint ? null : (gl.getQueryParameter(query, gl.QUERY_RESULT) as number);
+      gl.deleteQuery(query);
+      resolve(ns == null ? null : ns / 1e6);
+    };
+    poll();
+  });
+
 // Times the shader at a given palette cap. Calls the GL renderer directly
 // because `maxPal` is deliberately not a user-facing filter option — it only
 // exists so the cap can be chosen from real-hardware evidence rather than the
 // software rasterizer's (see test/e2e/nc-bench.spec.ts).
-const bench = ({ width, height, rgba, palette, maxPal, candidates, reps }: BenchRequest) => {
+//
+// Timing is GPU-side via EXT_disjoint_timer_query_webgl2, not wall clock. A
+// wall-clock version of this bench produced self-contradictory numbers (a
+// larger palette measuring *faster* than a smaller one) because at these sizes
+// the readback dominates: readoutToCanvas drawImage's the GL canvas into a 2D
+// canvas, and forcing that to land costs far more than the draw it wraps.
+// TIME_ELAPSED brackets only the GL command stream, so the readback drops out.
+const bench = async ({ width, height, rgba, palette, maxPal, candidates, reps }: BenchRequest) => {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+
+  const glCtx = getGLCtx();
+  if (!glCtx) return null;
+  const { gl } = glCtx;
+  const ext = gl.getExtension("EXT_disjoint_timer_query_webgl2") as {
+    TIME_ELAPSED_EXT: number;
+    GPU_DISJOINT_EXT: number;
+  } | null;
+  if (!ext) return { error: "EXT_disjoint_timer_query_webgl2 unavailable" };
 
   const opts = {
     thresholdMap: [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]],
@@ -71,18 +110,35 @@ const bench = ({ width, height, rgba, palette, maxPal, candidates, reps }: Bench
     maxPal,
   };
 
-  // Warm up: first call compiles the program for this cap.
-  if (!renderNCandidateGL(canvas, width, height, opts)) return null;
+  // Warm up: first call compiles the program for this cap, and lets the GPU
+  // clock up so the first timed sample isn't measuring a downclocked card.
+  for (let i = 0; i < 3; i++) {
+    if (!renderNCandidateGL(canvas, width, height, opts)) return null;
+  }
 
   const times: number[] = [];
+  let disjoint = 0;
   for (let i = 0; i < reps; i++) {
-    const t0 = performance.now();
-    const out = renderNCandidateGL(canvas, width, height, opts);
-    // Force the readback to land before stopping the clock, otherwise we time
-    // command submission rather than the draw.
-    (out as HTMLCanvasElement)?.getContext("2d")?.getImageData(0, 0, 1, 1);
-    times.push(performance.now() - t0);
+    const query = gl.createQuery();
+    if (!query) break;
+    // Drain everything already queued before opening the window. Without this
+    // the samples come out bimodal — some land at the real cost, others at a
+    // floor that was identical across configurations, i.e. the query was
+    // timing a window our draw hadn't reached yet.
+    gl.finish();
+    // Only one TIME_ELAPSED query can be in flight per context, so this has to
+    // stay sequential.
+    gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
+    renderNCandidateGL(canvas, width, height, opts);
+    gl.endQuery(ext.TIME_ELAPSED_EXT);
+    // Force our draw to complete inside the window rather than trailing past
+    // endQuery into the next sample.
+    gl.finish();
+    const ms = await resolveQuery(gl, ext, query);
+    if (ms == null) disjoint++;
+    else times.push(ms);
   }
+  if (times.length === 0) return { error: `all ${reps} samples disjoint` };
   times.sort((a, b) => a - b);
 
   const out = renderNCandidateGL(canvas, width, height, opts) as HTMLCanvasElement;
@@ -92,7 +148,16 @@ const bench = ({ width, height, rgba, palette, maxPal, candidates, reps }: Bench
     distinct.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]}`);
   }
 
-  return { median: times[Math.floor(times.length / 2)], distinct: distinct.size };
+  // Report spread too: a median alone can't tell a clean measurement from a
+  // noisy one, and this bench exists precisely because the last one was noise.
+  return {
+    median: times[Math.floor(times.length / 2)],
+    min: times[0],
+    max: times[times.length - 1],
+    samples: times.length,
+    disjoint,
+    distinct: distinct.size,
+  };
 };
 
 (window as unknown as {

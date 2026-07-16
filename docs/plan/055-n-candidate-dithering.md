@@ -95,6 +95,61 @@ renderer, so the cap can be set from real-hardware evidence. `maxPal` is a
 parameter of `renderNCandidateGL` for that reason; production passes nothing and
 gets `MAX_PAL`.
 
+### Benchmarking this shader — three traps, all hit in practice
+
+1. **The default browser never touches the GPU.** Headless Chrome lands on
+   SwiftShader; `--use-angle=vulkan` lands on llvmpipe, because this WSLg box has
+   no NVIDIA Vulkan ICD and no dzn driver — only Mesa's software ICDs. Both are
+   CPU rasterizers that model no register file, so they cannot answer the only
+   question the cap depends on. The GPU route is ANGLE-over-GL with Mesa's d3d12
+   Gallium driver (`PLAYWRIGHT_ANGLE=gl PLAYWRIGHT_GPU=1`), which reports
+   `ANGLE (Microsoft Corporation, D3D12 (NVIDIA GeForce RTX 3080), OpenGL 4.6)`.
+   **Always print `UNMASKED_RENDERER_WEBGL` and read it before trusting a
+   number.** This isn't pedantry: `MAX_FRAGMENT_UNIFORM_VECTORS` reads 4096 on
+   SwiftShader but **1024** on the real card — believe the software renderer and
+   you'd size a uniform array 4× past what the GPU permits.
+
+2. **Wall-clock timing measures the readback, not the shader.** `readoutToCanvas`
+   drawImage's the GL canvas into a 2D canvas; forcing that to land costs far
+   more than the draw it wraps. A wall-clock sweep produced numbers that
+   contradicted themselves — K=64 timing *faster* than K=16 — because the signal
+   was smaller than the overhead. Use `EXT_disjoint_timer_query_webgl2`
+   (available on this path, no draft flag) to bracket the GL command stream.
+
+3. **Timer queries need the pipeline drained.** Without a `gl.finish()` on both
+   sides of the query window the samples come out bimodal — some at the real
+   cost, others at a floor that was *identical across different configurations*,
+   i.e. the query was timing a window the draw hadn't reached. Discard
+   `GPU_DISJOINT_EXT` samples (the spec requires it) and **always report spread**:
+   the bad cells had a 5× max/min while their medians looked perfectly
+   respectable. A median with no spread beside it is not evidence.
+
+Sanity check any result against physics before believing it: cost must rise
+with K.
+
+### Outcome so far: still unmeasured, cap stays at 64
+
+Even with GPU timing, a drained pipeline and 9 reps, this box could not produce a
+valid measurement. Two runs of the identical bench on the same RTX 3080
+disagreed:
+
+| cap=64 → 128 | K=8 | K=16 | K=64 |
+|---|---|---|---|
+| run 1 | 7.89 → 9.79 | 9.43 → 12.09 | — |
+| run 2 | 8.77 → 11.58 | 10.60 → 26.78 | 12.99 → 9.24 |
+
+Run 1 showed a tidy ~30% step between cap=64 and cap=128 in two independent
+columns, which looks exactly like a spill threshold. It did not reproduce. Run 2
+also violates physics outright — at cap=128, K=64 measures *cheaper* than K=8;
+at cap=256 cost *falls* as K rises — and half the cells still spread 5×.
+
+Conclusion: **the cap remains unjustified by evidence, and stays at 64 because
+that is the conservative default, not because it was shown correct.** Do not cite
+run 1's step; it was noise that happened to look like signal. Anyone retrying
+this should first check what else is using the GPU (an unrelated project's
+browser fleet was resident during these runs), and treat a result as real only
+if it reproduces across runs *and* rises with K.
+
 **Known bug, independent of where the cap lands:** palettes above the cap are
 silently `slice()`d to the first N entries, so a 256-color palette renders with
 the wrong colors and no warning (the K=256 row above used 26 distinct colors).

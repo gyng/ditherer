@@ -5,27 +5,34 @@ import { test } from "@playwright/test";
 // WHY THIS EXISTS: the shader keeps a per-fragment `float weights[MAX_PAL]`
 // accumulator. On a real GPU a large array spills to scratch memory and cuts
 // occupancy, which is the only real argument for capping the palette at all.
-// A software rasterizer (SwiftShader, what CI and most dev boxes get here) has
-// a stack and models none of that — so numbers from CI cannot answer the
-// question. This must be run on real hardware.
+// A software rasterizer has a stack and models none of that, so it cannot
+// answer the question no matter how carefully you time it. This must run on
+// real hardware, and it times the GPU rather than the wall clock.
 //
-//   NC_BENCH=1 npx playwright test test/e2e/nc-bench.spec.ts --project=chromium
+// PLAYWRIGHT_GPU=1 sets up the Mesa d3d12 route itself (see playwright.config.ts);
+// `--use-angle=vulkan` would land on llvmpipe, as there's no NVIDIA Vulkan ICD.
 //
-// Check the RENDERER line it prints: if it says SwiftShader, the numbers are
-// measuring a CPU and tell you nothing about register pressure. Point Playwright
-// at a GPU-backed browser instead:
-//
-//   NC_BENCH=1 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome \
+//   NC_BENCH=1 PLAYWRIGHT_ANGLE=gl PLAYWRIGHT_GPU=1 \
+//   PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome \
 //     npx playwright test test/e2e/nc-bench.spec.ts --project=chromium
 //
+// Always read the RENDERER line it prints. If it names llvmpipe or SwiftShader
+// you are timing a CPU and the numbers say nothing about register pressure.
+//
+// BEFORE BELIEVING ANY NUMBER HERE: as of the last attempt this bench could not
+// produce a valid result on a WSLg RTX 3080 even with GPU timing and a drained
+// pipeline — two runs disagreed, and some cells measured cost *falling* as the
+// palette grew, which is impossible. Check `spread`, re-run to confirm it
+// reproduces, and check what else is using the GPU. See the "still unmeasured"
+// section of docs/plan/055-n-candidate-dithering.md.
+//
 // Opt-in because it is slow and its result is a judgement call, not a pass/fail.
-// See docs/plan/055-n-candidate-dithering.md.
 
 const W = 640, H = 400;
 const CAPS = [16, 64, 128, 256];
 const PALETTE_SIZES = [8, 16, 64, 256];
 const CANDIDATES = 32;
-const REPS = 7;
+const REPS = 9;
 
 // Spread colors around the HSV wheel so the candidate search has real choices
 // at every palette size.
@@ -78,30 +85,46 @@ test("palette cap cost across MAX_PAL x K", async ({ page }) => {
     for (let x = 0; x < W; x++) rgba.push((x / W) * 255, (y / H) * 255, ((x ^ y) & 255), 255);
   }
 
-  const rows: string[] = [];
-  console.log(`\n${W}x${H}, N=${CANDIDATES}, EMA-Exact, median of ${REPS}\n`);
-  console.log(`cap\\K   ${PALETTE_SIZES.map((k) => String(k).padStart(9)).join("")}`);
+  type Cell = {
+    median: number; min: number; max: number;
+    samples: number; disjoint: number; distinct: number;
+  } | { error: string } | null;
+
+  const detail: string[] = [];
+  console.log(`\n${W}x${H}, N=${CANDIDATES}, EMA-Exact, GPU time, median of ${REPS}\n`);
+  console.log(`cap\\K   ${PALETTE_SIZES.map((k) => String(k).padStart(10)).join("")}`);
 
   for (const maxPal of CAPS) {
     const cells: string[] = [];
     for (const k of PALETTE_SIZES) {
-      if (k > maxPal) { cells.push("       --"); continue; }
-      const r = await page.evaluate(
+      if (k > maxPal) { cells.push("        --"); continue; }
+      const r: Cell = await page.evaluate(
         ({ rgba, W, H, palette, maxPal, candidates, reps }) =>
-          (window as unknown as { __ncParity: { bench: (b: unknown) => { median: number; distinct: number } | null } })
+          (window as unknown as { __ncParity: { bench: (b: unknown) => Promise<Cell> } })
             .__ncParity.bench({ width: W, height: H, rgba, palette, maxPal, candidates, reps }),
         { rgba, W, H, palette: makePalette(k), maxPal, candidates: CANDIDATES, reps: REPS },
       );
-      cells.push(r ? `${r.median.toFixed(1)}ms`.padStart(9) : "     FAIL");
+      if (!r || "error" in r) {
+        cells.push("      FAIL");
+        detail.push(`cap=${maxPal} K=${k}: ${r ? r.error : "no result"}`);
+        continue;
+      }
+      cells.push(`${r.median.toFixed(2)}ms`.padStart(10));
+      // Spread is the honesty check — if max/min is wide the median is noise.
+      detail.push(
+        `cap=${String(maxPal).padEnd(4)} K=${String(k).padEnd(4)} `
+        + `median=${r.median.toFixed(2)} min=${r.min.toFixed(2)} max=${r.max.toFixed(2)} `
+        + `spread=${(r.max / Math.max(r.min, 1e-6)).toFixed(1)}x `
+        + `n=${r.samples} disjoint=${r.disjoint} colors=${r.distinct}`,
+      );
     }
-    const row = `${String(maxPal).padEnd(8)}${cells.join("")}`;
-    console.log(row);
-    rows.push(row);
+    console.log(`${String(maxPal).padEnd(8)}${cells.join("")}`);
   }
 
+  console.log(`\n${detail.join("\n")}`);
   console.log(
     "\nRead it down a column: that isolates the cost of the compiled cap at a\n"
-    + "fixed real palette size. If a bigger cap is ~free down each column, the\n"
-    + "cap only needs to be as large as the palettes we want to support.\n",
+    + "fixed real palette size. Check `spread` before believing any median —\n"
+    + "and sanity-check that cost rises with K, since it must.\n",
   );
 });
