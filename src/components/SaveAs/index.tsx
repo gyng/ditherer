@@ -265,6 +265,8 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     latestStateRef,
     renderVersionRef,
     exportAbortRef,
+    canvasWidth,
+    canvasHeight,
     mult,
     gifFps,
   });

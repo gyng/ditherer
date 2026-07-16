@@ -19,13 +19,36 @@ let refs: {
   exportAbortRef: { current: boolean };
 };
 
-const Harness = ({ mult = 2, gifFps = 10 }: { mult?: number; gifFps?: number }) => {
-  latest = useSaveAsRenderSync({ ...refs, mult, gifFps } as never);
+const Harness = ({
+  mult = 2,
+  gifFps = 10,
+  canvasWidth = 8,
+  canvasHeight = 6,
+}: {
+  mult?: number;
+  gifFps?: number;
+  canvasWidth?: number;
+  canvasHeight?: number;
+}) => {
+  latest = useSaveAsRenderSync({
+    ...refs,
+    mult,
+    gifFps,
+    canvasWidth,
+    canvasHeight,
+  } as never);
   return null;
 };
 
-const render = (mult = 2, gifFps = 10) => {
-  act(() => root.render(<Harness mult={mult} gifFps={gifFps} />));
+const render = (mult = 2, gifFps = 10, canvasWidth = 8, canvasHeight = 6) => {
+  act(() => root.render(
+    <Harness
+      mult={mult}
+      gifFps={gifFps}
+      canvasWidth={canvasWidth}
+      canvasHeight={canvasHeight}
+    />,
+  ));
 };
 
 const immediateRaf = (onFrame?: () => void) => vi
@@ -89,6 +112,16 @@ describe("useSaveAsRenderSync", () => {
     expect(scaled.height).toBe(18);
     refs.outputCanvasRef.current = null;
     expect(latest.getScaledCanvas()).toBeNull();
+  });
+
+  it("uses the advertised output size while the mounted canvas is still stale", () => {
+    render(2, 10, 10, 7);
+
+    const scaled = latest.getScaledCanvas()!;
+    expect(source.width).toBe(8);
+    expect(source.height).toBe(6);
+    expect(scaled.width).toBe(20);
+    expect(scaled.height).toBe(14);
   });
 
   it("estimates frame rates from standardized and legacy counters with clamping", () => {

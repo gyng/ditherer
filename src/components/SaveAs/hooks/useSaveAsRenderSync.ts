@@ -8,6 +8,8 @@ interface UseSaveAsRenderSyncOptions {
   latestStateRef: RefObject<FilterState>;
   renderVersionRef: RefObject<number>;
   exportAbortRef: RefObject<boolean>;
+  canvasWidth: number;
+  canvasHeight: number;
   mult: number;
   gifFps: number;
 }
@@ -24,6 +26,8 @@ export const useSaveAsRenderSync = ({
   latestStateRef,
   renderVersionRef,
   exportAbortRef,
+  canvasWidth,
+  canvasHeight,
   mult,
   gifFps,
 }: UseSaveAsRenderSyncOptions) => {
@@ -35,8 +39,8 @@ export const useSaveAsRenderSync = ({
       scaled = document.createElement("canvas");
       scaledCanvasRef.current = scaled;
     }
-    const targetWidth = source.width * mult;
-    const targetHeight = source.height * mult;
+    const targetWidth = canvasWidth * mult;
+    const targetHeight = canvasHeight * mult;
     if (scaled.width !== targetWidth) scaled.width = targetWidth;
     if (scaled.height !== targetHeight) scaled.height = targetHeight;
     const ctx = scaled.getContext("2d");
@@ -45,7 +49,7 @@ export const useSaveAsRenderSync = ({
     ctx.clearRect(0, 0, scaled.width, scaled.height);
     ctx.drawImage(source, 0, 0, scaled.width, scaled.height);
     return scaled;
-  }, [outputCanvasRef, scaledCanvasRef, mult]);
+  }, [outputCanvasRef, scaledCanvasRef, canvasWidth, canvasHeight, mult]);
 
   const estimateVideoFps = useCallback((vid: HTMLVideoElement, fallback: number) => {
     const duration = vid.duration || 0;
