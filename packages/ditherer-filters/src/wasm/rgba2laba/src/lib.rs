@@ -224,6 +224,81 @@ pub fn quantize_buffer_lab(
     out
 }
 
+/// sRGB -> OKLab (Bjorn Ottosson). Mirrors `rgba2oklaba` in utils/index.ts.
+///
+/// Same discipline as rgba2lab_via_lut and for the same reason: read the f32
+/// sRGB->linear LUT, then do everything else in f64. Linearising with a direct
+/// f64 powf(2.4) instead drifts in the last bits, which is enough to flip a
+/// near-tie and break JS/WASM parity on a handful of pixels.
+///
+/// Uses cbrt on both sides (JS Math.cbrt) rather than powf(1/3) — parity is
+/// asserted in test/palettes/quantizeBufferParity.test.ts, which is what
+/// settles whether the two agree bit-for-bit.
+fn rgba_to_oklab_via_lut(r: u8, g: u8, b: u8) -> [f64; 3] {
+    let lut = srgb_to_lin_lut();
+    // 0..1 linear light — NOT scaled by 100 the way the CIELab path does.
+    let r = lut[r as usize] as f64;
+    let g = lut[g as usize] as f64;
+    let b = lut[b as usize] as f64;
+
+    let l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
+    let m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
+    let s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+
+    let l_ = l.cbrt();
+    let m_ = m.cbrt();
+    let s_ = s.cbrt();
+
+    [
+        0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
+    ]
+}
+
+/// Quantize a buffer to a palette using OKLab distance.
+/// Mirrors colorDistance(OKLAB_NEAREST) exactly, tie-breaking included.
+#[wasm_bindgen]
+pub fn quantize_buffer_oklab(buffer: &[u8], palette: &[f64]) -> Vec<u8> {
+    let n_colors = palette.len() / 4;
+    let mut pal_rgb: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
+    let mut pal_ok: Vec<[f64; 3]> = Vec::with_capacity(n_colors);
+    for i in 0..n_colors {
+        let r = palette[i * 4] as u8;
+        let g = palette[i * 4 + 1] as u8;
+        let b = palette[i * 4 + 2] as u8;
+        let a = palette[i * 4 + 3] as u8;
+        pal_rgb.push([r, g, b, a]);
+        pal_ok.push(rgba_to_oklab_via_lut(r, g, b));
+    }
+
+    let n_pixels = buffer.len() / 4;
+    let mut out = vec![0u8; buffer.len()];
+    for p in 0..n_pixels {
+        let i = p * 4;
+        let ok = rgba_to_oklab_via_lut(buffer[i], buffer[i + 1], buffer[i + 2]);
+
+        let mut best = 0usize;
+        let mut best_d = f64::MAX;
+        for (j, pl) in pal_ok.iter().enumerate() {
+            let dl = ok[0] - pl[0];
+            let da = ok[1] - pl[1];
+            let db = ok[2] - pl[2];
+            let d = dl * dl + da * da + db * db;
+            // Strict <, first wins — matches the JS loop's tie-breaking.
+            if d < best_d {
+                best_d = d;
+                best = j;
+            }
+        }
+        out[i] = pal_rgb[best][0];
+        out[i + 1] = pal_rgb[best][1];
+        out[i + 2] = pal_rgb[best][2];
+        out[i + 3] = buffer[i + 3];
+    }
+    out
+}
+
 /// Quantize a buffer using the red-mean perceptual RGB approximation.
 /// Mirrors colorDistance(RGB_APPROX) exactly, including the /256 divisors.
 #[wasm_bindgen]
@@ -1939,5 +2014,73 @@ mod tests {
         let out = rgba2laba(128.0, 128.0, 128.0, 255.0, 95.047, 100.0, 108.883);
         assert!((out[0] - 53.585).abs() < 0.05, "grey L should be ~53.585, got {}", out[0]);
         assert!(out[1].abs() < 0.01 && out[2].abs() < 0.01, "grey should be neutral");
+    }
+
+    // OKLab reference values published by Bjorn Ottosson, not captured from this
+    // implementation — a conversion checked against its own output is a snapshot.
+    #[test]
+    fn oklab_matches_published_srgb_primaries() {
+        let cases: [([u8; 3], [f64; 3]); 5] = [
+            ([255, 255, 255], [1.0, 0.0, 0.0]),
+            ([0, 0, 0], [0.0, 0.0, 0.0]),
+            ([255, 0, 0], [0.6279, 0.2249, 0.1258]),
+            ([0, 255, 0], [0.8664, -0.2339, 0.1795]),
+            ([0, 0, 255], [0.4520, -0.0324, -0.3115]),
+        ];
+        for (rgb, want) in cases {
+            let got = rgba_to_oklab_via_lut(rgb[0], rgb[1], rgb[2]);
+            for k in 0..3 {
+                assert!(
+                    (got[k] - want[k]).abs() < 0.001,
+                    "rgb {:?} component {}: got {}, want {}",
+                    rgb, k, got[k], want[k]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn oklab_greys_are_achromatic() {
+        // Any neutral must land on the L axis; a sign error in the LMS matrix
+        // shows up here even when the primaries still look plausible.
+        for v in [0u8, 64, 128, 200, 255] {
+            let got = rgba_to_oklab_via_lut(v, v, v);
+            assert!(got[1].abs() < 1e-6 && got[2].abs() < 1e-6, "grey {} not neutral: {:?}", v, got);
+        }
+    }
+
+    #[test]
+    fn quantize_buffer_oklab_only_emits_palette_colors_and_keeps_alpha() {
+        let palette: Vec<f64> = vec![
+            0.0, 0.0, 0.0, 255.0,
+            255.0, 255.0, 255.0, 255.0,
+            255.0, 0.0, 0.0, 255.0,
+        ];
+        let buffer: Vec<u8> = vec![
+            10, 10, 10, 7,
+            240, 240, 240, 190,
+            200, 20, 20, 255,
+        ];
+        let out = quantize_buffer_oklab(&buffer, &palette);
+        assert_eq!(&out[0..3], &[0, 0, 0]);
+        assert_eq!(&out[4..7], &[255, 255, 255]);
+        assert_eq!(&out[8..11], &[255, 0, 0]);
+        // Source alpha is carried through, never scored.
+        assert_eq!(out[3], 7);
+        assert_eq!(out[7], 190);
+        assert_eq!(out[11], 255);
+    }
+
+    #[test]
+    fn quantize_buffer_oklab_ties_pick_the_first_palette_entry() {
+        // Mirrors the JS loop's strict-< tie-breaking. Two identical colours:
+        // the earlier index must win, or JS/WASM diverge on exact ties.
+        let palette: Vec<f64> = vec![
+            10.0, 20.0, 30.0, 255.0,
+            10.0, 20.0, 30.0, 255.0,
+        ];
+        let buffer: Vec<u8> = vec![200, 200, 200, 255];
+        let out = quantize_buffer_oklab(&buffer, &palette);
+        assert_eq!(&out[0..3], &[10, 20, 30]);
     }
 }

@@ -7,6 +7,7 @@ export const error_diffuse_custom_order: (a: number, b: number, c: number, d: nu
 export const nearest_lab_precomputed: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
 export const quantize_buffer_hsv: (a: number, b: number, c: number, d: number) => [number, number];
 export const quantize_buffer_lab: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+export const quantize_buffer_oklab: (a: number, b: number, c: number, d: number) => [number, number];
 export const quantize_buffer_rgb: (a: number, b: number, c: number, d: number) => [number, number];
 export const quantize_buffer_rgb_approx: (a: number, b: number, c: number, d: number) => [number, number];
 export const rgba2laba: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];

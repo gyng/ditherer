@@ -597,6 +597,97 @@ const runLinearizeIsLive = (): { ok: true } | { ok: false; reason: string } => {
   return { ok: true };
 };
 
+
+// Does orderedGL's OKLab mode actually do OKLab?
+//
+// Two failure modes, both silent:
+//   1. ordered.ts falls back to ORDERED_PAL_MODE.LEVELS for an algorithm it
+//      doesn't recognise, and LEVELS passes `paletteRgb: null` — so a missing
+//      mapping renders level-quantized output with the palette DISCARDED. That
+//      looks like a plausible image, not a failure. OKLab hit exactly this.
+//   2. The shader's OKLab maths could be wrong. That is how the HSV `/255` bug
+//      survived: GL and CPU disagreed on every HSV palette and nothing compared
+//      them.
+//
+// Ordered is requiresGL:true — GL-only, no CPU backend — so the usual
+// "both backends agree" shape is impossible here: `_webglAcceleration: false`
+// changes nothing and both renders are the same shader. (An earlier version of
+// this check did exactly that and passed against a deliberately broken shader.)
+//
+// So instead: pick colours where OKLab and RGB disagree about which palette
+// entry is nearest, and require the shader to give the OKLab answer. That can
+// only pass if the shader is really computing OKLab. Each triple's margin is
+// wide (>35%) so the dither bias can't flip the winner, and BAYER_16X16 gives
+// levels=256 — step 1, bias +-0.5 — so `quant` stays within an LSB of source.
+const runOrderedOklabPalette = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex.Ordered;
+  if (!filter) return { ok: false, reason: "Ordered not in registry" };
+
+  // [source, nearest-in-OKLab, nearest-in-RGB] — found by search, margins >35%.
+  const TRIPLES: [number[], number[], number[]][] = [
+    [[125, 209, 54], [7, 195, 232], [232, 79, 43]],
+    [[22, 90, 162], [138, 27, 42], [12, 214, 123]],
+    [[32, 151, 116], [136, 140, 5], [81, 209, 131]],
+    [[30, 167, 42], [228, 219, 68], [15, 54, 74]],
+    [[239, 177, 46], [96, 238, 224], [217, 69, 187]],
+  ];
+
+  const flat = (rgb: number[], w: number, h: number): HTMLCanvasElement => {
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("2d context unavailable");
+    ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    ctx.fillRect(0, 0, w, h);
+    return canvas;
+  };
+
+  for (const [src, okAnswer, rgbAnswer] of TRIPLES) {
+    const defaults = { ...(filter.defaults ?? {}) } as Record<string, unknown>;
+    const basePalette = defaults.palette as Record<string, unknown>;
+    const output = filter.func(flat(src, 16, 16), {
+      ...defaults,
+      thresholdMap: "BAYER_16X16",   // levels=256 -> bias +-0.5, quant ~= source
+      palette: {
+        ...basePalette,
+        options: {
+          ...((basePalette.options as Record<string, unknown>) ?? {}),
+          colors: [[...okAnswer, 255], [...rgbAnswer, 255]],
+          colorDistanceAlgorithm: "OKLAB",
+        },
+      },
+      _linearize: false,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    const data = output.getContext("2d", { willReadFrequently: true })
+      ?.getImageData(0, 0, output.width, output.height).data;
+    if (!data) return { ok: false, reason: "Ordered OKLab readback failed" };
+
+    let okCount = 0, rgbCount = 0, other = 0;
+    let otherExample = "";
+    for (let i = 0; i < data.length; i += 4) {
+      const px = [data[i], data[i + 1], data[i + 2]];
+      if (px[0] === okAnswer[0] && px[1] === okAnswer[1] && px[2] === okAnswer[2]) okCount++;
+      else if (px[0] === rgbAnswer[0] && px[1] === rgbAnswer[1] && px[2] === rgbAnswer[2]) rgbCount++;
+      else { other++; if (!otherExample) otherExample = `${px}`; }
+    }
+    const total = data.length / 4;
+    if (other > 0) {
+      return {
+        ok: false,
+        reason: `Ordered OKLab src=[${src}] emitted ${other}/${total} px outside the palette (e.g. ${otherExample}) — palMode likely fell back to LEVELS, dropping the palette`,
+      };
+    }
+    if (okCount !== total) {
+      return {
+        ok: false,
+        reason: `Ordered OKLab src=[${src}] picked the RGB-nearest [${rgbAnswer}] for ${rgbCount}/${total} px instead of the OKLab-nearest [${okAnswer}] — shader OKLab disagrees with the CPU reference`,
+      };
+    }
+  }
+  return { ok: true };
+};
+
 const runOrderedPaletteLevels = (): { ok: true } | { ok: false; reason: string } => {
   const filter = filterIndex.Ordered;
   const render = (levels: number): Uint8ClampedArray | null => {
@@ -981,6 +1072,7 @@ const main = async () => {
 
   record("rgbStripe", "worker", await runWorkerCrt());
   record("Ordered", "nearest-palette-levels", runOrderedPaletteLevels());
+  record("Ordered", "oklab-palette", runOrderedOklabPalette());
   record("Quantize", "palette-subset", runQuantizePaletteSubset());
   record("CMYK Halftone", "screen-angles", runCmykAngles());
   record("Median Cut", "backend-agreement", runMedianCutBackendAgreement());

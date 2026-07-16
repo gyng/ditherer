@@ -40,6 +40,12 @@ export function quantize_buffer_hsv(buffer: Uint8Array, palette: Float64Array): 
 export function quantize_buffer_lab(buffer: Uint8Array, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): Uint8Array;
 
 /**
+ * Quantize a buffer to a palette using OKLab distance.
+ * Mirrors colorDistance(OKLAB_NEAREST) exactly, tie-breaking included.
+ */
+export function quantize_buffer_oklab(buffer: Uint8Array, palette: Float64Array): Uint8Array;
+
+/**
  * `buffer` is [r,g,b,a, r,g,b,a, …] u8 values.
  * `palette` is [r,g,b,a, …] f64 values (0-255).
  * Returns a new u8 buffer with matched palette colours (alpha preserved).
@@ -75,6 +81,7 @@ export interface InitOutput {
     readonly nearest_lab_precomputed: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
     readonly quantize_buffer_hsv: (a: number, b: number, c: number, d: number) => [number, number];
     readonly quantize_buffer_lab: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+    readonly quantize_buffer_oklab: (a: number, b: number, c: number, d: number) => [number, number];
     readonly quantize_buffer_rgb: (a: number, b: number, c: number, d: number) => [number, number];
     readonly quantize_buffer_rgb_approx: (a: number, b: number, c: number, d: number) => [number, number];
     readonly rgba2laba: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];

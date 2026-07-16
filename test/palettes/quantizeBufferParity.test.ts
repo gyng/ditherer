@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { initWasmFromBinary, wasmIsLoaded } from "@gyng/ditherer-filters";
 import { applyPaletteToBuffer } from "palettes/backend";
 import user, { THEMES } from "palettes/user";
-import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST } from "constants/color";
+import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST } from "constants/color";
 
 // applyPaletteToBuffer now routes custom-colour RGB palettes through the
 // whole-buffer WASM quantizer instead of the per-pixel JS loop (1348ms -> 83ms
@@ -134,19 +134,19 @@ describe("whole-buffer RGB quantizer parity", () => {
       .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
   });
 
-  it.each([RGB_APPROX, HSV_NEAREST])("%s: WASM and JS agree on every pixel", (algo) => {
+  it.each([RGB_APPROX, HSV_NEAREST, OKLAB_NEAREST])("%s: WASM and JS agree on every pixel", (algo) => {
     const src = makeBuf(8192, 255);
     expect(Array.from(apply(src, withAlgo(algo), true)))
       .toEqual(Array.from(apply(src, withAlgo(algo), false)));
   });
 
-  it.each([RGB_APPROX, HSV_NEAREST])("%s: agrees with varying alpha", (algo) => {
+  it.each([RGB_APPROX, HSV_NEAREST, OKLAB_NEAREST])("%s: agrees with varying alpha", (algo) => {
     const src = makeBuf(8192);
     expect(Array.from(apply(src, withAlgo(algo), true)))
       .toEqual(Array.from(apply(src, withAlgo(algo), false)));
   });
 
-  it.each([RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST])(
+  it.each([RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST])(
     "%s: agrees across a coarse RGB grid, not just random samples",
     (algo) => {
       // Random pixels can miss a systematic error in a corner of the cube —

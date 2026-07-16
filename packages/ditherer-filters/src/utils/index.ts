@@ -3,6 +3,7 @@ import {
   RGB_APPROX,
   HSV_NEAREST,
   LAB_NEAREST,
+  OKLAB_NEAREST,
 } from "../constants/color";
 
 // --- sRGB ↔ linear conversion (float precision) ---
@@ -191,6 +192,7 @@ const bindWasmModule = (mod: typeof import("../wasm/rgba2laba/wasm/rgba2laba")) 
   wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
   wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
   wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
+  wasmQuantizeBufferOklabInner = mod.quantize_buffer_oklab;
   wasmErrorDiffuseBufferInner = mod.error_diffuse_buffer;
   wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
   wasmRiemersmaDitherInner = mod.riemersma_dither;
@@ -406,6 +408,46 @@ export const rgba2laba = (
   return [outL, outA, outB, ia];
 };
 
+// sRGB → OKLab (Björn Ottosson, https://bottosson.github.io/posts/oklab/).
+//
+// Same job as rgba2laba — a perceptually-uniform space where euclidean distance
+// approximates perceived difference — but it fixes CIELab's blue/purple hue
+// non-linearity and costs far less: no whitepoint division, no XYZ hop, and
+// three cbrts against Lab's three pow(1/3) plus a matrix.
+//
+// Ranges differ from Lab and callers must not assume otherwise: L is 0..1 here,
+// not 0..100, and a/b sit roughly in ±0.4 rather than ±128. Distances are
+// therefore on a completely different scale to LAB_NEAREST's — fine, since
+// nothing compares distances *across* algorithms, but it means no threshold
+// tuned for Lab transfers.
+//
+// Reads the same f32 sRGB→linear LUT as rgba2laba, then works in f64. That's
+// deliberate and load-bearing for WASM parity: the Rust side mirrors this
+// exactly (see rgba_to_oklab_via_lut), and a different linearisation drifts far
+// enough in the last bits to flip a near-tie.
+export const rgba2oklaba = (input: RgbaLike) => {
+  const [ir, ig, ib, ia] = readPixel(input);
+  // 0..1 linear light, NOT scaled by 100 the way rgba2laba does for XYZ.
+  const r = SRGB_TO_LINEAR_F[ir] ?? 0;
+  const g = SRGB_TO_LINEAR_F[ig] ?? 0;
+  const b = SRGB_TO_LINEAR_F[ib] ?? 0;
+
+  const l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
+  const m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
+  const s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+
+  const l_ = Math.cbrt(l);
+  const m_ = Math.cbrt(m);
+  const s_ = Math.cbrt(s);
+
+  return [
+    0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+    1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+    0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
+    ia,
+  ];
+};
+
 type WasmNearestLabPrecomputedFn = (
   r: number,
   g: number,
@@ -529,6 +571,7 @@ const wasmQuantizeBufferLabInnerDefault: WasmQuantizeBufferFn = wasmQuantizeBuff
 let wasmQuantizeBufferLabInner: WasmQuantizeBufferFn = wasmQuantizeBufferLabInnerDefault;
 let wasmQuantizeBufferRgbApproxInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 let wasmQuantizeBufferHsvInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
+let wasmQuantizeBufferOklabInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 let wasmErrorDiffuseBufferInner: WasmErrorDiffuseBufferFn = wasmErrorDiffuseBufferInnerDefault;
 let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = wasmErrorDiffuseCustomInnerDefault;
 let wasmRiemersmaDitherInner: WasmRiemersmaDitherFn = wasmRiemersmaDitherInnerDefault;
@@ -536,6 +579,7 @@ let wasmApplyChannelLutInner: WasmApplyChannelLutFn = wasmApplyChannelLutInnerDe
 
 export const rgba2labaMemo = memoize(rgba2laba);
 export const rgba2hsvaMemo = memoize(rgba2hsva);
+export const rgba2oklabaMemo = memoize(rgba2oklaba);
 
 // Shared palette flat-array cache for WASM calls that receive a palette.
 let cachedPaletteFlat: Float64Array | null = null;
@@ -612,6 +656,14 @@ export const wasmQuantizeBufferHsv = (
   palette: number[][],
 ): Uint8Array =>
   wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
+
+// OKLab takes no whitepoint — it has D65 baked into its matrices, unlike
+// wasmQuantizeBufferLab which threads ref through.
+export const wasmQuantizeBufferOklab = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette: number[][],
+): Uint8Array =>
+  wasmQuantizeBufferOklabInner(buffer, ensurePaletteFlat(palette));
 
 // Resolve the colorDistanceAlgorithm for a palette, honoring the user palette's
 // runtime fallback (defaults.colorDistanceAlgorithm) so random-preset palettes
@@ -929,6 +981,17 @@ export const colorDistance = (
       return ((bLab[0] ?? 0) - (aLab[0] ?? 0)) ** 2 +
         ((bLab[1] ?? 0) - (aLab[1] ?? 0)) ** 2 +
         ((bLab[2] ?? 0) - (aLab[2] ?? 0)) ** 2;
+    }
+    case OKLAB_NEAREST: {
+      // Same euclidean form as LAB_NEAREST, but on a ~100x smaller scale (L is
+      // 0..1, not 0..100). Never compare a distance from here against one from
+      // another algorithm — nothing in this codebase does, and the whole-buffer
+      // quantizers each stay within one algorithm.
+      const aOk = rgba2oklabaMemo(a);
+      const bOk = rgba2oklaba(b);
+      return ((bOk[0] ?? 0) - (aOk[0] ?? 0)) ** 2 +
+        ((bOk[1] ?? 0) - (aOk[1] ?? 0)) ** 2 +
+        ((bOk[2] ?? 0) - (aOk[2] ?? 0)) ** 2;
     }
     case RGB_APPROX: {
       const r = (ar + br) / 2;

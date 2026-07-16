@@ -4,7 +4,7 @@ import { nearest } from "../palettes/index";
 import { BLUE_NOISE_MAP, BLUE_NOISE_SIZE, BLUE_NOISE_LEVELS } from "./blueNoise64";
 import { scaleMatrix, resolvePaletteColorAlgorithm, logFilterBackend, reducePaletteToCap } from "../utils/index";
 import { renderOrderedGL, ORDERED_PAL_MODE, MAX_PALETTE } from "./orderedGL";
-import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST } from "../constants/color";
+import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST } from "../constants/color";
 
 export const BAYER_2X2 = "BAYER_2X2";
 export const BAYER_3X3 = "BAYER_3X3";
@@ -451,7 +451,13 @@ const ordered = (input: any, options: OrderedOptions = defaults) => {
     else if (algo === RGB_APPROX) palMode = ORDERED_PAL_MODE.RGB_APPROX;
     else if (algo === HSV_NEAREST) palMode = ORDERED_PAL_MODE.HSV;
     else if (algo === LAB_NEAREST) palMode = ORDERED_PAL_MODE.LAB;
+    else if (algo === OKLAB_NEAREST) palMode = ORDERED_PAL_MODE.OKLAB;
   }
+  // Falling back to LEVELS here drops `colors` on the floor — LEVELS passes
+  // paletteRgb: null — so an algorithm the shader doesn't know silently renders
+  // level-quantized output with the palette ignored, rather than failing. Only
+  // safe because every algorithm in COLOR_DISTANCE_ALGORITHM is mapped above;
+  // adding one without a shader mode must come here too.
   if (palMode === null) palMode = ORDERED_PAL_MODE.LEVELS;
 
   const rendered = renderOrderedGL(input, input.width, input.height, {

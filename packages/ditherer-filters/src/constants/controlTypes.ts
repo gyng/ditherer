@@ -2,6 +2,7 @@ import {
   RGB_NEAREST,
   RGB_APPROX,
   LAB_NEAREST,
+  OKLAB_NEAREST,
   HSV_NEAREST,
 } from "./color";
 
@@ -26,6 +27,7 @@ export const COLOR_DISTANCE_ALGORITHM = {
     { name: "RGB (perceptual approx.)", value: RGB_APPROX },
     { name: "HSV", value: HSV_NEAREST },
     { name: "Lab", value: LAB_NEAREST },
+    { name: "OKLab", value: OKLAB_NEAREST },
   ],
   default: RGB_APPROX
 };

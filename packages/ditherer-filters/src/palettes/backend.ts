@@ -33,13 +33,14 @@ import {
   wasmIsLoaded,
   wasmQuantizeBufferHsv,
   wasmQuantizeBufferLab,
+  wasmQuantizeBufferOklab,
   wasmQuantizeBufferRgbApprox,
   wasmQuantizeBufferRgb,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
   linearPaletteGetColor,
 } from "../utils/index";
-import { HSV_NEAREST, LAB_NEAREST, RGB_APPROX, RGB_NEAREST } from "../constants/color";
+import { HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST, RGB_APPROX, RGB_NEAREST } from "../constants/color";
 
 // Bivariant hack on getColor so we accept specialized palette definitions
 // (e.g., `nearest` with `{ levels: number }`) without callers needing to
@@ -142,6 +143,7 @@ export const applyPaletteToBuffer = (
     [LAB_NEAREST]: wasmQuantizeBufferLab,
     [RGB_APPROX]: wasmQuantizeBufferRgbApprox,
     [HSV_NEAREST]: wasmQuantizeBufferHsv,
+    [OKLAB_NEAREST]: wasmQuantizeBufferOklab,
   };
   const quantizer = algo ? WHOLE_BUFFER[algo] : undefined;
   if (quantizer) {

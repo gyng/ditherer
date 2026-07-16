@@ -179,6 +179,24 @@ export function quantize_buffer_lab(buffer, palette, ref_x, ref_y, ref_z) {
 }
 
 /**
+ * Quantize a buffer to a palette using OKLab distance.
+ * Mirrors colorDistance(OKLAB_NEAREST) exactly, tie-breaking included.
+ * @param {Uint8Array} buffer
+ * @param {Float64Array} palette
+ * @returns {Uint8Array}
+ */
+export function quantize_buffer_oklab(buffer, palette) {
+    const ptr0 = passArray8ToWasm0(buffer, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.quantize_buffer_oklab(ptr0, len0, ptr1, len1);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
  * `buffer` is [r,g,b,a, r,g,b,a, …] u8 values.
  * `palette` is [r,g,b,a, …] f64 values (0-255).
  * Returns a new u8 buffer with matched palette colours (alpha preserved).

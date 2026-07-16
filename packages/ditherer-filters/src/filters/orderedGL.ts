@@ -64,6 +64,22 @@ vec3 rgbToLab(vec3 rgb255) {
 }
 
 // --- RGB 0..255 → HSV (matches lib.rs rgb_to_hsv) ---
+// --- RGB 0..255 -> OKLab (Bjorn Ottosson). Mirrors utils/rgba2oklaba. ---
+// No whitepoint: OKLab bakes D65 into its matrices, so unlike rgbToLab this
+// takes no u_labRef.
+vec3 rgbToOklab(vec3 rgb255) {
+  vec3 lin = srgbToLinear(rgb255 / 255.0);   // 0..1, not scaled by 100
+  float l = 0.4122214708 * lin.r + 0.5363325363 * lin.g + 0.0514459929 * lin.b;
+  float m = 0.2119034982 * lin.r + 0.6806995451 * lin.g + 0.1073969566 * lin.b;
+  float s = 0.0883024619 * lin.r + 0.2817188376 * lin.g + 0.6299787005 * lin.b;
+  vec3 lms = pow(max(vec3(l, m, s), 0.0), vec3(1.0 / 3.0));
+  return vec3(
+    0.2104542553 * lms.x + 0.7936177850 * lms.y - 0.0040720468 * lms.z,
+    1.9779984951 * lms.x - 2.4285922050 * lms.y + 0.4505937099 * lms.z,
+    0.0259040371 * lms.x + 0.7827717662 * lms.y - 0.8086757660 * lms.z
+  );
+}
+
 vec3 rgbToHsv(vec3 rgb255) {
   vec3 c = rgb255 / 255.0;
   float mx = max(max(c.r, c.g), c.b);
@@ -136,6 +152,7 @@ void main() {
   } else {
     vec3 aux = vec3(0.0);
     if (u_palMode == 4) aux = rgbToLab(quant);
+    else if (u_palMode == 5) aux = rgbToOklab(quant);
     else if (u_palMode == 3) aux = rgbToHsv(quant);
 
     int bestIdx = 0;
@@ -160,6 +177,9 @@ void main() {
         float dvv = abs(aux.z - pa.z);
         d = dh*dh + ds*ds + dvv*dvv;
       } else {
+        // Modes 4 (Lab) and 5 (OKLab): plain euclidean in the aux space. The
+        // scales differ wildly (Lab L is 0..100, OKLab's is 0..1) but distances
+        // are only ever compared within one mode.
         vec3 dv = aux - u_paletteAux[i];
         d = dot(dv, dv);
       }
@@ -195,6 +215,7 @@ export const ORDERED_PAL_MODE = {
   RGB_APPROX: 2,
   HSV: 3,
   LAB: 4,
+  OKLAB: 5,
 } as const;
 
 // Threshold map texture cache — keyed by map identity (baseW|baseH|first-cell
@@ -245,6 +266,19 @@ const rgbToHsvJs = (r: number, g: number, b: number): [number, number, number] =
   h *= 60;
   if (h < 0) h += 360;
   return [h, s, v];
+};
+
+const rgbToOklabJs = (r: number, g: number, b: number): [number, number, number] => {
+  const srgb = (c: number) => c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
+  const lr = srgb(r / 255), lg = srgb(g / 255), lb = srgb(b / 255);
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
 };
 
 const rgbToLabJs = (r: number, g: number, b: number, rx: number, ry: number, rz: number): [number, number, number] => {
@@ -302,6 +336,9 @@ export const renderOrderedGL = (
       if (opts.palMode === ORDERED_PAL_MODE.LAB) {
         const lab = rgbToLabJs(c[0], c[1], c[2], opts.labRef[0], opts.labRef[1], opts.labRef[2]);
         flatAux[i * 3] = lab[0]; flatAux[i * 3 + 1] = lab[1]; flatAux[i * 3 + 2] = lab[2];
+      } else if (opts.palMode === ORDERED_PAL_MODE.OKLAB) {
+        const ok = rgbToOklabJs(c[0], c[1], c[2]);
+        flatAux[i * 3] = ok[0]; flatAux[i * 3 + 1] = ok[1]; flatAux[i * 3 + 2] = ok[2];
       } else if (opts.palMode === ORDERED_PAL_MODE.HSV) {
         const hsv = rgbToHsvJs(c[0], c[1], c[2]);
         flatAux[i * 3] = hsv[0]; flatAux[i * 3 + 1] = hsv[1]; flatAux[i * 3 + 2] = hsv[2];
