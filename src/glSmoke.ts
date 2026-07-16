@@ -170,6 +170,205 @@ const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason: strin
   }
 };
 
+// Quantize's whole job is "emit only palette colours". shaderValidationOverrides
+// already injects a 3-colour palette to wake the shader up (its default palette
+// is identity, which returns the input untouched) — but the sweep then only
+// checks alpha and peak luma, so an inverted u_algo or a broken nearest-match
+// would sail through. Assert the output is actually a subset of that palette.
+const runQuantizePaletteSubset = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex.Quantize;
+  const colors = [[0, 0, 0], [255, 255, 255], [255, 64, 32]];
+  const source = makeGradientCanvas(16, 16);
+  const defaults = { ...(filter.defaults ?? {}) } as Record<string, unknown>;
+  const palette = defaults.palette as Record<string, unknown> | undefined;
+  const output = filter.func(source, {
+    ...defaults,
+    palette: {
+      ...palette,
+      options: {
+        ...((palette?.options as Record<string, unknown> | undefined) ?? {}),
+        colors,
+        colorDistanceAlgorithm: "RGB",
+      },
+    },
+    _linearize: false,
+    _webglAcceleration: true,
+  }) as HTMLCanvasElement;
+  const data = output.getContext("2d", { willReadFrequently: true })
+    ?.getImageData(0, 0, output.width, output.height).data;
+  if (!data) return { ok: false, reason: "Quantize readback failed" };
+
+  const allowed = new Set(colors.map((c) => `${c[0]},${c[1]},${c[2]}`));
+  const seen = new Set<string>();
+  for (let i = 0; i < data.length; i += 4) seen.add(`${data[i]},${data[i + 1]},${data[i + 2]}`);
+  const strays = [...seen].filter((c) => !allowed.has(c));
+  if (strays.length > 0) {
+    return { ok: false, reason: `Quantize emitted non-palette colors: ${strays.slice(0, 3).join(" | ")}` };
+  }
+  // A shader that collapsed to one colour would also be "a subset".
+  if (seen.size < 2) return { ok: false, reason: `Quantize collapsed to ${seen.size} color(s)` };
+  return { ok: true };
+};
+
+// The four screen angles are the entire point of CMYK halftoning — they're what
+// stops the separations moiring. cmykHalftone is requiresGL, so
+// filterOptionConformance (the only thing that sweeps RANGE options) skips it,
+// and the gl-smoke enum sweep doesn't touch RANGE at all: swap angleY and angleK
+// and every test passes. Assert each angle independently reaches the shader.
+const runCmykAngles = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["CMYK Halftone"];
+  if (!filter) return { ok: false, reason: "CMYK Halftone not in registry" };
+  const render = (over: Record<string, unknown>): Uint8ClampedArray | null => {
+    const source = makeGradientCanvas(32, 32);
+    const output = filter.func(source, {
+      ...(filter.defaults ?? {}),
+      ...over,
+      _linearize: false,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    return output.getContext("2d", { willReadFrequently: true })
+      ?.getImageData(0, 0, output.width, output.height).data ?? null;
+  };
+  const differs = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
+    for (let i = 0; i < a.length; i += 4) {
+      if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) return true;
+    }
+    return false;
+  };
+
+  const base = render({});
+  if (!base) return { ok: false, reason: "CMYK readback failed" };
+  // Rotating any one screen must change the print. If it doesn't, that angle
+  // isn't wired to its separation.
+  for (const angle of ["angleC", "angleM", "angleY", "angleK"]) {
+    const rotated = render({ [angle]: 30 });
+    if (!rotated) return { ok: false, reason: `CMYK readback failed for ${angle}` };
+    if (!differs(base, rotated)) {
+      return { ok: false, reason: `${angle} has no effect on output — not reaching its separation` };
+    }
+  }
+  // ...and each must be independent: rotating C only must not equal rotating K
+  // only, which is what a copy-pasted uniform upload would give.
+  const c = render({ angleC: 30 });
+  const k = render({ angleK: 30 });
+  if (c && k && !differs(c, k)) {
+    return { ok: false, reason: "angleC and angleK produce identical output — likely the same uniform" };
+  }
+  return { ok: true };
+};
+
+// Median Cut ships both backends: the shader when WebGL2 is available, and a JS
+// nearestColor loop otherwise. They build the same palette and then answer the
+// same question — which palette entry is closest — so they must agree. Nothing
+// compared them, and a shader searching in linear space while the JS searches
+// sRGB would just look like slightly different colours on machines without
+// WebGL2.
+//
+// (The MAX_PALETTE=32 gate can't actually be crossed — the levels RANGE also
+// tops out at 32 — so the backend split is driven by GL availability alone.)
+const runMedianCutBackendAgreement = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["Median Cut"];
+  if (!filter) return { ok: false, reason: "Median Cut not in registry" };
+  const render = (webgl: boolean): Uint8ClampedArray | null => {
+    const source = makeGradientCanvas(24, 24);
+    const output = filter.func(source, {
+      ...(filter.defaults ?? {}),
+      levels: 8,
+      sampleRate: 1,
+      _linearize: false,
+      _webglAcceleration: webgl,
+    }) as HTMLCanvasElement;
+    return output.getContext("2d", { willReadFrequently: true })
+      ?.getImageData(0, 0, output.width, output.height).data ?? null;
+  };
+
+  const gpu = render(true);
+  const cpu = render(false);
+  if (!gpu || !cpu) return { ok: false, reason: "Median Cut readback failed" };
+
+  let mismatched = 0;
+  let firstExample = "";
+  for (let i = 0; i < cpu.length; i += 4) {
+    if (gpu[i] !== cpu[i] || gpu[i + 1] !== cpu[i + 1] || gpu[i + 2] !== cpu[i + 2]) {
+      mismatched += 1;
+      if (!firstExample) {
+        const p = i / 4;
+        firstExample = `px ${p % 24},${Math.floor(p / 24)}: gl=${gpu[i]},${gpu[i + 1]},${gpu[i + 2]} cpu=${cpu[i]},${cpu[i + 1]},${cpu[i + 2]}`;
+      }
+    }
+  }
+  if (mismatched > 0) {
+    return {
+      ok: false,
+      reason: `Median Cut backends disagree on ${mismatched} px — ${firstExample}`,
+    };
+  }
+  // Guard the guard: if the GL path silently fell back to JS, both renders would
+  // be the JS one and agreement would be meaningless.
+  const changed = cpu.some((v, i) => i % 4 !== 3 && v !== 0);
+  if (!changed) return { ok: false, reason: "Median Cut produced an empty render" };
+  return { ok: true };
+};
+
+// Triangle dither used to seed its TPDF noise from Math.random(), so the same
+// still rendered differently every time and nothing could pin it. Now that the
+// seed is derived, assert the three things that buys us: reproducibility, that
+// the seed actually reaches the shader, and that it still quantises.
+const runTriangleDitherSeed = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["Triangle dither"];
+  if (!filter) return { ok: false, reason: "Triangle dither not in registry" };
+  const render = (over: Record<string, unknown>): Uint8ClampedArray | null => {
+    const source = makeGradientCanvas(16, 16);
+    const output = filter.func(source, {
+      ...(filter.defaults ?? {}),
+      ...over,
+      _linearize: false,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    return output.getContext("2d", { willReadFrequently: true })
+      ?.getImageData(0, 0, output.width, output.height).data ?? null;
+  };
+  const same = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
+    for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+    return true;
+  };
+
+  const a = render({ seed: 42 });
+  const b = render({ seed: 42 });
+  const c = render({ seed: 7 });
+  if (!a || !b || !c) return { ok: false, reason: "Triangle dither readback failed" };
+
+  if (!same(a, b)) return { ok: false, reason: "same seed rendered differently — noise is not reproducible" };
+  if (same(a, c)) return { ok: false, reason: "seed has no effect on the noise" };
+
+  // Default palette is nearest levels=2, so this must come out 1-bit per
+  // channel. If it doesn't, the shader quantise stage isn't running and we're
+  // just adding noise to the image.
+  const values = new Set<number>();
+  for (let i = 0; i < a.length; i += 4) {
+    values.add(a[i]); values.add(a[i + 1]); values.add(a[i + 2]);
+  }
+  const binary = [...values].every((v) => v === 0 || v === 255);
+  if (!binary) {
+    return { ok: false, reason: `levels=2 did not quantise: got ${[...values].slice(0, 6)}` };
+  }
+  if (values.size < 2) return { ok: false, reason: "output collapsed to a single value" };
+
+  // animateNoise must vary with the frame, or video stops shimmering.
+  const f0 = render({ seed: 42, animateNoise: true, _frameIndex: 0 });
+  const f1 = render({ seed: 42, animateNoise: true, _frameIndex: 1 });
+  if (f0 && f1 && same(f0, f1)) {
+    return { ok: false, reason: "animateNoise on: frame 0 and 1 are identical" };
+  }
+  // ...and must not, when it's off.
+  const s0 = render({ seed: 42, animateNoise: false, _frameIndex: 0 });
+  const s1 = render({ seed: 42, animateNoise: false, _frameIndex: 5 });
+  if (s0 && s1 && !same(s0, s1)) {
+    return { ok: false, reason: "animateNoise off: output still changed with the frame" };
+  }
+  return { ok: true };
+};
+
 const runOrderedPaletteLevels = (): { ok: true } | { ok: false; reason: string } => {
   const filter = filterIndex.Ordered;
   const render = (levels: number): Uint8ClampedArray | null => {
@@ -554,6 +753,10 @@ const main = async () => {
 
   record("rgbStripe", "worker", await runWorkerCrt());
   record("Ordered", "nearest-palette-levels", runOrderedPaletteLevels());
+  record("Quantize", "palette-subset", runQuantizePaletteSubset());
+  record("CMYK Halftone", "screen-angles", runCmykAngles());
+  record("Median Cut", "backend-agreement", runMedianCutBackendAgreement());
+  record("Triangle dither", "seeded-noise", runTriangleDitherSeed());
 
   const status: "ok" | "failed" = failed === 0 ? "ok" : "failed";
   const details = {
