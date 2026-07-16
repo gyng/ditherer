@@ -102,11 +102,43 @@ describe("whole-buffer RGB quantizer parity", () => {
     expect(Array.from(inPlace)).toEqual(Array.from(expected));
   });
 
-  it.each([RGB_APPROX, HSV_NEAREST, LAB_NEAREST])(
+  it("LAB: WASM and JS agree on every pixel", () => {
+    // The bigger win — Lab was the slowest path (5.9s vs 1.3s at 1920x1080)
+    // precisely because it already used WASM per-pixel. Parity here is delicate:
+    // JS rgba2laba reads an f32 sRGB->linear LUT then works in f64, so the Rust
+    // mirrors that exactly rather than using its own f64 powf, which drifts far
+    // enough in the last bits to flip a near-tie.
+    const src = makeBuf(8192, 255);
+    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true)))
+      .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
+  });
+
+  it("LAB: they agree with varying alpha too", () => {
+    const src = makeBuf(8192);
+    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true)))
+      .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
+  });
+
+  it("LAB: agrees across a coarse RGB grid, not just random samples", () => {
+    // Random pixels can miss a systematic error in a corner of the cube.
+    const step = 17;
+    const n = Math.ceil(256 / step) ** 3;
+    const src = new Uint8ClampedArray(n * 4);
+    let i = 0;
+    for (let r = 0; r < 256; r += step)
+      for (let g = 0; g < 256; g += step)
+        for (let b = 0; b < 256; b += step) {
+          src[i] = r; src[i + 1] = g; src[i + 2] = b; src[i + 3] = 255; i += 4;
+        }
+    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true)))
+      .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
+  });
+
+  it.each([RGB_APPROX, HSV_NEAREST])(
     "%s is left on the JS path and is unaffected by the wasm flag",
     (algo) => {
-      // Only RGB has a whole-buffer Rust function; the others must not be
-      // silently routed through it, which would change their colours.
+      // Only RGB and LAB have whole-buffer Rust functions; the others must not
+      // be silently routed through one, which would change their colours.
       const src = makeBuf(1024, 255);
       expect(Array.from(apply(src, withAlgo(algo), true)))
         .toEqual(Array.from(apply(src, withAlgo(algo), false)));

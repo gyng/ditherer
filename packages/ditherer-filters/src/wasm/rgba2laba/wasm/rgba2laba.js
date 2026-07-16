@@ -126,6 +126,35 @@ export function nearest_lab_precomputed(r, g, b, palette_lab, ref_x, ref_y, ref_
 }
 
 /**
+ * Quantize an entire RGBA u8 buffer in one call using CIE Lab distance.
+ * Converts the palette to Lab once, then finds the nearest for every pixel.
+ *
+ * The counterpart to `quantize_buffer_rgb`, and the same reason for existing:
+ * per-pixel WASM Lab matching is SLOWER than plain JS because each pixel pays a
+ * JS<->WASM boundary crossing (16-colour scan: 241,905 hz in JS vs 59,201 hz
+ * through per-pixel WASM). Doing the whole buffer in one call amortises it.
+ *
+ * Alpha is copied from the source and never scored, matching
+ * colorDistance(LAB_NEAREST) and the JS palette loop.
+ * @param {Uint8Array} buffer
+ * @param {Float64Array} palette
+ * @param {number} ref_x
+ * @param {number} ref_y
+ * @param {number} ref_z
+ * @returns {Uint8Array}
+ */
+export function quantize_buffer_lab(buffer, palette, ref_x, ref_y, ref_z) {
+    const ptr0 = passArray8ToWasm0(buffer, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.quantize_buffer_lab(ptr0, len0, ptr1, len1, ref_x, ref_y, ref_z);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
  * `buffer` is [r,g,b,a, r,g,b,a, …] u8 values.
  * `palette` is [r,g,b,a, …] f64 values (0-255).
  * Returns a new u8 buffer with matched palette colours (alpha preserved).

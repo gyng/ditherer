@@ -188,6 +188,7 @@ export const wasmIsLoaded = () => wasmLoadedFlag;
 const bindWasmModule = (mod: typeof import("../wasm/rgba2laba/wasm/rgba2laba")) => {
   wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
   wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
+  wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
   wasmErrorDiffuseBufferInner = mod.error_diffuse_buffer;
   wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
   wasmRiemersmaDitherInner = mod.riemersma_dither;
@@ -522,6 +523,8 @@ const wasmApplyChannelLutInnerDefault: WasmApplyChannelLutFn = () => {
 
 let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn = wasmNearestLabPrecomputedInnerDefault;
 let wasmQuantizeBufferRgbInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
+const wasmQuantizeBufferLabInnerDefault: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
+let wasmQuantizeBufferLabInner: WasmQuantizeBufferFn = wasmQuantizeBufferLabInnerDefault;
 let wasmErrorDiffuseBufferInner: WasmErrorDiffuseBufferFn = wasmErrorDiffuseBufferInnerDefault;
 let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = wasmErrorDiffuseCustomInnerDefault;
 let wasmRiemersmaDitherInner: WasmRiemersmaDitherFn = wasmRiemersmaDitherInnerDefault;
@@ -578,13 +581,21 @@ const ensurePaletteFlat = (palette: number[][]) => {
   return cachedPaletteFlat!;
 };
 
-// Retained for the wasmSmoke binding sanity check. No production filter calls
-// this anymore — the quantize dispatch lives on the GL side.
+// Whole-buffer palette quantizers. `applyPaletteToBuffer` routes custom-colour
+// palettes here rather than looping paletteGetColor per pixel: the maths is the
+// same, but one boundary crossing for the buffer beats one per pixel by ~13x.
 export const wasmQuantizeBufferRgb = (
   buffer: Uint8ClampedArray | Uint8Array,
   palette: number[][],
 ): Uint8Array =>
   wasmQuantizeBufferRgbInner(buffer, ensurePaletteFlat(palette));
+
+export const wasmQuantizeBufferLab = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette: number[][],
+  ref = referenceTable.CIE_1931.D65,
+): Uint8Array =>
+  wasmQuantizeBufferLabInner(buffer, ensurePaletteFlat(palette), ref.x, ref.y, ref.z);
 
 // Resolve the colorDistanceAlgorithm for a palette, honoring the user palette's
 // runtime fallback (defaults.colorDistanceAlgorithm) so random-preset palettes

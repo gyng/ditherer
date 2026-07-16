@@ -14,6 +14,20 @@ export function error_diffuse_custom_order(input: Uint8Array, output: Uint8Array
 export function nearest_lab_precomputed(r: number, g: number, b: number, palette_lab: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
 
 /**
+ * Quantize an entire RGBA u8 buffer in one call using CIE Lab distance.
+ * Converts the palette to Lab once, then finds the nearest for every pixel.
+ *
+ * The counterpart to `quantize_buffer_rgb`, and the same reason for existing:
+ * per-pixel WASM Lab matching is SLOWER than plain JS because each pixel pays a
+ * JS<->WASM boundary crossing (16-colour scan: 241,905 hz in JS vs 59,201 hz
+ * through per-pixel WASM). Doing the whole buffer in one call amortises it.
+ *
+ * Alpha is copied from the source and never scored, matching
+ * colorDistance(LAB_NEAREST) and the JS palette loop.
+ */
+export function quantize_buffer_lab(buffer: Uint8Array, palette: Float64Array, ref_x: number, ref_y: number, ref_z: number): Uint8Array;
+
+/**
  * `buffer` is [r,g,b,a, r,g,b,a, …] u8 values.
  * `palette` is [r,g,b,a, …] f64 values (0-255).
  * Returns a new u8 buffer with matched palette colours (alpha preserved).
@@ -41,6 +55,7 @@ export interface InitOutput {
     readonly error_diffuse_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number) => void;
     readonly error_diffuse_custom_order: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number) => void;
     readonly nearest_lab_precomputed: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly quantize_buffer_lab: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly quantize_buffer_rgb: (a: number, b: number, c: number, d: number) => [number, number];
     readonly rgba2laba: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly rgba_laba_distance: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;

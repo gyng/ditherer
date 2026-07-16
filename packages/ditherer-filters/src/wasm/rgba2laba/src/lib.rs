@@ -141,8 +141,89 @@ pub fn nearest_lab_precomputed(
     best
 }
 
-/// Quantize an entire RGBA u8 buffer in one call.
-/// Converts palette to Lab once, then finds nearest for every pixel.
+/// Lab conversion that mirrors the JS `rgba2laba` bit-for-bit.
+///
+/// NOT the same as `rgba2lab_inline`, which does an f64 `powf(2.4)`. The JS side
+/// reads an f32 sRGB->linear LUT and then does the rest in f64, so a straight
+/// f64 implementation drifts in the last bits — enough to flip a near-tie and
+/// silently recolour a pixel. Since this exists purely to replace the JS loop,
+/// matching its arithmetic is the requirement, not improving on it.
+fn rgba2lab_via_lut(r: u8, g: u8, b: u8, ref_x: f64, ref_y: f64, ref_z: f64) -> [f64; 3] {
+    let lut = srgb_to_lin_lut();
+    let r = lut[r as usize] as f64 * 100.0;
+    let g = lut[g as usize] as f64 * 100.0;
+    let b = lut[b as usize] as f64 * 100.0;
+
+    let mut x = r * 0.4124 + g * 0.3576 + b * 0.1805;
+    let mut y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+    let mut z = r * 0.0193 + g * 0.1192 + b * 0.9505;
+
+    x /= ref_x; y /= ref_y; z /= ref_z;
+
+    x = if x > 0.008856 { x.powf(1.0 / 3.0) } else { x * 7.787 + 16.0 / 116.0 };
+    y = if y > 0.008856 { y.powf(1.0 / 3.0) } else { y * 7.787 + 16.0 / 116.0 };
+    z = if z > 0.008856 { z.powf(1.0 / 3.0) } else { z * 7.787 + 16.0 / 116.0 };
+
+    [116.0 * y - 16.0, 500.0 * (x - y), 200.0 * (y - z)]
+}
+
+/// Quantize an entire RGBA u8 buffer in one call using CIE Lab distance.
+/// Converts the palette to Lab once, then finds the nearest for every pixel.
+///
+/// The counterpart to `quantize_buffer_rgb`, and the same reason for existing:
+/// per-pixel WASM Lab matching is SLOWER than plain JS because each pixel pays a
+/// JS<->WASM boundary crossing (16-colour scan: 241,905 hz in JS vs 59,201 hz
+/// through per-pixel WASM). Doing the whole buffer in one call amortises it.
+///
+/// Alpha is copied from the source and never scored, matching
+/// colorDistance(LAB_NEAREST) and the JS palette loop.
+#[wasm_bindgen]
+pub fn quantize_buffer_lab(
+    buffer: &[u8],
+    palette: &[f64],
+    ref_x: f64,
+    ref_y: f64,
+    ref_z: f64,
+) -> Vec<u8> {
+    let n_colors = palette.len() / 4;
+    let mut pal_rgb: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
+    let mut pal_lab: Vec<[f64; 3]> = Vec::with_capacity(n_colors);
+    for i in 0..n_colors {
+        let r = palette[i * 4] as u8;
+        let g = palette[i * 4 + 1] as u8;
+        let b = palette[i * 4 + 2] as u8;
+        let a = palette[i * 4 + 3] as u8;
+        pal_rgb.push([r, g, b, a]);
+        pal_lab.push(rgba2lab_via_lut(r, g, b, ref_x, ref_y, ref_z));
+    }
+
+    let n_pixels = buffer.len() / 4;
+    let mut out = vec![0u8; buffer.len()];
+    for p in 0..n_pixels {
+        let i = p * 4;
+        let lab = rgba2lab_via_lut(buffer[i], buffer[i + 1], buffer[i + 2], ref_x, ref_y, ref_z);
+
+        let mut best = 0usize;
+        let mut best_d = f64::MAX;
+        for (j, pl) in pal_lab.iter().enumerate() {
+            let dl = lab[0] - pl[0];
+            let da = lab[1] - pl[1];
+            let db = lab[2] - pl[2];
+            let d = dl * dl + da * da + db * db;
+            // Strict <, first wins — matches the JS loop's tie-breaking.
+            if d < best_d {
+                best_d = d;
+                best = j;
+            }
+        }
+        out[i] = pal_rgb[best][0];
+        out[i + 1] = pal_rgb[best][1];
+        out[i + 2] = pal_rgb[best][2];
+        out[i + 3] = buffer[i + 3];
+    }
+    out
+}
+
 fn rgb_to_hsv(r: f64, g: f64, b: f64) -> [f64; 3] {
     let r = r / 255.0;
     let g = g / 255.0;
@@ -1559,6 +1640,76 @@ mod tests {
         assert!(black > 0 && white > 0, "mid-grey collapsed: {black} black, {white} white");
         let mean: f64 = out.chunks(4).map(|p| p[0] as f64).sum::<f64>() / 64.0;
         assert!((mean - 128.0).abs() < 40.0, "local mean not preserved: {mean}");
+    }
+
+    // --- quantize_buffer_lab -------------------------------------------------
+
+    fn cga_pal() -> Vec<f64> {
+        // A few well-separated colours; values are the CGA primaries.
+        vec![
+            0.0, 0.0, 0.0, 255.0,
+            255.0, 255.0, 255.0, 255.0,
+            170.0, 0.0, 0.0, 255.0,
+            0.0, 0.0, 170.0, 255.0,
+        ]
+    }
+
+    const D65: (f64, f64, f64) = (95.047, 100.0, 108.883);
+
+    #[test]
+    fn lab_quantize_snaps_to_the_nearest_palette_colour() {
+        let input = vec![10, 10, 10, 255, 240, 240, 240, 255, 200, 30, 30, 255];
+        let out = quantize_buffer_lab(&input, &cga_pal(), D65.0, D65.1, D65.2);
+        assert_eq!(&out[0..3], &[0, 0, 0], "near-black should land on black");
+        assert_eq!(&out[4..7], &[255, 255, 255], "near-white should land on white");
+        assert_eq!(&out[8..11], &[170, 0, 0], "red-ish should land on CGA red");
+    }
+
+    #[test]
+    fn lab_quantize_preserves_alpha_and_never_scores_it() {
+        // Alpha rides through untouched; two pixels identical but for alpha must
+        // pick the same colour, or the JS path and this one diverge.
+        let input = vec![200, 30, 30, 7, 200, 30, 30, 250];
+        let out = quantize_buffer_lab(&input, &cga_pal(), D65.0, D65.1, D65.2);
+        assert_eq!(out[3], 7);
+        assert_eq!(out[7], 250);
+        assert_eq!(&out[0..3], &out[4..7]);
+    }
+
+    #[test]
+    fn lab_quantize_is_exact_on_a_palette_colour() {
+        let input = vec![170, 0, 0, 255];
+        let out = quantize_buffer_lab(&input, &cga_pal(), D65.0, D65.1, D65.2);
+        assert_eq!(&out[0..3], &[170, 0, 0]);
+    }
+
+    #[test]
+    fn lab_quantize_only_emits_palette_colours() {
+        let input = ramp(16, 4);
+        let out = quantize_buffer_lab(&input, &cga_pal(), D65.0, D65.1, D65.2);
+        for px in out.chunks(4) {
+            let hit = matches!(
+                (px[0], px[1], px[2]),
+                (0, 0, 0) | (255, 255, 255) | (170, 0, 0) | (0, 0, 170)
+            );
+            assert!(hit, "emitted a non-palette colour: {:?}", &px[0..3]);
+        }
+    }
+
+    #[test]
+    fn lab_conversion_uses_the_lut_not_powf() {
+        // rgba2lab_via_lut must mirror the JS `rgba2laba`, which reads an f32
+        // sRGB->linear LUT and then works in f64. rgba2lab_inline's straight f64
+        // powf drifts in the last bits — enough to flip a near-tie and silently
+        // recolour a pixel — so the two are NOT interchangeable here. If this
+        // ever fails, someone has unified them and parity with JS is gone.
+        let mut differs = 0;
+        for v in 0..=255u8 {
+            let a = rgba2lab_via_lut(v, v, v, D65.0, D65.1, D65.2);
+            let b = rgba2lab_inline(v as f64, v as f64, v as f64, D65.0, D65.1, D65.2);
+            if (a[0] - b[0]).abs() > 0.0 { differs += 1; }
+        }
+        assert!(differs > 0, "LUT and powf paths are now identical — did the LUT change?");
     }
 
     // --- riemersma_dither ----------------------------------------------------

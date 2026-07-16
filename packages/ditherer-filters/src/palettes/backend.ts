@@ -31,12 +31,13 @@ import {
   rgba,
   wasmApplyChannelLut,
   wasmIsLoaded,
+  wasmQuantizeBufferLab,
   wasmQuantizeBufferRgb,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
   linearPaletteGetColor,
 } from "../utils/index";
-import { RGB_NEAREST } from "../constants/color";
+import { LAB_NEAREST, RGB_NEAREST } from "../constants/color";
 
 // Bivariant hack on getColor so we accept specialized palette definitions
 // (e.g., `nearest` with `{ levels: number }`) without callers needing to
@@ -126,13 +127,17 @@ export const applyPaletteToBuffer = (
   // is amortising the JS<->WASM boundary over the whole buffer rather than
   // paying it per pixel — per-pixel WASM is actually SLOWER than plain JS here
   // (see test/perf/colorDistanceBench.bench.ts).
-  if (
-    hasColors
-    && wasmAcceleration
-    && wasmIsLoaded()
-    && resolvePaletteColorAlgorithm(palette) === RGB_NEAREST
-  ) {
-    const quantized = wasmQuantizeBufferRgb(input, opts.colors as number[][]);
+  const algo = hasColors && wasmAcceleration && wasmIsLoaded()
+    ? resolvePaletteColorAlgorithm(palette)
+    : null;
+  if (algo === RGB_NEAREST || algo === LAB_NEAREST) {
+    const colors = opts.colors as number[][];
+    const quantized = algo === RGB_NEAREST
+      ? wasmQuantizeBufferRgb(input, colors)
+      // Lab is the bigger win: it was the slowest path by far (5.9s vs 1.3s at
+      // 1920x1080) precisely because it already used WASM — per pixel, paying
+      // ~2M boundary crossings.
+      : wasmQuantizeBufferLab(input, colors);
     // May be an in-place call (input === output); set() handles both.
     (output as Uint8ClampedArray).set(quantized);
     return;
