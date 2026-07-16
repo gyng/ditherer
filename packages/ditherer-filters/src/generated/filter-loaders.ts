@@ -171,6 +171,7 @@ export const filterLoaders = {
   "Motion Relief": () => import("../filters/temporalRelief").then((module) => module.default as FilterDefinition),
   "Motion Vectors": () => import("../filters/motionVectors").then((module) => module.default as FilterDefinition),
   "Möbius": () => import("../filters/mobius").then((module) => module.default as FilterDefinition),
+  "N-Candidate": () => import("../filters/nCandidateDither").then((module) => module.default as FilterDefinition),
   "Newspaper": () => import("../filters/newspaper").then((module) => module.default as FilterDefinition),
   "Night vision": () => import("../filters/nightVision").then((module) => module.default as FilterDefinition),
   "Noise Generator": () => import("../filters/noiseGenerator").then((module) => module.default as FilterDefinition),

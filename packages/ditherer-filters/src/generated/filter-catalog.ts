@@ -81,6 +81,36 @@ export const filterCatalog = [
     "description": "Three-row error diffusion for smoother gradients at the cost of speed"
   },
   {
+    "displayName": "N-Candidate",
+    "filterName": "N-Candidate",
+    "category": "Dithering",
+    "description": "Ordered dithering that picks N weighted palette candidates per pixel — reproduces arbitrary palettes far better than a plain Bayer match"
+  },
+  {
+    "displayName": "N-Candidate (Knoll)",
+    "filterName": "N-Candidate",
+    "category": "Dithering",
+    "description": "Thomas Knoll's pattern dither, as used in Photoshop — each candidate compensates for the previous one's error"
+  },
+  {
+    "displayName": "N-Candidate (Yliluoma 2)",
+    "filterName": "N-Candidate",
+    "category": "Dithering",
+    "description": "Joel Yliluoma's 2011 algorithm #2 as originally published — fraction sweep with a luma-weighted color difference"
+  },
+  {
+    "displayName": "N-Candidate (EMA-Constant)",
+    "filterName": "N-Candidate",
+    "category": "Dithering",
+    "description": "Simplified Yliluoma with a fixed 0.3 mixing factor — lighter dithering, the cheapest of the family"
+  },
+  {
+    "displayName": "N-Candidate (CGA, luma-weighted)",
+    "filterName": "N-Candidate",
+    "category": "Dithering",
+    "description": "N-candidate dithering to the CGA 16-color palette, desaturated first so the match favors green and bright tones"
+  },
+  {
     "displayName": "Ordered",
     "filterName": "Ordered",
     "category": "Dithering",

@@ -162,6 +162,7 @@
   "motionDetect",
   "motionPixelate",
   "motionVectors",
+  "nCandidateDither",
   "newspaper",
   "nightVision",
   "noiseGenerator",

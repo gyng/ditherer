@@ -1,7 +1,16 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// PLAYWRIGHT_ANGLE picks the ANGLE backend: "1" keeps the original "gl", any
+// other value is passed through as the backend name ("vulkan", "swiftshader").
+// Vulkan is how you reach a real GPU under WSLg instead of the SwiftShader CPU
+// rasterizer that headless Chrome otherwise falls back to — which matters for
+// any benchmark whose answer depends on GPU behaviour (see nc-bench.spec.ts).
+const angleBackend = process.env.PLAYWRIGHT_ANGLE === "1" ? "gl" : process.env.PLAYWRIGHT_ANGLE;
 const launchArgs = [
-  ...(process.env.PLAYWRIGHT_ANGLE === "1" ? ["--use-gl=angle", "--use-angle=gl"] : []),
+  ...(angleBackend ? ["--use-gl=angle", `--use-angle=${angleBackend}`] : []),
+  ...(process.env.PLAYWRIGHT_GPU === "1"
+    ? ["--ignore-gpu-blocklist", "--enable-features=Vulkan", "--enable-gpu-rasterization"]
+    : []),
   ...(process.env.PLAYWRIGHT_WEBMCP === "1"
     ? ["--enable-features=WebMCPTesting,DevToolsWebMCPSupport"]
     : []),

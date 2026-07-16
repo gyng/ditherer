@@ -17,6 +17,7 @@ import pixelsort from "./pixelsort";
 import glitchblob from "./glitchblob";
 import halftone from "./halftone";
 import invert from "./invert";
+import nCandidateDither, { ALGO as NC_ALGO_OPT, COLORSPACE as NC_COLORSPACE } from "./nCandidateDither";
 import ordered, {
   BAYER_4X4,
   BAYER_8X8,
@@ -309,6 +310,7 @@ export { default as pixelsort } from "./pixelsort";
 export { default as glitchblob } from "./glitchblob";
 export { default as halftone } from "./halftone";
 export { default as invert } from "./invert";
+export { default as nCandidateDither } from "./nCandidateDither";
 export { default as ordered } from "./ordered";
 export { default as quantize } from "./quantize";
 export { default as scanline } from "./scanline";
@@ -558,6 +560,56 @@ export const filterList = [
     }
   },
   { displayName: "Jarvis", filter: jarvis, category: "Dithering", description: "Three-row error diffusion for smoother gradients at the cost of speed" },
+  {
+    displayName: "N-Candidate",
+    filter: nCandidateDither,
+    category: "Dithering",
+    description: "Ordered dithering that picks N weighted palette candidates per pixel — reproduces arbitrary palettes far better than a plain Bayer match",
+  },
+  {
+    displayName: "N-Candidate (Knoll)",
+    category: "Dithering",
+    description: "Thomas Knoll's pattern dither, as used in Photoshop — each candidate compensates for the previous one's error",
+    filter: {
+      ...nCandidateDither,
+      options: { ...nCandidateDither.options, algo: NC_ALGO_OPT.KNOLL },
+    },
+  },
+  {
+    displayName: "N-Candidate (Yliluoma 2)",
+    category: "Dithering",
+    description: "Joel Yliluoma's 2011 algorithm #2 as originally published — fraction sweep with a luma-weighted color difference",
+    filter: {
+      ...nCandidateDither,
+      options: {
+        ...nCandidateDither.options,
+        algo: NC_ALGO_OPT.EMA_SWEEP,
+        lumaWeighted: true,
+      },
+    },
+  },
+  {
+    displayName: "N-Candidate (EMA-Constant)",
+    category: "Dithering",
+    description: "Simplified Yliluoma with a fixed 0.3 mixing factor — lighter dithering, the cheapest of the family",
+    filter: {
+      ...nCandidateDither,
+      options: { ...nCandidateDither.options, algo: NC_ALGO_OPT.EMA_CONSTANT },
+    },
+  },
+  {
+    displayName: "N-Candidate (CGA, luma-weighted)",
+    category: "Dithering",
+    description: "N-candidate dithering to the CGA 16-color palette, desaturated first so the match favors green and bright tones",
+    filter: {
+      ...nCandidateDither,
+      options: {
+        ...nCandidateDither.options,
+        colorspace: NC_COLORSPACE.LIQ,
+        palette: { ...palettes.user, options: { colors: THEMES.CGA } },
+      },
+    },
+  },
   { displayName: "Ordered", filter: ordered, category: "Dithering", description: "Bayer matrix threshold dithering — fast, tiled, no error diffusion" },
   {
     displayName: "Ordered (Blue Noise 1-bit)",
