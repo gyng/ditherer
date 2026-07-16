@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ALTERNATE_3X3, BAYER_16X16, BAYER_2X2, BAYER_3X3, BAYER_4X4, BAYER_8X8,
+  ALTERNATE_3X3, BAYER_16X16, BAYER_16X16_T, BAYER_2X2, BAYER_2X2_T, BAYER_3X3,
+  BAYER_4X4, BAYER_4X4_T, BAYER_8X8, BAYER_8X8_T,
   BLOCK_HORIZONTAL_4X4, BLOCK_VERTICAL_4X4, BLUE_NOISE_16X16, BLUE_NOISE_64X64,
   CORNER_4X4, DISPERSED_DOT_3X3, HATCH_2X2, HATCH_3X3, HATCH_4X4, PATTERN_5X5,
   SQUARE_5X5, THRESHOLD_POLARITY, WHITE_NOISE_64X64,
@@ -84,12 +85,61 @@ describe("Bayer maps match the recurrence", () => {
   });
 });
 
+describe("transposed Bayer variants", () => {
+  // The tables are inconsistently oriented (see above), so both orientations are
+  // offered rather than renormalising and changing existing chains. Each variant
+  // is derived from its sibling in the source, so what's worth pinning is that
+  // the pair really is a transpose — and that the variant is still a valid Bayer
+  // matrix rather than, say, a rotation or a mirror.
+  it.each([
+    [BAYER_2X2, BAYER_2X2_T, 2],
+    [BAYER_4X4, BAYER_4X4_T, 4],
+    [BAYER_8X8, BAYER_8X8_T, 8],
+    [BAYER_16X16, BAYER_16X16_T, 16],
+  ])("%s and %s are transposes of each other", (base, variant, n) => {
+    const b = asIntegers(preview(base).thresholdMap, n * n);
+    const v = asIntegers(preview(variant).thresholdMap, n * n);
+    expect(v).toEqual(transpose(b));
+    // ...and not simply a copy, which is what a broken derivation would give.
+    expect(v).not.toEqual(b);
+  });
+
+  it.each([
+    [BAYER_2X2_T, 2], [BAYER_4X4_T, 4], [BAYER_8X8_T, 8], [BAYER_16X16_T, 16],
+  ])("%s is still a valid Bayer matrix", (key, n) => {
+    // A transpose permutes cells, so every level must survive exactly once.
+    const values = asIntegers(preview(key).thresholdMap, n * n).flat().sort((a, b) => a - b);
+    expect(values).toEqual(Array.from({ length: n * n }, (_, i) => i));
+  });
+
+  it("gives both orientations of each size across the pair", () => {
+    // The point of the variants: whichever way a checked-in table leans, the
+    // other lean is now reachable. So for every size, one of the pair matches
+    // the canonical recurrence and the other matches its transpose.
+    for (const [base, variant, n] of [
+      [BAYER_2X2, BAYER_2X2_T, 2], [BAYER_4X4, BAYER_4X4_T, 4],
+      [BAYER_8X8, BAYER_8X8_T, 8], [BAYER_16X16, BAYER_16X16_T, 16],
+    ] as const) {
+      const canonical = bayer(n);
+      const maps = [
+        asIntegers(preview(base).thresholdMap, n * n),
+        asIntegers(preview(variant).thresholdMap, n * n),
+      ];
+      expect(maps, `size ${n}: neither orientation is the recurrence`)
+        .toContainEqual(canonical);
+      expect(maps, `size ${n}: neither orientation is the transposed recurrence`)
+        .toContainEqual(transpose(canonical));
+    }
+  });
+});
+
 describe("every threshold map is well formed", () => {
   const ALL = [
     BAYER_2X2, BAYER_3X3, BAYER_4X4, BAYER_8X8, BAYER_16X16, SQUARE_5X5,
     CORNER_4X4, BLOCK_VERTICAL_4X4, BLOCK_HORIZONTAL_4X4, HATCH_2X2, HATCH_3X3,
     HATCH_4X4, ALTERNATE_3X3, DISPERSED_DOT_3X3, PATTERN_5X5, BLUE_NOISE_16X16,
     BLUE_NOISE_64X64, WHITE_NOISE_64X64,
+    BAYER_2X2_T, BAYER_4X4_T, BAYER_8X8_T, BAYER_16X16_T,
   ];
 
   it.each(ALL)("%s stays within [0,1) and is rectangular", (key) => {

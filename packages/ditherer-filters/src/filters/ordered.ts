@@ -24,6 +24,19 @@ export const PATTERN_5X5 = "PATTERN_5X5";
 export const BLUE_NOISE_16X16 = "BLUE_NOISE_16X16";
 export const BLUE_NOISE_64X64 = "BLUE_NOISE_64X64";
 export const WHITE_NOISE_64X64 = "WHITE_NOISE_64X64";
+// Transposing a Bayer matrix mirrors the dither texture along the diagonal.
+// The result is an equally valid dispersed-dot matrix — same statistical
+// quality, opposite lean — so both orientations are worth having.
+//
+// The checked-in tables are not consistently oriented: 2x2/4x4 follow the
+// standard recurrence M(2n) = [[4M(n), 4M(n)+2], [4M(n)+3, 4M(n)+1]] while
+// 8x8/16x16 are its transpose (see test/filters/orderedThresholdMaps.test.ts).
+// Rather than renormalise them — which would silently change every saved chain
+// using 8x8 or 16x16 — each map's opposite orientation is offered alongside it.
+export const BAYER_2X2_T = "BAYER_2X2_T";
+export const BAYER_4X4_T = "BAYER_4X4_T";
+export const BAYER_8X8_T = "BAYER_8X8_T";
+export const BAYER_16X16_T = "BAYER_16X16_T";
 
 export const THRESHOLD_POLARITY = {
   SHADOW: "SHADOW",
@@ -32,6 +45,10 @@ export const THRESHOLD_POLARITY = {
 
 const WHITE_NOISE_SIZE = 64;
 const WHITE_NOISE_LEVELS = WHITE_NOISE_SIZE * WHITE_NOISE_SIZE;
+
+// map[y][x] -> map[x][y]. Bayer maps are square, so this stays rectangular.
+const transposeMatrix = (mat: number[][]): number[][] =>
+  mat.map((_, y) => mat.map(row => row[y] ?? 0));
 
 const hash32 = (value: number) => {
   let x = value >>> 0;
@@ -58,7 +75,7 @@ const generateWhiteNoiseMap = (size: number, seed: number) => {
 };
 
 // map[y][x]
-const thresholdMaps = {
+const baseThresholdMaps = {
   [BAYER_2X2]: {
     width: 2,
     thresholdMap: scaleMatrix([[0, 2], [3, 1]], 1 / 4)
@@ -228,6 +245,29 @@ const thresholdMaps = {
   }
 };
 
+
+// Each transpose is derived from its sibling rather than transcribed, so the
+// pair can never drift apart.
+const thresholdMaps = {
+  ...baseThresholdMaps,
+  [BAYER_2X2_T]: {
+    width: 2,
+    thresholdMap: transposeMatrix(baseThresholdMaps[BAYER_2X2].thresholdMap as number[][]),
+  },
+  [BAYER_4X4_T]: {
+    width: 4,
+    thresholdMap: transposeMatrix(baseThresholdMaps[BAYER_4X4].thresholdMap as number[][]),
+  },
+  [BAYER_8X8_T]: {
+    width: 8,
+    thresholdMap: transposeMatrix(baseThresholdMaps[BAYER_8X8].thresholdMap as number[][]),
+  },
+  [BAYER_16X16_T]: {
+    width: 16,
+    thresholdMap: transposeMatrix(baseThresholdMaps[BAYER_16X16].thresholdMap as number[][]),
+  },
+};
+
 type ThresholdMapKey = keyof typeof thresholdMaps;
 
 const thresholdMapLabels: Record<ThresholdMapKey, string> = {
@@ -249,6 +289,10 @@ const thresholdMapLabels: Record<ThresholdMapKey, string> = {
   [BLUE_NOISE_16X16]: "Blue Noise 16x16",
   [BLUE_NOISE_64X64]: "Blue Noise 64x64",
   [WHITE_NOISE_64X64]: "White Noise 64x64",
+  [BAYER_2X2_T]: "Bayer 2x2 (transposed)",
+  [BAYER_4X4_T]: "Bayer 4x4 (transposed)",
+  [BAYER_8X8_T]: "Bayer 8x8 (transposed)",
+  [BAYER_16X16_T]: "Bayer 16x16 (transposed)",
 };
 
 const resolveThresholdMapKey = (key: string): ThresholdMapKey =>
@@ -303,10 +347,14 @@ export const optionTypes = {
     type: ENUM,
     options: [
       { name: "Bayer 2×2", value: BAYER_2X2 },
+      { name: "Bayer 2×2 (transposed)", value: BAYER_2X2_T },
       { name: "Bayer 3×3", value: BAYER_3X3 },
       { name: "Bayer 4×4", value: BAYER_4X4 },
+      { name: "Bayer 4×4 (transposed)", value: BAYER_4X4_T },
       { name: "Bayer 8×8", value: BAYER_8X8 },
+      { name: "Bayer 8×8 (transposed)", value: BAYER_8X8_T },
       { name: "Bayer 16×16", value: BAYER_16X16 },
+      { name: "Bayer 16×16 (transposed)", value: BAYER_16X16_T },
       { name: "Dispersed Dot 3×3", value: DISPERSED_DOT_3X3 },
       { name: "Digital Halftone 5×8", value: SQUARE_5X5 },
       { name: "Corner 4×4", value: CORNER_4X4 },
