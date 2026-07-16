@@ -31,13 +31,15 @@ import {
   rgba,
   wasmApplyChannelLut,
   wasmIsLoaded,
+  wasmQuantizeBufferHsv,
   wasmQuantizeBufferLab,
+  wasmQuantizeBufferRgbApprox,
   wasmQuantizeBufferRgb,
   srgbBufToLinearFloat,
   linearFloatToSrgbBuf,
   linearPaletteGetColor,
 } from "../utils/index";
-import { LAB_NEAREST, RGB_NEAREST } from "../constants/color";
+import { HSV_NEAREST, LAB_NEAREST, RGB_APPROX, RGB_NEAREST } from "../constants/color";
 
 // Bivariant hack on getColor so we accept specialized palette definitions
 // (e.g., `nearest` with `{ levels: number }`) without callers needing to
@@ -130,14 +132,20 @@ export const applyPaletteToBuffer = (
   const algo = hasColors && wasmAcceleration && wasmIsLoaded()
     ? resolvePaletteColorAlgorithm(palette)
     : null;
-  if (algo === RGB_NEAREST || algo === LAB_NEAREST) {
-    const colors = opts.colors as number[][];
-    const quantized = algo === RGB_NEAREST
-      ? wasmQuantizeBufferRgb(input, colors)
-      // Lab is the bigger win: it was the slowest path by far (5.9s vs 1.3s at
-      // 1920x1080) precisely because it already used WASM — per pixel, paying
-      // ~2M boundary crossings.
-      : wasmQuantizeBufferLab(input, colors);
+  // Every colour-distance algorithm now has a whole-buffer Rust counterpart, so
+  // nothing custom-palette falls to the per-pixel JS loop when WASM is up.
+  const WHOLE_BUFFER: Record<string, (b: Uint8ClampedArray | Uint8Array, c: number[][]) => Uint8Array> = {
+    [RGB_NEAREST]: wasmQuantizeBufferRgb,
+    // Lab was the biggest win: the slowest path by far (5.9s vs 1.3s at
+    // 1920x1080) precisely because it already used WASM — per pixel, paying
+    // ~2M boundary crossings.
+    [LAB_NEAREST]: wasmQuantizeBufferLab,
+    [RGB_APPROX]: wasmQuantizeBufferRgbApprox,
+    [HSV_NEAREST]: wasmQuantizeBufferHsv,
+  };
+  const quantizer = algo ? WHOLE_BUFFER[algo] : undefined;
+  if (quantizer) {
+    const quantized = quantizer(input, opts.colors as number[][]);
     // May be an in-place call (input === output); set() handles both.
     (output as Uint8ClampedArray).set(quantized);
     return;

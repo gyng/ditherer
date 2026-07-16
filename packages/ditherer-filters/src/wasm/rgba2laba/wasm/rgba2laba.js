@@ -126,6 +126,30 @@ export function nearest_lab_precomputed(r, g, b, palette_lab, ref_x, ref_y, ref_
 }
 
 /**
+ * Quantize a buffer using HSV distance. Mirrors colorDistance(HSV_NEAREST).
+ *
+ * All three terms are normalised to 0..1: hue by the /180 (its range is 0..360),
+ * saturation and value are already 0..1 out of rgb_to_hsv. The JS used to divide
+ * the value term by 255 on top of that, scaling brightness to ~1/65000 of the
+ * other axes — HSV matched white to black against a [black, red] palette. The
+ * in-shader version in orderedGL never had the divisor, so GL and CPU disagreed
+ * on every HSV palette; all three now use this formula.
+ * @param {Uint8Array} buffer
+ * @param {Float64Array} palette
+ * @returns {Uint8Array}
+ */
+export function quantize_buffer_hsv(buffer, palette) {
+    const ptr0 = passArray8ToWasm0(buffer, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.quantize_buffer_hsv(ptr0, len0, ptr1, len1);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
  * Quantize an entire RGBA u8 buffer in one call using CIE Lab distance.
  * Converts the palette to Lab once, then finds the nearest for every pixel.
  *
@@ -168,6 +192,24 @@ export function quantize_buffer_rgb(buffer, palette) {
     const ptr1 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
     const len1 = WASM_VECTOR_LEN;
     const ret = wasm.quantize_buffer_rgb(ptr0, len0, ptr1, len1);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
+ * Quantize a buffer using the red-mean perceptual RGB approximation.
+ * Mirrors colorDistance(RGB_APPROX) exactly, including the /256 divisors.
+ * @param {Uint8Array} buffer
+ * @param {Float64Array} palette
+ * @returns {Uint8Array}
+ */
+export function quantize_buffer_rgb_approx(buffer, palette) {
+    const ptr0 = passArray8ToWasm0(buffer, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(palette, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.quantize_buffer_rgb_approx(ptr0, len0, ptr1, len1);
     var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
     return v3;

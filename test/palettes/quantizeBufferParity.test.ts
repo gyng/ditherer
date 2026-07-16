@@ -134,16 +134,48 @@ describe("whole-buffer RGB quantizer parity", () => {
       .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
   });
 
-  it.each([RGB_APPROX, HSV_NEAREST])(
-    "%s is left on the JS path and is unaffected by the wasm flag",
+  it.each([RGB_APPROX, HSV_NEAREST])("%s: WASM and JS agree on every pixel", (algo) => {
+    const src = makeBuf(8192, 255);
+    expect(Array.from(apply(src, withAlgo(algo), true)))
+      .toEqual(Array.from(apply(src, withAlgo(algo), false)));
+  });
+
+  it.each([RGB_APPROX, HSV_NEAREST])("%s: agrees with varying alpha", (algo) => {
+    const src = makeBuf(8192);
+    expect(Array.from(apply(src, withAlgo(algo), true)))
+      .toEqual(Array.from(apply(src, withAlgo(algo), false)));
+  });
+
+  it.each([RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST])(
+    "%s: agrees across a coarse RGB grid, not just random samples",
     (algo) => {
-      // Only RGB and LAB have whole-buffer Rust functions; the others must not
-      // be silently routed through one, which would change their colours.
-      const src = makeBuf(1024, 255);
+      // Random pixels can miss a systematic error in a corner of the cube —
+      // HSV in particular has a hue wrap and an achromatic branch (delta == 0)
+      // that random sampling hits rarely.
+      const step = 17;
+      const n = Math.ceil(256 / step) ** 3;
+      const src = new Uint8ClampedArray(n * 4);
+      let i = 0;
+      for (let r = 0; r < 256; r += step)
+        for (let g = 0; g < 256; g += step)
+          for (let b = 0; b < 256; b += step) {
+            src[i] = r; src[i + 1] = g; src[i + 2] = b; src[i + 3] = 255; i += 4;
+          }
       expect(Array.from(apply(src, withAlgo(algo), true)))
         .toEqual(Array.from(apply(src, withAlgo(algo), false)));
     },
   );
+
+  it("HSV: greys agree — the achromatic branch, where delta == 0", () => {
+    // rgb_to_hsv early-returns [0,0,v] when delta is 0. If Rust and JS disagree
+    // about that branch, every neutral in the image shifts.
+    const src = new Uint8ClampedArray(256 * 4);
+    for (let v = 0; v < 256; v++) {
+      src[v * 4] = v; src[v * 4 + 1] = v; src[v * 4 + 2] = v; src[v * 4 + 3] = 255;
+    }
+    expect(Array.from(apply(src, withAlgo(HSV_NEAREST), true)))
+      .toEqual(Array.from(apply(src, withAlgo(HSV_NEAREST), false)));
+  });
 
   it("wasmAcceleration=false still uses the JS path", () => {
     // The escape hatch has to keep working — it's how the app disables WASM.

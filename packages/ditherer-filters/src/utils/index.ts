@@ -189,6 +189,8 @@ const bindWasmModule = (mod: typeof import("../wasm/rgba2laba/wasm/rgba2laba")) 
   wasmNearestLabPrecomputedInner = mod.nearest_lab_precomputed;
   wasmQuantizeBufferRgbInner = mod.quantize_buffer_rgb;
   wasmQuantizeBufferLabInner = mod.quantize_buffer_lab;
+  wasmQuantizeBufferRgbApproxInner = mod.quantize_buffer_rgb_approx;
+  wasmQuantizeBufferHsvInner = mod.quantize_buffer_hsv;
   wasmErrorDiffuseBufferInner = mod.error_diffuse_buffer;
   wasmErrorDiffuseCustomInner = mod.error_diffuse_custom_order;
   wasmRiemersmaDitherInner = mod.riemersma_dither;
@@ -525,6 +527,8 @@ let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn = wasmNearestLab
 let wasmQuantizeBufferRgbInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 const wasmQuantizeBufferLabInnerDefault: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 let wasmQuantizeBufferLabInner: WasmQuantizeBufferFn = wasmQuantizeBufferLabInnerDefault;
+let wasmQuantizeBufferRgbApproxInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
+let wasmQuantizeBufferHsvInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 let wasmErrorDiffuseBufferInner: WasmErrorDiffuseBufferFn = wasmErrorDiffuseBufferInnerDefault;
 let wasmErrorDiffuseCustomInner: WasmErrorDiffuseCustomFn = wasmErrorDiffuseCustomInnerDefault;
 let wasmRiemersmaDitherInner: WasmRiemersmaDitherFn = wasmRiemersmaDitherInnerDefault;
@@ -596,6 +600,18 @@ export const wasmQuantizeBufferLab = (
   ref = referenceTable.CIE_1931.D65,
 ): Uint8Array =>
   wasmQuantizeBufferLabInner(buffer, ensurePaletteFlat(palette), ref.x, ref.y, ref.z);
+
+export const wasmQuantizeBufferRgbApprox = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette: number[][],
+): Uint8Array =>
+  wasmQuantizeBufferRgbApproxInner(buffer, ensurePaletteFlat(palette));
+
+export const wasmQuantizeBufferHsv = (
+  buffer: Uint8ClampedArray | Uint8Array,
+  palette: number[][],
+): Uint8Array =>
+  wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
 
 // Resolve the colorDistanceAlgorithm for a palette, honoring the user palette's
 // runtime fallback (defaults.colorDistanceAlgorithm) so random-preset palettes
@@ -935,7 +951,17 @@ export const colorDistance = (
           360 - Math.abs((bHsv[0] ?? 0) - (aHsv[0] ?? 0))
         ) / 180.0;
       const dS = Math.abs((bHsv[1] ?? 0) - (aHsv[1] ?? 0));
-      const dV = Math.abs((bHsv[2] ?? 0) - (aHsv[2] ?? 0)) / 255.0;
+      // dV is NOT divided by 255: rgba2hsva already returns V in 0..1, like S,
+      // and dH is normalised to 0..1 by the /180. Dividing again scaled the
+      // value term to ~1/65000 of the other two, making brightness a tiebreaker
+      // instead of an equal axis — HSV matched white to black against a
+      // [black, red] palette, because the saturation term (1.0) dwarfed the
+      // value term (1/255)^2.
+      //
+      // orderedGL's in-shader HSV distance never had the divisor
+      // (`float dvv = abs(aux.z - pa.z);`), so the GL and CPU paths disagreed on
+      // every HSV palette. This makes them agree, and the shader was right.
+      const dV = Math.abs((bHsv[2] ?? 0) - (aHsv[2] ?? 0));
 
       return dH ** 2 + dS ** 2 + dV ** 2;
     }

@@ -224,6 +224,104 @@ pub fn quantize_buffer_lab(
     out
 }
 
+/// Quantize a buffer using the red-mean perceptual RGB approximation.
+/// Mirrors colorDistance(RGB_APPROX) exactly, including the /256 divisors.
+#[wasm_bindgen]
+pub fn quantize_buffer_rgb_approx(buffer: &[u8], palette: &[f64]) -> Vec<u8> {
+    let n_colors = palette.len() / 4;
+    let mut pal: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
+    for i in 0..n_colors {
+        pal.push([
+            palette[i * 4] as u8,
+            palette[i * 4 + 1] as u8,
+            palette[i * 4 + 2] as u8,
+            palette[i * 4 + 3] as u8,
+        ]);
+    }
+
+    let n_pixels = buffer.len() / 4;
+    let mut out = vec![0u8; buffer.len()];
+    for p in 0..n_pixels {
+        let i = p * 4;
+        let br = buffer[i] as f64;
+        let bg = buffer[i + 1] as f64;
+        let bb = buffer[i + 2] as f64;
+
+        let mut best = 0usize;
+        let mut best_d = f64::MAX;
+        for (j, c) in pal.iter().enumerate() {
+            let ar = c[0] as f64;
+            let ag = c[1] as f64;
+            let ab = c[2] as f64;
+            // `r` is the mean of the palette and pixel red — the "red mean".
+            let r = (ar + br) / 2.0;
+            let d_r = ar - br;
+            let d_g = ag - bg;
+            let d_b = ab - bb;
+            let d = (2.0 + r / 256.0) * d_r * d_r
+                + 4.0 * d_g * d_g
+                + (2.0 + (255.0 - r) / 256.0) * d_b * d_b;
+            if d < best_d {
+                best_d = d;
+                best = j;
+            }
+        }
+        out[i] = pal[best][0];
+        out[i + 1] = pal[best][1];
+        out[i + 2] = pal[best][2];
+        out[i + 3] = buffer[i + 3];
+    }
+    out
+}
+
+/// Quantize a buffer using HSV distance. Mirrors colorDistance(HSV_NEAREST).
+///
+/// All three terms are normalised to 0..1: hue by the /180 (its range is 0..360),
+/// saturation and value are already 0..1 out of rgb_to_hsv. The JS used to divide
+/// the value term by 255 on top of that, scaling brightness to ~1/65000 of the
+/// other axes — HSV matched white to black against a [black, red] palette. The
+/// in-shader version in orderedGL never had the divisor, so GL and CPU disagreed
+/// on every HSV palette; all three now use this formula.
+#[wasm_bindgen]
+pub fn quantize_buffer_hsv(buffer: &[u8], palette: &[f64]) -> Vec<u8> {
+    let n_colors = palette.len() / 4;
+    let mut pal_rgb: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
+    let mut pal_hsv: Vec<[f64; 3]> = Vec::with_capacity(n_colors);
+    for i in 0..n_colors {
+        let r = palette[i * 4];
+        let g = palette[i * 4 + 1];
+        let b = palette[i * 4 + 2];
+        pal_rgb.push([r as u8, g as u8, b as u8, palette[i * 4 + 3] as u8]);
+        pal_hsv.push(rgb_to_hsv(r, g, b));
+    }
+
+    let n_pixels = buffer.len() / 4;
+    let mut out = vec![0u8; buffer.len()];
+    for p in 0..n_pixels {
+        let i = p * 4;
+        let hsv = rgb_to_hsv(buffer[i] as f64, buffer[i + 1] as f64, buffer[i + 2] as f64);
+
+        let mut best = 0usize;
+        let mut best_d = f64::MAX;
+        for (j, ph) in pal_hsv.iter().enumerate() {
+            let raw = (hsv[0] - ph[0]).abs();
+            let d_h = raw.min(360.0 - raw) / 180.0;
+            let d_s = (hsv[1] - ph[1]).abs();
+            let d_v = (hsv[2] - ph[2]).abs();
+            let d = d_h * d_h + d_s * d_s + d_v * d_v;
+            if d < best_d {
+                best_d = d;
+                best = j;
+            }
+        }
+        out[i] = pal_rgb[best][0];
+        out[i + 1] = pal_rgb[best][1];
+        out[i + 2] = pal_rgb[best][2];
+        out[i + 3] = buffer[i + 3];
+    }
+    out
+}
+
 fn rgb_to_hsv(r: f64, g: f64, b: f64) -> [f64; 3] {
     let r = r / 255.0;
     let g = g / 255.0;

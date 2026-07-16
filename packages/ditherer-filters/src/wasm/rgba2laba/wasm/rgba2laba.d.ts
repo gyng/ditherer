@@ -14,6 +14,18 @@ export function error_diffuse_custom_order(input: Uint8Array, output: Uint8Array
 export function nearest_lab_precomputed(r: number, g: number, b: number, palette_lab: Float64Array, ref_x: number, ref_y: number, ref_z: number): number;
 
 /**
+ * Quantize a buffer using HSV distance. Mirrors colorDistance(HSV_NEAREST).
+ *
+ * All three terms are normalised to 0..1: hue by the /180 (its range is 0..360),
+ * saturation and value are already 0..1 out of rgb_to_hsv. The JS used to divide
+ * the value term by 255 on top of that, scaling brightness to ~1/65000 of the
+ * other axes — HSV matched white to black against a [black, red] palette. The
+ * in-shader version in orderedGL never had the divisor, so GL and CPU disagreed
+ * on every HSV palette; all three now use this formula.
+ */
+export function quantize_buffer_hsv(buffer: Uint8Array, palette: Float64Array): Uint8Array;
+
+/**
  * Quantize an entire RGBA u8 buffer in one call using CIE Lab distance.
  * Converts the palette to Lab once, then finds the nearest for every pixel.
  *
@@ -33,6 +45,12 @@ export function quantize_buffer_lab(buffer: Uint8Array, palette: Float64Array, r
  * Returns a new u8 buffer with matched palette colours (alpha preserved).
  */
 export function quantize_buffer_rgb(buffer: Uint8Array, palette: Float64Array): Uint8Array;
+
+/**
+ * Quantize a buffer using the red-mean perceptual RGB approximation.
+ * Mirrors colorDistance(RGB_APPROX) exactly, including the /256 divisors.
+ */
+export function quantize_buffer_rgb_approx(buffer: Uint8Array, palette: Float64Array): Uint8Array;
 
 export function rgba2laba(r: number, g: number, b: number, a: number, ref_x: number, ref_y: number, ref_z: number): Float64Array;
 
@@ -55,8 +73,10 @@ export interface InitOutput {
     readonly error_diffuse_buffer: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number) => void;
     readonly error_diffuse_custom_order: (a: number, b: number, c: number, d: number, e: any, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number) => void;
     readonly nearest_lab_precomputed: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly quantize_buffer_hsv: (a: number, b: number, c: number, d: number) => [number, number];
     readonly quantize_buffer_lab: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly quantize_buffer_rgb: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly quantize_buffer_rgb_approx: (a: number, b: number, c: number, d: number) => [number, number];
     readonly rgba2laba: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly rgba_laba_distance: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
     readonly rgba_nearest_lab_index: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
