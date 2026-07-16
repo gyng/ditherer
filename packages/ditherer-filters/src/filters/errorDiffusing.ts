@@ -5,7 +5,7 @@ import { defaults, errorDiffusingFilter } from "./errorDiffusingFilterFactory";
 // https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
 // [_,    *,    7/16]
 // [3/16, 5/16, 1/16]
-const fsKernel = {
+export const fsKernel = {
   offset: [-1, 0], // x, y
   kernel: [[null, null, 7 / 16], [3 / 16, 5 / 16, 1 / 16]]
 };
@@ -15,7 +15,7 @@ export const floydSteinberg = errorDiffusingFilter(
   defaults
 );
 
-const falseFsKernel = {
+export const falseFsKernel = {
   offset: [0, 0], // x, y
   kernel: scaleMatrix([[null, 3], [3, 2]], 1 / 8)
 };
@@ -30,7 +30,7 @@ export const falseFloydSteinberg = errorDiffusingFilter(
 // 2   4   5   4   2
 //     2   3   2
 //       (1/32)
-const sierra3kernel = {
+export const sierra3kernel = {
   offset: [-2, 0], // x, y
   kernel: scaleMatrix(
     [[null, null, null, 5, 3], [2, 4, 5, 4, 2], [null, 2, 3, 2, null]],
@@ -70,7 +70,7 @@ export const sierraLite = errorDiffusingFilter(
 // 1   1   1
 //     1
 //   (1/8)
-const atkinsonKernel = {
+export const atkinsonKernel = {
   offset: [-1, 0], // x, y
   kernel: scaleMatrix(
     [[null, null, 1, 1], [1, 1, 1, null], [null, 1, null, null]],
@@ -88,7 +88,7 @@ export const atkinson = errorDiffusingFilter(
 // 3   5   7   5   3
 // 1   3   5   3   1
 //       (1/48)
-const jarvisKernel = {
+export const jarvisKernel = {
   offset: [-2, 0], // x, y
   kernel: scaleMatrix(
     [[null, null, null, 7, 5], [3, 5, 7, 5, 3], [1, 3, 5, 3, 1]],
@@ -100,7 +100,7 @@ export const jarvis = errorDiffusingFilter("Jarvis", jarvisKernel, defaults);
 //         *   8   4
 // 2   4   8   4   2
 // 1   2   4   2   1   (1/42)
-const stuckiKernel = {
+export const stuckiKernel = {
   offset: [-2, 0],
   kernel: scaleMatrix(
     [[null, null, null, 8, 4], [2, 4, 8, 4, 2], [1, 2, 4, 2, 1]],
@@ -111,7 +111,7 @@ export const stucki = errorDiffusingFilter("Stucki", stuckiKernel, defaults);
 
 // *   8   4             The Burkes filter
 // 2   4   8   4   2   (1/32)
-const burkesKernel = {
+export const burkesKernel = {
   offset: [-2, 0],
   kernel: scaleMatrix([[null, null, null, 8, 4], [2, 4, 8, 4, 2]], 1 / 32)
 };
@@ -123,7 +123,7 @@ export const burkes = errorDiffusingFilter("Burkes", burkesKernel, defaults);
 //   X
 //   1
 //   (1/4)
-const horizontalStripeKernel = {
+export const horizontalStripeKernel = {
   offset: [0, 0], // x, y
   kernel: scaleMatrix([[null], [1], [null], [1]], 1 / 4)
 };
@@ -133,7 +133,7 @@ export const horizontalStripe = errorDiffusingFilter(
   defaults
 );
 
-const verticalStripeKernel = {
+export const verticalStripeKernel = {
   offset: [0, 0], // x, y
   kernel: scaleMatrix([[null, 1, null, 1]], 1 / 4)
 };
