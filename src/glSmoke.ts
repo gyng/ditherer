@@ -440,6 +440,163 @@ const runHalftoneBackends = (): { ok: true } | { ok: false; reason: string } => 
   return { ok: true };
 };
 
+// Plan 002 (gamma-correct pipeline) wired `_linearize` into a specific set of
+// filters, on the argument that sRGB maths is biased dark — avg(0,255) is 128
+// where the perceptual midpoint is 188. Nothing asserts the flag has any effect:
+// gl-smoke renders every filter with _linearize:true but only checks alpha and
+// peak luma, so a filter that accepts the option and ignores it is
+// indistinguishable from one that honours it. If the flag is dead for any of
+// them, the pipeline is silently a no-op there.
+//
+// Every one of these does real colour maths, so linearising first must change
+// the result. Runs in the browser because several are requiresGL.
+// Fine-grained mid-tone detail. Getting this fixture right took four attempts,
+// and every failure looked exactly like a bug in a filter — worth recording, because
+// the next person to extend this sweep will hit the same wall:
+//
+//  - makeGradientCanvas is broad flat bands plus a 245/10 checker. Convolutions
+//    are identity on flat regions (kernel sums to 1) and clamp to 0/255 at the
+//    extremes in BOTH spaces, so nothing differs.
+//  - A linear ramp is worse: a sharpen kernel is a discrete Laplacian, exactly
+//    zero on a linear gradient — the input sits in the kernel's null space.
+//  - A smooth low-frequency sinusoid is worse still for the DEFAULT kernel,
+//    which is GAUSSIAN_3X3 (the ENUM's first *option* is Sharpen; its `default:`
+//    is Gaussian). A 3x3 blur barely moves a 32px-period wave, so the two spaces
+//    agree to under 1 LSB and round to identical.
+//
+// What actually discriminates: high-frequency detail in mid-tones. Neighbouring
+// pixels far apart in value make a 3x3 kernel do real averaging, mid-tones keep
+// everything off the clamps, and averaging is exactly where the two spaces
+// diverge — which is plan 002's own argument (sRGB avg(0,255) = 128, but the
+// perceptual midpoint is 188).
+const makeSmoothRamp = (w: number, h: number): HTMLCanvasElement => {
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2d context unavailable");
+  const data = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      // 1px checker in a NARROW mid band. The separation has to clear two
+      // opposing hazards: wide enough that a 3x3 kernel's averaging differs
+      // measurably between spaces (110 vs 150 lands ~2 LSB apart), but narrow
+      // enough that a contrast/levels adjustment doesn't drive both ends into
+      // the 0/255 clamps — where they'd saturate identically in either space and
+      // look like a dead flag. A 70/185 checker fails the second test.
+      const checker = (x + y) % 2 === 0;
+      const fine = (x % 3 === 0) !== (y % 2 === 0);
+      data.data[i] = checker ? 110 : 150;
+      data.data[i + 1] = fine ? 105 : 145;
+      data.data[i + 2] = (x % 2 === 0) ? 115 : 155;
+      data.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  return canvas;
+};
+
+// Registry keys are `filter.name`, not the module filename. Watch out: there IS
+// a separate "Sharpen" filter (sharpen.ts, an unsharp mask) that has nothing to
+// do with convolve.ts and doesn't support linearize — testing that one instead
+// produced a convincing "Sharpen=0" that meant nothing.
+//
+// `opts` forces each filter to actually do colour maths. Several ship identity
+// defaults (Brightness/Contrast is brightness 0 / contrast 0 / gamma 1; Levels is
+// 0..255 with gamma 1), and an identity transform is unaffected by the space it
+// runs in — so testing them at their defaults would measure nothing.
+const LINEARIZE_AWARE: { name: string; opts?: Record<string, unknown>; why?: string; knownDead?: string }[] = [
+  { name: "Binarize" },
+  { name: "Brightness/Contrast", opts: { brightness: 10, contrast: 15 } },
+  { name: "Convolve" },
+  { name: "Floyd-Steinberg" },
+  { name: "Grayscale" },
+  // KNOWN DEAD — pinned, not hidden. Halftone reads _linearize in its JS path
+  // (it averages each cell's block in linear space, then delinearises to draw —
+  // exactly plan 002's argument) but renderHalftoneGL takes no linearize
+  // argument at all, so with WebGL2 available (the normal case) the toggle does
+  // nothing. Plan 002 lists Halftone as CRITICAL for gamma correctness.
+  //
+  // Not fixed here because it isn't a missing uniform: the GL shader doesn't
+  // average a block, it point-samples the cell centre, so there's no averaging
+  // for linearisation to correct. Making it gamma-correct means deciding what
+  // that should mean in GL (dot area proportional to linear intensity?), which
+  // changes the look and still leaves the two backends structurally different.
+  // That's a design call. See docs/plan/057.
+  { name: "Halftone", knownDead: "GL path takes no linearize arg; JS path honours it" },
+  { name: "Levels", opts: { gamma: 1.6 } },
+  { name: "N-Candidate" },
+  { name: "Ordered" },
+  // Pixelate only linearises around its palette pass, and its default palette is
+  // levels 256 — identity — so the pass is skipped entirely and the flag is a
+  // no-op by design. Give it a real palette so the path under test actually runs.
+  {
+    name: "Pixelate",
+    opts: { palette: { name: "nearest", options: { levels: 4 } } },
+    why: "default palette is identity; linearize only wraps the palette pass",
+  },
+  { name: "Quantize" },
+  { name: "Random" },
+  { name: "Riemersma" },
+];
+
+const runLinearizeIsLive = (): { ok: true } | { ok: false; reason: string } => {
+  const dead: string[] = [];
+  const missing: string[] = [];
+  const counts: string[] = [];
+  const revived: string[] = [];
+
+  for (const { name, opts, knownDead } of LINEARIZE_AWARE) {
+    const filter = filterIndex[name];
+    if (!filter) { missing.push(name); continue; }
+    const render = (linearize: boolean): Uint8ClampedArray | null => {
+      const source = makeSmoothRamp(32, 32);
+      const options = {
+        ...(filter.defaults ?? {}),
+        ...shaderValidationOverrides(name, (filter.defaults ?? {}) as Record<string, unknown>),
+        ...(opts ?? {}),
+        _linearize: linearize,
+        _webglAcceleration: true,
+      };
+      const output = filter.func(source, options) as HTMLCanvasElement;
+      return output.getContext("2d", { willReadFrequently: true })
+        ?.getImageData(0, 0, 32, 32).data ?? null;
+    };
+    const off = render(false);
+    const on = render(true);
+    if (!off || !on) { dead.push(`${name}(readback failed)`); continue; }
+    let changed = 0;
+    for (let i = 0; i < off.length; i += 4) {
+      if (off[i] !== on[i] || off[i + 1] !== on[i + 1] || off[i + 2] !== on[i + 2]) changed += 1;
+    }
+    counts.push(`${name}=${changed}`);
+    if (knownDead) {
+      // Assert it's STILL dead, so a fix trips this and prompts an update rather
+      // than silently leaving a stale exclusion behind.
+      if (changed !== 0) {
+        revived.push(`${name} (${knownDead}) now honours _linearize — remove the knownDead pin`);
+      }
+      continue;
+    }
+    if (changed === 0) dead.push(name);
+  }
+
+  if (missing.length > 0) {
+    return { ok: false, reason: `not in registry (renamed?): ${missing.join(", ")}` };
+  }
+  if (revived.length > 0) {
+    return { ok: false, reason: revived.join("; ") };
+  }
+  if (dead.length > 0) {
+    return {
+      ok: false,
+      reason: `_linearize has no effect on: ${dead.join(", ")} — the gamma-correct path is a no-op there. changed-px per filter: ${counts.join(" ")}`,
+    };
+  }
+  return { ok: true };
+};
+
 const runOrderedPaletteLevels = (): { ok: true } | { ok: false; reason: string } => {
   const filter = filterIndex.Ordered;
   const render = (levels: number): Uint8ClampedArray | null => {
@@ -829,6 +986,7 @@ const main = async () => {
   record("Median Cut", "backend-agreement", runMedianCutBackendAgreement());
   record("Triangle dither", "seeded-noise", runTriangleDitherSeed());
   record("Halftone", "backend-liveness", runHalftoneBackends());
+  record("pipeline", "linearize-is-live", runLinearizeIsLive());
 
   const status: "ok" | "failed" = failed === 0 ? "ok" : "failed";
   const details = {
