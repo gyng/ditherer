@@ -308,48 +308,84 @@ const circularIterator = (init: IteratorInit): IteratorFn => {
 // Returns buffer indices
 export const ITERATORS = {
   [DIRECTION.ROW]: (init: IteratorInit): IteratorFn => {
-    let { x, y, i } = init;
+    let { x, y } = init;
     const { w, h } = init;
     let end = false;
 
+    // Walks each row left-to-right, emitting the index of the pixel it is
+    // actually on and ending the interval on the row's last real pixel.
+    //
+    // The previous version emitted an extra `x === w` step past the row's end
+    // and carried `i` forward from it, which shifted every subsequent position
+    // one pixel through the walk: each row was sorted from its neighbour's
+    // pixels, the first pixel washed into the next row, and the final pixel ran
+    // off the buffer — reading undefined, which `rgba()` turns into transparent
+    // black, so the image ended on a phantom (0,0,0,0).
     return () => {
       if (end) {
         return null;
       }
 
-      const wrapX = x === w;
-      const endInterval = wrapX; // Terminate intervals at end
-      const nextResult = { x, y, i, w, h, wrapX, wrapY: false, endInterval };
+      const atRowEnd = x === w - 1;
+      const nextResult = {
+        x,
+        y,
+        i: getBufferIndex(x, y, w),
+        w,
+        h,
+        wrapX: atRowEnd,
+        wrapY: false,
+        endInterval: atRowEnd, // sort each row as one run
+      };
 
-      i = getBufferIndex(x, y, w) + 4;
-      end = i >= w * h * 4;
-
-      x = x === w ? 0 : x + 1;
-      y = x === w ? y + 1 : y;
+      x += 1;
+      if (x >= w) {
+        x = 0;
+        y += 1;
+      }
       end = y >= h;
 
       return nextResult;
     };
   },
   [DIRECTION.COLUMN]: (init: IteratorInit): IteratorFn => {
-    let { x, y, i } = init;
+    let { x, y } = init;
     const { w, h } = init;
     let end = false;
 
+    // Walks each column top-to-bottom, emitting the index of the pixel it is
+    // actually on and stopping at the last real row.
+    //
+    // The previous version carried `i` forward as `getBufferIndex(x, y, w) + 4`
+    // — row-major stepping, borrowed from the ROW iterator where it happens to
+    // be right. Down a column the next index is `+ w * 4`, so every emitted
+    // position was shifted one step through the walk, and the loop ran on to
+    // `y === h`, one row past the bottom. Reading there returns undefined, which
+    // `rgba()` turns into transparent black, so each column had a phantom
+    // (0,0,0,0) pixel sorted into it and lost its real brightest pixel to the
+    // next column over. COLUMN is the default direction.
     return () => {
       if (end) {
         return null;
       }
 
-      const wrapY = y === h;
-      const endInterval = wrapY; // Terminate intervals at end
-      const nextResult = { x, y, i, w, h, wrapX: false, wrapY, endInterval };
+      const atColumnEnd = y === h - 1;
+      const nextResult = {
+        x,
+        y,
+        i: getBufferIndex(x, y, w),
+        w,
+        h,
+        wrapX: false,
+        wrapY: atColumnEnd,
+        endInterval: atColumnEnd, // sort each column as one run
+      };
 
-      i = getBufferIndex(x, y, w) + 4;
-      end = i >= w * h * 4;
-
-      x = y === h ? x + 1 : x;
-      y = y === h ? 0 : y + 1;
+      y += 1;
+      if (y >= h) {
+        y = 0;
+        x += 1;
+      }
       end = x >= w;
 
       return nextResult;
