@@ -57,6 +57,5 @@ The first release target is a modern browser bundler. WebGL-only filters report
 `requiresGL` in their definition; `glAvailable()` can be used for capability
 checks. `wasmReady` resolves after the optional acceleration module initializes.
 
-Maintainers can publish the version in `package.json` by manually running the
-`Publish filter package` GitHub Actions workflow with that exact version, or by
-pushing a matching tag such as `filters-v0.1.0`.
+See [CHANGELOG.md](./CHANGELOG.md) for release notes and [RELEASING.md](./RELEASING.md)
+for the verified GitHub Packages release procedure.

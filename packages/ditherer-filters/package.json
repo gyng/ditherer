@@ -1,6 +1,6 @@
 {
   "name": "@gyng/ditherer-filters",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Ditherer's browser-native Canvas2D, WebGL2, and WASM image filter engine",
   "type": "module",
   "license": "MIT",
@@ -22,6 +22,8 @@
     "dist",
     "types",
     "README.md",
+    "CHANGELOG.md",
+    "RELEASING.md",
     "LICENSE"
   ],
   "exports": {
