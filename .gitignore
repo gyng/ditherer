@@ -13,3 +13,4 @@ test-results/
 docs/gallery/PERF.md
 .agents/
 .claude/scheduled_tasks.lock
+.codex
