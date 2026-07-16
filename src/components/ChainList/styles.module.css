@@ -397,6 +397,16 @@
   min-width: 0;
 }
 
+.addEntryFull {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  color: #52657c;
+  font-size: 11px;
+  font-style: italic;
+}
+
 .addEntryPicker :global(button) {
   min-height: 28px;
   border-style: dashed;

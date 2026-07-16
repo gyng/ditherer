@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { useFilter } from "context/useFilter";
+import { MAX_CHAIN_LENGTH } from "reducers/filters";
 import useDraggable from "components/App/useDraggable";
 import { filterIndex, filterList } from "@gyng/ditherer-filters";
 import type {
@@ -72,6 +73,7 @@ const ChainList = ({
 }) => {
   const { state, actions } = useFilter();
   const { chain, activeIndex, randomCycleSeconds } = state;
+  const chainIsFull = chain.length >= MAX_CHAIN_LENGTH;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
@@ -839,23 +841,32 @@ const ChainList = ({
             </div>
           );
         })}
+        {/* At the cap the reducer ignores CHAIN_ADD, so an enabled picker here
+            would just swallow clicks. Say why instead of doing nothing. */}
         <div className={`${s.entry} ${s.addEntry}`} aria-label="Add filter row">
           <span className={s.addEntrySpacer} aria-hidden="true">+</span>
           <div className={s.addEntryPicker}>
-            <FilterCombobox
-              inline
-              placeholder="Add filter..."
-              onSelect={(f) => actions.chainAdd(f.displayName, f.filter)}
-            />
+            {chainIsFull ? (
+              <span className={s.addEntryFull}>
+                {`Chain full — ${MAX_CHAIN_LENGTH} filters max. Remove one to add another.`}
+              </span>
+            ) : (
+              <FilterCombobox
+                inline
+                placeholder="Add filter..."
+                onSelect={(f) => actions.chainAdd(f.displayName, f.filter)}
+              />
+            )}
           </div>
           <button
             className={`${s.removeBtn} ${s.addEntryButton}`}
+            disabled={chainIsFull}
             onClick={(e) => {
               e.stopPropagation();
               const { displayName, filter } = getRandomFilter();
               actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
             }}
-            title="Add a random filter"
+            title={chainIsFull ? `Chain full — ${MAX_CHAIN_LENGTH} filters max` : "Add a random filter"}
             aria-label="Add a random filter"
           >
             ⚄

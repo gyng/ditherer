@@ -1,6 +1,6 @@
 import { RANGE, BOOL, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "../utils/index";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "../utils/index";
 import { computeLuminance, sobelEdges } from "../utils/edges";
 import { defineFilter } from "./types";
 
@@ -112,6 +112,15 @@ const delaunay = (input: any, options = defaults) => {
   const totalPixels = W * H;
   const cap = Math.min(POINT_COUNT_CAP, totalPixels > 500000 ? 500 : POINT_COUNT_CAP);
   const effectivePoints = Math.max(1, Math.min(pointCount | 0, cap));
+  // The slider still reads 800 while we quietly render 500, so say so rather
+  // than leaving the user to wonder why the control stopped doing anything.
+  if (effectivePoints < (pointCount | 0)) {
+    logFilterBackend(
+      "Delaunay",
+      "JS",
+      `points=${effectivePoints}<-${pointCount | 0} (capped for ${W}x${H} image)`,
+    );
+  }
 
   // Generate points weighted toward edges
   const lum = computeLuminance(buf, W, H);

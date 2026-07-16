@@ -67,7 +67,7 @@ export type SelectedFilterState = {
   filter: FilterDefinition;
 };
 
-const MAX_CHAIN_LENGTH = 16;
+export const MAX_CHAIN_LENGTH = 16;
 
 const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEntry => ({
   id: crypto.randomUUID(),
