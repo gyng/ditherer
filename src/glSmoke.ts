@@ -369,6 +369,77 @@ const runTriangleDitherSeed = (): { ok: true } | { ok: false; reason: string } =
   return { ok: true };
 };
 
+// Halftone ships a live JS compositing fallback (used whenever WebGL2 is
+// unavailable) alongside its shader. The jsdom smoke sweep skips the filter
+// outright — "uses canvas compositing not supported in jsdom" — so gl-smoke
+// covers the shader's liveness and the JS path is covered by nothing at all.
+// That's the same shape as the error-diffusion WASM gap: the path a user without
+// WebGL2 actually gets, asserted nowhere.
+//
+// The two can't be compared pixel-for-pixel — one rasterises dots in a shader,
+// the other draws canvas arcs with a screen composite — so this asserts the JS
+// path is alive and produces a comparable image rather than demanding equality.
+const runHalftoneBackends = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex.Halftone;
+  if (!filter) return { ok: false, reason: "Halftone not in registry" };
+  const W = 64;
+  const H = 64;
+  const render = (webgl: boolean, over: Record<string, unknown> = {}): Uint8ClampedArray | null => {
+    const source = makeGradientCanvas(W, H);
+    const output = filter.func(source, {
+      ...(filter.defaults ?? {}),
+      ...over,
+      _linearize: false,
+      _webglAcceleration: webgl,
+    }) as HTMLCanvasElement;
+    return output.getContext("2d", { willReadFrequently: true })
+      ?.getImageData(0, 0, W, H).data ?? null;
+  };
+  const meanLuma = (d: Uint8ClampedArray) => {
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    return sum / (d.length / 4);
+  };
+
+  const gl = render(true);
+  const js = render(false);
+  if (!gl || !js) return { ok: false, reason: "Halftone readback failed" };
+
+  // The JS path must actually draw something. Blank output here would mean the
+  // compositing fallback is broken and nobody would know.
+  const jsMean = meanLuma(js);
+  const glMean = meanLuma(gl);
+  if (jsMean < 1) return { ok: false, reason: `JS fallback rendered a blank image (mean luma ${jsMean.toFixed(2)})` };
+  if (glMean < 1) return { ok: false, reason: `GL path rendered a blank image (mean luma ${glMean.toFixed(2)})` };
+
+  // ...and it must be recognisably the same picture. The two rasterise dots
+  // differently — shader coverage vs canvas arcs with a screen composite — so
+  // they will never match pixel-for-pixel. Measured 1.18x (gl 68.8, js 81.1) on
+  // this fixture; 1.5x leaves room for antialiasing without sleeping through a
+  // backend that's drawing something else entirely.
+  const ratio = Math.max(jsMean, glMean) / Math.max(1, Math.min(jsMean, glMean));
+  if (ratio > 1.5) {
+    return {
+      ok: false,
+      reason: `Halftone backends diverge: mean luma gl=${glMean.toFixed(1)} js=${jsMean.toFixed(1)} (${ratio.toFixed(2)}x)`,
+    };
+  }
+
+  // Both must respond to the grid size — it's the filter's headline control.
+  for (const [label, data] of [["gl", render(true, { size: 24 })], ["js", render(false, { size: 24 })]] as const) {
+    if (!data) return { ok: false, reason: `Halftone ${label} readback failed at size=24` };
+    const base = label === "gl" ? gl : js;
+    let changed = false;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] !== base[i] || data[i + 1] !== base[i + 1] || data[i + 2] !== base[i + 2]) { changed = true; break; }
+    }
+    if (!changed) return { ok: false, reason: `Halftone ${label}: size has no effect on output` };
+  }
+
+  console.log(`halftone: gl mean luma ${glMean.toFixed(1)}, js ${jsMean.toFixed(1)} (${ratio.toFixed(2)}x)`);
+  return { ok: true };
+};
+
 const runOrderedPaletteLevels = (): { ok: true } | { ok: false; reason: string } => {
   const filter = filterIndex.Ordered;
   const render = (levels: number): Uint8ClampedArray | null => {
@@ -757,6 +828,7 @@ const main = async () => {
   record("CMYK Halftone", "screen-angles", runCmykAngles());
   record("Median Cut", "backend-agreement", runMedianCutBackendAgreement());
   record("Triangle dither", "seeded-noise", runTriangleDitherSeed());
+  record("Halftone", "backend-liveness", runHalftoneBackends());
 
   const status: "ok" | "failed" = failed === 0 ? "ok" : "failed";
   const details = {
