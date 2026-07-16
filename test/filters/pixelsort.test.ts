@@ -95,8 +95,7 @@ const multiset = (buf: Uint8ClampedArray) => {
 const luma = (buf: Uint8ClampedArray, i: number) =>
   (0.299 * (buf[i] / 255) + 0.587 * (buf[i + 1] / 255) + 0.114 * (buf[i + 2] / 255)) * buf[i + 3];
 
-// SPIRAL / SPIRAL_CUT are excluded here and pinned as known-broken below.
-const DIRECTIONS = ["ROW", "COLUMN", "CIRCULAR", "DIAGONAL_TOP_RIGHT"];
+const DIRECTIONS = ["ROW", "COLUMN", "CIRCULAR", "SPIRAL", "SPIRAL_CUT", "DIAGONAL_TOP_RIGHT"];
 const COMPARATORS = ["RGBA", "GBRA", "BGRA", "HSVA", "SVHA", "VSHA", "LABA", "ABLA", "BALA", "LUMINANCE"];
 
 describe("Pixel Sort is a permutation", () => {
@@ -126,33 +125,19 @@ describe("Pixel Sort is a permutation", () => {
     expect(multiset(out)).toEqual(multiset(source));
   });
 
-  // KNOWN BROKEN — pinned rather than hidden, so the bug is visible and these
-  // flip to green the moment someone fixes the spiral iterator.
-  //
-  // Measured on a 6x6 image: SPIRAL and SPIRAL_CUT visit only 25 of 36 pixels,
-  // missing the entire top row and left column, and duplicate others — a 12x12
-  // of 144 distinct colors comes back with 122. So they lose pixels and repeat
-  // others rather than rearranging them. (No out-of-bounds reads, unlike the ROW
-  // and COLUMN iterators, which are fixed.)
-  //
-  // Not fixed here because the spiral bounds need reworking, which is a bigger
-  // change than the off-by-one the other iterators had. `it.fails` asserts the
-  // assertion below DOES fail; if it starts passing, delete the wrapper.
-  it.fails.each(["SPIRAL", "SPIRAL_CUT"])(
-    "%s does NOT preserve pixels (known bug — skips the top row/left column and duplicates)",
-    (direction) => {
-      const { out, source } = run({ direction });
-      expect(multiset(out)).toEqual(multiset(source));
-    },
-  );
+  it.each(["SPIRAL", "SPIRAL_CUT"])("%s visits every pixel exactly once", (direction) => {
+    // Regression: the spiral used to bail the first time the walk stepped
+    // outside the image — which a centre-out spiral must do — so on a 6x6 it
+    // reached 25 of 36 pixels, never touching the top row or left column, and
+    // duplicated others (144 distinct colors in, 122 out). Visiting every pixel
+    // exactly once is what makes the permutation above meaningful for a spiral.
+    const { out, source } = run({ direction });
+    expect(multiset(out)).toEqual(multiset(source));
 
-  it("SPIRAL leaves the top row and left column unsorted (known bug)", () => {
-    // The concrete symptom, so the scope is recorded even while it's unfixed.
-    const { out, source } = run({ direction: "SPIRAL" });
-    for (let x = 0; x < W; x++) {
-      const i = x * 4;
-      expect([out[i], out[i + 1], out[i + 2]]).toEqual([source[i], source[i + 1], source[i + 2]]);
-    }
+    // ...and the top row must actually take part now.
+    const topRowMoved = Array.from({ length: W }, (_, x) => x * 4)
+      .some((i) => out[i] !== source[i] || out[i + 1] !== source[i + 1]);
+    expect(topRowMoved, "top row was left untouched — is the spiral still bailing early?").toBe(true);
   });
 });
 

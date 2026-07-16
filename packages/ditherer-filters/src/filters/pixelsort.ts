@@ -152,112 +152,64 @@ export const SORTS = {
 };
 
 const spiralIterator = (endIntervalOnTurn: boolean) => (init: IteratorInit): IteratorFn => {
-  let { x, y, i } = init;
   const { w, h } = init;
-  x += Math.floor(w / 2);
-  y += Math.floor(h / 2);
-  i = getBufferIndex(x, y, w);
+  const total = w * h;
+  const cx = init.x + Math.floor(w / 2);
+  const cy = init.y + Math.floor(h / 2);
 
-  let end = false;
-  let endInterval = false;
-  const maxIterations = w * h;
-  let iterations = 0;
-
-  const DIR = {
-    N: "N",
-    S: "S",
-    E: "E",
-    W: "W"
-  };
-  let dir = DIR.S;
-  const lengths = {
-    [DIR.N]: { cur: 0, max: 2 },
-    [DIR.S]: { cur: 0, max: 1 },
-    [DIR.E]: { cur: 0, max: 1 },
-    [DIR.W]: { cur: 0, max: 2 }
-  };
+  // Textbook square spiral walked outward from the centre, in offsets around
+  // (cx, cy), emitting only the cells that land inside the image.
+  //
+  // The previous version bailed — `return null` — the first time the walk left
+  // the image. A centre-out spiral has to leave it (the centre is never the true
+  // centre for even dimensions, and the rings overhang the short axis), so it
+  // stopped early: on a 6x6 it reached 25 of 36 pixels, never touching the top
+  // row or the left column, and duplicated others because its ring bookkeeping
+  // and its turn conditions disagreed. Out-of-range cells are skipped now, and
+  // the walk runs until every pixel has been emitted exactly once.
+  let ox = 0;
+  let oy = 0;
+  let dx = 0;
+  let dy = -1;
+  let emitted = 0;
+  let steps = 0;
+  // Enough room for the spiral to enclose the image from an off-centre start.
+  const span = 2 * Math.max(w, h) + 2;
+  const budget = span * span;
 
   return () => {
-    if (end || iterations >= maxIterations) {
-      return null;
+    while (emitted < total && steps < budget) {
+      const x = cx + ox;
+      const y = cy + oy;
+      const inBounds = x >= 0 && y >= 0 && x < w && y < h;
+
+      // Corners of the square spiral — where the walk changes heading.
+      const turning =
+        ox === oy || (ox < 0 && ox === -oy) || (ox > 0 && ox === 1 - oy);
+      if (turning) {
+        const swap = dx;
+        dx = -dy;
+        dy = swap;
+      }
+      ox += dx;
+      oy += dy;
+      steps += 1;
+
+      if (!inBounds) continue;
+      emitted += 1;
+
+      return {
+        x,
+        y,
+        i: getBufferIndex(x, y, w),
+        w,
+        h,
+        wrapX: false,
+        wrapY: false,
+        endInterval: endIntervalOnTurn && turning,
+      };
     }
-    iterations += 1;
-
-    const nextResult = {
-      x,
-      y,
-      i,
-      w,
-      h,
-      wrapX: false,
-      wrapY: false,
-      endInterval
-    };
-
-    // Allow fallthrough logic!
-    switch (dir) {
-      case DIR.N:
-        if (lengths[dir].cur >= lengths[dir].max || (y === 0 && x > 0)) {
-          lengths[dir].cur = 0;
-          lengths[dir].max += 2;
-          dir = DIR.W;
-          endInterval = endIntervalOnTurn;
-        } else {
-          lengths[dir].cur += 1;
-          y -= 1;
-          endInterval = false;
-          break;
-        }
-      case DIR.W: // eslint-disable-line no-fallthrough
-        if (lengths[dir].cur >= lengths[dir].max || (x === 0 && y < h)) {
-          lengths[dir].cur = 0;
-          lengths[dir].max += 2;
-          dir = DIR.S;
-          endInterval = endIntervalOnTurn;
-        } else {
-          lengths[dir].cur += 1;
-          x -= 1;
-          endInterval = false;
-          break;
-        }
-      case DIR.S: // eslint-disable-line no-fallthrough
-        if (lengths[dir].cur >= lengths[dir].max || (y === h - 1 && x < h)) {
-          lengths[dir].cur = 0;
-          lengths[dir].max += 2;
-          dir = DIR.E;
-          endInterval = endIntervalOnTurn;
-        } else {
-          lengths[dir].cur += 1;
-          y += 1;
-          endInterval = false;
-          break;
-        }
-      case DIR.E: // eslint-disable-line no-fallthrough
-        if (lengths[dir].cur >= lengths[dir].max || (x === w - 1 && y > 0)) {
-          lengths[dir].cur = 0;
-          lengths[dir].max += 2;
-          dir = DIR.N;
-          endInterval = endIntervalOnTurn;
-          break;
-        } else {
-          lengths[dir].cur += 1;
-          x += 1;
-          endInterval = false;
-          break;
-        }
-      default:
-        // last pixel
-        end = true;
-        break;
-    }
-
-    i = getBufferIndex(x, y, w);
-    end = end || i >= w * h * 4;
-    if (x < 0 || y < 0 || x >= w || y >= h) {
-      return null;
-    }
-
-    return nextResult;
+    return null;
   };
 };
 
