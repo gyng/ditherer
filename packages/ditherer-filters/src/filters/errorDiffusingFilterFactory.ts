@@ -874,8 +874,13 @@ export const errorDiffusingFilter = (
             for (let w = 0; w < kernelWidth; w += 1) {
               const weight = errorMatrix.kernel[h]?.[w];
               if (weight == null) continue;
-              const kx = reverse ? (kernelWidth - 1 - w) : w;
-              const tx = x + (kx + offsetX) * xStep;
+              // Serpentine re-aims the kernel so it still points at pixels the
+              // reversed scan hasn't reached yet: dx_rev = -dx_fwd. Mirroring the
+              // index *and* multiplying by the reversed step cancelled out for
+              // any centred kernel (Floyd-Steinberg included), leaving the kernel
+              // un-aimed — see the note in wasm/rgba2laba/src/lib.rs.
+              const dxFwd = w + offsetX;
+              const tx = x + (reverse ? -dxFwd : dxFwd);
               const ty = y + h + offsetY;
               if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
               const ti = (tx + W * ty) * 4;
@@ -900,8 +905,13 @@ export const errorDiffusingFilter = (
             for (let w = 0; w < kernelWidth; w += 1) {
               const weight = errorMatrix.kernel[h]?.[w];
               if (weight == null) continue;
-              const kx = reverse ? (kernelWidth - 1 - w) : w;
-              const tx = x + (kx + offsetX) * xStep;
+              // Serpentine re-aims the kernel so it still points at pixels the
+              // reversed scan hasn't reached yet: dx_rev = -dx_fwd. Mirroring the
+              // index *and* multiplying by the reversed step cancelled out for
+              // any centred kernel (Floyd-Steinberg included), leaving the kernel
+              // un-aimed — see the note in wasm/rgba2laba/src/lib.rs.
+              const dxFwd = w + offsetX;
+              const tx = x + (reverse ? -dxFwd : dxFwd);
               const ty = y + h + offsetY;
               if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
               const ti = (tx + W * ty) * 4;

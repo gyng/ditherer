@@ -681,8 +681,18 @@ pub fn error_diffuse_buffer(
             let v = kernel[(eh * kernel_width as i32 + ew) as usize];
             if v == 0.0 { continue; }
             let dx_fwd = ew + offset_x;
-            // Reverse: kx = kw-1-w, tx = x + (kx+ox)*(-1), so effective dx is -(kw-1-w+ox).
-            let dx_rev = -(kw - 1 - ew + offset_x);
+            // Serpentine re-aims the kernel so it still points at pixels the
+            // reversed scan hasn't reached yet: dx_rev = -dx_fwd.
+            //
+            // This used to mirror the index *and* multiply by the reversed step
+            // (`-(kw - 1 - ew + offset_x)`), which cancel: for any centred kernel
+            // — offset_x == (1-kw)/2, true of Floyd-Steinberg's (3, -1) — it came
+            // out equal to dx_fwd. The kernel wasn't re-aimed at all, so on
+            // right-to-left rows the same-row tap pointed at an already-quantised
+            // pixel and its error was dropped. Measured on a 64x64 gradient, mean
+            // |blur(dithered) - blur(source)|: 12.98 before vs 2.79 after (2.87
+            // with serpentine off) — it was worse than not serpentining.
+            let dx_rev = -dx_fwd;
             entries.push(KEntry { weight: v as f32, dx_fwd, dx_rev, dy: eh + offset_y });
         }
     }
@@ -1363,59 +1373,67 @@ mod tests {
         }
     }
 
-    #[test]
-    fn error_diffusion_matches_a_textbook_scanline_reference() {
-        // Independent Floyd-Steinberg: taps hardcoded from the published
-        // definition, error accumulated in f32 to match the implementation's
-        // precision. The kernel here is derived from a matrix + offset, so the
-        // two reach the same place by different routes.
-        //
-        // The input hugs the threshold on purpose. A wide 0..255 ramp against a
-        // black/white palette makes almost every decision a foregone
-        // conclusion, so the output survives even a badly wrong tap weight —
-        // verified: scaling the diffused error by 0.9 left a 6x5 ramp's output
-        // bit-identical. Values near mid-grey make each pixel a marginal call,
-        // so any drift in the weights changes which way it tips.
-        const W: usize = 16;
-        const H: usize = 12;
-        let mut input = Vec::with_capacity(W * H * 4);
-        for y in 0..H {
-            for x in 0..W {
-                let c = (110 + ((x * 3 + y * 2) % 36)) as u8; // 110..145, straddles 127.5
-                input.extend_from_slice(&[c, c, c, 255]);
-            }
-        }
-
+    /// Textbook Floyd-Steinberg, written from the published definition with the
+    /// taps hardcoded — the implementation derives them from a matrix + offset,
+    /// so the two reach the same place by different routes.
+    ///
+    /// On serpentine rows the scan reverses and the kernel mirrors, so the taps
+    /// still point at not-yet-visited pixels: dx_rev = -dx_fwd.
+    fn fs_reference(input: &[u8], w: usize, h: usize, serpentine: bool) -> Vec<u8> {
         let mut err: Vec<f32> = input.iter().map(|&v| v as f32).collect();
-        let mut expected = vec![0u8; input.len()];
+        let mut out = vec![0u8; input.len()];
         let taps: [(i32, i32, f32); 4] = [
             (1, 0, 7.0 / 16.0),
             (-1, 1, 3.0 / 16.0),
             (0, 1, 5.0 / 16.0),
             (1, 1, 1.0 / 16.0),
         ];
-        for y in 0..H {
-            for x in 0..W {
-                let i = (y * W + x) * 4;
+        for y in 0..h {
+            let reverse = serpentine && y % 2 == 1;
+            let xs: Vec<usize> = if reverse { (0..w).rev().collect() } else { (0..w).collect() };
+            for &x in &xs {
+                let i = (y * w + x) * 4;
                 for c in 0..3 {
                     let old = err[i + c];
                     let next = if old < 127.5 { 0.0f32 } else { 255.0f32 };
-                    expected[i + c] = next as u8;
+                    out[i + c] = next as u8;
                     let residual = old - next;
                     for (dx, dy, weight) in taps {
-                        let tx = x as i32 + dx;
+                        let sdx = if reverse { -dx } else { dx };
+                        let tx = x as i32 + sdx;
                         let ty = y as i32 + dy;
-                        if tx < 0 || tx >= W as i32 || ty < 0 || ty >= H as i32 {
-                            continue;
-                        }
-                        let ti = (ty as usize * W + tx as usize) * 4 + c;
+                        if tx < 0 || tx >= w as i32 || ty < 0 || ty >= h as i32 { continue; }
+                        let ti = (ty as usize * w + tx as usize) * 4 + c;
                         err[ti] += residual * weight;
                     }
                 }
-                expected[i + 3] = input[i + 3];
+                out[i + 3] = input[i + 3];
             }
         }
+        out
+    }
 
+    /// Values straddling the black/white threshold, so every pixel is a marginal
+    /// call. A wide 0..255 ramp makes the decisions foregone and hides wrong
+    /// weights — verified: against a ramp, scaling the diffused error by 0.9 left
+    /// the output bit-identical.
+    fn threshold_hugging(w: usize, h: usize) -> Vec<u8> {
+        let mut v = Vec::with_capacity(w * h * 4);
+        for y in 0..h {
+            for x in 0..w {
+                let c = (110 + ((x * 3 + y * 2) % 36)) as u8; // 110..145
+                v.extend_from_slice(&[c, c, c, 255]);
+            }
+        }
+        v
+    }
+
+    #[test]
+    fn error_diffusion_matches_a_textbook_scanline_reference() {
+        const W: usize = 16;
+        const H: usize = 12;
+        let input = threshold_hugging(W, H);
+        let expected = fs_reference(&input, W, H, false);
         let got = run_fs(&input, W as u32, H as u32, false);
         for p in 0..(W * H) {
             let i = p * 4;
@@ -1438,18 +1456,80 @@ mod tests {
     }
 
     #[test]
-    fn serpentine_changes_the_result_and_stays_in_palette() {
-        // Serpentine mirrors the kernel on right-to-left rows. If the mirror is
-        // a no-op the two agree, and if it forgets to negate the offset the
-        // error diffuses backwards — either way it isn't the same image, and
-        // it must still land on palette colours.
-        let input = ramp(8, 8);
-        let straight = run_fs(&input, 8, 8, false);
-        let snake = run_fs(&input, 8, 8, true);
-        assert_ne!(straight, snake, "serpentine had no effect");
-        for px in snake.chunks(4) {
-            assert!(px[0] == 0 || px[0] == 255);
+    fn serpentine_matches_the_reference() {
+        // "straight != snake" is not enough — the old un-aimed kernel produced a
+        // different image too, and passed that. This pins the mirroring itself.
+        const W: usize = 16;
+        const H: usize = 12;
+        let input = threshold_hugging(W, H);
+        let expected = fs_reference(&input, W, H, true);
+        let got = run_fs(&input, W as u32, H as u32, true);
+        for p in 0..(W * H) {
+            let i = p * 4;
+            assert_eq!(
+                &got[i..i + 3], &expected[i..i + 3],
+                "serpentine pixel ({}, {}) diverged from the reference", p % W, p / W
+            );
         }
+        assert_ne!(
+            run_fs(&input, W as u32, H as u32, false), got,
+            "serpentine had no effect at all"
+        );
+        for px in got.chunks(4) {
+            assert!(px[0] == 0 || px[0] == 255, "serpentine escaped the palette");
+        }
+    }
+
+    #[test]
+    fn serpentine_reproduces_local_mean_as_well_as_straight_scanning() {
+        // The regression guard for the un-aimed kernel.
+        //
+        // Serpentine exists to break up directional artefacts; it must not cost
+        // accuracy to do it. When the kernel wasn't re-aimed, the same-row tap
+        // fired into already-quantised pixels and that error was dropped, which
+        // this metric caught at 12.98 vs 2.87 for straight scanning — worse than
+        // not serpentining at all. A global mean does NOT catch it (the dropped
+        // error averages out); local mean is the promise error diffusion makes.
+        const W: usize = 64;
+        const H: usize = 64;
+        let mut input = Vec::with_capacity(W * H * 4);
+        for y in 0..H {
+            for x in 0..W {
+                let c = (((x + y) * 255) / (W + H - 2)) as u8;
+                input.extend_from_slice(&[c, c, c, 255]);
+            }
+        }
+        let straight = blur_mae(&run_fs(&input, W as u32, H as u32, false), &input, W, H, 4);
+        let snake = blur_mae(&run_fs(&input, W as u32, H as u32, true), &input, W, H, 4);
+        assert!(
+            snake < straight * 1.5,
+            "serpentine reproduces local mean far worse than straight scanning \
+             ({snake:.2} vs {straight:.2}) — is the kernel being re-aimed?"
+        );
+    }
+
+    /// Box-blur the red channel and report mean |blurred - original|. Error
+    /// diffusion promises the result looks like the input when you squint, so
+    /// discarded error shows up here where a global mean hides it.
+    fn blur_mae(dithered: &[u8], original: &[u8], w: usize, h: usize, r: i32) -> f64 {
+        let mut total = 0.0;
+        for y in 0..h as i32 {
+            for x in 0..w as i32 {
+                let (mut sum_d, mut sum_o, mut n) = (0.0f64, 0.0f64, 0.0f64);
+                for dy in -r..=r {
+                    for dx in -r..=r {
+                        let (tx, ty) = (x + dx, y + dy);
+                        if tx < 0 || tx >= w as i32 || ty < 0 || ty >= h as i32 { continue; }
+                        let i = (ty as usize * w + tx as usize) * 4;
+                        sum_d += dithered[i] as f64;
+                        sum_o += original[i] as f64;
+                        n += 1.0;
+                    }
+                }
+                total += ((sum_d / n) - (sum_o / n)).abs();
+            }
+        }
+        total / (w * h) as f64
     }
 
     #[test]
