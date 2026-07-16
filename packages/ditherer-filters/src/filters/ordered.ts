@@ -2,8 +2,8 @@ import { ACTION, ENUM, PALETTE, RANGE, THRESHOLD_MAP_PREVIEW } from "../constant
 import { defineFilter, type FilterOptionValues } from "./types";
 import { nearest } from "../palettes/index";
 import { BLUE_NOISE_MAP, BLUE_NOISE_SIZE, BLUE_NOISE_LEVELS } from "./blueNoise64";
-import { scaleMatrix, resolvePaletteColorAlgorithm, logFilterBackend } from "../utils/index";
-import { renderOrderedGL, ORDERED_PAL_MODE } from "./orderedGL";
+import { scaleMatrix, resolvePaletteColorAlgorithm, logFilterBackend, reducePaletteToCap } from "../utils/index";
+import { renderOrderedGL, ORDERED_PAL_MODE, MAX_PALETTE } from "./orderedGL";
 import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST } from "../constants/color";
 
 export const BAYER_2X2 = "BAYER_2X2";
@@ -390,6 +390,13 @@ const ordered = (input: any, options: OrderedOptions = defaults) => {
 
   const pOpts = palette?.options as { levels?: number; colors?: number[][]; colorDistanceAlgorithm?: string } | undefined;
   const algo = resolvePaletteColorAlgorithm(palette);
+
+  // The shader holds at most MAX_PALETTE colors. Palette extraction and JSON
+  // import both let a user build a longer one, and this filter is GL-only — a
+  // truncated render is the final output, with no CPU path to fall back to. So
+  // reduce by spread rather than letting the extra colors fall off the end.
+  const requestedColors = pOpts?.colors?.length ?? 0;
+  const paletteColors = pOpts?.colors ? reducePaletteToCap(pOpts.colors, MAX_PALETTE) : null;
   let palMode: number | null = null;
   if (pOpts?.colors) {
     if (algo === RGB_NEAREST) palMode = ORDERED_PAL_MODE.RGB;
@@ -411,12 +418,15 @@ const ordered = (input: any, options: OrderedOptions = defaults) => {
     invertThreshold: thresholdPolarity === THRESHOLD_POLARITY.CLASSIC,
     linearize: !!options._linearize,
     palMode,
-    paletteRgb: palMode === ORDERED_PAL_MODE.LEVELS ? null : (pOpts?.colors ?? null),
+    paletteRgb: palMode === ORDERED_PAL_MODE.LEVELS ? null : paletteColors,
     labRef: [95.047, 100, 108.883],
   });
   if (!rendered) return input;
   const space = options._linearize ? "linear" : "sRGB";
-  const palLabel = palMode === ORDERED_PAL_MODE.LEVELS ? `levels=${pOpts?.levels ?? levels}` : `algo=${algo}`;
+  const reducedNote = paletteColors && requestedColors > paletteColors.length
+    ? ` K=${paletteColors.length}<-${requestedColors} (median-cut to shader cap)`
+    : "";
+  const palLabel = palMode === ORDERED_PAL_MODE.LEVELS ? `levels=${pOpts?.levels ?? levels}` : `algo=${algo}${reducedNote}`;
   logFilterBackend("Ordered", "WebGL2", `${space} ${thresholdMapKey} ${thresholdPolarity} ${palLabel}`);
   return rendered;
 };

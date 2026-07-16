@@ -1050,6 +1050,47 @@ export const medianCutPalette = (
   return [];
 };
 
+// Reduce a user-supplied palette to at most `cap` colors, for shaders that hold
+// the palette in a fixed-size uniform array.
+//
+// Slicing to the first `cap` entries keeps whatever colors happened to be listed
+// first, which renders plausible-but-wrong output with no warning — e.g. a
+// 512-color extracted palette dithering against only its first 256, or a
+// greyscale ramp losing its entire bright half. Median-cut picks a spread subset
+// instead, and adaptMode "MID" represents each bucket by an actual member of the
+// palette, so we never emit a color the user didn't choose.
+//
+// Callers should compare the returned length against the input and surface the
+// reduction (see logFilterBackend) rather than letting it happen silently.
+export const reducePaletteToCap = (colors: number[][], cap: number): number[][] => {
+  if (colors.length <= cap) return colors;
+
+  const buf = new Uint8ClampedArray(colors.length * 4);
+  for (let i = 0; i < colors.length; i++) {
+    buf[i * 4] = colors[i][0];
+    buf[i * 4 + 1] = colors[i][1];
+    buf[i * 4 + 2] = colors[i][2];
+    buf[i * 4 + 3] = colors[i][3] ?? 255;
+  }
+
+  // `limit` is a recursion depth: the cut yields up to 2^limit buckets. Floor it
+  // so a non-power-of-two cap (96, say) stays under the ceiling rather than over.
+  const depth = Math.max(1, Math.floor(Math.log2(cap)));
+  const reduced = medianCutPalette(buf, depth, true, "MID", "RGB");
+
+  // Buckets holding identical colors collapse into duplicates, which would waste
+  // work in whatever search consumes the palette.
+  const seen = new Set<string>();
+  const unique: number[][] = [];
+  for (const c of reduced) {
+    const key = `${c[0]},${c[1]},${c[2]}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push([c[0], c[1], c[2], c[3] ?? 255]);
+  }
+  return unique.slice(0, cap);
+};
+
 export const uniqueColors = (
   buf: Uint8ClampedArray | Uint8Array,
   limit?: number
