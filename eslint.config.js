@@ -6,7 +6,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/**/*.{js,jsx,ts,tsx}"],
+    files: ["src/**/*.{js,jsx,ts,tsx}", "packages/ditherer-filters/src/**/*.{js,jsx,ts,tsx}"],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -38,7 +38,7 @@ export default [
     },
   },
   {
-    files: ["scripts/**/*.{js,ts,mjs,cjs}", "vite.config.js"],
+    files: ["scripts/**/*.{js,ts,mjs,cjs}", "vite.config.js", "packages/ditherer-filters/vite.config.ts"],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -53,6 +53,6 @@ export default [
     },
   },
   {
-    ignores: ["build/", "coverage/", "node_modules/", "src/wasm/"],
+    ignores: ["build/", "coverage/", "node_modules/", "packages/ditherer-filters/src/wasm/"],
   },
 ];
