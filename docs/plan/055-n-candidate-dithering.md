@@ -97,6 +97,10 @@ gets `MAX_PAL`.
 
 ### Benchmarking this shader — three traps, all hit in practice
 
+> Generalized into [docs/gpu-benchmarking.md](../gpu-benchmarking.md) — read that
+> first for any GL benchmark. Kept here because it's the evidence behind the
+> cap decision below.
+
 1. **The default browser never touches the GPU.** Headless Chrome lands on
    SwiftShader; `--use-angle=vulkan` lands on llvmpipe, because this WSLg box has
    no NVIDIA Vulkan ICD and no dzn driver — only Mesa's software ICDs. Both are
