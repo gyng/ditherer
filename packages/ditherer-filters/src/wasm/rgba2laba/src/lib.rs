@@ -1239,3 +1239,376 @@ pub fn apply_channel_lut(
 // the JS side (palette because `applyPaletteToBuffer` is already reusable;
 // temporal hold because it's a per-block copy from prevOutput, faster with
 // the JS buffer than an extra WASM round-trip).
+
+// ---------------------------------------------------------------------------
+// Tests
+//
+// These exercise the kernels where they live. The JS suite covers
+// error_diffuse_buffer end-to-end against an independent reference
+// (test/filters/errorDiffusionOracle.test.ts), but that route can only reach
+// what the filter wrapper chooses to pass; riemersma_dither and
+// quantize_buffer_rgb had nothing at any layer. Assertions here are derived
+// from each algorithm's definition rather than from this file's own logic.
+//
+// Run with: npm run test:rust
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Solid RGBA image.
+    fn solid(w: usize, h: usize, rgb: [u8; 3]) -> Vec<u8> {
+        let mut v = Vec::with_capacity(w * h * 4);
+        for _ in 0..(w * h) {
+            v.extend_from_slice(&[rgb[0], rgb[1], rgb[2], 255]);
+        }
+        v
+    }
+
+    /// Horizontal 0..255 ramp — gives error diffusion something to move.
+    fn ramp(w: usize, h: usize) -> Vec<u8> {
+        let mut v = Vec::with_capacity(w * h * 4);
+        for _ in 0..h {
+            for x in 0..w {
+                let c = ((x * 255) / (w - 1).max(1)) as u8;
+                v.extend_from_slice(&[c, c, c, 255]);
+            }
+        }
+        v
+    }
+
+    /// Black + white, as f64 RGBA — the palette format these fns expect.
+    fn bw_palette() -> Vec<f64> {
+        vec![0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0, 255.0]
+    }
+
+    fn floyd_steinberg_kernel() -> (Vec<f64>, u32, u32, i32, i32) {
+        // [_, *, 7/16] / [3/16, 5/16, 1/16], origin one cell left of the cursor.
+        let k = vec![
+            0.0, 0.0, 7.0 / 16.0,
+            3.0 / 16.0, 5.0 / 16.0, 1.0 / 16.0,
+        ];
+        (k, 3, 2, -1, 0)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn run_fs(input: &[u8], w: u32, h: u32, serpentine: bool) -> Vec<u8> {
+        let (kernel, kw, kh, ox, oy) = floyd_steinberg_kernel();
+        let mut out = vec![0u8; input.len()];
+        error_diffuse_buffer(
+            input, &mut out, w, h,
+            &kernel, kw, kh, ox, oy,
+            serpentine, ROW_ALT_BOUSTROPHEDON, false,
+            &[], &[], 0.0,
+            PAL_MODE_RGB, 2, &bw_palette(),
+            95.047, 100.0, 108.883,
+        );
+        out
+    }
+
+    // --- quantize_buffer_rgb -------------------------------------------------
+
+    #[test]
+    fn quantize_snaps_to_the_nearest_palette_color() {
+        // Nearly-black and nearly-white must land on their own end. A swapped
+        // comparison or an inverted distance shows up immediately.
+        let input = vec![10, 10, 10, 255, 240, 240, 240, 255];
+        let out = quantize_buffer_rgb(&input, &bw_palette());
+        assert_eq!(&out[0..3], &[0, 0, 0]);
+        assert_eq!(&out[4..7], &[255, 255, 255]);
+    }
+
+    #[test]
+    fn quantize_only_emits_palette_colors() {
+        let input = ramp(16, 4);
+        let out = quantize_buffer_rgb(&input, &bw_palette());
+        for px in out.chunks(4) {
+            assert!(
+                (px[0] == 0 && px[1] == 0 && px[2] == 0)
+                    || (px[0] == 255 && px[1] == 255 && px[2] == 255),
+                "emitted a non-palette color: {:?}",
+                &px[0..3]
+            );
+        }
+    }
+
+    #[test]
+    fn quantize_preserves_alpha() {
+        // Alpha is not a colour channel and must survive untouched — including
+        // fully transparent pixels.
+        let input = vec![10, 10, 10, 7, 240, 240, 240, 0];
+        let out = quantize_buffer_rgb(&input, &bw_palette());
+        assert_eq!(out[3], 7);
+        assert_eq!(out[7], 0);
+    }
+
+    #[test]
+    fn quantize_is_exact_on_a_palette_color() {
+        let input = vec![255, 255, 255, 255];
+        let out = quantize_buffer_rgb(&input, &bw_palette());
+        assert_eq!(&out[0..3], &[255, 255, 255]);
+    }
+
+    // --- error_diffuse_buffer ------------------------------------------------
+
+    #[test]
+    fn error_diffusion_emits_only_palette_colors() {
+        let out = run_fs(&ramp(8, 8), 8, 8, false);
+        for px in out.chunks(4) {
+            assert!(
+                px[0] == 0 || px[0] == 255,
+                "channel escaped the palette: {}",
+                px[0]
+            );
+        }
+    }
+
+    #[test]
+    fn error_diffusion_matches_a_textbook_scanline_reference() {
+        // Independent Floyd-Steinberg: taps hardcoded from the published
+        // definition, error accumulated in f32 to match the implementation's
+        // precision. The kernel here is derived from a matrix + offset, so the
+        // two reach the same place by different routes.
+        //
+        // The input hugs the threshold on purpose. A wide 0..255 ramp against a
+        // black/white palette makes almost every decision a foregone
+        // conclusion, so the output survives even a badly wrong tap weight —
+        // verified: scaling the diffused error by 0.9 left a 6x5 ramp's output
+        // bit-identical. Values near mid-grey make each pixel a marginal call,
+        // so any drift in the weights changes which way it tips.
+        const W: usize = 16;
+        const H: usize = 12;
+        let mut input = Vec::with_capacity(W * H * 4);
+        for y in 0..H {
+            for x in 0..W {
+                let c = (110 + ((x * 3 + y * 2) % 36)) as u8; // 110..145, straddles 127.5
+                input.extend_from_slice(&[c, c, c, 255]);
+            }
+        }
+
+        let mut err: Vec<f32> = input.iter().map(|&v| v as f32).collect();
+        let mut expected = vec![0u8; input.len()];
+        let taps: [(i32, i32, f32); 4] = [
+            (1, 0, 7.0 / 16.0),
+            (-1, 1, 3.0 / 16.0),
+            (0, 1, 5.0 / 16.0),
+            (1, 1, 1.0 / 16.0),
+        ];
+        for y in 0..H {
+            for x in 0..W {
+                let i = (y * W + x) * 4;
+                for c in 0..3 {
+                    let old = err[i + c];
+                    let next = if old < 127.5 { 0.0f32 } else { 255.0f32 };
+                    expected[i + c] = next as u8;
+                    let residual = old - next;
+                    for (dx, dy, weight) in taps {
+                        let tx = x as i32 + dx;
+                        let ty = y as i32 + dy;
+                        if tx < 0 || tx >= W as i32 || ty < 0 || ty >= H as i32 {
+                            continue;
+                        }
+                        let ti = (ty as usize * W + tx as usize) * 4 + c;
+                        err[ti] += residual * weight;
+                    }
+                }
+                expected[i + 3] = input[i + 3];
+            }
+        }
+
+        let got = run_fs(&input, W as u32, H as u32, false);
+        for p in 0..(W * H) {
+            let i = p * 4;
+            assert_eq!(
+                &got[i..i + 3],
+                &expected[i..i + 3],
+                "pixel ({}, {}) diverged from the reference",
+                p % W,
+                p / W
+            );
+        }
+    }
+
+    #[test]
+    fn error_diffusion_preserves_alpha() {
+        let mut input = ramp(4, 4);
+        input[3] = 9;
+        let out = run_fs(&input, 4, 4, false);
+        assert_eq!(out[3], 9);
+    }
+
+    #[test]
+    fn serpentine_changes_the_result_and_stays_in_palette() {
+        // Serpentine mirrors the kernel on right-to-left rows. If the mirror is
+        // a no-op the two agree, and if it forgets to negate the offset the
+        // error diffuses backwards — either way it isn't the same image, and
+        // it must still land on palette colours.
+        let input = ramp(8, 8);
+        let straight = run_fs(&input, 8, 8, false);
+        let snake = run_fs(&input, 8, 8, true);
+        assert_ne!(straight, snake, "serpentine had no effect");
+        for px in snake.chunks(4) {
+            assert!(px[0] == 0 || px[0] == 255);
+        }
+    }
+
+    #[test]
+    fn error_diffusion_is_deterministic() {
+        let input = ramp(8, 8);
+        assert_eq!(run_fs(&input, 8, 8, true), run_fs(&input, 8, 8, true));
+    }
+
+    #[test]
+    fn a_flat_palette_color_survives_diffusion() {
+        // Zero error to spread, so the image must come back untouched.
+        let input = solid(4, 4, [255, 255, 255]);
+        let out = run_fs(&input, 4, 4, false);
+        for px in out.chunks(4) {
+            assert_eq!(&px[0..3], &[255, 255, 255]);
+        }
+    }
+
+    #[test]
+    fn mid_grey_dithers_to_both_extremes() {
+        // The defining behaviour: a flat mid-tone the palette can't represent
+        // must break into a mix of both, averaging near the input.
+        let input = solid(8, 8, [128, 128, 128]);
+        let out = run_fs(&input, 8, 8, false);
+        let black = out.chunks(4).filter(|p| p[0] == 0).count();
+        let white = out.chunks(4).filter(|p| p[0] == 255).count();
+        assert!(black > 0 && white > 0, "mid-grey collapsed: {black} black, {white} white");
+        let mean: f64 = out.chunks(4).map(|p| p[0] as f64).sum::<f64>() / 64.0;
+        assert!((mean - 128.0).abs() < 40.0, "local mean not preserved: {mean}");
+    }
+
+    // --- riemersma_dither ----------------------------------------------------
+
+    #[test]
+    fn riemersma_emits_only_palette_colors() {
+        // Covered by nothing before this: the JS test asserts a binary palette
+        // gives {0,255} but goes through the wrapper; this pins the kernel.
+        let input = ramp(16, 16);
+        let mut out = vec![0u8; input.len()];
+        riemersma_dither(
+            &input, &mut out, 16, 16,
+            16, 1.0 / 16.0, 1.0, false,
+            PAL_MODE_RGB, 2, &bw_palette(),
+            95.047, 100.0, 108.883,
+        );
+        for px in out.chunks(4) {
+            assert!(
+                px[0] == 0 || px[0] == 255,
+                "riemersma emitted {} — not a palette color",
+                px[0]
+            );
+        }
+    }
+
+    #[test]
+    fn riemersma_visits_every_pixel() {
+        // The Hilbert walk must cover the image. A short or wrong-sized curve
+        // leaves pixels at their zero-init value, which is a transparent black
+        // hole in the output — alpha is the tell.
+        let input = ramp(16, 16);
+        let mut out = vec![0u8; input.len()];
+        riemersma_dither(
+            &input, &mut out, 16, 16,
+            16, 1.0 / 16.0, 1.0, false,
+            PAL_MODE_RGB, 2, &bw_palette(),
+            95.047, 100.0, 108.883,
+        );
+        for (i, px) in out.chunks(4).enumerate() {
+            assert_eq!(px[3], 255, "pixel {i} was never visited");
+        }
+    }
+
+    #[test]
+    fn riemersma_is_deterministic() {
+        let input = ramp(16, 16);
+        let mut a = vec![0u8; input.len()];
+        let mut b = vec![0u8; input.len()];
+        for out in [&mut a, &mut b] {
+            riemersma_dither(
+                &input, out, 16, 16,
+                16, 1.0 / 16.0, 1.0, false,
+                PAL_MODE_RGB, 2, &bw_palette(),
+                95.047, 100.0, 108.883,
+            );
+        }
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn riemersma_with_no_error_feedback_is_plain_quantization() {
+        // error_strength=0 removes the error memory entirely, so what's left is
+        // a nearest-colour snap along the curve — which quantize_buffer_rgb
+        // computes independently. Gives the Hilbert walk an oracle for the one
+        // configuration where the answer is knowable.
+        let input = ramp(16, 16);
+        let mut out = vec![0u8; input.len()];
+        riemersma_dither(
+            &input, &mut out, 16, 16,
+            16, 1.0 / 16.0, 0.0, false,
+            PAL_MODE_RGB, 2, &bw_palette(),
+            95.047, 100.0, 108.883,
+        );
+        assert_eq!(out, quantize_buffer_rgb(&input, &bw_palette()));
+    }
+
+    // NOT covered: the shape of the error-memory falloff. Inverting
+    // `ratio.powf(t)` to `ratio.powf(-t)` — which weights the oldest errors most
+    // instead of least — passes every test here. Pinning it would need a full
+    // Hilbert-curve reference; the properties below only constrain the result to
+    // "in palette, everything visited, deterministic, mixes mid-grey", all of
+    // which an inverted falloff still satisfies.
+    #[test]
+    fn riemersma_dithers_mid_grey_to_both_extremes() {
+        let input = solid(16, 16, [128, 128, 128]);
+        let mut out = vec![0u8; input.len()];
+        riemersma_dither(
+            &input, &mut out, 16, 16,
+            16, 1.0 / 16.0, 1.0, false,
+            PAL_MODE_RGB, 2, &bw_palette(),
+            95.047, 100.0, 108.883,
+        );
+        let black = out.chunks(4).filter(|p| p[0] == 0).count();
+        let white = out.chunks(4).filter(|p| p[0] == 255).count();
+        assert!(black > 0 && white > 0, "mid-grey collapsed: {black} black, {white} white");
+    }
+
+    // --- rgba2laba -----------------------------------------------------------
+
+    #[test]
+    fn lab_reference_values() {
+        // Known anchors from the CIE definition: black is L=0, D65 white is
+        // L=100 with neutral a/b. Wrong whitepoint or a botched f(t) shows here.
+        let black = rgba2laba(0.0, 0.0, 0.0, 255.0, 95.047, 100.0, 108.883);
+        assert!(black[0].abs() < 0.01, "black L should be 0, got {}", black[0]);
+
+        let white = rgba2laba(255.0, 255.0, 255.0, 255.0, 95.047, 100.0, 108.883);
+        assert!((white[0] - 100.0).abs() < 0.01, "white L should be 100, got {}", white[0]);
+        // Not exactly 0: the published sRGB->XYZ matrix constants are rounded,
+        // so they don't land precisely on the D65 whitepoint. ~0.01 is that
+        // rounding; anything larger means the matrix or the whitepoint is wrong.
+        assert!(
+            white[1].abs() < 0.02 && white[2].abs() < 0.02,
+            "white should be neutral, got a={} b={}", white[1], white[2]
+        );
+    }
+
+    #[test]
+    fn lab_preserves_alpha() {
+        let out = rgba2laba(10.0, 20.0, 30.0, 123.0, 95.047, 100.0, 108.883);
+        assert_eq!(out[3], 123.0);
+    }
+
+    #[test]
+    fn lab_mid_grey_is_neutral_but_not_mid_l() {
+        // sRGB 128 is ~53.6 L*, not 50 — the transfer curve is not linear. A
+        // reference value, so a dropped gamma step is caught rather than
+        // rounded away.
+        let out = rgba2laba(128.0, 128.0, 128.0, 255.0, 95.047, 100.0, 108.883);
+        assert!((out[0] - 53.585).abs() < 0.05, "grey L should be ~53.585, got {}", out[0]);
+        assert!(out[1].abs() < 0.01 && out[2].abs() < 0.01, "grey should be neutral");
+    }
+}

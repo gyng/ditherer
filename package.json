@@ -27,13 +27,14 @@
     "test:e2e:gl": "env -u NO_COLOR -u FORCE_COLOR playwright test test/e2e/gl.smoke.spec.ts",
     "test:e2e:webmcp": "env -u NO_COLOR -u FORCE_COLOR PLAYWRIGHT_WEBMCP=1 playwright test test/e2e/webmcp.spec.ts --project=chromium",
     "test:gl": "npm run test:e2e:gl",
-    "check": "npm --prefix packages/ditherer-filters run generate:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build:packed-app && npm run build",
+    "check": "npm --prefix packages/ditherer-filters run generate:check && npm run lint && npm run typecheck && npm run test:rust && npm run test:coverage && npm run build:packed-app && npm run build",
     "test:watch": "vitest",
     "bench": "vitest bench test/perf",
     "bench:compare": "node test/perf/compareBench.mjs",
     "gallery": "npx vite-node scripts/generate-gallery.ts",
     "bench:filters": "GALLERY_BENCH_ONLY=1 npx vite-node scripts/generate-gallery.ts",
-    "report:presets": "npx vite-node scripts/report-preset-similarities.ts"
+    "report:presets": "npx vite-node scripts/report-preset-similarities.ts",
+    "test:rust": "cargo test --manifest-path packages/ditherer-filters/src/wasm/rgba2laba/Cargo.toml -- --test-threads=1"
   },
   "dependencies": {
     "@gyng/ditherer-filters": "0.2.0",

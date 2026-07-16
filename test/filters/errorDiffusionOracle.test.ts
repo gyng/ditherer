@@ -70,8 +70,8 @@ const makeCanvas = (data: Uint8ClampedArray) => {
 // Simplest configuration the filter offers: plain left-to-right scanline, no
 // linearize, no temporal carryover. Anything else is the implementation's own
 // embellishment; this pins the core diffusion.
-const baseOptions = (wasm: boolean) => ({
-  serpentine: false,
+const baseOptions = (wasm: boolean, serpentine = false) => ({
+  serpentine,
   scanOrder: ORDER.HORIZONTAL,
   temporalMode: TEMPORAL_MODE.OFF,
   temporalBleed: 0,
@@ -80,9 +80,9 @@ const baseOptions = (wasm: boolean) => ({
   _wasmAcceleration: wasm,
 });
 
-const run = (filter: any, wasm: boolean): Uint8ClampedArray => {
+const run = (filter: any, wasm: boolean, serpentine = false): Uint8ClampedArray => {
   const { canvas, written } = makeCanvas(makeSource());
-  filter.func(canvas, baseOptions(wasm));
+  filter.func(canvas, baseOptions(wasm, serpentine));
   const result = written();
   if (!result) throw new Error("filter produced no output — nothing was written back");
   return result;
@@ -151,6 +151,18 @@ describe("error diffusion on the WASM path (the one that ships)", () => {
     it("WASM and JS agree", () => {
       const { mismatched, examples } = compare(run(filter, true), run(filter, false));
       expect(mismatched, `backends disagree:\n  ${examples.join("\n  ")}`).toBe(0);
+    });
+
+    it("WASM and JS agree with serpentine on", () => {
+      // Serpentine is the default in the UI, and it's the fiddliest part of the
+      // scan — the kernel has to be re-aimed on right-to-left rows. The oracle
+      // above deliberately doesn't cover it (the two implementations share a
+      // mirroring convention that differs from the textbook one; see the note in
+      // wasm/rgba2laba/src/lib.rs). What must hold regardless is that both
+      // backends do the same thing, or the image changes depending on whether
+      // WASM loaded.
+      const { mismatched, examples } = compare(run(filter, true, true), run(filter, false, true));
+      expect(mismatched, `serpentine backends disagree:\n  ${examples.join("\n  ")}`).toBe(0);
     });
   });
 });
