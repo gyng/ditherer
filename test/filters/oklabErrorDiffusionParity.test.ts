@@ -27,16 +27,31 @@ import { OKLAB_NEAREST } from "constants/color";
 // implementations can disagree, and precisely what the whole-buffer parity
 // grids — which only ever pass integers — cannot check.
 //
-// Bit-for-bit is the right bar here rather than a tolerance: the Rust
-// `oklab_from_f32` deliberately mirrors JS's round-and-clamp into the same f32
-// LUT instead of linearising the exact float, so there is no float drift to
-// forgive. A tolerance would let a truncation bug through, and truncation is
-// the specific mistake this shape exists to prevent.
+// Bit-for-bit is the bar here rather than a tolerance because a tolerance would
+// let a truncation bug through, and truncation (clamp_u8_f32 instead of
+// js_round_f32 in the Rust `oklab_from_f32`) is the specific mistake this shape
+// exists to prevent — it diverges the two backends immediately.
 //
-// Lab is deliberately NOT asserted here. It diverges ~7% of pixels on this same
-// fixture, because JS rounds into the LUT while Rust's rgba2lab_inline
-// linearises the exact float with powf. That divergence is real and predates
-// this file; pinning it would freeze whichever side happens to be canonical.
+// But that equality is EMPIRICAL ON THIS FIXTURE, not structural, and the
+// comment here used to claim otherwise. JS accumulates the diffused error in
+// f64 (readF32 widens out of the Float32Array and the arithmetic runs as JS
+// numbers) while the Rust kernel accumulates in f32. Those disagree in the last
+// bits, and the LUT turns that into a *hard* decision: an index rounds at every
+// .5 boundary, so a last-bit difference occasionally picks a different entry,
+// and error diffusion then cascades it. Measured: Stucki at 256x256 on a
+// 16-colour palette diverges 10052/65536 (15%) even for OKLab. RGB, RGB_APPROX,
+// HSV and LEVELS stay at 0 at that size, because they compare distances rather
+// than quantizing to a LUT index, so a last-bit difference cannot flip them.
+//
+// So this file guards the wiring and the rounding rule — the things that broke —
+// and does not certify the two backends as interchangeable at any size. See
+// docs/plan/059-lab-fractional-parity.md.
+//
+// Lab is deliberately NOT asserted here. It diverges far worse (~38-54% of
+// pixels at realistic sizes) because JS rounds into the LUT while Rust's
+// rgba2lab_inline linearises the exact float with powf — a whole different
+// conversion, not a last-bit effect. Real, predates this file, and pinning it
+// would freeze whichever side happens to be canonical.
 
 const W = 12;
 const H = 9;
