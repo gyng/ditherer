@@ -164,6 +164,41 @@ threshold map is a fixed bias, not accumulated error, so there is no sub-LSB
 signal for the match to throw away. Both conversions already linearise with `pow`
 and read no LUT, so ordered was never on the wrong side of this.
 
+## The "0%" above is a size threshold, not a property. Read this first.
+
+Every 0% in this document was measured at 256×256 or smaller. Lab, Stucki,
+16-colour, JS vs WASM:
+
+| | 256×256 | 512×512 | 768×768 |
+|---|---:|---:|---:|
+| `_linearize: false` | 0% | 3.74% | 17.04% |
+| `_linearize: true` | 0% | 0% | 26.59% |
+
+So the fixes did not make the backends identical. They moved the *onset* of
+divergence from ~12×9 to ~512×512 — roughly 40× in linear dimension, which is a
+real gain and not the one that was claimed.
+
+**This is the same mistake the "cascade" section warns about, made three times
+while writing this document.** A fixture too small to reach the phenomenon
+reports its absence. Each fix was measured at a size where the remaining fault
+had not yet fired.
+
+**The residual is structural.** JS accumulates diffused error in f64 — `readF32`
+widens out of the `Float32Array`, and the arithmetic runs as JS numbers — while
+the Rust kernel accumulates in f32. Every intermediate differs in the last bits.
+Error diffusion is chaotic: each additional pixel is another chance to land
+within a last-bit of a bisector, and one flip cascades into thousands. Onset is
+therefore a function of pixel count, and at some size it is certain.
+
+Nothing in this document can fix that. Closing it means making the JS loop round
+to f32 at every step (`Math.fround` on each intermediate, not just the store,
+which the `Float32Array` already does) — a real cost on the fallback path, in
+exchange for exactness on a path that only runs when WASM is off. Not attempted.
+
+The tests at 256×256 pin the threshold, not the property. They are honest
+regression guards — deterministic, and they fail loudly against every fault
+found here — but a bigger fixture would fail today, by design, not by accident.
+
 ## Known gaps — `_linearize: true`, still open
 
 Everything above is `_linearize: false`. Linearize mode is a *different*
@@ -203,15 +238,32 @@ entries, so nothing can flip" argument, which appears in earlier commit messages
 here and is wrong. The distance that matters is pixel-to-bisector, and that can
 be arbitrarily small.)
 
-**Still open, diagnosed, not fixed:**
+**Still open — and both are the f64/f32 accumulation above, not their own bugs.**
 
-- **OKLab, 4335/65536 (6.6%).** Halved by the LUT fix, so part of it was the
-  table. The remainder is unexplained — both sides read the same LUT and do f64
-  matrix maths from there. Not chased further.
-- **RGB_APPROX, 5286/65536 (8%).** Untouched by any of this, and it reads no LUT
-  at all, so it is a different fault. Likely arithmetic width: the Rust kernel
-  computes the red-mean distance in f32 (`lib.rs`, `PAL_MODE_RGB_APPROX`), JS
-  computes it in f64. Unverified.
+- **OKLab, 4335/65536 (6.6%) at 256×256.** Halved by the LUT fix, so part of it
+  was the table.
+- **RGB_APPROX, 5286/65536 (8%) at 256×256.** Untouched by any of this, and it
+  reads no LUT at all.
+
+Both look like separate faults and are not. The size sweep gives them away — each
+is 0% until it isn't, then cascades:
+
+| linearize=true | 8² | 16² | 32² | 64² | 128² | 256² |
+|---|---:|---:|---:|---:|---:|---:|
+| RGB_APPROX | 0 | 0 | 0 | 0 | 3.59% | 8.07% |
+| OKLab | 0 | 0 | 0 | 0 | 0 | 6.61% |
+
+The first differing pixel is at row 107 of 128², row 183 of 256², row 196 of
+256² — deep in, not at the start. That is one rare near-bisector flip amplified,
+which is the accumulation-width signature, not a systematic difference. They
+differ from Lab only in *when* the first flip lands.
+
+Worth recording because it was nearly filed as a bug: RGB_APPROX's divergence was
+attributed to the Rust kernel computing the red-mean distance in f32 against JS's
+f64. **Disproved.** Modelling the f32 arithmetic exactly (`Math.fround` at each
+step) and comparing argmin against the f64 version over 76,368 pixels — integral
+and fractional — gives **zero** flips. Arithmetic width in the distance function
+is not the cause; the width of the *error buffer* is.
 
 Neither is asserted in `errorDiffusionBackendParity` — they would fail. Recorded
 here instead, because leaving them undocumented is precisely how the Lab gap

@@ -23,11 +23,21 @@ import { LAB_NEAREST, OKLAB_NEAREST } from "constants/color";
 // implementations can disagree, and exactly what the whole-buffer parity grids
 // — which only ever pass integers — cannot check.
 //
-// Sizes are deliberate. Divergence here cascades: one flipped near-tie changes
-// what its neighbours receive, so a small fixture reports a different
-// phenomenon rather than a smaller one. Lab measured 7% at 12x9 and 41% at
-// 128x128 from the *same* fault (docs/plan/059). Anything asserting parity has
-// to do it somewhere big enough to cascade.
+// Sizes are deliberate, and they are a THRESHOLD, not a property. Divergence
+// here cascades: one flipped near-tie changes what its neighbours receive, so a
+// small fixture reports a different phenomenon rather than a smaller one. Lab
+// measured 7% at 12x9 and 41% at 128x128 from the *same* fault.
+//
+// These pass at 256x256 and would FAIL at 768x768 (Lab: 17% / 27%), by design
+// rather than by accident. JS accumulates diffused error in f64 and the Rust
+// kernel in f32, so the two disagree in the last bits; error diffusion is
+// chaotic, and every extra pixel is another chance to land within a last-bit of
+// a bisector and cascade. Onset is a function of pixel count. See docs/plan/059
+// — nothing here claims the backends are interchangeable, only that they agree
+// up to a size that every fault found so far broke well below.
+//
+// So: do not "fix" a failure here by shrinking the fixture. That is the move
+// that hid all of this in the first place.
 //
 // Bit-for-bit rather than a tolerance: on the paths asserted here both sides do
 // the identical arithmetic, so there is no float drift to forgive, and a
