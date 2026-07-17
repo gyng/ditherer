@@ -96,14 +96,36 @@ pub fn rgba_nearest_lab_index(
 
 // --- Internal helper for Lab conversion without Vec allocation ---
 
-fn rgba2lab_inline(r: f64, g: f64, b: f64, ref_x: f64, ref_y: f64, ref_z: f64) -> [f64; 3] {
-    let mut r = r / 255.0;
-    let mut g = g / 255.0;
-    let mut b = b / 255.0;
+/// sRGB→linear for one channel, mirroring the JS `labChannelToLinear` branch
+/// for branch: integral and in range reads the f32 LUT, anything else
+/// linearises exactly.
+///
+/// The branch is the contract, not an optimisation. JS has to have it —
+/// `rgba2laba` serves both `quantize_buffer_lab` (integral, LUT) and error
+/// diffusion (fractional, exact) — so this side has to have it too, or the two
+/// disagree on whichever kind of channel the JS branch sends the other way.
+///
+/// Always-exact here looked safe on the argument that LUT and exact differ by
+/// ~1e-8 in Lab while the closest two palette entries sit 1.3e-3 apart. That
+/// argument is wrong: what matters is not the gap between entries but the
+/// distance from a pixel to the *bisector* between them, and a pixel can land
+/// arbitrarily close to one. Over 65k pixels many do, error diffusion cascades
+/// each flip, and `_linearize: true` — where both sides round to an integral u8
+/// before matching, so JS took the LUT and this took powf — came out 21% apart.
+#[inline]
+fn lab_channel_to_linear(v: f64) -> f64 {
+    if v.fract() == 0.0 && (0.0..=255.0).contains(&v) {
+        srgb_to_lin_lut()[v as usize] as f64
+    } else {
+        let s = v / 255.0;
+        if s > 0.04045 { ((s + 0.055) / 1.055).powf(2.4) } else { s / 12.92 }
+    }
+}
 
-    r = if r > 0.04045 { ((r + 0.055) / 1.055).powf(2.4) } else { r / 12.92 };
-    g = if g > 0.04045 { ((g + 0.055) / 1.055).powf(2.4) } else { g / 12.92 };
-    b = if b > 0.04045 { ((b + 0.055) / 1.055).powf(2.4) } else { b / 12.92 };
+fn rgba2lab_inline(r: f64, g: f64, b: f64, ref_x: f64, ref_y: f64, ref_z: f64) -> [f64; 3] {
+    let mut r = lab_channel_to_linear(r);
+    let mut g = lab_channel_to_linear(g);
+    let mut b = lab_channel_to_linear(b);
 
     r *= 100.0; g *= 100.0; b *= 100.0;
 
@@ -143,11 +165,16 @@ pub fn nearest_lab_precomputed(
 
 /// Lab conversion that mirrors the JS `rgba2laba` bit-for-bit.
 ///
-/// NOT the same as `rgba2lab_inline`, which does an f64 `powf(2.4)`. The JS side
-/// reads an f32 sRGB->linear LUT and then does the rest in f64, so a straight
-/// f64 implementation drifts in the last bits — enough to flip a near-tie and
-/// silently recolour a pixel. Since this exists purely to replace the JS loop,
-/// matching its arithmetic is the requirement, not improving on it.
+/// Reads the f32 sRGB->linear LUT and does the rest in f64, mirroring the JS
+/// `rgba2laba` for the only input it takes: an integral channel. Since this
+/// exists purely to replace the JS loop, matching its arithmetic is the
+/// requirement, not improving on it — a straight f64 `powf(2.4)` drifts in the
+/// last bits, which is enough to flip a near-tie and silently recolour a pixel.
+///
+/// This is now the *same value* `rgba2lab_inline` returns for an integral
+/// channel, since that one learned the same branch. It stays a separate function
+/// because the u8 signature is the thing that makes "integral" true by
+/// construction here, rather than a runtime check.
 fn rgba2lab_via_lut(r: u8, g: u8, b: u8, ref_x: f64, ref_y: f64, ref_z: f64) -> [f64; 3] {
     let lut = srgb_to_lin_lut();
     let r = lut[r as usize] as f64 * 100.0;
@@ -490,14 +517,9 @@ const PAL_MODE_OKLAB: u32 = 5;
 /// two palette entries sit 1.65e-6 apart.
 #[inline]
 fn oklab_from_f32(r: f32, g: f32, b: f32) -> [f64; 3] {
-    #[inline]
-    fn lin(c: f64) -> f64 {
-        let s = c / 255.0;
-        if s > 0.04045 { ((s + 0.055) / 1.055).powf(2.4) } else { s / 12.92 }
-    }
-    let r = lin(r as f64);
-    let g = lin(g as f64);
-    let b = lin(b as f64);
+    let r = lab_channel_to_linear(r as f64);
+    let g = lab_channel_to_linear(g as f64);
+    let b = lab_channel_to_linear(b as f64);
 
     let l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
     let m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
@@ -629,8 +651,26 @@ fn srgb_to_lin_lut() -> &'static [f32; 256] {
         {
             if !SRGB_TO_LIN_INIT {
                 for i in 0..256 {
-                    let s = i as f32 / 255.0;
-                    SRGB_TO_LIN[i] = if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) };
+                    // f64 throughout, rounded to f32 exactly once at the store —
+                    // mirroring how JS builds SRGB_TO_LINEAR_F, where the maths
+                    // is f64 and the Float32Array assignment is the only
+                    // rounding.
+                    //
+                    // This was f32 all the way (`i as f32 / 255.0`, then powf on
+                    // f32), which rounds at every step and drifts: 214 of the 256
+                    // entries came out a different f32 to the JS table, worst
+                    // 1.8e-7 at index 217. Two tables, not one.
+                    //
+                    // It hid because a 1.8e-7 difference only flips a pixel
+                    // sitting that close to the bisector between two palette
+                    // entries — over a 76,800-pixel whole-buffer quantize that
+                    // rounds to zero expected flips, which is why the parity grid
+                    // passed. Error diffusion cascades a single flip into
+                    // thousands, so `_linearize: true` came out 21% apart on Lab
+                    // (docs/plan/059).
+                    let s = i as f64 / 255.0;
+                    let lin = if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) };
+                    SRGB_TO_LIN[i] = lin as f32;
                 }
                 SRGB_TO_LIN_INIT = true;
             }
@@ -1814,19 +1854,42 @@ mod tests {
     }
 
     #[test]
-    fn lab_conversion_uses_the_lut_not_powf() {
-        // rgba2lab_via_lut must mirror the JS `rgba2laba`, which reads an f32
-        // sRGB->linear LUT and then works in f64. rgba2lab_inline's straight f64
-        // powf drifts in the last bits — enough to flip a near-tie and silently
-        // recolour a pixel — so the two are NOT interchangeable here. If this
-        // ever fails, someone has unified them and parity with JS is gone.
-        let mut differs = 0;
+    fn lab_conversion_agrees_with_the_lut_on_an_integral_channel() {
+        // This asserted the OPPOSITE until OKLab/Lab parity was chased down: that
+        // rgba2lab_inline's powf deliberately differed from rgba2lab_via_lut, and
+        // that unifying them would lose parity with JS. That was describing the
+        // bug, not a contract. JS `rgba2laba` read the LUT for *every* channel
+        // then, so error diffusion's kernel disagreed with its own JS fallback on
+        // 38-54% of pixels (docs/plan/059).
+        //
+        // JS now branches on integrality, so both of these mirror the branch its
+        // own caller takes: integral reads the LUT on either side, and only
+        // rgba2lab_inline also sees fractional channels.
         for v in 0..=255u8 {
-            let a = rgba2lab_via_lut(v, v, v, D65.0, D65.1, D65.2);
-            let b = rgba2lab_inline(v as f64, v as f64, v as f64, D65.0, D65.1, D65.2);
-            if (a[0] - b[0]).abs() > 0.0 { differs += 1; }
+            let lut = rgba2lab_via_lut(v, v, v, D65.0, D65.1, D65.2);
+            let inline = rgba2lab_inline(v as f64, v as f64, v as f64, D65.0, D65.1, D65.2);
+            assert_eq!(
+                lut, inline,
+                "channel {v}: via_lut {lut:?} vs inline {inline:?} — an integral \
+                 channel must read the LUT on both paths, as JS does"
+            );
         }
-        assert!(differs > 0, "LUT and powf paths are now identical — did the LUT change?");
+    }
+
+    #[test]
+    fn lab_conversion_does_not_round_a_fractional_channel_into_the_lut() {
+        // The other half of the branch, and the half that matters for dithering:
+        // a diffused channel must keep its fractional part. Rounding it into the
+        // LUT discards the sub-LSB error error diffusion exists to carry.
+        assert_ne!(
+            rgba2lab_inline(250.4, 40.0, 40.0, D65.0, D65.1, D65.2),
+            rgba2lab_inline(250.0, 40.0, 40.0, D65.0, D65.1, D65.2),
+        );
+        // Monotone in L with no rounding step to flatten it.
+        assert!(
+            rgba2lab_inline(250.4, 250.4, 250.4, D65.0, D65.1, D65.2)[0]
+                > rgba2lab_inline(250.0, 250.0, 250.0, D65.0, D65.1, D65.2)[0]
+        );
     }
 
     // --- riemersma_dither ----------------------------------------------------

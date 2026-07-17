@@ -164,6 +164,59 @@ threshold map is a fixed bias, not accumulated error, so there is no sub-LSB
 signal for the match to throw away. Both conversions already linearise with `pow`
 and read no LUT, so ordered was never on the wrong side of this.
 
+## Known gaps — `_linearize: true`, still open
+
+Everything above is `_linearize: false`. Linearize mode is a *different*
+configuration, not a variation on it: both sides round to an integral u8 before
+matching, so it exercises the LUT half of the branch where the rest of this doc
+exercises the exact half. It went untested long enough to hide a 21% gap.
+
+Stucki 256×256, 16-colour, JS vs WASM:
+
+| algo | before | now |
+|---|---:|---:|
+| RGB | 0 | 0 |
+| HSV | 0 | 0 |
+| LEVELS | 0 | 0 |
+| Lab | 13988 (21%) | **0** |
+| OKLab | 8941 (14%) | 4335 (6.6%) |
+| RGB_APPROX | 5286 (8%) | 5286 (8%) |
+
+Lab took two fixes, and neither alone moved the number:
+
+1. `rgba2lab_inline` had to learn the same integrality branch as JS. Without it,
+   JS read the LUT and Rust used `powf`.
+2. **The two sRGB→linear LUTs were not the same table.** Rust built its in f32
+   throughout (`i as f32 / 255.0`, then `powf` on f32, rounding at every step);
+   JS builds its in f64 and rounds to f32 once, at the `Float32Array` store. 214
+   of 256 entries differed, worst 1.8e-7 at index 217. Rust now mirrors JS.
+
+Why that hid for so long is the useful part. A 1.8e-7 difference only flips a
+pixel sitting that close to the *bisector* between two palette entries. Over a
+76,800-pixel whole-buffer quantize that is ~0.008 expected flips — zero — which
+is exactly why `quantizeBufferParity` passed bit-for-bit the whole time. Error
+diffusion cascades one flip into thousands. The same fault is invisible in one
+kernel and 21% in the other.
+
+(This also kills the "1.65e-6 is far below the 1.3e-3 gap between palette
+entries, so nothing can flip" argument, which appears in earlier commit messages
+here and is wrong. The distance that matters is pixel-to-bisector, and that can
+be arbitrarily small.)
+
+**Still open, diagnosed, not fixed:**
+
+- **OKLab, 4335/65536 (6.6%).** Halved by the LUT fix, so part of it was the
+  table. The remainder is unexplained — both sides read the same LUT and do f64
+  matrix maths from there. Not chased further.
+- **RGB_APPROX, 5286/65536 (8%).** Untouched by any of this, and it reads no LUT
+  at all, so it is a different fault. Likely arithmetic width: the Rust kernel
+  computes the red-mean distance in f32 (`lib.rs`, `PAL_MODE_RGB_APPROX`), JS
+  computes it in f64. Unverified.
+
+Neither is asserted in `errorDiffusionBackendParity` — they would fail. Recorded
+here instead, because leaving them undocumented is precisely how the Lab gap
+survived this long.
+
 ## The decision (superseded — kept for the reasoning)
 
 Both fixes change shipped output, which is why neither was taken at the time:

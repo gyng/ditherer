@@ -29,10 +29,15 @@ import { LAB_NEAREST, OKLAB_NEAREST } from "constants/color";
 // 128x128 from the *same* fault (docs/plan/059). Anything asserting parity has
 // to do it somewhere big enough to cascade.
 //
-// Bit-for-bit rather than a tolerance: both algorithms are built so there is no
-// float drift to forgive, and a tolerance would let the real mistakes through
-// (truncation instead of rounding in oklab_from_f32; the LUT instead of powf in
-// rgba2laba).
+// Bit-for-bit rather than a tolerance: on the paths asserted here both sides do
+// the identical arithmetic, so there is no float drift to forgive, and a
+// tolerance would let the real mistakes through (truncation instead of rounding
+// in oklab_from_f32; the LUT instead of powf in rgba2laba).
+//
+// "No drift to forgive" is a property of these configurations, not of the
+// algorithms — an earlier version of this comment claimed the latter. OKLab in
+// linearize mode and RGB_APPROX both still differ; see the known-gaps section of
+// docs/plan/059 for what is covered and what is not.
 
 const PALETTE = [
   [0, 0, 0, 255],
@@ -81,6 +86,7 @@ const run = (
   H: number,
   algo: string,
   wasm: boolean,
+  linearize = false,
 ): Uint8ClampedArray => {
   const { canvas, written } = makeCanvas(W, H, makeSource(W, H));
   filter.func(canvas, {
@@ -89,7 +95,7 @@ const run = (
     temporalMode: TEMPORAL_MODE.OFF,
     temporalBleed: 0,
     palette: { ...user, options: { colors: PALETTE, colorDistanceAlgorithm: algo } },
-    _linearize: false,
+    _linearize: linearize,
     _wasmAcceleration: wasm,
   } as never);
   const result = written();
@@ -115,13 +121,17 @@ const expectBackendsAgree = (
   W: number,
   H: number,
   algo: string,
+  linearize = false,
 ) => {
-  const differing = diffPixels(run(filter, W, H, algo, true), run(filter, W, H, algo, false));
+  const differing = diffPixels(
+    run(filter, W, H, algo, true, linearize),
+    run(filter, W, H, algo, false, linearize),
+  );
   const total = W * H;
   expect(
     differing,
     `${differing}/${total} pixels (${((differing / total) * 100).toFixed(2)}%) differ between ` +
-      `the WASM kernel and the JS loop at ${W}x${H}`,
+      `the WASM kernel and the JS loop at ${W}x${H}, _linearize: ${linearize}`,
   ).toBe(0);
 };
 
@@ -175,6 +185,20 @@ describe("error diffusion — JS and WASM agree", () => {
   ])("%s holds under the widest kernel at 256x256", (_name, algo: string) => {
     expectBackendsAgree(stucki, 256, 256, algo);
   });
+
+  // `_linearize: true` is a different configuration, not a variation on the one
+  // above, and it went untested long enough to hide a 21% gap. Both sides round
+  // to an integral u8 before matching here, so this exercises the LUT half of
+  // the branch where the tests above exercise the exact half — the two paths
+  // through rgba2laba, and neither covers the other.
+  it("Lab holds in linearize mode, where both sides round to an integral channel", () => {
+    expectBackendsAgree(stucki, 256, 256, LAB_NEAREST, true);
+  });
+
+  // NOT asserted: OKLab in linearize mode still differs on ~6.6% of pixels here,
+  // and RGB_APPROX on ~8%. Both are diagnosed and neither is this file's to fix
+  // — see the "known gaps" section of docs/plan/059. Asserting them would just
+  // fail; leaving them undocumented is how the Lab gap survived.
 
   it.each([
     ["Lab", LAB_NEAREST],
