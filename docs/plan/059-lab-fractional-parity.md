@@ -155,9 +155,14 @@ load-bearing" — was right about `quantize_buffer_oklab` and wrong about the
 error-diffusion path. Mirroring is only a virtue when the thing being mirrored is
 correct for the caller.
 
-**Still unmeasured:** the same question for the *ordered* GL shader, which
-inlines its own OKLab. It has no error signal to discard — a threshold map is not
-accumulated error — so there is probably nothing here. Not checked.
+**Checked, and clean:** the same question for *ordered*, which inlines its own
+OKLab in GLSL and pre-converts its palette with a JS copy (`rgbToOklabJs`).
+Nothing to fix. Ordered biases a pixel by its threshold and then quantizes to the
+levels grid — `quant = jsRoundV(jsRoundV((src255 + bias) / step255) * step255)` —
+*before* the palette match. That rounding is the algorithm, not an artifact: a
+threshold map is a fixed bias, not accumulated error, so there is no sub-LSB
+signal for the match to throw away. Both conversions already linearise with `pow`
+and read no LUT, so ordered was never on the wrong side of this.
 
 ## The decision (superseded — kept for the reasoning)
 
