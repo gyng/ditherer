@@ -471,23 +471,47 @@ const PAL_MODE_OKLAB: u32 = 5;
 /// OKLab for a channel triple that has been through error diffusion, so it is
 /// neither integral nor necessarily in 0..255.
 ///
-/// Mirrors the JS `srgbToLinearF` index exactly — Math.round, then clamp — so
-/// the JS fallback and this kernel pick the same palette entry. Note this uses
-/// `js_round_f32` ((x+0.5).floor(), Math.round's half-toward-+inf rule) and not
-/// `clamp_u8_f32`, which truncates: truncation drifts a channel down by up to a
-/// full level and flips near-ties against JS.
+/// Linearises the exact float, exactly as `rgba2lab_inline` does for PAL_MODE_LAB
+/// — it does NOT read the LUT, and the callers are the reason. Only
+/// error_diffuse_buffer, error_diffuse_custom_order and riemersma_dither reach
+/// this; `quantize_buffer_oklab` keeps `rgba_to_oklab_via_lut` because integral
+/// channels are all it ever sees.
 ///
-/// PAL_MODE_LAB deliberately does NOT go through here — it calls
-/// `rgba2lab_inline`, which linearises the exact float with powf instead of
-/// reading the LUT. The two shapes differ sub-LSB on fractional channels.
+/// This used to round into the LUT to mirror the JS fallback. That mirrored the
+/// wrong side: rounding a diffused channel to 8 bits discards the sub-LSB error
+/// that error diffusion exists to carry, and it cost 15-66% dither quality
+/// (blurred RMS vs source; -66% on skin tones, docs/plan/059). JS now branches
+/// on integrality, so a fractional channel lands here and an integral one keeps
+/// the LUT for `quantize_buffer_oklab` parity.
+///
+/// The two sides therefore disagree by up to 1.65e-6 on an integral channel —
+/// JS reads the LUT, this always linearises. That cannot flip a match: without
+/// the LUT there is no rounding threshold, only a distance comparison, and no
+/// two palette entries sit 1.65e-6 apart.
 #[inline]
 fn oklab_from_f32(r: f32, g: f32, b: f32) -> [f64; 3] {
     #[inline]
-    fn lut_index(x: f32) -> u8 {
-        let r = js_round_f32(x);
-        if r < 0.0 { 0 } else if r > 255.0 { 255 } else { r as u8 }
+    fn lin(c: f64) -> f64 {
+        let s = c / 255.0;
+        if s > 0.04045 { ((s + 0.055) / 1.055).powf(2.4) } else { s / 12.92 }
     }
-    rgba_to_oklab_via_lut(lut_index(r), lut_index(g), lut_index(b))
+    let r = lin(r as f64);
+    let g = lin(g as f64);
+    let b = lin(b as f64);
+
+    let l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
+    let m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
+    let s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+
+    let l_ = l.cbrt();
+    let m_ = m.cbrt();
+    let s_ = s.cbrt();
+
+    [
+        0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
+    ]
 }
 
 /// Nearest palette entry by squared OKLab distance. Strict `<`, first wins —
@@ -1900,23 +1924,42 @@ mod tests {
         assert_eq!(out, quantize_buffer_oklab(&input, &bw_palette()));
     }
 
-    // The two tests either side of this one feed integral channels, so both
-    // survive swapping js_round_f32 for clamp_u8_f32's truncation. That swap is
-    // the whole JS-parity contract: error diffusion hands this fractional
-    // channels, and truncating drifts one down by up to a level, flipping
-    // near-ties against the JS fallback. Pinned directly rather than through a
-    // filter, because constructing a palette where a sub-level drift changes
-    // the winner is far more fragile than asserting the rule.
+    // The two tests either side of this one feed integral channels, so neither
+    // can see what oklab_from_f32 does with a fractional one — which is the only
+    // kind error diffusion ever hands it.
     #[test]
-    fn oklab_from_f32_rounds_like_js_math_round_not_truncation() {
-        // .6 rounds up. Truncation would give 250 and silently pass everything.
-        assert_eq!(oklab_from_f32(250.6, 40.6, 40.6), oklab_from_f32(251.0, 41.0, 41.0));
-        assert_ne!(oklab_from_f32(250.6, 40.6, 40.6), oklab_from_f32(250.0, 40.0, 40.0));
-        // Math.round is half-toward-+inf, which is what (x+0.5).floor() gives.
-        assert_eq!(oklab_from_f32(128.5, 0.0, 0.0), oklab_from_f32(129.0, 0.0, 0.0));
-        // Error diffusion overshoots both ends; those clamp, not wrap or zero.
-        assert_eq!(oklab_from_f32(300.0, 300.0, 300.0), oklab_from_f32(255.0, 255.0, 255.0));
-        assert_eq!(oklab_from_f32(-20.0, -20.0, -20.0), oklab_from_f32(0.0, 0.0, 0.0));
+    fn oklab_from_f32_keeps_the_fractional_part_of_a_diffused_channel() {
+        // This used to round into the f32 LUT, so 250.4 and 250.0 produced the
+        // same OKLab: the sub-LSB error that error diffusion exists to carry was
+        // discarded at the palette match. Worth 15-66% dither quality measured as
+        // blurred RMS against the source (docs/plan/059).
+        assert_ne!(oklab_from_f32(250.4, 40.0, 40.0), oklab_from_f32(250.0, 40.0, 40.0));
+        // Under the old rounding these were equal — .5 went up to 129.
+        assert_ne!(oklab_from_f32(128.5, 0.0, 0.0), oklab_from_f32(129.0, 0.0, 0.0));
+        // More light means higher L, with no rounding step to flatten it.
+        assert!(
+            oklab_from_f32(250.4, 250.4, 250.4)[0] > oklab_from_f32(250.0, 250.0, 250.0)[0],
+            "L must be monotone in a fractional channel — it is being quantized"
+        );
+    }
+
+    #[test]
+    fn oklab_from_f32_agrees_with_the_lut_on_integral_channels() {
+        // The two shapes coexist: this linearises exactly, quantize_buffer_oklab
+        // and the JS fallback read the LUT for integers. They must stay far
+        // closer than any two palette entries, or an integral pixel could match
+        // differently across backends. 1.65e-6 is the measured worst case.
+        for v in 0..=255u8 {
+            let exact = oklab_from_f32(v as f32, v as f32, v as f32);
+            let lut = rgba_to_oklab_via_lut(v, v, v);
+            for k in 0..3 {
+                assert!(
+                    (exact[k] - lut[k]).abs() < 1e-5,
+                    "channel {v}, component {k}: exact {} vs LUT {}",
+                    exact[k], lut[k]
+                );
+            }
+        }
     }
 
     #[test]

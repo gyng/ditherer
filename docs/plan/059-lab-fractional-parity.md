@@ -98,12 +98,13 @@ Riemersma ever see). Each caller lands on its own counterpart's shape.
 | FS 64×64, 16-colour | 54.13% | **0%** |
 | Stucki 256×256, 16-colour | 52.25% | **0%** |
 
-Lab beats OKLab now, which is the mechanism above confirming itself: Lab no longer
-touches the LUT for fractional channels, so there is no `.5` threshold for a
-last-bit f64/f32 difference to trip, and distance comparison alone cannot flip on
-one. OKLab still rounds into the LUT on both sides — deliberately, that mirroring
-is what makes it agree at all — so it keeps ~15% at Stucki 256×256. Left there per
-the same direction: every disagreement is a sub-JND near-tie.
+Lab beat OKLab the moment it stopped touching the LUT, which is the mechanism
+above confirming itself: no LUT means no `.5` threshold for a last-bit f64/f32
+difference to trip, and a distance comparison alone cannot flip on one.
+
+OKLab then got the same treatment, for a reason that turned out to be much
+stronger than parity — see below. It is now 0% too, including Stucki 256×256,
+where it had sat at 15.34%.
 
 Cost: nothing measurable. The whole-buffer JS fallback pays a `Number.isInteger`
 per channel — palette scan 517,503 hz against 522,078 before, inside the ±0.65%
@@ -114,11 +115,49 @@ Pinned by `test/filters/errorDiffusionBackendParity.test.ts` at 128×128 and
 Stucki 256×256 — sizes chosen because 12×9 reported 7% for this same fault and
 would have read as a rounding curiosity.
 
-**Worth a look later, and not a parity question:** OKLab quantizes the error
-signal to 8 bits before matching, since both sides round into the LUT. Error
-diffusion exists to carry sub-LSB error; throwing it away at the match may cost
-dither quality outright, independent of whether the backends agree with each
-other. Lab no longer does this. Unmeasured.
+## The LUT was never a parity question — it cost 15-66% dither quality
+
+Filed above as "worth a look later, unmeasured", with the OKLab gap waved through
+as sub-JND near-ties where "both outputs are valid dithers". That was wrong, and
+measuring it was what showed it.
+
+Both sides rounding into the same LUT does make them agree — but it also means
+the *error signal* gets quantized to 8 bits before every palette match. Error
+diffusion exists to carry sub-LSB error forward; discarding it at the match is
+not a near-tie, it is throwing away the mechanism.
+
+Same-algorithm A/B, JS path, 128×128, blurred RMS against the source (a dither is
+meant to be integrated by the eye, so quality is how close the *blurred* result
+lands). RGB and Lab were identical across both runs, which is the control — the
+change only touched OKLab:
+
+| case | LUT | exact | |
+|---|---:|---:|---:|
+| FS / CGA16 / skin tones | 18.541 | 6.289 | **−66%** |
+| Stucki / CGA16 / ramp | 21.919 | 12.838 | **−41%** |
+| FS / CGA16 / ramp | 18.763 | 11.379 | **−39%** |
+| Atkinson / CGA16 / ramp | 19.068 | 16.288 | −15% |
+| FS / 6-colour / ramp | 24.721 | 21.185 | −14% |
+| FS / black+white / grey ramp | 4.482 | 4.596 | +2.5% |
+
+The one regression is a 2-colour palette on a grey ramp — no colour to choose, so
+there is nothing for a perceptual space to be right about. Everything else moves
+one way, hardest where a palette has to pick between near neighbours, which is
+exactly where discarded error hurts.
+
+So OKLab now mirrors Lab exactly: `rgba2oklaba` branches on integrality,
+`oklab_from_f32` always linearises the exact float (only error diffusion and
+Riemersma reach it), and `quantize_buffer_oklab` keeps the LUT because integral
+channels are all it ever sees. Parity came along for free: 15.34% → 0%.
+
+The caution from `ed56fb8` — that the LUT mirroring was "deliberate and
+load-bearing" — was right about `quantize_buffer_oklab` and wrong about the
+error-diffusion path. Mirroring is only a virtue when the thing being mirrored is
+correct for the caller.
+
+**Still unmeasured:** the same question for the *ordered* GL shader, which
+inlines its own OKLab. It has no error signal to discard — a threshold map is not
+accumulated error — so there is probably nothing here. Not checked.
 
 ## The decision (superseded — kept for the reasoning)
 

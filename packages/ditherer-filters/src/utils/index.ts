@@ -470,9 +470,13 @@ export const rgba2laba = (
 export const rgba2oklaba = (input: RgbaLike) => {
   const [ir, ig, ib, ia] = readPixel(input);
   // 0..1 linear light, NOT scaled by 100 the way rgba2laba does for XYZ.
-  const r = srgbToLinearF(ir);
-  const g = srgbToLinearF(ig);
-  const b = srgbToLinearF(ib);
+  //
+  // Same integrality branch as rgba2laba, for the same reason and with the same
+  // two Rust counterparts: quantize_buffer_oklab reads the LUT and only sees
+  // integers; oklab_from_f32 linearises exactly and only sees diffused floats.
+  const r = labChannelToLinear(ir);
+  const g = labChannelToLinear(ig);
+  const b = labChannelToLinear(ib);
 
   const l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
   const m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;

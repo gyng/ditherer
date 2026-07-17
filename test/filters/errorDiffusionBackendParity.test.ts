@@ -163,19 +163,18 @@ describe("error diffusion — JS and WASM agree", () => {
     expectBackendsAgree(floydSteinberg, 128, 128, OKLAB_NEAREST);
   });
 
-  // Lab is exact-float on both sides now, so there is no quantization threshold
-  // for a last-bit f64/f32 difference to trip. Stucki spreads error over 12 taps
-  // and is the harshest case measured; if Lab ever regresses to a LUT this is
-  // the test that catches it.
-  it("Lab holds under the widest kernel at 256x256", () => {
-    expectBackendsAgree(stucki, 256, 256, LAB_NEAREST);
+  // Both are exact-float for fractional channels now, so there is no
+  // quantization threshold for a last-bit f64/f32 difference to trip: a
+  // distance comparison cannot flip on one, where a LUT index rounding at every
+  // .5 boundary could. Stucki spreads error over 12 taps and is the harshest
+  // case measured — OKLab sat at 15% here while it still read the LUT, and this
+  // is the test that catches either algorithm regressing back to one.
+  it.each([
+    ["Lab", LAB_NEAREST],
+    ["OKLab", OKLAB_NEAREST],
+  ])("%s holds under the widest kernel at 256x256", (_name, algo: string) => {
+    expectBackendsAgree(stucki, 256, 256, algo);
   });
-
-  // NOT asserted for OKLab, which diverges 15% at that size and is expected to.
-  // Both sides round into the same LUT by design, so the LUT's hard threshold at
-  // every .5 boundary turns JS's f64 error accumulation and Rust's f32 into
-  // different palette entries. Left alone deliberately: every disagreement is a
-  // sub-JND near-tie and both outputs are valid dithers. See docs/plan/059.
 
   it.each([
     ["Lab", LAB_NEAREST],
