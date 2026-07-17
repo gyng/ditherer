@@ -15,6 +15,21 @@ for (let i = 0; i < 256; i++) {
   SRGB_TO_LINEAR_F[i] = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
 }
 
+// Look up a channel in the LUT above. Callers do not all pass integers in
+// 0..255: error diffusion carries accumulated error as floats, so a channel
+// arrives as 250.4 and can briefly leave the range entirely. A fractional or
+// out-of-range index misses the LUT, and the `?? 0` fallback then reads as
+// *linear black* — so a bright pixel quantized to the darkest palette entry
+// instead of failing. Round and clamp so the lookup always lands.
+//
+// Integer in-range channels — the whole-buffer quantizers' only input — round
+// to themselves, so this changes nothing on the paths that were already
+// correct, including the bit-for-bit JS/Rust parity grids.
+const srgbToLinearF = (v: number) => {
+  const i = Math.round(v);
+  return SRGB_TO_LINEAR_F[i < 0 ? 0 : i > 255 ? 255 : i] ?? 0;
+};
+
 // Linear float → sRGB 0-255
 const linearFloatToSrgb = (l: number) => {
   const s = l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055;
@@ -384,9 +399,9 @@ export const rgba2laba = (
 ) => {
   const [ir, ig, ib, ia] = readPixel(input);
   // Use pre-computed sRGB→linear LUT instead of 3× pow(2.4)
-  const r = (SRGB_TO_LINEAR_F[ir] ?? 0) * 100;
-  const g = (SRGB_TO_LINEAR_F[ig] ?? 0) * 100;
-  const b = (SRGB_TO_LINEAR_F[ib] ?? 0) * 100;
+  const r = srgbToLinearF(ir) * 100;
+  const g = srgbToLinearF(ig) * 100;
+  const b = srgbToLinearF(ib) * 100;
 
   // Observer= 2° (Only use CIE 1931!)
   let x = r * 0.4124 + g * 0.3576 + b * 0.1805;
@@ -428,9 +443,9 @@ export const rgba2laba = (
 export const rgba2oklaba = (input: RgbaLike) => {
   const [ir, ig, ib, ia] = readPixel(input);
   // 0..1 linear light, NOT scaled by 100 the way rgba2laba does for XYZ.
-  const r = SRGB_TO_LINEAR_F[ir] ?? 0;
-  const g = SRGB_TO_LINEAR_F[ig] ?? 0;
-  const b = SRGB_TO_LINEAR_F[ib] ?? 0;
+  const r = srgbToLinearF(ir);
+  const g = srgbToLinearF(ig);
+  const b = srgbToLinearF(ib);
 
   const l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
   const m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
