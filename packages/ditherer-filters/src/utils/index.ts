@@ -793,15 +793,23 @@ export const WASM_PALETTE_MODE = {
   RGB_APPROX: 2,
   HSV: 3,
   LAB: 4,
+  OKLAB: 5,
 } as const;
 
 // Map a colorDistanceAlgorithm string to the WASM palette mode, or null if unsupported.
+//
+// Every algorithm the UI offers must map to a mode here. `null` is not a
+// graceful degrade: Riemersma has no JS fallback and returns the image
+// *unfiltered*, and error diffusion drops to the per-pixel JS loop. This is the
+// sibling of ORDERED_PAL_MODE in orderedGL.ts and drifted out of sync with it
+// once already — paletteModeCoverage pins them together.
 export const colorAlgorithmToWasmMode = (algo: string | undefined): number | null => {
   switch (algo) {
     case RGB_NEAREST: return WASM_PALETTE_MODE.RGB;
     case RGB_APPROX: return WASM_PALETTE_MODE.RGB_APPROX;
     case HSV_NEAREST: return WASM_PALETTE_MODE.HSV;
     case LAB_NEAREST: return WASM_PALETTE_MODE.LAB;
+    case OKLAB_NEAREST: return WASM_PALETTE_MODE.OKLAB;
     default: return null;
   }
 };

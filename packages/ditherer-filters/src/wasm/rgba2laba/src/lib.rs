@@ -466,6 +466,45 @@ const PAL_MODE_RGB: u32 = 1;
 const PAL_MODE_RGB_APPROX: u32 = 2;
 const PAL_MODE_HSV: u32 = 3;
 const PAL_MODE_LAB: u32 = 4;
+const PAL_MODE_OKLAB: u32 = 5;
+
+/// OKLab for a channel triple that has been through error diffusion, so it is
+/// neither integral nor necessarily in 0..255.
+///
+/// Mirrors the JS `srgbToLinearF` index exactly — Math.round, then clamp — so
+/// the JS fallback and this kernel pick the same palette entry. Note this uses
+/// `js_round_f32` ((x+0.5).floor(), Math.round's half-toward-+inf rule) and not
+/// `clamp_u8_f32`, which truncates: truncation drifts a channel down by up to a
+/// full level and flips near-ties against JS.
+///
+/// PAL_MODE_LAB deliberately does NOT go through here — it calls
+/// `rgba2lab_inline`, which linearises the exact float with powf instead of
+/// reading the LUT. The two shapes differ sub-LSB on fractional channels.
+#[inline]
+fn oklab_from_f32(r: f32, g: f32, b: f32) -> [f64; 3] {
+    #[inline]
+    fn lut_index(x: f32) -> u8 {
+        let r = js_round_f32(x);
+        if r < 0.0 { 0 } else if r > 255.0 { 255 } else { r as u8 }
+    }
+    rgba_to_oklab_via_lut(lut_index(r), lut_index(g), lut_index(b))
+}
+
+/// Nearest palette entry by squared OKLab distance. Strict `<`, first wins —
+/// matches the JS loop's tie-breaking, same as quantize_buffer_oklab.
+#[inline]
+fn oklab_nearest(px: [f64; 3], pal_ok: &[[f64; 3]]) -> usize {
+    let mut best = 0usize;
+    let mut best_d = f64::MAX;
+    for (j, pl) in pal_ok.iter().enumerate() {
+        let dl = px[0] - pl[0];
+        let da = px[1] - pl[1];
+        let db = px[2] - pl[2];
+        let d = dl * dl + da * da + db * db;
+        if d < best_d { best_d = d; best = j; }
+    }
+    best
+}
 
 // Row-alternation modes for the row-major scan. Must agree with WASM_ROW_ALT
 // in src/utils/index.ts and the JS-side ROW_ALT constants in
@@ -672,38 +711,51 @@ fn build_palette_tables(
     ref_x: f64,
     ref_y: f64,
     ref_z: f64,
-) -> (Vec<[u8; 4]>, Vec<[f64; 3]>, Vec<[f64; 3]>) {
+) -> (Vec<[u8; 4]>, Vec<[f64; 3]>, Vec<[f64; 3]>, Vec<[f64; 3]>) {
     let n_colors = palette.len() / 4;
     let mut pal_rgba: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
     let mut pal_lab: Vec<[f64; 3]> = Vec::new();
     let mut pal_hsv: Vec<[f64; 3]> = Vec::new();
+    let mut pal_ok: Vec<[f64; 3]> = Vec::new();
     for i in 0..n_colors {
         let r = palette[i*4]; let g = palette[i*4+1]; let b = palette[i*4+2]; let a = palette[i*4+3];
         pal_rgba.push([r as u8, g as u8, b as u8, a as u8]);
         match palette_mode {
             PAL_MODE_LAB => pal_lab.push(rgba2lab_inline(r, g, b, ref_x, ref_y, ref_z)),
             PAL_MODE_HSV => pal_hsv.push(rgb_to_hsv(r, g, b)),
+            // Palette entries are integral, so this agrees with
+            // quantize_buffer_oklab's rgba_to_oklab_via_lut on the same colours.
+            PAL_MODE_OKLAB => pal_ok.push(oklab_from_f32(r as f32, g as f32, b as f32)),
             _ => {}
         }
     }
-    (pal_rgba, pal_lab, pal_hsv)
+    (pal_rgba, pal_lab, pal_hsv, pal_ok)
 }
 
-#[inline]
+// `inline(always)`, not `inline`: this replaced three hand-copied inline blocks
+// in the three pixel loops, and plain `#[inline]` left LLVM free to emit it as
+// a real call — a per-pixel call in the hot loop, worst on PAL_MODE_LEVELS,
+// which does no palette scan to amortise it. Forcing the inline makes the
+// codegen match the copies it replaced instead of trading unmeasured speed for
+// tidiness.
+#[inline(always)]
+#[allow(clippy::too_many_arguments)]
 fn palette_match_rgb(
     sr: f32,
     sg: f32,
     sb: f32,
     palette_mode: u32,
-    levels: u32,
+    // Precomputed 255/(levels-1) rather than `levels`, so callers hoist the
+    // division out of their pixel loop. Only PAL_MODE_LEVELS reads it.
+    step: f32,
     pal_rgba: &[[u8; 4]],
     pal_lab: &[[f64; 3]],
     pal_hsv: &[[f64; 3]],
+    pal_ok: &[[f64; 3]],
     ref_x: f64,
     ref_y: f64,
     ref_z: f64,
 ) -> (f32, f32, f32, u8, u8, u8) {
-    let step = if levels > 1 { 255.0 / (levels as f32 - 1.0) } else { 255.0 };
     match palette_mode {
         PAL_MODE_LEVELS => {
             let qr = quant_levels_channel(sr, step);
@@ -766,6 +818,11 @@ fn palette_match_rgb(
             let c = pal_rgba[best];
             (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
         }
+        PAL_MODE_OKLAB => {
+            let best = oklab_nearest(oklab_from_f32(sr, sg, sb), pal_ok);
+            let c = pal_rgba[best];
+            (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
+        }
         _ => (0.0, 0.0, 0.0, 0, 0, 0),
     }
 }
@@ -812,7 +869,8 @@ pub fn riemersma_dither(
 
     let lut = srgb_to_lin_lut();
     let (lin_lut, lin_thresholds) = init_lin_luts();
-    let (pal_rgba, pal_lab, pal_hsv) = build_palette_tables(palette_mode, palette, ref_x, ref_y, ref_z);
+    let (pal_rgba, pal_lab, pal_hsv, pal_ok) = build_palette_tables(palette_mode, palette, ref_x, ref_y, ref_z);
+    let step_levels = if levels > 1 { 255.0 / (levels as f32 - 1.0) } else { 255.0 };
     if palette_mode != PAL_MODE_LEVELS && pal_rgba.is_empty() { return; }
 
     let curve_size = next_power_of_two_usize(w.max(h));
@@ -867,8 +925,8 @@ pub fn riemersma_dither(
         };
 
         let (mut qr_f, mut qg_f, mut qb_f, qr_u8, qg_u8, qb_u8) = palette_match_rgb(
-            sr, sg, sb, palette_mode, levels,
-            &pal_rgba, &pal_lab, &pal_hsv,
+            sr, sg, sb, palette_mode, step_levels,
+            &pal_rgba, &pal_lab, &pal_hsv, &pal_ok,
             ref_x, ref_y, ref_z,
         );
 
@@ -952,19 +1010,7 @@ pub fn error_diffuse_buffer(
     }
 
     // Palette tables.
-    let n_colors = palette.len() / 4;
-    let mut pal_rgba: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
-    let mut pal_lab: Vec<[f64; 3]> = Vec::new();
-    let mut pal_hsv: Vec<[f64; 3]> = Vec::new();
-    for i in 0..n_colors {
-        let r = palette[i*4]; let g = palette[i*4+1]; let b = palette[i*4+2]; let a = palette[i*4+3];
-        pal_rgba.push([r as u8, g as u8, b as u8, a as u8]);
-        match palette_mode {
-            PAL_MODE_LAB => pal_lab.push(rgba2lab_inline(r, g, b, ref_x, ref_y, ref_z)),
-            PAL_MODE_HSV => pal_hsv.push(rgb_to_hsv(r, g, b)),
-            _ => {}
-        }
-    }
+    let (pal_rgba, pal_lab, pal_hsv, pal_ok) = build_palette_tables(palette_mode, palette, ref_x, ref_y, ref_z);
 
     // Reuse the persistent error buffer; only re-init the contents.
     let n_pixels = w * h;
@@ -1058,70 +1104,11 @@ pub fn error_diffuse_buffer(
                 (pr, pg, pb)
             };
 
-            let (mut qr_f, mut qg_f, mut qb_f, qr_u8, qg_u8, qb_u8): (f32, f32, f32, u8, u8, u8) = match palette_mode {
-                PAL_MODE_LEVELS => {
-                    let qr = quant_levels_channel(sr, step_f32);
-                    let qg = quant_levels_channel(sg, step_f32);
-                    let qb = quant_levels_channel(sb, step_f32);
-                    (qr, qg, qb, clamp_u8_f32(qr), clamp_u8_f32(qg), clamp_u8_f32(qb))
-                }
-                PAL_MODE_RGB => {
-                    let mut best = 0usize;
-                    let mut best_d = f32::MAX;
-                    for (j, c) in pal_rgba.iter().enumerate() {
-                        let dr = sr - c[0] as f32;
-                        let dg = sg - c[1] as f32;
-                        let db = sb - c[2] as f32;
-                        let d = dr*dr + dg*dg + db*db;
-                        if d < best_d { best_d = d; best = j; }
-                    }
-                    let c = pal_rgba[best];
-                    (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-                }
-                PAL_MODE_RGB_APPROX => {
-                    let mut best = 0usize;
-                    let mut best_d = f32::MAX;
-                    for (j, c) in pal_rgba.iter().enumerate() {
-                        let rm = (sr + c[0] as f32) / 2.0;
-                        let dr = sr - c[0] as f32;
-                        let dg = sg - c[1] as f32;
-                        let db = sb - c[2] as f32;
-                        let d = (2.0 + rm / 256.0) * dr * dr
-                              + 4.0 * dg * dg
-                              + (2.0 + (255.0 - rm) / 256.0) * db * db;
-                        if d < best_d { best_d = d; best = j; }
-                    }
-                    let c = pal_rgba[best];
-                    (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-                }
-                PAL_MODE_HSV => {
-                    let px = rgb_to_hsv(sr as f64, sg as f64, sb as f64);
-                    let mut best = 0usize;
-                    let mut best_d = f64::MAX;
-                    for (j, ph) in pal_hsv.iter().enumerate() {
-                        let dh_abs = (px[0] - ph[0]).abs();
-                        let dh = dh_abs.min(360.0 - dh_abs) / 180.0;
-                        let ds = (px[1] - ph[1]).abs();
-                        let dv = (px[2] - ph[2]).abs();
-                        let d = dh*dh + ds*ds + dv*dv;
-                        if d < best_d { best_d = d; best = j; }
-                    }
-                    let c = pal_rgba[best];
-                    (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-                }
-                PAL_MODE_LAB => {
-                    let px = rgba2lab_inline(sr as f64, sg as f64, sb as f64, ref_x, ref_y, ref_z);
-                    let mut best = 0usize;
-                    let mut best_d = f64::MAX;
-                    for (j, pl) in pal_lab.iter().enumerate() {
-                        let d = (px[0]-pl[0]).powi(2)+(px[1]-pl[1]).powi(2)+(px[2]-pl[2]).powi(2);
-                        if d < best_d { best_d = d; best = j; }
-                    }
-                    let c = pal_rgba[best];
-                    (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-                }
-                _ => (0.0, 0.0, 0.0, 0, 0, 0),
-            };
+            let (mut qr_f, mut qg_f, mut qb_f, qr_u8, qg_u8, qb_u8) = palette_match_rgb(
+                sr, sg, sb, palette_mode, step_f32,
+                &pal_rgba, &pal_lab, &pal_hsv, &pal_ok,
+                ref_x, ref_y, ref_z,
+            );
 
             // In linear mode, the error-feedback values must be in linear space.
             // JS linearizeColorF does `SRGB_TO_LINEAR_F[u8] ?? 0`, which treats
@@ -1232,19 +1219,7 @@ pub fn error_diffuse_custom_order(
     let lut = srgb_to_lin_lut();
     let (lin_lut, lin_thresholds) = init_lin_luts();
 
-    let n_colors = palette.len() / 4;
-    let mut pal_rgba: Vec<[u8; 4]> = Vec::with_capacity(n_colors);
-    let mut pal_lab: Vec<[f64; 3]> = Vec::new();
-    let mut pal_hsv: Vec<[f64; 3]> = Vec::new();
-    for i in 0..n_colors {
-        let r = palette[i*4]; let g = palette[i*4+1]; let b = palette[i*4+2]; let a = palette[i*4+3];
-        pal_rgba.push([r as u8, g as u8, b as u8, a as u8]);
-        match palette_mode {
-            PAL_MODE_LAB => pal_lab.push(rgba2lab_inline(r, g, b, ref_x, ref_y, ref_z)),
-            PAL_MODE_HSV => pal_hsv.push(rgb_to_hsv(r, g, b)),
-            _ => {}
-        }
-    }
+    let (pal_rgba, pal_lab, pal_hsv, pal_ok) = build_palette_tables(palette_mode, palette, ref_x, ref_y, ref_z);
 
     // Reuse the persistent error buffer; resize if needed.
     let n_pixels = w * h;
@@ -1339,66 +1314,11 @@ pub fn error_diffuse_custom_order(
             )
         } else { (pr, pg, pb) };
 
-        let (mut qr_f, mut qg_f, mut qb_f, qr_u8, qg_u8, qb_u8): (f32, f32, f32, u8, u8, u8) = match palette_mode {
-            PAL_MODE_LEVELS => {
-                let qr = quant_levels_channel(sr, step_levels);
-                let qg = quant_levels_channel(sg, step_levels);
-                let qb = quant_levels_channel(sb, step_levels);
-                (qr, qg, qb, clamp_u8_f32(qr), clamp_u8_f32(qg), clamp_u8_f32(qb))
-            }
-            PAL_MODE_RGB => {
-                let mut best = 0usize; let mut best_d = f32::MAX;
-                for (j, c) in pal_rgba.iter().enumerate() {
-                    let dr = sr - c[0] as f32;
-                    let dg = sg - c[1] as f32;
-                    let db = sb - c[2] as f32;
-                    let d = dr*dr + dg*dg + db*db;
-                    if d < best_d { best_d = d; best = j; }
-                }
-                let c = pal_rgba[best];
-                (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-            }
-            PAL_MODE_RGB_APPROX => {
-                let mut best = 0usize; let mut best_d = f32::MAX;
-                for (j, c) in pal_rgba.iter().enumerate() {
-                    let rm = (sr + c[0] as f32) / 2.0;
-                    let dr = sr - c[0] as f32;
-                    let dg = sg - c[1] as f32;
-                    let db = sb - c[2] as f32;
-                    let d = (2.0 + rm / 256.0) * dr * dr
-                          + 4.0 * dg * dg
-                          + (2.0 + (255.0 - rm) / 256.0) * db * db;
-                    if d < best_d { best_d = d; best = j; }
-                }
-                let c = pal_rgba[best];
-                (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-            }
-            PAL_MODE_HSV => {
-                let px = rgb_to_hsv(sr as f64, sg as f64, sb as f64);
-                let mut best = 0usize; let mut best_d = f64::MAX;
-                for (j, ph) in pal_hsv.iter().enumerate() {
-                    let dh_abs = (px[0] - ph[0]).abs();
-                    let dh = dh_abs.min(360.0 - dh_abs) / 180.0;
-                    let ds = (px[1] - ph[1]).abs();
-                    let dv = (px[2] - ph[2]).abs();
-                    let d = dh*dh + ds*ds + dv*dv;
-                    if d < best_d { best_d = d; best = j; }
-                }
-                let c = pal_rgba[best];
-                (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-            }
-            PAL_MODE_LAB => {
-                let px = rgba2lab_inline(sr as f64, sg as f64, sb as f64, ref_x, ref_y, ref_z);
-                let mut best = 0usize; let mut best_d = f64::MAX;
-                for (j, pl) in pal_lab.iter().enumerate() {
-                    let d = (px[0]-pl[0]).powi(2)+(px[1]-pl[1]).powi(2)+(px[2]-pl[2]).powi(2);
-                    if d < best_d { best_d = d; best = j; }
-                }
-                let c = pal_rgba[best];
-                (c[0] as f32, c[1] as f32, c[2] as f32, c[0], c[1], c[2])
-            }
-            _ => (0.0, 0.0, 0.0, 0, 0, 0),
-        };
+        let (mut qr_f, mut qg_f, mut qb_f, qr_u8, qg_u8, qb_u8) = palette_match_rgb(
+            sr, sg, sb, palette_mode, step_levels,
+            &pal_rgba, &pal_lab, &pal_hsv, &pal_ok,
+            ref_x, ref_y, ref_z,
+        );
 
         if linearize {
             qr_f = lut[qr_u8 as usize];
@@ -1957,6 +1877,82 @@ mod tests {
             95.047, 100.0, 108.883,
         );
         assert_eq!(out, quantize_buffer_rgb(&input, &bw_palette()));
+    }
+
+    // PAL_MODE_OKLAB did not exist: colorAlgorithmToWasmMode returned null for
+    // OKLab, and Riemersma is noGL with no JS fallback, so selecting OKLab
+    // returned the image *unfiltered*. These pin the new arm against a kernel
+    // with independent coverage rather than against itself.
+    #[test]
+    fn riemersma_oklab_with_no_error_feedback_matches_the_oklab_quantizer() {
+        // Same oracle trick as the RGB case above: error_strength=0 leaves a
+        // plain nearest-colour snap, which quantize_buffer_oklab computes
+        // independently (and which oklab.test.ts asserts against Ottosson's
+        // published primaries).
+        let input = ramp(16, 16);
+        let mut out = vec![0u8; input.len()];
+        riemersma_dither(
+            &input, &mut out, 16, 16,
+            16, 1.0 / 16.0, 0.0, false,
+            PAL_MODE_OKLAB, 2, &bw_palette(),
+            95.047, 100.0, 108.883,
+        );
+        assert_eq!(out, quantize_buffer_oklab(&input, &bw_palette()));
+    }
+
+    // The two tests either side of this one feed integral channels, so both
+    // survive swapping js_round_f32 for clamp_u8_f32's truncation. That swap is
+    // the whole JS-parity contract: error diffusion hands this fractional
+    // channels, and truncating drifts one down by up to a level, flipping
+    // near-ties against the JS fallback. Pinned directly rather than through a
+    // filter, because constructing a palette where a sub-level drift changes
+    // the winner is far more fragile than asserting the rule.
+    #[test]
+    fn oklab_from_f32_rounds_like_js_math_round_not_truncation() {
+        // .6 rounds up. Truncation would give 250 and silently pass everything.
+        assert_eq!(oklab_from_f32(250.6, 40.6, 40.6), oklab_from_f32(251.0, 41.0, 41.0));
+        assert_ne!(oklab_from_f32(250.6, 40.6, 40.6), oklab_from_f32(250.0, 40.0, 40.0));
+        // Math.round is half-toward-+inf, which is what (x+0.5).floor() gives.
+        assert_eq!(oklab_from_f32(128.5, 0.0, 0.0), oklab_from_f32(129.0, 0.0, 0.0));
+        // Error diffusion overshoots both ends; those clamp, not wrap or zero.
+        assert_eq!(oklab_from_f32(300.0, 300.0, 300.0), oklab_from_f32(255.0, 255.0, 255.0));
+        assert_eq!(oklab_from_f32(-20.0, -20.0, -20.0), oklab_from_f32(0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn riemersma_oklab_is_really_oklab_and_not_rgb() {
+        // A source colour whose nearest palette entry differs between OKLab and
+        // RGB (margin >35%; shared with gl-smoke's oklab-palette triples). The
+        // oracle test above cannot catch a mode wired to the wrong algorithm on
+        // a black/white palette, because every algorithm agrees there.
+        let palette = vec![7.0, 195.0, 232.0, 255.0, 232.0, 79.0, 43.0, 255.0];
+        let input = solid(16, 16, [125, 209, 54]);
+
+        let mut out = vec![0u8; input.len()];
+        riemersma_dither(
+            &input, &mut out, 16, 16,
+            16, 1.0 / 16.0, 0.0, false,
+            PAL_MODE_OKLAB, 2, &palette,
+            95.047, 100.0, 108.883,
+        );
+        assert_eq!(
+            &out[0..3], &[7, 195, 232],
+            "PAL_MODE_OKLAB picked the RGB-nearest entry — it is not computing OKLab"
+        );
+
+        // Control: if this ever fails the fixture stopped disagreeing, and the
+        // assertion above is passing for the wrong reason.
+        let mut rgb_out = vec![0u8; input.len()];
+        riemersma_dither(
+            &input, &mut rgb_out, 16, 16,
+            16, 1.0 / 16.0, 0.0, false,
+            PAL_MODE_RGB, 2, &palette,
+            95.047, 100.0, 108.883,
+        );
+        assert_eq!(
+            &rgb_out[0..3], &[232, 79, 43],
+            "fixture no longer disagrees between OKLab and RGB — pick new colours"
+        );
     }
 
     // NOT covered: the shape of the error-memory falloff. Inverting
