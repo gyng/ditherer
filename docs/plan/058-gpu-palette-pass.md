@@ -82,3 +82,30 @@ LAB alone is a genuine 4× (638ms → 161ms) and could be enabled selectively. R
 for now: it buys one algorithm the alpha hazard and a backend split, and LAB's CPU
 cost is already the target of cheaper work (a Lab palette LUT, or OKLab, which is
 substantially less maths per pixel).
+
+### Addendum — "substantially less maths" was 1.27×
+
+That last clause was doing real work in this rejection and was never measured. The
+whole-buffer bench now covers every algorithm (`test/perf/colorDistanceBench.bench.ts`;
+it only had RGB when this was written, which is why the claim went unchecked).
+76,800 pixels, 16-colour CGA, one WASM call:
+
+| algo | mean | vs LAB |
+|---|---:|---:|
+| RGB | 2.14 ms | 6.4× |
+| HSV | 3.69 ms | 3.7× |
+| RGB_APPROX | 3.86 ms | 3.5× |
+| **OKLAB** | **10.68 ms** | **1.27×** |
+| LAB | 13.60 ms | — |
+
+So OKLab is cheaper than Lab, but by 27% — not enough to stand in for a 4× GPU win.
+The reasoning above assumed OKLab made the GPU path redundant for LAB; it doesn't.
+If a selective GPU LAB is ever revisited, this rejection should be re-argued on the
+alpha hazard and the backend split alone, which are the parts that still hold.
+
+Also unchecked at the time, and worse: the `LAB_NEAREST (WASM precomputed Lab)`
+figure that suggested the precomputed path was slower than plain JS. That bench was
+calling `nearest_lab_precomputed` with the wrong arity, so wasm-bindgen marshalled a
+number as the palette slice and the Rust looped zero times. Corrected, it is **4.5×
+faster than the JS scan** (2,324,240 hz vs 522,078 hz), so `user.ts`'s gating of Lab
+onto it is an optimization rather than the pessimization the old number implied.

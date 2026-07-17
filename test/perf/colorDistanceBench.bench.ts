@@ -23,6 +23,7 @@ import {
   RGB_APPROX,
   HSV_NEAREST,
   LAB_NEAREST,
+  OKLAB_NEAREST,
 } from "constants/color";
 
 // ---------------------------------------------------------------------------
@@ -89,6 +90,10 @@ let BENCH_BUF: Uint8Array | null = null;
 // Buffer quantize functions (one per algorithm)
 type WasmQuantizeFn = (buf: Uint8Array, palette: Float64Array) => Uint8Array;
 let wasmQuantizeRgb: WasmQuantizeFn | null = null;
+let wasmQuantizeRgbApprox: WasmQuantizeFn | null = null;
+let wasmQuantizeHsv: WasmQuantizeFn | null = null;
+let wasmQuantizeLab: WasmQuantizeFn | null = null;
+let wasmQuantizeOklab: WasmQuantizeFn | null = null;
 
 // Pre-computed per-pixel function
 type WasmPrecomputedFn = (pixel: number[], paletteLab: Float64Array) => number;
@@ -146,15 +151,64 @@ beforeAll(async () => {
       pixel[0], pixel[1], pixel[2], pixel[3],
       palette, REF_X, REF_Y, REF_Z,
     );
+  // Takes NO alpha, unlike its sibling rgba_nearest_lab_index right above —
+  // which is how `pixel[3]` slid into the `palette_lab` slot here. wasm-bindgen
+  // marshalled the number 255 as the f64 slice, producing a zero-length palette,
+  // so the Rust looped zero times and returned 0 without ever throwing. The
+  // bench timed an empty loop and reported it as a real figure.
   wasmPrecomputed = (pixel: number[], paletteLab: Float64Array): number =>
-    wasmMod.nearest_lab_precomputed(pixel[0], pixel[1], pixel[2], pixel[3], paletteLab);
+    wasmMod.nearest_lab_precomputed(pixel[0], pixel[1], pixel[2], paletteLab, REF_X, REF_Y, REF_Z);
   wasmQuantizeRgb = (buf: Uint8Array, palette: Float64Array): Uint8Array =>
     wasmMod.quantize_buffer_rgb(buf, palette);
+  wasmQuantizeRgbApprox = (buf: Uint8Array, palette: Float64Array): Uint8Array =>
+    wasmMod.quantize_buffer_rgb_approx(buf, palette);
+  wasmQuantizeHsv = (buf: Uint8Array, palette: Float64Array): Uint8Array =>
+    wasmMod.quantize_buffer_hsv(buf, palette);
+  wasmQuantizeLab = (buf: Uint8Array, palette: Float64Array): Uint8Array =>
+    wasmMod.quantize_buffer_lab(buf, palette, REF_X, REF_Y, REF_Z);
+  wasmQuantizeOklab = (buf: Uint8Array, palette: Float64Array): Uint8Array =>
+    wasmMod.quantize_buffer_oklab(buf, palette);
 
   // A silent skip is what let this rot. If WASM is unavailable the numbers are
   // meaningless, so say so rather than benchmark `return;`.
   if (!wasmDist || !wasmQuantizeRgb) {
     throw new Error("WASM failed to load — WASM benches would measure nothing");
+  }
+
+  // Same failure, one level down: a binding that resolves to undefined because
+  // the export was renamed benches `undefined(...)` and throws per-iteration, or
+  // worse, silently no-ops behind a guard. Prove each one runs and returns a
+  // full buffer before any of them are timed.
+  const quantizers: [string, WasmQuantizeFn | null][] = [
+    ["quantize_buffer_rgb", wasmQuantizeRgb],
+    ["quantize_buffer_rgb_approx", wasmQuantizeRgbApprox],
+    ["quantize_buffer_hsv", wasmQuantizeHsv],
+    ["quantize_buffer_lab", wasmQuantizeLab],
+    ["quantize_buffer_oklab", wasmQuantizeOklab],
+  ];
+  for (const [name, fn] of quantizers) {
+    if (!fn) throw new Error(`${name} binding is null — its bench would measure nothing`);
+    const out = fn(BENCH_BUF, CGA_16_FLAT);
+    if (out.length !== BENCH_BUF.length) {
+      throw new Error(
+        `${name} returned ${out.length} bytes for a ${BENCH_BUF.length}-byte buffer ` +
+          `— it is not doing the work its bench claims to time`,
+      );
+    }
+  }
+
+  // A non-null binding called with the wrong arity is the failure that actually
+  // happened, and it is invisible to every check above: nearest_lab_precomputed
+  // returned 0 rather than throwing. So check the *answer*, not the plumbing —
+  // agreement with the JS scan is the only thing that proves the palette
+  // survived marshalling.
+  const expected = CGA_16.indexOf(nearestColorJsLabManual(PIXEL, CGA_16));
+  const got = wasmPrecomputed(PIXEL, CGA_16_LAB);
+  if (got !== expected) {
+    throw new Error(
+      `nearest_lab_precomputed returned index ${got}, JS says ${expected} — the ` +
+        `WASM call is not doing the search its bench claims to time`,
+    );
   }
 });
 
@@ -227,6 +281,13 @@ describe("colorDistance — single pair", () => {
     colorDistance(PAL_COLOR, PIXEL, LAB_NEAREST);
   });
 
+  // Note this flatters OKLab slightly against LAB_NEAREST (JS): both memoize the
+  // palette-side conversion, but Lab also pays a whitepoint division and an XYZ
+  // matrix the OKLab path doesn't have. That gap is the point of measuring.
+  bench("OKLAB_NEAREST (JS)", () => {
+    colorDistance(PAL_COLOR, PIXEL, OKLAB_NEAREST);
+  });
+
   bench("LAB_NEAREST (WASM raw)", () => {
     if (!wasmDist) return;
     wasmDist(
@@ -258,6 +319,10 @@ describe("palette scan — 16 CGA colors", () => {
     nearestColorJs(PIXEL, CGA_16, LAB_NEAREST);
   });
 
+  bench("OKLAB_NEAREST (JS)", () => {
+    nearestColorJs(PIXEL, CGA_16, OKLAB_NEAREST);
+  });
+
   bench("LAB_NEAREST (JS, manual — no switch overhead)", () => {
     nearestColorJsLabManual(PIXEL, CGA_16);
   });
@@ -282,14 +347,37 @@ describe("palette scan — 16 CGA colors", () => {
 // Suite 3: full buffer quantization (320×240 = 76,800 pixels)
 // ---------------------------------------------------------------------------
 
+// This is the suite that matters. It is the shape every palette pass actually
+// ships (applyPaletteToBuffer dispatches straight into these), and the one whose
+// numbers other decisions get argued from — docs/plan/058 rejects a GPU palette
+// pass partly on "OKLab costs less per pixel than Lab", which nothing here could
+// check until now.
+//
+// The four non-RGB entries were deleted by 8d25b0d because their Rust functions
+// "have never existed" and the benches were timing an early return. They exist
+// now (5aa1590, 67688b3, 919586f, ed56fb8), so the note asking for them back
+// alongside the Rust is discharged — with a liveness check in beforeAll, since
+// the reason they were deleted was measuring nothing while reporting a number.
 describe("buffer quantize — 320×240 (76,800 pixels, single WASM call)", () => {
-  // Only quantize_buffer_rgb exists in the Rust. The RGB_APPROX / HSV / LAB
-  // buffer benches that used to sit here referenced quantize_buffer_rgb_approx,
-  // quantize_buffer_hsv and quantize_buffer_lab — none of which have ever been
-  // implemented, so their `if (!fn) return;` guards made them permanent no-ops
-  // reporting ~17M hz. Removed rather than left as decorative zeros; add them
-  // back alongside the Rust functions if those get written.
   bench("RGB_NEAREST (whole buffer, 1 WASM call)", () => {
     wasmQuantizeRgb!(BENCH_BUF!, CGA_16_FLAT!);
+  });
+
+  bench("RGB_APPROX (whole buffer, 1 WASM call)", () => {
+    wasmQuantizeRgbApprox!(BENCH_BUF!, CGA_16_FLAT!);
+  });
+
+  bench("HSV_NEAREST (whole buffer, 1 WASM call)", () => {
+    wasmQuantizeHsv!(BENCH_BUF!, CGA_16_FLAT!);
+  });
+
+  bench("LAB_NEAREST (whole buffer, 1 WASM call)", () => {
+    wasmQuantizeLab!(BENCH_BUF!, CGA_16_FLAT!);
+  });
+
+  // The comparison 058 leans on. Same job as Lab, no whitepoint division and no
+  // XYZ hop, so it should come out ahead — asserted nowhere, only measured here.
+  bench("OKLAB_NEAREST (whole buffer, 1 WASM call)", () => {
+    wasmQuantizeOklab!(BENCH_BUF!, CGA_16_FLAT!);
   });
 });
