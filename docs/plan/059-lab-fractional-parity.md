@@ -77,9 +77,52 @@ fails. That test guards the wiring and the rounding rule, which is what it was
 written for, but it does not certify the backends as interchangeable, and its
 comment was corrected to stop implying it does.
 
-## The decision
+## Resolved — Lab is now 0%, and the fix is narrower than either option
 
-Both fixes change shipped output, which is why neither was taken:
+Direction given: parity is wanted, 100% is not required. In the event it cost
+nothing to get there for Lab.
+
+Neither option below was taken as written. Both asked "which shape is canonical,
+the LUT or the exact float?" — and the answer is *both, depending on the caller*,
+because Rust has one of each. `rgba2laba` now branches on integrality: an integral
+in-range channel reads the LUT (matching `rgba2lab_via_lut`, which is all
+`quantize_buffer_lab` ever sees), and anything fractional or out-of-range
+linearises exactly (matching `rgba2lab_inline`, which is all error diffusion and
+Riemersma ever see). Each caller lands on its own counterpart's shape.
+
+| case | before | after |
+|---|---:|---:|
+| FS 12×9, 6-colour | 7.41% | **0%** |
+| FS 48×36, 6-colour | 37.79% | **0%** |
+| FS 128×128, 6-colour | 41.43% | **0%** |
+| FS 64×64, 16-colour | 54.13% | **0%** |
+| Stucki 256×256, 16-colour | 52.25% | **0%** |
+
+Lab beats OKLab now, which is the mechanism above confirming itself: Lab no longer
+touches the LUT for fractional channels, so there is no `.5` threshold for a
+last-bit f64/f32 difference to trip, and distance comparison alone cannot flip on
+one. OKLab still rounds into the LUT on both sides — deliberately, that mirroring
+is what makes it agree at all — so it keeps ~15% at Stucki 256×256. Left there per
+the same direction: every disagreement is a sub-JND near-tie.
+
+Cost: nothing measurable. The whole-buffer JS fallback pays a `Number.isInteger`
+per channel — palette scan 517,503 hz against 522,078 before, inside the ±0.65%
+noise. The integral path never pays a `powf` to move an answer by 1.6e-6, and the
+bit-parity grid against `quantize_buffer_lab` is untouched.
+
+Pinned by `test/filters/errorDiffusionBackendParity.test.ts` at 128×128 and
+Stucki 256×256 — sizes chosen because 12×9 reported 7% for this same fault and
+would have read as a rounding curiosity.
+
+**Worth a look later, and not a parity question:** OKLab quantizes the error
+signal to 8 bits before matching, since both sides round into the LUT. Error
+diffusion exists to carry sub-LSB error; throwing it away at the match may cost
+dither quality outright, independent of whether the backends agree with each
+other. Lab no longer does this. Unmeasured.
+
+## The decision (superseded — kept for the reasoning)
+
+Both fixes change shipped output, which is why neither was taken at the time:
 
 **A. Rust `rgba2lab_inline` reads the LUT like JS does.** Aligns Lab, and makes
 Rust internally consistent (`rgba2lab_via_lut` already does this). Changes the

@@ -391,6 +391,34 @@ export const rgba2hsva = (input: RgbaLike) => {
   return [h, s, v, a];
 };
 
+// sRGB→linear for one channel, exactly — no LUT, no rounding. Mirrors the
+// linearisation inside Rust's `rgba2lab_inline`, including its `>` rather than
+// the LUT's `<=` (they differ only at s == 0.04045, which no channel hits).
+const srgbToLinearExact = (v: number) => {
+  const s = v / 255;
+  return s > 0.04045 ? ((s + 0.055) / 1.055) ** 2.4 : s / 12.92;
+};
+
+// Rust has TWO Lab conversions, and which one JS must match depends on the
+// caller:
+//
+//   rgba2lab_via_lut  reads the f32 LUT — used by quantize_buffer_lab, which
+//                     only ever sees integral channels.
+//   rgba2lab_inline   linearises the exact float with powf — used by
+//                     error_diffuse_buffer and riemersma_dither, which see
+//                     accumulated error, so fractional channels.
+//
+// JS had only the LUT shape, so it was always wrong for one of them: rounding a
+// fractional channel into the LUT is what put JS and WASM 38-54% apart on error
+// diffusion (docs/plan/059). Branching on integrality lands each caller on its
+// own counterpart's shape, and keeps the integral path off a powf that would
+// move the answer by 1.65e-6 and break the bit-parity grid for nothing.
+//
+// Out-of-range integers take the exact path deliberately: rgba2lab_inline does
+// not clamp, so neither can this.
+const labChannelToLinear = (v: number) =>
+  Number.isInteger(v) && v >= 0 && v <= 255 ? srgbToLinearF(v) : srgbToLinearExact(v);
+
 // https://stackoverflow.com/questions/7880264/convert-lab-color-to-rgb
 // Convert RGB > XYZ > CIE Lab, copying alpha channel
 export const rgba2laba = (
@@ -398,10 +426,9 @@ export const rgba2laba = (
   ref = referenceTable.CIE_1931.D65
 ) => {
   const [ir, ig, ib, ia] = readPixel(input);
-  // Use pre-computed sRGB→linear LUT instead of 3× pow(2.4)
-  const r = srgbToLinearF(ir) * 100;
-  const g = srgbToLinearF(ig) * 100;
-  const b = srgbToLinearF(ib) * 100;
+  const r = labChannelToLinear(ir) * 100;
+  const g = labChannelToLinear(ig) * 100;
+  const b = labChannelToLinear(ib) * 100;
 
   // Observer= 2° (Only use CIE 1931!)
   let x = r * 0.4124 + g * 0.3576 + b * 0.1805;
