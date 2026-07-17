@@ -827,13 +827,25 @@ fn palette_match_rgb(
             let qb = quant_levels_channel(sb, step);
             (qr, qg, qb, clamp_u8_f32(qr), clamp_u8_f32(qg), clamp_u8_f32(qb))
         }
+        // RGB and RGB_APPROX scored in f32 while every other distance in this
+        // crate — HSV and LAB below, and all five whole-buffer quantizers — uses
+        // f64, as does the JS `colorDistance` both are meant to mirror. They were
+        // the only two that diverged from the JS loop once the error arithmetic
+        // was matched: 10% and 9% of pixels at 768x768, against 0% for the f64
+        // three. A last-bit difference flips any pixel near the bisector between
+        // two entries, and error diffusion cascades it (docs/plan/059).
+        //
+        // Widened rather than frounding the JS side, because `colorDistance` is
+        // shared with the whole-buffer JS fallback, whose Rust counterpart is
+        // already f64 and bit-parity-clean. Narrowing JS would fix this path and
+        // break that one.
         PAL_MODE_RGB => {
             let mut best = 0usize;
-            let mut best_d = f32::MAX;
+            let mut best_d = f64::MAX;
             for (j, c) in pal_rgba.iter().enumerate() {
-                let dr = sr - c[0] as f32;
-                let dg = sg - c[1] as f32;
-                let db = sb - c[2] as f32;
+                let dr = sr as f64 - c[0] as f64;
+                let dg = sg as f64 - c[1] as f64;
+                let db = sb as f64 - c[2] as f64;
                 let d = dr*dr + dg*dg + db*db;
                 if d < best_d { best_d = d; best = j; }
             }
@@ -842,12 +854,12 @@ fn palette_match_rgb(
         }
         PAL_MODE_RGB_APPROX => {
             let mut best = 0usize;
-            let mut best_d = f32::MAX;
+            let mut best_d = f64::MAX;
             for (j, c) in pal_rgba.iter().enumerate() {
-                let rm = (sr + c[0] as f32) / 2.0;
-                let dr = sr - c[0] as f32;
-                let dg = sg - c[1] as f32;
-                let db = sb - c[2] as f32;
+                let rm = (sr as f64 + c[0] as f64) / 2.0;
+                let dr = sr as f64 - c[0] as f64;
+                let dg = sg as f64 - c[1] as f64;
+                let db = sb as f64 - c[2] as f64;
                 let d = (2.0 + rm / 256.0) * dr * dr
                     + 4.0 * dg * dg
                     + (2.0 + (255.0 - rm) / 256.0) * db * db;

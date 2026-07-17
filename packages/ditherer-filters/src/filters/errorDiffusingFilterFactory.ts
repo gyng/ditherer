@@ -97,6 +97,31 @@ const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
 const readF32 = (buf: Float32Array, index: number) => buf[index] ?? 0;
 const readTuple = (tuples: Tuple[], index: number): Tuple => tuples[index] ?? { dx: 0, dy: 0, weight: 0 };
 
+// Round to f32 after every arithmetic step in the error-diffusion loops below,
+// because the Rust kernel does — its error buffer, kernel weights and scale are
+// all f32, so each of its operations rounds where JS's f64 would not.
+//
+// This is not pedantry, it is the whole of the remaining JS/WASM divergence.
+// `errBuf` is a Float32Array on both sides, so the *store* already rounds
+// identically, and an f32+f32 sum computed in f64 and rounded once is bit-equal
+// to an f32 add (IEEE gives correctly-rounded results either way). Only the
+// products feeding it stayed wide: `er`, `scale`, `weight * scale` and
+// `er * weight` are f64 here and f32 there. The difference is ~1e-7 and is
+// discarded by the very next store — so it buys no accuracy, only disagreement.
+//
+// Error diffusion then amplifies it without limit: a last-bit difference flips
+// any pixel that lands that close to the bisector between two palette entries,
+// and the flip cascades into its neighbours' error. Onset is a function of
+// pixel count, which is why this looked fixed at 256x256 and was 17-27% apart
+// at 768x768 (docs/plan/059). Matching the arithmetic is what turns "agrees up
+// to a size" into "agrees".
+//
+// Only the JS fallback pays this — a fround is one machine instruction once
+// JIT-compiled, and the WASM path is untouched. The alternative, widening the
+// kernel's error buffer to f64, would cost 2x bandwidth on the path that
+// actually ships to fix a fallback nobody sees.
+const f32 = Math.fround;
+
 type ErrorDiffusingRuntimeOptions = FilterOptionValues & {
   palette?: {
     getColor?: {
@@ -751,9 +776,9 @@ export const errorDiffusingFilter = (
           _pix[0] = readF32(errBuf, i); _pix[1] = readF32(errBuf, i + 1);
           _pix[2] = readF32(errBuf, i + 2); _pix[3] = readF32(errBuf, i + 3);
           const color = linearPaletteGetColor(palette, _pix, palette.options);
-          er = _pix[0] - (color[0] ?? 0);
-          eg = _pix[1] - (color[1] ?? 0);
-          eb = _pix[2] - (color[2] ?? 0);
+          er = f32(_pix[0] - (color[0] ?? 0));
+          eg = f32(_pix[1] - (color[1] ?? 0));
+          eb = f32(_pix[2] - (color[2] ?? 0));
           linearBuf![i] = color[0] ?? 0;
           linearBuf![i + 1] = color[1] ?? 0;
           linearBuf![i + 2] = color[2] ?? 0;
@@ -767,9 +792,9 @@ export const errorDiffusingFilter = (
             palette.options as { levels: number } | undefined
           );
           fillBufferPixel(buf, i, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, readU8(buf, i + 3));
-          er = pr - (color[0] ?? 0);
-          eg = pg - (color[1] ?? 0);
-          eb = pb - (color[2] ?? 0);
+          er = f32(pr - (color[0] ?? 0));
+          eg = f32(pg - (color[1] ?? 0));
+          eb = f32(pb - (color[2] ?? 0));
         }
 
         // Choose this step's tuple set. ROTATE looks one step ahead in the
@@ -799,10 +824,11 @@ export const errorDiffusingFilter = (
             const ty = y + t.dy;
             if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
             if (visited[ty * W + tx]) continue;
-            unvisitedWeight += t.weight;
+            // Rust accumulates this in an f32, so each += rounds.
+            unvisitedWeight = f32(unvisitedWeight + f32(t.weight));
           }
           if (unvisitedWeight === 0) continue;
-          scale = stepTotal / unvisitedWeight;
+          scale = f32(f32(stepTotal) / unvisitedWeight);
           if (useClamp && scale > CLAMP_MAX_SCALE) scale = CLAMP_MAX_SCALE;
         }
 
@@ -815,10 +841,13 @@ export const errorDiffusingFilter = (
           const targetLinear = ty * W + tx;
           if (visited[targetLinear]) continue;
           const ti = targetLinear * 4;
-          const w = t.weight * scale;
-          errBuf[ti] = readF32(errBuf, ti) + er * w;
-          errBuf[ti + 1] = readF32(errBuf, ti + 1) + eg * w;
-          errBuf[ti + 2] = readF32(errBuf, ti + 2) + eb * w;
+          // WASM receives `tuples` as a Float32Array, so its weight is already
+          // f32-rounded before the multiply; t.weight here is still the f64
+          // original.
+          const w = f32(f32(t.weight) * scale);
+          errBuf[ti] = readF32(errBuf, ti) + f32(er * w);
+          errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w);
+          errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w);
         }
       }
     } else {
@@ -862,9 +891,9 @@ export const errorDiffusingFilter = (
           _pix[0] = readF32(errBuf, i); _pix[1] = readF32(errBuf, i + 1);
           _pix[2] = readF32(errBuf, i + 2); _pix[3] = readF32(errBuf, i + 3);
           const color = linearPaletteGetColor(palette, _pix, palette.options);
-          const er = _pix[0] - (color[0] ?? 0);
-          const eg = _pix[1] - (color[1] ?? 0);
-          const eb = _pix[2] - (color[2] ?? 0);
+          const er = f32(_pix[0] - (color[0] ?? 0));
+          const eg = f32(_pix[1] - (color[1] ?? 0));
+          const eb = f32(_pix[2] - (color[2] ?? 0));
 
           linearBuf![i] = color[0] ?? 0;
           linearBuf![i + 1] = color[1] ?? 0;
@@ -884,9 +913,12 @@ export const errorDiffusingFilter = (
               const ty = y + h + offsetY;
               if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
               const ti = (tx + W * ty) * 4;
-              errBuf[ti] = readF32(errBuf, ti) + er * weight;
-              errBuf[ti + 1] = readF32(errBuf, ti + 1) + eg * weight;
-              errBuf[ti + 2] = readF32(errBuf, ti + 2) + eb * weight;
+              // Rust's KEntry stores `weight: v as f32`, so it multiplies by the
+              // f32-rounded weight; this is still the f64 kernel value.
+              const w32 = f32(weight);
+              errBuf[ti] = readF32(errBuf, ti) + f32(er * w32);
+              errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w32);
+              errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w32);
             }
           }
         } else {
@@ -897,9 +929,9 @@ export const errorDiffusingFilter = (
             palette.options as { levels: number } | undefined
           );
           fillBufferPixel(buf, i, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, readU8(buf, i + 3));
-          const er = pr - (color[0] ?? 0);
-          const eg = pg - (color[1] ?? 0);
-          const eb = pb - (color[2] ?? 0);
+          const er = f32(pr - (color[0] ?? 0));
+          const eg = f32(pg - (color[1] ?? 0));
+          const eb = f32(pb - (color[2] ?? 0));
 
           for (let h = 0; h < kernelHeight; h += 1) {
             for (let w = 0; w < kernelWidth; w += 1) {
@@ -915,9 +947,12 @@ export const errorDiffusingFilter = (
               const ty = y + h + offsetY;
               if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
               const ti = (tx + W * ty) * 4;
-              errBuf[ti] = readF32(errBuf, ti) + er * weight;
-              errBuf[ti + 1] = readF32(errBuf, ti + 1) + eg * weight;
-              errBuf[ti + 2] = readF32(errBuf, ti + 2) + eb * weight;
+              // Rust's KEntry stores `weight: v as f32`, so it multiplies by the
+              // f32-rounded weight; this is still the f64 kernel value.
+              const w32 = f32(weight);
+              errBuf[ti] = readF32(errBuf, ti) + f32(er * w32);
+              errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w32);
+              errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w32);
             }
           }
         }

@@ -1,15 +1,36 @@
-# 059 — JS and WASM disagree about Lab, and the LUT is why
+# 059 — Why JS and WASM disagreed about Lab, and where the floor is
 
-`c5c1a1e` fixed both Lab conversions reading fractional channels as black. That
-repaired the catastrophic case and exposed a smaller one underneath: with the JS
-fallback now producing sensible output, it can be compared against the Rust kernel
-for the first time — and on error diffusion the two disagree on **38–54% of pixels**.
+**Outcome first.** `c5c1a1e` fixed both Lab conversions reading fractional
+channels as black, which made the JS fallback comparable to the Rust kernel for
+the first time. It turned out the two disagreed on 38–54% of pixels in error
+diffusion. Four faults, all one shape — **one side rounding where the other did
+not** — plus a floor that no amount of care removes:
 
-This records what was measured and the decision it needs. Nothing here is a bug in
-the sense of wrong output; both backends produce a valid dither. They produce
-*different* valid dithers, and `wasmAcceleration` is a user-facing toggle.
+1. JS rounded a fractional channel into an f32 LUT built for integers; the kernel
+   linearised exactly. → `rgba2laba`/`rgba2oklaba` branch on integrality.
+2. The two sRGB→linear LUTs were not the same table (Rust f32 throughout, JS f64
+   rounded once; 214/256 entries differed). → matched.
+3. JS computed the diffused-error products in f64, the kernel in f32. →
+   `Math.fround` in the JS loop.
+4. RGB/RGB_APPROX scored distance in f32 while everything else used f64. →
+   widened.
+5. **`Math.cbrt` and Rust `f64::cbrt` disagree by 1 ULP on 8.4% of inputs.** Not
+   fixable by width discipline. This is the floor.
 
-## What diverges
+Result: 11 of 12 configurations are bit-identical at 1024×1024, up from divergence
+at 12×9. The twelfth is (5).
+
+Neither backend was ever *wrong* — both produce a valid dither. But
+`wasmAcceleration` is a user-facing toggle, and the JS loop is the only oracle
+the kernel has.
+
+**What follows is chronological, including three wrong turns**, because the wrong
+turns are the transferable part: each one was a real measurement read at a fixture
+size too small to show the phenomenon. Sections below marked superseded are kept
+for the mechanism, not the numbers. The authoritative results are in "Resolved:
+the widths were matched, and the floor is libm".
+
+## What diverges (superseded — see the outcome above)
 
 Stucki, 256×256 gradient, custom 16-colour palette, `_linearize: false`. Pixels
 whose output colour differs between the JS loop and the Rust kernel:
@@ -26,7 +47,7 @@ whose output colour differs between the JS loop and the Rust kernel:
 Only the two algorithms that go through the sRGB→linear LUT diverge. That is the
 whole finding — see the mechanism below.
 
-## Two different causes, don't conflate them
+## Two different causes, don't conflate them (superseded — there were four)
 
 **Lab: a different conversion on each side.** JS `rgba2laba` reads the f32 LUT at
 `round(channel)`. Rust `rgba2lab_inline` — the one error diffusion and Riemersma
@@ -77,7 +98,7 @@ fails. That test guards the wiring and the rounding rule, which is what it was
 written for, but it does not certify the backends as interchangeable, and its
 comment was corrected to stop implying it does.
 
-## Resolved — Lab is now 0%, and the fix is narrower than either option
+## Resolved — Lab is now 0% (superseded: 0% at 256x256, not at 768x768)
 
 Direction given: parity is wanted, 100% is not required. In the event it cost
 nothing to get there for Lab.
@@ -164,110 +185,105 @@ threshold map is a fixed bias, not accumulated error, so there is no sub-LSB
 signal for the match to throw away. Both conversions already linearise with `pow`
 and read no LUT, so ordered was never on the wrong side of this.
 
-## The "0%" above is a size threshold, not a property. Read this first.
+## Resolved: the widths were matched, and the floor is libm
 
-Every 0% in this document was measured at 256×256 or smaller. Lab, Stucki,
-16-colour, JS vs WASM:
+Every intermediate that JS and the kernel computed at different widths has been
+matched. Stucki, 16-colour, JS vs WASM, **1024×1024** — larger than anything that
+had been measured:
 
-| | 256×256 | 512×512 | 768×768 |
-|---|---:|---:|---:|
-| `_linearize: false` | 0% | 3.74% | 17.04% |
-| `_linearize: true` | 0% | 0% | 26.59% |
+| algo | `_linearize: false` | `_linearize: true` |
+|---|---:|---:|
+| RGB | 0 | 0 |
+| RGB_APPROX | 0 | 0 |
+| HSV | 0 | 0 |
+| Lab | 0 | 0 |
+| LEVELS | 0 | 0 |
+| **OKLab** | 0 | **12.43%** |
 
-So the fixes did not make the backends identical. They moved the *onset* of
-divergence from ~12×9 to ~512×512 — roughly 40× in linear dimension, which is a
-real gain and not the one that was claimed.
+Three faults, all of the same shape — one side rounding where the other did not:
 
-**This is the same mistake the "cascade" section warns about, made three times
-while writing this document.** A fixture too small to reach the phenomenon
-reports its absence. Each fix was measured at a size where the remaining fault
-had not yet fired.
+1. **The error arithmetic.** JS computed `er`, `scale`, `weight * scale` and
+   `er * weight` in f64; the kernel does each in f32. The *store* already
+   agreed (both write a `Float32Array`, and an f32+f32 sum computed in f64 and
+   rounded once is bit-equal to an f32 add), so only the products were wide. JS
+   now `Math.fround`s each. Nothing was lost: the next store discarded that
+   precision anyway.
+2. **The two sRGB→linear LUTs.** Rust built its in f32 throughout, JS in f64
+   rounded once. 214/256 entries differed. Now identical — verified 0/256.
+3. **RGB and RGB_APPROX scored distance in f32**, while HSV, Lab and all five
+   whole-buffer quantizers use f64, as does the JS `colorDistance` they mirror.
+   Widened to f64. (Not narrowed in JS: `colorDistance` is shared with the
+   whole-buffer fallback, whose counterpart is f64 and already bit-parity-clean.)
 
-**The residual is structural.** JS accumulates diffused error in f64 — `readF32`
-widens out of the `Float32Array`, and the arithmetic runs as JS numbers — while
-the Rust kernel accumulates in f32. Every intermediate differs in the last bits.
-Error diffusion is chaotic: each additional pixel is another chance to land
-within a last-bit of a bisector, and one flip cascades into thousands. Onset is
-therefore a function of pixel count, and at some size it is certain.
+That took the onset from ~12×9 to beyond 1024² for eleven of the twelve
+configurations. It is a property now, not a threshold — there is no last-bit
+difference left for the cascade to amplify.
 
-Nothing in this document can fix that. Closing it means making the JS loop round
-to f32 at every step (`Math.fround` on each intermediate, not just the store,
-which the `Float32Array` already does) — a real cost on the fallback path, in
-exchange for exactness on a path that only runs when WASM is off. Not attempted.
+**OKLab in linearize mode is the exception, and it cannot be fixed this way.**
+`Math.cbrt` and Rust's `f64::cbrt` are different libm implementations and
+disagree by up to 1 ULP (1.1e-16) on **1032 of 12288** of the l/m/s values OKLab
+actually feeds them — 8.4%. `cbrt` is not a correctly-rounded operation under
+IEEE-754, so both are entitled to their answers. No width discipline reaches
+this; closing it means implementing `cbrt` identically on both sides.
 
-The tests at 256×256 pin the threshold, not the property. They are honest
-regression guards — deterministic, and they fail loudly against every fault
-found here — but a bigger fixture would fail today, by design, not by accident.
+Note what that implies for the 0%s above: OKLab's `linearize: false` is 0 at
+1024² but is subject to the same 1-ULP disagreement, so it is a threshold that
+has not fired rather than a guarantee. Lab's `powf` is likely in the same
+position. **Exact JS/WASM parity for error diffusion is not achievable while both
+sides call their own transcendentals** — the systematic differences are gone, and
+what remains is a floor.
 
-## Known gaps — `_linearize: true`, still open
+**This document made the "small fixture" mistake three times while being
+written**, which is why the numbers above are at 1024² and the surviving gap is
+stated as a mechanism rather than a percentage. A fixture too small to reach the
+phenomenon reports its absence.
 
-Everything above is `_linearize: false`. Linearize mode is a *different*
-configuration, not a variation on it: both sides round to an integral u8 before
-matching, so it exercises the LUT half of the branch where the rest of this doc
-exercises the exact half. It went untested long enough to hide a 21% gap.
+The tests run at 256×256 for speed and are honest regression guards —
+deterministic, and they fail loudly against every fault found here. They do not
+prove the backends interchangeable at any size, and the OKLab/linearize row above
+is the standing proof that they cannot.
 
-Stucki 256×256, 16-colour, JS vs WASM:
+## Known gaps — `_linearize: true`
 
-| algo | before | now |
+Historical; superseded by the section above, which closed all of these except
+OKLab. Kept for the mechanism, which is the useful part.
+
+Linearize mode is a *different* configuration, not a variation: both sides round
+to an integral u8 before matching, so it exercises the LUT half of the
+integrality branch where the rest of this doc exercises the exact half. It went
+untested long enough to hide a 21% gap.
+
+Stucki 256×256, 16-colour, before any of the width fixes:
+
+| algo | linearize=false | linearize=true |
 |---|---:|---:|
 | RGB | 0 | 0 |
 | HSV | 0 | 0 |
 | LEVELS | 0 | 0 |
-| Lab | 13988 (21%) | **0** |
-| OKLab | 8941 (14%) | 4335 (6.6%) |
-| RGB_APPROX | 5286 (8%) | 5286 (8%) |
+| Lab | 0 | 13988 (21%) |
+| OKLab | 0 | 8941 (14%) |
+| RGB_APPROX | 0 | 5286 (8%) |
 
-Lab took two fixes, and neither alone moved the number:
+Why it hid is the useful part. A 1.8e-7 LUT difference only flips a pixel sitting
+that close to the *bisector* between two palette entries. Over a 76,800-pixel
+whole-buffer quantize that is ~0.008 expected flips — zero — which is exactly why
+`quantizeBufferParity` passed bit-for-bit the whole time. Error diffusion cascades
+one flip into thousands. The same fault is invisible in one kernel and 21% in the
+other.
 
-1. `rgba2lab_inline` had to learn the same integrality branch as JS. Without it,
-   JS read the LUT and Rust used `powf`.
-2. **The two sRGB→linear LUTs were not the same table.** Rust built its in f32
-   throughout (`i as f32 / 255.0`, then `powf` on f32, rounding at every step);
-   JS builds its in f64 and rounds to f32 once, at the `Float32Array` store. 214
-   of 256 entries differed, worst 1.8e-7 at index 217. Rust now mirrors JS.
-
-Why that hid for so long is the useful part. A 1.8e-7 difference only flips a
-pixel sitting that close to the *bisector* between two palette entries. Over a
-76,800-pixel whole-buffer quantize that is ~0.008 expected flips — zero — which
-is exactly why `quantizeBufferParity` passed bit-for-bit the whole time. Error
-diffusion cascades one flip into thousands. The same fault is invisible in one
-kernel and 21% in the other.
-
-(This also kills the "1.65e-6 is far below the 1.3e-3 gap between palette
+(This also killed the "1.65e-6 is far below the 1.3e-3 gap between palette
 entries, so nothing can flip" argument, which appears in earlier commit messages
 here and is wrong. The distance that matters is pixel-to-bisector, and that can
 be arbitrarily small.)
 
-**Still open — and both are the f64/f32 accumulation above, not their own bugs.**
-
-- **OKLab, 4335/65536 (6.6%) at 256×256.** Halved by the LUT fix, so part of it
-  was the table.
-- **RGB_APPROX, 5286/65536 (8%) at 256×256.** Untouched by any of this, and it
-  reads no LUT at all.
-
-Both look like separate faults and are not. The size sweep gives them away — each
-is 0% until it isn't, then cascades:
-
-| linearize=true | 8² | 16² | 32² | 64² | 128² | 256² |
-|---|---:|---:|---:|---:|---:|---:|
-| RGB_APPROX | 0 | 0 | 0 | 0 | 3.59% | 8.07% |
-| OKLab | 0 | 0 | 0 | 0 | 0 | 6.61% |
-
-The first differing pixel is at row 107 of 128², row 183 of 256², row 196 of
-256² — deep in, not at the start. That is one rare near-bisector flip amplified,
-which is the accumulation-width signature, not a systematic difference. They
-differ from Lab only in *when* the first flip lands.
-
-Worth recording because it was nearly filed as a bug: RGB_APPROX's divergence was
-attributed to the Rust kernel computing the red-mean distance in f32 against JS's
-f64. **Disproved.** Modelling the f32 arithmetic exactly (`Math.fround` at each
-step) and comparing argmin against the f64 version over 76,368 pixels — integral
-and fractional — gives **zero** flips. Arithmetic width in the distance function
-is not the cause; the width of the *error buffer* is.
-
-Neither is asserted in `errorDiffusionBackendParity` — they would fail. Recorded
-here instead, because leaving them undocumented is precisely how the Lab gap
-survived this long.
+One diagnosis recorded because it was wrong and nearly filed as a bug:
+RGB_APPROX's divergence was attributed to the Rust kernel computing the red-mean
+distance in f32 against JS's f64. That *was* the cause — but the disproof offered
+at the time (modelling the f32 arithmetic with `Math.fround` and comparing argmin
+over 76,368 pixels, finding zero flips) was itself wrong, because it sampled a
+coarse grid rather than the error-diffused values the kernel actually sees. The
+flip rate is far below 1/76,368 per pixel and only shows up under cascade. A
+negative result on the wrong input distribution proves nothing.
 
 ## The decision (superseded — kept for the reasoning)
 
