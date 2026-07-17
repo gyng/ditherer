@@ -41,6 +41,10 @@ export default class BenchJsonReporter {
   // that carries the old-style File object with tasks/suites/bench results.
   onTestRunEnd(testModules: any[]): void {
     const suites: Record<string, Record<string, BenchEntry>> = {};
+    // Benches that ran but produced no stats. A bench whose body throws every
+    // iteration lands here: vitest leaves `result.benchmark` as a stub carrying
+    // only name/rank/rme/samples, with no `hz` or `mean`.
+    const statless: string[] = [];
 
     for (const testModule of testModules) {
       // testModule.task is the old-style File; its tasks are the top-level suites
@@ -52,6 +56,16 @@ export default class BenchJsonReporter {
           // Bench tasks: meta.benchmark === true, result.benchmark has the stats
           const b = task.result?.benchmark;
           if (!task.meta?.benchmark || !b) continue;
+
+          // Reading b.mean straight off the stub threw `Cannot read properties
+          // of undefined (reading 'toFixed')` from inside the reporter — which
+          // aborted the whole run *before* the file was written, so one broken
+          // bench silently cost every other suite's results. Collect and report
+          // by name instead; the data that did survive is still worth writing.
+          if (typeof b.mean !== "number" || typeof b.hz !== "number") {
+            statless.push(`${suite.name} > ${task.name}`);
+            continue;
+          }
 
           entries[task.name] = {
             hz:      Math.round(b.hz),
@@ -89,5 +103,17 @@ export default class BenchJsonReporter {
     writeFileSync(latestPath, json);
 
     process.stdout.write(`\nBench report saved → bench-results/${ts}.json\n`);
+
+    // Loud, and after the write so the good results survive. A bench with no
+    // stats measured nothing, and a bench that measured nothing but is left in
+    // the file reads as coverage it doesn't have — which is how the Binarize
+    // and precomputed-Lab benches both sat broken while reporting numbers.
+    if (statless.length > 0) {
+      throw new Error(
+        `${statless.length} bench(es) produced no stats — their bodies threw on every ` +
+          `iteration and measured nothing:\n  ${statless.join("\n  ")}\n` +
+          `Report was still written to bench-results/${ts}.json without them.`,
+      );
+    }
   }
 }

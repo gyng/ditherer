@@ -8,7 +8,6 @@
 import { describe, bench, beforeAll } from "vitest";
 import { floydSteinberg } from "filters/errorDiffusing";
 import convolve from "filters/convolve";
-import ordered from "filters/ordered";
 import binarize from "filters/binarize";
 import * as palettes from "@gyng/ditherer-filters";
 
@@ -87,17 +86,37 @@ describe("Convolve (Gaussian 3×3) 640×480", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Ordered dither (fast reference)
+// Ordered dither — REMOVED, it can only measure an early return here
 // ---------------------------------------------------------------------------
-
-describe("Ordered (Bayer 4×4) 640×480", () => {
-  bench("sRGB path", () => { ordered.func(canvas640, ordered.defaults as any); });
-});
+//
+// `ordered` is requiresGL:true and there is no WebGL2 under jsdom, so
+// `ordered.func` handed back the input canvas untouched and the bench clocked
+// 3,090,677 hz — a 640×480 dither in 0.0003ms. Same tell 8d25b0d called out for
+// the old WASM benches: throughput that doesn't move with the work.
+//
+// Not replaceable with `_webglAcceleration: false` either — requiresGL means
+// there is no CPU path to fall back to. Bench it where a GPU exists (gl-smoke
+// under playwright) or not at all; a number here would be a lie either way.
 
 // ---------------------------------------------------------------------------
 // Binarize (simplest filter — floor for overhead)
 // ---------------------------------------------------------------------------
 
+// Not a floor, despite the heading: this comes out ~4x SLOWER than
+// Floyd-Steinberg, because FS has a whole-buffer Rust kernel and binarize is a
+// per-pixel JS loop with a palette lookup. The heading's assumption predates
+// the WASM quantizers.
 describe("Binarize 640×480", () => {
-  bench("sRGB path", () => { binarize.func(canvas640, { threshold: 128, _linearize: false } as any); });
+  // Spread the filter's own defaults, the way the Convolve benches above do.
+  // This used to pass `{ threshold: 128 }` — not one of binarize's options; it
+  // takes thresholdR/G/B/A and a palette. Supplying an options object suppressed
+  // the `= defaults` parameter, so `palette` arrived undefined and the body threw
+  // on `palette.options` every iteration. Vitest recorded no stats, the reporter
+  // died on the stub, and every other suite's results died with it — which is why
+  // bench-results/latest.json only ever held the colour suites.
+  //
+  // Naming options by hand is what allowed that; spreading defaults cannot drift
+  // out of sync with the filter.
+  const opts = { ...binarize.defaults, _linearize: false };
+  bench("sRGB path", () => { binarize.func(canvas640, opts as any); });
 });
