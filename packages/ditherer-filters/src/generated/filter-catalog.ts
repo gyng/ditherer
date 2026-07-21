@@ -1041,6 +1041,12 @@ export const filterCatalog = [
     "description": "Split channels into stereoscopic color pairs for a fake 3D glasses effect"
   },
   {
+    "displayName": "Apollo Slow-Scan TV",
+    "filterName": "Apollo Slow-Scan TV",
+    "category": "Simulate",
+    "description": "Apollo 320/10 or 1280/0.625 slow-scan camera through the RCA kinescope, vidicon, and magnetic-disc converter"
+  },
+  {
     "displayName": "Bayer Sensor",
     "filterName": "Bayer Sensor",
     "category": "Simulate",
@@ -1110,7 +1116,7 @@ export const filterCatalog = [
     "displayName": "Fax machine",
     "filterName": "Fax Machine",
     "category": "Simulate",
-    "description": "Low-res binary with scan line artifacts, thermal paper yellowing, and compression noise"
+    "description": "ITU-T T.4 Group 3 / T.6 Group 4 scan-line coding, channel errors, dependent-line damage, and E.453 concealment"
   },
   {
     "displayName": "Film burn",
@@ -1146,7 +1152,7 @@ export const filterCatalog = [
     "displayName": "Gameboy Camera",
     "filterName": "Gameboy Camera",
     "category": "Simulate",
-    "description": "Simulate the Gameboy Camera — 4-shade green palette with edge enhancement and ordered dithering"
+    "description": "Mitsubishi M64282FP exposure, gain, bias, inversion and edge registers with cartridge four-tone dithering"
   },
   {
     "displayName": "Infrared photography",
@@ -1215,6 +1221,12 @@ export const filterCatalog = [
     "description": "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence"
   },
   {
+    "displayName": "PAL / SECAM",
+    "filterName": "PAL / SECAM",
+    "category": "Simulate",
+    "description": "BT.1700 PAL/SECAM composite signal with delay-line decoding, bandwidth, phase, tuning and crosstalk faults"
+  },
+  {
     "displayName": "Photocopier",
     "filterName": "Photocopier",
     "category": "Simulate",
@@ -1266,7 +1278,7 @@ export const filterCatalog = [
     "displayName": "Teletext",
     "filterName": "Teletext",
     "category": "Simulate",
-    "description": "Simulate a Teletext/Ceefax block mosaic display with 2x3 character cells and 8 colors"
+    "description": "ETSI System B 24x40 alphamosaics with packet-address Hamming correction, data parity, and channel faults"
   },
   {
     "displayName": "Thermal camera",
@@ -1308,7 +1320,7 @@ export const filterCatalog = [
     "displayName": "Wavelet Codec",
     "filterName": "Wavelet Codec",
     "category": "Simulate",
-    "description": "Haar-style coefficient loss, multiscale softness, and reconstruction ringing"
+    "description": "JPEG 2000-inspired undecimated decomposition with 5/3- or 9/7-derived kernels, quantization, bit-plane loss, and code-block damage"
   },
   {
     "displayName": "Motion Analysis",

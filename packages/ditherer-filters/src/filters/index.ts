@@ -8,6 +8,8 @@ import channelSeparation from "./channelSeparation";
 import jitter from "./jitter";
 import vhs from "./vhs";
 import vhsNtsc from "./vhsNtsc";
+import palSecam from "./palSecam";
+import apolloSstv from "./apolloSstv";
 import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
@@ -300,6 +302,8 @@ export { default as channelSeparation } from "./channelSeparation";
 export { default as jitter } from "./jitter";
 export { default as vhs } from "./vhs";
 export { default as vhsNtsc } from "./vhsNtsc";
+export { default as palSecam } from "./palSecam";
+export { default as apolloSstv } from "./apolloSstv";
 export { default as binarize } from "./binarize";
 export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
@@ -950,6 +954,7 @@ export const filterList = [
   // ── Simulate ──
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Advanced", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
   { displayName: "Anaglyph 3D", filter: anaglyph, category: "Simulate", description: "Split channels into stereoscopic color pairs for a fake 3D glasses effect" },
+  { displayName: "Apollo Slow-Scan TV", filter: apolloSstv, category: "Simulate", description: "Apollo 320/10 or 1280/0.625 slow-scan camera through the RCA kinescope, vidicon, and magnetic-disc converter" },
   { displayName: "Bayer Sensor", filter: bayerSensor, category: "Simulate", description: "Camera CFA capture with selectable Bayer layout, demosaic reconstruction, noise, and defective photosites" },
   { displayName: "Camera Monitor", filter: cameraMonitor, category: "Simulate", description: "Focus peaking, exposure zebras, false color, and clipping warnings for a production-monitor view" },
   { displayName: "CCD Charge Smear", filter: ccdChargeSmear, category: "Simulate", description: "Overloaded CCD highlights spill into directional vertical charge trails" },
@@ -971,13 +976,13 @@ export const filterList = [
   },
   { displayName: "E-ink (grayscale)", filter: eink, category: "Simulate", description: "Simulate a 16-level grayscale e-ink display with paper texture and ghosting" },
   { displayName: "Edge glow", filter: edgeGlow, category: "Stylize", description: "Neon-colored edge outlines on a dark background — cyberpunk/Tron aesthetic" },
-  { displayName: "Fax machine", filter: faxMachine, category: "Simulate", description: "Low-res binary with scan line artifacts, thermal paper yellowing, and compression noise" },
+  { displayName: "Fax machine", filter: faxMachine, category: "Simulate", description: "ITU-T T.4 Group 3 / T.6 Group 4 scan-line coding, channel errors, dependent-line damage, and E.453 concealment" },
   { displayName: "Film burn", filter: filmBurn, category: "Simulate", description: "Aged film stock — warm edge cast, overexposed hotspots, grain intensification" },
   { displayName: "Film grain", filter: filmGrain, category: "Stylize", description: "Add film-like noise grain with adjustable size and intensity" },
   { displayName: "Ink Bleed", filter: inkBleed, category: "Simulate", description: "Spread dark regions into the paper like wet ink on cheap stock" },
   { displayName: "Paper Texture", filter: paperTexture, category: "Simulate", description: "Procedural paper, canvas, linen, cardboard, or parchment texture overlay — grounds digital images on material substrate" },
   { displayName: "Sumi-e", filter: sumiE, category: "Stylize", description: "Japanese ink-wash painting — quantized tonal washes with Sobel brush strokes on paper" },
-  { displayName: "Gameboy Camera", filter: gameboyCamera, category: "Simulate", description: "Simulate the Gameboy Camera — 4-shade green palette with edge enhancement and ordered dithering" },
+  { displayName: "Gameboy Camera", filter: gameboyCamera, category: "Simulate", description: "Mitsubishi M64282FP exposure, gain, bias, inversion and edge registers with cartridge four-tone dithering" },
   { displayName: "Infrared photography", filter: infrared, category: "Simulate", description: "IR film look — foliage turns white/pink, skies go dark, color shift" },
   { displayName: "LCD display", filter: lcdDisplay, category: "Simulate", description: "Visible sub-pixel grid — RGB stripe, PenTile, or diamond layout" },
   { displayName: "Lenticular", filter: lenticular, category: "Simulate", description: "Holographic rainbow sheen strips that shift with a simulated angle" },
@@ -989,6 +994,7 @@ export const filterList = [
   { displayName: "Night vision", filter: nightVision, category: "Simulate", description: "Gen 3 image intensifier tube — green phosphor, heavy grain, bloom, and circular vignette" },
   { displayName: "Nokia LCD", filter: nokiaLcd, category: "Simulate", description: "Simulate the Nokia 3310 monochrome LCD — 84x48 pixels with greenish tint" },
   { displayName: "Oscilloscope", filter: oscilloscope, category: "Simulate", description: "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence" },
+  { displayName: "PAL / SECAM", filter: palSecam, category: "Simulate", description: "BT.1700 PAL/SECAM composite signal with delay-line decoding, bandwidth, phase, tuning and crosstalk faults" },
   { displayName: "Photocopier", filter: photocopier, category: "Simulate", description: "High contrast, edge darkening, speckle, and generation loss" },
   { displayName: "Polaroid", filter: polaroid, category: "Simulate", description: "Instant film look — warm tones, faded blacks, soft highlights, and film grain" },
   { displayName: "Projection film", filter: projectionFilm, category: "Simulate", description: "16mm/35mm projector — gate weave, dust, scratches, grain, and lamp flicker" },
@@ -1005,7 +1011,7 @@ export const filterList = [
   {
     displayName: "Teletext",
     category: "Simulate",
-    description: "Simulate a Teletext/Ceefax block mosaic display with 2x3 character cells and 8 colors",
+    description: "ETSI System B 24x40 alphamosaics with packet-address Hamming correction, data parity, and channel faults",
     filter: {
       ...teletext,
       options: {
@@ -1023,7 +1029,7 @@ export const filterList = [
   { displayName: "VHS emulation", filter: vhs, category: "Simulate", description: "Simulate VHS tape — tracking errors, chroma delay, head-switching noise, and ghosting" },
   { displayName: "VHS / NTSC", filter: vhsNtsc, category: "Simulate", description: "Signal-model VHS — YIQ composite modulation, NTSC decoding, tape-speed bandwidth, tracking, snow, and chroma loss" },
   { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
-  { displayName: "Wavelet Codec", filter: waveletCodec, category: "Simulate", description: "Haar-style coefficient loss, multiscale softness, and reconstruction ringing" },
+  { displayName: "Wavelet Codec", filter: waveletCodec, category: "Simulate", description: "JPEG 2000-inspired undecimated decomposition with 5/3- or 9/7-derived kernels, quantization, bit-plane loss, and code-block damage" },
   { displayName: "Motion Analysis", filter: motionDetect, category: "Simulate", description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap" },
   { displayName: "Long Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },
   { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "CRT phosphor persistence — each RGB channel decays at a different rate" },

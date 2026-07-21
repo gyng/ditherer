@@ -24,6 +24,7 @@ import {
   glAvailable,
   glUnavailableStub,
   nearest,
+  serializePalette,
   user,
   vhsNtscGLUsingFloatPath,
 } from "@gyng/ditherer-filters";
@@ -172,6 +173,103 @@ const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason: strin
       : { ok: false, reason: `worker CRT changed only ${changedChannels} color channels` };
   } catch (error) {
     return { ok: false, reason: `worker CRT threw: ${error instanceof Error ? error.message : String(error)}` };
+  }
+};
+
+const runWorkerSpecFilters = async (): Promise<{ ok: true } | { ok: false; reason: string }> => {
+  const width = 48;
+  const height = 32;
+  const inputCanvas = makeGradientCanvas(width, height);
+  const inputContext = inputCanvas.getContext("2d", { willReadFrequently: true });
+  if (!inputContext) return { ok: false, reason: "spec-filter worker input has no 2d context" };
+  const input = inputContext.getImageData(0, 0, width, height).data;
+  const names = [
+    "Apollo Slow-Scan TV",
+    "PAL / SECAM",
+    "Fax Machine",
+    "Gameboy Camera",
+    "Teletext",
+    "Wavelet Codec",
+  ];
+  const temporalNames = new Set([
+    "Apollo Slow-Scan TV",
+    "PAL / SECAM",
+    "Fax Machine",
+    "Gameboy Camera",
+  ]);
+
+  try {
+    for (const name of names) {
+      const filter = filterIndex[name];
+      if (!filter) return { ok: false, reason: `${name} is missing from the worker registry` };
+      const options: Record<string, unknown> = { ...(filter.defaults ?? {}) };
+      const palette = options.palette as Parameters<typeof serializePalette>[0] | undefined;
+      // Exercise the same executable-palette -> structured-clone-safe payload
+      // conversion used by FilterContext before worker dispatch.
+      if (palette) options.palette = serializePalette(palette);
+      const id = `spec-worker-${name}`;
+      const first = await workerRPC({
+        imageData: input.slice().buffer,
+        width,
+        height,
+        chain: [{ id, filterName: name, displayName: name, options }],
+        frameIndex: 0,
+        isAnimating: true,
+        linearize: false,
+        wasmAcceleration: false,
+        webglAcceleration: true,
+        convertGrayscale: false,
+        prevOutputs: {},
+        prevInputs: {},
+        emaMaps: {},
+        degaussFrame: -2147483648,
+      });
+      if (first.width !== width || first.height !== height) {
+        return { ok: false, reason: `${name} worker size drifted to ${first.width}x${first.height}` };
+      }
+      if (first.stepTimes.length !== 1 || !first.prevOutputs[id] || !first.prevInputs[id] || !first.emaMaps[id]) {
+        return { ok: false, reason: `${name} did not complete a worker step with temporal snapshots` };
+      }
+      const output = new Uint8ClampedArray(first.imageData);
+      let changed = 0;
+      let low = 255;
+      let high = 0;
+      for (let i = 0; i < output.length; i += 4) {
+        if (output[i] !== input[i] || output[i + 1] !== input[i + 1] || output[i + 2] !== input[i + 2]) changed += 1;
+        if (output[i + 3] < 200) return { ok: false, reason: `${name} worker emitted transparent pixels` };
+        const luma = output[i] * 0.299 + output[i + 1] * 0.587 + output[i + 2] * 0.114;
+        low = Math.min(low, luma);
+        high = Math.max(high, luma);
+      }
+      if (changed < width || high - low < 8) {
+        return { ok: false, reason: `${name} worker output was inert (changed=${changed}, range=${(high - low).toFixed(2)})` };
+      }
+
+      if (temporalNames.has(name)) {
+        const second = await workerRPC({
+          imageData: input.slice().buffer,
+          width,
+          height,
+          chain: [{ id, filterName: name, displayName: name, options }],
+          frameIndex: 1,
+          isAnimating: true,
+          linearize: false,
+          wasmAcceleration: false,
+          webglAcceleration: true,
+          convertGrayscale: false,
+          prevOutputs: { [id]: first.prevOutputs[id].imageData },
+          prevInputs: first.prevInputs,
+          emaMaps: first.emaMaps,
+          degaussFrame: -2147483648,
+        });
+        if (second.stepTimes.length !== 1 || !second.prevOutputs[id]) {
+          return { ok: false, reason: `${name} failed its second worker/temporal frame` };
+        }
+      }
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: `spec-filter worker threw: ${error instanceof Error ? error.message : String(error)}` };
   }
 };
 
@@ -838,6 +936,14 @@ const shaderValidationOverrides = (
 const outputScaleFor = (name: string): number =>
   name === "Pixel Art Upscale" ? 2 : 1;
 
+const STRICT_SPEC_FILTERS = new Set([
+  "Apollo Slow-Scan TV",
+  "Gameboy Camera",
+  "PAL / SECAM",
+  "Teletext",
+  "Wavelet Codec",
+]);
+
 type RunResult =
   | { ok: true; attemptedGL: boolean; drewGL: boolean }
   | { ok: false; attemptedGL: boolean; drewGL: boolean; reason: string };
@@ -849,6 +955,9 @@ const runOne = (
   requireGLDraw = false,
   outputScale = 1,
   requireVisibleOutput = true,
+  inputWidth = 16,
+  inputHeight = inputWidth,
+  inputFactory: (width: number, height: number) => HTMLCanvasElement = makeGradientCanvas,
 ): RunResult => {
   const compilesBefore = shaderCompiles;
   const drawsBefore = drawCalls;
@@ -859,7 +968,7 @@ const runOne = (
     if (ok) return { ok: true, attemptedGL, drewGL };
     return { ok: false, attemptedGL, drewGL, reason: reason ?? "unknown failure" };
   };
-  const input = makeGradientCanvas(16, 16);
+  const input = inputFactory(inputWidth, inputHeight);
   let output: unknown;
   try {
     output = filter.func(input, options);
@@ -877,9 +986,10 @@ const runOne = (
     return result(false, `returned non-canvas: ${typeof output}`);
   }
   const canvas = output as HTMLCanvasElement;
-  const expectedSize = 16 * outputScale;
-  if (canvas.width !== expectedSize || canvas.height !== expectedSize) {
-    return result(false, `size drift ${canvas.width}x${canvas.height} (expected ${expectedSize}x${expectedSize})`);
+  const expectedWidth = inputWidth * outputScale;
+  const expectedHeight = inputHeight * outputScale;
+  if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
+    return result(false, `size drift ${canvas.width}x${canvas.height} (expected ${expectedWidth}x${expectedHeight})`);
   }
   if (requireVisibleOutput) {
     const a = maxAlpha(canvas);
@@ -896,6 +1006,282 @@ const runOne = (
     if (range < 8) return result(false, `lumaRange=${range.toFixed(2)} (black/flat output)`);
   }
   return result(true);
+};
+
+const runIdentity = (
+  filter: FilterLike,
+  options: Record<string, unknown>,
+  tolerance: number,
+): { ok: true } | { ok: false; reason: string } => {
+  const input = makeGradientCanvas(32, 32);
+  const inputPixels = input.getContext("2d", { willReadFrequently: true })
+    ?.getImageData(0, 0, 32, 32).data;
+  const drawsBefore = drawCalls;
+  const failuresBefore = shaderFailureLogs.length;
+  let output: HTMLCanvasElement;
+  try {
+    output = filter.func(input, options) as HTMLCanvasElement;
+  } catch (error) {
+    return { ok: false, reason: `threw: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  if (shaderFailureLogs.length > failuresBefore) {
+    return { ok: false, reason: `shader failure: ${shaderFailureLogs.slice(failuresBefore).join(" | ")}` };
+  }
+  if (drawCalls === drawsBefore) return { ok: false, reason: "issued no WebGL draw" };
+  const outputPixels = output.getContext("2d", { willReadFrequently: true })
+    ?.getImageData(0, 0, 32, 32).data;
+  if (!inputPixels || !outputPixels || inputPixels.length !== outputPixels.length) {
+    return { ok: false, reason: "pixel readback failed or changed size" };
+  }
+  let maximumDelta = 0;
+  for (let i = 0; i < inputPixels.length; i++) {
+    maximumDelta = Math.max(maximumDelta, Math.abs(inputPixels[i] - outputPixels[i]));
+  }
+  return maximumDelta <= tolerance
+    ? { ok: true }
+    : { ok: false, reason: `max channel delta=${maximumDelta} (expected <=${tolerance})` };
+};
+
+const runEquivalent = (
+  filter: FilterLike,
+  leftOptions: Record<string, unknown>,
+  rightOptions: Record<string, unknown>,
+  tolerance: number,
+): { ok: true } | { ok: false; reason: string } => {
+  const render = (options: Record<string, unknown>): HTMLCanvasElement | null => {
+    try {
+      return filter.func(makeGradientCanvas(32, 32), options) as HTMLCanvasElement;
+    } catch {
+      return null;
+    }
+  };
+  const left = render(leftOptions);
+  const right = render(rightOptions);
+  const leftContext = left?.getContext("2d", { willReadFrequently: true });
+  const rightContext = right?.getContext("2d", { willReadFrequently: true });
+  if (!leftContext || !rightContext) return { ok: false, reason: "render or readback failed" };
+  const leftPixels = leftContext.getImageData(0, 0, 32, 32).data;
+  const rightPixels = rightContext.getImageData(0, 0, 32, 32).data;
+  let maximumDelta = 0;
+  for (let i = 0; i < leftPixels.length; i++) {
+    maximumDelta = Math.max(maximumDelta, Math.abs(leftPixels[i] - rightPixels[i]));
+  }
+  return maximumDelta <= tolerance
+    ? { ok: true }
+    : { ok: false, reason: `max channel delta=${maximumDelta} (expected <=${tolerance})` };
+};
+
+const runTeletextRepeatConcealment = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["Teletext"] as FilterLike;
+  const width = 400;
+  const height = 240;
+  const input = document.createElement("canvas");
+  input.width = width;
+  input.height = height;
+  const inputContext = input.getContext("2d");
+  if (!inputContext) return { ok: false, reason: "input has no 2d context" };
+  inputContext.fillStyle = "white";
+  inputContext.fillRect(0, 0, width, height);
+
+  const render = (concealment: "BLANK" | "REPEAT"): HTMLCanvasElement | null => {
+    try {
+      return filter.func(input, {
+        ...(filter.defaults ?? {}),
+        ...runtimeOptions(),
+        bitErrorRate: 0.05,
+        burstErrors: 0,
+        concealment,
+        randomSeed: 60,
+      }) as HTMLCanvasElement;
+    } catch {
+      return null;
+    }
+  };
+  const blank = render("BLANK");
+  const repeat = render("REPEAT");
+  const blankContext = blank?.getContext("2d", { willReadFrequently: true });
+  const repeatContext = repeat?.getContext("2d", { willReadFrequently: true });
+  if (!blankContext || !repeatContext) {
+    return { ok: false, reason: "concealment render or readback failed" };
+  }
+  const blankPixels = blankContext.getImageData(0, 0, width, height).data;
+  const repeatPixels = repeatContext.getImageData(0, 0, width, height).data;
+  const darkCells = (pixels: Uint8ClampedArray, row: number): number => {
+    let dark = 0;
+    for (let column = 0; column < 40; column++) {
+      const x = column * 10 + 2;
+      const y = row * 10 + 1;
+      const index = (y * width + x) * 4;
+      if (pixels[index] + pixels[index + 1] + pixels[index + 2] < 96) dark += 1;
+    }
+    return dark;
+  };
+  for (let row = 1; row < 24; row++) {
+    const blankDark = darkCells(blankPixels, row);
+    if (blankDark >= 30 && darkCells(repeatPixels, row) < 20) return { ok: true };
+  }
+  return { ok: false, reason: "a damaged packet row was not visibly restored from its prior row" };
+};
+
+const runPalDelayLineCancellation = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["PAL / SECAM"] as FilterLike;
+  const width = 64;
+  const height = 32;
+  const source = document.createElement("canvas");
+  source.width = width;
+  source.height = height;
+  const sourceContext = source.getContext("2d");
+  if (!sourceContext) return { ok: false, reason: "PAL fixture has no 2d context" };
+  sourceContext.fillStyle = "rgb(220, 54, 160)";
+  sourceContext.fillRect(0, 0, width, height);
+
+  const render = (delayLine: boolean): Uint8ClampedArray | null => {
+    try {
+      const output = filter.func(source, {
+        ...(filter.defaults ?? {}),
+        ...runtimeOptions(),
+        system: "PAL",
+        phaseError: 45,
+        tuningError: 0,
+        delayLine,
+        crossColor: 0,
+        crossLuma: 0,
+        channelNoise: 0,
+        interlace: false,
+      }) as HTMLCanvasElement;
+      return output.getContext("2d", { willReadFrequently: true })
+        ?.getImageData(0, 0, width, height).data ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const withoutDelay = render(false);
+  const withDelay = render(true);
+  if (!withoutDelay || !withDelay) return { ok: false, reason: "PAL cancellation render/readback failed" };
+
+  const adjacentLineError = (pixels: Uint8ClampedArray): number => {
+    let total = 0;
+    let samples = 0;
+    for (let y = 1; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const current = (y * width + x) * 4;
+        const previous = ((y - 1) * width + x) * 4;
+        total += Math.abs(pixels[current] - pixels[previous]);
+        total += Math.abs(pixels[current + 1] - pixels[previous + 1]);
+        total += Math.abs(pixels[current + 2] - pixels[previous + 2]);
+        samples += 3;
+      }
+    }
+    return total / samples;
+  };
+  const uncorrected = adjacentLineError(withoutDelay);
+  const corrected = adjacentLineError(withDelay);
+  return uncorrected > 4 && corrected < uncorrected * 0.25
+    ? { ok: true }
+    : { ok: false, reason: `PAL delay line did not cancel alternating phase error (${uncorrected.toFixed(2)} -> ${corrected.toFixed(2)})` };
+};
+
+const makeSolidCanvas = (width: number, height: number, value: number): HTMLCanvasElement => {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("solid fixture has no 2d context");
+  context.fillStyle = `rgb(${value}, ${value}, ${value})`;
+  context.fillRect(0, 0, width, height);
+  return canvas;
+};
+
+const canvasPixels = (canvas: HTMLCanvasElement): Uint8ClampedArray | null =>
+  canvas.getContext("2d", { willReadFrequently: true })
+    ?.getImageData(0, 0, canvas.width, canvas.height).data.slice() ?? null;
+
+const runApolloFractionalHold = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["Apollo Slow-Scan TV"] as FilterLike;
+  const options = {
+    ...(filter.defaults ?? {}),
+    ...runtimeOptions(),
+    mode: "320_10",
+    animSpeed: 15,
+    phosphorPersistence: 0,
+    vidiconLag: 0,
+    vidiconBloom: 0,
+    discHold: true,
+    interlace: false,
+    rfNoise: 0,
+    syncError: 0,
+    palette: { ...nearest, options: { levels: 256 } },
+  };
+  let previous: Uint8ClampedArray | null = null;
+  const frames: Uint8ClampedArray[] = [];
+  for (const [frame, value] of [40, 120, 220].entries()) {
+    try {
+      const output = filter.func(makeSolidCanvas(32, 24, value), {
+        ...options,
+        _frameIndex: frame,
+        _prevOutput: previous,
+      }) as HTMLCanvasElement;
+      const pixels = canvasPixels(output);
+      if (!pixels) return { ok: false, reason: `Apollo frame ${frame} readback failed` };
+      frames.push(pixels);
+      previous = pixels;
+    } catch (error) {
+      return { ok: false, reason: `Apollo fractional hold threw: ${error instanceof Error ? error.message : String(error)}` };
+    }
+  }
+  const maximumDelta = (left: Uint8ClampedArray, right: Uint8ClampedArray): number => {
+    let delta = 0;
+    for (let i = 0; i < left.length; i++) delta = Math.max(delta, Math.abs(left[i] - right[i]));
+    return delta;
+  };
+  const heldDelta = maximumDelta(frames[0], frames[1]);
+  const newPictureDelta = maximumDelta(frames[1], frames[2]);
+  return heldDelta <= 1 && newPictureDelta > 50
+    ? { ok: true }
+    : { ok: false, reason: `Apollo 15 fps hold sequence was wrong (held=${heldDelta}, new=${newPictureDelta})` };
+};
+
+const runGameboyThresholdMatrix = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["Gameboy Camera"] as FilterLike;
+  let pixels: Uint8ClampedArray | null;
+  try {
+    const output = filter.func(makeSolidCanvas(64, 56, 128), {
+      ...(filter.defaults ?? {}),
+      ...runtimeOptions(),
+      resolution: 64,
+      contrast: 1,
+      exposure: 1,
+      gain: 1,
+      bias: 0,
+      invertSensor: false,
+      edgeMode: "OFF",
+      sensorNoise: 0,
+      ditherStrength: 1,
+      palette: { ...nearest, options: { levels: 256 } },
+    }) as HTMLCanvasElement;
+    pixels = canvasPixels(output);
+  } catch (error) {
+    return { ok: false, reason: `Game Boy matrix render threw: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  if (!pixels) return { ok: false, reason: "Game Boy matrix readback failed" };
+  const colorAt = (x: number, y: number): string => {
+    const index = (y * 64 + x) * 4;
+    return `${pixels?.[index]},${pixels?.[index + 1]},${pixels?.[index + 2]}`;
+  };
+  let hasFourPixelRepeat = true;
+  let differsAtTwo = false;
+  const colors = new Set<string>();
+  for (let y = 0; y < 4; y++) {
+    for (let x = 0; x < 4; x++) {
+      const color = colorAt(x, y);
+      colors.add(color);
+      if (color !== colorAt(x + 4, y) || color !== colorAt(x, y + 4)) hasFourPixelRepeat = false;
+      if (color !== colorAt((x + 2) % 4, y) || color !== colorAt(x, (y + 2) % 4)) differsAtTwo = true;
+    }
+  }
+  return hasFourPixelRepeat && differsAtTwo && colors.size >= 2
+    ? { ok: true }
+    : { ok: false, reason: `Game Boy threshold tile was not genuinely 4x4 (repeat=${hasFourPixelRepeat}, differsAt2=${differsAtTwo}, colors=${colors.size})` };
 };
 
 const warmTemporalState = (
@@ -1063,7 +1449,7 @@ const main = async () => {
     const defaults = (f.defaults as Record<string, unknown>) ?? {};
     const activated = shaderValidationOverrides(name, defaults);
     const scale = outputScaleFor(name);
-    const requireDynamicRange = name === "VHS / NTSC";
+    const requireDynamicRange = name === "VHS / NTSC" || STRICT_SPEC_FILTERS.has(name);
     if (f.temporal) {
       const warmup0 = warmTemporalState(f, {
         ...defaults,
@@ -1129,6 +1515,64 @@ const main = async () => {
       scale,
     ));
 
+    if (name === "Teletext") {
+      record(name, "oversized-49px-cells", runOne(
+        f,
+        { ...defaults, ...runtimeOptions() },
+        true,
+        true,
+        1,
+        true,
+        1960,
+        24,
+      ));
+      record(name, "repeat-row-concealment", runTeletextRepeatConcealment());
+    }
+    if (name === "PAL / SECAM") {
+      record(name, "delay-line-phase-cancellation", runPalDelayLineCancellation());
+    }
+    if (name === "Gameboy Camera") {
+      record(name, "4x4-controller-threshold-matrix", runGameboyThresholdMatrix());
+      record(name, "malformed-state-falls-back", runEquivalent(
+        f,
+        { ...defaults, ...runtimeOptions() },
+        {
+          ...defaults,
+          ...runtimeOptions(),
+          invertSensor: "false",
+          edgeMode: "INVALID",
+        },
+        1,
+      ));
+      record(name, "extreme-wide-aspect", runOne(
+        f,
+        { ...defaults, ...runtimeOptions() },
+        true,
+        true,
+        1,
+        true,
+        2048,
+        2,
+        makeSmoothRamp,
+      ));
+    }
+    if (name === "Apollo Slow-Scan TV") {
+      record(name, "fractional-preview-disc-hold", runApolloFractionalHold());
+    }
+    if (name === "Wavelet Codec") {
+      record(name, "53-profile-lossless-settings", runIdentity(f, {
+        ...defaults,
+        ...runtimeOptions(),
+        transform: "REVERSIBLE_53",
+        channels: "RGB",
+        quality: 100,
+        detailLoss: 0,
+        bitplaneDrop: 0,
+        codeblockLoss: 0,
+        ringing: 0,
+      }, 1));
+    }
+
     for (const branch of enumBranches(f)) {
       const options = { ...defaults, ...activated, ...runtimeOptions(), [branch.key]: branch.value };
       record(name, `${branch.key}=${branch.label}`, runOne(
@@ -1153,26 +1597,28 @@ const main = async () => {
     if (scalarKeys.length > 0 && !migratedScalarDefaults.has(name)) {
       const legacyOptions = { ...defaults, ...activated, ...runtimeOptions() };
       for (const key of scalarKeys) delete legacyOptions[key];
+      const strictState = STRICT_SPEC_FILTERS.has(name);
       record(name, "legacy-state-without-scalars", runOne(
         f,
         legacyOptions,
-        false,
-        false,
+        strictState,
+        strictState,
         scale,
-        false,
+        strictState,
       ));
     }
     for (const key of enumOptionKeys(f)) {
       if (migratedEnumDefaults.has(`${name}:${key}`)) continue;
       const legacyOptions = { ...defaults, ...activated, ...runtimeOptions() };
       delete legacyOptions[key];
+      const strictState = STRICT_SPEC_FILTERS.has(name);
       record(name, `legacy-state-without-${key}`, runOne(
         f,
         legacyOptions,
-        false,
-        false,
+        strictState,
+        strictState,
         scale,
-        false,
+        strictState,
       ));
     }
     if (hasPaletteControl(f) && name !== "Quantize") {
@@ -1239,6 +1685,7 @@ const main = async () => {
   }
 
   record("rgbStripe", "worker", await runWorkerCrt());
+  record("specification filters", "worker-and-temporal-state", await runWorkerSpecFilters());
   record("Ordered", "nearest-palette-levels", runOrderedPaletteLevels());
   record("Ordered", "oklab-palette", runOrderedOklabPalette());
   record("Quantize", "palette-subset", runQuantizePaletteSubset());

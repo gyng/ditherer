@@ -9,9 +9,9 @@ import {
 // horizontally-adjacent texels). Pass B renders the full-resolution
 // output by sampling the cell's fg/bg from pass A, evaluating the
 // local 2×3 sub-block's luma against the threshold, and drawing a
-// gap-darkened bg-ish pixel along the far edge of each sub-block.
-// Max supported cell dimensions are 48×48 inside pass A (extreme
-// configs fall back to JS).
+// gap-darkened bg-ish pixel along the far edge of each sub-block. Fixed sample
+// grids keep this valid for arbitrarily large source cells without a silent
+// passthrough above a shader-loop dimension cap.
 const CELL_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -64,13 +64,11 @@ void main() {
   float darkCount = 0.0;
   float total_n = 0.0;
 
-  for (int py = 0; py < 48; py++) {
-    if (float(py) >= u_cellH) break;
-    float y = cellY + float(py);
+  for (int py = 0; py < 8; py++) {
+    float y = cellY + (float(py) + 0.5) * u_cellH / 8.0;
     if (y >= u_srcRes.y) break;
-    for (int pxi = 0; pxi < 48; pxi++) {
-      if (float(pxi) >= u_cellW) break;
-      float x = cellX + float(pxi);
+    for (int pxi = 0; pxi < 8; pxi++) {
+      float x = cellX + (float(pxi) + 0.5) * u_cellW / 8.0;
       if (x >= u_srcRes.x) break;
       vec3 c = texture(u_source, vec2((x + 0.5) / u_srcRes.x, 1.0 - (y + 0.5) / u_srcRes.y)).rgb * 255.0;
       total += c;
@@ -113,6 +111,45 @@ uniform float u_blockGap;
 uniform float u_threshold;
 uniform int   u_columns;
 uniform int   u_rows;
+uniform float u_bitErrorRate;
+uniform float u_burstErrors;
+uniform int   u_concealment;
+uniform float u_seed;
+
+float hash(vec2 p) {
+  return fract(sin(dot(p + u_seed, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+// Packet address bytes are Hamming 8/4 protected. One bad bit is corrected;
+// two or more make the address uncorrectable. Normal payload bytes use odd
+// parity, which detects every odd number of bad bits.
+bool addressUncorrectable(float row) {
+  float p = clamp(u_bitErrorRate, 0.0, 0.5);
+  float byteOk = pow(1.0 - p, 8.0) + 8.0 * p * pow(1.0 - p, 7.0);
+  return hash(vec2(row, 91.0)) < 1.0 - byteOk * byteOk;
+}
+float payloadRoll(float column, float row, float salt) {
+  float independent = hash(vec2(column + salt, row * 17.0 + 23.0 + salt));
+  float burst = hash(vec2(floor(column / 5.0) + salt, row * 3.0 + 47.0));
+  bool useBurst = hash(vec2(column * 0.37 + 11.0 + salt, row + 79.0))
+    < clamp(u_burstErrors, 0.0, 1.0);
+  return useBurst ? burst : independent;
+}
+float payloadFaultRoll(float column, float row) {
+  return payloadRoll(column, row, 0.0);
+}
+bool payloadParityFailure(float column, float row, float roll) {
+  float p = clamp(u_bitErrorRate, 0.0, 0.5);
+  float oddProbability = (1.0 - pow(1.0 - 2.0 * p, 8.0)) * 0.5;
+  return roll < oddProbability;
+}
+bool payloadUndetectedCorruption(float column, float row, float roll) {
+  float p = clamp(u_bitErrorRate, 0.0, 0.5);
+  float oddProbability = (1.0 - pow(1.0 - 2.0 * p, 8.0)) * 0.5;
+  float evenProbability = (1.0 + pow(1.0 - 2.0 * p, 8.0)) * 0.5
+    - pow(1.0 - p, 8.0);
+  return roll >= oddProbability && roll < oddProbability + evenProbability;
+}
 
 void main() {
   vec2 px = v_uv * u_srcRes;
@@ -132,6 +169,15 @@ void main() {
   int fgSlotX = cx * 2;
   int bgSlotX = cx * 2 + 1;
   int mapY = int(u_cellMapRes.y - 1.0) - cy;
+  bool badAddress = addressUncorrectable(float(cy));
+  float faultRoll = payloadFaultRoll(float(cx), float(cy));
+  bool badPayload = payloadParityFailure(float(cx), float(cy), faultRoll);
+  bool undetectedPayload = payloadUndetectedCorruption(float(cx), float(cy), faultRoll);
+  bool badData = badAddress || badPayload;
+  bool repeatPrevious = badData && u_concealment == 1 && cy > 0;
+  if (repeatPrevious) {
+    mapY = int(u_cellMapRes.y - 1.0) - (cy - 1);
+  }
   vec3 fg = texelFetch(u_cellMap, ivec2(fgSlotX, mapY), 0).rgb * 255.0;
   vec3 bg = texelFetch(u_cellMap, ivec2(bgSlotX, mapY), 0).rgb * 255.0;
 
@@ -140,17 +186,17 @@ void main() {
   if (bx > 1) bx = 1;
   if (by > 2) by = 2;
   float subX = cellX + float(bx) * u_blockW;
-  float subY = cellY + float(by) * u_blockH;
+  float sampleCellY = repeatPrevious ? float(cy - 1) * u_cellH : cellY;
+  float subY = sampleCellY + float(by) * u_blockH;
+  float displaySubY = cellY + float(by) * u_blockH;
 
   float subSum = 0.0;
   float subCount = 0.0;
-  for (int iy = 0; iy < 48; iy++) {
-    if (float(iy) >= u_blockH) break;
-    float py = subY + float(iy);
+  for (int iy = 0; iy < 4; iy++) {
+    float py = subY + (float(iy) + 0.5) * u_blockH / 4.0;
     if (py >= u_srcRes.y) break;
-    for (int ix = 0; ix < 48; ix++) {
-      if (float(ix) >= u_blockW) break;
-      float px2 = subX + float(ix);
+    for (int ix = 0; ix < 4; ix++) {
+      float px2 = subX + (float(ix) + 0.5) * u_blockW / 4.0;
       if (px2 >= u_srcRes.x) break;
       vec3 c = texture(u_source, vec2((px2 + 0.5) / u_srcRes.x, 1.0 - (py + 0.5) / u_srcRes.y)).rgb * 255.0;
       subSum += c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
@@ -159,10 +205,19 @@ void main() {
   }
   float avgLum = subCount > 0.0 ? subSum / subCount : 0.0;
   bool isOn = avgLum > u_threshold;
+  if (badData && (u_concealment == 0 || (u_concealment == 1 && cy == 0))) isOn = false;
+  if (badData && u_concealment == 2) {
+    isOn = hash(vec2(float(cx * 7 + bx), float(cy * 11 + by))) > 0.5;
+  }
+  if (undetectedPayload && !badAddress) {
+    isOn = hash(vec2(float(cx * 13 + bx), float(cy * 19 + by) + 211.0)) > 0.5;
+  }
   vec3 col = isOn ? fg : bg;
 
   float localX = jsX - subX;
-  float localY = jsY - subY;
+  // Concealment may source the mosaic pattern from the prior row, but the
+  // separator geometry always belongs to the row currently being drawn.
+  float localY = jsY - displaySubY;
   float gapX = min(u_blockGap, u_blockW - 1.0);
   float gapY = min(u_blockGap, u_blockH - 1.0);
   bool inGapX = gapX > 0.0 && localX >= u_blockW - gapX;
@@ -187,6 +242,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
       "u_source", "u_cellMap", "u_srcRes", "u_cellMapRes",
       "u_cellW", "u_cellH", "u_blockW", "u_blockH", "u_blockGap",
       "u_threshold", "u_columns", "u_rows",
+      "u_bitErrorRate", "u_burstErrors", "u_concealment", "u_seed",
     ] as const),
   };
   return _cache;
@@ -200,10 +256,8 @@ export const renderTeletextGL = (
   columns: number, threshold: number, blockGap: number,
   cellW: number, cellH: number, rows: number,
   blockW: number, blockH: number,
+  bitErrorRate: number, burstErrors: number, concealment: number, seed: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
-  if (cellW > 48 || cellH > 48) return null;    // exceeds shader static bounds
-  if (blockW > 48 || blockH > 48) return null;
-
   const ctx = getGLCtx();
   if (!ctx) return null;
   const { gl, canvas } = ctx;
@@ -243,6 +297,10 @@ export const renderTeletextGL = (
     gl.uniform1f(cache.render.uniforms.u_threshold, threshold);
     gl.uniform1i(cache.render.uniforms.u_columns, columns);
     gl.uniform1i(cache.render.uniforms.u_rows, rows);
+    gl.uniform1f(cache.render.uniforms.u_bitErrorRate, bitErrorRate);
+    gl.uniform1f(cache.render.uniforms.u_burstErrors, burstErrors);
+    gl.uniform1i(cache.render.uniforms.u_concealment, concealment);
+    gl.uniform1f(cache.render.uniforms.u_seed, seed);
   }, vao);
 
   return readoutToCanvas(canvas, width, height);
