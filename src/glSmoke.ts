@@ -938,10 +938,13 @@ const outputScaleFor = (name: string): number =>
 
 const STRICT_SPEC_FILTERS = new Set([
   "Apollo Slow-Scan TV",
+  "Apple II HGR",
   "Gameboy Camera",
   "PAL / SECAM",
+  "PXL-2000",
   "Teletext",
   "Wavelet Codec",
+  "ZX Spectrum",
 ]);
 
 type RunResult =
@@ -1284,6 +1287,118 @@ const runGameboyThresholdMatrix = (): { ok: true } | { ok: false; reason: string
     : { ok: false, reason: `Game Boy threshold tile was not genuinely 4x4 (repeat=${hasFourPixelRepeat}, differsAt2=${differsAtTwo}, colors=${colors.size})` };
 };
 
+const runAppleHgrDotContract = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["Apple II HGR"] as FilterLike;
+  const input = makeSolidCanvas(280, 192, 0);
+  const context = input.getContext("2d");
+  if (!context) return { ok: false, reason: "Apple HGR fixture has no 2d context" };
+  context.fillStyle = "white";
+  context.fillRect(1, 0, 2, 1);
+  context.fillRect(4, 0, 1, 1);
+  context.fillRect(8, 0, 1, 1);
+  const render = (phase: string): Uint8ClampedArray | null => {
+    try {
+      const output = filter.func(input, {
+        ...(filter.defaults ?? {}),
+        phase,
+        threshold: 0.5,
+        colorBleed: 0,
+        monitor: "COLOR",
+      }) as HTMLCanvasElement;
+      return canvasPixels(output);
+    } catch {
+      return null;
+    }
+  };
+  const phase0 = render("PURPLE_GREEN");
+  const phase1 = render("BLUE_ORANGE");
+  if (!phase0 || !phase1) return { ok: false, reason: "Apple HGR render/readback failed" };
+  const color = (pixels: Uint8ClampedArray, x: number) => Array.from(pixels.slice(x * 4, x * 4 + 3)).join(",");
+  const contract = color(phase0, 0) === "0,0,0"
+    && color(phase0, 1) === "255,255,255"
+    && color(phase0, 2) === "255,255,255"
+    && color(phase0, 4) === "208,64,255"
+    && color(phase1, 4) === "64,128,255"
+    && color(phase1, 8) === "64,128,255";
+  return contract
+    ? { ok: true }
+    : { ok: false, reason: `Apple HGR dot colors drifted (${color(phase0, 4)} / ${color(phase1, 4)})` };
+};
+
+const runSpectrumAttributeContract = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["ZX Spectrum"] as FilterLike;
+  let pixels: Uint8ClampedArray | null;
+  try {
+    const output = filter.func(makeGradientCanvas(256, 192), {
+      ...(filter.defaults ?? {}),
+      flashEnabled: false,
+      pixelGrid: false,
+    }) as HTMLCanvasElement;
+    pixels = canvasPixels(output);
+  } catch {
+    pixels = null;
+  }
+  if (!pixels) return { ok: false, reason: "Spectrum attribute render/readback failed" };
+  for (let cellY = 0; cellY < 24; cellY++) {
+    for (let cellX = 0; cellX < 32; cellX++) {
+      const colors = new Set<string>();
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+          const offset = (((cellY * 8 + y) * 256) + cellX * 8 + x) * 4;
+          colors.add(`${pixels[offset]},${pixels[offset + 1]},${pixels[offset + 2]}`);
+        }
+      }
+      if (colors.size > 2) {
+        return { ok: false, reason: `Spectrum cell ${cellX},${cellY} emitted ${colors.size} colors` };
+      }
+    }
+  }
+  return { ok: true };
+};
+
+const runPxlCaptureHold = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["PXL-2000"] as FilterLike;
+  const base = {
+    ...(filter.defaults ?? {}),
+    animSpeed: 30,
+    autoIris: false,
+    exposure: 0,
+    contrast: 1,
+    signalBandwidth: 1,
+    cassetteNoise: 0,
+    dropout: 0,
+    tracking: 0,
+  };
+  const outputs: Uint8ClampedArray[] = [];
+  let previous: Uint8ClampedArray | null = null;
+  const sources = [makeGradientCanvas(120, 90), makeSolidCanvas(120, 90, 220), makeSolidCanvas(120, 90, 220)];
+  for (const [frame, source] of sources.entries()) {
+    try {
+      const output = filter.func(source, {
+        ...base,
+        _frameIndex: frame,
+        _prevOutput: previous,
+      }) as HTMLCanvasElement;
+      const pixels = canvasPixels(output);
+      if (!pixels) return { ok: false, reason: `PXL frame ${frame} readback failed` };
+      outputs.push(pixels);
+      previous = pixels;
+    } catch (error) {
+      return { ok: false, reason: `PXL hold threw: ${error instanceof Error ? error.message : String(error)}` };
+    }
+  }
+  const maximumDelta = (left: Uint8ClampedArray, right: Uint8ClampedArray): number => {
+    let delta = 0;
+    for (let index = 0; index < left.length; index++) delta = Math.max(delta, Math.abs(left[index] - right[index]));
+    return delta;
+  };
+  const held = maximumDelta(outputs[0]!, outputs[1]!);
+  const captured = maximumDelta(outputs[1]!, outputs[2]!);
+  return held <= 1 && captured > 100
+    ? { ok: true }
+    : { ok: false, reason: `PXL 15 Hz hold sequence was wrong (held=${held}, captured=${captured})` };
+};
+
 const warmTemporalState = (
   filter: FilterLike,
   options: Record<string, unknown>,
@@ -1558,6 +1673,15 @@ const main = async () => {
     }
     if (name === "Apollo Slow-Scan TV") {
       record(name, "fractional-preview-disc-hold", runApolloFractionalHold());
+    }
+    if (name === "Apple II HGR") {
+      record(name, "seven-dot-byte-artifact-colors", runAppleHgrDotContract());
+    }
+    if (name === "ZX Spectrum") {
+      record(name, "two-colors-per-attribute-cell", runSpectrumAttributeContract());
+    }
+    if (name === "PXL-2000") {
+      record(name, "15hz-ccd-frame-hold", runPxlCaptureHold());
     }
     if (name === "Wavelet Codec") {
       record(name, "53-profile-lossless-settings", runIdentity(f, {

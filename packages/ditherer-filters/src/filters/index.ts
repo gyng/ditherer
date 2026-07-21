@@ -10,6 +10,10 @@ import vhs from "./vhs";
 import vhsNtsc from "./vhsNtsc";
 import palSecam from "./palSecam";
 import apolloSstv from "./apolloSstv";
+import appleIihgr from "./appleIihgr";
+import zxSpectrum from "./zxSpectrum";
+import amigaHam6 from "./amigaHam6";
+import pxl2000 from "./pxl2000";
 import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
@@ -304,6 +308,10 @@ export { default as vhs } from "./vhs";
 export { default as vhsNtsc } from "./vhsNtsc";
 export { default as palSecam } from "./palSecam";
 export { default as apolloSstv } from "./apolloSstv";
+export { default as appleIihgr } from "./appleIihgr";
+export { default as zxSpectrum } from "./zxSpectrum";
+export { default as amigaHam6 } from "./amigaHam6";
+export { default as pxl2000 } from "./pxl2000";
 export { default as binarize } from "./binarize";
 export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
@@ -955,6 +963,8 @@ export const filterList = [
   { displayName: "Anisotropic diffusion", filter: anisotropicDiffusion, category: "Advanced", description: "Smooth flat regions while preserving edges — like Perona-Malik filtering" },
   { displayName: "Anaglyph 3D", filter: anaglyph, category: "Simulate", description: "Split channels into stereoscopic color pairs for a fake 3D glasses effect" },
   { displayName: "Apollo Slow-Scan TV", filter: apolloSstv, category: "Simulate", description: "Apollo 320/10 or 1280/0.625 slow-scan camera through the RCA kinescope, vidicon, and magnetic-disc converter" },
+  { displayName: "Apple II HGR", filter: appleIihgr, category: "Simulate", description: "Apple II 280×192 high-resolution bitmap through phase-dependent NTSC artifact-color decoding" },
+  { displayName: "Amiga HAM6", filter: amigaHam6, category: "Simulate", description: "Amiga OCS six-plane hold-and-modify encoding with a legal stateful opcode stream" },
   { displayName: "Bayer Sensor", filter: bayerSensor, category: "Simulate", description: "Camera CFA capture with selectable Bayer layout, demosaic reconstruction, noise, and defective photosites" },
   { displayName: "Camera Monitor", filter: cameraMonitor, category: "Simulate", description: "Focus peaking, exposure zebras, false color, and clipping warnings for a production-monitor view" },
   { displayName: "CCD Charge Smear", filter: ccdChargeSmear, category: "Simulate", description: "Overloaded CCD highlights spill into directional vertical charge trails" },
@@ -998,6 +1008,7 @@ export const filterList = [
   { displayName: "Photocopier", filter: photocopier, category: "Simulate", description: "High contrast, edge darkening, speckle, and generation loss" },
   { displayName: "Polaroid", filter: polaroid, category: "Simulate", description: "Instant film look — warm tones, faded blacks, soft highlights, and film grain" },
   { displayName: "Projection film", filter: projectionFilm, category: "Simulate", description: "16mm/35mm projector — gate weave, dust, scratches, grain, and lamp flicker" },
+  { displayName: "PXL-2000", filter: pxl2000, category: "Simulate", description: "Fisher-Price 120×90 monochrome CCD, 15 Hz ping-pong capture, 90 kHz luma, and FM cassette recording" },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
   { displayName: "Rolling Shutter", filter: rollingShutter, category: "Simulate", description: "Temporal CMOS readout bends motion progressively across rows or columns" },
   { displayName: "Screen Print / Misregistration", filter: screenPrint, category: "Simulate", description: "Layer flat spot-color plates with visible offset on warm paper for a silkscreen poster look" },
@@ -1030,6 +1041,7 @@ export const filterList = [
   { displayName: "VHS / NTSC", filter: vhsNtsc, category: "Simulate", description: "Signal-model VHS — YIQ composite modulation, NTSC decoding, tape-speed bandwidth, tracking, snow, and chroma loss" },
   { displayName: "Vintage TV", filter: vintageTV, category: "Simulate", description: "Old TV with banding, color fringe, vertical roll, and glow — animatable" },
   { displayName: "Wavelet Codec", filter: waveletCodec, category: "Simulate", description: "JPEG 2000-inspired undecimated decomposition with 5/3- or 9/7-derived kernels, quantization, bit-plane loss, and code-block damage" },
+  { displayName: "ZX Spectrum", filter: zxSpectrum, category: "Simulate", description: "ZX Spectrum 256×192 bitmap constrained to one INK/PAPER pair and brightness bit per 8×8 cell" },
   { displayName: "Motion Analysis", filter: motionDetect, category: "Simulate", description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap" },
   { displayName: "Long Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },
   { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "CRT phosphor persistence — each RGB channel decays at a different rate" },

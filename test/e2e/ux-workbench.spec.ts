@@ -35,14 +35,24 @@ test("ranks and bounds filter typeahead results with keyboard selection and rece
   await page.goto("/");
   await page.getByRole("button", { name: "Compose", exact: true }).click();
 
-  await page.getByTitle("Click to search and replace filter").click();
+  const replaceTrigger = page.getByRole("button", { name: "Replace Floyd-Steinberg filter" });
+  await replaceTrigger.focus();
+  await replaceTrigger.press("Enter");
   await expect(page.getByTestId("filter-typeahead")).toBeVisible();
   await page.getByRole("combobox", { name: "Search filters" }).fill("invert");
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("filter-typeahead")).toBeHidden();
+  await expect(replaceTrigger).toBeFocused();
   await expect(page.locator('[data-stage-active="true"]')).toContainText("Floyd-Steinberg");
 
   const trigger = page.getByRole("combobox", { name: "Add filter...", exact: true });
+  const chainOptions = page.getByRole("listbox", { name: "Filter chain" }).getByRole("option");
+  const stageCountBeforeNavigation = await chainOptions.count();
+  await trigger.focus();
+  await trigger.press("ArrowDown");
+  await expect(page.getByTestId("filter-typeahead")).toBeVisible();
+  await expect(chainOptions).toHaveCount(stageCountBeforeNavigation);
+  await page.keyboard.press("Escape");
   await trigger.click();
   const typeahead = page.getByTestId("filter-typeahead");
   const search = page.getByRole("combobox", { name: "Search filters" });
@@ -69,8 +79,13 @@ test("ranks and bounds filter typeahead results with keyboard selection and rece
   await expect(page.locator("#chain-composer")).toContainText("Black Hole Lens");
 
   await trigger.click();
-  await expect(typeahead).toContainText("Recent + explore");
-  await expect(items.first()).toContainText("Black Hole Lens");
+  await expect(typeahead).toContainText("Recently used");
+  await expect(typeahead.locator('[data-recent-value="Black Hole Lens"]')).toBeVisible();
+  await expect(typeahead).toContainText("Browse by type");
+  await typeahead.getByRole("button", { name: /Browse Simulate filters/ }).click();
+  await expect(typeahead).toContainText("Simulate filters");
+  await expect(typeahead).toContainText("A–Z category browse");
+  await expect(items.first()).toBeVisible();
   await expect(typeahead.locator("kbd")).toHaveText(["↑↓", "Enter", "Esc"]);
   await writeBrowserCoverage(page, "ux-filter-typeahead");
 });

@@ -80,7 +80,19 @@ describe("FilterCombobox", () => {
 
     const input = document.querySelector<HTMLInputElement>('input[aria-label="Search filters"]')!;
     expect(input).toBeTruthy();
-    expect(document.body.textContent).toContain("filters to explore");
+    expect(document.body.textContent).toContain("Browse by type");
+    expect(document.body.textContent).toContain("Stylize");
+    expect(document.body.textContent).toContain("Motion");
+
+    const browseMotion = document.querySelector<HTMLButtonElement>('button[aria-label^="Browse Motion filters"]')!;
+    act(() => browseMotion.click());
+    expect(document.body.textContent).toContain("Motion filters");
+    expect(document.querySelectorAll('[data-testid="filter-typeahead-item"]')).toHaveLength(27);
+
+    setInput(input, "artistic");
+    await act(async () => Promise.resolve());
+    expect(document.body.textContent).toContain("28 matches");
+    expect(document.querySelector<HTMLElement>('[data-value="Alpha Glow"]')).toBeTruthy();
 
     setInput(input, "filter");
     await act(async () => Promise.resolve());
@@ -100,7 +112,9 @@ describe("FilterCombobox", () => {
     await act(async () => Promise.resolve());
     const item = document.querySelector<HTMLElement>('[data-value="Alpha Glow"]')!;
     expect(item.textContent).toContain("Alpha Glow");
-    expect(item.textContent).toContain("GL");
+    expect(item.textContent).toContain("WebGL2");
+    expect(document.body.textContent).toContain("Bright alpha bloom");
+    expect(document.body.textContent).toContain("Add this filter");
     act(() => item.click());
 
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ displayName: "Alpha Glow" }));
@@ -108,35 +122,34 @@ describe("FilterCombobox", () => {
     expect(JSON.parse(localStorage.getItem("ditherer-filter-recents")!)[0]).toBe("Alpha Glow");
   });
 
-  it("deduplicates current/recent suggestions and previews adjacent filters with arrow keys", async () => {
-    localStorage.setItem("ditherer-filter-recents", JSON.stringify(["Alpha Glow", "Alpha Glow", 4, "missing", "Beta Motion"]));
+  it("deduplicates current/recent suggestions without mutating from closed arrow keys", async () => {
     const onSelect = vi.fn();
-    const onChange = vi.fn();
     await act(async () => root.render(
       <FilterCombobox
         onSelect={onSelect}
-        onChange={onChange}
         currentValue="Alpha Glow"
         inline
         placeholder="Alpha Glow"
       />,
     ));
 
+    // A different picker can update the shared recents after this instance
+    // mounted. Keyboard-open must refresh exactly like pointer-open does.
+    localStorage.setItem("ditherer-filter-recents", JSON.stringify(["Alpha Glow", "Alpha Glow", 4, "missing", "Beta Motion"]));
+
     const trigger = container.querySelector<HTMLButtonElement>('button[role="combobox"]')!;
     key(trigger, "ArrowDown");
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ displayName: "Beta Motion" }));
-    key(trigger, "ArrowLeft");
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ displayName: "Alpha Glow" }));
-    key(trigger, "Enter");
     expect(onSelect).not.toHaveBeenCalled();
-
-    act(() => trigger.click());
     await act(async () => Promise.resolve());
-    expect(document.body.textContent).toContain("recent and suggested");
-    expect(document.querySelectorAll('[data-value="Alpha Glow"]')).toHaveLength(1);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const popupId = trigger.getAttribute("aria-controls");
+    expect(popupId).toBeTruthy();
+    expect(document.getElementById(popupId!)).toBe(document.querySelector('[data-testid="filter-typeahead"]'));
+    expect(document.body.textContent).toContain("Recently used");
+    expect(document.querySelectorAll('[data-recent-value="Alpha Glow"]')).toHaveLength(1);
   });
 
-  it("falls back to selection callbacks and clamps unknown/boundary keyboard navigation", async () => {
+  it("opens safely from navigation keys even with an unknown current value", async () => {
     const onSelect = vi.fn();
     await act(async () => root.render(
       <FilterCombobox onSelect={onSelect} currentValue="Unknown" placeholder="Unknown" />,
@@ -144,8 +157,9 @@ describe("FilterCombobox", () => {
     const trigger = container.querySelector<HTMLButtonElement>('button[role="combobox"]')!;
 
     key(trigger, "ArrowUp");
-    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ displayName: "Filter 54" }));
-    key(trigger, "ArrowRight");
-    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ displayName: "Alpha Glow" }));
+    await act(async () => Promise.resolve());
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Replace Unknown");
   });
 });

@@ -1047,6 +1047,18 @@ export const filterCatalog = [
     "description": "Apollo 320/10 or 1280/0.625 slow-scan camera through the RCA kinescope, vidicon, and magnetic-disc converter"
   },
   {
+    "displayName": "Apple II HGR",
+    "filterName": "Apple II HGR",
+    "category": "Simulate",
+    "description": "Apple II 280×192 high-resolution bitmap through phase-dependent NTSC artifact-color decoding"
+  },
+  {
+    "displayName": "Amiga HAM6",
+    "filterName": "Amiga HAM6",
+    "category": "Simulate",
+    "description": "Amiga OCS six-plane hold-and-modify encoding with a legal stateful opcode stream"
+  },
+  {
     "displayName": "Bayer Sensor",
     "filterName": "Bayer Sensor",
     "category": "Simulate",
@@ -1245,6 +1257,12 @@ export const filterCatalog = [
     "description": "16mm/35mm projector — gate weave, dust, scratches, grain, and lamp flicker"
   },
   {
+    "displayName": "PXL-2000",
+    "filterName": "PXL-2000",
+    "category": "Simulate",
+    "description": "Fisher-Price 120×90 monochrome CCD, 15 Hz ping-pong capture, 90 kHz luma, and FM cassette recording"
+  },
+  {
     "displayName": "Risograph (multi-layer)",
     "filterName": "Risograph (multi-layer)",
     "category": "Simulate",
@@ -1321,6 +1339,12 @@ export const filterCatalog = [
     "filterName": "Wavelet Codec",
     "category": "Simulate",
     "description": "JPEG 2000-inspired undecimated decomposition with 5/3- or 9/7-derived kernels, quantization, bit-plane loss, and code-block damage"
+  },
+  {
+    "displayName": "ZX Spectrum",
+    "filterName": "ZX Spectrum",
+    "category": "Simulate",
+    "description": "ZX Spectrum 256×192 bitmap constrained to one INK/PAPER pair and brightness bit per 8×8 cell"
   },
   {
     "displayName": "Motion Analysis",

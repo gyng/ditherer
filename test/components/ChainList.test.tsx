@@ -30,17 +30,21 @@ vi.mock("utils/randomCycleBridge", () => ({
   notifyScreensaverChainSwap: bridge.notifyScreensaverSwap,
 }));
 vi.mock("components/FilterCombobox", () => ({
-  default: ({ placeholder, onSelect }: {
+  default: ({ placeholder, onSelect, onClose }: {
     placeholder?: string;
     onSelect?: (entry: { displayName: string; filter: Record<string, unknown> }) => void;
+    onClose?: () => void;
   }) => (
     <button
       type="button"
       data-testid={`combobox-${placeholder ?? "filter"}`}
-      onClick={() => onSelect?.({
-        displayName: "Invert",
-        filter: { name: "Invert", func: () => document.createElement("canvas"), defaults: {} },
-      })}
+      onClick={() => {
+        onSelect?.({
+          displayName: "Invert",
+          filter: { name: "Invert", func: () => document.createElement("canvas"), defaults: {} },
+        });
+        onClose?.();
+      }}
     >
       {placeholder}
     </button>

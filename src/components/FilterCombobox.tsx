@@ -22,7 +22,35 @@ type SearchableFilter = FilterEntry & { keywords: string };
 
 const RECENTS_KEY = "ditherer-filter-recents";
 const MAX_RESULTS = 48;
-const MAX_QUICK_ACCESS = 12;
+const MAX_RECENTS = 6;
+
+const CATEGORY_INTENTS: Record<string, string> = {
+  Advanced: "procedural generative technical three dimensional 3d",
+  "Blur & Edges": "soft focus sharpen detail outline smooth",
+  Color: "palette grade tone hue saturation recolor",
+  Distort: "warp bend stretch geometry transform",
+  Dithering: "pixel art retro palette quantize limited color",
+  Glitch: "broken corrupt noise digital error damage",
+  Simulate: "emulate emulation device hardware medium",
+  Stylize: "art artistic illustration drawing look",
+};
+
+const getIntentKeywords = (entry: FilterEntry) => {
+  const text = `${entry.displayName} ${entry.description || ""}`.toLocaleLowerCase();
+  return [
+    CATEGORY_INTENTS[entry.category] || "",
+    /vhs|ntsc|pal\b|secam|television|\btv\b|crt|pxl-2000|slow-scan|video signal/.test(text)
+      ? "analog video television tape broadcast signal retro"
+      : "",
+    /film|camera|photo|daguerreotype|polaroid|mavica/.test(text)
+      ? "photography photographic cinematic camera lens"
+      : "",
+    /grain|noise|static|speckle/.test(text) ? "grainy gritty noisy texture" : "",
+    /print|paper|ink|newspaper|fax|risograph|halftone/.test(text)
+      ? "print printing paper ink physical press"
+      : "",
+  ].join(" ");
+};
 
 const getSearchKeywords = (entry: FilterEntry) => {
   const optionKeywords = Object.entries(entry.filter.optionTypes || {}).flatMap(([name, option]) => [
@@ -36,6 +64,7 @@ const getSearchKeywords = (entry: FilterEntry) => {
     entry.filter.requiresGL ? "gpu gl webgl shader" : "",
     entry.filter.noGL ? "cpu sequential" : "",
     entry.filter.noWASM ? "canvas" : "wasm",
+    getIntentKeywords(entry),
   ].join(" ");
 };
 
@@ -45,44 +74,43 @@ const allFilters = filterList
 
 const filterByName = new Map(allFilters.map((entry) => [entry.displayName, entry] as const));
 const searchIndex = buildFilterSearchIndex(allFilters);
-const exploreFilters = (() => {
-  const categories = new Set<string>();
-  return allFilters.filter((entry) => {
-    if (entry.displayName === "None") return false;
-    if (categories.has(entry.category)) return false;
-    categories.add(entry.category);
-    return true;
-  }).slice(0, MAX_QUICK_ACCESS);
-})();
+const categoryEntries = Array.from(
+  allFilters
+    .filter((entry) => entry.displayName !== "None")
+    .reduce((categories, entry) => {
+      const entries = categories.get(entry.category) ?? [];
+      entries.push(entry);
+      categories.set(entry.category, entries);
+      return categories;
+    }, new Map<string, SearchableFilter[]>()),
+  ([name, entries]) => ({
+    name,
+    entries: [...entries].sort((left, right) => left.displayName.localeCompare(right.displayName)),
+    examples: entries.slice(0, 3).map((entry) => entry.displayName),
+  }),
+).sort((left, right) => left.name.localeCompare(right.name));
+const categoryByName = new Map(categoryEntries.map((category) => [category.name, category] as const));
 
 const readRecentNames = () => {
   try {
     const stored = JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]") as unknown;
-    return Array.isArray(stored)
-      ? stored.filter((name): name is string => typeof name === "string").slice(0, MAX_QUICK_ACCESS)
-      : [];
+    if (!Array.isArray(stored)) return [];
+    return [...new Set(stored.filter((name): name is string => typeof name === "string"))]
+      .filter((name) => filterByName.has(name))
+      .slice(0, MAX_RECENTS);
   } catch {
     return [];
   }
 };
 
 const rememberRecentName = (displayName: string, current: string[]) => {
-  const next = [displayName, ...current.filter((name) => name !== displayName)].slice(0, MAX_QUICK_ACCESS);
+  const next = [displayName, ...current.filter((name) => name !== displayName)].slice(0, MAX_RECENTS);
   try {
     localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
   } catch {
     // Storage can be unavailable in private or embedded browsing contexts.
   }
   return next;
-};
-
-const uniqueEntries = (entries: Array<SearchableFilter | undefined>) => {
-  const seen = new Set<string>();
-  return entries.filter((entry): entry is SearchableFilter => {
-    if (!entry || seen.has(entry.displayName)) return false;
-    seen.add(entry.displayName);
-    return true;
-  });
 };
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -98,27 +126,29 @@ const highlightMatch = (text: string, query: string): ReactNode => {
   );
 };
 
-const getBadges = (entry: SearchableFilter) => [
-  entry.filter.requiresGL ? "GL" : null,
-  entry.filter.temporal ? "TEMP" : null,
-  entry.filter.autoAnimate || entry.filter.optionTypes?.animate ? "ANIM" : null,
-].filter((badge): badge is string => Boolean(badge));
+type Capability = { label: string; detail: string; tone: "gl" | "temp" | "anim" | "cpu" };
+
+const getCapabilities = (entry: SearchableFilter): Capability[] => [
+  entry.filter.requiresGL ? { label: "WebGL2", detail: "Requires WebGL2", tone: "gl" as const } : null,
+  entry.filter.temporal ? { label: "Temporal", detail: "Uses frame history", tone: "temp" as const } : null,
+  entry.filter.autoAnimate || entry.filter.optionTypes?.animate
+    ? { label: "Animated", detail: "Can evolve over time", tone: "anim" as const }
+    : null,
+  entry.filter.noGL ? { label: "CPU", detail: "Sequential CPU path", tone: "cpu" as const } : null,
+].filter((capability): capability is Capability => Boolean(capability));
 
 interface Props {
   onSelect: (entry: FilterEntry) => void;
-  /** Optional preview-change callback fired when the value changes via arrow-key nav (does not close). Falls back to onSelect if absent. */
-  onChange?: (entry: FilterEntry) => void;
   onClose?: () => void;
   placeholder?: string;
   autoFocus?: boolean;
   inline?: boolean;
-  /** Display name of the currently-selected filter — used for highlighting + keyboard nav */
+  /** Display name of the currently-selected filter, shown as replacement context. */
   currentValue?: string;
 }
 
 const FilterCombobox = ({
   onSelect,
-  onChange,
   onClose,
   placeholder = "+ Add filter...",
   autoFocus = false,
@@ -128,36 +158,32 @@ const FilterCombobox = ({
   const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
   const [value, setValue] = useState(currentValue ?? "");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [recentNames, setRecentNames] = useState(readRecentNames);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listId = useId();
+  const popupId = useId();
+  const titleId = useId();
+  const descriptionId = useId();
   const normalizedQuery = normalizeFilterSearchText(query);
 
   const searchResult = useMemo(
     () => searchFilterIndex(searchIndex, query, MAX_RESULTS),
     [query],
   );
-
-  const quickAccessEntries = useMemo(() => uniqueEntries([
-    currentValue ? filterByName.get(currentValue) : undefined,
-    ...recentNames.map((name) => filterByName.get(name)),
-    ...exploreFilters,
-  ]).slice(0, MAX_QUICK_ACCESS), [currentValue, recentNames]);
-
-  const resultEntries = normalizedQuery ? searchResult.items : quickAccessEntries;
-  const hasRecentEntries = recentNames.some((name) => filterByName.has(name));
-
-  useEffect(() => {
-    if (!open || !listRef.current || !currentValue || query) return;
-    requestAnimationFrame(() => {
-      const element = listRef.current?.querySelector(`[data-value="${CSS.escape(currentValue)}"]`);
-      if (element && "scrollIntoView" in element) {
-        (element as HTMLElement).scrollIntoView({ block: "nearest", behavior: "auto" });
-      }
-    });
-  }, [currentValue, open, query]);
+  const recentEntries = useMemo(
+    () => recentNames.map((name) => filterByName.get(name)).filter((entry): entry is SearchableFilter => Boolean(entry)),
+    [recentNames],
+  );
+  const selectedCategory = activeCategory ? categoryByName.get(activeCategory) : undefined;
+  const resultEntries = normalizedQuery
+    ? searchResult.items
+    : selectedCategory?.entries ?? [];
+  const resultTotal = normalizedQuery ? searchResult.total : selectedCategory?.entries.length ?? 0;
+  const showingResults = normalizedQuery.length > 0 || Boolean(selectedCategory);
+  const selectedEntry = resultEntries.find((entry) => entry.displayName === value) ?? resultEntries[0];
 
   useEffect(() => {
     if (!open) {
@@ -170,17 +196,34 @@ const FilterCombobox = ({
     }
   }, [currentValue, open, resultEntries, value]);
 
+  useEffect(() => {
+    if (!open || !listRef.current || !value || !showingResults) return;
+    requestAnimationFrame(() => {
+      const element = listRef.current?.querySelector(`[data-value="${CSS.escape(value)}"]`);
+      if (element && "scrollIntoView" in element) {
+        (element as HTMLElement).scrollIntoView({ block: "nearest", behavior: "auto" });
+      }
+    });
+  }, [open, showingResults, value]);
+
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
+    setActiveCategory(null);
     onClose?.();
   }, [onClose]);
 
+  const openFinder = useCallback(() => {
+    setRecentNames(readRecentNames());
+    setQuery("");
+    setActiveCategory(null);
+    setValue(currentValue ?? "");
+    setOpen(true);
+  }, [currentValue]);
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      setRecentNames(readRecentNames());
-      setQuery("");
-      setOpen(true);
+      openFinder();
       return;
     }
     close();
@@ -196,24 +239,19 @@ const FilterCombobox = ({
     close();
   };
 
-  const handleTriggerKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (open) return;
-    const isNext = event.key === "ArrowDown" || event.key === "ArrowRight";
-    const isPrevious = event.key === "ArrowUp" || event.key === "ArrowLeft";
-    if (!isNext && !isPrevious) return;
+  const openFromNavigationKey = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
     event.preventDefault();
-    const currentIndex = allFilters.findIndex((entry) => entry.displayName === (currentValue ?? value));
-    const nextIndex = currentIndex < 0
-      ? (isNext ? 0 : allFilters.length - 1)
-      : isNext
-        ? Math.min(allFilters.length - 1, currentIndex + 1)
-        : Math.max(0, currentIndex - 1);
-    const next = allFilters[nextIndex];
-    if (!next) return;
-    setValue(next.displayName);
-    (onChange ?? onSelect)(next);
-    requestAnimationFrame(() => triggerRef.current?.focus());
-  }, [currentValue, onChange, onSelect, open, value]);
+    openFinder();
+  }, [open, openFinder]);
+
+  const browseCategory = (category: string) => {
+    const first = categoryByName.get(category)?.entries[0];
+    setActiveCategory(category);
+    setQuery("");
+    if (first) setValue(first.displayName);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
 
   const resultStatus = normalizedQuery
     ? searchResult.total === 0
@@ -221,9 +259,9 @@ const FilterCombobox = ({
       : searchResult.total > resultEntries.length
         ? `${resultEntries.length} of ${searchResult.total} matches`
         : `${searchResult.total} ${searchResult.total === 1 ? "match" : "matches"}`
-    : hasRecentEntries
-      ? `${resultEntries.length} recent and suggested`
-      : `${resultEntries.length} filters to explore`;
+    : selectedCategory
+      ? `${resultEntries.length}${resultTotal > resultEntries.length ? ` of ${resultTotal}` : ""} ${selectedCategory.name} filters`
+      : `${categoryEntries.length} categories · ${allFilters.length} total`;
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
@@ -233,22 +271,26 @@ const FilterCombobox = ({
           className={`${s.trigger} ${inline ? s.inlineTrigger : ""}`}
           role="combobox"
           aria-label={currentValue ? `Replace ${currentValue} filter` : placeholder}
-          aria-controls={open ? listId : undefined}
+          aria-controls={open ? popupId : undefined}
           aria-expanded={open}
-          aria-haspopup="listbox"
+          aria-haspopup="dialog"
           tabIndex={0}
-          onKeyDown={handleTriggerKeyDown}
+          onKeyDown={openFromNavigationKey}
         >
           {placeholder}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          id={popupId}
           className={s.content}
+          role="dialog"
           align="start"
           side="bottom"
-          sideOffset={4}
+          sideOffset={5}
           collisionPadding={8}
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
           data-testid="filter-typeahead"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -262,14 +304,26 @@ const FilterCombobox = ({
             shouldFilter={false}
             loop
           >
+            <header className={s.finderHeader}>
+              <span className={s.finderEyebrow}>Filter finder</span>
+              <strong id={titleId} className={s.finderTitle}>
+                {currentValue ? `Replace ${currentValue}` : "Add a filter"}
+              </strong>
+              <span id={descriptionId} className={s.finderDescription}>
+                Search by look, medium, technique, or hardware.
+              </span>
+            </header>
             <div className={s.searchShell}>
-              <span className={s.searchGlyph} aria-hidden="true">Find</span>
+              <span className={s.searchGlyph} aria-hidden="true" />
               <Command.Input
                 ref={inputRef}
                 className={s.input}
                 value={query}
-                onValueChange={setQuery}
-                placeholder="Search name, category, effect…"
+                onValueChange={(nextQuery) => {
+                  setQuery(nextQuery);
+                  setActiveCategory(null);
+                }}
+                placeholder="Try ‘grainy’, ‘CRT’, ‘edge’, ‘dither’…"
                 aria-label="Search filters"
                 autoFocus
               />
@@ -281,75 +335,154 @@ const FilterCombobox = ({
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setQuery("");
+                    setActiveCategory(null);
                     inputRef.current?.focus();
                   }}
                 >
                   ×
                 </button>
-              ) : null}
+              ) : <span className={s.searchHint} aria-hidden="true">type</span>}
             </div>
             <div className={s.statusBar} aria-live="polite">
-              <span className={s.statusLamp} />
+              {selectedCategory ? (
+                <button type="button" className={s.backButton} onClick={() => setActiveCategory(null)}>
+                  ← Categories
+                </button>
+              ) : <span className={s.statusLamp} aria-hidden="true" />}
               <span>{resultStatus}</span>
-              <span className={s.registryCount}>{allFilters.length} total</span>
-            </div>
-            <Command.List id={listId} ref={listRef} className={s.list}>
-              <Command.Empty className={s.empty}>
-                <strong>No matching filters</strong>
-                <span>Try a look, medium, or technique: “glitch”, “film”, “ray tracing”.</span>
-              </Command.Empty>
-              {resultEntries.length > 0 ? (
-                <Command.Group
-                  heading={normalizedQuery ? "Best matches" : hasRecentEntries ? "Recent + explore" : "Explore filters"}
-                  className={s.group}
-                >
-                  {resultEntries.map((item) => {
-                    const badges = getBadges(item);
-                    return (
-                      <Command.Item
-                        key={item.displayName}
-                        value={item.displayName}
-                        onSelect={handleSelect}
-                        className={s.item}
-                        data-value={item.displayName}
-                        data-testid="filter-typeahead-item"
-                      >
-                        <span className={s.itemHeader}>
-                          <strong className={s.itemName}>{highlightMatch(item.displayName, query)}</strong>
-                          <span className={s.itemCategory}>{item.category}</span>
-                        </span>
-                        <span className={s.itemBody}>
-                          <span className={s.itemDescription}>{highlightMatch(item.description || "No description", query)}</span>
-                          {badges.length > 0 ? (
-                            <span className={s.badges} aria-label={`Capabilities: ${badges.join(", ")}`}>
-                              {badges.map((badge) => (
-                                <span
-                                  key={badge}
-                                  className={`${s.badge} ${
-                                    badge === "ANIM"
-                                      ? s.badgeAnim
-                                      : badge === "TEMP"
-                                        ? s.badgeTemp
-                                        : s.badgeGL
-                                  }`}
-                                >
-                                  {badge}
-                                </span>
-                              ))}
-                            </span>
-                          ) : null}
-                        </span>
-                      </Command.Item>
-                    );
-                  })}
-                </Command.Group>
+              {showingResults ? (
+                <span className={s.registryCount}>
+                  {normalizedQuery ? "Global ranked search" : "A–Z category browse"}
+                </span>
               ) : null}
-            </Command.List>
-            <div className={s.footer} aria-hidden="true">
-              <span><kbd>↑↓</kbd> move</span>
+            </div>
+
+            {!showingResults ? (
+              <div className={s.landing} data-testid="filter-typeahead-overview">
+                {recentEntries.length > 0 ? (
+                  <section className={s.recents} aria-labelledby={`${titleId}-recent`}>
+                    <div className={s.sectionHeading}>
+                      <strong id={`${titleId}-recent`}>Recently used</strong>
+                      <span>Fast return</span>
+                    </div>
+                    <div className={s.recentGrid}>
+                      {recentEntries.map((entry) => (
+                        <button
+                          type="button"
+                          key={entry.displayName}
+                          className={s.recentButton}
+                          data-recent-value={entry.displayName}
+                          onClick={() => handleSelect(entry.displayName)}
+                        >
+                          <strong>{entry.displayName}</strong>
+                          <span>{entry.category}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+                <section className={s.browser} aria-labelledby={`${titleId}-browse`}>
+                  <div className={s.sectionHeading}>
+                    <strong id={`${titleId}-browse`}>Browse by type</strong>
+                    <span>Recognition beats recall</span>
+                  </div>
+                  <div className={s.categoryGrid}>
+                    {categoryEntries.map((category) => (
+                      <button
+                        type="button"
+                        key={category.name}
+                        className={s.categoryButton}
+                        aria-label={`Browse ${category.name} filters (${category.entries.length})`}
+                        onClick={() => browseCategory(category.name)}
+                      >
+                        <span className={s.categoryHeader}>
+                          <strong>{category.name}</strong>
+                          <span>{category.entries.length}</span>
+                        </span>
+                        <span className={s.categoryExamples}>{category.examples.join(" · ")}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <div className={s.resultsLayout}>
+                <Command.List id={listId} ref={listRef} className={s.list}>
+                  {resultEntries.length === 0 ? (
+                    <div className={s.empty}>
+                      <strong>No matching filters</strong>
+                      <span>Try a broader intent such as “glitch”, “film”, “soft”, or “motion”.</span>
+                      <button type="button" onClick={() => { setQuery(""); setActiveCategory(null); }}>
+                        Browse categories
+                      </button>
+                    </div>
+                  ) : (
+                    <Command.Group
+                      heading={normalizedQuery ? "Best matches" : `${selectedCategory?.name} filters`}
+                      className={s.group}
+                    >
+                      {resultEntries.map((item) => {
+                        const capabilities = getCapabilities(item);
+                        return (
+                          <Command.Item
+                            key={item.displayName}
+                            value={item.displayName}
+                            onSelect={handleSelect}
+                            onPointerMove={() => setValue(item.displayName)}
+                            className={s.item}
+                            data-value={item.displayName}
+                            data-testid="filter-typeahead-item"
+                          >
+                            <span className={s.itemText}>
+                              <strong className={s.itemName}>{highlightMatch(item.displayName, query)}</strong>
+                              <span className={s.itemCategory}>{item.category}</span>
+                            </span>
+                            {currentValue === item.displayName ? <span className={s.currentBadge}>Current</span> : null}
+                            {capabilities.slice(0, 2).map((capability) => (
+                              <span key={capability.label} className={`${s.badge} ${s[`badge_${capability.tone}`]}`}>
+                                {capability.label}
+                              </span>
+                            ))}
+                          </Command.Item>
+                        );
+                      })}
+                    </Command.Group>
+                  )}
+                </Command.List>
+                <aside className={s.detailPane} aria-live="polite">
+                  {selectedEntry ? (
+                    <>
+                      <span className={s.detailCategory}>{selectedEntry.category}</span>
+                      <strong className={s.detailTitle}>{selectedEntry.displayName}</strong>
+                      <p className={s.detailDescription}>{selectedEntry.description || "No description available."}</p>
+                      <div className={s.detailFacts}>
+                        <span>{Object.keys(selectedEntry.filter.optionTypes || {}).length} controls</span>
+                        {getCapabilities(selectedEntry).map((capability) => (
+                          <span key={capability.detail}>{capability.detail}</span>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className={s.chooseButton}
+                        onClick={() => handleSelect(selectedEntry.displayName)}
+                      >
+                        {currentValue ? "Use this replacement" : "Add this filter"}
+                      </button>
+                    </>
+                  ) : (
+                    <div className={s.detailPlaceholder}>Broaden the search or browse a category.</div>
+                  )}
+                </aside>
+              </div>
+            )}
+            <footer className={s.footer}>
+              <span className={s.safetyNote}>
+                {currentValue ? `Esc keeps ${currentValue}` : "Nothing changes until you choose"}
+              </span>
+              <span><kbd>↑↓</kbd> inspect</span>
               <span><kbd>Enter</kbd> choose</span>
               <span><kbd>Esc</kbd> close</span>
-            </div>
+            </footer>
           </Command>
         </Popover.Content>
       </Popover.Portal>

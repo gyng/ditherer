@@ -77,7 +77,13 @@ const ChainList = ({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const entryNameRefs = useRef(new Map<string, HTMLButtonElement>());
   const [mobileActionsEntryId, setMobileActionsEntryId] = useState<string | null>(null);
+
+  const closeEntryEditor = useCallback((entryId: string) => {
+    setEditingEntryId(null);
+    requestAnimationFrame(() => entryNameRefs.current.get(entryId)?.focus());
+  }, []);
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
   const [pinnedPreviews, setPinnedPreviews] = useState<Map<string, { top: number; left: number }>>(new Map());
@@ -691,19 +697,20 @@ const ChainList = ({
                   autoFocus
                   placeholder={entry.displayName}
                   currentValue={entry.displayName}
-                  onChange={(f) => {
-                    // Arrow-key preview: swap the filter in place but keep the editor open
-                    actions.chainReplace(entry.id, f.displayName, f.filter);
-                  }}
                   onSelect={(f) => {
                     actions.chainReplace(entry.id, f.displayName, f.filter);
-                    setEditingEntryId(null);
                   }}
-                  onClose={() => setEditingEntryId(null)}
+                  onClose={() => closeEntryEditor(entry.id)}
                 />
               ) : (
-                <span
+                <button
+                  ref={(element) => {
+                    if (element) entryNameRefs.current.set(entry.id, element);
+                    else entryNameRefs.current.delete(entry.id);
+                  }}
+                  type="button"
                   className={s.entryName}
+                  aria-label={`Replace ${entry.displayName} filter`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setEditingEntryId(entry.id);
@@ -711,7 +718,7 @@ const ChainList = ({
                   title="Click to search and replace filter"
                 >
                   {entry.displayName}
-                </span>
+                </button>
               )}
               <span
                 className={s.entryTime}

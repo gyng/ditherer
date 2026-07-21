@@ -142,12 +142,20 @@
   border: 1px solid transparent;
   background-color: transparent;
   color: var(--window-text, black);
+  font: inherit;
   padding: 4px 16px 4px 4px;
   font-weight: bold;
+  line-height: normal;
+  text-align: left;
   box-sizing: border-box;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0l4 4 4-4z' fill='%23000'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 4px center;
+}
+
+.entryName:focus-visible {
+  outline: 2px solid var(--beautiful-blue, #000080);
+  outline-offset: -2px;
 }
 
 .entrySelect {

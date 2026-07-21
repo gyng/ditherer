@@ -3,6 +3,7 @@
   "abaGhost",
   "abaRebound",
   "afterImage",
+  "amigaHam6",
   "anaglyph",
   "analogStatic",
   "anamorphicCylinder",
@@ -12,6 +13,7 @@
   "animeToneBands",
   "anisotropicDiffusion",
   "apolloSstv",
+  "appleIihgr",
   "ascii",
   "atmosphericHaze",
   "backgroundSubtraction",
@@ -198,6 +200,7 @@
   "povBands",
   "program",
   "projectionFilm",
+  "pxl2000",
   "quantize",
   "radialBlur",
   "random",
@@ -274,5 +277,6 @@
   "wave",
   "waveletCodec",
   "woodcut",
-  "zigzag"
+  "zigzag",
+  "zxSpectrum"
 ]
