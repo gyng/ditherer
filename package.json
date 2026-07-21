@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/assert-app-bundle-size.mjs",
     "build:lib": "npm --prefix packages/ditherer-filters run build",
     "prepare:packed-lib": "node test/library-consumer/prepare-packed-library.mjs",
     "build:selective-example": "vite build --config examples/filter-library/vite.selective.config.mjs && node scripts/assert-selective-bundle.mjs",

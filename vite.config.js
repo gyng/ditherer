@@ -4,6 +4,46 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 const filterPackageSource = path.resolve(__dirname, "packages/ditherer-filters/src");
+const filterCorePattern = /packages[\\/]ditherer-filters[\\/]src[\\/](?:constants|gl|palettes|utils|wasm)[\\/]/;
+const filterImplementationPattern = /packages[\\/]ditherer-filters[\\/]src[\\/]filters[\\/]([^\\/]+)\.ts$/;
+const filterImplementationChunkName = (moduleId) => {
+  const match = moduleId.match(filterImplementationPattern);
+  if (!match || match[1] === "index" || match[1] === "types") return null;
+
+  const initial = match[1][0].toLowerCase();
+  if (initial <= "f") return "filters-a-f";
+  if (initial <= "m") return "filters-g-m";
+  if (initial <= "s") return "filters-n-s";
+  return "filters-t-z";
+};
+const filterChunkGroups = () => [{
+  name: "filter-core",
+  test: (moduleId) => filterCorePattern.test(moduleId)
+    || /packages[\\/]ditherer-filters[\\/]src[\\/]filters[\\/]types\.ts$/.test(moduleId),
+  priority: 20,
+}, {
+  name: filterImplementationChunkName,
+  test: (moduleId) => filterImplementationChunkName(moduleId) !== null,
+  priority: 10,
+}];
+const applicationChunkGroups = () => [
+  {
+    name: "react-vendor",
+    test: /node_modules[\\/](?:react|react-dom)[\\/]/,
+    priority: 30,
+  },
+  {
+    name: "ui-vendor",
+    test: /node_modules[\\/](?:@radix-ui|cmdk|react-colorful)[\\/]/,
+    priority: 20,
+  },
+  {
+    name: "export-vendor",
+    test: /node_modules[\\/](?:modern-gif|fflate|mp4box|web-demuxer|webm-muxer)[\\/]/,
+    priority: 20,
+  },
+  ...filterChunkGroups(),
+];
 const legacyEngineTestAliases = [
   { find: "constants", replacement: path.join(filterPackageSource, "constants") },
   { find: "filters", replacement: path.join(filterPackageSource, "filters") },
@@ -16,6 +56,16 @@ const legacyEngineTestAliases = [
 
 export default defineConfig({
   plugins: [react({ include: /\.(jsx|tsx)$/ })],
+  worker: {
+    format: "es",
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: filterChunkGroups(),
+        },
+      },
+    },
+  },
   resolve: {
     alias: [
       { find: "@gyng/ditherer-filters/worker", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/worker.ts") },
@@ -35,32 +85,11 @@ export default defineConfig({
   },
   build: {
     outDir: "build",
-    // Filters are intentionally eager-loaded during the boot screen
-    // (see src/index.tsx) and the worker bundles them all so it can
-    // run any filter on demand. Both bundles are knowingly large.
     chunkSizeWarningLimit: 1000,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-
-          if (id.includes("/react/") || id.includes("/react-dom/")) {
-            return "react-vendor";
-          }
-
-          if (id.includes("/@radix-ui/") || id.includes("/cmdk/") || id.includes("/react-colorful/")) {
-            return "ui-vendor";
-          }
-
-          if (
-            id.includes("/modern-gif/") ||
-            id.includes("/fflate/") ||
-            id.includes("/mp4box/") ||
-            id.includes("/web-demuxer/") ||
-            id.includes("/webm-muxer/")
-          ) {
-            return "export-vendor";
-          }
+        codeSplitting: {
+          groups: applicationChunkGroups(),
         },
       },
     },
