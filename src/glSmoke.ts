@@ -15,11 +15,16 @@
 // page's status node; the Playwright spec reads both.
 
 import {
+  BOOL,
   ENUM,
+  PALETTE,
+  RANGE,
   filterIndex,
   getGLCtx,
   glAvailable,
   glUnavailableStub,
+  nearest,
+  user,
   vhsNtscGLUsingFloatPath,
 } from "@gyng/ditherer-filters";
 import { workerRPC } from "@gyng/ditherer-filters/client";
@@ -736,7 +741,11 @@ const runOrderedPaletteLevels = (): { ok: true } | { ok: false; reason: string }
 type FilterLike = {
   func: (input: unknown, options: unknown) => unknown;
   defaults?: Record<string, unknown>;
-  optionTypes?: Record<string, { type?: string; options?: { value: unknown }[] }>;
+  optionTypes?: Record<string, {
+    type?: string;
+    options?: { value: unknown }[];
+    range?: [number, number];
+  }>;
   requiresGL?: boolean;
   temporal?: boolean;
 };
@@ -839,6 +848,7 @@ const runOne = (
   requireDynamicRange = false,
   requireGLDraw = false,
   outputScale = 1,
+  requireVisibleOutput = true,
 ): RunResult => {
   const compilesBefore = shaderCompiles;
   const drawsBefore = drawCalls;
@@ -871,13 +881,15 @@ const runOne = (
   if (canvas.width !== expectedSize || canvas.height !== expectedSize) {
     return result(false, `size drift ${canvas.width}x${canvas.height} (expected ${expectedSize}x${expectedSize})`);
   }
-  const a = maxAlpha(canvas);
-  if (a <= 100) {
-    return result(false, `maxAlpha=${a} (expected > 100, a linearize bug likely)`);
-  }
-  const peak = peakLuma(canvas);
-  if (peak < 8) {
-    return result(false, `peakLuma=${peak.toFixed(2)} (opaque black output)`);
+  if (requireVisibleOutput) {
+    const a = maxAlpha(canvas);
+    if (a <= 100) {
+      return result(false, `maxAlpha=${a} (expected > 100, a linearize bug likely)`);
+    }
+    const peak = peakLuma(canvas);
+    if (peak < 8) {
+      return result(false, `peakLuma=${peak.toFixed(2)} (opaque black output)`);
+    }
   }
   if (requireDynamicRange) {
     const range = lumaRange(canvas);
@@ -928,6 +940,58 @@ const enumBranches = (
   }
   return out;
 };
+
+// CPU filters already run every scalar boundary in filterOptionConformance.
+// GL-capable filters need the same persisted-option contract in a real browser,
+// where the values also reach actual uniform uploads and shader draws. Two
+// combined profiles keep this gate bounded while covering cross-option states.
+const scalarProfiles = (
+  filter: FilterLike,
+): { label: string; values: Record<string, unknown> }[] => {
+  const minimum: Record<string, unknown> = {};
+  const maximum: Record<string, unknown> = {};
+  for (const [key, spec] of Object.entries(filter.optionTypes ?? {})) {
+    if (spec.type === BOOL) {
+      minimum[key] = false;
+      maximum[key] = true;
+    } else if (spec.type === RANGE && spec.range) {
+      minimum[key] = spec.range[0];
+      maximum[key] = spec.range[1];
+    }
+  }
+  if (Object.keys(minimum).length === 0) return [];
+  return [
+    { label: "scalar-minimum-disabled", values: minimum },
+    { label: "scalar-maximum-enabled", values: maximum },
+  ];
+};
+
+const hasPaletteControl = (filter: FilterLike): boolean =>
+  Object.values(filter.optionTypes ?? {}).some((spec) => spec.type === PALETTE);
+
+const scalarOptionKeys = (filter: FilterLike): string[] =>
+  Object.entries(filter.optionTypes ?? {})
+    .filter(([, spec]) => spec.type === BOOL || spec.type === RANGE)
+    .map(([key]) => key);
+
+const enumOptionKeys = (filter: FilterLike): string[] =>
+  Object.entries(filter.optionTypes ?? {})
+    .filter(([, spec]) => spec.type === ENUM)
+    .map(([key]) => key);
+
+// These controls size lookup structures or carry structured enum payloads.
+// The app's existing state migration restores them before filter dispatch.
+const migratedScalarDefaults = new Set([
+  "Contour Map",
+  "Palette Mapper",
+  "Voronoi",
+  "Thermal camera",
+]);
+
+const migratedEnumDefaults = new Set([
+  "Anaglyph:depthSource",
+  "Convolve:kernel",
+]);
 
 const main = async () => {
   installGLCallTracking();
@@ -1038,6 +1102,21 @@ const main = async () => {
     record(name, "default", defaultResult);
     if (!defaultResult.ok) continue;
 
+    if (!f.requiresGL) {
+      record(name, "webgl-acceleration-disabled", runOne(
+        f,
+        {
+          ...defaults,
+          ...activated,
+          ...runtimeOptions(),
+          _webglAcceleration: false,
+        },
+        false,
+        false,
+        scale,
+      ));
+    }
+
     record(name, "linearize", runOne(
       f,
       { ...defaults, ...activated, ...runtimeOptions(), _linearize: true },
@@ -1054,6 +1133,89 @@ const main = async () => {
         requireDynamicRange,
         true,
         scale,
+      ));
+    }
+    for (const profile of scalarProfiles(f)) {
+      record(name, profile.label, runOne(
+        f,
+        { ...defaults, ...activated, ...runtimeOptions(), ...profile.values },
+        false,
+        false,
+        scale,
+        false,
+      ));
+    }
+    const scalarKeys = scalarOptionKeys(f);
+    if (scalarKeys.length > 0 && !migratedScalarDefaults.has(name)) {
+      const legacyOptions = { ...defaults, ...activated, ...runtimeOptions() };
+      for (const key of scalarKeys) delete legacyOptions[key];
+      record(name, "legacy-state-without-scalars", runOne(
+        f,
+        legacyOptions,
+        false,
+        false,
+        scale,
+        false,
+      ));
+    }
+    for (const key of enumOptionKeys(f)) {
+      if (migratedEnumDefaults.has(`${name}:${key}`)) continue;
+      const legacyOptions = { ...defaults, ...activated, ...runtimeOptions() };
+      delete legacyOptions[key];
+      record(name, `legacy-state-without-${key}`, runOne(
+        f,
+        legacyOptions,
+        false,
+        false,
+        scale,
+        false,
+      ));
+    }
+    if (hasPaletteControl(f) && name !== "Quantize") {
+      record(name, "non-identity-palette", runOne(
+        f,
+        {
+          ...defaults,
+          ...activated,
+          ...runtimeOptions(),
+          palette: { ...nearest, options: { levels: 2 } },
+        },
+        false,
+        true,
+        scale,
+        false,
+      ));
+    }
+    if (hasPaletteControl(f)) {
+      const customPalette = {
+        ...user,
+        options: {
+          ...user.options,
+          colors: [[0, 0, 0, 255], [255, 255, 255, 255], [255, 64, 32, 255]],
+          colorDistanceAlgorithm: "RGB",
+        },
+      };
+      record(name, "custom-palette", runOne(
+        f,
+        { ...defaults, ...activated, ...runtimeOptions(), palette: customPalette },
+        false,
+        true,
+        scale,
+        false,
+      ));
+      record(name, "custom-palette-linearized", runOne(
+        f,
+        {
+          ...defaults,
+          ...activated,
+          ...runtimeOptions(),
+          palette: customPalette,
+          _linearize: true,
+        },
+        false,
+        true,
+        scale,
+        false,
       ));
     }
     if (name === "VHS / NTSC") {

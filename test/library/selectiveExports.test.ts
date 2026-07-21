@@ -14,8 +14,21 @@ describe("selective filter exports", () => {
   });
 
   it("provides a lazy loader for every canonical filter", async () => {
-    expect([...lazyFilterNames].sort()).toEqual(Object.keys(filterIndex).sort());
-    await expect(loadFilter("Grayscale")).resolves.toBe(filterIndex.Grayscale);
+    const registeredNames = Object.keys(filterIndex).sort();
+
+    expect([...lazyFilterNames].sort()).toEqual(registeredNames);
+
+    const loadedFilters = await Promise.all(
+      lazyFilterNames.map(async (name) => [name, await loadFilter(name)] as const),
+    );
+
+    for (const [name, loadedFilter] of loadedFilters) {
+      const registeredFilter = filterIndex[name];
+
+      expect(loadedFilter.name).toBe(name);
+      expect(loadedFilter.func).toBe(registeredFilter.func);
+      expect(loadedFilter.optionTypes).toBe(registeredFilter.optionTypes);
+    }
   });
 
   it("rejects unknown filter names clearly", async () => {

@@ -122,15 +122,16 @@ for (const filename of filenames) {
 map.filter((filename) => {
   const relative = path.relative(root, filename).replaceAll(path.sep, "/");
   return relative !== "src/glSmoke.ts"
+    && relative !== "src/ncParity.ts"
     && relative !== "src/wasmSmoke.ts"
     && !relative.startsWith("packages/ditherer-filters/src/wasm/");
 });
 
 const thresholds = {
-  lines: 75,
-  statements: 75,
-  functions: 75,
-  branches: 75,
+  lines: 80,
+  statements: 80,
+  functions: 80,
+  branches: 80,
 };
 const summary = map.getCoverageSummary().toJSON();
 const failures = [];
