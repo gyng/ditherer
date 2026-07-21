@@ -40,7 +40,7 @@
     "@gyng/ditherer-filters": "0.2.0",
     "@radix-ui/react-popover": "^1.1.15",
     "cmdk": "^1.1.1",
-    "fflate": "^0.8.2",
+    "fflate": "^0.8.3",
     "modern-gif": "^2.0.4",
     "mp4box": "^2.3.0",
     "react": "^19.2.4",

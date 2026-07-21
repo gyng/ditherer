@@ -68,7 +68,7 @@
     "validate:release": "node scripts/validate-release.mjs"
   },
   "devDependencies": {
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.3"
   },
   "engines": {
     "node": ">=20.19"
