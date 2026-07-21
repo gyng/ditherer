@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useLayoutEffect, type RefObject } from "react";
 
-const isMobile = () => window.innerWidth <= 768;
+const isCompact = () => window.innerWidth <= 960;
 
 const EDGE = 8; // px from border to trigger resize
 const WINDOW_MARGIN = 16;
@@ -92,7 +92,7 @@ export default function useDraggable(
   };
 
   const ensureInitializedPosition = useCallback((notify = false) => {
-    if (!ref.current || isMobile()) return;
+    if (!ref.current || isCompact()) return;
     if (!initialized.current) {
       applyClampedPosition(ref.current, pos.current, notify);
       initialized.current = true;
@@ -117,7 +117,7 @@ export default function useDraggable(
   }, [ensureInitializedPosition, defaultPosition.x, defaultPosition.y]);
 
   const onMouseDown = useCallback((e: MouseEvent | React.MouseEvent<Element>) => {
-    if (isMobile()) return;
+    if (isCompact()) return;
     if (!ref.current) return;
     ensureInitializedPosition();
 
@@ -197,7 +197,7 @@ export default function useDraggable(
 
   // Update cursor on hover near edges
   const onMouseMove = useCallback((e: MouseEvent | React.MouseEvent<Element>) => {
-    if (isMobile() || !ref.current || (!onScale && !onScaleAbsolute)) return;
+    if (isCompact() || !ref.current || (!onScale && !onScaleAbsolute)) return;
     ensureInitializedPosition();
     const edge = getEdge(ref.current, e.clientX, e.clientY);
     ref.current.style.cursor = edge ? edgeCursor[edge] : "";
@@ -209,7 +209,7 @@ export default function useDraggable(
     const el = ref.current;
     if (!el || !onScale) return;
     const handler = (e: WheelEvent) => {
-      if (isMobile()) return;
+      if (isCompact()) return;
       e.preventDefault();
       e.stopPropagation();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -220,7 +220,7 @@ export default function useDraggable(
   }, [ref, onScale]);
 
   useEffect(() => {
-    if (isMobile()) return undefined;
+    if (isCompact()) return undefined;
     const handleResize = () => {
       if (!ref.current) return;
       ensureInitializedPosition(true);

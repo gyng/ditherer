@@ -53,6 +53,7 @@
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
+  box-sizing: border-box;
   align-items: center;
   position: relative;
   gap: 4px;
@@ -109,6 +110,13 @@
 
 .entryCheckbox {
   justify-self: center;
+}
+
+.entryToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .entryNumber {
@@ -198,7 +206,6 @@
   font-size: 12px;
   cursor: pointer;
   color: #888;
-  min-height: unset;
   line-height: 1;
 }
 
@@ -292,12 +299,6 @@
   line-height: 1.1;
 }
 
-.iconBtn {
-  min-width: 28px;
-  padding: 3px 5px;
-  text-align: center;
-}
-
 .activeToolbarBtn {
   background:
     linear-gradient(180deg, rgba(214, 192, 120, 0.98), rgba(244, 229, 174, 0.98)),
@@ -359,7 +360,8 @@
   font: inherit;
   line-height: 1.1;
   box-sizing: border-box;
-  width: 27px;
+  width: auto;
+  max-width: 120px;
 }
 
 .dragging {
@@ -494,7 +496,7 @@
   justify-content: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .addRow {
     gap: 4px;
     margin-bottom: 3px;
@@ -503,10 +505,16 @@
   .chainList {
     max-height: 240px;
     margin-bottom: 3px;
+    grid-template-columns: 18px 44px 30px minmax(0, 1fr) 6ch 44px;
   }
 
   .entry {
     padding: 3px 4px;
+  }
+
+  .addBtn,
+  .presetSelect {
+    min-height: 44px;
   }
 
   .entryName {
@@ -680,7 +688,24 @@
   background: rgba(0, 0, 0, 0.42);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
+  .confirmTitleClose {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .confirmBtn,
+  .randomCycleInput {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .addEntryPicker :global(button) {
+    min-height: 44px;
+  }
+
   .libraryBrowserFloat {
     position: static;
     transform: none !important;
@@ -704,6 +729,24 @@
   .entryCheckbox {
     width: 18px;
     height: 18px;
+  }
+
+  .entryToggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .entryActions {
+    width: 44px;
+    min-width: 0;
+  }
+
+  .mobileMore {
+    width: 44px;
+    min-width: 44px;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
   }
 
   .removeBtn {

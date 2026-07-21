@@ -330,7 +330,13 @@
   font-weight: bold;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
+  .trigger,
+  .inlineTrigger,
+  .inlineTrigger:active {
+    min-height: 44px;
+  }
+
   .content {
     width: calc(100vw - 12px);
     max-height: min(72dvh, var(--radix-popover-content-available-height));

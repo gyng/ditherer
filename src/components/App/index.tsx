@@ -1996,6 +1996,20 @@ const App = () => {
     screensaverDialogRef.current.focus({ preventScroll: true });
   }, [showScreensaverDialog]);
 
+  useLayoutEffect(() => {
+    if (!showScreensaverDialog || !screensaverDialogRef.current || window.innerWidth <= 960) return;
+    const rect = screensaverDialogRef.current.getBoundingClientRect();
+    const maxX = Math.max(16, window.innerWidth - rect.width - 16);
+    const maxY = Math.max(16, window.innerHeight - rect.height - 16);
+    setScreensaverDialogPosition((current) => {
+      const next = {
+        x: Math.min(Math.max(16, current.x), maxX),
+        y: Math.min(Math.max(16, current.y), maxY),
+      };
+      return next.x === current.x && next.y === current.y ? current : next;
+    });
+  }, [screensaverDialogPosition, showScreensaverDialog]);
+
   useEffect(() => {
     if (!showScreensaverDialog) return;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -2910,14 +2924,28 @@ const App = () => {
   return (
     <div className={s.app} data-active-task={activeTask}>
       <div className={s.chrome} ref={chromeRef}>
-        <h1>ＤＩＴＨＥＲＥＲ ▓▒░</h1>
+        <header className={s.appIdentity}>
+          <div className={s.appIdentityTitleBar}>
+            <span className={s.appIdentityIcon} aria-hidden="true">D</span>
+            <h1>Ditherer</h1>
+            <span className={s.appIdentityWindowButtons} aria-hidden="true">
+              <i />
+              <i />
+            </span>
+          </div>
+          <div className={s.appIdentityMeta}>
+            <span>IMAGE + SIGNAL WORKBENCH</span>
+            <span aria-hidden="true">▓▒░</span>
+          </div>
+        </header>
         {showOnboarding && (
           <aside className={s.onboarding} aria-label="Getting started">
+            <span className={s.onboardingEyebrow}>QUICK START</span>
             <strong>Ready to remix</strong>
             <span>A sample video and starter dither are already running. Choose a look, tune it, then swap in your own media.</span>
-            <span>1 Choose a look → 2 Adjust → 3 Replace media → 4 Export</span>
+            <span className={s.onboardingRoute}>LOOK → TUNE → MEDIA → EXPORT</span>
             <div>
-              <button onClick={() => {
+              <button className={s.primaryButton} onClick={() => {
                 completeOnboarding();
                 navigateToTask("compose");
                 setOpenPresetLibraryRequest((request) => request + 1);
@@ -2948,7 +2976,7 @@ const App = () => {
         <div id="source-task" className={s.sourceTask}>
           <h2>Input</h2>
           <div
-            className={[controls.group, dropping ? controls.dropping : null].join(" ")}
+            className={[controls.group, s.mediaSourceGroup, dropping ? controls.dropping : null].join(" ")}
             onDragLeave={() => setDropping(false)}
             onDragOver={() => setDropping(true)}
             onDragEnter={() => setDropping(true)}
@@ -2958,7 +2986,7 @@ const App = () => {
             <input
               id="imageLoader"
               ref={sourceFileInputRef}
-              className={[controls.file, s.nativeFileInput].join(" ")}
+              className={[controls.file, s.sourceFileInput].join(" ")}
               type="file"
               accept="image/*,video/*"
               onChange={e => {
@@ -2968,11 +2996,24 @@ const App = () => {
               title="Load an image or video file"
               aria-label="Choose an image or video file"
             />
-            <p className={s.inputHelpText}>
-              {state.inputImage || state.video
-                ? "Paste, drag, or choose media to replace the current input."
-                : "Paste, drag, or choose an image or video to get started."}
-            </p>
+            <div className={s.mediaPickerBody}>
+              <button
+                type="button"
+                className={[s.mediaPickerButton, s.primaryButton].join(" ")}
+                onClick={() => sourceFileInputRef.current?.click()}
+                aria-label="Choose image or video"
+              >
+                Choose media…
+              </button>
+              <div className={s.mediaPickerCopy}>
+                <strong>{inputFilename ? `Current: ${inputFilename}` : "No media selected"}</strong>
+                <span>
+                  {state.inputImage || state.video
+                    ? "Drop, paste, or choose a file to replace it."
+                    : "Drop or paste a file here, or choose one from your device."}
+                </span>
+              </div>
+            </div>
             {inputLoadError && (
               <div className={s.inputError} role="alert">
                 <span>{inputLoadError}</span>
@@ -3002,8 +3043,9 @@ const App = () => {
                 className={s.testMediaButton}
                 onClick={loadRandomTestImage}
                 title="Load a random test image"
+                aria-label="Load a random example image"
               >
-                Img?
+                ↻
               </button>
               <select
                 id="test-video-select"
@@ -3024,8 +3066,9 @@ const App = () => {
                 className={s.testMediaButton}
                 onClick={loadRandomTestVideo}
                 title="Load a random test video"
+                aria-label="Load a random example video"
               >
-                Vid?
+                ↻
               </button>
             </div>
           </div>
@@ -3263,7 +3306,7 @@ const App = () => {
         {/* Filter button — always visible, sticky on mobile */}
         <div className={[s.filterBar, s.composeTask].join(" ")}>
           <button
-            className={[s.filterButton, s.waitButton].join(" ")}
+            className={[s.filterButton, s.waitButton, s.primaryButton].join(" ")}
             disabled={filtering}
             onClick={applyChain}
           >
@@ -3377,7 +3420,7 @@ const App = () => {
               ) : <span />}
               {nextTask && (
                 <button
-                  className={s.taskNext}
+                  className={[s.taskNext, s.primaryButton].join(" ")}
                   onClick={() => nextTask.id === "export" ? openExport() : navigateToTask(nextTask.id)}
                 >
                   Next: {nextTask.label} →
@@ -3480,7 +3523,7 @@ const App = () => {
                   } else {
                     navigateToTask(task.id);
                     if (task.id === "preview") {
-                      requestAnimationFrame(() => outputWindowRef.current?.focus());
+                      requestAnimationFrame(() => outputWindowRef.current?.focus({ preventScroll: true }));
                     }
                   }
                 }}
@@ -3534,7 +3577,7 @@ const App = () => {
             <span className={s.toolbarLabel}>Project</span>
             <button onClick={saveCurrentChain}>Save chain</button>
             <button onClick={exportCurrentChain}>Share</button>
-            <button onClick={openExport}>Export…</button>
+            <button className={s.primaryButton} onClick={openExport}>Export…</button>
           </div>
         </nav>
         <div className={s.workspaceStatus} role="status" aria-live="polite">
@@ -3542,10 +3585,10 @@ const App = () => {
             <span className={s.statusLamp} aria-hidden="true" />
             {state.realtimeFiltering ? "AUTO" : "MANUAL"}
           </span>
-          <span>{state.chain.filter((entry) => entry.enabled).length}/{state.chain.length} stages active</span>
-          {state.inputCanvas ? <span>IN {state.inputCanvas.width}×{state.inputCanvas.height}</span> : <span>NO INPUT</span>}
-          {state.outputImage ? <span>OUT {state.outputImage.width}×{state.outputImage.height}</span> : <span>OUTPUT PENDING</span>}
-          {state.frameTime != null ? <span>{state.frameTime.toFixed(1)}ms · {(1000 / state.frameTime).toFixed(1)} fps</span> : null}
+          <span className={s.statusMetric}>{state.chain.filter((entry) => entry.enabled).length}/{state.chain.length} stages active</span>
+          {state.inputCanvas ? <span className={s.statusMetric}>IN {state.inputCanvas.width}×{state.inputCanvas.height}</span> : <span className={s.statusMetric}>NO INPUT</span>}
+          {state.outputImage ? <span className={s.statusMetric}>OUT {state.outputImage.width}×{state.outputImage.height}</span> : <span className={s.statusMetric}>OUTPUT PENDING</span>}
+          {state.frameTime != null ? <span className={s.statusMetric}>{state.frameTime.toFixed(1)}ms · {(1000 / state.frameTime).toFixed(1)} fps</span> : null}
           <span className={s.statusHint}>/ commands · Ctrl/⌘ Z undo</span>
         </div>
       <div className={[
@@ -4209,29 +4252,29 @@ const App = () => {
           </div>
         )}
 
-        <div
-          className={s.dialogHost}
-          ref={saveAsDragRef}
-          role="presentation"
-          onMouseDown={(e) => {
-            const target = e.target as HTMLElement | null;
-            if (!target?.closest(".handle")) return;
-            saveAsDrag.onMouseDown(e);
-          }}
-          onMouseMove={saveAsDrag.onMouseMove}
-          style={showSaveAs ? undefined : { display: "none" }}
-        >
-          {showSaveAs && (
-            <div className={s.dialogOverlay} onMouseDown={(event) => {
-              if (event.target === event.currentTarget) closeExport();
-            }}>
-            <SaveAs
-              outputCanvasRef={outputCanvasRef}
-              onClose={closeExport}
-            />
-            </div>
-          )}
-        </div>
+      </div>
+      <div
+        className={s.dialogHost}
+        ref={saveAsDragRef}
+        role="presentation"
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (!target?.closest(".handle")) return;
+          saveAsDrag.onMouseDown(e);
+        }}
+        onMouseMove={saveAsDrag.onMouseMove}
+        style={showSaveAs ? undefined : { display: "none" }}
+      >
+        {showSaveAs && (
+          <div className={s.dialogOverlay} onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeExport();
+          }}>
+          <SaveAs
+            outputCanvasRef={outputCanvasRef}
+            onClose={closeExport}
+          />
+          </div>
+        )}
       </div>
       {showCommandPalette && (
         <div className={s.dialogOverlay}>

@@ -31,7 +31,7 @@ h2 {
   cursor: default;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   body { font-size: 14px; }
   h1   { font-size: 14px; overflow-wrap: break-word; }
   h2   { font-size: 13px; margin-bottom: 5px; }

@@ -16,6 +16,14 @@
   --input-border: #ccc;
   --separator-top: #808080;
   --separator-bottom: white;
+  --desktop-color: #397f80;
+  --desktop-grid: rgba(255, 255, 255, 0.075);
+  --panel-soft: #e8eef5;
+  --panel-soft-border: #9aabba;
+  --focus-ring: #001a9e;
+  --primary-face: #dce8ff;
+  --primary-text: #00145e;
+  --primary-shadow: #17367e;
 }
 
 /* Windows 98 Rainy Day theme */
@@ -34,6 +42,14 @@
   --input-border: #4f657d;
   --separator-top: #4f657d;
   --separator-bottom: #c1ccd9;
+  --desktop-color: #405a73;
+  --desktop-grid: rgba(255, 255, 255, 0.07);
+  --panel-soft: #dce7f1;
+  --panel-soft-border: #667f98;
+  --focus-ring: #173f6a;
+  --primary-face: #d7e6f1;
+  --primary-text: #102d49;
+  --primary-shadow: #314d68;
 }
 
 html,
@@ -57,6 +73,7 @@ body {
 
 body {
   background: var(--bg-color);
+  accent-color: var(--beautiful-blue);
 }
 
 a {
@@ -67,7 +84,7 @@ body[style*="cursor: wait"] * {
   cursor: wait !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   html, body {
     overscroll-behavior: none;
     overflow-x: hidden;

@@ -31,7 +31,8 @@
   background: var(--light-gray);
   box-sizing: border-box;
   height: 100vh;
-  min-width: 320px;
+  flex: 0 0 clamp(336px, 24vw, 380px);
+  min-width: 336px;
   overflow-x: hidden;
   overflow-y: auto;
   position: sticky;
@@ -39,8 +40,71 @@
   /* Sticky establishes a stacking context. Keep sidebar-owned dialogs above
      the later workspace sibling so their full-screen overlays remain usable. */
   z-index: 200;
-  width: 10vw;
-  padding: 15px;
+  width: clamp(336px, 24vw, 380px);
+  padding: 10px 12px 12px;
+  border-right: 2px outset var(--button-highlight);
+  box-shadow: 2px 0 0 rgba(0, 0, 0, 0.22);
+}
+
+.appIdentity {
+  margin: -7px -9px 8px;
+  padding: 2px;
+  border: 2px outset var(--button-highlight);
+  background: var(--light-gray);
+  box-shadow: 1px 1px 0 var(--button-dk-shadow);
+}
+
+.appIdentityTitleBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 23px;
+  padding: 2px 4px;
+  background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
+  color: #fff;
+}
+
+.appIdentityTitleBar h1 {
+  flex: 1 1 auto;
+  color: inherit;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.appIdentityIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 1px solid #fff;
+  background: #fff;
+  color: var(--beautiful-blue);
+  box-shadow: inset -1px -1px #5f5f5f;
+  font: bold 11px/1 "Courier New", monospace;
+}
+
+.appIdentityWindowButtons {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.appIdentityWindowButtons i {
+  display: block;
+  width: 13px;
+  height: 12px;
+  border: 1px outset #fff;
+  background: var(--light-gray);
+}
+
+.appIdentityMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 5px 3px;
+  color: #333;
+  font: bold 9px/1.2 "Courier New", monospace;
+  letter-spacing: 0.08em;
 }
 
 /* The task navigator is the app's information architecture, not a mobile-only
@@ -69,11 +133,32 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 100vh;
-  background-color: #6c7478;
+  background-color: var(--desktop-color);
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    linear-gradient(var(--desktop-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--desktop-grid) 1px, transparent 1px);
   background-size: 16px 16px;
+}
+
+@media (min-width: 961px) {
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspaceToolbar,
+  .workspaceStatus {
+    flex: 0 0 auto;
+  }
+
+  .canvases {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
 }
 
 .workspaceToolbar {
@@ -86,7 +171,7 @@
   flex-wrap: wrap;
   gap: 6px 12px;
   padding: 5px 7px;
-  background: var(--light-gray);
+  background: linear-gradient(#d4d4d4, var(--light-gray));
   border-bottom: 2px outset var(--button-highlight);
   box-shadow: 0 1px 0 var(--button-dk-shadow);
 }
@@ -143,9 +228,9 @@
 }
 
 .taskNav button[aria-current="page"] .taskNumber {
-  border-color: #174b85;
-  background: var(--beautiful-blue);
-  color: #fff;
+  border-color: #fff;
+  background: #fff;
+  color: var(--beautiful-blue);
 }
 
 .exportTools {
@@ -165,7 +250,8 @@
 
 .workspaceToolbar button[aria-pressed="true"] {
   border-style: inset;
-  background: #e8e8e8;
+  background: #edf3fb;
+  color: #00145e;
   box-shadow: none;
 }
 
@@ -197,7 +283,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px 14px;
+  gap: 4px 8px;
   min-height: 25px;
   box-sizing: border-box;
   padding: 3px 9px;
@@ -215,6 +301,8 @@
   gap: 5px;
   color: #ffdca2;
   font-weight: bold;
+  padding-right: 8px;
+  border-right: 1px solid #62696d;
 }
 
 .statusMode[data-active="true"] {
@@ -240,10 +328,21 @@
   color: #aeb6b6;
 }
 
+.statusMetric {
+  padding: 1px 7px 1px 0;
+  border-right: 1px solid #50575b;
+  white-space: nowrap;
+}
+
 .taskNav button[aria-current="page"] {
   border-style: inset;
-  background: #fff;
+  background: var(--beautiful-blue);
+  color: #fff;
   box-shadow: none;
+}
+
+.taskNav button[aria-current="page"]:hover {
+  background: var(--beautiful-blue);
 }
 
 .taskContext {
@@ -251,10 +350,11 @@
   gap: 3px;
   margin: 5px 0 9px;
   padding: 8px 9px 9px;
-  border: 2px inset #b7c3d1;
+  border: 2px inset var(--panel-soft-border);
   border-left: 5px solid var(--beautiful-blue);
-  background: #edf3fa;
+  background: var(--panel-soft);
   color: #222;
+  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .taskContextStep {
@@ -290,6 +390,23 @@
 .taskProgress button {
   min-height: 32px;
   margin: 0;
+}
+
+.primaryButton {
+  border-color: #fff var(--primary-shadow) var(--primary-shadow) #fff;
+  background: var(--primary-face);
+  color: var(--primary-text);
+  font-weight: bold;
+  box-shadow: 1px 1px 0 #07143d;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #edf4ff;
+  color: #000b56;
+}
+
+.primaryButton:active:not(:disabled) {
+  background: #cbdcff;
 }
 
 .taskBack {
@@ -421,6 +538,13 @@
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 8px;
+}
+
+.chrome .github a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding-inline: 2px;
 }
 
 .webMCPBadgeWrap {
@@ -599,10 +723,24 @@
   margin: 6px 0 10px;
   padding: 8px;
   background: #fffbd7;
-  border: 2px inset #d9c96e;
+  border: 2px inset #b9a74b;
   color: #2f2a10;
   font-size: 11px;
   line-height: 1.35;
+  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.onboardingEyebrow {
+  color: #655500;
+  font: bold 9px/1.2 "Courier New", monospace;
+  letter-spacing: 0.12em;
+}
+
+.onboardingRoute {
+  padding: 3px 5px;
+  border: 1px inset #d6c86e;
+  background: #fffef0;
+  font: bold 10px/1.25 "Courier New", monospace;
 }
 
 .onboarding > div {
@@ -680,17 +818,64 @@
   white-space: nowrap;
 }
 
-.nativeFileInput {
-  width: 100%;
-  margin-top: -4px;
-  box-sizing: border-box;
+.sourceFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.inputHelpText {
-  margin: 6px 1px 0;
+.sourceFileInput:focus-visible + .mediaPickerBody {
+  outline: 2px dotted var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.mediaSourceGroup {
+  position: relative;
+}
+
+.mediaPickerBody {
+  display: grid;
+  grid-template-columns: minmax(132px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin: -5px 1px 1px;
+  padding: 9px;
+  border: 2px inset var(--input-border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(235, 241, 246, 0.88)),
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(0, 0, 0, 0.025) 6px 7px);
+}
+
+.mediaPickerButton {
+  min-height: 38px;
+  margin: 0;
+}
+
+.mediaPickerCopy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.mediaPickerCopy strong {
+  overflow: hidden;
+  color: #202832;
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mediaPickerCopy span {
+  color: #53606c;
+  font-size: 10px;
   line-height: 1.3;
-  color: #555;
 }
 
 .testMediaPicker {
@@ -700,14 +885,14 @@
 
 .testMediaToolbar {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
   margin-top: -6px;
   min-width: 0;
 }
 
 .testMediaTrigger {
-  flex: 0 0 auto;
+  flex: 1 1 0;
   font-weight: bold;
   min-height: unset;
   appearance: none;
@@ -724,7 +909,7 @@
   padding: 3px 8px;
   margin: 1px;
   font: inherit;
-  width: 74px;
+  width: auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: clip;
@@ -738,7 +923,8 @@
   min-height: unset;
   padding: 3px 8px;
   font: inherit;
-  width: 42px;
+  width: 30px;
+  font: bold 16px/1 "Courier New", monospace;
 }
 
 .testMediaToolbar > :nth-child(2) {
@@ -759,8 +945,9 @@
 .menuItem {
   background: none;
   border: 1px solid transparent;
-  padding: 2px 8px;
-  font-size: 12px;
+  min-height: 28px;
+  padding: 3px 6px;
+  font-size: 11px;
   font-family: inherit;
   cursor: pointer;
   color: var(--button-text, black);
@@ -793,7 +980,7 @@
   align-items: center;
   gap: 4px;
   border: 1px solid transparent;
-  padding: 2px 6px;
+  padding: 1px;
   margin: 0;
   font-size: 12px;
   color: var(--button-text, black);
@@ -804,7 +991,7 @@
 }
 
 .menuSelect {
-  min-height: unset;
+  min-height: 28px;
   font: inherit;
   color: inherit;
   background: var(--light-gray, #c0c0c0);
@@ -813,7 +1000,7 @@
   border-right: 1px solid #404040;
   border-bottom: 1px solid #404040;
   padding: 1px 18px 1px 4px;
-  height: 20px;
+  height: 28px;
   box-sizing: border-box;
 }
 
@@ -901,7 +1088,7 @@
 
 .canvases {
   min-width: 0;
-  min-height: calc(100vh - 69px);
+  min-height: 0;
 }
 
 .canvasesFloating .canvasWindow {
@@ -919,8 +1106,8 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 10px;
-  padding: 10px;
+  gap: 12px;
+  padding: 12px;
   box-sizing: border-box;
 }
 
@@ -931,6 +1118,7 @@
   min-width: 0;
   margin: 0;
   overflow: auto;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.42);
 }
 
 .canvasesDocked .canvasWindow > div {
@@ -1948,7 +2136,7 @@
   background: var(--light-gray);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .filterInspectorHeader {
     padding: 9px 10px;
   }
@@ -1963,7 +2151,7 @@
 
   .inspectorSearch,
   .inspectorActions button {
-    min-height: 42px;
+    min-height: 44px;
   }
 
   .app {
@@ -1996,7 +2184,14 @@
   .app[data-active-task="compose"] .canvases,
   .app[data-active-task="adjust"] .canvases,
   .app[data-active-task="export"] .canvases {
-    display: none;
+    display: contents;
+  }
+
+  .app[data-active-task="source"] .canvases > .canvasWindow,
+  .app[data-active-task="compose"] .canvases > .canvasWindow,
+  .app[data-active-task="adjust"] .canvases > .canvasWindow,
+  .app[data-active-task="export"] .canvases > .canvasWindow {
+    display: none !important;
   }
 
   .app[data-active-task="preview"] .inputCanvasWindow {
@@ -2153,11 +2348,41 @@
   .app[data-active-task="preview"] .menuBar {
     flex: 0 0 auto;
     flex-wrap: nowrap;
-    overflow-x: auto;
+    overflow: visible;
   }
 
   .app[data-active-task="preview"] .menuBar > * {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .app[data-active-task="preview"] .menuItem,
+  .app[data-active-task="preview"] .menuSelect {
+    width: 100%;
+    padding-inline: 4px;
+    font-size: 12px;
+  }
+
+  .app[data-active-task="preview"] .menuPopupWrap > .menuItem {
+    width: 100%;
+  }
+
+  .screensaverFloat,
+  .audioModFloat {
+    inset: 0;
+    transform: none !important;
+    width: 100%;
+    height: 100%;
+  }
+
+  .screensaverDialog,
+  .audioModDialog {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    max-width: none;
+    max-height: none;
+    box-sizing: border-box;
   }
 
   .comparisonControl {
@@ -2214,17 +2439,23 @@
     font-size: 14px;
   }
 
-  .filterBar .filterButton:disabled {
-    opacity: 0.7;
+  .menuSelect {
+    min-height: 44px;
+    height: 44px;
+    font-size: 14px;
   }
 
-  .nativeFileInput {
-    margin-top: -6px;
+  .filterBar .filterButton:disabled {
+    opacity: 0.7;
   }
 
   .testMediaPicker {
     margin-top: 6px;
     padding-bottom: 1px;
+  }
+
+  .mediaPickerButton {
+    min-height: 44px;
   }
 
   .testMediaToolbar {
@@ -2241,16 +2472,35 @@
   .testMediaTrigger {
     width: 100%;
     min-width: 0;
+    min-height: 44px;
     padding: 2px 6px;
   }
 
   .testMediaButton {
-    width: auto;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 2px 6px;
+  }
+
+  .chrome .github a,
+  .webMCPBadge {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .chrome .github a {
+    display: inline-flex;
+    align-items: center;
+    padding-inline: 4px;
   }
 
   .inputTweaks {
     gap: 0;
+  }
+
+  .taskProgress button {
+    min-height: 44px;
   }
 
   .videoControlRow {

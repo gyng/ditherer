@@ -58,7 +58,9 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const [autoRecordFps, setAutoRecordFps] = useState(true);
   const [recordFps, setRecordFps] = useState(30);
   const [includeVideoAudio, setIncludeVideoAudio] = useState(true);
-  const [videoLoopMode, setVideoLoopMode] = useState<"realtime" | "offline" | "webcodecs">("webcodecs");
+  const [videoLoopMode, setVideoLoopMode] = useState<"realtime" | "offline" | "webcodecs">(
+    state.video ? "webcodecs" : "realtime"
+  );
   const [reliableScope, setReliableScope] = useState<"loop" | "range">("loop");
   const [reliableStrictValidation, setReliableStrictValidation] = useState(false);
   const [reliableMaxFps, setReliableMaxFps] = useState(DEFAULT_RELIABLE_MAX_FPS);

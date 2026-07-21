@@ -7,11 +7,15 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--light-gray, #c0c0c0);
+  color: var(--button-text, #000);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.68);
 }
 
 .titleBar {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -68,13 +72,14 @@
 
 /* Tab content */
 .tabContent {
-  border-top: 2px solid #ffffff;
+  border: 2px inset var(--button-highlight, #fff);
   padding: 12px;
   margin: 0 8px 8px;
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
+  background: var(--light-gray, #c0c0c0);
 }
 
 .videoTab {
@@ -186,6 +191,13 @@
   cursor: default;
 }
 
+.buttons .btn:first-child:not(:disabled) {
+  border-color: #fff var(--primary-shadow, #17367e) var(--primary-shadow, #17367e) #fff;
+  background: var(--primary-face, #dce8ff);
+  color: var(--primary-text, #00145e);
+  font-weight: bold;
+}
+
 /* Video preview */
 .videoPreview {
   max-width: 100%;
@@ -240,7 +252,7 @@
     );
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .dialog {
     width: 100vw;
     max-width: none;
@@ -408,7 +420,7 @@
 }
 
 /* Mobile */
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .dialog {
     width: 100vw;
     max-width: none;

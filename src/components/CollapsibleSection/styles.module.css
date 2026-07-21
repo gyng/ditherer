@@ -29,13 +29,14 @@
 
 .collapsible .header {
   cursor: pointer;
+  min-height: 28px;
 }
 
 .collapsible.collapsed .content {
   max-height: 0 !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .section {
     margin-top: 12px;
   }
@@ -44,9 +45,12 @@
     display: inline;
   }
 
-  .header {
+  .header,
+  .collapsible .header {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+    box-sizing: border-box;
   }
 
   .collapsed .content {

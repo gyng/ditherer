@@ -93,7 +93,11 @@ const ChainList = ({
   const [screensaverCycleSeconds, setScreensaverCycleSeconds] = useState<number | null>(getCurrentScreensaverCycleSeconds());
   const dragCounter = useRef(0);
   const libraryDragRef = useRef<HTMLDivElement | null>(null);
-  const libraryDrag = useDraggable(libraryDragRef, { defaultPosition: { x: 560, y: 90 } });
+  const [libraryDefaultPosition] = useState(() => ({
+    x: Math.max(12, (window.innerWidth - 984) / 2),
+    y: Math.max(16, (window.innerHeight - Math.min(window.innerHeight * 0.72 + 4, 764)) / 2),
+  }));
+  const libraryDrag = useDraggable(libraryDragRef, { defaultPosition: libraryDefaultPosition });
   const ensureLibraryDragInit = libraryDrag.ensureInitializedPosition;
   // The library-browser wrapper mounts lazily, so useDraggable's own
   // init effect (which runs before ref.current is attached) never applies
@@ -525,7 +529,7 @@ const ChainList = ({
             title="Open full filter/preset browser"
             aria-label="Open filter and preset library"
           >
-            ▤
+            <span aria-hidden="true">▤</span> Library…
           </button>
           <select
             className={s.presetSelect}
@@ -537,7 +541,7 @@ const ChainList = ({
             title="Load a preset"
             aria-label="Load a preset"
           >
-            <option value="" disabled>&#9733;</option>
+            <option value="" disabled>Preset…</option>
             {PRESET_CATEGORIES.map((cat) => (
               <optgroup key={cat} label={cat}>
                 {CHAIN_PRESETS
@@ -554,7 +558,7 @@ const ChainList = ({
             title="Random curated preset"
             aria-label="Load a random curated preset"
           >
-            &#9733;?
+            <span aria-hidden="true">★</span> Random look
           </button>
           <button
             className={[s.addBtn, s.randomAction].join(" ")}
@@ -562,15 +566,15 @@ const ChainList = ({
             title="Random filter chain"
             aria-label="Create a random filter chain"
           >
-            &#9861;
+            <span aria-hidden="true">⚭</span> Random chain
           </button>
           <button
-            className={[s.addBtn, s.iconBtn, randomCycleSeconds != null ? s.activeToolbarBtn : ""].join(" ")}
+            className={[s.addBtn, randomCycleSeconds != null ? s.activeToolbarBtn : ""].join(" ")}
             onClick={promptRandomCycle}
             title={randomCycleSeconds != null ? `Random cycle every ${randomCycleSeconds}s (click to change or stop)` : "Prompt for random cycle interval"}
             aria-label={randomCycleSeconds != null ? `Random cycle every ${randomCycleSeconds} seconds` : "Set random cycle interval"}
           >
-            &#8635;
+            <span aria-hidden="true">↻</span> {randomCycleSeconds != null ? "Cycling…" : "Cycle…"}
           </button>
           <button
             className={s.addBtn}
@@ -578,7 +582,7 @@ const ChainList = ({
             title="Clear filter chain"
             aria-label="Clear filter chain"
           >
-            &#10005;
+            <span aria-hidden="true">×</span> Clear
           </button>
           <button
             className={[s.addBtn, chainAudioActive ? s.activeToolbarBtn : ""].join(" ")}
@@ -665,17 +669,19 @@ const ChainList = ({
               onMouseLeave={handleMouseLeave}
             >
               <span className={s.dragHandle}>&#9776;</span>
-              <input
-                className={s.entryCheckbox}
-                type="checkbox"
-                checked={entry.enabled}
-                aria-label={`${entry.enabled ? "Disable" : "Enable"} ${entry.displayName}`}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  actions.chainToggle(entry.id);
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
+              <label className={s.entryToggle} onClick={(event) => event.stopPropagation()}>
+                <input
+                  className={s.entryCheckbox}
+                  type="checkbox"
+                  checked={entry.enabled}
+                  aria-label={`${entry.enabled ? "Disable" : "Enable"} ${entry.displayName}`}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    actions.chainToggle(entry.id);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </label>
               <span className={s.entryNumber} aria-label={`Stage ${index + 1}`}>
                 {String(index + 1).padStart(2, "0")}
               </span>
@@ -943,6 +949,7 @@ const ChainList = ({
               <span className={s.confirmTitleText}>ditherer.exe</span>
               <button
                 className={s.confirmTitleClose}
+                aria-label="Close clear confirmation"
                 onClick={() => setShowClearConfirm(false)}
               >
                 &#10005;
@@ -1018,6 +1025,7 @@ const ChainList = ({
               <span className={s.confirmTitleText}>Random Chain Swap</span>
               <button
                 className={s.confirmTitleClose}
+                aria-label="Close random cycle settings"
                 onClick={() => setShowRandomCycleModal(false)}
               >
                 x

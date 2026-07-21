@@ -62,6 +62,7 @@
 
 .groupDisclosure {
   display: block;
+  min-height: 28px;
   border: 0;
   box-shadow: none;
   color: inherit;
@@ -154,8 +155,8 @@
 }
 
 .colorArray .color {
-  min-height: 16px;
-  min-width: 16px;
+  min-height: 24px;
+  min-width: 24px;
   cursor: pointer;
 }
 
@@ -484,6 +485,13 @@ button,
   margin: 1px;
   outline: none;
   user-select: none;
+  cursor: pointer;
+  transition: background-color 80ms linear, color 80ms linear;
+}
+
+button:hover:not(:disabled),
+.button:hover:not(:disabled) {
+  background-color: #d8d8d8;
 }
 
 button:active,
@@ -495,8 +503,15 @@ button:active,
 
 button:focus-visible,
 .button:focus-visible {
-  outline: 2px dotted var(--button-text);
-  outline-offset: -5px;
+  outline: 2px dotted var(--focus-ring);
+  outline-offset: 2px;
+}
+
+button:disabled,
+.button:disabled {
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .titleBar {
@@ -626,7 +641,7 @@ button:focus-visible,
   border-radius: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .controlField {
     padding: 10px 9px 11px;
   }
@@ -634,20 +649,41 @@ button:focus-visible,
   .enum,
   .numberInput,
   .textInput {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .range .rangeGroup > input[type=range] {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .checkboxToggle {
-    min-height: 40px;
+    min-height: 44px;
+  }
+
+  .actionControl {
+    min-height: 44px;
+  }
+
+  .paletteSearchRow {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+
+  .paletteSearch,
+  .paletteFavoriteButton {
+    min-height: 44px;
+  }
+
+  .paletteFavoriteButton {
+    min-width: 44px;
   }
 
   .info,
   .resetControl {
     min-height: 30px;
+  }
+
+  .groupDisclosure {
+    min-height: 44px;
   }
 
   .resetControl span {
@@ -679,7 +715,7 @@ button:focus-visible,
   width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .group {
     margin-top: 7px;
     padding: 0 2px 2px;
@@ -691,12 +727,13 @@ button:focus-visible,
   }
 
   .enum {
+    min-height: 44px;
     padding: 8px;
     font-size: 14px;
   }
 
   .checkbox {
-    min-height: 36px;
+    min-height: 44px;
     align-items: center;
     gap: 6px;
     margin: 2px 0;
@@ -708,12 +745,13 @@ button:focus-visible,
   }
 
   .range .rangeGroup > input[type=range] {
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
   }
 
   .colorArray .color {
-    min-height: 28px;
-    min-width: 28px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .range {
@@ -731,7 +769,7 @@ button:focus-visible,
   }
 
   .file {
-    min-height: 38px;
+    min-height: 44px;
     padding: 6px;
     font-size: 14px;
   }

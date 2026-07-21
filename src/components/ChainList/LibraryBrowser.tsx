@@ -167,7 +167,7 @@ const LibraryBrowser = ({
   const [favorites, setFavorites] = useState<Set<string>>(() => readStoredNames(FAVORITES_KEY));
   const [recents, setRecents] = useState<string[]>(() => [...readStoredNames(RECENTS_KEY)]);
   const [mobileView, setMobileView] = useState<"list" | "details">("list");
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useMediaQuery("(max-width: 960px)");
   const [selectedFilterName, setSelectedFilterName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, FilterOptionValues>>({});
@@ -176,6 +176,10 @@ const LibraryBrowser = ({
   const queryRef = useRef<HTMLInputElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
+  const mobileBackRef = useRef<HTMLButtonElement>(null);
+  const selectedFilterButtonRef = useRef<HTMLButtonElement>(null);
+  const selectedPresetButtonRef = useRef<HTMLButtonElement>(null);
+  const previousMobileViewRef = useRef<"list" | "details">("list");
 
   const filteredFilters = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -364,6 +368,21 @@ const LibraryBrowser = ({
     if (!open) return;
     detailsRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [open, tab, selectedFilterName, selectedPresetName]);
+
+  useEffect(() => {
+    const previousView = previousMobileViewRef.current;
+    previousMobileViewRef.current = mobileView;
+    if (!open || !isMobile) return;
+    const frame = requestAnimationFrame(() => {
+      if (mobileView === "details") {
+        mobileBackRef.current?.focus({ preventScroll: true });
+      } else if (previousView === "details") {
+        const target = tab === "filters" ? selectedFilterButtonRef.current : selectedPresetButtonRef.current;
+        target?.focus({ preventScroll: true });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isMobile, mobileView, open, selectedFilterName, selectedPresetName, tab]);
 
   useEffect(() => {
     if (!open || fallbackImage) return;
@@ -666,6 +685,7 @@ const LibraryBrowser = ({
                 return (
               <div key={entry.displayName} className={s.listItemRow}>
                 <button
+                  ref={selectedFilter?.displayName === entry.displayName ? selectedFilterButtonRef : undefined}
                   className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}${glBlocked ? " " + s.listItemDisabled : ""}`}
                   onClick={() => { setSelectedFilterName(entry.displayName); if (isMobile) setMobileView("details"); }}
                   onDoubleClick={() => !glBlocked && addSelectedFilter(entry)}
@@ -705,7 +725,7 @@ const LibraryBrowser = ({
           <div ref={detailsRef} className={s.details} data-testid="filter-library-details" data-no-drag="true">
             {selectedFilter ? (
               <>
-                <button className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to filters</button>
+                <button ref={mobileBackRef} className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to filters</button>
                 <div className={s.detailTitle}>{selectedFilter.displayName}</div>
                 <div className={s.detailMeta}>{selectedFilter.category}</div>
                 <div className={s.detailMeta}>
@@ -889,6 +909,7 @@ const LibraryBrowser = ({
                 return (
               <button
                 key={preset.name}
+                ref={selectedPreset?.name === preset.name ? selectedPresetButtonRef : undefined}
                 className={`${s.listItem} ${s.listItemWithThumb} ${selectedPreset?.name === preset.name ? s.listItemActive : ""}`}
                 onClick={() => { setSelectedPresetName(preset.name); if (isMobile) setMobileView("details"); }}
                 onDoubleClick={() => {
@@ -918,7 +939,7 @@ const LibraryBrowser = ({
           <div ref={detailsRef} className={s.details} data-testid="preset-library-details" data-no-drag="true">
             {selectedPreset ? (
               <>
-                <button className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to presets</button>
+                <button ref={mobileBackRef} className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to presets</button>
                 <div className={s.detailTitle}>{selectedPreset.name}</div>
                 <div className={s.detailMeta}>{selectedPreset.category}</div>
                 <div className={s.previewWrap}>

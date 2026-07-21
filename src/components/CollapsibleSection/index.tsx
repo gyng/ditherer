@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import s from "./styles.module.css";
 
-const isMobile = () =>
-  typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+const isCompact = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 960px)").matches;
 
 const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible = false, forceOpen }: {
   title: string;
@@ -12,9 +12,11 @@ const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible 
   forceOpen?: boolean;
 }) => {
   const [collapsed, setCollapsed] = useState(() =>
-    collapsible ? !defaultOpen : (isMobile() && !defaultOpen)
+    collapsible ? !defaultOpen : (isCompact() && !defaultOpen)
   );
+  const [compact, setCompact] = useState(isCompact);
   const contentRef = useRef<HTMLDivElement>(null);
+  const canToggle = collapsible || compact;
 
   // Sync collapsed state when forceOpen changes
   useEffect(() => {
@@ -25,10 +27,10 @@ const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible 
 
   // Re-evaluate collapsed state on resize (e.g., rotating device)
   useEffect(() => {
-    if (collapsible) return; // collapsible sections manage their own state on all sizes
-    const mq = window.matchMedia("(max-width: 768px)");
+    const mq = window.matchMedia("(max-width: 960px)");
     const handler = (e: MediaQueryListEvent) => {
-      if (!e.matches) setCollapsed(false); // always expand on desktop
+      setCompact(e.matches);
+      if (!e.matches && !collapsible) setCollapsed(false); // always expand static desktop sections
     };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
@@ -38,14 +40,14 @@ const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible 
     <div className={[s.section, collapsed ? s.collapsed : "", collapsible ? s.collapsible : ""].join(" ")}>
       <div
         className={s.header}
-        role="button"
-        tabIndex={0}
-        aria-expanded={!collapsed}
+        role={canToggle ? "button" : undefined}
+        tabIndex={canToggle ? 0 : undefined}
+        aria-expanded={canToggle ? !collapsed : undefined}
         onClick={() => {
-          if (collapsible || isMobile()) setCollapsed(c => !c);
+          if (canToggle) setCollapsed(c => !c);
         }}
         onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === " ") && (collapsible || isMobile())) {
+          if ((e.key === "Enter" || e.key === " ") && canToggle) {
             e.preventDefault();
             setCollapsed(c => !c);
           }
