@@ -36,4 +36,17 @@ describe("packed application artifact validation", () => {
       "packed Ditherer build is missing filter worker module, WASM payload",
     );
   });
+
+  it("rejects a packed application JavaScript chunk above its explicit budget", () => {
+    const files = new Map([
+      ["index.html", ""],
+      ["assets/filterWorker-def.js", ""],
+      ["assets/rgba2laba-abc.js", "data:application/wasm;base64,AGFzbQ=="],
+      ["assets/index-abc.js", "x".repeat(2_000_001)],
+    ]);
+
+    expect(() => assertPackedAppArtifacts(files)).toThrow(
+      "packed Ditherer JavaScript chunk assets/index-abc.js is 2000001 bytes (budget 2000000)",
+    );
+  });
 });

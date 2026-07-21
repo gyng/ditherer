@@ -986,6 +986,10 @@ const migratedScalarDefaults = new Set([
   "Palette Mapper",
   "Voronoi",
   "Thermal camera",
+  // VHS has bespoke missing-option profiles for every control added after its
+  // original schema. Removing all historical scalars creates no real saved
+  // state and feeds deliberately invalid uniforms to its fallback probe.
+  "VHS / NTSC",
 ]);
 
 const migratedEnumDefaults = new Set([
@@ -1219,9 +1223,11 @@ const main = async () => {
       ));
     }
     if (name === "VHS / NTSC") {
-      const legacyOptions = { ...defaults, ...runtimeOptions() };
-      delete legacyOptions.tapeSharpness;
-      record(name, "legacy-state-without-tapeSharpness", runOne(f, legacyOptions, true, true));
+      for (const key of ["tapeSharpness", "ringingFrequency", "ringingPower"]) {
+        const legacyOptions = { ...defaults, ...runtimeOptions() };
+        delete legacyOptions[key];
+        record(name, `legacy-state-without-${key}`, runOne(f, legacyOptions, true, true));
+      }
       const floatCapable = Boolean(getGLCtx()?.gl.getExtension("EXT_color_buffer_float"));
       if (floatCapable && !vhsNtscGLUsingFloatPath()) {
         record(name, "RGBA16F-capability-selection", {

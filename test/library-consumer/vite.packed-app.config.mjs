@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import baseConfig from "../../vite.config.js";
+import { PACKED_APP_CHUNK_BUDGET_BYTES } from "../../scripts/packed-app-artifacts.mjs";
 
 const repositoryRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const installedPackageRoot = path.join(
@@ -54,5 +55,9 @@ export default defineConfig({
     outDir: "/tmp/ditherer-packed-app-build",
     emptyOutDir: true,
     manifest: true,
+    // This synthetic consumer bundles the already-built package graph, whose
+    // filter registry can no longer be split along source-module boundaries.
+    // A matching post-build assertion keeps this exception hard-bounded.
+    chunkSizeWarningLimit: PACKED_APP_CHUNK_BUDGET_BYTES / 1000,
   },
 });

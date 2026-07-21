@@ -4,6 +4,12 @@ import { fileURLToPath } from "node:url";
 
 const workerModulePattern = /(^|\/)filterWorker-[^/]+\.js$/;
 const inlineWasmMarker = "data:application/wasm;base64,";
+export const PACKED_APP_CHUNK_BUDGET_BYTES = 2_000_000;
+
+const largestJavaScriptArtifact = (files) => [...files.entries()]
+  .filter(([name]) => name.endsWith(".js"))
+  .map(([name, contents]) => ({ name, bytes: Buffer.byteLength(contents) }))
+  .sort((left, right) => right.bytes - left.bytes)[0] ?? null;
 
 export const summarizePackedAppArtifacts = (files) => ({
   hasHtmlEntry: files.has("index.html"),
@@ -25,7 +31,14 @@ export const assertPackedAppArtifacts = (files) => {
   if (missing.length > 0) {
     throw new Error(`packed Ditherer build is missing ${missing.join(", ")}`);
   }
-  return summary;
+  const largestJavaScript = largestJavaScriptArtifact(files);
+  if (largestJavaScript && largestJavaScript.bytes > PACKED_APP_CHUNK_BUDGET_BYTES) {
+    throw new Error(
+      `packed Ditherer JavaScript chunk ${largestJavaScript.name} is `
+      + `${largestJavaScript.bytes} bytes (budget ${PACKED_APP_CHUNK_BUDGET_BYTES})`,
+    );
+  }
+  return { ...summary, largestJavaScript };
 };
 
 const readBuildFiles = async (root, directory = root, files = new Map()) => {
@@ -53,6 +66,7 @@ if (isCommand) {
   const summary = assertPackedAppArtifacts(files);
   console.log(
     `Packed Ditherer artifacts verified: ${files.size} files, `
-    + `worker=${summary.hasWorkerModule}, wasm=${summary.hasWasmPayload}`,
+    + `worker=${summary.hasWorkerModule}, wasm=${summary.hasWasmPayload}, `
+    + `largest-js=${summary.largestJavaScript?.bytes ?? 0} bytes`,
   );
 }

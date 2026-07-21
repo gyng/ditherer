@@ -1058,7 +1058,6 @@ pub fn error_diffuse_buffer(
 ) {
     let w = width as usize;
     let h = height as usize;
-    let kw = kernel_width as i32;
     let w_i = w as i32;
     let h_i = h as i32;
 
