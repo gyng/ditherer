@@ -939,8 +939,12 @@ const outputScaleFor = (name: string): number =>
 const STRICT_SPEC_FILTERS = new Set([
   "Apollo Slow-Scan TV",
   "Apple II HGR",
+  "Baird Televisor",
+  "CGA Composite",
+  "DLP Color Wheel",
   "Gameboy Camera",
   "PAL / SECAM",
+  "PLATO Plasma",
   "PXL-2000",
   "Teletext",
   "Wavelet Codec",
@@ -1199,6 +1203,36 @@ const canvasPixels = (canvas: HTMLCanvasElement): Uint8ClampedArray | null =>
   canvas.getContext("2d", { willReadFrequently: true })
     ?.getImageData(0, 0, canvas.width, canvas.height).data.slice() ?? null;
 
+const runSdfInteriorDistance = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["SDF Stylize"] as FilterLike;
+  let pixels: Uint8ClampedArray | null;
+  try {
+    const output = filter.func(makeSolidCanvas(64, 64, 255), {
+      ...(filter.defaults ?? {}),
+      ...runtimeOptions(),
+      mode: "BEVEL",
+      threshold: 0.5,
+      spacing: 24,
+      lineColor: [0, 0, 0],
+      fillColor: [255, 255, 255],
+      palette: { ...nearest, options: { levels: 256 } },
+    }) as HTMLCanvasElement;
+    pixels = canvasPixels(output);
+  } catch (error) {
+    return { ok: false, reason: `SDF interior render threw: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  if (!pixels) return { ok: false, reason: "SDF interior readback failed" };
+  const luminanceAt = (x: number, y: number): number => {
+    const index = (y * 64 + x) * 4;
+    return 0.2126 * pixels![index] + 0.7152 * pixels![index + 1] + 0.0722 * pixels![index + 2];
+  };
+  const boundary = luminanceAt(1, 32);
+  const center = luminanceAt(32, 32);
+  return center > boundary + 60
+    ? { ok: true }
+    : { ok: false, reason: `signed interior distance collapsed (boundary=${boundary.toFixed(1)}, center=${center.toFixed(1)})` };
+};
+
 const runApolloFractionalHold = (): { ok: true } | { ok: false; reason: string } => {
   const filter = filterIndex["Apollo Slow-Scan TV"] as FilterLike;
   const options = {
@@ -1285,6 +1319,37 @@ const runGameboyThresholdMatrix = (): { ok: true } | { ok: false; reason: string
   return hasFourPixelRepeat && differsAtTwo && colors.size >= 2
     ? { ok: true }
     : { ok: false, reason: `Game Boy threshold tile was not genuinely 4x4 (repeat=${hasFourPixelRepeat}, differsAt2=${differsAtTwo}, colors=${colors.size})` };
+};
+
+const runCgaRgbiPalette = (): { ok: true } | { ok: false; reason: string } => {
+  const filter = filterIndex["CGA Composite"] as FilterLike;
+  let pixels: Uint8ClampedArray | null;
+  try {
+    const output = filter.func(makeGradientCanvas(64, 48), {
+      ...(filter.defaults ?? {}),
+      ...runtimeOptions(),
+      mode: "RGBI",
+      scanlineStrength: 0,
+    }) as HTMLCanvasElement;
+    pixels = canvasPixels(output);
+  } catch (error) {
+    return { ok: false, reason: `CGA RGBI render threw: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  if (!pixels) return { ok: false, reason: "CGA RGBI readback failed" };
+
+  const legal = new Set([
+    "0,0,0", "0,0,170", "0,170,0", "0,170,170",
+    "170,0,0", "170,0,170", "170,85,0", "170,170,170",
+    "85,85,85", "0,0,255", "0,255,0", "0,255,255",
+    "255,0,0", "255,0,255", "255,255,0", "255,255,255",
+  ]);
+  for (let index = 0; index < pixels.length; index += 4) {
+    const color = `${pixels[index]},${pixels[index + 1]},${pixels[index + 2]}`;
+    if (!legal.has(color)) {
+      return { ok: false, reason: `CGA RGBI emitted non-palette color ${color}` };
+    }
+  }
+  return { ok: true };
 };
 
 const runAppleHgrDotContract = (): { ok: true } | { ok: false; reason: string } => {
@@ -1671,6 +1736,9 @@ const main = async () => {
         makeSmoothRamp,
       ));
     }
+    if (name === "CGA Composite") {
+      record(name, "legal-rgbi-palette", runCgaRgbiPalette());
+    }
     if (name === "Apollo Slow-Scan TV") {
       record(name, "fractional-preview-disc-hold", runApolloFractionalHold());
     }
@@ -1818,6 +1886,7 @@ const main = async () => {
   record("Triangle dither", "seeded-noise", runTriangleDitherSeed());
   record("Halftone", "backend-liveness", runHalftoneBackends());
   record("pipeline", "linearize-is-live", runLinearizeIsLive());
+  record("SDF Stylize", "nonzero-interior-distance", runSdfInteriorDistance());
 
   const status: "ok" | "failed" = failed === 0 ? "ok" : "failed";
   const details = {

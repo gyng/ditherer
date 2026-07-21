@@ -3,6 +3,37 @@
 All notable changes to `@gyng/ditherer-filters` are documented here. The
 package follows semantic versioning.
 
+## [0.3.0] - 2026-07-22
+
+### Added
+
+- Specification-grade and unusual display simulations covering PAL/SECAM,
+  teletext, fax, Apollo slow-scan television, PXL-2000, Apple II HGR, ZX
+  Spectrum, Game Boy Camera, Amiga HAM6, Baird mechanical television, CGA
+  composite artifact color, PLATO plasma panels, and DLP sequential color.
+- N-candidate ordered dithering, OKLab palette matching, and whole-buffer
+  WASM-accelerated palette quantization paths.
+- A reusable boundary-seeded RGBA16F jump-flood distance field plus SDF Boolean
+  Sculpt, SDF Medial Axis, and animated SDF Flow Warp filters.
+- Expanded shader, worker, backend-parity, malformed-state, temporal, and
+  output-contract validation across the public filter registry.
+
+### Changed
+
+- SDF Stylize now uses a true signed boundary distance instead of an unsigned
+  foreground seed approximation.
+- Oversized palettes are reduced intelligently instead of being truncated, and
+  the complete generated catalog remains available through selective imports.
+
+### Fixed
+
+- Corrected serpentine error-diffusion direction, pixel-sort iterator
+  duplication, low-color octree hangs, and missing palette-mode fallbacks.
+- Brought JavaScript and WASM Lab/OKLab conversion behavior into parity for
+  fractional channels and linearized palette matching.
+- Hardened signal decoders, filter workers, temporal state, and WebGL paths
+  against malformed saved options and silent passthrough or black output.
+
 ## [0.2.0] - 2026-07-16
 
 ### Added

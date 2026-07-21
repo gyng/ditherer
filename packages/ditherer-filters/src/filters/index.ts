@@ -14,6 +14,10 @@ import appleIihgr from "./appleIihgr";
 import zxSpectrum from "./zxSpectrum";
 import amigaHam6 from "./amigaHam6";
 import pxl2000 from "./pxl2000";
+import bairdTelevisor from "./bairdTelevisor";
+import cgaComposite from "./cgaComposite";
+import platoPlasma from "./platoPlasma";
+import dlpColorWheel from "./dlpColorWheel";
 import program from "./program";
 import brightnessContrast from "./brightnessContrast";
 import convolve, { LAPLACIAN_3X3 } from "./convolve";
@@ -255,6 +259,9 @@ import anamorphicCylinder from "./anamorphicCylinder";
 import wallpaperTiling from "./wallpaperTiling";
 import cyanotype from "./cyanotype";
 import sdfStylize from "./sdfStylize";
+import sdfBooleanSculpt from "./sdfBooleanSculpt";
+import sdfMedialAxis from "./sdfMedialAxis";
+import sdfFlowWarp from "./sdfFlowWarp";
 import caustics from "./caustics";
 import reactionDiffusion from "./reactionDiffusion";
 import stableFluids from "./stableFluids";
@@ -312,6 +319,10 @@ export { default as appleIihgr } from "./appleIihgr";
 export { default as zxSpectrum } from "./zxSpectrum";
 export { default as amigaHam6 } from "./amigaHam6";
 export { default as pxl2000 } from "./pxl2000";
+export { default as bairdTelevisor } from "./bairdTelevisor";
+export { default as cgaComposite } from "./cgaComposite";
+export { default as platoPlasma } from "./platoPlasma";
+export { default as dlpColorWheel } from "./dlpColorWheel";
 export { default as binarize } from "./binarize";
 export { default as program } from "./program";
 export { default as brightnessContrast } from "./brightnessContrast";
@@ -408,6 +419,9 @@ export { default as anamorphicCylinder } from "./anamorphicCylinder";
 export { default as wallpaperTiling } from "./wallpaperTiling";
 export { default as cyanotype } from "./cyanotype";
 export { default as sdfStylize } from "./sdfStylize";
+export { default as sdfBooleanSculpt } from "./sdfBooleanSculpt";
+export { default as sdfMedialAxis } from "./sdfMedialAxis";
+export { default as sdfFlowWarp } from "./sdfFlowWarp";
 export { default as caustics } from "./caustics";
 export { default as reactionDiffusion } from "./reactionDiffusion";
 export { default as stableFluids } from "./stableFluids";
@@ -882,7 +896,8 @@ export const filterList = [
   },
   { displayName: "Zigzag", filter: zigzag, category: "Stylize", description: "Zigzag herringbone pattern where line thickness encodes luminance" },
   { displayName: "Cyanotype", filter: cyanotype, category: "Stylize", description: "Prussian-blue sun-print tone mapping with paper grain and warm highlight tint" },
-  { displayName: "SDF Stylize", filter: sdfStylize, category: "Stylize", description: "Distance-field stylisation via jump-flood: isolines, offset bands, or bevelled fills from a luminance iso-threshold" },
+  { displayName: "SDF Stylize", filter: sdfStylize, category: "Stylize", description: "True signed-distance styling via boundary jump-flood: isolines, offset bands, or bevelled fills" },
+  { displayName: "SDF Medial Axis", filter: sdfMedialAxis, category: "Stylize", description: "Reveal a silhouette's topological skeleton where nearest-boundary regions meet" },
   { displayName: "Flow Crosshatch", filter: flowCrosshatch, category: "Stylize", description: "Crosshatch ink strokes that follow the image's edge flow rather than a fixed angle" },
   { displayName: "Line Integral Convolution", filter: lic, category: "Stylize", description: "Convolve noise along the gradient-tangent flow field — silky directional streaks" },
   { displayName: "Wallpaper Tiling", filter: wallpaperTiling, category: "Stylize", description: "Crystallographic symmetry groups (P1, P2, PMM, P4M, P6M) fold the image into repeated tiles" },
@@ -920,6 +935,7 @@ export const filterList = [
   { displayName: "Polar transform", filter: polarTransform, category: "Distort", description: "Wrap a rectangle into a circle or unwrap a circular image into a strip" },
   { displayName: "Pinch", filter: pinch, category: "Distort", description: "Squeeze pixels toward or away from center — radial scale distortion" },
   { displayName: "Ripple", filter: ripple, category: "Distort", description: "Concentric circular waves radiating from center" },
+  { displayName: "SDF Flow Warp", filter: sdfFlowWarp, category: "Distort", description: "Warp the source along normals and tangents of its signed-distance silhouette" },
   { displayName: "Refractive Glass", filter: refractiveGlass, category: "Distort", description: "Refract the image through luminance relief, cut edges, or frosted procedural glass" },
   { displayName: "Rotate", filter: rotate, category: "Distort", description: "Arbitrary angle rotation with bilinear sampling" },
   { displayName: "Smudge", filter: smudge, category: "Distort", description: "Paint-like smudging — drags color along a direction" },
@@ -966,8 +982,10 @@ export const filterList = [
   { displayName: "Apple II HGR", filter: appleIihgr, category: "Simulate", description: "Apple II 280×192 high-resolution bitmap through phase-dependent NTSC artifact-color decoding" },
   { displayName: "Amiga HAM6", filter: amigaHam6, category: "Simulate", description: "Amiga OCS six-plane hold-and-modify encoding with a legal stateful opcode stream" },
   { displayName: "Bayer Sensor", filter: bayerSensor, category: "Simulate", description: "Camera CFA capture with selectable Bayer layout, demosaic reconstruction, noise, and defective photosites" },
+  { displayName: "Baird Televisor", filter: bairdTelevisor, category: "Simulate", description: "Baird/BBC 30-line vertical mechanical television with a Nipkow-disc raster and modulated neon lamp" },
   { displayName: "Camera Monitor", filter: cameraMonitor, category: "Simulate", description: "Focus peaking, exposure zebras, false color, and clipping warnings for a production-monitor view" },
   { displayName: "CCD Charge Smear", filter: ccdChargeSmear, category: "Simulate", description: "Overloaded CCD highlights spill into directional vertical charge trails" },
+  { displayName: "CGA Composite", filter: cgaComposite, category: "Simulate", description: "IBM CGA through legal RGBI palettes or phase-sensitive NTSC composite artifact-color decoding" },
   {
     displayName: "CRT emulation",
     category: "Simulate",
@@ -977,6 +995,7 @@ export const filterList = [
   { displayName: "CRT Degauss", filter: crtDegauss, category: "Simulate", description: "Fire a decaying degauss pulse with raster wobble, phosphor mislanding, and a bright magnetic flash" },
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
   { displayName: "Digicam Flash", filter: digicamFlash, category: "Simulate", description: "On-camera point-and-shoot flash look with center hotspot, fast falloff, clipped highlights, and edge burn" },
+  { displayName: "DLP Color Wheel", filter: dlpColorWheel, category: "Simulate", description: "Single-chip DLP sequential illumination with motion color breakup, micromirror bit planes, and projection softness" },
   { displayName: "Deep fry", filter: deepFry, category: "Stylize", description: "Extreme contrast, oversaturation, and JPEG artifacts — the deep-fried meme aesthetic" },
   {
     displayName: "E-ink (color)",
@@ -1004,6 +1023,7 @@ export const filterList = [
   { displayName: "Night vision", filter: nightVision, category: "Simulate", description: "Gen 3 image intensifier tube — green phosphor, heavy grain, bloom, and circular vignette" },
   { displayName: "Nokia LCD", filter: nokiaLcd, category: "Simulate", description: "Simulate the Nokia 3310 monochrome LCD — 84x48 pixels with greenish tint" },
   { displayName: "Oscilloscope", filter: oscilloscope, category: "Simulate", description: "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence" },
+  { displayName: "PLATO Plasma", filter: platoPlasma, category: "Simulate", description: "Control Data's square 512×512 bistable orange-neon plasma panel with optional microfiche underlay" },
   { displayName: "PAL / SECAM", filter: palSecam, category: "Simulate", description: "BT.1700 PAL/SECAM composite signal with delay-line decoding, bandwidth, phase, tuning and crosstalk faults" },
   { displayName: "Photocopier", filter: photocopier, category: "Simulate", description: "High contrast, edge darkening, speckle, and generation loss" },
   { displayName: "Polaroid", filter: polaroid, category: "Simulate", description: "Instant film look — warm tones, faded blacks, soft highlights, and film grain" },
@@ -1111,6 +1131,7 @@ export const filterList = [
   { displayName: "Relief Reflections", filter: reliefReflections, category: "Advanced", description: "Trace screen-space reflections across a luminance-derived relief surface" },
   { displayName: "Volumetric Light", filter: volumetricLight, category: "Advanced", description: "Integrate bright source pixels through animated fog into volumetric light shafts" },
   { displayName: "SDF Melt", filter: sdfMelt, category: "Advanced", description: "Inflate, erode, and melt a source-derived signed-distance silhouette" },
+  { displayName: "SDF Boolean Sculpt", filter: sdfBooleanSculpt, category: "Advanced", description: "Sculpt a source silhouette with analytic SDF union, intersection, subtraction, and smooth blending" },
   { displayName: "Fractal Portal", filter: fractalPortal, category: "Advanced", description: "Sphere-trace a Mandelbulb or Julia bulb textured by the source image" },
   { displayName: "Path-Traced Diorama", filter: pathTracedDiorama, category: "Advanced", description: "Progressively path-trace the source as a framed image inside a softly lit miniature room" },
   { displayName: "Luminance Caverns", filter: luminanceCaverns, category: "Advanced", description: "Fly through glowing cavern walls carved and colored by the source image" },

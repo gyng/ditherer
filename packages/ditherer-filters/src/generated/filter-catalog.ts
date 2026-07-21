@@ -720,7 +720,13 @@ export const filterCatalog = [
     "displayName": "SDF Stylize",
     "filterName": "SDF Stylize",
     "category": "Stylize",
-    "description": "Distance-field stylisation via jump-flood: isolines, offset bands, or bevelled fills from a luminance iso-threshold"
+    "description": "True signed-distance styling via boundary jump-flood: isolines, offset bands, or bevelled fills"
+  },
+  {
+    "displayName": "SDF Medial Axis",
+    "filterName": "SDF Medial Axis",
+    "category": "Stylize",
+    "description": "Reveal a silhouette's topological skeleton where nearest-boundary regions meet"
   },
   {
     "displayName": "Flow Crosshatch",
@@ -841,6 +847,12 @@ export const filterCatalog = [
     "filterName": "Ripple",
     "category": "Distort",
     "description": "Concentric circular waves radiating from center"
+  },
+  {
+    "displayName": "SDF Flow Warp",
+    "filterName": "SDF Flow Warp",
+    "category": "Distort",
+    "description": "Warp the source along normals and tangents of its signed-distance silhouette"
   },
   {
     "displayName": "Refractive Glass",
@@ -1065,6 +1077,12 @@ export const filterCatalog = [
     "description": "Camera CFA capture with selectable Bayer layout, demosaic reconstruction, noise, and defective photosites"
   },
   {
+    "displayName": "Baird Televisor",
+    "filterName": "Baird Televisor",
+    "category": "Simulate",
+    "description": "Baird/BBC 30-line vertical mechanical television with a Nipkow-disc raster and modulated neon lamp"
+  },
+  {
     "displayName": "Camera Monitor",
     "filterName": "Camera Monitor",
     "category": "Simulate",
@@ -1075,6 +1093,12 @@ export const filterCatalog = [
     "filterName": "CCD Charge Smear",
     "category": "Simulate",
     "description": "Overloaded CCD highlights spill into directional vertical charge trails"
+  },
+  {
+    "displayName": "CGA Composite",
+    "filterName": "CGA Composite",
+    "category": "Simulate",
+    "description": "IBM CGA through legal RGBI palettes or phase-sensitive NTSC composite artifact-color decoding"
   },
   {
     "displayName": "CRT emulation",
@@ -1099,6 +1123,12 @@ export const filterCatalog = [
     "filterName": "Digicam Flash",
     "category": "Simulate",
     "description": "On-camera point-and-shoot flash look with center hotspot, fast falloff, clipped highlights, and edge burn"
+  },
+  {
+    "displayName": "DLP Color Wheel",
+    "filterName": "DLP Color Wheel",
+    "category": "Simulate",
+    "description": "Single-chip DLP sequential illumination with motion color breakup, micromirror bit planes, and projection softness"
   },
   {
     "displayName": "Deep fry",
@@ -1231,6 +1261,12 @@ export const filterCatalog = [
     "filterName": "Oscilloscope",
     "category": "Simulate",
     "description": "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence"
+  },
+  {
+    "displayName": "PLATO Plasma",
+    "filterName": "PLATO Plasma",
+    "category": "Simulate",
+    "description": "Control Data's square 512×512 bistable orange-neon plasma panel with optional microfiche underlay"
   },
   {
     "displayName": "PAL / SECAM",
@@ -1675,6 +1711,12 @@ export const filterCatalog = [
     "filterName": "SDF Melt",
     "category": "Advanced",
     "description": "Inflate, erode, and melt a source-derived signed-distance silhouette"
+  },
+  {
+    "displayName": "SDF Boolean Sculpt",
+    "filterName": "SDF Boolean Sculpt",
+    "category": "Advanced",
+    "description": "Sculpt a source silhouette with analytic SDF union, intersection, subtraction, and smooth blending"
   },
   {
     "displayName": "Fractal Portal",
