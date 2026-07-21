@@ -22,13 +22,22 @@ out vec4 fragColor;
 
 uniform sampler2D u_source;
 uniform vec2  u_res;
-uniform int   u_mode;         // 0 DARKEN, 1 RGB_SUBLINES
+uniform int   u_mode;         // 0 Gaussian beam, 1 legacy darken, 2 RGB rows
+uniform float u_visibleScanlines;
+uniform float u_beamMinWidth;
+uniform float u_beamMaxWidth;
+uniform float u_beamStrength;
 uniform float u_intensity;
 uniform float u_gap;
 uniform float u_height;
 uniform float u_lineHeight;
 uniform float u_brightness;
 uniform float u_levels;
+
+float rasterBeam(float position, float sigma) {
+  float distanceToLine = abs(fract(position) - 0.5);
+  return exp(-0.5 * pow(distanceToLine / max(0.01, sigma), 2.0));
+}
 
 void main() {
   vec2 px = v_uv * u_res;
@@ -41,6 +50,17 @@ void main() {
 
   vec3 rgb;
   if (u_mode == 0) {
+    vec3 linear = pow(clamp(src.rgb, 0.0, 1.0), vec3(2.4));
+    float luminance = dot(linear, vec3(0.2126, 0.7152, 0.0722));
+    float sigma = mix(u_beamMinWidth, max(u_beamMinWidth, u_beamMaxWidth), sqrt(clamp(luminance, 0.0, 1.0)));
+    float linesPerPixel = min(u_visibleScanlines, u_res.y) / u_res.y;
+    float rasterPosition = (y + 0.5) * linesPerPixel;
+    float integrated = (rasterBeam(rasterPosition - linesPerPixel / 3.0, sigma)
+      + rasterBeam(rasterPosition, sigma)
+      + rasterBeam(rasterPosition + linesPerPixel / 3.0, sigma)) / 3.0;
+    float beam = mix(1.0, integrated, u_beamStrength);
+    rgb = pow(clamp(linear * beam, 0.0, 1.0), vec3(1.0 / 2.4)) * 255.0;
+  } else if (u_mode == 1) {
     float scale = mod(y, u_gap) < u_height ? u_intensity : 1.0;
     rgb = c255 * scale;
   } else {
@@ -67,6 +87,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     prog: linkProgram(gl, SCANLINE_FS, [
       "u_source", "u_res", "u_mode", "u_intensity", "u_gap", "u_height",
+      "u_visibleScanlines", "u_beamMinWidth", "u_beamMaxWidth",
+      "u_beamStrength",
       "u_lineHeight", "u_brightness", "u_levels",
     ] as const),
   };
@@ -75,13 +97,17 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 export const scanlineGLAvailable = (): boolean => glAvailable();
 
-export const SCANLINE_MODE_ID: Record<string, number> = { DARKEN: 0, RGB_SUBLINES: 1 };
+export const SCANLINE_MODE_ID: Record<string, number> = { BEAM_PROFILE: 0, DARKEN: 1, RGB_SUBLINES: 2 };
 
 export const renderScanlineGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
   width: number,
   height: number,
   mode: string,
+  visibleScanlines: number,
+  beamMinWidth: number,
+  beamMaxWidth: number,
+  beamStrength: number,
   intensity: number,
   gap: number,
   hgt: number,
@@ -107,6 +133,10 @@ export const renderScanlineGL = (
     gl.uniform1i(cache.prog.uniforms.u_source, 0);
     gl.uniform2f(cache.prog.uniforms.u_res, width, height);
     gl.uniform1i(cache.prog.uniforms.u_mode, modeId);
+    gl.uniform1f(cache.prog.uniforms.u_visibleScanlines, visibleScanlines);
+    gl.uniform1f(cache.prog.uniforms.u_beamMinWidth, beamMinWidth);
+    gl.uniform1f(cache.prog.uniforms.u_beamMaxWidth, beamMaxWidth);
+    gl.uniform1f(cache.prog.uniforms.u_beamStrength, beamStrength);
     gl.uniform1f(cache.prog.uniforms.u_intensity, intensity);
     gl.uniform1f(cache.prog.uniforms.u_gap, gap);
     gl.uniform1f(cache.prog.uniforms.u_height, hgt);

@@ -282,25 +282,25 @@ export const filterCatalog = [
     "displayName": "Anime Color Grade",
     "filterName": "Anime Color Grade",
     "category": "Color",
-    "description": "Anime-background style grading — cooler cyan shadows, warmer highlights, and controlled vibrance"
+    "description": "Scene-scripted grading with authored value colors, soft highlights, dense chroma, and skin protection"
   },
   {
     "displayName": "Anime Ink Lines",
     "filterName": "Anime Ink Lines",
     "category": "Color",
-    "description": "Turn image edges into anime-style ink lines, either overlaid on the source or on a flat background"
+    "description": "Noise-resistant XDoG ink extraction with controllable line scale, weight, and compositing"
   },
   {
     "displayName": "Anime Sky",
     "filterName": "Anime Sky",
     "category": "Color",
-    "description": "Simplify likely sky regions into a painted anime-style gradient or clouded sky"
+    "description": "Paint likely sky regions with coherent cloud masses, horizon glow, and a controlled color gradient"
   },
   {
     "displayName": "Anime Tone Bands",
     "filterName": "Anime Tone Bands",
     "category": "Color",
-    "description": "Broad anime-style light and shadow bands with softer tonal transitions"
+    "description": "Group smoothed structure into authored shadow, base, and highlight colors"
   },
   {
     "displayName": "Atmospheric Haze",
@@ -457,6 +457,12 @@ export const filterCatalog = [
     "filterName": "Vignette",
     "category": "Color",
     "description": "Darken image edges with adjustable radius, softness, and shape"
+  },
+  {
+    "displayName": "Anime Rim Light",
+    "filterName": "Anime Rim Light",
+    "category": "Stylize",
+    "description": "Directional colored contour light for anime-style compositing and dramatic scene accents"
   },
   {
     "displayName": "ASCII",
@@ -739,6 +745,18 @@ export const filterCatalog = [
     "filterName": "Line Integral Convolution",
     "category": "Stylize",
     "description": "Convolve noise along the gradient-tangent flow field — silky directional streaks"
+  },
+  {
+    "displayName": "Quasicrystal Mosaic",
+    "filterName": "Quasicrystal Mosaic",
+    "category": "Stylize",
+    "description": "Aperiodic interference facets with forbidden rotational symmetry, source-modulated phase, and relief shading"
+  },
+  {
+    "displayName": "Suminagashi Marbling",
+    "filterName": "Suminagashi Marbling",
+    "category": "Stylize",
+    "description": "Floating ink rings combed through a source-derived contour flow and transferred onto fibrous paper"
   },
   {
     "displayName": "Wallpaper Tiling",
@@ -1104,7 +1122,7 @@ export const filterCatalog = [
     "displayName": "CRT emulation",
     "filterName": "rgbStripe",
     "category": "Simulate",
-    "description": "Simulate a CRT monitor with phosphor mask, bloom, scanlines, curvature, and vignette"
+    "description": "Profiled CRT display model with voltage-to-light transfer, beam-current raster, phosphor masks, overscan, convergence, and faceplate bloom"
   },
   {
     "displayName": "CRT Degauss",
@@ -1215,6 +1233,12 @@ export const filterCatalog = [
     "description": "Holographic rainbow sheen strips that shift with a simulated angle"
   },
   {
+    "displayName": "Laser Speckle Projector",
+    "filterName": "Laser Speckle Projector",
+    "category": "Simulate",
+    "description": "Coherent laser projection with multiplicative interference grain, diversity averaging, scan structure, and bloom"
+  },
+  {
     "displayName": "Light leak",
     "filterName": "Light Leak",
     "category": "Simulate",
@@ -1311,6 +1335,12 @@ export const filterCatalog = [
     "description": "Temporal CMOS readout bends motion progressively across rows or columns"
   },
   {
+    "displayName": "Schlieren Optics",
+    "filterName": "Schlieren Optics",
+    "category": "Simulate",
+    "description": "Directional knife-edge and color schlieren views of source-derived refractive gradients"
+  },
+  {
     "displayName": "Screen Print / Misregistration",
     "filterName": "Screen Print",
     "category": "Simulate",
@@ -1320,7 +1350,7 @@ export const filterCatalog = [
     "displayName": "Scanline",
     "filterName": "Scanline",
     "category": "Simulate",
-    "description": "CRT-style scanlines with either classic darkened rows or RGB phosphor sub-line separation"
+    "description": "Resolution-independent CRT raster lines with a luminance-dependent Gaussian beam profile and legacy row modes"
   },
   {
     "displayName": "Spectrogram",
@@ -1398,7 +1428,7 @@ export const filterCatalog = [
     "displayName": "Phosphor decay",
     "filterName": "Phosphor Decay",
     "category": "Simulate",
-    "description": "CRT phosphor persistence — each RGB channel decays at a different rate"
+    "description": "Refresh-aware phosphor persistence with measured P22 timing and explicit long-afterglow profiles"
   },
   {
     "displayName": "Bilateral blur",

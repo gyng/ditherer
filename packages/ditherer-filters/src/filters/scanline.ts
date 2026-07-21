@@ -6,6 +6,7 @@ import { defineFilter } from "./types";
 import { scanlineGLAvailable, renderScanlineGL } from "./scanlineGL";
 
 const MODE = {
+  BEAM_PROFILE: "BEAM_PROFILE",
   DARKEN: "DARKEN",
   RGB_SUBLINES: "RGB_SUBLINES",
 };
@@ -14,12 +15,17 @@ export const optionTypes = {
   mode: {
     type: ENUM,
     options: [
-      { name: "Darken lines", value: MODE.DARKEN },
-      { name: "RGB sub-lines", value: MODE.RGB_SUBLINES },
+      { name: "Gaussian raster beam", value: MODE.BEAM_PROFILE },
+      { name: "Darken rows (legacy)", value: MODE.DARKEN },
+      { name: "RGB row separation (artistic)", value: MODE.RGB_SUBLINES },
     ],
-    default: MODE.DARKEN,
-    desc: "Classic scanline darkening or phosphor-style RGB sub-line separation",
+    default: MODE.BEAM_PROFILE,
+    desc: "Physical Gaussian raster profile or retained legacy row effects",
   },
+  visibleScanlines: { type: RANGE, range: [120, 1200], step: 1, default: 240, desc: "Active raster lines, independent of output resolution", visibleWhen: (options: any) => options.mode === MODE.BEAM_PROFILE },
+  beamMinWidth: { type: RANGE, range: [0.08, 0.7], step: 0.01, default: 0.18, desc: "Raster spot width for dark content, in line-pitch units", visibleWhen: (options: any) => options.mode === MODE.BEAM_PROFILE },
+  beamMaxWidth: { type: RANGE, range: [0.12, 0.9], step: 0.01, default: 0.42, desc: "Wider raster spot for bright content from beam-current blooming", visibleWhen: (options: any) => options.mode === MODE.BEAM_PROFILE },
+  beamStrength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.68, desc: "Blend between the source and the integrated raster beam profile", visibleWhen: (options: any) => options.mode === MODE.BEAM_PROFILE },
   intensity: {
     type: RANGE,
     range: [0, 4],
@@ -60,11 +66,15 @@ export const optionTypes = {
     desc: "Brightness boost to compensate for RGB sub-line filtering",
     visibleWhen: (options: any) => options.mode === MODE.RGB_SUBLINES,
   },
-  palette: { type: PALETTE, default: palettes.nearest },
+  palette: { type: PALETTE, default: palettes.nearest, desc: "Optional output palette quantization" },
 };
 
 export const defaults = {
   mode: optionTypes.mode.default,
+  visibleScanlines: optionTypes.visibleScanlines.default,
+  beamMinWidth: optionTypes.beamMinWidth.default,
+  beamMaxWidth: optionTypes.beamMaxWidth.default,
+  beamStrength: optionTypes.beamStrength.default,
   intensity: optionTypes.intensity.default,
   gap: optionTypes.gap.default,
   height: optionTypes.height.default,
@@ -74,7 +84,8 @@ export const defaults = {
 };
 
 const scanline = (input: any, options = defaults) => {
-  const { mode, intensity, gap, height, lineHeight, brightness, palette } = options;
+  const resolved = { ...defaults, ...options };
+  const { mode, visibleScanlines, beamMinWidth, beamMaxWidth, beamStrength, intensity, gap, height, lineHeight, brightness, palette } = resolved;
   const W = input.width;
   const H = input.height;
 
@@ -84,7 +95,7 @@ const scanline = (input: any, options = defaults) => {
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
     const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
-    const rendered = renderScanlineGL(input, W, H, mode, intensity, gap, height, lineHeight, brightness, levels);
+    const rendered = renderScanlineGL(input, W, H, mode, visibleScanlines, beamMinWidth, beamMaxWidth, beamStrength, intensity, gap, height, lineHeight, brightness, levels);
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
@@ -110,7 +121,25 @@ const scanline = (input: any, options = defaults) => {
       let g = buf[i + 1];
       let b = buf[i + 2];
 
-      if (mode === MODE.DARKEN) {
+      if (mode === MODE.BEAM_PROFILE) {
+        const linearR = (r / 255) ** 2.4;
+        const linearG = (g / 255) ** 2.4;
+        const linearB = (b / 255) ** 2.4;
+        const linearLuma = linearR * 0.2126 + linearG * 0.7152 + linearB * 0.0722;
+        const sigma = beamMinWidth + (Math.max(beamMinWidth, beamMaxWidth) - beamMinWidth) * Math.sqrt(linearLuma);
+        const linesPerPixel = Math.min(H, Math.max(1, visibleScanlines)) / H;
+        const rasterPosition = (y + 0.5) * linesPerPixel;
+        const beamAt = (position: number) => {
+          const distance = Math.abs((position - Math.floor(position)) - 0.5);
+          return Math.exp(-0.5 * (distance / Math.max(0.01, sigma)) ** 2);
+        };
+        const integratedBeam = (beamAt(rasterPosition - linesPerPixel / 3)
+          + beamAt(rasterPosition) + beamAt(rasterPosition + linesPerPixel / 3)) / 3;
+        const beam = 1 + (integratedBeam - 1) * beamStrength;
+        r = Math.round(255 * (linearR * beam) ** (1 / 2.4));
+        g = Math.round(255 * (linearG * beam) ** (1 / 2.4));
+        b = Math.round(255 * (linearB * beam) ** (1 / 2.4));
+      } else if (mode === MODE.DARKEN) {
         const scale = y % gap < height ? intensity : 1;
         r *= scale;
         g *= scale;
@@ -136,5 +165,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "CRT-style scanlines with either classic darkened rows or RGB phosphor sub-line separation",
+  description: "Resolution-independent CRT raster lines with a luminance-dependent Gaussian beam profile and legacy row modes",
 });

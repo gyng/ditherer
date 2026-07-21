@@ -24,18 +24,26 @@ type RenderOpts = {
   mask: Float32Array; // flat row-major RGB, length = maskW * maskH * 3
   maskW: number;
   maskH: number;
+  maskCompensation: [number, number, number];
   // main loop
   brightness: number;
   contrast: number;
   exposure: number;
   gamma: number;
   phosphorScale: number;
+  visibleScanlines: number;
   scanlineGap: number;
   scanlineStrength: number;
+  beamMinWidth: number;
+  beamMaxWidth: number;
+  cornerFocus: number;
   includeScanline: boolean;
   misconvergence: number;
   curvature: number;
+  overscan: number;
   vignette: number;
+  damperWires: number;
+  damperWireStrength: number;
   interlace: boolean;
   interlaceField: number;
   flicker: number;
@@ -130,27 +138,29 @@ out vec4 fragColor;
 
 uniform sampler2D u_input;
 uniform sampler2D u_mask;
-uniform sampler2D u_prev;
 uniform vec2 u_res;
 uniform vec2 u_maskSize;     // (maskW, maskH)
+uniform vec3 u_maskCompensation;
 
 uniform float u_brightness;  // 0-255 add
 uniform float u_contrast;
 uniform float u_exposure;
-uniform float u_invGamma;    // 1 / gamma
+uniform float u_gamma;       // tube voltage-to-light exponent
 
 uniform float u_phosphorScale;
-uniform int   u_scanlineGap;
+uniform float u_visibleScanlines;
 uniform float u_scanlineStrength;
 uniform int   u_includeScanline;
+uniform float u_beamMinWidth;
+uniform float u_beamMaxWidth;
+uniform float u_cornerFocus;
 
 uniform float u_misconvergence;
 uniform float u_curvature;
+uniform float u_overscan;
 uniform float u_vignette;
-
-uniform int   u_interlace;
-uniform int   u_interlaceField;
-uniform int   u_hasPrev;
+uniform int   u_damperWires;
+uniform float u_damperWireStrength;
 
 uniform float u_flicker;
 uniform float u_flickerAmount;
@@ -161,8 +171,6 @@ uniform float u_degaussT;
 uniform float u_degaussWobbleX;
 uniform float u_degaussWobbleY;
 uniform float u_degaussMiscBoost;  // misconvergence + degauss extra
-
-uniform int   u_paletteLevels;     // 0 = identity (skip palette pass)
 
 float invertRadius(float rDst, float k) {
   if (rDst == 0.0) return 0.0;
@@ -184,6 +192,11 @@ vec4 readClamped(sampler2D s, vec2 px) {
   return texture(s, vec2(cp.x + 0.5, u_res.y - 0.5 - cp.y) / u_res);
 }
 
+float rasterBeam(float position, float sigma) {
+  float distanceToLine = abs(fract(position) - 0.5);
+  return exp(-0.5 * pow(distanceToLine / max(0.01, sigma), 2.0));
+}
+
 void main() {
   // Framebuffer-space pixel coord (y=0 at bottom).
   vec2 px_fb = floor(v_uv * u_res);
@@ -193,17 +206,6 @@ void main() {
   // 2D-canvas bottom; rewriting y here makes the shader's per-pixel math
   // identical to the JS path without rewiring sampling helpers.
   float y = u_res.y - 1.0 - px_fb.y;
-
-  // Interlace early-out: copy prev frame on inactive scanlines.
-  if (u_interlace == 1 && int(mod(y, 2.0)) != u_interlaceField) {
-    if (u_hasPrev == 1) {
-      fragColor = texture(u_prev, v_uv);
-    } else {
-      vec4 src = readClamped(u_input, vec2(x, y));
-      fragColor = vec4(0.0, 0.0, 0.0, src.a);
-    }
-    return;
-  }
 
   // Curvature.
   float srcX = x;
@@ -220,6 +222,11 @@ void main() {
     float s = rDst > 0.0 ? rSrc / rDst : 1.0;
     srcX = floor(cx + nx * s * rNorm + 0.5);
     srcY = floor(cy + ny * s * rNorm + 0.5);
+  }
+  if (u_overscan > 0.0) {
+    float zoom = 1.0 / max(0.5, 1.0 - u_overscan);
+    srcX = cx + (srcX - cx) * zoom;
+    srcY = cy + (srcY - cy) * zoom;
   }
 
   // Degauss raster warp.
@@ -286,30 +293,39 @@ void main() {
     src = clamp(vec3(r1, g1, b1), 0.0, 1.0);
   }
 
-  // Mask multiply (mask cell selected by floor(px / phosphorScale) mod size).
+  // Convert drive voltage to emitted light before physical screen effects.
+  float contrastGain = exp2(u_contrast / 20.0);
+  vec3 voltage = clamp((src - vec3(0.5)) * contrastGain + vec3(0.5 + u_brightness / 255.0), 0.0, 1.0);
+  vec3 v = pow(voltage, vec3(max(0.01, u_gamma))) * max(0.0, u_exposure);
+
+  // Mask multiply (mask cell selected by floor(px / phosphorScale) mod size),
+  // compensated by per-channel mean transmission so neutral fields stay neutral.
   vec2 maskCoord = mod(floor(vec2(x, y) / u_phosphorScale), u_maskSize);
   vec3 m = texture(u_mask, (maskCoord + 0.5) / u_maskSize).rgb;
-  src *= m;
+  v *= m * u_maskCompensation;
 
-  // Brightness / contrast / gamma — translated from 0-255 JS math to 0-1.
-  // brightness255 = src255 * exposure + brightness; n = src01 - 0.5 + brightness/255 * 0?
-  // Easier: keep multiplier-then-add-in-0-255:
-  vec3 v = src * 255.0 * u_exposure + vec3(u_brightness);
-  // contrast: nC = v/255 - 0.5; out = (nC + factor*(nC-1)*nC*(nC-0.5) + 0.5) * 255
-  vec3 nC = v / 255.0 - 0.5;
-  v = (nC + u_contrast * (nC - 1.0) * nC * (nC - 0.5) + 0.5) * 255.0;
-  // gamma: 255 * pow(v/255, invGamma). pow on negatives -> NaN; we clamp to 0
-  // by multiplying with step(0, v/255) so the channel turns black instead of
-  // returning NaN that would propagate into bloom.
-  vec3 vNorm = v / 255.0;
-  vec3 valid = step(0.0, vNorm);
-  v = 255.0 * pow(max(vNorm, vec3(0.0)), vec3(u_invGamma)) * valid;
+  // A raster line is a Gaussian electron spot, not a binary dark row. Higher
+  // beam current and off-axis focus widen the spot and fill more of the gap.
+  float emittedLuma = dot(v, vec3(0.2126, 0.7152, 0.0722));
+  float radial = clamp(length(vec2((x - cx) / max(cx, 1.0), (y - cy) / max(cy, 1.0))), 0.0, 1.5);
+  float beamSigma = mix(u_beamMinWidth, max(u_beamMinWidth, u_beamMaxWidth), sqrt(clamp(emittedLuma, 0.0, 1.0)))
+    + u_cornerFocus * radial * radial;
+  float linesPerPixel = u_visibleScanlines / u_res.y;
+  float rasterPosition = (y + 0.5) * linesPerPixel;
+  float beamProfile = (rasterBeam(rasterPosition - linesPerPixel / 3.0, beamSigma)
+    + rasterBeam(rasterPosition, beamSigma)
+    + rasterBeam(rasterPosition + linesPerPixel / 3.0, beamSigma)) / 3.0;
+  if (u_includeScanline == 1) v *= mix(1.0, beamProfile, clamp(u_scanlineStrength, 0.0, 1.0));
 
-  // Scanline darken.
-  float scanlineRow = floor(y / u_phosphorScale);
-  float ss = (u_includeScanline == 1 && int(mod(scanlineRow, float(u_scanlineGap))) == 0)
-    ? u_scanlineStrength : 1.0;
-  v *= ss;
+  // Trinitron-style aperture grilles require one or two horizontal tungsten
+  // stabilizing wires, depending on tube size.
+  if (u_damperWires > 0 && u_damperWireStrength > 0.0) {
+    float normalizedY = (y + 0.5) / u_res.y;
+    float wireDistance = abs(normalizedY - 0.5);
+    if (u_damperWires >= 2) wireDistance = min(abs(normalizedY - 1.0 / 3.0), abs(normalizedY - 2.0 / 3.0));
+    float wire = 1.0 - smoothstep(0.35 / u_res.y, 1.35 / u_res.y, wireDistance);
+    v *= 1.0 - wire * u_damperWireStrength;
+  }
 
   // Degauss flash.
   if (u_isDegaussing == 1) {
@@ -329,13 +345,7 @@ void main() {
     v *= vFactor;
   }
 
-  // Nearest palette quantize (skip if levels >= 256 == identity).
-  if (u_paletteLevels >= 2 && u_paletteLevels < 256) {
-    float step_v = 255.0 / float(u_paletteLevels - 1);
-    v = floor(floor(v / step_v + 0.5) * step_v + 0.5);
-  }
-
-  fragColor = vec4(clamp(v / 255.0, 0.0, 1.0), srcA);
+  fragColor = vec4(max(v, vec3(0.0)), srcA);
 }
 `;
 
@@ -426,6 +436,37 @@ void main() {
 }
 `;
 
+// Interlace after the spatial display passes. This prevents the retained field
+// from receiving beam spread and bloom a second time on every subsequent frame.
+const FS_INTERLACE = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_current;
+uniform sampler2D u_prev;
+uniform vec2 u_res;
+uniform float u_visibleScanlines;
+uniform int u_field;
+
+vec3 srgbToLinear(vec3 encoded) {
+  vec3 low = encoded / 12.92;
+  vec3 high = pow((encoded + 0.055) / 1.055, vec3(2.4));
+  return mix(low, high, step(vec3(0.04045), encoded));
+}
+
+void main() {
+  float y = u_res.y - 1.0 - floor(v_uv.y * u_res.y);
+  float rasterLine = floor((y + 0.5) * u_visibleScanlines / u_res.y);
+  vec4 current = texture(u_current, v_uv);
+  if (int(mod(rasterLine, 2.0)) == u_field) {
+    fragColor = current;
+  } else {
+    vec4 previous = texture(u_prev, v_uv);
+    fragColor = vec4(srgbToLinear(previous.rgb), previous.a);
+  }
+}
+`;
+
 // Persistence blend.
 const FS_PERSIST = `#version 300 es
 precision highp float;
@@ -435,11 +476,42 @@ uniform sampler2D u_main;
 uniform sampler2D u_prev;
 uniform float u_keep;
 
+vec3 srgbToLinear(vec3 encoded) {
+  vec3 low = encoded / 12.92;
+  vec3 high = pow((encoded + 0.055) / 1.055, vec3(2.4));
+  return mix(low, high, step(vec3(0.04045), encoded));
+}
+
 void main() {
   vec4 m = texture(u_main, v_uv);
   vec4 p = texture(u_prev, v_uv);
-  float fresh = 1.0 - u_keep;
-  fragColor = vec4(min(vec3(1.0), m.rgb * fresh + p.rgb * u_keep), m.a);
+  fragColor = vec4(max(m.rgb, srgbToLinear(p.rgb) * u_keep), m.a);
+}
+`;
+
+// Final display encoding: physical passes work in linear emitted light. Encode
+// once for the browser target and quantize only after encoding.
+const FS_OUTPUT = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_input;
+uniform int u_paletteLevels;
+
+vec3 linearToSrgb(vec3 linear) {
+  vec3 low = linear * 12.92;
+  vec3 high = 1.055 * pow(max(linear, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
+  return mix(low, high, step(vec3(0.0031308), linear));
+}
+
+void main() {
+  vec4 source = texture(u_input, v_uv);
+  vec3 encoded = clamp(linearToSrgb(source.rgb), 0.0, 1.0);
+  if (u_paletteLevels >= 2 && u_paletteLevels < 256) {
+    float levels = float(u_paletteLevels - 1);
+    encoded = floor(encoded * levels + 0.5) / levels;
+  }
+  fragColor = vec4(encoded, source.a);
 }
 `;
 
@@ -486,7 +558,9 @@ type Cache = {
   bright: Program;
   blur: Program;
   bloomComp: Program;
+  interlace: Program;
   persist: Program;
+  output: Program;
   vao: WebGLVertexArrayObject;
 };
 let _cache: Cache | null = null;
@@ -494,22 +568,24 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   const mainUniforms = [
-    "u_input","u_mask","u_prev","u_res","u_maskSize",
-    "u_brightness","u_contrast","u_exposure","u_invGamma",
-    "u_phosphorScale","u_scanlineGap","u_scanlineStrength","u_includeScanline",
-    "u_misconvergence","u_curvature","u_vignette",
-    "u_interlace","u_interlaceField","u_hasPrev",
+    "u_input","u_mask","u_res","u_maskSize","u_maskCompensation",
+    "u_brightness","u_contrast","u_exposure","u_gamma",
+    "u_phosphorScale","u_visibleScanlines","u_scanlineStrength","u_includeScanline",
+    "u_beamMinWidth","u_beamMaxWidth","u_cornerFocus",
+    "u_misconvergence","u_curvature","u_overscan","u_vignette",
+    "u_damperWires","u_damperWireStrength",
     "u_flicker","u_flickerAmount",
     "u_isDegaussing","u_degaussAge","u_degaussT",
     "u_degaussWobbleX","u_degaussWobbleY","u_degaussMiscBoost",
-    "u_paletteLevels",
   ];
   const main = linkProgram(gl, FS_MAIN, mainUniforms);
   const beam = linkProgram(gl, FS_BEAM, ["u_input","u_res","u_radius"]);
   const bright = linkProgram(gl, FS_BRIGHT, ["u_input","u_threshold"]);
   const blur = linkProgram(gl, FS_BLUR, ["u_input","u_res","u_dir","u_radius"]);
   const bloomComp = linkProgram(gl, FS_BLOOM_COMP, ["u_main","u_bloom","u_strength"]);
+  const interlace = linkProgram(gl, FS_INTERLACE, ["u_current","u_prev","u_res","u_visibleScanlines","u_field"]);
   const persist = linkProgram(gl, FS_PERSIST, ["u_main","u_prev","u_keep"]);
+  const output = linkProgram(gl, FS_OUTPUT, ["u_input","u_paletteLevels"]);
 
   // Full-screen quad in clip space.
   const vao = gl.createVertexArray();
@@ -526,7 +602,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   gl.bindVertexArray(null);
 
-  _cache = { main, beam, bright, blur, bloomComp, persist, vao };
+  _cache = { main, beam, bright, blur, bloomComp, interlace, persist, output, vao };
   return _cache;
 };
 
@@ -632,24 +708,26 @@ export const renderRgbStripeGL = (
     gl.uniform1i(cache.main.uniforms.u_input, 0);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskEntry.tex);
     gl.uniform1i(cache.main.uniforms.u_mask, 1);
-    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
-    gl.uniform1i(cache.main.uniforms.u_prev, 2);
     gl.uniform2f(cache.main.uniforms.u_res, W, H);
     gl.uniform2f(cache.main.uniforms.u_maskSize, o.maskW, o.maskH);
+    gl.uniform3f(cache.main.uniforms.u_maskCompensation, ...o.maskCompensation);
     gl.uniform1f(cache.main.uniforms.u_brightness, o.brightness);
     gl.uniform1f(cache.main.uniforms.u_contrast, o.contrast);
     gl.uniform1f(cache.main.uniforms.u_exposure, o.exposure);
-    gl.uniform1f(cache.main.uniforms.u_invGamma, o.gamma !== 0 ? 1 / o.gamma : 0);
+    gl.uniform1f(cache.main.uniforms.u_gamma, o.gamma);
     gl.uniform1f(cache.main.uniforms.u_phosphorScale, o.phosphorScale);
-    gl.uniform1i(cache.main.uniforms.u_scanlineGap, o.scanlineGap);
+    gl.uniform1f(cache.main.uniforms.u_visibleScanlines, o.visibleScanlines);
     gl.uniform1f(cache.main.uniforms.u_scanlineStrength, o.scanlineStrength);
     gl.uniform1i(cache.main.uniforms.u_includeScanline, o.includeScanline ? 1 : 0);
+    gl.uniform1f(cache.main.uniforms.u_beamMinWidth, o.beamMinWidth);
+    gl.uniform1f(cache.main.uniforms.u_beamMaxWidth, o.beamMaxWidth);
+    gl.uniform1f(cache.main.uniforms.u_cornerFocus, o.cornerFocus);
     gl.uniform1f(cache.main.uniforms.u_misconvergence, o.misconvergence);
     gl.uniform1f(cache.main.uniforms.u_curvature, o.curvature);
+    gl.uniform1f(cache.main.uniforms.u_overscan, o.overscan);
     gl.uniform1f(cache.main.uniforms.u_vignette, o.vignette);
-    gl.uniform1i(cache.main.uniforms.u_interlace, o.interlace ? 1 : 0);
-    gl.uniform1i(cache.main.uniforms.u_interlaceField, o.interlaceField);
-    gl.uniform1i(cache.main.uniforms.u_hasPrev, hasPrev ? 1 : 0);
+    gl.uniform1i(cache.main.uniforms.u_damperWires, o.damperWires);
+    gl.uniform1f(cache.main.uniforms.u_damperWireStrength, o.damperWireStrength);
     gl.uniform1f(cache.main.uniforms.u_flicker, o.flicker);
     gl.uniform1f(cache.main.uniforms.u_flickerAmount, computeFlickerAmount(o));
     gl.uniform1i(cache.main.uniforms.u_isDegaussing, o.isDegaussing ? 1 : 0);
@@ -659,7 +737,6 @@ export const renderRgbStripeGL = (
     gl.uniform1f(cache.main.uniforms.u_degaussWobbleY, o.degaussWobbleY);
     const miscBoost = o.isDegaussing ? o.degaussT * o.degaussT * 50 : 0;
     gl.uniform1f(cache.main.uniforms.u_degaussMiscBoost, miscBoost);
-    gl.uniform1i(cache.main.uniforms.u_paletteLevels, o.paletteLevels);
   }, cache.vao);
 
   // Pass 2: beam spread (optional) → texB. If skipped, just keep texA.
@@ -713,27 +790,41 @@ export const renderRgbStripeGL = (
     mainTex = texBloomed;
   }
 
-  // Pass N: persistence (optional) → render to gl canvas directly.
+  // Interlace selects the current source-line field and carries the already
+  // rendered opposite field from history. Static images remain fully woven.
+  if (o.interlace && hasPrev) {
+    const texInterlaced = ensureTexture(gl, "interlaced", W, H);
+    drawTo(gl, texInterlaced, W, H, cache.interlace, () => {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+      gl.uniform1i(cache.interlace.uniforms.u_current, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
+      gl.uniform1i(cache.interlace.uniforms.u_prev, 1);
+      gl.uniform2f(cache.interlace.uniforms.u_res, W, H);
+      gl.uniform1f(cache.interlace.uniforms.u_visibleScanlines, o.visibleScanlines);
+      gl.uniform1i(cache.interlace.uniforms.u_field, o.interlaceField);
+    }, cache.vao);
+    mainTex = texInterlaced;
+  }
+
+  // Pass N: persistence (optional), still in emitted-light space.
   if (o.persistence > 0 && hasPrev) {
-    drawTo(gl, null, W, H, cache.persist, () => {
+    const texPersist = ensureTexture(gl, "persisted", W, H);
+    drawTo(gl, texPersist, W, H, cache.persist, () => {
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
       gl.uniform1i(cache.persist.uniforms.u_main, 0);
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
       gl.uniform1i(cache.persist.uniforms.u_prev, 1);
       gl.uniform1f(cache.persist.uniforms.u_keep, o.persistence);
     }, cache.vao);
-  } else {
-    // Final blit to gl canvas via a no-op shader. Simplest: reuse blur with
-    // radius=0 would still average the center pixel; instead use bloomComp
-    // with strength=0 (just copies main).
-    drawTo(gl, null, W, H, cache.bloomComp, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-      gl.uniform1i(cache.bloomComp.uniforms.u_main, 0);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-      gl.uniform1i(cache.bloomComp.uniforms.u_bloom, 1);
-      gl.uniform1f(cache.bloomComp.uniforms.u_strength, 0);
-    }, cache.vao);
+    mainTex = texPersist;
   }
+
+  // Encode linear emitted light for the browser and quantize only afterward.
+  drawTo(gl, null, W, H, cache.output, () => {
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+    gl.uniform1i(cache.output.uniforms.u_input, 0);
+    gl.uniform1i(cache.output.uniforms.u_paletteLevels, o.paletteLevels);
+  }, cache.vao);
 
   // Build the output 2D canvas via drawImage — the browser handles the
   // framebuffer flip so the result is correctly oriented relative to the

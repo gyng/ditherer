@@ -151,6 +151,7 @@ export const optionTypes = {
   degauss: {
     type: ACTION,
     label: "Degauss",
+    desc: "Trigger one bounded magnetic degauss pulse",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       pendingManualBurst = true;
       actions.triggerBurst(inputCanvas, Math.max(6, Math.round(options.duration || 45)), options.animSpeed || 20);
@@ -159,6 +160,7 @@ export const optionTypes = {
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop the degauss preview loop",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         previewLoopEnabled = false;
@@ -169,7 +171,7 @@ export const optionTypes = {
       }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" }
 };
 
 export const defaults = {

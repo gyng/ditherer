@@ -3,6 +3,37 @@
 All notable changes to `@gyng/ditherer-filters` are documented here. The
 package follows semantic versioning.
 
+## [Unreleased]
+
+### Added
+
+- Four WebGL2 simulation/art crossovers: Schlieren Optics, Laser Speckle
+  Projector, Suminagashi Marbling, and Quasicrystal Mosaic.
+- Anime Rim Light plus clear-day, blue-hour, ink, environment-paint, luminous
+  sky, arcade CRT, aperture-grille, and broadcast-monitor preset recipes.
+- Profiled CRT contracts for 240p arcade, 525/60 and 625/50 consumer tubes,
+  aperture-grille monitors, broadcast monitors, and custom rasters.
+
+### Changed
+
+- Rebuilt Anime Color Grade, Tone Bands, Ink Lines, and Sky around scene color
+  scripts, structure-aware value grouping, XDoG extraction, coherent clouds,
+  conservative masks, and production-oriented controls.
+- Reworked CRT emulation in linear light with a 2.4 voltage-to-light transfer,
+  current-dependent Gaussian beams, source-line raster density, physical mask
+  families, profile geometry, overscan, stabilizing wires, and corrected
+  interlace composition.
+- Upgraded Scanline to a resolution-independent integrated beam profile while
+  retaining the legacy dark-row and artistic RGB modes.
+
+### Fixed
+
+- Replaced frame-relative phosphor trails with refresh-aware P22
+  decay-to-10% timing and explicit custom, long-persistence, and legacy modes.
+- Prevented retained interlace fields from accumulating repeated bloom and
+  horizontal softening, removed CRT black lift and unintended 32-level output
+  quantization, and aligned CPU/GL raster luminance calculations.
+
 ## [0.3.0] - 2026-07-22
 
 ### Added

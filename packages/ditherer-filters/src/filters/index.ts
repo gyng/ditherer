@@ -60,6 +60,7 @@ import wave from "./wave";
 import colorBalance from "./colorBalance";
 import animeColorGrade from "./animeColorGrade";
 import animeInkLines from "./animeInkLines";
+import animeRimLight from "./animeRimLight";
 import atmosphericHaze from "./atmosphericHaze";
 import animeSky from "./animeSky";
 import foliageSimplifier from "./foliageSimplifier";
@@ -257,7 +258,9 @@ import mobius from "./mobius";
 import droste from "./droste";
 import anamorphicCylinder from "./anamorphicCylinder";
 import wallpaperTiling from "./wallpaperTiling";
+import quasicrystalMosaic from "./quasicrystalMosaic";
 import cyanotype from "./cyanotype";
+import suminagashiMarbling from "./suminagashiMarbling";
 import sdfStylize from "./sdfStylize";
 import sdfBooleanSculpt from "./sdfBooleanSculpt";
 import sdfMedialAxis from "./sdfMedialAxis";
@@ -272,6 +275,8 @@ import rollingShutter from "./rollingShutter";
 import bayerSensor from "./bayerSensor";
 import ccdChargeSmear from "./ccdChargeSmear";
 import moireAliasing from "./moireAliasing";
+import schlierenOptics from "./schlierenOptics";
+import laserSpeckleProjector from "./laserSpeckleProjector";
 import waveletCodec from "./waveletCodec";
 import refractiveGlass from "./refractiveGlass";
 import cameraMonitor from "./cameraMonitor";
@@ -417,7 +422,9 @@ export { default as mobius } from "./mobius";
 export { default as droste } from "./droste";
 export { default as anamorphicCylinder } from "./anamorphicCylinder";
 export { default as wallpaperTiling } from "./wallpaperTiling";
+export { default as quasicrystalMosaic } from "./quasicrystalMosaic";
 export { default as cyanotype } from "./cyanotype";
+export { default as suminagashiMarbling } from "./suminagashiMarbling";
 export { default as sdfStylize } from "./sdfStylize";
 export { default as sdfBooleanSculpt } from "./sdfBooleanSculpt";
 export { default as sdfMedialAxis } from "./sdfMedialAxis";
@@ -432,6 +439,8 @@ export { default as rollingShutter } from "./rollingShutter";
 export { default as bayerSensor } from "./bayerSensor";
 export { default as ccdChargeSmear } from "./ccdChargeSmear";
 export { default as moireAliasing } from "./moireAliasing";
+export { default as schlierenOptics } from "./schlierenOptics";
+export { default as laserSpeckleProjector } from "./laserSpeckleProjector";
 export { default as waveletCodec } from "./waveletCodec";
 export { default as refractiveGlass } from "./refractiveGlass";
 export { default as cameraMonitor } from "./cameraMonitor";
@@ -792,10 +801,10 @@ export const filterList = [
   { displayName: "Chromatic posterize", filter: chromaticPosterize, category: "Color", description: "Posterize each RGB channel independently with different level counts" },
   { displayName: "CLAHE", filter: clahe, category: "Color", description: "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement" },
   { displayName: "LUT", filter: lut, category: "Color", description: "Iconic colour-grade lookups — ACES, Reinhard, Hable, Teal & Orange, Bleach Bypass, Kodachrome, Technicolor, Cross Process, Matrix, Amber Noir, Faded Film, Cold Winter" },
-  { displayName: "Anime Color Grade", filter: animeColorGrade, category: "Color", description: "Anime-background style grading — cooler cyan shadows, warmer highlights, and controlled vibrance" },
-  { displayName: "Anime Ink Lines", filter: animeInkLines, category: "Color", description: "Turn image edges into anime-style ink lines, either overlaid on the source or on a flat background" },
-  { displayName: "Anime Sky", filter: animeSky, category: "Color", description: "Simplify likely sky regions into a painted anime-style gradient or clouded sky" },
-  { displayName: "Anime Tone Bands", filter: animeToneBands, category: "Color", description: "Broad anime-style light and shadow bands with softer tonal transitions" },
+  { displayName: "Anime Color Grade", filter: animeColorGrade, category: "Color", description: "Scene-scripted grading with authored value colors, soft highlights, dense chroma, and skin protection" },
+  { displayName: "Anime Ink Lines", filter: animeInkLines, category: "Color", description: "Noise-resistant XDoG ink extraction with controllable line scale, weight, and compositing" },
+  { displayName: "Anime Sky", filter: animeSky, category: "Color", description: "Paint likely sky regions with coherent cloud masses, horizon glow, and a controlled color gradient" },
+  { displayName: "Anime Tone Bands", filter: animeToneBands, category: "Color", description: "Group smoothed structure into authored shadow, base, and highlight colors" },
   { displayName: "Atmospheric Haze", filter: atmosphericHaze, category: "Color", description: "Painted atmospheric depth haze with horizon lift and sky-tinted bloom" },
   { displayName: "Color balance", filter: colorBalance, category: "Color", description: "Shift the balance between complementary color channels" },
   { displayName: "Color Pop", filter: colorPop, category: "Color", description: "Preserve one hue family while muting the rest toward monochrome" },
@@ -829,6 +838,7 @@ export const filterList = [
   { displayName: "Vignette", filter: vignette, category: "Color", description: "Darken image edges with adjustable radius, softness, and shape" },
 
   // ── Stylize ──
+  { displayName: "Anime Rim Light", filter: animeRimLight, category: "Stylize", description: "Directional colored contour light for anime-style compositing and dramatic scene accents" },
   { displayName: "ASCII", filter: ascii, category: "Stylize", description: "Render the image as ASCII characters based on brightness" },
   { displayName: "CMYK halftone", filter: cmykHalftone, category: "Stylize", description: "Proper CMYK separation with independent screen angles per channel" },
   { displayName: "Contour lines", filter: contourLines, category: "Stylize", description: "Topographic contour lines from luminance — lines only, filled bands, or both" },
@@ -900,6 +910,8 @@ export const filterList = [
   { displayName: "SDF Medial Axis", filter: sdfMedialAxis, category: "Stylize", description: "Reveal a silhouette's topological skeleton where nearest-boundary regions meet" },
   { displayName: "Flow Crosshatch", filter: flowCrosshatch, category: "Stylize", description: "Crosshatch ink strokes that follow the image's edge flow rather than a fixed angle" },
   { displayName: "Line Integral Convolution", filter: lic, category: "Stylize", description: "Convolve noise along the gradient-tangent flow field — silky directional streaks" },
+  { displayName: "Quasicrystal Mosaic", filter: quasicrystalMosaic, category: "Stylize", description: "Aperiodic interference facets with forbidden rotational symmetry, source-modulated phase, and relief shading" },
+  { displayName: "Suminagashi Marbling", filter: suminagashiMarbling, category: "Stylize", description: "Floating ink rings combed through a source-derived contour flow and transferred onto fibrous paper" },
   { displayName: "Wallpaper Tiling", filter: wallpaperTiling, category: "Stylize", description: "Crystallographic symmetry groups (P1, P2, PMM, P4M, P6M) fold the image into repeated tiles" },
 
   // ── Distort ──
@@ -989,8 +1001,8 @@ export const filterList = [
   {
     displayName: "CRT emulation",
     category: "Simulate",
-    description: "Simulate a CRT monitor with phosphor mask, bloom, scanlines, curvature, and vignette",
-    filter: withPaletteLevels(rgbStripe, 32)
+    description: "Profiled CRT display model with voltage-to-light transfer, beam-current raster, phosphor masks, overscan, convergence, and faceplate bloom",
+    filter: withPaletteLevels(rgbStripe, 256)
   },
   { displayName: "CRT Degauss", filter: crtDegauss, category: "Simulate", description: "Fire a decaying degauss pulse with raster wobble, phosphor mislanding, and a bright magnetic flash" },
   { displayName: "Daguerreotype", filter: daguerreotype, category: "Simulate", description: "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen" },
@@ -1015,6 +1027,7 @@ export const filterList = [
   { displayName: "Infrared photography", filter: infrared, category: "Simulate", description: "IR film look — foliage turns white/pink, skies go dark, color shift" },
   { displayName: "LCD display", filter: lcdDisplay, category: "Simulate", description: "Visible sub-pixel grid — RGB stripe, PenTile, or diamond layout" },
   { displayName: "Lenticular", filter: lenticular, category: "Simulate", description: "Holographic rainbow sheen strips that shift with a simulated angle" },
+  { displayName: "Laser Speckle Projector", filter: laserSpeckleProjector, category: "Simulate", description: "Coherent laser projection with multiplicative interference grain, diversity averaging, scan structure, and bloom" },
   { displayName: "Light leak", filter: lightLeak, category: "Simulate", description: "Film light leak — warm chromatic glow bleeding from edges/corners" },
   { displayName: "Mavica FD7", filter: mavicaFd7, category: "Simulate", description: "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk" },
   { displayName: "Metadata Mismatch Decode", filter: metadataMismatchDecode, category: "Simulate", description: "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures" },
@@ -1031,12 +1044,13 @@ export const filterList = [
   { displayName: "PXL-2000", filter: pxl2000, category: "Simulate", description: "Fisher-Price 120×90 monochrome CCD, 15 Hz ping-pong capture, 90 kHz luma, and FM cassette recording" },
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "3-4 color spot separation with per-layer misregistration and grain" },
   { displayName: "Rolling Shutter", filter: rollingShutter, category: "Simulate", description: "Temporal CMOS readout bends motion progressively across rows or columns" },
+  { displayName: "Schlieren Optics", filter: schlierenOptics, category: "Simulate", description: "Directional knife-edge and color schlieren views of source-derived refractive gradients" },
   { displayName: "Screen Print / Misregistration", filter: screenPrint, category: "Simulate", description: "Layer flat spot-color plates with visible offset on warm paper for a silkscreen poster look" },
   {
     displayName: "Scanline",
     category: "Simulate",
-    description: "CRT-style scanlines with either classic darkened rows or RGB phosphor sub-line separation",
-    filter: withPaletteLevels(scanline, 256, { mode: "DARKEN" })
+    description: "Resolution-independent CRT raster lines with a luminance-dependent Gaussian beam profile and legacy row modes",
+    filter: withPaletteLevels(scanline, 256, { mode: "BEAM_PROFILE" })
   },
   { displayName: "Spectrogram", filter: spectrogram, category: "Simulate", description: "Frequency-domain visualization — columns as time, rows as frequency, with scientific colormaps" },
   {
@@ -1064,7 +1078,7 @@ export const filterList = [
   { displayName: "ZX Spectrum", filter: zxSpectrum, category: "Simulate", description: "ZX Spectrum 256×192 bitmap constrained to one INK/PAPER pair and brightness bit per 8×8 cell" },
   { displayName: "Motion Analysis", filter: motionDetect, category: "Simulate", description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap" },
   { displayName: "Long Exposure", filter: longExposure, category: "Simulate", description: "Blend, average, or accumulate recent frames for ghost trails, slow-shutter smear, and long-exposure light painting" },
-  { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "CRT phosphor persistence — each RGB channel decays at a different rate" },
+  { displayName: "Phosphor decay", filter: phosphorDecay, category: "Simulate", description: "Refresh-aware phosphor persistence with measured P22 timing and explicit long-afterglow profiles" },
 
   // ── Blur & Edges ──
   { displayName: "Bilateral blur", filter: bilateralBlur, category: "Blur & Edges", description: "Edge-preserving smooth — blurs flat areas while keeping edges crisp" },
