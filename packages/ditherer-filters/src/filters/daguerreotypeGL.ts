@@ -3,7 +3,6 @@ import {
   ensureTexture,
   getGLCtx,
   getQuadVAO,
-  glAvailable,
   linkProgram,
   readoutToCanvas,
   resizeGLCanvas,
@@ -11,113 +10,138 @@ import {
   type Program,
 } from "../gl/index";
 
-// Pass 1: horizontal box blur of the source (RGB only — alpha passthrough).
 const BLUR_H_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 
 uniform sampler2D u_input;
-uniform vec2  u_res;
-uniform int   u_radius;
+uniform vec2 u_res;
+uniform int u_radius;
 
 void main() {
-  vec2 px = v_uv * u_res;
-  float y = floor(px.y);
-  vec4 acc = vec4(0.0);
-  float cnt = 0.0;
-  for (int k = -10; k <= 10; k++) {
-    if (k < -u_radius || k > u_radius) continue;
-    float nx = clamp(floor(px.x) + float(k), 0.0, u_res.x - 1.0);
-    acc += texture(u_input, (vec2(nx, y) + 0.5) / u_res);
-    cnt += 1.0;
+  vec2 pixel = v_uv * u_res;
+  float row = floor(pixel.y);
+  vec4 sum = vec4(0.0);
+  float count = 0.0;
+  for (int offset = -4; offset <= 4; offset++) {
+    if (offset < -u_radius || offset > u_radius) continue;
+    float column = clamp(floor(pixel.x) + float(offset), 0.0, u_res.x - 1.0);
+    sum += texture(u_input, (vec2(column, row) + 0.5) / u_res);
+    count += 1.0;
   }
-  fragColor = acc / cnt;
+  fragColor = sum / count;
 }
 `;
 
-// Pass 2 (final): vertical box blur of temp + daguerreotype tone composite.
-//   blurred → silver-blue tonal curve driven by luminance
-//   metallic sheen adds pow(L, 0.5) highlight
-//   oval vignette (horizontal major axis) darkens edges
-const DAG_FS = `#version 300 es
+const DAGUERREOTYPE_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 
 uniform sampler2D u_blurH;
-uniform vec2  u_res;
-uniform int   u_radius;
+uniform vec2 u_res;
+uniform int u_radius;
 uniform float u_silverTone;
 uniform float u_vignette;
 uniform float u_metallic;
-uniform float u_levels;
+uniform float u_gilding;
+uniform float u_viewAngle;
+uniform float u_plateAge;
+
+float hash21(vec2 point) {
+  vec3 p = fract(vec3(point.xyx) * 0.1031);
+  p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+
+vec3 srgbToLinear(vec3 value) {
+  bvec3 cutoff = lessThanEqual(value, vec3(0.04045));
+  vec3 low = value / 12.92;
+  vec3 high = pow((value + 0.055) / 1.055, vec3(2.4));
+  return mix(high, low, cutoff);
+}
+
+vec3 linearToSrgb(vec3 value) {
+  value = max(value, vec3(0.0));
+  bvec3 cutoff = lessThanEqual(value, vec3(0.0031308));
+  vec3 low = value * 12.92;
+  vec3 high = 1.055 * pow(value, vec3(1.0 / 2.4)) - 0.055;
+  return mix(high, low, cutoff);
+}
+
+float sourceLuma(vec2 uv) {
+  vec3 linear = srgbToLinear(texture(u_blurH, clamp(uv, vec2(0.0), vec2(1.0))).rgb);
+  return dot(linear, vec3(0.2126, 0.7152, 0.0722));
+}
 
 void main() {
-  vec2 px = v_uv * u_res;
-  float x = floor(px.x);
-  float y_gl = floor(px.y);
-  // Vertical blur accumulator in RGBA, averaged across the kernel.
-  vec4 acc = vec4(0.0);
-  float cnt = 0.0;
-  for (int k = -10; k <= 10; k++) {
-    if (k < -u_radius || k > u_radius) continue;
-    float ny = clamp(y_gl + float(k), 0.0, u_res.y - 1.0);
-    acc += texture(u_blurH, (vec2(x, ny) + 0.5) / u_res);
-    cnt += 1.0;
+  vec2 pixel = v_uv * u_res;
+  float column = floor(pixel.x);
+  float row = floor(pixel.y);
+  vec4 sum = vec4(0.0);
+  float count = 0.0;
+  for (int offset = -4; offset <= 4; offset++) {
+    if (offset < -u_radius || offset > u_radius) continue;
+    float sampleRow = clamp(row + float(offset), 0.0, u_res.y - 1.0);
+    sum += texture(u_blurH, (vec2(column, sampleRow) + 0.5) / u_res);
+    count += 1.0;
   }
-  vec4 blurred = acc / cnt;
-  vec3 b255 = blurred.rgb * 255.0;
+  vec4 source = sum / count;
+  vec3 linearSource = srgbToLinear(source.rgb);
+  float luminance = dot(linearSource, vec3(0.2126, 0.7152, 0.0722));
 
-  float lum = (0.2126 * b255.r + 0.7152 * b255.g + 0.0722 * b255.b) / 255.0;
-  vec3 tone = vec3(
-    lum * (180.0 + u_silverTone * 40.0),
-    lum * (185.0 + u_silverTone * 30.0),
-    lum * (200.0 + u_silverTone * 55.0)
-  );
+  vec2 texel = 1.0 / u_res;
+  float neighbourhood = (
+    sourceLuma(v_uv + vec2(texel.x, 0.0))
+    + sourceLuma(v_uv - vec2(texel.x, 0.0))
+    + sourceLuma(v_uv + vec2(0.0, texel.y))
+    + sourceLuma(v_uv - vec2(0.0, texel.y))
+  ) * 0.25;
+  float fineDetail = luminance - neighbourhood;
 
-  if (u_metallic > 0.0) {
-    float highlight = pow(lum, 0.5) * u_metallic * 60.0;
-    tone += vec3(highlight, highlight, highlight * 1.1);
-  }
+  float imageScatter = pow(clamp(luminance, 0.0, 1.0), 0.9);
+  imageScatter = clamp((imageScatter - 0.5) * (1.0 + u_gilding * 0.5) + 0.5 + fineDetail * 1.1, 0.0, 1.0);
 
-  if (u_vignette > 0.0) {
-    // Work in JS-y so the oval orientation matches the CPU reference.
-    float y_js = u_res.y - 1.0 - y_gl;
-    float cx = u_res.x * 0.5;
-    float cy = u_res.y * 0.5;
-    float dx = (x - cx) / cx;
-    float dy = (y_js - cy) / cy;
-    float dist = sqrt(dx * dx * 1.5 + dy * dy * 1.5);
-    float vig = max(0.0, 1.0 - pow(max(0.0, dist - 0.3) / 0.7, 2.0));
-    float factor = 1.0 - (1.0 - vig) * u_vignette;
-    tone *= factor;
-  }
+  vec2 platePosition = v_uv * 2.0 - 1.0;
+  float angle = radians(u_viewAngle);
+  vec2 lightDirection = vec2(cos(angle), sin(angle));
+  float directionalField = clamp(0.5 + 0.5 * dot(platePosition, lightDirection), 0.0, 1.0);
+  float reflection = (0.12 + 0.88 * directionalField) * u_metallic;
 
-  vec3 rgb = clamp(floor(tone + 0.5), 0.0, 255.0) / 255.0;
-  if (u_levels > 1.5) {
-    float q = u_levels - 1.0;
-    rgb = floor(rgb * q + 0.5) / q;
-  }
-  fragColor = vec4(rgb, 1.0);
+  vec3 plateShadow = vec3(0.018, 0.021, 0.026);
+  vec3 plateReflection = mix(vec3(0.13, 0.145, 0.17), vec3(0.68, 0.72, 0.79), reflection);
+  vec3 silverParticles = mix(vec3(0.7, 0.72, 0.76), vec3(0.92, 0.84, 0.68), u_silverTone);
+  vec3 plate = mix(plateShadow, plateReflection, 0.32 + reflection * 0.48);
+  vec3 result = mix(plate, silverParticles, imageScatter);
+
+  float distanceFromCentre = length(platePosition * vec2(0.84, 1.0));
+  float edgeFalloff = smoothstep(0.58, 1.35, distanceFromCentre);
+  result *= 1.0 - edgeFalloff * u_vignette * 0.52;
+
+  float speckle = smoothstep(0.988, 1.0, hash21(floor(pixel * 0.5)));
+  float diagonalScratch = smoothstep(0.493, 0.5, abs(fract((pixel.x * 0.19 + pixel.y) / 83.0) - 0.5));
+  float ageMask = u_plateAge * clamp(edgeFalloff * 0.42 + speckle * 0.7 + diagonalScratch * 0.18, 0.0, 1.0);
+  result = mix(result, vec3(0.22, 0.13, 0.075), ageMask * 0.58);
+
+  fragColor = vec4(clamp(linearToSrgb(result), 0.0, 1.0), source.a);
 }
 `;
 
 type Cache = { blurH: Program; final: Program };
-let _cache: Cache | null = null;
+let cache: Cache | null = null;
 
-const initCache = (gl: WebGL2RenderingContext): Cache => {
-  if (_cache) return _cache;
-  _cache = {
+const getPrograms = (gl: WebGL2RenderingContext): Cache => {
+  if (cache) return cache;
+  cache = {
     blurH: linkProgram(gl, BLUR_H_FS, ["u_input", "u_res", "u_radius"] as const),
-    final: linkProgram(gl, DAG_FS, [
-      "u_blurH", "u_res", "u_radius", "u_silverTone", "u_vignette", "u_metallic", "u_levels",
+    final: linkProgram(gl, DAGUERREOTYPE_FS, [
+      "u_blurH", "u_res", "u_radius", "u_silverTone", "u_vignette", "u_metallic",
+      "u_gilding", "u_viewAngle", "u_plateAge",
     ] as const),
   };
-  return _cache;
+  return cache;
 };
-
-export const daguerreotypeGLAvailable = (): boolean => glAvailable();
 
 export const renderDaguerreotypeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
@@ -127,39 +151,42 @@ export const renderDaguerreotypeGL = (
   softFocus: number,
   vignette: number,
   metallic: number,
-  levels: number,
+  gilding: number,
+  viewAngle: number,
+  plateAge: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
-  const ctx = getGLCtx();
-  if (!ctx) return null;
-  const { gl, canvas } = ctx;
-  const cache = initCache(gl);
+  const context = getGLCtx();
+  if (!context) return null;
+  const { gl, canvas } = context;
+  const programs = getPrograms(gl);
   const vao = getQuadVAO(gl);
-
-  const radius = Math.max(1, Math.min(10, Math.round(softFocus)));
+  const radius = Math.max(0, Math.min(4, Math.round(softFocus)));
 
   resizeGLCanvas(canvas, width, height);
-  const sourceTex = ensureTexture(gl, "daguerreotype:source", width, height);
-  uploadSourceTexture(gl, sourceTex, source);
-  const temp = ensureTexture(gl, "daguerreotype:blurH", width, height);
+  const sourceTexture = ensureTexture(gl, "daguerreotype:source", width, height);
+  uploadSourceTexture(gl, sourceTexture, source);
+  const horizontalTexture = ensureTexture(gl, "daguerreotype:blurH", width, height);
 
-  drawPass(gl, temp, width, height, cache.blurH, () => {
+  drawPass(gl, horizontalTexture, width, height, programs.blurH, () => {
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.blurH.uniforms.u_input, 0);
-    gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
-    gl.uniform1i(cache.blurH.uniforms.u_radius, radius);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+    gl.uniform1i(programs.blurH.uniforms.u_input, 0);
+    gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
+    gl.uniform1i(programs.blurH.uniforms.u_radius, radius);
   }, vao);
 
-  drawPass(gl, null, width, height, cache.final, () => {
+  drawPass(gl, null, width, height, programs.final, () => {
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp.tex);
-    gl.uniform1i(cache.final.uniforms.u_blurH, 0);
-    gl.uniform2f(cache.final.uniforms.u_res, width, height);
-    gl.uniform1i(cache.final.uniforms.u_radius, radius);
-    gl.uniform1f(cache.final.uniforms.u_silverTone, silverTone);
-    gl.uniform1f(cache.final.uniforms.u_vignette, vignette);
-    gl.uniform1f(cache.final.uniforms.u_metallic, metallic);
-    gl.uniform1f(cache.final.uniforms.u_levels, levels);
+    gl.bindTexture(gl.TEXTURE_2D, horizontalTexture.tex);
+    gl.uniform1i(programs.final.uniforms.u_blurH, 0);
+    gl.uniform2f(programs.final.uniforms.u_res, width, height);
+    gl.uniform1i(programs.final.uniforms.u_radius, radius);
+    gl.uniform1f(programs.final.uniforms.u_silverTone, silverTone);
+    gl.uniform1f(programs.final.uniforms.u_vignette, vignette);
+    gl.uniform1f(programs.final.uniforms.u_metallic, metallic);
+    gl.uniform1f(programs.final.uniforms.u_gilding, gilding);
+    gl.uniform1f(programs.final.uniforms.u_viewAngle, viewAngle);
+    gl.uniform1f(programs.final.uniforms.u_plateAge, plateAge);
   }, vao);
 
   return readoutToCanvas(canvas, width, height);

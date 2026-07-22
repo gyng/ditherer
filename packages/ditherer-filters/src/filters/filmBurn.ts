@@ -1,35 +1,29 @@
-import { RANGE, PALETTE } from "../constants/controlTypes";
-import { nearest } from "../palettes/index";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  paletteGetColor,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
-import { defineFilter } from "./types";
-import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { PALETTE, RANGE } from "../constants/controlTypes";
 import {
   drawPass,
   ensureTexture,
   getGLCtx,
   getQuadVAO,
-  glAvailable,
   linkProgram,
   readoutToCanvas,
   resizeGLCanvas,
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { nearest } from "../palettes/index";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { logFilterBackend } from "../utils/index";
+import { defineFilter } from "./types";
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Overall burn intensity" },
-  warmth: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Warm color bias of the burn" },
-  hotspots: { type: RANGE, range: [0, 5], step: 1, default: 2, desc: "Number of concentrated burn areas" },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for burn placement" },
-  palette: { type: PALETTE, default: nearest }
+  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "Heat exposure and outward growth of the destroyed emulsion core" },
+  warmth: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Amber dye shift in the heat-affected emulsion and exposed projector light" },
+  hotspots: { type: RANGE, range: [0, 5], step: 1, default: 2, desc: "Number of independent projector-gate burn origins" },
+  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Deterministic placement and shape seed for the damage" },
+  distortion: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "Local image warping from film-base shrinkage and buckling" },
+  blistering: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Strength of the hardened dark crust and bright blister boundary" },
+  roughness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "Multi-scale irregularity of the growing burn front" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
 export const defaults = {
@@ -37,207 +31,209 @@ export const defaults = {
   warmth: optionTypes.warmth.default,
   hotspots: optionTypes.hotspots.default,
   seed: optionTypes.seed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  distortion: optionTypes.distortion.default,
+  blistering: optionTypes.blistering.default,
+  roughness: optionTypes.roughness.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const FB_FS = `#version 300 es
+const MAX_SPOTS = 5;
+
+const FILM_BURN_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 
 uniform sampler2D u_source;
-uniform vec2  u_res;
+uniform vec2 u_res;
+uniform int u_spotCount;
+uniform vec3 u_spots[${MAX_SPOTS}];
 uniform float u_intensity;
 uniform float u_warmth;
-uniform int   u_hotspots;
-uniform vec3  u_spots[5];   // (x, y, r)
-uniform float u_spotInt[5]; // per-spot intensity 0..1
+uniform float u_distortion;
+uniform float u_blistering;
+uniform float u_roughness;
 uniform float u_seed;
 
-// Stateless per-pixel grain, seed-folded to match the spirit of mulberry32
-// per-pixel initialisation from the JS path.
-float hash(vec2 p, float s) {
-  p = fract(p * vec2(443.897, 441.423) + s);
-  p += dot(p, p.yx + 19.19);
-  return fract((p.x + p.y) * p.x);
+float hash21(vec2 point) {
+  vec3 p = fract(vec3(point.xyx) * 0.1031);
+  p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+
+float valueNoise(vec2 point) {
+  vec2 cell = floor(point);
+  vec2 local = fract(point);
+  local = local * local * (3.0 - 2.0 * local);
+  float a = hash21(cell + u_seed);
+  float b = hash21(cell + vec2(1.0, 0.0) + u_seed);
+  float c = hash21(cell + vec2(0.0, 1.0) + u_seed);
+  float d = hash21(cell + vec2(1.0) + u_seed);
+  return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
+
+float fbm(vec2 point) {
+  float result = 0.0;
+  float weight = 0.57;
+  for (int octave = 0; octave < 4; octave++) {
+    result += valueNoise(point) * weight;
+    point = point * 2.03 + vec2(17.1, 9.7);
+    weight *= 0.5;
+  }
+  return result / 1.06875;
 }
 
 void main() {
-  vec2 px = v_uv * u_res;
-  float x = floor(px.x);
-  float y = u_res.y - 1.0 - floor(px.y);
-  vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
-  vec4 self = texture(u_source, suv);
-  vec3 c = self.rgb * 255.0;
+  vec2 pixel = v_uv * u_res;
+  float closestFront = 10.0;
+  vec2 closestDirection = vec2(0.0);
+  float closestRadius = 1.0;
 
-  float edgeDist = min(min(x, u_res.x - x), min(y, u_res.y - y)) / (min(u_res.x, u_res.y) * 0.3);
-  float edgeBurn = max(0.0, 1.0 - edgeDist) * u_intensity;
-
-  c.r += edgeBurn * u_warmth * 120.0;
-  c.g += edgeBurn * u_warmth * 40.0;
-  c.b -= edgeBurn * u_warmth * 30.0;
-
-  float overexpose = edgeBurn * 0.3;
-  c.r += overexpose * 80.0;
-  c.g += overexpose * 50.0;
-
-  for (int i = 0; i < 5; i++) {
-    if (i >= u_hotspots) break;
-    vec3 s = u_spots[i];
-    float si = u_spotInt[i];
-    float dx = x - s.x;
-    float dy = y - s.y;
-    float dist = sqrt(dx * dx + dy * dy);
-    float t = max(0.0, 1.0 - dist / max(s.z, 1.0));
-    float hotIntensity = t * t * si * u_intensity;
-    c.r += hotIntensity * 200.0;
-    c.g += hotIntensity * 120.0;
-    c.b += hotIntensity * 60.0;
+  for (int index = 0; index < ${MAX_SPOTS}; index++) {
+    if (index >= u_spotCount) break;
+    vec3 spot = u_spots[index];
+    vec2 delta = pixel - spot.xy;
+    float radius = max(spot.z, 1.0);
+    vec2 normalizedDelta = delta / radius;
+    float distanceFromOrigin = length(normalizedDelta);
+    float angle = atan(normalizedDelta.y, normalizedDelta.x);
+    float organicNoise = fbm(pixel / max(radius * 0.18, 2.0) + float(index) * 8.3) - 0.5;
+    float lobes = sin(angle * (5.0 + float(index)) + u_seed * 3.1) * 0.045;
+    float irregularity = (organicNoise * 0.3 + lobes) * u_roughness;
+    float front = 0.12 + u_intensity * 0.75;
+    float signedDistance = distanceFromOrigin - front - irregularity;
+    if (signedDistance < closestFront) {
+      closestFront = signedDistance;
+      closestDirection = normalizedDelta;
+      closestRadius = radius;
+    }
   }
 
-  float grainAmount = edgeBurn * 20.0;
-  if (grainAmount > 0.0) {
-    float n = (hash(vec2(x, y), u_seed) - 0.5) * grainAmount;
-    c.r += n; c.g += n; c.b += n;
-  }
+  float activity = smoothstep(0.0, 0.25, u_intensity) * step(1.0, float(u_spotCount));
+  float heat = (1.0 - smoothstep(0.0, 0.42, closestFront)) * activity;
+  float blister = (1.0 - smoothstep(0.025, 0.13, abs(closestFront))) * activity;
+  float destroyedCore = (1.0 - smoothstep(-0.2, -0.045, closestFront)) * activity;
 
-  vec3 rgb = clamp(c, 0.0, 255.0) / 255.0;
-  fragColor = vec4(rgb, self.a);
+  vec2 direction = length(closestDirection) > 0.0001 ? normalize(closestDirection) : vec2(0.0);
+  float buckleBand = heat * (1.0 - destroyedCore) * (1.0 - blister * 0.4);
+  float buckleWave = sin(length(closestDirection) * 34.0 + fbm(pixel * 0.035) * 5.0);
+  vec2 warpPixels = direction * buckleWave * u_distortion * min(12.0, closestRadius * 0.08) * buckleBand;
+  warpPixels += vec2(valueNoise(pixel * 0.08) - 0.5, valueNoise(pixel.yx * 0.075 + 23.0) - 0.5)
+    * u_distortion * 4.0 * buckleBand;
+
+  vec2 sourceUv = clamp((pixel + warpPixels) / u_res, vec2(0.0), vec2(1.0));
+  vec4 source = texture(u_source, sourceUv);
+  float luminance = dot(source.rgb, vec3(0.2126, 0.7152, 0.0722));
+
+  vec3 fadedDyes = mix(vec3(luminance), vec3(luminance * 1.12, luminance * 0.72, luminance * 0.32), u_warmth);
+  vec3 result = mix(source.rgb, fadedDyes, buckleBand * 0.72);
+
+  float crackPattern = smoothstep(0.91, 0.985, abs(sin(
+    atan(closestDirection.y, closestDirection.x) * 11.0
+    + length(closestDirection) * 47.0
+    + fbm(pixel * 0.06) * 7.0
+  ))) * blister;
+  vec3 crust = mix(vec3(0.055, 0.012, 0.004), vec3(0.24, 0.045, 0.006), u_warmth);
+  result = mix(result, crust, blister * u_blistering * (0.82 + crackPattern * 0.18));
+
+  float innerBlister = smoothstep(-0.21, -0.08, closestFront) * (1.0 - smoothstep(-0.08, 0.015, closestFront));
+  vec3 hotEdge = mix(vec3(1.0, 0.78, 0.22), vec3(1.0, 0.95, 0.72), u_warmth);
+  result = mix(result, hotEdge, innerBlister * u_blistering * activity * 0.9);
+
+  float coreTexture = fbm(pixel * 0.055 + u_seed * 4.0);
+  vec3 projectorLight = mix(vec3(1.0, 0.93, 0.72), vec3(1.0, 0.995, 0.96), coreTexture);
+  float coreBreakup = destroyedCore * smoothstep(0.08, 0.42, -closestFront + (coreTexture - 0.5) * 0.1);
+  result = mix(result, projectorLight, coreBreakup);
+
+  fragColor = vec4(clamp(result, 0.0, 1.0), source.a);
 }
 `;
 
-type Cache = { fb: Program };
-let _cache: Cache | null = null;
-const initCache = (gl: WebGL2RenderingContext): Cache => {
-  if (_cache) return _cache;
-  _cache = {
-    fb: linkProgram(gl, FB_FS, [
-      "u_source", "u_res", "u_intensity", "u_warmth",
-      "u_hotspots", "u_spots", "u_spotInt", "u_seed",
-    ] as const),
-  };
-  return _cache;
+type Cache = { burn: Program };
+let cache: Cache | null = null;
+
+const getProgram = (gl: WebGL2RenderingContext): Program => {
+  if (!cache) {
+    cache = {
+      burn: linkProgram(gl, FILM_BURN_FS, [
+        "u_source", "u_res", "u_spotCount", "u_spots[0]", "u_intensity", "u_warmth",
+        "u_distortion", "u_blistering", "u_roughness", "u_seed",
+      ] as const),
+    };
+  }
+  return cache.burn;
 };
 
 const mulberry32 = (seed: number) => {
-  let s = seed | 0;
-  return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  let state = seed | 0;
+  return () => {
+    state = (state + 0x6D2B79F5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 };
 
-const filmBurn = (input: any, options = defaults) => {
-  const { intensity, warmth, hotspots, seed, palette } = options;
-  const W = input.width, H = input.height;
-
-  // Match the JS RNG call order so hotspot positions carry across backends.
-  const rng = mulberry32(seed);
-  const spots: { x: number; y: number; r: number; intensity: number }[] = [];
-  for (let i = 0; i < hotspots; i++) {
-    spots.push({
-      x: rng() * W, y: rng() * H,
-      r: (0.1 + rng() * 0.3) * Math.max(W, H),
-      intensity: 0.3 + rng() * 0.7
-    });
+const renderFilmBurn = (
+  source: HTMLCanvasElement | OffscreenCanvas,
+  width: number,
+  height: number,
+  options: Omit<typeof defaults, "palette">,
+): HTMLCanvasElement | OffscreenCanvas | null => {
+  const context = getGLCtx();
+  if (!context) return null;
+  const { gl, canvas } = context;
+  const program = getProgram(gl);
+  const vao = getQuadVAO(gl);
+  const random = mulberry32(options.seed);
+  const spots = new Float32Array(MAX_SPOTS * 3);
+  const count = Math.max(0, Math.min(MAX_SPOTS, Math.round(options.hotspots)));
+  const scale = Math.max(width, height);
+  for (let index = 0; index < count; index += 1) {
+    spots[index * 3] = (0.12 + random() * 0.76) * width;
+    spots[index * 3 + 1] = (0.12 + random() * 0.76) * height;
+    spots[index * 3 + 2] = (0.2 + random() * 0.2) * scale;
   }
 
-  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
-    const ctx = getGLCtx();
-    if (ctx) {
-      const { gl, canvas } = ctx;
-      const cache = initCache(gl);
-      const vao = getQuadVAO(gl);
-      resizeGLCanvas(canvas, W, H);
-      const sourceTex = ensureTexture(gl, "filmBurn:source", W, H);
-      uploadSourceTexture(gl, sourceTex, input);
-
-      const spotArr = new Float32Array(5 * 3);
-      const spotIntArr = new Float32Array(5);
-      for (let i = 0; i < 5; i++) {
-        const s = spots[i];
-        if (s) {
-          spotArr[i * 3] = s.x;
-          spotArr[i * 3 + 1] = H - 1 - s.y;
-          spotArr[i * 3 + 2] = s.r;
-          spotIntArr[i] = s.intensity;
-        }
-      }
-
-      drawPass(gl, null, W, H, cache.fb, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.fb.uniforms.u_source, 0);
-        gl.uniform2f(cache.fb.uniforms.u_res, W, H);
-        gl.uniform1f(cache.fb.uniforms.u_intensity, intensity);
-        gl.uniform1f(cache.fb.uniforms.u_warmth, warmth);
-        gl.uniform1i(cache.fb.uniforms.u_hotspots, hotspots);
-        gl.uniform3fv(cache.fb.uniforms.u_spots, spotArr);
-        gl.uniform1fv(cache.fb.uniforms.u_spotInt, spotIntArr);
-        gl.uniform1f(cache.fb.uniforms.u_seed, (seed % 1000) * 0.001);
-      }, vao);
-
-      const rendered = readoutToCanvas(canvas, W, H);
-      if (rendered) {
-        const identity = paletteIsIdentity(palette);
-        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-        if (out) {
-          logFilterBackend("Film Burn", "WebGL2",
-            `hotspots=${hotspots}${identity ? "" : "+palettePass"}`);
-          return out;
-        }
-      }
-    }
-  }
-
-  logFilterWasmStatus("Film Burn", false, "fallback JS");
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      let r = buf[i], g = buf[i + 1], b = buf[i + 2];
-
-      const edgeDist = Math.min(x, W - x, y, H - y) / (Math.min(W, H) * 0.3);
-      const edgeBurn = Math.max(0, 1 - edgeDist) * intensity;
-
-      r = Math.min(255, Math.round(r + edgeBurn * warmth * 120));
-      g = Math.min(255, Math.round(g + edgeBurn * warmth * 40));
-      b = Math.max(0, Math.round(b - edgeBurn * warmth * 30));
-
-      const overexpose = edgeBurn * 0.3;
-      r = Math.min(255, Math.round(r + overexpose * 80));
-      g = Math.min(255, Math.round(g + overexpose * 50));
-
-      for (const spot of spots) {
-        const dx = x - spot.x, dy = y - spot.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const t = Math.max(0, 1 - dist / spot.r);
-        const hotIntensity = t * t * spot.intensity * intensity;
-        r = Math.min(255, Math.round(r + hotIntensity * 200));
-        g = Math.min(255, Math.round(g + hotIntensity * 120));
-        b = Math.min(255, Math.round(b + hotIntensity * 60));
-      }
-
-      const grainAmount = edgeBurn * 20;
-      if (grainAmount > 0) {
-        const grainRng = mulberry32(x * 31 + y * 997 + seed);
-        const n = (grainRng() - 0.5) * grainAmount;
-        r = Math.max(0, Math.min(255, Math.round(r + n)));
-        g = Math.max(0, Math.min(255, Math.round(g + n)));
-        b = Math.max(0, Math.min(255, Math.round(b + n)));
-      }
-
-      const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  resizeGLCanvas(canvas, width, height);
+  const sourceTexture = ensureTexture(gl, "filmBurn:source", width, height);
+  uploadSourceTexture(gl, sourceTexture, source);
+  drawPass(gl, null, width, height, program, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+    gl.uniform1i(program.uniforms.u_source, 0);
+    gl.uniform2f(program.uniforms.u_res, width, height);
+    gl.uniform1i(program.uniforms.u_spotCount, count);
+    gl.uniform3fv(program.uniforms["u_spots[0]"], spots);
+    gl.uniform1f(program.uniforms.u_intensity, options.intensity);
+    gl.uniform1f(program.uniforms.u_warmth, options.warmth);
+    gl.uniform1f(program.uniforms.u_distortion, options.distortion);
+    gl.uniform1f(program.uniforms.u_blistering, options.blistering);
+    gl.uniform1f(program.uniforms.u_roughness, options.roughness);
+    gl.uniform1f(program.uniforms.u_seed, options.seed * 0.017);
+  }, vao);
+  return readoutToCanvas(canvas, width, height);
 };
 
-export default defineFilter({ name: "Film Burn", func: filmBurn, optionTypes, options: defaults, defaults });
+const filmBurn = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const resolved = { ...defaults, ...options };
+  const { palette, ...damage } = resolved;
+  const width = input.width;
+  const height = input.height;
+  const rendered = renderFilmBurn(input, width, height, damage);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+  logFilterBackend("Film Burn", "WebGL2", `spots=${damage.hotspots} intensity=${damage.intensity}${identity ? "" : "+palettePass"}`);
+  return output ?? input;
+};
+
+export default defineFilter({
+  name: "Film Burn",
+  func: filmBurn,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Projection-gate heat damage with warped dyes, blistered crust, cracked emulsion, and exposed-lamp cores",
+  requiresGL: true,
+});

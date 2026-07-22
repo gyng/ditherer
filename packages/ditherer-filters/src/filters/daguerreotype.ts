@@ -1,16 +1,19 @@
-import { RANGE, PALETTE } from "../constants/controlTypes";
+import { PALETTE, RANGE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "../utils/index";
-import { applyPalettePassToCanvas } from "../palettes/backend";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { logFilterBackend } from "../utils/index";
+import { renderDaguerreotypeGL } from "./daguerreotypeGL";
 import { defineFilter } from "./types";
-import { daguerreotypeGLAvailable, renderDaguerreotypeGL } from "./daguerreotypeGL";
 
 export const optionTypes = {
-  silverTone: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Intensity of silver/mercury toning" },
-  softFocus: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Blur radius for period-accurate softness" },
-  vignette: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Edge darkening intensity" },
-  metallic: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Metallic plate sheen effect" },
-  palette: { type: PALETTE, default: nearest }
+  silverTone: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "Warm the neutral silver image particles toward a subtly gilded plate tone" },
+  softFocus: { type: RANGE, range: [0, 4], step: 1, default: 0, desc: "Optional lens diffusion; zero preserves the medium's characteristic fine detail" },
+  vignette: { type: RANGE, range: [0, 1], step: 0.05, default: 0.18, desc: "Restrained edge falloff from lens coverage and plate presentation" },
+  metallic: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Strength of the polished silver plate's directional mirror reflection" },
+  gilding: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Gold-chloride toning that strengthens image contrast and warms highlights" },
+  viewAngle: { type: RANGE, range: [0, 360], step: 5, default: 25, desc: "Direction of the reflected viewing field across the mirror-polished plate" },
+  plateAge: { type: RANGE, range: [0, 1], step: 0.02, default: 0.08, desc: "Subtle edge tarnish, plate speckling, and handling scratches" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
 export const defaults = {
@@ -18,96 +21,43 @@ export const defaults = {
   softFocus: optionTypes.softFocus.default,
   vignette: optionTypes.vignette.default,
   metallic: optionTypes.metallic.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  gilding: optionTypes.gilding.default,
+  viewAngle: optionTypes.viewAngle.default,
+  plateAge: optionTypes.plateAge.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const daguerreotype = (input: any, options = defaults) => {
-  const { silverTone, softFocus, vignette, metallic, palette } = options;
-  const W = input.width, H = input.height;
+const daguerreotype = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const resolved = { ...defaults, ...options };
+  const { silverTone, softFocus, vignette, metallic, gilding, viewAngle, plateAge, palette } = resolved;
+  const width = input.width;
+  const height = input.height;
+  const rendered = renderDaguerreotypeGL(
+    input,
+    width,
+    height,
+    silverTone,
+    softFocus,
+    vignette,
+    metallic,
+    gilding,
+    viewAngle,
+    plateAge,
+  );
+  if (!rendered) return input;
 
-  if (
-    daguerreotypeGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-  ) {
-    const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
-    const rendered = renderDaguerreotypeGL(input, W, H, silverTone, softFocus, vignette, metallic, levels);
-    if (rendered) {
-      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Daguerreotype", "WebGL2", `silver=${silverTone} focus=${softFocus}${isNearest ? "" : "+palettePass"}`);
-        return out;
-      }
-    }
-  }
-
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  // Soft focus via box blur
-  const blurred = new Float32Array(W * H * 3);
-  const r = Math.max(1, softFocus);
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      let sr = 0, sg = 0, sb = 0, cnt = 0;
-      for (let ky = -r; ky <= r; ky++)
-        for (let kx = -r; kx <= r; kx++) {
-          const ni = getBufferIndex(Math.max(0, Math.min(W - 1, x + kx)), Math.max(0, Math.min(H - 1, y + ky)), W);
-          sr += buf[ni]; sg += buf[ni + 1]; sb += buf[ni + 2]; cnt++;
-        }
-      const idx = (y * W + x) * 3;
-      blurred[idx] = sr / cnt; blurred[idx + 1] = sg / cnt; blurred[idx + 2] = sb / cnt;
-    }
-
-  const cx = W / 2, cy = H / 2;
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const bi = (y * W + x) * 3;
-      const lr = blurred[bi], lg = blurred[bi + 1], lb = blurred[bi + 2];
-
-      // Convert to luminance
-      const lum = (0.2126 * lr + 0.7152 * lg + 0.0722 * lb) / 255;
-
-      // Silver-blue tone (daguerreotype color)
-      const toneR = lum * (180 + silverTone * 40);
-      const toneG = lum * (185 + silverTone * 30);
-      const toneB = lum * (200 + silverTone * 55);
-
-      // Metallic sheen: brighten highlights, deepen shadows
-      let fr = toneR, fg = toneG, fb = toneB;
-      if (metallic > 0) {
-        const highlight = Math.pow(lum, 0.5) * metallic * 60;
-        fr += highlight; fg += highlight; fb += highlight * 1.1;
-      }
-
-      // Oval vignette
-      if (vignette > 0) {
-        const dx = (x - cx) / cx;
-        const dy = (y - cy) / cy;
-        const dist = Math.sqrt(dx * dx * 1.5 + dy * dy * 1.5); // Oval
-        const vig = Math.max(0, 1 - Math.pow(Math.max(0, dist - 0.3) / 0.7, 2)) ;
-        const factor = 1 - (1 - vig) * vignette;
-        fr *= factor; fg *= factor; fb *= factor;
-      }
-
-      const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(
-        Math.max(0, Math.min(255, Math.round(fr))),
-        Math.max(0, Math.min(255, Math.round(fg))),
-        Math.max(0, Math.min(255, Math.round(fb))), 255
-      ), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
-    }
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const identity = paletteIsIdentity(palette);
+  const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+  logFilterBackend("Daguerreotype", "WebGL2", `gilding=${gilding} reflection=${metallic}${identity ? "" : "+palettePass"}`);
+  return output ?? input;
 };
 
-export default defineFilter({ name: "Daguerreotype", func: daguerreotype, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Daguerreotype",
+  func: daguerreotype,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Highly detailed direct-positive image particles over a mirror-polished, subtly aged silver plate",
+  requiresGL: true,
+});

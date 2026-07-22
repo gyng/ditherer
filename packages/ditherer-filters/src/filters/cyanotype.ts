@@ -1,87 +1,33 @@
-import { RANGE, COLOR, BOOL, PALETTE } from "../constants/controlTypes";
-import { nearest } from "../palettes/index";
-import { defineFilter } from "./types";
-import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
-import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { BOOL, COLOR, PALETTE, RANGE } from "../constants/controlTypes";
 import {
   drawPass,
   ensureTexture,
   getGLCtx,
   getQuadVAO,
-  glAvailable,
   linkProgram,
   readoutToCanvas,
   resizeGLCanvas,
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
-
-// Cyanotype / blueprint print simulation. Tone-curves luminance onto the
-// characteristic Prussian-blue → white gradient, with optional paper-
-// texture grain, exposure contrast, and an edge-brightening "solarisation"
-// roll-off at the highlights.
-
-const CYANO_FS = `#version 300 es
-precision highp float;
-in vec2 v_uv;
-out vec4 fragColor;
-
-uniform sampler2D u_source;
-uniform vec2  u_res;
-uniform vec3  u_highlight;   // 0..255
-uniform vec3  u_shadow;      // 0..255
-uniform float u_exposure;
-uniform float u_contrast;
-uniform float u_grain;
-uniform float u_paperTint;
-uniform int   u_invert;
-uniform float u_levels;
-
-float hash1(vec2 p) {
-  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
-void main() {
-  vec2 px = v_uv * u_res;
-  float x = floor(px.x);
-  float y = u_res.y - 1.0 - floor(px.y);
-
-  vec3 src = texture(u_source, vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y)).rgb;
-  float lum = 0.2126 * src.r + 0.7152 * src.g + 0.0722 * src.b;
-
-  // Exposure + contrast around mid-grey.
-  float t = clamp((lum - 0.5) * u_contrast + 0.5 + u_exposure, 0.0, 1.0);
-  if (u_invert == 1) t = 1.0 - t;
-
-  // Paper-texture grain — faint high-freq noise in the mid-tones.
-  float grainMask = 1.0 - abs(t - 0.5) * 2.0;
-  float noise = (hash1(vec2(x, y)) - 0.5) * u_grain * grainMask;
-  t = clamp(t + noise, 0.0, 1.0);
-
-  vec3 rgb = mix(u_shadow, u_highlight, t);
-  // Paper tint at the highlights — warm off-white rather than pure white
-  // matches real cyanotype paper stock.
-  vec3 paperWarm = vec3(248.0, 243.0, 230.0);
-  rgb = mix(rgb, paperWarm, u_paperTint * smoothstep(0.85, 1.0, t));
-
-  rgb = clamp(rgb, 0.0, 255.0) / 255.0;
-  if (u_levels > 1.5) {
-    float q = u_levels - 1.0;
-    rgb = floor(rgb * q + 0.5) / q;
-  }
-  fragColor = vec4(rgb, 1.0);
-}
-`;
+import { nearest } from "../palettes/index";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { logFilterBackend } from "../utils/index";
+import { cyanotypeGrainAmplitude } from "./physicalImagingQualityContracts";
+import { defineFilter } from "./types";
 
 export const optionTypes = {
-  highlightColor: { type: COLOR, default: [236, 242, 250], desc: "Highlight colour (unexposed paper)" },
-  shadowColor: { type: COLOR, default: [21, 43, 96], desc: "Shadow colour (Prussian-blue chemistry)" },
-  exposure: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Exposure shift" },
-  contrast: { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.4, desc: "Contrast around mid-grey" },
-  grain: { type: RANGE, range: [0, 0.4], step: 0.005, default: 0.06, desc: "Paper-texture grain" },
-  paperTint: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warm paper tint in the highlights" },
-  invert: { type: BOOL, default: false, desc: "Invert — negative print" },
-  palette: { type: PALETTE, default: nearest },
+  highlightColor: { type: COLOR, default: [236, 242, 250], desc: "Color of washed, unexposed paper highlights" },
+  shadowColor: { type: COLOR, default: [21, 43, 96], desc: "Prussian-blue color at maximum image density" },
+  exposure: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Print exposure bias before blue-density formation" },
+  contrast: { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.4, desc: "Separation between washed paper and dense blue image areas" },
+  grain: { type: RANGE, range: [0, 0.4], step: 0.005, default: 0.06, desc: "Bounded Prussian-blue granulation in normalized tone units" },
+  paperTint: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warmth of the washed paper base" },
+  wash: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Clearing of unexposed sensitizer from paper highlights" },
+  blueDensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.9, desc: "Maximum retained Prussian-blue image density" },
+  fiberTexture: { type: RANGE, range: [0, 1], step: 0.02, default: 0.18, desc: "Directional paper-fiber and coating variation" },
+  invert: { type: BOOL, default: false, desc: "Reverse positive-image mapping to emulate contact-negative exposure" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
 export const defaults = {
@@ -91,63 +37,141 @@ export const defaults = {
   contrast: optionTypes.contrast.default,
   grain: optionTypes.grain.default,
   paperTint: optionTypes.paperTint.default,
+  wash: optionTypes.wash.default,
+  blueDensity: optionTypes.blueDensity.default,
+  fiberTexture: optionTypes.fiberTexture.default,
   invert: optionTypes.invert.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-type Cache = { prog: Program };
-let _cache: Cache | null = null;
-const initCache = (gl: WebGL2RenderingContext): Cache => {
-  if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, CYANO_FS, [
-    "u_source", "u_res", "u_highlight", "u_shadow",
-    "u_exposure", "u_contrast", "u_grain", "u_paperTint", "u_invert", "u_levels",
-  ] as const) };
-  return _cache;
+const CYANOTYPE_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_source;
+uniform vec2 u_res;
+uniform vec3 u_highlight;
+uniform vec3 u_shadow;
+uniform float u_exposure;
+uniform float u_contrast;
+uniform float u_grain;
+uniform float u_paperTint;
+uniform float u_wash;
+uniform float u_blueDensity;
+uniform float u_fiberTexture;
+uniform int u_invert;
+
+float hash21(vec2 point) {
+  vec3 p = fract(vec3(point.xyx) * 0.1031);
+  p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+
+float valueNoise(vec2 point) {
+  vec2 cell = floor(point);
+  vec2 local = fract(point);
+  local = local * local * (3.0 - 2.0 * local);
+  float a = hash21(cell);
+  float b = hash21(cell + vec2(1.0, 0.0));
+  float c = hash21(cell + vec2(0.0, 1.0));
+  float d = hash21(cell + vec2(1.0));
+  return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
+
+vec3 srgbToLinear(vec3 value) {
+  bvec3 cutoff = lessThanEqual(value, vec3(0.04045));
+  vec3 low = value / 12.92;
+  vec3 high = pow((value + 0.055) / 1.055, vec3(2.4));
+  return mix(high, low, cutoff);
+}
+
+void main() {
+  vec2 pixel = floor(v_uv * u_res);
+  vec4 source = texture(u_source, (pixel + 0.5) / u_res);
+  vec3 linearSource = srgbToLinear(source.rgb);
+  float luminance = dot(linearSource, vec3(0.2126, 0.7152, 0.0722));
+
+  float shifted = clamp(luminance + u_exposure * 0.35, 0.0, 1.0);
+  float paperSignal = clamp((shifted - 0.5) * u_contrast + 0.5, 0.0, 1.0);
+  float density = u_invert == 1 ? paperSignal : 1.0 - paperSignal;
+  density *= u_blueDensity;
+
+  float washedDensity = smoothstep(0.07, 0.78, density);
+  density = mix(density, washedDensity, u_wash * 0.72);
+  float densityMask = 4.0 * density * (1.0 - density);
+  float granulation = (hash21(pixel + 19.0) - 0.5) * u_grain * densityMask;
+  density = clamp(density + granulation, 0.0, 1.0);
+
+  float longFiber = sin(pixel.x * 0.12 + valueNoise(pixel / 29.0) * 5.5) * 0.5 + 0.5;
+  float crossFiber = sin(pixel.y * 0.21 + valueNoise(pixel.yx / 17.0) * 4.2) * 0.5 + 0.5;
+  float fiber = (longFiber * 0.65 + crossFiber * 0.35) - 0.5;
+  density = clamp(density + fiber * u_fiberTexture * 0.075 * densityMask, 0.0, 1.0);
+
+  vec3 warmPaper = vec3(0.973, 0.953, 0.902);
+  vec3 paper = mix(u_highlight, warmPaper, u_paperTint);
+  paper *= 1.0 + fiber * u_fiberTexture * 0.04;
+  vec3 blue = u_shadow * mix(0.88, 1.08, valueNoise(pixel * 0.18 + 7.0));
+  vec3 result = mix(paper, blue, density);
+  fragColor = vec4(clamp(result, 0.0, 1.0), source.a);
+}
+`;
+
+type Cache = { cyanotype: Program };
+let cache: Cache | null = null;
+
+const getProgram = (gl: WebGL2RenderingContext): Program => {
+  if (!cache) {
+    cache = {
+      cyanotype: linkProgram(gl, CYANOTYPE_FS, [
+        "u_source", "u_res", "u_highlight", "u_shadow", "u_exposure", "u_contrast",
+        "u_grain", "u_paperTint", "u_wash", "u_blueDensity", "u_fiberTexture", "u_invert",
+      ] as const),
+    };
+  }
+  return cache.cyanotype;
 };
 
-const cyanotype = (input: any, options = defaults) => {
-  const { highlightColor, shadowColor, exposure, contrast, grain, paperTint, invert, palette } = options;
-  const W = input.width, H = input.height;
-  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
-    const ctx = getGLCtx();
-    if (ctx) {
-      const { gl, canvas } = ctx;
-      const cache = initCache(gl);
-      const vao = getQuadVAO(gl);
-      resizeGLCanvas(canvas, W, H);
-      const sourceTex = ensureTexture(gl, "cyanotype:source", W, H);
-      uploadSourceTexture(gl, sourceTex, input);
-      drawPass(gl, null, W, H, cache.prog, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.prog.uniforms.u_source, 0);
-        gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-        gl.uniform3f(cache.prog.uniforms.u_highlight, highlightColor[0], highlightColor[1], highlightColor[2]);
-        gl.uniform3f(cache.prog.uniforms.u_shadow, shadowColor[0], shadowColor[1], shadowColor[2]);
-        gl.uniform1f(cache.prog.uniforms.u_exposure, exposure);
-        gl.uniform1f(cache.prog.uniforms.u_contrast, contrast);
-        gl.uniform1f(cache.prog.uniforms.u_grain, grain * 255);
-        gl.uniform1f(cache.prog.uniforms.u_paperTint, paperTint);
-        gl.uniform1i(cache.prog.uniforms.u_invert, invert ? 1 : 0);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
-      const rendered = readoutToCanvas(canvas, W, H);
-      if (rendered) {
-        const identity = paletteIsIdentity(palette);
-        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-        if (out) {
-          logFilterBackend("Cyanotype", "WebGL2",
-            `contrast=${contrast} grain=${grain}${identity ? "" : "+palettePass"}`);
-          return out;
-        }
-      }
-    }
-  }
-  logFilterWasmStatus("Cyanotype", false, "needs WebGL2");
-  return cloneCanvas(input, true);
+const cyanotype = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const resolved = { ...defaults, ...options };
+  const {
+    highlightColor, shadowColor, exposure, contrast, grain, paperTint,
+    wash, blueDensity, fiberTexture, invert, palette,
+  } = resolved;
+  const width = input.width;
+  const height = input.height;
+  const context = getGLCtx();
+  if (!context) return input;
+  const { gl, canvas } = context;
+  const program = getProgram(gl);
+  const vao = getQuadVAO(gl);
+
+  resizeGLCanvas(canvas, width, height);
+  const sourceTexture = ensureTexture(gl, "cyanotype:source", width, height);
+  uploadSourceTexture(gl, sourceTexture, input);
+  drawPass(gl, null, width, height, program, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+    gl.uniform1i(program.uniforms.u_source, 0);
+    gl.uniform2f(program.uniforms.u_res, width, height);
+    gl.uniform3f(program.uniforms.u_highlight, highlightColor[0] / 255, highlightColor[1] / 255, highlightColor[2] / 255);
+    gl.uniform3f(program.uniforms.u_shadow, shadowColor[0] / 255, shadowColor[1] / 255, shadowColor[2] / 255);
+    gl.uniform1f(program.uniforms.u_exposure, exposure);
+    gl.uniform1f(program.uniforms.u_contrast, contrast);
+    gl.uniform1f(program.uniforms.u_grain, cyanotypeGrainAmplitude(grain));
+    gl.uniform1f(program.uniforms.u_paperTint, paperTint);
+    gl.uniform1f(program.uniforms.u_wash, wash);
+    gl.uniform1f(program.uniforms.u_blueDensity, blueDensity);
+    gl.uniform1f(program.uniforms.u_fiberTexture, fiberTexture);
+    gl.uniform1i(program.uniforms.u_invert, invert ? 1 : 0);
+  }, vao);
+
+  const rendered = readoutToCanvas(canvas, width, height);
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(palette);
+  const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+  logFilterBackend("Cyanotype", "WebGL2", `density=${blueDensity} wash=${wash}${identity ? "" : "+palettePass"}`);
+  return output ?? input;
 };
 
 export default defineFilter({
@@ -156,6 +180,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Cyanotype / blueprint print — Prussian-blue two-tone mapping with exposure, contrast, paper grain, and warm-paper highlights",
-  noWASM: "Pure per-pixel tone map + hash noise; GL natural fit.",
+  description: "Washed cyanotype paper with bounded Prussian-blue image density, granulation, and directional fibers",
+  requiresGL: true,
 });

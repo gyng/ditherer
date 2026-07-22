@@ -16,6 +16,15 @@ package follows semantic versioning.
 
 ### Changed
 
+- Rebuilt Infrared Photography, Mezzotint, Nokia LCD, and Daguerreotype around
+  documented spectral, printmaking, display, and plate characteristics while
+  preserving their saved-state option keys.
+- Replaced Film Burn's additive circles with irregular heat-front, emulsion,
+  blister, crack, and base-distortion damage, and replaced Ink Bleed's square
+  minimum with fiber-aware capillary deposition on paper.
+- Reworked Cyanotype as washed Prussian-blue image density over paper and
+  Thermal Camera as an explicitly labeled, low-resolution visible-luminance
+  proxy with level/span and sensor noise controls.
 - Rebuilt Anime Color Grade, Tone Bands, Ink Lines, and Sky around scene color
   scripts, structure-aware value grouping, XDoG extraction, coherent clouds,
   conservative masks, and production-oriented controls.
@@ -28,6 +37,9 @@ package follows semantic versioning.
 
 ### Fixed
 
+- Corrected Cyanotype's 255× grain-unit error, preserved source alpha across
+  the upgraded physical-imaging effects, and removed the misleading claim
+  that visible RGB input can provide measured thermal temperature.
 - Replaced frame-relative phosphor trails with refresh-aware P22
   decay-to-10% timing and explicit custom, long-persistence, and legacy modes.
 - Prevented retained interlace fields from accumulating repeated bloom and

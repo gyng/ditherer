@@ -564,7 +564,7 @@ export const filterCatalog = [
     "displayName": "Mezzotint",
     "filterName": "Mezzotint",
     "category": "Stylize",
-    "description": "Fine random dot texture — density encodes luminance, a specific printmaking technique"
+    "description": "Dark-ground tonal intaglio with crossed rocker burr, scraped light, ink, paper, and plate wear"
   },
   {
     "displayName": "Mosaic tile",
@@ -720,7 +720,7 @@ export const filterCatalog = [
     "displayName": "Cyanotype",
     "filterName": "Cyanotype",
     "category": "Stylize",
-    "description": "Prussian-blue sun-print tone mapping with paper grain and warm highlight tint"
+    "description": "Washed cyanotype paper with bounded Prussian-blue image density, granulation, and directional fibers"
   },
   {
     "displayName": "SDF Stylize",
@@ -1134,7 +1134,7 @@ export const filterCatalog = [
     "displayName": "Daguerreotype",
     "filterName": "Daguerreotype",
     "category": "Simulate",
-    "description": "Early photography — silver-blue tone, soft focus, oval vignette, metallic sheen"
+    "description": "Highly detailed direct-positive particles over a directional, mirror-polished silver plate"
   },
   {
     "displayName": "Digicam Flash",
@@ -1182,7 +1182,7 @@ export const filterCatalog = [
     "displayName": "Film burn",
     "filterName": "Film Burn",
     "category": "Simulate",
-    "description": "Aged film stock — warm edge cast, overexposed hotspots, grain intensification"
+    "description": "Projection-gate heat damage with warped dyes, blistered crust, cracked emulsion, and exposed-lamp cores"
   },
   {
     "displayName": "Film grain",
@@ -1194,7 +1194,7 @@ export const filterCatalog = [
     "displayName": "Ink Bleed",
     "filterName": "Ink Bleed",
     "category": "Simulate",
-    "description": "Spread dark regions into the paper like wet ink on cheap stock"
+    "description": "Dark ink wicks through an anisotropic paper-fiber field with heterogeneous capillary edges"
   },
   {
     "displayName": "Paper Texture",
@@ -1218,7 +1218,7 @@ export const filterCatalog = [
     "displayName": "Infrared photography",
     "filterName": "Infrared",
     "category": "Simulate",
-    "description": "IR film look — foliage turns white/pink, skies go dark, color shift"
+    "description": "Estimated visible-RGB infrared film response with Wood-effect monochrome and Aerochrome-style channel mapping"
   },
   {
     "displayName": "LCD display",
@@ -1278,7 +1278,7 @@ export const filterCatalog = [
     "displayName": "Nokia LCD",
     "filterName": "Nokia LCD",
     "category": "Simulate",
-    "description": "Simulate the Nokia 3310 monochrome LCD — 84x48 pixels with greenish tint"
+    "description": "PCD8544-style 84×48 two-state LCD with display-grid ordered dithering and preserved green optical states"
   },
   {
     "displayName": "Oscilloscope",
@@ -1368,7 +1368,7 @@ export const filterCatalog = [
     "displayName": "Thermal camera",
     "filterName": "Thermal camera",
     "category": "Simulate",
-    "description": "FLIR-style false-color thermal imaging with ironbow, rainbow, and hot/cold palettes"
+    "description": "Visible-RGB luminance proxy—not emitted-IR temperature—through a low-resolution thermal-camera display"
   },
   {
     "displayName": "Thermal printer",
