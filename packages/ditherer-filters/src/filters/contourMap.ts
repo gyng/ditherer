@@ -1,4 +1,4 @@
-import { RANGE, ENUM, PALETTE } from "../constants/controlTypes";
+import { RANGE, ENUM, COLOR, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import {
   cloneCanvas,
@@ -9,6 +9,11 @@ import {
   logFilterBackend,
   logFilterWasmStatus,
 } from "../utils/index";
+import {
+  normalizeRangeOption,
+  normalizeEnumOption,
+  normalizeColorOption,
+} from "../utils/filterOptions";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
@@ -51,14 +56,22 @@ export const optionTypes = {
     { name: "Bathymetric", value: COLORMAP.BATHYMETRIC },
     { name: "Thermal", value: COLORMAP.THERMAL }
   ], default: COLORMAP.TOPOGRAPHIC, desc: "Color scheme for the contour bands" },
+  lineColor: { type: COLOR, default: [40, 30, 20], desc: "Iso-contour line color" },
+  lineWidth: { type: RANGE, range: [0, 3], step: 0.1, default: 1, desc: "Contour line thickness in pixels (0 disables lines)" },
+  lineOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Contour line opacity" },
   palette: { type: PALETTE, default: nearest }
 };
 
 export const defaults = {
   bands: optionTypes.bands.default,
   colormap: optionTypes.colormap.default,
+  lineColor: optionTypes.lineColor.default,
+  lineWidth: optionTypes.lineWidth.default,
+  lineOpacity: optionTypes.lineOpacity.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
+
+const COLORMAP_VALUES = Object.values(COLORMAP);
 
 const CM_FS = `#version 300 es
 precision highp float;
@@ -70,6 +83,15 @@ uniform int   u_bands;
 uniform int   u_stopCount;
 uniform vec3  u_stops[${MAX_STOPS}];
 uniform float u_levels;
+uniform vec2  u_texel;       // 1 / resolution, for neighbourhood smoothing
+uniform vec3  u_lineColor;   // 0..255
+uniform float u_lineWidth;   // contour line thickness in pixels
+uniform float u_lineOpacity; // 0..1
+
+float lumAt(vec2 uv) {
+  vec4 s = texture(u_source, uv);
+  return 0.2126 * s.r + 0.7152 * s.g + 0.0722 * s.b;
+}
 
 vec3 sampleGradient(float t) {
   float ct = clamp(t, 0.0, 1.0);
@@ -94,9 +116,32 @@ vec3 sampleGradient(float t) {
 
 void main() {
   vec4 c = texture(u_source, v_uv);
-  float lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-  float band = floor(lum * float(u_bands)) / float(u_bands);
+  // Smoothed luminance as the elevation proxy: a 5-tap plus average over
+  // neighbouring pixels decouples elevation from per-pixel noise so contour
+  // lines are clean rather than jagged.
+  float h = (
+    lumAt(v_uv) +
+    lumAt(v_uv + vec2(u_texel.x, 0.0)) +
+    lumAt(v_uv - vec2(u_texel.x, 0.0)) +
+    lumAt(v_uv + vec2(0.0, u_texel.y)) +
+    lumAt(v_uv - vec2(0.0, u_texel.y))
+  ) / 5.0;
+
+  // Hypsometric fill: colormap band from the smoothed height.
+  float band = floor(h * float(u_bands)) / float(u_bands);
   vec3 rgb = sampleGradient(band) / 255.0;
+
+  // Iso-contour lines at each elevation level via screen-space derivatives.
+  float scaled = clamp(h, 0.0, 1.0) * float(u_bands);
+  float dist = min(fract(scaled), 1.0 - fract(scaled));
+  float aa = fwidth(scaled);
+  float line = 1.0 - smoothstep(0.0, max(u_lineWidth * aa, 1e-6), dist);
+  line *= step(1e-5, aa);
+  // Fade lines out across cliffs where many bands cross a single pixel, so a
+  // hard edge reads as a cluster of contours rather than a solid colour block.
+  line *= 1.0 - smoothstep(0.5, 1.0, aa);
+  rgb = mix(rgb, u_lineColor / 255.0, line * u_lineOpacity);
+
   if (u_levels > 1.5) {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
@@ -112,13 +157,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     cm: linkProgram(gl, CM_FS, [
       "u_source", "u_bands", "u_stopCount", "u_stops", "u_levels",
+      "u_texel", "u_lineColor", "u_lineWidth", "u_lineOpacity",
     ] as const),
   };
   return _cache;
 };
 
-const contourMap = (input: any, options = defaults) => {
-  const { bands, colormap, palette } = options;
+const contourMap = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const bands = normalizeRangeOption(options.bands, defaults.bands, 3, 20, true);
+  const colormap = normalizeEnumOption(options.colormap, COLORMAP_VALUES, defaults.colormap);
+  const lineColor = normalizeColorOption(options.lineColor, defaults.lineColor);
+  const lineWidth = normalizeRangeOption(options.lineWidth, defaults.lineWidth, 0, 3, false);
+  const lineOpacity = normalizeRangeOption(options.lineOpacity, defaults.lineOpacity, 0, 1, false);
+  const palette = options.palette ?? defaults.palette;
   const W = input.width, H = input.height;
   const stops = COLORMAPS[colormap] || COLORMAPS[COLORMAP.TOPOGRAPHIC];
 
@@ -146,6 +197,10 @@ const contourMap = (input: any, options = defaults) => {
         gl.uniform1i(cache.cm.uniforms.u_bands, bands);
         gl.uniform1i(cache.cm.uniforms.u_stopCount, Math.min(stops.length, MAX_STOPS));
         gl.uniform3fv(cache.cm.uniforms.u_stops, stopArr);
+        gl.uniform2f(cache.cm.uniforms.u_texel, 1 / W, 1 / H);
+        gl.uniform3f(cache.cm.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
+        gl.uniform1f(cache.cm.uniforms.u_lineWidth, lineWidth);
+        gl.uniform1f(cache.cm.uniforms.u_lineOpacity, lineOpacity);
         const identity = paletteIsIdentity(palette);
         const pOpts = (palette as { options?: { levels?: number } }).options;
         gl.uniform1f(cache.cm.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
@@ -173,14 +228,57 @@ const contourMap = (input: any, options = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
+  // Smoothed luminance elevation field (3x3 box) so contour bands and lines are
+  // clean rather than per-pixel noisy — the JS analogue of the GL 5-tap smooth.
+  const lum = new Float32Array(W * H);
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const lum = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
-      const band = Math.floor(lum * bands) / bands;
-      const [cr, cg, cb] = sampleGradient(stops, band);
+      lum[y * W + x] = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
+    }
+  const height = new Float32Array(W * H);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      let sum = 0, count = 0;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+          sum += lum[ny * W + nx];
+          count++;
+        }
+      height[y * W + x] = sum / count;
+    }
+
+  // Continuous line strength: thinner width fades toward off, 0 disables lines.
+  const lineStrength = lineOpacity * Math.min(1, lineWidth);
+
+  const bandIndexAt = (x: number, y: number) => Math.floor(height[y * W + x] * bands);
+
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const i = getBufferIndex(x, y, W);
+      const h = height[y * W + x];
+      const band = Math.floor(h * bands) / bands;
+      const [fr, fg, fb] = sampleGradient(stops, band);
+
+      // Iso-contour line: this pixel sits on a level boundary if its band index
+      // differs from the right or bottom neighbour's band index.
+      const bi = bandIndexAt(x, y);
+      const onLine = lineStrength > 0 && (
+        (x + 1 < W && bandIndexAt(x + 1, y) !== bi) ||
+        (y + 1 < H && bandIndexAt(x, y + 1) !== bi)
+      );
+
+      let cr = fr, cg = fg, cb = fb;
+      if (onLine) {
+        cr = Math.round(fr + (lineColor[0] - fr) * lineStrength);
+        cg = Math.round(fg + (lineColor[1] - fg) * lineStrength);
+        cb = Math.round(fb + (lineColor[2] - fb) * lineStrength);
+      }
+
       const color = paletteGetColor(palette, rgba(cr, cg, cb, 255), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);

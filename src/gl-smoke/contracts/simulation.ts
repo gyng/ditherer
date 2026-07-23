@@ -53,6 +53,66 @@ export const runStableFluidsProjectionStable = (): Result => {
   return { ok: true };
 };
 
+/**
+ * Wake Turbulence must warp ONLY where there is motion. With no inter-frame
+ * motion (previous frame equal to the current) the output matches the source;
+ * with strong motion (a very different previous frame) the curl-turbulence warp
+ * visibly displaces the image. Uses _frameIndex 0 so no accumulated energy from
+ * a prior call leaks in.
+ */
+export const runWakeMotionGated = (): Result => {
+  const filter = filterIndex["Wake Turbulence"] as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Wake Turbulence missing from registry" };
+  const w = 64, h = 64;
+  const src = document.createElement("canvas");
+  src.width = w; src.height = h;
+  const ctx = src.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return { ok: false, reason: "wake fixture has no 2d context" };
+  const image = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+    const o = (y * w + x) * 4;
+    const v = ((x >> 2) + (y >> 2)) % 2 === 0 ? 220 : 40; // checker for visible warp
+    image.data[o] = v; image.data[o + 1] = v; image.data[o + 2] = v; image.data[o + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  const srcPixels = ctx.getImageData(0, 0, w, h).data;
+
+  const still = new Uint8ClampedArray(srcPixels);                 // prev == current -> no motion
+  const moved = new Uint8ClampedArray(srcPixels.length);          // prev inverted -> strong motion
+  for (let i = 0; i < moved.length; i += 4) {
+    moved[i] = 255 - srcPixels[i]; moved[i + 1] = 255 - srcPixels[i + 1];
+    moved[i + 2] = 255 - srcPixels[i + 2]; moved[i + 3] = 255;
+  }
+
+  const runWake = (ema: Uint8ClampedArray): Uint8ClampedArray | null => {
+    const fresh = document.createElement("canvas");
+    fresh.width = w; fresh.height = h;
+    fresh.getContext("2d")!.putImageData(new ImageData(new Uint8ClampedArray(srcPixels), w, h), 0, 0);
+    return canvasPixels(filter.func(fresh, {
+      ...(filter.defaults ?? {}), intensity: 16, turbulence: 3,
+      _webglAcceleration: true, _frameIndex: 0, _isAnimating: true, _ema: ema,
+    }) as HTMLCanvasElement);
+  };
+
+  const noMotion = runWake(still);
+  const motion = runWake(moved);
+  if (!noMotion || !motion) return { ok: false, reason: "Wake Turbulence readback failed" };
+
+  const meanDiff = (a: Uint8ClampedArray): number => {
+    let s = 0;
+    for (let i = 0; i < a.length; i += 4) s += Math.abs(a[i] - srcPixels[i]);
+    return s / (a.length / 4);
+  };
+  const stillDiff = meanDiff(noMotion), motionDiff = meanDiff(motion);
+  if (stillDiff > 4) {
+    return { ok: false, reason: `warped without motion (mean diff ${stillDiff.toFixed(1)})` };
+  }
+  if (motionDiff < 12) {
+    return { ok: false, reason: `no wake warp under motion (mean diff ${motionDiff.toFixed(1)})` };
+  }
+  return { ok: true };
+};
+
 /** With projection disabled (0 iterations) the filter still renders cleanly. */
 export const runStableFluidsNoProjectionRenders = (): Result => {
   const filter = filterIndex["Stable Fluids"] as FilterLike | undefined;

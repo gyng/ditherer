@@ -84,6 +84,7 @@ import { runAnalogStaticGhostAndAlpha } from "./contracts/glitch";
 import {
   runStableFluidsNoProjectionRenders,
   runStableFluidsProjectionStable,
+  runWakeMotionGated,
 } from "./contracts/simulation";
 import {
   runDodgeBurnDirectional,
@@ -92,6 +93,7 @@ import {
 } from "./contracts/tone";
 import {
   runAnamorphicLinearRadial,
+  runContourIsoLines,
   runStampEdgeBreakup,
   runWallpaperP2Rotation,
 } from "./contracts/geometry";
@@ -690,6 +692,7 @@ export const numericalContractSuites = (): ContractSuite[] => [
     contracts: [
       contract("Stable Fluids", "projection-finite-and-live", runStableFluidsProjectionStable),
       contract("Stable Fluids", "no-projection-renders", runStableFluidsNoProjectionRenders),
+      contract("Wake Turbulence", "motion-gated-warp", runWakeMotionGated),
     ],
   },
   {
@@ -706,6 +709,7 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("Anamorphic Cylinder", "linear-reflection-radial", runAnamorphicLinearRadial),
       contract("Stamp", "edge-concentrated-breakup", runStampEdgeBreakup),
       contract("Wallpaper Tiling", "p2-rotation-not-mirror", runWallpaperP2Rotation),
+      contract("Contour Map", "iso-contour-lines", runContourIsoLines),
     ],
   },
   {

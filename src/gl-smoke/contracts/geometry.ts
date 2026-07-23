@@ -188,3 +188,43 @@ export const runWallpaperP2Rotation = (): Result => {
   }
   return { ok: true };
 };
+
+/**
+ * Contour Map must draw iso-contour LINES at each elevation band, not just flat
+ * posterized colour bands. On a smooth luma gradient the output must contain
+ * pixels of the (distinct) line colour — the old flat-band version drew none.
+ */
+export const runContourIsoLines = (): Result => {
+  const filter = filterIndex["Contour Map"] as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Contour Map missing from registry" };
+  const w = 32, h = 96;
+  const grad = document.createElement("canvas");
+  grad.width = w; grad.height = h;
+  const ctx = grad.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return { ok: false, reason: "gradient fixture has no 2d context" };
+  const im = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y += 1) {
+    const v = Math.round((y / (h - 1)) * 255);
+    for (let x = 0; x < w; x += 1) {
+      const o = (y * w + x) * 4;
+      im.data[o] = v; im.data[o + 1] = v; im.data[o + 2] = v; im.data[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(im, 0, 0);
+
+  const line: [number, number, number] = [40, 30, 20]; // default lineColor
+  const out = run("Contour Map", grad, {
+    bands: 8, colormap: "TOPOGRAPHIC", lineColor: line, lineWidth: 1.5, lineOpacity: 1,
+  });
+  if (!out) return { ok: false, reason: "Contour Map readback failed" };
+  let lineHits = 0;
+  for (let i = 0; i < out.length; i += 4) {
+    if (Math.abs(out[i] - line[0]) < 26 && Math.abs(out[i + 1] - line[1]) < 26 && Math.abs(out[i + 2] - line[2]) < 26) {
+      lineHits += 1;
+    }
+  }
+  // ~8 band boundaries across a 96px gradient -> several rows of line pixels.
+  return lineHits > 30
+    ? { ok: true }
+    : { ok: false, reason: `no iso-contour lines drawn (line-colour pixels: ${lineHits})` };
+};

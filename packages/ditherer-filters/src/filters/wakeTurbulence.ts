@@ -1,6 +1,8 @@
 import { RANGE, ACTION } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { logFilterBackend } from "../utils/index";
+import { normalizeRangeOption } from "../utils/filterOptions";
+import { TURBULENCE_GLSL } from "./turbulenceField";
 import {
   drawPass,
   ensureTexture,
@@ -67,7 +69,10 @@ void main() {
 }
 `;
 
-// Pass 2: warp the source by per-pixel energy.
+// Pass 2: refract the source by a DIVERGENCE-FREE curl-noise turbulence field
+// (real incompressible turbulence), gated by the motion energy and advected
+// downstream along the motion-energy gradient so the ripples trail moving
+// objects — instead of a stationary axis-aligned sinusoid.
 const WARP_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -81,13 +86,25 @@ uniform float u_intensity;
 uniform float u_turbulence;
 uniform float u_t;
 
+${TURBULENCE_GLSL}
+
 void main() {
   vec2 px = v_uv * u_resolution;
   float e = texture(u_energy, v_uv).r;
-  float dx = e * u_intensity * sin(px.x * u_turbulence * 0.1 + u_t);
-  float dy = e * u_intensity * cos(px.y * u_turbulence * 0.1 + u_t * 0.7);
-  vec2 sampleUv = clamp(v_uv + vec2(dx, dy) * u_texel, vec2(0.0), vec2(1.0));
-  fragColor = vec4(texture(u_source, sampleUv).rgb, 1.0);
+
+  // Local flow direction from the motion-energy gradient; the wake trails along
+  // it (downstream), so advect the noise field in that direction over time.
+  float eR = texture(u_energy, v_uv + vec2(u_texel.x, 0.0)).r;
+  float eL = texture(u_energy, v_uv - vec2(u_texel.x, 0.0)).r;
+  float eU = texture(u_energy, v_uv + vec2(0.0, u_texel.y)).r;
+  float eD = texture(u_energy, v_uv - vec2(0.0, u_texel.y)).r;
+  vec2 grad = vec2(eR - eL, eU - eD);
+  vec2 flow = length(grad) > 1e-4 ? normalize(grad) : vec2(0.0);
+
+  vec2 np = px * (u_turbulence * 0.03) - flow * u_t * 2.0 + vec2(0.0, u_t * 0.15);
+  vec2 disp = e * u_intensity * tf_curlNoise(np, 1.0);
+  vec2 sampleUv = clamp(v_uv + disp * u_texel, vec2(0.0), vec2(1.0));
+  fragColor = texture(u_source, sampleUv);
 }
 `;
 
@@ -112,11 +129,11 @@ const getWarpProg = (gl: WebGL2RenderingContext): Program => {
 };
 
 const wakeTurbulence = (input: any, options: WakeTurbulenceOptions = defaults) => {
-  const intensity = Number(options.intensity ?? defaults.intensity);
-  const turbulence = Number(options.turbulence ?? defaults.turbulence);
-  const settleSpeed = Number(options.settleSpeed ?? defaults.settleSpeed);
+  const intensity = normalizeRangeOption(options.intensity, defaults.intensity, 1, 20);
+  const turbulence = normalizeRangeOption(options.turbulence, defaults.turbulence, 1, 5);
+  const settleSpeed = normalizeRangeOption(options.settleSpeed, defaults.settleSpeed, 0.02, 0.2);
   const ema = options._ema ?? null;
-  const frameIndex = Number(options._frameIndex ?? 0);
+  const frameIndex = normalizeRangeOption(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER, true);
   const W = input.width, H = input.height;
 
   const ctx = getGLCtx();

@@ -7,6 +7,12 @@ package follows semantic versioning.
 
 ### Changed
 
+- Rebuilt Contour Map and Wake Turbulence around the named effect. Contour Map
+  now draws anti-aliased iso-contour lines at each elevation level over the
+  hypsometric fill (from a smoothed height field), with line colour/width
+  controls, instead of only flat posterized bands. Wake Turbulence now refracts
+  the image with a divergence-free curl-noise turbulence field advected along
+  the motion-energy gradient, instead of a stationary axis-aligned sinusoid.
 - Rebuilt Duotone, Wallpaper Tiling, and Frequency Filter around the named
   transform. Duotone now composites two ink density curves over paper (a
   monotonic shadow ink and a midtone-bump second ink) with a real overprint
