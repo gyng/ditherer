@@ -2,6 +2,7 @@ import { ACTION, RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
 import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
+import { normalizeEnumOption, normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
   drawPass,
@@ -17,15 +18,17 @@ import {
 } from "../gl/index";
 import { ensureFloatTex, fft2dAvailable } from "../gl/fft2d";
 
-// Simplified Stam-style stable fluids. Two RG32F state textures:
+// Stam-style stable fluids (Stam, SIGGRAPH 1999). Two RG32F state textures:
 //   density: R=density, G=unused
 //   velocity: RG=(vx, vy)
-// Per step: advect density by velocity, advect velocity by itself,
-// apply a small viscous smoothing. We skip the divergence-projection step
-// — it's audible in "true" simulation quality but for a visual effect the
-// advection loop alone gives the classic Stam swirl look. Each frame the
-// image gradient re-injects a velocity impulse, so the fluid keeps
-// flowing along the picture's edges.
+// Per step: advect velocity by itself with viscous damping and image-gradient
+// forcing, then PROJECT it to be divergence-free (compute divergence, relax the
+// pressure Poisson equation with Jacobi iterations, subtract the pressure
+// gradient), then advect density by the projected velocity. The projection is
+// the step that makes the field incompressible and lets real rolling vortices
+// form; the projection passes mirror the unit-tested reference in
+// fluidProjection.ts. Each frame the image gradient re-injects flow, so the
+// fluid keeps moving along the picture's edges.
 
 const SEED_FS = `#version 300 es
 precision highp float;
@@ -110,6 +113,80 @@ void main() {
 }
 `;
 
+// Projection pass 1: central-difference divergence of the velocity field.
+// Mirrors fluidProjection.ts `divergence`.
+const DIV_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_vel;
+uniform vec2 u_res;
+void main() {
+  vec2 px = v_uv * u_res;
+  int x = int(floor(px.x)), y = int(floor(px.y));
+  int mx = int(u_res.x) - 1, my = int(u_res.y) - 1;
+  int xl = max(x - 1, 0), xr = min(x + 1, mx);
+  int yd = max(y - 1, 0), yt = min(y + 1, my);
+  float vl = texelFetch(u_vel, ivec2(xl, y), 0).x;
+  float vr = texelFetch(u_vel, ivec2(xr, y), 0).x;
+  float vb = texelFetch(u_vel, ivec2(x, yd), 0).y;
+  float vt = texelFetch(u_vel, ivec2(x, yt), 0).y;
+  fragColor = vec4(0.5 * ((vr - vl) + (vt - vb)), 0.0, 0.0, 1.0);
+}
+`;
+
+// Projection pass 2: one Jacobi relaxation of ∇²p = div. Mirrors
+// fluidProjection.ts `jacobiPressure`.
+const JACOBI_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_pressure;
+uniform sampler2D u_div;
+uniform vec2 u_res;
+void main() {
+  vec2 px = v_uv * u_res;
+  int x = int(floor(px.x)), y = int(floor(px.y));
+  int mx = int(u_res.x) - 1, my = int(u_res.y) - 1;
+  int xl = max(x - 1, 0), xr = min(x + 1, mx);
+  int yd = max(y - 1, 0), yt = min(y + 1, my);
+  float pl = texelFetch(u_pressure, ivec2(xl, y), 0).x;
+  float pr = texelFetch(u_pressure, ivec2(xr, y), 0).x;
+  float pb = texelFetch(u_pressure, ivec2(x, yd), 0).x;
+  float pt = texelFetch(u_pressure, ivec2(x, yt), 0).x;
+  float b = texelFetch(u_div, ivec2(x, y), 0).x;
+  fragColor = vec4((pl + pr + pb + pt - b) * 0.25, 0.0, 0.0, 1.0);
+}
+`;
+
+// Projection pass 3: subtract the pressure gradient, v ← v − ∇p. Mirrors
+// fluidProjection.ts `subtractGradient`.
+const GRAD_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_vel;
+uniform sampler2D u_pressure;
+uniform vec2 u_res;
+void main() {
+  vec2 px = v_uv * u_res;
+  int x = int(floor(px.x)), y = int(floor(px.y));
+  int mx = int(u_res.x) - 1, my = int(u_res.y) - 1;
+  int xl = max(x - 1, 0), xr = min(x + 1, mx);
+  int yd = max(y - 1, 0), yt = min(y + 1, my);
+  float pl = texelFetch(u_pressure, ivec2(xl, y), 0).x;
+  float pr = texelFetch(u_pressure, ivec2(xr, y), 0).x;
+  float pb = texelFetch(u_pressure, ivec2(x, yd), 0).x;
+  float pt = texelFetch(u_pressure, ivec2(x, yt), 0).x;
+  vec2 v = texelFetch(u_vel, ivec2(x, y), 0).rg;
+  v -= 0.5 * vec2(pr - pl, pt - pb);
+  // GL-only CFL stability clamp (the JS reference is unclamped; the tests stay
+  // within this range so parity holds where it matters).
+  v = clamp(v, vec2(-40.0), vec2(40.0));
+  fragColor = vec4(v, 0.0, 1.0);
+}
+`;
+
 const RENDER_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -170,6 +247,7 @@ export const optionTypes = {
   dt: { type: RANGE, range: [0.1, 8], step: 0.1, default: 2.0, desc: "Time step — larger = more violent motion" },
   viscosity: { type: RANGE, range: [0, 0.2], step: 0.005, default: 0.02, desc: "Damping applied to velocity per step" },
   forcing: { type: RANGE, range: [0, 40], step: 0.5, default: 8.0, desc: "How strongly the image gradient re-injects flow each step" },
+  pressureIterations: { type: RANGE, range: [0, 40], step: 1, default: 20, desc: "Pressure-solve iterations — more enforces incompressibility (rolling vortices); 0 disables projection" },
   amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Blend smoke over source (overlay mode)" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
@@ -188,12 +266,16 @@ export const defaults = {
   dt: optionTypes.dt.default,
   viscosity: optionTypes.viscosity.default,
   forcing: optionTypes.forcing.default,
+  pressureIterations: optionTypes.pressureIterations.default,
   amount: optionTypes.amount.default,
   animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-type Cache = { seed: Program; step: Program; render: Program };
+type Cache = {
+  seed: Program; step: Program; render: Program;
+  div: Program; jacobi: Program; grad: Program;
+};
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
@@ -206,6 +288,9 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     render: linkProgram(gl, RENDER_FS, [
       "u_density", "u_vel", "u_source", "u_res", "u_mode", "u_amount", "u_levels",
     ] as const),
+    div: linkProgram(gl, DIV_FS, ["u_vel", "u_res"] as const),
+    jacobi: linkProgram(gl, JACOBI_FS, ["u_pressure", "u_div", "u_res"] as const),
+    grad: linkProgram(gl, GRAD_FS, ["u_vel", "u_pressure", "u_res"] as const),
   };
   return _cache;
 };
@@ -213,8 +298,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 let _stateW = 0, _stateH = 0, _seeded = false;
 let _densSlot: "A" | "B" = "A", _velSlot: "A" | "B" = "A";
 
-const stableFluids = (input: any, options = defaults) => {
-  const { mode, steps, dt, viscosity, forcing, amount, palette } = options;
+const stableFluids = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const mode = normalizeEnumOption(options.mode, [MODE.OVERLAY, MODE.FIELD, MODE.SMOKE], defaults.mode);
+  const steps = normalizeRangeOption(options.steps, defaults.steps, 1, 20, true);
+  const dt = normalizeRangeOption(options.dt, defaults.dt, 0.1, 8);
+  const viscosity = normalizeRangeOption(options.viscosity, defaults.viscosity, 0, 0.2);
+  const forcing = normalizeRangeOption(options.forcing, defaults.forcing, 0, 40);
+  const pressureIterations = normalizeRangeOption(options.pressureIterations, defaults.pressureIterations, 0, 40, true);
+  const amount = normalizeRangeOption(options.amount, defaults.amount, 0, 1);
+  const palette = normalizePaletteOption(options.palette, defaults.palette);
   const W = input.width, H = input.height;
 
   if (
@@ -235,7 +327,10 @@ const stableFluids = (input: any, options = defaults) => {
       const densB = ensureFloatTex(gl, "stableFluids:densB", W, H);
       const velA = ensureFloatTex(gl, "stableFluids:velA", W, H);
       const velB = ensureFloatTex(gl, "stableFluids:velB", W, H);
-      if (!densA || !densB || !velA || !velB) {
+      const divTex = ensureFloatTex(gl, "stableFluids:div", W, H);
+      const pressA = ensureFloatTex(gl, "stableFluids:pressA", W, H);
+      const pressB = ensureFloatTex(gl, "stableFluids:pressB", W, H);
+      if (!densA || !densB || !velA || !velB || !divTex || !pressA || !pressB) {
         logFilterWasmStatus("Stable Fluids", false, "needs WebGL2 + EXT_color_buffer_float");
         return cloneCanvas(input, true);
       }
@@ -284,6 +379,53 @@ const stableFluids = (input: any, options = defaults) => {
           gl.uniform1i(cache.step.uniforms.u_target, 1);
         }, vao);
         [vSrc, vDst] = [vDst, vSrc];
+
+        // Projection: make the advected velocity (vSrc) divergence-free before
+        // it advects the density. divergence -> Jacobi pressure solve -> subtract
+        // gradient. Skipped when pressureIterations is 0 (legacy divergent look).
+        if (pressureIterations > 0) {
+          drawPass(gl, divTex, W, H, cache.div, () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+            gl.uniform1i(cache.div.uniforms.u_vel, 0);
+            gl.uniform2f(cache.div.uniforms.u_res, W, H);
+          }, vao);
+
+          // Solve from a zeroed pressure each step (deterministic, no NaN from
+          // uninitialised floats). Only pressA needs clearing — pressB is always
+          // written before it is read.
+          gl.bindFramebuffer(gl.FRAMEBUFFER, pressA.fbo);
+          gl.viewport(0, 0, W, H);
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+
+          let pSrc = pressA, pDst = pressB;
+          for (let k = 0; k < pressureIterations; k++) {
+            const src = pSrc;
+            drawPass(gl, pDst, W, H, cache.jacobi, () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, src.tex);
+              gl.uniform1i(cache.jacobi.uniforms.u_pressure, 0);
+              gl.activeTexture(gl.TEXTURE1);
+              gl.bindTexture(gl.TEXTURE_2D, divTex.tex);
+              gl.uniform1i(cache.jacobi.uniforms.u_div, 1);
+              gl.uniform2f(cache.jacobi.uniforms.u_res, W, H);
+            }, vao);
+            [pSrc, pDst] = [pDst, pSrc];
+          }
+
+          const finalP = pSrc;
+          drawPass(gl, vDst, W, H, cache.grad, () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+            gl.uniform1i(cache.grad.uniforms.u_vel, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, finalP.tex);
+            gl.uniform1i(cache.grad.uniforms.u_pressure, 1);
+            gl.uniform2f(cache.grad.uniforms.u_res, W, H);
+          }, vao);
+          [vSrc, vDst] = [vDst, vSrc];
+        }
 
         drawPass(gl, dDst, W, H, cache.step, () => {
           gl.activeTexture(gl.TEXTURE0);

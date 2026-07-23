@@ -80,6 +80,10 @@ import {
   runSharpenEdgeContrast,
 } from "./contracts/optical";
 import { runAnalogStaticGhostAndAlpha } from "./contracts/glitch";
+import {
+  runStableFluidsNoProjectionRenders,
+  runStableFluidsProjectionStable,
+} from "./contracts/simulation";
 import { runtimeFixtureIntegrity, runtimeOptions } from "./fixtures";
 import { runEquivalent, runIdentity } from "./harness";
 import type { ContractSuite } from "./contractRunner";
@@ -667,6 +671,13 @@ export const numericalContractSuites = (): ContractSuite[] => [
     name: "glitch-codec",
     contracts: [
       contract("Analog Static", "multipath-ghost-and-alpha", runAnalogStaticGhostAndAlpha),
+    ],
+  },
+  {
+    name: "simulation",
+    contracts: [
+      contract("Stable Fluids", "projection-finite-and-live", runStableFluidsProjectionStable),
+      contract("Stable Fluids", "no-projection-renders", runStableFluidsNoProjectionRenders),
     ],
   },
   {

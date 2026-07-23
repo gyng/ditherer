@@ -7,6 +7,13 @@ package follows semantic versioning.
 
 ### Changed
 
+- Stable Fluids now performs Stam's divergence projection (previously skipped):
+  after advecting the velocity each step it computes the divergence, relaxes the
+  pressure Poisson equation with Jacobi iterations, and subtracts the pressure
+  gradient, so the field is genuinely incompressible and real rolling vortices
+  form. A `pressureIterations` control exposes the incompressibility/speed
+  trade-off (0 keeps the legacy divergent look). The projection math is backed
+  by a unit-tested reference.
 - Rebuilt three glitch filters around the codec/signal mechanism they name.
   Datamosh now applies real per-macro-block motion compensation — predicting
   each block from the previous output frame at the estimated
