@@ -121,10 +121,12 @@ describe("printmaking tone: engraving shadow ladder", () => {
 });
 
 describe("printmaking tone: stipple density modulation", () => {
-  it("keeps dot radius independent of tone", () => {
-    // The defining fix: radius is a function of the size control only.
-    expect(stippleDotRadiusPx(6)).toBe(stippleDotRadiusPx(6));
+  it("keeps dot radius a function of the size control only (never tone)", () => {
+    // The defining fix: the radius helper takes no tone parameter at all, so
+    // it cannot vary with darkness; it scales only with the size control.
+    expect(stippleDotRadiusPx.length).toBe(1);
     expect(stippleDotRadiusPx(6)).toBeGreaterThan(stippleDotRadiusPx(2));
+    expect(stippleDotRadiusPx(8)).toBeGreaterThan(stippleDotRadiusPx(6));
   });
 
   it("raises dot density with darkness rather than dot size", () => {

@@ -227,7 +227,9 @@ vec2 pm_gradientTangent(float gx, float gy) {
 }
 
 // Principal tangent angle of the structure tensor [[gxx,gxy],[gxy,gyy]].
+// atan(0,0) is spec-undefined, so a flat neighbourhood returns a stable axis.
 float pm_tensorTangentAngle(float gxx, float gyy, float gxy) {
+  if (abs(gxy) < 1e-8 && abs(gxx - gyy) < 1e-8) return 1.57079632679;
   return 0.5 * atan(2.0 * gxy, gxx - gyy) + 1.57079632679;
 }
 `;

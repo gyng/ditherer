@@ -167,9 +167,11 @@ void main() {
     }
 
     // Composite the accumulated highlight energy onto the defocused base in
-    // linear light, then re-encode to sRGB.
+    // linear light, then re-encode to sRGB. Alpha comes from the source, not
+    // the blurred base, to match the other filters' passthrough contract.
     vec3 outLin = oc_srgbToLinear(baseColor.rgb) + highlightAcc;
-    fragColor = vec4(clamp(oc_linearToSrgb(outLin), 0.0, 1.0), baseColor.a);
+    float srcAlpha = texture(u_source, v_uv).a;
+    fragColor = vec4(clamp(oc_linearToSrgb(outLin), 0.0, 1.0), srcAlpha);
 }
 `;
 

@@ -19,6 +19,15 @@ export const normalizeRangeOption = (
 export const normalizeBooleanOption = (value: unknown, fallback: boolean): boolean =>
   typeof value === "boolean" ? value : fallback;
 
+/** Validate a COLOR option to a 3-element 0..255 integer array, else fallback. */
+export const normalizeColorOption = (
+  value: unknown,
+  fallback: readonly number[],
+): number[] => {
+  if (!Array.isArray(value) || value.length < 3) return [...fallback];
+  return [0, 1, 2].map((i) => normalizeRangeOption(value[i], fallback[i], 0, 255, true));
+};
+
 export const normalizeEnumOption = <T>(
   value: unknown,
   allowed: readonly T[],

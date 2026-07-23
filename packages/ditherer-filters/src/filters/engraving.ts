@@ -7,7 +7,7 @@ import {
   logFilterBackend,
   logFilterWasmStatus,
 } from "../utils/index";
-import { normalizeRangeOption } from "../utils/filterOptions";
+import { normalizeColorOption, normalizeRangeOption } from "../utils/filterOptions";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
@@ -147,8 +147,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 const engraving = (input: any, options: Partial<typeof defaults> = defaults) => {
   const lineSpacing = normalizeRangeOption(options.lineSpacing, defaults.lineSpacing, 2, 12);
   const angle = normalizeRangeOption(options.angle, defaults.angle, 0, 180);
-  const inkColor = options.inkColor ?? defaults.inkColor;
-  const paperColor = options.paperColor ?? defaults.paperColor;
+  const inkColor = normalizeColorOption(options.inkColor, defaults.inkColor);
+  const paperColor = normalizeColorOption(options.paperColor, defaults.paperColor);
   const palette = options.palette ?? defaults.palette;
   const W = input.width, H = input.height;
   const baseAngle = (angle * Math.PI) / 180;

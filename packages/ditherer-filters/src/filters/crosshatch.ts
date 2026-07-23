@@ -8,7 +8,7 @@ import {
   logFilterBackend,
   logFilterWasmStatus,
 } from "../utils/index";
-import { normalizeRangeOption } from "../utils/filterOptions";
+import { normalizeColorOption, normalizeRangeOption } from "../utils/filterOptions";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
   hatchLayerFill,
@@ -128,8 +128,8 @@ const crosshatch = (input: any, options: Partial<typeof defaults> = defaults) =>
   const density = normalizeRangeOption(options.density, defaults.density, 2, 20);
   const angle1 = normalizeRangeOption(options.angle1, defaults.angle1, 0, 180);
   const angle2 = normalizeRangeOption(options.angle2, defaults.angle2, 0, 180);
-  const inkColor = options.inkColor ?? defaults.inkColor;
-  const paperColor = options.paperColor ?? defaults.paperColor;
+  const inkColor = normalizeColorOption(options.inkColor, defaults.inkColor);
+  const paperColor = normalizeColorOption(options.paperColor, defaults.paperColor);
   const palette = options.palette ?? defaults.palette;
   const W = input.width;
   const H = input.height;

@@ -5,12 +5,10 @@ import {
   cloneCanvas,
   fillBufferPixel,
   getBufferIndex,
-  rgba,
-  paletteGetColor,
   logFilterBackend,
 } from "../utils/index";
 import { normalizeRangeOption } from "../utils/filterOptions";
-import { applyPalettePassToCanvas } from "../palettes/backend";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import { gaussianKernel1D } from "./opticalConvolutionContracts";
 import { sharpenGLAvailable, renderSharpenGL } from "./sharpenGL";
 
@@ -100,7 +98,10 @@ const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults)
     }
   }
 
-  // Unsharp mask: output = original + (original - blurred) * strength
+  // Unsharp mask: output = original + (original - blurred) * strength, gated
+  // by the threshold. Write raw pixels and quantize once at the end so a
+  // custom palette applies uniformly (previously the kept branch skipped it,
+  // diverging from the GL path and posterizing only the sharpened pixels).
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
@@ -109,7 +110,6 @@ const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults)
       const dg = buf[i + 1] - blurred[bIdx + 1];
       const db = buf[i + 2] - blurred[bIdx + 2];
 
-      // Only sharpen if difference exceeds threshold
       const diff = Math.abs(dr) + Math.abs(dg) + Math.abs(db);
       if (diff < threshold * 3) {
         fillBufferPixel(outBuf, i, buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
@@ -119,14 +119,13 @@ const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults)
       const r = Math.max(0, Math.min(255, Math.round(buf[i] + dr * strength)));
       const g = Math.max(0, Math.min(255, Math.round(buf[i + 1] + dg * strength)));
       const b = Math.max(0, Math.min(255, Math.round(buf[i + 2] + db * strength)));
-
-      const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+      fillBufferPixel(outBuf, i, r, g, b, buf[i + 3]);
     }
   }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  const identity = paletteIsIdentity(palette);
+  return identity ? output : (applyPalettePassToCanvas(output, W, H, palette) ?? output);
 };
 
 export default defineFilter({

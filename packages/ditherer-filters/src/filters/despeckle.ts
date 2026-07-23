@@ -8,6 +8,7 @@ import {
   paletteGetColor,
   logFilterBackend,
   logFilterWasmStatus,
+  releasePooledCanvas,
 } from "../utils/index";
 import { normalizeRangeOption } from "../utils/filterOptions";
 import { defineFilter } from "./types";
@@ -107,6 +108,9 @@ const despeckle = (input: any, options: Partial<typeof defaults> = defaults) => 
       const medianTex = ensureTexture(gl, "despeckle:median", W, H);
       uploadSourceTexture(gl, sourceTex, input);
       uploadSourceTexture(gl, medianTex, median);
+      // median is a pooled canvas consumed synchronously by the upload above;
+      // return it so despeckle's own readout can reuse it instead of churning.
+      releasePooledCanvas(median);
 
       drawPass(gl, null, W, H, cache.gate, () => {
         gl.activeTexture(gl.TEXTURE0);

@@ -5,6 +5,7 @@ import { normalizeEnumOption, normalizeRangeOption } from "../utils/filterOption
 import { SRGB_GLSL, sigmaForRadius } from "./opticalConvolutionContracts";
 import {
   drawPass,
+  ensureFloatTexture,
   ensureTexture,
   getGLCtx,
   getQuadVAO,
@@ -154,12 +155,16 @@ const bloom = (input: any, options: Partial<typeof defaults> = defaults) => {
   resizeGLCanvas(canvas, W, H);
   const sourceTex = ensureTexture(gl, "bloom:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
-  const extractTex: TexEntry = ensureTexture(gl, "bloom:extract", W, H);
-  const tmpTex: TexEntry = ensureTexture(gl, "bloom:tmp", W, H);
+  // The bright pass and its blurs hold linear-light energy; use RGBA16F where
+  // available so the smooth glow tail does not band, falling back to 8-bit.
+  const linTex = (name: string): TexEntry =>
+    ensureFloatTexture(gl, name, W, H) ?? ensureTexture(gl, name, W, H);
+  const extractTex: TexEntry = linTex("bloom:extract");
+  const tmpTex: TexEntry = linTex("bloom:tmp");
   const scaleTex: TexEntry[] = [
-    ensureTexture(gl, "bloom:b1", W, H),
-    ensureTexture(gl, "bloom:b2", W, H),
-    ensureTexture(gl, "bloom:b3", W, H),
+    linTex("bloom:b1"),
+    linTex("bloom:b2"),
+    linTex("bloom:b3"),
   ];
 
   const sigma = sigmaForRadius(radius * 2);
