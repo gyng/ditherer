@@ -3,10 +3,14 @@ import {
   linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 
-// Depth-cued haze with three depth modes (luma / vertical / hybrid),
-// tint shift, and highlight bloom-to-white. JS-orientation y so the
-// horizon offset aligns with the reference.
+// Koschmieder airlight haze: transmission falls off EXPONENTIALLY with depth
+// (t = e^(−β·depth)), and the source is composited with the airlight (tint) in
+// LINEAR light — out = src·t + air·(1 − t). Depth is estimated by screen
+// position (vertical), source luma, or a hybrid of both. Highlight bloom adds a
+// glow to bright regions within the haze. (The previous version used
+// transmission linear in depth and a gamma-space tint lerp.)
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -19,6 +23,7 @@ uniform float u_softness;
 uniform float u_highlightBloom;
 uniform vec3  u_tint;       // 0..255
 uniform int   u_depthMode;  // 0 hybrid, 1 vertical, 2 luma
+${SRGB_GLSL}
 
 float ss(float a, float b, float v) {
   float t = clamp((v - a) / max(1e-6, b - a), 0.0, 1.0);
@@ -31,26 +36,30 @@ void main() {
   float jsY = u_res.y - 1.0 - floor(px.y);
 
   vec4 c = texture(u_source, vec2((jsX + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y));
-  vec3 src = c.rgb * 255.0;
+  vec3 srcN = c.rgb;
 
   float yNorm = u_res.y <= 1.0 ? 0.0 : jsY / (u_res.y - 1.0);
   float verticalDepth = 1.0 - ss(u_horizon - u_softness, u_horizon + u_softness, yNorm);
 
-  float luma = (0.2126 * src.r + 0.7152 * src.g + 0.0722 * src.b) / 255.0;
+  float luma = 0.2126 * srcN.r + 0.7152 * srcN.g + 0.0722 * srcN.b;
   float depth = u_depthMode == 1
     ? verticalDepth
     : u_depthMode == 2
       ? luma
       : verticalDepth * 0.65 + luma * 0.35;
 
-  float haze = clamp(depth * u_strength, 0.0, 1.0);
-  float bloom = u_highlightBloom * haze * ss(0.55, 1.0, luma);
-  float tintMix = clamp(haze + bloom * 0.5, 0.0, 1.0);
+  // Koschmieder transmission and linear-light airlight composite.
+  float beta = u_strength * 4.0;
+  float t = exp(-beta * clamp(depth, 0.0, 1.0));
+  vec3 srcLin = oc_srgbToLinear(srcN);
+  vec3 airLin = oc_srgbToLinear(u_tint / 255.0);
+  vec3 outLin = srcLin * t + airLin * (1.0 - t);
 
-  vec3 lifted = src + (u_tint - src) * tintMix;
-  float whiteMix = bloom * 0.35;
-  vec3 finalRgb = clamp(floor(lifted + (vec3(255.0) - lifted) * whiteMix + 0.5), 0.0, 255.0);
-  fragColor = vec4(finalRgb / 255.0, c.a);
+  // Highlight bloom: bright regions within the haze glow toward white.
+  float bloom = u_highlightBloom * (1.0 - t) * ss(0.55, 1.0, luma);
+  outLin += (vec3(1.0) - outLin) * (bloom * 0.5);
+
+  fragColor = vec4(oc_linearToSrgb(clamp(outLin, 0.0, 1.0)), c.a);
 }
 `;
 

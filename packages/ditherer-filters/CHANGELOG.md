@@ -7,6 +7,14 @@ package follows semantic versioning.
 
 ### Changed
 
+- Rebuilt three photographic filters around the tonal/optical process they name.
+  Solarize now applies a smooth Sabattier tone-reversal curve (the same curve on
+  every channel) instead of a knife-edge, per-channel invert, so highlights fold
+  toward black through a continuous hump rather than producing garish false
+  colour. Dodge/Burn applies its exposure factor in linear light (the correct
+  exposure change) instead of a gamma-space multiply. Atmospheric Haze uses the
+  exponential Koschmieder transmission law and composites the airlight tint in
+  linear light instead of a depth-linear gamma-space lerp.
 - Stable Fluids now performs Stam's divergence projection (previously skipped):
   after advecting the velocity each step it computes the divergence, relaxes the
   pressure Poisson equation with Jacobi iterations, and subtracts the pressure

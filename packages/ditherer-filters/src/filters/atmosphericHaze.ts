@@ -1,6 +1,7 @@
 import { COLOR, ENUM, PALETTE, RANGE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { logFilterBackend } from "../utils/index";
+import { normalizeColorOption, normalizeEnumOption, normalizeRangeOption } from "../utils/filterOptions";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import { renderAtmosphericHazeGL } from "./atmosphericHazeGL";
@@ -40,8 +41,15 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const atmosphericHaze = (input: any, options: typeof defaults = defaults) => {
-  const { strength, horizon, softness, highlightBloom, tint, depthMode, palette } = options;
+const atmosphericHaze = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const strength = normalizeRangeOption(options.strength, defaults.strength, 0, 1);
+  const horizon = normalizeRangeOption(options.horizon, defaults.horizon, 0, 1);
+  const softness = normalizeRangeOption(options.softness, defaults.softness, 0.05, 0.6);
+  const highlightBloom = normalizeRangeOption(options.highlightBloom, defaults.highlightBloom, 0, 1);
+  const tint = normalizeColorOption(options.tint, defaults.tint);
+  const depthMode = normalizeEnumOption(
+    options.depthMode, [DEPTH_MODE.HYBRID, DEPTH_MODE.VERTICAL, DEPTH_MODE.LUMA], defaults.depthMode);
+  const palette = options.palette ?? defaults.palette;
   const W = input.width, H = input.height;
   const depthModeInt = depthMode === DEPTH_MODE.HYBRID ? 0 : depthMode === DEPTH_MODE.VERTICAL ? 1 : 2;
   const rendered = renderAtmosphericHazeGL(

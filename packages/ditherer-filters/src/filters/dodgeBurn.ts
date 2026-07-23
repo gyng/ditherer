@@ -5,6 +5,8 @@ import {
   logFilterBackend, logFilterWasmStatus,
 } from "../utils/index";
 import { defineFilter } from "./types";
+import { normalizeEnumOption, normalizeRangeOption } from "../utils/filterOptions";
+import { SRGB_GLSL, linearToSrgb, srgbToLinear } from "./opticalConvolutionContracts";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
   drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
@@ -33,6 +35,8 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
+// Dodge/burn are local EXPOSURE changes, so the factor is applied in linear
+// light (linearise -> scale -> delinearise), not as a gamma-space multiply.
 const DB_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -42,20 +46,21 @@ uniform int   u_mode;       // 0 DODGE, 1 BURN, 2 BOTH
 uniform float u_strength;
 uniform float u_range;      // 0..255 mapped to 0..1
 uniform float u_levels;
+${SRGB_GLSL}
 void main() {
   vec4 c = texture(u_source, v_uv);
   vec3 rgb = c.rgb;
   float lum = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
   float rangeN = u_range / 255.0;
 
+  float factor = 1.0;
   if ((u_mode == 0 || u_mode == 2) && lum < rangeN && rangeN > 0.0) {
-    float factor = 1.0 + u_strength * (1.0 - lum / rangeN);
-    rgb = min(vec3(1.0), rgb * factor);
+    factor *= 1.0 + u_strength * (1.0 - lum / rangeN);
   }
   if ((u_mode == 1 || u_mode == 2) && lum > rangeN && rangeN < 1.0) {
-    float factor = 1.0 - u_strength * ((lum - rangeN) / (1.0 - rangeN));
-    rgb = max(vec3(0.0), rgb * factor);
+    factor *= 1.0 - u_strength * ((lum - rangeN) / (1.0 - rangeN));
   }
+  rgb = oc_linearToSrgb(clamp(oc_srgbToLinear(rgb) * factor, 0.0, 1.0));
   if (u_levels > 1.5) {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
@@ -72,8 +77,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const dodgeBurn = (input: any, options = defaults) => {
-  const { mode, strength, range: lumRange, palette } = options;
+const dodgeBurn = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const mode = normalizeEnumOption(options.mode, [MODE.DODGE, MODE.BURN, MODE.BOTH], defaults.mode);
+  const strength = normalizeRangeOption(options.strength, defaults.strength, 0, 1);
+  const lumRange = normalizeRangeOption(options.range, defaults.range, 0, 255);
+  const palette = options.palette ?? defaults.palette;
   const W = input.width, H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -119,29 +127,26 @@ const dodgeBurn = (input: any, options = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
+  // Exposure factor applied in linear light (linearise -> scale -> delinearise).
+  const expose = (byte: number, factor: number): number =>
+    Math.round(linearToSrgb(Math.min(1, srgbToLinear(byte / 255) * factor)) * 255);
+
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      let r = buf[i], g = buf[i + 1], b = buf[i + 2];
+      const r = buf[i], g = buf[i + 1], b = buf[i + 2];
       const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-      // Dodge: lighten pixels below range
+      let factor = 1;
       if ((mode === MODE.DODGE || mode === MODE.BOTH) && lum < lumRange && lumRange > 0) {
-        const factor = 1 + strength * (1 - lum / lumRange);
-        r = Math.min(255, Math.round(r * factor));
-        g = Math.min(255, Math.round(g * factor));
-        b = Math.min(255, Math.round(b * factor));
+        factor *= 1 + strength * (1 - lum / lumRange);
       }
-
-      // Burn: darken pixels above range
       if ((mode === MODE.BURN || mode === MODE.BOTH) && lum > lumRange && lumRange < 255) {
-        const factor = 1 - strength * ((lum - lumRange) / (255 - lumRange));
-        r = Math.max(0, Math.round(r * factor));
-        g = Math.max(0, Math.round(g * factor));
-        b = Math.max(0, Math.round(b * factor));
+        factor *= 1 - strength * ((lum - lumRange) / (255 - lumRange));
       }
 
-      const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette, rgba(expose(r, factor), expose(g, factor), expose(b, factor), buf[i + 3]), palette.options, false);
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }

@@ -84,6 +84,11 @@ import {
   runStableFluidsNoProjectionRenders,
   runStableFluidsProjectionStable,
 } from "./contracts/simulation";
+import {
+  runDodgeBurnDirectional,
+  runHazeKoschmiederDepth,
+  runSolarizeReversal,
+} from "./contracts/tone";
 import { runtimeFixtureIntegrity, runtimeOptions } from "./fixtures";
 import { runEquivalent, runIdentity } from "./harness";
 import type { ContractSuite } from "./contractRunner";
@@ -678,6 +683,14 @@ export const numericalContractSuites = (): ContractSuite[] => [
     contracts: [
       contract("Stable Fluids", "projection-finite-and-live", runStableFluidsProjectionStable),
       contract("Stable Fluids", "no-projection-renders", runStableFluidsNoProjectionRenders),
+    ],
+  },
+  {
+    name: "tone-and-light",
+    contracts: [
+      contract("Solarize", "sabattier-reversal", runSolarizeReversal),
+      contract("Atmospheric Haze", "koschmieder-depth-airlight", runHazeKoschmiederDepth),
+      contract("Dodge / Burn", "linear-exposure-directional", runDodgeBurnDirectional),
     ],
   },
   {
