@@ -276,6 +276,9 @@ import bayerSensor from "./bayerSensor";
 import ccdChargeSmear from "./ccdChargeSmear";
 import moireAliasing from "./moireAliasing";
 import schlierenOptics from "./schlierenOptics";
+import xray from "./xray";
+import scanningElectronMicrograph from "./scanningElectronMicrograph";
+import radarPpi from "./radarPpi";
 import laserSpeckleProjector from "./laserSpeckleProjector";
 import waveletCodec from "./waveletCodec";
 import refractiveGlass from "./refractiveGlass";
@@ -1045,6 +1048,9 @@ export const filterList = [
   { displayName: "Risograph (multi-layer)", filter: risographMulti, category: "Simulate", description: "Fixed multi-master stencil print with balanced registration offsets and correlated emulsion-ink variation" },
   { displayName: "Rolling Shutter", filter: rollingShutter, category: "Simulate", description: "Temporal CMOS readout bends motion progressively across rows or columns" },
   { displayName: "Schlieren Optics", filter: schlierenOptics, category: "Simulate", description: "Directional knife-edge and color schlieren views of source-derived refractive gradients" },
+  { displayName: "X-Ray", filter: xray, category: "Simulate", description: "Beer–Lambert radiograph proxy: image luminance stands in for path-integrated density, with Compton-scatter veiling glare and dose-dependent quantum mottle" },
+  { displayName: "Scanning Electron Micrograph", filter: scanningElectronMicrograph, category: "Simulate", description: "Read luminance as invented topography, then light it by secant-law secondary-electron yield — bright rims, off-axis detector shading, scan noise" },
+  { displayName: "Radar PPI", filter: radarPpi, category: "Simulate", description: "Rotating plan-position-indicator scope — 1/r⁴ radar-equation falloff with STC, exponential phosphor persistence behind the sweep, short-range sea and rain clutter, range rings and bearing graticule. There is no radar data: image luminance stands in for target reflectivity" },
   { displayName: "Screen Print / Misregistration", filter: screenPrint, category: "Simulate", description: "Rotated clustered-dot spot-color screens with subtractive overprint, dot gain, and deterministic plate offset" },
   {
     displayName: "Scanline",

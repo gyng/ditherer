@@ -82,6 +82,9 @@ import {
   runHalftoneCellAverageParity,
   runHalftoneLargeCellParity,
   runHalftoneLinearizeParity,
+  runRadarSweepPersistence,
+  runSemEdgeBrightening,
+  runXrayBeerLambert,
   runColorGradientNoiseAlphaPreserved,
   runDespeckleEdgePreserved,
   runDespeckleImpulseRemoval,
@@ -759,6 +762,14 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("Halftone", "gl-honours-linearize", runHalftoneLinearizeParity),
       contract("Halftone", "gl-fades-by-alpha", runHalftoneAlphaFade),
       contract("Convolve", "edge-clamp-parity", runConvolveEdgeClamp),
+    ],
+  },
+  {
+    name: "instrument-imaging",
+    contracts: [
+      contract("X-Ray", "beer-lambert-attenuation", runXrayBeerLambert),
+      contract("Scanning Electron Micrograph", "secant-law-edge-rim", runSemEdgeBrightening),
+      contract("Radar PPI", "sweep-persistence-trail", runRadarSweepPersistence),
     ],
   },
   {

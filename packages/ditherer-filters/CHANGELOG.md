@@ -5,6 +5,23 @@ package follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Three instrument-imaging simulations, each built on the real physics of the
+  instrument it names. **X-Ray** applies Beer–Lambert attenuation
+  (`I = I₀·e^(−μt)`) with Compton-scatter veiling glare and dose-dependent
+  quantum mottle drawn from Poisson photon statistics (absolute σ = √(T/dose),
+  so the signal-to-noise ratio 1/√N is what collapses behind dense material), in
+  both the bone-white and film-negative conventions. **Scanning Electron Micrograph**
+  lights a luminance-derived heightfield by the secant-law secondary-electron
+  yield (`δ(θ) = δ₀·sec θ`) — the reason real SEM images have glowing rims —
+  with Everhart–Thornley off-axis detector shading, raster gain jitter, shot
+  noise, and charging streaks. **Radar PPI** renders a rotating plan-position
+  scope with `1/r⁴` radar-equation falloff and STC, exponential phosphor
+  persistence trailing behind the sweep, short-range sea and rain clutter, and
+  range rings. All three state plainly that a photograph carries no radiodensity,
+  topography, or radar returns — image luminance is a declared stand-in.
+
 ### Changed
 
 - Halftone's GL fast path now matches its CPU path on two remaining axes: it

@@ -209,6 +209,7 @@
   "pxl2000",
   "quantize",
   "quasicrystalMosaic",
+  "radarPpi",
   "radialBlur",
   "random",
   "raymarchedMaze",
@@ -228,6 +229,7 @@
   "scanLineShift",
   "scanline",
   "scanlineWarp",
+  "scanningElectronMicrograph",
   "schlierenOptics",
   "screenPrint",
   "sdfBooleanSculpt",
@@ -289,6 +291,7 @@
   "wave",
   "waveletCodec",
   "woodcut",
+  "xray",
   "zigzag",
   "zxSpectrum"
 ]

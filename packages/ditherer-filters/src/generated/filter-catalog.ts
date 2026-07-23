@@ -1341,6 +1341,24 @@ export const filterCatalog = [
     "description": "Directional knife-edge and color schlieren views of source-derived refractive gradients"
   },
   {
+    "displayName": "X-Ray",
+    "filterName": "X-Ray",
+    "category": "Simulate",
+    "description": "Beer–Lambert radiograph proxy: image luminance stands in for path-integrated density, with Compton-scatter veiling glare and dose-dependent quantum mottle"
+  },
+  {
+    "displayName": "Scanning Electron Micrograph",
+    "filterName": "Scanning Electron Micrograph",
+    "category": "Simulate",
+    "description": "Read luminance as invented topography, then light it by secant-law secondary-electron yield — bright rims, off-axis detector shading, scan noise"
+  },
+  {
+    "displayName": "Radar PPI",
+    "filterName": "Radar PPI",
+    "category": "Simulate",
+    "description": "Rotating plan-position-indicator scope — 1/r⁴ radar-equation falloff with STC, exponential phosphor persistence behind the sweep, short-range sea and rain clutter, range rings and bearing graticule. There is no radar data: image luminance stands in for target reflectivity"
+  },
+  {
     "displayName": "Screen Print / Misregistration",
     "filterName": "Screen Print",
     "category": "Simulate",

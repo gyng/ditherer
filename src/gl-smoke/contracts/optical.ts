@@ -601,3 +601,145 @@ export const runHalftoneAlphaFade = (): Result => {
   if (fL < 1) return { ok: false, reason: `faded dots vanished (mean luma ${fL.toFixed(1)})` };
   return { ok: true };
 };
+
+// ---------------------------------------------------------------------------
+// Plan 115 — instrument imaging. Each asserts the defining physics of the
+// instrument the filter names.
+// ---------------------------------------------------------------------------
+
+/** X-Ray's core must be Beer–Lambert: with scatter, mottle, and tint disabled,
+ *  the film-negative view of a uniform patch is exactly exp(-k*d) in LINEAR
+ *  light, so denser input attenuates exponentially more — and monotonically. */
+export const runXrayBeerLambert = (): Result => {
+  const w = 16, h = 16, k = 2.6;
+  const s2l = (v: number): number => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const l2s = (c: number): number =>
+    c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  const patch = (v: number) => run("X-Ray", paintCanvas(w, h, () => [v, v, v, 255]), {
+    densitySource: "LUMA", display: "NEGATIVE", attenuation: k,
+    scatter: 0, scatterRadius: 1, dose: 400, mottle: 0, tintStrength: 0,
+  });
+  const greys = [16, 64, 128, 192, 255];
+  const measured: number[] = [];
+  for (const g of greys) {
+    const out = patch(g);
+    if (!out) return { ok: false, reason: "X-Ray readback failed" };
+    const got = luma(out, 0);
+    const expected = l2s(Math.exp(-k * s2l(g))) * 255;
+    if (Math.abs(got - expected) > 6) {
+      return { ok: false, reason: `grey ${g}: transmission ${got.toFixed(1)} != exp(-k*d) ${expected.toFixed(1)}` };
+    }
+    measured.push(got);
+  }
+  for (let i = 1; i < measured.length; i += 1) {
+    if (!(measured[i] < measured[i - 1] - 2)) {
+      return { ok: false, reason: `not monotonic: grey ${greys[i - 1]} -> ${greys[i]} gave ${measured[i - 1].toFixed(1)} -> ${measured[i].toFixed(1)}` };
+    }
+  }
+  // Convexity must be judged against DENSITY, which is linear luminance — the
+  // greys above are evenly spaced in sRGB, so their densities accelerate
+  // (0.005 -> 0.05 -> 0.22 -> 0.53 -> 1.0) and the drops legitimately grow.
+  // Sample densities evenly instead and assert successive transmission drops
+  // shrink, which is what makes exp(-k*d) exponential rather than linear.
+  const densities = [0.2, 0.4, 0.6, 0.8];
+  const transmissions: number[] = [];
+  for (const d of densities) {
+    const out = patch(Math.round(l2s(d) * 255));
+    if (!out) return { ok: false, reason: "X-Ray readback failed" };
+    transmissions.push(s2l(luma(out, 0) / 255));
+  }
+  const dropA = transmissions[0] - transmissions[1];
+  const dropB = transmissions[1] - transmissions[2];
+  const dropC = transmissions[2] - transmissions[3];
+  return dropA > dropB && dropB > dropC
+    ? { ok: true }
+    : { ok: false, reason: `falloff not exponential in density: drops ${dropA.toFixed(3)}, ${dropB.toFixed(3)}, ${dropC.toFixed(3)} should strictly shrink` };
+};
+
+/** SEM's defining contrast is the secant law d(th) = d0*sec(th). A step edge tilts
+ *  the luminance-derived normal away from the beam, cos th -> 0, and the yield
+ *  blooms into a bright RIM at the edge — brighter than either flat region. Only
+ *  the scan artifacts and the directional detector term are silenced:
+ *  relief/yield/ceiling/gain stay at their SHIPPED DEFAULTS, so this fails if the
+ *  default tuning ever goes inert again.
+ *  Measured: rim 255.0 at the edge vs flats 89.0 (dark) / 184.0 (bright). */
+export const runSemEdgeBrightening = (): Result => {
+  const w = 64, h = 16, dark = 60, bright = 190, edge = w / 2;
+  const step = paintCanvas(w, h, (x) => { const v = x < edge ? dark : bright; return [v, v, v, 255]; });
+  const after = run("Scanning Electron Micrograph", step, {
+    detectorMix: 0, scanJitter: 0, shotNoise: 0, charging: 0,
+  });
+  if (!after) return { ok: false, reason: "Scanning Electron Micrograph readback failed" };
+  const colLuma = (x: number): number => {
+    let s = 0;
+    for (let y = 0; y < h; y += 1) s += luma(after, (y * w + x) * 4);
+    return s / h;
+  };
+  const flatDark = colLuma(8), flatBright = colLuma(56);
+  let rim = 0, rimX = -1;
+  for (let x = edge - 3; x <= edge + 3; x += 1) {
+    const v = colLuma(x);
+    if (v > rim) { rim = v; rimX = x; }
+  }
+  // Threshold chosen to genuinely discriminate the shipped tuning: at the stock
+  // relief the rim clears flatBright by ~71 levels, whereas the old inert
+  // relief=4 cleared it by only ~24. A +20 bar passed at relief 4 and so
+  // guarded nothing; +45 fails there while leaving ~26 levels of headroom.
+  if (!(rim > flatBright + 45 && rim > flatDark + 45)) {
+    return { ok: false, reason: `no secant-law rim at stock defaults: edge ${rim.toFixed(1)} vs flats ${flatDark.toFixed(1)}/${flatBright.toFixed(1)}` };
+  }
+  if (Math.abs(rimX - edge) > 2) {
+    return { ok: false, reason: `bright rim landed at x=${rimX}, not on the edge (x=${edge})` };
+  }
+  if (!(flatBright > flatDark + 20)) {
+    return { ok: false, reason: `material contrast collapsed (dark ${flatDark.toFixed(1)} vs bright ${flatBright.toFixed(1)})` };
+  }
+  return meanLuma(after) > 1
+    ? { ok: true }
+    : { ok: false, reason: "SEM output is black" };
+};
+
+/** Radar PPI's defining behaviour is phosphor persistence trailing BEHIND a
+ *  rotating sweep: at a fixed frame the cells the beam just crossed are bright,
+ *  the cells it is about to reach are nearly a full revolution stale, and
+ *  advancing _frameIndex rotates that bright region around the scope. */
+export const runRadarSweepPersistence = (): Result => {
+  const W = 96, H = 96, DEG = Math.PI / 180, scopeScale = 0.98;
+  const field = paintCanvas(W, H, () => [150, 150, 150, 255]);
+  const base = {
+    gain: 1.6, stc: 0.55, sweepSpeed: 30, persistence: 130, beamWidth: 2.5,
+    clutterMode: "NONE", clutter: 0, rings: 0, spokes: 0, graticule: 0, scopeScale,
+  };
+  const patch = (px: Uint8ClampedArray, bearingDeg: number, rangeFraction: number): number => {
+    const scopeR = Math.min(W, H) * 0.5 * scopeScale;
+    const b = bearingDeg * DEG, rad = rangeFraction * scopeR;
+    const cx = Math.round(W / 2 + Math.sin(b) * rad);
+    const cy = Math.round(H / 2 - Math.cos(b) * rad);
+    let sum = 0, n = 0;
+    for (let dy = -2; dy <= 2; dy += 1) for (let dx = -2; dx <= 2; dx += 1) {
+      const x = cx + dx, y = cy + dy;
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      sum += luma(px, (y * W + x) * 4); n += 1;
+    }
+    return n > 0 ? sum / n : 0;
+  };
+  const early = run("Radar PPI", field, { ...base, _frameIndex: 3 });
+  const later = run("Radar PPI", field, { ...base, _frameIndex: 6 });
+  if (!early || !later) return { ok: false, reason: "Radar PPI readback failed" };
+  const r = 0.5;
+  const behind = patch(early, 65, r), ahead = patch(early, 115, r);
+  if (!(behind > ahead * 1.5)) {
+    return { ok: false, reason: `no persistence trail behind the sweep (behind ${behind.toFixed(1)} vs ahead ${ahead.toFixed(1)} at bearing 90)` };
+  }
+  const staleThen = patch(early, 155, r), freshNow = patch(later, 155, r);
+  if (!(freshNow > staleThen * 1.5)) {
+    return { ok: false, reason: `sweep did not rotate with _frameIndex (bearing 155: ${staleThen.toFixed(1)} at frame 3 -> ${freshNow.toFixed(1)} at frame 6)` };
+  }
+  const wasFresh = patch(early, 65, r), nowFading = patch(later, 65, r);
+  return nowFading < wasFresh
+    ? { ok: true }
+    : { ok: false, reason: `trail at bearing 65 did not fade as the sweep advanced (${wasFresh.toFixed(1)} -> ${nowFading.toFixed(1)})` };
+};
