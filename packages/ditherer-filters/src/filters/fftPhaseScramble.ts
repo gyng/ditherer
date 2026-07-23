@@ -58,16 +58,17 @@ void main() {
 
 export const optionTypes = {
   amount: { type: RANGE, range: [0, 1], step: 0.01, default: 1, desc: "Phase randomisation strength (0 = passthrough, 1 = full scramble)" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop frame-varying randomization of the frequency phases",
     action: (actions: any, inputCanvas: any, _f: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 10);
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -150,5 +151,6 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Randomise the 2D FFT phase while keeping magnitude — same spectral energy, scrambled spatial structure",
+  temporal: true,
   noWASM: "Real 2D FFT is only practical via GPU butterfly passes; WebGL2 + EXT_color_buffer_float required.",
 });

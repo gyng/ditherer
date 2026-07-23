@@ -28,7 +28,6 @@ const CHAIN_DUPLICATE = "CHAIN_DUPLICATE";
 
 import {
   createPalette,
-  filterIndex,
   floydSteinberg,
   paletteList,
   SCALING_ALGORITHM,
@@ -45,6 +44,7 @@ import {
   type SerializedPaletteState,
 } from "context/shareStateTypes";
 import type { EntryAudioModulation } from "utils/audioVizBridge";
+import { resolveRegisteredFilter } from "utils/registeredFilters";
 
 type FilterOptionMap = FilterOptionValues;
 type PaletteColor = number[];
@@ -68,6 +68,8 @@ export type SelectedFilterState = {
 };
 
 export const MAX_CHAIN_LENGTH = 16;
+const MAX_SERIALIZED_CHAIN_ID_LENGTH = 256;
+const MAX_SERIALIZED_DISPLAY_NAME_LENGTH = 256;
 
 const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEntry => ({
   id: crypto.randomUUID(),
@@ -76,6 +78,33 @@ const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEnt
   enabled: true,
   audioMod: null,
 });
+
+const resolveImportedChainId = (value: unknown, usedIds: Set<string>): string => {
+  if (
+    typeof value === "string"
+    && value.trim().length > 0
+    && value.length <= MAX_SERIALIZED_CHAIN_ID_LENGTH
+    && !usedIds.has(value)
+  ) {
+    usedIds.add(value);
+    return value;
+  }
+  let generated = crypto.randomUUID();
+  while (usedIds.has(generated)) generated = crypto.randomUUID();
+  usedIds.add(generated);
+  return generated;
+};
+
+const deserializeRandomCycleSeconds = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+
+const deserializeDisplayName = (fallback: string, ...values: unknown[]): string => {
+  const valid = values.find((value): value is string =>
+    typeof value === "string"
+    && value.trim().length > 0
+    && value.length <= MAX_SERIALIZED_DISPLAY_NAME_LENGTH);
+  return valid ?? fallback;
+};
 
 const deserializeAudioMod = (
   value: SerializedAudioVizModulation | null | undefined,
@@ -211,12 +240,37 @@ const getPaletteColors = (palette: PaletteOptionState | null | undefined): Palet
 const getPaletteOptionMap = (palette: unknown): FilterOptionMap =>
   getPaletteState(palette)?.options ?? {};
 
+const migrateFilterOptions = (
+  filterName: string,
+  options: FilterOptionMap,
+  serializedOptions: FilterOptionMap = options,
+): FilterOptionMap => {
+  if (filterName !== "Bilateral Blur") return options;
+  const migrated = { ...options };
+  const hasNewResolution = serializedOptions.workingResolution === "FULL"
+    || serializedOptions.workingResolution === "HALF"
+    || serializedOptions.workingResolution === "QUARTER";
+  if (!hasNewResolution) {
+    if (serializedOptions.useDownsample === false) {
+      migrated.workingResolution = "FULL";
+    } else if (typeof serializedOptions.downsampleFactor === "number") {
+      migrated.workingResolution = serializedOptions.downsampleFactor >= 3
+        ? "QUARTER"
+        : serializedOptions.downsampleFactor <= 1 ? "FULL" : "HALF";
+    }
+  }
+  delete migrated.useSeparableApproximation;
+  delete migrated.useDownsample;
+  delete migrated.downsampleFactor;
+  return migrated;
+};
+
 // Deserialize a filter from saved state, resolving local references
 const deserializeFilter = (
   savedFilter: SerializedFilterReference | null | undefined
 ): FilterDefinition | null => {
   if (!savedFilter?.name) return null;
-  const localFilter = filterIndex[savedFilter.name];
+  const localFilter = resolveRegisteredFilter(savedFilter.name);
   if (!localFilter) return null;
   const result = {
     ...localFilter,
@@ -224,6 +278,13 @@ const deserializeFilter = (
       ? { options: savedFilter.options as FilterOptionMap }
       : {}),
   };
+  if (result.options) {
+    result.options = migrateFilterOptions(
+      savedFilter.name,
+      result.options as FilterOptionMap,
+      (savedFilter.options as FilterOptionMap | undefined) ?? result.options as FilterOptionMap,
+    );
+  }
   const palette = getPaletteState(result.options?.palette);
   if (palette != null) {
     const localPalette = paletteList.find(
@@ -404,8 +465,11 @@ const filterReducer = (
 
       if (isShareStateV2(data)) {
         const chain: ChainEntry[] = [];
+        const usedIds = new Set<string>();
         for (const entry of data.chain) {
-          const localFilter = filterIndex[entry.n];
+          if (chain.length >= MAX_CHAIN_LENGTH) break;
+          if (typeof entry !== "object" || entry === null || typeof entry.n !== "string") continue;
+          const localFilter = resolveRegisteredFilter(entry.n);
           if (!localFilter) continue;
           const mergedOpts: FilterOptionMap = {
             ...((localFilter.options as FilterOptionMap | undefined) ?? {}),
@@ -427,18 +491,19 @@ const filterReducer = (
               }
             }
           }
+          const migratedOpts = migrateFilterOptions(entry.n, mergedOpts, entry.o ?? {});
           // Re-resolve palette references
-          const palette = getPaletteState(mergedOpts.palette);
+          const palette = getPaletteState(migratedOpts.palette);
           if (palette?.name) {
             const localPalette = paletteList.find(p => p.palette.name === palette.name);
             if (localPalette) {
-              mergedOpts.palette = { ...localPalette.palette, options: palette.options };
+              migratedOpts.palette = { ...localPalette.palette, options: palette.options };
             }
           }
           chain.push({
-            id: crypto.randomUUID(),
-            displayName: entry.d || entry.n,
-            filter: { ...localFilter, options: mergedOpts },
+            id: resolveImportedChainId(entry.i, usedIds),
+            displayName: deserializeDisplayName(localFilter.name, entry.d),
+            filter: { ...localFilter, options: migratedOpts },
             enabled: entry.e !== false,
             audioMod: deserializeAudioMod(entry.m),
           });
@@ -448,10 +513,10 @@ const filterReducer = (
           ...state,
           chain,
           activeIndex: 0,
-          convertGrayscale: data.g ?? state.convertGrayscale,
-          linearize: data.l ?? state.linearize,
-          wasmAcceleration: data.w ?? state.wasmAcceleration,
-          randomCycleSeconds: data.r ?? null,
+          convertGrayscale: typeof data.g === "boolean" ? data.g : state.convertGrayscale,
+          linearize: typeof data.l === "boolean" ? data.l : state.linearize,
+          wasmAcceleration: typeof data.w === "boolean" ? data.w : state.wasmAcceleration,
+          randomCycleSeconds: deserializeRandomCycleSeconds(data.r),
         });
       }
 
@@ -460,17 +525,25 @@ const filterReducer = (
         const deserializedFilter = deserializeFilter(data.selected.filter);
         if (!deserializedFilter) return state;
         const entry = makeChainEntry(
-          data.selected.displayName || data.selected.name || deserializedFilter.name,
+          deserializeDisplayName(
+            deserializedFilter.name,
+            data.selected.displayName,
+            data.selected.name,
+          ),
           deserializedFilter
         );
         return withSelected({
           ...state,
           chain: [entry],
           activeIndex: 0,
-          convertGrayscale: data.convertGrayscale,
-          linearize: data.linearize ?? state.linearize,
-          wasmAcceleration: data.wasmAcceleration ?? state.wasmAcceleration,
-          randomCycleSeconds: data.r ?? null,
+          convertGrayscale: typeof data.convertGrayscale === "boolean"
+            ? data.convertGrayscale
+            : state.convertGrayscale,
+          linearize: typeof data.linearize === "boolean" ? data.linearize : state.linearize,
+          wasmAcceleration: typeof data.wasmAcceleration === "boolean"
+            ? data.wasmAcceleration
+            : state.wasmAcceleration,
+          randomCycleSeconds: deserializeRandomCycleSeconds(data.r),
         });
       }
       return state;
@@ -492,7 +565,9 @@ const filterReducer = (
       const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
       if (idx === -1) return state;
       const chain = state.chain.filter((_, i) => i !== idx);
-      const activeIndex = Math.min(state.activeIndex, chain.length - 1);
+      const activeIndex = idx < state.activeIndex
+        ? state.activeIndex - 1
+        : Math.min(state.activeIndex, chain.length - 1);
       return withSelected({ ...state, chain, activeIndex });
     }
     case CHAIN_REORDER: {
@@ -535,6 +610,7 @@ const filterReducer = (
       return withSelected({ ...state, chain });
     }
     case CHAIN_DUPLICATE: {
+      if (state.chain.length >= MAX_CHAIN_LENGTH) return state;
       const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
       if (idx === -1) return state;
       const source = state.chain[idx];

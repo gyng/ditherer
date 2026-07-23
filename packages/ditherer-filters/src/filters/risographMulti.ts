@@ -24,6 +24,7 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { fixedPrintPlateOffset, stencilInkVariation } from "./printSimulationContracts";
 
 export const optionTypes = {
   color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3), desc: "First ink color" },
@@ -33,7 +34,7 @@ export const optionTypes = {
   layers: { type: RANGE, range: [2, 4], step: 1, default: 3, desc: "Number of ink layers to print" },
   misregistration: { type: RANGE, range: [0, 20], step: 1, default: 5, desc: "Print alignment error in pixels" },
   grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Paper texture grain amount" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional palette applied after the fixed spot-ink layers" }
 };
 
 export const defaults = {
@@ -58,12 +59,27 @@ uniform int   u_layers;
 uniform float u_grain;
 uniform vec3  u_inkColor[4];
 uniform vec2  u_inkOffset[4];
-uniform float u_seed;
 
 float hash(vec2 p, float s) {
   p = fract(p * vec2(443.897, 441.423) + s);
   p += dot(p, p.yx + 19.19);
   return fract((p.x + p.y) * p.x);
+}
+
+float vnoise(vec2 p, float layer) {
+  vec2 i = floor(p), f = fract(p);
+  float a = hash(i, layer);
+  float b = hash(i + vec2(1.0, 0.0), layer);
+  float c = hash(i + vec2(0.0, 1.0), layer);
+  float d = hash(i + vec2(1.0, 1.0), layer);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float stencilVariation(vec2 p, float layer) {
+  return clamp((vnoise(p / 3.5, layer) - 0.5) * 0.65
+    + (vnoise(p / vec2(13.0, 11.0) + vec2(17.0, 29.0), layer + 11.0) - 0.5) * 0.35,
+    -0.5, 0.5);
 }
 
 float lum(vec3 c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }
@@ -94,12 +110,13 @@ void main() {
     if (bandDist > 0.3) continue;
 
     float intensity = max(0.0, (0.3 - bandDist) / 0.3) * 0.7;
-    float n = u_grain > 0.0 ? (hash(vec2(x, y) + vec2(float(li) * 7.0), u_seed) - 0.5) * u_grain * 0.3 : 0.0;
+    float n = u_grain > 0.0 ? stencilVariation(vec2(x, y), float(li)) * u_grain * 0.3 : 0.0;
     float ink = clamp(intensity + n, 0.0, 1.0);
 
     rgb = rgb * (1.0 - ink) + u_inkColor[li] * ink;
   }
-  fragColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
+  vec2 sourceUv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), texture(u_source, sourceUv).a);
 }
 `;
 
@@ -109,33 +126,23 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     riso: linkProgram(gl, RISO_FS, [
-      "u_source", "u_res", "u_layers", "u_grain", "u_inkColor", "u_inkOffset", "u_seed",
+      "u_source", "u_res", "u_layers", "u_grain", "u_inkColor", "u_inkOffset",
     ] as const),
   };
   return _cache;
 };
 
-const mulberry32 = (seed: number) => {
-  let s = seed | 0;
-  return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-};
-
-const risographMulti = (input: any, options = defaults) => {
-  const { color1, color2, color3, color4, layers, misregistration, grain, palette } = options;
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+const risographMulti = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const { color1, color2, color3, color4, layers, misregistration, grain, palette } = { ...defaults, ...options };
   const W = input.width;
   const H = input.height;
-  const rng = mulberry32(frameIndex * 7919 + 31337);
 
   // Precompute per-layer misregistration offsets on CPU so the shader has
   // them as plain uniforms and the RNG call order matches the JS path.
   const colors = [color1, color2, color3, color4];
   const offsets: Array<[number, number]> = [];
   for (let li = 0; li < layers; li++) {
-    offsets.push([
-      Math.round((rng() - 0.5) * misregistration * 2),
-      Math.round((rng() - 0.5) * misregistration * 2),
-    ]);
+    offsets.push(fixedPrintPlateOffset(li, layers, misregistration));
   }
   while (offsets.length < 4) offsets.push([0, 0]);
 
@@ -169,7 +176,6 @@ const risographMulti = (input: any, options = defaults) => {
         gl.uniform1f(cache.riso.uniforms.u_grain, grain);
         gl.uniform3fv(cache.riso.uniforms.u_inkColor, colorArr);
         gl.uniform2fv(cache.riso.uniforms.u_inkOffset, offArr);
-        gl.uniform1f(cache.riso.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
       }, vao);
 
       const rendered = readoutToCanvas(canvas, W, H);
@@ -193,8 +199,6 @@ const risographMulti = (input: any, options = defaults) => {
 
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const jsRng = mulberry32(frameIndex * 7919 + 31337);
-
   const lum = new Float32Array(W * H);
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -202,7 +206,7 @@ const risographMulti = (input: any, options = defaults) => {
       lum[y * W + x] = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
     }
 
-  for (let i = 0; i < outBuf.length; i += 4) { outBuf[i] = 245; outBuf[i + 1] = 240; outBuf[i + 2] = 235; outBuf[i + 3] = 255; }
+  for (let i = 0; i < outBuf.length; i += 4) { outBuf[i] = 245; outBuf[i + 1] = 240; outBuf[i + 2] = 235; outBuf[i + 3] = buf[i + 3]; }
 
   const activeColors = colors.slice(0, layers);
   const thresholds = activeColors.map((_, i) => (i + 1) / (activeColors.length + 1));
@@ -210,20 +214,20 @@ const risographMulti = (input: any, options = defaults) => {
   for (let li = 0; li < activeColors.length; li++) {
     const c = activeColors[li];
     const thresh = thresholds[li];
-    const offX = Math.round((jsRng() - 0.5) * misregistration * 2);
-    const offY = Math.round((jsRng() - 0.5) * misregistration * 2);
+    const [offX, offY] = offsets[li];
 
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
-        const srcX = Math.max(0, Math.min(W - 1, x - offX));
-        const srcY = Math.max(0, Math.min(H - 1, y - offY));
+        const srcX = x - offX;
+        const srcY = y - offY;
+        if (srcX < 0 || srcX >= W || srcY < 0 || srcY >= H) continue;
         const l = lum[srcY * W + srcX];
 
         const bandDist = Math.abs(l - thresh);
         if (bandDist > 0.3) continue;
 
         const intensity = Math.max(0, (0.3 - bandDist) / 0.3) * 0.7;
-        const n = grain > 0 ? (jsRng() - 0.5) * grain * 0.3 : 0;
+        const n = grain > 0 ? stencilInkVariation(x, y, li) * grain * 0.3 : 0;
         const ink = Math.max(0, Math.min(1, intensity + n));
 
         const i = getBufferIndex(x, y, W);
@@ -237,12 +241,19 @@ const risographMulti = (input: any, options = defaults) => {
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], 255), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], buf[i + 3]), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
 };
 
-export default defineFilter({ name: "Risograph (multi-layer)", func: risographMulti, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Risograph (multi-layer)",
+  func: risographMulti,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Fixed multi-master stencil print with balanced registration offsets and correlated emulsion-ink variation",
+});

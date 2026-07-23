@@ -37,7 +37,7 @@
     "test:rust": "cargo test --manifest-path packages/ditherer-filters/src/wasm/rgba2laba/Cargo.toml -- --test-threads=1"
   },
   "dependencies": {
-    "@gyng/ditherer-filters": "0.3.0",
+    "@gyng/ditherer-filters": "0.4.0",
     "@radix-ui/react-popover": "^1.1.15",
     "cmdk": "^1.1.1",
     "fflate": "^0.8.3",

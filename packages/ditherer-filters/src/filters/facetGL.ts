@@ -30,6 +30,7 @@ uniform sampler2D u_input;
 uniform vec2  u_res;
 uniform vec2  u_dir;     // (1/W, 0) or (0, 1/H)
 uniform int   u_radius;  // capped at 32
+uniform int   u_inputPremultiplied;
 
 void main() {
   vec4 acc = vec4(0.0);
@@ -38,7 +39,9 @@ void main() {
     if (k < -u_radius || k > u_radius) continue;
     vec2 uv = clamp(v_uv + u_dir * float(k),
                     vec2(0.5) / u_res, vec2(1.0) - vec2(0.5) / u_res);
-    acc += texture(u_input, uv);
+    vec4 sampleColor = texture(u_input, uv);
+    if (u_inputPremultiplied == 0) sampleColor.rgb *= sampleColor.a;
+    acc += sampleColor;
     cnt += 1.0;
   }
   fragColor = acc / max(1.0, cnt);
@@ -60,6 +63,7 @@ uniform uint  u_seed;
 // FBO-rendered texture (blurred source in AVERAGE mode) which lacks the
 // flip. Affects how jsY maps to texture v-coord.
 uniform int   u_sourceFlipped;
+uniform int   u_sourcePremultiplied;
 
 uint hashU(int x, int y, int axis) {
   uint h = u_seed
@@ -109,16 +113,21 @@ void main() {
 
   float borderDist = (sqrt(secondDist) - sqrt(bestDist)) * 0.5;
 
-  vec3 outRgb;
-  if (borderDist < u_seamWidth) {
-    outRgb = u_lineColor;
-  } else {
-    float sx = clamp(bestSeed.x, 0.0, u_res.x - 1.0);
-    float sy = clamp(bestSeed.y, 0.0, u_res.y - 1.0);
-    float v = u_sourceFlipped == 1 ? 1.0 - (sy + 0.5) / u_res.y : (sy + 0.5) / u_res.y;
-    outRgb = texture(u_source, vec2((sx + 0.5) / u_res.x, v)).rgb * 255.0;
+  float sx = clamp(bestSeed.x, 0.0, u_res.x - 1.0);
+  float sy = clamp(bestSeed.y, 0.0, u_res.y - 1.0);
+  float v = u_sourceFlipped == 1 ? 1.0 - (sy + 0.5) / u_res.y : (sy + 0.5) / u_res.y;
+  vec4 sampled = texture(u_source, vec2((sx + 0.5) / u_res.x, v));
+  if (u_sourcePremultiplied == 1) {
+    sampled.rgb = sampled.a > 0.00001 ? sampled.rgb / sampled.a : vec3(0.0);
   }
-  fragColor = vec4(clamp(outRgb, 0.0, 255.0) / 255.0, 1.0);
+
+  float seam = 0.0;
+  if (u_seamWidth > 0.0) {
+    float aa = max(fwidth(borderDist), 0.5);
+    seam = 1.0 - smoothstep(u_seamWidth - aa, u_seamWidth + aa, borderDist);
+  }
+  vec3 outRgb = mix(sampled.rgb, clamp(u_lineColor / 255.0, 0.0, 1.0), seam);
+  fragColor = vec4(clamp(outRgb, 0.0, 1.0), sampled.a);
 }
 `;
 
@@ -130,8 +139,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     facet: linkProgram(gl, FACET_FS, [
       "u_source", "u_res", "u_facetSize", "u_jitter",
       "u_seamWidth", "u_lineColor", "u_seed", "u_sourceFlipped",
+      "u_sourcePremultiplied",
     ] as const),
-    blur: linkProgram(gl, BLUR_FS, ["u_input", "u_res", "u_dir", "u_radius"] as const),
+    blur: linkProgram(gl, BLUR_FS, [
+      "u_input", "u_res", "u_dir", "u_radius", "u_inputPremultiplied",
+    ] as const),
   };
   return _cache;
 };
@@ -144,6 +156,7 @@ export const renderFacetGL = (
   facetSize: number, jitter: number, seamWidth: number,
   lineColor: [number, number, number],
   averageMode: boolean,
+  seed: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -170,6 +183,7 @@ export const renderFacetGL = (
       gl.uniform2f(cache.blur.uniforms.u_res, width, height);
       gl.uniform2f(cache.blur.uniforms.u_dir, 1 / width, 0);
       gl.uniform1i(cache.blur.uniforms.u_radius, blurR);
+      gl.uniform1i(cache.blur.uniforms.u_inputPremultiplied, 0);
     }, vao);
     drawPass(gl, tempV, width, height, cache.blur, () => {
       gl.activeTexture(gl.TEXTURE0);
@@ -178,11 +192,12 @@ export const renderFacetGL = (
       gl.uniform2f(cache.blur.uniforms.u_res, width, height);
       gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / height);
       gl.uniform1i(cache.blur.uniforms.u_radius, blurR);
+      gl.uniform1i(cache.blur.uniforms.u_inputPremultiplied, 1);
     }, vao);
     sampleTex = tempV.tex;
   }
 
-  const seed = ((width * 73856093) ^ (height * 19349663) ^ Math.round(jitter * 1000)) >>> 0;
+  const normalizedSeed = Number.isFinite(seed) ? Math.max(0, Math.round(seed)) >>> 0 : 1;
   drawPass(gl, null, width, height, cache.facet, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sampleTex);
@@ -192,8 +207,9 @@ export const renderFacetGL = (
     gl.uniform1f(cache.facet.uniforms.u_jitter, jitter);
     gl.uniform1f(cache.facet.uniforms.u_seamWidth, seamWidth);
     gl.uniform3f(cache.facet.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
-    gl.uniform1ui(cache.facet.uniforms.u_seed, seed || 1);
+    gl.uniform1ui(cache.facet.uniforms.u_seed, normalizedSeed || 1);
     gl.uniform1i(cache.facet.uniforms.u_sourceFlipped, averageMode ? 0 : 1);
+    gl.uniform1i(cache.facet.uniforms.u_sourcePremultiplied, averageMode ? 1 : 0);
   }, vao);
   return readoutToCanvas(canvas, width, height);
 };

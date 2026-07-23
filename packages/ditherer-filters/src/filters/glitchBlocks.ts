@@ -28,11 +28,11 @@ export const optionTypes = {
   blockCount: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Number of glitch blocks per frame" },
   maxBlockSize: { type: RANGE, range: [10, 200], step: 5, default: 60, desc: "Maximum block dimension in pixels" },
   corruption: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Intensity of color/offset corruption" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Preview animation frame rate" },
+  animate: { type: ACTION, label: "Play / Stop", desc: "Start or stop frame-varying block corruption", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
   }},
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -240,4 +240,4 @@ const glitchBlocks = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Glitch Blocks", func: glitchBlocks, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Glitch Blocks", func: glitchBlocks, optionTypes, options: defaults, defaults, temporal: true });

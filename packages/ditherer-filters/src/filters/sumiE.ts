@@ -14,8 +14,8 @@ export const optionTypes = {
   edgeStrength: { type: RANGE, range: [0, 1.5], step: 0.05, default: 0.5, desc: "Ink intensity of the brush strokes at strong edges" },
   inkColor: { type: COLOR, default: [28, 24, 22], desc: "Ink colour for the darkest washes and brush strokes" },
   paperColor: { type: COLOR, default: [240, 232, 210], desc: "Unpainted paper background colour" },
-  grain: { type: RANGE, range: [0, 0.6], step: 0.02, default: 0.12, desc: "Paper texture — flecks of paper showing through the ink" },
-  palette: { type: PALETTE, default: nearest }
+  grain: { type: RANGE, range: [0, 0.6], step: 0.02, default: 0.12, desc: "Correlated long-fibre washi formation and ink resistance" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional palette applied after the ink-and-paper composite" }
 };
 
 export const defaults = {
@@ -31,8 +31,8 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const sumiE = (input: any, options: typeof defaults = defaults) => {
-  const { brushSoftness, washLevels, washStrength, washSoftness, edgeThreshold, edgeStrength, inkColor, paperColor, grain, palette } = options;
+const sumiE = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const { brushSoftness, washLevels, washStrength, washSoftness, edgeThreshold, edgeStrength, inkColor, paperColor, grain, palette } = { ...defaults, ...options };
   const W = input.width, H = input.height;
 
   const rendered = renderSumiEGL(input, W, H, brushSoftness, washLevels, washStrength, washSoftness,
@@ -50,5 +50,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Japanese ink-wash painting — quantized tonal washes plus strong Sobel brush strokes on paper",
+  description: "Stylized Japanese ink wash with softened tonal bands, contour ink, and directionally fibrous washi formation",
   requiresGL: true });

@@ -5,7 +5,8 @@ import { FilterProvider } from "context/FilterContext";
 import { FilterContext, type FilterContextValue } from "context/filterContextValue";
 import { filterIndex } from "@gyng/ditherer-filters";
 import type { FilterDefinition } from "filters/types";
-import { setGlobalAudioVizModulation } from "utils/audioVizBridge";
+import { getGlobalAudioVizModulation, setGlobalAudioVizModulation } from "utils/audioVizBridge";
+import { applyAudioModulationToOptions } from "utils/autoViz";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -96,6 +97,7 @@ describe("FilterProvider action contract", () => {
       wasmAcceleration: false,
       r: 4,
     });
+    expect(exported).not.toHaveProperty("v");
     expect(latest.actions.getExportUrl(latest.state)).toContain("#!");
   });
 
@@ -133,17 +135,20 @@ describe("FilterProvider action contract", () => {
   it("round-trips v2 state and global audio modulation through clipboard and JSON", async () => {
     await flush(() => {
       latest.actions.chainAdd("Binarize", filterIndex.Binarize);
-      latest.actions.setFilterOption("threshold", 96, 1);
+      latest.actions.setFilterOption("thresholdR", 96, 1);
       latest.actions.chainToggle(latest.state.chain[0].id);
     });
     setGlobalAudioVizModulation("chain", {
-      connections: [{ metric: "bass", target: `${latest.state.chain[1].id}:threshold`, weight: -0.25 }],
+      connections: [{ metric: "bass", target: `${latest.state.chain[1].id}:thresholdR`, weight: -0.25 }],
       normalizedMetrics: ["bass"],
     });
 
     const json = latest.actions.exportState(latest.state);
     const parsed = JSON.parse(json);
     expect(parsed).toMatchObject({ v: 2, chain: expect.any(Array), av: expect.any(Object) });
+    expect(parsed.chain.map((entry: { i?: string }) => entry.i)).toEqual(
+      latest.state.chain.map((entry) => entry.id),
+    );
 
     latest.actions.copyChainToClipboard();
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('"v":2'));
@@ -151,7 +156,22 @@ describe("FilterProvider action contract", () => {
     vi.mocked(navigator.clipboard.readText).mockResolvedValue(json);
     await flush(() => latest.actions.pasteChainFromClipboard());
     expect(latest.state.chain).toHaveLength(2);
-    expect(latest.state.chain[1].filter.options?.threshold).toBe(96);
+    expect(latest.state.chain[1].filter.options?.thresholdR).toBe(96);
+    const restoredEntry = latest.state.chain[1];
+    const restoredGlobal = getGlobalAudioVizModulation("chain");
+    expect(restoredGlobal?.connections[0].target).toBe(`${restoredEntry.id}:thresholdR`);
+    const modulated = applyAudioModulationToOptions(
+      restoredEntry.filter.options ?? {},
+      restoredEntry.filter.optionTypes ?? {},
+      restoredGlobal!,
+      {
+        normalize: false,
+        rawMetrics: { bass: 1 },
+        normalizedMetrics: { bass: 1 },
+      } as never,
+      restoredEntry.id,
+    );
+    expect(modulated.thresholdR).not.toBe(96);
 
     await flush(() => latest.actions.importState(JSON.stringify({
       selected: { displayName: "Grayscale", filter: { name: "Grayscale" } },
@@ -160,6 +180,75 @@ describe("FilterProvider action contract", () => {
       wasmAcceleration: true,
     })));
     expect(latest.state.chain[0].displayName).toBe("Grayscale");
+  });
+
+  it("round-trips a disabled single entry through v2", async () => {
+    const entryId = latest.state.chain[0].id;
+    await flush(() => latest.actions.chainToggle(entryId));
+
+    const json = latest.actions.exportState(latest.state);
+    expect(JSON.parse(json)).toMatchObject({
+      v: 2,
+      chain: [{ i: entryId, e: false }],
+    });
+
+    await flush(() => latest.actions.importState(json));
+    expect(latest.state.chain).toHaveLength(1);
+    expect(latest.state.chain[0]).toMatchObject({ id: entryId, enabled: false });
+  });
+
+  it("round-trips single-entry per-entry and ID-qualified global modulation through v2", async () => {
+    const entryId = latest.state.chain[0].id;
+    await flush(() => latest.actions.setChainAudioModulation(entryId, {
+      connections: [{ metric: "beat", target: "temporalBleed", weight: 0.5 }],
+      normalizedMetrics: ["beat"],
+    }));
+    setGlobalAudioVizModulation("chain", {
+      connections: [{ metric: "bass", target: `${entryId}:animSpeed`, weight: -0.25 }],
+      normalizedMetrics: ["bass"],
+    });
+    setGlobalAudioVizModulation("screensaver", {
+      connections: [{ metric: "beat", target: `${entryId}:voteWindow`, weight: 0.25 }],
+      normalizedMetrics: ["beat"],
+    });
+
+    const json = latest.actions.exportState(latest.state);
+    expect(JSON.parse(json)).toMatchObject({
+      v: 2,
+      chain: [{
+        i: entryId,
+        m: { c: [{ k: "beat", o: "temporalBleed", w: 0.5 }], z: ["beat"] },
+      }],
+      av: {
+        chain: { m: { c: [{ o: `${entryId}:animSpeed` }] } },
+        screensaver: { m: { c: [{ o: `${entryId}:voteWindow` }] } },
+      },
+    });
+
+    await flush(() => latest.actions.importState(json));
+    const restoredEntry = latest.state.chain[0];
+    expect(restoredEntry.id).toBe(entryId);
+    expect(restoredEntry.audioMod?.connections[0]).toMatchObject({
+      target: "temporalBleed",
+      weight: 0.5,
+    });
+    const restoredChainGlobal = getGlobalAudioVizModulation("chain");
+    expect(restoredChainGlobal?.connections[0].target).toBe(`${entryId}:animSpeed`);
+    expect(getGlobalAudioVizModulation("screensaver")?.connections[0].target)
+      .toBe(`${entryId}:voteWindow`);
+
+    const modulated = applyAudioModulationToOptions(
+      restoredEntry.filter.options ?? {},
+      restoredEntry.filter.optionTypes ?? {},
+      restoredChainGlobal!,
+      {
+        normalize: false,
+        rawMetrics: { bass: 1 },
+        normalizedMetrics: { bass: 1 },
+      } as never,
+      restoredEntry.id,
+    );
+    expect(modulated.animSpeed).not.toBe(restoredEntry.filter.options?.animSpeed);
   });
 
   it("stores custom palettes and handles absent and present video controls", async () => {
@@ -297,6 +386,99 @@ describe("FilterProvider action contract", () => {
     expect(warn).toHaveBeenCalledWith("Tried to set option on null palette", expect.any(Object));
     expect(warn).toHaveBeenCalledWith("Tried to add color to null palette", expect.any(Object));
   });
+
+  it("ignores primitive imports and filters malformed global audio modulation", async () => {
+    const baseline = {
+      connections: [{ metric: "beat" as const, target: "amount", weight: 0.25 }],
+      normalizedMetrics: ["beat" as const],
+    };
+    const screensaverBaseline = {
+      connections: [{ metric: "bass" as const, target: "threshold", weight: -0.25 }],
+      normalizedMetrics: ["bass" as const],
+    };
+    setGlobalAudioVizModulation("chain", baseline);
+    setGlobalAudioVizModulation("screensaver", screensaverBaseline);
+    const chainBefore = latest.state.chain;
+
+    await flush(() => {
+      expect(() => latest.actions.importState("null")).not.toThrow();
+      expect(() => latest.actions.importState("2")).not.toThrow();
+    });
+    expect(latest.state.chain).toBe(chainBefore);
+    expect(getGlobalAudioVizModulation("chain")).toEqual(baseline);
+    expect(getGlobalAudioVizModulation("screensaver")).toEqual(screensaverBaseline);
+
+    await flush(() => {
+      latest.actions.importState(JSON.stringify({ v: 2, chain: [null, { n: "missing" }] }));
+      latest.actions.importState(JSON.stringify({
+        selected: { filter: { name: "missing" } },
+        convertGrayscale: false,
+      }));
+    });
+    expect(latest.state.chain).toBe(chainBefore);
+    expect(getGlobalAudioVizModulation("chain")).toEqual(baseline);
+    expect(getGlobalAudioVizModulation("screensaver")).toEqual(screensaverBaseline);
+
+    await flush(() => latest.actions.importState(JSON.stringify({
+      v: 2,
+      chain: [{ n: "Invert" }],
+      g: false,
+      l: true,
+      w: true,
+      av: {
+        chain: {
+          m: {
+            c: [
+              null,
+              { k: null, o: "amount", w: 1 },
+              { k: "beat", o: null, w: 1 },
+              { k: "beat", o: "amount", w: "invalid" },
+              { k: "bass", o: "amount", w: -0.5 },
+            ],
+            z: [null, "bass", 7],
+          },
+        },
+      },
+    })));
+    expect(getGlobalAudioVizModulation("chain")).toEqual({
+      connections: [{ metric: "bass", target: "amount", weight: -0.5 }],
+      normalizedMetrics: ["bass"],
+    });
+  });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "rejects inherited registry name %s without clearing audio sidecars",
+    async (name) => {
+      const chainBaseline = {
+        connections: [{ metric: "beat" as const, target: "amount", weight: 0.25 }],
+        normalizedMetrics: ["beat" as const],
+      };
+      const screensaverBaseline = {
+        connections: [{ metric: "bass" as const, target: "threshold", weight: -0.25 }],
+        normalizedMetrics: ["bass" as const],
+      };
+      setGlobalAudioVizModulation("chain", chainBaseline);
+      setGlobalAudioVizModulation("screensaver", screensaverBaseline);
+      const chainBefore = latest.state.chain;
+
+      await flush(() => latest.actions.importState(JSON.stringify({
+        v: 2,
+        chain: [{ n: name }],
+        av: { chain: { m: { c: [{ k: "beat", o: "amount", w: 1 }] } } },
+      })));
+      expect(latest.state.chain).toBe(chainBefore);
+      expect(getGlobalAudioVizModulation("chain")).toEqual(chainBaseline);
+      expect(getGlobalAudioVizModulation("screensaver")).toEqual(screensaverBaseline);
+
+      await flush(() => latest.actions.importState(JSON.stringify({
+        selected: { filter: { name } },
+        convertGrayscale: false,
+      })));
+      expect(latest.state.chain).toBe(chainBefore);
+      expect(getGlobalAudioVizModulation("chain")).toEqual(chainBaseline);
+      expect(getGlobalAudioVizModulation("screensaver")).toEqual(screensaverBaseline);
+    },
+  );
 
   it("starts, advances, and stops explicit and auto-owned animation loops", async () => {
     const callbacks: FrameRequestCallback[] = [];

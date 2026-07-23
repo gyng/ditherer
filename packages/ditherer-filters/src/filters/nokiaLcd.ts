@@ -11,7 +11,7 @@ export const optionTypes = {
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Black/white threshold for 1-bit display" },
   contrast: { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.25, desc: "Contrast boost before thresholding" },
   ditherStrength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Display-native 4×4 ordered decisions that preserve tone using only the two physical LCD states" },
-  pixelGrid: { type: BOOL, default: true, desc: "Show visible pixel grid lines" },
+  pixelGrid: { type: BOOL, default: true, desc: "Show off-state inter-pixel gaps when the output scale can resolve them without obscuring active cells" },
   palette: { type: PALETTE, default: nearest, desc: "Optional palette remapping after the two-state LCD rendering" }
 };
 

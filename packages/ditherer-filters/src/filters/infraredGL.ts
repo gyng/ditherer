@@ -44,7 +44,7 @@ void main() {
   float greenExcess = max(0.0, src.g - (src.r + src.b) * 0.5);
   float skyLikelihood = smoothstep(0.02, 0.3, src.b - max(src.r, src.g));
   float estimatedNir = clamp(
-    luma * 0.35 + src.r * 0.25 + src.g * 0.15
+    luma * 0.6 + src.r * 0.25 + src.g * 0.15
       + greenExcess * 1.4 * max(0.0, u_foliageResponse),
     0.0, 1.0
   );

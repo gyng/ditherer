@@ -4,8 +4,13 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 const filterPackageSource = path.resolve(__dirname, "packages/ditherer-filters/src");
-const filterCorePattern = /packages[\\/]ditherer-filters[\\/]src[\\/](?:constants|gl|palettes|utils|wasm)[\\/]/;
-const filterImplementationPattern = /packages[\\/]ditherer-filters[\\/]src[\\/]filters[\\/]([^\\/]+)\.ts$/;
+// Match both the workspace source graph and the installed package graph used
+// by the packed-consumer release gate. Keeping the latter here ensures a real
+// consumer receives the same bounded filter chunks instead of collapsing the
+// already-built package back into one oversized application entry.
+const filterPackagePattern = "(?:packages[\\\\/]ditherer-filters[\\\\/]src|node_modules[\\\\/]@gyng[\\\\/]ditherer-filters[\\\\/]dist)";
+const filterCorePattern = new RegExp(`${filterPackagePattern}[\\\\/](?:constants|gl|palettes|utils|wasm)[\\\\/]`);
+const filterImplementationPattern = new RegExp(`${filterPackagePattern}[\\\\/]filters[\\\\/]([^\\\\/]+)\\.(?:ts|js)$`);
 const filterImplementationChunkName = (moduleId) => {
   const match = moduleId.match(filterImplementationPattern);
   if (!match || match[1] === "index" || match[1] === "types") return null;
@@ -19,7 +24,7 @@ const filterImplementationChunkName = (moduleId) => {
 const filterChunkGroups = () => [{
   name: "filter-core",
   test: (moduleId) => filterCorePattern.test(moduleId)
-    || /packages[\\/]ditherer-filters[\\/]src[\\/]filters[\\/]types\.ts$/.test(moduleId),
+    || new RegExp(`${filterPackagePattern}[\\\\/]filters[\\\\/]types\\.(?:ts|js)$`).test(moduleId),
   priority: 20,
 }, {
   name: filterImplementationChunkName,
@@ -120,7 +125,7 @@ export default defineConfig({
         "src/**/__mocks__/**",
         // Browser harnesses are tests, not shipped application modules. Their
         // coverage is collected, but it must not raise the product numerator.
-        "src/glSmoke.ts",
+        "src/gl-smoke/**",
         "src/wasmSmoke.ts",
       ],
       // The unit floor catches a vanished Vitest layer. The release threshold

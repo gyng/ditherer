@@ -10,6 +10,7 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { resolveStainedGlassCellColors, type StainedGlassColorMode } from "../utils/stainedGlassColor";
 
 // Stained-glass Voronoi in three stages:
 //
@@ -18,10 +19,9 @@ import {
 //      into RGBA8 so we don't need EXT_color_buffer_float. `borderDist` is
 //      (d₂ - d₁)/2 in pixels, clamped to 255 (far more than leadingWidth's
 //      max of 6, so saturation is harmless for the leading test).
-//   2. CPU readback: sum source RGB per cellId, divide → per-cell average
-//      color lookup. Uploaded as a 1D RGBA8 texture. The readback is the
-//      trade-off — reduces cleanly don't fit in a fragment shader without
-//      compute/transform-feedback, so we round-trip for this step.
+//   2. CPU readback: resolve the selected alpha-weighted pane statistic into a
+//      1D RGBA8 color lookup. The readback is the trade-off — reductions don't
+//      fit a fragment shader cleanly without compute/transform-feedback.
 //   3. Pass B (GPU): per pixel, sample the pass-A texture to get its cell
 //      id + border distance, look up the cell color, apply leading.
 //
@@ -75,13 +75,13 @@ void main() {
 
   float d1 = sqrt(minDist);
   float d2 = sqrt(minDist2);
-  float borderDist = clamp((d2 - d1) * 0.5, 0.0, 255.0);
+  float borderDist = clamp((d2 - d1) * 0.5, 0.0, 31.875);
 
   // Pack cellId into two bytes. Max encodable: 65535 cells (enough for any
   // practical cellSize ≥ ~4 on typical canvases).
   int lo = minIdx - (minIdx / 256) * 256;
   int hi = minIdx / 256;
-  fragColor = vec4(float(lo) / 255.0, float(hi) / 255.0, borderDist / 255.0, 1.0);
+  fragColor = vec4(float(lo) / 255.0, float(hi) / 255.0, borderDist * 8.0 / 255.0, 1.0);
 }
 `;
 
@@ -93,33 +93,24 @@ out vec4 fragColor;
 
 uniform sampler2D u_voronoi;   // Pass A
 uniform sampler2D u_cellColors; // 1D lookup
+uniform sampler2D u_source;
 uniform int   u_cellCount;
 uniform float u_leadingWidth;
 uniform vec3  u_leadingColor;
-uniform float u_levels;
 
 void main() {
   vec4 v = texture(u_voronoi, v_uv);
   int lo = int(floor(v.r * 255.0 + 0.5));
   int hi = int(floor(v.g * 255.0 + 0.5));
   int cellId = hi * 256 + lo;
-  float borderDist = v.b * 255.0;
+  float borderDist = v.b * 255.0 / 8.0;
 
-  vec3 rgb;
-  if (borderDist < u_leadingWidth) {
-    rgb = u_leadingColor;
-  } else {
-    int idx = min(cellId, u_cellCount - 1);
-    float u = (float(idx) + 0.5) / float(u_cellCount);
-    rgb = texture(u_cellColors, vec2(u, 0.5)).rgb * 255.0;
-  }
-
-  rgb = clamp(rgb, 0.0, 255.0) / 255.0;
-  if (u_levels > 1.5) {
-    float q = u_levels - 1.0;
-    rgb = floor(rgb * q + 0.5) / q;
-  }
-  fragColor = vec4(rgb, 1.0);
+  int idx = min(cellId, u_cellCount - 1);
+  float u = (float(idx) + 0.5) / float(u_cellCount);
+  vec3 pane = texture(u_cellColors, vec2(u, 0.5)).rgb;
+  float leading = 1.0 - smoothstep(u_leadingWidth - 0.5, u_leadingWidth + 0.5, borderDist);
+  vec3 rgb = mix(pane, u_leadingColor / 255.0, leading);
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), texture(u_source, v_uv).a);
 }
 `;
 
@@ -137,7 +128,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     ] as const),
     composite: linkProgram(gl, COMPOSITE_FS, [
       "u_voronoi", "u_cellColors", "u_cellCount",
-      "u_leadingWidth", "u_leadingColor", "u_levels",
+      "u_source", "u_leadingWidth", "u_leadingColor",
     ] as const),
   };
   return _cache;
@@ -201,7 +192,8 @@ export const renderStainedGlassGL = (
   cellSize: number,
   leadingWidth: number,
   leadingColor: [number, number, number],
-  levels: number,
+  colorMode: StainedGlassColorMode,
+  mapCellColor: (r: number, g: number, b: number) => readonly number[],
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -228,46 +220,33 @@ export const renderStainedGlassGL = (
     gl.uniform1i(cache.voronoi.uniforms.u_cellSize, cellSize);
   }, vao);
 
-  // Readback Pass A → sum RGB per cellId on CPU → per-cell averages.
+  // Readback Pass A → resolve the requested per-cell statistic on CPU.
   // The readback is aligned to Pass A's FBO, which writes in GL-y orientation.
   const voronoiPixels = new Uint8Array(width * height * 4);
   gl.bindFramebuffer(gl.FRAMEBUFFER, voronoiTex.fbo);
   gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, voronoiPixels);
 
   const cellCount = gridCols * gridRows;
-  const sumR = new Float64Array(cellCount);
-  const sumG = new Float64Array(cellCount);
-  const sumB = new Float64Array(cellCount);
-  const cnt = new Uint32Array(cellCount);
+  const cellIds = new Int32Array(width * height);
   for (let py = 0; py < height; py++) {
     // Source is uploaded with FLIP_Y, so source row `py` in JS corresponds to
     // pixel row `py`. Pass A rendered in GL-y, so Pass A pixel row `glY` holds
     // the voronoi for JS row `height - 1 - glY`.
     const voronoiY = height - 1 - py;
     const voronoiRow = voronoiY * width * 4;
-    const sourceRow = py * width * 4;
     for (let px = 0; px < width; px++) {
       const vi = voronoiRow + px * 4;
-      const si = sourceRow + px * 4;
       const cellId = (voronoiPixels[vi] ?? 0) + (voronoiPixels[vi + 1] ?? 0) * 256;
-      if (cellId >= cellCount) continue;
-      sumR[cellId] += sourcePixels[si] ?? 0;
-      sumG[cellId] += sourcePixels[si + 1] ?? 0;
-      sumB[cellId] += sourcePixels[si + 2] ?? 0;
-      cnt[cellId]++;
+      cellIds[py * width + px] = cellId < cellCount ? cellId : 0;
     }
   }
-  const cellColors = new Uint8Array(cellCount * 4);
-  for (let i = 0; i < cellCount; i++) {
-    const c = cnt[i];
-    if (c > 0) {
-      cellColors[i * 4] = Math.round(sumR[i] / c);
-      cellColors[i * 4 + 1] = Math.round(sumG[i] / c);
-      cellColors[i * 4 + 2] = Math.round(sumB[i] / c);
-    } else {
-      cellColors[i * 4] = 128; cellColors[i * 4 + 1] = 128; cellColors[i * 4 + 2] = 128;
-    }
-    cellColors[i * 4 + 3] = 255;
+  const cellColors = resolveStainedGlassCellColors(cellIds, sourcePixels, cellCount, colorMode);
+  for (let offset = 0; offset < cellColors.length; offset += 4) {
+    if (cellColors[offset + 3] === 0) continue;
+    const mapped = mapCellColor(cellColors[offset], cellColors[offset + 1], cellColors[offset + 2]);
+    cellColors[offset] = mapped[0] ?? 0;
+    cellColors[offset + 1] = mapped[1] ?? 0;
+    cellColors[offset + 2] = mapped[2] ?? 0;
   }
   const cellTex = uploadCellColors(gl, cellColors, cellCount);
   if (!cellTex) {
@@ -282,11 +261,13 @@ export const renderStainedGlassGL = (
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, cellTex);
     gl.uniform1i(cache.composite.uniforms.u_cellColors, 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+    gl.uniform1i(cache.composite.uniforms.u_source, 2);
     gl.uniform1i(cache.composite.uniforms.u_cellCount, cellCount);
     gl.uniform1f(cache.composite.uniforms.u_leadingWidth, leadingWidth);
     gl.uniform3f(cache.composite.uniforms.u_leadingColor,
       leadingColor[0], leadingColor[1], leadingColor[2]);
-    gl.uniform1f(cache.composite.uniforms.u_levels, levels);
   }, vao);
 
   const out = readoutToCanvas(canvas, width, height);

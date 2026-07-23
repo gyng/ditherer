@@ -3,22 +3,9 @@ import {
   startBrowserCoverage,
   writeBrowserCoverage,
 } from "./browserCoverage";
+import type { GlSmokeResult } from "../../src/gl-smoke/types";
 
 test.setTimeout(120_000);
-
-type GlSmokeResult = {
-  status: "ok" | "failed";
-  passed: number;
-  failed: number;
-  skipped: number;
-  glFilters: number;
-  requiredGLFilters: number;
-  shaderCompiles: number;
-  programLinks: number;
-  shaderFailures: number;
-  drawCalls: number;
-  failures: { name: string; mode: string; reason: string }[];
-};
 
 test("every reachable GL shader compiles and renders in a real browser", async ({ page }) => {
   await startBrowserCoverage(page);
@@ -52,7 +39,15 @@ test("every reachable GL shader compiles and renders in a real browser", async (
   console.log(
     `gl-smoke: passed=${result.passed} skipped=${result.skipped} `
     + `glFilters=${result.glFilters} requiredGL=${result.requiredGLFilters} `
-    + `compiles=${result.shaderCompiles} links=${result.programLinks} draws=${result.drawCalls}`,
+    + `compiles=${result.shaderCompiles} links=${result.programLinks} draws=${result.drawCalls} `
+    + `time=${result.timings.totalMs.toFixed(0)}ms `
+    + `(registry=${result.timings.registryMs.toFixed(0)}ms contracts=${result.timings.contractsMs.toFixed(0)}ms)`,
+  );
+  console.log(
+    "gl-smoke suites: "
+    + Object.entries(result.timings.suitesMs)
+      .map(([name, elapsed]) => `${name}=${elapsed.toFixed(0)}ms`)
+      .join(" "),
   );
   // Coverage floor: lowering this requires an intentional review of which GPU
   // path was removed or stopped activating. New filters are discovered without
@@ -64,6 +59,10 @@ test("every reachable GL shader compiles and renders in a real browser", async (
   expect(result.programLinks).toBeGreaterThan(0);
   expect(result.shaderFailures).toBe(0);
   expect(result.drawCalls).toBeGreaterThan(result.glFilters);
+  expect(result.timings.totalMs).toBeGreaterThan(0);
+  expect(result.timings.registryMs).toBeGreaterThan(0);
+  expect(result.timings.contractsMs).toBeGreaterThan(0);
+  expect(Object.keys(result.timings.suitesMs).length).toBeGreaterThan(0);
   expect(consoleErrors).toEqual([]);
   await writeBrowserCoverage(page, "gl-smoke");
 });

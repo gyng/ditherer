@@ -22,6 +22,21 @@ uniform float u_time;
 
 float hash(float n) { return fract(sin(n) * 43758.5453123); }
 
+vec3 srgbToLinear(vec3 c) {
+  bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
+  vec3 low = c / 12.92;
+  vec3 high = pow((c + 0.055) / 1.055, vec3(2.4));
+  return mix(high, low, cutoff);
+}
+
+vec3 linearToSrgb(vec3 c) {
+  c = max(c, vec3(0.0));
+  bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+  vec3 low = c * 12.92;
+  vec3 high = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
+  return mix(high, low, cutoff);
+}
+
 float coherentIntensity(vec2 p, float seed) {
   vec2 amplitude = vec2(0.0);
   for (int i = 0; i < 6; i++) {
@@ -48,12 +63,13 @@ float averagedSpeckle(vec2 p, float channelSeed) {
 
 void main() {
   vec2 texel = 1.0 / max(u_res, vec2(1.0));
-  vec3 source = texture(u_source, v_uv).rgb;
+  vec4 sourceSample = texture(u_source, v_uv);
+  vec3 source = srgbToLinear(sourceSample.rgb);
   vec3 soft = source * 0.42;
-  soft += texture(u_source, v_uv + vec2(texel.x * 2.0, 0.0)).rgb * 0.145;
-  soft += texture(u_source, v_uv - vec2(texel.x * 2.0, 0.0)).rgb * 0.145;
-  soft += texture(u_source, v_uv + vec2(0.0, texel.y * 2.0)).rgb * 0.145;
-  soft += texture(u_source, v_uv - vec2(0.0, texel.y * 2.0)).rgb * 0.145;
+  soft += srgbToLinear(texture(u_source, v_uv + vec2(texel.x * 2.0, 0.0)).rgb) * 0.145;
+  soft += srgbToLinear(texture(u_source, v_uv - vec2(texel.x * 2.0, 0.0)).rgb) * 0.145;
+  soft += srgbToLinear(texture(u_source, v_uv + vec2(0.0, texel.y * 2.0)).rgb) * 0.145;
+  soft += srgbToLinear(texture(u_source, v_uv - vec2(0.0, texel.y * 2.0)).rgb) * 0.145;
   vec3 projected = mix(source, max(source, soft), u_bloom);
 
   float luma = dot(projected, vec3(0.2126, 0.7152, 0.0722));
@@ -68,11 +84,11 @@ void main() {
     averagedSpeckle(speckleCoord * 1.013, 11.7),
     averagedSpeckle(speckleCoord * 1.027, 23.9)
   );
-  intensity = clamp(intensity, vec3(0.0), vec3(3.0));
+  intensity = clamp(intensity, vec3(0.0), vec3(4.0));
   vec3 granular = projected * mix(vec3(1.0), intensity, u_coherence);
-  float scan = 0.5 + 0.5 * sin(pixel.y / max(u_scanPitch, 1.0) * 6.2831853 + u_time * 2.0);
-  granular *= mix(1.0, 0.72 + scan * 0.28, u_scanStrength);
-  fragColor = vec4(clamp(granular, 0.0, 1.0), 1.0);
+  float scan = sin(pixel.y / max(u_scanPitch, 1.0) * 6.2831853 + u_time * 2.0);
+  granular *= 1.0 + scan * clamp(u_scanStrength, 0.0, 1.0) * 0.18;
+  fragColor = vec4(clamp(linearToSrgb(granular), 0.0, 1.0), sourceSample.a);
 }`;
 
 export const optionTypes = {
@@ -88,8 +104,8 @@ export const optionTypes = {
     desc: "Laser-primary configuration used to project the source",
   },
   grain: { type: RANGE, range: [0.5, 16], step: 0.5, default: 4.5, desc: "Apparent coherent speckle grain diameter in pixels" },
-  coherence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.46, desc: "Contrast of multiplicative interference speckle" },
-  diversity: { type: RANGE, range: [1, 8], step: 1, default: 4, desc: "Independent intensity patterns averaged to reduce speckle contrast" },
+  coherence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.46, desc: "Single-pattern speckle contrast mixed into the projected irradiance" },
+  diversity: { type: RANGE, range: [1, 8], step: 1, default: 4, desc: "Independent equal-power patterns averaged so contrast falls approximately as 1/√M" },
   scanPitch: { type: RANGE, range: [1, 24], step: 1, default: 7, desc: "Spacing of the projector scan and pulse-width modulation structure" },
   scanStrength: { type: RANGE, range: [0, 1], step: 0.01, default: 0.18, desc: "Visibility of scan and pulse-width modulation bands" },
   bloom: { type: RANGE, range: [0, 1], step: 0.01, default: 0.28, desc: "Optical flare around bright projected detail" },
@@ -109,25 +125,38 @@ export const defaults = {
 
 const laserId: Record<string, number> = { RGB: 0, RED: 1, GREEN: 2, BLUE: 3 };
 
+const boundedOption = (value: unknown, fallback: number, minimum: number, maximum: number): number => {
+  const numeric = Number(value);
+  return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
+};
+
 const laserSpeckleProjector = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const runtime = options as typeof defaults & { _frameIndex?: number };
   const W = input.width, H = input.height;
+  const grain = boundedOption(options.grain, defaults.grain, 0.5, 16);
+  const coherence = boundedOption(options.coherence, defaults.coherence, 0, 1);
+  const diversity = Math.round(boundedOption(options.diversity, defaults.diversity, 1, 8));
+  const scanPitch = boundedOption(options.scanPitch, defaults.scanPitch, 1, 24);
+  const scanStrength = boundedOption(options.scanStrength, defaults.scanStrength, 0, 1);
+  const bloom = boundedOption(options.bloom, defaults.bloom, 0, 1);
+  const motion = boundedOption(options.motion, defaults.motion, 0, 2);
+  const frameIndex = boundedOption(runtime._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER);
   const rendered = renderGLSinglePass({
     source: input, width: W, height: H, key: "laserSpeckleProjector", fragmentShader: FS,
     uniformNames: ["u_laser", "u_grain", "u_coherence", "u_diversity", "u_scanPitch", "u_scanStrength", "u_bloom", "u_time"],
     setUniforms: (gl, u) => {
       gl.uniform1i(u.u_laser, laserId[String(options.laser)] ?? 0);
-      gl.uniform1f(u.u_grain, Number(options.grain));
-      gl.uniform1f(u.u_coherence, Number(options.coherence));
-      gl.uniform1i(u.u_diversity, Math.max(1, Math.min(8, Math.round(Number(options.diversity)))));
-      gl.uniform1f(u.u_scanPitch, Number(options.scanPitch));
-      gl.uniform1f(u.u_scanStrength, Number(options.scanStrength));
-      gl.uniform1f(u.u_bloom, Number(options.bloom));
-      gl.uniform1f(u.u_time, Number(runtime._frameIndex ?? 0) * Number(options.motion) * 0.04);
+      gl.uniform1f(u.u_grain, grain);
+      gl.uniform1f(u.u_coherence, coherence);
+      gl.uniform1i(u.u_diversity, diversity);
+      gl.uniform1f(u.u_scanPitch, scanPitch);
+      gl.uniform1f(u.u_scanStrength, scanStrength);
+      gl.uniform1f(u.u_bloom, bloom);
+      gl.uniform1f(u.u_time, frameIndex * motion * 0.04);
     },
   });
   if (!rendered) return input;
-  logFilterBackend("Laser Speckle Projector", "WebGL2", `${options.laser} M=${options.diversity}`);
+  logFilterBackend("Laser Speckle Projector", "WebGL2", `${options.laser} M=${diversity}`);
   return rendered;
 };
 
@@ -137,7 +166,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Coherent laser projection with multiplicative interference grain, diversity averaging, scan structure, and bloom",
+  description: "Linear-light laser-projector irradiance with coherent speckle, independent-pattern diversity, scan structure, and optical bloom",
   temporal: true,
   autoAnimate: true,
   autoAnimateFps: 30,

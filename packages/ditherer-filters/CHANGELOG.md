@@ -5,6 +5,8 @@ package follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-23
+
 ### Added
 
 - Four WebGL2 simulation/art crossovers: Schlieren Optics, Laser Speckle
@@ -34,9 +36,94 @@ package follows semantic versioning.
   interlace composition.
 - Upgraded Scanline to a resolution-independent integrated beam profile while
   retaining the legacy dark-row and artistic RGB modes.
+- Reworked Newspaper around a locally averaged 45° screen, Thermal Printer
+  around coherent line-head cells, and Polaroid around a detail-preserving,
+  neutral-capable instant-film grade with fixed developed grain.
+- Replaced Watercolor Bleed's four-neighbor, red-channel approximation with
+  bounded eight-neighbor pigment diffusion, luminance-based deposition, and
+  smooth multiscale paper fibers; its copy now states the model's limits.
+- Rebuilt Film Grain as density-aware correlated silver/dye-cloud variation,
+  Light Leak as spectrally faithful linear-light exposure, and Projection Film
+  with area/width-scaled debris, mixed film-layer scratches, and density grain.
+- Reworked Photocopier around continuous repeated-copy density transfer and
+  fixed asymmetric toner defects; rebuilt Paper Texture with resolution-safe
+  irregular fibre/weave models and Sumi-e with correlated washi formation.
+- Rebuilt the layered-print family around fixed Risograph masters and
+  registration, correlated stencil variation, true zero-bleed behavior,
+  clustered-dot screen plates with subtractive overprint and dot gain, and
+  bounded sequential duplex ink coverage.
+- Rebuilt Oscilloscope as an image-derived luma waveform, mean-column trace,
+  and RGB parade with Gaussian beam density, instrument graticule, bloom, and
+  phosphor persistence instead of a thresholded copy of the source.
+- Reworked CCD Charge Smear around additive full-well overflow and an
+  anti-blooming drain, and moved Laser Speckle Projector's coherent irradiance,
+  diversity averaging, scan modulation, and bloom into linear light.
+- Rebuilt E-ink around 16 optical states, 16³-color coarse Kaleido cells,
+  fixed reflective texture, clearing waveforms, and changed-pixel partial
+  residuals; rebuilt Vintage TV around a luma/chroma receiver path and
+  resolution-normalized raster; and moved Digicam Flash exposure and sensor
+  saturation into linear light with flash-only white balance.
+- Reworked Voronoi, K-means, and Pixelsort around explicit deterministic seeds;
+  K-means now defaults to alpha-weighted perceptual Lab clustering and applies
+  its selected output palette instead of silently ignoring it.
+- Reworked Delaunay to cover the complete raster and use alpha-weighted triangle
+  colors, implemented Stained Glass's advertised average, median, and dominant
+  pane statistics across CPU/WebGL, and made Median Cut honor arbitrary color
+  budgets instead of rounding them up to a power of two.
+- Rebuilt Color Halftone Separate and Halftone Line around area-calibrated tone
+  coverage, real plate registration, filtered cell sampling, antialiasing, and
+  source-alpha preservation.
+- Implemented JPEG Artifact's 4:4:4, 4:2:2, and 4:2:0 controls, padded partial
+  blocks to complete 8×8 transforms, and retained its legacy master-quality key
+  as saved-state input without exposing a dead duplicate control.
+- Rebuilt Contour Lines around endpoint-preserving flat luminance bands and
+  antialiased scalar-field boundaries, and rebuilt Dot Matrix around fixed
+  circular printer-pin strikes whose ordered firing density represents tone.
+- Rebuilt Pencil Sketch around alpha-aware contour-following hatching, Mosaic
+  Tile around exact shared visible-color tile statistics, and Oil Painting
+  around circular alpha-weighted modal neighborhoods with unbiased ties.
+- Moved Anisotropic Diffusion to half-float iteration storage with shared RGB
+  edge guidance and alpha-gated flux, eliminating byte-rounding limit cycles.
+- Rebuilt Posterize Dither around cell-centered Bayer stochastic rounding and
+  CMYK Halftone around area-calibrated dot/complementary-hole AM screens.
+- Atlas-packed CLAHE tile CDFs within device texture limits, spread clipped
+  residuals across the histogram, excluded transparent samples, and made
+  palette-level controls consistent across CPU and WebGL.
+- Rebuilt Lens Flare in linear light with resolution-aware bloom, smooth
+  chromatic optical-axis ghosts, and controllable streaking; rebuilt Pop Art
+  around area-correct dot/hole tone coverage, antialiasing, screen rotation,
+  and configurable paper; and exposed Facet's deterministic layout seed and
+  honestly labeled local-mean sampling.
+- Rebuilt Bilateral Blur as one bounded, alpha-aware guided separable pipeline
+  across CPU and WebGL, with explicit full/half/quarter working resolutions,
+  linear-light support, source-guided reconstruction, and shared palette
+  behavior.
+- Made Mavica FD7 an honest WebGL2-required pipeline, aligned its interlace,
+  alpha, JPEG, smear, noise, and clipping stages, and exposed codec failures
+  with the standard visible capability plate instead of a partial CPU result.
 
 ### Fixed
 
+- Preserved source alpha and excluded invisible RGB from Delaunay, Stained
+  Glass, and Median Cut statistics; kept custom Stained Glass palettes scoped
+  to pane colors so they no longer recolor the lead network on WebGL.
+- Corrected JPEG ringing's reversed Laplacian sign, sanitized malformed numeric
+  state, and kept current-frame alpha when temporally holding damaged RGB blocks.
+- Preserved alpha and ignored hidden transparent RGB in Contour Lines,
+  Anisotropic Diffusion, Dot Matrix, and Pixel Outline; made Pixel Outline's
+  fractional width continuous and aligned its CPU/WebGL edge metric.
+- Corrected Edge Trace's 90-degree-rotated non-maximum suppression axes, made
+  its width coverage continuous, and preserved alpha through Edge Trace,
+  Posterize Dither, CMYK Halftone, and CLAHE.
+
+- Preserved neutral reflectance in the visible-RGB infrared estimate, marked
+  Thermal Camera's frame-varying noise as temporal, and made Ink Bleed's fiber
+  axis invariant under equivalent 0°/180° directions.
+- Preserved source alpha through Nokia LCD sampling, Daguerreotype soft focus,
+  and Film Burn distortion; made Film Burn's zero-vector angle math defined.
+- Kept Nokia LCD output in its two physical optical states and suppressed
+  inter-pixel gaps until the output scale can resolve them without obscuring
+  active cells.
 - Corrected Cyanotype's 255× grain-unit error, preserved source alpha across
   the upgraded physical-imaging effects, and removed the misleading claim
   that visible RGB input can provide measured thermal temperature.
@@ -45,6 +132,102 @@ package follows semantic versioning.
 - Prevented retained interlace fields from accumulating repeated bloom and
   horizontal softening, removed CRT black lift and unintended 32-level output
   quantization, and aligned CPU/GL raster luminance calculations.
+- Removed frame-to-frame shimmer from fixed newspaper ink, thermal dropout,
+  and developed-film grain; preserved source alpha through all four static
+  media effects and normalized watercolor edge deposition across timesteps.
+- Preserved alpha through projection weave and bloom, changed gate dust from
+  emitted white specks to occlusion, kept nonzero default scratches live, and
+  added missing temporal, control-description, and sparse-state metadata across
+  the analog-film effects.
+- Removed frame shimmer and destructive posterization from Photocopier, capped
+  substrate frequencies below pixel Nyquist, and preserved source alpha across
+  the hardened copy, material, and ink-wash paths.
+- Removed frame shimmer and forced zero-setting blur from the Risograph paths,
+  preserved source alpha through all layered-print effects, corrected Screen
+  Print's misleading random-angle copy, and eliminated Duplex Print's negative
+  paper contribution and inked-white highlights.
+- Marked every filter with a live animation control as temporal, restoring
+  accurate catalog badges, search metadata, and consumer-side classification
+  for 19 previously unmarked animated effects; removed Data Bend's inert
+  animation controls and temporal classification.
+- Reworked Night Vision around bounded intensifier gain, a finite background
+  floor, signal-dependent shot noise, and alpha-safe phosphor compositing.
+- Reworked Ultrasound as an honest source-derived impedance proxy with
+  boundary-driven echoes, depth attenuation, correlated Rayleigh speckle,
+  logarithmic B-mode compression, and optional measurement overlays.
+- Corrected E-ink's former 125-color quantizer, removed its redundant default
+  palette re-quantization, stopped full refreshes from retaining partial-update
+  ghosting, preserved source alpha through E-ink, Vintage TV, and Digicam
+  Flash, and bounded malformed saved-state values for all three simulations.
+- Preserved source alpha through the Mavica FD7 GPU pipeline and classified its
+  frame-varying field, lighting, and sensor behavior as temporal.
+- Replaced Lenticular's unrelated rainbow overlay with a source-preserving
+  cylindrical lens sheet, synthetic interlaced views, viewing-angle selection,
+  parallax, and crosstalk.
+- Corrected LCD Display's RGB stripe, PenTile RGBG, and Diamond RGBG emitter
+  topology, black-matrix control, and alpha handling.
+- Rebuilt Spectrogram around Hann-windowed one-sided spatial magnitudes, a
+  shared fixed dB reference, Nyquist-bounded bins, and real linear/log frequency
+  axes instead of per-column self-normalization; tiny signals now remain
+  finite, the even-length Nyquist bin is not doubled, and inputs beyond the
+  bounded shader loop use the exact CPU path.
+- Rebuilt Anaglyph around convergence-centered synthetic disparity and a
+  linear-light Dubois red/cyan projection, fixing the CPU path's 255× depth
+  normalization error and restoring CPU/WebGL parity across every mode.
+- Replaced Bayer Sensor's generic interpolation and output desaturation with
+  true nearest/bilinear baselines, complete 5×5 gradient-corrected demosaicing,
+  linear-light CFA capture, shot/read noise, pre-demosaic crosstalk, optical
+  low-pass filtering, stable defects, and preserved alpha.
+- Replaced Moiré / Aliasing's decorative sine overlays with actual rotated
+  sampling, RGB emitter, and conventional CMYK screen lattices whose pitch,
+  angle, aperture, and motion generate the visible aliases; source alpha and a
+  true zero-strength identity are preserved.
+- Corrected CCD direction labels and removed charge normalization and arbitrary
+  red/blue trail bias; multiple overloaded wells now accumulate more spill.
+- Preserved source alpha in Laser Speckle Projector and made independent
+  diversity reduce contrast without systematically dimming projected light.
+- Made Voronoi's spatial-grid search return the true nearest site, prevented
+  transparent RGB from tinting cell averages and K-means centroids, stopped
+  collapsed K-means inputs from accumulating duplicate dead clusters, and made
+  Pixelsort honor its declared maximum interval size exactly without silently
+  binary-quantizing direct-module output.
+- Preserved source alpha through Lens Flare and Pop Art, made zero-intensity
+  flare an exact opaque-input identity, premultiplied Facet's local-mean blur,
+  retained transparent Facet coverage, and antialiased Facet seams.
+- Restored sparse saved-state defaults for Lenticular, Spectrogram, Anaglyph,
+  Bayer Sensor, and Moiré / Aliasing; associated ACTION and palette help text
+  with their controls, keyed built-in palette choices by their runtime IDs so
+  selected values display correctly, and corrected misleading screen-pitch
+  and brightness-variation labels.
+- Restored sparse direct-call defaults for LCD Display, Ultrasound, Night
+  Vision, and Mavica FD7; corrected Mavica's native-output control to describe
+  its 640×480 working-size ceiling; made Night Vision bloom, LCD logical-cell
+  sampling, and Spectrogram DFTs alpha aware so hidden RGB cannot contaminate
+  visible output.
+- Bounded Mavica's intermediate allocation to its working resolution and
+  cleared pooled staging pixels before translucent draws, preventing repeated
+  renders from accumulating source-over alpha.
+- Split installed filter-package modules in the packed-application build,
+  bringing the largest JavaScript artifact back below the enforced 2 MB
+  release ceiling without raising or suppressing the warning.
+- Unified WebGL readouts with the shared canvas pool, reset reused drawing
+  state, rejected duplicate releases, and made nested JPEG/Mavica ownership,
+  float-target replacement, realm disposal, and exception cleanup explicit.
+- Made shared texture/framebuffer allocation, shader/program linking, FFT
+  program-cache initialization, and fullscreen-quad setup transactional, so
+  failed creation, setup, resize, compile, link, or uniform lookup cannot leak
+  partial GL handles or leave deleted resources published in caches.
+- Coverage-weighted Ultrasound and Mavica statistics and spatial processing;
+  normalized malformed LCD, Spectrogram, Night Vision, Ultrasound, and Mavica
+  options while preserving valid custom palettes and runtime overrides.
+- Hardened chain execution, worker fallback, previews, export, grayscale, and
+  cache reuse as generation-scoped ownership transactions; stale async work
+  can no longer emit, restore temporal state, reuse displayed or pinned
+  canvases, or retain GPU resources after reset.
+- Hardened imported and duplicated chains to the 16-stage limit, rejected
+  malformed/prototype filter records and scalar state, preserved logical
+  selection, and made v2 IDs plus per-entry/global audio modulation round-trip
+  without dead targets or single-entry format loss.
 
 ## [0.3.0] - 2026-07-22
 

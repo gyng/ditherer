@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import reducer, { initialState, type ChainEntry } from "reducers/filters";
+import reducer, { initialState, MAX_CHAIN_LENGTH, type ChainEntry } from "reducers/filters";
 import { filterIndex } from "@gyng/ditherer-filters";
 import { SCALING_ALGORITHM } from "constants/optionTypes";
 
@@ -16,14 +16,101 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("filters reducer boundary decisions", () => {
   it("rejects a seventeenth chain stage and tracks the active entry across crossing reorders", () => {
-    const chain = Array.from({ length: 16 }, (_, index) => entry(String(index)));
+    const chain = Array.from({ length: MAX_CHAIN_LENGTH }, (_, index) => entry(String(index)));
     const full = { ...initialState, chain, activeIndex: 8, selected: initialState.selected };
     expect(reducer(full, { type: "CHAIN_ADD", displayName: "extra", filter: filterIndex.Invert })).toBe(full);
+    expect(reducer(full, { type: "CHAIN_DUPLICATE", id: "0" })).toBe(full);
 
     const movedBeforeActive = reducer(full, { type: "CHAIN_REORDER", fromIndex: 2, toIndex: 10 });
     expect(movedBeforeActive.activeIndex).toBe(7);
     const movedAfterActive = reducer(full, { type: "CHAIN_REORDER", fromIndex: 12, toIndex: 4 });
     expect(movedAfterActive.activeIndex).toBe(9);
+  });
+
+  it("caps imported chains by recognized entries without letting unknown filters consume capacity", () => {
+    const recognized = Array.from({ length: MAX_CHAIN_LENGTH + 2 }, (_, index) => ({
+      n: "Invert",
+      d: `known-${index}`,
+    }));
+    const loaded = reducer(initialState, {
+      type: "LOAD_STATE",
+      data: {
+        v: 2,
+        chain: [
+          { n: "missing-before" },
+          ...recognized.slice(0, 8),
+          { n: "missing-middle" },
+          ...recognized.slice(8),
+        ],
+      },
+    } as never);
+
+    expect(loaded.chain).toHaveLength(MAX_CHAIN_LENGTH);
+    expect(loaded.chain.map((item) => item.displayName)).toEqual(
+      recognized.slice(0, MAX_CHAIN_LENGTH).map((item) => item.d),
+    );
+    expect(loaded.activeIndex).toBe(0);
+    expect(loaded.selected.filter).toBe(loaded.chain[0].filter);
+  });
+
+  it("rejects non-object state and skips malformed v2 entries without corrupting boolean flags", () => {
+    const prior = { ...initialState, convertGrayscale: true, linearize: false, wasmAcceleration: false };
+    expect(reducer(prior, { type: "LOAD_STATE", data: null } as never)).toBe(prior);
+    expect(reducer(prior, { type: "LOAD_STATE", data: 2 } as never)).toBe(prior);
+
+    const loaded = reducer(prior, {
+      type: "LOAD_STATE",
+      data: {
+        v: 2,
+        chain: [null, 7, { n: "Invert" }],
+        g: "invalid",
+        l: null,
+        w: {},
+      },
+    } as never);
+    expect(loaded.chain).toHaveLength(1);
+    expect(loaded.chain[0].displayName).toBe("Invert");
+    expect(loaded).toMatchObject({
+      convertGrayscale: true,
+      linearize: false,
+      wasmAcceleration: false,
+    });
+  });
+
+  it("keeps current boolean flags when a v1 payload omits or malforms them", () => {
+    const prior = { ...initialState, convertGrayscale: true, linearize: false, wasmAcceleration: false };
+    const loaded = reducer(prior, {
+      type: "LOAD_STATE",
+      data: {
+        selected: { filter: { name: "Invert" } },
+        convertGrayscale: undefined,
+        linearize: "invalid",
+        wasmAcceleration: null,
+      },
+    } as never);
+    expect(loaded).toMatchObject({
+      convertGrayscale: true,
+      linearize: false,
+      wasmAcceleration: false,
+    });
+  });
+
+  it("preserves the logical active entry when removing an earlier stage and clamps active removal", () => {
+    const chain = [entry("a"), entry("b"), entry("c"), entry("d")];
+    const editingC = { ...initialState, chain, activeIndex: 2, selected: initialState.selected };
+
+    const removedBefore = reducer(editingC, { type: "CHAIN_REMOVE", id: "a" });
+    expect(removedBefore.activeIndex).toBe(1);
+    expect(removedBefore.chain[removedBefore.activeIndex].id).toBe("c");
+
+    const removedActive = reducer(editingC, { type: "CHAIN_REMOVE", id: "c" });
+    expect(removedActive.activeIndex).toBe(2);
+    expect(removedActive.chain[removedActive.activeIndex].id).toBe("d");
+
+    const editingLast = { ...editingC, activeIndex: 3 };
+    const removedLast = reducer(editingLast, { type: "CHAIN_REMOVE", id: "d" });
+    expect(removedLast.activeIndex).toBe(2);
+    expect(removedLast.chain[removedLast.activeIndex].id).toBe("c");
   });
 
   it("deep-copies optional audio modulation and handles absent option maps", () => {

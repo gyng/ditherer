@@ -77,10 +77,29 @@ float sobelMag(float x, float y) {
   return sqrt(gx*gx + gy*gy);
 }
 
-// 2D hash for paper grain — cheap, aliased but the filter is about
-// texture not signal fidelity.
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float washiFormation(vec2 px) {
+  float longFiber = vnoise(vec2(px.x / 28.0, px.y / 3.5));
+  float crossingFiber = vnoise(vec2(px.x / 5.5 + 31.0, px.y / 17.0 + 11.0));
+  float fineFiber = vnoise(vec2(px.x / 12.0 + 23.0, px.y / 2.4 + 5.0));
+  float sheet = vnoise(px / 42.0 + vec2(7.0, 19.0));
+  return clamp((longFiber - 0.5) * 0.9
+    + (crossingFiber - 0.5) * 0.55
+    + (fineFiber - 0.5) * 0.35
+    + (sheet - 0.5) * 0.2, -1.0, 1.0);
 }
 
 void main() {
@@ -104,17 +123,20 @@ void main() {
   // Sobel brush edges — normalized against a 0-442 range (max Sobel for
   // 8-bit). Only strong edges contribute to keep strokes sparse.
   float edgeRaw = sobelMag(x, y) / 442.0;
-  float edgeInk = smoothstep(u_edgeThreshold, min(1.0, u_edgeThreshold + 0.15), edgeRaw) * u_edgeStrength;
+  float strokeVariation = mix(0.78, 1.12, vnoise(vec2(px.x / 19.0, px.y / 4.5)));
+  float edgeInk = smoothstep(u_edgeThreshold, min(1.0, u_edgeThreshold + 0.15), edgeRaw)
+    * u_edgeStrength * strokeVariation;
 
   float ink = clamp(max(wash, edgeInk), 0.0, 1.0);
 
-  // Paper grain — subtracts small amounts from ink (flecks of untouched
-  // paper showing through) rather than adding, which keeps the image from
-  // getting overall darker.
-  float n = hash(vec2(x, y));
-  ink = clamp(ink - (n - 0.5) * u_grain, 0.0, 1.0);
+  // Bast-fibre paper varies over several spatial scales. Raised fibres resist
+  // the wash slightly while the sheet formation also modulates paper tone.
+  float fibre = washiFormation(vec2(x, y));
+  float resistance = u_grain * (0.08 + 0.3 * (fibre * 0.5 + 0.5));
+  ink = clamp(ink * (1.0 - resistance), 0.0, 1.0);
 
-  vec3 color = mix(u_paperColor, u_inkColor, ink);
+  vec3 paper = clamp(u_paperColor + fibre * u_grain * 0.06, 0.0, 1.0);
+  vec3 color = mix(paper, u_inkColor, ink);
   float a = texture(u_source, v_uv).a;
   fragColor = vec4(color, a);
 }

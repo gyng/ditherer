@@ -28,12 +28,14 @@ uniform vec2  u_res;
 uniform float u_tileSize;
 uniform int   u_tilesX;
 uniform int   u_tilesY;
+uniform int   u_cdfTilesPerRow;
+uniform vec2  u_cdfRes;
 
 float sampleCdf(int tx, int ty, float lum255) {
   int t = ty * u_tilesX + tx;
-  // 256 wide, packed vertically by tile index. Use texel-centre UV.
-  vec2 uv = vec2((lum255 + 0.5) / 256.0,
-                 (float(t) + 0.5) / float(u_tilesX * u_tilesY));
+  int atlasX = (t % u_cdfTilesPerRow) * 256 + int(lum255);
+  int atlasY = t / u_cdfTilesPerRow;
+  vec2 uv = (vec2(float(atlasX), float(atlasY)) + 0.5) / u_cdfRes;
   return texture(u_cdfs, uv).r * 255.0;
 }
 
@@ -67,8 +69,9 @@ void main() {
                + v01 * (1.0 - fx) * fy
                + v11 * fx * fy;
 
-  float scale = l255 > 0.0 ? mapped / l255 : 1.0;
-  vec3 rgb = clamp(src.rgb * 255.0 * scale, 0.0, 255.0) / 255.0;
+  float scale = l255 > 0.0 ? mapped / l255 : 0.0;
+  vec3 rgb255 = l255 > 0.0 ? src.rgb * 255.0 * scale : vec3(mapped);
+  vec3 rgb = clamp(rgb255, 0.0, 255.0) / 255.0;
   fragColor = vec4(rgb, src.a);
 }
 `;
@@ -81,12 +84,26 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     prog: linkProgram(gl, CLAHE_FS, [
       "u_source", "u_cdfs", "u_res", "u_tileSize", "u_tilesX", "u_tilesY",
+      "u_cdfTilesPerRow", "u_cdfRes",
     ] as const),
   };
   return _cache;
 };
 
 export const claheGLAvailable = (): boolean => glAvailable();
+
+export const claheCdfAtlasLayout = (
+  tileCount: number,
+  maxTextureSize: number,
+): { width: number; height: number; tilesPerRow: number } | null => {
+  if (!Number.isFinite(tileCount) || !Number.isFinite(maxTextureSize) || tileCount < 1 || maxTextureSize < 256) return null;
+  const count = Math.ceil(tileCount);
+  const limit = Math.floor(maxTextureSize);
+  const tilesPerRow = Math.max(1, Math.min(count, Math.floor(limit / 256)));
+  const width = tilesPerRow * 256;
+  const height = Math.ceil(count / tilesPerRow);
+  return width <= limit && height <= limit ? { width, height, tilesPerRow } : null;
+};
 
 // Upload CDFs as RGBA8 with the CDF value in R (G/B/A ignored). 256-wide row
 // per tile, one row per tile ordered (ty*tilesX + tx). Texture stays resident
@@ -96,10 +113,13 @@ const uploadCdfs = (
   cdfs: Uint8Array[],
   tilesX: number,
   tilesY: number,
-): { tex: WebGLTexture; w: number; h: number } | null => {
-  const w = 256;
-  const h = tilesX * tilesY;
-  if (h === 0) return null;
+): { tex: WebGLTexture; w: number; h: number; tilesPerRow: number } | null => {
+  const tileCount = tilesX * tilesY;
+  if (tileCount === 0) return null;
+  const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+  const layout = claheCdfAtlasLayout(tileCount, maxTextureSize);
+  if (!layout) return null;
+  const { width: w, height: h, tilesPerRow } = layout;
   const tex = gl.createTexture();
   if (!tex) return null;
   gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -115,13 +135,19 @@ const uploadCdfs = (
   for (let t = 0; t < cdfs.length; t++) {
     const cdf = cdfs[t];
     for (let i = 0; i < 256; i++) {
-      data[(t * w + i) * 4] = cdf[i];
-      data[(t * w + i) * 4 + 3] = 255;
+      const atlasX = (t % tilesPerRow) * 256 + i;
+      const atlasY = Math.floor(t / tilesPerRow);
+      data[(atlasY * w + atlasX) * 4] = cdf[i];
+      data[(atlasY * w + atlasX) * 4 + 3] = 255;
     }
   }
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  return { tex, w, h };
+  if (gl.getError() !== gl.NO_ERROR) {
+    gl.deleteTexture(tex);
+    return null;
+  }
+  return { tex, w, h, tilesPerRow };
 };
 
 export const renderClaheGL = (
@@ -157,6 +183,8 @@ export const renderClaheGL = (
     gl.uniform1f(cache.prog.uniforms.u_tileSize, tileSize);
     gl.uniform1i(cache.prog.uniforms.u_tilesX, tilesX);
     gl.uniform1i(cache.prog.uniforms.u_tilesY, tilesY);
+    gl.uniform1i(cache.prog.uniforms.u_cdfTilesPerRow, cdfTex.tilesPerRow);
+    gl.uniform2f(cache.prog.uniforms.u_cdfRes, cdfTex.w, cdfTex.h);
   }, vao);
 
   const out = readoutToCanvas(canvas, width, height);

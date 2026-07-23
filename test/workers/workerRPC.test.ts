@@ -164,4 +164,22 @@ describe("workerRPC lifecycle", () => {
     firstWorker.instance.respond({ id: 2, result });
     await expect(recovered).resolves.toBe(result);
   });
+
+  it("terminates the active realm, rejects pending work, and recreates on demand", async () => {
+    const { disposeFilterWorker, workerRPC } = await loadRPC();
+    const pending = workerRPC(request);
+    const firstWorker = FakeWorker.instances[0];
+    const rejected = expect(pending).rejects.toThrow("Filter worker disposed");
+
+    disposeFilterWorker();
+
+    await rejected;
+    expect(firstWorker.terminate).toHaveBeenCalledOnce();
+
+    const recovered = workerRPC(request);
+    const replacement = FakeWorker.instances[1];
+    expect(replacement).not.toBe(firstWorker);
+    replacement.respond({ id: 1, result });
+    await expect(recovered).resolves.toBe(result);
+  });
 });

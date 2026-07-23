@@ -1,6 +1,11 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { runWorkerFilterRequest } from "workers/filterWorker";
-import { filterIndex } from "@gyng/ditherer-filters";
+import {
+  filterIndex,
+  getCanvasPoolStats,
+  resetCanvasPoolStats,
+  takePooledCanvas,
+} from "@gyng/ditherer-filters";
 import type { FilterCanvas } from "filters/types";
 
 // Node/jsdom env: use real HTMLCanvasElement from jsdom so filters that need
@@ -139,5 +144,44 @@ describe("runWorkerFilterRequest", () => {
       }
     }
     expect(nonGrayscale).toBe(0);
+  });
+
+  it("releases the request-owned final canvas after copying result buffers", async () => {
+    const width = 251;
+    const height = 47;
+    let requestCanvas: FilterCanvas | undefined;
+    resetCanvasPoolStats();
+    const result = await runWorkerFilterRequest({
+      ...baseRequest(),
+      imageData: seedImageData(width, height),
+      width,
+      height,
+      chain: [],
+    }, (w, h) => {
+      requestCanvas = takePooledCanvas(w, h) as FilterCanvas;
+      return requestCanvas;
+    });
+
+    expect(result.imageData.byteLength).toBe(width * height * 4);
+    expect(getCanvasPoolStats().releases).toBe(1);
+    expect(takePooledCanvas(width, height)).toBe(requestCanvas);
+  });
+
+  it("plateaus pooled canvases across repeated grayscale worker requests", async () => {
+    const width = 257;
+    const height = 59;
+    resetCanvasPoolStats();
+    for (let index = 0; index < 6; index += 1) {
+      await runWorkerFilterRequest({
+        ...baseRequest(),
+        imageData: seedImageData(width, height),
+        width,
+        height,
+        chain: [],
+        convertGrayscale: true,
+      }, (w, h) => takePooledCanvas(w, h) as FilterCanvas);
+    }
+    expect(getCanvasPoolStats().allocations).toBeLessThanOrEqual(2);
+    expect(getCanvasPoolStats().reuses).toBeGreaterThan(0);
   });
 });

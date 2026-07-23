@@ -4,10 +4,9 @@ import {
   type Program,
 } from "../gl/index";
 
-// Four-channel CMYK halftone: rotate pixel coords per screen, snap to
-// the nearest dot centre on that rotated grid, and if this fragment
-// falls inside the dot at its local ink level, subtract from the RGB
-// accumulator. All four screens (C, M, Y, K) run in one pass.
+// Four idealized, unprofiled CMYK AM screens. Tone is represented by exact
+// geometric area: circular dots grow to contact, then complementary corner
+// holes shrink to full coverage. Each screen samples its source cell.
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -21,26 +20,59 @@ uniform float u_angleY;
 uniform float u_angleK;
 uniform vec3  u_paperColor; // 0..255
 
-void applyScreen(inout vec3 acc, float value, float angle, float jsX, float jsY, int channel) {
+vec4 sourceAt(vec2 p) {
+  p = clamp(p, vec2(0.0), u_res - vec2(1.0));
+  return texture(u_source, vec2((p.x + 0.5) / u_res.x, 1.0 - (p.y + 0.5) / u_res.y));
+}
+
+vec2 rotatePoint(vec2 point, float angle) {
   float c = cos(angle);
   float s = sin(angle);
-  float rx = jsX * c + jsY * s;
-  float ry = -jsX * s + jsY * c;
-  float cx = (floor(rx / u_dotSize + 0.5) + 0.5) * u_dotSize;
-  float cy = (floor(ry / u_dotSize + 0.5) + 0.5) * u_dotSize;
-  float dx = rx - cx;
-  float dy = ry - cy;
-  float dist = sqrt(dx * dx + dy * dy);
-  float maxR = u_dotSize * 0.7;
-  float dotR = maxR * sqrt(max(0.0, value));
-  if (dist < dotR) {
-    float intensity = min(1.0, (dotR - dist) / 1.5 + 0.5);
-    float f = 1.0 - intensity;
-    if (channel == 0)      acc.r *= f;
-    else if (channel == 1) acc.g *= f;
-    else if (channel == 2) acc.b *= f;
-    else                   acc *= f;
+  return vec2(point.x * c + point.y * s, -point.x * s + point.y * c);
+}
+
+float separation(vec3 rgb, int channel) {
+  float k = 1.0 - max(rgb.r, max(rgb.g, rgb.b));
+  if (channel == 3) return k;
+  if (k >= 1.0 - 1e-5) return 0.0;
+  if (channel == 0) return clamp((1.0 - rgb.r - k) / (1.0 - k), 0.0, 1.0);
+  if (channel == 1) return clamp((1.0 - rgb.g - k) / (1.0 - k), 0.0, 1.0);
+  return clamp((1.0 - rgb.b - k) / (1.0 - k), 0.0, 1.0);
+}
+
+float circularSpotRank(vec2 local) {
+  vec2 centred = local / u_dotSize - 0.5;
+  float radius = length(centred);
+  if (radius <= 0.5) return 3.14159265359 * radius * radius;
+  float outsideSegment = radius * radius * acos(clamp(0.5 / radius, 0.0, 1.0))
+    - 0.5 * sqrt(max(0.0, radius * radius - 0.25));
+  return clamp(3.14159265359 * radius * radius - 4.0 * outsideSegment, 0.0, 1.0);
+}
+
+float screenAt(vec2 position, float angle, int channel) {
+  vec2 imageCentre = u_res * 0.5;
+  vec2 screened = rotatePoint(position - imageCentre, angle);
+  vec2 cell = floor(screened / u_dotSize);
+  vec2 screenCentre = (cell + 0.5) * u_dotSize;
+  vec2 sourceCentre = rotatePoint(screenCentre, -angle) + imageCentre;
+  float plateSum = 0.0;
+  float alphaSum = 0.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec4 sampleValue = sourceAt(sourceCentre + vec2(x, y) * u_dotSize / 3.0);
+    plateSum += separation(sampleValue.rgb, channel) * sampleValue.a;
+    alphaSum += sampleValue.a;
   }
+  float value = alphaSum > 1e-5 ? plateSum / alphaSum : 0.0;
+  if (value <= 0.0) return 0.0;
+  if (value >= 1.0) return 1.0;
+  float coverage = 0.0;
+  for (int sy = 0; sy < 4; sy++) for (int sx = 0; sx < 4; sx++) {
+    vec2 subpixel = position + vec2((float(sx) + 0.5) / 4.0 - 0.5, (float(sy) + 0.5) / 4.0 - 0.5);
+    vec2 subScreened = rotatePoint(subpixel - imageCentre, angle);
+    vec2 local = subScreened - floor(subScreened / u_dotSize) * u_dotSize;
+    coverage += step(circularSpotRank(local), value);
+  }
+  return coverage / 16.0;
 }
 
 void main() {
@@ -48,20 +80,17 @@ void main() {
   float jsX = floor(px.x);
   float jsY = u_res.y - 1.0 - floor(px.y);
 
-  vec3 src = texture(u_source, vec2((jsX + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y)).rgb;
-  float k = 1.0 - max(src.r, max(src.g, src.b));
-  float cVal = k < 1.0 ? (1.0 - src.r - k) / (1.0 - k) : 0.0;
-  float mVal = k < 1.0 ? (1.0 - src.g - k) / (1.0 - k) : 0.0;
-  float yVal = k < 1.0 ? (1.0 - src.b - k) / (1.0 - k) : 0.0;
-
+  vec2 position = vec2(jsX + 0.5, jsY + 0.5);
+  float cVal = screenAt(position, u_angleC, 0);
+  float mVal = screenAt(position, u_angleM, 1);
+  float yVal = screenAt(position, u_angleY, 2);
+  float kVal = screenAt(position, u_angleK, 3);
   vec3 acc = u_paperColor / 255.0;
-  applyScreen(acc, cVal, u_angleC, jsX, jsY, 0);
-  applyScreen(acc, mVal, u_angleM, jsX, jsY, 1);
-  applyScreen(acc, yVal, u_angleY, jsX, jsY, 2);
-  applyScreen(acc, k,    u_angleK, jsX, jsY, 3);
+  acc *= vec3(1.0 - cVal, 1.0 - mVal, 1.0 - yVal) * (1.0 - kVal);
 
   vec3 outRgb = floor(clamp(acc, 0.0, 1.0) * 255.0 + 0.5);
-  fragColor = vec4(outRgb / 255.0, 1.0);
+  float alpha = texture(u_source, v_uv).a;
+  fragColor = vec4(outRgb / 255.0, alpha);
 }
 `;
 

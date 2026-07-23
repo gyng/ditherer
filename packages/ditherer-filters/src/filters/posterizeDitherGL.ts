@@ -33,20 +33,21 @@ void main() {
   vec4 c = texture(u_source, vec2((jsX + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y));
   int bx = int(mod(jsX, float(u_matrixN)));
   int by = int(mod(jsY, float(u_matrixN)));
-  float threshold = bayerAt(bx, by) - 0.5;
+  float threshold = bayerAt(bx, by);
 
-  float rIn = c.r + threshold / u_levelsR;
-  float gIn = c.g + threshold / u_levelsG;
-  float bIn = c.b + threshold / u_levelsB;
-
-  float r = clamp(floor(rIn * (u_levelsR - 1.0) + 0.5) / (u_levelsR - 1.0), 0.0, 1.0);
-  float g = clamp(floor(gIn * (u_levelsG - 1.0) + 0.5) / (u_levelsG - 1.0), 0.0, 1.0);
-  float b = clamp(floor(bIn * (u_levelsB - 1.0) + 0.5) / (u_levelsB - 1.0), 0.0, 1.0);
+  vec3 intervals = vec3(u_levelsR - 1.0, u_levelsG - 1.0, u_levelsB - 1.0);
+  vec3 scaled = clamp(c.rgb, 0.0, 1.0) * intervals;
+  vec3 lower = floor(scaled);
+  vec3 upper = step(vec3(threshold), fract(scaled));
+  vec3 quantized = min(intervals, lower + upper) / intervals;
+  float r = quantized.r;
+  float g = quantized.g;
+  float b = quantized.b;
   // Match JS's final *255 round-trip (integer RGB bytes).
   r = floor(r * 255.0 + 0.5) / 255.0;
   g = floor(g * 255.0 + 0.5) / 255.0;
   b = floor(b * 255.0 + 0.5) / 255.0;
-  fragColor = vec4(r, g, b, 1.0);
+  fragColor = vec4(r, g, b, c.a);
 }
 `;
 
@@ -81,7 +82,7 @@ export const renderPosterizeDitherGL = (
   const flat = new Float32Array(64);
   for (let y = 0; y < matrixN; y++) {
     for (let x = 0; x < matrixN; x++) {
-      flat[y * 8 + x] = matrix[y][x] / maxVal;
+      flat[y * 8 + x] = (matrix[y][x] + 0.5) / maxVal;
     }
   }
 

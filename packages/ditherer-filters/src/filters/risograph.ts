@@ -12,6 +12,7 @@ import {
 } from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
 import { risographGLAvailable, renderRisographGL } from "./risographGL";
+import { risographBlurRadius, stencilInkVariation } from "./printSimulationContracts";
 
 export const optionTypes = {
   color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3), desc: "First ink color" },
@@ -21,7 +22,7 @@ export const optionTypes = {
   grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Paper texture grain amount" },
   inkBleed: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Ink spreading/bleeding amount" },
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance split for two-color separation" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional palette applied after the two fixed ink layers" }
 };
 
 export const defaults = {
@@ -35,16 +36,6 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const mulberry32 = (seed: number) => {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
 type RisographOptions = FilterOptionValues & {
   color1?: number[];
   color2?: number[];
@@ -56,7 +47,6 @@ type RisographOptions = FilterOptionValues & {
   palette?: {
     options?: FilterOptionValues;
   } & Record<string, unknown>;
-  _frameIndex?: number;
 };
 
 const risograph = (input: any, options: RisographOptions = defaults) => {
@@ -70,7 +60,6 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
     threshold = defaults.threshold,
     palette = defaults.palette,
   } = options;
-  const frameIndex = Number(options._frameIndex ?? 0);
   const W = input.width;
   const H = input.height;
 
@@ -84,7 +73,7 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
       color1: [color1[0], color1[1], color1[2]],
       color2: [color2[0], color2[1], color2[2]],
       misregX, misregY, grain, inkBleed, threshold,
-      frameIndex, levels,
+      levels,
     });
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
@@ -103,8 +92,6 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const rng = mulberry32(frameIndex * 7919 + 31337);
-
   // Compute luminance
   const lum = new Float32Array(W * H);
   for (let y = 0; y < H; y++) {
@@ -116,26 +103,30 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
 
   // Slight blur for ink bleed effect
   const blurred = new Float32Array(W * H);
-  const blurR = Math.max(1, Math.round(inkBleed * 3));
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      let sum = 0, cnt = 0;
-      for (let ky = -blurR; ky <= blurR; ky++) {
-        const ny = Math.max(0, Math.min(H - 1, y + ky));
-        for (let kx = -blurR; kx <= blurR; kx++) {
-          const nx = Math.max(0, Math.min(W - 1, x + kx));
-          sum += lum[ny * W + nx];
-          cnt++;
+  const blurR = risographBlurRadius(inkBleed);
+  if (blurR === 0) {
+    blurred.set(lum);
+  } else {
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        let sum = 0, cnt = 0;
+        for (let ky = -blurR; ky <= blurR; ky++) {
+          const ny = Math.max(0, Math.min(H - 1, y + ky));
+          for (let kx = -blurR; kx <= blurR; kx++) {
+            const nx = Math.max(0, Math.min(W - 1, x + kx));
+            sum += lum[ny * W + nx];
+            cnt++;
+          }
         }
+        blurred[y * W + x] = sum / cnt;
       }
-      blurred[y * W + x] = sum / cnt;
     }
   }
 
   // Render: two-color separation with misregistration
   // Fill with paper white
   for (let i = 0; i < outBuf.length; i += 4) {
-    outBuf[i] = 245; outBuf[i + 1] = 240; outBuf[i + 2] = 235; outBuf[i + 3] = 255;
+    outBuf[i] = 245; outBuf[i + 1] = 240; outBuf[i + 2] = 235; outBuf[i + 3] = buf[i + 3];
   }
 
   // Layer 1: color1 (no offset)
@@ -146,7 +137,7 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
 
       const darkness = (1 - l / 255);
       // Grain noise
-      const n = grain > 0 ? (rng() - 0.5) * grain * 100 : 0;
+      const n = grain > 0 ? stencilInkVariation(x, y, 0) * grain * 100 : 0;
       const intensity = Math.max(0, Math.min(1, darkness + n / 255));
 
       const i = getBufferIndex(x, y, W);
@@ -166,7 +157,7 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
       if (l < threshold) continue;
 
       const brightness = l / 255;
-      const n = grain > 0 ? (rng() - 0.5) * grain * 100 : 0;
+      const n = grain > 0 ? stencilInkVariation(x, y, 1) * grain * 100 : 0;
       const intensity = Math.max(0, Math.min(1, brightness + n / 255));
 
       const i = getBufferIndex(x, y, W);
@@ -181,8 +172,8 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], 255), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], buf[i + 3]), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
 
@@ -195,5 +186,6 @@ export default defineFilter({
   func: risograph,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  description: "Fixed two-master stencil print with spot inks, registration offset, correlated ink variation, and controllable bleed",
 });

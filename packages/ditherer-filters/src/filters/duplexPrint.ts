@@ -5,7 +5,7 @@ import { renderDuplexPrintGL } from "./duplexPrintGL";
 
 export const optionTypes = {
   inkA: { type: COLOR, default: [28, 24, 24], desc: "Shadow ink color used for the darker end of the print" },
-  inkB: { type: COLOR, default: [194, 58, 58], desc: "Highlight/accent ink color used for the lighter end of the print" },
+  inkB: { type: COLOR, default: [194, 58, 58], desc: "Accent ink color carried through shadows and midtones, clearing in paper highlights" },
   mixCurve: { type: RANGE, range: [0.5, 2], step: 0.05, default: 1, desc: "Bias toward the dark or accent plate across the tonal ramp" },
   paperColor: { type: COLOR, default: [244, 237, 224], desc: "Paper stock color visible under the duplex inks" }
 };
@@ -17,8 +17,8 @@ export const defaults = {
   paperColor: optionTypes.paperColor.default
 };
 
-const duplexPrint = (input: any, options: typeof defaults = defaults) => {
-  const { inkA, inkB, mixCurve, paperColor } = options;
+const duplexPrint = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const { inkA, inkB, mixCurve, paperColor } = { ...defaults, ...options };
   const W = input.width;
   const H = input.height;
 
@@ -38,4 +38,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
+  description: "Two-ink duplex print with sequential accent and dark plates that clear into visible paper highlights",
   requiresGL: true });

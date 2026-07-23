@@ -4,9 +4,8 @@ import {
   type Program,
 } from "../gl/index";
 
-// Corner light-leak overlay: quadratic falloff from a picked corner with
-// channel-weighted tint (full red, 0.7 green, 0.4 blue) to match the JS
-// reference's warm-leaning bias.
+// Corner light-piping exposure with a quadratic falloff. Exposure is added in
+// linear light so the selected spectral color remains meaningful.
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -18,25 +17,37 @@ uniform vec3  u_color;      // 0..255
 uniform float u_intensity;
 uniform float u_maxDist;
 
+vec3 srgbToLinear(vec3 c) {
+  bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
+  vec3 low = c / 12.92;
+  vec3 high = pow((c + 0.055) / 1.055, vec3(2.4));
+  return mix(high, low, cutoff);
+}
+
+vec3 linearToSrgb(vec3 c) {
+  c = max(c, vec3(0.0));
+  bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+  vec3 low = c * 12.92;
+  vec3 high = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
+  return mix(high, low, cutoff);
+}
+
 void main() {
   vec2 px = v_uv * u_res;
   float jsX = floor(px.x);
   float jsY = u_res.y - 1.0 - floor(px.y);
 
   vec4 c = texture(u_source, v_uv);
-  vec3 src = c.rgb * 255.0;
+  vec3 srcLinear = srgbToLinear(c.rgb);
 
   vec2 d = vec2(jsX - u_corner.x, jsY - u_corner.y);
   float dist = length(d);
   float t = max(0.0, 1.0 - dist / u_maxDist);
   float leak = t * t * u_intensity;
 
-  vec3 r = vec3(
-    min(255.0, src.r + u_color.r * leak),
-    min(255.0, src.g + u_color.g * leak * 0.7),
-    min(255.0, src.b + u_color.b * leak * 0.4)
-  );
-  fragColor = vec4(floor(r + 0.5) / 255.0, c.a);
+  vec3 leakLinear = srgbToLinear(u_color / 255.0);
+  vec3 exposed = linearToSrgb(srcLinear + leakLinear * leak);
+  fragColor = vec4(floor(clamp(exposed, 0.0, 1.0) * 255.0 + 0.5) / 255.0, c.a);
 }
 `;
 

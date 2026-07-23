@@ -31,6 +31,7 @@ export interface SerializedSelectedState {
 
 export interface SerializedChainEntry {
   n: string;
+  i?: string;
   d?: string;
   o?: SerializedOptionMap;
   e?: boolean;
@@ -74,8 +75,14 @@ export interface ShareStateV2 {
 
 export type SerializedFilterState = ShareStateV1 | ShareStateV2;
 
-export const isShareStateV2 = (value: SerializedFilterState): value is ShareStateV2 =>
-  "v" in value && value.v === 2 && Array.isArray(value.chain);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 
-export const hasV1SelectedState = (value: SerializedFilterState): value is ShareStateV1 =>
-  "selected" in value && value.selected != null;
+export const isShareStateV2 = (value: unknown): value is ShareStateV2 =>
+  isRecord(value) && value.v === 2 && Array.isArray(value.chain);
+
+export const hasV1SelectedState = (value: unknown): value is ShareStateV1 => {
+  if (!isRecord(value) || !isRecord(value.selected)) return false;
+  const filter = value.selected.filter;
+  return isRecord(filter) && typeof filter.name === "string" && filter.name.length > 0;
+};

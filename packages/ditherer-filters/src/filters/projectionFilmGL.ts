@@ -41,11 +41,31 @@ uniform int   u_dustCount;
 uniform vec3  u_dust[${MAX_DUST}];        // (x_js, y_js, radius) ; opacity below
 uniform float u_dustOpacity[${MAX_DUST}];
 uniform int   u_scratchCount;
-uniform vec2  u_scratch[${MAX_SCRATCH}];  // (x_js, opacity)
+uniform vec4  u_scratchA[${MAX_SCRATCH}]; // (x, opacity, polarity, width)
+uniform vec4  u_scratchB[${MAX_SCRATCH}]; // (yStart, yEnd, wobble, phase)
 uniform float u_levels;
 
 float hash(vec2 p, float seed) {
   return fract(sin(dot(p, vec2(12.9898, 78.233)) + seed) * 43758.5453);
+}
+
+float vnoise(vec2 p, float seed) {
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  vec2 smoothF = f * f * (3.0 - 2.0 * f);
+  float a = hash(cell, seed);
+  float b = hash(cell + vec2(1.0, 0.0), seed);
+  float c = hash(cell + vec2(0.0, 1.0), seed);
+  float d = hash(cell + vec2(1.0, 1.0), seed);
+  return mix(mix(a, b, smoothF.x), mix(c, d, smoothF.x), smoothF.y);
+}
+
+float densityNoise(vec2 p, float seed) {
+  float sum = vnoise(p, seed)
+            + vnoise(p + vec2(19.1, 7.3), seed + 11.0)
+            + vnoise(p + vec2(3.7, 29.9), seed + 29.0)
+            + vnoise(p + vec2(41.3, 17.7), seed + 47.0);
+  return (sum - 2.0) * 0.5;
 }
 
 void main() {
@@ -57,7 +77,8 @@ void main() {
   float sx = clamp(x + float(u_weaveX), 0.0, u_res.x - 1.0);
   float sy = clamp(y_js + float(u_weaveY), 0.0, u_res.y - 1.0);
   vec2 sUV = vec2((sx + 0.5) / u_res.x, 1.0 - (sy + 0.5) / u_res.y);
-  vec3 c = texture(u_source, sUV).rgb * 255.0;
+  vec4 source = texture(u_source, sUV);
+  vec3 c = source.rgb * 255.0;
 
   // Warm color cast.
   if (u_warmth > 0.0) {
@@ -69,7 +90,9 @@ void main() {
   c *= u_flickerMul;
 
   if (u_grain > 0.0) {
-    float n = (hash(vec2(x, y_js), u_grainSeed) - 0.5) * u_grain * 100.0;
+    float luma = dot(c / 255.0, vec3(0.2126, 0.7152, 0.0722));
+    float envelope = 0.2 + 0.8 * sqrt(max(0.0, 4.0 * luma * (1.0 - luma)));
+    float n = densityNoise(vec2(x, y_js), u_grainSeed) * u_grain * 0.25 * envelope * 255.0;
     c += vec3(n);
   }
 
@@ -86,7 +109,7 @@ void main() {
 
   c = clamp(c, 0.0, 255.0);
 
-  // Dust specks: white screen-blend where this pixel is inside a disc.
+  // Gate dust blocks projected light where this pixel is inside a disc.
   for (int i = 0; i < ${MAX_DUST}; i++) {
     if (i >= u_dustCount) break;
     vec3 d = u_dust[i];
@@ -94,16 +117,26 @@ void main() {
     float dy = y_js - d.y;
     if (dx * dx + dy * dy <= d.z * d.z) {
       float op = u_dustOpacity[i];
-      c = min(vec3(255.0), c + (vec3(255.0) - c) * op);
+      c *= 1.0 - op;
     }
   }
 
-  // Scratches: thin vertical white lines (pixel-wide x match).
+  // Scratches vary by damaged layer: negative polarity is a dark base
+  // scratch; positive polarity is neutral-to-warm emulsion loss.
   for (int i = 0; i < ${MAX_SCRATCH}; i++) {
     if (i >= u_scratchCount) break;
-    vec2 s = u_scratch[i];
-    if (abs(x - s.x) < 0.5) {
-      c = min(vec3(255.0), c + (vec3(255.0) - c) * s.y);
+    vec4 a = u_scratchA[i];
+    vec4 b = u_scratchB[i];
+    if (y_js < b.x || y_js > b.y) continue;
+    float scratchX = a.x + sin(y_js * 0.055 + b.w) * b.z;
+    float coverage = clamp(a.w + 1.0 - abs(x - scratchX), 0.0, 1.0);
+    if (coverage <= 0.0) continue;
+    float blend = a.y * coverage;
+    if (a.z < 0.0) {
+      c *= 1.0 - blend * abs(a.z);
+    } else {
+      vec3 target = mix(vec3(190.0, 175.0, 155.0), vec3(255.0), a.z);
+      c = mix(c, target, blend);
     }
   }
 
@@ -112,7 +145,7 @@ void main() {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
   }
-  fragColor = vec4(rgb, 1.0);
+  fragColor = vec4(rgb, source.a);
 }
 `;
 
@@ -188,7 +221,7 @@ const compositeUniforms: string[] = [
   "u_source", "u_res", "u_weaveX", "u_weaveY", "u_warmth", "u_flickerMul",
   "u_grain", "u_grainSeed", "u_vignette",
   "u_dustCount", "u_dust[0]", "u_dustOpacity[0]",
-  "u_scratchCount", "u_scratch[0]", "u_levels",
+  "u_scratchCount", "u_scratchA[0]", "u_scratchB[0]", "u_levels",
 ];
 
 const initCache = (gl: WebGL2RenderingContext): Cache => {
@@ -204,7 +237,16 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 export const projectionFilmGLAvailable = (): boolean => glAvailable();
 
 export type DustSpec = { x: number; y: number; radius: number; opacity: number };
-export type ScratchSpec = { x: number; opacity: number };
+export type ScratchSpec = {
+  x: number;
+  opacity: number;
+  polarity: number;
+  width: number;
+  yStart: number;
+  yEnd: number;
+  wobble: number;
+  phase: number;
+};
 
 export const renderProjectionFilmGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
@@ -241,10 +283,18 @@ export const renderProjectionFilmGL = (
     flatDustOp[i] = params.dust[i].opacity;
   }
   const scratchCount = Math.min(MAX_SCRATCH, params.scratches.length);
-  const flatScratch = new Float32Array(MAX_SCRATCH * 2);
+  const flatScratchA = new Float32Array(MAX_SCRATCH * 4);
+  const flatScratchB = new Float32Array(MAX_SCRATCH * 4);
   for (let i = 0; i < scratchCount; i++) {
-    flatScratch[i * 2] = params.scratches[i].x;
-    flatScratch[i * 2 + 1] = params.scratches[i].opacity;
+    const scratch = params.scratches[i];
+    flatScratchA[i * 4] = scratch.x;
+    flatScratchA[i * 4 + 1] = scratch.opacity;
+    flatScratchA[i * 4 + 2] = scratch.polarity;
+    flatScratchA[i * 4 + 3] = scratch.width;
+    flatScratchB[i * 4] = scratch.yStart;
+    flatScratchB[i * 4 + 1] = scratch.yEnd;
+    flatScratchB[i * 4 + 2] = scratch.wobble;
+    flatScratchB[i * 4 + 3] = scratch.phase;
   }
   const bloomR = Math.max(1, Math.min(15, Math.round(params.bloomRadius)));
 
@@ -273,8 +323,10 @@ export const renderProjectionFilmGL = (
     const locDustOp = cache.composite.uniforms["u_dustOpacity[0]"];
     if (locDustOp) gl.uniform1fv(locDustOp, flatDustOp);
     gl.uniform1i(cache.composite.uniforms.u_scratchCount, scratchCount);
-    const locScratch = cache.composite.uniforms["u_scratch[0]"];
-    if (locScratch) gl.uniform2fv(locScratch, flatScratch);
+    const locScratchA = cache.composite.uniforms["u_scratchA[0]"];
+    if (locScratchA) gl.uniform4fv(locScratchA, flatScratchA);
+    const locScratchB = cache.composite.uniforms["u_scratchB[0]"];
+    if (locScratchB) gl.uniform4fv(locScratchB, flatScratchB);
     gl.uniform1f(cache.composite.uniforms.u_levels, params.levels);
   }, vao);
 

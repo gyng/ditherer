@@ -4,78 +4,49 @@ import {
   type Program,
 } from "../gl/index";
 
-// Single-pass contour: compute the current pixel's luma band, scan a
-// disk (radius ≤ 5 pixels — lineWidth tops out at 4 in the JS
-// reference), and flag the pixel as an edge if any neighbour sits in a
-// different band. Fill mode selects lines, filled bands, or both.
+// Single-pass isolines over the source luminance field. Filled bands quantize
+// to endpoint-preserving levels; derivatives convert scalar distance from the
+// nearest boundary into screen-pixel distance for resolution-independent AA.
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 uniform sampler2D u_source;
-uniform vec2  u_res;
 uniform float u_levels;
 uniform float u_lineWidth;
-uniform float u_reach;
-uniform int   u_ceilRadius;
 uniform vec3  u_lineColor;   // 0..255
 uniform int   u_fillMode;    // 0 = lines only, 1 = filled bands, 2 = both
 
-float lumaBandAt(float jsX, float jsY) {
-  float sx = clamp(jsX, 0.0, u_res.x - 1.0);
-  float sy = clamp(jsY, 0.0, u_res.y - 1.0);
-  vec3 c = texture(u_source, vec2((sx + 0.5) / u_res.x, 1.0 - (sy + 0.5) / u_res.y)).rgb;
-  float lum = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
-  return min(u_levels - 1.0, floor(lum * u_levels));
-}
-
-vec3 colourAt(float jsX, float jsY) {
-  float sx = clamp(jsX, 0.0, u_res.x - 1.0);
-  float sy = clamp(jsY, 0.0, u_res.y - 1.0);
-  return texture(u_source, vec2((sx + 0.5) / u_res.x, 1.0 - (sy + 0.5) / u_res.y)).rgb * 255.0;
+vec3 bandColour(vec3 source, float sourceLuma, float bandLuma) {
+  vec3 chroma = source - vec3(sourceLuma);
+  float scale = 1.0;
+  for (int channel = 0; channel < 3; channel++) {
+    float component = chroma[channel];
+    if (component > 0.0) scale = min(scale, (1.0 - bandLuma) / component);
+    if (component < 0.0) scale = min(scale, bandLuma / -component);
+  }
+  return clamp(vec3(bandLuma) + chroma * max(0.0, scale), 0.0, 1.0);
 }
 
 void main() {
-  vec2 px = v_uv * u_res;
-  float jsX = floor(px.x);
-  float jsY = u_res.y - 1.0 - floor(px.y);
+  vec4 source = texture(u_source, v_uv);
+  float sourceLuma = dot(source.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float intervals = max(2.0, floor(u_levels + 0.5) - 1.0);
+  float scaled = clamp(sourceLuma, 0.0, 1.0) * intervals;
+  float bandIndex = floor(scaled + 0.5);
+  float bandLuma = floor(bandIndex * 255.0 / intervals + 0.5) / 255.0;
+  vec3 fill = bandColour(source.rgb, sourceLuma, bandLuma);
+  vec3 base = u_fillMode == 0 ? vec3(1.0) : fill;
 
-  float band = lumaBandAt(jsX, jsY);
-  vec3 src = colourAt(jsX, jsY);
-
-  bool isEdge = false;
-  for (int ky = -5; ky <= 5; ky++) {
-    if (ky < -u_ceilRadius || ky > u_ceilRadius) continue;
-    for (int kx = -5; kx <= 5; kx++) {
-      if (kx < -u_ceilRadius || kx > u_ceilRadius) continue;
-      if (kx == 0 && ky == 0) continue;
-      float h = sqrt(float(kx * kx + ky * ky));
-      if (h > u_reach) continue;
-      float nb = lumaBandAt(jsX + float(kx), jsY + float(ky));
-      if (nb != band) { isEdge = true; break; }
-    }
-    if (isEdge) break;
-  }
-
-  float edgeAlpha = clamp(u_lineWidth, 0.1, 1.0);
-  float t = (band + 0.5) / u_levels;
-
-  vec3 outRgb;
-  if (isEdge && u_fillMode != 1) {
-    vec3 base;
-    if (u_fillMode == 0) {
-      base = vec3(255.0);
-    } else {
-      base = src * (t + (1.0 - t) * 0.3);
-    }
-    vec3 blended = base + (u_lineColor - base) * edgeAlpha;
-    outRgb = floor(blended + 0.5);
-  } else if (u_fillMode != 0) {
-    outRgb = floor(src * (t + (1.0 - t) * 0.3) + 0.5);
-  } else {
-    outRgb = vec3(255.0);
-  }
-  fragColor = vec4(clamp(outRgb, 0.0, 255.0) / 255.0, 1.0);
+  float scalarDistance = abs(fract(scaled) - 0.5);
+  float scalarPerPixel = max(fwidth(scaled), 1e-5);
+  float pixelDistance = scalarDistance / scalarPerPixel;
+  float halfWidth = u_lineWidth * 0.5;
+  float coverage = 1.0 - smoothstep(max(0.0, halfWidth - 0.5), halfWidth + 0.5, pixelDistance);
+  coverage *= step(1e-4, scalarPerPixel);
+  if (u_fillMode == 1) coverage = 0.0;
+  vec3 outRgb = mix(base, u_lineColor / 255.0, coverage);
+  fragColor = vec4(clamp(outRgb, 0.0, 1.0), source.a);
 }
 `;
 
@@ -84,7 +55,7 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_levels", "u_lineWidth", "u_reach", "u_ceilRadius",
+    "u_source", "u_levels", "u_lineWidth",
     "u_lineColor", "u_fillMode",
   ] as const) };
   return _cache;
@@ -109,18 +80,12 @@ export const renderContourLinesGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "contourLines:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  const radius = Math.max(1, lineWidth);
-  const ceilRadius = Math.min(5, Math.ceil(radius));
-  const reach = radius + 0.35;
   drawPass(gl, null, width, height, cache.prog, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
     gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
     gl.uniform1f(cache.prog.uniforms.u_levels, levels);
     gl.uniform1f(cache.prog.uniforms.u_lineWidth, lineWidth);
-    gl.uniform1f(cache.prog.uniforms.u_reach, reach);
-    gl.uniform1i(cache.prog.uniforms.u_ceilRadius, ceilRadius);
     gl.uniform3f(cache.prog.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
     gl.uniform1i(cache.prog.uniforms.u_fillMode, fillMode);
   }, vao);

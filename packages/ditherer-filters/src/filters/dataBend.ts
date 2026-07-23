@@ -1,4 +1,4 @@
-import { ACTION, RANGE, ENUM, PALETTE } from "../constants/controlTypes";
+import { RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "../utils/index";
 import { defineFilter } from "./types";
@@ -14,18 +14,13 @@ export const optionTypes = {
   ], default: EFFECT.ECHO, desc: "Audio-style corruption applied to pixel data" },
   intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Effect strength" },
   offset: { type: RANGE, range: [1, 500], step: 1, default: 100, desc: "Byte offset for echo/reverb displacement" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
-  }},
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
   effect: optionTypes.effect.default,
   intensity: optionTypes.intensity.default,
   offset: optionTypes.offset.default,
-  animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 

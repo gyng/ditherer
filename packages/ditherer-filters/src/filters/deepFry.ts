@@ -34,16 +34,17 @@ export const optionTypes = {
   glow:       { type: RANGE, range: [0, 2], step: 0.05, default: 0.6, desc: "Blown-highlight bloom — bright areas bleed and oversaturate" },
   chromaShift:{ type: RANGE, range: [0, 8], step: 0.5, default: 2, desc: "RGB channel misalignment from re-compression" },
   warmth:     { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warm color cast toward orange/red" },
-  animSpeed:  { type: RANGE, range: [1, 30], step: 1, default: 8 },
+  animSpeed:  { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop frame-varying noise in the fried-image preview",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
     }
   },
-  palette:    { type: PALETTE, default: nearest }
+  palette:    { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -462,5 +463,6 @@ export default defineFilter({
   func: deepFry,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  temporal: true,
 });

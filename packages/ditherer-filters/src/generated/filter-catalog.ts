@@ -174,13 +174,13 @@ export const filterCatalog = [
     "displayName": "Posterize dither",
     "filterName": "Posterize Dither",
     "category": "Dithering",
-    "description": "Per-channel Bayer ordered dithering with configurable levels per channel"
+    "description": "Tone-preserving per-channel Bayer dithering between configurable output levels"
   },
   {
     "displayName": "Median Cut",
     "filterName": "Median Cut",
     "category": "Dithering",
-    "description": "Build an adaptive palette with median-cut partitioning and remap the image to it"
+    "description": "Build an exact-budget adaptive palette from visible pixels and remap the image to it"
   },
   {
     "displayName": "Octree Quantize",
@@ -270,7 +270,7 @@ export const filterCatalog = [
     "displayName": "CLAHE",
     "filterName": "CLAHE",
     "category": "Color",
-    "description": "Contrast Limited Adaptive Histogram Equalization — local contrast enhancement"
+    "description": "Alpha-aware contrast-limited adaptive histogram equalization with interpolated local mappings"
   },
   {
     "displayName": "LUT",
@@ -324,7 +324,7 @@ export const filterCatalog = [
     "displayName": "Color halftone (RGB)",
     "filterName": "Color Halftone Separate",
     "category": "Color",
-    "description": "Split RGB channels into separate halftone dots with registration offset"
+    "description": "Area-calibrated additive RGB dot plates with independent registration offsets"
   },
   {
     "displayName": "Color shift",
@@ -360,7 +360,7 @@ export const filterCatalog = [
     "displayName": "Duplex / Offset Print",
     "filterName": "Duplex Print",
     "category": "Color",
-    "description": "Two-ink print simulation with paper stock showing through the tonal ramp"
+    "description": "Sequential accent and dark ink plates clear through continuous tone into visible paper highlights"
   },
   {
     "displayName": "Duotone",
@@ -474,13 +474,13 @@ export const filterCatalog = [
     "displayName": "CMYK halftone",
     "filterName": "CMYK Halftone",
     "category": "Stylize",
-    "description": "Proper CMYK separation with independent screen angles per channel"
+    "description": "Idealized unprofiled CMYK AM screens with independent plate angles"
   },
   {
     "displayName": "Contour lines",
     "filterName": "Contour Lines",
     "category": "Stylize",
-    "description": "Topographic contour lines from luminance — lines only, filled bands, or both"
+    "description": "Antialiased topographic isolines and flat endpoint-preserving luminance bands"
   },
   {
     "displayName": "Cross-stitch",
@@ -498,19 +498,19 @@ export const filterCatalog = [
     "displayName": "Delaunay triangulation",
     "filterName": "Delaunay",
     "category": "Stylize",
-    "description": "Low-poly triangle mesh with edge-weighted point placement"
+    "description": "Full-frame low-poly triangle mesh with deterministic edge-weighted point placement"
   },
   {
     "displayName": "Dot matrix",
     "filterName": "Dot Matrix",
     "category": "Stylize",
-    "description": "Fixed-pitch dot grid simulating a dot matrix printer with ink and paper colors"
+    "description": "Fixed circular printer-pin strikes with ordered tone density and ink/paper colors"
   },
   {
     "displayName": "Edge trace",
     "filterName": "Edge Trace",
     "category": "Stylize",
-    "description": "Canny-like edge tracing with non-maximum suppression and configurable line color"
+    "description": "Canny-like localized edge tracing with continuous line width and configurable color"
   },
   {
     "displayName": "Engraving",
@@ -540,7 +540,7 @@ export const filterCatalog = [
     "displayName": "K-means",
     "filterName": "K-means",
     "category": "Stylize",
-    "description": "Cluster pixels into k dominant colors using iterative refinement"
+    "description": "Seeded alpha-aware color clustering with perceptual Lab or legacy RGB distance"
   },
   {
     "displayName": "Kuwahara",
@@ -570,19 +570,19 @@ export const filterCatalog = [
     "displayName": "Mosaic tile",
     "filterName": "Mosaic Tile",
     "category": "Stylize",
-    "description": "Pixelate with grout lines and per-tile color jitter"
+    "description": "Alpha-aware sampled tile colors with grout lines and per-tile brightness variation"
   },
   {
     "displayName": "Oil painting",
     "filterName": "Oil Painting",
     "category": "Stylize",
-    "description": "Quantize colors locally for thick, blobby paint strokes"
+    "description": "Choose modal local paint colors from circular luminance neighborhoods"
   },
   {
     "displayName": "Pencil sketch",
     "filterName": "Pencil Sketch",
     "category": "Stylize",
-    "description": "Directional pencil strokes following edge flow with paper texture"
+    "description": "Directional graphite hatching that follows image tone and edge flow"
   },
   {
     "displayName": "Pixel art upscale",
@@ -594,7 +594,7 @@ export const filterCatalog = [
     "displayName": "Pixel outline",
     "filterName": "Pixel Outline",
     "category": "Stylize",
-    "description": "Draw sprite-like borders around sharp color regions for pixel-art styling"
+    "description": "Alpha-aware sprite borders around sharp color and silhouette changes"
   },
   {
     "displayName": "Pixelate",
@@ -612,19 +612,19 @@ export const filterCatalog = [
     "displayName": "Facet / Crystalize Grid",
     "filterName": "Facet",
     "category": "Stylize",
-    "description": "Regularized faceted cells with crisp seams for a crystalized poster look"
+    "description": "Seeded faceted planes with antialiased seams and center or local-mean color"
   },
   {
     "displayName": "Halftone Line",
     "filterName": "Halftone Line",
     "category": "Stylize",
-    "description": "Render short line marks per cell instead of dots for an etched halftone look"
+    "description": "Render tone-calibrated periodic line screens with constant, luminance, or edge-following angles"
   },
   {
     "displayName": "Pop art",
     "filterName": "Pop Art",
     "category": "Stylize",
-    "description": "Ben-Day dots with high saturation and flat posterized colors"
+    "description": "Area-correct rotatable Ben-Day dots with posterized color and configurable paper"
   },
   {
     "displayName": "Posterize edges",
@@ -636,7 +636,7 @@ export const filterCatalog = [
     "displayName": "Risograph",
     "filterName": "Risograph",
     "category": "Stylize",
-    "description": "Two-color spot separation with misregistration, grain, and ink bleed"
+    "description": "Fixed two-master stencil print with spot inks, registration offset, correlated ink variation, and controllable bleed"
   },
   {
     "displayName": "Smooth posterize",
@@ -648,7 +648,7 @@ export const filterCatalog = [
     "displayName": "Stained glass",
     "filterName": "Stained Glass",
     "category": "Stylize",
-    "description": "Voronoi cells with dark leading lines for a stained glass window look"
+    "description": "Voronoi panes with average, median, or dominant visible color and anti-aliased lead came"
   },
   {
     "displayName": "Stamp",
@@ -690,13 +690,13 @@ export const filterCatalog = [
     "displayName": "Voronoi",
     "filterName": "Voronoi",
     "category": "Stylize",
-    "description": "Divide the image into irregular cell regions with averaged colors"
+    "description": "Seeded exact Voronoi regions filled with alpha-aware average source colors"
   },
   {
     "displayName": "Watercolor bleed",
     "filterName": "Watercolor Bleed",
     "category": "Stylize",
-    "description": "Edge-preserving color bleed with paper texture — soft watercolor look"
+    "description": "Stylized eight-neighbor pigment diffusion with edge deposition and multiscale paper fibers"
   },
   {
     "displayName": "Woodcut",
@@ -822,7 +822,7 @@ export const filterCatalog = [
     "displayName": "Lens flare",
     "filterName": "Lens Flare",
     "category": "Distort",
-    "description": "Camera lens flare with ghost reflections, anamorphic streak, and bloom"
+    "description": "Linear-light bloom, anamorphic streaking, and chromatic optical-axis ghosts"
   },
   {
     "displayName": "Liquify",
@@ -1020,7 +1020,7 @@ export const filterCatalog = [
     "displayName": "JPEG artifact",
     "filterName": "JPEG Artifact",
     "category": "Glitch",
-    "description": "Apply DCT block compression artifacts at controllable quality and block size"
+    "description": "Apply padded 8×8 DCT compression with separate luma/chroma quality and real 4:4:4, 4:2:2, or 4:2:0 sampling"
   },
   {
     "displayName": "Palette Index Drift",
@@ -1044,7 +1044,7 @@ export const filterCatalog = [
     "displayName": "Pixelsort",
     "filterName": "Pixelsort",
     "category": "Glitch",
-    "description": "Sort pixel spans by brightness for dramatic streak effects"
+    "description": "Deterministically sort seeded pixel spans by brightness or color-space channel order"
   },
   {
     "displayName": "Scan line shift",
@@ -1062,13 +1062,13 @@ export const filterCatalog = [
     "displayName": "Anisotropic diffusion",
     "filterName": "Anisotropic diffusion",
     "category": "Advanced",
-    "description": "Smooth flat regions while preserving edges — like Perona-Malik filtering"
+    "description": "Half-float Perona–Malik smoothing with shared color-edge guidance"
   },
   {
     "displayName": "Anaglyph 3D",
     "filterName": "Anaglyph",
     "category": "Simulate",
-    "description": "Split channels into stereoscopic color pairs for a fake 3D glasses effect"
+    "description": "Single-image synthetic stereo anaglyph with convergence-centered disparity and a linear-light Dubois red/cyan projection"
   },
   {
     "displayName": "Apollo Slow-Scan TV",
@@ -1092,7 +1092,7 @@ export const filterCatalog = [
     "displayName": "Bayer Sensor",
     "filterName": "Bayer Sensor",
     "category": "Simulate",
-    "description": "Camera CFA capture with selectable Bayer layout, demosaic reconstruction, noise, and defective photosites"
+    "description": "Bayer CFA capture with true nearest/bilinear or 5×5 gradient-corrected demosaicing, shot/read noise, crosstalk, optical low-pass filtering, and stable defects"
   },
   {
     "displayName": "Baird Televisor",
@@ -1110,7 +1110,7 @@ export const filterCatalog = [
     "displayName": "CCD Charge Smear",
     "filterName": "CCD Charge Smear",
     "category": "Simulate",
-    "description": "Overloaded CCD highlights spill into directional vertical charge trails"
+    "description": "Visible-light proxy for CCD full-well overflow with additive column blooming and an anti-blooming drain"
   },
   {
     "displayName": "CGA Composite",
@@ -1140,7 +1140,7 @@ export const filterCatalog = [
     "displayName": "Digicam Flash",
     "filterName": "Digicam Flash",
     "category": "Simulate",
-    "description": "On-camera point-and-shoot flash look with center hotspot, fast falloff, clipped highlights, and edge burn"
+    "description": "Flat-scene point-and-shoot flash proxy with linear-light ambient/flash exposure, an off-axis beam, flash-only white balance, lens falloff, and sensor saturation"
   },
   {
     "displayName": "DLP Color Wheel",
@@ -1158,13 +1158,13 @@ export const filterCatalog = [
     "displayName": "E-ink (color)",
     "filterName": "E-ink",
     "category": "Simulate",
-    "description": "Simulate a color Kaleido/Gallery e-ink display with washed-out palette"
+    "description": "Kaleido-style printed color-filter array over reflective ink, with 16 levels per channel, three-pixel color cells, fixed paper grain, and update residuals"
   },
   {
     "displayName": "E-ink (grayscale)",
     "filterName": "E-ink",
     "category": "Simulate",
-    "description": "Simulate a 16-level grayscale e-ink display with paper texture and ghosting"
+    "description": "Carta-style reflective display with 16 optical states, fixed paper grain, full clearing waveforms, and changed-pixel partial-update residuals"
   },
   {
     "displayName": "Edge glow",
@@ -1188,7 +1188,7 @@ export const filterCatalog = [
     "displayName": "Film grain",
     "filterName": "Film Grain",
     "category": "Stylize",
-    "description": "Add film-like noise grain with adjustable size and intensity"
+    "description": "Density-aware film granularity with smooth clusters, correlated color layers, and optional frame motion"
   },
   {
     "displayName": "Ink Bleed",
@@ -1200,13 +1200,13 @@ export const filterCatalog = [
     "displayName": "Paper Texture",
     "filterName": "Paper Texture",
     "category": "Simulate",
-    "description": "Procedural paper, canvas, linen, cardboard, or parchment texture overlay — grounds digital images on material substrate"
+    "description": "Antialiased paper fibres, alternating canvas and linen weave, kraft liner, or parchment formation over the image"
   },
   {
     "displayName": "Sumi-e",
     "filterName": "Sumi-e",
     "category": "Stylize",
-    "description": "Japanese ink-wash painting — quantized tonal washes with Sobel brush strokes on paper"
+    "description": "Stylized Japanese ink wash with softened tonal bands, contour ink, and directionally fibrous washi formation"
   },
   {
     "displayName": "Gameboy Camera",
@@ -1224,31 +1224,31 @@ export const filterCatalog = [
     "displayName": "LCD display",
     "filterName": "LCD Display",
     "category": "Simulate",
-    "description": "Visible sub-pixel grid — RGB stripe, PenTile, or diamond layout"
+    "description": "Magnified display-emitter proxy with equal RGB stripe, shared-chroma PenTile RGBG, and diamond-shaped RGBG layouts"
   },
   {
     "displayName": "Lenticular",
     "filterName": "Lenticular",
     "category": "Simulate",
-    "description": "Holographic rainbow sheen strips that shift with a simulated angle"
+    "description": "Single-image lenticular-sheet proxy with synthetic interlaced views, viewing-angle selection, cylindrical transmission, and crosstalk"
   },
   {
     "displayName": "Laser Speckle Projector",
     "filterName": "Laser Speckle Projector",
     "category": "Simulate",
-    "description": "Coherent laser projection with multiplicative interference grain, diversity averaging, scan structure, and bloom"
+    "description": "Linear-light laser-projector irradiance with coherent speckle, independent-pattern diversity, scan structure, and optical bloom"
   },
   {
     "displayName": "Light leak",
     "filterName": "Light Leak",
     "category": "Simulate",
-    "description": "Film light leak — warm chromatic glow bleeding from edges/corners"
+    "description": "Spectrally faithful edge-entering film fog added as linear-light exposure"
   },
   {
     "displayName": "Mavica FD7",
     "filterName": "Mavica FD7",
     "category": "Simulate",
-    "description": "Emulate the Sony Mavica FD7 — low-res JPEG on a floppy disk"
+    "description": "Sony MVC-FD7 still-camera proxy with VGA CCD sampling, interlaced field capture, period JPEG budgets, scene modes, and optional flash artifacts"
   },
   {
     "displayName": "Metadata Mismatch Decode",
@@ -1260,19 +1260,19 @@ export const filterCatalog = [
     "displayName": "Moiré / Aliasing",
     "filterName": "Moiré / Aliasing",
     "category": "Simulate",
-    "description": "Rotated sensor, display, or print grids create interference bands and colored sampling aliases"
+    "description": "Lattice-derived capture aliasing from rotated scene sampling, RGB display emitters, or conventional CMYK print screens"
   },
   {
     "displayName": "Newspaper",
     "filterName": "Newspaper",
     "category": "Simulate",
-    "description": "Coarse halftone on yellowed paper with fold creases and ink smear"
+    "description": "Static 45° monochrome halftone with locally averaged tone, yellowed paper, folds, and fixed ink spread"
   },
   {
     "displayName": "Night vision",
     "filterName": "Night vision",
     "category": "Simulate",
-    "description": "Gen 3 image intensifier tube — green phosphor, heavy grain, bloom, and circular vignette"
+    "description": "Visible-luminance image-intensifier proxy with MCP-like gain, signal-dependent noise, green phosphor bloom, and tube vignette"
   },
   {
     "displayName": "Nokia LCD",
@@ -1284,7 +1284,7 @@ export const filterCatalog = [
     "displayName": "Oscilloscope",
     "filterName": "Oscilloscope",
     "category": "Simulate",
-    "description": "Render as phosphor traces on a dark CRT oscilloscope screen with bloom and persistence"
+    "description": "Image-derived luma waveform, column trace, or RGB parade rendered as a persistent phosphor instrument display"
   },
   {
     "displayName": "PLATO Plasma",
@@ -1302,19 +1302,19 @@ export const filterCatalog = [
     "displayName": "Photocopier",
     "filterName": "Photocopier",
     "category": "Simulate",
-    "description": "High contrast, edge darkening, speckle, and generation loss"
+    "description": "Fixed-sheet xerographic copy with continuous density transfer, edge toner, background scatter, and transfer voids"
   },
   {
     "displayName": "Polaroid",
     "filterName": "Polaroid",
     "category": "Simulate",
-    "description": "Instant film look — warm tones, faded blacks, soft highlights, and film grain"
+    "description": "Developed instant-film grade with warm dye balance, lifted blacks, fixed grain, and optical vignetting"
   },
   {
     "displayName": "Projection film",
     "filterName": "Projection film",
     "category": "Simulate",
-    "description": "16mm/35mm projector — gate weave, dust, scratches, grain, and lamp flicker"
+    "description": "Mechanical 16/35 mm projection with weave, density grain, dark gate debris, scratches, flicker, and bloom"
   },
   {
     "displayName": "PXL-2000",
@@ -1326,7 +1326,7 @@ export const filterCatalog = [
     "displayName": "Risograph (multi-layer)",
     "filterName": "Risograph (multi-layer)",
     "category": "Simulate",
-    "description": "3-4 color spot separation with per-layer misregistration and grain"
+    "description": "Fixed multi-master stencil print with balanced registration offsets and correlated emulsion-ink variation"
   },
   {
     "displayName": "Rolling Shutter",
@@ -1344,7 +1344,7 @@ export const filterCatalog = [
     "displayName": "Screen Print / Misregistration",
     "filterName": "Screen Print",
     "category": "Simulate",
-    "description": "Layer flat spot-color plates with visible offset on warm paper for a silkscreen poster look"
+    "description": "Rotated clustered-dot spot-color screens with subtractive overprint, dot gain, and deterministic plate offset"
   },
   {
     "displayName": "Scanline",
@@ -1356,7 +1356,7 @@ export const filterCatalog = [
     "displayName": "Spectrogram",
     "filterName": "Spectrogram",
     "category": "Simulate",
-    "description": "Frequency-domain visualization — columns as time, rows as frequency, with scientific colormaps"
+    "description": "Spatial-frequency spectrogram treating each image column as a Hann-windowed signal with fixed-reference dB magnitude and linear or log frequency spacing"
   },
   {
     "displayName": "Teletext",
@@ -1374,13 +1374,13 @@ export const filterCatalog = [
     "displayName": "Thermal printer",
     "filterName": "Thermal Printer",
     "category": "Simulate",
-    "description": "Receipt printer — low-res dots, paper curl gradient, thermal ink fade"
+    "description": "Direct-thermal receipt print with coherent line-head dots, density response, and edge fade"
   },
   {
     "displayName": "Ultrasound",
     "filterName": "Ultrasound",
     "category": "Simulate",
-    "description": "Medical ultrasound display — fan-shaped sector scan with speckle noise"
+    "description": "Source-derived acoustic-impedance proxy rendered as a convex B-mode sector with boundary echoes, depth attenuation, and correlated speckle"
   },
   {
     "displayName": "VHS emulation",
@@ -1398,7 +1398,7 @@ export const filterCatalog = [
     "displayName": "Vintage TV",
     "filterName": "Vintage TV",
     "category": "Simulate",
-    "description": "Old TV with banding, color fringe, vertical roll, and glow — animatable"
+    "description": "Conventional 525/625-line receiver with separate luma/chroma bandwidth, tuning error, vertical hold, interlaced raster, interference, and phosphor bloom"
   },
   {
     "displayName": "Wavelet Codec",

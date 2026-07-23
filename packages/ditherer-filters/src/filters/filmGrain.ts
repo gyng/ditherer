@@ -11,6 +11,7 @@ import {
   logFilterWasmStatus,
 } from "../utils/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { filmDensityNoise, filmGrainAmplitude } from "./analogFilmQualityContracts";
 import {
   drawPass,
   ensureTexture,
@@ -25,19 +26,20 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Intensity of the grain noise overlay" },
-  size: { type: RANGE, range: [1, 4], step: 1, default: 1, desc: "Grain particle size in pixels" },
-  monochrome: { type: BOOL, default: true, desc: "Use uniform grayscale noise instead of color noise" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
+  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.16, desc: "RMS-like density fluctuation strength — strongest in middle tones" },
+  size: { type: RANGE, range: [1, 4], step: 0.5, default: 1, desc: "Diameter of smoothly correlated grain clusters in output pixels" },
+  monochrome: { type: BOOL, default: true, desc: "Use one silver-like density field; off adds partially correlated color-layer dye clouds" },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Frame rate for moving motion-picture grain" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Animate independent grain exposure for each motion-picture frame",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -67,6 +69,25 @@ float hash(vec2 p, float s) {
   return fract((p.x + p.y) * p.x);
 }
 
+float vnoise(vec2 p, float seed) {
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  vec2 smoothF = f * f * (3.0 - 2.0 * f);
+  float a = hash(cell, seed);
+  float b = hash(cell + vec2(1.0, 0.0), seed);
+  float c = hash(cell + vec2(0.0, 1.0), seed);
+  float d = hash(cell + vec2(1.0, 1.0), seed);
+  return mix(mix(a, b, smoothF.x), mix(c, d, smoothF.x), smoothF.y);
+}
+
+float densityNoise(vec2 p, float seed) {
+  float sum = vnoise(p, seed)
+            + vnoise(p + vec2(19.1, 7.3), seed + 11.0)
+            + vnoise(p + vec2(3.7, 29.9), seed + 29.0)
+            + vnoise(p + vec2(41.3, 17.7), seed + 47.0);
+  return (sum - 2.0) * 0.5;
+}
+
 void main() {
   vec2 px = v_uv * u_res;
   float x = floor(px.x);
@@ -74,19 +95,22 @@ void main() {
   vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
   vec4 c = texture(u_source, suv);
 
-  float bx = floor(x / max(u_size, 1.0));
-  float by = floor(y / max(u_size, 1.0));
-  vec2 blockCoord = vec2(bx, by);
+  vec2 grainCoord = vec2(x, y) / max(u_size, 1.0);
+  float luma = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float envelope = 0.2 + 0.8 * sqrt(max(0.0, 4.0 * luma * (1.0 - luma)));
+  float amplitude = u_amount * 0.25 * envelope;
 
   vec3 noise;
   if (u_monochrome == 1) {
-    float n = (hash(blockCoord, u_seed) - 0.5) * 2.0 * u_amount;
+    float n = densityNoise(grainCoord, u_seed) * amplitude;
     noise = vec3(n);
   } else {
-    float nr = (hash(blockCoord, u_seed + 1.0) - 0.5) * 2.0 * u_amount;
-    float ng = (hash(blockCoord, u_seed + 2.0) - 0.5) * 2.0 * u_amount;
-    float nb = (hash(blockCoord, u_seed + 3.0) - 0.5) * 2.0 * u_amount;
-    noise = vec3(nr, ng, nb);
+    float shared = densityNoise(grainCoord, u_seed);
+    noise = vec3(
+      mix(shared, densityNoise(grainCoord, u_seed + 101.0), 0.35),
+      mix(shared, densityNoise(grainCoord, u_seed + 211.0), 0.35),
+      mix(shared, densityNoise(grainCoord, u_seed + 307.0), 0.35)
+    ) * amplitude;
   }
 
   vec3 rgb = clamp(c.rgb + noise, 0.0, 1.0);
@@ -111,19 +135,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const mulberry32 = (seed: number) => {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+type FilmGrainOptions = Partial<typeof defaults> & {
+  _frameIndex?: number;
+  _webglAcceleration?: boolean;
 };
 
-const filmGrain = (input: any, options = defaults) => {
-  const { amount, size, monochrome, palette } = options;
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+const filmGrain = (input: any, options: FilmGrainOptions = defaults) => {
+  const {
+    amount = defaults.amount,
+    size = defaults.size,
+    monochrome = defaults.monochrome,
+    palette = defaults.palette,
+  } = options;
+  const frameIndex = options._frameIndex ?? 0;
   const W = input.width;
   const H = input.height;
 
@@ -177,20 +201,21 @@ const filmGrain = (input: any, options = defaults) => {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
 
-      const bx = Math.floor(x / size);
-      const by = Math.floor(y / size);
-
-      const blockSeed = bx * 31 + by * 997 + frameIndex * 7919;
-      const blockRng = mulberry32(blockSeed);
+      const grainX = x / Math.max(size, 1);
+      const grainY = y / Math.max(size, 1);
+      const seed = frameIndex * 7919;
+      const luma = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
+      const amplitude = filmGrainAmplitude(luma, amount) * 255;
+      const shared = filmDensityNoise(grainX, grainY, seed);
 
       let nr: number, ng: number, nb: number;
       if (monochrome) {
-        const n = (blockRng() - 0.5) * 2 * amount * 255;
+        const n = shared * amplitude;
         nr = n; ng = n; nb = n;
       } else {
-        nr = (blockRng() - 0.5) * 2 * amount * 255;
-        ng = (blockRng() - 0.5) * 2 * amount * 255;
-        nb = (blockRng() - 0.5) * 2 * amount * 255;
+        nr = (shared * 0.65 + filmDensityNoise(grainX, grainY, seed + 101) * 0.35) * amplitude;
+        ng = (shared * 0.65 + filmDensityNoise(grainX, grainY, seed + 211) * 0.35) * amplitude;
+        nb = (shared * 0.65 + filmDensityNoise(grainX, grainY, seed + 307) * 0.35) * amplitude;
       }
 
       const r = Math.max(0, Math.min(255, Math.round(buf[i] + nr)));
@@ -211,5 +236,7 @@ export default defineFilter({
   func: filmGrain,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  description: "Density-aware film granularity with smooth random dye-cloud clusters, correlated color layers, and optional per-frame motion",
+  temporal: true,
 });

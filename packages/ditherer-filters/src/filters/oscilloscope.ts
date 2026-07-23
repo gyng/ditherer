@@ -1,320 +1,336 @@
-import { ACTION, BOOL, ENUM, RANGE, PALETTE } from "../constants/controlTypes";
-import { defineFilter, type FilterOptionValues } from "./types";
+import { ACTION, BOOL, ENUM, PALETTE, RANGE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
+import { applyPalettePassToCanvas } from "../palettes/backend";
 import {
   cloneCanvas,
   fillBufferPixel,
-  getBufferIndex,
-  rgba,
-  paletteGetColor,
   logFilterBackend,
 } from "../utils/index";
-import { applyPalettePassToCanvas } from "../palettes/backend";
+import { oscilloscopeBeamDensity, oscilloscopeVoltageRow } from "./instrumentSensorQualityContracts";
 import { oscilloscopeGLAvailable, renderOscilloscopeGL } from "./oscilloscopeGL";
+import { defineFilter, type FilterOptionValues } from "./types";
 
-const PHOSPHOR_GREEN = "GREEN";     // P1/P31 classic
-const PHOSPHOR_BLUE = "BLUE";       // P11
-const PHOSPHOR_AMBER = "AMBER";     // P12 long persistence
-const PHOSPHOR_WHITE = "WHITE";     // P4
+const DISPLAY = {
+  WAVEFORM: "WAVEFORM",
+  TRACE: "TRACE",
+  PARADE: "PARADE",
+} as const;
+
+const PHOSPHOR_GREEN = "GREEN";
+const PHOSPHOR_BLUE = "BLUE";
+const PHOSPHOR_AMBER = "AMBER";
+const PHOSPHOR_WHITE = "WHITE";
 
 const phosphorColors = {
   [PHOSPHOR_GREEN]: [32, 255, 32],
-  [PHOSPHOR_BLUE]:  [64, 128, 255],
+  [PHOSPHOR_BLUE]: [64, 128, 255],
   [PHOSPHOR_AMBER]: [255, 176, 32],
   [PHOSPHOR_WHITE]: [210, 225, 255],
-};
+} as const;
 
 export const optionTypes = {
+  display: {
+    type: ENUM,
+    options: [
+      { name: "Luma waveform", value: DISPLAY.WAVEFORM },
+      { name: "Column trace", value: DISPLAY.TRACE },
+      { name: "RGB parade", value: DISPLAY.PARADE },
+    ],
+    default: DISPLAY.WAVEFORM,
+    desc: "Signal representation: per-pixel luma density, one mean-luma trace, or separated RGB component levels",
+  },
   phosphor: {
     type: ENUM,
     options: [
       { name: "P1/P31 Green", value: PHOSPHOR_GREEN },
       { name: "P11 Blue", value: PHOSPHOR_BLUE },
       { name: "P12 Amber", value: PHOSPHOR_AMBER },
-      { name: "P4 White", value: PHOSPHOR_WHITE }
+      { name: "P4 White", value: PHOSPHOR_WHITE },
     ],
     default: PHOSPHOR_GREEN,
-    desc: "CRT phosphor color"
+    desc: "CRT phosphor emission colour used for the waveform trace",
   },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 80, desc: "Signal threshold for trace visibility" },
-  intensity: { type: RANGE, range: [0.5, 4], step: 0.1, default: 1.5, desc: "Beam brightness" },
-  bloom: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Phosphor bloom/glow radius" },
-  bloomStrength: { type: RANGE, range: [0, 3], step: 0.05, default: 0.8, desc: "Bloom glow intensity" },
-  persistence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Phosphor afterglow persistence" },
-  graticule: { type: BOOL, default: true, desc: "Show grid overlay" },
-  graticuleDivs: { type: RANGE, range: [4, 16], step: 1, default: 8, desc: "Number of graticule grid divisions" },
-  scanlines: { type: BOOL, default: true, desc: "Show horizontal scan lines" },
-  scanlineSpacing: { type: RANGE, range: [2, 8], step: 1, default: 3, desc: "Pixel gap between scan lines" },
-  noiseFloor: { type: RANGE, range: [0, 0.1], step: 0.005, default: 0.015, desc: "Background electronic noise level" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
+  beamWidth: { type: RANGE, range: [0.5, 6], step: 0.1, default: 1.5, desc: "Gaussian electron-beam width in display pixels" },
+  intensity: { type: RANGE, range: [0.25, 4], step: 0.05, default: 1.35, desc: "Trace exposure gain before phosphor saturation" },
+  bloom: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Radius of the optical phosphor halo in pixels" },
+  bloomStrength: { type: RANGE, range: [0, 3], step: 0.05, default: 0.65, desc: "Brightness of the defocused phosphor halo" },
+  persistence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Fraction of the preceding phosphor image retained as afterglow" },
+  graticule: { type: BOOL, default: true, desc: "Overlay an amplitude/time measurement graticule" },
+  graticuleDivs: { type: RANGE, range: [4, 16], step: 1, default: 10, desc: "Number of major horizontal and vertical graticule divisions" },
+  noiseFloor: { type: RANGE, range: [0, 0.1], step: 0.005, default: 0.008, desc: "Low-level display-electronics noise added behind the trace" },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Refresh rate used by the play control" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop temporal phosphor persistence",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) {
-        actions.stopAnimLoop();
-      } else {
-        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
-      }
-    }
+      if (actions.isAnimating()) actions.stopAnimLoop();
+      else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+    },
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette applied after the instrument display is rendered" },
 };
 
 export const defaults = {
+  display: optionTypes.display.default,
   phosphor: optionTypes.phosphor.default,
-  threshold: optionTypes.threshold.default,
+  beamWidth: optionTypes.beamWidth.default,
   intensity: optionTypes.intensity.default,
   bloom: optionTypes.bloom.default,
   bloomStrength: optionTypes.bloomStrength.default,
   persistence: optionTypes.persistence.default,
   graticule: optionTypes.graticule.default,
   graticuleDivs: optionTypes.graticuleDivs.default,
-  scanlines: optionTypes.scanlines.default,
-  scanlineSpacing: optionTypes.scanlineSpacing.default,
   noiseFloor: optionTypes.noiseFloor.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-type OscilloscopePalette = {
-  options?: FilterOptionValues;
-} & Record<string, unknown>;
-
+type OscilloscopePalette = { options?: FilterOptionValues } & Record<string, unknown>;
 type OscilloscopeOptions = FilterOptionValues & {
+  display?: string;
   phosphor?: string;
-  threshold?: number;
+  beamWidth?: number;
   intensity?: number;
   bloom?: number;
   bloomStrength?: number;
   persistence?: number;
   graticule?: boolean;
   graticuleDivs?: number;
-  scanlines?: boolean;
-  scanlineSpacing?: number;
   noiseFloor?: number;
   animSpeed?: number;
   palette?: OscilloscopePalette;
   _prevOutput?: Uint8ClampedArray | null;
   _frameIndex?: number;
+  _webglAcceleration?: boolean;
 };
 
-// Simple seeded PRNG
 const mulberry32 = (seed: number) => {
-  let s = seed | 0;
+  let state = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
   };
 };
 
-const oscilloscope = (
-  input: any,
-  options: OscilloscopeOptions = defaults
+const finiteOption = (value: unknown, fallback: number, minimum: number, maximum: number): number => {
+  const numeric = Number(value);
+  return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
+};
+
+const sourceLevel = (data: Uint8ClampedArray, index: number, channel: number): number => {
+  if (channel >= 0) return data[index + channel] / 255;
+  return (data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722) / 255;
+};
+
+const addBeam = (
+  density: Float32Array,
+  width: number,
+  height: number,
+  x: number,
+  level: number,
+  beamWidth: number,
+  weight: number,
 ) => {
-  const {
-    phosphor = defaults.phosphor,
-    threshold = defaults.threshold,
-    intensity = defaults.intensity,
-    bloom = defaults.bloom,
-    bloomStrength = defaults.bloomStrength,
-    persistence = defaults.persistence,
-    graticule = defaults.graticule,
-    graticuleDivs = defaults.graticuleDivs,
-    scanlines = defaults.scanlines,
-    scanlineSpacing = defaults.scanlineSpacing,
-    noiseFloor = defaults.noiseFloor,
-    palette = defaults.palette,
-  } = options;
+  const centre = oscilloscopeVoltageRow(level, height);
+  const radius = Math.max(1, Math.ceil(beamWidth * 2));
+  const y0 = Math.max(0, Math.floor(centre) - radius);
+  const y1 = Math.min(height - 1, Math.ceil(centre) + radius);
+  for (let y = y0; y <= y1; y += 1) {
+    density[y * width + x] += oscilloscopeBeamDensity(y - centre, beamWidth) * weight;
+  }
+};
 
-  const prevOutput = options._prevOutput ?? null;
-  const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width;
-  const H = input.height;
-  const pColor = phosphorColors[phosphor as keyof typeof phosphorColors] || phosphorColors[PHOSPHOR_GREEN];
+const buildDensity = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  display: string,
+  beamWidth: number,
+): Float32Array => {
+  const density = new Float32Array(width * height);
+  const sampleCount = Math.min(512, Math.max(1, height));
+  if (display === DISPLAY.TRACE) {
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0;
+      for (let sample = 0; sample < sampleCount; sample += 1) {
+        const sourceY = Math.min(height - 1, Math.max(0, Math.floor((sample + 0.5) * height / sampleCount)));
+        sum += sourceLevel(data, (sourceY * width + x) * 4, -1);
+      }
+      addBeam(density, width, height, x, sum / sampleCount, beamWidth, 4);
+    }
+    return density;
+  }
 
-  if (
-    oscilloscopeGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-  ) {
-    const isNearest = (palette as { name?: string }).name === "nearest";
-    const rendered = renderOscilloscopeGL(input, W, H, {
-      phosphorColor: [pColor[0], pColor[1], pColor[2]],
-      threshold, intensity, bloom, bloomStrength, persistence,
-      graticule, graticuleDivs, scanlines, scanlineSpacing, noiseFloor,
+  const parade = display === DISPLAY.PARADE;
+  for (let x = 0; x < width; x += 1) {
+    let sourceX = x;
+    let channel = -1;
+    if (parade) {
+      const segment = Math.min(2, Math.floor((x * 3) / Math.max(1, width)));
+      const local = (x * 3) / Math.max(1, width) - segment;
+      sourceX = Math.min(width - 1, Math.max(0, Math.floor(local * width)));
+      channel = segment;
+    }
+    const sampleWeight = 96 / sampleCount;
+    for (let sample = 0; sample < sampleCount; sample += 1) {
+      const sourceY = Math.min(height - 1, Math.max(0, Math.floor((sample + 0.5) * height / sampleCount)));
+      addBeam(
+        density,
+        width,
+        height,
+        x,
+        sourceLevel(data, (sourceY * width + sourceX) * 4, channel),
+        beamWidth,
+        sampleWeight,
+      );
+    }
+  }
+  return density;
+};
+
+const boxBlur = (source: Float32Array, width: number, height: number, radius: number): Float32Array => {
+  if (radius <= 0) return source;
+  const horizontal = new Float32Array(source.length);
+  const output = new Float32Array(source.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0;
+      let count = 0;
+      for (let offset = -radius; offset <= radius; offset += 1) {
+        sum += source[y * width + Math.max(0, Math.min(width - 1, x + offset))];
+        count += 1;
+      }
+      horizontal[y * width + x] = sum / count;
+    }
+  }
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0;
+      let count = 0;
+      for (let offset = -radius; offset <= radius; offset += 1) {
+        sum += horizontal[Math.max(0, Math.min(height - 1, y + offset)) * width + x];
+        count += 1;
+      }
+      output[y * width + x] = sum / count;
+    }
+  }
+  return output;
+};
+
+const oscilloscope = (input: any, options: OscilloscopeOptions = defaults) => {
+  const displayCandidate = String(options.display ?? defaults.display);
+  const display = displayCandidate === DISPLAY.TRACE || displayCandidate === DISPLAY.PARADE
+    ? displayCandidate
+    : DISPLAY.WAVEFORM;
+  const phosphorCandidate = String(options.phosphor ?? defaults.phosphor);
+  const phosphor = phosphorCandidate in phosphorColors ? phosphorCandidate : defaults.phosphor;
+  const beamWidth = finiteOption(options.beamWidth, defaults.beamWidth, 0.5, 6);
+  const intensity = finiteOption(options.intensity, defaults.intensity, 0.25, 4);
+  const bloom = finiteOption(options.bloom, defaults.bloom, 0, 10);
+  const bloomStrength = finiteOption(options.bloomStrength, defaults.bloomStrength, 0, 3);
+  const persistence = finiteOption(options.persistence, defaults.persistence, 0, 1);
+  const graticule = Boolean(options.graticule ?? defaults.graticule);
+  const graticuleDivs = finiteOption(options.graticuleDivs, defaults.graticuleDivs, 4, 16);
+  const noiseFloor = finiteOption(options.noiseFloor, defaults.noiseFloor, 0, 0.1);
+  const palette = options.palette ?? defaults.palette;
+  const previous = options._prevOutput ?? null;
+  const frameIndex = finiteOption(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER);
+  const width = input.width;
+  const height = input.height;
+  const phosphorColor = phosphorColors[phosphor as keyof typeof phosphorColors] ?? phosphorColors[PHOSPHOR_GREEN];
+  const paletteName = (palette as { name?: string }).name;
+  const paletteLevels = Number((palette as { options?: { levels?: number } }).options?.levels ?? 256);
+  const identityPalette = paletteName === "nearest" && Number.isFinite(paletteLevels) && paletteLevels >= 256;
+
+  if (oscilloscopeGLAvailable() && options._webglAcceleration !== false) {
+    const rendered = renderOscilloscopeGL(input, width, height, {
+      display,
+      phosphorColor: [...phosphorColor],
+      beamWidth,
+      intensity,
+      bloom,
+      bloomStrength,
+      persistence,
+      graticule,
+      graticuleDivs,
+      noiseFloor,
       frameIndex,
-      prevOutput,
+      prevOutput: previous,
     });
     if (rendered) {
-      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-      if (out) {
-        logFilterBackend("Oscilloscope", "WebGL2", `${phosphor} bloom=${bloom} persistence=${persistence}${isNearest ? "" : "+palettePass"}`);
-        return out;
+      const output = identityPalette ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+      if (output) {
+        logFilterBackend("Oscilloscope", "WebGL2", `${display} ${phosphor} persistence=${persistence}${identityPalette ? "" : "+palettePass"}`);
+        return output;
       }
     }
   }
 
   const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const len = buf.length;
-  const rng = mulberry32(frameIndex * 3571 + 41);
-
-  // Step 1: Convert to luminance intensity — how bright the beam is at each pixel
-  const intensityMap = new Float32Array(W * H);
-  for (let x = 0; x < W; x++) {
-    for (let y = 0; y < H; y++) {
-      const i = getBufferIndex(x, y, W);
-      const luma = buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722;
-
-      // Threshold: only bright areas become traces
-      const above = Math.max(0, luma - threshold) / (255 - threshold);
-
-      // Apply intensity curve — beam brightness is non-linear
-      const beamIntensity = Math.pow(above, 1 / intensity);
-
-      // Add noise floor (faint electron noise on the screen)
-      const noise = noiseFloor > 0 ? rng() * noiseFloor : 0;
-
-      intensityMap[y * W + x] = Math.min(1, beamIntensity + noise);
+  const inputContext = input.getContext("2d");
+  const outputContext = output.getContext("2d");
+  if (!inputContext || !outputContext) return input;
+  const source = inputContext.getImageData(0, 0, width, height).data;
+  const density = buildDensity(source, width, height, display, Math.max(0.5, beamWidth));
+  const exposure = new Float32Array(density.length);
+  const random = mulberry32(frameIndex * 3571 + 41);
+  for (let index = 0; index < density.length; index += 1) {
+    exposure[index] = Math.min(1, 1 - Math.exp(-density[index] * Math.max(0, intensity)) + random() * Math.max(0, noiseFloor));
+  }
+  const radius = Math.min(10, Math.max(0, Math.round(bloom)));
+  const halo = boxBlur(exposure, width, height, radius);
+  const buffer = new Uint8ClampedArray(source.length);
+  const background = [2, 3, 2];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const pixel = y * width + x;
+      const index = pixel * 4;
+      const value = Math.min(1, exposure[pixel] + (radius > 0 ? halo[pixel] * bloomStrength : 0));
+      fillBufferPixel(
+        buffer,
+        index,
+        background[0] + value * (phosphorColor[0] - background[0]),
+        background[1] + value * (phosphorColor[1] - background[1]),
+        background[2] + value * (phosphorColor[2] - background[2]),
+        255,
+      );
     }
   }
 
-  // Step 2: Bloom — bright traces bleed light (separable box blur on intensity)
-  let bloomed = intensityMap;
-  if (bloom > 0) {
-    const r = Math.round(bloom);
-    // Horizontal
-    const blurH = new Float32Array(W * H);
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        let sum = 0, count = 0;
-        for (let kx = -r; kx <= r; kx++) {
-          const nx = Math.max(0, Math.min(W - 1, x + kx));
-          sum += intensityMap[y * W + nx];
-          count++;
-        }
-        blurH[y * W + x] = sum / count;
-      }
-    }
-    // Vertical
-    const blurHV = new Float32Array(W * H);
-    for (let x = 0; x < W; x++) {
-      for (let y = 0; y < H; y++) {
-        let sum = 0, count = 0;
-        for (let ky = -r; ky <= r; ky++) {
-          const ny = Math.max(0, Math.min(H - 1, y + ky));
-          sum += blurH[ny * W + x];
-          count++;
-        }
-        blurHV[y * W + x] = sum / count;
-      }
-    }
-    // Additive composite: original trace + bloom halo
-    bloomed = new Float32Array(W * H);
-    for (let j = 0; j < W * H; j++) {
-      bloomed[j] = Math.min(1, intensityMap[j] + blurHV[j] * bloomStrength);
-    }
-  }
-
-  // Step 3: Beam speed brightness — the beam lingers at bright→dark transitions,
-  // making edges brighter (slower sweep = more photons hitting phosphor)
-  const beamSpeed = new Float32Array(W * H);
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const cur = bloomed[y * W + x];
-      const prev = x > 0 ? bloomed[y * W + x - 1] : cur;
-      // Large intensity change = beam slowing down = brighter
-      const delta = Math.abs(cur - prev);
-      beamSpeed[y * W + x] = 1 + delta * 0.8;
-    }
-  }
-
-  // Step 4: Render phosphor color with raster scan lines
-  const outBuf = new Uint8ClampedArray(len);
-  const bgR = 2, bgG = 3, bgB = 2; // Very dark green-black background
-  const spacing = Math.max(2, Math.round(scanlineSpacing));
-  for (let x = 0; x < W; x++) {
-    for (let y = 0; y < H; y++) {
-      const i = getBufferIndex(x, y, W);
-      let val = bloomed[y * W + x] * beamSpeed[y * W + x];
-
-      // Raster scan lines: Gaussian beam profile across scan line height
-      // The beam has a bright center and falls off above/below
-      if (scanlines) {
-        const posInLine = y % spacing;
-        const center = spacing / 2;
-        const dist = Math.abs(posInLine - center) / center; // 0 at center, 1 at edge
-        // Gaussian-ish falloff: bright center, dark gaps between lines
-        const scanGain = Math.exp(-dist * dist * 3);
-        val *= scanGain;
-      }
-
-      val = Math.min(1, val);
-
-      // Phosphor color * intensity, with slight saturation boost at high intensity
-      const sat = val > 0.7 ? 1 + (val - 0.7) * 1.5 : 1;
-      const r = bgR + val * (pColor[0] * sat - bgR);
-      const g = bgG + val * (pColor[1] * sat - bgG);
-      const b = bgB + val * (pColor[2] * sat - bgB);
-
-      const color = paletteGetColor(palette, rgba(
-        Math.min(255, r),
-        Math.min(255, g),
-        Math.min(255, b),
-        255
-      ), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
-    }
-  }
-
-  // Step 4: Graticule — overlay faint grid lines
   if (graticule) {
-    const divs = Math.max(2, Math.round(graticuleDivs));
-    const cellW = W / divs;
-    const cellH = H / divs;
-    for (let x = 0; x < W; x++) {
-      for (let y = 0; y < H; y++) {
-        const onVertical = Math.abs((x % cellW) - 0) < 1 || Math.abs(x - W + 1) < 1;
-        const onHorizontal = Math.abs((y % cellH) - 0) < 1 || Math.abs(y - H + 1) < 1;
-        // Centre cross tick marks every ~20% of cell
-        const tickSpacing = Math.max(4, Math.round(cellW / 5));
-        const onCentreH = Math.abs(y - H / 2) < 1 && x % tickSpacing < 2;
-        const onCentreV = Math.abs(x - W / 2) < 1 && y % tickSpacing < 2;
-
-        if (onVertical || onHorizontal || onCentreH || onCentreV) {
-          const i = getBufferIndex(x, y, W);
-          // Faint phosphor-colored grid
-          outBuf[i]     = Math.min(255, outBuf[i] + pColor[0] * 0.12);
-          outBuf[i + 1] = Math.min(255, outBuf[i + 1] + pColor[1] * 0.12);
-          outBuf[i + 2] = Math.min(255, outBuf[i + 2] + pColor[2] * 0.12);
-        }
+    const divisions = Math.max(2, Math.round(graticuleDivs));
+    const cellWidth = width / divisions;
+    const cellHeight = height / divisions;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const major = x % cellWidth < 1 || y % cellHeight < 1 || x === width - 1 || y === height - 1;
+        const centre = Math.abs(x - width / 2) < 1 || Math.abs(y - height / 2) < 1;
+        if (!major && !centre) continue;
+        const index = (y * width + x) * 4;
+        const gain = centre ? 0.1 : 0.065;
+        buffer[index] = Math.min(255, buffer[index] + phosphorColor[0] * gain);
+        buffer[index + 1] = Math.min(255, buffer[index + 1] + phosphorColor[1] * gain);
+        buffer[index + 2] = Math.min(255, buffer[index + 2] + phosphorColor[2] * gain);
       }
     }
   }
 
-  // Step 5: Phosphor persistence — blend with previous frame
-  if (persistence > 0 && prevOutput && prevOutput.length === outBuf.length) {
-    const keep = persistence;
-    const fresh = 1 - keep;
-    for (let j = 0; j < outBuf.length; j += 4) {
-      // Persistence is additive-ish: take max of decayed prev and current
-      const pR = prevOutput[j] * keep;
-      const pG = prevOutput[j + 1] * keep;
-      const pB = prevOutput[j + 2] * keep;
-      outBuf[j]     = Math.min(255, Math.max(outBuf[j] * fresh, pR) + outBuf[j] * (1 - fresh));
-      outBuf[j + 1] = Math.min(255, Math.max(outBuf[j + 1] * fresh, pG) + outBuf[j + 1] * (1 - fresh));
-      outBuf[j + 2] = Math.min(255, Math.max(outBuf[j + 2] * fresh, pB) + outBuf[j + 2] * (1 - fresh));
+  if (persistence > 0 && previous?.length === buffer.length) {
+    const keep = Math.max(0, Math.min(1, persistence));
+    for (let index = 0; index < buffer.length; index += 4) {
+      buffer[index] = Math.max(buffer[index], previous[index] * keep);
+      buffer[index + 1] = Math.max(buffer[index + 1], previous[index + 1] * keep);
+      buffer[index + 2] = Math.max(buffer[index + 2], previous[index + 2] * keep);
     }
   }
 
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  outputContext.putImageData(new ImageData(buffer, width, height), 0, 0);
+  return identityPalette
+    ? output
+    : (applyPalettePassToCanvas(output, width, height, palette) ?? output);
 };
 
 export default defineFilter({
@@ -323,5 +339,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
+  description: "Image-derived luma waveform, column trace, or RGB parade rendered as a persistent phosphor instrument display",
   temporal: true,
 });

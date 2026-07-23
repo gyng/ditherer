@@ -102,10 +102,15 @@ void main() {
 
     vec2 branch = normalize(along + across * (valueNoise(pixel / 9.0 + stepDistance) - 0.5));
     coverage = max(coverage, inkAt(pixel + branch * stepDistance) * transfer * 0.72);
+    coverage = max(coverage, inkAt(pixel - branch * stepDistance) * transfer * 0.72);
   }
 
   coverage = clamp(mix(smoothstep(0.03, 0.94, coverage), coverage, u_feather), 0.0, 1.0);
-  float longFiber = sin(dot(pixel, across) * 0.19 + valueNoise(pixel / 31.0) * 6.28318);
+  // Fiber orientation is axial: 0° and 180° describe the same sheet. Anchor
+  // the texture at the image centre and discard coordinate sign so reversing
+  // the axis does not select a different paper realization.
+  vec2 centredPixel = pixel - u_res * 0.5;
+  float longFiber = sin(abs(dot(centredPixel, across)) * 0.19 + valueNoise(pixel / 31.0) * 6.28318);
   float fiberTexture = longFiber * 0.5 + 0.5;
   float fineTexture = hash21(pixel);
   float paperVariation = ((fiberTexture - 0.5) * 0.045 + (fineTexture - 0.5) * 0.035) * u_grain;

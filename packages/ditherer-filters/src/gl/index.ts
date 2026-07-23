@@ -10,6 +10,12 @@
 // - Texture pool is keyed by caller-provided names. Namespace with a filter
 //   prefix (e.g., "gaussian:temp") to avoid collisions.
 
+import {
+  getCanvasPoolStats,
+  releasePooledCanvas,
+  takePooledCanvas,
+} from "../utils/index";
+
 type GLCanvas = HTMLCanvasElement | OffscreenCanvas;
 
 let _gl: WebGL2RenderingContext | null = null;
@@ -58,6 +64,12 @@ export const getGLCtx = (): GLCtx | null => {
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   return { gl, canvas: c };
 };
+
+// Read-only lifecycle probe: unlike getGLCtx(), this never creates a context.
+// Resource disposal uses it so removing an unused GL filter cannot allocate a
+// fresh context merely to discover there is nothing to release.
+export const getExistingGLCtx = (): GLCtx | null =>
+  _gl && _glCanvas ? { gl: _gl, canvas: _glCanvas } : null;
 
 export const glAvailable = (): boolean => getGLCtx() !== null;
 
@@ -111,37 +123,18 @@ export const resetGLStats = (): void => {
   _glStats.readoutCanvases = 0;
   _glStats.readoutCanvasReuses = 0;
 };
-export const getGLPoolSizes = (): { texPool: number; readoutPool: number } => ({
+export const getGLPoolSizes = (): { texPool: number; canvasPool: number } => ({
   texPool: Object.keys(_texPool).length,
-  readoutPool: _readoutPool.length,
+  canvasPool: getCanvasPoolStats().pooled,
 });
 
-// ── Readout canvas pool ─────────────────────────────────────────────────
-// Instead of creating a fresh canvas per readoutToCanvas call (the biggest
-// leak vector during animation), reuse canvases from a small pool keyed by
-// size. Callers that hold a reference past the next filter call (e.g., the
-// output cache) are fine — the pool only recycles canvases explicitly
-// returned via `releaseReadoutCanvas`.
-const _readoutPool: GLCanvas[] = [];
-const READOUT_POOL_MAX = 8;
-
 const acquireReadoutCanvas = (w: number, h: number): GLCanvas | null => {
-  for (let i = _readoutPool.length - 1; i >= 0; i--) {
-    const c = _readoutPool[i];
-    if (c.width === w && c.height === h) {
-      _readoutPool.splice(i, 1);
-      _glStats.readoutCanvasReuses++;
-      return c;
-    }
-  }
-  _glStats.readoutCanvases++;
-  return createGLCanvas(w, h);
-};
-
-export const releaseReadoutCanvas = (canvas: GLCanvas): void => {
-  if (_readoutPool.length < READOUT_POOL_MAX) {
-    _readoutPool.push(canvas);
-  }
+  const before = getCanvasPoolStats();
+  const canvas = takePooledCanvas(w, h) as GLCanvas;
+  const after = getCanvasPoolStats();
+  if (after.reuses > before.reuses) _glStats.readoutCanvasReuses++;
+  else _glStats.readoutCanvases++;
+  return canvas;
 };
 
 // Standard full-screen-quad vertex shader. No flip — shaders compute JS-y
@@ -173,14 +166,18 @@ export type Program = {
 const compileShader = (gl: WebGL2RenderingContext, type: number, src: string): WebGLShader => {
   const sh = gl.createShader(type);
   if (!sh) throw new Error("createShader failed");
-  gl.shaderSource(sh, src);
-  gl.compileShader(sh);
-  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(sh) || "(no log)";
-    gl.deleteShader(sh);
-    throw new Error(`shader compile failed: ${log}\n--- src ---\n${src}`);
+  try {
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const log = gl.getShaderInfoLog(sh) || "(no log)";
+      throw new Error(`shader compile failed: ${log}\n--- src ---\n${src}`);
+    }
+    return sh;
+  } catch (error) {
+    try { gl.deleteShader(sh); } catch { /* preserve the compile failure */ }
+    throw error;
   }
-  return sh;
 };
 
 // Compile a fragment shader against STD_VS, link a program, and look up
@@ -190,51 +187,96 @@ export const linkProgram = (
   fsSrc: string,
   uniformNames: readonly string[],
 ): Program => {
-  const vs = compileShader(gl, gl.VERTEX_SHADER, STD_VS);
-  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
-  const prog = gl.createProgram();
-  if (!prog) throw new Error("createProgram failed");
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.bindAttribLocation(prog, 0, "a_pos");
-  gl.linkProgram(prog);
-  // Shaders can be detached+deleted after a successful link — the program
-  // retains the compiled code. This frees the shader source strings and
-  // intermediate objects the driver was holding.
-  gl.detachShader(prog, vs);
-  gl.detachShader(prog, fs);
-  gl.deleteShader(vs);
-  gl.deleteShader(fs);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    const log = gl.getProgramInfoLog(prog) || "(no log)";
-    throw new Error(`program link failed: ${log}`);
+  let vs: WebGLShader | null = null;
+  let fs: WebGLShader | null = null;
+  let prog: WebGLProgram | null = null;
+  const cleanup = () => {
+    if (prog && vs) {
+      try { gl.detachShader(prog, vs); } catch { /* continue cleanup */ }
+    }
+    if (prog && fs) {
+      try { gl.detachShader(prog, fs); } catch { /* continue cleanup */ }
+    }
+    if (vs) {
+      try { gl.deleteShader(vs); } catch { /* context loss: nothing else can free it */ }
+    }
+    if (fs) {
+      try { gl.deleteShader(fs); } catch { /* context loss: nothing else can free it */ }
+    }
+    if (prog) {
+      try { gl.deleteProgram(prog); } catch { /* context loss: nothing else can free it */ }
+    }
+  };
+  try {
+    vs = compileShader(gl, gl.VERTEX_SHADER, STD_VS);
+    fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+    prog = gl.createProgram();
+    if (!prog) throw new Error("createProgram failed");
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.bindAttribLocation(prog, 0, "a_pos");
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      const log = gl.getProgramInfoLog(prog) || "(no log)";
+      throw new Error(`program link failed: ${log}`);
+    }
+    const uniforms: Record<string, WebGLUniformLocation | null> = {};
+    for (const n of uniformNames) uniforms[n] = gl.getUniformLocation(prog, n);
+
+    // Shaders can be detached+deleted after a successful link — the program
+    // retains the compiled code. Program ownership transfers only after every
+    // requested uniform has also been resolved.
+    gl.detachShader(prog, vs);
+    gl.detachShader(prog, fs);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    vs = null;
+    fs = null;
+    _glStats.programs++;
+    return { prog, uniforms };
+  } catch (error) {
+    cleanup();
+    throw error;
   }
-  _glStats.programs++;
-  const uniforms: Record<string, WebGLUniformLocation | null> = {};
-  for (const n of uniformNames) uniforms[n] = gl.getUniformLocation(prog, n);
-  return { prog, uniforms };
 };
 
 // Cached full-screen quad VAO.
 let _quadVao: WebGLVertexArrayObject | null = null;
 
-export const getQuadVAO = (gl: WebGL2RenderingContext): WebGLVertexArrayObject => {
-  if (_quadVao) return _quadVao;
+export const createQuadVAO = (
+  gl: WebGL2RenderingContext,
+): WebGLVertexArrayObject => {
   const vao = gl.createVertexArray();
   if (!vao) throw new Error("createVertexArray failed");
-  gl.bindVertexArray(vao);
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),
-    gl.STATIC_DRAW,
-  );
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-  gl.bindVertexArray(null);
-  _quadVao = vao;
-  return vao;
+  let buffer: WebGLBuffer | null = null;
+  try {
+    buffer = gl.createBuffer();
+    if (!buffer) throw new Error("createBuffer failed");
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),
+      gl.STATIC_DRAW,
+    );
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(null);
+    return vao;
+  } catch (error) {
+    try { gl.bindVertexArray(null); } catch { /* continue cleanup */ }
+    if (buffer) {
+      try { gl.deleteBuffer(buffer); } catch { /* context loss */ }
+    }
+    try { gl.deleteVertexArray(vao); } catch { /* context loss */ }
+    throw error;
+  }
+};
+
+export const getQuadVAO = (gl: WebGL2RenderingContext): WebGLVertexArrayObject => {
+  if (_quadVao) return _quadVao;
+  _quadVao = createQuadVAO(gl);
+  return _quadVao;
 };
 
 export type TexEntry = {
@@ -249,6 +291,19 @@ export type TexEntry = {
 // an FBO attachment for render-to-texture.
 const _texPool: Record<string, TexEntry> = {};
 
+const discardTextureTarget = (
+  gl: WebGL2RenderingContext,
+  texture: WebGLTexture | null,
+  framebuffer: WebGLFramebuffer | null,
+): void => {
+  if (texture) {
+    try { gl.deleteTexture(texture); } catch { /* continue cleanup */ }
+  }
+  if (framebuffer) {
+    try { gl.deleteFramebuffer(framebuffer); } catch { /* context loss */ }
+  }
+};
+
 export const ensureTexture = (
   gl: WebGL2RenderingContext,
   name: string,
@@ -258,25 +313,32 @@ export const ensureTexture = (
   const existing = _texPool[name];
   if (existing && existing.w === w && existing.h === h) return existing;
   if (existing) {
-    gl.deleteTexture(existing.tex);
-    gl.deleteFramebuffer(existing.fbo);
+    delete _texPool[name];
+    discardTextureTarget(gl, existing.tex, existing.fbo);
   }
-  const tex = gl.createTexture();
-  const fbo = gl.createFramebuffer();
-  if (!tex || !fbo) throw new Error("createTexture/Framebuffer failed");
-  _glStats.textures++;
-  _glStats.framebuffers++;
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-  const entry = { tex, fbo, w, h };
-  _texPool[name] = entry;
-  return entry;
+  let tex: WebGLTexture | null = null;
+  let fbo: WebGLFramebuffer | null = null;
+  try {
+    tex = gl.createTexture();
+    fbo = gl.createFramebuffer();
+    if (!tex || !fbo) throw new Error("createTexture/Framebuffer failed");
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    const entry = { tex, fbo, w, h };
+    _texPool[name] = entry;
+    _glStats.textures++;
+    _glStats.framebuffers++;
+    return entry;
+  } catch (error) {
+    discardTextureTarget(gl, tex, fbo);
+    throw error;
+  }
 };
 
 // RGBA16F render target for signal-processing pipelines which must preserve
@@ -293,30 +355,39 @@ export const ensureFloatTexture = (
   const existing = _texPool[name];
   if (existing && existing.w === w && existing.h === h) return existing;
   if (existing) {
-    gl.deleteTexture(existing.tex);
-    gl.deleteFramebuffer(existing.fbo);
+    delete _texPool[name];
+    discardTextureTarget(gl, existing.tex, existing.fbo);
   }
-  const tex = gl.createTexture();
-  const fbo = gl.createFramebuffer();
-  if (!tex || !fbo) return null;
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-    gl.deleteTexture(tex);
-    gl.deleteFramebuffer(fbo);
-    return null;
+  let tex: WebGLTexture | null = null;
+  let fbo: WebGLFramebuffer | null = null;
+  try {
+    tex = gl.createTexture();
+    fbo = gl.createFramebuffer();
+    if (!tex || !fbo) {
+      discardTextureTarget(gl, tex, fbo);
+      return null;
+    }
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+      discardTextureTarget(gl, tex, fbo);
+      return null;
+    }
+    const entry = { tex, fbo, w, h };
+    _texPool[name] = entry;
+    _glStats.textures++;
+    _glStats.framebuffers++;
+    return entry;
+  } catch (error) {
+    discardTextureTarget(gl, tex, fbo);
+    throw error;
   }
-  _glStats.textures++;
-  _glStats.framebuffers++;
-  const entry = { tex, fbo, w, h };
-  _texPool[name] = entry;
-  return entry;
 };
 
 export const uploadFloatTexture = (
@@ -346,7 +417,7 @@ export const uploadFloatTexture = (
 // filter is removed from the chain or the chain is cleared. Pass no
 // argument to flush the entire pool.
 export const releasePooledTextures = (prefix?: string): number => {
-  const ctx = getGLCtx();
+  const ctx = getExistingGLCtx();
   if (!ctx) return 0;
   const { gl } = ctx;
   let freed = 0;
@@ -396,7 +467,7 @@ export const drawPass = (
   gl.bindVertexArray(null);
 };
 
-// Copy the GL canvas's current framebuffer to a fresh canvas and return it.
+// Copy the GL canvas's current framebuffer to an owned 2D canvas and return it.
 // drawImage handles the WebGL-y-up → 2D-y-down flip so the filter caller
 // gets a right-side-up image (assuming input was uploaded with
 // UNPACK_FLIP_Y=true and shaders use JS-y conventions). Returns
@@ -414,7 +485,10 @@ export const readoutToCanvas = (
   const ctx = out.getContext("2d", { willReadFrequently: true }) as (
     CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
   );
-  if (!ctx) return null;
+  if (!ctx) {
+    releasePooledCanvas(out);
+    return null;
+  }
   // TS can't narrow the drawImage overloads across the union.
   (ctx as CanvasRenderingContext2D).drawImage(glCanvas as CanvasImageSource, 0, 0);
   return out;

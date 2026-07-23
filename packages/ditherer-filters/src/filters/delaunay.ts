@@ -16,7 +16,7 @@ export const optionTypes = {
   edgeWeight: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Bias points toward image edges vs random" },
   showEdges: { type: BOOL, default: false, desc: "Draw triangle outlines" },
   seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for point placement" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -94,8 +94,31 @@ const triangulate = (points: { x: number; y: number }[], W: number, H: number) =
   return { triangles: triangles.filter(t => t[0] > 2 && t[1] > 2 && t[2] > 2), points: allPts };
 };
 
+const barycentricAt = (
+  x: number,
+  y: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+): [number, number, number] | null => {
+  const denominator = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+  if (Math.abs(denominator) < 1e-9) return null;
+  const u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / denominator;
+  const v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / denominator;
+  const w = 1 - u - v;
+  return u >= -1e-7 && v >= -1e-7 && w >= -1e-7 ? [u, v, w] : null;
+};
+
 const delaunay = (input: any, options = defaults) => {
-  const { pointCount, edgeWeight, showEdges, seed, palette } = options;
+  const normalized = { ...defaults, ...options };
+  const pointCount = Number(normalized.pointCount) || defaults.pointCount;
+  const edgeWeight = Math.max(0, Math.min(1, Number(normalized.edgeWeight) || 0));
+  const showEdges = Boolean(normalized.showEdges);
+  const seed = Number(normalized.seed) || 0;
+  const palette = normalized.palette ?? defaults.palette;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -106,12 +129,17 @@ const delaunay = (input: any, options = defaults) => {
   const outBuf = new Uint8ClampedArray(buf.length);
   const rng = mulberry32(seed);
 
+  if (W <= 1 || H <= 1) {
+    outputCtx.putImageData(new ImageData(new Uint8ClampedArray(buf), W, H), 0, 0);
+    return output;
+  }
+
   // Performance guard: cap points for large images, and clamp against the
   // module-level ceiling in case audio modulation pushed the raw pointCount
   // above the option range (modulation bypasses the slider bounds).
   const totalPixels = W * H;
   const cap = Math.min(POINT_COUNT_CAP, totalPixels > 500000 ? 500 : POINT_COUNT_CAP);
-  const effectivePoints = Math.max(1, Math.min(pointCount | 0, cap));
+  const effectivePoints = Math.max(4, Math.min(pointCount | 0, cap));
   // The slider still reads 800 while we quietly render 500, so say so rather
   // than leaving the user to wonder why the control stopped doing anything.
   if (effectivePoints < (pointCount | 0)) {
@@ -126,8 +154,21 @@ const delaunay = (input: any, options = defaults) => {
   const lum = computeLuminance(buf, W, H);
   const { magnitude } = sobelEdges(lum, W, H);
 
-  const points: { x: number; y: number }[] = [];
-  for (let i = 0; i < effectivePoints; i++) {
+  // A Delaunay triangulation covers the convex hull of its sites. Reserve the
+  // four raster corners so that hull is the complete image rather than a
+  // random inset polygon, then deduplicate stochastic sites.
+  const points: { x: number; y: number }[] = [
+    { x: 0, y: 0 },
+    { x: W - 1, y: 0 },
+    { x: W - 1, y: H - 1 },
+    { x: 0, y: H - 1 },
+  ];
+  const occupied = new Set(points.map(point => `${point.x},${point.y}`));
+  const randomPointCount = Math.max(0, effectivePoints - points.length);
+  let attempts = 0;
+  while (points.length < effectivePoints && attempts < Math.max(32, randomPointCount * 8)) {
+    attempts++;
+    let candidate: { x: number; y: number };
     if (rng() < edgeWeight) {
       // Edge-biased: try several random positions, pick the one with highest edge magnitude
       let bestX = 0, bestY = 0, bestMag = -1;
@@ -138,16 +179,20 @@ const delaunay = (input: any, options = defaults) => {
           bestMag = magnitude[y * W + x]; bestX = x; bestY = y;
         }
       }
-      points.push({ x: bestX, y: bestY });
+      candidate = { x: bestX, y: bestY };
     } else {
-      points.push({ x: Math.floor(rng() * W), y: Math.floor(rng() * H) });
+      candidate = { x: Math.floor(rng() * W), y: Math.floor(rng() * H) };
     }
+    const key = `${candidate.x},${candidate.y}`;
+    if (occupied.has(key)) continue;
+    occupied.add(key);
+    points.push(candidate);
   }
 
   const { triangles, points: allPts } = triangulate(points, W, H);
 
-  // For each pixel, find which triangle it belongs to and fill with average color
-  // Build per-pixel triangle assignment via scanline rasterization
+  const assigned = new Uint8Array(W * H);
+  // Build per-pixel triangle assignment via bounded rasterization.
   for (const tri of triangles) {
     const [ai, bi, ci] = tri;
     const ax = allPts[ai].x, ay = allPts[ai].y;
@@ -160,44 +205,52 @@ const delaunay = (input: any, options = defaults) => {
     const minY = Math.max(0, Math.floor(Math.min(ay, by, cy)));
     const maxY = Math.min(H - 1, Math.ceil(Math.max(ay, by, cy)));
 
-    // Average color of triangle
-    let sr = 0, sg = 0, sb = 0, cnt = 0;
+    // Alpha-weighted visible mean: hidden RGB must not steer a pane color.
+    let sr = 0, sg = 0, sb = 0, weight = 0;
     for (let y = minY; y <= maxY; y++)
       for (let x = minX; x <= maxX; x++) {
-        // Barycentric test
-        const d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
-        if (Math.abs(d) < 0.001) continue;
-        const u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / d;
-        const v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / d;
-        const w = 1 - u - v;
-        if (u < 0 || v < 0 || w < 0) continue;
+        if (!barycentricAt(x, y, ax, ay, bx, by, cx, cy)) continue;
         const si = getBufferIndex(x, y, W);
-        sr += buf[si]; sg += buf[si + 1]; sb += buf[si + 2]; cnt++;
+        const alphaWeight = (buf[si + 3] ?? 0) / 255;
+        if (alphaWeight <= 0) continue;
+        sr += buf[si] * alphaWeight;
+        sg += buf[si + 1] * alphaWeight;
+        sb += buf[si + 2] * alphaWeight;
+        weight += alphaWeight;
       }
 
-    if (cnt === 0) continue;
-    const avgR = Math.round(sr / cnt), avgG = Math.round(sg / cnt), avgB = Math.round(sb / cnt);
+    const avgR = weight > 0 ? Math.round(sr / weight) : 0;
+    const avgG = weight > 0 ? Math.round(sg / weight) : 0;
+    const avgB = weight > 0 ? Math.round(sb / weight) : 0;
+    const mapped = paletteGetColor(palette, rgba(avgR, avgG, avgB, 255), palette.options, false);
 
     // Fill triangle
     for (let y = minY; y <= maxY; y++)
       for (let x = minX; x <= maxX; x++) {
-        const d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
-        if (Math.abs(d) < 0.001) continue;
-        const u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / d;
-        const v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / d;
-        const w = 1 - u - v;
-        if (u < 0 || v < 0 || w < 0) continue;
+        const barycentric = barycentricAt(x, y, ax, ay, bx, by, cx, cy);
+        if (!barycentric) continue;
+        const [u, v, w] = barycentric;
 
         const di = getBufferIndex(x, y, W);
+        assigned[y * W + x] = 1;
+        const alpha = buf[di + 3] ?? 0;
         // Edge detection: near triangle boundary
         const isNearEdge = showEdges && (u < 0.02 || v < 0.02 || w < 0.02);
         if (isNearEdge) {
-          fillBufferPixel(outBuf, di, 30, 30, 30, 255);
+          fillBufferPixel(outBuf, di, 30, 30, 30, alpha);
         } else {
-          const color = paletteGetColor(palette, rgba(avgR, avgG, avgB, 255), palette.options, false);
-          fillBufferPixel(outBuf, di, color[0], color[1], color[2], 255);
+          fillBufferPixel(outBuf, di, mapped[0], mapped[1], mapped[2], alpha);
         }
       }
+  }
+
+  // Defensive numerical fallback. Corner hull sites should cover every raster
+  // sample; retaining the source here prevents a future precision regression
+  // from turning an unassigned pixel into a transparent crack.
+  for (let pixel = 0; pixel < assigned.length; pixel++) {
+    if (assigned[pixel]) continue;
+    const offset = pixel * 4;
+    fillBufferPixel(outBuf, offset, buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]);
   }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);

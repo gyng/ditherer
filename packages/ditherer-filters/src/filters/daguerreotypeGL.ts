@@ -22,15 +22,16 @@ uniform int u_radius;
 void main() {
   vec2 pixel = v_uv * u_res;
   float row = floor(pixel.y);
-  vec4 sum = vec4(0.0);
+  vec3 sum = vec3(0.0);
   float count = 0.0;
   for (int offset = -4; offset <= 4; offset++) {
     if (offset < -u_radius || offset > u_radius) continue;
     float column = clamp(floor(pixel.x) + float(offset), 0.0, u_res.x - 1.0);
-    sum += texture(u_input, (vec2(column, row) + 0.5) / u_res);
+    sum += texture(u_input, (vec2(column, row) + 0.5) / u_res).rgb;
     count += 1.0;
   }
-  fragColor = sum / count;
+  float sourceAlpha = texture(u_input, (vec2(floor(pixel.x), row) + 0.5) / u_res).a;
+  fragColor = vec4(sum / count, sourceAlpha);
 }
 `;
 
@@ -79,15 +80,16 @@ void main() {
   vec2 pixel = v_uv * u_res;
   float column = floor(pixel.x);
   float row = floor(pixel.y);
-  vec4 sum = vec4(0.0);
+  vec3 sum = vec3(0.0);
   float count = 0.0;
   for (int offset = -4; offset <= 4; offset++) {
     if (offset < -u_radius || offset > u_radius) continue;
     float sampleRow = clamp(row + float(offset), 0.0, u_res.y - 1.0);
-    sum += texture(u_blurH, (vec2(column, sampleRow) + 0.5) / u_res);
+    sum += texture(u_blurH, (vec2(column, sampleRow) + 0.5) / u_res).rgb;
     count += 1.0;
   }
-  vec4 source = sum / count;
+  float sourceAlpha = texture(u_blurH, (vec2(column, row) + 0.5) / u_res).a;
+  vec4 source = vec4(sum / count, sourceAlpha);
   vec3 linearSource = srgbToLinear(source.rgb);
   float luminance = dot(linearSource, vec3(0.2126, 0.7152, 0.0722));
 

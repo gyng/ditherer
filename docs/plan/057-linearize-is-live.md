@@ -22,7 +22,7 @@ accepts the option and ignores it is indistinguishable from one that honours it.
 | **Halftone** | **0** | Random | 879 |
 | | | Riemersma | 636 |
 
-`runLinearizeIsLive` in `src/glSmoke.ts` keeps this honest.
+`runLinearizeIsLive` in `src/gl-smoke/contracts/core.ts` keeps this honest.
 
 ## The one gap: Halftone
 

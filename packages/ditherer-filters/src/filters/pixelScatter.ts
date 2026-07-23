@@ -8,11 +8,11 @@ export const optionTypes = {
   spread: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "Max random scatter distance in pixels" },
   threshold: { type: RANGE, range: [0, 200], step: 1, default: 50, desc: "Edge strength required to trigger scatter" },
   density: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Fraction of edge pixels that scatter" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Preview animation frame rate" },
+  animate: { type: ACTION, label: "Play / Stop", desc: "Start or stop frame-varying edge-pixel scattering", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
   }},
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -82,5 +82,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
+  temporal: true,
   noGL: "Scatter-push model: each edge source writes to a random nearby pixel with last-write-wins ordering. Pull-model equivalent would require scanning a window around every output pixel to find any sources that might have landed there — ordering semantics and cost make this unwieldy in a fragment shader.",
 });

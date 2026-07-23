@@ -4,9 +4,11 @@ import {
   getBufferIndex,
   clamp,
   logFilterBackend,
-  logFilterWasmStatus,
+  releasePooledCanvas,
+  takePooledCanvas,
+  withPooledCanvasCleanup,
 } from "../utils/index";
-import { applyJpegArtifactToCanvas, defaults as jpegDefaults } from "./jpegArtifact";
+import { tryApplyJpegArtifactToCanvas, defaults as jpegDefaults } from "./jpegArtifact";
 import { defineFilter } from "./types";
 import {
   drawPass,
@@ -14,6 +16,7 @@ import {
   getGLCtx,
   getQuadVAO,
   glAvailable,
+  glUnavailableStub,
   linkProgram,
   readoutToCanvas,
   resizeGLCanvas,
@@ -21,7 +24,13 @@ import {
   type Program,
   type TexEntry,
 } from "../gl/index";
+import {
+  normalizeBooleanOption,
+  normalizeEnumOption,
+  normalizeRangeOption,
+} from "../utils/filterOptions";
 const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
+const JPEG_CODEC_UNAVAILABLE = Symbol("mavica-jpeg-codec-unavailable");
 
 const QUALITY_FINE     = "FINE";
 const QUALITY_STANDARD = "STANDARD";
@@ -109,7 +118,12 @@ export const optionTypes = {
   flashOffsetX: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Horizontal flash aim offset (for off-center framing)" },
   flashOffsetY: { type: RANGE, range: [-1, 1], step: 0.01, default: -0.08, desc: "Vertical flash aim offset (slightly above center feels more camera-like)" },
   smear: { type: BOOL, default: false, desc: "CCD smear artifact on bright highlights" },
-  nativeVgaOutput: { type: BOOL, default: false, desc: "Keep authentic Mavica output resolution at 640x480 instead of scaling back to input size" },
+  nativeVgaOutput: {
+    type: BOOL,
+    label: "Native resolution ceiling",
+    default: false,
+    desc: "Limit output to the sensor working size, up to 640×480, instead of rescaling it to a larger input canvas",
+  },
   frameJitter: { type: ENUM, options: [
     { name: "Off", value: "0" },
     { name: "Low", value: "1" },
@@ -132,6 +146,10 @@ export const defaults = {
   smear:    optionTypes.smear.default,
   nativeVgaOutput: optionTypes.nativeVgaOutput.default,
   frameJitter: optionTypes.frameJitter.default,
+};
+
+type MavicaFd7Options = Partial<typeof defaults> & {
+  _frameIndex?: number;
 };
 
 // AWB colour multipliers — measured from real FD7 output.
@@ -182,30 +200,24 @@ const NOISE_PARAMS = {
 
 type JpegPreset = typeof jpegDefaults;
 
-// Deterministic-looking noise from pixel coordinates.
-// Uses a simple hash to avoid Math.random() producing different output per run
-// while still appearing random spatially.
-const pixelNoise = (x: number, y: number, seed: number): number => {
-  let h = (x * 374761393 + y * 668265263 + seed * 1274126177) | 0;
-  h = ((h ^ (h >> 13)) * 1103515245) | 0;
-  return ((h >> 16) & 0xFFFF) / 65535;  // 0..1
-};
-
 const computeAutoAwb = (buf: Uint8ClampedArray) => {
   let rSum = 0;
   let gSum = 0;
   let bSum = 0;
-  const px = Math.max(1, buf.length / 4);
+  let coverageSum = 0;
 
   for (let i = 0; i < buf.length; i += 4) {
-    rSum += readU8(buf, i);
-    gSum += readU8(buf, i + 1);
-    bSum += readU8(buf, i + 2);
+    const coverage = readU8(buf, i + 3) / 255;
+    rSum += readU8(buf, i) * coverage;
+    gSum += readU8(buf, i + 1) * coverage;
+    bSum += readU8(buf, i + 2) * coverage;
+    coverageSum += coverage;
   }
 
-  const rAvg = rSum / px;
-  const gAvg = gSum / px;
-  const bAvg = bSum / px;
+  if (coverageSum <= 1e-6) return AWB[LIGHTING_AUTO];
+  const rAvg = rSum / coverageSum;
+  const gAvg = gSum / coverageSum;
+  const bAvg = bSum / coverageSum;
   const target = (rAvg + gAvg + bAvg) / 3;
 
   // Mild clamp to avoid extreme casts; slight warm bias like late-90s CCD auto WB.
@@ -216,56 +228,10 @@ const computeAutoAwb = (buf: Uint8ClampedArray) => {
   return [rMul, gMul, bMul] as const;
 };
 
-const applySoulTone = (buf: Uint8ClampedArray, w: number, h: number) => {
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const i = getBufferIndex(x, y, w);
-      for (let c = 0; c < 3; c += 1) {
-        const v = readU8(buf, i + c) / 255;
-        // Lift deep shadows slightly, compress highlights, keep midtones gentle.
-        const toe = v < 0.08 ? v * 0.65 + 0.02 : v;
-        const shoulder = toe > 0.78 ? 0.78 + (toe - 0.78) * 0.58 : toe;
-        buf[i + c] = clamp(0, 255, Math.round(shoulder * 255));
-      }
-    }
-  }
-};
-
-const applyChromaDelay = (buf: Uint8ClampedArray, w: number, h: number, pixels: number) => {
-  if (pixels <= 0) return;
-  const src = new Uint8ClampedArray(buf);
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const di = getBufferIndex(x, y, w);
-      const sx = Math.max(0, Math.min(w - 1, x - pixels));
-      const si = getBufferIndex(sx, y, w);
-      // Shift chroma-dominant channels for mild camcorder-like color lag.
-      buf[di] = readU8(src, si);
-      buf[di + 2] = readU8(src, si + 2);
-    }
-  }
-};
-
-const applyVerticalSoften = (buf: Uint8ClampedArray, w: number, h: number, amount: number) => {
-  if (amount <= 0) return;
-  const src = new Uint8ClampedArray(buf);
-  const a = clamp(0, 1, amount);
-  for (let y = 1; y < h - 1; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const i = getBufferIndex(x, y, w);
-      const iu = getBufferIndex(x, y - 1, w);
-      const id = getBufferIndex(x, y + 1, w);
-      for (let c = 0; c < 3; c += 1) {
-        const mid = readU8(src, i + c);
-        const avg = (readU8(src, iu + c) + readU8(src, id + c)) * 0.5;
-        buf[i + c] = clamp(0, 255, Math.round(mid * (1 - a) + avg * a));
-      }
-    }
-  }
-};
-
 const estimateSceneComplexity = (buf: Uint8ClampedArray, w: number, h: number) => {
-  // Lightweight proxy for entropy/detail to tune JPEG pressure.
+  // Lightweight proxy for entropy/detail to tune JPEG pressure. The camera
+  // signal is already coverage weighted before it reaches this spatial stage,
+  // so transparent colour contributes once rather than being weighted twice.
   const step = Math.max(1, Math.floor(Math.min(w, h) / 120));
   let gradSum = 0;
   let varSum = 0;
@@ -326,196 +292,6 @@ const getBudgetedJpegPreset = (quality: string, complexity: number, flash: boole
   return tuned;
 };
 
-const applySceneMode = (buf: Uint8ClampedArray, w: number, h: number, sceneMode: string) => {
-  if (sceneMode === SCENE_AUTO) return;
-
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const i = getBufferIndex(x, y, w);
-      let r = readU8(buf, i);
-      let g = readU8(buf, i + 1);
-      let b = readU8(buf, i + 2);
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-      if (sceneMode === SCENE_SOFT_PORTRAIT) {
-        const t = lum / 255;
-        r = r * 1.04 + 6;
-        g = g * 1.01 + 3;
-        b = b * 0.98 + 1;
-        const lift = (0.18 - Math.abs(t - 0.5)) * 24;
-        r += lift;
-        g += lift;
-        b += lift;
-      } else if (sceneMode === SCENE_SPORTS) {
-        r = (r - 128) * 1.08 + 128;
-        g = (g - 128) * 1.08 + 128;
-        b = (b - 128) * 1.08 + 128;
-      } else if (sceneMode === SCENE_BEACH_SKI) {
-        const highlightProtect = lum > 210 ? 0.86 : 1.04;
-        r = r * highlightProtect * 0.98;
-        g = g * highlightProtect * 1.01;
-        b = b * highlightProtect * 1.08;
-      } else if (sceneMode === SCENE_SUNSET_MOON) {
-        r = r * 1.12 + 6;
-        g = g * 0.98;
-        b = b * 0.86;
-        if (lum < 70) {
-          r += 4;
-          g += 2;
-        }
-      } else if (sceneMode === SCENE_LANDSCAPE) {
-        const c = 1.12;
-        r = (r - 128) * c + 128;
-        g = (g - 128) * c + 128;
-        b = (b - 128) * c + 128;
-        g *= 1.06;
-      }
-
-      buf[i] = clamp(0, 255, Math.round(r));
-      buf[i + 1] = clamp(0, 255, Math.round(g));
-      buf[i + 2] = clamp(0, 255, Math.round(b));
-    }
-  }
-};
-
-const applyPictureEffect = (buf: Uint8ClampedArray, w: number, h: number, pictureEffect: string) => {
-  if (pictureEffect === FX_NONE) return;
-
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const i = getBufferIndex(x, y, w);
-      const r = readU8(buf, i);
-      const g = readU8(buf, i + 1);
-      const b = readU8(buf, i + 2);
-
-      if (pictureEffect === FX_NEG_ART) {
-        buf[i] = 255 - r;
-        buf[i + 1] = 255 - g;
-        buf[i + 2] = 255 - b;
-        continue;
-      }
-
-      if (pictureEffect === FX_BW) {
-        const yv = clamp(0, 255, Math.round(0.299 * r + 0.587 * g + 0.114 * b));
-        buf[i] = yv;
-        buf[i + 1] = yv;
-        buf[i + 2] = yv;
-        continue;
-      }
-
-      if (pictureEffect === FX_SEPIA) {
-        const nr = 0.393 * r + 0.769 * g + 0.189 * b;
-        const ng = 0.349 * r + 0.686 * g + 0.168 * b;
-        const nb = 0.272 * r + 0.534 * g + 0.131 * b;
-        buf[i] = clamp(0, 255, Math.round(nr));
-        buf[i + 1] = clamp(0, 255, Math.round(ng));
-        buf[i + 2] = clamp(0, 255, Math.round(nb));
-        continue;
-      }
-
-      // PASTEL: flatter tones + animation-like color separation
-      const lum = (r + g + b) / 3;
-      const sat = 1.18;
-      const rr = lum + (r - lum) * sat;
-      const gg = lum + (g - lum) * sat;
-      const bb = lum + (b - lum) * sat;
-      const q = 18;
-      buf[i] = clamp(0, 255, Math.round(Math.round(rr / q) * q));
-      buf[i + 1] = clamp(0, 255, Math.round(Math.round(gg / q) * q));
-      buf[i + 2] = clamp(0, 255, Math.round(Math.round(bb / q) * q));
-    }
-  }
-};
-
-const applyInterlacedCapture = (
-  buf: Uint8ClampedArray,
-  w: number,
-  h: number,
-  captureMode: string,
-  frameJitter: number
-) => {
-  const src = new Uint8ClampedArray(buf);
-
-  if (captureMode === CAPTURE_FIELD) {
-    // Simulate single-field capture (240 lines) resampled to 480.
-    for (let y = 0; y < h; y += 1) {
-      if ((y & 1) === 0) continue;
-      const y0 = y - 1;
-      const y1 = Math.min(h - 1, y + 1);
-      for (let x = 0; x < w; x += 1) {
-        const di = getBufferIndex(x, y, w);
-        const i0 = getBufferIndex(x, y0, w);
-        const i1 = getBufferIndex(x, y1, w);
-        buf[di] = (readU8(src, i0) + readU8(src, i1)) >> 1;
-        buf[di + 1] = (readU8(src, i0 + 1) + readU8(src, i1 + 1)) >> 1;
-        buf[di + 2] = (readU8(src, i0 + 2) + readU8(src, i1 + 2)) >> 1;
-      }
-    }
-    return;
-  }
-
-  // Simulate frame mode combining two interlaced fields captured at different instants.
-  const jitter = Math.max(0, Math.min(3, frameJitter));
-  for (let y = 1; y < h; y += 2) {
-    const shiftX = Math.round((pixelNoise(y, 0, 211) - 0.5) * 2 * jitter);
-    const shiftY = Math.round((pixelNoise(y, 0, 223) - 0.5) * jitter);
-    const srcY = Math.max(0, Math.min(h - 1, y + shiftY));
-    for (let x = 0; x < w; x += 1) {
-      const srcX = Math.max(0, Math.min(w - 1, x + shiftX));
-      const di = getBufferIndex(x, y, w);
-      const si = getBufferIndex(srcX, srcY, w);
-      buf[di] = readU8(src, si);
-      buf[di + 1] = readU8(src, si + 1);
-      buf[di + 2] = readU8(src, si + 2);
-    }
-  }
-};
-
-const applyDigicamFlashLighting = (
-  buf: Uint8ClampedArray,
-  w: number,
-  h: number,
-  flashPower: number,
-  flashFalloff: number,
-  flashOffsetX: number,
-  flashOffsetY: number
-) => {
-  const power = clamp(0, 2.5, flashPower);
-  if (power <= 0) return;
-  const falloff = clamp(0.5, 4, flashFalloff);
-  const cx = w * (0.5 + clamp(-1, 1, flashOffsetX) * 0.2);
-  const cy = h * (0.45 + clamp(-1, 1, flashOffsetY) * 0.2);
-  const maxR = Math.max(w, h) * 0.9;
-
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const i = getBufferIndex(x, y, w);
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy) / maxR;
-      const radial = clamp(0, 1, 1 - dist);
-      const illum = power * Math.pow(radial, falloff);
-
-      // Background drops faster, foreground/hotspot rises quickly.
-      const baseGain = 0.74 + illum * 1.35;
-      let r = readU8(buf, i) * baseGain * 1.02;
-      let g = readU8(buf, i + 1) * baseGain * 1.0;
-      let b = readU8(buf, i + 2) * baseGain * 0.98;
-
-      // Specular pop on bright/reflective surfaces under flash.
-      const lum = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
-      const spec = Math.pow(clamp(0, 1, (lum - 120) / 135), 2) * illum * 125;
-      r += spec;
-      g += spec;
-      b += spec * 0.95;
-
-      buf[i] = clamp(0, 255, Math.round(r));
-      buf[i + 1] = clamp(0, 255, Math.round(g));
-      buf[i + 2] = clamp(0, 255, Math.round(b));
-    }
-  }
-};
-
 // ===== GL pre/post color stages =====
 // Pre-JPEG shader: AWB → saturation → flash illum → scene mode → picture
 // effect → soul tone → chroma delay. Interlace + vertical soften handled by
@@ -546,23 +322,15 @@ float hash2(vec2 p, float s) {
   return fract((p.x + p.y) * p.x);
 }
 
-vec3 samplePx(float sx, float sy) {
+vec4 samplePx(float sx, float sy) {
   float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
   float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
   vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
-  return texture(u_source, uv).rgb * 255.0;
+  vec4 sampleValue = texture(u_source, uv);
+  return vec4(sampleValue.rgb * 255.0, sampleValue.a);
 }
 
-void main() {
-  vec2 px = v_uv * u_res;
-  float x = floor(px.x);
-  float y = u_res.y - 1.0 - floor(px.y);
-
-  // Chroma delay: R and B sampled from x-1, G from x.
-  vec3 self = samplePx(x, y);
-  vec3 shifted = samplePx(x - 1.0, y);
-  vec3 c = vec3(shifted.r, self.g, shifted.b);
-
+vec3 processCameraColor(vec3 c, float x, float y) {
   // AWB
   c *= u_awb;
   if (u_fluorescent == 1) {
@@ -645,7 +413,29 @@ void main() {
     c[k] = clamp(shoulder * 255.0, 0.0, 255.0);
   }
 
-  fragColor = vec4(c / 255.0, 1.0);
+  return c;
+}
+
+void main() {
+  vec2 px = v_uv * u_res;
+  float x = floor(px.x);
+  float y = u_res.y - 1.0 - floor(px.y);
+  vec4 self = samplePx(x, y);
+  vec4 shifted = samplePx(x - 1.0, y);
+
+  // Finish the per-pixel camera pipeline before the first neighbourhood
+  // operation. Chroma delay then converts the signal to coverage-weighted
+  // RGB, preventing nearly transparent colour from entering later field and
+  // JPEG samples at full strength.
+  vec3 selfColor = processCameraColor(self.rgb, x, y);
+  vec3 shiftedColor = processCameraColor(shifted.rgb, x - 1.0, y);
+  float chromaCoverage = min(shifted.a, self.a);
+  vec3 c = vec3(
+    shiftedColor.r * chromaCoverage,
+    selfColor.g * self.a,
+    shiftedColor.b * chromaCoverage
+  );
+  fragColor = vec4(c / 255.0, self.a);
 }
 `;
 
@@ -675,6 +465,14 @@ vec4 samplePx(float sx, float sy) {
   return texture(u_input, uv);
 }
 
+vec3 sampleForCoverage(float sx, float sy, float destinationCoverage) {
+  vec4 sampleValue = samplePx(sx, sy);
+  float scale = sampleValue.a > 0.0
+    ? min(1.0, destinationCoverage / sampleValue.a)
+    : 0.0;
+  return sampleValue.rgb * scale;
+}
+
 void main() {
   vec2 px = v_uv * u_res;
   float x = floor(px.x);
@@ -684,18 +482,25 @@ void main() {
   if (u_captureField == 1) {
     // FIELD: odd rows become average of their even neighbours.
     if (isOdd) {
-      vec4 a = samplePx(x, y - 1.0);
-      vec4 b = samplePx(x, min(u_res.y - 1.0, y + 1.0));
-      fragColor = vec4((a.rgb + b.rgb) * 0.5, 1.0);
+      float destinationCoverage = samplePx(x, y).a;
+      vec3 a = sampleForCoverage(x, y - 1.0, destinationCoverage);
+      vec3 b = sampleForCoverage(x, min(u_res.y - 1.0, y + 1.0), destinationCoverage);
+      fragColor = vec4((a + b) * 0.5, destinationCoverage);
     } else {
       fragColor = samplePx(x, y);
     }
   } else {
     // FRAME: odd rows shifted by jitter (simulates second-field motion).
     if (isOdd && u_jitter > 0.0) {
-      float sx = floor((hash2(vec2(y, 0.0), u_seed + 211.0) - 0.5) * 2.0 * u_jitter);
-      float sy = floor((hash2(vec2(y, 0.0), u_seed + 223.0) - 0.5) * u_jitter);
-      fragColor = samplePx(x + sx, y + sy);
+      // floor(value + 0.5) matches JS Math.round, including negative values,
+      // and avoids floor's one-sided jitter bias.
+      float sx = floor((hash2(vec2(y, 0.0), u_seed + 211.0) - 0.5) * 2.0 * u_jitter + 0.5);
+      float sy = floor((hash2(vec2(y, 0.0), u_seed + 223.0) - 0.5) * u_jitter + 0.5);
+      float destinationCoverage = samplePx(x, y).a;
+      fragColor = vec4(
+        sampleForCoverage(x + sx, y + sy, destinationCoverage),
+        destinationCoverage
+      );
     } else {
       fragColor = samplePx(x, y);
     }
@@ -725,8 +530,12 @@ void main() {
   }
   vec2 uvUp = vec2((x + 0.5) / u_res.x, 1.0 - (y - 1.0 + 0.5) / u_res.y);
   vec2 uvDn = vec2((x + 0.5) / u_res.x, 1.0 - (y + 1.0 + 0.5) / u_res.y);
-  vec3 avg = (texture(u_input, uvUp).rgb + texture(u_input, uvDn).rgb) * 0.5;
-  fragColor = vec4(mid.rgb * (1.0 - u_amount) + avg * u_amount, 1.0);
+  vec4 upper = texture(u_input, uvUp);
+  vec4 lower = texture(u_input, uvDn);
+  float upperScale = upper.a > 0.0 ? min(1.0, mid.a / upper.a) : 0.0;
+  float lowerScale = lower.a > 0.0 ? min(1.0, mid.a / lower.a) : 0.0;
+  vec3 avg = (upper.rgb * upperScale + lower.rgb * lowerScale) * 0.5;
+  fragColor = vec4(mid.rgb * (1.0 - u_amount) + avg * u_amount, mid.a);
 }
 `;
 
@@ -739,6 +548,7 @@ in vec2 v_uv;
 out vec4 fragColor;
 
 uniform sampler2D u_input;
+uniform sampler2D u_alphaSource;
 uniform vec2  u_res;
 uniform int   u_smear;
 uniform float u_smearThreshold;
@@ -755,11 +565,14 @@ float hash2(vec2 p, float s) {
   return fract((p.x + p.y) * p.x);
 }
 
-vec3 samplePx(float sx, float sy) {
+vec4 samplePx(float sx, float sy) {
   float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
   float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
   vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
-  return texture(u_input, uv).rgb * 255.0;
+  return vec4(
+    texture(u_input, uv).rgb * 255.0,
+    texture(u_alphaSource, uv).a
+  );
 }
 
 void main() {
@@ -767,7 +580,9 @@ void main() {
   float x = floor(px.x);
   float y = u_res.y - 1.0 - floor(px.y);
 
-  vec3 c = samplePx(x, y);
+  vec4 center = samplePx(x, y);
+  float outputAlpha = center.a;
+  vec3 c = clamp(center.rgb, vec3(0.0), vec3(255.0 * outputAlpha));
 
   // Smear: for each vertical offset d in ±25, look at the pixel at (x, y+d).
   // If that pixel is above threshold, it projects a smear onto us whose
@@ -777,36 +592,52 @@ void main() {
       for (int side = 0; side < 2; side++) {
         float yy = side == 0 ? y - float(d) : y + float(d);
         if (yy < 0.0 || yy >= u_res.y) continue;
-        vec3 bright = samplePx(x, yy);
+        vec4 brightSample = samplePx(x, yy);
+        vec3 boundedBright = clamp(
+          brightSample.rgb,
+          vec3(0.0),
+          vec3(255.0 * brightSample.a)
+        );
+        vec3 bright = brightSample.a > 0.0
+          ? boundedBright / brightSample.a
+          : vec3(0.0);
         float lum = 0.299 * bright.r + 0.587 * bright.g + 0.114 * bright.b;
         if (lum <= u_smearThreshold) continue;
         float decay = 1.0 - pow(float(d) / 25.0, 1.5);
         float blend = decay * 0.85;
-        vec3 smeared = bright + (vec3(255.0) - bright) * blend;
+        float smearCoverage = min(brightSample.a, outputAlpha);
+        vec3 smearedStraight = bright + (vec3(255.0) - bright) * blend;
+        vec3 smeared = smearedStraight * smearCoverage;
         c = max(c, smeared);
       }
     }
   }
 
   // Shadow noise
-  float lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  vec3 straightForNoise = outputAlpha > 0.0 ? c / outputAlpha : vec3(0.0);
+  float lum = 0.299 * straightForNoise.r + 0.587 * straightForNoise.g + 0.114 * straightForNoise.b;
   if (lum < u_shadowCut) {
     float t = (u_shadowCut - lum) / u_shadowCut;
-    c.r += (hash2(vec2(x, y), u_seed + 73.0) - 0.5) * 2.0 * u_noiseRB * t;
-    c.g += (hash2(vec2(x, y), u_seed + 89.0) - 0.5) * 2.0 * u_noiseG  * t;
-    c.b += (hash2(vec2(x, y), u_seed + 97.0) - 0.5) * 2.0 * u_noiseRB * t;
+    c.r += (hash2(vec2(x, y), u_seed + 73.0) - 0.5) * 2.0 * u_noiseRB * t * outputAlpha;
+    c.g += (hash2(vec2(x, y), u_seed + 89.0) - 0.5) * 2.0 * u_noiseG  * t * outputAlpha;
+    c.b += (hash2(vec2(x, y), u_seed + 97.0) - 0.5) * 2.0 * u_noiseRB * t * outputAlpha;
   }
 
   // Hard highlight clip + shadow crush
+  vec3 straight = outputAlpha > 0.0 ? c / outputAlpha : vec3(0.0);
   c = vec3(
-    c.r > u_clipPoint ? 255.0 : c.r,
-    c.g > u_clipPoint ? 255.0 : c.g,
-    c.b > u_clipPoint ? 255.0 : c.b
+    straight.r > u_clipPoint ? 255.0 * outputAlpha : c.r,
+    straight.g > u_clipPoint ? 255.0 * outputAlpha : c.g,
+    straight.b > u_clipPoint ? 255.0 * outputAlpha : c.b
   );
-  float lum2 = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  float lum2 = 0.299 * straight.r + 0.587 * straight.g + 0.114 * straight.b;
   if (lum2 < 8.0) c = vec3(0.0);
 
-  fragColor = vec4(clamp(c, 0.0, 255.0) / 255.0, 1.0);
+  vec3 bounded = clamp(c, vec3(0.0), vec3(255.0 * outputAlpha));
+  vec3 straightOutput = outputAlpha > 0.0
+    ? bounded / (255.0 * outputAlpha)
+    : vec3(0.0);
+  fragColor = vec4(straightOutput, outputAlpha);
 }
 `;
 
@@ -825,7 +656,7 @@ const initGLCache = (gl: WebGL2RenderingContext): GLCache => {
     ] as const),
     soften: linkProgram(gl, SOFTEN_FS, ["u_input", "u_res", "u_amount"] as const),
     post: linkProgram(gl, POST_FS, [
-      "u_input", "u_res", "u_smear", "u_smearThreshold", "u_flash",
+      "u_input", "u_alphaSource", "u_res", "u_smear", "u_smearThreshold", "u_flash",
       "u_noiseRB", "u_noiseG", "u_shadowCut", "u_clipPoint", "u_seed",
     ] as const),
   };
@@ -853,7 +684,7 @@ const runGLPipeline = (
   smear: boolean,
   quality: string,
   frameIndex: number,
-): HTMLCanvasElement | OffscreenCanvas | null => {
+): HTMLCanvasElement | OffscreenCanvas | typeof JPEG_CODEC_UNAVAILABLE | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
   const { gl, canvas } = ctx;
@@ -865,7 +696,6 @@ const runGLPipeline = (
   uploadSourceTexture(gl, sourceTex, src);
   const preTex: TexEntry = ensureTexture(gl, "mavicaFd7:pre", W, H);
   const interlaceTex: TexEntry = ensureTexture(gl, "mavicaFd7:interlace", W, H);
-  const softenTex: TexEntry = ensureTexture(gl, "mavicaFd7:soften", W, H);
 
   const seed = ((frameIndex * 7919 + 31337) % 1000000) * 0.001;
 
@@ -890,7 +720,7 @@ const runGLPipeline = (
     gl.uniform1i(cache.pre.uniforms.u_fx, FX_ID[pictureEffect] ?? 0);
   }, vao);
 
-  // Pass 2: interlace. Target = softenTex (soften follows in FIELD mode)
+  // Pass 2: interlace. Target = interlaceTex (soften follows in FIELD mode)
   // or the default framebuffer (null = the GL canvas) in FRAME mode so we
   // can readoutToCanvas it directly.
   const effectiveFieldMode = flashOn && captureMode === CAPTURE_FRAME
@@ -918,45 +748,85 @@ const runGLPipeline = (
       gl.uniform1f(cache.soften.uniforms.u_amount, 0.22);
     }, vao);
   }
-  void softenTex;
-
-  // GL canvas now holds the pre-JPEG result. Hand off to JPEG (GL when
-  // eligible, WASM fallback) then run the post pass.
+  // GL canvas now holds the pre-JPEG result. Hand off to the GL JPEG codec,
+  // then run the post pass.
   const preJpegCanvas = readoutToCanvas(canvas, W, H);
   if (!preJpegCanvas) return null;
+  return withPooledCanvasCleanup([preJpegCanvas], () => {
+    const preCtx = (preJpegCanvas as HTMLCanvasElement | OffscreenCanvas).getContext("2d") as
+      CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    const complexityBuf = preCtx?.getImageData(0, 0, W, H).data;
+    const complexity = complexityBuf ? estimateSceneComplexity(complexityBuf, W, H) : 0.5;
+    const jpegPreset = getBudgetedJpegPreset(quality, complexity, flashOn);
+    const jpegCanvas = tryApplyJpegArtifactToCanvas(preJpegCanvas, jpegPreset);
+    if (!jpegCanvas) return JPEG_CODEC_UNAVAILABLE;
+    return withPooledCanvasCleanup(
+      jpegCanvas === preJpegCanvas ? [] : [jpegCanvas],
+      () => {
+        // Pass 4: post (smear + noise + clip) reading from the JPEG result.
+        resizeGLCanvas(canvas, W, H);
+        const postSrcTex = ensureTexture(gl, "mavicaFd7:postSrc", W, H);
+        uploadSourceTexture(gl, postSrcTex, jpegCanvas);
 
-  const preCtx = (preJpegCanvas as HTMLCanvasElement | OffscreenCanvas).getContext("2d") as
-    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-  const complexityBuf = preCtx?.getImageData(0, 0, W, H).data;
-  const complexity = complexityBuf ? estimateSceneComplexity(complexityBuf, W, H) : 0.5;
-  const jpegPreset = getBudgetedJpegPreset(quality, complexity, flashOn);
-  const jpegCanvas = applyJpegArtifactToCanvas(preJpegCanvas, jpegPreset);
+        const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] ?? NOISE_PARAMS[QUALITY_FINE];
+        drawPass(gl, null, W, H, cache.post, () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, postSrcTex.tex);
+          gl.uniform1i(cache.post.uniforms.u_input, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.post.uniforms.u_alphaSource, 1);
+          gl.uniform2f(cache.post.uniforms.u_res, W, H);
+          gl.uniform1i(cache.post.uniforms.u_smear, smear ? 1 : 0);
+          gl.uniform1f(cache.post.uniforms.u_smearThreshold, flashOn ? 245 : 235);
+          gl.uniform1i(cache.post.uniforms.u_flash, flashOn ? 1 : 0);
+          gl.uniform1f(cache.post.uniforms.u_noiseRB, noiseRB);
+          gl.uniform1f(cache.post.uniforms.u_noiseG, noiseG);
+          gl.uniform1f(cache.post.uniforms.u_shadowCut, flashOn ? 42 : 50);
+          gl.uniform1f(cache.post.uniforms.u_clipPoint, flashOn ? 244 : 248);
+          gl.uniform1f(cache.post.uniforms.u_seed, seed);
+        }, vao);
 
-  // Pass 4: post (smear + noise + clip) reading from the JPEG result.
-  resizeGLCanvas(canvas, W, H);
-  const postSrcTex = ensureTexture(gl, "mavicaFd7:postSrc", W, H);
-  uploadSourceTexture(gl, postSrcTex, jpegCanvas);
-
-  const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] ?? NOISE_PARAMS[QUALITY_FINE];
-  drawPass(gl, null, W, H, cache.post, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, postSrcTex.tex);
-    gl.uniform1i(cache.post.uniforms.u_input, 0);
-    gl.uniform2f(cache.post.uniforms.u_res, W, H);
-    gl.uniform1i(cache.post.uniforms.u_smear, smear ? 1 : 0);
-    gl.uniform1f(cache.post.uniforms.u_smearThreshold, flashOn ? 245 : 235);
-    gl.uniform1i(cache.post.uniforms.u_flash, flashOn ? 1 : 0);
-    gl.uniform1f(cache.post.uniforms.u_noiseRB, noiseRB);
-    gl.uniform1f(cache.post.uniforms.u_noiseG, noiseG);
-    gl.uniform1f(cache.post.uniforms.u_shadowCut, flashOn ? 42 : 50);
-    gl.uniform1f(cache.post.uniforms.u_clipPoint, flashOn ? 244 : 248);
-    gl.uniform1f(cache.post.uniforms.u_seed, seed);
-  }, vao);
-
-  return readoutToCanvas(canvas, W, H);
+        return readoutToCanvas(canvas, W, H);
+      },
+    );
+  });
 };
 
-const mavicaFd7 = (input: any, options = defaults) => {
+const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
+  // The complete FD7 pipeline includes the shared WebGL-only JPEG codec.
+  // Runtime dispatchers normally enforce requiresGL; direct callers get a
+  // coherent passthrough rather than a silently JPEG-free approximation.
+  if (!glAvailable()) return input;
+  const supplied = { ...defaults, ...options };
+  const resolved = {
+    ...supplied,
+    captureMode: normalizeEnumOption(supplied.captureMode, [CAPTURE_FIELD, CAPTURE_FRAME], defaults.captureMode),
+    quality: normalizeEnumOption(supplied.quality, [QUALITY_FINE, QUALITY_STANDARD], defaults.quality),
+    sceneMode: normalizeEnumOption(
+      supplied.sceneMode,
+      [SCENE_AUTO, SCENE_SOFT_PORTRAIT, SCENE_SPORTS, SCENE_BEACH_SKI, SCENE_SUNSET_MOON, SCENE_LANDSCAPE],
+      defaults.sceneMode,
+    ),
+    pictureEffect: normalizeEnumOption(
+      supplied.pictureEffect,
+      [FX_NONE, FX_PASTEL, FX_NEG_ART, FX_SEPIA, FX_BW],
+      defaults.pictureEffect,
+    ),
+    lighting: normalizeEnumOption(
+      supplied.lighting,
+      [LIGHTING_AUTO, LIGHTING_DAYLIGHT, LIGHTING_TUNGSTEN, LIGHTING_FLUORESCENT],
+      defaults.lighting,
+    ),
+    flash: normalizeBooleanOption(supplied.flash, defaults.flash),
+    flashPower: normalizeRangeOption(supplied.flashPower, defaults.flashPower, 0, 2),
+    flashFalloff: normalizeRangeOption(supplied.flashFalloff, defaults.flashFalloff, 0.8, 3),
+    flashOffsetX: normalizeRangeOption(supplied.flashOffsetX, defaults.flashOffsetX, -1, 1),
+    flashOffsetY: normalizeRangeOption(supplied.flashOffsetY, defaults.flashOffsetY, -1, 1),
+    smear: normalizeBooleanOption(supplied.smear, defaults.smear),
+    nativeVgaOutput: normalizeBooleanOption(supplied.nativeVgaOutput, defaults.nativeVgaOutput),
+    frameJitter: normalizeEnumOption(supplied.frameJitter, ["0", "1", "2", "3"], defaults.frameJitter),
+  };
   const {
     captureMode,
     quality,
@@ -971,7 +841,7 @@ const mavicaFd7 = (input: any, options = defaults) => {
     smear,
     nativeVgaOutput,
     frameJitter
-  } = options;
+  } = resolved;
   const inputCtx = input.getContext("2d");
   if (!inputCtx) return input;
 
@@ -983,35 +853,31 @@ const mavicaFd7 = (input: any, options = defaults) => {
   const workW = needsScale ? MAX_W : origW;
   const workH = needsScale ? MAX_H : origH;
 
-  const workCanvas = cloneCanvas(input, false);
-  workCanvas.width = workW;
-  workCanvas.height = workH;
-  const workCtx = workCanvas.getContext("2d");
-  if (!workCtx) return input;
-
-  if (needsScale) {
-    workCtx.imageSmoothingEnabled = true;
-    workCtx.drawImage(input, 0, 0, workW, workH);
-  } else {
-    workCtx.drawImage(input, 0, 0);
+  const workCanvas = takePooledCanvas(workW, workH);
+  const workCtx = workCanvas.getContext("2d", { willReadFrequently: true }) as
+    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!workCtx) {
+    releasePooledCanvas(workCanvas);
+    return input;
   }
 
-  const imgData = workCtx.getImageData(0, 0, workW, workH);
-  const buf = imgData.data;
+  return withPooledCanvasCleanup([workCanvas], () => {
+    // Pooled canvases retain their prior pixels. Drawing translucent input with
+    // source-over would otherwise accumulate coverage on each reuse.
+    workCtx.clearRect(0, 0, workW, workH);
+    if (needsScale) {
+      workCtx.imageSmoothingEnabled = true;
+      workCtx.drawImage(input, 0, 0, workW, workH);
+    } else {
+      workCtx.drawImage(input, 0, 0);
+    }
 
-  // Step 2 — AWB colour temperature (auto by default, or user override).
-  // Auto path is a reduction so it stays on CPU either way; results feed
-  // both the GL and JS paths as a uniform.
-  const [rMul, gMul, bMul] = lighting === LIGHTING_AUTO
-    ? computeAutoAwb(buf)
-    : (AWB[lighting as keyof typeof AWB] || AWB[LIGHTING_AUTO]);
-
-  // GL fast path: pre-color → interlace → [soften] → JPEG (GL-dispatched by
-  // applyJpegArtifactToCanvas when eligible) → post. Three readback/upload
-  // bridges at 640×480 add ~6-10ms; faster than the JS pipeline at scale.
-  const wantGL = glAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false;
-  if (wantGL) {
+    const buf = workCtx.getImageData(0, 0, workW, workH).data;
+    // Auto white balance is a small CPU reduction; all image stages and the
+    // complete JPEG codec remain on the required WebGL2 pipeline.
+    const [rMul, gMul, bMul] = lighting === LIGHTING_AUTO
+      ? computeAutoAwb(buf)
+      : (AWB[lighting as keyof typeof AWB] || AWB[LIGHTING_AUTO]);
     const glResult = runGLPipeline(
       workCanvas, workW, workH,
       [rMul, gMul, bMul],
@@ -1027,16 +893,24 @@ const mavicaFd7 = (input: any, options = defaults) => {
       Number(frameJitter || 0),
       smear,
       quality,
-      Number((options as { _frameIndex?: number })._frameIndex || 0),
+      Number(resolved._frameIndex || 0),
     );
-    if (glResult) {
+    if (glResult === JPEG_CODEC_UNAVAILABLE) {
+      const outputWidth = nativeVgaOutput ? workW : origW;
+      const outputHeight = nativeVgaOutput ? workH : origH;
+      return glUnavailableStub(outputWidth, outputHeight);
+    }
+    if (!glResult) return input;
+    return withPooledCanvasCleanup([glResult], () => {
       const output = cloneCanvas(input, false);
-      if (nativeVgaOutput) {
-        output.width = workW;
-        output.height = workH;
-      }
-      const outputCtx = output.getContext("2d");
-      if (outputCtx) {
+      let transferred = false;
+      try {
+        if (nativeVgaOutput) {
+          output.width = workW;
+          output.height = workH;
+        }
+        const outputCtx = output.getContext("2d");
+        if (!outputCtx) return input;
         if (nativeVgaOutput) {
           outputCtx.drawImage(glResult, 0, 0);
         } else if (needsScale) {
@@ -1047,182 +921,13 @@ const mavicaFd7 = (input: any, options = defaults) => {
         }
         logFilterBackend("Mavica FD7", "WebGL2",
           `${quality} ${sceneMode} ${captureMode}${flash ? " flash" : ""}`);
+        transferred = true;
         return output;
+      } finally {
+        if (!transferred) releasePooledCanvas(output);
       }
-    }
-  }
-  logFilterWasmStatus("Mavica FD7", false, "fallback JS");
-
-  // === JS fallback below — identical to the pre-GL pipeline ===
-  const [rMulJs, gMulJs, bMulJs] = [rMul, gMul, bMul];
-  void rMulJs; void gMulJs; void bMulJs;
-  const fluorescentFlutter = lighting === LIGHTING_FLUORESCENT;
-
-  for (let y = 0; y < workH; y += 1) {
-    for (let x = 0; x < workW; x += 1) {
-      const i = getBufferIndex(x, y, workW);
-      let gFlutter = 0;
-      if (fluorescentFlutter) {
-        gFlutter = (pixelNoise(x, y, 7) - 0.5) * 8;  // +/-4
-      }
-      buf[i] = clamp(0, 255, Math.round(readU8(buf, i) * rMul));
-      buf[i + 1] = clamp(0, 255, Math.round(readU8(buf, i + 1) * gMul + gFlutter));
-      buf[i + 2] = clamp(0, 255, Math.round(readU8(buf, i + 2) * bMul));
-    }
-  }
-
-  // Step 3 — Mild saturation shaping (sample set trends less aggressive than modern pipelines)
-  for (let y = 0; y < workH; y += 1) {
-    for (let x = 0; x < workW; x += 1) {
-      const i = getBufferIndex(x, y, workW);
-      const grey = (readU8(buf, i) + readU8(buf, i + 1) + readU8(buf, i + 2)) / 3;
-      buf[i] = clamp(0, 255, Math.round(grey + (readU8(buf, i) - grey) * 1.06));
-      buf[i + 1] = clamp(0, 255, Math.round(grey + (readU8(buf, i + 1) - grey) * 1.06));
-      buf[i + 2] = clamp(0, 255, Math.round(grey + (readU8(buf, i + 2) - grey) * 1.06));
-    }
-  }
-
-  // Step 3b — Xenon flash illumination field (if enabled)
-  if (flash) {
-    applyDigicamFlashLighting(
-      buf,
-      workW,
-      workH,
-      Number(flashPower ?? 1),
-      Number(flashFalloff ?? 1.55),
-      Number(flashOffsetX ?? 0),
-      Number(flashOffsetY ?? -0.08)
-    );
-  }
-
-  // Step 4 — FD7 Program AE + Picture Effect DSP stages
-  applySceneMode(buf, workW, workH, sceneMode);
-  applyPictureEffect(buf, workW, workH, pictureEffect);
-
-  // Step 5 — Mavica "soul": toe/shoulder response and slight chroma lag.
-  applySoulTone(buf, workW, workH);
-  applyChromaDelay(buf, workW, workH, 1);
-
-  // Step 6 — Interlaced capture behavior: field vs frame.
-  // Manual note: frame mode with flash effectively records as field mode.
-  const effectiveCaptureMode = flash && captureMode === CAPTURE_FRAME ? CAPTURE_FIELD : captureMode;
-  applyInterlacedCapture(buf, workW, workH, effectiveCaptureMode, Number(frameJitter || 0));
-  if (effectiveCaptureMode === CAPTURE_FIELD) {
-    applyVerticalSoften(buf, workW, workH, 0.22);
-  }
-
-  // Step 7 — Apply shared JPEG corruption pipeline (same core as JPEG artifact filter)
-  const complexity = estimateSceneComplexity(buf, workW, workH);
-  const jpegPreset = getBudgetedJpegPreset(quality, complexity, !!flash);
-  workCtx.putImageData(imgData, 0, 0);
-  const jpegCanvas = applyJpegArtifactToCanvas(
-    workCanvas,
-    jpegPreset
-  );
-  const jpegCtx = jpegCanvas.getContext("2d");
-  if (!jpegCtx) return input;
-  const jpegData = jpegCtx.getImageData(0, 0, workW, workH);
-  const jpegBuf = jpegData.data;
-  for (let i = 0; i < buf.length; i += 1) buf[i] = readU8(jpegBuf, i);
-
-  // Step 8 — CCD vertical smear (optional)
-  if (smear) {
-    const smearLen = 25;
-    // Work on a copy so smears don't cascade
-    const smearBuf = new Uint8ClampedArray(buf);
-
-    for (let y = 0; y < workH; y += 1) {
-      for (let x = 0; x < workW; x += 1) {
-        const i = getBufferIndex(x, y, workW);
-        const luma = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
-        const smearThreshold = flash ? 245 : 235;
-        if (luma <= smearThreshold) continue;
-
-        for (let d = 1; d <= smearLen; d += 1) {
-          const decay = 1 - (d / smearLen) ** 1.5;
-          const blend = decay * 0.85;
-          const sr = Math.round(readU8(buf, i) + (255 - readU8(buf, i)) * blend);
-          const sg = Math.round(readU8(buf, i + 1) + (255 - readU8(buf, i + 1)) * blend);
-          const sb = Math.round(readU8(buf, i + 2) + (255 - readU8(buf, i + 2)) * blend);
-
-          // Smear upward
-          if (y - d >= 0) {
-            const ti = getBufferIndex(x, y - d, workW);
-            smearBuf[ti] = Math.max(readU8(smearBuf, ti), sr);
-            smearBuf[ti + 1] = Math.max(readU8(smearBuf, ti + 1), sg);
-            smearBuf[ti + 2] = Math.max(readU8(smearBuf, ti + 2), sb);
-          }
-          // Smear downward
-          if (y + d < workH) {
-            const ti = getBufferIndex(x, y + d, workW);
-            smearBuf[ti] = Math.max(readU8(smearBuf, ti), sr);
-            smearBuf[ti + 1] = Math.max(readU8(smearBuf, ti + 1), sg);
-            smearBuf[ti + 2] = Math.max(readU8(smearBuf, ti + 2), sb);
-          }
-        }
-      }
-    }
-
-    // Copy smear results back
-    for (let j = 0; j < buf.length; j += 1) buf[j] = readU8(smearBuf, j);
-  }
-
-  // Step 9 — Shadow noise (measured: R/B sigma ~8, G sigma ~6)
-  const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] ?? NOISE_PARAMS[QUALITY_FINE];
-
-  for (let y = 0; y < workH; y += 1) {
-    for (let x = 0; x < workW; x += 1) {
-      const i = getBufferIndex(x, y, workW);
-      const luma = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
-      const shadowCut = flash ? 42 : 50;
-      if (luma >= shadowCut) continue;
-      const t = (shadowCut - luma) / shadowCut;
-      buf[i] = clamp(0, 255, Math.round(readU8(buf, i) + (pixelNoise(x, y, 73) - 0.5) * 2 * noiseRB * t));
-      buf[i + 1] = clamp(0, 255, Math.round(readU8(buf, i + 1) + (pixelNoise(x, y, 89) - 0.5) * 2 * noiseG  * t));
-      buf[i + 2] = clamp(0, 255, Math.round(readU8(buf, i + 2) + (pixelNoise(x, y, 97) - 0.5) * 2 * noiseRB * t));
-    }
-  }
-
-  // Step 10 — Hard highlight clip + shadow crush (measured from real FD7 output)
-  for (let y = 0; y < workH; y += 1) {
-    for (let x = 0; x < workW; x += 1) {
-      const i = getBufferIndex(x, y, workW);
-      // Highlight: hard clip near top-end (flash clips slightly harder)
-      const clipPoint = flash ? 244 : 248;
-      if (readU8(buf, i) > clipPoint) buf[i] = 255;
-      if (readU8(buf, i + 1) > clipPoint) buf[i + 1] = 255;
-      if (readU8(buf, i + 2) > clipPoint) buf[i + 2] = 255;
-      // Shadow: crush to black
-      const luma = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
-      if (luma < 8) {
-        buf[i] = 0;
-        buf[i + 1] = 0;
-        buf[i + 2] = 0;
-      }
-    }
-  }
-
-  workCtx.putImageData(imgData, 0, 0);
-
-  // Output at native VGA by default; optionally scale back to input dimensions.
-  const output = cloneCanvas(input, false);
-  if (nativeVgaOutput) {
-    output.width = workW;
-    output.height = workH;
-  }
-  const outputCtx = output.getContext("2d");
-  if (!outputCtx) return input;
-
-  if (nativeVgaOutput) {
-    outputCtx.drawImage(workCanvas, 0, 0);
-  } else if (needsScale) {
-    outputCtx.imageSmoothingEnabled = false;
-    outputCtx.drawImage(workCanvas, 0, 0, origW, origH);
-  } else {
-    outputCtx.drawImage(workCanvas, 0, 0);
-  }
-
-  return output;
+    });
+  });
 };
 
 export default defineFilter({
@@ -1231,4 +936,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
+  description: "Sony MVC-FD7 still-camera proxy with VGA CCD sampling, interlaced field capture, period JPEG budgets, scene modes, and optional flash artifacts",
+  temporal: true,
+  requiresGL: true,
 });

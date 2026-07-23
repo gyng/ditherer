@@ -1,106 +1,225 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
-// Vintage CRT-TV look: vertical roll offset, horizontal channel-offset
-// colour fringe on R, sinusoidal horizontal banding, and luma-gated
-// phosphor glow. Each fragment samples its scrolled source row and
-// the appropriate channel offset, then adds the per-row band value
-// and bright-pixel glow.
-const FS = `#version 300 es
+const DECODE_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 uniform sampler2D u_source;
-uniform vec2  u_res;
-uniform float u_banding;
+uniform vec2 u_res;
 uniform float u_colorFringe;
+uniform int u_chromaRadius;
+uniform float u_tuningRadians;
 uniform float u_rollOffset;
+uniform float u_banding;
+uniform float u_rfNoise;
 uniform float u_frame;
-uniform float u_glow;
+uniform float u_fieldRate;
 
-vec3 fetch(float jsX, float jsY) {
-  float sx = clamp(jsX, 0.0, u_res.x - 1.0);
-  float sy = clamp(jsY, 0.0, u_res.y - 1.0);
-  return texture(u_source, vec2((sx + 0.5) / u_res.x, 1.0 - (sy + 0.5) / u_res.y)).rgb * 255.0;
+vec4 fetchPixel(float x, float yJs) {
+  float wrappedY = mod(mod(yJs, u_res.y) + u_res.y, u_res.y);
+  float sampleX = clamp(x, 0.0, u_res.x - 1.0);
+  return texture(u_source, vec2((sampleX + 0.5) / u_res.x, 1.0 - (wrappedY + 0.5) / u_res.y));
+}
+
+vec3 rgbToYiq(vec3 rgb) {
+  return vec3(
+    dot(rgb, vec3(0.299, 0.587, 0.114)),
+    dot(rgb, vec3(0.596, -0.275, -0.321)),
+    dot(rgb, vec3(0.212, -0.523, 0.311))
+  );
+}
+
+vec3 yiqToRgb(vec3 yiq) {
+  return vec3(
+    yiq.x + 0.956 * yiq.y + 0.621 * yiq.z,
+    yiq.x - 0.272 * yiq.y - 0.647 * yiq.z,
+    yiq.x - 1.106 * yiq.y + 1.703 * yiq.z
+  );
+}
+
+float hash(vec2 p, float seed) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233)) + seed) * 43758.5453);
 }
 
 void main() {
-  vec2 px = v_uv * u_res;
-  float jsX = floor(px.x);
-  float jsY = u_res.y - 1.0 - floor(px.y);
-
-  float srcY = mod(mod(jsY + u_rollOffset, u_res.y) + u_res.y, u_res.y);
-  float srcXR = clamp(jsX + u_colorFringe, 0.0, u_res.x - 1.0);
-
-  vec3 cR = fetch(srcXR, srcY);
-  vec3 cG = fetch(jsX,   srcY);
-  vec3 cB = fetch(jsX,   srcY);
-
-  float r = cR.r;
-  float g = cG.g;
-  float b = cB.b;
-
-  if (u_banding > 0.0) {
-    float bandVal = sin(jsY * 0.05 + u_frame * 0.3) * u_banding * 40.0;
-    r += bandVal;
-    g += bandVal;
-    b += bandVal;
+  float x = floor(v_uv.x * u_res.x);
+  float yJs = u_res.y - 1.0 - floor(v_uv.y * u_res.y);
+  float sourceY = yJs + u_rollOffset;
+  vec4 centre = fetchPixel(x, sourceY);
+  float ySignal = rgbToYiq(centre.rgb).x;
+  vec2 chroma = vec2(0.0);
+  float weightSum = 0.0;
+  for (int offset = -10; offset <= 10; offset++) {
+    if (offset < -u_chromaRadius || offset > u_chromaRadius) continue;
+    float weight = float(u_chromaRadius + 1 - abs(offset));
+    vec3 yiq = rgbToYiq(fetchPixel(x + u_colorFringe + float(offset), sourceY).rgb);
+    chroma += yiq.yz * weight;
+    weightSum += weight;
   }
-
-  if (u_glow > 0.0) {
-    float luma = r * 0.2126 + g * 0.7152 + b * 0.0722;
-    if (luma > 180.0) {
-      float boost = (luma - 180.0) / 75.0 * u_glow * 50.0;
-      r += boost;
-      g += boost;
-      b += boost;
-    }
-  }
-
-  vec3 outRgb = clamp(floor(vec3(r, g, b) + 0.5), 0.0, 255.0);
-  fragColor = vec4(outRgb / 255.0, 1.0);
+  chroma /= max(1.0, weightSum);
+  float cosine = cos(u_tuningRadians);
+  float sine = sin(u_tuningRadians);
+  chroma = mat2(cosine, -sine, sine, cosine) * chroma;
+  float humPhase = (yJs / max(1.0, u_res.y)) * 12.5663706
+    + u_frame * (50.0 / max(1.0, u_fieldRate)) * 0.055;
+  ySignal += sin(humPhase) * u_banding * 0.08;
+  ySignal += (hash(vec2(x, yJs), u_frame * 19.37 + 3.1) - 0.5) * u_rfNoise;
+  fragColor = vec4(clamp(yiqToRgb(vec3(ySignal, chroma)), 0.0, 1.0), centre.a);
 }
 `;
 
-type Cache = { prog: Program };
-let _cache: Cache | null = null;
-const initCache = (gl: WebGL2RenderingContext): Cache => {
-  if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_banding", "u_colorFringe",
-    "u_rollOffset", "u_frame", "u_glow",
-  ] as const) };
-  return _cache;
-};
+const BLUR_H_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_decoded;
+uniform vec2 u_res;
 
-export const vintageTVGLAvailable = (): boolean => glAvailable();
+vec3 srgbToLinear(vec3 c) {
+  bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
+  return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, cutoff);
+}
+
+void main() {
+  vec2 texel = 1.0 / u_res;
+  vec3 sum = srgbToLinear(texture(u_decoded, v_uv).rgb) * 0.4;
+  sum += srgbToLinear(texture(u_decoded, v_uv + vec2(texel.x * 2.0, 0.0)).rgb) * 0.15;
+  sum += srgbToLinear(texture(u_decoded, v_uv - vec2(texel.x * 2.0, 0.0)).rgb) * 0.15;
+  sum += srgbToLinear(texture(u_decoded, v_uv + vec2(texel.x * 4.0, 0.0)).rgb) * 0.15;
+  sum += srgbToLinear(texture(u_decoded, v_uv - vec2(texel.x * 4.0, 0.0)).rgb) * 0.15;
+  fragColor = vec4(sum, 1.0);
+}
+`;
+
+const DISPLAY_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_decoded;
+uniform sampler2D u_blurH;
+uniform vec2 u_res;
+uniform float u_glow;
+uniform float u_fieldLines;
+uniform float u_scanlineStrength;
+
+vec3 srgbToLinear(vec3 c) {
+  bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
+  return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, cutoff);
+}
+
+vec3 linearToSrgb(vec3 c) {
+  c = max(c, vec3(0.0));
+  bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+  return mix(1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, c * 12.92, cutoff);
+}
+
+void main() {
+  vec4 decoded = texture(u_decoded, v_uv);
+  vec2 texel = 1.0 / u_res;
+  vec3 vertical = texture(u_blurH, v_uv).rgb * 0.4;
+  vertical += texture(u_blurH, v_uv + vec2(0.0, texel.y * 2.0)).rgb * 0.15;
+  vertical += texture(u_blurH, v_uv - vec2(0.0, texel.y * 2.0)).rgb * 0.15;
+  vertical += texture(u_blurH, v_uv + vec2(0.0, texel.y * 4.0)).rgb * 0.15;
+  vertical += texture(u_blurH, v_uv - vec2(0.0, texel.y * 4.0)).rgb * 0.15;
+  vec3 linear = srgbToLinear(decoded.rgb) + vertical * u_glow * 0.42;
+
+  float pixelsPerLine = u_res.y / max(1.0, u_fieldLines);
+  float resolvable = smoothstep(0.8, 2.4, pixelsPerLine);
+  float phase = fract((v_uv.y * u_res.y + 0.5) / max(1.0, u_res.y) * u_fieldLines);
+  float distance = abs(phase - 0.5);
+  float beam = exp(-0.5 * pow(distance / 0.22, 2.0));
+  float rasterGain = 1.0 - u_scanlineStrength * resolvable * (1.0 - beam);
+  linear *= rasterGain;
+  fragColor = vec4(clamp(linearToSrgb(linear), 0.0, 1.0), decoded.a);
+}
+`;
+
+type Cache = { decode: Program; blurH: Program; display: Program };
+let cache: Cache | null = null;
+const getCache = (gl: WebGL2RenderingContext): Cache => {
+  if (cache) return cache;
+  cache = {
+    decode: linkProgram(gl, DECODE_FS, [
+      "u_source", "u_res", "u_colorFringe", "u_chromaRadius", "u_tuningRadians",
+      "u_rollOffset", "u_banding", "u_rfNoise", "u_frame", "u_fieldRate",
+    ] as const),
+    blurH: linkProgram(gl, BLUR_H_FS, ["u_decoded", "u_res"] as const),
+    display: linkProgram(gl, DISPLAY_FS, [
+      "u_decoded", "u_blurH", "u_res", "u_glow", "u_fieldLines", "u_scanlineStrength",
+    ] as const),
+  };
+  return cache;
+};
 
 export const renderVintageTVGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  banding: number, colorFringe: number, rollOffset: number, frame: number, glow: number,
+  width: number,
+  height: number,
+  params: {
+    banding: number;
+    colorFringe: number;
+    chromaBandwidth: number;
+    tuningError: number;
+    rollOffset: number;
+    frameIndex: number;
+    fieldRate: number;
+    fieldLines: number;
+    scanlineStrength: number;
+    glow: number;
+    rfNoise: number;
+  },
 ): HTMLCanvasElement | OffscreenCanvas | null => {
-  const ctx = getGLCtx();
-  if (!ctx) return null;
-  const { gl, canvas } = ctx;
-  const cache = initCache(gl);
+  const context = getGLCtx();
+  if (!context) return null;
+  const { gl, canvas } = context;
+  const programs = getCache(gl);
   const vao = getQuadVAO(gl);
   resizeGLCanvas(canvas, width, height);
-  const sourceTex = ensureTexture(gl, "vintageTV:source", width, height);
-  uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
+  const sourceTexture = ensureTexture(gl, "vintageTV:source", width, height);
+  const decodedTexture = ensureTexture(gl, "vintageTV:decoded", width, height);
+  const blurTexture = ensureTexture(gl, "vintageTV:blurH", width, height);
+  uploadSourceTexture(gl, sourceTexture, source);
+  drawPass(gl, decodedTexture, width, height, programs.decode, () => {
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_banding, banding);
-    gl.uniform1f(cache.prog.uniforms.u_colorFringe, colorFringe);
-    gl.uniform1f(cache.prog.uniforms.u_rollOffset, rollOffset);
-    gl.uniform1f(cache.prog.uniforms.u_frame, frame);
-    gl.uniform1f(cache.prog.uniforms.u_glow, glow);
+    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+    gl.uniform1i(programs.decode.uniforms.u_source, 0);
+    gl.uniform2f(programs.decode.uniforms.u_res, width, height);
+    gl.uniform1f(programs.decode.uniforms.u_colorFringe, params.colorFringe);
+    gl.uniform1i(programs.decode.uniforms.u_chromaRadius, params.chromaBandwidth);
+    gl.uniform1f(programs.decode.uniforms.u_tuningRadians, params.tuningError * Math.PI / 180);
+    gl.uniform1f(programs.decode.uniforms.u_rollOffset, params.rollOffset);
+    gl.uniform1f(programs.decode.uniforms.u_banding, params.banding);
+    gl.uniform1f(programs.decode.uniforms.u_rfNoise, params.rfNoise);
+    gl.uniform1f(programs.decode.uniforms.u_frame, params.frameIndex);
+    gl.uniform1f(programs.decode.uniforms.u_fieldRate, params.fieldRate);
+  }, vao);
+  drawPass(gl, blurTexture, width, height, programs.blurH, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, decodedTexture.tex);
+    gl.uniform1i(programs.blurH.uniforms.u_decoded, 0);
+    gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
+  }, vao);
+  drawPass(gl, null, width, height, programs.display, () => {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, decodedTexture.tex);
+    gl.uniform1i(programs.display.uniforms.u_decoded, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, blurTexture.tex);
+    gl.uniform1i(programs.display.uniforms.u_blurH, 1);
+    gl.uniform2f(programs.display.uniforms.u_res, width, height);
+    gl.uniform1f(programs.display.uniforms.u_glow, params.glow);
+    gl.uniform1f(programs.display.uniforms.u_fieldLines, params.fieldLines);
+    gl.uniform1f(programs.display.uniforms.u_scanlineStrength, params.scanlineStrength);
   }, vao);
   return readoutToCanvas(canvas, width, height);
 };

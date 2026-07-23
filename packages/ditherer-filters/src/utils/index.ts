@@ -1404,6 +1404,27 @@ export const addBufferPixel = (
 // amounts of memory when a chain briefly runs at a bigger resolution.
 const CANVAS_POOL_MAX_PER_SIZE = 6;
 const _canvasPool = new Map<string, (HTMLCanvasElement | OffscreenCanvas)[]>();
+const _pooledCanvases = new WeakSet<object>();
+
+export type CanvasPoolStats = {
+  allocations: number;
+  reuses: number;
+  releases: number;
+  pooled: number;
+};
+
+const _canvasPoolStats = { allocations: 0, reuses: 0, releases: 0 };
+
+export const getCanvasPoolStats = (): Readonly<CanvasPoolStats> => ({
+  ..._canvasPoolStats,
+  pooled: Array.from(_canvasPool.values()).reduce((total, bucket) => total + bucket.length, 0),
+});
+
+export const resetCanvasPoolStats = (): void => {
+  _canvasPoolStats.allocations = 0;
+  _canvasPoolStats.reuses = 0;
+  _canvasPoolStats.releases = 0;
+};
 
 const poolKey = (w: number, h: number): string => `${w}x${h}`;
 
@@ -1416,6 +1437,29 @@ const createRawCanvas = (w: number, h: number): HTMLCanvasElement | OffscreenCan
   return new OffscreenCanvas(w, h);
 };
 
+const resetReusedCanvas = (canvas: HTMLCanvasElement | OffscreenCanvas, w: number): void => {
+  // Per the canvas spec, assigning a bitmap dimension resets pixels, clipping,
+  // transforms, and drawing state even when the value is unchanged.
+  canvas.width = w;
+  const context = canvas.getContext("2d") as
+    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!context) return;
+  // Keep a small explicit fallback for test/minimal canvas implementations
+  // that do not model the dimension-reset side effect.
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.globalAlpha = 1;
+  context.globalCompositeOperation = "source-over";
+  context.filter = "none";
+  context.shadowBlur = 0;
+  context.shadowColor = "rgba(0, 0, 0, 0)";
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 0;
+  context.setLineDash([]);
+  context.lineDashOffset = 0;
+  context.beginPath();
+  context.clearRect(0, 0, canvas.width, canvas.height);
+};
+
 // Grab a canvas for the given size — pooled if available, fresh otherwise.
 // Caller must treat the contents as undefined (the 2D context is cleared as
 // needed by the caller, e.g., via drawImage or putImageData).
@@ -1423,8 +1467,16 @@ export const takePooledCanvas = (w: number, h: number): HTMLCanvasElement | Offs
   const key = poolKey(w, h);
   const bucket = _canvasPool.get(key);
   if (bucket && bucket.length > 0) {
-    return bucket.pop() as HTMLCanvasElement | OffscreenCanvas;
+    const canvas = bucket.pop() as HTMLCanvasElement | OffscreenCanvas;
+    _pooledCanvases.delete(canvas);
+    _canvasPoolStats.reuses++;
+    // Reassigning either bitmap dimension clears pixels and resets the entire
+    // drawing state (transform, compositing, alpha, filter, clipping, etc.).
+    // The size is intentionally unchanged: this is a reset, not a resize.
+    resetReusedCanvas(canvas, w);
+    return canvas;
   }
+  _canvasPoolStats.allocations++;
   return createRawCanvas(w, h);
 };
 
@@ -1434,7 +1486,7 @@ export const takePooledCanvas = (w: number, h: number): HTMLCanvasElement | Offs
 export const releasePooledCanvas = (
   canvas: HTMLCanvasElement | OffscreenCanvas | null | undefined,
 ): void => {
-  if (!canvas) return;
+  if (!canvas || _pooledCanvases.has(canvas)) return;
   const key = poolKey(canvas.width, canvas.height);
   let bucket = _canvasPool.get(key);
   if (!bucket) {
@@ -1443,6 +1495,24 @@ export const releasePooledCanvas = (
   }
   if (bucket.length >= CANVAS_POOL_MAX_PER_SIZE) return;
   bucket.push(canvas);
+  _pooledCanvases.add(canvas);
+  _canvasPoolStats.releases++;
+};
+
+export const withPooledCanvasCleanup = <T>(
+  canvases: readonly (HTMLCanvasElement | OffscreenCanvas | null | undefined)[],
+  operation: () => T,
+): T => {
+  try {
+    return operation();
+  } finally {
+    const released = new Set<HTMLCanvasElement | OffscreenCanvas>();
+    for (const canvas of canvases) {
+      if (!canvas || released.has(canvas)) continue;
+      released.add(canvas);
+      releasePooledCanvas(canvas);
+    }
+  }
 };
 
 export const cloneCanvas = (

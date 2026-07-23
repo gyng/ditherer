@@ -252,5 +252,6 @@ export default defineFilter({
   optionTypes,
   defaults,
   description: "Visible-RGB luminance proxy—not emitted-IR temperature—through a low-resolution thermal-camera display",
+  temporal: true,
   requiresGL: true,
 });

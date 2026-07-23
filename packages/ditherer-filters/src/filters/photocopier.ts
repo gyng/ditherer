@@ -11,6 +11,7 @@ import {
 } from "../utils/index";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { photocopierGenerationTone } from "./substrateCopyQualityContracts";
 import {
   drawPass,
   ensureTexture,
@@ -25,11 +26,11 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  contrast: { type: RANGE, range: [1, 5], step: 0.1, default: 2.5, desc: "Copy contrast — higher = blown-out whites" },
-  edgeDarken: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Edge darkening around details" },
-  speckle: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Random toner speckle amount" },
-  generationLoss: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Quality degradation from copy-of-a-copy" },
-  palette: { type: PALETTE, default: nearest }
+  contrast: { type: RANGE, range: [0.75, 3], step: 0.05, default: 1.55, desc: "Xerographic density contrast without discrete posterization" },
+  edgeDarken: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Toner buildup along high-contrast detail edges" },
+  speckle: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "Fixed toner deposits in light areas and transfer voids in dense areas" },
+  generationLoss: { type: RANGE, range: [0, 1], step: 0.05, default: 0.25, desc: "Copy-of-a-copy detail loss and progressive density buildup" },
+  palette: { type: PALETTE, default: nearest, desc: "Output toner and paper palette" }
 };
 
 export const defaults = {
@@ -51,22 +52,28 @@ uniform float u_contrast;
 uniform float u_edgeDarken;
 uniform float u_speckle;
 uniform float u_generationLoss;
-uniform float u_seed;
 uniform float u_levels;
 
-float hash(vec2 p, float s) {
-  p = fract(p * vec2(443.897, 441.423) + s);
+float hash(vec2 p) {
+  p = fract(p * vec2(443.897, 441.423));
   p += dot(p, p.yx + 19.19);
   return fract((p.x + p.y) * p.x);
 }
 
-float lum(vec3 c) { return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) * 255.0; }
+float lum(vec3 c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }
 
 vec3 samplePx(float sx, float sy) {
   float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
   float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
   vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
   return texture(u_source, uv).rgb;
+}
+
+float generationTone(float source, float localMean) {
+  float softened = mix(source, localMean, u_generationLoss * 0.72);
+  float denser = clamp(softened + (softened - 0.5) * u_generationLoss * 0.18, 0.0, 1.0);
+  float distance = min(1.0, abs(denser * 2.0 - 1.0));
+  return clamp(0.5 + sign(denser - 0.5) * 0.5 * pow(distance, 1.0 / max(0.25, u_contrast)), 0.0, 1.0);
 }
 
 void main() {
@@ -76,10 +83,14 @@ void main() {
   vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
   vec4 self = texture(u_source, suv);
 
-  float l = lum(self.rgb) / 255.0;
-  l = pow(max(l, 0.0), 1.0 / u_contrast);
-  l = (l - 0.5) * u_contrast + 0.5;
-  l = clamp(l, 0.0, 1.0);
+  float sourceLuma = lum(self.rgb);
+  float radius = 1.0 + floor(u_generationLoss * 2.0 + 0.5);
+  float localMean = (sourceLuma
+    + lum(samplePx(x - radius, y))
+    + lum(samplePx(x + radius, y))
+    + lum(samplePx(x, y - radius))
+    + lum(samplePx(x, y + radius))) * 0.2;
+  float l = generationTone(sourceLuma, localMean);
 
   if (u_edgeDarken > 0.0 && x > 0.0 && x < u_res.x - 1.0 && y > 0.0 && y < u_res.y - 1.0) {
     float a = lum(samplePx(x - 1.0, y - 1.0));
@@ -92,23 +103,21 @@ void main() {
     float iv = lum(samplePx(x + 1.0, y + 1.0));
     float gx = -a - 2.0 * d - g + c + 2.0 * f + iv;
     float gy = -a - 2.0 * b - c + g + 2.0 * h + iv;
-    float edge = sqrt(gx * gx + gy * gy) / 1440.0;
+    float edge = sqrt(gx * gx + gy * gy) / 5.66;
     l = max(0.0, l - edge * u_edgeDarken);
   }
 
-  if (u_speckle > 0.0) {
-    // The JS path gates speckle per pixel by an RNG draw (≈speckle*0.3
-    // probability); approximate that with a second positional hash.
-    float gate = hash(vec2(x + 17.0, y + 31.0), u_seed);
-    if (gate < u_speckle * 0.3) {
-      l = clamp(l + (hash(vec2(x, y), u_seed + 2.0) - 0.5) * u_speckle, 0.0, 1.0);
-    }
+  float artifact = clamp(u_speckle, 0.0, 1.0);
+  float depositGate = hash(vec2(x + 17.0, y + 31.0));
+  float voidGate = hash(vec2(x + 73.0, y + 11.0));
+  float density = 1.0 - l;
+  if (depositGate < artifact * 0.16 * (0.25 + 0.75 * l)) {
+    l -= artifact * (0.08 + 0.34 * hash(vec2(x + 5.0, y + 97.0)));
   }
-
-  if (u_generationLoss > 0.0) {
-    float steps = max(2.0, floor(32.0 * (1.0 - u_generationLoss) + 0.5));
-    l = floor(l * steps + 0.5) / steps;
+  if (voidGate < artifact * 0.12 * (0.2 + 0.8 * density)) {
+    l += artifact * (0.06 + 0.3 * hash(vec2(x + 109.0, y + 43.0)));
   }
+  l = clamp(l, 0.0, 1.0);
 
   vec3 rgb = vec3(l);
   if (u_levels > 1.5) {
@@ -126,20 +135,20 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     pc: linkProgram(gl, PC_FS, [
       "u_source", "u_res", "u_contrast", "u_edgeDarken",
-      "u_speckle", "u_generationLoss", "u_seed", "u_levels",
+      "u_speckle", "u_generationLoss", "u_levels",
     ] as const),
   };
   return _cache;
 };
 
-const mulberry32 = (seed: number) => {
-  let s = seed | 0;
-  return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const coordinateHash = (x: number, y: number, offset = 0): number => {
+  let value = Math.imul(x + offset, 0x1f123bb5) ^ Math.imul(y - offset, 0x5f356495);
+  value = Math.imul(value ^ (value >>> 16), 0x45d9f3b);
+  return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
 };
 
-const photocopier = (input: any, options = defaults) => {
-  const { contrast, edgeDarken, speckle, generationLoss, palette } = options;
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+const photocopier = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const { contrast, edgeDarken, speckle, generationLoss, palette } = { ...defaults, ...options };
   const W = input.width, H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -161,7 +170,6 @@ const photocopier = (input: any, options = defaults) => {
         gl.uniform1f(cache.pc.uniforms.u_edgeDarken, edgeDarken);
         gl.uniform1f(cache.pc.uniforms.u_speckle, speckle);
         gl.uniform1f(cache.pc.uniforms.u_generationLoss, generationLoss);
-        gl.uniform1f(cache.pc.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
         const identity = paletteIsIdentity(palette);
         const pOpts = (palette as { options?: { levels?: number } }).options;
         gl.uniform1f(cache.pc.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
@@ -188,8 +196,6 @@ const photocopier = (input: any, options = defaults) => {
 
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const rng = mulberry32(frameIndex * 7919 + 31337);
-
   const lum = new Float32Array(W * H);
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -200,11 +206,13 @@ const photocopier = (input: any, options = defaults) => {
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      let l = lum[y * W + x] / 255;
-
-      l = Math.pow(l, 1 / contrast);
-      l = (l - 0.5) * contrast + 0.5;
-      l = Math.max(0, Math.min(1, l));
+      const sourceLuma = lum[y * W + x] / 255;
+      const radius = 1 + Math.round(generationLoss * 2);
+      const left = lum[y * W + Math.max(0, x - radius)] / 255;
+      const right = lum[y * W + Math.min(W - 1, x + radius)] / 255;
+      const top = lum[Math.max(0, y - radius) * W + x] / 255;
+      const bottom = lum[Math.min(H - 1, y + radius) * W + x] / 255;
+      let l = photocopierGenerationTone(sourceLuma, (sourceLuma + left + right + top + bottom) / 5, contrast, generationLoss);
 
       if (edgeDarken > 0 && x > 0 && x < W - 1 && y > 0 && y < H - 1) {
         const gx = -lum[(y - 1) * W + (x - 1)] - 2 * lum[y * W + (x - 1)] - lum[(y + 1) * W + (x - 1)]
@@ -216,15 +224,15 @@ const photocopier = (input: any, options = defaults) => {
         l = Math.max(0, l);
       }
 
-      if (speckle > 0 && rng() < speckle * 0.3) {
-        l += (rng() - 0.5) * speckle;
-        l = Math.max(0, Math.min(1, l));
+      const artifact = Math.min(1, speckle);
+      const density = 1 - l;
+      if (coordinateHash(x, y, 17) < artifact * 0.16 * (0.25 + 0.75 * l)) {
+        l -= artifact * (0.08 + 0.34 * coordinateHash(x, y, 5));
       }
-
-      if (generationLoss > 0) {
-        const steps = Math.max(2, Math.round(32 * (1 - generationLoss)));
-        l = Math.round(l * steps) / steps;
+      if (coordinateHash(x, y, 73) < artifact * 0.12 * (0.2 + 0.8 * density)) {
+        l += artifact * (0.06 + 0.3 * coordinateHash(x, y, 109));
       }
+      l = Math.max(0, Math.min(1, l));
 
       const v = Math.round(l * 255);
       const color = paletteGetColor(palette, rgba(v, v, v, buf[i + 3]), palette.options, false);
@@ -236,4 +244,11 @@ const photocopier = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Photocopier", func: photocopier, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Photocopier",
+  func: photocopier,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Fixed-sheet xerographic copy with continuous density transfer, edge toner, background scatter, and transfer voids",
+});

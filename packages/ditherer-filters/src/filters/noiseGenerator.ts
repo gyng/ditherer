@@ -27,16 +27,17 @@ export const optionTypes = {
   seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for noise pattern" },
   colorize: { type: BOOL, default: false, desc: "Generate colored noise instead of grayscale" },
   mix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Blend amount with source image" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop evolution of the generated noise field",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -74,5 +75,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
+  temporal: true,
   requiresGL: true,
 });

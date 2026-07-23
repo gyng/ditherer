@@ -1,14 +1,14 @@
 import { RANGE, PALETTE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "../utils/index";
-import { applyPalettePassToCanvas } from "../palettes/backend";
+import { cloneCanvas, getBufferIndex, logFilterBackend } from "../utils/index";
+import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import { claheGLAvailable, renderClaheGL } from "./claheGL";
 
 export const optionTypes = {
   tileSize: { type: RANGE, range: [8, 64], step: 4, default: 32, desc: "Size of local histogram regions" },
   clipLimit: { type: RANGE, range: [1, 10], step: 0.5, default: 3, desc: "Contrast amplification limit" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -26,11 +26,13 @@ type ClaheOptions = FilterOptionValues & {
 };
 
 const clahe = (input: any, options: ClaheOptions = defaults) => {
-  const {
-    tileSize = defaults.tileSize,
-    clipLimit = defaults.clipLimit,
-    palette = defaults.palette,
-  } = options;
+  const parsedTileSize = typeof options.tileSize === "number" ? options.tileSize : Number.NaN;
+  const parsedClipLimit = typeof options.clipLimit === "number" ? options.clipLimit : Number.NaN;
+  const tileSize = Math.round(Math.max(8, Math.min(64,
+    Number.isFinite(parsedTileSize) ? parsedTileSize : defaults.tileSize)) / 4) * 4;
+  const clipLimit = Math.max(1, Math.min(10,
+    Number.isFinite(parsedClipLimit) ? parsedClipLimit : defaults.clipLimit));
+  const palette = options.palette ?? defaults.palette;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
@@ -54,17 +56,37 @@ const clahe = (input: any, options: ClaheOptions = defaults) => {
 
   // Compute CDF per tile
   const cdfs: Uint8Array[] = [];
+  const validTiles: boolean[] = [];
+  const reflect101 = (coordinate: number, size: number) => {
+    if (size <= 1) return 0;
+    const period = 2 * size - 2;
+    const wrapped = ((coordinate % period) + period) % period;
+    return wrapped < size ? wrapped : period - wrapped;
+  };
   for (let ty = 0; ty < tilesY; ty++) {
     for (let tx = 0; tx < tilesX; tx++) {
       const x0 = tx * tileSize, y0 = ty * tileSize;
-      const x1 = Math.min(x0 + tileSize, W), y1 = Math.min(y0 + tileSize, H);
-      const pixels = (x1 - x0) * (y1 - y0);
-
       // Histogram
       const hist = new Uint32Array(256);
-      for (let y = y0; y < y1; y++)
-        for (let x = x0; x < x1; x++)
+      let pixels = 0;
+      for (let dy = 0; dy < tileSize; dy++)
+        for (let dx = 0; dx < tileSize; dx++) {
+          const x = reflect101(x0 + dx, W);
+          const y = reflect101(y0 + dy, H);
+          const pixelIndex = getBufferIndex(x, y, W);
+          if (buf[pixelIndex + 3] === 0) continue;
           hist[lum[y * W + x]]++;
+          pixels++;
+        }
+
+      if (pixels === 0) {
+        const identity = new Uint8Array(256);
+        for (let i = 0; i < 256; i++) identity[i] = i;
+        cdfs.push(identity);
+        validTiles.push(false);
+        continue;
+      }
+      validTiles.push(true);
 
       // Clip and redistribute
       const limit = Math.max(1, Math.round(clipLimit * pixels / 256));
@@ -75,7 +97,10 @@ const clahe = (input: any, options: ClaheOptions = defaults) => {
       const perBin = Math.floor(excess / 256);
       const remainder = excess - perBin * 256;
       for (let i = 0; i < 256; i++) hist[i] += perBin;
-      for (let i = 0; i < remainder; i++) hist[i]++;
+      if (remainder > 0) {
+        const residualStep = Math.max(1, Math.floor(256 / remainder));
+        for (let i = 0, remaining = remainder; i < 256 && remaining > 0; i += residualStep, remaining--) hist[i]++;
+      }
 
       // CDF
       const cdf = new Uint8Array(256);
@@ -88,6 +113,36 @@ const clahe = (input: any, options: ClaheOptions = defaults) => {
     }
   }
 
+  if (validTiles.some(Boolean)) {
+    const nearest = new Int32Array(cdfs.length);
+    nearest.fill(-1);
+    const queue = new Int32Array(cdfs.length);
+    let head = 0;
+    let tail = 0;
+    for (let tile = 0; tile < cdfs.length; tile++) {
+      if (!validTiles[tile]) continue;
+      nearest[tile] = tile;
+      queue[tail++] = tile;
+    }
+    while (head < tail) {
+      const tile = queue[head++];
+      const tx = tile % tilesX;
+      const ty = Math.floor(tile / tilesX);
+      const visit = (candidate: number) => {
+        if (nearest[candidate] >= 0) return;
+        nearest[candidate] = nearest[tile];
+        queue[tail++] = candidate;
+      };
+      if (tx > 0) visit(tile - 1);
+      if (tx + 1 < tilesX) visit(tile + 1);
+      if (ty > 0) visit(tile - tilesX);
+      if (ty + 1 < tilesY) visit(tile + tilesX);
+    }
+    for (let tile = 0; tile < cdfs.length; tile++) {
+      if (!validTiles[tile] && nearest[tile] >= 0) cdfs[tile] = cdfs[nearest[tile]];
+    }
+  }
+
   const getCdf = (tx: number, ty: number) => cdfs[ty * tilesX + tx];
 
   // GL fast path: CDF build ran on CPU (histograms don't port well to GPU);
@@ -97,12 +152,12 @@ const clahe = (input: any, options: ClaheOptions = defaults) => {
     claheGLAvailable()
     && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
-    const isNearest = (palette as { name?: string }).name === "nearest";
+    const identity = paletteIsIdentity(palette);
     const rendered = renderClaheGL(input, W, H, tileSize, cdfs, tilesX, tilesY);
     if (rendered) {
-      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
+      const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("CLAHE", "WebGL2", `tileSize=${tileSize} clipLimit=${clipLimit} tiles=${tilesX}x${tilesY}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend("CLAHE", "WebGL2", `tileSize=${tileSize} clipLimit=${clipLimit} tiles=${tilesX}x${tilesY}${identity ? "" : "+palettePass"}`);
         return out;
       }
     }
@@ -132,18 +187,21 @@ const clahe = (input: any, options: ClaheOptions = defaults) => {
       const mapped = v00 * (1-fx) * (1-fy) + v10 * fx * (1-fy) + v01 * (1-fx) * fy + v11 * fx * fy;
 
       // Scale original RGB proportionally
-      const scale = l > 0 ? mapped / l : 1;
-      const r = Math.max(0, Math.min(255, Math.round(buf[i] * scale)));
-      const g = Math.max(0, Math.min(255, Math.round(buf[i + 1] * scale)));
-      const b = Math.max(0, Math.min(255, Math.round(buf[i + 2] * scale)));
+      const scale = l > 0 ? mapped / l : 0;
+      const r = Math.max(0, Math.min(255, Math.round(l > 0 ? buf[i] * scale : mapped)));
+      const g = Math.max(0, Math.min(255, Math.round(l > 0 ? buf[i + 1] * scale : mapped)));
+      const b = Math.max(0, Math.min(255, Math.round(l > 0 ? buf[i + 2] * scale : mapped)));
 
-      const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+      outBuf[i] = r;
+      outBuf[i + 1] = g;
+      outBuf[i + 2] = b;
+      outBuf[i + 3] = buf[i + 3];
     }
   }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  if (paletteIsIdentity(palette)) return output;
+  return applyPalettePassToCanvas(output, W, H, palette) ?? output;
 };
 
 export default defineFilter({ name: "CLAHE", func: clahe, optionTypes, options: defaults, defaults });

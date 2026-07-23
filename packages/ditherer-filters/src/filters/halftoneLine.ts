@@ -25,7 +25,7 @@ export const optionTypes = {
   baseAngle: { type: RANGE, range: [0, 180], step: 1, default: 45, desc: "Base line angle in degrees" },
   inkColor: { type: COLOR, default: [20, 18, 15], desc: "Ink color of the rendered line marks" },
   paperColor: { type: COLOR, default: [245, 240, 226], desc: "Paper color behind the halftone lines" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -42,7 +42,14 @@ export const defaults = {
 // palette-mapping those two colours once is equivalent to mapping every
 // pixel afterward — skips the post-readout palette pass entirely.
 const halftoneLine = (input: any, options: typeof defaults = defaults) => {
-  const { cellSize, angleMode, baseAngle, inkColor, paperColor, palette } = options;
+  const normalized = { ...defaults, ...options };
+  const cellSize = Math.max(8, Math.min(48, Number(normalized.cellSize) || defaults.cellSize));
+  const angleMode = normalized.angleMode === ANGLE_MODE.LUMINANCE || normalized.angleMode === ANGLE_MODE.GRADIENT
+    ? normalized.angleMode : ANGLE_MODE.CONSTANT;
+  const baseAngle = Number.isFinite(Number(normalized.baseAngle)) ? Number(normalized.baseAngle) : defaults.baseAngle;
+  const inkColor = Array.isArray(normalized.inkColor) ? normalized.inkColor : defaults.inkColor;
+  const paperColor = Array.isArray(normalized.paperColor) ? normalized.paperColor : defaults.paperColor;
+  const palette = normalized.palette ?? defaults.palette;
   const W = input.width, H = input.height;
   const inkMapped = srgbPaletteGetColor(palette, rgba(inkColor[0], inkColor[1], inkColor[2], 255), palette.options);
   const paperMapped = srgbPaletteGetColor(palette, rgba(paperColor[0], paperColor[1], paperColor[2], 255), palette.options);

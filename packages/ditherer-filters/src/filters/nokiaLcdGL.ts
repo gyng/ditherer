@@ -64,16 +64,20 @@ void main() {
   bool pixelActive = adjusted / 255.0 < u_threshold / 255.0 + matrixOffset;
   vec3 base = pixelActive ? PIXEL_ON : PIXEL_OFF;
 
-  // Cell-boundary grid: darken pixels where (x % cellW) < 1 or (y % cellH) < 1.
+  // Inter-pixel gaps reveal the unenergized LCD background; they do not
+  // invent darker third/fourth optical states. Suppress a grid axis until a
+  // one-output-pixel gap is narrow enough not to dominate the active cell.
   if (u_pixelGrid == 1) {
     float cellW = u_res.x / u_downRes.x;
     float cellH = u_res.y / u_downRes.y;
-    bool atV = mod(jsX, cellW) < 1.0;
-    bool atH = mod(jsY, cellH) < 1.0;
-    if (atV || atH) base = floor(base * 0.75 + 0.5);
+    float previousDx = floor(min(u_downRes.x - 1.0, max(0.0, jsX - 1.0) * u_downRes.x / u_res.x));
+    float previousDy = floor(min(u_downRes.y - 1.0, max(0.0, jsY - 1.0) * u_downRes.y / u_res.y));
+    bool atV = cellW >= 6.0 && jsX > 0.0 && dx != previousDx;
+    bool atH = cellH >= 6.0 && jsY > 0.0 && dy != previousDy;
+    if (atV || atH) base = PIXEL_OFF;
   }
 
-  fragColor = vec4(base / 255.0, center.a);
+  fragColor = vec4(base / 255.0, texture(u_source, v_uv).a);
 }
 `;
 

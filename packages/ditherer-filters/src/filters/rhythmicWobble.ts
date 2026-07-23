@@ -11,16 +11,17 @@ export const optionTypes = {
   rotation: { type: RANGE, range: [0, 12], step: 0.1, default: 1.2, desc: "Maximum rotational wobble in degrees" },
   zoomJitter: { type: RANGE, range: [0, 0.25], step: 0.01, default: 0.04, desc: "Subtle zoom breathing mixed into the wobble" },
   frequency: { type: RANGE, range: [0.1, 4], step: 0.1, default: 1.2, desc: "How quickly the periodic wobble evolves over time" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop the periodic position, rotation, and zoom wobble",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -69,5 +70,6 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Periodic whole-frame wobble with sinusoidal drift and gentle zoom breathing",
+  temporal: true,
   requiresGL: true,
 });

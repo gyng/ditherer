@@ -391,11 +391,11 @@ export const optionTypes = {
   thresholdMapScaleX: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern horizontally" },
   thresholdMapScaleY: { type: RANGE, range: [1, 5], step: 1, default: 1, desc: "Stretch the dither pattern vertically" },
   temporalPhases: { type: RANGE, range: [1, 8], step: 1, default: 1, desc: "Cycle threshold offset across frames — higher = more perceived colors over time" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Preview animation frame rate" },
+  animate: { type: ACTION, label: "Play / Stop", desc: "Start or stop cycling the temporal threshold phases", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
   }},
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Palette and quantization applied by the ordered-dither shader" }
 };
 
 const defaultThresholdMap = optionTypes.thresholdMap.default as ThresholdMapKey;
@@ -491,5 +491,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
+  temporal: true,
   requiresGL: true,
 });

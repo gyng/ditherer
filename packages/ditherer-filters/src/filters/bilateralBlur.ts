@@ -1,481 +1,380 @@
-import { BOOL, RANGE, PALETTE } from "../constants/controlTypes";
+import { ENUM, RANGE, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import {
-  cloneCanvas,
-  paletteGetColor,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
-import {
-  drawPass,
-  ensureTexture,
-  getGLCtx,
-  getQuadVAO,
-  glAvailable,
-  linkProgram,
-  readoutToCanvas,
-  resizeGLCanvas,
-  uploadSourceTexture,
-  type Program,
-} from "../gl/index";
+import { glAvailable } from "../gl/index";
+import { renderBilateralBlurGL } from "./bilateralBlurGL";
+
+const WORKING_RESOLUTION = {
+  FULL: "FULL",
+  HALF: "HALF",
+  QUARTER: "QUARTER",
+} as const;
 
 export const optionTypes = {
-  sigmaSpatial: { type: RANGE, range: [1, 20], step: 1, default: 5, desc: "Spatial kernel size — larger blurs over a wider area" },
-  sigmaRange: { type: RANGE, range: [5, 100], step: 5, default: 30, desc: "Color similarity threshold — higher preserves fewer edges" },
-  useSeparableApproximation: { type: BOOL, default: true, desc: "Approximate the bilateral blur with horizontal and vertical passes for much faster processing" },
-  useDownsample: { type: BOOL, default: true, desc: "Blur a smaller working image first, then scale back up for a large speed boost on bigger radii" },
-  downsampleFactor: { type: RANGE, range: [1, 4], step: 1, default: 2, desc: "Working resolution reduction when downsample is enabled" },
-  palette: { type: PALETTE, default: nearest }
+  sigmaSpatial: {
+    type: RANGE, range: [1, 12], step: 0.5, default: 5,
+    desc: "Spatial Gaussian standard deviation in output pixels",
+  },
+  sigmaRange: {
+    type: RANGE, range: [1, 100], step: 1, default: 30,
+    desc: "Color-similarity standard deviation — higher values smooth across stronger color edges",
+  },
+  workingResolution: {
+    type: ENUM,
+    options: [
+      { name: "Half (balanced)", value: WORKING_RESOLUTION.HALF },
+      { name: "Full (high quality)", value: WORKING_RESOLUTION.FULL },
+      { name: "Quarter (fast)", value: WORKING_RESOLUTION.QUARTER },
+    ],
+    default: WORKING_RESOLUTION.HALF,
+    desc: "Resolution used for filtering; reconstruction remains source-guided and very large images may receive a documented safety reduction",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
   sigmaSpatial: optionTypes.sigmaSpatial.default,
   sigmaRange: optionTypes.sigmaRange.default,
-  useSeparableApproximation: optionTypes.useSeparableApproximation.default,
-  useDownsample: optionTypes.useDownsample.default,
-  downsampleFactor: optionTypes.downsampleFactor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  workingResolution: optionTypes.workingResolution.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const MAX_COLOR_DISTANCE_SQ = 3 * 255 * 255;
-const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
-const readKernel = (buf: Float32Array, index: number) => buf[index] ?? 0;
-const spatialKernelCache = new Map<string, { radius: number; kernel: Float32Array }>();
-const spatialLineKernelCache = new Map<string, { radius: number; kernel: Float32Array }>();
-const rangeKernelCache = new Map<number, Float32Array>();
+type BilateralOptions = Omit<Partial<typeof defaults>, "workingResolution"> & Record<string, unknown> & {
+  workingResolution?: unknown;
+  _webglAcceleration?: boolean;
+  _linearize?: boolean;
+};
 
-const getSpatialKernel = (sigmaSpatial: number) => {
-  const radius = Math.ceil(sigmaSpatial * 2);
-  const cacheKey = `${sigmaSpatial}:${radius}`;
-  const cached = spatialKernelCache.get(cacheKey);
-  if (cached) return cached;
+const finite = (value: unknown, fallback: number, min: number, max: number): number => {
+  const parsed = typeof value === "number" ? value : Number.NaN;
+  return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
+};
 
-  const size = radius * 2 + 1;
-  const kernel = new Float32Array(size * size);
-  const spatialDenom = 2 * sigmaSpatial * sigmaSpatial;
-  let offset = 0;
-  for (let ky = -radius; ky <= radius; ky += 1) {
-    for (let kx = -radius; kx <= radius; kx += 1) {
-      kernel[offset] = Math.exp(-(kx * kx + ky * ky) / spatialDenom);
-      offset += 1;
-    }
+const resolveWorkingResolution = (options: BilateralOptions): keyof typeof WORKING_RESOLUTION => {
+  if (options.workingResolution === WORKING_RESOLUTION.FULL
+    || options.workingResolution === WORKING_RESOLUTION.HALF
+    || options.workingResolution === WORKING_RESOLUTION.QUARTER) {
+    return options.workingResolution;
   }
-
-  const result = { radius, kernel };
-  spatialKernelCache.set(cacheKey, result);
-  return result;
-};
-
-const getSpatialLineKernel = (sigmaSpatial: number) => {
-  const radius = Math.ceil(sigmaSpatial * 2);
-  const cacheKey = `${sigmaSpatial}:${radius}`;
-  const cached = spatialLineKernelCache.get(cacheKey);
-  if (cached) return cached;
-
-  const size = radius * 2 + 1;
-  const kernel = new Float32Array(size);
-  const spatialDenom = 2 * sigmaSpatial * sigmaSpatial;
-  for (let k = -radius; k <= radius; k += 1) {
-    kernel[k + radius] = Math.exp(-(k * k) / spatialDenom);
+  // Old URLs only carry these keys when they differed from the former defaults.
+  if ("useDownsample" in options && options.useDownsample === false) return WORKING_RESOLUTION.FULL;
+  if ("downsampleFactor" in options && typeof options.downsampleFactor === "number") {
+    return options.downsampleFactor >= 3 ? WORKING_RESOLUTION.QUARTER : options.downsampleFactor <= 1
+      ? WORKING_RESOLUTION.FULL
+      : WORKING_RESOLUTION.HALF;
   }
-
-  const result = { radius, kernel };
-  spatialLineKernelCache.set(cacheKey, result);
-  return result;
+  return WORKING_RESOLUTION.HALF;
 };
 
-const getRangeKernel = (sigmaRange: number) => {
-  const cacheKey = sigmaRange;
-  const cached = rangeKernelCache.get(cacheKey);
-  if (cached) return cached;
+const srgbToLinear = (value: number): number => value <= 0.04045
+  ? value / 12.92
+  : ((value + 0.055) / 1.055) ** 2.4;
 
-  const rangeDenom = 2 * sigmaRange * sigmaRange;
-  const kernel = new Float32Array(MAX_COLOR_DISTANCE_SQ + 1);
-  for (let distanceSq = 0; distanceSq <= MAX_COLOR_DISTANCE_SQ; distanceSq += 1) {
-    kernel[distanceSq] = Math.exp(-distanceSq / rangeDenom);
-  }
+const linearToSrgb = (value: number): number => value <= 0.0031308
+  ? value * 12.92
+  : 1.055 * Math.max(0, value) ** (1 / 2.4) - 0.055;
 
-  rangeKernelCache.set(cacheKey, kernel);
-  return kernel;
-};
+type Guide = { width: number; height: number; values: Float32Array };
 
-const runFullBilateral = (
-  buf: Uint8ClampedArray,
+const buildGuide = (
+  source: Uint8ClampedArray,
   width: number,
   height: number,
-  radius: number,
-  spatialKernel: Float32Array,
-  rangeKernel: Float32Array
-) => {
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let y = 0; y < height; y += 1) {
-    const rowOffset = y * width * 4;
-    for (let x = 0; x < width; x += 1) {
-      const ci = rowOffset + x * 4;
-      const cr = readU8(buf, ci);
-      const cg = readU8(buf, ci + 1);
-      const cb = readU8(buf, ci + 2);
-      let sr = 0;
-      let sg = 0;
-      let sb = 0;
-      let sa = 0;
-      let sw = 0;
-      let kernelIndex = 0;
-
-      for (let ky = -radius; ky <= radius; ky += 1) {
-        const ny = Math.max(0, Math.min(height - 1, y + ky));
-        const neighborRowOffset = ny * width * 4;
-        for (let kx = -radius; kx <= radius; kx += 1) {
-          const nx = Math.max(0, Math.min(width - 1, x + kx));
-          const ni = neighborRowOffset + nx * 4;
-          const nr = readU8(buf, ni);
-          const ng = readU8(buf, ni + 1);
-          const nb = readU8(buf, ni + 2);
-          const dr = cr - nr;
-          const dg = cg - ng;
-          const db = cb - nb;
-          const distanceSq = dr * dr + dg * dg + db * db;
-          const weight = readKernel(spatialKernel, kernelIndex) * readKernel(rangeKernel, distanceSq);
-          kernelIndex += 1;
-
-          sr += nr * weight;
-          sg += ng * weight;
-          sb += nb * weight;
-          sa += readU8(buf, ni + 3) * weight;
-          sw += weight;
-        }
-      }
-
-      outBuf[ci] = Math.round(sr / sw);
-      outBuf[ci + 1] = Math.round(sg / sw);
-      outBuf[ci + 2] = Math.round(sb / sw);
-      outBuf[ci + 3] = Math.round(sa / sw);
-    }
-  }
-
-  return outBuf;
-};
-
-const runSeparableBilateral = (
-  buf: Uint8ClampedArray,
-  width: number,
-  height: number,
-  radius: number,
-  spatialLineKernel: Float32Array,
-  rangeKernel: Float32Array
-) => {
-  const tempBuf = new Uint8ClampedArray(buf.length);
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let y = 0; y < height; y += 1) {
-    const rowOffset = y * width * 4;
-    for (let x = 0; x < width; x += 1) {
-      const ci = rowOffset + x * 4;
-      const cr = readU8(buf, ci);
-      const cg = readU8(buf, ci + 1);
-      const cb = readU8(buf, ci + 2);
-      let sr = 0;
-      let sg = 0;
-      let sb = 0;
-      let sa = 0;
-      let sw = 0;
-
-      for (let k = -radius; k <= radius; k += 1) {
-        const nx = Math.max(0, Math.min(width - 1, x + k));
-        const ni = rowOffset + nx * 4;
-        const nr = readU8(buf, ni);
-        const ng = readU8(buf, ni + 1);
-        const nb = readU8(buf, ni + 2);
-        const dr = cr - nr;
-        const dg = cg - ng;
-        const db = cb - nb;
-        const weight = readKernel(spatialLineKernel, k + radius) * readKernel(rangeKernel, dr * dr + dg * dg + db * db);
-        sr += nr * weight;
-        sg += ng * weight;
-        sb += nb * weight;
-        sa += readU8(buf, ni + 3) * weight;
-        sw += weight;
-      }
-
-      tempBuf[ci] = Math.round(sr / sw);
-      tempBuf[ci + 1] = Math.round(sg / sw);
-      tempBuf[ci + 2] = Math.round(sb / sw);
-      tempBuf[ci + 3] = Math.round(sa / sw);
-    }
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    const rowOffset = y * width * 4;
-    for (let x = 0; x < width; x += 1) {
-      const ci = rowOffset + x * 4;
-      const cr = readU8(tempBuf, ci);
-      const cg = readU8(tempBuf, ci + 1);
-      const cb = readU8(tempBuf, ci + 2);
-      let sr = 0;
-      let sg = 0;
-      let sb = 0;
-      let sa = 0;
-      let sw = 0;
-
-      for (let k = -radius; k <= radius; k += 1) {
-        const ny = Math.max(0, Math.min(height - 1, y + k));
-        const ni = (ny * width + x) * 4;
-        const nr = readU8(tempBuf, ni);
-        const ng = readU8(tempBuf, ni + 1);
-        const nb = readU8(tempBuf, ni + 2);
-        const dr = cr - nr;
-        const dg = cg - ng;
-        const db = cb - nb;
-        const weight = readKernel(spatialLineKernel, k + radius) * readKernel(rangeKernel, dr * dr + dg * dg + db * db);
-        sr += nr * weight;
-        sg += ng * weight;
-        sb += nb * weight;
-        sa += readU8(tempBuf, ni + 3) * weight;
-        sw += weight;
-      }
-
-      outBuf[ci] = Math.round(sr / sw);
-      outBuf[ci + 1] = Math.round(sg / sw);
-      outBuf[ci + 2] = Math.round(sb / sw);
-      outBuf[ci + 3] = Math.round(sa / sw);
-    }
-  }
-
-  return outBuf;
-};
-
-const downsampleBuffer = (buf: Uint8ClampedArray, width: number, height: number, factor: number) => {
-  const outWidth = Math.max(1, Math.ceil(width / factor));
-  const outHeight = Math.max(1, Math.ceil(height / factor));
-  const outBuf = new Uint8ClampedArray(outWidth * outHeight * 4);
-
-  for (let y = 0; y < outHeight; y += 1) {
-    const srcY0 = y * factor;
-    const srcY1 = Math.min(height, srcY0 + factor);
-    for (let x = 0; x < outWidth; x += 1) {
-      const srcX0 = x * factor;
-      const srcX1 = Math.min(width, srcX0 + factor);
-      let sr = 0;
-      let sg = 0;
-      let sb = 0;
-      let sa = 0;
-      let count = 0;
-
-      for (let sy = srcY0; sy < srcY1; sy += 1) {
-        const rowOffset = sy * width * 4;
-        for (let sx = srcX0; sx < srcX1; sx += 1) {
-          const i = rowOffset + sx * 4;
-          sr += readU8(buf, i);
-          sg += readU8(buf, i + 1);
-          sb += readU8(buf, i + 2);
-          sa += readU8(buf, i + 3);
+  factor: number,
+  linearize: boolean,
+): Guide => {
+  const workWidth = Math.max(1, Math.ceil(width / factor));
+  const workHeight = Math.max(1, Math.ceil(height / factor));
+  const values = new Float32Array(workWidth * workHeight * 4);
+  for (let workY = 0; workY < workHeight; workY++) {
+    for (let workX = 0; workX < workWidth; workX++) {
+      let red = 0; let green = 0; let blue = 0; let alphaSum = 0; let count = 0;
+      const endY = Math.min(height, (workY + 1) * factor);
+      const endX = Math.min(width, (workX + 1) * factor);
+      for (let y = workY * factor; y < endY; y++) {
+        for (let x = workX * factor; x < endX; x++) {
+          const index = (y * width + x) * 4;
+          const alpha = source[index + 3] / 255;
+          const sourceRed = source[index] / 255;
+          const sourceGreen = source[index + 1] / 255;
+          const sourceBlue = source[index + 2] / 255;
+          red += (linearize ? srgbToLinear(sourceRed) : sourceRed) * alpha;
+          green += (linearize ? srgbToLinear(sourceGreen) : sourceGreen) * alpha;
+          blue += (linearize ? srgbToLinear(sourceBlue) : sourceBlue) * alpha;
+          alphaSum += alpha;
           count += 1;
         }
       }
-
-      const oi = (y * outWidth + x) * 4;
-      outBuf[oi] = Math.round(sr / count);
-      outBuf[oi + 1] = Math.round(sg / count);
-      outBuf[oi + 2] = Math.round(sb / count);
-      outBuf[oi + 3] = Math.round(sa / count);
-    }
-  }
-
-  return { width: outWidth, height: outHeight, buf: outBuf };
-};
-
-const upscaleBuffer = (buf: Uint8ClampedArray, width: number, height: number, outWidth: number, outHeight: number) => {
-  if (width === outWidth && height === outHeight) return buf;
-
-  const outBuf = new Uint8ClampedArray(outWidth * outHeight * 4);
-  const xScale = width / outWidth;
-  const yScale = height / outHeight;
-
-  for (let y = 0; y < outHeight; y += 1) {
-    const srcY = (y + 0.5) * yScale - 0.5;
-    const y0 = Math.max(0, Math.floor(srcY));
-    const y1 = Math.min(height - 1, y0 + 1);
-    const fy = Math.max(0, Math.min(1, srcY - y0));
-
-    for (let x = 0; x < outWidth; x += 1) {
-      const srcX = (x + 0.5) * xScale - 0.5;
-      const x0 = Math.max(0, Math.floor(srcX));
-      const x1 = Math.min(width - 1, x0 + 1);
-      const fx = Math.max(0, Math.min(1, srcX - x0));
-
-      const i00 = (y0 * width + x0) * 4;
-      const i10 = (y0 * width + x1) * 4;
-      const i01 = (y1 * width + x0) * 4;
-      const i11 = (y1 * width + x1) * 4;
-      const oi = (y * outWidth + x) * 4;
-
-      for (let c = 0; c < 4; c += 1) {
-        const top = readU8(buf, i00 + c) * (1 - fx) + readU8(buf, i10 + c) * fx;
-        const bottom = readU8(buf, i01 + c) * (1 - fx) + readU8(buf, i11 + c) * fx;
-        outBuf[oi + c] = Math.round(top * (1 - fy) + bottom * fy);
+      const output = (workY * workWidth + workX) * 4;
+      if (alphaSum > 1e-6) {
+        values[output] = red / alphaSum;
+        values[output + 1] = green / alphaSum;
+        values[output + 2] = blue / alphaSum;
       }
+      values[output + 3] = count > 0 ? alphaSum / count : 0;
     }
   }
-
-  return outBuf;
+  return { width: workWidth, height: workHeight, values };
 };
 
-// GPU full-2D bilateral — the JS path has separable/downsample shortcuts
-// to stay interactive on CPU, but the GPU can afford the full cross
-// product so we always do the exact kernel here.
-const BILATERAL_FS = `#version 300 es
-precision highp float;
-in vec2 v_uv;
-out vec4 fragColor;
-
-uniform sampler2D u_source;
-uniform vec2  u_res;
-uniform int   u_radius;        // clamped to 20 below
-uniform float u_spatialDenom;
-uniform float u_rangeDenom;
-uniform float u_levels;
-
-void main() {
-  vec2 px = v_uv * u_res;
-  float x = floor(px.x);
-  float y = u_res.y - 1.0 - floor(px.y);
-  vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
-  vec4 self = texture(u_source, suv);
-  vec3 c = self.rgb * 255.0;
-
-  vec4 sum = vec4(0.0);
-  float sw = 0.0;
-  for (int ky = -20; ky <= 20; ky++) {
-    if (ky < -u_radius || ky > u_radius) continue;
-    for (int kx = -20; kx <= 20; kx++) {
-      if (kx < -u_radius || kx > u_radius) continue;
-      float nx = clamp(x + float(kx), 0.0, u_res.x - 1.0);
-      float ny = clamp(y + float(ky), 0.0, u_res.y - 1.0);
-      vec2 nuv = vec2((nx + 0.5) / u_res.x, 1.0 - (ny + 0.5) / u_res.y);
-      vec4 n = texture(u_source, nuv);
-      vec3 nc = n.rgb * 255.0;
-      vec3 d = c - nc;
-      float distSq = dot(d, d);
-      float spatialW = exp(-(float(kx * kx + ky * ky)) / u_spatialDenom);
-      float rangeW = exp(-distSq / u_rangeDenom);
-      float w = spatialW * rangeW;
-      sum += vec4(nc, n.a * 255.0) * w;
-      sw += w;
-    }
-  }
-  vec4 out4 = sum / max(sw, 1e-6);
-  vec3 rgb = clamp(out4.rgb / 255.0, 0.0, 1.0);
-  if (u_levels > 1.5) {
-    float q = u_levels - 1.0;
-    rgb = floor(rgb * q + 0.5) / q;
-  }
-  fragColor = vec4(rgb, clamp(out4.a / 255.0, 0.0, 1.0));
-}
-`;
-
-type Cache = { bl: Program };
-let _cache: Cache | null = null;
-const initCache = (gl: WebGL2RenderingContext): Cache => {
-  if (_cache) return _cache;
-  _cache = {
-    bl: linkProgram(gl, BILATERAL_FS, [
-      "u_source", "u_res", "u_radius", "u_spatialDenom", "u_rangeDenom", "u_levels",
-    ] as const),
-  };
-  return _cache;
-};
-
-const bilateralBlur = (input: any, options = defaults) => {
-  const {
-    sigmaSpatial,
-    sigmaRange,
-    useSeparableApproximation,
-    useDownsample,
-    downsampleFactor,
-    palette
-  } = options;
-  const W = input.width, H = input.height;
-
-  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
-    const ctx = getGLCtx();
-    if (ctx) {
-      const { gl, canvas } = ctx;
-      const cache = initCache(gl);
-      const vao = getQuadVAO(gl);
-      resizeGLCanvas(canvas, W, H);
-      const sourceTex = ensureTexture(gl, "bilateralBlur:source", W, H);
-      uploadSourceTexture(gl, sourceTex, input);
-
-      // GPU handles full 2D up to radius 20 in-shader; sigmaSpatial=20
-      // would mean radius=40 (ceil(2·σ)) on CPU, but at that point even
-      // GPU gets slow — cap for stable real-time behaviour.
-      const radius = Math.max(1, Math.min(20, Math.ceil(sigmaSpatial * 2)));
-
-      drawPass(gl, null, W, H, cache.bl, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.bl.uniforms.u_source, 0);
-        gl.uniform2f(cache.bl.uniforms.u_res, W, H);
-        gl.uniform1i(cache.bl.uniforms.u_radius, radius);
-        gl.uniform1f(cache.bl.uniforms.u_spatialDenom, 2 * sigmaSpatial * sigmaSpatial);
-        gl.uniform1f(cache.bl.uniforms.u_rangeDenom, 2 * sigmaRange * sigmaRange);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.bl.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
-
-      const rendered = readoutToCanvas(canvas, W, H);
-      if (rendered) {
-        const identity = paletteIsIdentity(palette);
-        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-        if (out) {
-          logFilterBackend("Bilateral Blur", "WebGL2",
-            `σs=${sigmaSpatial} σr=${sigmaRange}${identity ? "" : "+palettePass"}`);
-          return out;
-        }
+const guidedPass = (
+  signal: Float32Array,
+  guide: Guide,
+  radius: number,
+  sigmaSpatial: number,
+  sigmaRange: number,
+  horizontal: boolean,
+): Float32Array => {
+  const output = new Float32Array(signal.length);
+  const spatialDenominator = Math.max(2 * sigmaSpatial * sigmaSpatial, 1e-6);
+  const rangeDenominator = Math.max(2 * sigmaRange * sigmaRange, 1e-6);
+  for (let y = 0; y < guide.height; y++) {
+    for (let x = 0; x < guide.width; x++) {
+      const center = (y * guide.width + x) * 4;
+      const centerAlpha = guide.values[center + 3];
+      if (centerAlpha <= 1e-6) continue;
+      let red = 0; let green = 0; let blue = 0; let weightSum = 0;
+      for (let offset = -radius; offset <= radius; offset++) {
+        const neighborX = horizontal ? Math.max(0, Math.min(guide.width - 1, x + offset)) : x;
+        const neighborY = horizontal ? y : Math.max(0, Math.min(guide.height - 1, y + offset));
+        const neighbor = (neighborY * guide.width + neighborX) * 4;
+        const deltaRed = (guide.values[center] - guide.values[neighbor]) * 255;
+        const deltaGreen = (guide.values[center + 1] - guide.values[neighbor + 1]) * 255;
+        const deltaBlue = (guide.values[center + 2] - guide.values[neighbor + 2]) * 255;
+        const spatialWeight = Math.exp(-(offset * offset) / spatialDenominator);
+        const rangeWeight = Math.exp(
+          -(deltaRed * deltaRed + deltaGreen * deltaGreen + deltaBlue * deltaBlue) / rangeDenominator,
+        );
+        const weight = spatialWeight * rangeWeight * guide.values[neighbor + 3];
+        red += signal[neighbor] * weight;
+        green += signal[neighbor + 1] * weight;
+        blue += signal[neighbor + 2] * weight;
+        weightSum += weight;
       }
+      if (weightSum > 1e-6) {
+        output[center] = red / weightSum;
+        output[center + 1] = green / weightSum;
+        output[center + 2] = blue / weightSum;
+      } else {
+        output[center] = signal[center];
+        output[center + 1] = signal[center + 1];
+        output[center + 2] = signal[center + 2];
+      }
+      output[center + 3] = centerAlpha;
     }
   }
-
-  logFilterWasmStatus("Bilateral Blur", false, "fallback JS");
-  const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
-
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const factor = useDownsample ? Math.max(1, Math.round(downsampleFactor)) : 1;
-  const downsampled = factor > 1 ? downsampleBuffer(buf, W, H, factor) : { width: W, height: H, buf };
-  const { radius, kernel: spatialKernel } = getSpatialKernel(sigmaSpatial);
-  const { kernel: spatialLineKernel } = getSpatialLineKernel(sigmaSpatial);
-  const rangeKernel = getRangeKernel(sigmaRange);
-  const blurredBuf = useSeparableApproximation
-    ? runSeparableBilateral(downsampled.buf, downsampled.width, downsampled.height, radius, spatialLineKernel, rangeKernel)
-    : runFullBilateral(downsampled.buf, downsampled.width, downsampled.height, radius, spatialKernel, rangeKernel);
-  const scaledBuf = factor > 1
-    ? upscaleBuffer(blurredBuf, downsampled.width, downsampled.height, W, H)
-    : blurredBuf;
-  const outBuf = new Uint8ClampedArray(scaledBuf.length);
-
-  for (let i = 0; i < scaledBuf.length; i += 4) {
-    const alpha = readU8(scaledBuf, i + 3);
-    const color = paletteGetColor(palette, [
-      readU8(scaledBuf, i),
-      readU8(scaledBuf, i + 1),
-      readU8(scaledBuf, i + 2),
-      alpha
-    ], palette.options, false);
-    outBuf[i] = color[0] ?? 0;
-    outBuf[i + 1] = color[1] ?? 0;
-    outBuf[i + 2] = color[2] ?? 0;
-    outBuf[i + 3] = alpha;
-  }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
 };
 
-export default defineFilter({ name: "Bilateral Blur", func: bilateralBlur, optionTypes, options: defaults, defaults });
+const reconstruct = (
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+  guide: Guide,
+  blurred: Float32Array,
+  factor: number,
+  sigmaRange: number,
+  linearize: boolean,
+): Uint8ClampedArray<ArrayBuffer> => {
+  const output = new Uint8ClampedArray(new ArrayBuffer(source.length));
+  const rangeDenominator = Math.max(2 * sigmaRange * sigmaRange, 1e-6);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = (y * width + x) * 4;
+      const alpha = source[index + 3];
+      output[index + 3] = alpha;
+      if (alpha === 0) continue;
+      const sourceRed = source[index] / 255;
+      const sourceGreen = source[index + 1] / 255;
+      const sourceBlue = source[index + 2] / 255;
+      const centerRed = linearize ? srgbToLinear(sourceRed) : sourceRed;
+      const centerGreen = linearize ? srgbToLinear(sourceGreen) : sourceGreen;
+      const centerBlue = linearize ? srgbToLinear(sourceBlue) : sourceBlue;
+      if (factor === 1) {
+        const workIndex = (y * guide.width + x) * 4;
+        let red = blurred[workIndex];
+        let green = blurred[workIndex + 1];
+        let blue = blurred[workIndex + 2];
+        if (linearize) {
+          red = linearToSrgb(red);
+          green = linearToSrgb(green);
+          blue = linearToSrgb(blue);
+        }
+        output[index] = Math.round(Math.max(0, Math.min(1, red)) * 255);
+        output[index + 1] = Math.round(Math.max(0, Math.min(1, green)) * 255);
+        output[index + 2] = Math.round(Math.max(0, Math.min(1, blue)) * 255);
+        continue;
+      }
+      const workX = (x + 0.5) / factor - 0.5;
+      const workY = (y + 0.5) / factor - 0.5;
+      const baseX = Math.floor(workX);
+      const baseY = Math.floor(workY);
+      let red = 0; let green = 0; let blue = 0; let weightSum = 0;
+      for (let offsetY = -1; offsetY <= 1; offsetY++) {
+        for (let offsetX = -1; offsetX <= 1; offsetX++) {
+          const candidateX = Math.max(0, Math.min(guide.width - 1, baseX + offsetX));
+          const candidateY = Math.max(0, Math.min(guide.height - 1, baseY + offsetY));
+          const candidate = (candidateY * guide.width + candidateX) * 4;
+          const spatialX = baseX + offsetX - workX;
+          const spatialY = baseY + offsetY - workY;
+          const deltaRed = (centerRed - guide.values[candidate]) * 255;
+          const deltaGreen = (centerGreen - guide.values[candidate + 1]) * 255;
+          const deltaBlue = (centerBlue - guide.values[candidate + 2]) * 255;
+          const spatialWeight = Math.exp(-(spatialX * spatialX + spatialY * spatialY) / 2);
+          const rangeWeight = Math.exp(
+            -(deltaRed * deltaRed + deltaGreen * deltaGreen + deltaBlue * deltaBlue) / rangeDenominator,
+          );
+          const weight = spatialWeight * rangeWeight * guide.values[candidate + 3];
+          red += blurred[candidate] * weight;
+          green += blurred[candidate + 1] * weight;
+          blue += blurred[candidate + 2] * weight;
+          weightSum += weight;
+        }
+      }
+      red = weightSum > 1e-6 ? red / weightSum : centerRed;
+      green = weightSum > 1e-6 ? green / weightSum : centerGreen;
+      blue = weightSum > 1e-6 ? blue / weightSum : centerBlue;
+      if (linearize) {
+        red = linearToSrgb(red);
+        green = linearToSrgb(green);
+        blue = linearToSrgb(blue);
+      }
+      output[index] = Math.round(Math.max(0, Math.min(1, red)) * 255);
+      output[index + 1] = Math.round(Math.max(0, Math.min(1, green)) * 255);
+      output[index + 2] = Math.round(Math.max(0, Math.min(1, blue)) * 255);
+    }
+  }
+  return output;
+};
+
+const canonicalizeTransparentRgb = (
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  width: number,
+  height: number,
+): HTMLCanvasElement | OffscreenCanvas => {
+  const context = canvas.getContext("2d", { willReadFrequently: true }) as
+    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!context) return canvas;
+  const image = context.getImageData(0, 0, width, height);
+  let changed = false;
+  for (let index = 0; index < image.data.length; index += 4) {
+    if (image.data[index + 3] === 0
+      && (image.data[index] !== 0 || image.data[index + 1] !== 0 || image.data[index + 2] !== 0)) {
+      image.data[index] = 0;
+      image.data[index + 1] = 0;
+      image.data[index + 2] = 0;
+      changed = true;
+    }
+  }
+  if (changed) context.putImageData(image, 0, 0);
+  return canvas;
+};
+
+const MAX_GL_WORK_PIXELS = 2_500_000;
+const MAX_CPU_WORK_PIXELS = 262_144;
+const MAX_CPU_OUTPUT_PIXELS = 2_500_000;
+
+export const resolveBilateralWorkFactor = (
+  width: number,
+  height: number,
+  requested: number,
+): number | null => {
+  let factor = requested;
+  while (factor < 4
+    && Math.ceil(width / factor) * Math.ceil(height / factor) > MAX_GL_WORK_PIXELS) factor *= 2;
+  return Math.ceil(width / factor) * Math.ceil(height / factor) <= MAX_GL_WORK_PIXELS
+    ? Math.min(4, factor)
+    : null;
+};
+
+export const resolveBilateralCpuFactor = (
+  width: number,
+  height: number,
+  requested: number,
+): number | null => {
+  if (width * height > MAX_CPU_OUTPUT_PIXELS) return null;
+  let factor = requested;
+  while (factor < 64
+    && Math.ceil(width / factor) * Math.ceil(height / factor) > MAX_CPU_WORK_PIXELS) factor *= 2;
+  return Math.ceil(width / factor) * Math.ceil(height / factor) <= MAX_CPU_WORK_PIXELS
+    ? factor
+    : null;
+};
+
+const bilateralBlur = (input: any, options: BilateralOptions = defaults) => {
+  const sigmaSpatial = finite(options.sigmaSpatial, defaults.sigmaSpatial, 1, 12);
+  const sigmaRange = finite(options.sigmaRange, defaults.sigmaRange, 1, 100);
+  const workingResolution = resolveWorkingResolution(options);
+  const requestedFactor = workingResolution === WORKING_RESOLUTION.FULL ? 1
+    : workingResolution === WORKING_RESOLUTION.QUARTER ? 4 : 2;
+  const linearize = options._linearize === true;
+  const palette = options.palette ?? defaults.palette;
+  const width = input.width;
+  const height = input.height;
+
+  const factor = resolveBilateralWorkFactor(width, height, requestedFactor);
+  if (factor == null) {
+    logFilterWasmStatus("Bilateral Blur", false, "skipped: image too large for selected quality");
+    return input;
+  }
+  if (options._webglAcceleration !== false && glAvailable()) {
+    let rendered: HTMLCanvasElement | OffscreenCanvas | null = null;
+    try {
+      rendered = renderBilateralBlurGL(
+        input, width, height, sigmaSpatial, sigmaRange, factor, linearize,
+      );
+    } catch {
+      // A lost/undersized GL context falls through to the bounded CPU path.
+    }
+    if (rendered) {
+      const identity = paletteIsIdentity(palette);
+      const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+      if (output) {
+        if (!identity) canonicalizeTransparentRgb(output, width, height);
+        logFilterBackend(
+          "Bilateral Blur", "WebGL2",
+          `σs=${sigmaSpatial} σr=${sigmaRange} ${workingResolution}${factor !== requestedFactor ? `→1/${factor} safety` : ""}${linearize ? "+linear" : ""}${identity ? "" : "+palettePass"}`,
+        );
+        return output;
+      }
+    }
+  }
+
+  const cpuFactor = resolveBilateralCpuFactor(width, height, factor);
+  if (cpuFactor == null) {
+    logFilterWasmStatus("Bilateral Blur", false, "skipped: enable WebGL2 or reduce image size");
+    return input;
+  }
+  logFilterWasmStatus(
+    "Bilateral Blur", false,
+    `guided separable JS${cpuFactor !== factor ? ` (1/${cpuFactor} safety)` : ""}`,
+  );
+  const inputContext = input.getContext("2d", { willReadFrequently: true });
+  if (!inputContext) return input;
+  const source = inputContext.getImageData(0, 0, width, height).data;
+  const guide = buildGuide(source, width, height, cpuFactor, linearize);
+  const sigmaWork = sigmaSpatial / cpuFactor;
+  const radius = Math.max(1, Math.min(24, Math.ceil(2 * sigmaWork)));
+  const horizontal = guidedPass(guide.values, guide, radius, sigmaWork, sigmaRange, true);
+  const blurred = guidedPass(horizontal, guide, radius, sigmaWork, sigmaRange, false);
+  const outputPixels = reconstruct(
+    source, width, height, guide, blurred, cpuFactor, sigmaRange, linearize,
+  );
+  const output = cloneCanvas(input, false);
+  const outputContext = output.getContext("2d");
+  if (!outputContext) return input;
+  outputContext.putImageData(new ImageData(outputPixels, width, height), 0, 0);
+  if (paletteIsIdentity(palette)) return output;
+  const paletteOutput = applyPalettePassToCanvas(output, width, height, palette) ?? output;
+  return canonicalizeTransparentRgb(paletteOutput, width, height);
+};
+
+export default defineFilter({
+  name: "Bilateral Blur",
+  func: bilateralBlur,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

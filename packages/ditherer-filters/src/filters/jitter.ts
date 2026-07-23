@@ -29,16 +29,17 @@ export const optionTypes = {
   jitterXSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1, desc: "How much horizontal jitter carries over to the next row" },
   jitterY: { type: RANGE, range: [0, 100], default: 0, desc: "Maximum vertical pixel displacement per column" },
   jitterYSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1, desc: "How much vertical jitter carries over to the next column" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop frame-varying row and column jitter",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -240,5 +241,6 @@ export default defineFilter({
   func: jitterFilter,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  temporal: true,
 });

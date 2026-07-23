@@ -1979,9 +1979,9 @@ const App = () => {
       actions.filterImageAsync(inputCanvasRef.current);
     });
   }, [
-    state.chain, state.linearize, state.wasmAcceleration,
+    state.chain, state.linearize, state.wasmAcceleration, state.webglAcceleration,
     state.convertGrayscale, state.realtimeFiltering, state.inputImage,
-    state.scale, state.outputScale, state.time,
+    state.scale, state.outputScale, state.scalingAlgorithm, state.time,
   ]);
 
   const bringToTop = useCallback((e: React.MouseEvent<HTMLElement>) => {

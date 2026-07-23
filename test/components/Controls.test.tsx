@@ -26,7 +26,7 @@ let actions: Record<string, ReturnType<typeof vi.fn>>;
 let inputCanvas: HTMLCanvasElement;
 
 const optionTypes = {
-  run: { type: "ACTION", label: "Run effect", action: vi.fn() },
+  run: { type: "ACTION", label: "Run effect", desc: "Action help", action: vi.fn() },
   amount: { type: "RANGE", range: [0, 10], step: 0.5, default: 4, label: "Amount", desc: "Range help" },
   enabled: { type: "BOOL", default: true, label: "Enabled", desc: "Boolean help" },
   mode: {
@@ -43,7 +43,7 @@ const optionTypes = {
   tint: { type: "COLOR", default: [1, 2, 3] },
   curve: { type: "CURVE", default: "[[0,0],[255,255]]", desc: "Curve help" },
   colors: { type: "COLOR_ARRAY", default: [] },
-  palette: { type: "PALETTE", default: nearest },
+  palette: { type: "PALETTE", default: nearest, desc: "Palette help" },
   thresholdPreview: orderedOptionTypes.thresholdPreview,
   hidden: { type: "STRING", default: "secret", visibleWhen: () => false },
   shown: { type: "STRING", default: "visible", visibleWhen: () => true },
@@ -118,6 +118,14 @@ describe("Controls dispatcher and atoms", () => {
     expect(container.querySelector('[title="Boolean help"]')).not.toBeNull();
     expect(container.querySelector('canvas[aria-label*="levels"]')).not.toBeNull();
 
+    const actionButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find(button => button.textContent?.trim() === "Run effect")!;
+    const actionDescription = actionButton.getAttribute("aria-describedby");
+    expect(actionButton.title).toBe("Action help");
+    expect(actionDescription).toBeTruthy();
+    expect(document.getElementById(actionDescription!)?.textContent).toBe("Action help");
+    expect(container.querySelector('[aria-label="Help for Run effect"][title="Action help"]')).not.toBeNull();
+
     clickText("button", "Run effect");
     expect(optionTypes.run.action).toHaveBeenCalledWith(
       actions,
@@ -152,6 +160,17 @@ describe("Controls dispatcher and atoms", () => {
       .find((select) => Array.from(select.options).some((entry) => entry.value === "B"))!;
     setValue(mode, "B");
     expect(actions.setFilterOption).toHaveBeenCalledWith("mode", "B");
+
+    const palette = Array.from(container.querySelectorAll("select"))
+      .find((select) => select.value === nearest.name)!;
+    const paletteDescription = palette.getAttribute("aria-describedby");
+    expect(paletteDescription).toBeTruthy();
+    expect(document.getElementById(paletteDescription!)?.textContent).toBe("Palette help");
+    setValue(palette, "User/Adaptive");
+    expect(actions.setFilterOption).toHaveBeenCalledWith(
+      "palette",
+      expect.objectContaining({ name: "User/Adaptive" }),
+    );
 
     const stringInputs = container.querySelectorAll<HTMLInputElement>('input[type="text"]');
     setValue(stringInputs[0], "new title");
@@ -243,6 +262,10 @@ describe("Controls dispatcher and atoms", () => {
     act(() => root.render(
       <Controls optionTypes={sparseTypes as never} options={sparseOptions as never} />,
     ));
+    const sparseAction = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find(button => button.textContent?.trim() === "runFallback")!;
+    expect(sparseAction.hasAttribute("aria-describedby")).toBe(false);
+    expect(sparseAction.hasAttribute("title")).toBe(false);
     expect(container.querySelector<HTMLInputElement>('input[type="range"]')?.value).toBe("0.25");
     expect(container.querySelector<HTMLInputElement>('input[type="text"]')?.value).toBe("");
     expect(container.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("");

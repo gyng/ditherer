@@ -4,12 +4,9 @@ import {
   type Program,
 } from "../gl/index";
 
-// Line halftone: for each output pixel, resolve which grid cell it
-// belongs to, compute cell darkness (centre-sample approximation in
-// place of the JS reference's per-cell average — visually
-// indistinguishable for a halftone) and optionally a Sobel direction,
-// then test whether the pixel lies on the cell's darkness-driven line
-// segment.
+// Periodic line screen. The doubled folded phase is uniform on [0,1], so
+// thresholding it by darkness makes ink area equal requested tone independent
+// of pitch. Cells only choose local tone and (optionally) orientation.
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -29,7 +26,7 @@ float lumaAt(float jsX, float jsY) {
   return (c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722) * 255.0;
 }
 
-float sobelDirAt(float jsX, float jsY) {
+vec2 sobelAt(float jsX, float jsY) {
   float l00 = lumaAt(jsX - 1.0, jsY - 1.0) / 255.0;
   float l10 = lumaAt(jsX,       jsY - 1.0) / 255.0;
   float l20 = lumaAt(jsX + 1.0, jsY - 1.0) / 255.0;
@@ -40,7 +37,21 @@ float sobelDirAt(float jsX, float jsY) {
   float l22 = lumaAt(jsX + 1.0, jsY + 1.0) / 255.0;
   float gx = (l20 + 2.0 * l21 + l22) - (l00 + 2.0 * l01 + l02);
   float gy = (l02 + 2.0 * l12 + l22) - (l00 + 2.0 * l10 + l20);
-  return atan(gy, gx);
+  return vec2(atan(gy, gx), length(vec2(gx, gy)));
+}
+
+float cellMeanLuma(float cellX, float cellY) {
+  float weighted = 0.0;
+  float weight = 0.0;
+  for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) {
+    float sx = min(u_res.x - 1.0, cellX + (float(x) + 0.5) * u_cellSize / 4.0);
+    float sy = min(u_res.y - 1.0, cellY + (float(y) + 0.5) * u_cellSize / 4.0);
+    vec4 sampleValue = texture(u_source, vec2((sx + 0.5) / u_res.x, 1.0 - (sy + 0.5) / u_res.y));
+    float alpha = sampleValue.a;
+    weighted += dot(sampleValue.rgb, vec3(0.2126, 0.7152, 0.0722)) * 255.0 * alpha;
+    weight += alpha;
+  }
+  return weight > 0.0 ? weighted / weight : 255.0;
 }
 
 void main() {
@@ -53,29 +64,24 @@ void main() {
   float centreX = min(u_res.x - 1.0, cellX + u_cellSize * 0.5);
   float centreY = min(u_res.y - 1.0, cellY + u_cellSize * 0.5);
 
-  float avgLum = lumaAt(centreX, centreY);
+  float avgLum = cellMeanLuma(cellX, cellY);
 
   float angle = u_baseAngle;
   if (u_angleMode == 1) {
     angle += (avgLum / 255.0) * 1.57079632679;
   } else if (u_angleMode == 2) {
-    angle = sobelDirAt(centreX, centreY) + 1.57079632679;
+    vec2 gradient = sobelAt(centreX, centreY);
+    if (gradient.y > 0.01) angle += gradient.x + 1.57079632679;
   }
 
-  float darkness = 1.0 - avgLum / 255.0;
-  float halfLen = max(1.0, darkness * u_cellSize * 0.45);
-  float thickness = max(0.5, darkness * 2.25);
-
-  float cosA = cos(angle);
-  float sinA = sin(angle);
-  float dx = jsX - centreX;
-  float dy = jsY - centreY;
-  float along = dx * cosA + dy * sinA;
-  float across = -dx * sinA + dy * cosA;
-
-  bool onLine = abs(along) <= halfLen && abs(across) <= thickness;
-  vec3 rgb = onLine ? u_inkColor : u_paperColor;
-  fragColor = vec4(rgb / 255.0, 1.0);
+  float darkness = clamp(1.0 - avgLum / 255.0, 0.0, 1.0);
+  vec2 normal = vec2(-sin(angle), cos(angle));
+  float phase = abs(fract(dot(vec2(jsX, jsY), normal) / u_cellSize + 0.5) - 0.5) * 2.0;
+  float aa = max(fwidth(phase), 1e-4);
+  float coverage = darkness <= 0.0 ? 0.0 : darkness >= 1.0 ? 1.0
+    : 1.0 - smoothstep(darkness - aa, darkness + aa, phase);
+  vec3 rgb = mix(u_paperColor, u_inkColor, coverage) / 255.0;
+  fragColor = vec4(rgb, texture(u_source, v_uv).a);
 }
 `;
 

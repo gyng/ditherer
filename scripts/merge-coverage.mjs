@@ -121,7 +121,7 @@ for (const filename of filenames) {
 // merged denominator, including GL, React, workers, and export orchestration.
 map.filter((filename) => {
   const relative = path.relative(root, filename).replaceAll(path.sep, "/");
-  return relative !== "src/glSmoke.ts"
+  return !relative.startsWith("src/gl-smoke/")
     && relative !== "src/ncParity.ts"
     && relative !== "src/wasmSmoke.ts"
     && !relative.startsWith("packages/ditherer-filters/src/wasm/");

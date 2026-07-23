@@ -6,11 +6,11 @@ import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend
 import { renderColorHalftoneSeparateGL } from "./colorHalftoneSeparateGL";
 
 export const optionTypes = {
-  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, desc: "Halftone dot diameter" },
-  offsetR: { type: RANGE, range: [0, 10], step: 1, default: 2, desc: "Red screen registration offset" },
-  offsetG: { type: RANGE, range: [0, 10], step: 1, default: 0, desc: "Green screen registration offset" },
-  offsetB: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Blue screen registration offset" },
-  palette: { type: PALETTE, default: nearest }
+  dotSize: { type: RANGE, range: [3, 16], step: 1, default: 6, label: "Screen pitch", desc: "Halftone screen pitch in pixels" },
+  offsetR: { type: RANGE, range: [0, 10], step: 1, default: 2, desc: "Red plate horizontal misregistration" },
+  offsetG: { type: RANGE, range: [0, 10], step: 1, default: 0, desc: "Green plate horizontal misregistration" },
+  offsetB: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Blue plate vertical misregistration" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -22,7 +22,13 @@ export const defaults = {
 };
 
 const colorHalftoneSeparate = (input: any, options: typeof defaults = defaults) => {
-  const { dotSize, offsetR, offsetG, offsetB, palette } = options;
+  const normalized = { ...defaults, ...options };
+  const finite = (value: unknown, fallback: number) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const dotSize = Math.max(3, Math.min(16, finite(normalized.dotSize, defaults.dotSize)));
+  const offsetR = Math.max(0, Math.min(10, finite(normalized.offsetR, defaults.offsetR)));
+  const offsetG = Math.max(0, Math.min(10, finite(normalized.offsetG, defaults.offsetG)));
+  const offsetB = Math.max(0, Math.min(10, finite(normalized.offsetB, defaults.offsetB)));
+  const palette = normalized.palette ?? defaults.palette;
   const W = input.width, H = input.height;
 
   const rendered = renderColorHalftoneSeparateGL(input, W, H, dotSize, offsetR, offsetG, offsetB);

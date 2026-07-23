@@ -35,7 +35,7 @@ export const optionTypes = {
     visibleWhen: (options: any) => options.fly
   },
   animSpeed: { type: RANGE, label: "Playback FPS", range: [1, 30], step: 1, default: 15, desc: "Playback speed for the optional flying preview" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+  animate: { type: ACTION, label: "Play / Stop", desc: "Start or stop automatic flight across the projected floor", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
     if (actions.isAnimating()) {
       actions.stopAnimLoop();
     } else {
@@ -91,7 +91,7 @@ export const optionTypes = {
     desc: "How much the sky shears with yaw like a sweeping arcade backdrop",
     visibleWhen: (options: any) => options.sky
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -404,5 +404,6 @@ export default defineFilter({
   func: mode7,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  temporal: true,
 });

@@ -34,6 +34,7 @@ import Stringly from "./Stringly";
 import Textly from "./Textly";
 import ColorArray from "./ColorArray";
 import ColorPicker from "./ColorPicker";
+import { HelpHint } from "./ControlLabel";
 import Curve from "./Curve";
 import ThresholdMapPreview from "./ThresholdMapPreview";
 import { humanizeControlName } from "./labels";
@@ -41,6 +42,7 @@ import { humanizeControlName } from "./labels";
 import s from "./styles.module.css";
 
 const Controls = (props: NestedControlsProps) => {
+  const controlsId = React.useId();
   const { state, actions } = useFilter();
   // Allow prop overrides for nested Controls (e.g., Palette sub-options)
   const filter = state.selected?.filter;
@@ -84,16 +86,29 @@ const Controls = (props: NestedControlsProps) => {
           case ACTION:
             {
               const actionType = oType as ActionOptionDefinition;
+              const visibleLabel = actionType.label || name;
+              const helpId = actionType.desc ? `${controlsId}-${name}-help` : undefined;
             return (
-              <button
-                key={name}
-                className={s.actionControl}
-                onClick={() => {
-                  actionType.action(actions, inputCanvas ?? null, state.selected?.filter?.func, options);
-                }}
-              >
-                {actionType.label || name}
-              </button>
+              <div key={name} className={s.actionRow}>
+                <button
+                  type="button"
+                  className={s.actionControl}
+                  title={actionType.desc}
+                  aria-describedby={helpId}
+                  onClick={() => {
+                    actionType.action(actions, inputCanvas ?? null, state.selected?.filter?.func, options);
+                  }}
+                >
+                  {visibleLabel}
+                </button>
+                {actionType.desc ? (
+                  <HelpHint
+                    label={humanizeControlName(visibleLabel)}
+                    text={actionType.desc}
+                    id={helpId}
+                  />
+                ) : null}
+              </div>
             );
             }
           case RANGE:

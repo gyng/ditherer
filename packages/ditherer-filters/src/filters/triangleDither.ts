@@ -18,7 +18,7 @@ export const optionTypes = {
     default: true,
     desc: "Re-roll the grain each frame so video shimmers. Off holds one static pattern.",
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Palette and quantization applied to the triangular noise threshold" }
 };
 
 export const defaults = {
@@ -69,5 +69,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
+  temporal: true,
   requiresGL: true,
 });

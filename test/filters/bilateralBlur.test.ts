@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import bilateralBlur from "filters/bilateralBlur";
+import bilateralBlur, {
+  resolveBilateralCpuFactor,
+  resolveBilateralWorkFactor,
+} from "filters/bilateralBlur";
+import { getFilterWasmStatuses } from "utils";
 
 const makeCanvas = (width: number, height: number, data: Uint8ClampedArray | number[]) => ({
   width,
@@ -36,10 +40,34 @@ const runAndCapture = (input, options): Uint8ClampedArray | null => {
 };
 
 describe("bilateralBlur", () => {
-  it("enables the fast approximation options by default", () => {
-    expect(bilateralBlur.defaults.useSeparableApproximation).toBe(true);
-    expect(bilateralBlur.defaults.useDownsample).toBe(true);
-    expect(bilateralBlur.defaults.downsampleFactor).toBe(2);
+  it("uses the balanced shared working resolution by default", () => {
+    expect(bilateralBlur.defaults.workingResolution).toBe("HALF");
+    expect(Object.keys(bilateralBlur.optionTypes)).not.toContain("useSeparableApproximation");
+    expect(Object.keys(bilateralBlur.optionTypes)).not.toContain("useDownsample");
+    expect(Object.keys(bilateralBlur.optionTypes)).not.toContain("downsampleFactor");
+  });
+
+  it("uses one bounded work-resolution decision for all backends", () => {
+    expect(resolveBilateralWorkFactor(1920, 1080, 1)).toBe(1);
+    expect(resolveBilateralWorkFactor(3840, 2160, 1)).toBe(2);
+    expect(resolveBilateralWorkFactor(3840, 2160, 4)).toBe(4);
+    expect(resolveBilateralWorkFactor(20_000, 20_000, 4)).toBeNull();
+    expect(resolveBilateralCpuFactor(1920, 1080, 1)).toBe(4);
+    expect(resolveBilateralCpuFactor(3840, 2160, 2)).toBeNull();
+    expect(resolveBilateralCpuFactor(100_000, 100_000, 4)).toBeNull();
+  });
+
+  it("rejects oversized work without allocating a replacement canvas", () => {
+    const input = makeCanvas(20_000, 20_000, []);
+    const output = bilateralBlur.func(input, {
+      ...bilateralBlur.defaults,
+      workingResolution: "QUARTER",
+      _webglAcceleration: false,
+    });
+    expect(output).toBe(input);
+    expect(getFilterWasmStatuses().get("Bilateral Blur")?.reason).toBe(
+      "skipped: image too large for selected quality",
+    );
   });
 
   it("preserves strong edges while smoothing nearby tones", () => {
@@ -55,8 +83,7 @@ describe("bilateralBlur", () => {
       ...bilateralBlur.defaults,
       sigmaSpatial: 2,
       sigmaRange: 10,
-      useSeparableApproximation: false,
-      useDownsample: false,
+      workingResolution: "FULL",
     });
 
     expect(out).toBeTruthy();

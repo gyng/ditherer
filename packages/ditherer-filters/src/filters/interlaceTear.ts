@@ -28,11 +28,11 @@ export const optionTypes = {
   tearOffset: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Horizontal shift of torn scan lines" },
   tearPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the tear" },
   fieldShift: { type: RANGE, range: [0, 20], step: 1, default: 3, desc: "Interlace field displacement" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview animation frame rate" },
+  animate: { type: ACTION, label: "Play / Stop", desc: "Start or stop frame-varying interlace tearing", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
     if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
   }},
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -192,4 +192,4 @@ const interlaceTear = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Interlace Tear", func: interlaceTear, optionTypes, options: defaults, defaults });
+export default defineFilter({ name: "Interlace Tear", func: interlaceTear, optionTypes, options: defaults, defaults, temporal: true });

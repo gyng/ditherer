@@ -23,22 +23,34 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import {
+  ultrasoundBackscatter,
+  ultrasoundDepthTransmission,
+  ultrasoundRayleighEnvelope,
+} from "./imagingSimulationContracts";
+import {
+  normalizeBooleanOption,
+  normalizePaletteOption,
+  normalizeRangeOption,
+} from "../utils/filterOptions";
 
 export const optionTypes = {
-  fanAngle:  { type: RANGE, range: [30, 150], step: 1, default: 70, desc: "Ultrasound scan sector angle" },
-  speckle:   { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Speckle noise characteristic of ultrasound" },
-  brightness: { type: RANGE, range: [0, 3], step: 0.05, default: 1.5, desc: "Overall image brightness" },
-  scanLines: { type: BOOL, default: true, desc: "Show radial scan lines" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
+  fanAngle:  { type: RANGE, range: [30, 150], step: 1, default: 70, desc: "Convex-probe sector angle" },
+  speckle:   { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Correlated Rayleigh-envelope speckle strength" },
+  brightness: { type: RANGE, range: [0, 3], step: 0.05, default: 1.5, desc: "B-mode receive gain after depth attenuation" },
+  scanLines: { type: BOOL, default: true, desc: "Reveal subtle radial beam sampling lines" },
+  markers: { type: BOOL, default: false, desc: "Show illustrative measurement crosses" },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Speckle refresh rate in frames per second" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop the changing speckle realization",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
     }
   },
-  palette:   { type: PALETTE, default: nearest }
+  palette:   { type: PALETTE, default: nearest, desc: "Optional palette mapping after B-mode display compression" }
 };
 
 export const defaults = {
@@ -46,19 +58,31 @@ export const defaults = {
   speckle: optionTypes.speckle.default,
   brightness: optionTypes.brightness.default,
   scanLines: optionTypes.scanLines.default,
+  markers: optionTypes.markers.default,
   animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-// Simple seeded pseudo-random for deterministic per-frame noise
-const mulberry32 = (seed: number) => {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+type UltrasoundOptions = Partial<typeof defaults> & {
+  _frameIndex?: number;
+  _webglAcceleration?: boolean;
+};
+
+const hash01 = (x: number, y: number, seed: number): number => {
+  const value = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+  return value - Math.floor(value);
+};
+
+const valueNoise = (x: number, y: number, seed: number): number => {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const top = hash01(x0, y0, seed) * (1 - sx) + hash01(x0 + 1, y0, seed) * sx;
+  const bottom = hash01(x0, y0 + 1, seed) * (1 - sx) + hash01(x0 + 1, y0 + 1, seed) * sx;
+  return top * (1 - sy) + bottom * sy;
 };
 
 const US_FS = `#version 300 es
@@ -75,10 +99,10 @@ uniform int   u_scanLines;
 uniform int   u_numBeams;
 uniform float u_minRadius;
 uniform float u_maxRadius;
-uniform float u_depthSteps;
 uniform float u_seed;
 uniform vec2  u_markers[3];
 uniform float u_markerSize;
+uniform int u_showMarkers;
 
 float hash2(vec2 p) {
   p = fract(p * vec2(443.897, 441.423));
@@ -88,23 +112,54 @@ float hash2(vec2 p) {
 
 float lum(vec3 c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; }
 
+float valueNoise(vec2 p, float seed) {
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash2(cell + vec2(seed, seed * 0.37));
+  float b = hash2(cell + vec2(1.0, 0.0) + vec2(seed, seed * 0.37));
+  float c = hash2(cell + vec2(0.0, 1.0) + vec2(seed, seed * 0.37));
+  float d = hash2(cell + vec2(1.0, 1.0) + vec2(seed, seed * 0.37));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float sourceLuma(vec2 sourcePx) {
+  vec2 bounded = clamp(sourcePx, vec2(0.0), u_res - vec2(1.0));
+  vec2 uv = vec2((bounded.x + 0.5) / u_res.x, 1.0 - (bounded.y + 0.5) / u_res.y);
+  vec4 sampleValue = texture(u_source, uv);
+  return lum(sampleValue.rgb) * sampleValue.a;
+}
+
+float backscatter(vec2 sourcePx) {
+  float center = sourceLuma(sourcePx);
+  float axial = abs(sourceLuma(sourcePx + vec2(0.0, 1.5)) - sourceLuma(sourcePx - vec2(0.0, 1.5)));
+  float lateral = abs(sourceLuma(sourcePx + vec2(1.5, 0.0)) - sourceLuma(sourcePx - vec2(1.5, 0.0)));
+  float neighborhood = 0.25 * (
+    sourceLuma(sourcePx + vec2(0.0, 1.5)) + sourceLuma(sourcePx - vec2(0.0, 1.5)) +
+    sourceLuma(sourcePx + vec2(1.5, 0.0)) + sourceLuma(sourcePx - vec2(1.5, 0.0))
+  );
+  float mismatch = abs(center - neighborhood);
+  return clamp(0.025 + axial * 0.72 + lateral * 0.18 + mismatch * 0.2, 0.0, 1.0);
+}
+
 void main() {
   vec2 px = v_uv * u_res;
   float x = floor(px.x);
   float y = u_res.y - 1.0 - floor(px.y);
 
-  // Yellow measurement crosses drawn on top — inside fan or not.
-  for (int m = 0; m < 3; m++) {
-    vec2 mp = u_markers[m];
-    if (mp.x < 0.0) continue;
-    // Sector check: skip if marker is outside the fan.
-    vec2 md = mp - vec2(u_res.x * 0.5, 0.0);
-    float mAngle = atan(abs(md.x), md.y);
-    if (mAngle > u_halfAngleRad) continue;
-    if ((abs(x - mp.x) <= u_markerSize && y == mp.y) ||
-        (abs(y - mp.y) <= u_markerSize && x == mp.x)) {
-      fragColor = vec4(220.0/255.0, 220.0/255.0, 100.0/255.0, 1.0);
-      return;
+  float outputAlpha = texture(u_source, v_uv).a;
+
+  if (u_showMarkers == 1) {
+    for (int m = 0; m < 3; m++) {
+      vec2 mp = u_markers[m];
+      vec2 md = mp - vec2(u_res.x * 0.5, 0.0);
+      float mAngle = atan(abs(md.x), md.y);
+      if (mAngle <= u_halfAngleRad &&
+          ((abs(x - mp.x) <= u_markerSize && abs(y - mp.y) < 0.5) ||
+           (abs(y - mp.y) <= u_markerSize && abs(x - mp.x) < 0.5))) {
+        fragColor = vec4(220.0/255.0, 220.0/255.0, 100.0/255.0, outputAlpha);
+        return;
+      }
     }
   }
 
@@ -115,63 +170,26 @@ void main() {
   float angle = atan(dx, dy);
 
   if (abs(angle) > u_halfAngleRad || dist < u_minRadius || dist > u_maxRadius) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    fragColor = vec4(0.0, 0.0, 0.0, outputAlpha);
     return;
   }
 
-  // Which beam index does this angle map to, with interpolation fraction.
   float beamT = (angle + u_halfAngleRad) / (2.0 * u_halfAngleRad);
   float beamF = beamT * (float(u_numBeams) - 1.0);
-  float depthF = dist - u_minRadius;
-  int depthI = int(clamp(floor(depthF), 0.0, u_depthSteps - 1.0));
-
-  // March the two nearest beams to this pixel's depth, accumulating
-  // attenuation down each. Bilinear blend between beams.
-  float values[2];
-  int beamsToSample[2];
-  beamsToSample[0] = int(clamp(floor(beamF), 0.0, float(u_numBeams - 1)));
-  beamsToSample[1] = int(clamp(floor(beamF) + 1.0, 0.0, float(u_numBeams - 1)));
-
-  for (int bj = 0; bj < 2; bj++) {
-    int bi = beamsToSample[bj];
-    float t = float(bi) / max(float(u_numBeams - 1), 1.0);
-    float signal = 1.0;
-    float echo = 0.0;
-    // March from depth 0 to depthI (inclusive).
-    for (int d = 0; d < 1024; d++) {
-      if (d > depthI) break;
-      float srcX = t * (u_res.x - 1.0);
-      float srcY = (float(d) / u_depthSteps) * (u_res.y - 1.0);
-      vec2 suv = vec2((srcX + 0.5) / u_res.x, 1.0 - (srcY + 0.5) / u_res.y);
-      float srcLum = lum(texture(u_source, suv).rgb);
-      float reflectivity = srcLum;
-      echo = (0.25 + reflectivity * 0.75) * signal * u_brightness;
-      float attenuation = reflectivity > 0.8 ? reflectivity * 0.08 : reflectivity * 0.02;
-      signal *= 1.0 - attenuation;
-      signal = max(signal, 0.15);
-      float depthT = float(d) / u_depthSteps;
-      echo *= 1.0 - depthT * 0.25;
-      if (u_speckle > 0.0) {
-        float n = 1.0 + (hash2(vec2(float(bi), float(d)) + u_seed) * 2.0 - 1.0) * u_speckle;
-        echo *= max(0.0, n);
-      }
-    }
-    values[bj] = clamp(echo, 0.0, 1.0);
-  }
-  float bf = fract(beamF);
-  float L = mix(values[0], values[1], bf);
+  float depthT = clamp((dist - u_minRadius) / max(1.0, u_maxRadius - u_minRadius), 0.0, 1.0);
+  vec2 sourcePx = vec2(beamT * (u_res.x - 1.0), depthT * (u_res.y - 1.0));
+  float echo = backscatter(sourcePx) * exp(-1.15 * depthT) * u_brightness;
+  float uniformValue = valueNoise(vec2(beamF * 0.42, depthT * u_res.y * 0.24), u_seed);
+  float rayleigh = min(3.0, sqrt(-2.0 * log(max(1e-6, 1.0 - uniformValue))) / sqrt(3.14159265 / 2.0));
+  float L = echo * mix(1.0, rayleigh, u_speckle);
 
   if (u_scanLines == 1) {
     float beamDist = abs(beamF - floor(beamF + 0.5));
     float beamLine = 1.0 + 0.12 * exp(-beamDist * beamDist * 120.0);
     L *= beamLine;
   }
-  if (u_speckle > 0.0) {
-    float fineN = 1.0 + (hash2(vec2(x + 53.0, y + 17.0) + u_seed * 3.0) * 2.0 - 1.0) * u_speckle * 0.3;
-    L *= max(0.0, fineN);
-  }
   L = clamp(L, 0.0, 1.0);
-  L = pow(L, 0.7);
+  L = log(1.0 + 18.0 * L) / log(19.0);
 
   float amberMix = L * L;
   vec3 rgb = vec3(
@@ -179,7 +197,7 @@ void main() {
     L * (180.0 + 40.0 * amberMix),
     L * (120.0 - 40.0 * amberMix)
   ) / 255.0;
-  fragColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), outputAlpha);
 }
 `;
 
@@ -191,28 +209,39 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     us: linkProgram(gl, US_FS, [
       "u_source", "u_res", "u_halfAngleRad", "u_speckle", "u_brightness",
       "u_scanLines", "u_numBeams", "u_minRadius", "u_maxRadius",
-      "u_depthSteps", "u_seed", "u_markers", "u_markerSize",
+      "u_seed", "u_markers", "u_markerSize", "u_showMarkers",
     ] as const),
   };
   return _cache;
 };
 
-const ultrasound = (input: any, options = defaults) => {
+const ultrasound = (input: any, options: UltrasoundOptions = defaults) => {
+  const supplied = { ...defaults, ...options };
+  const resolved = {
+    ...supplied,
+    fanAngle: normalizeRangeOption(supplied.fanAngle, defaults.fanAngle, 30, 150),
+    speckle: normalizeRangeOption(supplied.speckle, defaults.speckle, 0, 1),
+    brightness: normalizeRangeOption(supplied.brightness, defaults.brightness, 0, 3),
+    scanLines: normalizeBooleanOption(supplied.scanLines, defaults.scanLines),
+    markers: normalizeBooleanOption(supplied.markers, defaults.markers),
+    animSpeed: normalizeRangeOption(supplied.animSpeed, defaults.animSpeed, 1, 30, true),
+    palette: normalizePaletteOption(supplied.palette, defaults.palette),
+  };
   const {
     fanAngle,
     speckle,
     brightness,
     scanLines,
+    markers: showMarkers,
     palette
-  } = options;
+  } = resolved;
 
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const frameIndex = resolved._frameIndex || 0;
   const W = input.width, H = input.height;
   const halfAngleRad = ((fanAngle / 2) * Math.PI) / 180;
   const minRadius = H * 0.08;
   const maxRenderedRadius = H * 0.95;
   const numBeams = 128;
-  const depthSteps = Math.ceil(maxRenderedRadius - minRadius);
   const markerSize = Math.max(3, Math.floor(Math.min(W, H) * 0.015));
   const markers = [
     [Math.floor(W * 0.35), Math.floor(H * 0.4)],
@@ -220,7 +249,7 @@ const ultrasound = (input: any, options = defaults) => {
     [Math.floor(W * 0.5), Math.floor(H * 0.7)]
   ];
 
-  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+  if (glAvailable() && resolved._webglAcceleration !== false) {
     const ctx = getGLCtx();
     if (ctx) {
       const { gl, canvas } = ctx;
@@ -233,7 +262,7 @@ const ultrasound = (input: any, options = defaults) => {
       const markerArr = new Float32Array(6);
       for (let i = 0; i < 3; i++) {
         markerArr[i * 2] = markers[i][0];
-        markerArr[i * 2 + 1] = H - 1 - markers[i][1];
+        markerArr[i * 2 + 1] = markers[i][1];
       }
 
       drawPass(gl, null, W, H, cache.us, () => {
@@ -248,10 +277,10 @@ const ultrasound = (input: any, options = defaults) => {
         gl.uniform1i(cache.us.uniforms.u_numBeams, numBeams);
         gl.uniform1f(cache.us.uniforms.u_minRadius, minRadius);
         gl.uniform1f(cache.us.uniforms.u_maxRadius, maxRenderedRadius);
-        gl.uniform1f(cache.us.uniforms.u_depthSteps, depthSteps);
         gl.uniform1f(cache.us.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
         gl.uniform2fv(cache.us.uniforms.u_markers, markerArr);
         gl.uniform1f(cache.us.uniforms.u_markerSize, markerSize);
+        gl.uniform1i(cache.us.uniforms.u_showMarkers, showMarkers ? 1 : 0);
       }, vao);
 
       const rendered = readoutToCanvas(canvas, W, H);
@@ -276,8 +305,6 @@ const ultrasound = (input: any, options = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const rng = mulberry32(frameIndex * 7919 + 31337);
-
   // Fan geometry: apex at top-center
   const apexX = W / 2;
   const apexY = 0;
@@ -287,75 +314,30 @@ const ultrasound = (input: any, options = defaults) => {
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      lumRaw[y * W + x] =
-        buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722;
+      lumRaw[y * W + x] = (
+        buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722
+      ) / 255 * (buf[i + 3] / 255);
     }
   }
 
-  // --- Step 2: Simulate beam-by-beam pulse-echo scanning ---
-  // Each beam is a radial line from the transducer apex.
-  // We trace each beam outward, sampling the source image, accumulating
-  // signal attenuation (acoustic shadows) and adding coherent speckle.
+  const sampleLuma = (sampleX: number, sampleY: number): number => {
+    const boundedX = Math.max(0, Math.min(W - 1, sampleX));
+    const boundedY = Math.max(0, Math.min(H - 1, sampleY));
+    const x0 = Math.floor(boundedX);
+    const y0 = Math.floor(boundedY);
+    const x1 = Math.min(W - 1, x0 + 1);
+    const y1 = Math.min(H - 1, y0 + 1);
+    const fx = boundedX - x0;
+    const fy = boundedY - y0;
+    return lumRaw[y0 * W + x0] * (1 - fx) * (1 - fy)
+      + lumRaw[y0 * W + x1] * fx * (1 - fy)
+      + lumRaw[y1 * W + x0] * (1 - fx) * fy
+      + lumRaw[y1 * W + x1] * fx * fy;
+  };
 
-  // Per-beam scan results stored in polar grid: [beam][depthSample]
-  const beamData = new Float32Array(numBeams * depthSteps);
-
-  for (let bi = 0; bi < numBeams; bi++) {
-    // Beam angle: evenly distributed across the fan
-    const t = bi / (numBeams - 1); // 0..1
-    // Seeded RNG per beam for coherent speckle along the beam
-    const beamRng = mulberry32(frameIndex * 7919 + bi * 6961 + 31337);
-
-    // Signal strength starts at 1.0, attenuated by dense structures
-    let signal = 1.0;
-
-    for (let di = 0; di < depthSteps; di++) {
-      // Map beam position to source image coords
-      const srcX = t * (W - 1);
-      const srcY = (di / depthSteps) * (H - 1);
-
-      // Bilinear sample from source luminance
-      let sample = 0;
-      if (srcX >= 0 && srcX < W && srcY >= 0 && srcY < H) {
-        const sx0 = Math.floor(srcX);
-        const sy0 = Math.floor(srcY);
-        const sx1 = Math.min(sx0 + 1, W - 1);
-        const sy1 = Math.min(sy0 + 1, H - 1);
-        const fx = srcX - sx0;
-        const fy = srcY - sy0;
-        sample =
-          lumRaw[sy0 * W + sx0] * (1 - fx) * (1 - fy) +
-          lumRaw[sy0 * W + sx1] * fx * (1 - fy) +
-          lumRaw[sy1 * W + sx0] * (1 - fx) * fy +
-          lumRaw[sy1 * W + sx1] * fx * fy;
-      }
-
-      const reflectivity = sample / 255;
-
-      // Base echo: soft tissue returns some signal, denser tissue returns more
-      let echo = (0.25 + reflectivity * 0.75) * signal * brightness;
-
-      // Acoustic shadowing: only very dense structures attenuate significantly
-      const attenuation = reflectivity > 0.8 ? reflectivity * 0.08 : reflectivity * 0.02;
-      signal *= 1 - attenuation;
-      signal = Math.max(signal, 0.15);
-
-      // Gentle depth attenuation
-      const depthT = di / depthSteps;
-      echo *= 1 - depthT * 0.25;
-
-      // Coherent speckle: interference pattern along beam direction
-      // Speckle is correlated along each beam (streaky, not random dots)
-      if (speckle > 0) {
-        const noise = 1 + (beamRng() * 2 - 1) * speckle;
-        echo *= Math.max(0, noise);
-      }
-
-      beamData[bi * depthSteps + di] = Math.max(0, Math.min(1, echo));
-    }
-  }
-
-  // --- Step 3: Render fan from beam data ---
+  // Render a convex-probe sector. The source luminance is an explicitly
+  // artistic impedance proxy; local changes generate specular echoes while a
+  // small diffuse floor represents unresolved tissue scatterers.
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
@@ -367,28 +349,30 @@ const ultrasound = (input: any, options = defaults) => {
 
       // Outside the fan sector
       if (Math.abs(angle) > halfAngleRad || dist < minRadius || dist > maxRenderedRadius) {
-        fillBufferPixel(outBuf, i, 0, 0, 0, 255);
+        fillBufferPixel(outBuf, i, 0, 0, 0, buf[i + 3]);
         continue;
       }
 
-      // Map to beam index and depth index (with interpolation between beams)
       const beamT = (angle + halfAngleRad) / (2 * halfAngleRad);
       const beamF = beamT * (numBeams - 1);
-      const b0 = Math.floor(beamF);
-      const b1 = Math.min(b0 + 1, numBeams - 1);
-      const bf = beamF - b0;
+      const depthT = Math.max(0, Math.min(1,
+        (dist - minRadius) / Math.max(1, maxRenderedRadius - minRadius)));
+      const srcX = beamT * (W - 1);
+      const srcY = depthT * (H - 1);
+      let lum = ultrasoundBackscatter(
+        sampleLuma(srcX, srcY),
+        sampleLuma(srcX, srcY - 1.5),
+        sampleLuma(srcX, srcY + 1.5),
+        sampleLuma(srcX - 1.5, srcY),
+        sampleLuma(srcX + 1.5, srcY),
+      ) * ultrasoundDepthTransmission(depthT) * brightness;
 
-      const di = Math.floor(dist - minRadius);
-      const di1 = Math.min(di + 1, depthSteps - 1);
-      const df = (dist - minRadius) - di;
-
-      // Bilinear interpolation in (beam, depth) space
-      const v00 = beamData[b0 * depthSteps + di];
-      const v10 = beamData[b1 * depthSteps + di];
-      const v01 = beamData[b0 * depthSteps + di1];
-      const v11 = beamData[b1 * depthSteps + di1];
-      let lum = v00 * (1 - bf) * (1 - df) + v10 * bf * (1 - df) +
-                v01 * (1 - bf) * df + v11 * bf * df;
+      const uniformValue = valueNoise(
+        beamF * 0.42,
+        depthT * H * 0.24,
+        frameIndex * 7919 + 31337,
+      );
+      lum *= ultrasoundRayleighEnvelope(uniformValue, speckle);
 
       // Beam line visibility: subtle bright lines along each beam
       if (scanLines) {
@@ -397,16 +381,8 @@ const ultrasound = (input: any, options = defaults) => {
         lum *= beamLine;
       }
 
-      // Per-pixel speckle for additional grain (uncorrelated, finer than beam speckle)
-      if (speckle > 0) {
-        const fineNoise = 1 + (rng() * 2 - 1) * speckle * 0.3;
-        lum *= Math.max(0, fineNoise);
-      }
-
       lum = Math.max(0, Math.min(1, lum));
-
-      // Gamma lift: ultrasound displays boost midtones significantly
-      lum = Math.pow(lum, 0.7);
+      lum = Math.log(1 + 18 * lum) / Math.log(19);
 
       // Grayscale with warm amber tint on brighter areas
       const amberMix = lum * lum;
@@ -416,18 +392,18 @@ const ultrasound = (input: any, options = defaults) => {
 
       const color = paletteGetColor(
         palette,
-        rgba(r, g, b2, 255),
+        rgba(r, g, b2, buf[i + 3]),
         palette.options,
         false
       );
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
 
   // --- Step 3: Measurement marker crosses ---
   const markerColor = [220, 220, 100]; // yellowish
 
-  for (const [mx, my] of markers) {
+  if (showMarkers) for (const [mx, my] of markers) {
     // Only draw if inside the fan
     const mdx = mx - apexX;
     const mdy = my - apexY;
@@ -439,14 +415,14 @@ const ultrasound = (input: any, options = defaults) => {
       const px = mx + kx;
       if (px < 0 || px >= W) continue;
       const idx = getBufferIndex(px, my, W);
-      fillBufferPixel(outBuf, idx, markerColor[0], markerColor[1], markerColor[2], 255);
+      fillBufferPixel(outBuf, idx, markerColor[0], markerColor[1], markerColor[2], buf[idx + 3]);
     }
     // Vertical arm
     for (let ky = -markerSize; ky <= markerSize; ky++) {
       const py = my + ky;
       if (py < 0 || py >= H) continue;
       const idx = getBufferIndex(mx, py, W);
-      fillBufferPixel(outBuf, idx, markerColor[0], markerColor[1], markerColor[2], 255);
+      fillBufferPixel(outBuf, idx, markerColor[0], markerColor[1], markerColor[2], buf[idx + 3]);
     }
   }
 
@@ -459,5 +435,7 @@ export default defineFilter({
   func: ultrasound,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  description: "Source-derived acoustic-impedance proxy rendered as a convex B-mode sector with boundary echoes, depth attenuation, and correlated speckle",
+  temporal: true,
 });

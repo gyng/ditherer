@@ -3,16 +3,17 @@ import filterReducer, { initialState, ChainEntry, type FilterReducerAction, type
 import {
   clearMotionVectorsState,
   createReadbackCanvas,
+  disposeSharedFilterResources,
   filterIndex,
   filterList,
   getReadbackContext,
   getWorkerPrevOutputFrame,
   PALETTE,
-  releaseFloatTextures,
+  releaseJpegArtifactFloatTextures,
   releasePooledCanvas,
-  releasePooledTextures,
   runFilterChain,
   serializePalette,
+  takePooledCanvas,
   THEMES,
   type FilterChainEntry,
   type TemporalFilterState,
@@ -23,13 +24,14 @@ import { syncRandomCycleSeconds } from "utils/randomCycleBridge";
 import { getActiveAudioVizChannel, getActiveAudioVizSnapshot, getGlobalAudioVizModulation, setGlobalAudioVizModulation, subscribeGlobalAudioVizModulation, type AudioVizMetric, type EntryAudioModulation } from "utils/audioVizBridge";
 import { applyAudioModulationToOptions as applyAudioModulationToOptionsPure } from "utils/autoViz";
 import { recordFilterStepMs } from "utils/slowFilterRegistry";
-import { workerRPC, USE_WORKER } from "@gyng/ditherer-filters/client";
+import { disposeFilterWorker, workerRPC, USE_WORKER } from "@gyng/ditherer-filters/client";
 import { FilterContext } from "./filterContextValue";
 import type { AnimatedVideoElement, ExportFrameOptions, FilterActions, FilterOptionValue } from "./filterContextValue";
 import { getAutoScale, roundScale } from "./autoScale";
 import { getShareHash, getShareUrl } from "./shareUrl";
 import { getShareableTestMediaSearch } from "utils/testMediaShare";
-import { type SerializedAudioVizModulation, type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
+import { resolveRegisteredFilter } from "utils/registeredFilters";
+import { hasV1SelectedState, isShareStateV2, type SerializedAudioVizModulation, type SerializedChainEntry, type SerializedFilterState, type ShareStateV1, type ShareStateV2 } from "./shareStateTypes";
 
 type SerializableOptions = Record<string, unknown>;
 const grayscale = filterIndex.Grayscale;
@@ -98,8 +100,20 @@ type AnimationParams = { inputCanvas: HTMLCanvasElement | null; fps: number };
 // Serialize state to v2 format with delta encoding
 const serializeState = (state: typeof initialState): SerializedFilterState => {
   const chain = state.chain;
-  // Single-entry chain with no non-default options: emit v1-compatible format
-  if (chain.length === 1) {
+  const chainGlobal = serializeAudioModulation(getGlobalAudioVizModulation("chain"));
+  const screensaverGlobal = serializeAudioModulation(getGlobalAudioVizModulation("screensaver"));
+  const singleEntryAudioMod = chain.length === 1
+    ? serializeAudioModulation(chain[0].audioMod)
+    : null;
+  // v1 has nowhere to store entry state or audio modulation. Keep its compact
+  // shape only when the sole entry is fully representable by that format.
+  if (
+    chain.length === 1
+    && chain[0].enabled === true
+    && !singleEntryAudioMod
+    && !chainGlobal
+    && !screensaverGlobal
+  ) {
     const v1State: ShareStateV1 = {
       selected: state.selected,
       convertGrayscale: state.convertGrayscale,
@@ -111,7 +125,7 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
   }
 
   const serializedChain: SerializedChainEntry[] = chain.map((entry: ChainEntry) => {
-    const result: SerializedChainEntry = { n: entry.filter.name };
+    const result: SerializedChainEntry = { n: entry.filter.name, i: entry.id };
     if (entry.displayName !== entry.filter.name) {
       result.d = entry.displayName;
     }
@@ -159,28 +173,55 @@ const serializeState = (state: typeof initialState): SerializedFilterState => {
     ...(state.randomCycleSeconds != null ? { r: state.randomCycleSeconds } : {}),
   };
   const av: ShareStateV2["av"] = {};
-  const chainGlobal = serializeAudioModulation(getGlobalAudioVizModulation("chain"));
   if (chainGlobal) av.chain = { m: chainGlobal };
-  const screensaverGlobal = serializeAudioModulation(getGlobalAudioVizModulation("screensaver"));
   if (screensaverGlobal) av.screensaver = { m: screensaverGlobal };
   if (av.chain || av.screensaver) v2State.av = av;
   return v2State;
 };
 
-const deserializeAudioModulation = (data: SerializedAudioVizModulation | undefined): EntryAudioModulation | null => {
-  if (!data || !Array.isArray(data.c) || data.c.length === 0) return null;
+const deserializeAudioModulation = (data: unknown): EntryAudioModulation | null => {
+  if (typeof data !== "object" || data === null) return null;
+  const serialized = data as Record<string, unknown>;
+  if (!Array.isArray(serialized.c)) return null;
+  const connections = serialized.c.flatMap((connection) => {
+    if (typeof connection !== "object" || connection === null) return [];
+    const candidate = connection as Record<string, unknown>;
+    if (
+      typeof candidate.k !== "string"
+      || typeof candidate.o !== "string"
+      || typeof candidate.w !== "number"
+      || !Number.isFinite(candidate.w)
+    ) return [];
+    return [{
+      metric: candidate.k as AudioVizMetric,
+      target: candidate.o,
+      weight: candidate.w,
+    }];
+  });
+  if (connections.length === 0) return null;
   return {
-    connections: data.c.map((connection) => ({
-      metric: connection.k as AudioVizMetric,
-      target: connection.o,
-      weight: connection.w,
-    })),
-    normalizedMetrics: Array.isArray(data.z) ? (data.z as AudioVizMetric[]) : [],
+    connections,
+    normalizedMetrics: Array.isArray(serialized.z)
+      ? serialized.z.filter((metric): metric is AudioVizMetric => typeof metric === "string")
+      : [],
   };
 };
 
-const restoreAudioVizFromShareState = (data: SerializedFilterState) => {
-  const av = "av" in data ? data.av : undefined;
+const hasResolvableSerializedFilter = (data: unknown): data is SerializedFilterState => {
+  if (isShareStateV2(data)) {
+    return data.chain.some((entry) =>
+      typeof entry === "object"
+      && entry !== null
+      && typeof entry.n === "string"
+      && resolveRegisteredFilter(entry.n) !== undefined);
+  }
+  return hasV1SelectedState(data)
+    && resolveRegisteredFilter(data.selected.filter.name) !== undefined;
+};
+
+const restoreAudioVizFromShareState = (data: unknown) => {
+  if (!hasResolvableSerializedFilter(data)) return;
+  const av = isShareStateV2(data) ? data.av : undefined;
   setGlobalAudioVizModulation("chain", deserializeAudioModulation(av?.chain?.m));
   setGlobalAudioVizModulation("screensaver", deserializeAudioModulation(av?.screensaver?.m));
 };
@@ -206,7 +247,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const prevInputMapRef = useRef<Map<string, Uint8ClampedArray>>(new Map());
   const emaMapRef = useRef<Map<string, Float32Array>>(new Map());
   const cachedOutputsRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const deferredCanvasReleasesRef = useRef<Set<HTMLCanvasElement>>(new Set());
+  const pinnedCanvasCountsRef = useRef<Map<HTMLCanvasElement, number>>(new Map());
+  const providerUnmountedRef = useRef(false);
   const cachedChainOrderRef = useRef<string>("");
+  const sourceCanvasIdsRef = useRef<WeakMap<object, number>>(new WeakMap());
+  const nextSourceCanvasIdRef = useRef(1);
   const frameCountRef = useRef(0);
   const degaussFrameRef = useRef(-Infinity);
   const degaussAnimRef = useRef<number | null>(null);
@@ -220,6 +266,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
   const animLoopAutoStartedRef = useRef(false);
   const filteringRef = useRef(false);
   const pendingFilterRef = useRef(false);
+  const workerRequestInFlightRef = useRef(false);
+  const processingGenerationRef = useRef(0);
   const videoFrameTokenRef = useRef(0);
   const mediaLoadGenerationRef = useRef(0);
   const pendingMediaLoadRejectRef = useRef<((error: Error) => void) | null>(null);
@@ -228,10 +276,121 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     prevInputMap: Map<string, Uint8ClampedArray>;
     emaMap: Map<string, Float32Array>;
     frameIndex: number;
+    outputCanvas: HTMLCanvasElement | null;
   }>>(new Map());
   const stateRef = useRef<FilterReducerState>(state);
   stateRef.current = state;
   const filterImageAsyncRef = useRef<FilterRunner | null>(null);
+
+  const canvasIsCached = useCallback((canvas: HTMLCanvasElement) =>
+    Array.from(cachedOutputsRef.current.values()).includes(canvas), []);
+
+  const canvasIsPinned = useCallback((canvas: HTMLCanvasElement) =>
+    (pinnedCanvasCountsRef.current.get(canvas) ?? 0) > 0, []);
+
+  const releaseOrDeferCanvas = useCallback((canvas: HTMLCanvasElement) => {
+    if (canvasIsCached(canvas)) return;
+    if (
+      canvasIsPinned(canvas)
+      || (!providerUnmountedRef.current && canvas === stateRef.current.outputImage)
+    ) {
+      deferredCanvasReleasesRef.current.add(canvas);
+      return;
+    }
+    deferredCanvasReleasesRef.current.delete(canvas);
+    releasePooledCanvas(canvas);
+  }, [canvasIsCached, canvasIsPinned]);
+
+  const flushDeferredCanvasReleases = useCallback((
+    displayedCanvas: HTMLCanvasElement | OffscreenCanvas | null = providerUnmountedRef.current
+      ? null
+      : stateRef.current.outputImage,
+  ) => {
+    for (const canvas of deferredCanvasReleasesRef.current) {
+      if (canvas === displayedCanvas || canvasIsCached(canvas) || canvasIsPinned(canvas)) continue;
+      deferredCanvasReleasesRef.current.delete(canvas);
+      releasePooledCanvas(canvas);
+    }
+  }, [canvasIsCached, canvasIsPinned]);
+
+  const pinCachedCanvas = useCallback((canvas: HTMLCanvasElement) => {
+    pinnedCanvasCountsRef.current.set(
+      canvas,
+      (pinnedCanvasCountsRef.current.get(canvas) ?? 0) + 1,
+    );
+  }, []);
+
+  const unpinCachedCanvas = useCallback((canvas: HTMLCanvasElement) => {
+    const count = pinnedCanvasCountsRef.current.get(canvas) ?? 0;
+    if (count <= 1) pinnedCanvasCountsRef.current.delete(canvas);
+    else pinnedCanvasCountsRef.current.set(canvas, count - 1);
+    flushDeferredCanvasReleases();
+  }, [flushDeferredCanvasReleases]);
+
+  const clearCachedOutputs = useCallback(() => {
+    const canvases = new Set(cachedOutputsRef.current.values());
+    cachedOutputsRef.current.clear();
+    for (const canvas of canvases) releaseOrDeferCanvas(canvas);
+  }, [releaseOrDeferCanvas]);
+
+  // A cached step depends on every enabled stage before it. Semantic changes
+  // at one chain position therefore invalidate that entry and the complete
+  // downstream suffix, while preserving reusable upstream work.
+  const evictCachedOutputsFromChainIndex = useCallback((
+    chainIndex: number,
+    chain: readonly ChainEntry[] = stateRef.current.chain,
+  ) => {
+    if (chainIndex < 0 || chainIndex >= chain.length) return;
+    const removedCanvases = new Set<HTMLCanvasElement>();
+    for (let index = chainIndex; index < chain.length; index += 1) {
+      const canvas = cachedOutputsRef.current.get(chain[index].id);
+      if (canvas) removedCanvases.add(canvas);
+      cachedOutputsRef.current.delete(chain[index].id);
+    }
+    const retainedCanvases = new Set(cachedOutputsRef.current.values());
+    for (const canvas of removedCanvases) {
+      if (!retainedCanvases.has(canvas)) releaseOrDeferCanvas(canvas);
+    }
+  }, [releaseOrDeferCanvas]);
+
+  const commitCachedOutputs = useCallback((staged: Map<string, HTMLCanvasElement>) => {
+    const replacedCanvases = new Set<HTMLCanvasElement>();
+    for (const [id, canvas] of staged) {
+      const previous = cachedOutputsRef.current.get(id);
+      if (previous && previous !== canvas) replacedCanvases.add(previous);
+      cachedOutputsRef.current.set(id, canvas);
+    }
+    staged.clear();
+    for (const canvas of replacedCanvases) releaseOrDeferCanvas(canvas);
+    flushDeferredCanvasReleases();
+  }, [flushDeferredCanvasReleases, releaseOrDeferCanvas]);
+
+  const discardStagedOutputs = useCallback((
+    staged: Map<string, HTMLCanvasElement>,
+    originalInput: HTMLCanvasElement | OffscreenCanvas,
+  ) => {
+    const canvases = new Set(staged.values());
+    staged.clear();
+    for (const canvas of canvases) {
+      if (canvas !== originalInput) releaseOrDeferCanvas(canvas);
+    }
+  }, [releaseOrDeferCanvas]);
+
+  const invalidateProcessingGeneration = useCallback(() => {
+    processingGenerationRef.current += 1;
+    filteringRef.current = false;
+    pendingFilterRef.current = false;
+    if (workerRequestInFlightRef.current) {
+      workerRequestInFlightRef.current = false;
+      disposeFilterWorker();
+    }
+  }, []);
+
+  const disposeWorkerRealm = useCallback(() => {
+    const workerWasActive = workerRequestInFlightRef.current;
+    invalidateProcessingGeneration();
+    if (!workerWasActive) disposeFilterWorker();
+  }, [invalidateProcessingGeneration]);
 
   const resetProcessingState = useCallback(() => {
     filteringRef.current = false;
@@ -242,14 +401,40 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     emaMapRef.current.clear();
     clearCachedOutputs();
     cachedChainOrderRef.current = "";
-    clearMotionVectorsState();
-    // Flush GPU texture pools so stale entries from removed filters don't
-    // accumulate. Programs are kept (they're process-lifetime singletons
-    // and re-creating them on next use would be more expensive than the
-    // ~100-200 KB per program they hold).
-    releasePooledTextures();
-    releaseFloatTextures();
-  }, []);
+    // Flush shared filter state and GPU targets so stale entries from removed
+    // filters don't accumulate. Shader programs remain process-lifetime
+    // singletons and are intentionally retained.
+    disposeSharedFilterResources();
+    disposeWorkerRealm();
+  }, [clearCachedOutputs, disposeWorkerRealm]);
+
+  useEffect(() => () => {
+    providerUnmountedRef.current = true;
+    resetProcessingState();
+    flushDeferredCanvasReleases(null);
+    for (const session of exportSessionsRef.current.values()) {
+      if (session.outputCanvas) releasePooledCanvas(session.outputCanvas);
+    }
+    exportSessionsRef.current.clear();
+  }, [flushDeferredCanvasReleases, resetProcessingState]);
+
+  useEffect(() => {
+    flushDeferredCanvasReleases();
+  }, [state.outputImage, flushDeferredCanvasReleases]);
+
+  const codecActiveRef = useRef(
+    state.chain.some((entry) => entry.enabled
+      && (entry.filter.name === "JPEG Artifact" || entry.filter.name === "Mavica FD7")),
+  );
+  useEffect(() => {
+    const codecActive = state.chain.some((entry) => entry.enabled
+      && (entry.filter.name === "JPEG Artifact" || entry.filter.name === "Mavica FD7"));
+    if (codecActiveRef.current && !codecActive) {
+      releaseJpegArtifactFloatTextures();
+      disposeWorkerRealm();
+    }
+    codecActiveRef.current = codecActive;
+  }, [state.chain, disposeWorkerRealm]);
 
   // Restore state from #! hash on initial load
   useEffect(() => {
@@ -267,7 +452,22 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
 
   // Sync filter state to URL hash so the address bar is always shareable
   const [audioVizSyncKey, setAudioVizSyncKey] = useState(0);
-  useEffect(() => subscribeGlobalAudioVizModulation(() => setAudioVizSyncKey((value) => value + 1)), []);
+  useEffect(() => subscribeGlobalAudioVizModulation((channel) => {
+    if (channel === "chain") {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      const current = stateRef.current;
+      if (current.realtimeFiltering && current.inputCanvas) {
+        requestAnimationFrame(() => {
+          const latest = stateRef.current;
+          if (latest.realtimeFiltering && latest.inputCanvas) {
+            filterImageAsyncRef.current?.(latest.inputCanvas);
+          }
+        });
+      }
+    }
+    setAudioVizSyncKey((value) => value + 1);
+  }), [clearCachedOutputs, invalidateProcessingGeneration]);
   useEffect(() => {
     if (!state.chain || state.chain.length === 0) return;
     try {
@@ -550,6 +750,25 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     return opts;
   };
 
+  const cloneLiveTemporalState = () => ({
+    prevOutputMap: new Map(
+      Array.from(prevOutputMapRef.current, ([id, pixels]) => [id, new Uint8ClampedArray(pixels)]),
+    ),
+    prevInputMap: new Map(
+      Array.from(prevInputMapRef.current, ([id, pixels]) => [id, new Uint8ClampedArray(pixels)]),
+    ),
+    emaMap: new Map(
+      Array.from(emaMapRef.current, ([id, values]) => [id, new Float32Array(values)]),
+    ),
+    frameIndex: frameCountRef.current,
+  });
+
+  const commitLiveTemporalState = (temporalState: ReturnType<typeof cloneLiveTemporalState>) => {
+    prevOutputMapRef.current = temporalState.prevOutputMap;
+    prevInputMapRef.current = temporalState.prevInputMap;
+    emaMapRef.current = temporalState.emaMap;
+  };
+
   // Main-thread filter execution (fallback path). Async so filters that
   // return a Promise<canvas> (e.g. glitchblob — async Blob round-trip)
   // fit the same contract as the worker path does.
@@ -567,7 +786,10 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     },
     dispatchOverride = dispatch,
     cacheOutputs = true,
+    expectedGeneration?: number,
   ) => {
+    const stagedOutputs = new Map<string, HTMLCanvasElement>();
+    const ownedRunOutputs = new Set<HTMLCanvasElement>();
     const chain: FilterChainEntry[] = enabledEntries.map((entry) => ({
       id: entry.id,
       filter: entry.filter,
@@ -580,6 +802,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       ema: temporalState.emaMap,
       frameIndex: temporalState.frameIndex,
     };
+    try {
     const result = await runFilterChain(canvas, chain, {
       linearize: curState.linearize,
       wasmAcceleration: curState.wasmAcceleration,
@@ -597,18 +820,46 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       temporalState: libraryTemporalState,
       resolveOptions: (_entry, index) => withAudioModulatedOptions(enabledEntries[index]),
       onStep: (step) => {
-        recordFilterStepMs(step.filterName, step.ms);
-        if (cacheOutputs && step.canvas instanceof HTMLCanvasElement) {
-          const previous = cachedOutputsRef.current.get(step.id);
-          if (previous && previous !== step.canvas) releasePooledCanvas(previous);
-          cachedOutputsRef.current.set(step.id, step.canvas);
+        const generationCurrent = expectedGeneration === undefined
+          || expectedGeneration === processingGenerationRef.current;
+        if (generationCurrent && step.canvas instanceof HTMLCanvasElement && step.canvas !== canvas) {
+          ownedRunOutputs.add(step.canvas);
         }
+        if (
+          cacheOutputs
+          && generationCurrent
+          && step.canvas instanceof HTMLCanvasElement
+          && step.canvas !== canvas
+        ) {
+          stagedOutputs.set(step.id, step.canvas);
+        }
+        recordFilterStepMs(step.filterName, step.ms);
       },
+      retainStepCanvases: cacheOutputs,
+      ...(expectedGeneration === undefined
+        ? {}
+        : { shouldAbort: () => expectedGeneration !== processingGenerationRef.current }),
     });
     const stepTimes = result.steps.map((step) => step.backend
       ? { name: step.name, ms: step.ms, backend: step.backend }
       : { name: step.name, ms: step.ms });
-    return { canvas: result.canvas, stepTimes, totalTime: result.totalTime };
+    return {
+      canvas: result.canvas,
+      stepTimes,
+      totalTime: result.totalTime,
+      stagedOutputs,
+    };
+    } catch (error) {
+      let ownedIndex = 0;
+      for (const owned of ownedRunOutputs) {
+        if (!Array.from(stagedOutputs.values()).includes(owned)) {
+          stagedOutputs.set(`__owned_${ownedIndex}`, owned);
+          ownedIndex += 1;
+        }
+      }
+      discardStagedOutputs(stagedOutputs, canvas);
+      throw error;
+    }
   };
 
   const emitOutput = (
@@ -640,6 +891,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     filteringRef.current = true;
+    const processingGeneration = processingGenerationRef.current;
     const curState = stateRef.current;
     const sourceFrameToken = curState.inputFrameToken ?? 0;
     const sourceTime = curState.time ?? 0;
@@ -650,30 +902,36 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       (curState.video && !curState.video.paused)
     );
 
-    const chainKey = chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(",");
+    let sourceCanvasId = sourceCanvasIdsRef.current.get(input);
+    if (sourceCanvasId === undefined) {
+      sourceCanvasId = nextSourceCanvasIdRef.current;
+      nextSourceCanvasIdRef.current += 1;
+      sourceCanvasIdsRef.current.set(input, sourceCanvasId);
+    }
+    const chainKey = [
+      sourceFrameToken,
+      sourceCanvasId,
+      chain.map((e) => e.id + (e.enabled ? "1" : "0")).join(","),
+    ].join("|");
     if (chainKey !== cachedChainOrderRef.current) {
       clearCachedOutputs();
       cachedChainOrderRef.current = chainKey;
     }
 
     let canvas = input;
-    if (curState.convertGrayscale) {
-      const maybeGrayscale = grayscale.func(canvas);
-      if (maybeGrayscale instanceof HTMLCanvasElement) {
-        canvas = maybeGrayscale;
-      }
-    }
-
     const stepTimes: { name: string; ms: number; backend?: string }[] = [];
 
     const enabledEntries = chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
 
     let startIdx = 0;
+    let pinnedPrefixCanvas: HTMLCanvasElement | null = null;
     if (!isAnimating && enabledEntries.length > 1) {
       for (let i = enabledEntries.length - 1; i >= 0; i--) {
         const cached = cachedOutputsRef.current.get(enabledEntries[i].id);
         if (cached) {
           canvas = cached;
+          pinnedPrefixCanvas = cached;
+          pinCachedCanvas(cached);
           startIdx = i + 1;
           for (let j = 0; j <= i; j++) {
             stepTimes.push({ name: enabledEntries[j].displayName, ms: 0 });
@@ -682,142 +940,256 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     }
+    let prefixReleased = false;
+    const releasePinnedPrefix = () => {
+      if (!pinnedPrefixCanvas || prefixReleased) return;
+      prefixReleased = true;
+      unpinCachedCanvas(pinnedPrefixCanvas);
+    };
+
+    let preprocessingCanvas: HTMLCanvasElement | null = null;
+    if (startIdx === 0 && curState.convertGrayscale) {
+      const maybeGrayscale = grayscale.func(canvas);
+      if (maybeGrayscale instanceof HTMLCanvasElement) {
+        if (maybeGrayscale !== canvas) preprocessingCanvas = maybeGrayscale;
+        canvas = maybeGrayscale;
+      }
+    }
+    let preprocessingReleased = false;
+    const releasePreprocessingCanvas = () => {
+      if (!preprocessingCanvas || preprocessingReleased) return;
+      preprocessingReleased = true;
+      releaseOrDeferCanvas(preprocessingCanvas);
+    };
 
     const entriesToRun = enabledEntries.slice(startIdx);
     const useWorker = USE_WORKER;
 
     if (useWorker && entriesToRun.length > 0) {
       // Worker path — async, dispatches output when done
-      const ctx = (canvas instanceof HTMLCanvasElement
-        ? canvas.getContext("2d", { willReadFrequently: true })
-        : canvas.getContext("2d", { willReadFrequently: true })
-      ) as
-        | CanvasRenderingContext2D
-        | OffscreenCanvasRenderingContext2D
-        | null;
-      if (!ctx) { filteringRef.current = false; return; }
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      workerRequestInFlightRef.current = true;
+      let workerRequest: ReturnType<typeof workerRPC>;
+      try {
+        const ctx = canvas.getContext("2d", { willReadFrequently: true }) as
+          | CanvasRenderingContext2D
+          | OffscreenCanvasRenderingContext2D
+          | null;
+        if (!ctx) throw new Error("Failed to initialize filter input canvas");
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      const chainConfig = entriesToRun.map(e => ({
-        id: e.id,
-        filterName: e.filter.name,
-        displayName: e.displayName,
-        options: serializeOptions(withAudioModulatedOptions(e)),
-      }));
+        const chainConfig = entriesToRun.map(e => ({
+          id: e.id,
+          filterName: e.filter.name,
+          displayName: e.displayName,
+          options: serializeOptions(withAudioModulatedOptions(e)),
+        }));
 
-      const serializedPrevOutputs: Record<string, ArrayBuffer> = {};
-      for (const entry of entriesToRun) {
-        const prev = prevOutputMapRef.current.get(entry.id);
-        if (prev) {
-          const copy = new Uint8ClampedArray(prev);
-          serializedPrevOutputs[entry.id] = copy.buffer as ArrayBuffer;
-        }
-      }
-      const serializedPrevInputs: Record<string, ArrayBuffer> = {};
-      for (const entry of entriesToRun) {
-        const prev = prevInputMapRef.current.get(entry.id);
-        if (prev) {
-          const copy = new Uint8ClampedArray(prev);
-          serializedPrevInputs[entry.id] = copy.buffer as ArrayBuffer;
-        }
-      }
-      const serializedEmaMaps: Record<string, ArrayBuffer> = {};
-      for (const entry of entriesToRun) {
-        const ema = emaMapRef.current.get(entry.id);
-        if (ema) {
-          const copy = new Float32Array(ema);
-          serializedEmaMaps[entry.id] = copy.buffer as ArrayBuffer;
-        }
-      }
-
-      const transfers: ArrayBuffer[] = [imageData.data.buffer];
-      for (const buf of Object.values(serializedPrevOutputs)) transfers.push(buf);
-      for (const buf of Object.values(serializedPrevInputs)) transfers.push(buf);
-      for (const buf of Object.values(serializedEmaMaps)) transfers.push(buf);
-
-      workerRPC({
-        imageData: imageData.data.buffer,
-        width: canvas.width,
-        height: canvas.height,
-        chain: chainConfig,
-        frameIndex: frameCountRef.current,
-        isAnimating,
-        linearize: curState.linearize,
-        wasmAcceleration: curState.wasmAcceleration,
-        webglAcceleration: curState.webglAcceleration,
-        convertGrayscale: false,
-        prevOutputs: serializedPrevOutputs,
-        prevInputs: serializedPrevInputs,
-        emaMaps: serializedEmaMaps,
-        // Propagate degauss trigger to rgbStripe in the worker. -Infinity
-        // (the "never degaussed" sentinel) doesn't survive structured-clone
-        // cleanly — use a large negative sentinel instead so the worker
-        // sees a finite number.
-        degaussFrame: Number.isFinite(degaussFrameRef.current) ? degaussFrameRef.current : -2147483648,
-      }, transfers).then((result) => {
-        const outData = new ImageData(
-          new Uint8ClampedArray(result.imageData), result.width, result.height
-        );
-        const outCanvas = document.createElement("canvas");
-        outCanvas.width = result.width;
-        outCanvas.height = result.height;
-        // willReadFrequently on the first getContext call — subsequent filter
-        // passes will do getImageData on this canvas repeatedly, and the flag
-        // is sticky from the first call.
-        outCanvas.getContext("2d", { willReadFrequently: true })!.putImageData(outData, 0, 0);
-
-        for (const [entryId, payload] of Object.entries(result.prevOutputs)) {
-          const { pixels, width, height } = getWorkerPrevOutputFrame(
-            payload as WorkerPrevOutputPayload,
-            result.width,
-            result.height
-          );
-          prevOutputMapRef.current.set(entryId, pixels);
-
-          // Reconstruct intermediate canvas for step previews.
-          // Reuse existing canvas to avoid allocation churn during animation.
-          let stepCanvas = cachedOutputsRef.current.get(entryId);
-          if (!stepCanvas || stepCanvas.width !== width || stepCanvas.height !== height) {
-            stepCanvas = document.createElement("canvas");
-            stepCanvas.width = width;
-            stepCanvas.height = height;
+        const serializedPrevOutputs: Record<string, ArrayBuffer> = {};
+        for (const entry of entriesToRun) {
+          const prev = prevOutputMapRef.current.get(entry.id);
+          if (prev) {
+            const copy = new Uint8ClampedArray(prev);
+            serializedPrevOutputs[entry.id] = copy.buffer as ArrayBuffer;
           }
-          stepCanvas.getContext("2d", { willReadFrequently: true })!.putImageData(
-            new ImageData(pixels, width, height), 0, 0
+        }
+        const serializedPrevInputs: Record<string, ArrayBuffer> = {};
+        for (const entry of entriesToRun) {
+          const prev = prevInputMapRef.current.get(entry.id);
+          if (prev) {
+            const copy = new Uint8ClampedArray(prev);
+            serializedPrevInputs[entry.id] = copy.buffer as ArrayBuffer;
+          }
+        }
+        const serializedEmaMaps: Record<string, ArrayBuffer> = {};
+        for (const entry of entriesToRun) {
+          const ema = emaMapRef.current.get(entry.id);
+          if (ema) {
+            const copy = new Float32Array(ema);
+            serializedEmaMaps[entry.id] = copy.buffer as ArrayBuffer;
+          }
+        }
+
+        const transfers: ArrayBuffer[] = [imageData.data.buffer];
+        for (const buf of Object.values(serializedPrevOutputs)) transfers.push(buf);
+        for (const buf of Object.values(serializedPrevInputs)) transfers.push(buf);
+        for (const buf of Object.values(serializedEmaMaps)) transfers.push(buf);
+
+        workerRequest = workerRPC({
+          imageData: imageData.data.buffer,
+          width: canvas.width,
+          height: canvas.height,
+          chain: chainConfig,
+          frameIndex: frameCountRef.current,
+          isAnimating,
+          linearize: curState.linearize,
+          wasmAcceleration: curState.wasmAcceleration,
+          webglAcceleration: curState.webglAcceleration,
+          convertGrayscale: false,
+          prevOutputs: serializedPrevOutputs,
+          prevInputs: serializedPrevInputs,
+          emaMaps: serializedEmaMaps,
+          // Propagate degauss trigger to rgbStripe in the worker. -Infinity
+          // (the "never degaussed" sentinel) doesn't survive structured-clone
+          // cleanly — use a large negative sentinel instead so the worker
+          // sees a finite number.
+          degaussFrame: Number.isFinite(degaussFrameRef.current) ? degaussFrameRef.current : -2147483648,
+        }, transfers);
+      } catch (error) {
+        // Normalize every synchronous setup failure into the same contained
+        // worker-fallback path. Attaching the chain below guarantees that
+        // preprocessing and cached-prefix ownership always reach `finally`.
+        workerRequest = Promise.reject(error);
+      }
+      workerRequest.then((result) => {
+        if (processingGeneration !== processingGenerationRef.current) {
+          releasePreprocessingCanvas();
+          return;
+        }
+        workerRequestInFlightRef.current = false;
+        const stagedWorkerOutputs = new Map<string, HTMLCanvasElement>();
+        const ownedWorkerCanvases = new Set<HTMLCanvasElement>();
+        const stagedWorkerTemporalState = cloneLiveTemporalState();
+        let outCanvas: HTMLCanvasElement;
+        let transactionCommitted = false;
+        try {
+          const outData = new ImageData(
+            new Uint8ClampedArray(result.imageData), result.width, result.height
           );
-          cachedOutputsRef.current.set(entryId, stepCanvas);
-        }
+          outCanvas = takePooledCanvas(result.width, result.height) as HTMLCanvasElement;
+          ownedWorkerCanvases.add(outCanvas);
+          // willReadFrequently on the first getContext call — subsequent filter
+          // passes will do getImageData on this canvas repeatedly, and the flag
+          // is sticky from the first call.
+          const outContext = outCanvas.getContext("2d", { willReadFrequently: true });
+          if (!outContext) throw new Error("Failed to initialize worker output canvas");
+          outContext.putImageData(outData, 0, 0);
 
-        // Merge the worker's updated temporal state back into the refs so
-        // next frame's request carries fresh prev-input / EMA buffers.
-        for (const [entryId, buffer] of Object.entries(result.prevInputs ?? {})) {
-          prevInputMapRef.current.set(entryId, new Uint8ClampedArray(buffer));
-        }
-        for (const [entryId, buffer] of Object.entries(result.emaMaps ?? {})) {
-          emaMapRef.current.set(entryId, new Float32Array(buffer));
-        }
+          for (const [entryId, payload] of Object.entries(result.prevOutputs)) {
+            const { pixels, width, height } = getWorkerPrevOutputFrame(
+              payload as WorkerPrevOutputPayload,
+              result.width,
+              result.height
+            );
+            stagedWorkerTemporalState.prevOutputMap.set(entryId, pixels);
 
-        const workerStepTimes = [...stepTimes, ...result.stepTimes];
-        const workerTotalTime = result.stepTimes.reduce((a, s) => a + s.ms, 0);
-        // Record worker-side durations too — a filter that hangs the worker
-        // shouldn't get reselected by the random-chain cycler. Prefer the
-        // canonical filterName; fall back to displayName for older payloads.
-        for (const step of result.stepTimes) {
-          recordFilterStepMs(step.filterName ?? step.name, step.ms);
+            // A preview remains invisible until the complete worker response
+            // validates. Never mutate a live cached canvas in place: fallback
+            // must continue to see the last successfully committed preview.
+            const stepCanvas = takePooledCanvas(width, height) as HTMLCanvasElement;
+            ownedWorkerCanvases.add(stepCanvas);
+            const stepContext = stepCanvas.getContext("2d", { willReadFrequently: true });
+            if (!stepContext) throw new Error(`Failed to initialize worker preview canvas for ${entryId}`);
+            stepContext.putImageData(new ImageData(pixels, width, height), 0, 0);
+            stagedWorkerOutputs.set(entryId, stepCanvas);
+          }
+
+          // Merge into a private temporal snapshot. A malformed buffer or a
+          // bookkeeping exception must not affect fallback's starting state.
+          for (const [entryId, buffer] of Object.entries(result.prevInputs ?? {})) {
+            stagedWorkerTemporalState.prevInputMap.set(entryId, new Uint8ClampedArray(buffer));
+          }
+          for (const [entryId, buffer] of Object.entries(result.emaMaps ?? {})) {
+            stagedWorkerTemporalState.emaMap.set(entryId, new Float32Array(buffer));
+          }
+
+          const workerStepTimes = [...stepTimes, ...result.stepTimes];
+          const workerTotalTime = result.stepTimes.reduce((a, s) => a + s.ms, 0);
+          // Run timing bookkeeping before publishing any staged state. Tests
+          // and instrumentation may reject, in which case fallback must start
+          // from the previous committed transaction.
+          for (const step of result.stepTimes) {
+            recordFilterStepMs(step.filterName ?? step.name, step.ms);
+          }
+
+          commitCachedOutputs(stagedWorkerOutputs);
+          commitLiveTemporalState(stagedWorkerTemporalState);
+          transactionCommitted = true;
+
+          // Ownership of previews transfers to the cache and ownership of the
+          // final canvas transfers to reducer state through emitOutput below.
+          ownedWorkerCanvases.clear();
+          releasePreprocessingCanvas();
+          emitOutput(outCanvas, workerTotalTime, workerStepTimes, sourceFrameToken, sourceTime);
+        } finally {
+          if (!transactionCommitted) {
+            stagedWorkerOutputs.clear();
+            for (const owned of ownedWorkerCanvases) releaseOrDeferCanvas(owned);
+            ownedWorkerCanvases.clear();
+          }
         }
-        emitOutput(outCanvas, workerTotalTime, workerStepTimes, sourceFrameToken, sourceTime);
       }).catch(async (err) => {
+        if (processingGeneration !== processingGenerationRef.current) {
+          releasePreprocessingCanvas();
+          return;
+        }
+        workerRequestInFlightRef.current = false;
         console.error("Worker failed, falling back to main thread:", err);
-        const fallback = await filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
+        const fallbackTemporalState = cloneLiveTemporalState();
+        const fallback = await filterOnMainThread(
+          canvas,
+          enabledEntries,
+          startIdx,
+          Boolean(isAnimating),
+          curState,
+          fallbackTemporalState,
+          undefined,
+          true,
+          processingGeneration,
+        );
+        if (processingGeneration !== processingGenerationRef.current) {
+          discardStagedOutputs(fallback.stagedOutputs, canvas);
+          releasePreprocessingCanvas();
+          return;
+        }
+        commitCachedOutputs(fallback.stagedOutputs);
+        commitLiveTemporalState(fallbackTemporalState);
+        releasePreprocessingCanvas();
         emitOutput(fallback.canvas, fallback.totalTime, [...stepTimes, ...fallback.stepTimes], sourceFrameToken, sourceTime);
-      });
+      }).catch((fallbackError) => {
+        releasePreprocessingCanvas();
+        if (processingGeneration === processingGenerationRef.current) {
+          filteringRef.current = false;
+          pendingFilterRef.current = false;
+          console.error("Main-thread worker fallback failed:", fallbackError);
+        }
+      }).finally(releasePinnedPrefix);
     } else {
       // Main thread path — may await filters that return a Promise
       // (e.g. glitchblob's async Blob round-trip).
       void (async () => {
-        const result = await filterOnMainThread(canvas, enabledEntries, startIdx, Boolean(isAnimating), curState);
-        stepTimes.push(...result.stepTimes);
-        emitOutput(result.canvas, result.totalTime, stepTimes, sourceFrameToken, sourceTime);
+        try {
+          const mainTemporalState = cloneLiveTemporalState();
+          const result = await filterOnMainThread(
+            canvas,
+            enabledEntries,
+            startIdx,
+            Boolean(isAnimating),
+            curState,
+            mainTemporalState,
+            undefined,
+            true,
+            processingGeneration,
+          );
+          if (processingGeneration !== processingGenerationRef.current) {
+            discardStagedOutputs(result.stagedOutputs, canvas);
+            releasePreprocessingCanvas();
+            return;
+          }
+          commitCachedOutputs(result.stagedOutputs);
+          commitLiveTemporalState(mainTemporalState);
+          if (result.canvas !== preprocessingCanvas) releasePreprocessingCanvas();
+          stepTimes.push(...result.stepTimes);
+          emitOutput(result.canvas, result.totalTime, stepTimes, sourceFrameToken, sourceTime);
+        } catch (error) {
+          releasePreprocessingCanvas();
+          if (processingGeneration === processingGenerationRef.current) {
+            filteringRef.current = false;
+            pendingFilterRef.current = false;
+            console.error("Main-thread filter chain failed:", error);
+          }
+        } finally {
+          releasePinnedPrefix();
+        }
       })();
     }
   };
@@ -1020,20 +1392,6 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     if (!stillWantsAuto) stopAnimLoop();
   };
 
-  // Release a cached chain-step canvas back to the pool instead of just
-  // dropping the reference — the pool is only useful if someone feeds it.
-  // Safe to call with a missing id.
-  const evictCachedOutput = (id: string) => {
-    const c = cachedOutputsRef.current.get(id);
-    if (c) releasePooledCanvas(c);
-    cachedOutputsRef.current.delete(id);
-  };
-
-  const clearCachedOutputs = () => {
-    for (const c of cachedOutputsRef.current.values()) releasePooledCanvas(c);
-    cachedOutputsRef.current.clear();
-  };
-
   const renderFrameForExport = async (inputCanvas: HTMLCanvasElement | null, {
     sessionId,
     time = 0,
@@ -1048,47 +1406,74 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         prevInputMap: new Map(),
         emaMap: new Map(),
         frameIndex: 0,
+        outputCanvas: null,
       };
       exportSessionsRef.current.set(sessionId, session);
+    }
+
+    if (session.outputCanvas) {
+      releasePooledCanvas(session.outputCanvas);
+      session.outputCanvas = null;
     }
 
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = inputCanvas.width;
     exportCanvas.height = inputCanvas.height;
-    const exportCtx = exportCanvas.getContext("2d", { willReadFrequently: true });
-    if (!exportCtx) return null;
-    exportCtx.drawImage(inputCanvas, 0, 0);
+    const ownedInputs = new Set<HTMLCanvasElement>([exportCanvas]);
+    let resultCanvas: HTMLCanvasElement | OffscreenCanvas | null = null;
+    try {
+      const exportCtx = exportCanvas.getContext("2d", { willReadFrequently: true });
+      if (!exportCtx) return null;
+      exportCtx.drawImage(inputCanvas, 0, 0);
 
-    let canvas = exportCanvas;
-    const exportState = {
-      ...stateRef.current,
-      time,
-      video,
-    };
+      let canvas = exportCanvas;
+      const exportState = {
+        ...stateRef.current,
+        time,
+        video,
+      };
 
-    if (exportState.convertGrayscale) {
-      const maybeGrayscale = grayscale.func(canvas);
-      if (maybeGrayscale instanceof HTMLCanvasElement) {
-        canvas = maybeGrayscale;
+      if (exportState.convertGrayscale) {
+        const maybeGrayscale = grayscale.func(canvas);
+        if (maybeGrayscale instanceof HTMLCanvasElement) {
+          ownedInputs.add(maybeGrayscale);
+          canvas = maybeGrayscale;
+        }
+      }
+
+      const enabledEntries = exportState.chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
+      const result = await filterOnMainThread(
+        canvas,
+        enabledEntries,
+        0,
+        true,
+        exportState,
+        session,
+        () => {},
+        false,
+      );
+      resultCanvas = result.canvas;
+      session.frameIndex += 1;
+      session.outputCanvas = result.canvas instanceof HTMLCanvasElement ? result.canvas : null;
+      return result.canvas;
+    } catch (error) {
+      session.prevOutputMap.clear();
+      session.prevInputMap.clear();
+      session.emaMap.clear();
+      session.frameIndex = 0;
+      session.outputCanvas = null;
+      exportSessionsRef.current.delete(sessionId);
+      throw error;
+    } finally {
+      for (const owned of ownedInputs) {
+        if (owned !== resultCanvas) releasePooledCanvas(owned);
       }
     }
-
-    const enabledEntries = exportState.chain.filter((e) => e.enabled && typeof e.filter?.func === "function");
-    const result = await filterOnMainThread(
-      canvas,
-      enabledEntries,
-      0,
-      true,
-      exportState,
-      session,
-      () => {},
-      false,
-    );
-    session.frameIndex += 1;
-    return result.canvas;
   };
 
   const clearExportSession = (sessionId: string) => {
+    const session = exportSessionsRef.current.get(sessionId);
+    if (session?.outputCanvas) releasePooledCanvas(session.outputCanvas);
     exportSessionsRef.current.delete(sessionId);
   };
 
@@ -1109,6 +1494,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: "LOAD_IMAGE", image: image as any, time: time || 0, frameToken: stateRef.current.inputFrameToken ?? 0, video: video || null, dispatch });
     },
     selectFilter: (name, filter) => {
+      invalidateProcessingGeneration();
       stopAnimLoop();
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
@@ -1118,24 +1504,47 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: "SELECT_FILTER", name, filter });
       maybeStopAutoAnimLoop();
     },
-    setConvertGrayscale: (value: boolean) =>
-      dispatch({ type: "SET_GRAYSCALE", value }),
-    setLinearize: (value: boolean) =>
-      dispatch({ type: "SET_LINEARIZE", value }),
-    setWasmAcceleration: (value: boolean) =>
-      dispatch({ type: "SET_WASM_ACCELERATION", value }),
-    setWebglAcceleration: (value: boolean) =>
-      dispatch({ type: "SET_WEBGL_ACCELERATION", value }),
+    setConvertGrayscale: (value: boolean) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_GRAYSCALE", value });
+    },
+    setLinearize: (value: boolean) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_LINEARIZE", value });
+    },
+    setWasmAcceleration: (value: boolean) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_WASM_ACCELERATION", value });
+    },
+    setWebglAcceleration: (value: boolean) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_WEBGL_ACCELERATION", value });
+    },
     setRandomCycleSeconds: (seconds: number | null) =>
       dispatch({ type: "SET_RANDOM_CYCLE_SECONDS", seconds }),
-    setScale: (scale: number) =>
-      dispatch({ type: "SET_SCALE", scale }),
-    setOutputScale: (scale: number) =>
-      dispatch({ type: "SET_OUTPUT_SCALE", scale }),
-    setRealtimeFiltering: (enabled: boolean) =>
-      dispatch({ type: "SET_REAL_TIME_FILTERING", enabled }),
-    setInputCanvas: (canvas: HTMLCanvasElement | null) =>
-      dispatch({ type: "SET_INPUT_CANVAS", canvas }),
+    setScale: (scale: number) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_SCALE", scale });
+    },
+    setOutputScale: (scale: number) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_OUTPUT_SCALE", scale });
+    },
+    setRealtimeFiltering: (enabled: boolean) => {
+      invalidateProcessingGeneration();
+      dispatch({ type: "SET_REAL_TIME_FILTERING", enabled });
+    },
+    setInputCanvas: (canvas: HTMLCanvasElement | null) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_INPUT_CANVAS", canvas });
+    },
     setInputVolume: (volume: number) =>
       dispatch({ type: "SET_INPUT_VOLUME", volume }),
     setInputPlaybackRate: (rate: number) =>
@@ -1151,15 +1560,15 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         video.pause();
       }
     },
-    setScalingAlgorithm: (algorithm: string) =>
-      dispatch({ type: "SET_SCALING_ALGORITHM", algorithm }),
+    setScalingAlgorithm: (algorithm: string) => {
+      invalidateProcessingGeneration();
+      clearCachedOutputs();
+      dispatch({ type: "SET_SCALING_ALGORITHM", algorithm });
+    },
     setFilterOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => {
+      invalidateProcessingGeneration();
       const ci = chainIndex ?? stateRef.current.activeIndex;
-      // Invalidate cache from this entry onward
-      const chain = stateRef.current.chain;
-      for (let i = ci; i < chain.length; i++) {
-        evictCachedOutput(chain[i].id);
-      }
+      evictCachedOutputsFromChainIndex(ci);
       clearMotionVectorsState();
       dispatch({
         type: "SET_FILTER_OPTION",
@@ -1169,11 +1578,9 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       });
     },
     setFilterPaletteOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => {
+      invalidateProcessingGeneration();
       const ci = chainIndex ?? stateRef.current.activeIndex;
-      const chain = stateRef.current.chain;
-      for (let i = ci; i < chain.length; i++) {
-        evictCachedOutput(chain[i].id);
-      }
+      evictCachedOutputsFromChainIndex(ci);
       clearMotionVectorsState();
       dispatch({
         type: "SET_FILTER_PALETTE_OPTION",
@@ -1183,11 +1590,9 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       });
     },
     addPaletteColor: (color: number[], chainIndex?: number) => {
+      invalidateProcessingGeneration();
       const ci = chainIndex ?? stateRef.current.activeIndex;
-      const chain = stateRef.current.chain;
-      for (let i = ci; i < chain.length; i++) {
-        evictCachedOutput(chain[i].id);
-      }
+      evictCachedOutputsFromChainIndex(ci);
       clearMotionVectorsState();
       dispatch({
         type: "ADD_PALETTE_COLOR",
@@ -1197,10 +1602,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     },
     importState: (json: string) => {
       const deserialized = JSON.parse(json) as SerializedFilterState;
+      invalidateProcessingGeneration();
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
       clearMotionVectorsState();
+      clearCachedOutputs();
       dispatch({ type: "LOAD_STATE", data: deserialized });
       restoreAudioVizFromShareState(deserialized);
     },
@@ -1219,6 +1626,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     },
     // Chain actions
     chainAdd: (displayName: string, filter) => {
+      invalidateProcessingGeneration();
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_ADD", displayName, filter });
       // Filters with `autoAnimate: true` in their metadata (e.g., CRT
@@ -1234,16 +1642,19 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
     },
     chainRemove: (id: string) => {
+      invalidateProcessingGeneration();
+      const chainIndex = stateRef.current.chain.findIndex((entry) => entry.id === id);
+      evictCachedOutputsFromChainIndex(chainIndex);
       const nextChain = stateRef.current.chain.filter((entry) => entry.id !== id);
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
-      evictCachedOutput(id);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REMOVE", id });
       maybeStopAutoAnimLoop(nextChain);
     },
     chainReorder: (fromIndex: number, toIndex: number) => {
+      invalidateProcessingGeneration();
       prevOutputMapRef.current.clear();
       prevInputMapRef.current.clear();
       emaMapRef.current.clear();
@@ -1258,6 +1669,9 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: "CHAIN_SET_ACTIVE", index });
     },
     chainToggle: (id: string) => {
+      invalidateProcessingGeneration();
+      const chainIndex = stateRef.current.chain.findIndex((entry) => entry.id === id);
+      evictCachedOutputsFromChainIndex(chainIndex);
       const nextChain = stateRef.current.chain.map((entry) =>
         entry.id === id ? { ...entry, enabled: !entry.enabled } : entry,
       );
@@ -1265,13 +1679,15 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       maybeStopAutoAnimLoop(nextChain);
     },
     chainReplace: (id: string, displayName: string, filter) => {
+      invalidateProcessingGeneration();
+      const chainIndex = stateRef.current.chain.findIndex((entry) => entry.id === id);
+      evictCachedOutputsFromChainIndex(chainIndex);
       const nextChain = stateRef.current.chain.map((entry) =>
         entry.id === id ? { ...entry, displayName, filter } : entry,
       );
       prevOutputMapRef.current.delete(id);
       prevInputMapRef.current.delete(id);
       emaMapRef.current.delete(id);
-      evictCachedOutput(id);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_REPLACE", id, displayName, filter });
       // If the new filter is autoAnimate and no loop is running, start
@@ -1287,12 +1703,17 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       }
     },
     chainDuplicate: (id: string) => {
+      invalidateProcessingGeneration();
+      const chainIndex = stateRef.current.chain.findIndex((entry) => entry.id === id);
+      if (chainIndex >= 0) evictCachedOutputsFromChainIndex(chainIndex + 1);
       clearMotionVectorsState();
       dispatch({ type: "CHAIN_DUPLICATE", id });
     },
     setChainAudioModulation: (id: string, modulation: EntryAudioModulation | null) => {
+      invalidateProcessingGeneration();
+      const chainIndex = stateRef.current.chain.findIndex((entry) => entry.id === id);
+      evictCachedOutputsFromChainIndex(chainIndex);
       clearMotionVectorsState();
-      evictCachedOutput(id);
       dispatch({ type: "SET_CHAIN_AUDIO_MODULATION", id, modulation });
     },
     copyChainToClipboard: () => {
@@ -1307,6 +1728,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       try {
         const text = await navigator.clipboard.readText();
         const data = JSON.parse(text) as SerializedFilterState;
+        invalidateProcessingGeneration();
         prevOutputMapRef.current.clear();
         prevInputMapRef.current.clear();
         emaMapRef.current.clear();

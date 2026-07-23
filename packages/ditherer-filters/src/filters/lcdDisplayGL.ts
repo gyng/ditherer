@@ -11,11 +11,9 @@ import {
   type Program,
 } from "../gl/index";
 
-// Per-pixel LCD subpixel renderer: sample the cell-centre source colour once
-// per pixel cell, then for this fragment determine which subpixel stripe /
-// PenTile quadrant / diamond sector it belongs to and emit that single colour
-// channel (times brightness). Gap pixels at the cell borders render a
-// gap-darkness grey. Optional nearest-palette quantise in-shader.
+// Magnified emitter renderer. RGB stripe uses equal thirds; PenTile uses one
+// green plus an alternating shared red/blue emitter per logical cell; Diamond
+// uses two smaller green diamonds and one red/blue diamond each.
 const LCD_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -29,7 +27,9 @@ uniform float u_brightness;
 uniform float u_gapDarkness;
 uniform float u_levels;
 
-const float PI = 3.14159265;
+float diamondDistance(vec2 p, vec2 center) {
+  return abs(p.x - center.x) + abs(p.y - center.y);
+}
 
 void main() {
   vec2 px = v_uv * u_res;
@@ -37,7 +37,6 @@ void main() {
   // JS-y space to match the CPU reference.
   float y = u_res.y - 1.0 - floor(px.y);
 
-  float subW = max(1.0, floor(u_pixelSize / 3.0));
   float halfP = floor(u_pixelSize / 2.0);
 
   // Sample the cell-centre source pixel.
@@ -45,45 +44,42 @@ void main() {
   float gy = floor(y / u_pixelSize) * u_pixelSize + halfP;
   gx = min(u_res.x - 1.0, gx);
   gy = min(u_res.y - 1.0, gy);
-  vec3 src = texture(u_source, vec2((gx + 0.5) / u_res.x, 1.0 - (gy + 0.5) / u_res.y)).rgb * 255.0;
+  vec4 cellSample = texture(u_source, vec2((gx + 0.5) / u_res.x, 1.0 - (gy + 0.5) / u_res.y));
+  vec3 src = cellSample.rgb * cellSample.a * 255.0;
 
-  float localX = mod(x, u_pixelSize);
-  float localY = mod(y, u_pixelSize);
-
-  // Inter-cell gap (bottom-right 1px border).
-  if (localX >= u_pixelSize - 1.0 || localY >= u_pixelSize - 1.0) {
-    float g = floor(10.0 * (1.0 - u_gapDarkness) + 0.5);
-    vec3 gapRgb = vec3(g / 255.0);
-    fragColor = vec4(gapRgb, 1.0);
-    return;
-  }
+  vec2 local = vec2(mod(x, u_pixelSize), mod(y, u_pixelSize)) / u_pixelSize;
+  float cellX = floor(x / u_pixelSize);
+  float cellY = floor(y / u_pixelSize);
+  float matrix = 0.12 * (1.0 - u_gapDarkness);
+  float alpha = texture(u_source, vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y)).a;
 
   vec3 rgb = vec3(0.0);
   if (u_layout == 0) {
-    // RGB stripe — subIdx ∈ {0, 1, 2} selects R, G, B.
-    float subIdx = floor(localX / subW);
-    if (subIdx < 0.5) rgb.r = src.r * u_brightness;
-    else if (subIdx < 1.5) rgb.g = src.g * u_brightness;
+    float stripe = local.x * 3.0;
+    float withinStripe = fract(stripe);
+    bool matrixGap = local.y < 0.06 || local.y > 0.94 || withinStripe < 0.06 || withinStripe > 0.94;
+    if (matrixGap) rgb = vec3(matrix * 255.0);
+    else if (stripe < 1.0) rgb.r = src.r * u_brightness;
+    else if (stripe < 2.0) rgb.g = src.g * u_brightness;
     else rgb.b = src.b * u_brightness;
   } else if (u_layout == 1) {
-    // PenTile — alternating RG / BG rows per cell-row.
-    float isEvenRow = mod(floor(y / u_pixelSize), 2.0);
-    float subIdx = floor(localX / subW);
-    if (isEvenRow < 0.5) {
-      if (subIdx < 0.5) rgb.r = src.r * u_brightness;
-      else rgb.g = src.g * u_brightness;
-    } else {
-      if (subIdx < 0.5) rgb.b = src.b * u_brightness;
-      else rgb.g = src.g * u_brightness;
-    }
-  } else {
-    // Diamond — atan2 sector picks R (0–120°), G (120–240°), B (240–360°).
-    float cx = localX - u_pixelSize * 0.5;
-    float cy = localY - u_pixelSize * 0.5;
-    float angleDeg = mod(atan(cy, cx) * 180.0 / PI + 360.0, 360.0);
-    if (angleDeg < 120.0) rgb.r = src.r * u_brightness;
-    else if (angleDeg < 240.0) rgb.g = src.g * u_brightness;
+    bool matrixGap = local.x < 0.06 || local.x > 0.94 || local.y < 0.06 || local.y > 0.94
+      || abs(local.x - 0.5) < 0.05;
+    if (matrixGap) rgb = vec3(matrix * 255.0);
+    else if (local.x >= 0.5) rgb.g = src.g * u_brightness;
+    else if (mod(cellX + cellY, 2.0) < 0.5) rgb.r = src.r * u_brightness;
     else rgb.b = src.b * u_brightness;
+  } else {
+    if (diamondDistance(local, vec2(0.5, 0.25)) <= 0.18
+        || diamondDistance(local, vec2(0.5, 0.75)) <= 0.18) {
+      rgb.g = src.g * u_brightness;
+    } else if (diamondDistance(local, vec2(0.25, 0.5)) <= 0.22) {
+      rgb.r = src.r * u_brightness;
+    } else if (diamondDistance(local, vec2(0.75, 0.5)) <= 0.22) {
+      rgb.b = src.b * u_brightness;
+    } else {
+      rgb = vec3(matrix * 255.0);
+    }
   }
 
   rgb = clamp(rgb, 0.0, 255.0) / 255.0;
@@ -91,7 +87,7 @@ void main() {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
   }
-  fragColor = vec4(rgb, 1.0);
+  fragColor = vec4(rgb, alpha);
 }
 `;
 

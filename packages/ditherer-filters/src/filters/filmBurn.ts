@@ -83,6 +83,10 @@ float fbm(vec2 point) {
   return result / 1.06875;
 }
 
+float safeAngle(vec2 direction) {
+  return dot(direction, direction) > 1e-10 ? atan(direction.y, direction.x) : 0.0;
+}
+
 void main() {
   vec2 pixel = v_uv * u_res;
   float closestFront = 10.0;
@@ -96,7 +100,7 @@ void main() {
     float radius = max(spot.z, 1.0);
     vec2 normalizedDelta = delta / radius;
     float distanceFromOrigin = length(normalizedDelta);
-    float angle = atan(normalizedDelta.y, normalizedDelta.x);
+    float angle = safeAngle(normalizedDelta);
     float organicNoise = fbm(pixel / max(radius * 0.18, 2.0) + float(index) * 8.3) - 0.5;
     float lobes = sin(angle * (5.0 + float(index)) + u_seed * 3.1) * 0.045;
     float irregularity = (organicNoise * 0.3 + lobes) * u_roughness;
@@ -129,7 +133,7 @@ void main() {
   vec3 result = mix(source.rgb, fadedDyes, buckleBand * 0.72);
 
   float crackPattern = smoothstep(0.91, 0.985, abs(sin(
-    atan(closestDirection.y, closestDirection.x) * 11.0
+    safeAngle(closestDirection) * 11.0
     + length(closestDirection) * 47.0
     + fbm(pixel * 0.06) * 7.0
   ))) * blister;
@@ -145,7 +149,7 @@ void main() {
   float coreBreakup = destroyedCore * smoothstep(0.08, 0.42, -closestFront + (coreTexture - 0.5) * 0.1);
   result = mix(result, projectorLight, coreBreakup);
 
-  fragColor = vec4(clamp(result, 0.0, 1.0), source.a);
+  fragColor = vec4(clamp(result, 0.0, 1.0), texture(u_source, v_uv).a);
 }
 `;
 

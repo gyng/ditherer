@@ -17,13 +17,10 @@ import {
   type TexEntry,
 } from "../gl/index";
 
-// Proper wet-on-wet watercolor: iterative pigment diffusion where darker
-// pigment pools into wet basins and bright edges develop "bloom" ridges
-// where pigment is pushed outward. Each iteration does a two-tap colour
-// diffusion toward the spatial neighbourhood, modulated by pigment
-// "wetness" (inverse luminance), plus edge darkening to simulate the
-// characteristic watercolour edge-bleed ring. Finished with a paper
-// texture.
+// Bounded watercolor stylization: iterative pigment-field diffusion with
+// edge deposition and a paper texture. This deliberately does not claim to be
+// a shallow-water solver; there is no independent water mask or deposited-
+// pigment layer in a source photograph.
 
 const DIFFUSE_FS = `#version 300 es
 precision highp float;
@@ -49,21 +46,28 @@ void main() {
   vec4 r = texture(u_prev, uv + vec2(onePx.x, 0.0));
   vec4 d = texture(u_prev, uv - vec2(0.0, onePx.y));
   vec4 t = texture(u_prev, uv + vec2(0.0, onePx.y));
-  // Wetness = inverse luminance: dark pigment carries more water.
+  vec4 ld = texture(u_prev, uv - onePx);
+  vec4 lt = texture(u_prev, uv + vec2(-onePx.x, onePx.y));
+  vec4 rd = texture(u_prev, uv + vec2(onePx.x, -onePx.y));
+  vec4 rt = texture(u_prev, uv + onePx);
+  // Darker source values approximate higher pigment load, not water content.
+  // Wetness controls how strongly that source-derived load changes mobility.
   float cL = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
   float wet = mix(1.0, 1.0 - cL, u_wetness);
 
-  // Weighted average to neighbours — this is the pigment migration.
-  vec4 avg = (l + r + d + t) * 0.25;
+  // Isotropic eight-neighbour migration. Cardinal samples receive twice the
+  // weight of diagonals to reduce grid-aligned diffusion artifacts.
+  vec4 avg = ((l + r + d + t) * 2.0 + ld + lt + rd + rt) / 12.0;
   vec4 diff = avg - c;
   vec4 migrated = c + diff * u_flow * wet;
 
-  // Edge-bloom: detect where pigment has piled up vs. neighbours, darken
-  // slightly there to simulate the classic watercolour edge ring.
-  float lapL = (l.r + r.r + d.r + t.r) * 0.25 - c.r;
-  float edge = clamp(-lapL * 4.0, 0.0, 1.0);
+  // Edge deposition follows pigment concentration (inverse luminance), not
+  // one arbitrary RGB channel, so saturated washes receive equal treatment.
+  float avgL = dot(avg.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float pigmentPile = max(0.0, (1.0 - cL) - (1.0 - avgL));
+  float edge = clamp(pigmentPile * 4.0, 0.0, 1.0);
   migrated.rgb *= 1.0 - edge * u_edgeBloom * 0.4;
-  fragColor = vec4(clamp(migrated.rgb, 0.0, 1.0), 1.0);
+  fragColor = vec4(clamp(migrated.rgb, 0.0, 1.0), texture(u_source, uv).a);
 }
 `;
 
@@ -83,6 +87,17 @@ float hash(vec2 p) {
   return fract((p.x + p.y) * p.x);
 }
 
+float valueNoise(vec2 p) {
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  vec2 smoothF = f * f * (3.0 - 2.0 * f);
+  float a = hash(cell);
+  float b = hash(cell + vec2(1.0, 0.0));
+  float c = hash(cell + vec2(0.0, 1.0));
+  float d = hash(cell + vec2(1.0, 1.0));
+  return mix(mix(a, b, smoothF.x), mix(c, d, smoothF.x), smoothF.y);
+}
+
 void main() {
   vec2 px = v_uv * u_res;
   float x = floor(px.x);
@@ -90,9 +105,13 @@ void main() {
   vec4 pig = texelFetch(u_pigment, ivec2(x, floor(px.y)), 0);
   vec3 rgb = pig.rgb;
   if (u_paper > 0.0) {
-    float n1 = hash(vec2(x, y));
-    float n2 = hash(vec2(x * 0.3, y * 0.3));
-    float grain = (n1 - 0.5) * 0.12 + (n2 - 0.5) * 0.2;
+    vec2 paperPx = vec2(x, y);
+    float fine = valueNoise(vec2(paperPx.x * 0.72, paperPx.y * 0.28));
+    float coarse = valueNoise(paperPx * 0.065);
+    float fiber = valueNoise(vec2(paperPx.x * 0.9, paperPx.y * 0.035));
+    float grain = (fine - 0.5) * 0.10
+                + (coarse - 0.5) * 0.18
+                + (fiber - 0.5) * 0.08;
     rgb = rgb * (1.0 + grain * u_paper);
     // Warm paper tint blends in proportionally.
     vec3 paperTint = vec3(248.0, 243.0, 226.0) / 255.0;
@@ -103,17 +122,17 @@ void main() {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
   }
-  fragColor = vec4(rgb, 1.0);
+  fragColor = vec4(rgb, pig.a);
 }
 `;
 
 export const optionTypes = {
   iterations: { type: RANGE, range: [1, 32], step: 1, default: 14, desc: "Pigment-diffusion iterations — more = softer bleed" },
   flow: { type: RANGE, range: [0, 0.6], step: 0.02, default: 0.25, desc: "Per-step diffusion amount — higher = more watery" },
-  wetness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "How much dark pigment migrates faster (wet-into-wet)" },
-  edgeBloom: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Edge ring darkening — the signature watercolor halo" },
+  wetness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "How strongly source-derived pigment load modulates mobility — an artistic wetness approximation" },
+  edgeBloom: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Luminance-based pigment deposition along wash edges" },
   paperTexture: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Visible paper grain" },
-  palette: { type: PALETTE, default: nearest },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -138,8 +157,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const watercolorBleed = (input: any, options = defaults) => {
-  const { iterations, flow, wetness, edgeBloom, paperTexture, palette } = options;
+const watercolorBleed = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const {
+    iterations = defaults.iterations,
+    flow = defaults.flow,
+    wetness = defaults.wetness,
+    edgeBloom = defaults.edgeBloom,
+    paperTexture = defaults.paperTexture,
+    palette = defaults.palette,
+  } = options;
   const W = input.width, H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -170,7 +196,10 @@ const watercolorBleed = (input: any, options = defaults) => {
           gl.uniform1i(cache.diffuse.uniforms.u_source, 1);
           gl.uniform2f(cache.diffuse.uniforms.u_res, W, H);
           gl.uniform1f(cache.diffuse.uniforms.u_flow, flow);
-          gl.uniform1f(cache.diffuse.uniforms.u_edgeBloom, edgeBloom);
+          // Edge deposition is a total-process control, not a per-timestep
+          // multiplier. Normalize it so extra diffusion steps soften the wash
+          // without exponentially re-darkening the same quantization residue.
+          gl.uniform1f(cache.diffuse.uniforms.u_edgeBloom, edgeBloom / iters);
           gl.uniform1f(cache.diffuse.uniforms.u_wetness, wetness);
         }, vao);
         // After first pass, ping-pong between A and B.
@@ -212,6 +241,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Wet-on-wet watercolour: iterative pigment diffusion with wetness-weighted flow and edge blooms — dark colours migrate faster, edges develop the signature halo ring",
-  noWASM: "Iterative diffusion at 1280×720 is 4-8× slower on CPU than a single GL pass.",
+  description: "Stylized single-field watercolour approximation with eight-neighbour pigment diffusion, luminance-based edge deposition, and paper grain",
+  requiresGL: true,
+  noWASM: "Iterative neighborhood diffusion is GPU-bound and has no maintained CPU implementation.",
 });

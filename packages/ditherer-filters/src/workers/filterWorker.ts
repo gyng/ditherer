@@ -76,6 +76,7 @@ export const runWorkerFilterRequest = async (
   createCanvas: WorkerCanvasFactory = defaultCanvasFactory,
 ): Promise<WorkerFilterResult> => {
   let canvas = createCanvas(width, height);
+  try {
   const initCtx = canvas.getContext("2d", { willReadFrequently: true }) as
     | OffscreenCanvasRenderingContext2D
     | CanvasRenderingContext2D
@@ -88,6 +89,7 @@ export const runWorkerFilterRequest = async (
   if (convertGrayscale) {
     const grayscaleCanvas = grayscale.func(canvas);
     if (has2dContext(grayscaleCanvas)) {
+      if (grayscaleCanvas !== canvas) releasePooledCanvas(canvas);
       canvas = grayscaleCanvas;
     }
   }
@@ -228,6 +230,9 @@ export const runWorkerFilterRequest = async (
     prevInputs: newPrevInputs,
     emaMaps: newEmaMaps,
   };
+  } finally {
+    releasePooledCanvas(canvas);
+  }
 };
 
 if (typeof self !== "undefined") {

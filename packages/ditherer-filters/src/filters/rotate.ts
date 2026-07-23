@@ -28,11 +28,12 @@ export const optionTypes = {
   angle: { type: RANGE, range: [-180, 180], step: 1, default: 15, desc: "Rotation angle in degrees" },
   spinPerFrame: { type: RANGE, range: [-45, 45], step: 0.5, default: 2, desc: "Additional degrees of rotation applied every animation frame" },
   bgColor: { type: COLOR, default: [0, 0, 0], desc: "Fill color for exposed corners" },
-  palette: { type: PALETTE, default: nearest },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop rotation by the configured degrees per frame",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
@@ -209,4 +210,5 @@ export default defineFilter<RotateOptions>({
   optionTypes,
   options: defaults,
   defaults,
+  temporal: true,
 });

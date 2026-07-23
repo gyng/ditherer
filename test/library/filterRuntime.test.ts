@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createFilterSession,
   filterIndex,
+  getCanvasPoolStats,
+  resetCanvasPoolStats,
   runFilterChain,
+  takePooledCanvas,
   type FilterCanvas,
   type FilterDefinition,
   type FilterOptionValues,
@@ -120,5 +123,108 @@ describe("browser filter library runtime", () => {
 
     session.dispose();
     await expect(session.process(canvas() as FilterCanvas)).rejects.toThrow(/disposed/);
+  });
+
+  it("aborts after an awaited step, releases its output, and skips state and later stages", async () => {
+    let resolveFirst: ((value: HTMLCanvasElement | OffscreenCanvas) => void) | undefined;
+    let aborted = false;
+    const later = vi.fn((input: FilterCanvas) => input);
+    const firstOutput = takePooledCanvas(37, 23);
+    const session = createFilterSession([
+      {
+        id: "first",
+        filter: {
+          name: "Deferred first",
+          func: () => new Promise<HTMLCanvasElement | OffscreenCanvas>((resolve) => { resolveFirst = resolve; }),
+        },
+      },
+      { id: "later", filter: { name: "Later", func: later } },
+    ]);
+    const input = canvas(37, 23);
+    resetCanvasPoolStats();
+
+    const pending = session.process(input, { shouldAbort: () => aborted });
+    expect(resolveFirst).toBeTypeOf("function");
+    aborted = true;
+    resolveFirst?.(firstOutput);
+    const result = await pending;
+
+    expect(result.canvas).toBe(input);
+    expect(result.steps).toHaveLength(0);
+    expect(later).not.toHaveBeenCalled();
+    expect(session.state.prevOutputs.size).toBe(0);
+    expect(session.state.prevInputs.size).toBe(0);
+    expect(session.state.ema.size).toBe(0);
+    expect(session.state.frameIndex).toBe(0);
+    expect(getCanvasPoolStats()).toMatchObject({ releases: 1 });
+    expect(takePooledCanvas(37, 23)).toBe(firstOutput);
+  });
+
+  it("releases superseded intermediates unless a preview transaction retains them", async () => {
+    const width = 239;
+    const height = 41;
+    const first = takePooledCanvas(width, height);
+    const second = takePooledCanvas(width, height);
+    const chain = [
+      { id: "first", filter: { name: "First pooled", func: () => first } },
+      { id: "second", filter: { name: "Second pooled", func: () => second } },
+    ];
+    resetCanvasPoolStats();
+
+    const released = await runFilterChain(canvas(width, height), chain, {}, {
+      retainStepCanvases: false,
+    });
+    expect(released.canvas).toBe(second);
+    expect(getCanvasPoolStats().releases).toBe(1);
+    expect(takePooledCanvas(width, height)).toBe(first);
+
+    const retainedFirst = takePooledCanvas(241, 43);
+    const retainedSecond = takePooledCanvas(241, 43);
+    resetCanvasPoolStats();
+    const retained = await runFilterChain(canvas(241, 43), [
+      { id: "first", filter: { name: "First retained", func: () => retainedFirst } },
+      { id: "second", filter: { name: "Second retained", func: () => retainedSecond } },
+    ]);
+    expect(retained.canvas).toBe(retainedSecond);
+    expect(getCanvasPoolStats().releases).toBe(0);
+    expect(retained.steps.map((step) => step.canvas)).toEqual([retainedFirst, retainedSecond]);
+  });
+
+  it("releases the current ephemeral intermediate when later option resolution rejects", async () => {
+    const width = 251;
+    const height = 47;
+    const first = takePooledCanvas(width, height);
+    resetCanvasPoolStats();
+
+    await expect(runFilterChain(canvas(width, height), [
+      { id: "first", filter: { name: "First before resolve failure", func: () => first } },
+      { id: "second", filter: { name: "Resolve failure", func: (input) => input } },
+    ], {}, {
+      retainStepCanvases: false,
+      resolveOptions: (_entry, index, defaults) => {
+        if (index === 1) throw new Error("injected resolveOptions failure");
+        return defaults;
+      },
+    })).rejects.toThrow("injected resolveOptions failure");
+
+    expect(getCanvasPoolStats().releases).toBe(1);
+    expect(takePooledCanvas(width, height)).toBe(first);
+  });
+
+  it("releases the current ephemeral intermediate exactly once when onStep rejects", async () => {
+    const width = 257;
+    const height = 53;
+    const first = takePooledCanvas(width, height);
+    resetCanvasPoolStats();
+
+    await expect(runFilterChain(canvas(width, height), [
+      { id: "first", filter: { name: "Rejected step callback", func: () => first } },
+    ], {}, {
+      retainStepCanvases: false,
+      onStep: () => { throw new Error("injected onStep failure"); },
+    })).rejects.toThrow("injected onStep failure");
+
+    expect(getCanvasPoolStats().releases).toBe(1);
+    expect(takePooledCanvas(width, height)).toBe(first);
   });
 });

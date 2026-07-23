@@ -18,16 +18,17 @@ export const optionTypes = {
   chance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Probability of shifting each block" },
   colorShift: { type: BOOL, default: true, desc: "Shift RGB channels independently" },
   wrap: { type: BOOL, default: true, desc: "Wrap shifted pixels around edges" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop frame-varying scan-line block shifts",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -129,5 +130,6 @@ export default defineFilter({
   func: scanLineShift,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
+  temporal: true,
 });

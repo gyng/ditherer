@@ -120,8 +120,6 @@ const hardSkip = new Set([
 const requiresMigratedScalarDefaults = new Set([
   "Contour Map",
   "Palette Mapper",
-  "Voronoi",
-  "Thermal camera",
 ]);
 
 const requiresMigratedEnumDefaults = new Set([

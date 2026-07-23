@@ -4,10 +4,9 @@ import {
   type Program,
 } from "../gl/index";
 
-// Three separate RGB halftone screens with channel-registration offsets
-// on a black background. Each channel's dot radius = (dotSize/2) * value,
-// so dots always fit inside their own cell — the fragment only needs
-// to consider its containing cell per channel.
+// Three additive RGB plates. Circular dots grow with exact area coverage until
+// contact (π/4); highlights above contact use complementary corner holes so
+// full input reaches full output without clipping or multiplying tone twice.
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -19,28 +18,35 @@ uniform float u_offsetR;
 uniform float u_offsetG;
 uniform float u_offsetB;
 
-float channelContribution(float jsX, float jsY, float offX, float offY, int channel) {
-  float cellX = floor(jsX / u_dotSize) * u_dotSize;
-  float cellY = floor(jsY / u_dotSize) * u_dotSize;
-  float sx = clamp(cellX + floor(u_dotSize * 0.5) + offX, 0.0, u_res.x - 1.0);
-  float sy = clamp(cellY + floor(u_dotSize * 0.5) + offY, 0.0, u_res.y - 1.0);
+vec3 sourceAt(vec2 p) {
+  p = clamp(p, vec2(0.0), u_res - vec2(1.0));
+  return texture(u_source, vec2((p.x + 0.5) / u_res.x, 1.0 - (p.y + 0.5) / u_res.y)).rgb;
+}
 
-  vec3 rgb = texture(u_source, vec2((sx + 0.5) / u_res.x, 1.0 - (sy + 0.5) / u_res.y)).rgb;
+float channelContribution(vec2 outputPosition, vec2 displacement, int channel) {
+  vec2 platePosition = outputPosition - displacement;
+  vec2 cell = floor(platePosition / u_dotSize);
+  vec2 centre = (cell + 0.5) * u_dotSize;
+  vec3 rgb = vec3(0.0);
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    rgb += sourceAt(centre + vec2(x, y) * u_dotSize / 3.0);
+  }
+  rgb /= 9.0;
   float value = channel == 0 ? rgb.r : channel == 1 ? rgb.g : rgb.b;
-  float dotR = (u_dotSize * 0.5) * value;
-  if (dotR < 0.3) return 0.0;
-
-  float centreX = cellX + u_dotSize * 0.5;
-  float centreY = cellY + u_dotSize * 0.5;
-  float dx = jsX - centreX;
-  float dy = jsY - centreY;
-  float dist2 = dx * dx + dy * dy;
-  if (dist2 > dotR * dotR) return 0.0;
-
-  float dist = sqrt(dist2);
-  float intensity = min(1.0, (dotR - dist) / 1.5 + 0.5);
-  float add = intensity * value * 200.0;
-  return floor(add * 0.2 + 0.5);
+  if (value <= 0.0) return 0.0;
+  if (value >= 1.0) return 1.0;
+  vec2 local = platePosition - cell * u_dotSize;
+  const float CONTACT = 0.78539816339;
+  if (value <= CONTACT) {
+    float radius = u_dotSize * sqrt(value / 3.14159265359);
+    float distanceToCentre = length(local - vec2(u_dotSize * 0.5));
+    float aa = max(fwidth(distanceToCentre), 0.35);
+    return 1.0 - smoothstep(radius - aa, radius + aa, distanceToCentre);
+  }
+  float holeRadius = u_dotSize * sqrt((1.0 - value) / 3.14159265359);
+  float distanceToCorner = length(min(local, vec2(u_dotSize) - local));
+  float aa = max(fwidth(distanceToCorner), 0.35);
+  return smoothstep(holeRadius - aa, holeRadius + aa, distanceToCorner);
 }
 
 void main() {
@@ -48,11 +54,13 @@ void main() {
   float jsX = floor(px.x);
   float jsY = u_res.y - 1.0 - floor(px.y);
 
-  float r = channelContribution(jsX, jsY, u_offsetR, 0.0, 0);
-  float g = channelContribution(jsX, jsY, u_offsetG, 0.0, 1);
-  float b = channelContribution(jsX, jsY, 0.0, u_offsetB, 2);
+  vec2 position = vec2(jsX, jsY);
+  float r = channelContribution(position, vec2(u_offsetR, 0.0), 0);
+  float g = channelContribution(position, vec2(u_offsetG, 0.0), 1);
+  float b = channelContribution(position, vec2(0.0, u_offsetB), 2);
 
-  fragColor = vec4(clamp(vec3(r, g, b), 0.0, 255.0) / 255.0, 1.0);
+  float alpha = texture(u_source, v_uv).a;
+  fragColor = vec4(clamp(vec3(r, g, b), 0.0, 1.0), alpha);
 }
 `;
 

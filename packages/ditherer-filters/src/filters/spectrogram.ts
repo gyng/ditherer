@@ -3,7 +3,23 @@ import { nearest } from "../palettes/index";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
 import { defineFilter } from "./types";
-import { spectrogramGLAvailable, renderSpectrogramGL } from "./spectrogramGL";
+import {
+  SPECTROGRAM_GL_MAX_SIGNAL_LENGTH,
+  spectrogramGLAvailable,
+  renderSpectrogramGL,
+} from "./spectrogramGL";
+import {
+  hannWindow,
+  spectrogramBinForRow,
+  spectrogramMagnitudeLevel,
+  spectrogramNyquistBinCount,
+} from "./displaySpectrumContracts";
+import {
+  normalizeBooleanOption,
+  normalizeEnumOption,
+  normalizePaletteOption,
+  normalizeRangeOption,
+} from "../utils/filterOptions";
 
 const COLORMAP = { VIRIDIS: "VIRIDIS", MAGMA: "MAGMA", INFERNO: "INFERNO", GRAYSCALE: "GRAYSCALE" };
 
@@ -36,32 +52,50 @@ export const optionTypes = {
     { name: "Inferno", value: COLORMAP.INFERNO },
     { name: "Grayscale", value: COLORMAP.GRAYSCALE }
   ], default: COLORMAP.VIRIDIS, desc: "Color mapping for frequency intensity" },
-  logScale: { type: BOOL, default: true, desc: "Use logarithmic frequency scale" },
-  freqBins: { type: RANGE, range: [16, 128], step: 8, default: 32, desc: "Number of frequency bands" },
-  palette: { type: PALETTE, default: nearest }
+  logScale: { type: BOOL, default: true, desc: "Space the displayed frequency axis logarithmically" },
+  freqBins: { type: RANGE, range: [16, 128], step: 8, default: 64, desc: "Requested one-sided frequency bins, capped at Nyquist" },
+  dynamicRange: { type: RANGE, range: [20, 100], step: 1, default: 60, desc: "Shared decibel range from the strongest representable magnitude" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional final palette mapping after the scientific colormap" }
 };
 
 export const defaults = {
   colormap: optionTypes.colormap.default,
   logScale: optionTypes.logScale.default,
   freqBins: optionTypes.freqBins.default,
+  dynamicRange: optionTypes.dynamicRange.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const spectrogram = (input: any, options = defaults) => {
-  const { colormap, logScale, freqBins, palette } = options;
+type SpectrogramOptions = Partial<typeof defaults> & { _webglAcceleration?: boolean };
+
+const spectrogram = (input: any, options: SpectrogramOptions = defaults) => {
+  const supplied = { ...defaults, ...options };
+  const resolved = {
+    ...supplied,
+    colormap: normalizeEnumOption(
+      supplied.colormap,
+      [COLORMAP.VIRIDIS, COLORMAP.MAGMA, COLORMAP.INFERNO, COLORMAP.GRAYSCALE],
+      defaults.colormap,
+    ),
+    logScale: normalizeBooleanOption(supplied.logScale, defaults.logScale),
+    freqBins: normalizeRangeOption(supplied.freqBins, defaults.freqBins, 16, 128, true),
+    dynamicRange: normalizeRangeOption(supplied.dynamicRange, defaults.dynamicRange, 20, 100),
+    palette: normalizePaletteOption(supplied.palette, defaults.palette),
+  };
+  const { colormap, logScale, freqBins, dynamicRange, palette } = resolved;
   const W = input.width, H = input.height;
 
   const stops = COLORMAPS[colormap] || COLORMAPS[COLORMAP.VIRIDIS];
-  const numBins = Math.min(freqBins, H);
+  const numBins = spectrogramNyquistBinCount(H, freqBins);
 
   if (
     spectrogramGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    && H <= SPECTROGRAM_GL_MAX_SIGNAL_LENGTH
+    && resolved._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
     const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
-    const rendered = renderSpectrogramGL(input, W, H, numBins, logScale, stops, levels);
+    const rendered = renderSpectrogramGL(input, W, H, numBins, logScale, dynamicRange, stops, levels);
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
@@ -80,40 +114,46 @@ const spectrogram = (input: any, options = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  // Per-column simplified DFT
+  const window = new Float32Array(H);
+  let windowSum = 0;
+  for (let y = 0; y < H; y += 1) {
+    window[y] = hannWindow(y, H);
+    windowSum += window[y];
+  }
+
+  // Treat each image column as a windowed one-dimensional spatial signal.
   for (let x = 0; x < W; x++) {
     // Extract luminance column
     const col = new Float32Array(H);
     for (let y = 0; y < H; y++) {
       const i = getBufferIndex(x, y, W);
-      col[y] = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
+      col[y] = ((0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255)
+        * (buf[i + 3] / 255);
     }
 
     // DFT for first numBins frequencies
     const magnitudes = new Float32Array(numBins);
-    let maxMag = 0;
     for (let k = 0; k < numBins; k++) {
       let re = 0, im = 0;
       for (let n = 0; n < H; n++) {
         const angle = (2 * Math.PI * k * n) / H;
-        re += col[n] * Math.cos(angle);
-        im -= col[n] * Math.sin(angle);
+        const sample = col[n] * window[n];
+        re += sample * Math.cos(angle);
+        im -= sample * Math.sin(angle);
       }
-      let mag = Math.sqrt(re * re + im * im) / H;
-      if (logScale) mag = Math.log10(1 + mag * 100);
-      magnitudes[k] = mag;
-      if (mag > maxMag) maxMag = mag;
+      magnitudes[k] = spectrogramMagnitudeLevel(re, im, windowSum, k, H, dynamicRange);
     }
 
-    // Normalize and render
+    // Render against one shared absolute dB reference. LogScale changes only
+    // frequency-axis spacing; it no longer renormalizes each time column.
     for (let y = 0; y < H; y++) {
-      const bin = Math.floor((y / H) * numBins);
-      const t = maxMag > 0 ? magnitudes[bin] / maxMag : 0;
+      const bin = spectrogramBinForRow(y, H, numBins, logScale);
+      const t = magnitudes[bin];
       const [cr, cg, cb] = sampleColormap(stops, t);
 
       const di = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(cr, cg, cb, 255), palette.options, false);
-      fillBufferPixel(outBuf, di, color[0], color[1], color[2], 255);
+      const color = paletteGetColor(palette, rgba(cr, cg, cb, buf[di + 3]), palette.options, false);
+      fillBufferPixel(outBuf, di, color[0], color[1], color[2], buf[di + 3]);
     }
   }
 
@@ -121,4 +161,11 @@ const spectrogram = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Spectrogram", func: spectrogram, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Spectrogram",
+  func: spectrogram,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Spatial-frequency spectrogram treating each image column as a Hann-windowed signal with fixed-reference dB magnitude and linear or log frequency spacing",
+});

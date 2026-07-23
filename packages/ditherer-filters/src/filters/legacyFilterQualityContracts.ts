@@ -25,7 +25,9 @@ export const estimateVisibleNir = (
   const greenExcess = Math.max(0, g - (r + b) * 0.5);
   const blueExcess = b - Math.max(r, g);
   const skyLikelihood = smoothstep(0.02, 0.3, blueExcess);
-  const base = luma * 0.35 + r * 0.25 + g * 0.15;
+  // Preserve spectrally neutral reflectance exactly; only chromatic material
+  // cues should move the estimate away from visible luminance.
+  const base = luma * 0.6 + r * 0.25 + g * 0.15;
   const estimated = unit(base + greenExcess * 1.4 * Math.max(0, foliageResponse));
   return unit(estimated * (1 - skyLikelihood * unit(skySuppression)));
 };

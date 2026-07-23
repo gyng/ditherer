@@ -1,16 +1,4 @@
-import { RANGE, PALETTE } from "../constants/controlTypes";
-import { nearest } from "../palettes/index";
-import { defineFilter } from "./types";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  paletteGetColor,
-  rgba,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
-import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { PALETTE, RANGE } from "../constants/controlTypes";
 import {
   drawPass,
   ensureTexture,
@@ -23,20 +11,22 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
-
-const clamp = (min: number, max: number, v: number) => Math.max(min, Math.min(max, v));
+import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { nearest } from "../palettes/index";
+import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
+import { flashLinearChannel } from "./consumerImagingQualityContracts";
+import { defineFilter } from "./types";
 
 export const optionTypes = {
-  flashPower: { type: RANGE, range: [0, 2], step: 0.05, default: 1, desc: "Flash output strength" },
-  falloff: { type: RANGE, range: [0.8, 3], step: 0.05, default: 1.55, desc: "Distance falloff of flash illumination" },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal hotspot center" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.44, desc: "Vertical hotspot center" },
-  ambient: { type: RANGE, range: [0.4, 1], step: 0.01, default: 0.76, desc: "How much ambient scene light remains outside flash hotspot" },
-  edgeBurn: { type: RANGE, range: [0, 1], step: 0.01, default: 0.35, desc: "Darken outer frame to mimic short-range flash falloff" },
-  specular: { type: RANGE, range: [0, 1], step: 0.01, default: 0.6, desc: "Extra reflective highlight pop on bright surfaces" },
-  whiteClip: { type: RANGE, range: [200, 255], step: 1, default: 242, desc: "Hard clipping point for blown flash highlights" },
-  warmth: { type: RANGE, range: [-0.3, 0.3], step: 0.01, default: 0.02, desc: "Flash white-balance tint: warm (+) to cool (-)" },
-  palette: { type: PALETTE, default: nearest },
+  flashPower: { type: RANGE, range: [0, 2], step: 0.05, default: 0.85, desc: "Additional on-axis flash exposure in stops; zero disables the flash contribution" },
+  falloff: { type: RANGE, range: [0.5, 6], step: 0.05, default: 2.2, desc: "Off-axis softness of the flash beam across the flat-scene proxy" },
+  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of the projected flash beam" },
+  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.44, desc: "Vertical center of the projected flash beam" },
+  ambient: { type: RANGE, range: [0, 1], step: 0.01, default: 0.78, desc: "Ambient exposure retained before the flash contribution is added" },
+  edgeBurn: { type: RANGE, range: [0, 1], step: 0.01, default: 0.18, desc: "Lens-edge vignetting applied to ambient and flash exposure" },
+  whiteClip: { type: RANGE, range: [200, 255], step: 1, default: 245, desc: "Sensor saturation capacity expressed as an sRGB code value" },
+  warmth: { type: RANGE, range: [-0.3, 0.3], step: 0.01, default: 0.02, desc: "Flash-only white-balance tint: warm (+) to cool (−)" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette applied after flash exposure and sensor clipping" },
 };
 
 export const defaults = {
@@ -46,148 +36,129 @@ export const defaults = {
   centerY: optionTypes.centerY.default,
   ambient: optionTypes.ambient.default,
   edgeBurn: optionTypes.edgeBurn.default,
-  specular: optionTypes.specular.default,
   whiteClip: optionTypes.whiteClip.default,
   warmth: optionTypes.warmth.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-const DF_FS = `#version 300 es
+const FLASH_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
-
 uniform sampler2D u_source;
-uniform vec2  u_res;
-uniform vec2  u_center;       // px coords
-uniform float u_maxR;
-uniform float u_pwr;
+uniform vec2 u_res;
+uniform vec2 u_center;
+uniform float u_flashGain;
 uniform float u_falloff;
 uniform float u_ambient;
 uniform float u_edgeBurn;
-uniform float u_specular;
-uniform float u_whiteClip;    // 0..1
+uniform float u_saturation;
 uniform float u_warmth;
-uniform float u_levels;
+
+vec3 srgbToLinear(vec3 c) {
+  bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
+  return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, cutoff);
+}
+
+vec3 linearToSrgb(vec3 c) {
+  c = max(c, vec3(0.0));
+  bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+  return mix(1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, c * 12.92, cutoff);
+}
 
 void main() {
-  vec2 px = v_uv * u_res;
-  float x = floor(px.x);
-  float y = u_res.y - 1.0 - floor(px.y);
-  vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
-  vec4 c = texture(u_source, suv);
-  vec3 src = c.rgb * 255.0;
+  vec4 source = texture(u_source, v_uv);
+  vec3 reflectance = srgbToLinear(source.rgb);
+  vec2 pixel = vec2(v_uv.x * u_res.x, (1.0 - v_uv.y) * u_res.y);
+  vec2 delta = (pixel - u_center) / max(u_res.x, u_res.y);
+  float radiusSquared = dot(delta, delta);
+  float beam = exp(-max(0.0, u_falloff) * radiusSquared * 4.0);
+  float edgeRadius = clamp(sqrt(radiusSquared) / 0.72, 0.0, 1.0);
+  float lensTransmission = 1.0 - clamp(u_edgeBurn, 0.0, 1.0) * edgeRadius * edgeRadius;
 
-  float dx = x - u_center.x;
-  float dy = y - u_center.y;
-  float dist = sqrt(dx * dx + dy * dy) / u_maxR;
-  float radial = clamp(1.0 - dist, 0.0, 1.0);
-  float illum = u_pwr * pow(radial, u_falloff);
-  float edgeMask = 1.0 - u_edgeBurn * pow(clamp(dist, 0.0, 1.0), 1.6);
-  float exposure = (u_ambient + illum * 1.35) * edgeMask;
-
-  vec3 lit = src * exposure;
-
-  float luma = 0.299 * src.r + 0.587 * src.g + 0.114 * src.b;
-  float specBoost = pow(clamp((luma - 118.0) / 137.0, 0.0, 1.0), 2.0) * illum * u_specular * 185.0;
-  lit.r += specBoost;
-  lit.g += specBoost;
-  lit.b += specBoost * 0.95;
-
-  lit.r *= 1.0 + u_warmth * 0.25;
-  lit.b *= 1.0 - u_warmth * 0.35;
-
-  float clip255 = u_whiteClip;
-  if (lit.r > clip255) lit.r = 255.0;
-  if (lit.g > clip255) lit.g = 255.0;
-  if (lit.b > clip255) lit.b = 255.0;
-
-  vec3 rgb = clamp(lit, 0.0, 255.0) / 255.0;
-  if (u_levels > 1.5) {
-    float q = u_levels - 1.0;
-    rgb = floor(rgb * q + 0.5) / q;
-  }
-  fragColor = vec4(rgb, c.a);
+  vec3 tint = vec3(1.0 + u_warmth * 0.36, 1.0, 1.0 - u_warmth * 0.46);
+  tint /= max(0.001, dot(tint, vec3(0.2126, 0.7152, 0.0722)));
+  vec3 exposure = reflectance * u_ambient
+    + reflectance * (u_flashGain * beam) * tint;
+  exposure *= lensTransmission;
+  vec3 captured = min(exposure / max(0.001, u_saturation), vec3(1.0));
+  fragColor = vec4(clamp(linearToSrgb(captured), 0.0, 1.0), source.a);
 }
 `;
 
-type Cache = { df: Program };
-let _cache: Cache | null = null;
-const initCache = (gl: WebGL2RenderingContext): Cache => {
-  if (_cache) return _cache;
-  _cache = {
-    df: linkProgram(gl, DF_FS, [
-      "u_source", "u_res", "u_center", "u_maxR", "u_pwr", "u_falloff",
-      "u_ambient", "u_edgeBurn", "u_specular", "u_whiteClip",
-      "u_warmth", "u_levels",
-    ] as const),
-  };
-  return _cache;
+let program: Program | null = null;
+const getProgram = (gl: WebGL2RenderingContext): Program => {
+  if (program) return program;
+  program = linkProgram(gl, FLASH_FS, [
+    "u_source", "u_res", "u_center", "u_flashGain", "u_falloff",
+    "u_ambient", "u_edgeBurn", "u_saturation", "u_warmth",
+  ] as const);
+  return program;
+};
+
+const bounded = (value: unknown, fallback: number, minimum: number, maximum: number): number => {
+  const numeric = Number(value);
+  return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
+};
+
+const srgbToLinear = (value: number): number => {
+  const normalized = Math.max(0, Math.min(1, value / 255));
+  return normalized <= 0.04045
+    ? normalized / 12.92
+    : ((normalized + 0.055) / 1.055) ** 2.4;
+};
+
+const linearToSrgb = (value: number): number => {
+  const linear = Math.max(0, value);
+  return 255 * (linear <= 0.0031308
+    ? linear * 12.92
+    : 1.055 * linear ** (1 / 2.4) - 0.055);
 };
 
 const digicamFlash = (input: any, options = defaults) => {
-  const {
-    flashPower,
-    falloff,
-    centerX,
-    centerY,
-    ambient,
-    edgeBurn,
-    specular,
-    whiteClip,
-    warmth,
-    palette,
-  } = options;
-  const W = input.width;
-  const H = input.height;
-  const cx = W * clamp(0, 1, Number(centerX));
-  const cy = H * clamp(0, 1, Number(centerY));
-  const maxR = Math.max(W, H) * 0.9;
-  const pwr = clamp(0, 3, Number(flashPower));
-  const distFalloff = clamp(0.5, 4, Number(falloff));
-  const amb = clamp(0.2, 1.2, Number(ambient));
-  const edge = clamp(0, 1, Number(edgeBurn));
-  const spec = clamp(0, 1, Number(specular));
-  const clip = clamp(180, 255, Number(whiteClip));
-  const warm = clamp(-0.5, 0.5, Number(warmth));
+  const width = input.width;
+  const height = input.height;
+  const flashPower = bounded(options.flashPower, defaults.flashPower, 0, 2);
+  const flashGain = 2 ** flashPower - 1;
+  const falloff = bounded(options.falloff, defaults.falloff, 0.5, 6);
+  const centerX = bounded(options.centerX, defaults.centerX, 0, 1) * width;
+  const centerY = bounded(options.centerY, defaults.centerY, 0, 1) * height;
+  const ambient = bounded(options.ambient, defaults.ambient, 0, 1);
+  const edgeBurn = bounded(options.edgeBurn, defaults.edgeBurn, 0, 1);
+  const saturationCode = bounded(options.whiteClip, defaults.whiteClip, 200, 255);
+  const saturation = srgbToLinear(saturationCode);
+  const warmth = bounded(options.warmth, defaults.warmth, -0.3, 0.3);
+  const palette = options.palette ?? defaults.palette;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
-    const ctx = getGLCtx();
-    if (ctx) {
-      const { gl, canvas } = ctx;
-      const cache = initCache(gl);
+    const context = getGLCtx();
+    if (context) {
+      const { gl, canvas } = context;
+      const shader = getProgram(gl);
       const vao = getQuadVAO(gl);
-      resizeGLCanvas(canvas, W, H);
-      const sourceTex = ensureTexture(gl, "digicamFlash:source", W, H);
-      uploadSourceTexture(gl, sourceTex, input);
-
-      drawPass(gl, null, W, H, cache.df, () => {
+      resizeGLCanvas(canvas, width, height);
+      const sourceTexture = ensureTexture(gl, "digicamFlash:source", width, height);
+      uploadSourceTexture(gl, sourceTexture, input);
+      drawPass(gl, null, width, height, shader, () => {
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.df.uniforms.u_source, 0);
-        gl.uniform2f(cache.df.uniforms.u_res, W, H);
-        gl.uniform2f(cache.df.uniforms.u_center, cx, cy);
-        gl.uniform1f(cache.df.uniforms.u_maxR, maxR);
-        gl.uniform1f(cache.df.uniforms.u_pwr, pwr);
-        gl.uniform1f(cache.df.uniforms.u_falloff, distFalloff);
-        gl.uniform1f(cache.df.uniforms.u_ambient, amb);
-        gl.uniform1f(cache.df.uniforms.u_edgeBurn, edge);
-        gl.uniform1f(cache.df.uniforms.u_specular, spec);
-        gl.uniform1f(cache.df.uniforms.u_whiteClip, clip);
-        gl.uniform1f(cache.df.uniforms.u_warmth, warm);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.df.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+        gl.uniform1i(shader.uniforms.u_source, 0);
+        gl.uniform2f(shader.uniforms.u_res, width, height);
+        gl.uniform2f(shader.uniforms.u_center, centerX, centerY);
+        gl.uniform1f(shader.uniforms.u_flashGain, flashGain);
+        gl.uniform1f(shader.uniforms.u_falloff, falloff);
+        gl.uniform1f(shader.uniforms.u_ambient, ambient);
+        gl.uniform1f(shader.uniforms.u_edgeBurn, edgeBurn);
+        gl.uniform1f(shader.uniforms.u_saturation, saturation);
+        gl.uniform1f(shader.uniforms.u_warmth, warmth);
       }, vao);
-
-      const rendered = readoutToCanvas(canvas, W, H);
+      const rendered = readoutToCanvas(canvas, width, height);
       if (rendered) {
-        const identity = paletteIsIdentity(palette);
-        const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-        if (out) {
-          logFilterBackend("Digicam Flash", "WebGL2",
-            `pwr=${flashPower}${identity ? "" : "+palettePass"}`);
-          return out;
+        const identityPalette = paletteIsIdentity(palette);
+        const output = identityPalette ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+        if (output) {
+          logFilterBackend("Digicam Flash", "WebGL2", `flash=${flashPower.toFixed(2)}EV${identityPalette ? "" : "+palettePass"}`);
+          return output;
         }
       }
     }
@@ -195,53 +166,42 @@ const digicamFlash = (input: any, options = defaults) => {
 
   logFilterWasmStatus("Digicam Flash", false, "fallback JS");
   const output = cloneCanvas(input, false);
-  const inputCtx = input.getContext("2d");
-  const outputCtx = output.getContext("2d");
-  if (!inputCtx || !outputCtx) return input;
+  const inputContext = input.getContext("2d");
+  const outputContext = output.getContext("2d");
+  if (!inputContext || !outputContext) return input;
+  const source = inputContext.getImageData(0, 0, width, height).data;
+  const result = new Uint8ClampedArray(source.length);
+  const maximumDimension = Math.max(width, height);
+  const rawTint = [1 + warmth * 0.36, 1, 1 - warmth * 0.46];
+  const tintLuminance = rawTint[0] * 0.2126 + rawTint[1] * 0.7152 + rawTint[2] * 0.0722;
+  const tint = rawTint.map((channel) => channel / tintLuminance);
 
-  const buf = inputCtx.getImageData(0, 0, W, H).data;
-  const outBuf = new Uint8ClampedArray(buf.length);
-
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy) / maxR;
-      const radial = clamp(0, 1, 1 - dist);
-      const illum = pwr * Math.pow(radial, distFalloff);
-      const edgeMask = 1 - edge * Math.pow(clamp(0, 1, dist), 1.6);
-      const exposure = (amb + illum * 1.35) * edgeMask;
-
-      let r = buf[i] * exposure;
-      let g = buf[i + 1] * exposure;
-      let b = buf[i + 2] * exposure;
-
-      const luma = 0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2];
-      const specBoost = Math.pow(clamp(0, 1, (luma - 118) / 137), 2) * illum * spec * 185;
-      r += specBoost;
-      g += specBoost;
-      b += specBoost * 0.95;
-
-      r *= 1 + warm * 0.25;
-      b *= 1 - warm * 0.35;
-
-      if (r > clip) r = 255;
-      if (g > clip) g = 255;
-      if (b > clip) b = 255;
-
-      const color = paletteGetColor(
-        palette,
-        rgba(clamp(0, 255, r), clamp(0, 255, g), clamp(0, 255, b), buf[i + 3]),
-        palette.options,
-        false
-      );
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      const dx = (x + 0.5 - centerX) / maximumDimension;
+      const dy = (y + 0.5 - centerY) / maximumDimension;
+      const radiusSquared = dx * dx + dy * dy;
+      const beam = Math.exp(-falloff * radiusSquared * 4);
+      const edgeRadius = Math.max(0, Math.min(1, Math.sqrt(radiusSquared) / 0.72));
+      const lensTransmission = 1 - edgeBurn * edgeRadius * edgeRadius;
+      for (let channel = 0; channel < 3; channel += 1) {
+        const reflectance = srgbToLinear(source[index + channel]);
+        const captured = flashLinearChannel(
+          reflectance,
+          ambient * lensTransmission,
+          flashGain * beam * lensTransmission,
+          tint[channel],
+          saturation,
+        ) / Math.max(0.001, saturation);
+        result[index + channel] = linearToSrgb(Math.min(1, captured));
+      }
+      result[index + 3] = source[index + 3];
     }
   }
-
-  outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-  return output;
+  outputContext.putImageData(new ImageData(result, width, height), 0, 0);
+  if (paletteIsIdentity(palette)) return output;
+  return applyPalettePassToCanvas(output, width, height, palette) ?? output;
 };
 
 export default defineFilter({
@@ -250,5 +210,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "On-camera point-and-shoot flash look with center hotspot, rapid falloff, reflective clipping, and edge burn",
+  description: "Flat-depth visible-image proxy for on-camera flash: linear ambient-plus-flash exposure, beam falloff, vignetting, white balance, and sensor saturation",
 });

@@ -35,4 +35,14 @@ describe("filter registry", () => {
     expect(temporalEntries.length).toBeGreaterThan(0);
     expect(temporalEntries.every((entry) => entry.filter.temporal === true)).toBe(true);
   });
+
+  it("marks every filter with an animate control as temporal", () => {
+    const missing = filterList
+      .filter((entry) => Object.keys(entry.filter.optionTypes ?? {})
+        .some((key) => key.toLowerCase().startsWith("animate")))
+      .filter((entry) => entry.filter.temporal !== true)
+      .map((entry) => entry.displayName);
+
+    expect(missing).toEqual([]);
+  });
 });

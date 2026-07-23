@@ -36,11 +36,18 @@ export type {
 } from "./palettes/index";
 export {
   getGLCtx,
+  getGLPoolSizes,
+  getGLStats,
   glAvailable,
   glUnavailableStub,
+  resetGLStats,
   releasePooledTextures,
 } from "./gl/index";
 export { releaseFloatTextures } from "./gl/fft2d";
+export {
+  getJpegArtifactFloatTextureCount,
+  releaseJpegArtifactFloatTextures,
+} from "./filters/jpegArtifactGL";
 export * from "./utils/index";
 export { clearMotionVectorsState } from "./filters/motionVectors";
 export { getOrderedThresholdMapPreview } from "./filters/ordered";

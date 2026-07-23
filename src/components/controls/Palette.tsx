@@ -11,24 +11,26 @@ import s from "./styles.module.css";
 const Palette = (props: PaletteControlProps) => {
   const inputId = useId();
   const label = humanizeControlName(props.types?.label || props.name);
+  const helpId = props.types?.desc ? `${inputId}-help` : undefined;
   return (
     <div className={s.group}>
       <div className={s.groupLabelRow}>
         <label className={s.name} htmlFor={inputId}>{label}</label>
-        {props.types?.desc ? <HelpHint label={label} text={props.types.desc} /> : null}
+        {props.types?.desc ? <HelpHint label={label} text={props.types.desc} id={helpId} /> : null}
       </div>
 
       <select
         id={inputId}
         className={s.enum}
+        aria-describedby={helpId}
         value={props.value.name}
         onChange={e => {
-          const selected = paletteList.find(p => p.name === e.target.value);
+          const selected = paletteList.find(p => p.palette.name === e.target.value);
           if (selected) props.onSetFilterOption(props.name, selected.palette);
         }}
       >
         {paletteList.map(p => (
-          <option key={p.name} value={p.name}>
+          <option key={p.palette.name} value={p.palette.name}>
             {p.name}
           </option>
         ))}

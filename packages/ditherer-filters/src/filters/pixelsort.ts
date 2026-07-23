@@ -459,7 +459,14 @@ export const optionTypes = {
     range: [0, 1],
     step: 0.01,
     default: 0,
-    desc: "Random chance to break the current sort interval"
+    desc: "Chance for pixels outside the luminance gates to join or start sortable spans"
+  },
+  seed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 3141,
+    desc: "Deterministic seed for additional span starts",
   },
   maxIntervalSize: {
     type: RANGE,
@@ -468,7 +475,7 @@ export const optionTypes = {
     default: 0,
     desc: "Max sorted run length — 0 = unlimited"
   },
-  palette: { type: PALETTE, default: palettes.nearest },
+  palette: { type: PALETTE, default: palettes.nearest, desc: "Optional output palette and quantization" },
   linearLuminance: { type: BOOL, default: false, desc: "Use linear-light luminance instead of sRGB" }
 };
 
@@ -476,7 +483,7 @@ export const defaults = {
   direction: optionTypes.direction.default,
   sortDirection: optionTypes.sortDirection.default,
   comparator: optionTypes.comparator.default,
-  palette: optionTypes.palette.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
   linearLuminance: optionTypes.linearLuminance.default,
   sortPixelLuminanceAbove: optionTypes.sortPixelLuminanceAbove.default,
   sortPixelLuminanceBelow: optionTypes.sortPixelLuminanceBelow.default,
@@ -485,6 +492,7 @@ export const defaults = {
   sortPixelLuminanceChangeBelow:
     optionTypes.sortPixelLuminanceChangeBelow.default,
   extraIntervalStartChance: optionTypes.extraIntervalStartChance.default,
+  seed: optionTypes.seed.default,
   maxIntervalSize: optionTypes.maxIntervalSize.default
 };
 
@@ -503,7 +511,18 @@ type PixelsortOptions = FilterOptionValues & {
   sortPixelLuminanceChangeAbove?: number;
   sortPixelLuminanceChangeBelow?: number;
   extraIntervalStartChance?: number;
+  seed?: number;
   maxIntervalSize?: number;
+};
+
+const mulberry32 = (seed: number) => {
+  let state = seed | 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 };
 
 const pixelsortFilter = (
@@ -519,12 +538,20 @@ const pixelsortFilter = (
     sortPixelLuminanceChangeAbove = defaults.sortPixelLuminanceChangeAbove,
     sortPixelLuminanceChangeBelow = defaults.sortPixelLuminanceChangeBelow,
     extraIntervalStartChance = defaults.extraIntervalStartChance,
+    seed = defaults.seed,
     maxIntervalSize = defaults.maxIntervalSize,
     palette = defaults.palette,
     linearLuminance = defaults.linearLuminance,
   } = options;
 
   const lum = (pixel: Quadlet) => luminance(pixel, linearLuminance);
+  const random = mulberry32(Number.isFinite(seed) ? Math.round(seed) : defaults.seed);
+  const extraStartChance = Number.isFinite(extraIntervalStartChance)
+    ? Math.max(0, Math.min(1, extraIntervalStartChance))
+    : defaults.extraIntervalStartChance;
+  const intervalLimit = Number.isFinite(maxIntervalSize)
+    ? Math.max(0, Math.floor(maxIntervalSize))
+    : defaults.maxIntervalSize;
   const output = cloneCanvas(input, false);
 
   const inputCtx = input.getContext("2d");
@@ -582,19 +609,16 @@ const pixelsortFilter = (
       lumDelta >= sortPixelLuminanceChangeAbove &&
       lumDelta <= sortPixelLuminanceChangeBelow;
 
-    if (interval.trail.length > maxIntervalSize && maxIntervalSize > 0) {
-      fillInterval();
-    }
-
     if (
       (inLuminosityWindow && enoughLuminosityDelta) ||
-      Math.random() < extraIntervalStartChance
+      random() < extraStartChance
     ) {
       interval.pixels.push(pixel);
       interval.trail.push(cur.i);
 
-      // If iterator forces an end of an interval (eg. x wrapped around)
-      if (cur.endInterval) {
+      // Iterator boundaries and the user limit are both inclusive: a maximum
+      // of N means no completed interval can contain N+1 pixels.
+      if (cur.endInterval || (intervalLimit > 0 && interval.trail.length >= intervalLimit)) {
         fillInterval();
       }
     } else if (interval.trail.length > 0) {
@@ -617,6 +641,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
+  description: "Deterministically sort gated pixel spans by luminance or color-space channel order",
   noWASM: "Segmenting scan-spans by luminance thresholds then sorting each run in place is inherently serial; the win from native code doesn't offset the call overhead for realistic span lengths.",
   noGL: "Sorting a pixel run in place isn't a fragment-shader operation — would need bitonic sort per row in compute shaders, which WebGL2 doesn't provide.",
 });

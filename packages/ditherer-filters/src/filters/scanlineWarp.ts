@@ -9,10 +9,11 @@ export const optionTypes = {
   amplitude: { type: RANGE, range: [0, 50], step: 1, default: 10, desc: "Horizontal wave displacement" },
   frequency: { type: RANGE, range: [0.1, 10], step: 0.1, default: 2, desc: "Wave oscillation frequency" },
   phase: { type: RANGE, range: [0, 360], step: 1, default: 0, desc: "Wave phase offset in degrees" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop movement of the scanline-warp phase",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
@@ -21,7 +22,7 @@ export const optionTypes = {
       }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -55,5 +56,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
+  temporal: true,
   requiresGL: true,
 });

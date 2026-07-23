@@ -22,17 +22,26 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import {
+  nightVisionIntensifierResponse,
+  nightVisionNoiseAmplitude,
+} from "./imagingSimulationContracts";
+import {
+  normalizePaletteOption,
+  normalizeRangeOption,
+} from "../utils/filterOptions";
 
 export const optionTypes = {
-  gain: { type: RANGE, range: [1, 8], step: 0.1, default: 4, desc: "Image intensifier gain multiplier" },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Photon noise grain amount" },
-  bloomRadius: { type: RANGE, range: [0, 8], step: 1, default: 3, desc: "Glow radius around bright areas" },
-  bloomStrength: { type: RANGE, range: [0, 2], step: 0.05, default: 0.6, desc: "Bloom glow intensity" },
-  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Circular edge darkening" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
+  gain: { type: RANGE, range: [1, 8], step: 0.1, default: 4, desc: "Visible-luminance exposure multiplier before phosphor display" },
+  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Equivalent-background and signal-dependent shot noise" },
+  bloomRadius: { type: RANGE, range: [0, 8], step: 1, default: 3, desc: "Phosphor glow radius around bright areas" },
+  bloomStrength: { type: RANGE, range: [0, 2], step: 0.05, default: 0.6, desc: "Phosphor bloom intensity" },
+  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Circular optical edge darkening" },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Noise refresh rate in frames per second" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop the changing intensifier noise pattern",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) {
         actions.stopAnimLoop();
@@ -41,7 +50,7 @@ export const optionTypes = {
       }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional final palette mapping after the green phosphor response" }
 };
 
 export const defaults = {
@@ -52,6 +61,11 @@ export const defaults = {
   vignette: optionTypes.vignette.default,
   animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+};
+
+type NightVisionOptions = Partial<typeof defaults> & {
+  _frameIndex?: number;
+  _webglAcceleration?: boolean;
 };
 
 // Amplified luminance + separable box bloom + vignette + green phosphor
@@ -67,8 +81,10 @@ uniform float u_gain;
 void main() {
   vec4 c = texture(u_source, v_uv);
   float lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-  float amplified = clamp(pow(lum, 1.0 / u_gain), 0.0, 1.0);
-  fragColor = vec4(amplified, 0.0, 0.0, 1.0);
+  float amplified = c.a > 0.0 ? clamp(1.0 - exp(-lum * u_gain), 0.0, 1.0) : 0.0;
+  // R remains straight intensity for the source pixel; G carries coverage so
+  // only the energy scattered into neighbouring pixels is alpha weighted.
+  fragColor = vec4(amplified, c.a, 0.0, 1.0);
 }
 `;
 
@@ -95,12 +111,13 @@ void main() {
     float nx = clamp(x + float(k) * u_axis.x, 0.0, u_res.x - 1.0);
     float ny = clamp(y + float(k) * u_axis.y, 0.0, u_res.y - 1.0);
     vec2 uv = vec2((nx + 0.5) / u_res.x, 1.0 - (ny + 0.5) / u_res.y);
-    float v = texture(u_input, uv).r;
-    if (u_threshold > 0.0) v = max(0.0, v - u_threshold);
+    vec2 inputValue = texture(u_input, uv).rg;
+    float v = inputValue.r;
+    if (u_threshold > 0.0) v = max(0.0, v - u_threshold) * inputValue.g;
     sum += v;
     count += 1.0;
   }
-  fragColor = vec4(sum / count, 0.0, 0.0, 1.0);
+  fragColor = vec4(sum / count, 1.0, 0.0, 1.0);
 }
 `;
 
@@ -111,6 +128,7 @@ out vec4 fragColor;
 
 uniform sampler2D u_lum;      // amplified luminance
 uniform sampler2D u_bloom;    // separable-blurred bright regions
+uniform sampler2D u_source;   // original alpha
 uniform vec2  u_res;
 uniform float u_bloomStrength;
 uniform float u_grain;
@@ -133,7 +151,10 @@ void main() {
   float intensity = clamp(L + B * u_bloomStrength, 0.0, 1.0);
 
   if (u_grain > 0.0) {
-    intensity += (hash(vec2(x, y), u_seed) - 0.5) * u_grain;
+    float noiseAmplitude = u_grain * (0.018 + 0.19 * sqrt(max(intensity, 0.0)));
+    float zeroMeanNoise = hash(vec2(x, y), u_seed) +
+      hash(vec2(x + 37.0, y + 71.0), u_seed + 19.0) - 1.0;
+    intensity += zeroMeanNoise * noiseAmplitude;
   }
 
   if (u_vignette > 0.0) {
@@ -153,7 +174,7 @@ void main() {
 
   intensity = clamp(intensity, 0.0, 1.0);
   vec3 rgb = vec3(20.0, 255.0, 20.0) * intensity / 255.0;
-  fragColor = vec4(rgb, 1.0);
+  fragColor = vec4(rgb, texture(u_source, uv).a);
 }
 `;
 
@@ -166,7 +187,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     amp: linkProgram(gl, NV_AMPLIFY_FS, ["u_source", "u_gain"] as const),
     blur: linkProgram(gl, NV_BLUR_FS, ["u_input", "u_res", "u_radius", "u_axis", "u_threshold"] as const),
     comp: linkProgram(gl, NV_COMPOSITE_FS, [
-      "u_lum", "u_bloom", "u_res", "u_bloomStrength", "u_grain", "u_vignette", "u_seed",
+      "u_lum", "u_bloom", "u_source", "u_res", "u_bloomStrength", "u_grain", "u_vignette", "u_seed",
     ] as const),
     fboA: null, texA: null, fboB: null, texB: null, fboC: null, texC: null, w: 0, h: 0,
   };
@@ -190,7 +211,7 @@ const ensureTargets = (gl: WebGL2RenderingContext, cache: Cache, w: number, h: n
     const fbo = gl.createFramebuffer();
     if (!tex || !fbo) return null;
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, w, h, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8, w, h, 0, gl.RG, gl.UNSIGNED_BYTE, null);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -235,8 +256,19 @@ const drawTo = (
 
 const nightVision = (
   input: any,
-  options = defaults
+  options: NightVisionOptions = defaults
 ) => {
+  const supplied = { ...defaults, ...options };
+  const resolved = {
+    ...supplied,
+    gain: normalizeRangeOption(supplied.gain, defaults.gain, 1, 8),
+    grain: normalizeRangeOption(supplied.grain, defaults.grain, 0, 1),
+    bloomRadius: normalizeRangeOption(supplied.bloomRadius, defaults.bloomRadius, 0, 8, true),
+    bloomStrength: normalizeRangeOption(supplied.bloomStrength, defaults.bloomStrength, 0, 2),
+    vignette: normalizeRangeOption(supplied.vignette, defaults.vignette, 0, 1),
+    animSpeed: normalizeRangeOption(supplied.animSpeed, defaults.animSpeed, 1, 30, true),
+    palette: normalizePaletteOption(supplied.palette, defaults.palette),
+  };
   const {
     gain,
     grain,
@@ -244,13 +276,13 @@ const nightVision = (
     bloomStrength,
     vignette,
     palette
-  } = options;
+  } = resolved;
 
-  const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
+  const frameIndex = resolved._frameIndex || 0;
   const W = input.width;
   const H = input.height;
 
-  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+  if (glAvailable() && resolved._webglAcceleration !== false) {
     const ctx = getGLCtx();
     if (ctx) {
       const { gl, canvas } = ctx;
@@ -310,6 +342,9 @@ const nightVision = (
           gl.activeTexture(gl.TEXTURE1);
           gl.bindTexture(gl.TEXTURE_2D, cache.texC);
           gl.uniform1i(cache.comp.uniforms.u_bloom, 1);
+          gl.activeTexture(gl.TEXTURE2);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.comp.uniforms.u_source, 2);
           gl.uniform2f(cache.comp.uniforms.u_res, W, H);
           gl.uniform1f(cache.comp.uniforms.u_bloomStrength, bloomStrength);
           gl.uniform1f(cache.comp.uniforms.u_grain, grain);
@@ -345,9 +380,12 @@ const nightVision = (
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const L = buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722;
+      const alpha = buf[i + 3] / 255;
+      const L = alpha > 0
+        ? buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722
+        : 0;
       const norm = L / 255;
-      const amplified = Math.min(1, Math.pow(norm, 1 / gain));
+      const amplified = nightVisionIntensifierResponse(norm, gain);
       lum[y * W + x] = amplified;
     }
   }
@@ -359,7 +397,7 @@ const nightVision = (
     const bright = new Float32Array(W * H);
     const bloomThreshold = 0.6;
     for (let j = 0; j < W * H; j++) {
-      bright[j] = Math.max(0, lum[j] - bloomThreshold);
+      bright[j] = Math.max(0, lum[j] - bloomThreshold) * (buf[j * 4 + 3] / 255);
     }
 
     const blurH = new Float32Array(W * H);
@@ -413,7 +451,8 @@ const nightVision = (
       let intensity = bloomed[idx];
 
       if (grain > 0) {
-        intensity += (rng() - 0.5) * grain;
+        const amplitude = nightVisionNoiseAmplitude(intensity, grain);
+        intensity += (rng() + rng() - 1) * amplitude;
       }
 
       if (vignette > 0) {
@@ -450,5 +489,7 @@ export default defineFilter({
   func: nightVision,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
+  description: "Visible-luminance image-intensifier proxy with MCP-like gain, signal-dependent noise, green phosphor bloom, and tube vignette",
+  temporal: true,
 });

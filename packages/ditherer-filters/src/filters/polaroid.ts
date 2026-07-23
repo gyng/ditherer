@@ -1,4 +1,4 @@
-import { ACTION, RANGE, PALETTE } from "../constants/controlTypes";
+import { RANGE, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
 import { logFilterBackend } from "../utils/index";
@@ -9,18 +9,9 @@ export const optionTypes = {
   warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.4, desc: "Warm color cast intensity" },
   fadedBlacks: { type: RANGE, range: [0, 50], step: 1, default: 20, desc: "Lift shadows for faded film look" },
   saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 0.8, desc: "Color saturation level" },
-  grain: { type: RANGE, range: [0, 0.5], step: 0.01, default: 0.08, desc: "Film grain noise amount" },
+  grain: { type: RANGE, range: [0, 0.5], step: 0.01, default: 0.08, desc: "Fixed developed-film grain amount" },
   vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.35, desc: "Edge darkening intensity" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
-  animate: {
-    type: ACTION,
-    label: "Play / Stop",
-    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) { actions.stopAnimLoop(); }
-      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
-    }
-  },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -29,17 +20,20 @@ export const defaults = {
   saturation: optionTypes.saturation.default,
   grain: optionTypes.grain.default,
   vignette: optionTypes.vignette.default,
-  animSpeed: optionTypes.animSpeed.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-type PolaroidOptions = typeof defaults & { _frameIndex?: number };
-
-const polaroid = (input: any, options: PolaroidOptions = defaults) => {
-  const { warmth, fadedBlacks, saturation, grain, vignette, palette } = options;
-  const frameIndex = options._frameIndex || 0;
+const polaroid = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const {
+    warmth = defaults.warmth,
+    fadedBlacks = defaults.fadedBlacks,
+    saturation = defaults.saturation,
+    grain = defaults.grain,
+    vignette = defaults.vignette,
+    palette = defaults.palette,
+  } = options;
   const W = input.width, H = input.height;
-  const rendered = renderPolaroidGL(input, W, H, warmth, fadedBlacks, saturation, grain, vignette, frameIndex);
+  const rendered = renderPolaroidGL(input, W, H, warmth, fadedBlacks, saturation, grain, vignette);
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
@@ -53,5 +47,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
+  description: "Developed instant-film grade with warm dye balance, lifted shadows, restrained saturation, fixed grain, and optical vignetting",
   requiresGL: true,
 });

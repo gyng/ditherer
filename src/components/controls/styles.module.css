@@ -21,9 +21,19 @@
   background: #edf5ff;
 }
 
-.actionControl {
-  min-height: 30px;
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 6px 3px;
+  min-width: 0;
+}
+
+.actionControl {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 30px;
+  margin: 0;
   font-weight: bold;
 }
 

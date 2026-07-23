@@ -93,7 +93,7 @@ That reduced the actual gap to 195 functions and 788 branch outcomes.
 - Thumbnail tests cover deferred visibility work, source-keyed cache reuse,
   missing registry entries, filter failures, cancellation, and both timer and
   idle-callback schedulers.
-- `src/ncParity.ts` is now classified with `src/glSmoke.ts` and
+- `src/ncParity.ts` is now classified with the `src/gl-smoke/` harness and
   `src/wasmSmoke.ts` as browser test harness infrastructure rather than shipped
   product code. The N-candidate filter and shader remain protected by their
   pixel-exact browser parity suite and the GL registry gate.

@@ -4,9 +4,8 @@ import {
   type Program,
 } from "../gl/index";
 
-// Two-plate duplex print: luminance drives a dark plate and an accent
-// plate over a paper stock colour. Matches the JS reference coefficients
-// (0.9 for dark plate, 0.65 for accent) so tone curves stay identical.
+// Two-plate duplex print: luminance density drives an accent plate followed
+// by the darker plate over paper. Both coverages clear toward highlights.
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -20,13 +19,12 @@ uniform float u_curve;
 void main() {
   vec4 c = texture(u_source, v_uv);
   float lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-  float darkPlate   = pow(1.0 - lum, u_curve);
-  float accentPlate = pow(lum, 1.0 / max(0.001, u_curve));
-  vec3 paperTerm  = u_paper * (1.0 - darkPlate * 0.9 - accentPlate * 0.65);
-  vec3 darkTerm   = u_inkA  * darkPlate   * 0.9;
-  vec3 accentTerm = u_inkB  * accentPlate * 0.65;
-  vec3 outRgb = clamp(paperTerm + darkTerm + accentTerm, 0.0, 255.0);
-  fragColor = vec4(floor(outRgb + 0.5) / 255.0, 1.0);
+  float density = 1.0 - lum;
+  float darkPlate = clamp(pow(density, max(0.25, u_curve)) * 0.9, 0.0, 1.0);
+  float accentPlate = clamp(pow(density, 1.0 / max(0.25, u_curve)) * 0.65, 0.0, 1.0);
+  vec3 outRgb = mix(u_paper, u_inkB, accentPlate);
+  outRgb = mix(outRgb, u_inkA, darkPlate);
+  fragColor = vec4(clamp(outRgb, 0.0, 1.0), c.a);
 }
 `;
 
@@ -60,9 +58,9 @@ export const renderDuplexPrintGL = (
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
     gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform3f(cache.prog.uniforms.u_inkA, inkA[0], inkA[1], inkA[2]);
-    gl.uniform3f(cache.prog.uniforms.u_inkB, inkB[0], inkB[1], inkB[2]);
-    gl.uniform3f(cache.prog.uniforms.u_paper, paper[0], paper[1], paper[2]);
+    gl.uniform3f(cache.prog.uniforms.u_inkA, inkA[0] / 255, inkA[1] / 255, inkA[2] / 255);
+    gl.uniform3f(cache.prog.uniforms.u_inkB, inkB[0] / 255, inkB[1] / 255, inkB[2] / 255);
+    gl.uniform3f(cache.prog.uniforms.u_paper, paper[0] / 255, paper[1] / 255, paper[2] / 255);
     gl.uniform1f(cache.prog.uniforms.u_curve, mixCurve);
   }, vao);
   return readoutToCanvas(canvas, width, height);

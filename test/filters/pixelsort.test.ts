@@ -19,10 +19,9 @@ import nearest from "palettes/nearest";
 // to the input. A sort that drops, duplicates, or fabricates a pixel fails that
 // immediately, whatever the traversal order or comparator.
 //
-// Note the registry ships `withPaletteLevels(pixelsort, 256)` — an identity
-// palette — so that's what users get and what these use. The module's own
-// default is `nearest` at levels=2, which would quantize; that difference is
-// deliberate but easy to trip over.
+// Both the direct module and registry wrapper use an identity 256-level Nearest
+// palette. Pixel Sort is a permutation by default; importing its public module
+// must not silently quantize colors before the registry wrapper is applied.
 
 const W = 12;
 const H = 12;

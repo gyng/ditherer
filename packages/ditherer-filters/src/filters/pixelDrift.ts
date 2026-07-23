@@ -25,16 +25,17 @@ export const optionTypes = {
     desc: "Direction pixels drift toward"
   },
   threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance threshold — darker pixels drift more" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10 },
+  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Preview animation frame rate" },
   animate: {
     type: ACTION,
     label: "Play / Stop",
+    desc: "Start or stop frame-varying pixel drift",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) { actions.stopAnimLoop(); }
       else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
     }
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -124,5 +125,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
+  temporal: true,
   noGL: "Sequential per-column/row drift accumulator with branchy RNG-driven state advance — no fragment-shader equivalent without compute-shader prefix-scans.",
 });

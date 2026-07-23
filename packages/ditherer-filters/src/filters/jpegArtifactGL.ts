@@ -1,6 +1,7 @@
 import {
   drawPass,
   ensureTexture,
+  getExistingGLCtx,
   getGLCtx,
   getQuadVAO,
   glAvailable,
@@ -11,11 +12,9 @@ import {
   type Program,
 } from "../gl/index";
 
-// JPEG codec simulation on the GPU. Scope compromise: chroma is processed at
-// full resolution (4:4:4 only) so the whole pipeline stays on a single pair
-// of R32F textures instead of spawning a separate sub-resolution pipeline.
-// For 4:2:2 / 4:2:0 the caller falls back to the WASM path, which handles
-// subsampling properly.
+// JPEG codec simulation on the GPU. Chroma reduction is represented in the
+// full-size YCbCr plane by box-filtering 2×1 or 2×2 groups before the DCT and
+// replicating that chroma sample across its group.
 //
 // Pipeline (all RGBA32F intermediates, R=Y G=Cb B=Cr packed together):
 //   1. source → ycbcr (R=Y, G=Cb, B=Cr, A=source-alpha)
@@ -33,14 +32,38 @@ in vec2 v_uv;
 out vec4 fragColor;
 
 uniform sampler2D u_source;
+uniform vec2 u_sourceRes;
+uniform int u_subsampling;
 
-void main() {
-  vec4 s = texture(u_source, v_uv);
-  vec3 rgb = s.rgb * 255.0;
+vec4 sourceAt(ivec2 p) {
+  p = clamp(p, ivec2(0), ivec2(u_sourceRes) - ivec2(1));
+  return texelFetch(u_source, p, 0);
+}
+
+vec3 ycbcr(vec3 rgb01) {
+  vec3 rgb = rgb01 * 255.0;
   float Y  = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
   float Cb = 128.0 - 0.168736 * rgb.r - 0.331264 * rgb.g + 0.5 * rgb.b;
   float Cr = 128.0 + 0.5 * rgb.r - 0.418688 * rgb.g - 0.081312 * rgb.b;
-  fragColor = vec4(Y, Cb, Cr, s.a);
+  return vec3(Y, Cb, Cr);
+}
+
+void main() {
+  ivec2 p = ivec2(floor(gl_FragCoord.xy));
+  vec4 s = sourceAt(p);
+  vec3 current = ycbcr(s.a > 0.0 ? s.rgb : vec3(0.0));
+  if (u_subsampling == 0) { fragColor = vec4(current, s.a); return; }
+  ivec2 origin = ivec2((p.x / 2) * 2, u_subsampling == 2 ? (p.y / 2) * 2 : p.y);
+  vec2 chroma = vec2(0.0);
+  int count = u_subsampling == 2 ? 4 : 2;
+  for (int dy = 0; dy < 2; dy++) {
+    if (u_subsampling == 1 && dy == 1) break;
+    for (int dx = 0; dx < 2; dx++) {
+      vec4 sampleValue = sourceAt(origin + ivec2(dx, dy));
+      chroma += ycbcr(sampleValue.a > 0.0 ? sampleValue.rgb : vec3(0.0)).gb;
+    }
+  }
+  fragColor = vec4(current.r, chroma / float(count), s.a);
 }
 `;
 
@@ -311,7 +334,7 @@ void main() {
     float yy = c.r;
     float lap = sampleP(xo - 1, yo).r + sampleP(xo + 1, yo).r
               + sampleP(xo, yo - 1).r + sampleP(xo, yo + 1).r - 4.0 * yy;
-    c.r = clamp(yy + lap * u_ringing * 0.35, 0.0, 255.0);
+    c.r = clamp(yy - lap * u_ringing * 0.35, 0.0, 255.0);
   }
 
   // Mosquito — edge-gated luma/chroma noise.
@@ -353,7 +376,7 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    toYcbcr: linkProgram(gl, TO_YCBCR_FS, ["u_source"] as const),
+    toYcbcr: linkProgram(gl, TO_YCBCR_FS, ["u_source", "u_sourceRes", "u_subsampling"] as const),
     dctRow: linkProgram(gl, DCT_ROW_FS, ["u_input", "u_res"] as const),
     dctCol: linkProgram(gl, DCT_COL_FS, ["u_input", "u_res"] as const),
     quant: linkProgram(gl, QUANTISE_FS, [
@@ -379,44 +402,102 @@ const floatSupported = (gl: WebGL2RenderingContext): boolean => {
   return _floatSupported;
 };
 
-const ensureFloatTexture = (
+type JpegFloatTexture = {
+  tex: WebGLTexture;
+  fbo: WebGLFramebuffer;
+  w: number;
+  h: number;
+};
+const JPEG_FLOAT_CACHE_PREFIX = "__jpegFloat:";
+
+export const ensureJpegFloatTexture = (
   gl: WebGL2RenderingContext,
   name: string,
   w: number,
   h: number,
-): { tex: WebGLTexture; fbo: WebGLFramebuffer } | null => {
+): JpegFloatTexture | null => {
   // We use a local cache for RGBA32F textures because the shared ensureTexture
   // creates RGBA8. One texture per unique name; resized on width/height change.
-  const key = `__jpegFloat:${name}`;
-  const cached = (gl as unknown as Record<string, unknown>)[key] as
-    | { tex: WebGLTexture; fbo: WebGLFramebuffer; w: number; h: number } | undefined;
+  const key = `${JPEG_FLOAT_CACHE_PREFIX}${name}`;
+  const store = gl as unknown as Record<string, unknown>;
+  const cached = store[key] as JpegFloatTexture | undefined;
   if (cached && cached.w === w && cached.h === h) return cached;
-  if (cached) { gl.deleteTexture(cached.tex); gl.deleteFramebuffer(cached.fbo); }
+
+  // Invalidate first: if replacement fails, no deleted handle may remain
+  // discoverable as a valid cache hit on the next call.
+  if (cached) {
+    delete store[key];
+    gl.deleteTexture(cached.tex);
+    gl.deleteFramebuffer(cached.fbo);
+  }
+
   const tex = gl.createTexture();
   const fbo = gl.createFramebuffer();
-  if (!tex || !fbo) return null;
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-  // Some WebGL2 stacks advertise EXT_color_buffer_float but the implementation
-  // still can't render to RGBA32F (e.g. certain Chromium GPU configs). Verify
-  // the FBO is actually complete before declaring success.
-  // Some WebGL2 stacks advertise EXT_color_buffer_float but can't render to
-  // RGBA32F; verify completeness so the filter can fall back to WASM cleanly.
-  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  if (status !== gl.FRAMEBUFFER_COMPLETE) {
-    gl.deleteTexture(tex);
-    gl.deleteFramebuffer(fbo);
+  const cleanup = () => {
+    if (tex) gl.deleteTexture(tex);
+    if (fbo) gl.deleteFramebuffer(fbo);
+  };
+  if (!tex || !fbo) {
+    cleanup();
     return null;
   }
-  const entry = { tex, fbo, w, h };
-  (gl as unknown as Record<string, unknown>)[key] = entry;
-  return entry;
+
+  try {
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    // Extension advertisement is not sufficient on every WebGL2 stack; only
+    // publish the replacement after the exact RGBA32F FBO is complete.
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+      cleanup();
+      return null;
+    }
+    const entry = { tex, fbo, w, h };
+    store[key] = entry;
+    return entry;
+  } catch {
+    cleanup();
+    return null;
+  }
+};
+
+export const releaseJpegFloatTexturesForContext = (
+  gl: WebGL2RenderingContext,
+): number => {
+  const store = gl as unknown as Record<string, unknown>;
+  let released = 0;
+  for (const key of Object.keys(store)) {
+    if (!key.startsWith(JPEG_FLOAT_CACHE_PREFIX)) continue;
+    const entry = store[key] as JpegFloatTexture | undefined;
+    // Invalidate before deletion so repeated disposal and allocation failure
+    // can never rediscover handles whose GL lifetime has ended.
+    delete store[key];
+    if (!entry) continue;
+    gl.deleteTexture(entry.tex);
+    gl.deleteFramebuffer(entry.fbo);
+    released += 1;
+  }
+  return released;
+};
+
+export const getJpegFloatTextureCountForContext = (
+  gl: WebGL2RenderingContext,
+): number => Object.keys(gl as unknown as Record<string, unknown>)
+  .filter((key) => key.startsWith(JPEG_FLOAT_CACHE_PREFIX)).length;
+
+export const releaseJpegArtifactFloatTextures = (): number => {
+  const ctx = getExistingGLCtx();
+  return ctx ? releaseJpegFloatTexturesForContext(ctx.gl) : 0;
+};
+
+export const getJpegArtifactFloatTextureCount = (): number => {
+  const ctx = getExistingGLCtx();
+  return ctx ? getJpegFloatTextureCountForContext(ctx.gl) : 0;
 };
 
 export const jpegArtifactGLAvailable = (): boolean => {
@@ -430,6 +511,7 @@ export const renderJpegArtifactGL = (
   height: number,
   qualityLumaScale: number,
   qualityChromaScale: number,
+  subsampling: "444" | "422" | "420",
   gridJitter: number,
   corruptBurstChance: number,
   deblock: number,
@@ -449,44 +531,48 @@ export const renderJpegArtifactGL = (
   const sourceTex = ensureTexture(gl, "jpegArtifact:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  const ycbcr = ensureFloatTexture(gl, "ycbcr", width, height);
-  const dct1 = ensureFloatTexture(gl, "dct1", width, height);
-  const dct2 = ensureFloatTexture(gl, "dct2", width, height);
-  const quant = ensureFloatTexture(gl, "quant", width, height);
-  const idct1 = ensureFloatTexture(gl, "idct1", width, height);
-  const idct2 = ensureFloatTexture(gl, "idct2", width, height);
+  const paddedWidth = Math.ceil(width / 8) * 8;
+  const paddedHeight = Math.ceil(height / 8) * 8;
+  const ycbcr = ensureJpegFloatTexture(gl, "ycbcr", paddedWidth, paddedHeight);
+  const dct1 = ensureJpegFloatTexture(gl, "dct1", paddedWidth, paddedHeight);
+  const dct2 = ensureJpegFloatTexture(gl, "dct2", paddedWidth, paddedHeight);
+  const quant = ensureJpegFloatTexture(gl, "quant", paddedWidth, paddedHeight);
+  const idct1 = ensureJpegFloatTexture(gl, "idct1", paddedWidth, paddedHeight);
+  const idct2 = ensureJpegFloatTexture(gl, "idct2", paddedWidth, paddedHeight);
   if (!ycbcr || !dct1 || !dct2 || !quant || !idct1 || !idct2) return null;
 
   // drawPass expects { tex, fbo } shape to match its TexEntry type; our float
   // entries are compatible.
   const asEntry = (e: { tex: WebGLTexture; fbo: WebGLFramebuffer }) =>
-    ({ tex: e.tex, fbo: e.fbo, w: width, h: height });
+    ({ tex: e.tex, fbo: e.fbo, w: paddedWidth, h: paddedHeight });
 
-  drawPass(gl, asEntry(ycbcr), width, height, cache.toYcbcr, () => {
+  drawPass(gl, asEntry(ycbcr), paddedWidth, paddedHeight, cache.toYcbcr, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
     gl.uniform1i(cache.toYcbcr.uniforms.u_source, 0);
+    gl.uniform2f(cache.toYcbcr.uniforms.u_sourceRes, width, height);
+    gl.uniform1i(cache.toYcbcr.uniforms.u_subsampling, subsampling === "444" ? 0 : subsampling === "422" ? 1 : 2);
   }, vao);
 
-  drawPass(gl, asEntry(dct1), width, height, cache.dctRow, () => {
+  drawPass(gl, asEntry(dct1), paddedWidth, paddedHeight, cache.dctRow, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, ycbcr.tex);
     gl.uniform1i(cache.dctRow.uniforms.u_input, 0);
-    gl.uniform2f(cache.dctRow.uniforms.u_res, width, height);
+    gl.uniform2f(cache.dctRow.uniforms.u_res, paddedWidth, paddedHeight);
   }, vao);
 
-  drawPass(gl, asEntry(dct2), width, height, cache.dctCol, () => {
+  drawPass(gl, asEntry(dct2), paddedWidth, paddedHeight, cache.dctCol, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, dct1.tex);
     gl.uniform1i(cache.dctCol.uniforms.u_input, 0);
-    gl.uniform2f(cache.dctCol.uniforms.u_res, width, height);
+    gl.uniform2f(cache.dctCol.uniforms.u_res, paddedWidth, paddedHeight);
   }, vao);
 
-  drawPass(gl, asEntry(quant), width, height, cache.quant, () => {
+  drawPass(gl, asEntry(quant), paddedWidth, paddedHeight, cache.quant, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, dct2.tex);
     gl.uniform1i(cache.quant.uniforms.u_input, 0);
-    gl.uniform2f(cache.quant.uniforms.u_res, width, height);
+    gl.uniform2f(cache.quant.uniforms.u_res, paddedWidth, paddedHeight);
     gl.uniform1f(cache.quant.uniforms.u_qLumaScale, qualityLumaScale);
     gl.uniform1f(cache.quant.uniforms.u_qChromaScale, qualityChromaScale);
     gl.uniform1f(cache.quant.uniforms.u_gridJitter, gridJitter);
@@ -494,18 +580,18 @@ export const renderJpegArtifactGL = (
     gl.uniform1f(cache.quant.uniforms.u_frameSeed, frameIndex);
   }, vao);
 
-  drawPass(gl, asEntry(idct1), width, height, cache.idctCol, () => {
+  drawPass(gl, asEntry(idct1), paddedWidth, paddedHeight, cache.idctCol, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, quant.tex);
     gl.uniform1i(cache.idctCol.uniforms.u_input, 0);
-    gl.uniform2f(cache.idctCol.uniforms.u_res, width, height);
+    gl.uniform2f(cache.idctCol.uniforms.u_res, paddedWidth, paddedHeight);
   }, vao);
 
-  drawPass(gl, asEntry(idct2), width, height, cache.idctRow, () => {
+  drawPass(gl, asEntry(idct2), paddedWidth, paddedHeight, cache.idctRow, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, idct1.tex);
     gl.uniform1i(cache.idctRow.uniforms.u_input, 0);
-    gl.uniform2f(cache.idctRow.uniforms.u_res, width, height);
+    gl.uniform2f(cache.idctRow.uniforms.u_res, paddedWidth, paddedHeight);
   }, vao);
 
   drawPass(gl, null, width, height, cache.composite, () => {

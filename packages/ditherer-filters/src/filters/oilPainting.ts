@@ -16,9 +16,9 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [1, 12], step: 1, default: 4, desc: "Brush stroke radius" },
-  levels: { type: RANGE, range: [4, 30], step: 1, default: 20, desc: "Color quantization levels for paint effect" },
-  palette: { type: PALETTE, default: nearest }
+  radius: { type: RANGE, range: [1, 12], step: 1, default: 4, desc: "Circular brush-neighborhood radius" },
+  levels: { type: RANGE, range: [4, 30], step: 1, default: 20, desc: "Luminance histogram bins used to select the local paint color" },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -47,7 +47,14 @@ void main() {
   float x = floor(px.x);
   float y = u_res.y - 1.0 - floor(px.y);
 
-  // (R*255, G*255, B*255, count) per bin.
+  vec2 sourceUv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+  vec4 source = texture(u_source, sourceUv);
+  float centerLum = source.a > (0.5 / 255.0)
+    ? dot(source.rgb, vec3(0.2126, 0.7152, 0.0722))
+    : 0.5;
+  int centerBin = int(clamp(floor(centerLum * float(u_levels)), 0.0, float(u_levels - 1)));
+
+  // (alpha-weighted R, G, B, alpha weight) per luminance bin.
   vec4 bins[30];
   for (int i = 0; i < 30; i++) bins[i] = vec4(0.0);
 
@@ -55,13 +62,16 @@ void main() {
     if (ky < -u_radius || ky > u_radius) continue;
     for (int kx = -12; kx <= 12; kx++) {
       if (kx < -u_radius || kx > u_radius) continue;
-      float nx = clamp(x + float(kx), 0.0, u_res.x - 1.0);
-      float ny = clamp(y + float(ky), 0.0, u_res.y - 1.0);
+      if (kx * kx + ky * ky > u_radius * u_radius) continue;
+      float nx = x + float(kx);
+      float ny = y + float(ky);
+      if (nx < 0.0 || nx >= u_res.x || ny < 0.0 || ny >= u_res.y) continue;
       vec2 uv = vec2((nx + 0.5) / u_res.x, 1.0 - (ny + 0.5) / u_res.y);
-      vec3 c = texture(u_source, uv).rgb;
-      float lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+      vec4 sampleValue = texture(u_source, uv);
+      if (sampleValue.a <= 0.0) continue;
+      float lum = dot(sampleValue.rgb, vec3(0.2126, 0.7152, 0.0722));
       int bin = int(clamp(floor(lum * float(u_levels)), 0.0, float(u_levels - 1)));
-      bins[bin] += vec4(c * 255.0, 1.0);
+      bins[bin] += vec4(sampleValue.rgb * sampleValue.a, sampleValue.a);
     }
   }
 
@@ -69,7 +79,12 @@ void main() {
   float maxCount = bins[0].w;
   for (int b = 1; b < 30; b++) {
     if (b >= u_levels) break;
-    if (bins[b].w > maxCount) {
+    float count = bins[b].w;
+    int candidateDistance = abs(b - centerBin);
+    int selectedDistance = abs(maxBin - centerBin);
+    const float tieTolerance = 1.0 / 510.0;
+    if (count > maxCount + tieTolerance
+      || (abs(count - maxCount) <= tieTolerance && candidateDistance < selectedDistance)) {
       maxCount = bins[b].w;
       maxBin = b;
     }
@@ -81,15 +96,12 @@ void main() {
   }
 
   vec3 rgb;
-  if (pick.w < 0.5) {
-    vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
-    rgb = texture(u_source, suv).rgb;
+  if (pick.w <= 1e-6) {
+    rgb = source.a > 0.0 ? source.rgb : vec3(0.0);
   } else {
-    rgb = (pick.rgb / pick.w) / 255.0;
+    rgb = pick.rgb / pick.w;
   }
-  vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
-  float a = texture(u_source, suv).a;
-  fragColor = vec4(clamp(rgb, 0.0, 1.0), a);
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), source.a);
 }
 `;
 
@@ -105,8 +117,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const oilPainting = (input: any, options: typeof defaults = defaults) => {
-  const { radius, levels, palette } = options;
+const finite = (value: unknown, fallback: number, min: number, max: number) => {
+  const parsed = typeof value === "number" ? value : Number.NaN;
+  return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
+};
+
+const oilPainting = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const radius = Math.round(finite(options.radius, defaults.radius, 1, 12));
+  const levels = Math.round(finite(options.levels, defaults.levels, 4, 30));
+  const palette = options.palette ?? defaults.palette;
   const W = input.width;
   const H = input.height;
 
@@ -124,8 +143,8 @@ const oilPainting = (input: any, options: typeof defaults = defaults) => {
     gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
     gl.uniform1i(cache.oil.uniforms.u_source, 0);
     gl.uniform2f(cache.oil.uniforms.u_res, W, H);
-    gl.uniform1i(cache.oil.uniforms.u_radius, Math.max(1, Math.min(12, Math.round(radius))));
-    gl.uniform1i(cache.oil.uniforms.u_levels, Math.max(4, Math.min(30, Math.round(levels))));
+    gl.uniform1i(cache.oil.uniforms.u_radius, radius);
+    gl.uniform1i(cache.oil.uniforms.u_levels, levels);
   }, vao);
 
   const rendered = readoutToCanvas(canvas, W, H);

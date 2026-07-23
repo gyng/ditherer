@@ -54,7 +54,7 @@ export const optionTypes = {
     default: MATRIX_SIZE["4x4"],
     desc: "Bayer dither matrix size"
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -67,15 +67,19 @@ export const defaults = {
 
 const posterizeDither = (
   input: any,
-  options: typeof defaults = defaults
+  options: Partial<typeof defaults> = defaults
 ) => {
-  const {
-    levelsR,
-    levelsG,
-    levelsB,
-    matrixSize,
-    palette
-  } = options;
+  const level = (value: unknown, fallback: number) => {
+    const parsed = typeof value === "number" ? value : Number.NaN;
+    return Math.round(Math.max(2, Math.min(16, Number.isFinite(parsed) ? parsed : fallback)));
+  };
+  const levelsR = level(options.levelsR, defaults.levelsR);
+  const levelsG = level(options.levelsG, defaults.levelsG);
+  const levelsB = level(options.levelsB, defaults.levelsB);
+  const matrixSize = Object.values(MATRIX_SIZE).includes(options.matrixSize as string)
+    ? options.matrixSize as string
+    : defaults.matrixSize;
+  const palette = options.palette ?? defaults.palette;
 
   const W = input.width;
   const H = input.height;

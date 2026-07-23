@@ -9,14 +9,14 @@ import {
   paletteGetColor,
   logFilterBackend,
 } from "../utils/index";
-import { applyPalettePassToCanvas } from "../palettes/backend";
 import { stainedGlassGLAvailable, renderStainedGlassGL } from "./stainedGlassGL";
+import { resolveStainedGlassCellColors, type StainedGlassColorMode } from "../utils/stainedGlassColor";
 
-const COLOR_MODE = {
+export const COLOR_MODE = {
   AVERAGE: "AVERAGE",
   MEDIAN: "MEDIAN",
   DOMINANT: "DOMINANT"
-};
+} as const;
 
 export const optionTypes = {
   seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for cell layout" },
@@ -34,7 +34,7 @@ export const optionTypes = {
     default: COLOR_MODE.AVERAGE,
     desc: "How each pane's color is sampled"
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
 };
 
 export const defaults = {
@@ -48,7 +48,17 @@ export const defaults = {
 };
 
 const stainedGlass = (input: any, options = defaults) => {
-  const { seed: seedOpt, cellSize, irregularity, leadingWidth, leadingColor, palette } = options;
+  const normalized = { ...defaults, ...options };
+  const seedOpt = Number(normalized.seed) || 0;
+  const cellSize = Math.max(1, Math.round(Number(normalized.cellSize) || defaults.cellSize));
+  const irregularity = Math.max(0, Math.min(1, Number(normalized.irregularity) || 0));
+  const leadingWidth = Math.max(0, Number(normalized.leadingWidth) || 0);
+  const leadingColor = Array.isArray(normalized.leadingColor) ? normalized.leadingColor : defaults.leadingColor;
+  const requestedColorMode = String(normalized.colorMode);
+  const colorMode: StainedGlassColorMode = requestedColorMode === COLOR_MODE.MEDIAN || requestedColorMode === COLOR_MODE.DOMINANT
+    ? requestedColorMode
+    : COLOR_MODE.AVERAGE;
+  const palette = normalized.palette ?? defaults.palette;
 
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -94,21 +104,14 @@ const stainedGlass = (input: any, options = defaults) => {
     const gridCols = cols + 1;
     const gridRows = rows + 1;
     if (gridCols * gridRows <= 65536) {
-      const isNearest = (palette as { name?: string }).name === "nearest";
-      const levels = isNearest
-        ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
-        : 256;
       const rendered = renderStainedGlassGL(
         input, buf, W, H, seeds, gridCols, gridRows, cellSize,
-        leadingWidth, leadingColor as [number, number, number], levels,
+        leadingWidth, leadingColor as [number, number, number], colorMode,
+        (r, g, b) => paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false),
       );
       if (rendered) {
-        const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-        if (out) {
-          logFilterBackend("Stained Glass", "WebGL2",
-            `cells=${gridCols * gridRows} cellSize=${cellSize}${isNearest ? "" : "+palettePass"}`);
-          return out;
-        }
+        logFilterBackend("Stained Glass", "WebGL2", `cells=${gridCols * gridRows} cellSize=${cellSize}`);
+        return rendered;
       }
     }
   }
@@ -168,34 +171,18 @@ const stainedGlass = (input: any, options = defaults) => {
     }
   }
 
-  // Compute per-cell colors
-  const cellColors = new Map<number, { r: number; g: number; b: number; count: number }>();
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const pi = y * W + x;
-      const ci = cellMap[pi];
-      const si = getBufferIndex(x, y, W);
-      let entry = cellColors.get(ci);
-      if (!entry) {
-        entry = { r: 0, g: 0, b: 0, count: 0 };
-        cellColors.set(ci, entry);
-      }
-      entry.r += buf[si];
-      entry.g += buf[si + 1];
-      entry.b += buf[si + 2];
-      entry.count++;
-    }
-  }
-
-  // Resolve cell colors
-  const resolvedColors = new Map<number, [number, number, number]>();
-  for (const [ci, entry] of cellColors) {
-    // For all modes, use average (median/dominant would need per-cell pixel lists — average is fast and looks good)
-    resolvedColors.set(ci, [
-      Math.round(entry.r / entry.count),
-      Math.round(entry.g / entry.count),
-      Math.round(entry.b / entry.count)
-    ]);
+  const resolvedColors = resolveStainedGlassCellColors(cellMap, buf, seeds.length, colorMode);
+  for (let offset = 0; offset < resolvedColors.length; offset += 4) {
+    if (resolvedColors[offset + 3] === 0) continue;
+    const color = paletteGetColor(
+      palette,
+      rgba(resolvedColors[offset], resolvedColors[offset + 1], resolvedColors[offset + 2], 255),
+      palette.options,
+      false,
+    );
+    resolvedColors[offset] = color[0];
+    resolvedColors[offset + 1] = color[1];
+    resolvedColors[offset + 2] = color[2];
   }
 
   // Render
@@ -209,13 +196,20 @@ const stainedGlass = (input: any, options = defaults) => {
       const d2 = dist2Map[pi];
       const borderDist = (d2 - d1) / 2;
 
-      if (borderDist < leadingWidth) {
-        fillBufferPixel(outBuf, i, leadingColor[0], leadingColor[1], leadingColor[2], 255);
-      } else {
-        const cc = resolvedColors.get(cellMap[pi]) || [128, 128, 128];
-        const color = paletteGetColor(palette, rgba(cc[0], cc[1], cc[2], 255), palette.options, false);
-        fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
-      }
+      const colorOffset = cellMap[pi] * 4;
+      const cc = resolvedColors[colorOffset + 3] > 0
+        ? [resolvedColors[colorOffset], resolvedColors[colorOffset + 1], resolvedColors[colorOffset + 2]]
+        : [0, 0, 0];
+      const rawLeading = Math.max(0, Math.min(1, leadingWidth + 0.5 - borderDist));
+      const leading = rawLeading * rawLeading * (3 - 2 * rawLeading);
+      fillBufferPixel(
+        outBuf,
+        i,
+        Math.round(cc[0] * (1 - leading) + (leadingColor[0] ?? 0) * leading),
+        Math.round(cc[1] * (1 - leading) + (leadingColor[1] ?? 0) * leading),
+        Math.round(cc[2] * (1 - leading) + (leadingColor[2] ?? 0) * leading),
+        buf[i + 3],
+      );
     }
   }
 

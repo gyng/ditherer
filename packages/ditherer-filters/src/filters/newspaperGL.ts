@@ -4,13 +4,8 @@ import {
   type Program,
 } from "../gl/index";
 
-// Aged newsprint look: yellowed paper, halftone dots per (dotSize × dotSize)
-// cell, random ink smear, optional fold crease at the centre cross. The
-// JS reference averages luma across every pixel in a cell; here we
-// sample the cell's centre pixel — visually indistinguishable for a
-// halftone filter and saves 256 texture fetches per fragment at large
-// dot sizes. RNG is replaced with a per-cell mulberry32 hash so smear
-// is deterministic per cell rather than iteration-order-dependent.
+// Aged newsprint look: locally averaged tone controls circular dot area on a
+// rotatable screen, with fixed per-cell displacement and an optional fold.
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -18,10 +13,10 @@ out vec4 fragColor;
 uniform sampler2D u_source;
 uniform vec2  u_res;
 uniform float u_dotSize;
+uniform float u_screenAngle;
 uniform float u_yellowing;
 uniform float u_foldCrease;
 uniform float u_inkSmear;
-uniform int   u_frame;
 
 float mulberryFirst(int seed) {
   uint s = uint(seed) + 0x6D2B79F5u;
@@ -38,10 +33,30 @@ float sampleLuma(float sx, float sy) {
   return c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
 }
 
+vec2 rotatePoint(vec2 point, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  return mat2(c, -s, s, c) * point;
+}
+
+float sampleCellLuma(vec2 gridCentre, float angle) {
+  float total = 0.0;
+  for (int sy = -1; sy <= 1; sy++) {
+    for (int sx = -1; sx <= 1; sx++) {
+      vec2 gridSample = gridCentre + vec2(float(sx), float(sy)) * u_dotSize / 3.0;
+      vec2 sourceSample = rotatePoint(gridSample, -angle) + u_res * 0.5;
+      total += sampleLuma(sourceSample.x, sourceSample.y);
+    }
+  }
+  return total / 9.0;
+}
+
 void main() {
   vec2 ppx = v_uv * u_res;
   float jsX = floor(ppx.x);
   float jsY = u_res.y - 1.0 - floor(ppx.y);
+  float angle = radians(u_screenAngle);
+  vec2 gridPoint = rotatePoint(vec2(jsX, jsY) - u_res * 0.5, angle);
 
   vec3 paper = vec3(
     floor(240.0 - u_yellowing * 20.0 + 0.5),
@@ -51,32 +66,29 @@ void main() {
   vec3 outRgb = paper;
 
   // Check 9 candidate cells: the containing cell and its 8 neighbours.
-  float own_cx = floor(jsX / u_dotSize) * u_dotSize;
-  float own_cy = floor(jsY / u_dotSize) * u_dotSize;
+  float own_cx = floor(gridPoint.x / u_dotSize) * u_dotSize;
+  float own_cy = floor(gridPoint.y / u_dotSize) * u_dotSize;
   for (int iy = -1; iy <= 1; iy++) {
     for (int ix = -1; ix <= 1; ix++) {
       float cx = own_cx + float(ix) * u_dotSize;
       float cy = own_cy + float(iy) * u_dotSize;
-      if (cx < 0.0 || cy < 0.0 || cx >= u_res.x || cy >= u_res.y) continue;
-
-      float cellCentreSampleX = min(cx + floor(u_dotSize * 0.5), u_res.x - 1.0);
-      float cellCentreSampleY = min(cy + floor(u_dotSize * 0.5), u_res.y - 1.0);
-      float lum = sampleLuma(cellCentreSampleX, cellCentreSampleY);
+      vec2 gridCentre = vec2(cx, cy) + u_dotSize * 0.5;
+      float lum = sampleCellLuma(gridCentre, angle);
       float darkness = 1.0 - lum;
       float dotR = (u_dotSize * 0.5) * sqrt(max(0.0, darkness));
       if (dotR < 0.3) continue;
 
-      int seed1 = int(cx) * 31 + int(cy) * 997 + u_frame * 113 + 42;
-      int seed2 = int(cx) * 101 + int(cy) * 211 + u_frame * 137 + 1337;
+      int seed1 = int(cx) * 31 + int(cy) * 997 + 42;
+      int seed2 = int(cx) * 101 + int(cy) * 211 + 1337;
       float r1 = mulberryFirst(seed1);
       float r2 = mulberryFirst(seed2);
       float smearX = u_inkSmear > 0.0 ? (r1 - 0.5) * u_inkSmear * 3.0 : 0.0;
       float smearY = u_inkSmear > 0.0 ? (r2 - 0.5) * u_inkSmear * 3.0 : 0.0;
-      float centreX = cx + u_dotSize * 0.5 + smearX;
-      float centreY = cy + u_dotSize * 0.5 + smearY;
+      float centreX = gridCentre.x + smearX;
+      float centreY = gridCentre.y + smearY;
 
-      float dx = jsX - centreX;
-      float dy = jsY - centreY;
+      float dx = gridPoint.x - centreX;
+      float dy = gridPoint.y - centreY;
       float dist = sqrt(dx * dx + dy * dy);
       if (dist > dotR) continue;
 
@@ -95,7 +107,7 @@ void main() {
   }
 
   outRgb = clamp(floor(outRgb + 0.5), 0.0, 255.0);
-  fragColor = vec4(outRgb / 255.0, 1.0);
+  fragColor = vec4(outRgb / 255.0, texture(u_source, v_uv).a);
 }
 `;
 
@@ -104,8 +116,8 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_dotSize", "u_yellowing", "u_foldCrease",
-    "u_inkSmear", "u_frame",
+    "u_source", "u_res", "u_dotSize", "u_screenAngle", "u_yellowing", "u_foldCrease",
+    "u_inkSmear",
   ] as const) };
   return _cache;
 };
@@ -115,7 +127,7 @@ export const newspaperGLAvailable = (): boolean => glAvailable();
 export const renderNewspaperGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
   width: number, height: number,
-  dotSize: number, yellowing: number, foldCrease: number, inkSmear: number, frame: number,
+  dotSize: number, screenAngle: number, yellowing: number, foldCrease: number, inkSmear: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -131,10 +143,10 @@ export const renderNewspaperGL = (
     gl.uniform1i(cache.prog.uniforms.u_source, 0);
     gl.uniform2f(cache.prog.uniforms.u_res, width, height);
     gl.uniform1f(cache.prog.uniforms.u_dotSize, dotSize);
+    gl.uniform1f(cache.prog.uniforms.u_screenAngle, screenAngle);
     gl.uniform1f(cache.prog.uniforms.u_yellowing, yellowing);
     gl.uniform1f(cache.prog.uniforms.u_foldCrease, foldCrease);
     gl.uniform1f(cache.prog.uniforms.u_inkSmear, inkSmear);
-    gl.uniform1i(cache.prog.uniforms.u_frame, frame | 0);
   }, vao);
   return readoutToCanvas(canvas, width, height);
 };

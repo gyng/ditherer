@@ -16,6 +16,7 @@
 
 import {
   drawPass,
+  getExistingGLCtx,
   getGLCtx,
   getQuadVAO,
   linkProgram,
@@ -193,18 +194,43 @@ type FFTCache = {
 };
 let _cache: FFTCache | null = null;
 
+type ProgramLinker = typeof linkProgram;
+
+export const createFFTProgramCache = (
+  gl: WebGL2RenderingContext,
+  linker: ProgramLinker = linkProgram,
+): FFTCache => {
+  const ownedPrograms: Program[] = [];
+  const own = (
+    source: string,
+    uniforms: readonly string[],
+  ): Program => {
+    const program = linker(gl, source, uniforms);
+    ownedPrograms.push(program);
+    return program;
+  };
+  try {
+    return {
+      extract: own(EXTRACT_FS, ["u_source", "u_srcRes", "u_padRes"] as const),
+      bitrev: own(BIT_REVERSE_FS, ["u_input", "u_res", "u_axis", "u_logN"] as const),
+      butterfly: own(BUTTERFLY_FS, [
+        "u_input", "u_res", "u_axis", "u_m", "u_halfM", "u_sign",
+      ] as const),
+      finalise: own(INV_FINALISE_FS, [
+        "u_fft", "u_source", "u_srcRes", "u_padRes", "u_invN",
+      ] as const),
+    };
+  } catch (error) {
+    for (const program of ownedPrograms) {
+      try { gl.deleteProgram(program.prog); } catch { /* continue cleanup */ }
+    }
+    throw error;
+  }
+};
+
 const initCache = (gl: WebGL2RenderingContext): FFTCache => {
   if (_cache) return _cache;
-  _cache = {
-    extract: linkProgram(gl, EXTRACT_FS, ["u_source", "u_srcRes", "u_padRes"] as const),
-    bitrev: linkProgram(gl, BIT_REVERSE_FS, ["u_input", "u_res", "u_axis", "u_logN"] as const),
-    butterfly: linkProgram(gl, BUTTERFLY_FS, [
-      "u_input", "u_res", "u_axis", "u_m", "u_halfM", "u_sign",
-    ] as const),
-    finalise: linkProgram(gl, INV_FINALISE_FS, [
-      "u_fft", "u_source", "u_srcRes", "u_padRes", "u_invN",
-    ] as const),
-  };
+  _cache = createFFTProgramCache(gl);
   return _cache;
 };
 
@@ -213,6 +239,19 @@ const initCache = (gl: WebGL2RenderingContext): FFTCache => {
 // RGBA8 pool in index.ts — the shared pool assumes RGBA8.
 type FloatEntry = { tex: WebGLTexture; fbo: WebGLFramebuffer; w: number; h: number };
 const _floatPool: Record<string, FloatEntry> = {};
+
+const discardFloatTarget = (
+  gl: WebGL2RenderingContext,
+  texture: WebGLTexture | null,
+  framebuffer: WebGLFramebuffer | null,
+): void => {
+  if (texture) {
+    try { gl.deleteTexture(texture); } catch { /* continue cleanup */ }
+  }
+  if (framebuffer) {
+    try { gl.deleteFramebuffer(framebuffer); } catch { /* context loss */ }
+  }
+};
 
 export const ensureFloatTex = (
   gl: WebGL2RenderingContext,
@@ -223,34 +262,43 @@ export const ensureFloatTex = (
   const cached = _floatPool[name];
   if (cached && cached.w === w && cached.h === h) return cached;
   if (cached) {
-    gl.deleteTexture(cached.tex);
-    gl.deleteFramebuffer(cached.fbo);
+    delete _floatPool[name];
+    discardFloatTarget(gl, cached.tex, cached.fbo);
   }
-  const tex = gl.createTexture();
-  const fbo = gl.createFramebuffer();
-  if (!tex || !fbo) return null;
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-    gl.deleteTexture(tex);
-    gl.deleteFramebuffer(fbo);
-    return null;
+  let tex: WebGLTexture | null = null;
+  let fbo: WebGLFramebuffer | null = null;
+  try {
+    tex = gl.createTexture();
+    fbo = gl.createFramebuffer();
+    if (!tex || !fbo) {
+      discardFloatTarget(gl, tex, fbo);
+      return null;
+    }
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+      discardFloatTarget(gl, tex, fbo);
+      return null;
+    }
+    const entry = { tex, fbo, w, h };
+    _floatPool[name] = entry;
+    return entry;
+  } catch (error) {
+    discardFloatTarget(gl, tex, fbo);
+    throw error;
   }
-  const entry = { tex, fbo, w, h };
-  _floatPool[name] = entry;
-  return entry;
 };
 
 // Evict float-pool entries whose key starts with `prefix`. Pass no
 // argument to flush the entire pool.
 export const releaseFloatTextures = (prefix?: string): number => {
-  const ctx = getGLCtx();
+  const ctx = getExistingGLCtx();
   if (!ctx) return 0;
   const { gl } = ctx;
   let freed = 0;
