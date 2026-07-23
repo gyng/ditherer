@@ -8,7 +8,7 @@ import {
   rgba,
   paletteGetColor
 } from "../utils/index";
-import { normalizeRangeOption } from "../utils/filterOptions";
+import { normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
 import {
   estimateMotionVector,
   prepareMotionAnalysisBuffers,
@@ -95,7 +95,7 @@ const datamosh = (
   const keyframeInterval = normalizeRangeOption(options.keyframeInterval, defaults.keyframeInterval, 0, 120, true);
   const corruptChance = normalizeRangeOption(options.corruptChance, defaults.corruptChance, 0, 1);
   const channelShift = normalizeRangeOption(options.channelShift, defaults.channelShift, 0, 10, true);
-  const palette = options.palette ?? defaults.palette;
+  const palette = normalizePaletteOption(options.palette, defaults.palette);
 
   const prevInput = options._prevInput ?? null;
   const prevOutput = options._prevOutput ?? null;
@@ -128,7 +128,10 @@ const datamosh = (
 
   const ref = prevOutput as Uint8ClampedArray;
   const rng = mulberry32(frameIndex * 7919 + 31337);
-  const searchRadius = displacement;
+  // Bound the search so tiny blocks with a large displacement don't blow up the
+  // per-frame cost (a 4px block matched over ±30px is unreliable anyway);
+  // block sizes of ~15px and up still honour the full displacement.
+  const searchRadius = Math.min(displacement, blockSize * 2);
   const threshold = (motionThreshold / 100) * 255;
   const buffers = prepareMotionAnalysisBuffers(buf, prevInput as Uint8ClampedArray, W, H, MOTION_SOURCE.LUMA);
 
@@ -149,6 +152,15 @@ const datamosh = (
       );
       let vx = vector.dx;
       let vy = vector.dy;
+
+      // Reject an unreliable match: when the best block error exceeds the
+      // threshold there is no trustworthy motion, so hold the block in place
+      // (predict it unmoved from the reference) rather than apply a bogus
+      // vector. Lower motionThreshold freezes more; higher moshes more.
+      if (vector.error > threshold) {
+        vx = 0;
+        vy = 0;
+      }
 
       // Corrupt path: perturb the vector so the held frame blooms / tears.
       if (rng() < corruptChance) {

@@ -317,10 +317,16 @@ export const averageBlockError = (
   previousScalar: Float32Array | null = null,
   circularRange = 0,
   bestKnownError = Infinity,
+  fullBlockCount = 0,
 ) => {
   let error = 0;
   let count = 0;
   const maxAcceptedError = bestKnownError;
+  // Exact pruning bound: the best full-block sum is bestAvg × fullBlockCount.
+  // Comparing the running sum against that (rather than bestAvg × partialCount)
+  // never rejects a candidate whose full average would beat the best, so no real
+  // match is lost. Falls back to the partial count for legacy callers.
+  const pruneCount = fullBlockCount > 0 ? fullBlockCount : 0;
 
   for (let yy = 0; yy < blockSize; yy += 1) {
     const y = y0 + yy;
@@ -364,7 +370,7 @@ export const averageBlockError = (
         count += 1;
       }
 
-      if (count > 0 && error > maxAcceptedError * count) {
+      if (count > 0 && error > maxAcceptedError * (pruneCount > 0 ? pruneCount : count)) {
         return error / count;
       }
     }
@@ -392,13 +398,19 @@ export const estimateMotionVector = (
   const previousScalar = analysisBuffers?.previousScalar || null;
   const circularRange = analysisBuffers?.circularRange || 0;
 
+  // Full sample count for this block (constant across all candidate
+  // displacements), so the early-out prune is exact.
+  const unit = mode === MOTION_SOURCE.RGB ? 3 : 1;
+  const fullBlockCount = Math.max(0, Math.min(cellSize, width - x))
+    * Math.max(0, Math.min(cellSize, height - y)) * unit;
+
   // Seed with the zero vector so tied candidates (flat / low-texture blocks,
   // where every displacement has equal SAD) resolve to no motion instead of the
   // first-scanned (-searchRadius, -searchRadius), which would creep flat regions
   // diagonally each frame. A real match must strictly beat the stationary block.
   let bestError = averageBlockError(
     current, previous, width, height, x, y, cellSize,
-    0, 0, mode, currentScalar, previousScalar, circularRange, Infinity,
+    0, 0, mode, currentScalar, previousScalar, circularRange, Infinity, fullBlockCount,
   );
 
   for (let dy = -searchRadius; dy <= searchRadius; dy += 1) {
@@ -419,6 +431,7 @@ export const estimateMotionVector = (
         previousScalar,
         circularRange,
         bestError,
+        fullBlockCount,
       );
       if (error < bestError) {
         bestError = error;

@@ -91,6 +91,33 @@ describe("datamosh temporal branches", () => {
     expect(px(10, 10)).toEqual([13 * 8, 10 * 8, 128]); // = gradient(13, 10)
   });
 
+  it("holds a block when the best match error exceeds motionThreshold (live control)", () => {
+    // A 2px bar shifted -3px between frames, with a uniform +30 residual, so the
+    // best match is vector (-3,0) with per-pixel error 30. At threshold 0 the
+    // match is rejected and the block is held unmoved; at threshold 100 it is
+    // accepted and the block is motion-compensated. A dead control would give
+    // the same output for both.
+    // Feature localized in x AND y so the match vector is uniquely (-3, 0).
+    const feature = (cols: number[], boost: number) => fill((x, y) => {
+      const bright = cols.includes(x) && y >= 8 && y < 12;
+      const v = Math.min(255, (bright ? 220 : 40) + boost);
+      return [v, v, v];
+    });
+    const current = feature([10, 11], 0);
+    const prevInput = feature([7, 8], 30); // shifted left 3, +30 residual
+    const opts = {
+      _prevInput: prevInput, _prevOutput: gradient,
+      displacement: 6, corruptChance: 0, channelShift: 0, blockSize: 16, _frameIndex: 1,
+    };
+    const px = (out: Uint8ClampedArray, x: number, y: number) => {
+      const i = (y * W + x) * 4; return [out[i], out[i + 1], out[i + 2]];
+    };
+    const held = run({ ...opts, motionThreshold: 0 }, current);
+    const moshed = run({ ...opts, motionThreshold: 100 }, current);
+    expect(px(held, 10, 10)).toEqual([80, 80, 128]);    // held at (0,0) -> gradient(10,10)
+    expect(px(moshed, 10, 10)).toEqual([56, 80, 128]);  // vector (-3,0) -> gradient(7,10)
+  });
+
   it("does not drift a flat block off the zero vector (motion-search zero bias)", () => {
     // A flat current/previous input makes every displacement tie; the search
     // must resolve to (0,0), so the reference passes through unshifted. Without

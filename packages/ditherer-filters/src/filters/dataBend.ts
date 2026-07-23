@@ -1,7 +1,7 @@
 import { RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "../utils/index";
-import { normalizeEnumOption, normalizeRangeOption } from "../utils/filterOptions";
+import { normalizeEnumOption, normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
 import { defineFilter } from "./types";
 
 const EFFECT = { ECHO: "ECHO", REVERB: "REVERB", BITCRUSH: "BITCRUSH", REVERSE: "REVERSE" } as const;
@@ -38,7 +38,7 @@ const dataBend = (input: any, options: Partial<typeof defaults> = defaults) => {
   const effect = normalizeEnumOption(options.effect, EFFECTS, defaults.effect);
   const intensity = normalizeRangeOption(options.intensity, defaults.intensity, 0, 1);
   const offset = normalizeRangeOption(options.offset, defaults.offset, 1, 500, true);
-  const palette = options.palette ?? defaults.palette;
+  const palette = normalizePaletteOption(options.palette, defaults.palette);
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
   const outputCtx = output.getContext("2d");
