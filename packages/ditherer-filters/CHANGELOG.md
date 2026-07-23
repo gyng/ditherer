@@ -5,6 +5,8 @@ package follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-24
+
 ### Changed
 
 - Corrected the Anaglyph "Dubois least-squares projection" (red/cyan). The
