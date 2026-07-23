@@ -95,6 +95,46 @@ export const runSharpenEdgeContrast = (): Result => {
     : { ok: false, reason: `Sharpen did not overshoot (range ${r0.toFixed(0)} -> ${r1.toFixed(0)})` };
 };
 
+/**
+ * Frequency Filter's low-pass must be a GAUSSIAN, not a box. Blurring a 1-px
+ * bright line in LOW mode gives a centre-peaked, monotonically-decaying profile;
+ * a box blur gives a flat plateau of equal values out to its radius, which fails
+ * the strict decay check.
+ */
+export const runFrequencyGaussianLowpass = (): Result => {
+  const filter = filterIndex["Frequency Filter"] as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Frequency Filter missing from registry" };
+  const w = 48, h = 16, cx = 24;
+  const line = document.createElement("canvas");
+  line.width = w; line.height = h;
+  const ctx = line.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return { ok: false, reason: "line fixture has no 2d context" };
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+    const o = (y * w + x) * 4;
+    const v = x === cx ? 255 : 0; // opaque black background, one white line
+    img.data[o] = v; img.data[o + 1] = v; img.data[o + 2] = v; img.data[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+
+  const out = canvasPixels(filter.func(line, {
+    ...(filter.defaults ?? {}), ...runtimeOptions(), mode: "LOW", radius: 10,
+  }) as HTMLCanvasElement);
+  if (!out) return { ok: false, reason: "Frequency Filter readback failed" };
+
+  const colLuma = (x: number): number => {
+    let s = 0;
+    for (let y = 0; y < h; y += 1) { const i = (y * w + x) * 4; s += 0.2126 * out[i] + 0.7152 * out[i + 1] + 0.0722 * out[i + 2]; }
+    return s / h;
+  };
+  // Within a box's radius the profile is flat (all equal); a Gaussian decays.
+  const c0 = colLuma(cx), c4 = colLuma(cx + 4), c8 = colLuma(cx + 8);
+  if (!(c0 > c4 + 5 && c4 > c8 + 1)) {
+    return { ok: false, reason: `low-pass not a centre-peaked Gaussian (profile ${c0.toFixed(1)}, ${c4.toFixed(1)}, ${c8.toFixed(1)} — a box would be flat)` };
+  }
+  return { ok: true };
+};
+
 /** Bloom adds a spreading glow around bright sources; zero strength is inert. */
 export const runBloomLinearGlow = (): Result => {
   const w = 48, h = 48;

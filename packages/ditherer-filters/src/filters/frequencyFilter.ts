@@ -19,6 +19,8 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { sigmaForRadius } from "./opticalConvolutionContracts";
+import { normalizeEnumOption, normalizeRangeOption } from "../utils/filterOptions";
 
 const MODE = {
   LOW: "LOW",
@@ -64,8 +66,13 @@ type FrequencyFilterOptions = FilterOptionValues & {
   _wasmAcceleration?: boolean;
 };
 
-// Separable box blur: one horizontal pass, one vertical pass. Loop bounds
-// are dynamic in #version 300 es so we can read u_radius directly.
+// Separable GAUSSIAN blur: one horizontal pass, one vertical pass. A box blur's
+// frequency response is a sinc with large, sign-inverting side-lobes, so a
+// "low-pass" built from a box actually passes and phase-inverts alternating
+// high-frequency bands (ringing). A Gaussian rolls off monotonically with no
+// side-lobes, so LOW/HIGH/BAND isolate frequency bands honestly. Weights are
+// exp(-k²/2σ²) normalised by the tap sum (σ = radius/3, sigmaForRadius). Loop
+// bounds are dynamic in #version 300 es so we can read u_radius directly.
 const HORIZ_BLUR_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -74,13 +81,18 @@ out vec4 fragColor;
 uniform sampler2D u_source;
 uniform vec2  u_texel;
 uniform int   u_radius;
+uniform float u_sigma;
 
 void main() {
   vec4 acc = vec4(0.0);
+  float wsum = 0.0;
+  float inv2s2 = 1.0 / (2.0 * u_sigma * u_sigma);
   for (int k = -u_radius; k <= u_radius; k++) {
-    acc += texture(u_source, v_uv + vec2(float(k), 0.0) * u_texel);
+    float w = exp(-float(k * k) * inv2s2);
+    acc += w * texture(u_source, v_uv + vec2(float(k), 0.0) * u_texel);
+    wsum += w;
   }
-  fragColor = acc / float(2 * u_radius + 1);
+  fragColor = acc / wsum;
 }
 `;
 
@@ -92,13 +104,18 @@ out vec4 fragColor;
 uniform sampler2D u_source;
 uniform vec2  u_texel;
 uniform int   u_radius;
+uniform float u_sigma;
 
 void main() {
   vec4 acc = vec4(0.0);
+  float wsum = 0.0;
+  float inv2s2 = 1.0 / (2.0 * u_sigma * u_sigma);
   for (int k = -u_radius; k <= u_radius; k++) {
-    acc += texture(u_source, v_uv + vec2(0.0, float(k)) * u_texel);
+    float w = exp(-float(k * k) * inv2s2);
+    acc += w * texture(u_source, v_uv + vec2(0.0, float(k)) * u_texel);
+    wsum += w;
   }
-  fragColor = acc / float(2 * u_radius + 1);
+  fragColor = acc / wsum;
 }
 `;
 
@@ -141,13 +158,13 @@ let _combine: Program | null = null;
 
 const getHorizProg = (gl: WebGL2RenderingContext): Program => {
   if (_horiz) return _horiz;
-  _horiz = linkProgram(gl, HORIZ_BLUR_FS, ["u_source", "u_texel", "u_radius"] as const);
+  _horiz = linkProgram(gl, HORIZ_BLUR_FS, ["u_source", "u_texel", "u_radius", "u_sigma"] as const);
   return _horiz;
 };
 
 const getVertProg = (gl: WebGL2RenderingContext): Program => {
   if (_vert) return _vert;
-  _vert = linkProgram(gl, VERT_BLUR_FS, ["u_source", "u_texel", "u_radius"] as const);
+  _vert = linkProgram(gl, VERT_BLUR_FS, ["u_source", "u_texel", "u_radius", "u_sigma"] as const);
   return _vert;
 };
 
@@ -169,6 +186,7 @@ const blurInto = (
   tempName: string, lowName: string,
   radius: number,
 ) => {
+  const sigma = sigmaForRadius(radius);
   const horizProg = getHorizProg(gl);
   const vertProg = getVertProg(gl);
   const temp = ensureTexture(gl, tempName, W, H);
@@ -179,6 +197,7 @@ const blurInto = (
     gl.uniform1i(horizProg.uniforms.u_source, 0);
     gl.uniform2f(horizProg.uniforms.u_texel, 1 / W, 1 / H);
     gl.uniform1i(horizProg.uniforms.u_radius, radius);
+    gl.uniform1f(horizProg.uniforms.u_sigma, sigma);
   }, vao);
   drawPass(gl, low, W, H, vertProg, () => {
     gl.activeTexture(gl.TEXTURE0);
@@ -186,15 +205,17 @@ const blurInto = (
     gl.uniform1i(vertProg.uniforms.u_source, 0);
     gl.uniform2f(vertProg.uniforms.u_texel, 1 / W, 1 / H);
     gl.uniform1i(vertProg.uniforms.u_radius, radius);
+    gl.uniform1f(vertProg.uniforms.u_sigma, sigma);
   }, vao);
   return low;
 };
 
 const frequencyFilter = (input: any, options: FrequencyFilterOptions = defaults) => {
-  const mode = String(options.mode ?? defaults.mode);
-  const radius = Math.max(1, Math.round(Number(options.radius ?? defaults.radius)));
-  const bandWidth = Math.max(1, Math.round(Number(options.bandWidth ?? defaults.bandWidth)));
-  const gain = Number(options.gain ?? defaults.gain);
+  const mode = normalizeEnumOption(
+    options.mode, [MODE.LOW, MODE.HIGH, MODE.BAND], defaults.mode);
+  const radius = normalizeRangeOption(options.radius, defaults.radius, 1, 24, true);
+  const bandWidth = normalizeRangeOption(options.bandWidth, defaults.bandWidth, 1, 24, true);
+  const gain = normalizeRangeOption(options.gain, defaults.gain, 0, 4, false);
   const palette = options.palette ?? defaults.palette;
   const W = input.width, H = input.height;
 
@@ -252,6 +273,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Approximate low, high, or mid-band frequency separation using spatial-domain filtering",
+  description: "Low, high, or mid-band frequency separation via Gaussian (and difference-of-Gaussian) spatial-domain filtering",
   requiresGL: true,
 });

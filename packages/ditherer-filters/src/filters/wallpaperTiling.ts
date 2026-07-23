@@ -2,6 +2,8 @@ import { RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
 import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
+import { normalizeEnumOption, normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
+import { WALLPAPER_FOLDS_GLSL } from "./wallpaperFolds";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
   drawPass,
@@ -16,11 +18,12 @@ import {
   type Program,
 } from "../gl/index";
 
-// Wallpaper-group tiling. Five of the 17 crystallographic groups cover
-// the recognisable look-and-feel space for image stylisation; the rest
-// are mostly variants. Each "group" defines a fundamental domain + a set
-// of symmetry operations; the shader reflects/rotates the sample point
-// back into the domain and reads the source.
+// Wallpaper-group tiling. Five of the 17 crystallographic groups reduce the
+// sample point into that group's fundamental domain (via the group's actual
+// symmetry operations) and read the source — so the tiling carries exactly that
+// group's symmetry. The folds mirror the unit-tested wallpaperFolds.ts: P2 is a
+// genuine 180° rotation (no mirror lines) and P6M is a real hexagonal 6-fold +
+// mirror kaleidoscope.
 
 const GROUP = { P1: "P1", P2: "P2", PMM: "PMM", P4M: "P4M", P6M: "P6M" };
 
@@ -37,15 +40,7 @@ uniform vec2  u_centre;    // Tiling centre (px)
 uniform float u_angle;     // Overall rotation
 uniform float u_levels;
 
-// Fold coordinate into a repeating cell of the given size.
-float foldRepeat(float v, float size) {
-  return mod(v, size);
-}
-// Fold with reflection: sawtooth-triangle pattern.
-float foldReflect(float v, float size) {
-  float m = mod(v, 2.0 * size);
-  return m < size ? m : 2.0 * size - m;
-}
+${WALLPAPER_FOLDS_GLSL}
 
 void main() {
   vec2 px = v_uv * u_res;
@@ -59,43 +54,12 @@ void main() {
   p = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
 
   float sz = max(u_cellSize, 4.0);
-  vec2 folded;
-
-  if (u_group == 0) {
-    // P1 — plain translation.
-    folded = vec2(foldRepeat(p.x, sz), foldRepeat(p.y, sz));
-  } else if (u_group == 1) {
-    // P2 — 180° rotation centres at the unit-cell corners.
-    float fx = mod(p.x, 2.0 * sz);
-    float fy = mod(p.y, 2.0 * sz);
-    if (fx >= sz) fx = 2.0 * sz - fx;
-    if (fy >= sz) fy = 2.0 * sz - fy;
-    folded = vec2(fx, fy);
-  } else if (u_group == 2) {
-    // PMM — mirrors in both axes.
-    folded = vec2(foldReflect(p.x, sz), foldReflect(p.y, sz));
-  } else if (u_group == 3) {
-    // P4M — square + diagonal mirrors (the kaleidoscope you see in
-    // tiling patterns with 4-fold symmetry).
-    float fx = foldReflect(p.x, sz);
-    float fy = foldReflect(p.y, sz);
-    // Fold across the main diagonal for 8-fold symmetry within each cell.
-    if (fy > fx) { float t = fx; fx = fy; fy = t; }
-    folded = vec2(fx, fy);
-  } else {
-    // P6M — hexagonal with 6-fold + mirrors. Use axial hex coords.
-    float s = sz;
-    float hx = p.x;
-    float hy = p.y;
-    // Reduce into a hex cell (approximate via triangular fold).
-    float q = hx / s;
-    float r = (hy * 1.15470054 - hx * 0.57735027) / s;
-    q = mod(q, 1.0);
-    r = mod(r, 1.0);
-    // Reflect if above the diagonal (equivalent to a mirror symmetry).
-    if (q + r > 1.0) { q = 1.0 - q; r = 1.0 - r; }
-    folded = vec2(q * s, r * s * 0.866);
-  }
+  vec2 folded =
+      u_group == 0 ? wf_p1(p, sz)
+    : u_group == 1 ? wf_p2(p, sz)
+    : u_group == 2 ? wf_pmm(p, sz)
+    : u_group == 3 ? wf_p4m(p, sz)
+    :                wf_p6m(p, sz);
 
   // Sample from source using the folded coord as a UV into a single tile
   // of size sz × sz, scaled to the full source image so we see the whole
@@ -152,8 +116,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const wallpaperTiling = (input: any, options = defaults) => {
-  const { group, cellSize, centerX, centerY, angle, palette } = options;
+const wallpaperTiling = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const group = normalizeEnumOption(options.group,
+    [GROUP.P1, GROUP.P2, GROUP.PMM, GROUP.P4M, GROUP.P6M], defaults.group);
+  const cellSize = normalizeRangeOption(options.cellSize, defaults.cellSize, 10, 800, true);
+  const centerX = normalizeRangeOption(options.centerX, defaults.centerX, 0, 1);
+  const centerY = normalizeRangeOption(options.centerY, defaults.centerY, 0, 1);
+  const angle = normalizeRangeOption(options.angle, defaults.angle, 0, 360);
+  const palette = normalizePaletteOption(options.palette, defaults.palette);
   const W = input.width, H = input.height;
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();

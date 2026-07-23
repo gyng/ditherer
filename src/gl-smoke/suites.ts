@@ -77,6 +77,7 @@ import {
   runBokehHighlightSpread,
   runDespeckleEdgePreserved,
   runDespeckleImpulseRemoval,
+  runFrequencyGaussianLowpass,
   runSharpenEdgeContrast,
 } from "./contracts/optical";
 import { runAnalogStaticGhostAndAlpha } from "./contracts/glitch";
@@ -89,7 +90,11 @@ import {
   runHazeKoschmiederDepth,
   runSolarizeReversal,
 } from "./contracts/tone";
-import { runAnamorphicLinearRadial, runStampEdgeBreakup } from "./contracts/geometry";
+import {
+  runAnamorphicLinearRadial,
+  runStampEdgeBreakup,
+  runWallpaperP2Rotation,
+} from "./contracts/geometry";
 import { runtimeFixtureIntegrity, runtimeOptions } from "./fixtures";
 import { runEquivalent, runIdentity } from "./harness";
 import type { ContractSuite } from "./contractRunner";
@@ -671,6 +676,7 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("Sharpen", "gaussian-unsharp-overshoot", runSharpenEdgeContrast),
       contract("Bloom", "linear-multiscale-glow", runBloomLinearGlow),
       contract("Bokeh", "highlight-disc-spread", runBokehHighlightSpread),
+      contract("Frequency Filter", "gaussian-lowpass-not-box", runFrequencyGaussianLowpass),
     ],
   },
   {
@@ -699,6 +705,7 @@ export const numericalContractSuites = (): ContractSuite[] => [
     contracts: [
       contract("Anamorphic Cylinder", "linear-reflection-radial", runAnamorphicLinearRadial),
       contract("Stamp", "edge-concentrated-breakup", runStampEdgeBreakup),
+      contract("Wallpaper Tiling", "p2-rotation-not-mirror", runWallpaperP2Rotation),
     ],
   },
   {

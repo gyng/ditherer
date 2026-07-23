@@ -7,6 +7,15 @@ package follows semantic versioning.
 
 ### Changed
 
+- Rebuilt Duotone, Wallpaper Tiling, and Frequency Filter around the named
+  transform. Duotone now composites two ink density curves over paper (a
+  monotonic shadow ink and a midtone-bump second ink) with a real overprint
+  crossover, instead of a single luma lerp (a gradient map). Wallpaper Tiling's
+  P2 is now a genuine 180° rotation group (no mirror lines — it was byte-identical
+  to PMM) and P6M is a real hexagonal 6-fold + mirror kaleidoscope, backed by an
+  invariance-tested fold reference. Frequency Filter now separates bands with a
+  Gaussian low-pass and a difference-of-Gaussians band-pass instead of a box blur
+  (whose sinc side-lobes rang rather than isolating frequency bands).
 - Rebuilt Anamorphic Cylinder and Stamp around the process they name. Anamorphic
   Cylinder now uses the cylindrical-mirror reflection geometry — a LINEAR radial
   map (`r = R_c + z·cot α`) with angle preserved and a continuous polar

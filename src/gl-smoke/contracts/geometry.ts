@@ -4,6 +4,12 @@ import type { FilterLike } from "../types";
 
 type Result = { ok: true } | { ok: false; reason: string };
 
+const run = (name: string, canvas: HTMLCanvasElement, extra: Record<string, unknown>): Uint8ClampedArray | null => {
+  const filter = filterIndex[name] as FilterLike | undefined;
+  if (!filter) return null;
+  return canvasPixels(filter.func(canvas, { ...(filter.defaults ?? {}), ...runtimeOptions(), ...extra }) as HTMLCanvasElement);
+};
+
 /**
  * Anamorphic Cylinder must map the annulus radius LINEARLY to the source height
  * (the reflection law), not logarithmically. On a vertical black→white source,
@@ -123,6 +129,62 @@ export const runStampEdgeBreakup = (): Result => {
     if (Math.abs(out[i] - expectedAlpha[i]) > 2) {
       return { ok: false, reason: `Stamp altered alpha at ${i}: ${expectedAlpha[i]} -> ${out[i]}` };
     }
+  }
+  return { ok: true };
+};
+
+/**
+ * Wallpaper Tiling P2 must be a genuine 180° ROTATION group, not PMM. So (a) its
+ * output must differ from PMM (they were byte-identical), and (b) about the
+ * centre it must be 180°-rotation-symmetric but NOT mirror-symmetric (a mirror
+ * is exactly the pmm symmetry p2 forbids).
+ */
+export const runWallpaperP2Rotation = (): Result => {
+  const filter = filterIndex["Wallpaper Tiling"] as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Wallpaper Tiling missing from registry" };
+  const w = 128, h = 128;
+  // Smooth directional source so mirror and rotation give distinct results.
+  const src = document.createElement("canvas");
+  src.width = w; src.height = h;
+  const ctx = src.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return { ok: false, reason: "wallpaper fixture has no 2d context" };
+  const im = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+    const o = (y * w + x) * 4;
+    im.data[o] = Math.round((x / (w - 1)) * 255);
+    im.data[o + 1] = Math.round((y / (h - 1)) * 255);
+    im.data[o + 2] = 128; im.data[o + 3] = 255;
+  }
+  ctx.putImageData(im, 0, 0);
+
+  const opts = { cellSize: 60, centerX: 0.5, centerY: 0.5, angle: 0 };
+  const p2 = run("Wallpaper Tiling", src, { ...opts, group: "P2" });
+  const pmm = run("Wallpaper Tiling", src, { ...opts, group: "PMM" });
+  if (!p2 || !pmm) return { ok: false, reason: "Wallpaper Tiling readback failed" };
+
+  let diff = 0;
+  for (let i = 0; i < p2.length; i += 4) diff += Math.abs(p2[i] - pmm[i]) + Math.abs(p2[i + 1] - pmm[i + 1]);
+  if (diff / (p2.length / 4) < 6) {
+    return { ok: false, reason: `P2 is still identical to PMM (mean diff ${(diff / (p2.length / 4)).toFixed(2)})` };
+  }
+
+  const cx = w / 2, cy = h / 2;
+  const px = (fx: number, fy: number, c: number): number => {
+    const x = Math.round(fx), y = Math.round(fy);
+    return p2[(y * w + x) * 4 + c];
+  };
+  const lum = (fx: number, fy: number): number => 0.2126 * px(fx, fy, 0) + 0.7152 * px(fx, fy, 1) + 0.0722 * px(fx, fy, 2);
+  const pairs: [number, number][] = [[24, 12], [30, -16], [16, 26]];
+  let rotErr = 0, mirrorSignal = 0;
+  for (const [dx, dy] of pairs) {
+    rotErr = Math.max(rotErr, Math.abs(lum(cx + dx, cy + dy) - lum(cx - dx, cy - dy)));      // 180° rotation
+    mirrorSignal = Math.max(mirrorSignal, Math.abs(lum(cx + dx, cy + dy) - lum(cx - dx, cy + dy))); // mirror
+  }
+  if (rotErr > 14) {
+    return { ok: false, reason: `P2 not 180°-rotation-symmetric about the centre (err ${rotErr.toFixed(1)})` };
+  }
+  if (mirrorSignal < 20) {
+    return { ok: false, reason: `P2 looks mirror-symmetric (pmm), not a pure rotation (mirror signal ${mirrorSignal.toFixed(1)})` };
   }
   return { ok: true };
 };
