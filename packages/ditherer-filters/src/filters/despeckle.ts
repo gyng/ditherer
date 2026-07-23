@@ -9,8 +9,11 @@ import {
   logFilterBackend,
   logFilterWasmStatus,
 } from "../utils/index";
+import { normalizeRangeOption } from "../utils/filterOptions";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { channelMedian, thresholdedMedianPick } from "./opticalConvolutionContracts";
+import { renderMedianFilterGL, medianFilterGLAvailable } from "./medianFilterGL";
 import {
   drawPass,
   ensureTexture,
@@ -25,8 +28,8 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "Difference threshold to detect speckle noise" },
-  radius: { type: RANGE, range: [1, 5], step: 1, default: 2, desc: "Neighborhood radius for median sampling" },
+  threshold: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "How far a pixel must deviate from its neighbourhood median to be treated as speckle" },
+  radius: { type: RANGE, range: [1, 5], step: 1, default: 2, desc: "Neighborhood radius for the median" },
   palette: { type: PALETTE, default: nearest }
 };
 
@@ -36,95 +39,87 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-// Per-pixel variance-gated local mean: regions with high per-channel
-// variance (noisy) are smoothed to the neighbourhood mean, low-variance
-// (structured) regions keep their original value. All pixel values are
-// handled in 0..255 space in the shader to match the CPU threshold.
-const DESPECKLE_FS = `#version 300 es
+// Edge-preserving despeckle: replace a pixel with its per-channel neighbourhood
+// median only when it deviates from that median by more than the threshold — so
+// impulse (salt-and-pepper) speckle is removed while edges and detail survive.
+// The median itself is computed by the shared, tested medianFilterGL histogram;
+// this pass gates it against the source. (The previous filter box-blurred every
+// high-variance pixel — i.e. it smeared edges and kept flat noise.)
+const GATE_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 
 uniform sampler2D u_source;
+uniform sampler2D u_median;
 uniform vec2  u_res;
-uniform int   u_radius;
-uniform float u_threshSq;
+uniform float u_threshold;   // 0..255
 uniform float u_levels;
 
 void main() {
   vec2 px = v_uv * u_res;
   float x = floor(px.x);
   float y = u_res.y - 1.0 - floor(px.y);
-
-  vec3 sum = vec3(0.0);
-  vec3 sum2 = vec3(0.0);
-  float count = 0.0;
-  for (int ky = -5; ky <= 5; ky++) {
-    if (ky < -u_radius || ky > u_radius) continue;
-    for (int kx = -5; kx <= 5; kx++) {
-      if (kx < -u_radius || kx > u_radius) continue;
-      float nx = clamp(x + float(kx), 0.0, u_res.x - 1.0);
-      float ny = clamp(y + float(ky), 0.0, u_res.y - 1.0);
-      vec2 uv = vec2((nx + 0.5) / u_res.x, 1.0 - (ny + 0.5) / u_res.y);
-      vec3 c = texture(u_source, uv).rgb * 255.0;
-      sum += c;
-      sum2 += c * c;
-      count += 1.0;
-    }
-  }
-  vec3 mean = sum / count;
-  vec3 varv = sum2 / count - mean * mean;
-  float variance = (varv.r + varv.g + varv.b) / 3.0;
-
   vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
-  vec4 self = texture(u_source, suv);
-  vec3 pick = variance > u_threshSq ? mean : self.rgb * 255.0;
+  vec4 src = texture(u_source, suv);
+  vec3 s = src.rgb * 255.0;
+  vec3 m = texture(u_median, suv).rgb * 255.0;
+  vec3 d = abs(s - m);
+  // Per channel: outlier (|s-m| > threshold) takes the median, else keeps s.
+  vec3 pick = mix(s, m, step(u_threshold + 0.5, d));
   vec3 rgb = clamp(pick / 255.0, 0.0, 1.0);
   if (u_levels > 1.5) {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
   }
-  fragColor = vec4(rgb, self.a);
+  fragColor = vec4(rgb, src.a);
 }
 `;
 
-type Cache = { desp: Program };
+type Cache = { gate: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    desp: linkProgram(gl, DESPECKLE_FS, [
-      "u_source", "u_res", "u_radius", "u_threshSq", "u_levels",
+    gate: linkProgram(gl, GATE_FS, [
+      "u_source", "u_median", "u_res", "u_threshold", "u_levels",
     ] as const),
   };
   return _cache;
 };
 
-const despeckle = (input: any, options = defaults) => {
-  const { threshold, radius, palette } = options;
+const despeckle = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const threshold = normalizeRangeOption(options.threshold, defaults.threshold, 0, 50);
+  const radius = normalizeRangeOption(options.radius, defaults.radius, 1, 5, true);
+  const palette = options.palette ?? defaults.palette;
   const W = input.width, H = input.height;
-  const threshSq = threshold * threshold;
 
-  if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+  if (glAvailable() && medianFilterGLAvailable()
+    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
+    const median = renderMedianFilterGL(input, W, H, radius);
     const ctx = getGLCtx();
-    if (ctx) {
+    if (median && ctx) {
       const { gl, canvas } = ctx;
       const cache = initCache(gl);
       const vao = getQuadVAO(gl);
       resizeGLCanvas(canvas, W, H);
       const sourceTex = ensureTexture(gl, "despeckle:source", W, H);
+      const medianTex = ensureTexture(gl, "despeckle:median", W, H);
       uploadSourceTexture(gl, sourceTex, input);
+      uploadSourceTexture(gl, medianTex, median);
 
-      drawPass(gl, null, W, H, cache.desp, () => {
+      drawPass(gl, null, W, H, cache.gate, () => {
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.desp.uniforms.u_source, 0);
-        gl.uniform2f(cache.desp.uniforms.u_res, W, H);
-        gl.uniform1i(cache.desp.uniforms.u_radius, Math.max(1, Math.min(5, Math.round(radius))));
-        gl.uniform1f(cache.desp.uniforms.u_threshSq, threshSq);
+        gl.uniform1i(cache.gate.uniforms.u_source, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, medianTex.tex);
+        gl.uniform1i(cache.gate.uniforms.u_median, 1);
+        gl.uniform2f(cache.gate.uniforms.u_res, W, H);
+        gl.uniform1f(cache.gate.uniforms.u_threshold, threshold);
         const identity = paletteIsIdentity(palette);
         const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.desp.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        gl.uniform1f(cache.gate.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
       }, vao);
 
       const rendered = readoutToCanvas(canvas, W, H);
@@ -148,39 +143,25 @@ const despeckle = (input: any, options = defaults) => {
 
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
+  const r = new Array<number>(), g = new Array<number>(), b = new Array<number>();
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-
-      let sumR = 0, sumG = 0, sumB = 0;
-      let sumR2 = 0, sumG2 = 0, sumB2 = 0;
-      let count = 0;
-
+      r.length = 0; g.length = 0; b.length = 0;
       for (let ky = -radius; ky <= radius; ky++) {
         const ny = Math.max(0, Math.min(H - 1, y + ky));
         for (let kx = -radius; kx <= radius; kx++) {
           const nx = Math.max(0, Math.min(W - 1, x + kx));
           const ni = getBufferIndex(nx, ny, W);
-          sumR += buf[ni]; sumG += buf[ni + 1]; sumB += buf[ni + 2];
-          sumR2 += buf[ni] * buf[ni]; sumG2 += buf[ni + 1] * buf[ni + 1]; sumB2 += buf[ni + 2] * buf[ni + 2];
-          count++;
+          r.push(buf[ni]); g.push(buf[ni + 1]); b.push(buf[ni + 2]);
         }
       }
-
-      const meanR = sumR / count, meanG = sumG / count, meanB = sumB / count;
-      const varR = sumR2 / count - meanR * meanR;
-      const varG = sumG2 / count - meanG * meanG;
-      const varB = sumB2 / count - meanB * meanB;
-      const variance = (varR + varG + varB) / 3;
-
-      if (variance > threshSq) {
-        const color = paletteGetColor(palette, rgba(Math.round(meanR), Math.round(meanG), Math.round(meanB), buf[i + 3]), palette.options, false);
-        fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
-      } else {
-        const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options, false);
-        fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
-      }
+      const pr = thresholdedMedianPick(buf[i], channelMedian(r), threshold);
+      const pg = thresholdedMedianPick(buf[i + 1], channelMedian(g), threshold);
+      const pb = thresholdedMedianPick(buf[i + 2], channelMedian(b), threshold);
+      const color = paletteGetColor(palette, rgba(Math.round(pr), Math.round(pg), Math.round(pb), buf[i + 3]), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
 

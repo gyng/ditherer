@@ -10,8 +10,11 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { sigmaForRadius } from "./opticalConvolutionContracts";
 
-// Pass 1: horizontal box blur of source RGB (alpha carried through).
+// Pass 1: horizontal Gaussian blur of source RGB (alpha carried through). The
+// Gaussian low-pass is what defines the unsharp mask; the previous box blur
+// gave boxy, ringing halos.
 const BLUR_H_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -20,24 +23,27 @@ out vec4 fragColor;
 uniform sampler2D u_input;
 uniform vec2  u_res;
 uniform int   u_radius;
+uniform float u_sigma;
 
 void main() {
   vec2 px = v_uv * u_res;
   float y = floor(px.y);
   vec4 acc = vec4(0.0);
-  float cnt = 0.0;
+  float wsum = 0.0;
+  float inv2s2 = 1.0 / (2.0 * u_sigma * u_sigma);
   for (int k = -20; k <= 20; k++) {
     if (k < -u_radius || k > u_radius) continue;
+    float w = exp(-float(k * k) * inv2s2);
     float nx = clamp(floor(px.x) + float(k), 0.0, u_res.x - 1.0);
-    acc += texture(u_input, (vec2(nx, y) + 0.5) / u_res);
-    cnt += 1.0;
+    acc += w * texture(u_input, (vec2(nx, y) + 0.5) / u_res);
+    wsum += w;
   }
-  fragColor = acc / cnt;
+  fragColor = acc / wsum;
 }
 `;
 
-// Pass 2 (final): vertical box blur + unsharp-mask composite against source.
-//   out = src + (src - blurred) * strength, gated by |Δ| > threshold*3 (sum).
+// Pass 2 (final): vertical Gaussian blur + unsharp-mask composite against
+// source: out = src + (src - blurred) * strength, gated by |Δ| > threshold*3.
 const SHARPEN_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -47,6 +53,7 @@ uniform sampler2D u_source;
 uniform sampler2D u_blurH;
 uniform vec2  u_res;
 uniform int   u_radius;
+uniform float u_sigma;
 uniform float u_strength;
 uniform float u_threshold;
 uniform float u_levels;
@@ -57,14 +64,16 @@ void main() {
   float y_gl = floor(px.y);
 
   vec4 acc = vec4(0.0);
-  float cnt = 0.0;
+  float wsum = 0.0;
+  float inv2s2 = 1.0 / (2.0 * u_sigma * u_sigma);
   for (int k = -20; k <= 20; k++) {
     if (k < -u_radius || k > u_radius) continue;
+    float w = exp(-float(k * k) * inv2s2);
     float ny = clamp(y_gl + float(k), 0.0, u_res.y - 1.0);
-    acc += texture(u_blurH, (vec2(x, ny) + 0.5) / u_res);
-    cnt += 1.0;
+    acc += w * texture(u_blurH, (vec2(x, ny) + 0.5) / u_res);
+    wsum += w;
   }
-  vec4 blurred = acc / cnt;
+  vec4 blurred = acc / wsum;
 
   vec4 src = texture(u_source, v_uv);
   vec3 s255 = src.rgb * 255.0;
@@ -93,9 +102,9 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    blurH: linkProgram(gl, BLUR_H_FS, ["u_input", "u_res", "u_radius"] as const),
+    blurH: linkProgram(gl, BLUR_H_FS, ["u_input", "u_res", "u_radius", "u_sigma"] as const),
     final: linkProgram(gl, SHARPEN_FS, [
-      "u_source", "u_blurH", "u_res", "u_radius",
+      "u_source", "u_blurH", "u_res", "u_radius", "u_sigma",
       "u_strength", "u_threshold", "u_levels",
     ] as const),
   };
@@ -120,6 +129,7 @@ export const renderSharpenGL = (
   const vao = getQuadVAO(gl);
 
   const r = Math.max(1, Math.min(20, Math.round(radius)));
+  const sigma = sigmaForRadius(r);
 
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "sharpen:source", width, height);
@@ -132,6 +142,7 @@ export const renderSharpenGL = (
     gl.uniform1i(cache.blurH.uniforms.u_input, 0);
     gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
     gl.uniform1i(cache.blurH.uniforms.u_radius, r);
+    gl.uniform1f(cache.blurH.uniforms.u_sigma, sigma);
   }, vao);
 
   drawPass(gl, null, width, height, cache.final, () => {
@@ -143,6 +154,7 @@ export const renderSharpenGL = (
     gl.uniform1i(cache.final.uniforms.u_blurH, 1);
     gl.uniform2f(cache.final.uniforms.u_res, width, height);
     gl.uniform1i(cache.final.uniforms.u_radius, r);
+    gl.uniform1f(cache.final.uniforms.u_sigma, sigma);
     gl.uniform1f(cache.final.uniforms.u_strength, strength);
     gl.uniform1f(cache.final.uniforms.u_threshold, threshold);
     gl.uniform1f(cache.final.uniforms.u_levels, levels);

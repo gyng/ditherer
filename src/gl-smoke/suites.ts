@@ -72,6 +72,13 @@ import {
   runPrintmakingToneMonotonic,
   runStippleDensityModulation,
 } from "./contracts/printmaking";
+import {
+  runBloomLinearGlow,
+  runBokehHighlightSpread,
+  runDespeckleEdgePreserved,
+  runDespeckleImpulseRemoval,
+  runSharpenEdgeContrast,
+} from "./contracts/optical";
 import { runtimeFixtureIntegrity, runtimeOptions } from "./fixtures";
 import { runEquivalent, runIdentity } from "./harness";
 import type { ContractSuite } from "./contractRunner";
@@ -643,6 +650,16 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("printmaking stylizers", "tone-density-monotonic", runPrintmakingToneMonotonic),
       contract("Stipple", "density-not-size-modulation", runStippleDensityModulation),
       contract("printmaking stylizers", "source-alpha-preservation", runPrintmakingAlphaPreservation),
+    ],
+  },
+  {
+    name: "optical-convolution",
+    contracts: [
+      contract("Despeckle", "impulse-removal", runDespeckleImpulseRemoval),
+      contract("Despeckle", "edge-preserved", runDespeckleEdgePreserved),
+      contract("Sharpen", "gaussian-unsharp-overshoot", runSharpenEdgeContrast),
+      contract("Bloom", "linear-multiscale-glow", runBloomLinearGlow),
+      contract("Bokeh", "highlight-disc-spread", runBokehHighlightSpread),
     ],
   },
   {

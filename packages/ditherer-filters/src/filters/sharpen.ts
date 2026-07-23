@@ -9,7 +9,9 @@ import {
   paletteGetColor,
   logFilterBackend,
 } from "../utils/index";
+import { normalizeRangeOption } from "../utils/filterOptions";
 import { applyPalettePassToCanvas } from "../palettes/backend";
+import { gaussianKernel1D } from "./opticalConvolutionContracts";
 import { sharpenGLAvailable, renderSharpenGL } from "./sharpenGL";
 
 export const optionTypes = {
@@ -26,8 +28,11 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } }
 };
 
-const sharpenFilter = (input: any, options = defaults) => {
-  const { strength, radius, threshold, palette } = options;
+const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const strength = normalizeRangeOption(options.strength, defaults.strength, 0, 5);
+  const radius = normalizeRangeOption(options.radius, defaults.radius, 1, 20, true);
+  const threshold = normalizeRangeOption(options.threshold, defaults.threshold, 0, 50);
+  const palette = options.palette ?? defaults.palette;
   const W = input.width;
   const H = input.height;
 
@@ -55,43 +60,43 @@ const sharpenFilter = (input: any, options = defaults) => {
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  // Separable box blur — horizontal pass
+  // Separable Gaussian blur (the low-pass that defines the unsharp mask).
+  const kernel = gaussianKernel1D(radius);
   const blurH = new Float32Array(W * H * 3);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let sr = 0, sg = 0, sb = 0, count = 0;
+      let sr = 0, sg = 0, sb = 0;
       for (let kx = -radius; kx <= radius; kx++) {
+        const w = kernel[kx + radius];
         const nx = Math.max(0, Math.min(W - 1, x + kx));
         const i = getBufferIndex(nx, y, W);
-        sr += buf[i];
-        sg += buf[i + 1];
-        sb += buf[i + 2];
-        count++;
+        sr += buf[i] * w;
+        sg += buf[i + 1] * w;
+        sb += buf[i + 2] * w;
       }
       const idx = (y * W + x) * 3;
-      blurH[idx] = sr / count;
-      blurH[idx + 1] = sg / count;
-      blurH[idx + 2] = sb / count;
+      blurH[idx] = sr;
+      blurH[idx + 1] = sg;
+      blurH[idx + 2] = sb;
     }
   }
 
-  // Vertical pass
   const blurred = new Float32Array(W * H * 3);
   for (let x = 0; x < W; x++) {
     for (let y = 0; y < H; y++) {
-      let sr = 0, sg = 0, sb = 0, count = 0;
+      let sr = 0, sg = 0, sb = 0;
       for (let ky = -radius; ky <= radius; ky++) {
+        const w = kernel[ky + radius];
         const ny = Math.max(0, Math.min(H - 1, y + ky));
         const idx = (ny * W + x) * 3;
-        sr += blurH[idx];
-        sg += blurH[idx + 1];
-        sb += blurH[idx + 2];
-        count++;
+        sr += blurH[idx] * w;
+        sg += blurH[idx + 1] * w;
+        sb += blurH[idx + 2] * w;
       }
       const idx = (y * W + x) * 3;
-      blurred[idx] = sr / count;
-      blurred[idx + 1] = sg / count;
-      blurred[idx + 2] = sb / count;
+      blurred[idx] = sr;
+      blurred[idx + 1] = sg;
+      blurred[idx + 2] = sb;
     }
   }
 

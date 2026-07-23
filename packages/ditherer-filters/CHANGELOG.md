@@ -7,6 +7,15 @@ package follows semantic versioning.
 
 ### Changed
 
+- Rebuilt four Blur & Edges filters around the optical operation they name.
+  Despeckle is now an edge-preserving thresholded median (impulse removal that
+  keeps edges) instead of a backwards variance-gated box mean. Sharpen builds
+  its unsharp mask from a true separable Gaussian rather than a box blur. Bloom
+  is a linear-light bright pass with a multi-scale Gaussian spread and additive
+  composite in linear light, replacing a single-scale gamma-space box glow.
+  Bokeh gathers and composites highlight energy in linear light and samples the
+  circle of confusion densely enough to avoid lattice gaps. Malformed options
+  are normalised and source alpha is preserved.
 - Rebuilt the pen-and-ink and relief printmaking stylizers (Crosshatch,
   Engraving, Woodcut, Stipple) so tone is reproduced by continuous mark
   density instead of hard luminance thresholds over a fixed device-space

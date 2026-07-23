@@ -10,6 +10,7 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 
 const BOKEH_FS = `#version 300 es
 precision highp float;
@@ -30,6 +31,8 @@ uniform float u_catsEye;
 uniform float u_edgeRing;
 uniform float u_bubble;
 uniform float u_localDetect;
+
+${SRGB_GLSL}
 
 const float PI = 3.14159265;
 
@@ -64,7 +67,9 @@ void main() {
     vec4 baseColor = texture(u_input, v_uv);
     vec3 highlightAcc = vec3(0.0);
 
-    float stepSize = max(1.0, floor(u_radius / 2.0));
+    // Sample the circle of confusion densely enough to avoid lattice gaps and
+    // beating that the previous floor(radius/2) step produced at large radii.
+    float stepSize = max(1.0, floor(u_radius / 4.0));
     vec2 pixelPos = v_uv * u_res;
     vec2 center = u_res * 0.5;
 
@@ -132,7 +137,10 @@ void main() {
                     }
 
                     float bokehIntensity = bokehStrength * u_intensity;
-                    float addBase = bokehIntensity * ringFade * 80.0;
+                    // Energy gather is in linear light; the 20.0 scale offsets
+                    // the 4x denser sampling so brightness is unchanged.
+                    float addBase = bokehIntensity * ringFade * 20.0;
+                    vec3 srcLin = oc_srgbToLinear(sourceColor.rgb);
 
                     vec3 colorAdd;
                     if (u_edgeFringe != 0.0) {
@@ -145,11 +153,11 @@ void main() {
                         // Lateral UV shift: R and B source samples displaced radially from centre,
                         // producing visible color fringing on high-contrast edges.
                         vec2 fringeShift = (gridUV - vec2(0.5)) * u_edgeFringe * 0.012;
-                        float rSrc = texture(u_source, clamp(gridUV + fringeShift, vec2(0.0), vec2(1.0))).r;
-                        float bSrc = texture(u_source, clamp(gridUV - fringeShift, vec2(0.0), vec2(1.0))).b;
-                        colorAdd = vec3(rFringe * rSrc, inShapeVal * sourceColor.g, bFringe * bSrc) * addBase / 255.0;
+                        vec3 rSample = oc_srgbToLinear(texture(u_source, clamp(gridUV + fringeShift, vec2(0.0), vec2(1.0))).rgb);
+                        vec3 bSample = oc_srgbToLinear(texture(u_source, clamp(gridUV - fringeShift, vec2(0.0), vec2(1.0))).rgb);
+                        colorAdd = vec3(rFringe * rSample.r, inShapeVal * srcLin.g, bFringe * bSample.b) * addBase / 255.0;
                     } else {
-                        colorAdd = vec3(inShapeVal) * addBase * sourceColor.rgb / 255.0;
+                        colorAdd = vec3(inShapeVal) * addBase * srcLin / 255.0;
                     }
 
                     highlightAcc += colorAdd;
@@ -158,7 +166,10 @@ void main() {
         }
     }
 
-    fragColor = vec4(clamp(baseColor.rgb + highlightAcc, 0.0, 1.0), baseColor.a);
+    // Composite the accumulated highlight energy onto the defocused base in
+    // linear light, then re-encode to sRGB.
+    vec3 outLin = oc_srgbToLinear(baseColor.rgb) + highlightAcc;
+    fragColor = vec4(clamp(oc_linearToSrgb(outLin), 0.0, 1.0), baseColor.a);
 }
 `;
 
