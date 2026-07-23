@@ -10,11 +10,15 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 
 // Directional line integrator: averages `length + 1` bilinear samples along
 // the (cos angle, sin angle) direction, clamped to the source edges via
 // CLAMP_TO_EDGE. GL_LINEAR provides the bilinear filtering the JS reference
-// implements by hand. Optional nearest-palette quantisation.
+// implements by hand. This is a physical line integral of light, so each
+// sRGB sample is linearized before accumulating and the average is
+// re-encoded to sRGB before quantisation/output; alpha is not blurred, the
+// centre tap's alpha carries through untouched.
 const MOTION_BLUR_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -26,6 +30,7 @@ uniform float u_dx;
 uniform float u_dy;
 uniform int   u_halfLen;  // length / 2, integer floor; kernel is 2*halfLen+1
 uniform float u_levels;
+${SRGB_GLSL}
 
 void main() {
   // Work in JS-y pixel space throughout so dy = sin(angle) has the same sign
@@ -34,24 +39,27 @@ void main() {
   float baseX = floor(px.x) + 0.5;
   float baseY = u_res.y - 0.5 - floor(px.y);
 
-  vec4 acc = vec4(0.0);
+  vec3 accLin = vec3(0.0);
   float count = 0.0;
+  float centerAlpha = 0.0;
   for (int t = -50; t <= 50; t++) {
     if (t < -u_halfLen || t > u_halfLen) continue;
     float sx = baseX + float(t) * u_dx;
     float sy = baseY + float(t) * u_dy;
     vec2 uv = vec2(sx / u_res.x, 1.0 - sy / u_res.y);
-    acc += texture(u_source, clamp(uv, vec2(0.0), vec2(1.0)));
+    vec4 c = texture(u_source, clamp(uv, vec2(0.0), vec2(1.0)));
+    accLin += oc_srgbToLinear(c.rgb);
+    if (t == 0) centerAlpha = c.a;
     count += 1.0;
   }
 
-  vec4 avg = acc / count;
-  vec3 rgb = avg.rgb;
+  vec3 outLin = accLin / count;
+  vec3 rgb = oc_linearToSrgb(outLin);
   if (u_levels > 1.5) {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
   }
-  fragColor = vec4(rgb, avg.a);
+  fragColor = vec4(rgb, centerAlpha);
 }
 `;
 

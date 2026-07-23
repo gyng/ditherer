@@ -181,3 +181,251 @@ export const runBokehHighlightSpread = (): Result => {
     ? { ok: true }
     : { ok: false, reason: `Bokeh did not spread the highlight (lit ${c0} -> ${c1})` };
 };
+
+// ---------------------------------------------------------------------------
+// Plan 113 — linear-light accumulation contracts. Each of these filters names a
+// camera/film/optical process that integrates or averages *light*; the math now
+// runs in linear light (SRGB_GLSL / oc_srgbToLinear ... oc_linearToSrgb) so a
+// bright signal smeared over dark no longer crushes toward black.
+// ---------------------------------------------------------------------------
+
+/** Motion Blur must average light in linear space: a horizontal blur across a
+ *  dark/bright step lands brighter than the naive gamma average of the tones. */
+export const runMotionBlurLinearStreak = (): Result => {
+  const w = 64, h = 8;
+  const dark = 20, bright = 235;
+  const field = paintCanvas(w, h, (x) => {
+    const v = x < w / 2 ? dark : bright;
+    return [v, v, v, 255];
+  });
+  const after = run("Motion Blur", field, { angle: 0, length: 20 });
+  if (!after) return { ok: false, reason: "Motion Blur readback failed" };
+  let sum = 0, n = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = w / 2 - 2; x < w / 2 + 2; x++) {
+      sum += luma(after, (y * w + x) * 4);
+      n += 1;
+    }
+  }
+  const boundaryLuma = sum / n;
+  const naiveGammaMean = (dark + bright) / 2;
+  return boundaryLuma > naiveGammaMean + 20
+    ? { ok: true }
+    : { ok: false, reason: `Motion Blur boundary luma ${boundaryLuma.toFixed(1)} not brighter than gamma mean ${naiveGammaMean.toFixed(1)} + margin` };
+};
+
+/** Radial Blur must average light in linear space: a black/white checkerboard
+ *  averages brighter than the naive gamma-space midpoint (127.5 -> ~188). */
+export const runRadialBlurLinearAverage = (): Result => {
+  const w = 48, h = 48;
+  const field = paintCanvas(w, h, (x, y) => {
+    const v = (x + y) % 2 === 0 ? 255 : 0;
+    return [v, v, v, 255];
+  });
+  const after = run("Radial Blur", field, { strength: 40, centerX: -1, centerY: -1 });
+  if (!after) return { ok: false, reason: "Radial Blur readback failed" };
+  const mean = meanLuma(after);
+  return mean > 155
+    ? { ok: true }
+    : { ok: false, reason: `Radial Blur averaged in gamma space, not linear (mean luma ${mean.toFixed(1)}, expected > 155)` };
+};
+
+/** Long Exposure shutter-average integrates frames in LINEAR light: a dark then
+ *  bright frame must average brighter than the gamma-space byte midpoint. */
+export const runLongExposureLinearAccumulation = (): Result => {
+  const w = 32, h = 32;
+  const gray = (v: number) => paintCanvas(w, h, () => [v, v, v, 255]);
+  const filter = filterIndex["Long Exposure"] as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Long Exposure not in index" };
+  const dark = 16, bright = 240;
+  const base = { ...(filter.defaults ?? {}), ...runtimeOptions(), mode: "SHUTTER", windowSize: 2 };
+  filter.func(gray(dark), { ...base, _frameIndex: 0 });
+  const out = canvasPixels(filter.func(gray(bright), { ...base, _frameIndex: 1 }) as HTMLCanvasElement);
+  if (!out) return { ok: false, reason: "Long Exposure readback failed" };
+  const measured = meanLuma(out);
+  const gammaMid = (dark + bright) / 2;
+  return measured > gammaMid + 20
+    ? { ok: true }
+    : { ok: false, reason: `shutter average ${measured.toFixed(0)} not linear-bright (gamma midpoint ${gammaMid}, expected > ${gammaMid + 20})` };
+};
+
+/** Halation must diffuse and screen-composite the glow in LINEAR light: a bright
+ *  highlight over a dark field spreads a coloured bleed onto its neighbours and
+ *  lifts them more than a naive gamma screen would. */
+export const runHalationLinearScreen = (): Result => {
+  const w = 48, h = 48;
+  const spot = paintCanvas(w, h, (x, y) => {
+    const inSquare = x >= 20 && x < 28 && y >= 20 && y < 28;
+    const v = inSquare ? 255 : 0;
+    return [v, v, v, 255];
+  });
+  const before = canvasPixels(spot);
+  const after = run("Halation", spot, { radius: 18, threshold: 100, strength: 0.9, tint: [255, 60, 40] });
+  if (!before || !after) return { ok: false, reason: "Halation readback failed" };
+  const nearIdx = (18 * w + 24) * 4;
+  const litNeighbours = (px: Uint8ClampedArray): number => {
+    let n = 0;
+    for (let i = 0; i < px.length; i += 4) if (luma(px, i) > 8) n += 1;
+    return n;
+  };
+  if (!(litNeighbours(after) > litNeighbours(before))) {
+    return { ok: false, reason: "Halation glow did not spread onto the dark field" };
+  }
+  if (!(after[nearIdx] > after[nearIdx + 2] && after[nearIdx] > 10)) {
+    return { ok: false, reason: `Halation neighbour not lifted/tinted (rgb ${after[nearIdx]},${after[nearIdx + 1]},${after[nearIdx + 2]})` };
+  }
+  return meanLuma(after) > meanLuma(before) + 0.5
+    ? { ok: true }
+    : { ok: false, reason: `Halation added no glow (mean ${meanLuma(before).toFixed(2)} -> ${meanLuma(after).toFixed(2)})` };
+};
+
+/** Orton screen-composites a blurred glow over the source in linear light; a
+ *  dark background pixel next to a bright highlight must be visibly lifted. */
+export const runOrtonLinearGlow = (): Result => {
+  const w = 48, h = 48;
+  const spot = paintCanvas(w, h, (x, y) => {
+    const inSquare = x >= 20 && x < 28 && y >= 20 && y < 28;
+    const v = inSquare ? 255 : 0;
+    return [v, v, v, 255];
+  });
+  const before = canvasPixels(spot);
+  const glowed = run("Orton", spot, { radius: 10, strength: 1.0, contrast: 0, saturation: 1 });
+  if (!before || !glowed) return { ok: false, reason: "Orton readback failed" };
+  const nearIdx = (18 * w + 24) * 4;
+  if (!(luma(glowed, nearIdx) > 8)) {
+    return { ok: false, reason: `Orton glow did not lift the dark neighbour (${luma(glowed, nearIdx).toFixed(1)})` };
+  }
+  return meanLuma(glowed) > meanLuma(before) + 0.5
+    ? { ok: true }
+    : { ok: false, reason: `Orton added no net glow (mean ${meanLuma(before).toFixed(2)} -> ${meanLuma(glowed).toFixed(2)})` };
+};
+
+/** Tilt Shift's defocus blur is a lens PSF convolution — linear light, not gamma.
+ *  A bright highlight over dark, fully defocused, must average brighter than a
+ *  naive gamma-space blur of the same footprint would (muddy-bokeh regression). */
+export const runTiltShiftLinearDefocus = (): Result => {
+  const w = 48, h = 48, bg = 8, fg = 255;
+  const scene = paintCanvas(w, h, (x, y) =>
+    (x >= 20 && x < 28 && y >= 20 && y < 28) ? [fg, fg, fg, 255] : [bg, bg, bg, 255]);
+  const after = run("Tilt Shift", scene, { focusPosition: 0, focusWidth: 0.01, blurAmount: 8, saturationBoost: 0 });
+  if (!after) return { ok: false, reason: "Tilt Shift readback failed" };
+  const window = 24, squareArea = 8 * 8;
+  const gammaExpected = (squareArea * fg + (window * window - squareArea) * bg) / (window * window);
+  const observed = luma(after, (24 * w + 24) * 4);
+  return observed > gammaExpected + 8
+    ? { ok: true }
+    : { ok: false, reason: `Tilt Shift defocus not brighter than gamma baseline (observed ${observed.toFixed(1)}, gamma ${gammaExpected.toFixed(1)})` };
+};
+
+/** Volumetric Light must ray-march a bright emitter into shafts and lift a dark
+ *  field (linear integration); exposure 0 must be inert. */
+export const runVolumetricLightLinearShafts = (): Result => {
+  const w = 48, h = 48;
+  const scene = paintCanvas(w, h, (x, y) => {
+    const emitter = y < 6 && x >= 20 && x < 28;
+    const v = emitter ? 255 : 0;
+    return [v, v, v, 255];
+  });
+  const before = canvasPixels(scene);
+  const shafts = run("Volumetric Light", scene, {
+    lightX: 0.5, lightY: 0.1, exposure: 0.12, density: 1.2, threshold: 0.5, noise: 0,
+  });
+  const inert = run("Volumetric Light", scene, { exposure: 0, noise: 0 });
+  if (!before || !shafts || !inert) return { ok: false, reason: "Volumetric Light readback failed" };
+  if (!(meanLuma(shafts) > meanLuma(before) + 0.5)) {
+    return { ok: false, reason: `no shafts added (mean ${meanLuma(before).toFixed(2)} -> ${meanLuma(shafts).toFixed(2)})` };
+  }
+  const midIdx = (24 * w + 24) * 4;
+  if (!(luma(shafts, midIdx) > 4)) {
+    return { ok: false, reason: `shaft did not reach the dark field (${luma(shafts, midIdx).toFixed(1)})` };
+  }
+  return Math.abs(meanLuma(inert) - meanLuma(before)) < 1
+    ? { ok: true }
+    : { ok: false, reason: `exposure 0 not inert (mean ${meanLuma(before).toFixed(2)} -> ${meanLuma(inert).toFixed(2)})` };
+};
+
+/** CCD Charge Smear must estimate full-well overflow from LINEAR luma and
+ *  accumulate/composite the spill in linear light. A mid-bright column pixel
+ *  blooms into the trail by its *linear* excess above threshold. */
+export const runCcdChargeLinearBloom = (): Result => {
+  const filter = filterIndex["CCD Charge Smear"] as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "CCD Charge Smear not in index" };
+  const w = 1, h = 16;
+  const brightGamma = 192, darkGamma = 16;
+  const source = paintCanvas(w, h, (_x, y) =>
+    y === 0 ? [brightGamma, brightGamma, brightGamma, 255] : [darkGamma, darkGamma, darkGamma, 255]);
+  const threshold = 0.6, decay = 0.85, length = 6, strength = 1;
+  const output = run("CCD Charge Smear", source, {
+    threshold, strength, decay, length, direction: "DOWN", antiBlooming: 0,
+  });
+  if (!output) return { ok: false, reason: "CCD Charge Smear readback failed" };
+  const s2l = (v: number): number => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const l2s = (c: number): number =>
+    c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  const thresholdLin = s2l(threshold * 255);
+  const excessLin = Math.max(0, s2l(brightGamma) - thresholdLin) / Math.max(0.001, 1 - thresholdLin);
+  const darkLin = s2l(darkGamma);
+  for (let r = 1; r <= length; r += 1) {
+    const spilled = excessLin * decay ** r;
+    const expectedGamma = l2s(darkLin + spilled) * 255;
+    const got = output[r * 4];
+    if (Math.abs(got - expectedGamma) > 8) {
+      return { ok: false, reason: `row ${r}: expected ~${expectedGamma.toFixed(1)} (linear-weighted), got ${got}` };
+    }
+  }
+  return { ok: true };
+};
+
+// ---------------------------------------------------------------------------
+// Plan 113 — alpha-preservation contracts. Colour/geometric transforms that used
+// to force opaque output now carry source alpha.
+// ---------------------------------------------------------------------------
+
+/** Color Cycle's hue rotation must not clobber source alpha (GL path). */
+export const runTemporalColorCycleAlphaPreserved = (): Result => {
+  const w = 8, h = 8;
+  const semi = paintCanvas(w, h, (x, y) =>
+    x === 3 && y === 3 ? [200, 60, 30, 128] : [10, 220, 90, 255]);
+  const after = run("Color Cycle", semi, { _frameIndex: 0 });
+  if (!after) return { ok: false, reason: "Color Cycle readback failed" };
+  const idx = (3 * w + 3) * 4;
+  return after[idx + 3] === 128
+    ? { ok: true }
+    : { ok: false, reason: `Color Cycle changed alpha 128 -> ${after[idx + 3]}` };
+};
+
+/** Scanline Warp displaces alpha identically to rgb — a translucent region stays
+ *  translucent, not forced opaque. */
+export const runScanlineWarpAlphaWarped = (): Result => {
+  const w = 32, h = 32;
+  const src = paintCanvas(w, h, (x) =>
+    x < w / 2 ? [220, 40, 40, 80] : [40, 220, 40, 255]);
+  const after = run("Scanline Warp", src, { amplitude: 12, frequency: 3, phase: 90 });
+  if (!after) return { ok: false, reason: "Scanline Warp readback failed" };
+  let sawTranslucent = false, sawOpaque = false;
+  for (let i = 3; i < after.length; i += 4) {
+    if (after[i] < 250) sawTranslucent = true;
+    if (after[i] === 255) sawOpaque = true;
+  }
+  if (!sawTranslucent) return { ok: false, reason: "alpha forced fully opaque after warp" };
+  if (!sawOpaque) return { ok: false, reason: "fixture lost its opaque region entirely" };
+  return { ok: true };
+};
+
+/** Color Gradient Noise must carry the source alpha channel, not force opaque. */
+export const runColorGradientNoiseAlphaPreserved = (): Result => {
+  const w = 32, h = 32;
+  const source = paintCanvas(w, h, (x, y) => [160, 90, 210, ((x + y * w) * 37) & 255]);
+  const before = canvasPixels(source);
+  const after = run("Color Gradient Noise", source, { mix: 0.4 });
+  if (!before || !after) return { ok: false, reason: "Color Gradient Noise readback failed" };
+  for (let i = 3; i < after.length; i += 4) {
+    if (after[i] !== before[i]) {
+      return { ok: false, reason: `Color Gradient Noise changed alpha at byte ${i} (${before[i]} -> ${after[i]})` };
+    }
+  }
+  return { ok: true };
+};

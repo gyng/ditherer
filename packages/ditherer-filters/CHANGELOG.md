@@ -7,6 +7,24 @@ package follows semantic versioning.
 
 ### Changed
 
+- Moved light-integrating filters into linear light. Eight filters that name a
+  camera/film/optical process — Motion Blur, Radial Blur, Long Exposure,
+  Halation, Orton, Tilt Shift, Volumetric Light, and CCD Charge Smear — were
+  averaging, accumulating, or screen-compositing light on gamma-encoded sRGB,
+  which crushed bright detail smeared over dark toward black and muddied
+  midtones (the classic "muddy bokeh"/dark-glow bug). Each now decodes to linear
+  light before the physical operation (line-integral/box average, temporal
+  photon accumulation, highlight diffusion + screen blend, lens-defocus PSF,
+  shaft integration, full-well overflow) and re-encodes once at output, reusing
+  the shared `SRGB_GLSL` / `srgbToLinear` helpers and RGBA16F intermediates where
+  a multi-pass tail would otherwise band. Options and visual intent are
+  unchanged — only the colour space of the math moved.
+- Preserved source alpha in six colour/geometric transforms that hardcoded
+  opaque output (or whose GL and CPU paths disagreed): Color Cycle, Scanline
+  Warp, Color Gradient Noise, Triangle Pixelate (CPU path now matches its GL
+  path), Motion Pixelate (including the verbatim pass-through branch), and Time
+  Mosaic (its stored-frame branch). Displacement transforms now warp alpha with
+  the same taps as colour; tile-averaging averages alpha alongside RGB.
 - Rebuilt Contour Map and Wake Turbulence around the named effect. Contour Map
   now draws anti-aliased iso-contour lines at each elevation level over the
   hypsometric fill (from a smoothed height field), with line colour/width

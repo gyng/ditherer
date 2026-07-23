@@ -3,8 +3,10 @@ import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
 import { logFilterBackend } from "../utils/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import { SRGB_GLSL, srgbToLinear, linearToSrgb } from "./opticalConvolutionContracts";
 import {
   drawPass,
+  ensureFloatTexture,
   ensureTexture,
   getGLCtx,
   getQuadVAO,
@@ -13,7 +15,13 @@ import {
   resizeGLCanvas,
   uploadSourceTexture,
   type Program,
+  type TexEntry,
 } from "../gl/index";
+
+// Referenced by tests mirroring the shader's sRGB EOTF in TS; not used on the
+// hot path (the blur/composite math runs entirely inside GLSL below).
+void srgbToLinear;
+void linearToSrgb;
 
 export const optionTypes = {
   focusPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the in-focus band (0=top, 1=bottom)" },
@@ -36,6 +44,13 @@ export const defaults = {
 // avoid paying for the cap when the user picks a small sigma.
 const MAX_KERNEL_HALF = 60;
 
+// Lens defocus is a convolution of the light field with the aperture PSF —
+// a linear-light average. Blurring in gamma/sRGB darkens out-of-focus
+// highlights (muddy bokeh), so both separable passes accumulate in linear
+// light: the first (horizontal) pass linearizes the sRGB source on sample;
+// the second (vertical) pass re-blurs the already-linear intermediate
+// without re-linearizing. Source alpha is carried through unweighted by
+// color space (straight, non-premultiplied) and blurred alongside RGB.
 const TS_BLUR_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -46,6 +61,8 @@ uniform vec2  u_res;
 uniform vec2  u_axis;               // (1, 0) horizontal, (0, 1) vertical
 uniform int   u_radius;
 uniform float u_weights[${MAX_KERNEL_HALF * 2 + 1}];
+uniform bool  u_srgbIn;              // true: linearize samples (first pass only)
+${SRGB_GLSL}
 
 void main() {
   vec2 px = v_uv * u_res;
@@ -57,12 +74,19 @@ void main() {
     float nx = clamp(x + float(k) * u_axis.x, 0.0, u_res.x - 1.0);
     float ny = clamp(y + float(k) * u_axis.y, 0.0, u_res.y - 1.0);
     vec2 uv = vec2((nx + 0.5) / u_res.x, 1.0 - (ny + 0.5) / u_res.y);
-    acc += texture(u_input, uv) * u_weights[k + ${MAX_KERNEL_HALF}];
+    vec4 s = texture(u_input, uv);
+    vec3 lin = u_srgbIn ? oc_srgbToLinear(s.rgb) : s.rgb;
+    acc += vec4(lin, s.a) * u_weights[k + ${MAX_KERNEL_HALF}];
   }
   fragColor = acc;
 }
 `;
 
+// The focus-band composite also mixes in linear light: convert the sharp
+// source per-fragment, mix against the (already-linear) blur texture, then
+// convert the result back to sRGB before writing out. Saturation boost and
+// palette quantization stay in display (sRGB) space, matching the prior
+// visual intent — only the defocus blend itself moves to linear.
 const TS_COMPOSITE_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -76,6 +100,7 @@ uniform float u_bandHalf;
 uniform float u_transitionZone;
 uniform float u_saturationBoost;
 uniform float u_levels;
+${SRGB_GLSL}
 
 void main() {
   vec2 px = v_uv * u_res;
@@ -88,7 +113,9 @@ void main() {
   float dist = abs(y - u_focusCenter);
   float t = dist < u_bandHalf ? 0.0
     : smoothstep(0.0, 1.0, (dist - u_bandHalf) / max(u_transitionZone, 1e-4));
-  vec3 rgb = mix(src.rgb, blur.rgb, t);
+  vec3 srcLin = oc_srgbToLinear(src.rgb);
+  vec3 mixedLin = mix(srcLin, blur.rgb, t);
+  vec3 rgb = oc_linearToSrgb(mixedLin);
 
   if (u_saturationBoost > 0.0) {
     float gray = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
@@ -108,7 +135,7 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    blur: linkProgram(gl, TS_BLUR_FS, ["u_input", "u_res", "u_axis", "u_radius", "u_weights"] as const),
+    blur: linkProgram(gl, TS_BLUR_FS, ["u_input", "u_res", "u_axis", "u_radius", "u_weights", "u_srgbIn"] as const),
     comp: linkProgram(gl, TS_COMPOSITE_FS, [
       "u_source", "u_blur", "u_res", "u_focusCenter",
       "u_bandHalf", "u_transitionZone", "u_saturationBoost", "u_levels",
@@ -130,8 +157,12 @@ const tiltShiftFilter = (input: any, options: typeof defaults = defaults) => {
   resizeGLCanvas(canvas, W, H);
   const sourceTex = ensureTexture(gl, "tiltShift:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
-  const tempTex = ensureTexture(gl, "tiltShift:blurH", W, H);
-  const blurTex = ensureTexture(gl, "tiltShift:blurV", W, H);
+  // The blur intermediates hold linear-light values; prefer RGBA16F so the
+  // shadow-heavy linear encoding doesn't band, falling back to 8-bit.
+  const linTex = (name: string): TexEntry =>
+    ensureFloatTexture(gl, name, W, H) ?? ensureTexture(gl, name, W, H);
+  const tempTex = linTex("tiltShift:blurH");
+  const blurTex = linTex("tiltShift:blurV");
 
   const sigma = Math.max(0.5, blurAmount);
   const radius = Math.min(MAX_KERNEL_HALF, Math.ceil(sigma * 3));
@@ -152,6 +183,7 @@ const tiltShiftFilter = (input: any, options: typeof defaults = defaults) => {
     gl.uniform2f(cache.blur.uniforms.u_axis, 1, 0);
     gl.uniform1i(cache.blur.uniforms.u_radius, radius);
     gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
+    gl.uniform1i(cache.blur.uniforms.u_srgbIn, 1); // sourceTex is sRGB — linearize on sample
   }, vao);
 
   drawPass(gl, blurTex, W, H, cache.blur, () => {
@@ -162,6 +194,7 @@ const tiltShiftFilter = (input: any, options: typeof defaults = defaults) => {
     gl.uniform2f(cache.blur.uniforms.u_axis, 0, 1);
     gl.uniform1i(cache.blur.uniforms.u_radius, radius);
     gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
+    gl.uniform1i(cache.blur.uniforms.u_srgbIn, 0); // tempTex is already linear
   }, vao);
 
   const focusCenter = H * focusPosition;

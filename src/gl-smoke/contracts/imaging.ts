@@ -2675,7 +2675,13 @@ export const runCcdChargeAccumulation = (): { ok: true } | { ok: false; reason: 
   if (two.energy <= one.energy * 1.45) {
     return { ok: false, reason: `CCD overload did not accumulate (${one.energy} -> ${two.energy})` };
   }
-  if (drained.energy >= two.energy * 0.4) {
+  // Anti-blooming (drain = 1 - antiBlooming) cuts the linear spill 5x here, but
+  // the spill is now accumulated and composited in linear light: a much smaller
+  // linear increment added onto a near-black (16/255) background re-encodes
+  // concavely to sRGB, so the *measured byte* energy drops ~58%, not the >60%
+  // the old gamma-space filter produced. The drain is still clearly working;
+  // assert it more-than-halves the bloom.
+  if (drained.energy >= two.energy * 0.5) {
     return { ok: false, reason: `CCD anti-blooming drain was too weak (${two.energy} -> ${drained.energy})` };
   }
   return one.below > one.above * 5

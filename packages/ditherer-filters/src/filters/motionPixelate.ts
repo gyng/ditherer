@@ -73,20 +73,21 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
 
       if (shouldPixelate && ema) {
         // Average block color
-        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        let rSum = 0, gSum = 0, bSum = 0, aSum = 0, count = 0;
         for (let y = startY; y < endY; y++) {
           for (let x = startX; x < endX; x++) {
             const i = getBufferIndex(x, y, W);
-            rSum += buf[i]; gSum += buf[i + 1]; bSum += buf[i + 2]; count++;
+            rSum += buf[i]; gSum += buf[i + 1]; bSum += buf[i + 2]; aSum += buf[i + 3]; count++;
           }
         }
         const avgR = Math.round(rSum / count);
         const avgG = Math.round(gSum / count);
         const avgB = Math.round(bSum / count);
+        const avgA = Math.round(aSum / count);
         for (let y = startY; y < endY; y++) {
           for (let x = startX; x < endX; x++) {
             const i = getBufferIndex(x, y, W);
-            outBuf[i] = avgR; outBuf[i + 1] = avgG; outBuf[i + 2] = avgB; outBuf[i + 3] = 255;
+            outBuf[i] = avgR; outBuf[i + 1] = avgG; outBuf[i + 2] = avgB; outBuf[i + 3] = avgA;
           }
         }
       } else {
@@ -94,7 +95,7 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
         for (let y = startY; y < endY; y++) {
           for (let x = startX; x < endX; x++) {
             const i = getBufferIndex(x, y, W);
-            outBuf[i] = buf[i]; outBuf[i + 1] = buf[i + 1]; outBuf[i + 2] = buf[i + 2]; outBuf[i + 3] = 255;
+            outBuf[i] = buf[i]; outBuf[i + 1] = buf[i + 1]; outBuf[i + 2] = buf[i + 2]; outBuf[i + 3] = buf[i + 3];
           }
         }
       }

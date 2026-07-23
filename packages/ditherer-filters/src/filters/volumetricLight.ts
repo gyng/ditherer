@@ -4,7 +4,15 @@ import { nearest } from "../palettes/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import { logFilterBackend } from "../utils/index";
 import { renderGLSinglePass } from "../utils/glSinglePass";
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 
+// Ray-marched light shafts are a linear-light phenomenon: emitter brightness is
+// radiant energy, the accumulation integrates that energy along the ray, and the
+// shafts add to the scene as emitted light. We therefore linearize the sampled
+// source before measuring emitter luma, accumulate scattered light in linear,
+// linearize the sRGB shaft tint, do the additive composite in linear, and only
+// then re-encode to sRGB (the previous filter did all of this in gamma, which
+// under-weighted bright emitters and over-brightened midtones).
 const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -19,12 +27,15 @@ uniform float u_threshold;
 uniform float u_noise;
 uniform float u_time;
 uniform vec3 u_tint;
+${SRGB_GLSL}
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(41.7, 289.1))) * 43758.5453); }
 float emitter(vec2 uv) {
-  vec3 c = texture(u_source, clamp(uv, 0.0, 1.0)).rgb;
+  vec3 c = oc_srgbToLinear(texture(u_source, clamp(uv, 0.0, 1.0)).rgb);
   float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  return smoothstep(u_threshold, min(1.0, u_threshold + 0.2), lum);
+  float lo = oc_srgbToLinear(vec3(u_threshold)).r;
+  float hi = oc_srgbToLinear(vec3(min(1.0, u_threshold + 0.2))).r;
+  return smoothstep(lo, max(lo + 1e-4, hi), lum);
 }
 
 void main() {
@@ -39,9 +50,11 @@ void main() {
     illumination *= u_decay;
   }
   vec4 source = texture(u_source, v_uv);
+  vec3 srcLin = oc_srgbToLinear(source.rgb);
+  vec3 tintLin = oc_srgbToLinear(u_tint / 255.0);
   float radial = 1.0 / (1.0 + distance(v_uv, u_lightPos) * 2.0);
-  vec3 shafts = (u_tint / 255.0) * scattered * u_exposure * radial;
-  fragColor = vec4(clamp(source.rgb + shafts, 0.0, 1.0), source.a);
+  vec3 shafts = tintLin * scattered * u_exposure * radial;
+  fragColor = vec4(oc_linearToSrgb(srcLin + shafts), source.a);
 }`;
 
 export const optionTypes = {
@@ -89,7 +102,7 @@ const volumetricLight = (input: HTMLCanvasElement | OffscreenCanvas, options = d
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Volumetric Light", "WebGL2", `density=${options.density}${identity ? "" : "+palettePass"}`);
+  logFilterBackend("Volumetric Light", "WebGL2", `density=${options.density} linear-shafts${identity ? "" : "+palettePass"}`);
   return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 

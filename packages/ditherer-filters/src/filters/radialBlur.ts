@@ -1,6 +1,7 @@
 import { RANGE, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
+import { SRGB_GLSL, srgbToLinear, linearToSrgb } from "./opticalConvolutionContracts";
 import {
   cloneCanvas,
   fillBufferPixel,
@@ -50,6 +51,7 @@ uniform float u_strength;
 uniform float u_maxDist;
 uniform int   u_samples;
 uniform float u_levels;
+${SRGB_GLSL}
 
 void main() {
   vec2 px = v_uv * u_res;
@@ -59,14 +61,16 @@ void main() {
   float dist = length(d);
   float blurDist = (dist / u_maxDist) * u_strength;
 
+  vec2 centerUV = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
+  float srcA = texture(u_source, centerUV).a;
+
   vec3 rgb;
-  float a;
   if (blurDist < 0.5) {
-    vec2 suv = vec2((x + 0.5) / u_res.x, 1.0 - (y + 0.5) / u_res.y);
-    vec4 c = texture(u_source, suv);
-    rgb = c.rgb; a = c.a;
+    rgb = texture(u_source, centerUV).rgb;
   } else {
-    vec4 accum = vec4(0.0);
+    // Zoom/spin blur integrates light along the sampled trajectory — average
+    // the radiance in linear light, not the gamma-encoded sRGB values.
+    vec3 accum = vec3(0.0);
     int n = u_samples;
     for (int t = 0; t < 64; t++) {
       if (t >= n) break;
@@ -75,16 +79,16 @@ void main() {
       vec2 s = u_center + d * scale;
       s = clamp(floor(s + 0.5), vec2(0.0), u_res - vec2(1.0));
       vec2 suv = vec2((s.x + 0.5) / u_res.x, 1.0 - (s.y + 0.5) / u_res.y);
-      accum += texture(u_source, suv);
+      accum += oc_srgbToLinear(texture(u_source, suv).rgb);
     }
-    accum /= float(n);
-    rgb = accum.rgb; a = accum.a;
+    vec3 outLin = accum / float(n);
+    rgb = oc_linearToSrgb(outLin);
   }
   if (u_levels > 1.5) {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
   }
-  fragColor = vec4(clamp(rgb, 0.0, 1.0), a);
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), srcA);
 }
 `;
 
@@ -163,14 +167,19 @@ const radialBlurFilter = (input: any, options = defaults) => {
       const dist = Math.sqrt(dx * dx + dy * dy);
       const blurDist = (dist / maxDist) * strength;
 
+      const i = getBufferIndex(x, y, W);
+      const srcA = buf[i + 3];
+
       if (blurDist < 0.5) {
-        const i = getBufferIndex(x, y, W);
-        const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options, false);
-        fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+        const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], srcA), palette.options, false);
+        fillBufferPixel(outBuf, i, color[0], color[1], color[2], srcA);
         continue;
       }
 
-      let sr = 0, sg = 0, sb = 0, sa = 0;
+      // Zoom/spin blur integrates light along the sampled trajectory —
+      // average the radiance in linear light, not the gamma-encoded sRGB
+      // values. Alpha is a center-tap (not blurred/converted).
+      let srLin = 0, sgLin = 0, sbLin = 0;
       let count = 0;
 
       for (let t = 0; t < samples; t++) {
@@ -182,18 +191,18 @@ const radialBlurFilter = (input: any, options = defaults) => {
         const csx = Math.max(0, Math.min(W - 1, sx));
         const csy = Math.max(0, Math.min(H - 1, sy));
         const si = getBufferIndex(csx, csy, W);
-        sr += buf[si]; sg += buf[si + 1]; sb += buf[si + 2]; sa += buf[si + 3];
+        srLin += srgbToLinear(buf[si] / 255);
+        sgLin += srgbToLinear(buf[si + 1] / 255);
+        sbLin += srgbToLinear(buf[si + 2] / 255);
         count++;
       }
 
-      const i = getBufferIndex(x, y, W);
-      const r = Math.round(sr / count);
-      const g = Math.round(sg / count);
-      const b = Math.round(sb / count);
-      const a = Math.round(sa / count);
+      const r = Math.round(linearToSrgb(srLin / count) * 255);
+      const g = Math.round(linearToSrgb(sgLin / count) * 255);
+      const b = Math.round(linearToSrgb(sbLin / count) * 255);
 
-      const color = paletteGetColor(palette, rgba(r, g, b, a), palette.options, false);
-      fillBufferPixel(outBuf, i, color[0], color[1], color[2], a);
+      const color = paletteGetColor(palette, rgba(r, g, b, srcA), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], srcA);
     }
   }
 

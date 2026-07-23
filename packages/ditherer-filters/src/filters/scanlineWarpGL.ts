@@ -29,10 +29,10 @@ void main() {
   float sx0 = clamp(x0, 0.0, u_res.x - 1.0);
   float sx1 = clamp(x1, 0.0, u_res.x - 1.0);
 
-  vec3 c0 = texture(u_source, vec2((sx0 + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y)).rgb;
-  vec3 c1 = texture(u_source, vec2((sx1 + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y)).rgb;
-  vec3 rgb = clamp(c0 * (1.0 - fx) + c1 * fx, 0.0, 1.0);
-  fragColor = vec4(rgb, 1.0);
+  vec4 c0 = texture(u_source, vec2((sx0 + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y));
+  vec4 c1 = texture(u_source, vec2((sx1 + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y));
+  vec4 c = clamp(c0 * (1.0 - fx) + c1 * fx, 0.0, 1.0);
+  fragColor = vec4(c.rgb, c.a);
 }
 `;
 

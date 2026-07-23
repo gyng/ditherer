@@ -1,6 +1,7 @@
 import { ACTION, ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { logFilterBackend } from "../utils/index";
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 import {
   drawPass,
   ensureTexture,
@@ -92,14 +93,21 @@ out vec4 fragColor;
 
 uniform sampler2DArray u_frames;
 uniform int u_filled;
-
+${SRGB_GLSL}
+// Slow-shutter accumulation integrates photon flux over time, so the frames
+// must be summed in linear light (each layer is stored sRGB-encoded); average
+// there and re-encode once at output. Gamma-space averaging crushes midtones.
 void main() {
   vec3 acc = vec3(0.0);
+  float aAcc = 0.0;
   for (int i = 0; i < ${MAX_SHUTTER}; i++) {
     if (i >= u_filled) break;
-    acc += texture(u_frames, vec3(v_uv, float(i))).rgb;
+    vec4 s = texture(u_frames, vec3(v_uv, float(i)));
+    acc += oc_srgbToLinear(s.rgb);
+    aAcc += s.a;
   }
-  fragColor = vec4(acc / float(u_filled), 1.0);
+  float inv = 1.0 / float(u_filled);
+  fragColor = vec4(oc_linearToSrgb(acc * inv), aAcc * inv);
 }
 `;
 
@@ -114,35 +122,43 @@ uniform float u_havePrev;
 uniform int   u_mode;          // 0 BLEND, 1 MAX, 2 ADDITIVE, 3 RUNNING_AVERAGE
 uniform float u_blendFactor;
 uniform float u_decay;
-uniform float u_brightThresh;  // 0..1
-
+uniform float u_brightThresh;  // sRGB 0..1
+${SRGB_GLSL}
+// Every accumulation mode integrates light over frames, so blend / max / add /
+// running-average all combine in linear light (source and history are stored
+// sRGB-encoded) and re-encode once at output. The brightness gate stays in
+// sRGB so its 0-255 UI value keeps its perceptual meaning.
 void main() {
-  vec3 cur = texture(u_source, v_uv).rgb;
+  vec4 curTex = texture(u_source, v_uv);
+  vec3 curS = curTex.rgb;              // sRGB
+  float a = curTex.a;
   if (u_havePrev < 0.5) {
-    fragColor = vec4(cur, 1.0);
+    fragColor = vec4(curS, a);         // first frame: pass through unchanged
     return;
   }
-  vec3 prev = texture(u_prev, v_uv).rgb;
+  vec3 cur = oc_srgbToLinear(curS);
+  vec3 prev = oc_srgbToLinear(texture(u_prev, v_uv).rgb);
   float retain = 1.0 - u_decay;
 
   if (u_mode == 0) {
-    fragColor = vec4(prev * u_blendFactor + cur * (1.0 - u_blendFactor), 1.0);
+    vec3 o = prev * u_blendFactor + cur * (1.0 - u_blendFactor);
+    fragColor = vec4(oc_linearToSrgb(o), a);
     return;
   }
   if (u_mode == 1 || u_mode == 2) {
-    float lum = (cur.r + cur.g + cur.b) / 3.0;
+    float lum = (curS.r + curS.g + curS.b) / 3.0;
     bool above = lum >= u_brightThresh;
     if (u_mode == 1) {
       vec3 dec = prev * retain;
-      fragColor = vec4(above ? max(cur, dec) : dec, 1.0);
+      fragColor = vec4(oc_linearToSrgb(above ? max(cur, dec) : dec), a);
     } else {
       float add = above ? 0.3 : 0.0;
-      fragColor = vec4(clamp(prev * retain + cur * add, 0.0, 1.0), 1.0);
+      fragColor = vec4(oc_linearToSrgb(clamp(prev * retain + cur * add, 0.0, 1.0)), a);
     }
     return;
   }
   // RUNNING_AVERAGE
-  fragColor = vec4(prev * retain + cur * u_decay, 1.0);
+  fragColor = vec4(oc_linearToSrgb(prev * retain + cur * u_decay), a);
 }
 `;
 

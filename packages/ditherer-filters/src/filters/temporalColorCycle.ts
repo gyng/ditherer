@@ -140,7 +140,7 @@ void main() {
   float h = hsl.x + u_globalShift + motion * u_motionMultiplier * 30.0;
   float s = clamp(hsl.y + motion * u_saturationBoost, 0.0, 1.0);
   vec3 rgb = hsl2rgb(h, s, hsl.z);
-  fragColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
+  fragColor = vec4(clamp(rgb, 0.0, 1.0), src.a);
 }
 `;
 
@@ -246,7 +246,7 @@ const temporalColorCycle = (input: any, options: TemporalColorCycleOptions = def
     const h = hRaw + globalShift + motion * motionMultiplier * 30;
     const s = Math.min(1, sRaw + motion * saturationBoost);
     const [r, g, b] = hsl2rgb(h, s, l);
-    outBuf[i] = r; outBuf[i + 1] = g; outBuf[i + 2] = b; outBuf[i + 3] = 255;
+    outBuf[i] = r; outBuf[i + 1] = g; outBuf[i + 2] = b; outBuf[i + 3] = buf[i + 3];
   }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);

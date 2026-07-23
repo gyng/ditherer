@@ -78,3 +78,35 @@ describe("Time Mosaic stabilizer", () => {
     expect(frame3?.[0]).toBe(255);
   });
 });
+
+describe("Time Mosaic delay map", () => {
+  it("carries a stored past frame's own alpha instead of forcing opaque", () => {
+    const staleTranslucent = makeSolidCanvas(4, 4, [10, 20, 30, 128]);
+    const freshOpaque = makeSolidCanvas(4, 4, [200, 200, 200, 255]);
+    const options = {
+      ...timeMosaic.defaults,
+      behavior: "DELAY_MAP",
+      pattern: "CHECKERBOARD",
+      tileSize: 2,
+      maxDelay: 2,
+    };
+
+    // Seed the ring buffer with the translucent frame, then advance one
+    // frame with an opaque frame so checkerboard "off" tiles (bx+by odd)
+    // pull from the stale, translucent stored frame.
+    runAndCapture(staleTranslucent, { ...options, _frameIndex: 0 });
+    const out = runAndCapture(freshOpaque, { ...options, _frameIndex: 1 });
+
+    // Tile (bx=1, by=0) -> pixel (2,0) has delay = maxDelay - 1 = 1,
+    // so it should be sourced from the stale translucent frame.
+    const staleIdx = (2 + 4 * 0) * 4;
+    expect(out?.[staleIdx]).toBe(10);
+    expect(out?.[staleIdx + 3]).toBe(128); // alpha carried from stored frame, not forced to 255
+
+    // Tile (bx=0, by=0) -> pixel (0,0) has delay = 0, sourced from the
+    // just-stored current (opaque) frame.
+    const freshIdx = 0;
+    expect(out?.[freshIdx]).toBe(200);
+    expect(out?.[freshIdx + 3]).toBe(255);
+  });
+});

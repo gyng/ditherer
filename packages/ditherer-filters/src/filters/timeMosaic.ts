@@ -239,7 +239,7 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
         for (let x = startX; x < endX; x++) {
           const i = getBufferIndex(x, y, W);
           outBuf[i] = frameData[i]; outBuf[i + 1] = frameData[i + 1];
-          outBuf[i + 2] = frameData[i + 2]; outBuf[i + 3] = 255;
+          outBuf[i + 2] = frameData[i + 2]; outBuf[i + 3] = frameData[i + 3];
         }
       }
     }

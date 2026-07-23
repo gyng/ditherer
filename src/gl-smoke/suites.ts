@@ -75,10 +75,21 @@ import {
 import {
   runBloomLinearGlow,
   runBokehHighlightSpread,
+  runCcdChargeLinearBloom,
+  runColorGradientNoiseAlphaPreserved,
   runDespeckleEdgePreserved,
   runDespeckleImpulseRemoval,
   runFrequencyGaussianLowpass,
+  runHalationLinearScreen,
+  runLongExposureLinearAccumulation,
+  runMotionBlurLinearStreak,
+  runOrtonLinearGlow,
+  runRadialBlurLinearAverage,
+  runScanlineWarpAlphaWarped,
   runSharpenEdgeContrast,
+  runTemporalColorCycleAlphaPreserved,
+  runTiltShiftLinearDefocus,
+  runVolumetricLightLinearShafts,
 } from "./contracts/optical";
 import { runAnalogStaticGhostAndAlpha } from "./contracts/glitch";
 import {
@@ -710,6 +721,27 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("Stamp", "edge-concentrated-breakup", runStampEdgeBreakup),
       contract("Wallpaper Tiling", "p2-rotation-not-mirror", runWallpaperP2Rotation),
       contract("Contour Map", "iso-contour-lines", runContourIsoLines),
+    ],
+  },
+  {
+    name: "linear-light-accumulation",
+    contracts: [
+      contract("Motion Blur", "linear-streak-average", runMotionBlurLinearStreak),
+      contract("Radial Blur", "linear-radial-average", runRadialBlurLinearAverage),
+      contract("Long Exposure", "linear-shutter-accumulation", runLongExposureLinearAccumulation),
+      contract("Halation", "linear-screen-diffusion", runHalationLinearScreen),
+      contract("Orton", "linear-screen-glow", runOrtonLinearGlow),
+      contract("Tilt Shift", "linear-defocus-psf", runTiltShiftLinearDefocus),
+      contract("Volumetric Light", "linear-shaft-integration", runVolumetricLightLinearShafts),
+      contract("CCD Charge Smear", "linear-well-overflow-bloom", runCcdChargeLinearBloom),
+    ],
+  },
+  {
+    name: "alpha-preservation",
+    contracts: [
+      contract("Color Cycle", "hue-rotate-keeps-alpha", runTemporalColorCycleAlphaPreserved),
+      contract("Scanline Warp", "alpha-warped-not-opaque", runScanlineWarpAlphaWarped),
+      contract("Color Gradient Noise", "blend-keeps-alpha", runColorGradientNoiseAlphaPreserved),
     ],
   },
   {

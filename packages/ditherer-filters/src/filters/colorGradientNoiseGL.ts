@@ -54,11 +54,12 @@ void main() {
   float jsX = floor(px.x);
   float jsY = u_res.y - 1.0 - floor(px.y);
 
-  vec3 src = texture(u_source, vec2((jsX + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y)).rgb * 255.0;
+  vec4 srcSample = texture(u_source, vec2((jsX + 0.5) / u_res.x, 1.0 - (jsY + 0.5) / u_res.y));
+  vec3 src = srcSample.rgb * 255.0;
   float n = perlin(jsX / u_scale, jsY / u_scale);
   vec3 noiseCol = mix(u_color1, u_color2, n);
   vec3 outRgb = clamp(floor(src * (1.0 - u_mix) + noiseCol * u_mix + 0.5), 0.0, 255.0);
-  fragColor = vec4(outRgb / 255.0, 1.0);
+  fragColor = vec4(outRgb / 255.0, srcSample.a);
 }
 `;
 
@@ -142,3 +143,8 @@ export const renderColorGradientNoiseGL = (
   }, vao);
   return readoutToCanvas(canvas, width, height);
 };
+
+// GL rendering can't execute in the unit-test environment (no WebGL2 in
+// jsdom), so expose the shader source for a CPU-observable regression
+// check on the alpha-output line.
+export const __testing = { FS };

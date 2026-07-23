@@ -1,6 +1,7 @@
 import { ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter } from "./types";
 import { logFilterBackend } from "../utils/index";
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 import {
   drawPass, ensureTexture, getGLCtx, getQuadVAO, glUnavailableStub,
   linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
@@ -48,11 +49,22 @@ uniform float u_decay;
 uniform float u_antiBlooming;
 uniform int u_length;
 uniform int u_direction;
+${SRGB_GLSL}
 
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
 void main() {
   vec4 source = texture(u_source, v_uv);
+  // Zero strength is an exact identity by construction: skip the linear
+  // round-trip (whose ~1e-6 pow error, while sub-quantization, is not
+  // guaranteed bit-exact across drivers) and pass the source straight through.
+  if (u_strength <= 0.0) { fragColor = source; return; }
+  // Sensor charge is proportional to LINEAR photon count, not the
+  // gamma-encoded pixel value: the full-well threshold, the excess above it,
+  // and the additive spill must all be computed in linear light. u_threshold
+  // is exposed as a perceptual (sRGB) control, so it is linearized once here
+  // to match the linearized samples it is compared against.
+  float thresholdLin = oc_srgbToLinear(vec3(u_threshold)).r;
   vec3 spilledCharge = vec3(0.0);
   for (int i = 1; i <= 32; i++) {
     if (i > u_length) continue;
@@ -61,8 +73,8 @@ void main() {
     if (u_direction == 0 || u_direction == 2) {
       float sampleY = v_uv.y + fi / u_res.y;
       if (sampleY <= 1.0) {
-        vec3 c = texture(u_source, vec2(v_uv.x, sampleY)).rgb;
-        float excess = max(0.0, luma(c) - u_threshold) / max(0.001, 1.0 - u_threshold);
+        vec3 c = oc_srgbToLinear(texture(u_source, vec2(v_uv.x, sampleY)).rgb);
+        float excess = max(0.0, luma(c) - thresholdLin) / max(0.001, 1.0 - thresholdLin);
         vec3 spectralRatio = c / max(0.001, max(c.r, max(c.g, c.b)));
         spilledCharge += spectralRatio * excess * weight;
       }
@@ -70,16 +82,16 @@ void main() {
     if (u_direction == 1 || u_direction == 2) {
       float sampleY = v_uv.y - fi / u_res.y;
       if (sampleY >= 0.0) {
-        vec3 c = texture(u_source, vec2(v_uv.x, sampleY)).rgb;
-        float excess = max(0.0, luma(c) - u_threshold) / max(0.001, 1.0 - u_threshold);
+        vec3 c = oc_srgbToLinear(texture(u_source, vec2(v_uv.x, sampleY)).rgb);
+        float excess = max(0.0, luma(c) - thresholdLin) / max(0.001, 1.0 - thresholdLin);
         vec3 spectralRatio = c / max(0.001, max(c.r, max(c.g, c.b)));
         spilledCharge += spectralRatio * excess * weight;
       }
     }
   }
   float drain = 1.0 - clamp(u_antiBlooming, 0.0, 1.0);
-  vec3 rgb = source.rgb + spilledCharge * max(0.0, u_strength) * drain;
-  fragColor = vec4(clamp(rgb, 0.0, 1.0), source.a);
+  vec3 rgbLin = oc_srgbToLinear(source.rgb) + spilledCharge * max(0.0, u_strength) * drain;
+  fragColor = vec4(clamp(oc_linearToSrgb(rgbLin), 0.0, 1.0), source.a);
 }
 `;
 

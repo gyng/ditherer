@@ -1,28 +1,35 @@
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
+  drawPass, ensureFloatTexture, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
   linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
-  type Program,
+  type Program, type TexEntry,
 } from "../gl/index";
 
 const MAX_RADIUS = 60;
 
-// Extract highlights, tint them toward the halation colour. Keeps the
-// amplitude proportional to the excess above threshold so only genuinely
-// bright areas contribute to the glow.
+// Extract highlights, tint them toward the halation colour. Halation is light
+// physically scattering through the film base and re-exposing the emulsion, so
+// the whole diffusion runs in LINEAR light: source, threshold, and tint are
+// converted from sRGB, and the excess above threshold is measured on linear
+// luma. Keeps the amplitude proportional to the excess so only genuinely bright
+// areas contribute to the glow.
 const EXTRACT_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 uniform sampler2D u_source;
-uniform float u_threshold;
-uniform vec3  u_tint;
+uniform float u_threshold;   // sRGB 0..1
+uniform vec3  u_tint;        // sRGB 0..1
+${SRGB_GLSL}
 void main() {
-  vec3 c = texture(u_source, v_uv).rgb;
-  float l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-  float excess = max(0.0, l - u_threshold);
+  vec3 lin = oc_srgbToLinear(texture(u_source, v_uv).rgb);
+  float l = 0.2126 * lin.r + 0.7152 * lin.g + 0.0722 * lin.b;
+  float tLin = oc_srgbToLinear(vec3(u_threshold)).r;
+  float excess = max(0.0, l - tLin);
   // Tint the extracted light so halation appears coloured rather than
-  // white. Retains a bit of the source colour for naturalness.
-  vec3 extracted = mix(u_tint, c, 0.3) * excess;
+  // white. Retains a bit of the source colour for naturalness. Both are
+  // linear so the mix combines actual radiant energy.
+  vec3 extracted = mix(oc_srgbToLinear(u_tint), lin, 0.3) * excess;
   fragColor = vec4(extracted, 1.0);
 }
 `;
@@ -54,9 +61,11 @@ void main() {
 }
 `;
 
-// Screen blend the halation glow over the source. Using screen rather than
-// additive prevents highlights clipping to pure white — the bleed looks
-// red-ish even in already-bright regions.
+// Screen blend the halation glow over the source, in LINEAR light — the screen
+// operator 1-(1-a)*(1-b) models light addition, which is only physical on
+// linear radiances. Using screen rather than additive prevents highlights
+// clipping to pure white — the bleed looks red-ish even in already-bright
+// regions. The glow (u_halation) is already linear from the extract/blur tail.
 const COMPOSITE_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -64,11 +73,13 @@ out vec4 fragColor;
 uniform sampler2D u_source;
 uniform sampler2D u_halation;
 uniform float u_strength;
+${SRGB_GLSL}
 void main() {
   vec4 s = texture(u_source, v_uv);
+  vec3 sLin = oc_srgbToLinear(s.rgb);
   vec3 h = texture(u_halation, v_uv).rgb * u_strength;
-  vec3 screen = vec3(1.0) - (vec3(1.0) - s.rgb) * (vec3(1.0) - h);
-  fragColor = vec4(clamp(screen, 0.0, 1.0), s.a);
+  vec3 screen = vec3(1.0) - (vec3(1.0) - sLin) * (vec3(1.0) - h);
+  fragColor = vec4(oc_linearToSrgb(clamp(screen, 0.0, 1.0)), s.a);
 }
 `;
 
@@ -107,7 +118,13 @@ export const renderHalationGL = (
   const sourceTex = ensureTexture(gl, "halation:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  const extractTex = ensureTexture(gl, "halation:extract", width, height);
+  // The extracted highlights and their blurs hold linear-light energy; use
+  // RGBA16F where available so the smooth glow tail does not band, falling
+  // back to 8-bit.
+  const linTex = (name: string): TexEntry =>
+    ensureFloatTexture(gl, name, width, height) ?? ensureTexture(gl, name, width, height);
+
+  const extractTex = linTex("halation:extract");
   drawPass(gl, extractTex, width, height, cache.extract, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
@@ -116,7 +133,7 @@ export const renderHalationGL = (
     gl.uniform3f(cache.extract.uniforms.u_tint, tint[0] / 255, tint[1] / 255, tint[2] / 255);
   }, vao);
 
-  const tempH = ensureTexture(gl, "halation:blurH", width, height);
+  const tempH = linTex("halation:blurH");
   drawPass(gl, tempH, width, height, cache.blur, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, extractTex.tex);
@@ -127,7 +144,7 @@ export const renderHalationGL = (
     gl.uniform1i(cache.blur.uniforms.u_radius, kr);
   }, vao);
 
-  const blurTex = ensureTexture(gl, "halation:blurV", width, height);
+  const blurTex = linTex("halation:blurV");
   drawPass(gl, blurTex, width, height, cache.blur, () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tempH.tex);

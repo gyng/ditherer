@@ -194,7 +194,7 @@ const trianglePixelate = (input: any, options = defaults) => {
       outBuf[i] = color[0];
       outBuf[i + 1] = color[1];
       outBuf[i + 2] = color[2];
-      outBuf[i + 3] = 255;
+      outBuf[i + 3] = buf[si + 3];
     }
   }
 
