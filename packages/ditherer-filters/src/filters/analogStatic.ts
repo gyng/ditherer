@@ -12,6 +12,11 @@ import {
 } from "../utils/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
+  normalizeBooleanOption,
+  normalizePaletteOption,
+  normalizeRangeOption,
+} from "../utils/filterOptions";
+import {
   drawPass,
   ensureTexture,
   getGLCtx,
@@ -27,9 +32,10 @@ import {
 export const optionTypes = {
   noiseAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Intensity of per-pixel random static noise" },
   barHeight: { type: RANGE, range: [1, 100], step: 1, default: 20, desc: "Height of horizontal noise bars in pixels" },
-  barIntensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Brightness variation of horizontal noise bars" },
+  barIntensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Extra snow energy inside horizontal noise bands" },
   verticalHold: { type: RANGE, range: [0, 50], step: 1, default: 0, desc: "Vertical rolling/shifting of the image per frame" },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Horizontal echo/shadow from a shifted copy of the image" },
+  ghosting: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Strength of delayed multipath ghost echoes" },
+  ghostDelay: { type: RANGE, range: [1, 60], step: 1, default: 10, desc: "Horizontal delay (px) of the first ghost echo" },
   color: { type: BOOL, default: false, desc: "Use color noise instead of monochrome" },
   persistence: { type: RANGE, range: [0, 0.5], step: 0.05, default: 0, desc: "Blend previous frame's noise — bright dots linger like real CRT static" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
@@ -50,6 +56,7 @@ export const defaults = {
   barIntensity: optionTypes.barIntensity.default,
   verticalHold: optionTypes.verticalHold.default,
   ghosting: optionTypes.ghosting.default,
+  ghostDelay: optionTypes.ghostDelay.default,
   color: optionTypes.color.default,
   persistence: optionTypes.persistence.default,
   animSpeed: optionTypes.animSpeed.default,
@@ -72,6 +79,7 @@ type AnalogStaticOptions = FilterOptionValues & {
   barIntensity?: number;
   verticalHold?: number;
   ghosting?: number;
+  ghostDelay?: number;
   color?: boolean;
   persistence?: number;
   animSpeed?: number;
@@ -83,11 +91,11 @@ type AnalogStaticOptions = FilterOptionValues & {
   _webglAcceleration?: boolean;
 };
 
-// Shader replicates the JS per-row bar noise (one random value per bar,
-// shared across all pixels in that bar) and the per-pixel static noise,
-// both seeded from frameIndex so the visual matches the JS path frame to
-// frame. Ghosting samples a horizontally-shifted copy; persistence blends
-// with the previous output texture.
+// Shader mirrors the JS path behaviourally. Noise bands raise the per-pixel
+// snow variance inside drifting horizontal bands (not a DC brightness shift);
+// ghosting composites a few attenuated, delay-shifted full-RGB echoes of the
+// image (multipath), with the delay controllable via u_ghostDelay. Both are
+// seeded from frameIndex; persistence blends with the previous output texture.
 const AS_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -102,6 +110,7 @@ uniform float u_barHeight;
 uniform float u_barIntensity;
 uniform int   u_vShift;
 uniform float u_ghosting;
+uniform float u_ghostDelay;
 uniform int   u_color;
 uniform float u_persistence;
 uniform float u_seed;
@@ -114,11 +123,15 @@ float hash(vec2 p, float s) {
   return fract((p.x + p.y) * p.x);
 }
 
-vec3 samplePx(float sx, float sy) {
+vec4 samplePx4(float sx, float sy) {
   float cx = clamp(floor(sx), 0.0, u_res.x - 1.0);
   float cy = clamp(floor(sy), 0.0, u_res.y - 1.0);
   vec2 uv = vec2((cx + 0.5) / u_res.x, 1.0 - (cy + 0.5) / u_res.y);
-  return texture(u_source, uv).rgb;
+  return texture(u_source, uv);
+}
+
+vec3 samplePx(float sx, float sy) {
+  return samplePx4(sx, sy).rgb;
 }
 
 void main() {
@@ -129,28 +142,37 @@ void main() {
   float srcY = mod(y - float(u_vShift), u_res.y);
   if (srcY < 0.0) srcY += u_res.y;
 
-  vec3 c = samplePx(x, srcY);
+  vec4 baseS = samplePx4(x, srcY);
+  vec3 c = baseS.rgb;
+  float outA = baseS.a;   // preserve source alpha (out.a = src.a)
 
+  // Multipath ghosting: a few attenuated, delay-shifted full-RGB echoes.
   if (u_ghosting > 0.0) {
-    float ghostX = clamp(x - 3.0, 0.0, u_res.x - 1.0);
-    float gr = samplePx(ghostX, srcY).r;   // JS uses the R channel for all three (copy of buf[gi])
-    float mix1 = u_ghosting * 0.5;
-    c = c * (1.0 - mix1) + vec3(gr) * mix1;
+    float delay = max(u_ghostDelay, 1.0);
+    float g1 = u_ghosting * 0.5;
+    float g2 = u_ghosting * 0.25;
+    float g3 = u_ghosting * 0.125;
+    vec3 e1 = samplePx(x - delay,       srcY);
+    vec3 e2 = samplePx(x - delay * 2.0, srcY);
+    vec3 e3 = samplePx(x - delay * 3.0, srcY);
+    c = c * (1.0 - (g1 + g2 + g3)) + e1 * g1 + e2 * g2 + e3 * g3;
   }
 
-  float barY = floor(y / max(u_barHeight, 1.0));
-  float barR = hash(vec2(barY, 0.0), u_seed + u_frameIndex * 31.0);
-  float bar = (barR - 0.5) * 2.0 * u_barIntensity;
-  c += vec3(bar);
+  // Noise bands: drifting horizontal bands of ELEVATED per-pixel snow variance
+  // (not a DC luminance offset). Band pattern scrolls over frames.
+  float barDrift = u_frameIndex * 1.5;
+  float barId = floor((y + barDrift) / max(u_barHeight, 1.0));
+  float barA = clamp((hash(vec2(barId, 7.0), 1.0) - 0.6) / 0.4, 0.0, 1.0);
+  float amp = u_noiseAmount + u_barIntensity * barA;
 
-  if (u_noiseAmount > 0.0) {
+  if (amp > 0.0) {
     if (u_color == 1) {
-      float nr = (hash(vec2(x, y), u_seed + 1.0) - 0.5) * u_noiseAmount * 2.0;
-      float ng = (hash(vec2(x, y), u_seed + 2.0) - 0.5) * u_noiseAmount * 2.0;
-      float nb = (hash(vec2(x, y), u_seed + 3.0) - 0.5) * u_noiseAmount * 2.0;
+      float nr = (hash(vec2(x, y), u_seed + 1.0) - 0.5) * amp * 2.0;
+      float ng = (hash(vec2(x, y), u_seed + 2.0) - 0.5) * amp * 2.0;
+      float nb = (hash(vec2(x, y), u_seed + 3.0) - 0.5) * amp * 2.0;
       c += vec3(nr, ng, nb);
     } else {
-      float n = (hash(vec2(x, y), u_seed) - 0.5) * u_noiseAmount * 2.0;
+      float n = (hash(vec2(x, y), u_seed) - 0.5) * amp * 2.0;
       c += vec3(n);
     }
   }
@@ -166,7 +188,7 @@ void main() {
     float q = u_levels - 1.0;
     rgb = floor(rgb * q + 0.5) / q;
   }
-  fragColor = vec4(rgb, 1.0);
+  fragColor = vec4(rgb, outA);
 }
 `;
 
@@ -177,7 +199,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   const prog = linkProgram(gl, AS_FS, [
     "u_source", "u_prev", "u_res", "u_hasPrev",
     "u_noiseAmount", "u_barHeight", "u_barIntensity",
-    "u_vShift", "u_ghosting", "u_color", "u_persistence",
+    "u_vShift", "u_ghosting", "u_ghostDelay", "u_color", "u_persistence",
     "u_seed", "u_frameIndex", "u_levels",
   ] as const);
   _cache = { prog, prevTex: null, prevBuf: null, w: 0, h: 0 };
@@ -203,15 +225,16 @@ const ensurePrevTex = (gl: WebGL2RenderingContext, cache: Cache, w: number, h: n
 };
 
 const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
-  const noiseAmount = Number(options.noiseAmount ?? defaults.noiseAmount);
-  const barHeight = Number(options.barHeight ?? defaults.barHeight);
-  const barIntensity = Number(options.barIntensity ?? defaults.barIntensity);
-  const verticalHold = Number(options.verticalHold ?? defaults.verticalHold);
-  const ghosting = Number(options.ghosting ?? defaults.ghosting);
-  const colorNoise = Boolean(options.color ?? defaults.color);
-  const persistence = Number(options.persistence ?? defaults.persistence);
-  const palette = options.palette ?? defaults.palette;
-  const frameIndex = Number(options._frameIndex ?? 0);
+  const noiseAmount = normalizeRangeOption(options.noiseAmount, defaults.noiseAmount, 0, 1);
+  const barHeight = normalizeRangeOption(options.barHeight, defaults.barHeight, 1, 100, true);
+  const barIntensity = normalizeRangeOption(options.barIntensity, defaults.barIntensity, 0, 1);
+  const verticalHold = normalizeRangeOption(options.verticalHold, defaults.verticalHold, 0, 50);
+  const ghosting = normalizeRangeOption(options.ghosting, defaults.ghosting, 0, 1);
+  const ghostDelay = normalizeRangeOption(options.ghostDelay, defaults.ghostDelay, 1, 60, true);
+  const colorNoise = normalizeBooleanOption(options.color, defaults.color);
+  const persistence = normalizeRangeOption(options.persistence, defaults.persistence, 0, 0.5);
+  const palette = normalizePaletteOption(options.palette, defaults.palette);
+  const frameIndex = normalizeRangeOption(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER, true);
   const prevOutput = options._prevOutput ?? null;
 
   const W = input.width;
@@ -254,6 +277,7 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
         gl.uniform1f(cache.prog.uniforms.u_barIntensity, barIntensity);
         gl.uniform1i(cache.prog.uniforms.u_vShift, vShift);
         gl.uniform1f(cache.prog.uniforms.u_ghosting, ghosting);
+        gl.uniform1f(cache.prog.uniforms.u_ghostDelay, Math.max(1, ghostDelay));
         gl.uniform1i(cache.prog.uniforms.u_color, colorNoise ? 1 : 0);
         gl.uniform1f(cache.prog.uniforms.u_persistence, persistence);
         gl.uniform1f(cache.prog.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
@@ -287,15 +311,30 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
 
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
-  const barNoise = new Float32Array(H);
+  const barH = Math.max(1, barHeight);
+  // Per-row extra snow amplitude: drifting horizontal bands of ELEVATED noise
+  // variance rather than a flat DC luminance offset. The band pattern is stable
+  // per band id and scrolls downward over frames, so a fixed frame is invariant.
+  const barDrift = frameIndex * 1.5;
+  const barBoost = new Float32Array(H);
   for (let y = 0; y < H; y++) {
-    const barY = Math.floor(y / barHeight);
-    const barRng = mulberry32(barY * 997 + frameIndex * 31);
-    barNoise[y] = (barRng() - 0.5) * 2 * barIntensity;
+    const barId = Math.floor((y + barDrift) / barH);
+    const barRng = mulberry32(Math.imul(barId, 0x9e3779b1));
+    const barA = Math.max(0, Math.min(1, (barRng() - 0.6) / 0.4));
+    barBoost[y] = barIntensity * barA;
   }
+
+  const g1 = ghosting * 0.5;
+  const g2 = ghosting * 0.25;
+  const g3 = ghosting * 0.125;
+  const gKeep = 1 - (g1 + g2 + g3);
+  const hasPrev = persistence > 0 && !!prevOutput && prevOutput.length === buf.length;
+  const keep = persistence;
+  const fresh = 1 - persistence;
 
   for (let y = 0; y < H; y++) {
     const srcY = ((y - vShift) % H + H) % H;
+    const amp = noiseAmount + barBoost[y];
 
     for (let x = 0; x < W; x++) {
       const si = getBufferIndex(x, srcY, W);
@@ -305,44 +344,40 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
       let g = buf[si + 1];
       let b = buf[si + 2];
 
+      // Multipath ghosting: attenuated, delay-shifted full-RGB echoes.
       if (ghosting > 0) {
-        const ghostX = Math.max(0, Math.min(W - 1, x - 3));
-        const gi = getBufferIndex(ghostX, srcY, W);
-        r = Math.round(r * (1 - ghosting * 0.5) + buf[gi] * ghosting * 0.5);
-        g = Math.round(g * (1 - ghosting * 0.5) + buf[gi] * ghosting * 0.5);
-        b = Math.round(b * (1 - ghosting * 0.5) + buf[gi] * ghosting * 0.5);
+        const e1 = getBufferIndex(Math.max(0, x - ghostDelay), srcY, W);
+        const e2 = getBufferIndex(Math.max(0, x - ghostDelay * 2), srcY, W);
+        const e3 = getBufferIndex(Math.max(0, x - ghostDelay * 3), srcY, W);
+        r = Math.round(r * gKeep + buf[e1] * g1 + buf[e2] * g2 + buf[e3] * g3);
+        g = Math.round(g * gKeep + buf[e1 + 1] * g1 + buf[e2 + 1] * g2 + buf[e3 + 1] * g3);
+        b = Math.round(b * gKeep + buf[e1 + 2] * g1 + buf[e2 + 2] * g2 + buf[e3 + 2] * g3);
       }
 
-      const bar = barNoise[y] * 255;
-      r = Math.max(0, Math.min(255, Math.round(r + bar)));
-      g = Math.max(0, Math.min(255, Math.round(g + bar)));
-      b = Math.max(0, Math.min(255, Math.round(b + bar)));
-
-      if (noiseAmount > 0) {
+      if (amp > 0) {
         if (colorNoise) {
-          r = Math.max(0, Math.min(255, Math.round(r + (rng() - 0.5) * noiseAmount * 510)));
-          g = Math.max(0, Math.min(255, Math.round(g + (rng() - 0.5) * noiseAmount * 510)));
-          b = Math.max(0, Math.min(255, Math.round(b + (rng() - 0.5) * noiseAmount * 510)));
+          r = Math.max(0, Math.min(255, Math.round(r + (rng() - 0.5) * amp * 510)));
+          g = Math.max(0, Math.min(255, Math.round(g + (rng() - 0.5) * amp * 510)));
+          b = Math.max(0, Math.min(255, Math.round(b + (rng() - 0.5) * amp * 510)));
         } else {
-          const n = (rng() - 0.5) * noiseAmount * 510;
+          const n = (rng() - 0.5) * amp * 510;
           r = Math.max(0, Math.min(255, Math.round(r + n)));
           g = Math.max(0, Math.min(255, Math.round(g + n)));
           b = Math.max(0, Math.min(255, Math.round(b + n)));
         }
       }
 
-      const c = paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false);
-      fillBufferPixel(outBuf, di, c[0], c[1], c[2], 255);
-    }
-  }
+      // Persistence blends with the previous frame BEFORE quantization, so a
+      // reduced-level palette stays on-palette (matching the GL path).
+      if (hasPrev) {
+        const p = prevOutput as Uint8ClampedArray;
+        r = Math.round(r * fresh + p[di] * keep);
+        g = Math.round(g * fresh + p[di + 1] * keep);
+        b = Math.round(b * fresh + p[di + 2] * keep);
+      }
 
-  if (persistence > 0 && prevOutput && prevOutput.length === outBuf.length) {
-    const keep = persistence;
-    const fresh = 1 - keep;
-    for (let j = 0; j < outBuf.length; j += 4) {
-      outBuf[j]     = Math.round(outBuf[j]     * fresh + prevOutput[j]     * keep);
-      outBuf[j + 1] = Math.round(outBuf[j + 1] * fresh + prevOutput[j + 1] * keep);
-      outBuf[j + 2] = Math.round(outBuf[j + 2] * fresh + prevOutput[j + 2] * keep);
+      const c = paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false);
+      fillBufferPixel(outBuf, di, c[0], c[1], c[2], buf[si + 3]);
     }
   }
 

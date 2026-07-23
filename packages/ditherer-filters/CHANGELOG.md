@@ -7,6 +7,17 @@ package follows semantic versioning.
 
 ### Changed
 
+- Rebuilt three glitch filters around the codec/signal mechanism they name.
+  Datamosh now applies real per-macro-block motion compensation — predicting
+  each block from the previous output frame at the estimated
+  motion-compensated position (P-frame prediction without I-frame refresh)
+  instead of random block displacement. Data Bend now operates on the
+  contiguous byte stream (channels bleed, rows shear) and mixes echo/reverb
+  bipolar about a 128 midpoint so it can darken as well as brighten. Analog
+  Static's bar disturbance is now banded elevated per-pixel noise and its
+  ghosting is attenuated multipath full-RGB echoes at a controllable delay.
+  The shared block-matcher now zero-biases tied/flat blocks so they no longer
+  creep diagonally.
 - Rebuilt four Blur & Edges filters around the optical operation they name.
   Despeckle is now an edge-preserving thresholded median (impulse removal that
   keeps edges) instead of a backwards variance-gated box mean. Sharpen builds

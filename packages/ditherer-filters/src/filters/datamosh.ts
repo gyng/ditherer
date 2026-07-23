@@ -8,13 +8,20 @@ import {
   rgba,
   paletteGetColor
 } from "../utils/index";
+import { normalizeRangeOption } from "../utils/filterOptions";
+import {
+  estimateMotionVector,
+  prepareMotionAnalysisBuffers,
+  MOTION_SOURCE,
+} from "../utils/motionVectors";
 
 export const optionTypes = {
   blockSize: { type: RANGE, range: [4, 32], step: 1, default: 16, desc: "Macro-block size for motion compensation" },
-  motionThreshold: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Sensitivity for detecting motion between frames" },
-  displacement: { type: RANGE, range: [0, 30], step: 1, default: 8, desc: "Max pixel offset for block displacement" },
-  corruptChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Probability of corrupting each block" },
-  channelShift: { type: RANGE, range: [0, 10], step: 1, default: 2, desc: "RGB channel misalignment in pixels" },
+  motionThreshold: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Per-pixel error threshold for accepting a block's motion match" },
+  displacement: { type: RANGE, range: [0, 30], step: 1, default: 8, desc: "Motion-vector search radius in pixels" },
+  keyframeInterval: { type: RANGE, range: [0, 120], step: 1, default: 24, desc: "Frames between clean keyframe refreshes (0 = never refresh — smear forever)" },
+  corruptChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Probability a block's motion vector is corrupted (bloom/tearing)" },
+  channelShift: { type: RANGE, range: [0, 10], step: 1, default: 2, desc: "RGB channel misalignment in pixels on moshed blocks" },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -34,6 +41,7 @@ export const defaults = {
   blockSize: optionTypes.blockSize.default,
   motionThreshold: optionTypes.motionThreshold.default,
   displacement: optionTypes.displacement.default,
+  keyframeInterval: optionTypes.keyframeInterval.default,
   corruptChance: optionTypes.corruptChance.default,
   channelShift: optionTypes.channelShift.default,
   animSpeed: optionTypes.animSpeed.default,
@@ -48,15 +56,17 @@ type DatamoshOptions = FilterOptionValues & {
   blockSize?: number;
   motionThreshold?: number;
   displacement?: number;
+  keyframeInterval?: number;
   corruptChance?: number;
   channelShift?: number;
   animSpeed?: number;
   palette?: DatamoshPalette;
+  _prevInput?: Uint8ClampedArray | null;
   _prevOutput?: Uint8ClampedArray | null;
   _frameIndex?: number;
 };
 
-// Simple seeded pseudo-random for deterministic per-frame noise
+// Deterministic per-frame PRNG for the corrupt-vector decisions.
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
@@ -67,19 +77,27 @@ const mulberry32 = (seed: number) => {
   };
 };
 
+// Datamoshing: when a codec's I-frames are dropped, the decoder keeps applying
+// each macro-block's motion vectors to whatever is already in the frame buffer,
+// dragging the held content along the motion field (the signature smear/bloom).
+// This filter estimates the real per-block motion between the current and
+// previous input frame, then predicts each block from the previous *output*
+// frame at the motion-compensated position — P-frame prediction without an
+// I-frame refresh. (The previous filter displaced blocks by a random offset and
+// never estimated a vector at all.)
 const datamosh = (
   input: any,
   options: DatamoshOptions = defaults
 ) => {
-  const {
-    blockSize = defaults.blockSize,
-    motionThreshold = defaults.motionThreshold,
-    displacement = defaults.displacement,
-    corruptChance = defaults.corruptChance,
-    channelShift = defaults.channelShift,
-    palette = defaults.palette,
-  } = options;
+  const blockSize = normalizeRangeOption(options.blockSize, defaults.blockSize, 4, 32, true);
+  const motionThreshold = normalizeRangeOption(options.motionThreshold, defaults.motionThreshold, 0, 100);
+  const displacement = normalizeRangeOption(options.displacement, defaults.displacement, 0, 30, true);
+  const keyframeInterval = normalizeRangeOption(options.keyframeInterval, defaults.keyframeInterval, 0, 120, true);
+  const corruptChance = normalizeRangeOption(options.corruptChance, defaults.corruptChance, 0, 1);
+  const channelShift = normalizeRangeOption(options.channelShift, defaults.channelShift, 0, 10, true);
+  const palette = options.palette ?? defaults.palette;
 
+  const prevInput = options._prevInput ?? null;
   const prevOutput = options._prevOutput ?? null;
   const frameIndex = Number(options._frameIndex ?? 0);
 
@@ -93,10 +111,26 @@ const datamosh = (
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const rng = mulberry32(frameIndex * 7919 + 31337);
+  const haveRefs = !!prevInput && !!prevOutput
+    && prevInput.length === buf.length && prevOutput.length === buf.length;
+  const isKeyframe = !haveRefs
+    || (keyframeInterval > 0 && frameIndex % keyframeInterval === 0);
 
-  // Threshold scaled to 0-255 range
+  // On a keyframe (or with no reference frames) emit the clean current frame.
+  if (isKeyframe) {
+    for (let i = 0; i < buf.length; i += 4) {
+      const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
+    }
+    outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
+    return output;
+  }
+
+  const ref = prevOutput as Uint8ClampedArray;
+  const rng = mulberry32(frameIndex * 7919 + 31337);
+  const searchRadius = displacement;
   const threshold = (motionThreshold / 100) * 255;
+  const buffers = prepareMotionAnalysisBuffers(buf, prevInput as Uint8ClampedArray, W, H, MOTION_SOURCE.LUMA);
 
   const blocksX = Math.ceil(W / blockSize);
   const blocksY = Math.ceil(H / blockSize);
@@ -108,88 +142,39 @@ const datamosh = (
       const endX = Math.min(startX + blockSize, W);
       const endY = Math.min(startY + blockSize, H);
 
-      // Compute average luminance difference between current and previous frame
-      let lumaDiff = 0;
-      let pixelCount = 0;
+      // Real block-matching motion vector (current vs previous input frame).
+      const vector = estimateMotionVector(
+        buf, prevInput as Uint8ClampedArray, W, H,
+        startX, startY, blockSize, searchRadius, threshold, MOTION_SOURCE.LUMA, buffers,
+      );
+      let vx = vector.dx;
+      let vy = vector.dy;
 
-      if (prevOutput && prevOutput.length === buf.length) {
-        for (let y = startY; y < endY; y++) {
-          for (let x = startX; x < endX; x++) {
-            const i = getBufferIndex(x, y, W);
-            const curLuma = buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722;
-            const prevLuma = prevOutput[i] * 0.2126 + prevOutput[i + 1] * 0.7152 + prevOutput[i + 2] * 0.0722;
-            lumaDiff += Math.abs(curLuma - prevLuma);
-            pixelCount++;
-          }
-        }
-        lumaDiff = pixelCount > 0 ? lumaDiff / pixelCount : 0;
-      } else {
-        // No previous frame — treat as full motion (use current frame)
-        lumaDiff = threshold + 1;
+      // Corrupt path: perturb the vector so the held frame blooms / tears.
+      if (rng() < corruptChance) {
+        vx += Math.round((rng() - 0.5) * (displacement + 4) * 2);
+        vy += Math.round((rng() - 0.5) * (displacement + 4) * 2);
       }
+      const chShiftX = channelShift > 0 ? Math.round((rng() - 0.5) * channelShift * 2) : 0;
 
-      const isCorrupt = rng() < corruptChance;
-
-      if (lumaDiff < threshold && prevOutput) {
-        // No significant motion — keep previous frame's block
-        for (let y = startY; y < endY; y++) {
-          for (let x = startX; x < endX; x++) {
-            const i = getBufferIndex(x, y, W);
-            fillBufferPixel(outBuf, i, prevOutput[i], prevOutput[i + 1], prevOutput[i + 2], prevOutput[i + 3]);
-          }
-        }
-      } else if (isCorrupt) {
-        // Corrupt block — duplicate from a nearby block with offset
-        const offsetBx = bx + Math.floor((rng() - 0.5) * 6);
-        const offsetBy = by + Math.floor((rng() - 0.5) * 6);
-        const srcStartX = Math.max(0, Math.min(W - blockSize, offsetBx * blockSize));
-        const srcStartY = Math.max(0, Math.min(H - blockSize, offsetBy * blockSize));
-
-        const chShiftX = Math.round((rng() - 0.5) * channelShift * 2);
-        const chShiftY = Math.round((rng() - 0.5) * channelShift * 2);
-
-        for (let y = startY; y < endY; y++) {
-          for (let x = startX; x < endX; x++) {
-            const srcX = Math.max(0, Math.min(W - 1, srcStartX + (x - startX)));
-            const srcY = Math.max(0, Math.min(H - 1, srcStartY + (y - startY)));
-            const srcI = getBufferIndex(srcX, srcY, W);
-
-            // Channel shift: read R from an offset position
-            const shiftedX = Math.max(0, Math.min(W - 1, srcX + chShiftX));
-            const shiftedY = Math.max(0, Math.min(H - 1, srcY + chShiftY));
-            const shiftedI = getBufferIndex(shiftedX, shiftedY, W);
-
-            const r = buf[shiftedI];     // R from shifted position
-            const g = buf[srcI + 1];     // G from source
-            const b = buf[srcI + 2];     // B from source
-
-            const i = getBufferIndex(x, y, W);
-            const color = paletteGetColor(palette, rgba(r, g, b, buf[srcI + 3]), palette.options, false);
-            fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[srcI + 3]);
-          }
-        }
-      } else {
-        // Motion detected — use current frame's block but with displacement
-        const dispX = Math.round((rng() - 0.5) * displacement * 2);
-        const dispY = Math.round((rng() - 0.5) * displacement * 2);
-
-        for (let y = startY; y < endY; y++) {
-          for (let x = startX; x < endX; x++) {
-            const srcX = Math.max(0, Math.min(W - 1, x + dispX));
-            const srcY = Math.max(0, Math.min(H - 1, y + dispY));
-            const srcI = getBufferIndex(srcX, srcY, W);
-
-            const i = getBufferIndex(x, y, W);
-            const color = paletteGetColor(palette, rgba(buf[srcI], buf[srcI + 1], buf[srcI + 2], buf[srcI + 3]), palette.options, false);
-            fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[srcI + 3]);
-          }
+      // Predict the block from the previous OUTPUT frame at the
+      // motion-compensated position: ref(p + v) ≈ current(p).
+      for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
+          const sx = Math.max(0, Math.min(W - 1, x + vx));
+          const sy = Math.max(0, Math.min(H - 1, y + vy));
+          const si = getBufferIndex(sx, sy, W);
+          const rx = Math.max(0, Math.min(W - 1, sx + chShiftX));
+          const ri = getBufferIndex(rx, sy, W);
+          const i = getBufferIndex(x, y, W);
+          const color = paletteGetColor(palette, rgba(ref[ri], ref[si + 1], ref[si + 2], ref[si + 3]), palette.options, false);
+          fillBufferPixel(outBuf, i, color[0], color[1], color[2], ref[si + 3]);
         }
       }
     }
   }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
-
   return output;
 };
 
@@ -199,7 +184,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  noWASM: "Per-block motion detection is a reduction over each block's pixels plus a per-block branch on current/previous/corrupted content; the heavy inner work is the reduction, not vectorisable pixel math.",
-  noGL: "Would need per-block motion-detection reduction plus a per-block branching lookup (prev-frame/current-displaced/offset-copy) — reduction is unfriendly to fragment shaders without compute.",
+  noWASM: "Per-block full-search motion estimation plus a motion-compensated gather from the previous output frame; the heavy work is the SAD search, not vectorisable pixel math.",
+  noGL: "Per-block motion estimation is a reduction/search unfriendly to fragment shaders without compute.",
   temporal: true,
 });

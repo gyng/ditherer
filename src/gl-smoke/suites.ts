@@ -79,6 +79,7 @@ import {
   runDespeckleImpulseRemoval,
   runSharpenEdgeContrast,
 } from "./contracts/optical";
+import { runAnalogStaticGhostAndAlpha } from "./contracts/glitch";
 import { runtimeFixtureIntegrity, runtimeOptions } from "./fixtures";
 import { runEquivalent, runIdentity } from "./harness";
 import type { ContractSuite } from "./contractRunner";
@@ -660,6 +661,12 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("Sharpen", "gaussian-unsharp-overshoot", runSharpenEdgeContrast),
       contract("Bloom", "linear-multiscale-glow", runBloomLinearGlow),
       contract("Bokeh", "highlight-disc-spread", runBokehHighlightSpread),
+    ],
+  },
+  {
+    name: "glitch-codec",
+    contracts: [
+      contract("Analog Static", "multipath-ghost-and-alpha", runAnalogStaticGhostAndAlpha),
     ],
   },
   {

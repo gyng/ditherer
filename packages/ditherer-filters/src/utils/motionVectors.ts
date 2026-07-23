@@ -388,13 +388,22 @@ export const estimateMotionVector = (
 ): MotionVector => {
   let bestDx = 0;
   let bestDy = 0;
-  let bestError = Infinity;
   const currentScalar = analysisBuffers?.currentScalar || null;
   const previousScalar = analysisBuffers?.previousScalar || null;
   const circularRange = analysisBuffers?.circularRange || 0;
 
+  // Seed with the zero vector so tied candidates (flat / low-texture blocks,
+  // where every displacement has equal SAD) resolve to no motion instead of the
+  // first-scanned (-searchRadius, -searchRadius), which would creep flat regions
+  // diagonally each frame. A real match must strictly beat the stationary block.
+  let bestError = averageBlockError(
+    current, previous, width, height, x, y, cellSize,
+    0, 0, mode, currentScalar, previousScalar, circularRange, Infinity,
+  );
+
   for (let dy = -searchRadius; dy <= searchRadius; dy += 1) {
     for (let dx = -searchRadius; dx <= searchRadius; dx += 1) {
+      if (dx === 0 && dy === 0) continue;
       const error = averageBlockError(
         current,
         previous,
