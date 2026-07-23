@@ -468,19 +468,12 @@ const LINEARIZE_AWARE: { name: string; opts?: Record<string, unknown>; why?: str
   { name: "Convolve" },
   { name: "Floyd-Steinberg" },
   { name: "Grayscale" },
-  // KNOWN DEAD — pinned, not hidden. Halftone reads _linearize in its JS path
-  // (it averages each cell's block in linear space, then delinearises to draw —
-  // exactly plan 002's argument) but renderHalftoneGL takes no linearize
-  // argument at all, so with WebGL2 available (the normal case) the toggle does
-  // nothing. Plan 002 lists Halftone as CRITICAL for gamma correctness.
-  //
-  // Not fixed here because it isn't a missing uniform: the GL shader doesn't
-  // average a block, it point-samples the cell centre, so there's no averaging
-  // for linearisation to correct. Making it gamma-correct means deciding what
-  // that should mean in GL (dot area proportional to linear intensity?), which
-  // changes the look and still leaves the two backends structurally different.
-  // That's a design call. See docs/plan/057.
-  { name: "Halftone", knownDead: "GL path takes no linearize arg; JS path honours it" },
+  // Halftone's GL path now honours _linearize: it block-averages each cell (a
+  // stride sample of the whole cell) and, under _linearize, averages in linear
+  // light and quantises in sRGB to match the JS path — so the toggle changes the
+  // dot tone under WebGL2 as it does on CPU. (Previously pinned knownDead when
+  // the GL path point-sampled the cell centre in gamma.)
+  { name: "Halftone" },
   { name: "Levels", opts: { gamma: 1.6 } },
   { name: "N-Candidate" },
   { name: "Ordered" },

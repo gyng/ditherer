@@ -5,6 +5,15 @@ package follows semantic versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Halftone's GL fast path now matches its CPU path on two remaining axes: it
+  honours the `_linearize` flag (averaging the cell in linear light and
+  quantizing in sRGB like the CPU path, instead of always working in gamma), and
+  it fades each dot by the cell's mean source alpha (instead of rendering
+  full-strength dots on transparent input). A GL fast-path audit confirmed these
+  were the only CPU↔GL divergences across the dual-path filter set.
+
 ## [0.5.0] - 2026-07-24
 
 ### Changed

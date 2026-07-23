@@ -547,3 +547,57 @@ export const runHalftoneLargeCellParity = (): Result => {
   }
   return { ok: true };
 };
+
+/** Halftone GL must honour _linearize: a half-black/half-white cell averaged in
+ *  linear light reads brighter than the gamma average, so its dots cover more
+ *  area. If GL ignored _linearize the two runs would match. */
+export const runHalftoneLinearizeParity = (): Result => {
+  const filter = filterIndex.Halftone as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Halftone not in registry" };
+  const S = 8;
+  const glRun = (linearize: boolean) => {
+    const src = paintCanvas(S, S, (x) => (x < S / 2 ? [0, 0, 0, 255] : [255, 255, 255, 255]));
+    const out = filter.func(src, {
+      ...(filter.defaults ?? {}),
+      ...runtimeOptions(),
+      size: S, sizeMultiplier: 1, offset: 0, levels: 256,
+      _linearize: linearize,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    return canvasPixels(out);
+  };
+  const lin = glRun(true), gam = glRun(false);
+  if (!lin || !gam) return { ok: false, reason: "Halftone GL readback failed" };
+  const lL = meanLuma(lin), gL = meanLuma(gam);
+  if (lL <= gL + 2) {
+    return { ok: false, reason: `GL ignores _linearize: linear=${lL.toFixed(1)} not brighter than gamma=${gL.toFixed(1)}` };
+  }
+  return { ok: true };
+};
+
+/** Halftone GL must fade dots by the cell's mean source alpha: the same white
+ *  dots over black must render dimmer for a semi-transparent source than an
+ *  opaque one. If GL hardcoded full-strength dots the two would match. */
+export const runHalftoneAlphaFade = (): Result => {
+  const filter = filterIndex.Halftone as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Halftone not in registry" };
+  const S = 8;
+  const glRun = (a: number) => {
+    const out = filter.func(paintCanvas(S, S, () => [255, 255, 255, a]), {
+      ...(filter.defaults ?? {}),
+      ...runtimeOptions(),
+      size: S, sizeMultiplier: 1, offset: 0, levels: 256, background: "black",
+      _linearize: false,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    return canvasPixels(out);
+  };
+  const faint = glRun(96), solid = glRun(255);
+  if (!faint || !solid) return { ok: false, reason: "Halftone GL readback failed" };
+  const fL = meanLuma(faint), sL = meanLuma(solid);
+  if (fL >= sL - 2) {
+    return { ok: false, reason: `GL ignores source alpha: alpha96=${fL.toFixed(1)} not fainter than opaque=${sL.toFixed(1)}` };
+  }
+  if (fL < 1) return { ok: false, reason: `faded dots vanished (mean luma ${fL.toFixed(1)})` };
+  return { ok: true };
+};

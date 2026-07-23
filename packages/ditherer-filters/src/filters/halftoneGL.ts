@@ -10,6 +10,7 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
+import { SRGB_GLSL } from "./opticalConvolutionContracts";
 
 // Fragment shader: single-pass halftone.
 // Each pixel determines its grid cell, AVERAGES every texel in that cell
@@ -29,8 +30,11 @@ uniform float u_offset;
 uniform float u_levels;    // 1 = no quantisation, >1 = nearest-palette levels
 uniform float u_squareDots; // 0 = circles, 1 = squares
 uniform vec3  u_background;
+uniform float u_linearize; // 0 = gamma space, 1 = average cell tone in linear light
 
 const float PI = 3.14159265;
+
+${SRGB_GLSL}
 
 void main() {
     vec2 px = v_uv * u_res;
@@ -57,6 +61,7 @@ void main() {
     float stepx = cw / float(max(nx, 1));
     float stepy = ch / float(max(ny, 1));
     vec3 src = vec3(0.0);
+    float alpha = 0.0;
     float count = 0.0;
     for (int j = 0; j < MAX_CELL; j++) {
         if (j >= ny) break;
@@ -65,11 +70,27 @@ void main() {
             if (i >= nx) break;
             float sx = cellOrigin.x + (float(i) + 0.5) * stepx;
             vec2 suv = clamp(vec2(sx, sy) / u_res, vec2(0.0), vec2(1.0));
-            src += texture(u_source, suv).rgb;
+            vec4 texel = texture(u_source, suv);
+            // Colour is averaged in linear light when u_linearize is on (matches
+            // the CPU srgbBufToLinearFloat path). Alpha is NOT gamma-encoded, so
+            // it is always averaged linearly (matching the CPU, which passes
+            // alpha through /255 untouched).
+            src   += (u_linearize > 0.5) ? oc_srgbToLinear(texel.rgb) : texel.rgb;
+            alpha += texel.a;
             count += 1.0;
         }
     }
-    src /= max(count, 1.0);
+    float inv = 1.0 / max(count, 1.0);
+    src   *= inv;
+    alpha *= inv;
+
+    // The CPU derives dot radii from DELINEARISED sRGB values (it delinearizes
+    // the linear mean before quantising via the palette), so convert the linear
+    // mean back to sRGB before the (sRGB-space) quantise + radii steps. Order:
+    // linearize -> average -> delinearize -> quantize(sRGB) -> radii.
+    if (u_linearize > 0.5) {
+        src = oc_linearToSrgb(src);
+    }
 
     // Nearest-palette quantisation: round(c / step) * step, step = 1/(levels-1).
     if (u_levels > 1.5) {
@@ -102,6 +123,12 @@ void main() {
         bVal = 1.0 - smoothstep(bRad - 0.7, bRad + 0.7, length(px - bCentre));
     }
 
+    // Fade each dot by the cell's mean source alpha (matches the CPU, which
+    // draws rgba(ch, meanAlpha)). Semi-transparent input => fainter dots.
+    rVal *= alpha;
+    gVal *= alpha;
+    bVal *= alpha;
+
     // Screen composite each coloured dot onto the running colour.
     // screen(dst, src) = 1 - (1-dst)*(1-src), applied per channel independently.
     vec3 c = u_background;
@@ -121,7 +148,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     prog: linkProgram(gl, HALFTONE_FS, [
       "u_source", "u_res", "u_size", "u_sizeMultiplier", "u_offset",
-      "u_levels", "u_squareDots", "u_background",
+      "u_levels", "u_squareDots", "u_background", "u_linearize",
     ] as const),
   };
   return _cache;
@@ -156,6 +183,7 @@ export const renderHalftoneGL = (
   levels: number,
   squareDots: boolean,
   background: [number, number, number],
+  linearize: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -179,6 +207,7 @@ export const renderHalftoneGL = (
     gl.uniform1f(cache.prog.uniforms.u_levels, levels);
     gl.uniform1f(cache.prog.uniforms.u_squareDots, squareDots ? 1 : 0);
     gl.uniform3f(cache.prog.uniforms.u_background, ...background);
+    gl.uniform1f(cache.prog.uniforms.u_linearize, linearize ? 1 : 0);
   }, vao);
 
   return readoutToCanvas(canvas, width, height);

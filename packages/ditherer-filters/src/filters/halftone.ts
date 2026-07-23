@@ -68,6 +68,7 @@ const halftone = (
         input, W, H, size,
         options.sizeMultiplier, options.offset,
         effectiveLevels, options.squareDots, bgRgb,
+        options._linearize === true,
       );
       if (rendered) {
         const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
