@@ -89,6 +89,7 @@ import {
   runHazeKoschmiederDepth,
   runSolarizeReversal,
 } from "./contracts/tone";
+import { runAnamorphicLinearRadial, runStampEdgeBreakup } from "./contracts/geometry";
 import { runtimeFixtureIntegrity, runtimeOptions } from "./fixtures";
 import { runEquivalent, runIdentity } from "./harness";
 import type { ContractSuite } from "./contractRunner";
@@ -691,6 +692,13 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("Solarize", "sabattier-reversal", runSolarizeReversal),
       contract("Atmospheric Haze", "koschmieder-depth-airlight", runHazeKoschmiederDepth),
       contract("Dodge / Burn", "linear-exposure-directional", runDodgeBurnDirectional),
+    ],
+  },
+  {
+    name: "warp-and-print",
+    contracts: [
+      contract("Anamorphic Cylinder", "linear-reflection-radial", runAnamorphicLinearRadial),
+      contract("Stamp", "edge-concentrated-breakup", runStampEdgeBreakup),
     ],
   },
   {

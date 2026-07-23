@@ -2,6 +2,8 @@ import { RANGE, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
 import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
+import { normalizeRangeOption } from "../utils/filterOptions";
+import { ANAMORPH_GLSL } from "./anamorphMapping";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
   drawPass,
@@ -16,13 +18,14 @@ import {
   type Program,
 } from "../gl/index";
 
-// Cylindrical anamorphosis: remaps the image so that, viewed in a
-// reflective cylinder placed at the centre, the original becomes visible
-// on the cylinder's surface. Around the cylinder (outside the mirror) the
-// image appears stretched and warped — the classic "anamorphic distortion"
-// print look. The forward map sends source pixel (r, θ) to
-// (r_mirror + R·ln(r / r_mirror), θ) in polar coords. Inverse (what we
-// need for gather sampling) undoes that log.
+// Cylindrical-mirror anamorphosis. A reflective cylinder of radius R_c stands at
+// the centre; the anamorphic drawing occupies the annulus around it. By the law
+// of reflection a point at height z on the cylinder maps to plane radius
+// r = R_c + z·cot(α), so the radial map is LINEAR in image height (angle is
+// preserved, the mirror being rotationally symmetric) — not the arbitrary log
+// remap the old version used. The inner disc renders the undistorted image as a
+// polar mirror preview (what you would see reflected), joined continuously to
+// the annulus at the wall. The mapping mirrors the unit-tested anamorphMapping.ts.
 
 const ANAMORPH_FS = `#version 300 es
 precision highp float;
@@ -32,9 +35,10 @@ out vec4 fragColor;
 uniform sampler2D u_source;
 uniform vec2  u_res;
 uniform float u_cylR;        // Mirror radius (px)
-uniform float u_maxR;        // Max mapped radius
-uniform float u_twist;       // Extra angular twist around the cylinder
+uniform float u_maxR;        // Outer radius of the anamorphic annulus
+uniform float u_twist;       // Angular twist around the cylinder (radians)
 uniform float u_levels;
+${ANAMORPH_GLSL}
 
 void main() {
   vec2 px = v_uv * u_res;
@@ -45,40 +49,22 @@ void main() {
   float cy = u_res.y * 0.5;
   float dx = x - cx;
   float dy = y - cy;
-  float r = sqrt(dx * dx + dy * dy);
+  float r = length(vec2(dx, dy));
   float theta = atan(dy, dx);
+  float u = am_angleU(theta, u_twist);
 
-  // If inside the mirror region, show the original image wrapped around
-  // the cylinder surface (unwarped view). Outside, apply the log-radius
-  // expansion that turns a ring into a stretched strip.
+  float v;
   if (r < u_cylR) {
-    // Inside: render the mirror's reflection — the unwarped image at the
-    // same (normalised) polar coords.
-    vec2 sp = vec2(cx + dx, cy + dy);
-    sp = clamp(sp, vec2(0.0), u_res - vec2(1.0));
-    vec4 c = texture(u_source, vec2((sp.x + 0.5) / u_res.x, 1.0 - (sp.y + 0.5) / u_res.y));
-    vec3 rgb = c.rgb;
-    if (u_levels > 1.5) {
-      float q = u_levels - 1.0;
-      rgb = floor(rgb * q + 0.5) / q;
-    }
-    fragColor = vec4(rgb, c.a);
+    v = am_discHeight(r, u_cylR);            // inner mirror-preview disc
+  } else if (r <= u_maxR) {
+    v = am_annulusHeight(r, u_cylR, u_maxR); // linear reflection map
+  } else {
+    fragColor = vec4(0.0, 0.0, 0.0, 0.0);    // beyond the drawing
     return;
   }
 
-  // Outside: invert the log-radius stretching. r (output) = r_mirror + R·ln(r_src/r_mirror)
-  // so r_src = r_mirror * exp((r - r_mirror)/R).
-  float span = u_maxR - u_cylR;
-  float tR = (r - u_cylR) / max(span, 1e-3);
-  float rSrc = u_cylR * exp(tR * log(u_maxR / u_cylR));
-  float theta2 = theta + u_twist;
-
-  float sx = cx + rSrc * cos(theta2);
-  float sy = cy + rSrc * sin(theta2);
-  if (sx < 0.0 || sx >= u_res.x || sy < 0.0 || sy >= u_res.y) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    return;
-  }
+  float sx = clamp(u * u_res.x, 0.0, u_res.x - 1.0);
+  float sy = clamp(v * u_res.y, 0.0, u_res.y - 1.0);
   vec4 c = texture(u_source, vec2((sx + 0.5) / u_res.x, 1.0 - (sy + 0.5) / u_res.y));
   vec3 rgb = c.rgb;
   if (u_levels > 1.5) {
@@ -111,8 +97,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const anamorphicCylinder = (input: any, options = defaults) => {
-  const { cylinderRadius, maxRadius, twist, palette } = options;
+const anamorphicCylinder = (input: any, options: Partial<typeof defaults> = defaults) => {
+  const cylinderRadius = normalizeRangeOption(options.cylinderRadius, defaults.cylinderRadius, 10, 400, true);
+  const maxRadius = normalizeRangeOption(options.maxRadius, defaults.maxRadius, 50, 2048, true);
+  const twist = normalizeRangeOption(options.twist, defaults.twist, 0, 360);
+  const palette = options.palette ?? defaults.palette;
   const W = input.width, H = input.height;
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();

@@ -7,6 +7,14 @@ package follows semantic versioning.
 
 ### Changed
 
+- Rebuilt Anamorphic Cylinder and Stamp around the process they name. Anamorphic
+  Cylinder now uses the cylindrical-mirror reflection geometry — a LINEAR radial
+  map (`r = R_c + z·cot α`) with angle preserved and a continuous polar
+  mirror-preview disc — instead of an arbitrary log/exp remap that showed the
+  raw source inside the mirror. Stamp is now a real relief die: a binary mask,
+  morphologically opened/closed, with ink break-up concentrated at shape edges
+  (distance-to-edge on the opened field) and low-frequency pressure noise,
+  instead of a threshold plus spatially-uniform white noise.
 - Rebuilt three photographic filters around the tonal/optical process they name.
   Solarize now applies a smooth Sabattier tone-reversal curve (the same curve on
   every channel) instead of a knife-edge, per-channel invert, so highlights fold
