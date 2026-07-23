@@ -67,6 +67,11 @@ import {
   runThermalPrinterCellCoherence,
 } from "./contracts/media";
 import { runSdfInteriorDistance } from "./contracts/standards";
+import {
+  runPrintmakingAlphaPreservation,
+  runPrintmakingToneMonotonic,
+  runStippleDensityModulation,
+} from "./contracts/printmaking";
 import { runtimeFixtureIntegrity, runtimeOptions } from "./fixtures";
 import { runEquivalent, runIdentity } from "./harness";
 import type { ContractSuite } from "./contractRunner";
@@ -630,6 +635,14 @@ export const numericalContractSuites = (): ContractSuite[] => [
         0,
       )),
       contract("Thermal camera", "temporal-noise", runThermalNoiseContract),
+    ],
+  },
+  {
+    name: "printmaking-stylizers",
+    contracts: [
+      contract("printmaking stylizers", "tone-density-monotonic", runPrintmakingToneMonotonic),
+      contract("Stipple", "density-not-size-modulation", runStippleDensityModulation),
+      contract("printmaking stylizers", "source-alpha-preservation", runPrintmakingAlphaPreservation),
     ],
   },
   {

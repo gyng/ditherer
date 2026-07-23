@@ -5,6 +5,19 @@ package follows semantic versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Rebuilt the pen-and-ink and relief printmaking stylizers (Crosshatch,
+  Engraving, Woodcut, Stipple) so tone is reproduced by continuous mark
+  density instead of hard luminance thresholds over a fixed device-space
+  lattice. Crosshatch stacks four fixed-angle hatch layers with strokes that
+  thicken by tone; Engraving swells its burin lines and adds a crossing set
+  and dot-and-lozenge shadow texture that follow the subject's form; Woodcut
+  carries mid-tones with structure-tensor-oriented gouges whose carved area
+  equals the local lightness; Stipple places constant-radius dots whose
+  density (not size) tracks darkness. Marks are anti-aliased, source alpha is
+  preserved, and sparse/malformed options are normalised.
+
 ## [0.4.0] - 2026-07-23
 
 ### Added
