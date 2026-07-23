@@ -5,7 +5,7 @@ vi.mock("utils", async (importOriginal) => {
   return { ...actual, cloneCanvas: (input: HTMLCanvasElement) => input };
 });
 
-import program, { defaults } from "filters/program";
+import program, { defaults, optionTypes } from "filters/program";
 import nearest from "palettes/nearest";
 import { decodeShareState, encodeShareState } from "@src/utils/shareState";
 
@@ -59,6 +59,18 @@ const px = (buf: Uint8ClampedArray, x: number, y: number) => {
   const i = (y * W + x) * 4;
   return [buf[i], buf[i + 1], buf[i + 2], buf[i + 3]];
 };
+
+describe("the dead mode control is gone", () => {
+  it("has no mode key in optionTypes", () => {
+    expect(optionTypes).not.toHaveProperty("mode");
+  });
+
+  it("runs and produces output with the default options", () => {
+    const { out } = run(defaults.program, grey);
+    expect(out).not.toBeNull();
+    expect(out!.length).toBe(W * H * 4);
+  });
+});
 
 describe("Program runs the user's code", () => {
   it("writes back the channels the program assigns", () => {

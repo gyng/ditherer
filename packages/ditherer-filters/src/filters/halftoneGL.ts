@@ -12,10 +12,10 @@ import {
 } from "../gl/index";
 
 // Fragment shader: single-pass halftone.
-// Each pixel determines its grid cell, samples the source colour at the cell
-// centre, quantises to `u_levels` levels (nearest-palette formula), computes
-// per-channel dot radii, then screen-composites the three coloured dots onto
-// the background colour.
+// Each pixel determines its grid cell, AVERAGES every texel in that cell
+// (matching the CPU mean, not a single centre sample), quantises to
+// `u_levels` levels (nearest-palette formula), computes per-channel dot radii,
+// then screen-composites the three coloured dots onto the background colour.
 const HALFTONE_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -38,10 +38,38 @@ void main() {
     // Grid cell this pixel belongs to.
     vec2 cellIdx    = floor(px / u_size);
     vec2 cellCentre = (cellIdx + 0.5) * u_size;
-    vec2 cellUV     = clamp(cellCentre / u_res, vec2(0.0), vec2(1.0));
+    vec2 cellOrigin = cellIdx * u_size;
 
-    // Sample source colour at cell centre.
-    vec3 src = texture(u_source, cellUV).rgb;
+    // Average the whole IN-BOUNDS cell so the dot tone matches the CPU block
+    // mean. Stride across the cell (up to MAX_CELL samples per axis) instead of
+    // truncating: for cells <= MAX_CELL px the step is 1 so every pixel centre
+    // is sampled (exact CPU match); for larger cells the samples stratify
+    // uniformly across the full cell (unbiased, no top-left skew). The extent is
+    // clamped to (cw, ch) — the region actually inside the image — so edge cells
+    // whose size doesn't divide the dimensions average exactly what the CPU does
+    // (CPU: [x0, min(x0+size, W)) x [y0, min(y0+size, H))), with no
+    // out-of-bounds edge replication in the mean.
+    const int MAX_CELL = 32;
+    float cw = min(u_size, u_res.x - cellOrigin.x);
+    float ch = min(u_size, u_res.y - cellOrigin.y);
+    int nx = int(min(cw, float(MAX_CELL)));
+    int ny = int(min(ch, float(MAX_CELL)));
+    float stepx = cw / float(max(nx, 1));
+    float stepy = ch / float(max(ny, 1));
+    vec3 src = vec3(0.0);
+    float count = 0.0;
+    for (int j = 0; j < MAX_CELL; j++) {
+        if (j >= ny) break;
+        float sy = cellOrigin.y + (float(j) + 0.5) * stepy;
+        for (int i = 0; i < MAX_CELL; i++) {
+            if (i >= nx) break;
+            float sx = cellOrigin.x + (float(i) + 0.5) * stepx;
+            vec2 suv = clamp(vec2(sx, sy) / u_res, vec2(0.0), vec2(1.0));
+            src += texture(u_source, suv).rgb;
+            count += 1.0;
+        }
+    }
+    src /= max(count, 1.0);
 
     // Nearest-palette quantisation: round(c / step) * step, step = 1/(levels-1).
     if (u_levels > 1.5) {

@@ -25,12 +25,12 @@ export const duboisRedCyanLinear = (
   const [lr, lg, lb] = left.map(channel => finite(channel)) as [number, number, number];
   const [rr, rg, rb] = right.map(channel => finite(channel)) as [number, number, number];
   return [
-    0.4561 * lr - 0.040082 * lg - 0.015216 * lb
-      - 0.04347 * rr - 0.087939 * rg - 0.001555 * rb,
-    0.500484 * lr - 0.037824 * lg - 0.020597 * lb
-      - 0.378476 * rr + 0.73364 * rg - 0.01845 * rb,
-    0.176381 * lr - 0.015759 * lg - 0.005468 * lb
-      - 0.072152 * rr - 0.112961 * rg + 1.2264 * rb,
+    0.4561 * lr + 0.500484 * lg + 0.176381 * lb
+      - 0.0434706 * rr - 0.0879388 * rg - 0.00155529 * rb,
+    -0.0400822 * lr - 0.0378246 * lg - 0.0157589 * lb
+      + 0.378476 * rr + 0.73364 * rg - 0.0184503 * rb,
+    -0.0152161 * lr - 0.0205971 * lg - 0.00546856 * lb
+      - 0.0721527 * rr - 0.112961 * rg + 1.2264 * rb,
   ];
 };
 

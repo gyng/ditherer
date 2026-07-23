@@ -429,3 +429,121 @@ export const runColorGradientNoiseAlphaPreserved = (): Result => {
   }
   return { ok: true };
 };
+
+// ---------------------------------------------------------------------------
+// Plan 114 — spec-accuracy and GL/CPU parity contracts.
+// ---------------------------------------------------------------------------
+
+/** Dubois red/cyan must not ghost pure left-eye (red) content into the cyan
+ *  (G,B) channels — regression guard for the transposed-left-matrix bug. */
+export const runAnaglyphDuboisNoLeftLeak = (): Result => {
+  const w = 64, h = 32;
+  const stripe = paintCanvas(w, h, (x) =>
+    x >= 20 && x < 28 ? [255, 0, 0, 255] : [0, 0, 0, 255]);
+  const after = run("Anaglyph", stripe, {
+    mode: "RED_CYAN",
+    depthSource: "CONSTANT",
+    convergence: 0,
+    strength: 16,
+  });
+  if (!after) return { ok: false, reason: "Anaglyph readback failed" };
+  let redPixels = 0, maxG = 0, maxB = 0;
+  for (let i = 0; i < after.length; i += 4) {
+    if (after[i] > 120 && after[i + 1] < 120 && after[i + 2] < 120) {
+      redPixels += 1;
+      maxG = Math.max(maxG, after[i + 1]);
+      maxB = Math.max(maxB, after[i + 2]);
+    }
+  }
+  if (redPixels === 0) return { ok: false, reason: "no red-eye pixels produced" };
+  if (maxG > 40 || maxB > 40) {
+    return { ok: false, reason: `left leaks into cyan: maxG=${maxG} maxB=${maxB}` };
+  }
+  return { ok: true };
+};
+
+/** Convolve's CPU and GL paths must agree at the right/bottom edges: both clamp
+ *  to edge, so no wrap-around seam. */
+export const runConvolveEdgeClamp = (): Result => {
+  const w = 8, h = 8;
+  const field = paintCanvas(w, h, (x, y) => {
+    const edge = x === w - 1 || y === h - 1;
+    const v = edge ? 220 : 40;
+    return [v, v, v, 255];
+  });
+  const cpu = run("Convolve", field, { kernel: "SHARPEN_3X3", strength: 1, _webglAcceleration: false });
+  const gl = run("Convolve", field, { kernel: "SHARPEN_3X3", strength: 1, _webglAcceleration: true });
+  if (!cpu || !gl) return { ok: false, reason: "Convolve readback failed" };
+  let maxDiff = 0;
+  for (let y = 1; y < h - 1; y++) { const i = ((w - 1) + w * y) * 4; maxDiff = Math.max(maxDiff, Math.abs(cpu[i] - gl[i])); }
+  for (let x = 1; x < w - 1; x++) { const i = (x + w * (h - 1)) * 4; maxDiff = Math.max(maxDiff, Math.abs(cpu[i] - gl[i])); }
+  return maxDiff > 2 ? { ok: false, reason: `CPU/GL edge clamp mismatch: max diff ${maxDiff} LSB` } : { ok: true };
+};
+
+/** Halftone GL must derive each cell's dot tone from the cell AVERAGE, not a
+ *  single centre texel: a half-black/half-white cell must render the same
+ *  mid-tone dot as a uniformly grey cell of the same mean. */
+export const runHalftoneCellAverageParity = (): Result => {
+  const filter = filterIndex.Halftone as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Halftone not in registry" };
+  const S = 8;
+  const glRun = (paint: (x: number, y: number) => [number, number, number, number]) => {
+    const out = filter.func(paintCanvas(S, S, paint), {
+      ...(filter.defaults ?? {}),
+      ...runtimeOptions(),
+      size: S,
+      offset: 0,
+      levels: 256,
+      _linearize: false,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    return canvasPixels(out);
+  };
+  const grey = glRun(() => [128, 128, 128, 255]);
+  const edge = glRun((x) => (x < S / 2 ? [0, 0, 0, 255] : [255, 255, 255, 255]));
+  const white = glRun(() => [255, 255, 255, 255]);
+  if (!grey || !edge || !white) return { ok: false, reason: "Halftone GL readback failed" };
+  const gL = meanLuma(grey), eL = meanLuma(edge), wL = meanLuma(white);
+  if (eL >= wL * 0.9) {
+    return { ok: false, reason: `edge cell dot not mid-tone: edge=${eL.toFixed(1)} vs white=${wL.toFixed(1)} (centre point-sample?)` };
+  }
+  const rel = Math.abs(eL - gL) / Math.max(1, wL);
+  if (rel > 0.12) {
+    return { ok: false, reason: `edge cell (${eL.toFixed(1)}) != grey cell (${gL.toFixed(1)}); GL not averaging the block` };
+  }
+  return { ok: true };
+};
+
+/** Halftone GL must average the ENTIRE cell (striding), not a fixed top-left
+ *  window: a 40px cell (> the 32-sample cap) with its first 32 columns black
+ *  and the rest white has full-cell mean ~0.2; a top-left-32 window would read
+ *  all black. The dot must track the full-cell mean. */
+export const runHalftoneLargeCellParity = (): Result => {
+  const filter = filterIndex.Halftone as FilterLike | undefined;
+  if (!filter) return { ok: false, reason: "Halftone not in registry" };
+  const S = 40;
+  const glRun = (paint: (x: number, y: number) => [number, number, number, number]) => {
+    const out = filter.func(paintCanvas(S, S, paint), {
+      ...(filter.defaults ?? {}),
+      ...runtimeOptions(),
+      size: S,
+      offset: 0,
+      levels: 256,
+      _linearize: false,
+      _webglAcceleration: true,
+    }) as HTMLCanvasElement;
+    return canvasPixels(out);
+  };
+  const biased = glRun((x) => (x < 32 ? [0, 0, 0, 255] : [255, 255, 255, 255]));
+  const grey = glRun(() => [51, 51, 51, 255]);
+  const black = glRun(() => [0, 0, 0, 255]);
+  if (!biased || !grey || !black) return { ok: false, reason: "Halftone GL readback failed" };
+  const bL = meanLuma(biased), gL = meanLuma(grey), kL = meanLuma(black);
+  if (Math.abs(bL - gL) > Math.max(2, gL * 0.2)) {
+    return { ok: false, reason: `large cell dot != full-cell mean: biased=${bL.toFixed(1)} grey0.2=${gL.toFixed(1)}` };
+  }
+  if (Math.abs(bL - kL) < Math.abs(bL - gL)) {
+    return { ok: false, reason: `large cell dot tracks a top-left window (black=${kL.toFixed(1)}) not the full cell` };
+  }
+  return { ok: true };
+};

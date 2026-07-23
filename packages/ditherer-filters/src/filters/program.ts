@@ -1,18 +1,9 @@
-import { ENUM, TEXT, PALETTE } from "../constants/controlTypes";
+import { TEXT, PALETTE } from "../constants/controlTypes";
 import * as palettes from "../palettes/index";
 import { cloneCanvas, fillBufferPixel, getBufferIndex, srgbPaletteGetColor } from "../utils/index";
 import { defineFilter } from "./types";
 
-export const ALL = "ALL";
-export const PIXEL = "PIXEL";
-
 export const optionTypes = {
-  mode: {
-    type: ENUM,
-    options: [{ name: "Pixel", value: PIXEL }],
-    default: PIXEL,
-    desc: "Execution scope for the custom program"
-  },
   program: {
     type: TEXT,
     desc: "Custom JavaScript code run per pixel",
@@ -35,7 +26,6 @@ a = 255;`
 };
 
 export const defaults = {
-  mode: optionTypes.mode.default,
   program: optionTypes.program.default,
   palette: optionTypes.palette.default
 };

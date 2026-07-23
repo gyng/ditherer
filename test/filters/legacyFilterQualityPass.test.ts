@@ -468,14 +468,16 @@ describe("legacy quality filter surface", () => {
   });
 
   it("uses the published Dubois red/cyan linear-light projection", () => {
+    // Pure left (red-eye) input contributes the left-matrix COLUMN, i.e. a
+    // strong red plus tiny negative cyan-channel terms — no green/blue leak.
     expect(duboisRedCyanLinear([1, 0, 0], [0, 0, 0])).toEqual([
       0.4561,
-      0.500484,
-      0.176381,
+      -0.0400822,
+      -0.0152161,
     ]);
     expect(duboisRedCyanLinear([0, 0, 0], [0, 0, 1])).toEqual([
-      -0.001555,
-      -0.01845,
+      -0.00155529,
+      -0.0184503,
       1.2264,
     ]);
   });

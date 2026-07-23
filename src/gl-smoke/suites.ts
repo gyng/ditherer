@@ -73,9 +73,13 @@ import {
   runStippleDensityModulation,
 } from "./contracts/printmaking";
 import {
+  runAnaglyphDuboisNoLeftLeak,
   runBloomLinearGlow,
   runBokehHighlightSpread,
   runCcdChargeLinearBloom,
+  runConvolveEdgeClamp,
+  runHalftoneCellAverageParity,
+  runHalftoneLargeCellParity,
   runColorGradientNoiseAlphaPreserved,
   runDespeckleEdgePreserved,
   runDespeckleImpulseRemoval,
@@ -742,6 +746,15 @@ export const numericalContractSuites = (): ContractSuite[] => [
       contract("Color Cycle", "hue-rotate-keeps-alpha", runTemporalColorCycleAlphaPreserved),
       contract("Scanline Warp", "alpha-warped-not-opaque", runScanlineWarpAlphaWarped),
       contract("Color Gradient Noise", "blend-keeps-alpha", runColorGradientNoiseAlphaPreserved),
+    ],
+  },
+  {
+    name: "parity-and-spec",
+    contracts: [
+      contract("Anaglyph", "dubois-no-left-leak", runAnaglyphDuboisNoLeftLeak),
+      contract("Halftone", "cell-average-parity", runHalftoneCellAverageParity),
+      contract("Halftone", "large-cell-full-mean", runHalftoneLargeCellParity),
+      contract("Convolve", "edge-clamp-parity", runConvolveEdgeClamp),
     ],
   },
   {

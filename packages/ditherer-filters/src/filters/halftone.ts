@@ -45,6 +45,16 @@ const halftone = (
   };
   const { background, palette } = options;
   const size = parseInt(String(options.size), 10);
+  // Exposed dot-size quantisation control. Only the `nearest` palette's
+  // getColor honours a `levels` count, so gate the effective level count on it:
+  // for a nearest palette the slider is live in BOTH backends (and they agree);
+  // for a custom palette both backends pass through at 256 so they still agree
+  // (the palette ignores levels — the slider is correctly inert). Mapping the
+  // "no quantisation" case to 256 also avoids nearest's divide-by-zero at
+  // levels=1 and matches the shader's `u_levels > 1.5` passthrough.
+  const isNearest = (palette as any).name === "nearest";
+  const rawLevels = Math.max(1, Number(options.levels) | 0);
+  const effectiveLevels = isNearest && rawLevels > 1 ? rawLevels : 256;
 
   // WebGL fast path. Renders the dots + screen-composite in shader; for
   // nearest palettes the shader also handles quantisation, for custom
@@ -54,17 +64,15 @@ const halftone = (
     const bgRgb = parseCssColorRgb(typeof background === "string" ? background : "black");
     if (bgRgb) {
       const W = input.width, H = input.height;
-      const isNearest = (palette as any).name === "nearest";
-      const levels = isNearest ? ((palette as any).options?.levels ?? 1) : 256;
       const rendered = renderHalftoneGL(
         input, W, H, size,
         options.sizeMultiplier, options.offset,
-        levels, options.squareDots, bgRgb,
+        effectiveLevels, options.squareDots, bgRgb,
       );
       if (rendered) {
         const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Halftone", "WebGL2", `size=${size}${isNearest ? ` levels=${levels}` : "+palettePass"}`);
+          logFilterBackend("Halftone", "WebGL2", `size=${size} levels=${effectiveLevels}${isNearest ? "" : "+palettePass"}`);
           return out;
         }
       }
@@ -109,7 +117,7 @@ const halftone = (
         }
 
         // Quantize mean color via palette (float 0-1), then convert to sRGB for drawing
-        const quantizedColor = linearPaletteGetColor(palette, meanColor, palette.options);
+        const quantizedColor = linearPaletteGetColor(palette, meanColor, { ...palette.options, levels: effectiveLevels });
         const srgbColor = delinearizeColorF(quantizedColor);
         const radii = srgbColor.map(
           (c: number) => c * (size / 2 / 255) * options.sizeMultiplier
@@ -162,7 +170,7 @@ const halftone = (
           }
         }
 
-        const quantizedColor = srgbPaletteGetColor(palette, meanColor, palette.options);
+        const quantizedColor = srgbPaletteGetColor(palette, meanColor, { ...palette.options, levels: effectiveLevels });
         const radii = quantizedColor.map(
           (c: number) => c * (size / 2 / 255) * options.sizeMultiplier
         );

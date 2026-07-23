@@ -347,7 +347,9 @@ const convolve = (
           for (let kx = 0; kx < kernel.width; kx += 1) {
             const kfactor = matrix[ky][kx] || 0;
             if (kfactor === 0) continue;
-            const ki = (Math.max(0, x + kx - half) + W * Math.max(0, y + ky - half)) * 4;
+            const sx = Math.min(W - 1, Math.max(0, x + kx - half));
+            const sy = Math.min(H - 1, Math.max(0, y + ky - half));
+            const ki = (sx + W * sy) * 4;
             cr += (floatBuf[ki]     || 0) * kfactor;
             cg += (floatBuf[ki + 1] || 0) * kfactor;
             cb += (floatBuf[ki + 2] || 0) * kfactor;
@@ -373,7 +375,9 @@ const convolve = (
           for (let kx = 0; kx < kernel.width; kx += 1) {
             const kfactor = matrix[ky][kx] || 0;
             if (kfactor === 0) continue;
-            const ki = (Math.max(0, x + kx - half) + W * Math.max(0, y + ky - half)) * 4;
+            const sx = Math.min(W - 1, Math.max(0, x + kx - half));
+            const sy = Math.min(H - 1, Math.max(0, y + ky - half));
+            const ki = (sx + W * sy) * 4;
             cr += (buf[ki]     || 0) * kfactor;
             cg += (buf[ki + 1] || 0) * kfactor;
             cb += (buf[ki + 2] || 0) * kfactor;

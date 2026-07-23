@@ -7,6 +7,22 @@ package follows semantic versioning.
 
 ### Changed
 
+- Corrected the Anaglyph "Dubois least-squares projection" (red/cyan). The
+  optimized red/cyan matrix was applied transposed with one sign flip, leaking
+  the left (red) eye into the cyan channels (heavy ghosting); it now uses the
+  published Dubois matrix (Sanders & McAllister; matches Dolphin/three.js) in
+  both the CPU reference and the GL shader, with a coefficient-locking test.
+- Halftone's GL path now derives each dot from the grid cell's average (matching
+  the CPU path) instead of point-sampling the cell centre, so the two backends
+  agree on detailed images (striding across the full cell, in-bounds, for grids
+  larger than the shader's sample cap); and its `levels` control — previously
+  ignored in favour of the palette's own levels — now drives dot-size
+  quantization where it applies (the quantizing nearest palette), consistently
+  across both backends.
+- Convolve's non-separable CPU path now clamps both image edges (it clamped only
+  the low edge, so the right/bottom rows wrapped into a 1–2px seam), matching the
+  GL path's clamp-to-edge.
+- Removed a dead single-value `mode` control from the Program filter.
 - Moved light-integrating filters into linear light. Eight filters that name a
   camera/film/optical process — Motion Blur, Radial Blur, Long Exposure,
   Halation, Orton, Tilt Shift, Volumetric Light, and CCD Charge Smear — were
