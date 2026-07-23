@@ -5,6 +5,8 @@ package follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-24
+
 ### Added
 
 - Three instrument-imaging simulations, each built on the real physics of the
