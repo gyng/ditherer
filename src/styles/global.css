@@ -1,5 +1,6 @@
 /* Global styles — NOT a CSS module */
 @import './typography.css';
+@import './themes.css';
 
 :root {
   --bg-color: rgba(38, 38, 38);
@@ -50,6 +51,110 @@
   --primary-face: #d7e6f1;
   --primary-text: #102d49;
   --primary-shadow: #314d68;
+}
+
+/* Windows 98 Storm */
+[data-theme="win98-storm"] {
+  --bg-color: #5b6b7b;
+  --light-gray: #b6bdc6;
+  --gray: #b6bdc6;
+  --beautiful-blue: #2f4f6f;
+  --beautiful-blue-gradient: #6a8fb0;
+  --button-highlight: #eef1f5;
+  --button-shadow: #7c8794;
+  --button-dk-shadow: #2a3038;
+  --button-text: #10151b;
+  --window-bg: #ffffff;
+  --window-text: #10151b;
+  --input-border: #7c8794;
+  --separator-top: #7c8794;
+  --separator-bottom: #eef1f5;
+  --desktop-color: #47535f;
+  --desktop-grid: rgba(255, 255, 255, 0.06);
+  --panel-soft: #dbe2ea;
+  --panel-soft-border: #8795a5;
+  --focus-ring: #1c3a5a;
+  --primary-face: #d3e0ee;
+  --primary-text: #12314f;
+  --primary-shadow: #33506e;
+}
+
+/* Windows 98 Desert */
+[data-theme="win98-desert"] {
+  --bg-color: #9c8b6a;
+  --light-gray: #d8cdb5;
+  --gray: #d8cdb5;
+  --beautiful-blue: #6b5836;
+  --beautiful-blue-gradient: #a5904f;
+  --button-highlight: #f5efe0;
+  --button-shadow: #9a8c6f;
+  --button-dk-shadow: #3a3020;
+  --button-text: #241d10;
+  --window-bg: #fffef7;
+  --window-text: #241d10;
+  --input-border: #9a8c6f;
+  --separator-top: #9a8c6f;
+  --separator-bottom: #f5efe0;
+  --desktop-color: #7e6f4f;
+  --desktop-grid: rgba(255, 255, 255, 0.06);
+  --panel-soft: #ece3cd;
+  --panel-soft-border: #ab9c7b;
+  --focus-ring: #5a4620;
+  --primary-face: #eaddb8;
+  --primary-text: #4f3d12;
+  --primary-shadow: #6e5a33;
+}
+
+/* Windows 98 Spruce */
+[data-theme="win98-spruce"] {
+  --bg-color: #3f6b52;
+  --light-gray: #b9c9bf;
+  --gray: #b9c9bf;
+  --beautiful-blue: #24503a;
+  --beautiful-blue-gradient: #5f9b78;
+  --button-highlight: #eef4f0;
+  --button-shadow: #7c948a;
+  --button-dk-shadow: #24322b;
+  --button-text: #10201a;
+  --window-bg: #ffffff;
+  --window-text: #10201a;
+  --input-border: #7c948a;
+  --separator-top: #7c948a;
+  --separator-bottom: #eef4f0;
+  --desktop-color: #35573f;
+  --desktop-grid: rgba(255, 255, 255, 0.06);
+  --panel-soft: #d9e7df;
+  --panel-soft-border: #86a394;
+  --focus-ring: #1c4a2f;
+  --primary-face: #cfe6d7;
+  --primary-text: #123f26;
+  --primary-shadow: #2f5e40;
+}
+
+/* Windows 98 Slate */
+[data-theme="win98-slate"] {
+  --bg-color: #3a4048;
+  --light-gray: #a9b0b8;
+  --gray: #a9b0b8;
+  --beautiful-blue: #2b3138;
+  --beautiful-blue-gradient: #5b6b7b;
+  --button-highlight: #dfe3e8;
+  --button-shadow: #6f767e;
+  --button-dk-shadow: #16191d;
+  --button-text: #0e1013;
+  --window-bg: #f4f6f8;
+  --window-text: #0e1013;
+  --input-border: #6f767e;
+  --separator-top: #6f767e;
+  --separator-bottom: #dfe3e8;
+  --desktop-color: #2e333a;
+  --desktop-grid: rgba(255, 255, 255, 0.05);
+  --panel-soft: #d4dade;
+  --panel-soft-border: #808890;
+  --focus-ring: #46505a;
+  --primary-face: #cdd6de;
+  --primary-text: #263038;
+  --primary-shadow: #465059;
 }
 
 html,

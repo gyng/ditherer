@@ -101,10 +101,42 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 4px 5px 3px;
   color: #333;
   font: bold 9px/1.2 "Courier New", monospace;
   letter-spacing: 0.08em;
+}
+
+.modeSwitcher {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: #9c9c9c;
+  border: 1px solid var(--button-dk-shadow);
+  box-shadow: inset 1px 1px var(--button-shadow);
+}
+
+.modeButton {
+  min-height: 0;
+  margin: 0;
+  padding: 3px 9px;
+  font: bold 9px/1 "Courier New", monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.modeButton[aria-pressed="true"] {
+  border-style: inset;
+  background: var(--beautiful-blue);
+  color: #fff;
+  box-shadow: none;
+}
+
+.modeHint {
+  color: #4d4d4d;
+  white-space: nowrap;
 }
 
 /* The task navigator is the app's information architecture, not a mobile-only
@@ -114,18 +146,10 @@
 .app[data-active-task="source"] .outputSettingsTask,
 .app[data-active-task="compose"] .sourceTask,
 .app[data-active-task="compose"] .outputSettingsTask,
-.app[data-active-task="adjust"] .sourceTask,
-.app[data-active-task="adjust"] .outputSettingsTask,
 .app[data-active-task="preview"] .sourceTask,
 .app[data-active-task="preview"] .composeTask,
 .app[data-active-task="export"] .sourceTask,
 .app[data-active-task="export"] .composeTask {
-  display: none;
-}
-
-.app[data-active-task="compose"] .filterInspector,
-.app[data-active-task="compose"] .pipelineOptions,
-.app[data-active-task="adjust"] .chainComposer {
   display: none;
 }
 
@@ -166,7 +190,7 @@
   top: 0;
   z-index: 100;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 12px;
@@ -176,7 +200,6 @@
   box-shadow: 0 1px 0 var(--button-dk-shadow);
 }
 
-.taskNav,
 .layoutTools,
 .exportTools {
   display: flex;
@@ -195,12 +218,6 @@
   white-space: nowrap;
 }
 
-.taskNav {
-  padding-right: 10px;
-  border-right: 1px solid #808080;
-}
-
-.taskNav button,
 .layoutTools button,
 .exportTools button {
   min-height: 28px;
@@ -209,14 +226,50 @@
   white-space: nowrap;
 }
 
-.taskNav button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: bold;
+/* Workflow tab strip at the top of the sidebar. */
+.tabStrip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 6px 0;
+  background: linear-gradient(var(--light-gray), #a9a9a9);
+  border-bottom: 1px solid var(--button-dk-shadow);
 }
 
-.taskNumber {
+.tabStrip .tab {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 26px;
+  margin: 0;
+  padding: 4px 6px;
+  font-weight: bold;
+  white-space: nowrap;
+  border: 2px outset var(--button-highlight);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(#e6e6e6, #cfcfcf);
+  color: var(--button-text);
+  cursor: pointer;
+}
+
+.tabStrip .tab:hover {
+  background: linear-gradient(#f0f0f0, #dcdcdc);
+}
+
+.tabStrip .tab[aria-current="page"] {
+  position: relative;
+  top: 1px;
+  background: var(--window-bg);
+  color: var(--beautiful-blue);
+  border-color: var(--button-highlight);
+  box-shadow: none;
+}
+
+.tabNumber {
   display: inline-grid;
   place-items: center;
   width: 16px;
@@ -227,10 +280,10 @@
   font: bold 9px/1 "Courier New", monospace;
 }
 
-.taskNav button[aria-current="page"] .taskNumber {
-  border-color: #fff;
-  background: #fff;
-  color: var(--beautiful-blue);
+.tabStrip .tab[aria-current="page"] .tabNumber {
+  border-color: var(--beautiful-blue);
+  background: var(--beautiful-blue);
+  color: #fff;
 }
 
 .exportTools {
@@ -263,13 +316,9 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .taskNav {
-    min-width: 0;
-  }
-
   .layoutTools {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-column: 1;
+    grid-row: 1;
     justify-content: flex-start;
   }
 
@@ -334,48 +383,6 @@
   white-space: nowrap;
 }
 
-.taskNav button[aria-current="page"] {
-  border-style: inset;
-  background: var(--beautiful-blue);
-  color: #fff;
-  box-shadow: none;
-}
-
-.taskNav button[aria-current="page"]:hover {
-  background: var(--beautiful-blue);
-}
-
-.taskContext {
-  display: grid;
-  gap: 3px;
-  margin: 5px 0 9px;
-  padding: 8px 9px 9px;
-  border: 2px inset var(--panel-soft-border);
-  border-left: 5px solid var(--beautiful-blue);
-  background: var(--panel-soft);
-  color: #222;
-  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-.taskContextStep {
-  color: #485665;
-  font-size: 9px;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.taskContext strong {
-  font-size: 15px;
-  line-height: 1.15;
-}
-
-.taskContext > span:last-child {
-  color: #46505a;
-  font-size: 11px;
-  line-height: 1.35;
-}
 
 .taskProgress {
   display: grid;
@@ -518,17 +525,35 @@
 
 
 .chrome .perfStats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 0;
   font-size: 11px;
   font-family: monospace;
   color: #888;
 }
 
-.chrome .perfStatsSlow {
+.perfReadout {
+  min-width: 0;
+}
+
+.chrome .perfStatsSlow .perfReadout {
   color: #7a1f00;
-  background: #ffe1c7;
-  padding: 4px;
+}
+
+.perfWarnIcon {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
   border: 1px solid #b45c22;
+  background: #ffe1c7;
+  color: #7a1f00;
+  font-size: 10px;
+  line-height: 1;
+  cursor: help;
 }
 
 .chrome .github {
@@ -717,36 +742,57 @@
   font-size: 11px;
 }
 
-.onboarding {
+.browseLooksButton {
+  width: 100%;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.signalPanel {
   display: grid;
-  gap: 5px;
-  margin: 6px 0 10px;
+  gap: 8px;
+  margin-bottom: 12px;
   padding: 8px;
-  background: #fffbd7;
-  border: 2px inset #b9a74b;
-  color: #2f2a10;
+  border: 2px inset var(--panel-soft-border);
+  border-left: 5px solid var(--beautiful-blue);
+  background: var(--panel-soft);
+  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.signalPanel h2 {
+  margin: 0;
+}
+
+.signalIntro {
+  margin: 0;
+  color: #46505a;
   font-size: 11px;
   line-height: 1.35;
-  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.75);
 }
 
-.onboardingEyebrow {
-  color: #655500;
-  font: bold 9px/1.2 "Courier New", monospace;
-  letter-spacing: 0.12em;
-}
-
-.onboardingRoute {
-  padding: 3px 5px;
-  border: 1px inset #d6c86e;
-  background: #fffef0;
-  font: bold 10px/1.25 "Courier New", monospace;
-}
-
-.onboarding > div {
+.slideshowActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
+  align-items: center;
+}
+
+.slideshowActions > .primaryButton {
+  flex: 1 1 auto;
+  font-weight: bold;
+}
+
+.themeField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.themeSelect {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 62%;
 }
 
 .commandPalette {
@@ -2175,21 +2221,30 @@
     box-sizing: border-box;
   }
 
+  /* On mobile the preview/export steps give the canvas the screen, but the
+     workflow tabs now live in the sidebar — keep just the tab strip so the
+     user can still navigate back. */
   .app[data-active-task="preview"] .chrome,
   .app[data-active-task="export"] .chrome {
+    order: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .app[data-active-task="preview"] .chrome > *:not(.tabStrip),
+  .app[data-active-task="export"] .chrome > *:not(.tabStrip) {
     display: none;
   }
 
   .app[data-active-task="source"] .canvases,
   .app[data-active-task="compose"] .canvases,
-  .app[data-active-task="adjust"] .canvases,
   .app[data-active-task="export"] .canvases {
     display: contents;
   }
 
   .app[data-active-task="source"] .canvases > .canvasWindow,
   .app[data-active-task="compose"] .canvases > .canvasWindow,
-  .app[data-active-task="adjust"] .canvases > .canvasWindow,
   .app[data-active-task="export"] .canvases > .canvasWindow {
     display: none !important;
   }
@@ -2221,37 +2276,33 @@
     flex-wrap: nowrap;
   }
 
-  .taskNav,
   .layoutTools,
   .exportTools {
     flex-wrap: nowrap;
   }
 
-  .taskNav {
+  .tabStrip {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    flex: 0 0 100%;
-    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 2px;
-    padding-right: 0;
-    border-right: 0;
+    padding: 4px;
   }
 
-  .taskNav button {
+  .tabStrip .tab {
     min-width: 0;
+    min-height: 44px;
     padding-inline: 3px;
     font-size: 12px;
+    justify-content: center;
+    border-radius: 4px;
+    border-bottom: 2px outset var(--button-highlight);
+    top: 0;
   }
 
-  .taskNumber {
+  .tabNumber {
     display: none;
   }
 
-  .taskContext {
-    margin-top: 3px;
-  }
-
-  .taskNav button,
   .layoutTools button,
   .exportTools button {
     min-height: 44px;

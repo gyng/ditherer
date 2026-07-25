@@ -499,6 +499,27 @@
   background: color-mix(in srgb, var(--window-bg, #fff) 94%, var(--beautiful-blue, #000080));
 }
 
+.detailPreview {
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  border: 1px solid var(--input-border, #808080);
+  background:
+    repeating-conic-gradient(#d8d8d8 0% 25%, #efefef 0% 50%) 0 / 14px 14px;
+  overflow: hidden;
+}
+
+.detailPreview > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.detailPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
 .detailCategory {
   color: color-mix(in srgb, var(--window-text, #111) 58%, transparent);
   font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;

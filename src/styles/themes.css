@@ -1,0 +1,263 @@
+/* Extra theme families beyond the base Windows 98 look.
+ *
+ * Win98 variants live in global.css (token recolors only). The themes here
+ * additionally restyle the shared global `button, .button, input, select`
+ * elements (see controls/styles.module.css) to change the control shape, so
+ * they need structural rules — not just tokens. Component chrome driven by CSS
+ * variables (windows, panels, desktop) recolors automatically from the tokens.
+ */
+
+/* ===================== Mac Aqua ===================== */
+:root[data-theme="aqua-blue"] {
+  --bg-color: #a7b6c9;
+  --light-gray: #ededed;
+  --gray: #d7d7d7;
+  --beautiful-blue: #2b6fd6;
+  --beautiful-blue-gradient: #7fb0f0;
+  --button-highlight: #ffffff;
+  --button-shadow: #b9c0c8;
+  --button-dk-shadow: #7f8890;
+  --button-text: #1a1a1a;
+  --window-bg: #ffffff;
+  --window-text: #1a1a1a;
+  --input-border: #9aa4ae;
+  --separator-top: #b9c0c8;
+  --separator-bottom: #ffffff;
+  --desktop-color: #4a6178;
+  --desktop-grid: rgba(255, 255, 255, 0.05);
+  --panel-soft: #eef3f9;
+  --panel-soft-border: #b6c2ce;
+  --focus-ring: #2b6fd6;
+  --primary-face: #cfe0f6;
+  --primary-text: #143a70;
+  --primary-shadow: #3a6bb0;
+}
+
+:root[data-theme="aqua-graphite"] {
+  --bg-color: #9ea3a8;
+  --light-gray: #ededed;
+  --gray: #d7d7d7;
+  --beautiful-blue: #6b7075;
+  --beautiful-blue-gradient: #a4a9ae;
+  --button-highlight: #ffffff;
+  --button-shadow: #b7bbbf;
+  --button-dk-shadow: #7c8085;
+  --button-text: #1a1a1a;
+  --window-bg: #ffffff;
+  --window-text: #1a1a1a;
+  --input-border: #a0a4a8;
+  --separator-top: #b7bbbf;
+  --separator-bottom: #ffffff;
+  --desktop-color: #56595c;
+  --desktop-grid: rgba(255, 255, 255, 0.05);
+  --panel-soft: #eef0f2;
+  --panel-soft-border: #bcc0c4;
+  --focus-ring: #6b7075;
+  --primary-face: #dcdfe2;
+  --primary-text: #33383d;
+  --primary-shadow: #6b7075;
+}
+
+[data-theme="aqua-blue"] button,
+[data-theme="aqua-blue"] .button,
+[data-theme="aqua-graphite"] button,
+[data-theme="aqua-graphite"] .button {
+  border: 1px solid var(--input-border);
+  border-radius: 11px;
+  background: linear-gradient(#ffffff, #e3e9f0 48%, #cfd8e2 52%, #eef3f9);
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.22);
+  color: var(--button-text);
+}
+
+[data-theme="aqua-blue"] button:hover:not(:disabled),
+[data-theme="aqua-blue"] .button:hover:not(:disabled),
+[data-theme="aqua-graphite"] button:hover:not(:disabled),
+[data-theme="aqua-graphite"] .button:hover:not(:disabled) {
+  background: linear-gradient(#ffffff, #eaf1f8 48%, #d9e2ec 52%, #f4f8fc);
+}
+
+[data-theme="aqua-blue"] button:active,
+[data-theme="aqua-blue"] .button:active,
+[data-theme="aqua-graphite"] button:active,
+[data-theme="aqua-graphite"] .button:active {
+  border: 1px solid var(--input-border);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="aqua-blue"] input,
+[data-theme="aqua-blue"] select,
+[data-theme="aqua-blue"] textarea,
+[data-theme="aqua-graphite"] input,
+[data-theme="aqua-graphite"] select,
+[data-theme="aqua-graphite"] textarea {
+  border-radius: 8px;
+}
+
+/* ===================== Modern ===================== */
+:root[data-theme="modern-dark"] {
+  --bg-color: #14161a;
+  --light-gray: #2a2e35;
+  --gray: #2a2e35;
+  --beautiful-blue: #4c8dff;
+  --beautiful-blue-gradient: #6ea3ff;
+  --button-highlight: #3a3f47;
+  --button-shadow: #101216;
+  --button-dk-shadow: #000000;
+  --button-text: #e8ebf0;
+  --window-bg: #1c1f24;
+  --window-text: #e8ebf0;
+  --input-border: #3a3f47;
+  --separator-top: #101216;
+  --separator-bottom: #3a3f47;
+  --desktop-color: #0e1013;
+  --desktop-grid: rgba(255, 255, 255, 0.03);
+  --panel-soft: #23272e;
+  --panel-soft-border: #3a3f47;
+  --focus-ring: #4c8dff;
+  --primary-face: #21406e;
+  --primary-text: #dce8ff;
+  --primary-shadow: #16345e;
+}
+
+:root[data-theme="modern-light"] {
+  --bg-color: #eef1f5;
+  --light-gray: #ffffff;
+  --gray: #e3e7ec;
+  --beautiful-blue: #2f6fed;
+  --beautiful-blue-gradient: #6a9bf5;
+  --button-highlight: #ffffff;
+  --button-shadow: #c9cfd7;
+  --button-dk-shadow: #aeb6c0;
+  --button-text: #1a1f26;
+  --window-bg: #ffffff;
+  --window-text: #1a1f26;
+  --input-border: #c9cfd7;
+  --separator-top: #d5dae1;
+  --separator-bottom: #ffffff;
+  --desktop-color: #dfe4ea;
+  --desktop-grid: rgba(0, 0, 0, 0.04);
+  --panel-soft: #f3f6fa;
+  --panel-soft-border: #d0d7df;
+  --focus-ring: #2f6fed;
+  --primary-face: #dbe8ff;
+  --primary-text: #143a8a;
+  --primary-shadow: #3a6bd0;
+}
+
+[data-theme="modern-dark"] button,
+[data-theme="modern-dark"] .button,
+[data-theme="modern-light"] button,
+[data-theme="modern-light"] .button {
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--light-gray);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  color: var(--button-text);
+}
+
+[data-theme="modern-dark"] button:hover:not(:disabled),
+[data-theme="modern-dark"] .button:hover:not(:disabled),
+[data-theme="modern-light"] button:hover:not(:disabled),
+[data-theme="modern-light"] .button:hover:not(:disabled) {
+  background: var(--light-gray);
+  filter: brightness(1.08);
+}
+
+[data-theme="modern-dark"] button:active,
+[data-theme="modern-dark"] .button:active,
+[data-theme="modern-light"] button:active,
+[data-theme="modern-light"] .button:active {
+  border: 1px solid var(--input-border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: translateY(1px);
+}
+
+[data-theme="modern-dark"] input,
+[data-theme="modern-dark"] select,
+[data-theme="modern-dark"] textarea,
+[data-theme="modern-light"] input,
+[data-theme="modern-light"] select,
+[data-theme="modern-light"] textarea {
+  border-radius: 6px;
+}
+
+[data-theme="modern-dark"] body {
+  color: var(--window-text);
+}
+
+[data-theme="modern-dark"] a {
+  color: #7fb0ff;
+}
+
+/* ===================== Arcade Cabinet (wild / skeuomorphic) ===================== */
+:root[data-theme="arcade"] {
+  --bg-color: #170a2b;
+  --light-gray: #3a1d63;
+  --gray: #3a1d63;
+  --beautiful-blue: #ff2e88;
+  --beautiful-blue-gradient: #ff6ab0;
+  --button-highlight: #7a3fc0;
+  --button-shadow: #1c0d38;
+  --button-dk-shadow: #05010f;
+  --button-text: #fdf5ff;
+  --window-bg: #1e0f3a;
+  --window-text: #fdf5ff;
+  --input-border: #ff2e88;
+  --separator-top: #05010f;
+  --separator-bottom: #7a3fc0;
+  --desktop-color: #0d0420;
+  --desktop-grid: rgba(255, 46, 136, 0.12);
+  --panel-soft: #2a1550;
+  --panel-soft-border: #ff2e88;
+  --focus-ring: #ffe000;
+  --primary-face: #ff2e88;
+  --primary-text: #1e0f3a;
+  --primary-shadow: #a01050;
+}
+
+[data-theme="arcade"] body {
+  color: var(--window-text);
+}
+
+[data-theme="arcade"] button,
+[data-theme="arcade"] .button {
+  border: 2px solid #ff2e88;
+  border-radius: 8px;
+  background: linear-gradient(#5a2c98, #2a1550);
+  box-shadow:
+    0 0 6px rgba(255, 46, 136, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 3px 0 #05010f;
+  color: #fdf5ff;
+  text-shadow: 0 0 4px rgba(255, 110, 176, 0.8);
+  font-weight: bold;
+}
+
+[data-theme="arcade"] button:hover:not(:disabled),
+[data-theme="arcade"] .button:hover:not(:disabled) {
+  background: linear-gradient(#6a37b0, #331a60);
+  box-shadow:
+    0 0 10px rgba(255, 46, 136, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 3px 0 #05010f;
+}
+
+[data-theme="arcade"] button:active,
+[data-theme="arcade"] .button:active {
+  border: 2px solid #ff2e88;
+  transform: translateY(3px);
+  box-shadow:
+    0 0 8px rgba(255, 46, 136, 0.8),
+    inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="arcade"] input,
+[data-theme="arcade"] select,
+[data-theme="arcade"] textarea {
+  border-radius: 6px;
+  border: 1px solid #ff2e88;
+}
+
+[data-theme="arcade"] a {
+  color: #ffe000;
+}

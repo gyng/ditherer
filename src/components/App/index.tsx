@@ -83,7 +83,8 @@ const FULLSCREEN_CURSOR_IDLE_MS = 1500;
 const DEFAULT_INPUT_WINDOW_POSITION = { x: 340, y: 10 };
 const DEFAULT_OUTPUT_WINDOW_POSITION = { x: 660, y: 20 };
 type WorkspaceLayout = "docked" | "floating" | "output";
-type WorkbenchTask = "source" | "compose" | "adjust" | "preview" | "export";
+type AppMode = "media" | "viz" | "slideshow";
+type WorkbenchTask = "source" | "compose" | "preview" | "export";
 
 const WORKBENCH_TASKS: ReadonlyArray<{
   id: WorkbenchTask;
@@ -100,14 +101,8 @@ const WORKBENCH_TASKS: ReadonlyArray<{
   {
     id: "compose",
     label: "Compose",
-    title: "Build the filter chain",
-    description: "Choose a look, add stages, and arrange the processing order.",
-  },
-  {
-    id: "adjust",
-    label: "Adjust",
-    title: "Tune the active stage",
-    description: "Refine parameters and input processing for the selected filter.",
+    title: "Build and tune the chain",
+    description: "Choose a look, arrange the stages, and tune the selected filter's parameters.",
   },
   {
     id: "preview",
@@ -122,6 +117,36 @@ const WORKBENCH_TASKS: ReadonlyArray<{
     description: "Choose a still or video format and save the finished work.",
   },
 ];
+
+type ThemeOption = { value: string; label: string; group: string };
+const THEMES: ReadonlyArray<ThemeOption> = [
+  { value: "default", label: "Classic", group: "Windows 98" },
+  { value: "rainy-day", label: "Rainy Day", group: "Windows 98" },
+  { value: "win98-storm", label: "Storm", group: "Windows 98" },
+  { value: "win98-desert", label: "Desert", group: "Windows 98" },
+  { value: "win98-spruce", label: "Spruce", group: "Windows 98" },
+  { value: "win98-slate", label: "Slate", group: "Windows 98" },
+  { value: "aqua-blue", label: "Aqua Blue", group: "Mac Aqua" },
+  { value: "aqua-graphite", label: "Aqua Graphite", group: "Mac Aqua" },
+  { value: "modern-dark", label: "Modern Dark", group: "Modern" },
+  { value: "modern-light", label: "Modern Light", group: "Modern" },
+  { value: "arcade", label: "Arcade Cabinet", group: "Wild" },
+];
+const THEME_GROUPS = Array.from(
+  THEMES.reduce((groups, option) => {
+    const list = groups.get(option.group) ?? [];
+    list.push(option);
+    groups.set(option.group, list);
+    return groups;
+  }, new Map<string, ThemeOption[]>()),
+);
+const applyThemeAttribute = (theme: string) => {
+  if (theme && theme !== "default") {
+    document.documentElement.setAttribute("data-theme", theme);
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+};
 
 const secondsToBpm = (seconds: number) => 240 / seconds;
 const bpmToSeconds = (bpm: number) => 240 / bpm;
@@ -1262,10 +1287,20 @@ const App = () => {
   const [showFullscreenMenu, setShowFullscreenMenu] = useState(false);
   const [inputWindowPosition, setInputWindowPosition] = useState(DEFAULT_INPUT_WINDOW_POSITION);
   const [outputWindowPosition, setOutputWindowPosition] = useState(DEFAULT_OUTPUT_WINDOW_POSITION);
-  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() =>
-    (localStorage.getItem("ditherer-workspace-layout") as WorkspaceLayout | null) || "docked"
+  const [appMode, setAppMode] = useState<AppMode>(() =>
+    (localStorage.getItem("ditherer-app-mode") as AppMode | null) || "media"
   );
-  const [windowsLocked, setWindowsLocked] = useState(true);
+  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => {
+    const stored = localStorage.getItem("ditherer-workspace-layout") as WorkspaceLayout | null;
+    if (stored) return stored;
+    // Desktop defaults to floating canvas windows; narrow screens stay docked.
+    return typeof window !== "undefined" && window.innerWidth > 960 ? "floating" : "docked";
+  });
+  const [windowsLocked, setWindowsLocked] = useState(() => {
+    const stored = localStorage.getItem("ditherer-workspace-layout") as WorkspaceLayout | null;
+    if (stored) return stored !== "floating";
+    return !(typeof window !== "undefined" && window.innerWidth > 960);
+  });
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
   const [comparisonPosition, setComparisonPosition] = useState(50);
   const [comparisonHold, setComparisonHold] = useState(false);
@@ -1274,7 +1309,6 @@ const App = () => {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandActiveIndex, setCommandActiveIndex] = useState(0);
   const [webMCPStatus, setWebMCPStatus] = useState<WebMCPStatus>(getWebMCPAvailability);
-  const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem("ditherer-onboarding-complete") !== "1");
   const [openPresetLibraryRequest, setOpenPresetLibraryRequest] = useState(0);
   const [activeTask, setActiveTask] = useState<WorkbenchTask>("source");
   const [inspectorQuery, setInspectorQuery] = useState("");
@@ -1321,7 +1355,6 @@ const App = () => {
   const chromeRef = useRef<HTMLDivElement | null>(null);
   const workspaceToolbarRef = useRef<HTMLElement | null>(null);
   const sourceFileInputRef = useRef<HTMLInputElement | null>(null);
-  const onboardingInitialChainRef = useRef(state.chain);
   const estimatedFrameStepRef = useRef(1 / 30);
   const screensaverRestoreRef = useRef<ScreensaverRestore | null>(null);
   const screensaverHasEnteredFullscreenRef = useRef(false);
@@ -1405,13 +1438,17 @@ const App = () => {
   const imageAssetPromiseCacheRef = useRef<Map<string, Promise<HTMLImageElement>>>(new Map());
   const pendingLoadedMediaFilterRef = useRef(false);
 
-  const completeOnboarding = useCallback(() => {
-    localStorage.setItem("ditherer-onboarding-complete", "1");
-    setShowOnboarding(false);
-  }, []);
-
   const navigateToTask = useCallback((task: WorkbenchTask) => {
     setActiveTask(task);
+    requestAnimationFrame(() => {
+      chromeRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    });
+  }, []);
+
+  const changeAppMode = useCallback((mode: AppMode) => {
+    setAppMode(mode);
+    localStorage.setItem("ditherer-app-mode", mode);
+    setActiveTask((current) => (current === "export" ? current : "source"));
     requestAnimationFrame(() => {
       chromeRef.current?.scrollTo({ top: 0, behavior: "auto" });
     });
@@ -1427,10 +1464,6 @@ const App = () => {
     setActiveTask("preview");
   }, []);
 
-  useEffect(() => {
-    if (!showOnboarding || state.chain === onboardingInitialChainRef.current) return;
-    completeOnboarding();
-  }, [completeOnboarding, showOnboarding, state.chain]);
   const webmcpRefs = useRef({ state, actions, filterList });
   webmcpRefs.current = { state, actions, filterList };
   const waitForWebMCPMediaReady = useCallback((previousState: Pick<typeof state, "inputImage" | "outputImage">) => (
@@ -1888,9 +1921,7 @@ const App = () => {
 
   // Apply saved theme on mount
   useEffect(() => {
-    if (theme === "rainy-day") {
-      document.documentElement.setAttribute("data-theme", "rainy-day");
-    }
+    applyThemeAttribute(theme);
   }, []);
 
   // Register WebMCP tools once (current document API, with a legacy navigator fallback).
@@ -2097,7 +2128,6 @@ const App = () => {
 
   const loadUserFile = useCallback((file?: File | null) => {
     if (!file) return;
-    completeOnboarding();
     syncSharedTestMediaUrl(null);
     const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
     pendingLoadedMediaFilterRef.current = true;
@@ -2108,7 +2138,7 @@ const App = () => {
         preserveScale: preserveInputWidthOnNewMedia,
       })
     );
-  }, [actions, completeOnboarding, preserveInputWidthOnNewMedia, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+  }, [actions, preserveInputWidthOnNewMedia, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
 
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
@@ -2587,7 +2617,7 @@ const App = () => {
     });
   }, [screensaverBpmSwapBeats, screensaverBpmSwapEnabled]);
 
-  const openScreensaverDialog = useCallback(() => {
+  const seedScreensaverDrafts = useCallback(() => {
     const currentSwapSeconds = getLastScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? 2;
     const currentVideoSrc = state.video?.currentSrc || state.video?.src || null;
     const randomVideoDefault =
@@ -2598,12 +2628,6 @@ const App = () => {
       ? screensaverConfigRef.current.videoSwapSeconds
       : currentSwapSeconds * 4;
     const screensaverAudioMod = getGlobalAudioVizModulation("screensaver");
-    const buttonRect = screensaverButtonRef.current?.getBoundingClientRect();
-    setScreensaverDialogPosition(getAnchoredDialogPosition(
-      buttonRect,
-      screensaverDialogPosition,
-      { width: 820, height: 760 },
-    ));
     setScreensaverSwapSecondsDraft(currentSwapSeconds.toString());
     setScreensaverSwapBpmDraft(secondsToBpm(currentSwapSeconds).toFixed(2).replace(/\.?0+$/, ""));
     setScreensaverRandomVideoDraft(randomVideoDefault);
@@ -2613,9 +2637,32 @@ const App = () => {
     setScreensaverAudioGlobalConnectionsDraft(buildAudioConnectionDraft(screensaverAudioMod));
     setScreensaverAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(screensaverAudioMod));
     setScreensaverShowDebugDraft(screensaverShowDebug);
+  }, [screensaverShowDebug, state.scalingAlgorithm, state.video]);
+
+  const openScreensaverDialog = useCallback(() => {
+    const buttonRect = screensaverButtonRef.current?.getBoundingClientRect();
+    setScreensaverDialogPosition(getAnchoredDialogPosition(
+      buttonRect,
+      screensaverDialogPosition,
+      { width: 820, height: 760 },
+    ));
+    seedScreensaverDrafts();
     setShowScreensaverDialog(true);
     requestAudioVizPermissions("screensaver");
-  }, [requestAudioVizPermissions, screensaverDialogPosition.x, screensaverDialogPosition.y, state.scalingAlgorithm, state.video]);
+  }, [requestAudioVizPermissions, screensaverDialogPosition.x, screensaverDialogPosition.y, seedScreensaverDrafts]);
+
+  // Seed the inline Slideshow-mode controls once when that mode becomes active.
+  const seededSlideshowRef = useRef(false);
+  useEffect(() => {
+    if (appMode !== "slideshow") {
+      seededSlideshowRef.current = false;
+      return;
+    }
+    if (seededSlideshowRef.current) return;
+    seededSlideshowRef.current = true;
+    seedScreensaverDrafts();
+    requestAudioVizPermissions("screensaver");
+  }, [appMode, requestAudioVizPermissions, seedScreensaverDrafts]);
 
   const handleScreensaverSwapSecondsChange = useCallback((value: string) => {
     setScreensaverSwapSecondsDraft(value);
@@ -2699,9 +2746,19 @@ const App = () => {
   }, [requestAudioVizPermissions]);
 
   useEffect(() => {
-    if (!showChainAudioGlobalEditor) return;
+    // The chain patch panel is live both in the floating editor and inline in Visualisation mode.
+    if (!showChainAudioGlobalEditor && appMode !== "viz") return;
     setGlobalAudioVizModulation("chain", buildGlobalModulation(chainAudioGlobalConnectionsDraft, chainAudioGlobalNormalizedMetricsDraft));
-  }, [buildGlobalModulation, chainAudioGlobalConnectionsDraft, chainAudioGlobalNormalizedMetricsDraft, showChainAudioGlobalEditor]);
+  }, [appMode, buildGlobalModulation, chainAudioGlobalConnectionsDraft, chainAudioGlobalNormalizedMetricsDraft, showChainAudioGlobalEditor]);
+
+  useEffect(() => {
+    // Seed the inline Visualisation-mode patch panel from any stored chain modulation.
+    if (appMode !== "viz") return;
+    const modulation = getGlobalAudioVizModulation("chain");
+    setChainAudioGlobalConnectionsDraft(buildAudioConnectionDraft(modulation));
+    setChainAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(modulation));
+    requestAudioVizPermissions("chain");
+  }, [appMode, requestAudioVizPermissions]);
 
   const saveChainAudioGlobalEditor = useCallback(() => {
     setShowChainAudioGlobalEditor(false);
@@ -2921,6 +2978,200 @@ const App = () => {
     setShowCommandPalette(false);
   };
 
+  // Shared slideshow timing controls — used in both the floating screensaver
+  // dialog and the inline Slideshow-mode panel.
+  const renderSlideshowTimingControls = () => (
+    <>
+      <fieldset className={controls.optionGroup}>
+        <legend className={controls.optionGroupLegend}>Chain swap timing</legend>
+        <div className={s.screensaverRadioRow}>
+          <label className={s.screensaverRadioOption}>
+            <input
+              type="radio"
+              name="screensaverChainSwapMode"
+              checked={!screensaverBpmSwapEnabled}
+              onChange={() => setScreensaverBpmSwapEnabled(false)}
+            />
+            <span>Fixed interval</span>
+          </label>
+          <label className={s.screensaverRadioOption}>
+            <input
+              type="radio"
+              name="screensaverChainSwapMode"
+              checked={screensaverBpmSwapEnabled}
+              onChange={() => setScreensaverBpmSwapEnabled(true)}
+            />
+            <span>Sync to detected BPM</span>
+          </label>
+        </div>
+        {!screensaverBpmSwapEnabled ? (
+          <div className={s.screensaverFieldRow}>
+            <label className={s.screensaverField}>
+              <span>Seconds per swap</span>
+              <input
+                className={s.screensaverInput}
+                type="number"
+                min="0.001"
+                step="0.001"
+                value={screensaverSwapSecondsDraft}
+                onChange={(e) => handleScreensaverSwapSecondsChange(e.target.value)}
+              />
+            </label>
+            <label className={s.screensaverField}>
+              <span>= BPM</span>
+              <input
+                className={s.screensaverInput}
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={screensaverSwapBpmDraft}
+                onChange={(e) => handleScreensaverSwapBpmChange(e.target.value)}
+              />
+            </label>
+          </div>
+        ) : (
+          <>
+            <label className={s.screensaverField}>
+              <span>Beats per swap</span>
+              <input
+                className={s.screensaverInput}
+                type="number"
+                min="0.25"
+                step="0.25"
+                value={screensaverBpmSwapBeats}
+                onChange={(event) => setScreensaverBpmSwapBeats(event.target.value)}
+              />
+            </label>
+            <div className={s.screensaverHint}>
+              {(() => {
+                const beatsPerSwap = Number.parseFloat(screensaverBpmSwapBeats);
+                const bpm = getChannelAudioVizSnapshot("screensaver").detectedBpm;
+                if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
+                  return "Waiting for a detected BPM from the screensaver audio input.";
+                }
+                const seconds = (60 / bpm) * beatsPerSwap;
+                return `Resolves to ~${seconds.toFixed(2)}s (${Math.round(bpm)} BPM × ${beatsPerSwap} beats). Updates live as tempo drifts.`;
+              })()}
+            </div>
+          </>
+        )}
+      </fieldset>
+      <fieldset className={controls.optionGroup}>
+        <legend className={controls.optionGroupLegend}>Random video swaps</legend>
+        <label className={s.screensaverCheck}>
+          <input
+            type="checkbox"
+            checked={screensaverRandomVideoDraft}
+            onChange={(e) => {
+              const nextChecked = e.target.checked;
+              setScreensaverRandomVideoDraft(nextChecked);
+              if (nextChecked) {
+                const swapSeconds = Number.parseFloat(screensaverSwapSecondsDraft);
+                if (Number.isFinite(swapSeconds) && swapSeconds > 0) {
+                  setScreensaverVideoSwapSecondsDraft((swapSeconds * 4).toFixed(3).replace(/\.?0+$/, ""));
+                }
+              }
+            }}
+          />
+          <span>Auto swap random video</span>
+        </label>
+        {screensaverRandomVideoDraft && (
+          <>
+            <div className={[s.screensaverSubgroupLabel, controls.subsectionHeader].join(" ")}>Video swap timing</div>
+            <div className={s.screensaverRadioRow}>
+              <label className={s.screensaverRadioOption}>
+                <input
+                  type="radio"
+                  name="screensaverVideoSwapMode"
+                  checked={!screensaverVideoBpmSwapEnabled}
+                  onChange={() => setScreensaverVideoBpmSwapEnabled(false)}
+                />
+                <span>Fixed interval</span>
+              </label>
+              <label className={s.screensaverRadioOption}>
+                <input
+                  type="radio"
+                  name="screensaverVideoSwapMode"
+                  checked={screensaverVideoBpmSwapEnabled}
+                  onChange={() => setScreensaverVideoBpmSwapEnabled(true)}
+                />
+                <span>Sync to detected BPM</span>
+              </label>
+            </div>
+            {!screensaverVideoBpmSwapEnabled ? (
+              <label className={s.screensaverField}>
+                <span>Seconds per video swap</span>
+                <input
+                  className={s.screensaverInput}
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={screensaverVideoSwapSecondsDraft}
+                  onChange={(e) => setScreensaverVideoSwapSecondsDraft(e.target.value)}
+                />
+              </label>
+            ) : (
+              <>
+                <label className={s.screensaverField}>
+                  <span>Beats per video swap</span>
+                  <input
+                    className={s.screensaverInput}
+                    type="number"
+                    min="0.25"
+                    step="0.25"
+                    value={screensaverVideoBpmSwapBeats}
+                    onChange={(event) => setScreensaverVideoBpmSwapBeats(event.target.value)}
+                  />
+                </label>
+                <div className={s.screensaverHint}>
+                  {(() => {
+                    const beatsPerSwap = Number.parseFloat(screensaverVideoBpmSwapBeats);
+                    const bpm = getChannelAudioVizSnapshot("screensaver").detectedBpm;
+                    if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
+                      return "Waiting for a detected BPM from the screensaver audio input.";
+                    }
+                    const seconds = (60 / bpm) * beatsPerSwap;
+                    return `Resolves to ~${seconds.toFixed(2)}s (${Math.round(bpm)} BPM × ${beatsPerSwap} beats). Updates live as tempo drifts.`;
+                  })()}
+                </div>
+              </>
+            )}
+            <div className={s.screensaverFieldRow}>
+              <label className={s.screensaverField}>
+                <span>Video width (px)</span>
+                <input
+                  className={s.screensaverInput}
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={screensaverVideoMaxWidthDraft}
+                  onChange={(e) => setScreensaverVideoMaxWidthDraft(e.target.value)}
+                />
+              </label>
+              <label className={s.screensaverField}>
+                <span>Video scaling</span>
+                <select
+                  className={s.screensaverInput}
+                  value={screensaverScalingAlgorithmDraft}
+                  onChange={(e) => setScreensaverScalingAlgorithmDraft(e.target.value)}
+                >
+                  {SCALING_ALGORITHM_OPTIONS.options.map((option) => (
+                    <option key={String(option.value)} value={String(option.value)}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className={s.screensaverHint}>
+              Input scale is clamped to the video width above for performance.
+            </div>
+          </>
+        )}
+      </fieldset>
+    </>
+  );
+
   return (
     <div className={s.app} data-active-task={activeTask}>
       <div className={s.chrome} ref={chromeRef}>
@@ -2934,47 +3185,124 @@ const App = () => {
             </span>
           </div>
           <div className={s.appIdentityMeta}>
-            <span>IMAGE + SIGNAL WORKBENCH</span>
-            <span aria-hidden="true">▓▒░</span>
+            <div className={s.modeSwitcher} role="group" aria-label="Workbench mode">
+              <button
+                type="button"
+                className={s.modeButton}
+                aria-pressed={appMode === "media"}
+                onClick={() => changeAppMode("media")}
+                title="Process an image or video through the filter chain"
+              >
+                Media
+              </button>
+              <button
+                type="button"
+                className={s.modeButton}
+                aria-pressed={appMode === "viz"}
+                onClick={() => changeAppMode("viz")}
+                title="Drive the chain from an audio signal with Auto-Viz"
+              >
+                Visualisation
+              </button>
+              <button
+                type="button"
+                className={s.modeButton}
+                aria-pressed={appMode === "slideshow"}
+                onClick={() => changeAppMode("slideshow")}
+                title="Auto-cycle looks and media as a fullscreen slideshow"
+              >
+                Slideshow
+              </button>
+            </div>
+            <span className={s.modeHint} aria-hidden="true">
+              {appMode === "viz" ? "AUDIO ▸ SIGNAL" : appMode === "slideshow" ? "AUTO ▸ CYCLE" : state.video ? "VIDEO" : "IMAGE"}
+            </span>
           </div>
         </header>
-        {showOnboarding && (
-          <aside className={s.onboarding} aria-label="Getting started">
-            <span className={s.onboardingEyebrow}>QUICK START</span>
-            <strong>Ready to remix</strong>
-            <span>A sample video and starter dither are already running. Choose a look, tune it, then swap in your own media.</span>
-            <span className={s.onboardingRoute}>LOOK → TUNE → MEDIA → EXPORT</span>
-            <div>
-              <button className={s.primaryButton} onClick={() => {
-                completeOnboarding();
-                navigateToTask("compose");
-                setOpenPresetLibraryRequest((request) => request + 1);
-              }}>Browse looks</button>
-              <button onClick={() => {
-                completeOnboarding();
-                navigateToTask("source");
-                sourceFileInputRef.current?.click();
-              }}>Use my media</button>
-              <button onClick={completeOnboarding}>Dismiss</button>
-            </div>
-          </aside>
-        )}
 
-        {(() => {
-          const taskIndex = WORKBENCH_TASKS.findIndex((task) => task.id === activeTask);
-          const task = WORKBENCH_TASKS[taskIndex];
-          return (
-            <section className={s.taskContext} aria-labelledby="active-task-title" aria-live="polite">
-              <span className={s.taskContextStep}>Step {taskIndex + 1} of {WORKBENCH_TASKS.length}</span>
-              <strong id="active-task-title">{task.title}</strong>
-              <span>{task.description}</span>
-            </section>
-          );
-        })()}
+        <nav className={s.tabStrip} aria-label="Workflow steps">
+          {WORKBENCH_TASKS.map((task, index) => {
+            const label = task.id === "source"
+              ? (appMode === "viz" ? "Signal" : appMode === "slideshow" ? "Slideshow" : task.label)
+              : task.label;
+            return (
+              <button
+                key={task.id}
+                type="button"
+                className={s.tab}
+                aria-current={activeTask === task.id ? "page" : undefined}
+                title={`Step ${index + 1}: ${task.title}`}
+                onClick={() => {
+                  if (task.id === "export") {
+                    openExport();
+                  } else {
+                    navigateToTask(task.id);
+                    if (task.id === "preview") {
+                      requestAnimationFrame(() => outputWindowRef.current?.focus({ preventScroll: true }));
+                    }
+                  }
+                }}
+              >
+                <span className={s.tabNumber} aria-hidden="true">{index + 1}</span>
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
         {/* Input section */}
         <div id="source-task" className={s.sourceTask}>
-          <h2>Input</h2>
+          {appMode === "viz" && (
+            <div className={s.signalPanel}>
+              <h2>Signal</h2>
+              <p className={s.signalIntro}>
+                Drive the filter chain from an audio signal. Choose an input, then patch metrics to
+                parameters — or let Auto-Viz wire the cables for you.
+              </p>
+              <AudioVizControls channel="chain" title="Signal input" />
+              <AudioPatchPanel
+                channel="chain"
+                rangeOptions={chainWideRangeOptions}
+                optionValues={chainWideOptionValues}
+                connections={chainAudioGlobalConnectionsDraft}
+                normalizedMetrics={chainAudioGlobalNormalizedMetricsDraft}
+                onNormalizedMetricsChange={setChainAudioGlobalNormalizedMetricsDraft}
+                onConnectionsChange={setChainAudioGlobalConnectionsDraft}
+                autoVizMode={chainAudioAutoVizMode}
+                onAutoVizModeChange={setChainAudioAutoVizMode}
+                autoVizOnChainChange={chainAudioAutoVizOnChainChange}
+                onAutoVizOnChainChange={setChainAudioAutoVizOnChainChange}
+                bodyTitle="Auto-Viz patch panel"
+              />
+            </div>
+          )}
+          {appMode === "slideshow" && (
+            <div className={s.signalPanel}>
+              <h2>Slideshow</h2>
+              <p className={s.signalIntro}>
+                Auto-cycle looks (and optionally random media) as a fullscreen slideshow. Set the
+                swap timing, then start — it opens the output in fullscreen.
+              </p>
+              {renderSlideshowTimingControls()}
+              <div className={s.slideshowActions}>
+                <button
+                  type="button"
+                  className={s.primaryButton}
+                  onClick={confirmScreensaverDialog}
+                >
+                  ▶ Start slideshow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openScreensaverDialog()}
+                  title="Open the full screensaver dialog with audio-reactive patching"
+                >
+                  Advanced…
+                </button>
+              </div>
+            </div>
+          )}
+          <h2>{appMode === "viz" || appMode === "slideshow" ? "Media input (optional)" : "Input"}</h2>
           <div
             className={[controls.group, s.mediaSourceGroup, dropping ? controls.dropping : null].join(" ")}
             onDragLeave={() => setDropping(false)}
@@ -3196,9 +3524,20 @@ const App = () => {
 
         {/* Algorithm section */}
         <div id="compose-task" className={s.composeTask}>
-        <CollapsibleSection title={activeTask === "adjust" ? "Filter settings" : "Stages"} defaultOpen>
+        <CollapsibleSection title="Stages & settings" defaultOpen>
           <div className={["filterOptions", s.filterOptions].join(" ")}>
             <div className={s.chainComposer} id="chain-composer">
+              <button
+                type="button"
+                className={[s.browseLooksButton, s.primaryButton].join(" ")}
+                onClick={() => {
+                  navigateToTask("compose");
+                  setOpenPresetLibraryRequest((request) => request + 1);
+                }}
+                title="Open the preset library to browse ready-made looks"
+              >
+                Browse looks…
+              </button>
               <ChainList
                 onEditAudioMod={openAudioModEditor}
                 onEditChainAudioMod={openChainAudioGlobalEditor}
@@ -3467,25 +3806,28 @@ const App = () => {
             </span>
           </label>
           <div className={controls.separator} />
-          <label className={controls.checkbox}>
-            <input
-              name="theme"
-              type="checkbox"
-              checked={theme === "rainy-day"}
+          <label className={[controls.label, s.themeField].join(" ")} htmlFor="theme-select">
+            <span>Theme</span>
+            <select
+              id="theme-select"
+              className={s.themeSelect}
+              value={theme}
               onChange={e => {
-                const newTheme = e.target.checked ? "rainy-day" : "default";
+                const newTheme = e.target.value;
                 setTheme(newTheme);
                 localStorage.setItem("ditherer-theme", newTheme);
-                if (newTheme === "rainy-day") {
-                  document.documentElement.setAttribute("data-theme", "rainy-day");
-                } else {
-                  document.documentElement.removeAttribute("data-theme");
-                }
+                applyThemeAttribute(newTheme);
               }}
-            />
-            <span className={controls.label}>
-              Rainy Day theme
-            </span>
+              title="Choose a UI theme"
+            >
+              {THEME_GROUPS.map(([group, options]) => (
+                <optgroup key={group} label={group}>
+                  {options.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </label>
           <div className={controls.separator} />
           <Exporter />
@@ -3494,11 +3836,22 @@ const App = () => {
 
         {state.frameTime != null && (
           <div className={[s.perfStats, state.frameTime > 50 ? s.perfStatsSlow : ""].join(" ")}>
-            {state.stepTimes && state.stepTimes.length > 1
-              ? `${state.stepTimes.length} filters`
-              : state.stepTimes?.[0]?.name ?? "Filter"
-            } | {state.frameTime.toFixed(0)}ms | {(1000 / state.frameTime).toFixed(1)} fps
-            {state.frameTime > 50 ? " · Try a lower input scale or fewer temporal filters" : " · Realtime ready"}
+            <span className={s.perfReadout}>
+              {state.stepTimes && state.stepTimes.length > 1
+                ? `${state.stepTimes.length} filters`
+                : state.stepTimes?.[0]?.name ?? "Filter"
+              } | {state.frameTime.toFixed(0)}ms | {(1000 / state.frameTime).toFixed(1)} fps
+            </span>
+            {state.frameTime > 50 && (
+              <span
+                className={s.perfWarnIcon}
+                role="img"
+                aria-label="Performance warning: try a lower input scale or fewer temporal filters"
+                title="Slow frame time. Try a lower input scale or fewer temporal filters."
+              >
+                ⚠
+              </span>
+            )}
           </div>
         )}
         <div className={s.github}>
@@ -3509,30 +3862,7 @@ const App = () => {
 
       {/* Task navigation and canvas workbench */}
       <main className={s.workspace}>
-        <nav ref={workspaceToolbarRef} className={s.workspaceToolbar} aria-label="Workbench tasks and layout">
-          <div className={s.taskNav}>
-            <span className={s.toolbarLabel}>Workflow</span>
-            {WORKBENCH_TASKS.map((task, index) => (
-              <button
-                key={task.id}
-                aria-current={activeTask === task.id ? "page" : undefined}
-                title={`Step ${index + 1}: ${task.title}`}
-                onClick={() => {
-                  if (task.id === "export") {
-                    openExport();
-                  } else {
-                    navigateToTask(task.id);
-                    if (task.id === "preview") {
-                      requestAnimationFrame(() => outputWindowRef.current?.focus({ preventScroll: true }));
-                    }
-                  }
-                }}
-              >
-                <span className={s.taskNumber} aria-hidden="true">{index + 1}</span>
-                <span>{task.label}</span>
-              </button>
-            ))}
-          </div>
+        <nav ref={workspaceToolbarRef} className={s.workspaceToolbar} aria-label="Workbench layout and export">
           <div className={s.layoutTools}>
             <span className={s.toolbarLabel}>Layout</span>
             <button onClick={() => restoreHistory(-1)} disabled={!canUndo} title="Undo (Ctrl/Command Z)" aria-label="Undo">↶</button>
@@ -3876,193 +4206,7 @@ const App = () => {
               <div className={s.screensaverBody}>
                 <div className={s.screensaverColumns}>
                 <div className={s.screensaverColumnLeft}>
-                <fieldset className={controls.optionGroup}>
-                  <legend className={controls.optionGroupLegend}>Chain swap timing</legend>
-                  <div className={s.screensaverRadioRow}>
-                    <label className={s.screensaverRadioOption}>
-                      <input
-                        type="radio"
-                        name="screensaverChainSwapMode"
-                        checked={!screensaverBpmSwapEnabled}
-                        onChange={() => setScreensaverBpmSwapEnabled(false)}
-                      />
-                      <span>Fixed interval</span>
-                    </label>
-                    <label className={s.screensaverRadioOption}>
-                      <input
-                        type="radio"
-                        name="screensaverChainSwapMode"
-                        checked={screensaverBpmSwapEnabled}
-                        onChange={() => setScreensaverBpmSwapEnabled(true)}
-                      />
-                      <span>Sync to detected BPM</span>
-                    </label>
-                  </div>
-                  {!screensaverBpmSwapEnabled ? (
-                    <div className={s.screensaverFieldRow}>
-                      <label className={s.screensaverField}>
-                        <span>Seconds per swap</span>
-                        <input
-                          className={s.screensaverInput}
-                          type="number"
-                          min="0.001"
-                          step="0.001"
-                          value={screensaverSwapSecondsDraft}
-                          onChange={(e) => handleScreensaverSwapSecondsChange(e.target.value)}
-                        />
-                      </label>
-                      <label className={s.screensaverField}>
-                        <span>= BPM</span>
-                        <input
-                          className={s.screensaverInput}
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          value={screensaverSwapBpmDraft}
-                          onChange={(e) => handleScreensaverSwapBpmChange(e.target.value)}
-                        />
-                      </label>
-                    </div>
-                  ) : (
-                    <>
-                      <label className={s.screensaverField}>
-                        <span>Beats per swap</span>
-                        <input
-                          className={s.screensaverInput}
-                          type="number"
-                          min="0.25"
-                          step="0.25"
-                          value={screensaverBpmSwapBeats}
-                          onChange={(event) => setScreensaverBpmSwapBeats(event.target.value)}
-                        />
-                      </label>
-                      <div className={s.screensaverHint}>
-                        {(() => {
-                          const beatsPerSwap = Number.parseFloat(screensaverBpmSwapBeats);
-                          const bpm = getChannelAudioVizSnapshot("screensaver").detectedBpm;
-                          if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
-                            return "Waiting for a detected BPM from the screensaver audio input.";
-                          }
-                          const seconds = (60 / bpm) * beatsPerSwap;
-                          return `Resolves to ~${seconds.toFixed(2)}s (${Math.round(bpm)} BPM × ${beatsPerSwap} beats). Updates live as tempo drifts.`;
-                        })()}
-                      </div>
-                    </>
-                  )}
-                </fieldset>
-                <fieldset className={controls.optionGroup}>
-                  <legend className={controls.optionGroupLegend}>Random video swaps</legend>
-                  <label className={s.screensaverCheck}>
-                    <input
-                      type="checkbox"
-                      checked={screensaverRandomVideoDraft}
-                      onChange={(e) => {
-                        const nextChecked = e.target.checked;
-                        setScreensaverRandomVideoDraft(nextChecked);
-                        if (nextChecked) {
-                          const swapSeconds = Number.parseFloat(screensaverSwapSecondsDraft);
-                          if (Number.isFinite(swapSeconds) && swapSeconds > 0) {
-                            setScreensaverVideoSwapSecondsDraft((swapSeconds * 4).toFixed(3).replace(/\.?0+$/, ""));
-                          }
-                        }
-                      }}
-                    />
-                    <span>Auto swap random video</span>
-                  </label>
-                  {screensaverRandomVideoDraft && (
-                    <>
-                      <div className={[s.screensaverSubgroupLabel, controls.subsectionHeader].join(" ")}>Video swap timing</div>
-                      <div className={s.screensaverRadioRow}>
-                        <label className={s.screensaverRadioOption}>
-                          <input
-                            type="radio"
-                            name="screensaverVideoSwapMode"
-                            checked={!screensaverVideoBpmSwapEnabled}
-                            onChange={() => setScreensaverVideoBpmSwapEnabled(false)}
-                          />
-                          <span>Fixed interval</span>
-                        </label>
-                        <label className={s.screensaverRadioOption}>
-                          <input
-                            type="radio"
-                            name="screensaverVideoSwapMode"
-                            checked={screensaverVideoBpmSwapEnabled}
-                            onChange={() => setScreensaverVideoBpmSwapEnabled(true)}
-                          />
-                          <span>Sync to detected BPM</span>
-                        </label>
-                      </div>
-                      {!screensaverVideoBpmSwapEnabled ? (
-                        <label className={s.screensaverField}>
-                          <span>Seconds per video swap</span>
-                          <input
-                            className={s.screensaverInput}
-                            type="number"
-                            min="0.001"
-                            step="0.001"
-                            value={screensaverVideoSwapSecondsDraft}
-                            onChange={(e) => setScreensaverVideoSwapSecondsDraft(e.target.value)}
-                          />
-                        </label>
-                      ) : (
-                        <>
-                          <label className={s.screensaverField}>
-                            <span>Beats per video swap</span>
-                            <input
-                              className={s.screensaverInput}
-                              type="number"
-                              min="0.25"
-                              step="0.25"
-                              value={screensaverVideoBpmSwapBeats}
-                              onChange={(event) => setScreensaverVideoBpmSwapBeats(event.target.value)}
-                            />
-                          </label>
-                          <div className={s.screensaverHint}>
-                            {(() => {
-                              const beatsPerSwap = Number.parseFloat(screensaverVideoBpmSwapBeats);
-                              const bpm = getChannelAudioVizSnapshot("screensaver").detectedBpm;
-                              if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
-                                return "Waiting for a detected BPM from the screensaver audio input.";
-                              }
-                              const seconds = (60 / bpm) * beatsPerSwap;
-                              return `Resolves to ~${seconds.toFixed(2)}s (${Math.round(bpm)} BPM × ${beatsPerSwap} beats). Updates live as tempo drifts.`;
-                            })()}
-                          </div>
-                        </>
-                      )}
-                      <div className={s.screensaverFieldRow}>
-                        <label className={s.screensaverField}>
-                          <span>Video width (px)</span>
-                          <input
-                            className={s.screensaverInput}
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={screensaverVideoMaxWidthDraft}
-                            onChange={(e) => setScreensaverVideoMaxWidthDraft(e.target.value)}
-                          />
-                        </label>
-                        <label className={s.screensaverField}>
-                          <span>Video scaling</span>
-                          <select
-                            className={s.screensaverInput}
-                            value={screensaverScalingAlgorithmDraft}
-                            onChange={(e) => setScreensaverScalingAlgorithmDraft(e.target.value)}
-                          >
-                            {SCALING_ALGORITHM_OPTIONS.options.map((option) => (
-                              <option key={String(option.value)} value={String(option.value)}>
-                                {option.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div className={s.screensaverHint}>
-                        Input scale is clamped to the video width above for performance.
-                      </div>
-                    </>
-                  )}
-                </fieldset>
+                {renderSlideshowTimingControls()}
                 <AudioVizControls
                   channel="screensaver"
                   title="Screensaver Audio"

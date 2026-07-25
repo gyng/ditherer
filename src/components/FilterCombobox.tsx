@@ -15,7 +15,10 @@ import {
   normalizeFilterSearchText,
   searchFilterIndex,
 } from "./filterSearch";
+import FilterThumbnail from "./ChainList/FilterThumbnail";
 import s from "./FilterCombobox.module.css";
+
+const PREVIEW_SOURCE_SRC = `${import.meta.env.BASE_URL}test-assets/image/pepper.png`;
 
 type FilterEntry = (typeof filterList)[number];
 type SearchableFilter = FilterEntry & { keywords: string };
@@ -73,6 +76,12 @@ const allFilters = filterList
   .map((entry): SearchableFilter => ({ ...entry, keywords: getSearchKeywords(entry) }));
 
 const filterByName = new Map(allFilters.map((entry) => [entry.displayName, entry] as const));
+const thumbFilterByName = new Map(
+  allFilters.map((entry) => [
+    entry.displayName,
+    { displayName: entry.displayName, filter: entry.filter, category: entry.category },
+  ] as const),
+);
 const searchIndex = buildFilterSearchIndex(allFilters);
 const categoryEntries = Array.from(
   allFilters
@@ -160,6 +169,7 @@ const FilterCombobox = ({
   const [value, setValue] = useState(currentValue ?? "");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [recentNames, setRecentNames] = useState(readRecentNames);
+  const [previewSource, setPreviewSource] = useState<HTMLImageElement | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -205,6 +215,13 @@ const FilterCombobox = ({
       }
     });
   }, [open, showingResults, value]);
+
+  useEffect(() => {
+    if (!open || previewSource) return;
+    const img = new Image();
+    img.onload = () => setPreviewSource(img);
+    img.src = PREVIEW_SOURCE_SRC;
+  }, [open, previewSource]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -452,6 +469,13 @@ const FilterCombobox = ({
                 <aside className={s.detailPane} aria-live="polite">
                   {selectedEntry ? (
                     <>
+                      <div className={s.detailPreview} aria-hidden="true">
+                        <FilterThumbnail
+                          filter={selectedEntry}
+                          filterByName={thumbFilterByName}
+                          source={previewSource}
+                        />
+                      </div>
                       <span className={s.detailCategory}>{selectedEntry.category}</span>
                       <strong className={s.detailTitle}>{selectedEntry.displayName}</strong>
                       <p className={s.detailDescription}>{selectedEntry.description || "No description available."}</p>
