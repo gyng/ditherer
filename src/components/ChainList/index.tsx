@@ -87,6 +87,9 @@ const ChainList = ({
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
   const [pinnedPreviews, setPinnedPreviews] = useState<Map<string, { top: number; left: number }>>(new Map());
+  // The intermediate-output cache can momentarily return null between realtime
+  // frames; keep the last good canvas so previews don't unmount and flicker.
+  const lastPreviewCanvasRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showLibraryBrowser, setShowLibraryBrowser] = useState(false);
   const [libraryInitialTab, setLibraryInitialTab] = useState<"filters" | "presets">("filters");
@@ -165,7 +168,7 @@ const ChainList = ({
   }, []);
 
   const handleMouseEnter = useCallback((entryId: string, e: React.MouseEvent) => {
-    if (dragIndex !== null) return;
+    if (dragIndex !== null || mobileActionsEntryId !== null) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     if (hoverCloseTimerRef.current) {
       clearTimeout(hoverCloseTimerRef.current);
@@ -176,43 +179,56 @@ const ChainList = ({
       showHoverPreview(entryId, rect);
       hoverOpenTimerRef.current = null;
     }, HOVER_PREVIEW_OPEN_DELAY_MS);
-  }, [dragIndex, showHoverPreview]);
+  }, [dragIndex, mobileActionsEntryId, showHoverPreview]);
 
   const handleMouseLeave = useCallback(() => {
     scheduleHoverPreviewClose();
   }, [scheduleHoverPreviewClose]);
 
+  const resolvePreviewCanvas = useCallback((entryId: string): HTMLCanvasElement | null => {
+    const canvas = actions.getIntermediatePreview(entryId);
+    if (canvas) {
+      lastPreviewCanvasRef.current.set(entryId, canvas);
+      return canvas;
+    }
+    return lastPreviewCanvasRef.current.get(entryId) ?? null;
+  }, [actions]);
+
   useEffect(() => {
-    const isHoverAnchor = (target: EventTarget | null) =>
-      target instanceof HTMLElement && Boolean(target.closest("[data-preview-hover-anchor='true']"));
-
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!hoverOpenTimerRef.current && !hoveredEntryId) return;
-      if (isHoverAnchor(event.target)) return;
-      scheduleHoverPreviewClose();
-    };
-
+    // Row enter/leave own the hover-preview lifecycle. A global mousemove that
+    // closed the preview whenever the pointer wasn't on the pin button fought
+    // that (and the ⋯ menu popover), so the preview flickered — don't use it.
     const handleWindowBlur = () => clearHoverPreview();
     const handleVisibilityChange = () => {
       if (document.hidden) clearHoverPreview();
     };
 
-    document.addEventListener("mousemove", handleMouseMove, true);
     document.addEventListener("scroll", handleWindowBlur, true);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleWindowBlur);
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("scroll", handleWindowBlur, true);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleWindowBlur);
     };
-  }, [clearHoverPreview, hoveredEntryId, scheduleHoverPreviewClose]);
+  }, [clearHoverPreview]);
 
   useEffect(() => {
-    if (hoveredEntryId && !chain.some((entry) => entry.id === hoveredEntryId)) {
+    const liveIds = new Set(chain.map((entry) => entry.id));
+    if (hoveredEntryId && !liveIds.has(hoveredEntryId)) {
       clearHoverPreview();
     }
+    for (const id of lastPreviewCanvasRef.current.keys()) {
+      if (!liveIds.has(id)) lastPreviewCanvasRef.current.delete(id);
+    }
+    setPinnedPreviews((current) => {
+      let changed = false;
+      const next = new Map(current);
+      for (const id of next.keys()) {
+        if (!liveIds.has(id)) { next.delete(id); changed = true; }
+      }
+      return changed ? next : current;
+    });
   }, [chain, clearHoverPreview, hoveredEntryId]);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -733,6 +749,7 @@ const ChainList = ({
                   aria-expanded={mobileActionsEntryId === entry.id}
                   onClick={(event) => {
                     event.stopPropagation();
+                    clearHoverPreview();
                     setMobileActionsEntryId((current) => current === entry.id ? null : entry.id);
                   }}
                 >
@@ -828,14 +845,9 @@ const ChainList = ({
                 </button>
                 <button
                   className={`${s.removeBtn} ${pinnedPreviews.has(entry.id) ? s.animActive : ""}`}
-                  data-preview-hover-anchor="true"
-                  onMouseEnter={(e) => {
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    showHoverPreview(entry.id, rect);
-                  }}
-                  onMouseLeave={scheduleHoverPreviewClose}
                   onClick={(e) => {
                     e.stopPropagation();
+                    clearHoverPreview();
                     const next = new Map(pinnedPreviews);
                     if (next.has(entry.id)) {
                       next.delete(entry.id);
@@ -889,7 +901,7 @@ const ChainList = ({
 
       {/* Pinned previews */}
       {Array.from(pinnedPreviews.entries()).map(([id, pos]) => {
-        const previewCanvas = actions.getIntermediatePreview(id);
+        const previewCanvas = resolvePreviewCanvas(id);
         if (!previewCanvas) return null;
         const stepIndex = chain.findIndex((e) => e.id === id);
         return (
@@ -905,7 +917,7 @@ const ChainList = ({
       })}
       {/* Hover preview (only if not already pinned) */}
       {hoveredEntryId && hoverPos && !pinnedPreviews.has(hoveredEntryId) && (() => {
-        const previewCanvas = actions.getIntermediatePreview(hoveredEntryId);
+        const previewCanvas = resolvePreviewCanvas(hoveredEntryId);
         if (!previewCanvas) return null;
         const stepIndex = chain.findIndex((e) => e.id === hoveredEntryId);
         return (

@@ -37,7 +37,7 @@ describe("ChainList hover preview", () => {
     vi.useRealTimers();
   });
 
-  it("clears the hover preview when the pointer leaves all preview anchors", async () => {
+  it("opens the hover preview on row hover and clears it when the pointer leaves the row", async () => {
     const previewCanvas = document.createElement("canvas");
     previewCanvas.width = 8;
     previewCanvas.height = 8;
@@ -97,8 +97,9 @@ describe("ChainList hover preview", () => {
 
     expect(container.textContent).toContain("Step 1");
 
+    // Leaving the row schedules the preview to close (it stays briefly, then goes).
     await act(async () => {
-      document.body.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+      row!.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
     });
 
     expect(container.textContent).toContain("Step 1");
