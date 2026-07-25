@@ -321,6 +321,13 @@
   background: var(--window-bg, #fff);
 }
 
+/* "All" leads the browse grid as a full-width option. */
+.categoryButtonAll {
+  grid-column: 1 / -1;
+  min-height: 0;
+  background: color-mix(in srgb, var(--window-bg, #fff) 88%, var(--beautiful-blue, #000080));
+}
+
 .recentButton:hover,
 .categoryButton:hover,
 .recentButton:focus-visible,

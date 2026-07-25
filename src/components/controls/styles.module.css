@@ -122,6 +122,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #333;
+  user-select: none;
 }
 
 /* Inline (non-fieldset) subsection label — same typography, no chip styling. */
@@ -131,6 +132,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #333;
+  user-select: none;
 }
 
 .enum {
@@ -247,6 +249,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  user-select: none;
 }
 
 .checkboxToggle {
@@ -257,6 +260,7 @@
   min-width: 0;
   min-height: 24px;
   cursor: pointer;
+  user-select: none;
 }
 
 .label {

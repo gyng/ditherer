@@ -98,7 +98,16 @@ const categoryEntries = Array.from(
     examples: entries.slice(0, 3).map((entry) => entry.displayName),
   }),
 ).sort((left, right) => left.name.localeCompare(right.name));
-const categoryByName = new Map(categoryEntries.map((category) => [category.name, category] as const));
+const allBrowseEntries = allFilters
+  .filter((entry) => entry.displayName !== "None")
+  .sort((left, right) => left.displayName.localeCompare(right.displayName));
+const ALL_CATEGORY = {
+  name: "All",
+  entries: allBrowseEntries,
+  examples: ["Every filter, A–Z"],
+};
+const browseCategories = [ALL_CATEGORY, ...categoryEntries];
+const categoryByName = new Map(browseCategories.map((category) => [category.name, category] as const));
 
 const readRecentNames = () => {
   try {
@@ -404,11 +413,11 @@ const FilterCombobox = ({
                     <span>Recognition beats recall</span>
                   </div>
                   <div className={s.categoryGrid}>
-                    {categoryEntries.map((category) => (
+                    {browseCategories.map((category) => (
                       <button
                         type="button"
                         key={category.name}
-                        className={s.categoryButton}
+                        className={`${s.categoryButton} ${category.name === "All" ? s.categoryButtonAll : ""}`}
                         aria-label={`Browse ${category.name} filters (${category.entries.length})`}
                         onClick={() => browseCategory(category.name)}
                       >

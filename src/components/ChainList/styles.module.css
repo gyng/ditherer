@@ -44,6 +44,13 @@
   margin-bottom: 4px;
 }
 
+/* The per-entry ⋯ actions popover is absolutely positioned below its row and
+   would be clipped by the list's own scroll box. Let the list overflow while a
+   menu is open so the full popover (delete, duplicate, …) stays reachable. */
+.chainList:has(.entryActionsExpanded) {
+  overflow: visible;
+}
+
 .chainList:focus-visible {
   outline: 2px dotted var(--button-text, black);
   outline-offset: -2px;
@@ -231,7 +238,12 @@
   top: calc(100% - 3px);
   right: 4px;
   display: grid;
+  /* Reset the column auto-flow inherited from .entryActions so the buttons
+     wrap into a 4-wide popover grid instead of one overflowing row. */
+  grid-auto-flow: row;
   grid-template-columns: repeat(4, 30px);
+  grid-auto-columns: 30px;
+  gap: 2px;
   padding: 4px;
   border: 2px outset var(--button-highlight);
   background: var(--light-gray);
