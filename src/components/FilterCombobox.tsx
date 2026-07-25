@@ -109,6 +109,13 @@ const ALL_CATEGORY = {
 const browseCategories = [ALL_CATEGORY, ...categoryEntries];
 const categoryByName = new Map(browseCategories.map((category) => [category.name, category] as const));
 
+// Category to open into when replacing an existing filter, or null to land on
+// the recents/browse overview.
+const categoryForFilter = (name: string | undefined): string | null => {
+  const entry = name ? filterByName.get(name) : undefined;
+  return entry && categoryByName.has(entry.category) ? entry.category : null;
+};
+
 const readRecentNames = () => {
   try {
     const stored = JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]") as unknown;
@@ -176,7 +183,9 @@ const FilterCombobox = ({
   const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
   const [value, setValue] = useState(currentValue ?? "");
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(
+    () => (autoFocus ? categoryForFilter(currentValue) : null),
+  );
   const [recentNames, setRecentNames] = useState(readRecentNames);
   const [previewSource, setPreviewSource] = useState<HTMLImageElement | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -242,7 +251,9 @@ const FilterCombobox = ({
   const openFinder = useCallback(() => {
     setRecentNames(readRecentNames());
     setQuery("");
-    setActiveCategory(null);
+    // When replacing an existing filter, open straight into its category so the
+    // sibling filters (and the current one, highlighted) are right there.
+    setActiveCategory(categoryForFilter(currentValue));
     setValue(currentValue ?? "");
     setOpen(true);
   }, [currentValue]);
