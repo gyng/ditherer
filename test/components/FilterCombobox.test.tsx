@@ -145,6 +145,13 @@ describe("FilterCombobox", () => {
     const popupId = trigger.getAttribute("aria-controls");
     expect(popupId).toBeTruthy();
     expect(document.getElementById(popupId!)).toBe(document.querySelector('[data-testid="filter-typeahead"]'));
+
+    // Replacing opens into the current filter's category; go back to the
+    // overview to inspect the refreshed, deduped recents.
+    expect(document.body.textContent).toContain("Stylize filters");
+    const backToCategories = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Categories"))!;
+    act(() => backToCategories.click());
     expect(document.body.textContent).toContain("Recently used");
     expect(document.querySelectorAll('[data-recent-value="Alpha Glow"]')).toHaveLength(1);
   });
