@@ -8,23 +8,15 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("onboarding starts from the loaded sample and opens the look library", async ({ page }) => {
+test("browse looks opens the look library from the compose step", async ({ page }) => {
   await startBrowserCoverage(page);
-  await page.addInitScript(() => {
-    localStorage.removeItem("ditherer-onboarding-complete");
-  });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
 
-  const onboarding = page.getByRole("complementary", { name: "Getting started" });
-  await expect(onboarding).toContainText("Ready to remix");
-  await expect(onboarding).toContainText("sample video and starter dither are already running");
-  await expect(onboarding.getByRole("button", { name: "Browse looks" })).toBeVisible();
-  await expect(onboarding.getByRole("button", { name: "Use my media" })).toBeVisible();
-  await expect(onboarding.getByRole("button", { name: "Try an example" })).toHaveCount(0);
-
-  await onboarding.getByRole("button", { name: "Browse looks" }).click();
-  await expect(onboarding).toBeHidden();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
+  const browseLooks = page.getByRole("button", { name: /Browse looks/ });
+  await expect(browseLooks).toBeVisible();
+  await browseLooks.click();
   await expect(page.getByTestId("filter-library-dialog")).toBeVisible();
   await writeBrowserCoverage(page, "ux-onboarding");
 });
@@ -101,7 +93,7 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   await expect(outputWindow).toBeVisible();
   await expect(page.locator("#source-task")).toBeVisible();
   await expect(page.locator("#compose-task")).toBeHidden();
-  await expect(page.getByRole("region", { name: "Choose source media" })).toContainText("Step 1 of 5");
+  await expect(page.getByRole("button", { name: "Source", exact: true })).toHaveAttribute("aria-current", "page");
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
   await page.waitForTimeout(400);
@@ -112,9 +104,10 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   const chainComposer = page.locator("#chain-composer");
   await expect(chainComposer.getByText("Filter chain", { exact: true })).toBeVisible();
   await expect(page.locator("#source-task")).toBeHidden();
-  await expect(page.locator("#active-filter-options")).toBeHidden();
+  // Compose now shows the stage list and the active-stage inspector together.
+  await expect(page.locator("#active-filter-options")).toBeVisible();
   await expect(page.locator("#preview-output-settings")).toBeHidden();
-  await expect(page.getByRole("region", { name: "Build the filter chain" })).toContainText("Step 2 of 5");
+  await expect(page.getByRole("button", { name: "Compose", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(chainComposer.getByText("1 stage", { exact: true })).toBeVisible();
   const activeStage = chainComposer.locator('[data-stage-active="true"]');
   await expect(activeStage).toHaveCount(1);
@@ -144,10 +137,9 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   expect(outputBox).not.toBeNull();
   expect(inputBox!.x + inputBox!.width <= outputBox!.x || outputBox!.x + outputBox!.width <= inputBox!.x).toBe(true);
 
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
-  await expect(chainComposer).toBeHidden();
+  // Adjust merged into Compose: the inspector is already visible here.
+  await expect(chainComposer).toBeVisible();
   await expect(page.locator("#active-filter-options")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Tune the active stage" })).toContainText("Step 3 of 5");
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(inputWindow).toBeInViewport();
   await expect(outputWindow).toBeInViewport();
@@ -164,7 +156,7 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   await expect(page.locator("#compose-task")).toBeHidden();
   await expect(page.locator("#preview-output-settings")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Review the output" })).toContainText("Step 4 of 5");
+  await expect(page.getByRole("button", { name: "Preview", exact: true })).toHaveAttribute("aria-current", "page");
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(inputWindow).toBeInViewport();
   await expect(outputWindow).toBeInViewport();
@@ -216,7 +208,7 @@ test("uses one focused mobile task and keeps library actions reachable", async (
   await expect(page.locator("#compose-task")).toBeHidden();
 
   await page.getByRole("button", { name: "Preview", exact: true }).click();
-  const taskNavBox = await page.getByRole("navigation", { name: "Workbench tasks and layout" }).boundingBox();
+  const taskNavBox = await page.getByRole("navigation", { name: "Workflow steps" }).boundingBox();
   const previewTitleBox = await page.getByText(/^Output - /).boundingBox();
   expect(taskNavBox).not.toBeNull();
   expect(previewTitleBox).not.toBeNull();
@@ -227,7 +219,7 @@ test("uses one focused mobile task and keeps library actions reachable", async (
   await expect(page.locator("#source-task")).toBeHidden();
   await expect(page.locator("#compose-task")).toBeVisible();
   await expect(page.locator("#chain-composer")).toBeVisible();
-  await expect(page.locator("#active-filter-options")).toBeHidden();
+  await expect(page.locator("#active-filter-options")).toBeVisible();
   await expect(page.locator("#chain-composer").getByText("Runs top to bottom")).toBeVisible();
 
   await page.getByRole("combobox", { name: "Add filter...", exact: true }).click();
@@ -244,8 +236,7 @@ test("uses one focused mobile task and keeps library actions reachable", async (
   expect(typeaheadItemBox!.height).toBeGreaterThanOrEqual(60);
   await page.keyboard.press("Escape");
 
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
-  await expect(page.locator("#chain-composer")).toBeHidden();
+  await expect(page.locator("#chain-composer")).toBeVisible();
   await expect(page.locator("#active-filter-options")).toBeVisible();
   const inspector = page.getByLabel("Active filter parameters");
   await expect(inspector).toContainText("Stage 1 of 1 · Parameters");
@@ -288,7 +279,7 @@ test("keeps the compact workbench focused and its touch targets reachable", asyn
 
   await expect(page.locator("#source-task")).toBeVisible();
   await expect(page.locator("main [role='presentation']").first()).toBeHidden();
-  const taskNav = page.getByRole("navigation", { name: "Workbench tasks and layout" });
+  const taskNav = page.getByRole("navigation", { name: "Workflow steps" });
   const taskNavBox = await taskNav.boundingBox();
   expect(taskNavBox).not.toBeNull();
   expect(taskNavBox!.height).toBeLessThanOrEqual(60);
@@ -355,7 +346,6 @@ test("keeps desktop chrome within the viewport and canvas actions on one row", a
     expect(box!.height).toBeGreaterThanOrEqual(24);
   }
 
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
   const swatchBox = await page.getByRole("button", { name: /^Remove palette color 1,/ }).boundingBox();
   const extractBox = await page.getByRole("button", { name: /Extract from input/ }).boundingBox();
   expect(swatchBox).not.toBeNull();
@@ -391,8 +381,6 @@ test("uses touch-sized source, section, and preview controls on phones", async (
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
   await expectTouchSize(page.getByRole("combobox", { name: "Add filter...", exact: true }));
-
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
   await expectTouchSize(page.getByRole("button", { name: "Play / Stop" }));
   await expectTouchSize(page.getByRole("button", { name: /^Remove palette color 1,/ }));
 

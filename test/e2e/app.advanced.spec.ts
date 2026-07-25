@@ -37,7 +37,7 @@ test("advanced timing, audio, history, and command workflows remain coherent", a
   await audio.getByRole("button", { name: "Clear" }).click();
   await expect(audio).toBeHidden();
 
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
   const grayscale = page.getByRole("checkbox", { name: /Pre-convert to grayscale/ });
   await grayscale.check();
   await page.getByRole("button", { name: "Undo" }).click();

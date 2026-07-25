@@ -46,7 +46,7 @@ test("library filters, capabilities, favorites, live options, and presets stay c
   await details.getByRole("button", { name: "Add to Chain" }).click();
   await expect(page.getByRole("listbox", { name: "Filter chain" }).getByRole("option")).toHaveCount(2);
   await details.getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
   await expect(page.getByLabel("Active filter parameters").getByRole("checkbox", { name: "invert R" })).not.toBeChecked();
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();

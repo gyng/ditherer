@@ -72,7 +72,7 @@ test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round
   expect(JSON.parse(exportedJson)).toBeTruthy();
   await exportDialog.getByRole("button", { name: "OK" }).click();
 
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
   const grayscale = page.getByRole("checkbox", { name: /Pre-convert to grayscale/ });
   await grayscale.check();
   await page.getByRole("button", { name: "Import", exact: true }).click();

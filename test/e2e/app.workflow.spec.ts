@@ -54,7 +54,7 @@ test("core application workflows remain operable together", async ({ page }) => 
   await page.getByRole("button", { name: "Apply Chain" }).click();
   await expect(page.getByText(/output is current|Auto apply on · output updates as you edit/)).toBeVisible();
 
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
   await page.getByLabel("Pre-convert to grayscale").check();
   await page.getByLabel("Gamma-correct input").check();
   await page.getByRole("button", { name: "Source", exact: true }).click();
@@ -96,7 +96,7 @@ test("core application workflows remain operable together", async ({ page }) => 
   }
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
   await page.getByRole("button", { name: "Preview", exact: true }).click();
 
   await page.getByRole("button", { name: "Export…", exact: true }).click();
@@ -107,11 +107,16 @@ test("core application workflows remain operable together", async ({ page }) => 
   await page.getByTitle("Close").click();
 
   await page.getByText("Settings", { exact: true }).click();
-  for (const name of ["Apply automatically", "WASM acceleration", "WebGL acceleration", "Rainy Day theme"]) {
+  for (const name of ["Apply automatically", "WASM acceleration", "WebGL acceleration"]) {
     const checkbox = page.getByRole("checkbox", { name });
     await checkbox.click();
     await checkbox.click();
   }
+  const themeSelect = page.getByTitle("Choose a UI theme");
+  await themeSelect.selectOption("rainy-day");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "rainy-day");
+  await themeSelect.selectOption("default");
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
 
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.locator("#test-video-select").selectOption({ label: "akiyo.mp4" });

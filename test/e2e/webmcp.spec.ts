@@ -63,7 +63,7 @@ test("discovers and drives Ditherer through the current WebMCP API", async ({ pa
   expect(result.serpentineBefore).toBe(true);
   expect(result.serpentineAfter).toBe(false);
 
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
   const serpentineControl = page.locator("#active-filter-options label")
     .filter({ hasText: "Serpentine" })
     .locator('input[type="checkbox"]');

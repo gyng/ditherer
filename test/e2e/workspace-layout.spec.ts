@@ -78,7 +78,7 @@ test("floating windows, comparison, fullscreen modes, and theme persistence work
   await page.evaluate(() => document.exitFullscreen());
 
   await page.getByRole("button", { name: /Settings/ }).click();
-  await page.getByRole("checkbox", { name: "Rainy Day theme" }).check();
+  await page.getByTitle("Choose a UI theme").selectOption("rainy-day");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "rainy-day");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "rainy-day");

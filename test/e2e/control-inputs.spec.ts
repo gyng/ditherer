@@ -19,7 +19,7 @@ const replaceActiveFilter = async (page: Page, name: string) => {
   const result = page.getByTestId("filter-typeahead-item").filter({ hasText: name }).first();
   await expect(result).toBeVisible();
   await result.click();
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
   await expect(page.getByLabel("Active filter parameters")).toContainText(name);
 };
 
@@ -27,7 +27,7 @@ test("generated filter inputs validate, reveal dependencies, reset, and persist 
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto("/?testMedia=image%3Apepper.png");
-  await page.getByRole("button", { name: "Adjust", exact: true }).click();
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
 
   const inspector = page.getByLabel("Active filter parameters");
   const scanOrder = inspector.getByRole("combobox", { name: "Scan Order" });
