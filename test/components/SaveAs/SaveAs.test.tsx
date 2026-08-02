@@ -11,12 +11,24 @@ const bridge = vi.hoisted(() => ({
   renderSyncOptions: null as Record<string, unknown> | null,
   results: null as Record<string, unknown> | null,
   videoProps: null as Record<string, unknown> | null,
-  handlers: Object.fromEntries([
-    "handleSave", "handleCopy", "handleRecord", "handleSaveVideo", "handleCopyVideo",
-    "handleSaveGif", "handleCopyGif", "handleSaveSequence", "handleCopySequence",
-    "handleSaveContactSheet", "handleCopyContactSheet", "handleAbortExport",
-    "handleRecordLoop", "handleVideoExport",
-  ].map((name) => [name, vi.fn()])),
+  handlers: Object.fromEntries(
+    [
+      "handleSave",
+      "handleCopy",
+      "handleRecord",
+      "handleSaveVideo",
+      "handleCopyVideo",
+      "handleSaveGif",
+      "handleCopyGif",
+      "handleSaveSequence",
+      "handleCopySequence",
+      "handleSaveContactSheet",
+      "handleCopyContactSheet",
+      "handleAbortExport",
+      "handleRecordLoop",
+      "handleVideoExport",
+    ].map((name) => [name, vi.fn()]),
+  ),
   sync: {
     getScaledCanvas: vi.fn(),
     estimateVideoFps: vi.fn(() => 24),
@@ -30,7 +42,8 @@ const bridge = vi.hoisted(() => ({
 vi.mock("context/useFilter", () => ({ useFilter: () => bridge.context }));
 vi.mock("@gyng/ditherer-filters", () => ({
   filterList: [{ filter: { name: "Temporal Test", temporal: true } }],
-  hasTemporalBehavior: (entry: { filter: { temporal?: boolean } }) => entry.filter.temporal === true,
+  hasTemporalBehavior: (entry: { filter: { temporal?: boolean } }) =>
+    entry.filter.temporal === true,
 }));
 vi.mock("components/SaveAs/export/offlineVideoEncode", () => ({
   getReliableVideoSupport: bridge.reliableSupport,
@@ -40,7 +53,10 @@ vi.mock("components/SaveAs/helpers", () => ({
     { label: "WebM", ext: "webm", mimeType: "video/webm" },
     { label: "MP4", ext: "mp4", mimeType: "video/mp4" },
   ],
-  getGifPaletteColorTable: () => [[1, 2, 3], [4, 5, 6]],
+  getGifPaletteColorTable: () => [
+    [1, 2, 3],
+    [4, 5, 6],
+  ],
 }));
 vi.mock("components/SaveAs/hooks/useSaveAsResults", () => ({
   useSaveAsResults: () => bridge.results,
@@ -103,10 +119,12 @@ const flush = async () => {
   });
 };
 
-const elementWithDirectText = (text: string) => Array.from(container.querySelectorAll("*"))
-  .find((element) => Array.from(element.childNodes).some(
-    (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === text,
-  ));
+const elementWithDirectText = (text: string) =>
+  Array.from(container.querySelectorAll("*")).find((element) =>
+    Array.from(element.childNodes).some(
+      (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === text,
+    ),
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -185,12 +203,28 @@ describe("SaveAs coordinator", () => {
     expect(bridge.handlers.handleSave).toHaveBeenCalled();
     expect(bridge.handlers.handleCopy).toHaveBeenCalled();
 
-    act(() => (bridge.exportOptions!.updateProgress as (message: string, value?: number) => void)("Half", 1.5));
+    act(() =>
+      (bridge.exportOptions!.updateProgress as (message: string, value?: number) => void)(
+        "Half",
+        1.5,
+      ),
+    );
     expect(bridge.imageProps!.copySuccess).toBe(false);
-    act(() => (bridge.exportOptions!.updateProgress as (message: string, value?: number) => void)("Unknown", Number.NaN));
+    act(() =>
+      (bridge.exportOptions!.updateProgress as (message: string, value?: number) => void)(
+        "Unknown",
+        Number.NaN,
+      ),
+    );
     act(() => (bridge.exportOptions!.clearProgress as () => void)());
-    (bridge.exportOptions!.logReliableRenderProfile as (label: string, stats: object) => void)("done", {});
-    (bridge.exportOptions!.logGifExportProfile as (label: string, stats: object) => void)("done", {});
+    (bridge.exportOptions!.logReliableRenderProfile as (label: string, stats: object) => void)(
+      "done",
+      {},
+    );
+    (bridge.exportOptions!.logGifExportProfile as (label: string, stats: object) => void)(
+      "done",
+      {},
+    );
 
     const close = container.querySelector<HTMLButtonElement>('[title="Close"]')!;
     act(() => close.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -260,7 +294,7 @@ describe("SaveAs coordinator", () => {
       (frames.onSetLoopRangeStart as (value: number) => void)(2);
       (frames.onSetLoopRangeEnd as (value: number) => void)(8);
     });
-    expect((bridge.videoProps!.recordingPanel as Record<string, unknown>)).toMatchObject({
+    expect(bridge.videoProps!.recordingPanel as Record<string, unknown>).toMatchObject({
       videoLoopMode: "offline",
       includeVideoAudio: false,
       activeRecFormatLabel: "MP4",
@@ -281,15 +315,34 @@ describe("SaveAs coordinator", () => {
     (frames.onSaveContactSheet as () => void)();
     (frames.onCopyContactSheet as () => void)();
     for (const name of [
-      "handleRecord", "handleRecordLoop", "handleSaveVideo", "handleCopyVideo",
-      "handleAbortExport", "handleVideoExport", "handleSaveGif", "handleCopyGif",
-      "handleSaveSequence", "handleCopySequence", "handleSaveContactSheet",
+      "handleRecord",
+      "handleRecordLoop",
+      "handleSaveVideo",
+      "handleCopyVideo",
+      "handleAbortExport",
+      "handleVideoExport",
+      "handleSaveGif",
+      "handleCopyGif",
+      "handleSaveSequence",
+      "handleCopySequence",
+      "handleSaveContactSheet",
       "handleCopyContactSheet",
-    ]) expect(bridge.handlers[name]).toHaveBeenCalled();
+    ])
+      expect(bridge.handlers[name]).toHaveBeenCalled();
 
     const managed = video as HTMLVideoElement & { __manualPause?: boolean };
-    (bridge.exportOptions!.setManualPause as (video: HTMLVideoElement | null, paused: boolean) => void)(null, true);
-    (bridge.exportOptions!.setManualPause as (video: HTMLVideoElement | null, paused: boolean) => void)(video, true);
+    (
+      bridge.exportOptions!.setManualPause as (
+        video: HTMLVideoElement | null,
+        paused: boolean,
+      ) => void
+    )(null, true);
+    (
+      bridge.exportOptions!.setManualPause as (
+        video: HTMLVideoElement | null,
+        paused: boolean,
+      ) => void
+    )(video, true);
     expect(managed.__manualPause).toBe(true);
   });
 
@@ -309,7 +362,11 @@ describe("SaveAs coordinator", () => {
     act(() => (bridge.videoProps!.onSetVideoFormat as (value: string) => void)("contact"));
     const frameProps = bridge.videoProps!.frameExportPanel as Record<string, unknown>;
     expect(bridge.videoProps!.videoFormat).toBe("contact");
-    expect(frameProps).toMatchObject({ frames: 30, contactColumns: 5, loopCaptureMode: "webcodecs" });
+    expect(frameProps).toMatchObject({
+      frames: 30,
+      contactColumns: 5,
+      loopCaptureMode: "webcodecs",
+    });
 
     act(() => (bridge.videoProps!.onSetVideoFormat as (value: string) => void)("gif"));
     expect(bridge.videoProps!.videoFormat).toBe("gif");
@@ -321,13 +378,16 @@ describe("SaveAs coordinator", () => {
     const video = { duration: 5 } as HTMLVideoElement;
     render({ video });
     await flush();
-    expect((bridge.videoProps!.recordingPanel as Record<string, unknown>).reliableVideoSupport).toBeNull();
+    expect(
+      (bridge.videoProps!.recordingPanel as Record<string, unknown>).reliableVideoSupport,
+    ).toBeNull();
     expect((bridge.renderSyncOptions!.outputCanvasRef as { current: unknown }).current).toBeNull();
 
     outputCanvasRef.current = output;
     render({ video });
     await flush();
-    expect((bridge.videoProps!.recordingPanel as Record<string, unknown>).reliableVideoSupport)
-      .toMatchObject({ supported: false, reason: "codec probe failed", audio: false });
+    expect(
+      (bridge.videoProps!.recordingPanel as Record<string, unknown>).reliableVideoSupport,
+    ).toMatchObject({ supported: false, reason: "codec probe failed", audio: false });
   });
 });

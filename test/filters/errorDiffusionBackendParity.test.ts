@@ -80,12 +80,15 @@ const makeCanvas = (W: number, H: number, data: Uint8ClampedArray) => {
   const canvas = {
     width: W,
     height: H,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width: W, height: H }),
-      putImageData: (img: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(img.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width: W, height: H }),
+            putImageData: (img: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(img.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return { canvas, written: () => written };
 };

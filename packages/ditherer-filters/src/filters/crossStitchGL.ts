@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -64,9 +71,16 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_stitchSize", "u_gapBetween", "u_threadMode", "u_fabricColor",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_stitchSize",
+      "u_gapBetween",
+      "u_threadMode",
+      "u_fabricColor",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -74,8 +88,10 @@ export const crossStitchGLAvailable = (): boolean => glAvailable();
 
 export const renderCrossStitchGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  stitchSize: number, gapBetween: number,
+  width: number,
+  height: number,
+  stitchSize: number,
+  gapBetween: number,
   fabricColor: [number, number, number],
   threadModeIsPalette: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
@@ -87,15 +103,28 @@ export const renderCrossStitchGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "crossStitch:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_stitchSize, stitchSize);
-    gl.uniform1f(cache.prog.uniforms.u_gapBetween, gapBetween);
-    gl.uniform1i(cache.prog.uniforms.u_threadMode, threadModeIsPalette ? 1 : 0);
-    gl.uniform3f(cache.prog.uniforms.u_fabricColor, fabricColor[0], fabricColor[1], fabricColor[2]);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_stitchSize, stitchSize);
+      gl.uniform1f(cache.prog.uniforms.u_gapBetween, gapBetween);
+      gl.uniform1i(cache.prog.uniforms.u_threadMode, threadModeIsPalette ? 1 : 0);
+      gl.uniform3f(
+        cache.prog.uniforms.u_fabricColor,
+        fabricColor[0],
+        fabricColor[1],
+        fabricColor[2],
+      );
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

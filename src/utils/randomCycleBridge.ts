@@ -57,16 +57,20 @@ export const syncScreensaverCycleSeconds = (seconds: number | null) => {
 
 export const dispatchRandomCycleSeconds = (seconds: number | null) => {
   syncRandomCycleSeconds(seconds);
-  randomCycleEventTarget.dispatchEvent(new CustomEvent<number | null>("change", {
-    detail: currentRandomCycleSeconds,
-  }));
+  randomCycleEventTarget.dispatchEvent(
+    new CustomEvent<number | null>("change", {
+      detail: currentRandomCycleSeconds,
+    }),
+  );
 };
 
 export const dispatchScreensaverCycleSeconds = (seconds: number | null) => {
   syncScreensaverCycleSeconds(seconds);
-  screensaverCycleEventTarget.dispatchEvent(new CustomEvent<number | null>("change", {
-    detail: currentScreensaverCycleSeconds,
-  }));
+  screensaverCycleEventTarget.dispatchEvent(
+    new CustomEvent<number | null>("change", {
+      detail: currentScreensaverCycleSeconds,
+    }),
+  );
 };
 
 export const subscribeRandomCycleSeconds = (listener: (seconds: number | null) => void) => {

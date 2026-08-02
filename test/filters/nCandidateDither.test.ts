@@ -18,10 +18,19 @@ import {
 
 const ALL_ALGOS: NCandidateAlgo[] = ["KNOLL", "EMA_SWEEP", "EMA_EXACT", "EMA_CONSTANT"];
 
-const BLACK_WHITE = [[0, 0, 0, 255], [255, 255, 255, 255]];
+const BLACK_WHITE = [
+  [0, 0, 0, 255],
+  [255, 255, 255, 255],
+];
 const PICO_ISH = [
-  [0, 0, 0, 255], [126, 37, 83, 255], [0, 135, 81, 255], [171, 82, 54, 255],
-  [95, 87, 79, 255], [194, 195, 199, 255], [255, 241, 232, 255], [255, 0, 77, 255],
+  [0, 0, 0, 255],
+  [126, 37, 83, 255],
+  [0, 135, 81, 255],
+  [171, 82, 54, 255],
+  [95, 87, 79, 255],
+  [194, 195, 199, 255],
+  [255, 241, 232, 255],
+  [255, 0, 77, 255],
 ];
 
 // Deterministic PRNG so the random-geometry sweeps are reproducible.
@@ -36,19 +45,26 @@ const makeRng = (seed: number) => {
 const dist2 = (a: readonly number[], b: readonly number[]) =>
   (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
 
-const mixAt = (a: readonly number[], b: readonly number[], t: number) =>
-  [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const mixAt = (a: readonly number[], b: readonly number[], t: number) => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+];
 
 const solidRgba = (w: number, h: number, rgb: [number, number, number]) => {
   const data = new Uint8ClampedArray(w * h * 4);
   for (let i = 0; i < data.length; i += 4) {
-    data[i] = rgb[0]; data[i + 1] = rgb[1]; data[i + 2] = rgb[2]; data[i + 3] = 255;
+    data[i] = rgb[0];
+    data[i + 1] = rgb[1];
+    data[i + 2] = rgb[2];
+    data[i + 3] = 255;
   }
   return data;
 };
 
 const withParams = (over: Partial<NCandidateParams>): NCandidateParams => ({
-  ...defaultParams, ...over,
+  ...defaultParams,
+  ...over,
 });
 
 describe("solveT — closest point on a segment", () => {
@@ -113,7 +129,11 @@ describe("candidate weights", () => {
 describe("ditherNCandidate", () => {
   it.each(ALL_ALGOS)("%s dithers flat mid-grey into both palette extremes", (algo) => {
     const out = ditherNCandidate(
-      solidRgba(4, 4, [128, 128, 128]), 4, 4, BLACK_WHITE, withParams({ algo }),
+      solidRgba(4, 4, [128, 128, 128]),
+      4,
+      4,
+      BLACK_WHITE,
+      withParams({ algo }),
     );
     const uniq = new Set<number>();
     for (let i = 0; i < out.length; i += 4) uniq.add(out[i]);
@@ -123,7 +143,11 @@ describe("ditherNCandidate", () => {
 
   it.each(ALL_ALGOS)("%s reproduces the local mean of flat mid-grey", (algo) => {
     const out = ditherNCandidate(
-      solidRgba(4, 4, [128, 128, 128]), 4, 4, BLACK_WHITE, withParams({ algo }),
+      solidRgba(4, 4, [128, 128, 128]),
+      4,
+      4,
+      BLACK_WHITE,
+      withParams({ algo }),
     );
     let sum = 0;
     for (let i = 0; i < out.length; i += 4) sum += out[i];
@@ -151,7 +175,10 @@ describe("ditherNCandidate", () => {
     const rng = makeRng(42);
     const src = new Uint8ClampedArray(8 * 8 * 4);
     for (let i = 0; i < src.length; i += 4) {
-      src[i] = rng() * 255; src[i + 1] = rng() * 255; src[i + 2] = rng() * 255; src[i + 3] = 255;
+      src[i] = rng() * 255;
+      src[i + 1] = rng() * 255;
+      src[i + 2] = rng() * 255;
+      src[i + 3] = 255;
     }
     const out = ditherNCandidate(src, 8, 8, PICO_ISH, defaultParams);
     const allowed = new Set(PICO_ISH.map((c) => `${c[0]},${c[1]},${c[2]}`));
@@ -163,7 +190,11 @@ describe("ditherNCandidate", () => {
   it("raising N reduces noise — fewer isolated candidates in flat regions", () => {
     const countRuns = (n: number) => {
       const out = ditherNCandidate(
-        solidRgba(8, 8, [90, 140, 200]), 8, 8, PICO_ISH, withParams({ candidates: n }),
+        solidRgba(8, 8, [90, 140, 200]),
+        8,
+        8,
+        PICO_ISH,
+        withParams({ candidates: n }),
       );
       const uniq = new Set<string>();
       for (let i = 0; i < out.length; i += 4) uniq.add(`${out[i]},${out[i + 1]},${out[i + 2]}`);
@@ -179,7 +210,11 @@ describe("ditherNCandidate", () => {
 describe("colorspaces", () => {
   it.each(["SRGB", "LINEAR", "LIQ"] as const)("%s stays inside the palette", (colorspace) => {
     const out = ditherNCandidate(
-      solidRgba(4, 4, [200, 40, 90]), 4, 4, PICO_ISH, withParams({ colorspace }),
+      solidRgba(4, 4, [200, 40, 90]),
+      4,
+      4,
+      PICO_ISH,
+      withParams({ colorspace }),
     );
     const allowed = new Set(PICO_ISH.map((c) => `${c[0]},${c[1]},${c[2]}`));
     for (let i = 0; i < out.length; i += 4) {

@@ -218,10 +218,22 @@ type Cache = {
 let _cache: Cache | null = null;
 
 const compositeUniforms: string[] = [
-  "u_source", "u_res", "u_weaveX", "u_weaveY", "u_warmth", "u_flickerMul",
-  "u_grain", "u_grainSeed", "u_vignette",
-  "u_dustCount", "u_dust[0]", "u_dustOpacity[0]",
-  "u_scratchCount", "u_scratchA[0]", "u_scratchB[0]", "u_levels",
+  "u_source",
+  "u_res",
+  "u_weaveX",
+  "u_weaveY",
+  "u_warmth",
+  "u_flickerMul",
+  "u_grain",
+  "u_grainSeed",
+  "u_vignette",
+  "u_dustCount",
+  "u_dust[0]",
+  "u_dustOpacity[0]",
+  "u_scratchCount",
+  "u_scratchA[0]",
+  "u_scratchB[0]",
+  "u_levels",
 ];
 
 const initCache = (gl: WebGL2RenderingContext): Cache => {
@@ -229,7 +241,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     composite: linkProgram(gl, COMPOSITE_FS, compositeUniforms as unknown as readonly string[]),
     bloomH: linkProgram(gl, BLOOM_H_FS, ["u_input", "u_res", "u_radius"] as const),
-    bloomV: linkProgram(gl, BLOOM_V_FS, ["u_composite", "u_brightH", "u_res", "u_radius", "u_bloom"] as const),
+    bloomV: linkProgram(gl, BLOOM_V_FS, [
+      "u_composite",
+      "u_brightH",
+      "u_res",
+      "u_radius",
+      "u_bloom",
+    ] as const),
   };
   return _cache;
 };
@@ -305,66 +323,98 @@ export const renderProjectionFilmGL = (
   const brightH = ensureTexture(gl, "projection:brightH", width, height);
 
   // Pass 1: per-pixel composite → compTex
-  drawPass(gl, compTex, width, height, cache.composite, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_source, 0);
-    gl.uniform2f(cache.composite.uniforms.u_res, width, height);
-    gl.uniform1i(cache.composite.uniforms.u_weaveX, params.weaveX);
-    gl.uniform1i(cache.composite.uniforms.u_weaveY, params.weaveY);
-    gl.uniform1f(cache.composite.uniforms.u_warmth, params.warmth);
-    gl.uniform1f(cache.composite.uniforms.u_flickerMul, params.flickerMul);
-    gl.uniform1f(cache.composite.uniforms.u_grain, params.grain);
-    gl.uniform1f(cache.composite.uniforms.u_grainSeed, params.grainSeed);
-    gl.uniform1f(cache.composite.uniforms.u_vignette, params.vignette);
-    gl.uniform1i(cache.composite.uniforms.u_dustCount, dustCount);
-    const locDust = cache.composite.uniforms["u_dust[0]"];
-    if (locDust) gl.uniform3fv(locDust, flatDust);
-    const locDustOp = cache.composite.uniforms["u_dustOpacity[0]"];
-    if (locDustOp) gl.uniform1fv(locDustOp, flatDustOp);
-    gl.uniform1i(cache.composite.uniforms.u_scratchCount, scratchCount);
-    const locScratchA = cache.composite.uniforms["u_scratchA[0]"];
-    if (locScratchA) gl.uniform4fv(locScratchA, flatScratchA);
-    const locScratchB = cache.composite.uniforms["u_scratchB[0]"];
-    if (locScratchB) gl.uniform4fv(locScratchB, flatScratchB);
-    gl.uniform1f(cache.composite.uniforms.u_levels, params.levels);
-  }, vao);
+  drawPass(
+    gl,
+    compTex,
+    width,
+    height,
+    cache.composite,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_source, 0);
+      gl.uniform2f(cache.composite.uniforms.u_res, width, height);
+      gl.uniform1i(cache.composite.uniforms.u_weaveX, params.weaveX);
+      gl.uniform1i(cache.composite.uniforms.u_weaveY, params.weaveY);
+      gl.uniform1f(cache.composite.uniforms.u_warmth, params.warmth);
+      gl.uniform1f(cache.composite.uniforms.u_flickerMul, params.flickerMul);
+      gl.uniform1f(cache.composite.uniforms.u_grain, params.grain);
+      gl.uniform1f(cache.composite.uniforms.u_grainSeed, params.grainSeed);
+      gl.uniform1f(cache.composite.uniforms.u_vignette, params.vignette);
+      gl.uniform1i(cache.composite.uniforms.u_dustCount, dustCount);
+      const locDust = cache.composite.uniforms["u_dust[0]"];
+      if (locDust) gl.uniform3fv(locDust, flatDust);
+      const locDustOp = cache.composite.uniforms["u_dustOpacity[0]"];
+      if (locDustOp) gl.uniform1fv(locDustOp, flatDustOp);
+      gl.uniform1i(cache.composite.uniforms.u_scratchCount, scratchCount);
+      const locScratchA = cache.composite.uniforms["u_scratchA[0]"];
+      if (locScratchA) gl.uniform4fv(locScratchA, flatScratchA);
+      const locScratchB = cache.composite.uniforms["u_scratchB[0]"];
+      if (locScratchB) gl.uniform4fv(locScratchB, flatScratchB);
+      gl.uniform1f(cache.composite.uniforms.u_levels, params.levels);
+    },
+    vao,
+  );
 
   if (params.bloom > 0) {
-    drawPass(gl, brightH, width, height, cache.bloomH, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
-      gl.uniform1i(cache.bloomH.uniforms.u_input, 0);
-      gl.uniform2f(cache.bloomH.uniforms.u_res, width, height);
-      gl.uniform1i(cache.bloomH.uniforms.u_radius, bloomR);
-    }, vao);
+    drawPass(
+      gl,
+      brightH,
+      width,
+      height,
+      cache.bloomH,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
+        gl.uniform1i(cache.bloomH.uniforms.u_input, 0);
+        gl.uniform2f(cache.bloomH.uniforms.u_res, width, height);
+        gl.uniform1i(cache.bloomH.uniforms.u_radius, bloomR);
+      },
+      vao,
+    );
 
-    drawPass(gl, null, width, height, cache.bloomV, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
-      gl.uniform1i(cache.bloomV.uniforms.u_composite, 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, brightH.tex);
-      gl.uniform1i(cache.bloomV.uniforms.u_brightH, 1);
-      gl.uniform2f(cache.bloomV.uniforms.u_res, width, height);
-      gl.uniform1i(cache.bloomV.uniforms.u_radius, bloomR);
-      gl.uniform1f(cache.bloomV.uniforms.u_bloom, params.bloom);
-    }, vao);
+    drawPass(
+      gl,
+      null,
+      width,
+      height,
+      cache.bloomV,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
+        gl.uniform1i(cache.bloomV.uniforms.u_composite, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, brightH.tex);
+        gl.uniform1i(cache.bloomV.uniforms.u_brightH, 1);
+        gl.uniform2f(cache.bloomV.uniforms.u_res, width, height);
+        gl.uniform1i(cache.bloomV.uniforms.u_radius, bloomR);
+        gl.uniform1f(cache.bloomV.uniforms.u_bloom, params.bloom);
+      },
+      vao,
+    );
   } else {
     // No bloom: just readout the composite directly by re-drawing it.
-    drawPass(gl, null, width, height, cache.bloomV, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
-      gl.uniform1i(cache.bloomV.uniforms.u_composite, 0);
-      // Use compTex as brightH too; radius=0 makes the inner loop a no-op
-      // (single sample, bloom=0 makes the composite a zero contribution).
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
-      gl.uniform1i(cache.bloomV.uniforms.u_brightH, 1);
-      gl.uniform2f(cache.bloomV.uniforms.u_res, width, height);
-      gl.uniform1i(cache.bloomV.uniforms.u_radius, 0);
-      gl.uniform1f(cache.bloomV.uniforms.u_bloom, 0);
-    }, vao);
+    drawPass(
+      gl,
+      null,
+      width,
+      height,
+      cache.bloomV,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
+        gl.uniform1i(cache.bloomV.uniforms.u_composite, 0);
+        // Use compTex as brightH too; radius=0 makes the inner loop a no-op
+        // (single sample, bloom=0 makes the composite a zero contribution).
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, compTex.tex);
+        gl.uniform1i(cache.bloomV.uniforms.u_brightH, 1);
+        gl.uniform2f(cache.bloomV.uniforms.u_res, width, height);
+        gl.uniform1i(cache.bloomV.uniforms.u_radius, 0);
+        gl.uniform1f(cache.bloomV.uniforms.u_bloom, 0);
+      },
+      vao,
+    );
   }
 
   return readoutToCanvas(canvas, width, height);

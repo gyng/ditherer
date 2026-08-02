@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -50,8 +57,12 @@ export const binarizeGLAvailable = (): boolean => glAvailable();
 
 export const renderBinarizeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  thresholdR: number, thresholdG: number, thresholdB: number, thresholdA: number,
+  width: number,
+  height: number,
+  thresholdR: number,
+  thresholdG: number,
+  thresholdB: number,
+  thresholdA: number,
   linearize: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
@@ -64,16 +75,27 @@ export const renderBinarizeGL = (
   const sourceTex = ensureTexture(gl, "binarize:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform4f(
-      cache.prog.uniforms.u_threshold,
-      thresholdR / 255, thresholdG / 255, thresholdB / 255, thresholdA / 255,
-    );
-    gl.uniform1i(cache.prog.uniforms.u_linearize, linearize ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform4f(
+        cache.prog.uniforms.u_threshold,
+        thresholdR / 255,
+        thresholdG / 255,
+        thresholdB / 255,
+        thresholdA / 255,
+      );
+      gl.uniform1i(cache.prog.uniforms.u_linearize, linearize ? 1 : 0);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

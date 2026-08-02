@@ -1,6 +1,5 @@
-const unit = (value: number): number => Number.isFinite(value)
-  ? Math.min(1, Math.max(0, value))
-  : 0;
+const unit = (value: number): number =>
+  Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 
 /** Visible-light proxy mapped into a thermal display window; not temperature. */
 export const thermalProxyLevelSpan = (

@@ -51,8 +51,20 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object";
 
 export const optionTypes = {
-  qualityLuma: { type: RANGE, range: [1, 100], step: 1, default: 28, desc: "Luma quantization quality — lower values produce harsher block loss" },
-  qualityChroma: { type: RANGE, range: [1, 100], step: 1, default: 16, desc: "Chroma quantization quality — lower values cause color bleed and smearing" },
+  qualityLuma: {
+    type: RANGE,
+    range: [1, 100],
+    step: 1,
+    default: 28,
+    desc: "Luma quantization quality — lower values produce harsher block loss",
+  },
+  qualityChroma: {
+    type: RANGE,
+    range: [1, 100],
+    step: 1,
+    default: 16,
+    desc: "Chroma quantization quality — lower values cause color bleed and smearing",
+  },
   subsampling: {
     type: ENUM,
     default: "420",
@@ -61,18 +73,66 @@ export const optionTypes = {
       { name: "4:2:2", value: "422" },
       { name: "4:2:0", value: "420" },
     ],
-    desc: "Chroma resolution: full, half-horizontal, or half-horizontal-and-vertical"
+    desc: "Chroma resolution: full, half-horizontal, or half-horizontal-and-vertical",
   },
-  blockSize: { type: RANGE, range: [8, 64], step: 8, default: 16, desc: "Macroblock size controlling burst grouping and temporal hold regions" },
-  ringing: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Sharpened edge overshoot around blocks (ringing)" },
-  mosquito: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Edge-adjacent chroma/luma noise similar to mosquito artifacts" },
-  gridJitter: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Per-macroblock quantization jitter for unstable decode grid" },
-  corruptBurstChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.12, desc: "Probability that a macroblock enters severe corruption" },
-  deblock: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "Post-pass seam softening across 8x8 boundaries" },
-  temporalHold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Hold previous corrupted macroblocks between keyframes (P-frame smear)" },
-  keyframeInterval: { type: RANGE, range: [1, 60], step: 1, default: 12, desc: "Every Nth frame refreshes all macroblocks from current input" },
+  blockSize: {
+    type: RANGE,
+    range: [8, 64],
+    step: 8,
+    default: 16,
+    desc: "Macroblock size controlling burst grouping and temporal hold regions",
+  },
+  ringing: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.25,
+    desc: "Sharpened edge overshoot around blocks (ringing)",
+  },
+  mosquito: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.2,
+    desc: "Edge-adjacent chroma/luma noise similar to mosquito artifacts",
+  },
+  gridJitter: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Per-macroblock quantization jitter for unstable decode grid",
+  },
+  corruptBurstChance: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.12,
+    desc: "Probability that a macroblock enters severe corruption",
+  },
+  deblock: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.08,
+    desc: "Post-pass seam softening across 8x8 boundaries",
+  },
+  temporalHold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.1,
+    desc: "Hold previous corrupted macroblocks between keyframes (P-frame smear)",
+  },
+  keyframeInterval: {
+    type: RANGE,
+    range: [1, 60],
+    step: 1,
+    default: 12,
+    desc: "Every Nth frame refreshes all macroblocks from current input",
+  },
   preserveAlpha: { type: BOOL, default: true, desc: "Preserve source alpha channel" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -88,12 +148,12 @@ export const defaults = {
   temporalHold: optionTypes.temporalHold.default,
   keyframeInterval: optionTypes.keyframeInterval.default,
   preserveAlpha: optionTypes.preserveAlpha.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 export const tryApplyJpegArtifactToCanvas = (
   input: any,
-  options: JpegArtifactOptions = defaults
+  options: JpegArtifactOptions = defaults,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const palette = isRecord(options.palette) ? options.palette : defaults.palette;
   const paletteOptions = isRecord(palette.options) ? palette.options : defaults.palette.options;
@@ -117,18 +177,38 @@ export const tryApplyJpegArtifactToCanvas = (
     const parsed = Number(value);
     return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
   };
-  const legacyQuality = options.quality === undefined ? null : finite(options.quality, defaults.qualityLuma, 1, 100);
+  const legacyQuality =
+    options.quality === undefined ? null : finite(options.quality, defaults.qualityLuma, 1, 100);
   const qualityLuma = finite(options.qualityLuma ?? legacyQuality, defaults.qualityLuma, 1, 100);
-  const qualityChroma = finite(options.qualityChroma ?? legacyQuality, defaults.qualityChroma, 1, 100);
-  const subsampling = safeOptions.subsampling === "444" || safeOptions.subsampling === "422" ? safeOptions.subsampling : "420";
-  const blockSize = Math.max(8, Math.round(finite(safeOptions.blockSize, defaults.blockSize, 8, 64) / 8) * 8);
+  const qualityChroma = finite(
+    options.qualityChroma ?? legacyQuality,
+    defaults.qualityChroma,
+    1,
+    100,
+  );
+  const subsampling =
+    safeOptions.subsampling === "444" || safeOptions.subsampling === "422"
+      ? safeOptions.subsampling
+      : "420";
+  const blockSize = Math.max(
+    8,
+    Math.round(finite(safeOptions.blockSize, defaults.blockSize, 8, 64) / 8) * 8,
+  );
   const ringing = finite(safeOptions.ringing, defaults.ringing, 0, 1);
   const mosquito = finite(safeOptions.mosquito, defaults.mosquito, 0, 1);
   const gridJitter = finite(safeOptions.gridJitter, defaults.gridJitter, 0, 1);
-  const corruptBurstChance = finite(safeOptions.corruptBurstChance, defaults.corruptBurstChance, 0, 1);
+  const corruptBurstChance = finite(
+    safeOptions.corruptBurstChance,
+    defaults.corruptBurstChance,
+    0,
+    1,
+  );
   const deblock = finite(safeOptions.deblock, defaults.deblock, 0, 1);
   const temporalHold = finite(safeOptions.temporalHold, defaults.temporalHold, 0, 1);
-  const keyframeInterval = Math.max(1, Math.round(finite(safeOptions.keyframeInterval, defaults.keyframeInterval, 1, 60)));
+  const keyframeInterval = Math.max(
+    1,
+    Math.round(finite(safeOptions.keyframeInterval, defaults.keyframeInterval, 1, 60)),
+  );
   const preserveAlpha = safeOptions.preserveAlpha !== false;
 
   const prevOutput = options._prevOutput instanceof Uint8ClampedArray ? options._prevOutput : null;
@@ -139,7 +219,9 @@ export const tryApplyJpegArtifactToCanvas = (
 
   const hasTemporal = (temporalHold ?? 0) > 0;
   const rendered = renderJpegArtifactGL(
-    input, w, h,
+    input,
+    w,
+    h,
     qualityScaleShared(qualityLuma),
     qualityScaleShared(qualityChroma),
     subsampling,
@@ -155,9 +237,9 @@ export const tryApplyJpegArtifactToCanvas = (
 
   let transferred = false;
   try {
-    const rCtx = (rendered as HTMLCanvasElement | OffscreenCanvas).getContext(
-      "2d", { willReadFrequently: true }
-    ) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    const rCtx = (rendered as HTMLCanvasElement | OffscreenCanvas).getContext("2d", {
+      willReadFrequently: true,
+    }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 
     let appliedPalette = false;
     let appliedHold = false;
@@ -199,8 +281,11 @@ export const tryApplyJpegArtifactToCanvas = (
     }
     const subNote = ` sub=${subsampling}`;
     const extras = `${appliedPalette ? "+palettePass" : ""}${appliedHold ? "+hold" : ""}`;
-    logFilterBackend("JPEG Artifact", "WebGL2",
-      `qL=${qualityLuma} qC=${qualityChroma} block=${blockSize}${subNote}${extras}`);
+    logFilterBackend(
+      "JPEG Artifact",
+      "WebGL2",
+      `qL=${qualityLuma} qC=${qualityChroma} block=${blockSize}${subNote}${extras}`,
+    );
     transferred = true;
     return rendered;
   } finally {
@@ -212,8 +297,7 @@ export const applyJpegArtifactToCanvas = (
   input: any,
   options: JpegArtifactOptions = defaults,
 ): HTMLCanvasElement | OffscreenCanvas =>
-  tryApplyJpegArtifactToCanvas(input, options)
-  ?? glUnavailableStub(input.width, input.height);
+  tryApplyJpegArtifactToCanvas(input, options) ?? glUnavailableStub(input.width, input.height);
 
 const jpegArtifact = (input: any, options: JpegArtifactOptions = defaults) =>
   applyJpegArtifactToCanvas(input, options);
@@ -225,6 +309,7 @@ export default defineFilter({
   options: defaults,
   defaults,
   requiresGL: true,
-  description: "Codec-style JPEG degradation with DCT quantization, chroma subsampling, and optional temporal hold corruption",
+  description:
+    "Codec-style JPEG degradation with DCT quantization, chroma subsampling, and optional temporal hold corruption",
   temporal: true,
 });

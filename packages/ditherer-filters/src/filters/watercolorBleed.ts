@@ -127,11 +127,41 @@ void main() {
 `;
 
 export const optionTypes = {
-  iterations: { type: RANGE, range: [1, 32], step: 1, default: 14, desc: "Pigment-diffusion iterations — more = softer bleed" },
-  flow: { type: RANGE, range: [0, 0.6], step: 0.02, default: 0.25, desc: "Per-step diffusion amount — higher = more watery" },
-  wetness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "How strongly source-derived pigment load modulates mobility — an artistic wetness approximation" },
-  edgeBloom: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Luminance-based pigment deposition along wash edges" },
-  paperTexture: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Visible paper grain" },
+  iterations: {
+    type: RANGE,
+    range: [1, 32],
+    step: 1,
+    default: 14,
+    desc: "Pigment-diffusion iterations — more = softer bleed",
+  },
+  flow: {
+    type: RANGE,
+    range: [0, 0.6],
+    step: 0.02,
+    default: 0.25,
+    desc: "Per-step diffusion amount — higher = more watery",
+  },
+  wetness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.7,
+    desc: "How strongly source-derived pigment load modulates mobility — an artistic wetness approximation",
+  },
+  edgeBloom: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "Luminance-based pigment deposition along wash edges",
+  },
+  paperTexture: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.3,
+    desc: "Visible paper grain",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
@@ -150,7 +180,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     diffuse: linkProgram(gl, DIFFUSE_FS, [
-      "u_prev", "u_source", "u_res", "u_flow", "u_edgeBloom", "u_wetness",
+      "u_prev",
+      "u_source",
+      "u_res",
+      "u_flow",
+      "u_edgeBloom",
+      "u_wetness",
     ] as const),
     paper: linkProgram(gl, PAPER_FS, ["u_pigment", "u_res", "u_paper", "u_levels"] as const),
   };
@@ -166,7 +201,8 @@ const watercolorBleed = (input: any, options: Partial<typeof defaults> = default
     paperTexture = defaults.paperTexture,
     palette = defaults.palette,
   } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -184,47 +220,71 @@ const watercolorBleed = (input: any, options: Partial<typeof defaults> = default
 
       // Copy source → A via a passthrough: easiest path is one iteration
       // where flow=0, giving us c.rgb unchanged. We just bind source as prev.
-      let src = sourceTex, dst = bufA;
+      let src = sourceTex,
+        dst = bufA;
       const iters = Math.max(1, Math.min(32, Math.round(iterations)));
       for (let i = 0; i < iters; i++) {
-        drawPass(gl, dst, W, H, cache.diffuse, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, src.tex);
-          gl.uniform1i(cache.diffuse.uniforms.u_prev, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.diffuse.uniforms.u_source, 1);
-          gl.uniform2f(cache.diffuse.uniforms.u_res, W, H);
-          gl.uniform1f(cache.diffuse.uniforms.u_flow, flow);
-          // Edge deposition is a total-process control, not a per-timestep
-          // multiplier. Normalize it so extra diffusion steps soften the wash
-          // without exponentially re-darkening the same quantization residue.
-          gl.uniform1f(cache.diffuse.uniforms.u_edgeBloom, edgeBloom / iters);
-          gl.uniform1f(cache.diffuse.uniforms.u_wetness, wetness);
-        }, vao);
+        drawPass(
+          gl,
+          dst,
+          W,
+          H,
+          cache.diffuse,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, src.tex);
+            gl.uniform1i(cache.diffuse.uniforms.u_prev, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.diffuse.uniforms.u_source, 1);
+            gl.uniform2f(cache.diffuse.uniforms.u_res, W, H);
+            gl.uniform1f(cache.diffuse.uniforms.u_flow, flow);
+            // Edge deposition is a total-process control, not a per-timestep
+            // multiplier. Normalize it so extra diffusion steps soften the wash
+            // without exponentially re-darkening the same quantization residue.
+            gl.uniform1f(cache.diffuse.uniforms.u_edgeBloom, edgeBloom / iters);
+            gl.uniform1f(cache.diffuse.uniforms.u_wetness, wetness);
+          },
+          vao,
+        );
         // After first pass, ping-pong between A and B.
-        if (i === 0) { src = bufA; dst = bufB; }
-        else { [src, dst] = [dst, src]; }
+        if (i === 0) {
+          src = bufA;
+          dst = bufB;
+        } else {
+          [src, dst] = [dst, src];
+        }
       }
 
-      drawPass(gl, null, W, H, cache.paper, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, src.tex);
-        gl.uniform1i(cache.paper.uniforms.u_pigment, 0);
-        gl.uniform2f(cache.paper.uniforms.u_res, W, H);
-        gl.uniform1f(cache.paper.uniforms.u_paper, paperTexture);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.paper.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.paper,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, src.tex);
+          gl.uniform1i(cache.paper.uniforms.u_pigment, 0);
+          gl.uniform2f(cache.paper.uniforms.u_res, W, H);
+          gl.uniform1f(cache.paper.uniforms.u_paper, paperTexture);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.paper.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Watercolor Bleed", "WebGL2",
-            `iters=${iters} flow=${flow}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Watercolor Bleed",
+            "WebGL2",
+            `iters=${iters} flow=${flow}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -241,7 +301,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Stylized single-field watercolour approximation with eight-neighbour pigment diffusion, luminance-based edge deposition, and paper grain",
+  description:
+    "Stylized single-field watercolour approximation with eight-neighbour pigment diffusion, luminance-based edge deposition, and paper grain",
   requiresGL: true,
   noWASM: "Iterative neighborhood diffusion is GPU-bound and has no maintained CPU implementation.",
 });

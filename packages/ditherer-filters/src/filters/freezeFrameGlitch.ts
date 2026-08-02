@@ -6,7 +6,7 @@ import { freezeFrameGlitchGLAvailable, renderFreezeFrameGlitchGL } from "./freez
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -19,14 +19,44 @@ let freezeGridW = 0;
 let freezeGridH = 0;
 
 export const optionTypes = {
-  blockSize: { type: RANGE, range: [8, 64], step: 4, default: 24, desc: "Dimensions of freeze grid cells" },
-  freezeChance: { type: RANGE, range: [0, 0.5], step: 0.01, default: 0.1, desc: "Probability per block per frame of freezing" },
-  thawRate: { type: RANGE, range: [0.01, 0.2], step: 0.01, default: 0.05, desc: "Probability of a frozen block unfreezing each frame" },
-  channelIndependent: { type: BOOL, default: false, desc: "Freeze R/G/B channels independently for color-split glitches" },
+  blockSize: {
+    type: RANGE,
+    range: [8, 64],
+    step: 4,
+    default: 24,
+    desc: "Dimensions of freeze grid cells",
+  },
+  freezeChance: {
+    type: RANGE,
+    range: [0, 0.5],
+    step: 0.01,
+    default: 0.1,
+    desc: "Probability per block per frame of freezing",
+  },
+  thawRate: {
+    type: RANGE,
+    range: [0.01, 0.2],
+    step: 0.01,
+    default: 0.05,
+    desc: "Probability of a frozen block unfreezing each frame",
+  },
+  channelIndependent: {
+    type: BOOL,
+    default: false,
+    desc: "Freeze R/G/B channels independently for color-split glitches",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -59,7 +89,8 @@ const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defau
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
@@ -88,16 +119,26 @@ const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defau
   // texture along with prevOutput, and the shader does the per-pixel freeze
   // lookup + composite.
   if (
-    freezeFrameGlitchGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    freezeFrameGlitchGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const rendered = renderFreezeFrameGlitchGL(
-      input, W, H, blockSize, blocksX, blocksY,
-      freezeGrid, channelIndependent, prevOutput ?? null,
+      input,
+      W,
+      H,
+      blockSize,
+      blocksX,
+      blocksY,
+      freezeGrid,
+      channelIndependent,
+      prevOutput ?? null,
     );
     if (rendered) {
-      logFilterBackend("Freeze Frame Glitch", "WebGL2",
-        `block=${blockSize} freeze=${freezeChance} thaw=${thawRate}${channelIndependent ? " channelIndep" : ""}`);
+      logFilterBackend(
+        "Freeze Frame Glitch",
+        "WebGL2",
+        `block=${blockSize} freeze=${freezeChance} thaw=${thawRate}${channelIndependent ? " channelIndep" : ""}`,
+      );
       return rendered;
     }
   }
@@ -115,15 +156,15 @@ const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defau
         for (let x = startX; x < endX; x++) {
           const i = getBufferIndex(x, y, W);
           if (channelIndependent && prevOutput) {
-            outBuf[i]     = freezeGrid[blockIdx * 3]     ? prevOutput[i]     : buf[i];
+            outBuf[i] = freezeGrid[blockIdx * 3] ? prevOutput[i] : buf[i];
             outBuf[i + 1] = freezeGrid[blockIdx * 3 + 1] ? prevOutput[i + 1] : buf[i + 1];
             outBuf[i + 2] = freezeGrid[blockIdx * 3 + 2] ? prevOutput[i + 2] : buf[i + 2];
           } else if (freezeGrid[blockIdx] && prevOutput) {
-            outBuf[i]     = prevOutput[i];
+            outBuf[i] = prevOutput[i];
             outBuf[i + 1] = prevOutput[i + 1];
             outBuf[i + 2] = prevOutput[i + 2];
           } else {
-            outBuf[i]     = buf[i];
+            outBuf[i] = buf[i];
             outBuf[i + 1] = buf[i + 1];
             outBuf[i + 2] = buf[i + 2];
           }
@@ -137,4 +178,12 @@ const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defau
   return output;
 };
 
-export default defineFilter({ name: "Freeze Frame Glitch", func: freezeFrameGlitch, optionTypes, options: defaults, defaults, description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic" , temporal: true });
+export default defineFilter({
+  name: "Freeze Frame Glitch",
+  func: freezeFrameGlitch,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Random blocks freeze in time while the rest continues — corrupted buffer aesthetic",
+  temporal: true,
+});

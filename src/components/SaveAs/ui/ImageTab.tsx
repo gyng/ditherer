@@ -100,7 +100,9 @@ export const ImageTab = ({
             max={8}
             step={1}
             value={customMultiplier}
-            onChange={(event) => setCustomMultiplier(Math.max(1, Math.min(8, parseInt(event.target.value) || 1)))}
+            onChange={(event) =>
+              setCustomMultiplier(Math.max(1, Math.min(8, parseInt(event.target.value) || 1)))
+            }
           />
         )}
       </div>
@@ -111,9 +113,7 @@ export const ImageTab = ({
     </div>
 
     {largeExport && (
-      <div className={s.warning}>
-        Large export dimensions may fail or use excessive memory.
-      </div>
+      <div className={s.warning}>Large export dimensions may fail or use excessive memory.</div>
     )}
 
     <div className={s.buttons}>

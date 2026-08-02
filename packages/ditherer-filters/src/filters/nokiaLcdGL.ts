@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -85,10 +92,17 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_downRes", "u_threshold", "u_contrast",
-    "u_ditherStrength", "u_pixelGrid",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_downRes",
+      "u_threshold",
+      "u_contrast",
+      "u_ditherStrength",
+      "u_pixelGrid",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -96,9 +110,14 @@ export const nokiaLcdGLAvailable = (): boolean => glAvailable();
 
 export const renderNokiaLcdGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  columns: number, rows: number,
-  threshold: number, contrast: number, ditherStrength: number, pixelGrid: boolean,
+  width: number,
+  height: number,
+  columns: number,
+  rows: number,
+  threshold: number,
+  contrast: number,
+  ditherStrength: number,
+  pixelGrid: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -108,16 +127,24 @@ export const renderNokiaLcdGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "nokiaLcd:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2f(cache.prog.uniforms.u_downRes, columns, rows);
-    gl.uniform1f(cache.prog.uniforms.u_threshold, threshold);
-    gl.uniform1f(cache.prog.uniforms.u_contrast, contrast);
-    gl.uniform1f(cache.prog.uniforms.u_ditherStrength, ditherStrength);
-    gl.uniform1i(cache.prog.uniforms.u_pixelGrid, pixelGrid ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2f(cache.prog.uniforms.u_downRes, columns, rows);
+      gl.uniform1f(cache.prog.uniforms.u_threshold, threshold);
+      gl.uniform1f(cache.prog.uniforms.u_contrast, contrast);
+      gl.uniform1f(cache.prog.uniforms.u_ditherStrength, ditherStrength);
+      gl.uniform1i(cache.prog.uniforms.u_pixelGrid, pixelGrid ? 1 : 0);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

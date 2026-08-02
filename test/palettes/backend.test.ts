@@ -2,11 +2,7 @@ import { describe, expect, it, beforeAll } from "vitest";
 import { wasmReady } from "@gyng/ditherer-filters";
 import nearest from "palettes/nearest";
 import user from "palettes/user";
-import {
-  applyPaletteToBuffer,
-  buildNearestLUT,
-  paletteIsIdentity,
-} from "palettes/backend";
+import { applyPaletteToBuffer, buildNearestLUT, paletteIsIdentity } from "palettes/backend";
 
 beforeAll(async () => {
   await wasmReady;
@@ -83,10 +79,9 @@ describe("palettes/backend applyPaletteToBuffer", () => {
     const palette = { ...nearest, options: { levels: 4 } };
     applyPaletteToBuffer(input, output, 8, 8, palette, true);
     for (let i = 0; i < input.length; i += 4) {
-      const ref = nearest.getColor(
-        [input[i], input[i + 1], input[i + 2], input[i + 3]],
-        { levels: 4 },
-      );
+      const ref = nearest.getColor([input[i], input[i + 1], input[i + 2], input[i + 3]], {
+        levels: 4,
+      });
       expect(output[i]).toBe(ref[0]);
       expect(output[i + 1]).toBe(ref[1]);
       expect(output[i + 2]).toBe(ref[2]);
@@ -100,10 +95,9 @@ describe("palettes/backend applyPaletteToBuffer", () => {
     const palette = { ...nearest, options: { levels: 8 } };
     applyPaletteToBuffer(input, output, 8, 8, palette, /* wasmAcceleration */ false);
     for (let i = 0; i < input.length; i += 4) {
-      const ref = nearest.getColor(
-        [input[i], input[i + 1], input[i + 2], input[i + 3]],
-        { levels: 8 },
-      );
+      const ref = nearest.getColor([input[i], input[i + 1], input[i + 2], input[i + 3]], {
+        levels: 8,
+      });
       expect(output[i]).toBe(ref[0]);
       expect(output[i + 1]).toBe(ref[1]);
       expect(output[i + 2]).toBe(ref[2]);
@@ -120,7 +114,11 @@ describe("palettes/backend applyPaletteToBuffer", () => {
   });
 
   it("falls back to the JS per-pixel loop for color-distance palettes (User/Adaptive)", () => {
-    const colors = [[0, 0, 0], [255, 255, 255], [255, 0, 0]];
+    const colors = [
+      [0, 0, 0],
+      [255, 255, 255],
+      [255, 0, 0],
+    ];
     const input = mkBuf(4, 4);
     const output = new Uint8ClampedArray(input.length);
     const palette = { ...user, options: { colors, colorDistanceAlgorithm: "EUCLIDEAN_RGB" } };

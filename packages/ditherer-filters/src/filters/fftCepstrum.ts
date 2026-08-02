@@ -117,16 +117,24 @@ void main() {
 
 export const optionTypes = {
   scale: { type: RANGE, range: [1, 10000], step: 10, default: 200, desc: "Brightness scale" },
-  centred: { type: BOOL, default: true, desc: "Centre DC of the cepstrum (the origin = repeating-period 0)" },
-  suppressDC: { type: BOOL, default: true, desc: "Dim the DC region so pattern peaks dominate instead of the usual bright centre" },
-  palette: { type: PALETTE, default: nearest }
+  centred: {
+    type: BOOL,
+    default: true,
+    desc: "Centre DC of the cepstrum (the origin = repeating-period 0)",
+  },
+  suppressDC: {
+    type: BOOL,
+    default: true,
+    desc: "Dim the DC region so pattern peaks dominate instead of the usual bright centre",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   scale: optionTypes.scale.default,
   centred: optionTypes.centred.default,
   suppressDC: optionTypes.suppressDC.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = {
@@ -139,8 +147,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     logMag: linkProgram(gl, LOG_MAG_FS, ["u_input", "u_padRes"] as const),
     plot: linkProgram(gl, PLOT_FS, [
-      "u_cepstrum", "u_padRes", "u_outRes", "u_invN", "u_scale",
-      "u_shift", "u_suppressDC", "u_levels",
+      "u_cepstrum",
+      "u_padRes",
+      "u_outRes",
+      "u_invN",
+      "u_scale",
+      "u_shift",
+      "u_suppressDC",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -152,9 +166,9 @@ const fftCepstrum = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -172,12 +186,20 @@ const fftCepstrum = (input: any, options = defaults) => {
         const paddedH = nextPow2(H);
         const logTex = ensureFloatTex(gl, "fftCepstrum:logMag", paddedW, paddedH);
         if (logTex) {
-          drawPass(gl, logTex, paddedW, paddedH, cache.logMag, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.logMag.uniforms.u_input, 0);
-            gl.uniform2f(cache.logMag.uniforms.u_padRes, paddedW, paddedH);
-          }, vao);
+          drawPass(
+            gl,
+            logTex,
+            paddedW,
+            paddedH,
+            cache.logMag,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.logMag.uniforms.u_input, 0);
+              gl.uniform2f(cache.logMag.uniforms.u_padRes, paddedW, paddedH);
+            },
+            vao,
+          );
 
           // IFFT of log|X| — the cepstrum.
           const logW = log2Int(paddedW);
@@ -185,28 +207,39 @@ const fftCepstrum = (input: any, options = defaults) => {
           const ceps = inverseFFT2D(gl, logTex, paddedW, paddedH, logW, logH);
           if (ceps) {
             const invN = 1 / (paddedW * paddedH);
-            drawPass(gl, null, W, H, cache.plot, () => {
-              gl.activeTexture(gl.TEXTURE0);
-              gl.bindTexture(gl.TEXTURE_2D, ceps.tex);
-              gl.uniform1i(cache.plot.uniforms.u_cepstrum, 0);
-              gl.uniform2f(cache.plot.uniforms.u_padRes, paddedW, paddedH);
-              gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
-              gl.uniform1f(cache.plot.uniforms.u_invN, invN);
-              gl.uniform1f(cache.plot.uniforms.u_scale, scale);
-              gl.uniform1i(cache.plot.uniforms.u_shift, centred ? 1 : 0);
-              gl.uniform1i(cache.plot.uniforms.u_suppressDC, suppressDC ? 1 : 0);
-              const identity = paletteIsIdentity(palette);
-              const pOpts = (palette as { options?: { levels?: number } }).options;
-              const levels = identity ? (pOpts?.levels ?? 256) : 256;
-              gl.uniform1f(cache.plot.uniforms.u_levels, levels);
-            }, vao);
+            drawPass(
+              gl,
+              null,
+              W,
+              H,
+              cache.plot,
+              () => {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, ceps.tex);
+                gl.uniform1i(cache.plot.uniforms.u_cepstrum, 0);
+                gl.uniform2f(cache.plot.uniforms.u_padRes, paddedW, paddedH);
+                gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
+                gl.uniform1f(cache.plot.uniforms.u_invN, invN);
+                gl.uniform1f(cache.plot.uniforms.u_scale, scale);
+                gl.uniform1i(cache.plot.uniforms.u_shift, centred ? 1 : 0);
+                gl.uniform1i(cache.plot.uniforms.u_suppressDC, suppressDC ? 1 : 0);
+                const identity = paletteIsIdentity(palette);
+                const pOpts = (palette as { options?: { levels?: number } }).options;
+                const levels = identity ? (pOpts?.levels ?? 256) : 256;
+                gl.uniform1f(cache.plot.uniforms.u_levels, levels);
+              },
+              vao,
+            );
             const rendered = readoutToCanvas(canvas, W, H);
             if (rendered) {
               const identity = paletteIsIdentity(palette);
               const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Cepstrum", "WebGL2",
-                  `scale=${scale} shift=${centred}${identity ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Cepstrum",
+                  "WebGL2",
+                  `scale=${scale} shift=${centred}${identity ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -225,6 +258,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Cepstrum = inverse FFT of log |FFT|. Repeating patterns / echoes show up as discrete bright points at their spatial period",
+  description:
+    "Cepstrum = inverse FFT of log |FFT|. Repeating patterns / echoes show up as discrete bright points at their spatial period",
   noWASM: "Needs GPU 2D FFT.",
 });

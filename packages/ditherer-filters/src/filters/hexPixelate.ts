@@ -47,30 +47,40 @@ const roundHex = (qf: number, rf: number): [number, number] => {
 const pixelToHex = (x: number, y: number, size: number): [number, number] => {
   const px = x - size;
   const py = y - size;
-  const q = (SQRT3 / 3 * px - py / 3) / size;
-  const r = (2 / 3 * py) / size;
+  const q = ((SQRT3 / 3) * px - py / 3) / size;
+  const r = ((2 / 3) * py) / size;
   return roundHex(q, r);
 };
 
-const hexToCenter = (q: number, r: number, size: number): [number, number] => ([
+const hexToCenter = (q: number, r: number, size: number): [number, number] => [
   size * SQRT3 * (q + r / 2) + size,
-  size * 1.5 * r + size
-]);
+  size * 1.5 * r + size,
+];
 
 const sameHex = (a: [number, number], b: [number, number]) => a[0] === b[0] && a[1] === b[1];
 
 export const optionTypes = {
-  cellSize: { type: RANGE, range: [4, 64], step: 1, default: 16, desc: "Hex cell diameter in pixels" },
+  cellSize: {
+    type: RANGE,
+    range: [4, 64],
+    step: 1,
+    default: 16,
+    desc: "Hex cell diameter in pixels",
+  },
   outline: { type: BOOL, default: false, desc: "Draw 1px seams between neighboring hex cells" },
-  outlineColor: { type: COLOR, default: [0, 0, 0], desc: "Outline color when seam drawing is enabled" },
-  palette: { type: PALETTE, default: nearest }
+  outlineColor: {
+    type: COLOR,
+    default: [0, 0, 0],
+    desc: "Outline color when seam drawing is enabled",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   cellSize: optionTypes.cellSize.default,
   outline: optionTypes.outline.default,
   outlineColor: optionTypes.outlineColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // GLSL version of pixelToHex→roundHex→hexToCenter. Samples the source at
@@ -149,7 +159,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     hex: linkProgram(gl, HEX_FS, [
-      "u_source", "u_res", "u_size", "u_outline", "u_outlineColor",
+      "u_source",
+      "u_res",
+      "u_size",
+      "u_outline",
+      "u_outlineColor",
     ] as const),
   };
   return _cache;
@@ -157,7 +171,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const hexPixelate = (input: any, options = defaults) => {
   const { cellSize, outline, outlineColor, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const size = Math.max(2, cellSize * 0.5);
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -170,23 +185,39 @@ const hexPixelate = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "hexPixelate:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.hex, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.hex.uniforms.u_source, 0);
-        gl.uniform2f(cache.hex.uniforms.u_res, W, H);
-        gl.uniform1f(cache.hex.uniforms.u_size, size);
-        gl.uniform1i(cache.hex.uniforms.u_outline, outline ? 1 : 0);
-        gl.uniform3f(cache.hex.uniforms.u_outlineColor, outlineColor[0] / 255, outlineColor[1] / 255, outlineColor[2] / 255);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.hex,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.hex.uniforms.u_source, 0);
+          gl.uniform2f(cache.hex.uniforms.u_res, W, H);
+          gl.uniform1f(cache.hex.uniforms.u_size, size);
+          gl.uniform1i(cache.hex.uniforms.u_outline, outline ? 1 : 0);
+          gl.uniform3f(
+            cache.hex.uniforms.u_outlineColor,
+            outlineColor[0] / 255,
+            outlineColor[1] / 255,
+            outlineColor[2] / 255,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Hex Pixelate", "WebGL2",
-            `size=${cellSize}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Hex Pixelate",
+            "WebGL2",
+            `size=${cellSize}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -226,7 +257,7 @@ const hexPixelate = (input: any, options = defaults) => {
       const color = srgbPaletteGetColor(
         palette,
         rgba(buf[si], buf[si + 1], buf[si + 2], buf[si + 3]),
-        palette.options
+        palette.options,
       );
 
       outBuf[i] = color[0];
@@ -245,5 +276,5 @@ export default defineFilter({
   func: hexPixelate,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

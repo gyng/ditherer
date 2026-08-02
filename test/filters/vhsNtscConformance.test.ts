@@ -52,7 +52,7 @@ describe("ntsc-rs tape transfer conformance", () => {
       const noAdvance = applyCausalKernel(impulse, kernel);
       const advanced = applyCausalKernel(impulse, kernel, profile.chromaDelay);
       const peak = (values: Float32Array) =>
-        values.reduce((best, value, index) => value > values[best] ? index : best, 0);
+        values.reduce((best, value, index) => (value > values[best] ? index : best), 0);
       expect(peak(noAdvance) - peak(advanced)).toBe(profile.chromaDelay);
     }
   });
@@ -99,7 +99,9 @@ describe("signal conformance fixtures and metrics", () => {
     (pattern) => {
       const pixels = makeConformancePattern(pattern, 96, 48);
       expect(pixels).toHaveLength(96 * 48 * 3);
-      expect(Array.from(pixels).every((value) => Number.isFinite(value) && value >= 0 && value <= 1)).toBe(true);
+      expect(
+        Array.from(pixels).every((value) => Number.isFinite(value) && value >= 0 && value <= 1),
+      ).toBe(true);
     },
   );
 
@@ -135,8 +137,9 @@ describe("ntsc-rs stochastic input conformance", () => {
     const rng = new SplitMix64(0);
     expect(rng.nextU64()).toBe(0xe220a8397b1dcdafn);
     expect(rng.nextU64()).toBe(0x6e789e6aa1b965f4n);
-    expect(new SplitMix64(17).mix(4).mix(9).nextU32())
-      .toBe(new SplitMix64(17).mix(4).mix(9).nextU32());
+    expect(new SplitMix64(17).mix(4).mix(9).nextU32()).toBe(
+      new SplitMix64(17).mix(4).mix(9).nextU32(),
+    );
   });
 
   it("ports upstream 1D simplex without discontinuities at cell boundaries", () => {
@@ -163,11 +166,12 @@ describe("ntsc-rs stochastic input conformance", () => {
 
   it("generates deterministic sparse chroma-loss rows independently", () => {
     const rows = makeRowNoisePlane(10_000, 7, 3, 0.02).data;
-    const events = Array.from({ length: 10_000 }, (_, y) => rows[y * 4 + 1])
-      .reduce((total, value) => total + value, 0);
+    const events = Array.from({ length: 10_000 }, (_, y) => rows[y * 4 + 1]).reduce(
+      (total, value) => total + value,
+      0,
+    );
     expect(events).toBeGreaterThan(150);
     expect(events).toBeLessThan(250);
-    expect(makeRowNoisePlane(64, 7, 3, 0.02).data)
-      .toEqual(makeRowNoisePlane(64, 7, 3, 0.02).data);
+    expect(makeRowNoisePlane(64, 7, 3, 0.02).data).toEqual(makeRowNoisePlane(64, 7, 3, 0.02).data);
   });
 });

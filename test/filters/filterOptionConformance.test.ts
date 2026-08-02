@@ -31,7 +31,7 @@ const makeSignalCanvas = (kind: SignalKind = "edge", width = 8, height = 8) => {
         image.data[offset] = x * 31;
         image.data[offset + 1] = y * 31;
         image.data[offset + 2] = (x + y) * 15;
-        image.data[offset + 3] = (x + y) % 3 === 0 ? 0 : (x * 32);
+        image.data[offset + 3] = (x + y) % 3 === 0 ? 0 : x * 32;
       } else if (kind === "primary-gradient") {
         image.data[offset] = Math.round((x / (width - 1)) * 255);
         image.data[offset + 1] = Math.round((y / (height - 1)) * 255);
@@ -69,7 +69,8 @@ const optionCases = (filter: FilterDefinition): Case[] => {
       cases.push({ label: `${key}=true`, patch: { [key]: true } });
     } else if (definition.type === ENUM) {
       for (const value of enumValues(definition)) {
-        if (value !== current) cases.push({ label: `${key}=${String(value)}`, patch: { [key]: value } });
+        if (value !== current)
+          cases.push({ label: `${key}=${String(value)}`, patch: { [key]: value } });
       }
     } else if (definition.type === RANGE && "range" in definition) {
       const [minimum, maximum] = definition.range;
@@ -109,23 +110,14 @@ const combinedOptionProfiles = (filter: FilterDefinition): Case[] => {
   ];
 };
 
-const hardSkip = new Set([
-  "Glitch",
-  "Program",
-]);
+const hardSkip = new Set(["Glitch", "Program"]);
 
 // These algorithms use scalar controls to size lookup structures, so their
 // persisted representation requires the existing migration layer to restore
 // defaults before dispatch rather than accepting a sparse object directly.
-const requiresMigratedScalarDefaults = new Set([
-  "Contour Map",
-  "Palette Mapper",
-]);
+const requiresMigratedScalarDefaults = new Set(["Contour Map", "Palette Mapper"]);
 
-const requiresMigratedEnumDefaults = new Set([
-  "Anaglyph:depthSource",
-  "Convolve:kernel",
-]);
+const requiresMigratedEnumDefaults = new Set(["Anaglyph:depthSource", "Convolve:kernel"]);
 
 describe("CPU filter option conformance", () => {
   for (const [name, filter] of Object.entries(filterIndex)) {
@@ -161,17 +153,21 @@ describe("CPU filter option conformance", () => {
       for (const [profileIndex, testCase] of combinedOptionProfiles(filter).entries()) {
         const input = makeSignalCanvas(profileIndex === 0 ? "primary-gradient" : "edge");
         const hasHistory = profileIndex === 1;
-        const result = await filter.func(input, {
-          ...base,
-          ...testCase.patch,
-          _frameIndex: profileIndex + 7,
-          _isAnimating: hasHistory,
-          _linearize: profileIndex === 0,
-          _wasmAcceleration: false,
-          _prevInput: hasHistory ? previous : null,
-          _prevOutput: hasHistory ? previous : null,
-          _ema: hasHistory ? new Float32Array(previous) : null,
-        }, vi.fn());
+        const result = await filter.func(
+          input,
+          {
+            ...base,
+            ...testCase.patch,
+            _frameIndex: profileIndex + 7,
+            _isAnimating: hasHistory,
+            _linearize: profileIndex === 0,
+            _wasmAcceleration: false,
+            _prevInput: hasHistory ? previous : null,
+            _prevOutput: hasHistory ? previous : null,
+            _ema: hasHistory ? new Float32Array(previous) : null,
+          },
+          vi.fn(),
+        );
 
         expect(result, `${name}: ${testCase.label}`).toBeInstanceOf(HTMLCanvasElement);
         expect(result.width, `${name}: ${testCase.label} width`).toBeGreaterThan(0);
@@ -187,34 +183,45 @@ describe("CPU filter option conformance", () => {
           if (definition.type === RANGE || definition.type === BOOL) delete partialOptions[key];
         }
       }
-      const partialResult = await filter.func(makeSignalCanvas("primary-gradient"), {
-        ...partialOptions,
-        _frameIndex: 3,
-        _isAnimating: false,
-        _linearize: false,
-        _wasmAcceleration: false,
-        _prevInput: previous,
-        _prevOutput: previous,
-        _ema: new Float32Array(previous),
-      }, vi.fn());
-      expect(partialResult, `${name}: partial serialized options`).toBeInstanceOf(HTMLCanvasElement);
-      expect(partialResult.width, `${name}: partial serialized options width`).toBeGreaterThan(0);
-      expect(partialResult.height, `${name}: partial serialized options height`).toBeGreaterThan(0);
-
-      for (const [key, definition] of Object.entries(filter.optionTypes ?? {})) {
-        if (definition.type !== ENUM || requiresMigratedEnumDefaults.has(`${name}:${key}`)) continue;
-        const partialEnumOptions = { ...base };
-        delete partialEnumOptions[key];
-        const partialEnumResult = await filter.func(makeSignalCanvas("edge"), {
-          ...partialEnumOptions,
-          _frameIndex: 4,
+      const partialResult = await filter.func(
+        makeSignalCanvas("primary-gradient"),
+        {
+          ...partialOptions,
+          _frameIndex: 3,
           _isAnimating: false,
           _linearize: false,
           _wasmAcceleration: false,
           _prevInput: previous,
           _prevOutput: previous,
           _ema: new Float32Array(previous),
-        }, vi.fn());
+        },
+        vi.fn(),
+      );
+      expect(partialResult, `${name}: partial serialized options`).toBeInstanceOf(
+        HTMLCanvasElement,
+      );
+      expect(partialResult.width, `${name}: partial serialized options width`).toBeGreaterThan(0);
+      expect(partialResult.height, `${name}: partial serialized options height`).toBeGreaterThan(0);
+
+      for (const [key, definition] of Object.entries(filter.optionTypes ?? {})) {
+        if (definition.type !== ENUM || requiresMigratedEnumDefaults.has(`${name}:${key}`))
+          continue;
+        const partialEnumOptions = { ...base };
+        delete partialEnumOptions[key];
+        const partialEnumResult = await filter.func(
+          makeSignalCanvas("edge"),
+          {
+            ...partialEnumOptions,
+            _frameIndex: 4,
+            _isAnimating: false,
+            _linearize: false,
+            _wasmAcceleration: false,
+            _prevInput: previous,
+            _prevOutput: previous,
+            _ema: new Float32Array(previous),
+          },
+          vi.fn(),
+        );
         expect(partialEnumResult, `${name}: missing enum ${key}`).toBeInstanceOf(HTMLCanvasElement);
         expect(partialEnumResult.width, `${name}: missing enum ${key} width`).toBeGreaterThan(0);
         expect(partialEnumResult.height, `${name}: missing enum ${key} height`).toBeGreaterThan(0);
@@ -222,45 +229,59 @@ describe("CPU filter option conformance", () => {
 
       const contextlessInput = makeSignalCanvas("edge");
       contextlessInput.getContext = (() => null) as typeof contextlessInput.getContext;
-      const contextlessResult = await filter.func(contextlessInput, {
-        ...base,
-        _frameIndex: 0,
-        _isAnimating: false,
-        _linearize: false,
-        _wasmAcceleration: false,
-        _prevInput: null,
-        _prevOutput: null,
-        _ema: null,
-      }, vi.fn());
-      expect(contextlessResult, `${name}: unavailable 2D context`).toBeInstanceOf(HTMLCanvasElement);
+      const contextlessResult = await filter.func(
+        contextlessInput,
+        {
+          ...base,
+          _frameIndex: 0,
+          _isAnimating: false,
+          _linearize: false,
+          _wasmAcceleration: false,
+          _prevInput: null,
+          _prevOutput: null,
+          _ema: null,
+        },
+        vi.fn(),
+      );
+      expect(contextlessResult, `${name}: unavailable 2D context`).toBeInstanceOf(
+        HTMLCanvasElement,
+      );
       expect(contextlessResult.width, `${name}: unavailable 2D context width`).toBeGreaterThan(0);
       expect(contextlessResult.height, `${name}: unavailable 2D context height`).toBeGreaterThan(0);
 
-      const tinyResult = await filter.func(makeSignalCanvas("impulse", 1, 1), {
-        ...base,
-        _frameIndex: 0,
-        _isAnimating: false,
-        _linearize: false,
-        _wasmAcceleration: false,
-        _prevInput: new Uint8ClampedArray([0, 0, 0, 255]),
-        _prevOutput: new Uint8ClampedArray([0, 0, 0, 255]),
-        _ema: new Float32Array([0, 0, 0, 255]),
-      }, vi.fn());
+      const tinyResult = await filter.func(
+        makeSignalCanvas("impulse", 1, 1),
+        {
+          ...base,
+          _frameIndex: 0,
+          _isAnimating: false,
+          _linearize: false,
+          _wasmAcceleration: false,
+          _prevInput: new Uint8ClampedArray([0, 0, 0, 255]),
+          _prevOutput: new Uint8ClampedArray([0, 0, 0, 255]),
+          _ema: new Float32Array([0, 0, 0, 255]),
+        },
+        vi.fn(),
+      );
       expect(tinyResult, `${name}: 1x1 media`).toBeInstanceOf(HTMLCanvasElement);
       expect(tinyResult.width, `${name}: 1x1 media width`).toBeGreaterThan(0);
       expect(tinyResult.height, `${name}: 1x1 media height`).toBeGreaterThan(0);
 
       for (const signal of ["black", "white", "impulse", "alpha", "primary-gradient"] as const) {
-        const result = await filter.func(makeSignalCanvas(signal), {
-          ...base,
-          _frameIndex: 0,
-          _isAnimating: false,
-          _linearize: true,
-          _wasmAcceleration: false,
-          _prevInput: null,
-          _prevOutput: null,
-          _ema: null,
-        }, vi.fn());
+        const result = await filter.func(
+          makeSignalCanvas(signal),
+          {
+            ...base,
+            _frameIndex: 0,
+            _isAnimating: false,
+            _linearize: true,
+            _wasmAcceleration: false,
+            _prevInput: null,
+            _prevOutput: null,
+            _ema: null,
+          },
+          vi.fn(),
+        );
 
         expect(result, `${name}: ${signal} signal`).toBeInstanceOf(HTMLCanvasElement);
         expect(result.width, `${name}: ${signal} width`).toBeGreaterThan(0);

@@ -37,9 +37,9 @@ threshold are removed.
 The current shader divides its accumulated overload by the overload weight.
 That makes several saturated wells produce nearly the same trail colour as one
 well. Blooming is excess charge above full-well capacity, so the replacement
-  sums decayed excess without normalization. It retains the overloaded sample's
-  spectral ratio rather than adding an arbitrary red/blue tint and exposes
-  anti-blooming drain efficiency.
+sums decayed excess without normalization. It retains the overloaded sample's
+spectral ratio rather than adding an arbitrary red/blue tint and exposes
+anti-blooming drain efficiency.
 
 ### Laser Speckle Projector
 

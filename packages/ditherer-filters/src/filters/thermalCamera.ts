@@ -22,20 +22,42 @@ const COLORMAP_BLACK_HOT = "BLACK_HOT";
 
 const colormaps: Record<string, number[][]> = {
   [COLORMAP_IRONBOW]: [
-    [0, 0, 0], [20, 0, 80], [80, 0, 120], [160, 0, 100],
-    [220, 60, 20], [255, 180, 0], [255, 255, 100], [255, 255, 255],
+    [0, 0, 0],
+    [20, 0, 80],
+    [80, 0, 120],
+    [160, 0, 100],
+    [220, 60, 20],
+    [255, 180, 0],
+    [255, 255, 100],
+    [255, 255, 255],
   ],
   [COLORMAP_RAINBOW]: [
-    [0, 0, 40], [0, 0, 200], [0, 180, 255], [0, 220, 80],
-    [200, 220, 0], [255, 120, 0], [255, 0, 0], [255, 255, 255],
+    [0, 0, 40],
+    [0, 0, 200],
+    [0, 180, 255],
+    [0, 220, 80],
+    [200, 220, 0],
+    [255, 120, 0],
+    [255, 0, 0],
+    [255, 255, 255],
   ],
   [COLORMAP_WHITE_HOT]: [
-    [0, 0, 0], [30, 30, 30], [80, 80, 80], [130, 130, 130],
-    [180, 180, 180], [220, 220, 220], [255, 255, 255],
+    [0, 0, 0],
+    [30, 30, 30],
+    [80, 80, 80],
+    [130, 130, 130],
+    [180, 180, 180],
+    [220, 220, 220],
+    [255, 255, 255],
   ],
   [COLORMAP_BLACK_HOT]: [
-    [255, 255, 255], [220, 220, 220], [180, 180, 180], [130, 130, 130],
-    [80, 80, 80], [30, 30, 30], [0, 0, 0],
+    [255, 255, 255],
+    [220, 220, 220],
+    [180, 180, 180],
+    [130, 130, 130],
+    [80, 80, 80],
+    [30, 30, 30],
+    [0, 0, 0],
   ],
 };
 
@@ -51,14 +73,60 @@ export const optionTypes = {
     default: COLORMAP_IRONBOW,
     desc: "Display palette applied to the visible-luminance proxy",
   },
-  level: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Center of the visible-proxy display window" },
-  span: { type: RANGE, range: [0.05, 1], step: 0.01, default: 0.8, desc: "Width of the visible-proxy display window" },
-  contrast: { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.2, desc: "Display contrast after level/span mapping; not temperature contrast" },
-  sensorWidth: { type: RANGE, range: [40, 640], step: 40, default: 160, desc: "Horizontal proxy-sensor resolution; cells remain square" },
-  noiseAmount: { type: RANGE, range: [0, 0.15], step: 0.005, default: 0.015, desc: "Frame-varying sensor read noise" },
-  fixedPatternNoise: { type: RANGE, range: [0, 0.1], step: 0.005, default: 0.01, desc: "Stable per-detector response variation" },
-  crosshair: { type: BOOL, default: true, desc: "Show a center aiming reticle without a temperature readout" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Preview refresh rate for changing sensor noise" },
+  level: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Center of the visible-proxy display window",
+  },
+  span: {
+    type: RANGE,
+    range: [0.05, 1],
+    step: 0.01,
+    default: 0.8,
+    desc: "Width of the visible-proxy display window",
+  },
+  contrast: {
+    type: RANGE,
+    range: [0.5, 3],
+    step: 0.05,
+    default: 1.2,
+    desc: "Display contrast after level/span mapping; not temperature contrast",
+  },
+  sensorWidth: {
+    type: RANGE,
+    range: [40, 640],
+    step: 40,
+    default: 160,
+    desc: "Horizontal proxy-sensor resolution; cells remain square",
+  },
+  noiseAmount: {
+    type: RANGE,
+    range: [0, 0.15],
+    step: 0.005,
+    default: 0.015,
+    desc: "Frame-varying sensor read noise",
+  },
+  fixedPatternNoise: {
+    type: RANGE,
+    range: [0, 0.1],
+    step: 0.005,
+    default: 0.01,
+    desc: "Stable per-detector response variation",
+  },
+  crosshair: {
+    type: BOOL,
+    default: true,
+    desc: "Show a center aiming reticle without a temperature readout",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Preview refresh rate for changing sensor noise",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -172,9 +240,19 @@ const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (!cache) {
     cache = {
       thermal: linkProgram(gl, THERMAL_PROXY_FS, [
-        "u_source", "u_res", "u_level", "u_span", "u_contrast", "u_sensorWidth",
-        "u_noise", "u_fixedPatternNoise", "u_frameSeed", "u_stopCount", "u_stops[0]",
-        "u_crosshair", "u_hotColor",
+        "u_source",
+        "u_res",
+        "u_level",
+        "u_span",
+        "u_contrast",
+        "u_sensorWidth",
+        "u_noise",
+        "u_fixedPatternNoise",
+        "u_frameSeed",
+        "u_stopCount",
+        "u_stops[0]",
+        "u_crosshair",
+        "u_hotColor",
       ] as const),
     };
   }
@@ -186,9 +264,9 @@ const sampleStops = (stops: number[][], value: number): [number, number, number]
   const index = Math.min(stops.length - 1, Math.floor(position));
   const next = Math.min(stops.length - 1, index + 1);
   const fraction = position - index;
-  return [0, 1, 2].map((channel) => (
-    stops[index][channel] + (stops[next][channel] - stops[index][channel]) * fraction
-  )) as [number, number, number];
+  return [0, 1, 2].map(
+    (channel) => stops[index][channel] + (stops[next][channel] - stops[index][channel]) * fraction,
+  ) as [number, number, number];
 };
 
 type ThermalOptions = Partial<typeof defaults> & { _frameIndex?: number };
@@ -196,8 +274,15 @@ type ThermalOptions = Partial<typeof defaults> & { _frameIndex?: number };
 const thermalCamera = (input: any, options: ThermalOptions = defaults) => {
   const resolved = { ...defaults, ...options };
   const {
-    colormap, level, span, contrast, sensorWidth, noiseAmount,
-    fixedPatternNoise, crosshair, palette,
+    colormap,
+    level,
+    span,
+    contrast,
+    sensorWidth,
+    noiseAmount,
+    fixedPatternNoise,
+    crosshair,
+    palette,
   } = resolved;
   const width = input.width;
   const height = input.height;
@@ -219,29 +304,46 @@ const thermalCamera = (input: any, options: ThermalOptions = defaults) => {
   resizeGLCanvas(canvas, width, height);
   const sourceTexture = ensureTexture(gl, "thermalCamera:source", width, height);
   uploadSourceTexture(gl, sourceTexture, input);
-  drawPass(gl, null, width, height, program, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(program.uniforms.u_source, 0);
-    gl.uniform2f(program.uniforms.u_res, width, height);
-    gl.uniform1f(program.uniforms.u_level, level);
-    gl.uniform1f(program.uniforms.u_span, span);
-    gl.uniform1f(program.uniforms.u_contrast, contrast);
-    gl.uniform1f(program.uniforms.u_sensorWidth, sensorWidth);
-    gl.uniform1f(program.uniforms.u_noise, noiseAmount);
-    gl.uniform1f(program.uniforms.u_fixedPatternNoise, fixedPatternNoise);
-    gl.uniform1f(program.uniforms.u_frameSeed, (options._frameIndex ?? 0) * 7919 + 31337);
-    gl.uniform1i(program.uniforms.u_stopCount, stopCount);
-    gl.uniform3fv(program.uniforms["u_stops[0]"], flatStops);
-    gl.uniform1i(program.uniforms.u_crosshair, crosshair ? 1 : 0);
-    gl.uniform3f(program.uniforms.u_hotColor, hotColor[0] / 255, hotColor[1] / 255, hotColor[2] / 255);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    program,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(program.uniforms.u_source, 0);
+      gl.uniform2f(program.uniforms.u_res, width, height);
+      gl.uniform1f(program.uniforms.u_level, level);
+      gl.uniform1f(program.uniforms.u_span, span);
+      gl.uniform1f(program.uniforms.u_contrast, contrast);
+      gl.uniform1f(program.uniforms.u_sensorWidth, sensorWidth);
+      gl.uniform1f(program.uniforms.u_noise, noiseAmount);
+      gl.uniform1f(program.uniforms.u_fixedPatternNoise, fixedPatternNoise);
+      gl.uniform1f(program.uniforms.u_frameSeed, (options._frameIndex ?? 0) * 7919 + 31337);
+      gl.uniform1i(program.uniforms.u_stopCount, stopCount);
+      gl.uniform3fv(program.uniforms["u_stops[0]"], flatStops);
+      gl.uniform1i(program.uniforms.u_crosshair, crosshair ? 1 : 0);
+      gl.uniform3f(
+        program.uniforms.u_hotColor,
+        hotColor[0] / 255,
+        hotColor[1] / 255,
+        hotColor[2] / 255,
+      );
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, width, height);
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
-  logFilterBackend("Thermal camera", "WebGL2", `visible-proxy ${sensorWidth}px ${colormap}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Thermal camera",
+    "WebGL2",
+    `visible-proxy ${sensorWidth}px ${colormap}${identity ? "" : "+palettePass"}`,
+  );
   return output ?? input;
 };
 
@@ -251,7 +353,8 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Visible-RGB luminance proxy—not emitted-IR temperature—through a low-resolution thermal-camera display",
+  description:
+    "Visible-RGB luminance proxy—not emitted-IR temperature—through a low-resolution thermal-camera display",
   temporal: true,
   requiresGL: true,
 });

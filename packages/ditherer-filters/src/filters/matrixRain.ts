@@ -2,7 +2,13 @@ import { ACTION, BOOL, ENUM, RANGE, PALETTE, TEXT } from "../constants/controlTy
 import { defineFilter, type FilterOptionValues } from "./types";
 import { nearest } from "../palettes/index";
 import { CHARSET, SHARED_CHARSET_GROUPS, getCharsetString } from "./charsets";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, srgbPaletteGetColor, logFilterBackend } from "../utils/index";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  srgbPaletteGetColor,
+  logFilterBackend,
+} from "../utils/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import { matrixRainGLAvailable, renderMatrixRainGL } from "./matrixRainGL";
 
@@ -40,23 +46,63 @@ type MatrixRainOptions = FilterOptionValues & {
 };
 
 export const optionTypes = {
-  columnWidth: { type: RANGE, range: [4, 20], step: 1, default: 10, desc: "Width of each character cell in pixels" },
-  columnSizeVariation: { type: RANGE, range: [0, 0.75], step: 0.05, default: 0, desc: "How much neighboring rain lanes vary in apparent column width" },
-  characterSizeVariation: { type: RANGE, range: [0, 0.75], step: 0.05, default: 0, desc: "How much glyph size varies from cell to cell within the rain" },
-  characterFlip: { type: RANGE, range: [0, 1], step: 0.05, default: 0, desc: "How often glyphs get mirrored or rotated for a scrambled rain feel; 0 keeps characters upright" },
+  columnWidth: {
+    type: RANGE,
+    range: [4, 20],
+    step: 1,
+    default: 10,
+    desc: "Width of each character cell in pixels",
+  },
+  columnSizeVariation: {
+    type: RANGE,
+    range: [0, 0.75],
+    step: 0.05,
+    default: 0,
+    desc: "How much neighboring rain lanes vary in apparent column width",
+  },
+  characterSizeVariation: {
+    type: RANGE,
+    range: [0, 0.75],
+    step: 0.05,
+    default: 0,
+    desc: "How much glyph size varies from cell to cell within the rain",
+  },
+  characterFlip: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0,
+    desc: "How often glyphs get mirrored or rotated for a scrambled rain feel; 0 keeps characters upright",
+  },
   speed: { type: RANGE, range: [1, 20], step: 1, default: 2, desc: "How fast rain streams fall" },
-  trailLength: { type: RANGE, range: [3, 40], step: 1, default: 16, desc: "Number of lit characters behind each rain head" },
-  density: { type: RANGE, range: [0.05, 3], step: 0.05, default: 1, desc: "How much rain to generate overall" },
-  columnOverlap: { type: RANGE, range: [0, 1.5], step: 0.05, default: 0.1, desc: "How much adjacent columns blend together; raise this to visibly overlap neighboring character lanes" },
+  trailLength: {
+    type: RANGE,
+    range: [3, 40],
+    step: 1,
+    default: 16,
+    desc: "Number of lit characters behind each rain head",
+  },
+  density: {
+    type: RANGE,
+    range: [0.05, 3],
+    step: 0.05,
+    default: 1,
+    desc: "How much rain to generate overall",
+  },
+  columnOverlap: {
+    type: RANGE,
+    range: [0, 1.5],
+    step: 0.05,
+    default: 0.1,
+    desc: "How much adjacent columns blend together; raise this to visibly overlap neighboring character lanes",
+  },
   charset: {
     type: ENUM,
     options: [
       ...SHARED_CHARSET_GROUPS,
       {
         label: "Custom",
-        options: [
-          { name: "Custom set", value: CUSTOM_CHARSET },
-        ],
+        options: [{ name: "Custom set", value: CUSTOM_CHARSET }],
       },
     ],
     default: CHARSET.MATRIX_FILM,
@@ -81,8 +127,18 @@ export const optionTypes = {
       (options.charset || CHARSET.MATRIX_FILM) === CUSTOM_CHARSET,
     desc: "Editable glyph set used when Charset is set to Custom",
   },
-  sourceInfluence: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "How much the source image brightness drives glyph intensity" },
-  classicGreen: { type: BOOL, default: true, desc: "Use authentic Matrix green palette instead of source colors" },
+  sourceInfluence: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.7,
+    desc: "How much the source image brightness drives glyph intensity",
+  },
+  classicGreen: {
+    type: BOOL,
+    default: true,
+    desc: "Use authentic Matrix green palette instead of source colors",
+  },
   motionMode: {
     type: ENUM,
     options: [
@@ -92,13 +148,39 @@ export const optionTypes = {
     default: MOTION_MODE.TRIGGER_DROPS,
     desc: "Either gate existing rain by motion or let movement spawn local character drops",
   },
-  motionSensitivity: { type: RANGE, range: [0, 3], step: 0.1, default: 0.3, desc: "Rain reacts to motion — high values show rain only where movement is detected" },
-  motionDropStrength: { type: RANGE, range: [0.25, 2], step: 0.05, default: 1, desc: "How bursty and persistent movement-triggered drops feel in Trigger drops mode" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Animation frames per second" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
-  }},
-  palette: { type: PALETTE, default: nearest }
+  motionSensitivity: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.1,
+    default: 0.3,
+    desc: "Rain reacts to motion — high values show rain only where movement is detected",
+  },
+  motionDropStrength: {
+    type: RANGE,
+    range: [0.25, 2],
+    step: 0.05,
+    default: 1,
+    desc: "How bursty and persistent movement-triggered drops feel in Trigger drops mode",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 12,
+    desc: "Animation frames per second",
+  },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
+      }
+    },
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -118,12 +200,17 @@ export const defaults = {
   motionSensitivity: optionTypes.motionSensitivity.default,
   motionDropStrength: optionTypes.motionDropStrength.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
-  return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 };
 
 // Rasterize characters to alpha bitmaps at a given cell size.
@@ -136,9 +223,10 @@ const getCharBitmaps = (cellSize: number, chars: string): Uint8Array[] => {
 
   const bitmaps: Uint8Array[] = [];
   const glyphs = Array.from(chars);
-  const c = typeof document !== "undefined"
-    ? document.createElement("canvas")
-    : new OffscreenCanvas(cellSize, cellSize);
+  const c =
+    typeof document !== "undefined"
+      ? document.createElement("canvas")
+      : new OffscreenCanvas(cellSize, cellSize);
   c.width = cellSize;
   c.height = cellSize;
   const ctx = c.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
@@ -168,23 +256,29 @@ const getCharBitmaps = (cellSize: number, chars: string): Uint8Array[] => {
 const getLaneGrid = (laneCount: number, rows: number, charCount: number) => {
   const grid = new Uint8Array(laneCount * rows);
   const cyclePeriod = new Uint8Array(laneCount * rows);
-  const rng = mulberry32(0xCAFE);
+  const rng = mulberry32(0xcafe);
   for (let i = 0; i < grid.length; i++) {
     grid[i] = Math.floor(rng() * charCount);
     // ~30% of cells cycle characters, rest are static
-    cyclePeriod[i] = rng() < 0.3 ? (2 + Math.floor(rng() * 6)) : 0;
+    cyclePeriod[i] = rng() < 0.3 ? 2 + Math.floor(rng() * 6) : 0;
   }
   return { grid, cyclePeriod };
 };
 
-let cachedLaneGrid: { laneCount: number; rows: number; charCount: number; grid: Uint8Array; cyclePeriod: Uint8Array } | null = null;
+let cachedLaneGrid: {
+  laneCount: number;
+  rows: number;
+  charCount: number;
+  grid: Uint8Array;
+  cyclePeriod: Uint8Array;
+} | null = null;
 
 const sampleBitmapAlpha = (
   bitmap: Uint8Array,
   bitmapCellSize: number,
   srcX: number,
   srcY: number,
-  transformMode: number
+  transformMode: number,
 ) => {
   let tx = srcX;
   let ty = srcY;
@@ -223,7 +317,9 @@ export const __testing = {
 const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
   const columnWidth = Number(options.columnWidth ?? defaults.columnWidth);
   const columnSizeVariation = Number(options.columnSizeVariation ?? defaults.columnSizeVariation);
-  const characterSizeVariation = Number(options.characterSizeVariation ?? defaults.characterSizeVariation);
+  const characterSizeVariation = Number(
+    options.characterSizeVariation ?? defaults.characterSizeVariation,
+  );
   const characterFlip = Number(options.characterFlip ?? defaults.characterFlip);
   const speed = Number(options.speed ?? defaults.speed);
   const trailLength = Number(options.trailLength ?? defaults.trailLength);
@@ -244,19 +340,21 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const chars = charset === CUSTOM_CHARSET
-    ? String(customCharset || "").trim() || getCharsetString(CHARSET.MATRIX_FILM)
-    : getCharsetString(charset);
+  const chars =
+    charset === CUSTOM_CHARSET
+      ? String(customCharset || "").trim() || getCharsetString(CHARSET.MATRIX_FILM)
+      : getCharsetString(charset);
 
   const cols = Math.ceil(W / columnWidth);
   const charH = columnWidth;
   const rows = Math.ceil(H / charH);
   const bitmapCellSize = Math.max(
     4,
-    Math.round(columnWidth * (1 + columnSizeVariation + characterSizeVariation))
+    Math.round(columnWidth * (1 + columnSizeVariation + characterSizeVariation)),
   );
   const charBitmaps = getCharBitmaps(bitmapCellSize, chars);
   if (charBitmaps.length === 0) return input;
@@ -267,11 +365,19 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
 
   // Dark background
   for (let i = 0; i < outBuf.length; i += 4) {
-    outBuf[i] = 0; outBuf[i + 1] = 2; outBuf[i + 2] = 0; outBuf[i + 3] = 255;
+    outBuf[i] = 0;
+    outBuf[i + 1] = 2;
+    outBuf[i + 2] = 0;
+    outBuf[i + 3] = 255;
   }
 
   // Static lane grid — characters are fixed, illumination sweeps down
-  if (!cachedLaneGrid || cachedLaneGrid.laneCount !== laneCount || cachedLaneGrid.rows !== rows || cachedLaneGrid.charCount !== charBitmaps.length) {
+  if (
+    !cachedLaneGrid ||
+    cachedLaneGrid.laneCount !== laneCount ||
+    cachedLaneGrid.rows !== rows ||
+    cachedLaneGrid.charCount !== charBitmaps.length
+  ) {
     const g = getLaneGrid(laneCount, rows, charBitmaps.length);
     cachedLaneGrid = { laneCount, rows, charCount: charBitmaps.length, ...g };
   }
@@ -284,15 +390,10 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
   const overlapJitter = columnOverlap * 0.6;
   for (let lane = 0; lane < laneCount; lane++) {
     const laneRng = mulberry32(lane * 997 + 42);
-    const baseLaneCenter = laneCount > 1
-      ? laneInset + lane * laneSpacing
-      : (cols - 1) * 0.5;
+    const baseLaneCenter = laneCount > 1 ? laneInset + lane * laneSpacing : (cols - 1) * 0.5;
     const laneCenter = Math.max(
       0,
-      Math.min(
-        cols - 1,
-        baseLaneCenter + (laneRng() - 0.5) * overlapJitter
-      )
+      Math.min(cols - 1, baseLaneCenter + (laneRng() - 0.5) * overlapJitter),
     );
     const phases: number[] = [];
     const streamsForLane = 1 + (density > 1.5 && laneRng() < Math.min(1, density - 1) ? 1 : 0);
@@ -313,8 +414,14 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
     for (let lane = 0; lane < laneCount; lane++) {
       const laneCenter = laneSeeds[lane]?.center ?? (lane + 0.5) * laneSpacing - 0.5;
       for (let row = 0; row < rows; row++) {
-        const laneWidthPx = Math.max(3, Math.round(columnWidth * (laneSeeds[lane]?.widthScale ?? 1)));
-        const cx = Math.min(W - 1, Math.max(0, Math.round(laneCenter * columnWidth + laneWidthPx * 0.5)));
+        const laneWidthPx = Math.max(
+          3,
+          Math.round(columnWidth * (laneSeeds[lane]?.widthScale ?? 1)),
+        );
+        const cx = Math.min(
+          W - 1,
+          Math.max(0, Math.round(laneCenter * columnWidth + laneWidthPx * 0.5)),
+        );
         const cy = Math.min(H - 1, row * charH + (charH >> 1));
         const pi = (cx + W * cy) * 4;
         const dr = Math.abs(buf[pi] - ema[pi]);
@@ -331,7 +438,7 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
   for (let lane = 0; lane < laneSeeds.length; lane++) {
     const { speed: laneSpeed, phases } = laneSeeds[lane];
     for (let s = 0; s < phases.length; s++) {
-      const headRow = (Math.floor(frameIndex * laneSpeed / 2) + phases[s]) % cycleLen;
+      const headRow = (Math.floor((frameIndex * laneSpeed) / 2) + phases[s]) % cycleLen;
       for (let row = 0; row < rows; row++) {
         const dist = headRow - row;
         if (dist < 0 || dist > trailLength) continue;
@@ -350,7 +457,7 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
         if (motionMode === MOTION_MODE.GATE && motionMap && motionSensitivity > 0) {
           const motion = motionMap[lane + laneCount * row];
           // Blend between always-on (sensitivity=0) and motion-gated (sensitivity=1)
-          const gate = (1 - motionSensitivity) + motion * motionSensitivity * 4;
+          const gate = 1 - motionSensitivity + motion * motionSensitivity * 4;
           illum *= Math.min(gate, 2);
         }
 
@@ -361,21 +468,31 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
   }
 
   if (motionMode === MOTION_MODE.TRIGGER_DROPS && motionMap && motionSensitivity > 0) {
-    const triggerThreshold = Math.max(0.04, 0.42 - motionSensitivity * (0.07 + motionDropStrength * 0.02));
+    const triggerThreshold = Math.max(
+      0.04,
+      0.42 - motionSensitivity * (0.07 + motionDropStrength * 0.02),
+    );
     const dropLaneSpread = Math.round(columnOverlap * 1.5 + Math.max(0, motionDropStrength - 1));
     for (let lane = 0; lane < laneCount; lane++) {
       for (let row = 0; row < rows; row++) {
         const motion = motionMap[lane + laneCount * row];
         if (motion <= triggerThreshold) continue;
 
-        const triggerStrength = Math.min(1.8, (motion - triggerThreshold) / Math.max(0.05, 1 - triggerThreshold) * (0.9 + motionDropStrength * 0.9));
-        const dropTrail = Math.max(2, Math.round(trailLength * (0.12 + triggerStrength * (0.22 + motionDropStrength * 0.14))));
+        const triggerStrength = Math.min(
+          1.8,
+          ((motion - triggerThreshold) / Math.max(0.05, 1 - triggerThreshold)) *
+            (0.9 + motionDropStrength * 0.9),
+        );
+        const dropTrail = Math.max(
+          2,
+          Math.round(trailLength * (0.12 + triggerStrength * (0.22 + motionDropStrength * 0.14))),
+        );
         const rowStride = motionDropStrength > 1.3 ? 1 : 2;
-        const laneJitter = ((frameIndex + lane * 3 + row * 5) % rowStride);
+        const laneJitter = (frameIndex + lane * 3 + row * 5) % rowStride;
 
         for (let dropRow = row; dropRow < rows && dropRow <= row + dropTrail; dropRow++) {
           const dist = dropRow - row;
-          if (dist > 0 && ((dist + laneJitter) % rowStride !== 0)) continue;
+          if (dist > 0 && (dist + laneJitter) % rowStride !== 0) continue;
           let illum: number;
           if (dist === 0) illum = 1.05 * triggerStrength;
           else if (dist === 1) illum = 0.72 * triggerStrength;
@@ -403,7 +520,10 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
   // GL fast path — package the already-computed lane/illum state into
   // textures and let the shader handle the final per-pixel glyph
   // rasterisation. CPU (worker or main) keeps all temporal state.
-  if ((options as { _webglAcceleration?: boolean })._webglAcceleration !== false && matrixRainGLAvailable()) {
+  if (
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false &&
+    matrixRainGLAvailable()
+  ) {
     const laneInfo = new Float32Array(laneCount * 4);
     const cellData = new Float32Array(laneCount * rows * 4);
 
@@ -451,7 +571,11 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
       const identity = paletteIsIdentity(palette);
       const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Matrix Rain", "WebGL2", `lanes=${laneCount} rows=${rows}${identity ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Matrix Rain",
+          "WebGL2",
+          `lanes=${laneCount} rows=${rows}${identity ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -480,9 +604,7 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
       const cellRng = mulberry32((lane + 1) * 13007 + (row + 1) * 17011);
       const glyphScale = 1 + (cellRng() - 0.5) * 2 * characterSizeVariation;
       const flipRoll = cellRng();
-      const transformMode = flipRoll < characterFlip
-        ? 1 + Math.floor(cellRng() * 5)
-        : 0;
+      const transformMode = flipRoll < characterFlip ? 1 + Math.floor(cellRng() * 5) : 0;
       const glyphW = Math.max(2, Math.round(laneWidthPx * glyphScale));
       const glyphH = Math.max(2, Math.round(charH * glyphScale));
       const cellX = Math.round(laneCenterPx - glyphW * 0.5);
@@ -494,17 +616,26 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
 
       for (let dy = 0; dy < glyphH && glyphY + dy < H; dy++) {
         if (glyphY + dy < 0) continue;
-        const srcY = Math.min(bitmapCellSize - 1, Math.floor(dy / glyphH * bitmapCellSize));
+        const srcY = Math.min(bitmapCellSize - 1, Math.floor((dy / glyphH) * bitmapCellSize));
         for (let dx = 0; dx < glyphW && cellX + dx < W; dx++) {
           if (cellX + dx < 0) continue;
-          const srcX = Math.min(bitmapCellSize - 1, Math.floor(dx / glyphW * bitmapCellSize));
-          const glyphAlpha = sampleBitmapAlpha(charBitmap, bitmapCellSize, srcX, srcY, transformMode);
+          const srcX = Math.min(bitmapCellSize - 1, Math.floor((dx / glyphW) * bitmapCellSize));
+          const glyphAlpha = sampleBitmapAlpha(
+            charBitmap,
+            bitmapCellSize,
+            srcX,
+            srcY,
+            transformMode,
+          );
           if (glyphAlpha < 0.05) continue;
 
-          const px = cellX + dx, py = glyphY + dy;
+          const px = cellX + dx,
+            py = glyphY + dy;
           const pi = getBufferIndex(px, py, W);
 
-          const srcR = buf[pi], srcG = buf[pi + 1], srcB = buf[pi + 2];
+          const srcR = buf[pi],
+            srcG = buf[pi + 1],
+            srcB = buf[pi + 2];
           const srcLum = (0.2126 * srcR + 0.7152 * srcG + 0.0722 * srcB) / 255;
           const effectiveLum = srcLum * sourceInfluence + (1 - sourceInfluence);
 
@@ -519,17 +650,23 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
             if (isHead) {
               // Cursor: bright yellow-green white
               const v = Math.round(brightness * 255);
-              cr = Math.round(v * 0.70); cg = v; cb = Math.round(v * 0.46);
+              cr = Math.round(v * 0.7);
+              cg = v;
+              cb = Math.round(v * 0.46);
             } else if (isNearHead) {
               const v = Math.round(brightness * 230);
-              cr = Math.round(v * 0.05); cg = v; cb = Math.round(v * 0.05);
+              cr = Math.round(v * 0.05);
+              cg = v;
+              cb = Math.round(v * 0.05);
             } else {
               // Trail: deep saturated green
               const v = Math.round(brightness * 180);
-              cr = Math.round(v * 0.05); cg = v; cb = Math.round(v * 0.05);
+              cr = Math.round(v * 0.05);
+              cg = v;
+              cb = Math.round(v * 0.05);
             }
           } else {
-            const scale = brightness * 230 / Math.max(1, Math.max(srcR, srcG, srcB));
+            const scale = (brightness * 230) / Math.max(1, Math.max(srcR, srcG, srcB));
             cr = Math.round(srcR * scale);
             cg = Math.round(srcG * scale);
             cb = Math.round(srcB * scale);
@@ -569,6 +706,7 @@ export default defineFilter<MatrixRainOptions>({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Digital rain — static character grid with illumination sweep, source overlay, motion gating, and movement-triggered drops",
+  description:
+    "Digital rain — static character grid with illumination sweep, source overlay, motion gating, and movement-triggered drops",
   temporal: true,
 });

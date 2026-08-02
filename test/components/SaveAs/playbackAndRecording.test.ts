@@ -37,23 +37,24 @@ const makeCanvas = () => {
   return canvas;
 };
 
-const playbackOptions = (overrides: Record<string, unknown> = {}) => ({
-  video: document.createElement("video"),
-  getScaledCanvas: () => makeCanvas(),
-  waitForRenderedSeek: vi.fn(async () => {}),
-  _waitForRenderedPlaybackFrame: vi.fn(async () => undefined),
-  _getCurrentRenderVersion: vi.fn(() => 0),
-  updateProgress: vi.fn(),
-  isAborted: vi.fn(() => false),
-  usePlaybackCapture: true,
-  _useVFC: false,
-  captureFps: 2,
-  gifFps: 20,
-  rangeStartSec: 0.25,
-  durationSec: 2,
-  exportDurationSec: 1,
-  ...overrides,
-}) as Parameters<typeof captureLoopPlaybackFrames>[0];
+const playbackOptions = (overrides: Record<string, unknown> = {}) =>
+  ({
+    video: document.createElement("video"),
+    getScaledCanvas: () => makeCanvas(),
+    waitForRenderedSeek: vi.fn(async () => {}),
+    _waitForRenderedPlaybackFrame: vi.fn(async () => undefined),
+    _getCurrentRenderVersion: vi.fn(() => 0),
+    updateProgress: vi.fn(),
+    isAborted: vi.fn(() => false),
+    usePlaybackCapture: true,
+    _useVFC: false,
+    captureFps: 2,
+    gifFps: 20,
+    rangeStartSec: 0.25,
+    durationSec: 2,
+    exportDurationSec: 1,
+    ...overrides,
+  }) as Parameters<typeof captureLoopPlaybackFrames>[0];
 
 beforeEach(() => {
   RecorderStub.instances = [];
@@ -88,15 +89,17 @@ describe("loop playback frame capture", () => {
     expect(result.capturedFrames.map((frame) => frame.delay)).toEqual([500, 500]);
     expect(options.waitForRenderedSeek).toHaveBeenNthCalledWith(1, options.video, 0.25, 500);
     expect(options.waitForRenderedSeek).toHaveBeenNthCalledWith(2, options.video, 0.75, 500);
-    expect(options.updateProgress).toHaveBeenNthCalledWith(1, expect.not.stringContaining("ETA"), 0.44);
+    expect(options.updateProgress).toHaveBeenNthCalledWith(
+      1,
+      expect.not.stringContaining("ETA"),
+      0.44,
+    );
     expect(options.updateProgress.mock.calls[1]?.[0]).toContain("ETA");
     expect(options.updateProgress.mock.calls[1]?.[1]).toBeCloseTo(0.8);
   });
 
   it("supports aborts, lower-bound FPS values, and end-of-media clamping", async () => {
-    const isAborted = vi.fn()
-      .mockReturnValueOnce(false)
-      .mockReturnValueOnce(true);
+    const isAborted = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
     const options = playbackOptions({
       captureFps: 0,
       gifFps: 0,
@@ -119,20 +122,27 @@ describe("loop playback frame capture", () => {
   });
 
   it("reports missing canvases and missing 2D contexts", async () => {
-    await expect(captureLoopPlaybackFrames(playbackOptions({ getScaledCanvas: () => null })))
-      .rejects.toThrow("requires a rendered output canvas");
+    await expect(
+      captureLoopPlaybackFrames(playbackOptions({ getScaledCanvas: () => null })),
+    ).rejects.toThrow("requires a rendered output canvas");
     const canvas = makeCanvas();
     vi.spyOn(canvas, "getContext").mockReturnValue(null);
-    await expect(captureLoopPlaybackFrames(playbackOptions({ getScaledCanvas: () => canvas })))
-      .rejects.toThrow("initialize loop export canvas");
+    await expect(
+      captureLoopPlaybackFrames(playbackOptions({ getScaledCanvas: () => canvas })),
+    ).rejects.toThrow("initialize loop export canvas");
   });
 });
 
 describe("realtime MediaRecorder capture", () => {
   it("builds default and fixed-bitrate recorder options", () => {
     expect(buildRecorderOptions(null, true, 8)).toEqual({ mimeType: "video/webm" });
-    expect(buildRecorderOptions({ label: "MP4", container: "mp4", mimeType: "video/mp4", ext: "mp4" }, false, 2.5))
-      .toEqual({ mimeType: "video/mp4", videoBitsPerSecond: 2_500_000 });
+    expect(
+      buildRecorderOptions(
+        { label: "MP4", container: "mp4", mimeType: "video/mp4", ext: "mp4" },
+        false,
+        2.5,
+      ),
+    ).toEqual({ mimeType: "video/mp4", videoBitsPerSecond: 2_500_000 });
     expect(getLoopStopDelayMs(4, 2)).toBe(2200);
     expect(getLoopStopDelayMs(4, 0)).toBe(4200);
   });
@@ -150,7 +160,10 @@ describe("realtime MediaRecorder capture", () => {
     } as unknown as MediaStream;
     const sourceCanvas = makeCanvas();
     const captureStream = vi.fn(() => stream);
-    Object.defineProperty(sourceCanvas, "captureStream", { configurable: true, value: captureStream });
+    Object.defineProperty(sourceCanvas, "captureStream", {
+      configurable: true,
+      value: captureStream,
+    });
     const sourceVideo = { captureStream: vi.fn(() => videoStream) } as never;
     const mediaRecorderRef = { current: null as MediaRecorder | null };
     const streamRef = { current: null as MediaStream | null };
@@ -164,7 +177,12 @@ describe("realtime MediaRecorder capture", () => {
       sourceVideo,
       includeVideoAudio: true,
       fps: 24,
-      recordingFormat: { label: "VP9", container: "webm", mimeType: "video/webm;codecs=vp9", ext: "webm" },
+      recordingFormat: {
+        label: "VP9",
+        container: "webm",
+        mimeType: "video/webm;codecs=vp9",
+        ext: "webm",
+      },
       autoBitrate: false,
       bitrateMbps: 4,
       mediaRecorderRef,
@@ -183,7 +201,9 @@ describe("realtime MediaRecorder capture", () => {
     recorder.ondataavailable?.({ data: new Blob(["frame"]) } as BlobEvent);
     recorder.stop();
     expect(outputTracks.every((track) => track.stop.mock.calls.length === 1)).toBe(true);
-    expect(onBlobReady).toHaveBeenCalledWith(expect.objectContaining({ type: "video/webm;codecs=vp9" }));
+    expect(onBlobReady).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "video/webm;codecs=vp9" }),
+    );
     expect(onStop).toHaveBeenCalledOnce();
   });
 
@@ -216,7 +236,10 @@ describe("realtime MediaRecorder capture", () => {
   it("starts at loop zero and stops once even when timeupdate and timeout race", async () => {
     const stream = { getTracks: vi.fn(() => []) } as unknown as MediaStream;
     const canvas = makeCanvas();
-    Object.defineProperty(canvas, "captureStream", { configurable: true, value: vi.fn(() => stream) });
+    Object.defineProperty(canvas, "captureStream", {
+      configurable: true,
+      value: vi.fn(() => stream),
+    });
     const video = document.createElement("video");
     Object.defineProperties(video, {
       duration: { configurable: true, value: 2 },
@@ -277,7 +300,7 @@ describe("realtime MediaRecorder capture", () => {
     const canvas = makeCanvas();
     Object.defineProperty(canvas, "captureStream", {
       configurable: true,
-      value: vi.fn(() => ({ getTracks: () => [] } as unknown as MediaStream)),
+      value: vi.fn(() => ({ getTracks: () => [] }) as unknown as MediaStream),
     });
     startRealtimeLoopRecording({
       video,
@@ -308,7 +331,10 @@ describe("realtime MediaRecorder capture", () => {
   it("does not stop an already inactive recorder twice", async () => {
     const stream = { getTracks: vi.fn(() => []) } as unknown as MediaStream;
     const canvas = makeCanvas();
-    Object.defineProperty(canvas, "captureStream", { configurable: true, value: vi.fn(() => stream) });
+    Object.defineProperty(canvas, "captureStream", {
+      configurable: true,
+      value: vi.fn(() => stream),
+    });
     const video = document.createElement("video");
     Object.defineProperties(video, {
       duration: { configurable: true, value: 1 },

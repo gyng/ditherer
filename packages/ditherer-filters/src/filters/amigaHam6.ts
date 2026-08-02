@@ -1,5 +1,10 @@
 import { ENUM, RANGE } from "../constants/controlTypes";
-import { cloneCanvas, logFilterBackend, releasePooledCanvas, takePooledCanvas } from "../utils/index";
+import {
+  cloneCanvas,
+  logFilterBackend,
+  releasePooledCanvas,
+  takePooledCanvas,
+} from "../utils/index";
 import { encodeHam6Scanline } from "./retroHardwareCodecs";
 import { defineFilter, type FilterCanvas, type FilterOptionValues } from "./types";
 
@@ -27,7 +32,13 @@ export const optionTypes = {
     default: PALETTE_ADAPTIVE,
     desc: "Six-plane HAM reserves direct opcodes for 16 base color registers; adaptive mode derives them from the image",
   },
-  paletteIterations: { type: RANGE, range: [1, 12], step: 1, default: 6, desc: "Deterministic clustering passes used to fill the 16 direct-color registers" },
+  paletteIterations: {
+    type: RANGE,
+    range: [1, 12],
+    step: 1,
+    default: 6,
+    desc: "Deterministic clustering passes used to fill the 16 direct-color registers",
+  },
 };
 
 export const defaults = {
@@ -39,18 +50,22 @@ export const defaults = {
 type Ham6Options = FilterOptionValues & Partial<typeof defaults>;
 
 const OCS_PALETTE = [
-  0x000, 0xfff, 0x05a, 0xf80, 0x08f, 0x0c0, 0xf00, 0x0dd,
-  0x06f, 0x0a0, 0x608, 0xc30, 0x777, 0xaaa, 0xddd, 0x444,
+  0x000, 0xfff, 0x05a, 0xf80, 0x08f, 0x0c0, 0xf00, 0x0dd, 0x06f, 0x0a0, 0x608, 0xc30, 0x777, 0xaaa,
+  0xddd, 0x444,
 ];
 
-const packedPalette = (colors: number[]): Uint8Array => Uint8Array.from(colors.flatMap((color) => [
-  (color >>> 8 & 15) * 17,
-  (color >>> 4 & 15) * 17,
-  (color & 15) * 17,
-  255,
-]));
+const packedPalette = (colors: number[]): Uint8Array =>
+  Uint8Array.from(
+    colors.flatMap((color) => [
+      ((color >>> 8) & 15) * 17,
+      ((color >>> 4) & 15) * 17,
+      (color & 15) * 17,
+      255,
+    ]),
+  );
 
-const quantize4 = (value: number): number => Math.max(0, Math.min(255, Math.round(value / 17) * 17));
+const quantize4 = (value: number): number =>
+  Math.max(0, Math.min(255, Math.round(value / 17) * 17));
 
 export const buildHam6Palette = (pixels: Uint8ClampedArray, iterations = 6): Uint8Array => {
   const count = Math.floor(pixels.length / 4);
@@ -61,9 +76,10 @@ export const buildHam6Palette = (pixels: Uint8ClampedArray, iterations = 6): Uin
     const offset = pixel * 4;
     samples.push([pixels[offset] ?? 0, pixels[offset + 1] ?? 0, pixels[offset + 2] ?? 0]);
   }
-  samples.sort((a, b) => (a[0]! * 3 + a[1]! * 6 + a[2]!) - (b[0]! * 3 + b[1]! * 6 + b[2]!));
+  samples.sort((a, b) => a[0]! * 3 + a[1]! * 6 + a[2]! - (b[0]! * 3 + b[1]! * 6 + b[2]!));
   const centroids = Array.from({ length: 16 }, (_, index) => {
-    const sample = samples[Math.min(samples.length - 1, Math.floor((index + 0.5) * samples.length / 16))]!;
+    const sample =
+      samples[Math.min(samples.length - 1, Math.floor(((index + 0.5) * samples.length) / 16))]!;
     return [...sample];
   });
   const passes = Math.max(1, Math.min(12, Math.round(iterations)));
@@ -94,10 +110,15 @@ export const buildHam6Palette = (pixels: Uint8ClampedArray, iterations = 6): Uin
       if (sum[3]! > 0) centroids[index] = [sum[0]! / sum[3]!, sum[1]! / sum[3]!, sum[2]! / sum[3]!];
     }
   }
-  centroids.sort((a, b) => (a[0]! * 3 + a[1]! * 6 + a[2]!) - (b[0]! * 3 + b[1]! * 6 + b[2]!));
-  return Uint8Array.from(centroids.flatMap((color) => [
-    quantize4(color[0]!), quantize4(color[1]!), quantize4(color[2]!), 255,
-  ]));
+  centroids.sort((a, b) => a[0]! * 3 + a[1]! * 6 + a[2]! - (b[0]! * 3 + b[1]! * 6 + b[2]!));
+  return Uint8Array.from(
+    centroids.flatMap((color) => [
+      quantize4(color[0]!),
+      quantize4(color[1]!),
+      quantize4(color[2]!),
+      255,
+    ]),
+  );
 };
 
 const amigaHam6 = (input: FilterCanvas, options: Ham6Options = defaults): FilterCanvas => {
@@ -105,7 +126,10 @@ const amigaHam6 = (input: FilterCanvas, options: Ham6Options = defaults): Filter
   const width = 320;
   const height = options.standard === STANDARD_PAL ? 256 : 200;
   const reduced = takePooledCanvas(width, height);
-  const reducedContext = reduced.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  const reducedContext = reduced.getContext("2d", { willReadFrequently: true }) as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!reducedContext) {
     releasePooledCanvas(reduced);
     return input;
@@ -113,10 +137,14 @@ const amigaHam6 = (input: FilterCanvas, options: Ham6Options = defaults): Filter
   reducedContext.imageSmoothingEnabled = true;
   reducedContext.drawImage(input as CanvasImageSource, 0, 0, width, height);
   const image = reducedContext.getImageData(0, 0, width, height);
-  const iterations = Math.max(1, Math.min(12, Math.round(Number(options.paletteIterations) || defaults.paletteIterations)));
-  const palette = options.paletteMode === PALETTE_OCS
-    ? packedPalette(OCS_PALETTE)
-    : buildHam6Palette(image.data, iterations);
+  const iterations = Math.max(
+    1,
+    Math.min(12, Math.round(Number(options.paletteIterations) || defaults.paletteIterations)),
+  );
+  const palette =
+    options.paletteMode === PALETTE_OCS
+      ? packedPalette(OCS_PALETTE)
+      : buildHam6Palette(image.data, iterations);
 
   const row = new Uint8Array(width * 3);
   for (let y = 0; y < height; y++) {
@@ -141,7 +169,11 @@ const amigaHam6 = (input: FilterCanvas, options: Ham6Options = defaults): Filter
   outputContext.imageSmoothingEnabled = false;
   outputContext.drawImage(reduced, 0, 0, output.width, output.height);
   releasePooledCanvas(reduced);
-  logFilterBackend("Amiga HAM6", "JavaScript", `${width}x${height} sequential hold-and-modify scanlines`);
+  logFilterBackend(
+    "Amiga HAM6",
+    "JavaScript",
+    `${width}x${height} sequential hold-and-modify scanlines`,
+  );
   return output;
 };
 
@@ -151,6 +183,7 @@ export default defineFilter({
   optionTypes,
   defaults,
   options: defaults,
-  description: "Amiga OCS six-plane hold-and-modify encoding with legal direct, red, green, and blue opcodes",
+  description:
+    "Amiga OCS six-plane hold-and-modify encoding with legal direct, red, green, and blue opcodes",
   noGL: "HAM6 output is a left-to-right state machine: each modify opcode changes the color held by the next pixel",
 });

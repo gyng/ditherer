@@ -1,0 +1,76 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript"],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "builtin": true
+  },
+  "options": {
+    "typeAware": true,
+    "typeCheck": false
+  },
+  "ignorePatterns": [
+    "build/",
+    "coverage/",
+    "node_modules/",
+    "packages/ditherer-filters/dist/",
+    "packages/ditherer-filters/types/",
+    "packages/ditherer-filters/src/wasm/",
+    "playwright-report/",
+    "test-results/"
+  ],
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_|^e$"
+      }
+    ],
+    "typescript/no-explicit-any": "off",
+    "no-unsafe-optional-chaining": "off",
+    "typescript/await-thenable": "off",
+    "typescript/no-base-to-string": "off",
+    "typescript/no-duplicate-type-constituents": "off",
+    "typescript/no-floating-promises": "off",
+    "typescript/no-implied-eval": "off",
+    "typescript/no-misused-promises": "off",
+    "typescript/no-misused-spread": "off",
+    "typescript/no-redundant-type-constituents": "off",
+    "typescript/no-require-imports": "off",
+    "typescript/restrict-template-expressions": "off",
+    "typescript/require-array-sort-compare": "off",
+    "typescript/unbound-method": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/**/*.{js,jsx,ts,tsx}", "packages/ditherer-filters/src/**/*.{js,jsx,ts,tsx}"],
+      "env": {
+        "browser": true
+      }
+    },
+    {
+      "files": ["test/**/*.{js,jsx,ts,tsx,mjs,cjs}"],
+      "env": {
+        "browser": true,
+        "node": true
+      },
+      "rules": {
+        "typescript/no-unsafe-function-type": "off"
+      }
+    },
+    {
+      "files": [
+        "scripts/**/*.{js,ts,mjs,cjs}",
+        "*.config.{js,ts,mjs,cjs}",
+        "packages/ditherer-filters/*.config.{js,ts,mjs,cjs}"
+      ],
+      "env": {
+        "node": true
+      }
+    }
+  ]
+}

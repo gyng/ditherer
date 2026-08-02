@@ -31,13 +31,55 @@ export const optionTypes = {
     default: STYLE.FOUNTAIN_PEN,
     desc: "Choose a restrained pen line, richer brush wash, or heavy marker bleed character",
   },
-  inkThreshold: { type: RANGE, range: [32, 255], step: 1, default: 176, desc: "Pixels darker than this are treated as freshly inked marks" },
-  dryRate: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.05, desc: "How quickly wet marks dry and relax toward the source image" },
-  darkenAmount: { type: RANGE, range: [0, 1], step: 0.05, default: 0.75, desc: "How much extra darkness wet ink adds before it dries" },
-  edgeShrink: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "How much the wet core recedes as the mark dries" },
-  paperBleed: { type: RANGE, range: [0, 1], step: 0.05, default: 0.45, desc: "How far neighboring wetness blooms into surrounding pixels" },
-  paperWarmth: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Warm paper tone that blooms around wet edges as the ink dries" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
+  inkThreshold: {
+    type: RANGE,
+    range: [32, 255],
+    step: 1,
+    default: 176,
+    desc: "Pixels darker than this are treated as freshly inked marks",
+  },
+  dryRate: {
+    type: RANGE,
+    range: [0.01, 0.3],
+    step: 0.01,
+    default: 0.05,
+    desc: "How quickly wet marks dry and relax toward the source image",
+  },
+  darkenAmount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.75,
+    desc: "How much extra darkness wet ink adds before it dries",
+  },
+  edgeShrink: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.4,
+    desc: "How much the wet core recedes as the mark dries",
+  },
+  paperBleed: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.45,
+    desc: "How far neighboring wetness blooms into surrounding pixels",
+  },
+  paperWarmth: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "Warm paper tone that blooms around wet edges as the ink dries",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -153,7 +195,11 @@ let _renderProg: Program | null = null;
 const getStateProg = (gl: WebGL2RenderingContext): Program => {
   if (_stateProg) return _stateProg;
   _stateProg = linkProgram(gl, STATE_FS, [
-    "u_source", "u_prevState", "u_inkThreshold", "u_dryRate", "u_isFirst",
+    "u_source",
+    "u_prevState",
+    "u_inkThreshold",
+    "u_dryRate",
+    "u_isFirst",
   ] as const);
   return _stateProg;
 };
@@ -161,30 +207,42 @@ const getStateProg = (gl: WebGL2RenderingContext): Program => {
 const getRenderProg = (gl: WebGL2RenderingContext): Program => {
   if (_renderProg) return _renderProg;
   _renderProg = linkProgram(gl, RENDER_FS, [
-    "u_source", "u_prevState", "u_state", "u_texel",
-    "u_darkenAmount", "u_edgeShrink", "u_paperBleed", "u_paperWarmth", "u_style",
+    "u_source",
+    "u_prevState",
+    "u_state",
+    "u_texel",
+    "u_darkenAmount",
+    "u_edgeShrink",
+    "u_paperBleed",
+    "u_paperWarmth",
+    "u_style",
   ] as const);
   return _renderProg;
 };
 
-const styleId = (s: string) => s === "BRUSH_INK" ? 1 : s === "MARKER_BLEED" ? 2 : 0;
+const styleId = (s: string) => (s === "BRUSH_INK" ? 1 : s === "MARKER_BLEED" ? 2 : 0);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 const temporalInkDrying = (input: any, options: TemporalInkDryingOptions = defaults) => {
   const style = options.style ?? defaults.style;
   const inkThreshold = Number(options.inkThreshold ?? defaults.inkThreshold);
-  const styleDryRate = style === STYLE.BRUSH_INK ? 0.035 : style === STYLE.MARKER_BLEED ? 0.06 : 0.05;
+  const styleDryRate =
+    style === STYLE.BRUSH_INK ? 0.035 : style === STYLE.MARKER_BLEED ? 0.06 : 0.05;
   const styleDarken = style === STYLE.BRUSH_INK ? 0.9 : style === STYLE.MARKER_BLEED ? 0.7 : 0.82;
-  const styleEdgeShrink = style === STYLE.BRUSH_INK ? 0.18 : style === STYLE.MARKER_BLEED ? 0.55 : 0.38;
-  const stylePaperBleed = style === STYLE.BRUSH_INK ? 0.35 : style === STYLE.MARKER_BLEED ? 0.7 : 0.42;
-  const stylePaperWarmth = style === STYLE.BRUSH_INK ? 0.65 : style === STYLE.MARKER_BLEED ? 0.28 : 0.52;
+  const styleEdgeShrink =
+    style === STYLE.BRUSH_INK ? 0.18 : style === STYLE.MARKER_BLEED ? 0.55 : 0.38;
+  const stylePaperBleed =
+    style === STYLE.BRUSH_INK ? 0.35 : style === STYLE.MARKER_BLEED ? 0.7 : 0.42;
+  const stylePaperWarmth =
+    style === STYLE.BRUSH_INK ? 0.65 : style === STYLE.MARKER_BLEED ? 0.28 : 0.52;
   const dryRate = clamp01(Number(options.dryRate ?? styleDryRate));
   const darkenAmount = clamp01(Number(options.darkenAmount ?? styleDarken));
   const edgeShrink = clamp01(Number(options.edgeShrink ?? styleEdgeShrink));
   const paperBleed = clamp01(Number(options.paperBleed ?? stylePaperBleed));
   const paperWarmth = clamp01(Number(options.paperWarmth ?? stylePaperWarmth));
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -201,38 +259,54 @@ const temporalInkDrying = (input: any, options: TemporalInkDryingOptions = defau
   const stateA = ensureTexture(gl, "temporalInkDrying:stateA", W, H);
   const stateB = ensureTexture(gl, "temporalInkDrying:stateB", W, H);
   const writeState = frameIndex % 2 === 0 ? stateA : stateB;
-  const readState  = frameIndex % 2 === 0 ? stateB : stateA;
+  const readState = frameIndex % 2 === 0 ? stateB : stateA;
   const isFirst = frameIndex === 0;
 
-  drawPass(gl, writeState, W, H, stateProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(stateProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, readState.tex);
-    gl.uniform1i(stateProg.uniforms.u_prevState, 1);
-    gl.uniform1f(stateProg.uniforms.u_inkThreshold, inkThreshold / 255);
-    gl.uniform1f(stateProg.uniforms.u_dryRate, dryRate);
-    gl.uniform1f(stateProg.uniforms.u_isFirst, isFirst ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    writeState,
+    W,
+    H,
+    stateProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(stateProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, readState.tex);
+      gl.uniform1i(stateProg.uniforms.u_prevState, 1);
+      gl.uniform1f(stateProg.uniforms.u_inkThreshold, inkThreshold / 255);
+      gl.uniform1f(stateProg.uniforms.u_dryRate, dryRate);
+      gl.uniform1f(stateProg.uniforms.u_isFirst, isFirst ? 1 : 0);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, W, H, renderProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(renderProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, readState.tex);
-    gl.uniform1i(renderProg.uniforms.u_prevState, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, writeState.tex);
-    gl.uniform1i(renderProg.uniforms.u_state, 2);
-    gl.uniform2f(renderProg.uniforms.u_texel, 1 / W, 1 / H);
-    gl.uniform1f(renderProg.uniforms.u_darkenAmount, darkenAmount);
-    gl.uniform1f(renderProg.uniforms.u_edgeShrink, edgeShrink);
-    gl.uniform1f(renderProg.uniforms.u_paperBleed, paperBleed);
-    gl.uniform1f(renderProg.uniforms.u_paperWarmth, paperWarmth);
-    gl.uniform1i(renderProg.uniforms.u_style, styleId(style));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    renderProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(renderProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, readState.tex);
+      gl.uniform1i(renderProg.uniforms.u_prevState, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, writeState.tex);
+      gl.uniform1i(renderProg.uniforms.u_state, 2);
+      gl.uniform2f(renderProg.uniforms.u_texel, 1 / W, 1 / H);
+      gl.uniform1f(renderProg.uniforms.u_darkenAmount, darkenAmount);
+      gl.uniform1f(renderProg.uniforms.u_edgeShrink, edgeShrink);
+      gl.uniform1f(renderProg.uniforms.u_paperBleed, paperBleed);
+      gl.uniform1f(renderProg.uniforms.u_paperWarmth, paperWarmth);
+      gl.uniform1i(renderProg.uniforms.u_style, styleId(style));
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -248,7 +322,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Fresh marks dry like fountain pen lines, brush ink washes, or marker bleed depending on the chosen paper-and-ink style",
+  description:
+    "Fresh marks dry like fountain pen lines, brush ink washes, or marker bleed depending on the chosen paper-and-ink style",
   temporal: true,
   requiresGL: true,
 });

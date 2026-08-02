@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { filterList } from "@gyng/ditherer-filters";
-import { CHAIN_PRESETS, findDuplicatePresetGroups, getChainSignature, getPresetSignature } from "components/ChainList/presets";
+import {
+  CHAIN_PRESETS,
+  findDuplicatePresetGroups,
+  getChainSignature,
+  getPresetSignature,
+} from "components/ChainList/presets";
 
 describe("ChainList presets", () => {
   const resolveDefaults = (name: string) => {
@@ -28,12 +33,25 @@ describe("ChainList presets", () => {
       };
     });
 
-    expect(getChainSignature(chain, resolveDefaults)).toBe(getPresetSignature(preset!.filters, resolveDefaults));
+    expect(getChainSignature(chain, resolveDefaults)).toBe(
+      getPresetSignature(preset!.filters, resolveDefaults),
+    );
   });
 
   it("treats option changes as a different preset signature", () => {
-    const base = getPresetSignature([{ name: "Motion Analysis", options: { renderMode: "HEATMAP", source: "EMA" } }], resolveDefaults);
-    const changed = getPresetSignature([{ name: "Motion Analysis", options: { renderMode: "DIFFERENCE", source: "PREVIOUS_FRAME" } }], resolveDefaults);
+    const base = getPresetSignature(
+      [{ name: "Motion Analysis", options: { renderMode: "HEATMAP", source: "EMA" } }],
+      resolveDefaults,
+    );
+    const changed = getPresetSignature(
+      [
+        {
+          name: "Motion Analysis",
+          options: { renderMode: "DIFFERENCE", source: "PREVIOUS_FRAME" },
+        },
+      ],
+      resolveDefaults,
+    );
 
     expect(changed).not.toBe(base);
   });

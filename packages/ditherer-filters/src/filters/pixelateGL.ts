@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -49,8 +56,10 @@ export const pixelateGLAvailable = (): boolean => glAvailable();
 
 export const renderPixelateGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  downW: number, downH: number,
+  width: number,
+  height: number,
+  downW: number,
+  downH: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -60,12 +69,20 @@ export const renderPixelateGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "pixelate:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2f(cache.prog.uniforms.u_downRes, Math.max(1, downW), Math.max(1, downH));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2f(cache.prog.uniforms.u_downRes, Math.max(1, downW), Math.max(1, downH));
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

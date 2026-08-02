@@ -115,7 +115,7 @@ describe("float linear conversion", () => {
       const linear = srgbBufToLinearFloat(buf);
       const out = new Uint8ClampedArray(8);
       linearFloatToSrgbBuf(linear, out);
-      expect(out[0]).toEqual(0);   // black exact
+      expect(out[0]).toEqual(0); // black exact
       expect(out[4]).toEqual(255); // white exact
     });
   });
@@ -146,7 +146,7 @@ describe("paletteGetColor", () => {
     getColor: (pixel) => {
       const lum = (pixel[0] + pixel[1] + pixel[2]) / 3;
       return lum > 127 ? [255, 255, 255, 255] : [0, 0, 0, 255];
-    }
+    },
   };
 
   it("passes through when isLinear=false", () => {

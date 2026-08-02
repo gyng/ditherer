@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("utils", async importOriginal => {
+vi.mock("utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("utils")>();
   return {
     ...actual,
@@ -22,14 +22,17 @@ const makeSolidCanvas = (width: number, height: number, rgba: [number, number, n
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, w: number, h: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: w,
-        height: h,
-      }),
-      putImageData: () => {},
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, w: number, h: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: w,
+              height: h,
+            }),
+            putImageData: () => {},
+          }
+        : null,
   };
 };
 
@@ -68,9 +71,21 @@ describe("Time Mosaic stabilizer", () => {
     };
 
     const frame0 = runAndCapture(dark, { ...options, _frameIndex: 0 });
-    const frame1 = runAndCapture(bright, { ...options, _frameIndex: 1, _prevInput: new Uint8ClampedArray(frame0!) });
-    const frame2 = runAndCapture(bright, { ...options, _frameIndex: 2, _prevInput: new Uint8ClampedArray(brightBuf) });
-    const frame3 = runAndCapture(bright, { ...options, _frameIndex: 3, _prevInput: new Uint8ClampedArray(brightBuf) });
+    const frame1 = runAndCapture(bright, {
+      ...options,
+      _frameIndex: 1,
+      _prevInput: new Uint8ClampedArray(frame0!),
+    });
+    const frame2 = runAndCapture(bright, {
+      ...options,
+      _frameIndex: 2,
+      _prevInput: new Uint8ClampedArray(brightBuf),
+    });
+    const frame3 = runAndCapture(bright, {
+      ...options,
+      _frameIndex: 3,
+      _prevInput: new Uint8ClampedArray(brightBuf),
+    });
 
     expect(frame0?.[0]).toBe(0);
     expect(frame1?.[0]).toBe(0);

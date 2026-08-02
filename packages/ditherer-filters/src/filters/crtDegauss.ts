@@ -67,7 +67,7 @@ type CrtDegaussOptions = FilterOptionValues & {
 const sampleTemporalEnergy = (
   current: Uint8ClampedArray,
   reference: Uint8ClampedArray | Float32Array | null,
-  mode: string
+  mode: string,
 ) => {
   if (!reference || reference.length !== current.length) return 0;
   const maxSamples = 2048;
@@ -79,14 +79,15 @@ const sampleTemporalEnergy = (
     const i = pixelIndex * 4;
     if (mode === TRIGGER.LUMA_SPIKE || mode === TRIGGER.SCENE_CUT) {
       const currentLuma = current[i] * 0.2126 + current[i + 1] * 0.7152 + current[i + 2] * 0.0722;
-      const referenceLuma = reference[i] * 0.2126 + reference[i + 1] * 0.7152 + reference[i + 2] * 0.0722;
+      const referenceLuma =
+        reference[i] * 0.2126 + reference[i + 1] * 0.7152 + reference[i + 2] * 0.0722;
       total += Math.abs(currentLuma - referenceLuma) / 255;
     } else {
-      total += (
-        Math.abs(current[i] - reference[i]) +
-        Math.abs(current[i + 1] - reference[i + 1]) +
-        Math.abs(current[i + 2] - reference[i + 2])
-      ) / (255 * 3);
+      total +=
+        (Math.abs(current[i] - reference[i]) +
+          Math.abs(current[i + 1] - reference[i + 1]) +
+          Math.abs(current[i + 2] - reference[i + 2])) /
+        (255 * 3);
     }
     samples += 1;
   }
@@ -103,15 +104,30 @@ const sampleFlowEnergy = (
   const cellSize = Math.max(6, Math.min(20, Math.round(Math.min(width, height) / 18) || 6));
   const searchRadius = Math.max(2, Math.min(8, Math.round(cellSize * 0.45)));
   const threshold = 18;
-  const analysisBuffers = prepareMotionAnalysisBuffers(current, previous, width, height, MOTION_SOURCE.LUMA);
+  const analysisBuffers = prepareMotionAnalysisBuffers(
+    current,
+    previous,
+    width,
+    height,
+    MOTION_SOURCE.LUMA,
+  );
   const stride = Math.max(cellSize, cellSize * 2);
   let total = 0;
   let count = 0;
   for (let y = 0; y < height; y += stride) {
     for (let x = 0; x < width; x += stride) {
       const vector = estimateMotionVector(
-        current, previous, width, height, x, y,
-        cellSize, searchRadius, threshold, MOTION_SOURCE.LUMA, analysisBuffers,
+        current,
+        previous,
+        width,
+        height,
+        x,
+        y,
+        cellSize,
+        searchRadius,
+        threshold,
+        MOTION_SOURCE.LUMA,
+        analysisBuffers,
       );
       total += vector.motionStrength * (0.35 + vector.confidence * 0.65);
       count += 1;
@@ -127,11 +143,41 @@ const startBurst = (frameIndex: number, duration: number, cooldownFrames: number
 };
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0.25, 2.5], step: 0.05, default: 1, desc: "Overall strength of the degauss pulse envelope" },
-  warp: { type: RANGE, range: [0, 2], step: 0.05, default: 1, desc: "Raster bending and ring-wave distortion amount" },
-  misconvergence: { type: RANGE, range: [0, 2], step: 0.05, default: 1, desc: "RGB channel separation during the magnetic wobble" },
-  hueShimmer: { type: RANGE, range: [0, 2], step: 0.05, default: 1, desc: "Rainbow phosphor mislanding from the changing field" },
-  flash: { type: RANGE, range: [0, 2], step: 0.05, default: 0.9, desc: "Brightness pulse riding on top of the degauss sweep" },
+  intensity: {
+    type: RANGE,
+    range: [0.25, 2.5],
+    step: 0.05,
+    default: 1,
+    desc: "Overall strength of the degauss pulse envelope",
+  },
+  warp: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1,
+    desc: "Raster bending and ring-wave distortion amount",
+  },
+  misconvergence: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1,
+    desc: "RGB channel separation during the magnetic wobble",
+  },
+  hueShimmer: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1,
+    desc: "Rainbow phosphor mislanding from the changing field",
+  },
+  flash: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.9,
+    desc: "Brightness pulse riding on top of the degauss sweep",
+  },
   triggerMode: {
     type: ENUM,
     options: [
@@ -142,20 +188,48 @@ export const optionTypes = {
       { name: "Luma spike", value: TRIGGER.LUMA_SPIKE },
     ],
     default: TRIGGER.MANUAL,
-    desc: "Choose whether the pulse is manual or auto-triggers from source motion and luminance changes"
+    desc: "Choose whether the pulse is manual or auto-triggers from source motion and luminance changes",
   },
-  triggerThreshold: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.18, desc: "Minimum sampled source energy required to fire an automatic degauss pulse" },
-  cooldownFrames: { type: RANGE, range: [0, 180], step: 1, default: 36, desc: "Minimum wait after a pulse before auto-triggering again" },
-  duration: { type: RANGE, range: [12, 90], step: 1, default: 45, desc: "Length of the degauss decay in rendered frames" },
-  animSpeed: { type: RANGE, range: [4, 30], step: 1, default: 20, desc: "Playback speed for the burst preview" },
+  triggerThreshold: {
+    type: RANGE,
+    range: [0.01, 1],
+    step: 0.01,
+    default: 0.18,
+    desc: "Minimum sampled source energy required to fire an automatic degauss pulse",
+  },
+  cooldownFrames: {
+    type: RANGE,
+    range: [0, 180],
+    step: 1,
+    default: 36,
+    desc: "Minimum wait after a pulse before auto-triggering again",
+  },
+  duration: {
+    type: RANGE,
+    range: [12, 90],
+    step: 1,
+    default: 45,
+    desc: "Length of the degauss decay in rendered frames",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [4, 30],
+    step: 1,
+    default: 20,
+    desc: "Playback speed for the burst preview",
+  },
   degauss: {
     type: ACTION,
     label: "Degauss",
     desc: "Trigger one bounded magnetic degauss pulse",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       pendingManualBurst = true;
-      actions.triggerBurst(inputCanvas, Math.max(6, Math.round(options.duration || 45)), options.animSpeed || 20);
-    }
+      actions.triggerBurst(
+        inputCanvas,
+        Math.max(6, Math.round(options.duration || 45)),
+        options.animSpeed || 20,
+      );
+    },
   },
   animate: {
     type: ACTION,
@@ -169,9 +243,9 @@ export const optionTypes = {
         previewLoopEnabled = true;
         actions.startAnimLoop(inputCanvas, options.animSpeed || 20);
       }
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
 export const defaults = {
@@ -185,7 +259,7 @@ export const defaults = {
   cooldownFrames: optionTypes.cooldownFrames.default,
   duration: optionTypes.duration.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const FS = `#version 300 es
@@ -275,10 +349,17 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_resolution",
-    "u_age", "u_envelope", "u_decay",
-    "u_warp", "u_misconvergence", "u_hueShimmer", "u_flashAmount",
-    "u_baseWobble", "u_paletteLevels",
+    "u_source",
+    "u_resolution",
+    "u_age",
+    "u_envelope",
+    "u_decay",
+    "u_warp",
+    "u_misconvergence",
+    "u_hueShimmer",
+    "u_flashAmount",
+    "u_baseWobble",
+    "u_paletteLevels",
   ] as const);
   return _prog;
 };
@@ -300,7 +381,8 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const isAnimating = Boolean(options._isAnimating);
   const prevInput = options._prevInput ?? null;
   const ema = options._ema ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const safeDuration = Math.max(6, Math.round(duration || 45));
 
   // ── Trigger detection (small JS pass; bounded ~2k samples or coarse flow) ──
@@ -330,11 +412,12 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
     const inCtx = input.getContext("2d");
     if (inCtx) {
       const buf = inCtx.getImageData(0, 0, W, H).data;
-      const reference = triggerMode === TRIGGER.MOTION || triggerMode === TRIGGER.FLOW
-        ? prevInput : ema;
-      const energy = triggerMode === TRIGGER.FLOW
-        ? sampleFlowEnergy(buf, prevInput, W, H)
-        : sampleTemporalEnergy(buf, reference, triggerMode);
+      const reference =
+        triggerMode === TRIGGER.MOTION || triggerMode === TRIGGER.FLOW ? prevInput : ema;
+      const energy =
+        triggerMode === TRIGGER.FLOW
+          ? sampleFlowEnergy(buf, prevInput, W, H)
+          : sampleTemporalEnergy(buf, reference, triggerMode);
       if (energy >= triggerThreshold) {
         startBurst(frameIndex, safeDuration, Math.round(cooldownFrames || 0));
       }
@@ -354,15 +437,15 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const normalizedAge = age / Math.max(1, safeDuration - 1);
   const decay = 1 - normalizedAge;
   const envelope = Math.max(0, decay * decay * intensity);
-  const baseWobbleX = Math.sin(age * 1.7) * envelope * W * 0.05
-                    + Math.sin(age * 4.1) * envelope * decay * W * 0.025;
-  const baseWobbleY = Math.cos(age * 2.3) * envelope * H * 0.035
-                    + Math.cos(age * 5.7) * envelope * decay * H * 0.018;
+  const baseWobbleX =
+    Math.sin(age * 1.7) * envelope * W * 0.05 + Math.sin(age * 4.1) * envelope * decay * W * 0.025;
+  const baseWobbleY =
+    Math.cos(age * 2.3) * envelope * H * 0.035 + Math.cos(age * 5.7) * envelope * decay * H * 0.018;
   const flashAmount = 1 + flash * envelope * (0.4 + 0.8 * Math.abs(Math.sin(age * 0.8)));
 
   const pOpts = (palette as { options?: { levels?: number } }).options;
-  const isNearestPalette = palette === defaults.palette ||
-    (palette as { name?: string }).name === "nearest";
+  const isNearestPalette =
+    palette === defaults.palette || (palette as { name?: string }).name === "nearest";
   const shaderLevels = isNearestPalette ? (pOpts?.levels ?? 256) : 256;
 
   const prog = getProg(gl);
@@ -372,21 +455,32 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const sourceTex = ensureTexture(gl, "crtDegauss:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_resolution, W, H);
-    gl.uniform1f(prog.uniforms.u_age, age);
-    gl.uniform1f(prog.uniforms.u_envelope, envelope);
-    gl.uniform1f(prog.uniforms.u_decay, decay);
-    gl.uniform1f(prog.uniforms.u_warp, warp);
-    gl.uniform1f(prog.uniforms.u_misconvergence, misconvergence);
-    gl.uniform1f(prog.uniforms.u_hueShimmer, hueShimmer);
-    gl.uniform1f(prog.uniforms.u_flashAmount, flashAmount);
-    gl.uniform2f(prog.uniforms.u_baseWobble, baseWobbleX, baseWobbleY);
-    gl.uniform1i(prog.uniforms.u_paletteLevels, Math.max(1, Math.min(256, Math.round(shaderLevels))));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_resolution, W, H);
+      gl.uniform1f(prog.uniforms.u_age, age);
+      gl.uniform1f(prog.uniforms.u_envelope, envelope);
+      gl.uniform1f(prog.uniforms.u_decay, decay);
+      gl.uniform1f(prog.uniforms.u_warp, warp);
+      gl.uniform1f(prog.uniforms.u_misconvergence, misconvergence);
+      gl.uniform1f(prog.uniforms.u_hueShimmer, hueShimmer);
+      gl.uniform1f(prog.uniforms.u_flashAmount, flashAmount);
+      gl.uniform2f(prog.uniforms.u_baseWobble, baseWobbleX, baseWobbleY);
+      gl.uniform1i(
+        prog.uniforms.u_paletteLevels,
+        Math.max(1, Math.min(256, Math.round(shaderLevels))),
+      );
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return glUnavailableStub(W, H);
@@ -394,8 +488,13 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
   const skipPostPass = isNearestPalette || paletteIsIdentity(palette);
   const out = skipPostPass
     ? rendered
-    : (applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) || rendered);
-  logFilterBackend("CRT Degauss", "WebGL2", `age=${age}/${safeDuration}${skipPostPass ? "" : "+palettePass"}`);
+    : applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) ||
+      rendered;
+  logFilterBackend(
+    "CRT Degauss",
+    "WebGL2",
+    `age=${age}/${safeDuration}${skipPostPass ? "" : "+palettePass"}`,
+  );
   return out;
 };
 
@@ -410,7 +509,8 @@ export default defineFilter({
   // User can still stop via the same Play/Stop control.
   autoAnimate: true,
   autoAnimateFps: 20,
-  description: "A decaying CRT degauss pulse with raster wobble, RGB mislanding, rainbow shimmer, and a bright magnetic flash",
+  description:
+    "A decaying CRT degauss pulse with raster wobble, RGB mislanding, rainbow shimmer, and a bright magnetic flash",
   temporal: true,
   requiresGL: true,
 });

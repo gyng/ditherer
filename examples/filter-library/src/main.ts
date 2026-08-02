@@ -1,7 +1,4 @@
-import {
-  createFilterSession,
-  wasmReady,
-} from "@gyng/ditherer-filters";
+import { createFilterSession, wasmReady } from "@gyng/ditherer-filters";
 import { disposeFilterWorker, workerRPC } from "@gyng/ditherer-filters/client";
 import { filterCatalog } from "@gyng/ditherer-filters/catalog";
 import grayscale from "@gyng/ditherer-filters/filters/grayscale";
@@ -23,7 +20,9 @@ type SmokeResult = {
 };
 
 declare global {
-  interface Window { __librarySmoke?: SmokeResult }
+  interface Window {
+    __librarySmoke?: SmokeResult;
+  }
 }
 
 const status = document.querySelector<HTMLElement>('[data-testid="status"]');
@@ -33,16 +32,15 @@ const input = document.createElement("canvas");
 input.width = 2;
 input.height = 1;
 const inputContext = input.getContext("2d", { willReadFrequently: true });
-inputContext?.putImageData(new ImageData(new Uint8ClampedArray([
-  255, 0, 0, 255,
-  0, 255, 0, 255,
-]), 2, 1), 0, 0);
+inputContext?.putImageData(
+  new ImageData(new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255]), 2, 1),
+  0,
+  0,
+);
 
 try {
   const lazyGrayscale = await loadFilter("Grayscale");
-  const session = createFilterSession([
-    { id: "grayscale", filter: lazyGrayscale },
-  ], {
+  const session = createFilterSession([{ id: "grayscale", filter: lazyGrayscale }], {
     wasmAcceleration: false,
     webglAcceleration: false,
   });
@@ -50,41 +48,45 @@ try {
   const outputContext = output?.getContext("2d", { willReadFrequently: true });
   outputContext?.drawImage(result.canvas, 0, 0);
   const pixels = outputContext?.getImageData(0, 0, 2, 1).data ?? new Uint8ClampedArray();
-  const isGray = pixels[0] === pixels[1]
-    && pixels[1] === pixels[2]
-    && pixels[4] === pixels[5]
-    && pixels[5] === pixels[6];
+  const isGray =
+    pixels[0] === pixels[1] &&
+    pixels[1] === pixels[2] &&
+    pixels[4] === pixels[5] &&
+    pixels[5] === pixels[6];
 
-  const workerInput = new Uint8ClampedArray([
-    255, 0, 0, 255,
-    0, 255, 0, 255,
-  ]);
-  const workerResult = await workerRPC({
-    imageData: workerInput.buffer,
-    width: 2,
-    height: 1,
-    chain: [{
-      id: "worker-grayscale",
-      filterName: "Grayscale",
-      displayName: "Grayscale",
-      options: undefined,
-    }],
-    frameIndex: 0,
-    isAnimating: false,
-    linearize: false,
-    wasmAcceleration: false,
-    webglAcceleration: false,
-    convertGrayscale: false,
-    prevOutputs: {},
-    prevInputs: {},
-    emaMaps: {},
-    degaussFrame: -1_000_000,
-  }, [workerInput.buffer]);
+  const workerInput = new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255]);
+  const workerResult = await workerRPC(
+    {
+      imageData: workerInput.buffer,
+      width: 2,
+      height: 1,
+      chain: [
+        {
+          id: "worker-grayscale",
+          filterName: "Grayscale",
+          displayName: "Grayscale",
+          options: undefined,
+        },
+      ],
+      frameIndex: 0,
+      isAnimating: false,
+      linearize: false,
+      wasmAcceleration: false,
+      webglAcceleration: false,
+      convertGrayscale: false,
+      prevOutputs: {},
+      prevInputs: {},
+      emaMaps: {},
+      degaussFrame: -1_000_000,
+    },
+    [workerInput.buffer],
+  );
   const workerPixels = new Uint8ClampedArray(workerResult.imageData);
-  const workerIsGray = workerPixels[0] === workerPixels[1]
-    && workerPixels[1] === workerPixels[2]
-    && workerPixels[4] === workerPixels[5]
-    && workerPixels[5] === workerPixels[6];
+  const workerIsGray =
+    workerPixels[0] === workerPixels[1] &&
+    workerPixels[1] === workerPixels[2] &&
+    workerPixels[4] === workerPixels[5] &&
+    workerPixels[5] === workerPixels[6];
 
   session.dispose();
   disposeFilterWorker();

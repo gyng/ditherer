@@ -35,11 +35,21 @@ describe("useMediaQuery", () => {
   it("subscribes, updates, and replaces listeners when the query changes", () => {
     let matches = true;
     const listeners = new Set<() => void>();
-    const addEventListener = vi.fn((_name: string, listener: () => void) => listeners.add(listener));
-    const removeEventListener = vi.fn((_name: string, listener: () => void) => listeners.delete(listener));
+    const addEventListener = vi.fn((_name: string, listener: () => void) =>
+      listeners.add(listener),
+    );
+    const removeEventListener = vi.fn((_name: string, listener: () => void) =>
+      listeners.delete(listener),
+    );
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
-      value: vi.fn(() => ({ get matches() { return matches; }, addEventListener, removeEventListener })),
+      value: vi.fn(() => ({
+        get matches() {
+          return matches;
+        },
+        addEventListener,
+        removeEventListener,
+      })),
     });
 
     act(() => root.render(<MediaHarness query="(wide)" />));
@@ -65,16 +75,26 @@ describe("ChainPreview", () => {
     source.width = 400;
     source.height = 200;
 
-    act(() => root.render(<ChainPreview sourceCanvas={source} top={10} left={20} stepNumber={2} />));
+    act(() =>
+      root.render(<ChainPreview sourceCanvas={source} top={10} left={20} stepNumber={2} />),
+    );
     const preview = container.firstElementChild as HTMLElement;
     const canvas = container.querySelector("canvas")!;
     expect([canvas.width, canvas.height]).toEqual([200, 100]);
     expect(preview.style.pointerEvents).toBe("none");
-    act(() => preview.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 5, clientY: 5 })));
+    act(() =>
+      preview.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 5, clientY: 5 })),
+    );
     expect(preview.style.left).toBe("20px");
 
-    act(() => root.render(<ChainPreview sourceCanvas={source} top={10} left={20} stepNumber={2} pinned />));
-    act(() => preview.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, clientX: 5, clientY: 6 })));
+    act(() =>
+      root.render(<ChainPreview sourceCanvas={source} top={10} left={20} stepNumber={2} pinned />),
+    );
+    act(() =>
+      preview.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true, clientX: 5, clientY: 6 }),
+      ),
+    );
     act(() => document.dispatchEvent(new MouseEvent("mousemove", { clientX: 25, clientY: 36 })));
     expect(preview.style.left).toBe("40px");
     expect(preview.style.top).toBe("40px");
@@ -84,7 +104,9 @@ describe("ChainPreview", () => {
 
     source.width = 100;
     source.height = 200;
-    act(() => root.render(<ChainPreview sourceCanvas={source} top={10} left={20} stepNumber={3} pinned />));
+    act(() =>
+      root.render(<ChainPreview sourceCanvas={source} top={10} left={20} stepNumber={3} pinned />),
+    );
     expect([canvas.width, canvas.height]).toEqual([100, 200]);
 
     act(() => callbacks[0]?.(0));

@@ -3,7 +3,11 @@ import { defineFilter, type FilterOptionValues } from "./types";
 import { nearest } from "../palettes/index";
 import { cloneCanvas, getBufferIndex, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
-import { einkReflectanceLevel, kaleidoChannelLevel, kaleidoColorCell } from "./consumerImagingQualityContracts";
+import {
+  einkReflectanceLevel,
+  kaleidoChannelLevel,
+  kaleidoColorCell,
+} from "./consumerImagingQualityContracts";
 import {
   drawPass,
   ensureTexture,
@@ -48,13 +52,53 @@ export const optionTypes = {
     default: 72,
     desc: "With video input, begin a full clearing waveform every N frames",
   },
-  contrast: { type: RANGE, range: [0.5, 2], step: 0.05, default: 1.2, desc: "Contrast applied before the display's 16-state quantizer" },
-  paperWhite: { type: RANGE, range: [180, 255], step: 1, default: 230, desc: "Brightest achievable reflective-paper value" },
-  inkBlack: { type: RANGE, range: [0, 80], step: 1, default: 15, desc: "Darkest achievable charged-pigment value" },
-  colorSaturation: { type: RANGE, range: [0, 1], step: 0.01, default: 0.55, desc: "Kaleido color-filter saturation; monochrome mode ignores it" },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Transition-dependent changed-pixel residual in partial refresh mode" },
-  pixelGrid: { type: BOOL, default: false, desc: "Reveal the three-monochrome-pixel Kaleido color-cell boundaries" },
-  texture: { type: RANGE, range: [0, 0.3], step: 0.01, default: 0.06, desc: "Frame-invariant paper reflectance grain" },
+  contrast: {
+    type: RANGE,
+    range: [0.5, 2],
+    step: 0.05,
+    default: 1.2,
+    desc: "Contrast applied before the display's 16-state quantizer",
+  },
+  paperWhite: {
+    type: RANGE,
+    range: [180, 255],
+    step: 1,
+    default: 230,
+    desc: "Brightest achievable reflective-paper value",
+  },
+  inkBlack: {
+    type: RANGE,
+    range: [0, 80],
+    step: 1,
+    default: 15,
+    desc: "Darkest achievable charged-pigment value",
+  },
+  colorSaturation: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.55,
+    desc: "Kaleido color-filter saturation; monochrome mode ignores it",
+  },
+  ghosting: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.25,
+    desc: "Transition-dependent changed-pixel residual in partial refresh mode",
+  },
+  pixelGrid: {
+    type: BOOL,
+    default: false,
+    desc: "Reveal the three-monochrome-pixel Kaleido color-cell boundaries",
+  },
+  texture: {
+    type: RANGE,
+    range: [0, 0.3],
+    step: 0.01,
+    default: 0.06,
+    desc: "Frame-invariant paper reflectance grain",
+  },
   pageRefresh: {
     type: ACTION,
     label: "Page refresh",
@@ -63,7 +107,13 @@ export const optionTypes = {
       actions.triggerBurst(inputCanvas, 10, 4);
     },
   },
-  refreshRate: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Animated update cadence in frames per second" },
+  refreshRate: {
+    type: RANGE,
+    range: [1, 8],
+    step: 1,
+    default: 2,
+    desc: "Animated update cadence in frames per second",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -73,7 +123,11 @@ export const optionTypes = {
       else actions.startAnimLoop(inputCanvas, options.refreshRate || 2);
     },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional palette mapping applied after the display and refresh simulation" },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional palette mapping applied after the display and refresh simulation",
+  },
 };
 
 export const defaults = {
@@ -114,7 +168,8 @@ type EinkOptions = FilterOptionValues & {
 
 const finite = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
-const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value));
+const clamp = (value: number, low: number, high: number): number =>
+  Math.max(low, Math.min(high, value));
 const clamp01 = (value: number): number => clamp(value, 0, 1);
 
 const paperNoise = (x: number, y: number): number => {
@@ -248,16 +303,35 @@ void main() {
 }
 `;
 
-type Cache = { eink: Program; prevTex: WebGLTexture | null; prevBuf: Uint8ClampedArray | null; w: number; h: number };
+type Cache = {
+  eink: Program;
+  prevTex: WebGLTexture | null;
+  prevBuf: Uint8ClampedArray | null;
+  w: number;
+  h: number;
+};
 let cacheValue: Cache | null = null;
 
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (cacheValue) return cacheValue;
   cacheValue = {
     eink: linkProgram(gl, EINK_FS, [
-      "u_source", "u_prev", "u_res", "u_hasPrev", "u_isColor", "u_contrast",
-      "u_inkBlack", "u_paperWhite", "u_colorSaturation", "u_texture", "u_pixelGrid",
-      "u_phase", "u_isFullRefresh", "u_isAnimLoop", "u_ghosting", "u_refreshIsPartial",
+      "u_source",
+      "u_prev",
+      "u_res",
+      "u_hasPrev",
+      "u_isColor",
+      "u_contrast",
+      "u_inkBlack",
+      "u_paperWhite",
+      "u_colorSaturation",
+      "u_texture",
+      "u_pixelGrid",
+      "u_phase",
+      "u_isFullRefresh",
+      "u_isAnimLoop",
+      "u_ghosting",
+      "u_refreshIsPartial",
     ] as const),
     prevTex: null,
     prevBuf: null,
@@ -296,7 +370,11 @@ const eink = (input: HTMLCanvasElement, options: EinkOptions = defaults) => {
   const colorSaturation = clamp01(finite(options.colorSaturation, defaults.colorSaturation));
   const ghosting = clamp01(finite(options.ghosting, defaults.ghosting));
   const texture = clamp(finite(options.texture, defaults.texture), 0, 0.3);
-  const fullRefreshEvery = clamp(Math.round(finite(options.fullRefreshEvery, defaults.fullRefreshEvery)), 6, 240);
+  const fullRefreshEvery = clamp(
+    Math.round(finite(options.fullRefreshEvery, defaults.fullRefreshEvery)),
+    6,
+    240,
+  );
   const pixelGrid = options.pixelGrid === true;
   const palette = options.palette ?? defaults.palette;
   const prevOutput = options._prevOutput ?? null;
@@ -309,7 +387,11 @@ const eink = (input: HTMLCanvasElement, options: EinkOptions = defaults) => {
   const isFullRefresh = refreshMode === REFRESH_FULL;
   let phase = 2;
   if (isAnimLoop && isFullRefresh) {
-    phase = hasVideoInput ? ((frameIndex % fullRefreshEvery) < 2 ? frameIndex % fullRefreshEvery : 2) : frameIndex % 4;
+    phase = hasVideoInput
+      ? frameIndex % fullRefreshEvery < 2
+        ? frameIndex % fullRefreshEvery
+        : 2
+      : frameIndex % 4;
   }
 
   if (glAvailable() && options._webglAcceleration !== false) {
@@ -324,42 +406,70 @@ const eink = (input: HTMLCanvasElement, options: EinkOptions = defaults) => {
       const prevTex = ensurePrevTex(gl, cache, width, height);
       const hasPrev = Boolean(prevOutput && prevOutput.length === width * height * 4 && prevTex);
       if (hasPrev && prevTex && prevOutput) {
-        if (!cache.prevBuf || cache.prevBuf.length !== prevOutput.length) cache.prevBuf = new Uint8ClampedArray(prevOutput.length);
+        if (!cache.prevBuf || cache.prevBuf.length !== prevOutput.length)
+          cache.prevBuf = new Uint8ClampedArray(prevOutput.length);
         cache.prevBuf.set(prevOutput);
         gl.bindTexture(gl.TEXTURE_2D, prevTex);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, cache.prevBuf);
+        gl.texSubImage2D(
+          gl.TEXTURE_2D,
+          0,
+          0,
+          0,
+          width,
+          height,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          cache.prevBuf,
+        );
       }
 
-      drawPass(gl, null, width, height, cache.eink, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.eink.uniforms.u_source, 0);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, prevTex);
-        gl.uniform1i(cache.eink.uniforms.u_prev, 1);
-        gl.uniform2f(cache.eink.uniforms.u_res, width, height);
-        gl.uniform1i(cache.eink.uniforms.u_hasPrev, hasPrev ? 1 : 0);
-        gl.uniform1i(cache.eink.uniforms.u_isColor, isColor ? 1 : 0);
-        gl.uniform1f(cache.eink.uniforms.u_contrast, contrast);
-        gl.uniform1f(cache.eink.uniforms.u_inkBlack, inkBlack);
-        gl.uniform1f(cache.eink.uniforms.u_paperWhite, paperWhite);
-        gl.uniform1f(cache.eink.uniforms.u_colorSaturation, colorSaturation);
-        gl.uniform1f(cache.eink.uniforms.u_texture, texture);
-        gl.uniform1i(cache.eink.uniforms.u_pixelGrid, pixelGrid ? 1 : 0);
-        gl.uniform1i(cache.eink.uniforms.u_phase, phase);
-        gl.uniform1i(cache.eink.uniforms.u_isFullRefresh, isFullRefresh ? 1 : 0);
-        gl.uniform1i(cache.eink.uniforms.u_isAnimLoop, isAnimLoop ? 1 : 0);
-        gl.uniform1f(cache.eink.uniforms.u_ghosting, ghosting);
-        gl.uniform1i(cache.eink.uniforms.u_refreshIsPartial, refreshMode === REFRESH_PARTIAL ? 1 : 0);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        width,
+        height,
+        cache.eink,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.eink.uniforms.u_source, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, prevTex);
+          gl.uniform1i(cache.eink.uniforms.u_prev, 1);
+          gl.uniform2f(cache.eink.uniforms.u_res, width, height);
+          gl.uniform1i(cache.eink.uniforms.u_hasPrev, hasPrev ? 1 : 0);
+          gl.uniform1i(cache.eink.uniforms.u_isColor, isColor ? 1 : 0);
+          gl.uniform1f(cache.eink.uniforms.u_contrast, contrast);
+          gl.uniform1f(cache.eink.uniforms.u_inkBlack, inkBlack);
+          gl.uniform1f(cache.eink.uniforms.u_paperWhite, paperWhite);
+          gl.uniform1f(cache.eink.uniforms.u_colorSaturation, colorSaturation);
+          gl.uniform1f(cache.eink.uniforms.u_texture, texture);
+          gl.uniform1i(cache.eink.uniforms.u_pixelGrid, pixelGrid ? 1 : 0);
+          gl.uniform1i(cache.eink.uniforms.u_phase, phase);
+          gl.uniform1i(cache.eink.uniforms.u_isFullRefresh, isFullRefresh ? 1 : 0);
+          gl.uniform1i(cache.eink.uniforms.u_isAnimLoop, isAnimLoop ? 1 : 0);
+          gl.uniform1f(cache.eink.uniforms.u_ghosting, ghosting);
+          gl.uniform1i(
+            cache.eink.uniforms.u_refreshIsPartial,
+            refreshMode === REFRESH_PARTIAL ? 1 : 0,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, width, height);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
-        const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+        const output = identity
+          ? rendered
+          : applyPalettePassToCanvas(rendered, width, height, palette);
         if (output) {
-          logFilterBackend("E-ink", "WebGL2", `${mode} ${refreshMode} phase=${phase}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "E-ink",
+            "WebGL2",
+            `${mode} ${refreshMode} phase=${phase}${identity ? "" : "+palettePass"}`,
+          );
           return output;
         }
       }
@@ -391,19 +501,35 @@ const eink = (input: HTMLCanvasElement, options: EinkOptions = defaults) => {
       const sampleY = isColor ? Math.min(kaleidoColorCell(y), height - 1) : y;
       const sampleIndex = getBufferIndex(sampleX, sampleY, width);
       const grain = (paperNoise(x, y) - 0.5) * texture;
-      const target = opticalTarget(source, sampleIndex, isColor, contrast, inkBlack, paperWhite, colorSaturation, grain);
+      const target = opticalTarget(
+        source,
+        sampleIndex,
+        isColor,
+        contrast,
+        inkBlack,
+        paperWhite,
+        colorSaturation,
+        grain,
+      );
       if (isColor && pixelGrid && (x % 3 === 0 || y % 3 === 0)) {
         target[0] *= 0.92;
         target[1] *= 0.92;
         target[2] *= 0.92;
       }
       const previousGray = hasPrev
-        ? prevOutput![index] * 0.2126 + prevOutput![index + 1] * 0.7152 + prevOutput![index + 2] * 0.0722
+        ? prevOutput![index] * 0.2126 +
+          prevOutput![index + 1] * 0.7152 +
+          prevOutput![index + 2] * 0.0722
         : 0;
       for (let channel = 0; channel < 3; channel += 1) {
-        result[index + channel] = refreshMode === REFRESH_PARTIAL && hasPrev && ghosting > 0
-          ? partialResidual(target[channel], isColor ? prevOutput![index + channel] : previousGray, ghosting)
-          : target[channel];
+        result[index + channel] =
+          refreshMode === REFRESH_PARTIAL && hasPrev && ghosting > 0
+            ? partialResidual(
+                target[channel],
+                isColor ? prevOutput![index + channel] : previousGray,
+                ghosting,
+              )
+            : target[channel];
       }
     }
   }
@@ -419,6 +545,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Reflective Carta/Kaleido proxy with 16 optical states, coarse color cells, waveform clears, and partial-update residuals.",
+  description:
+    "Reflective Carta/Kaleido proxy with 16 optical states, coarse color cells, waveform clears, and partial-update residuals.",
   temporal: true,
 });

@@ -54,13 +54,51 @@ void main() {
 }`;
 
 export const optionTypes = {
-  depth: { type: RANGE, range: [1, 80], step: 1, default: 26, desc: "Height scale used to derive the reflecting normal" },
-  reflectivity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Strength of traced reflections" },
-  roughness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Desaturate and soften reflected detail" },
-  distance: { type: RANGE, range: [4, 180], step: 2, default: 72, desc: "Maximum screen-space reflection ray distance" },
-  steps: { type: RANGE, range: [8, 64], step: 4, default: 48, desc: "Heightfield intersection samples" },
-  skyTop: { type: COLOR, default: [82, 134, 210], desc: "Environment color for upward reflection misses" },
-  skyBottom: { type: COLOR, default: [238, 184, 132], desc: "Environment color for horizon reflection misses" },
+  depth: {
+    type: RANGE,
+    range: [1, 80],
+    step: 1,
+    default: 26,
+    desc: "Height scale used to derive the reflecting normal",
+  },
+  reflectivity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.65,
+    desc: "Strength of traced reflections",
+  },
+  roughness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.2,
+    desc: "Desaturate and soften reflected detail",
+  },
+  distance: {
+    type: RANGE,
+    range: [4, 180],
+    step: 2,
+    default: 72,
+    desc: "Maximum screen-space reflection ray distance",
+  },
+  steps: {
+    type: RANGE,
+    range: [8, 64],
+    step: 4,
+    default: 48,
+    desc: "Heightfield intersection samples",
+  },
+  skyTop: {
+    type: COLOR,
+    default: [82, 134, 210],
+    desc: "Environment color for upward reflection misses",
+  },
+  skyBottom: {
+    type: COLOR,
+    default: [238, 184, 132],
+    desc: "Environment color for horizon reflection misses",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -76,10 +114,23 @@ export const defaults = {
 };
 
 const reliefReflections = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "reliefReflections", fragmentShader: FS,
-    uniformNames: ["u_depth", "u_reflectivity", "u_roughness", "u_distance", "u_steps", "u_skyTop", "u_skyBottom"],
+    source: input,
+    width: W,
+    height: H,
+    key: "reliefReflections",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_depth",
+      "u_reflectivity",
+      "u_roughness",
+      "u_distance",
+      "u_steps",
+      "u_skyTop",
+      "u_skyBottom",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1f(u.u_depth, options.depth);
       gl.uniform1f(u.u_reflectivity, options.reflectivity);
@@ -92,8 +143,14 @@ const reliefReflections = (input: HTMLCanvasElement | OffscreenCanvas, options =
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Relief Reflections", "WebGL2", `${options.steps} steps${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Relief Reflections",
+    "WebGL2",
+    `${options.steps} steps${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({

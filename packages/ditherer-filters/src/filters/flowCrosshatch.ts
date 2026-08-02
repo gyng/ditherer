@@ -93,12 +93,38 @@ void main() {
 
 export const optionTypes = {
   spacing: { type: RANGE, range: [2, 30], step: 0.5, default: 6, desc: "Hatch line spacing (px)" },
-  thickness: { type: RANGE, range: [0.5, 5], step: 0.1, default: 1.2, desc: "Hatch line thickness (px)" },
-  t1: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Luminance threshold for primary hatch" },
-  t2: { type: RANGE, range: [0, 1], step: 0.01, default: 0.35, desc: "Luminance threshold for cross-hatch (shadow layer)" },
+  thickness: {
+    type: RANGE,
+    range: [0.5, 5],
+    step: 0.1,
+    default: 1.2,
+    desc: "Hatch line thickness (px)",
+  },
+  t1: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.7,
+    desc: "Luminance threshold for primary hatch",
+  },
+  t2: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.35,
+    desc: "Luminance threshold for cross-hatch (shadow layer)",
+  },
   inkColor: { type: COLOR, default: [20, 22, 28], desc: "Ink colour" },
-  paperColor: { type: COLOR, default: [245, 240, 228], desc: "Paper colour (when not preserving source)" },
-  preserveColor: { type: BOOL, default: false, desc: "Keep source colour as the paper (ink strokes over photo) instead of flat paper" },
+  paperColor: {
+    type: COLOR,
+    default: [245, 240, 228],
+    desc: "Paper colour (when not preserving source)",
+  },
+  preserveColor: {
+    type: BOOL,
+    default: false,
+    desc: "Keep source colour as the paper (ink strokes over photo) instead of flat paper",
+  },
   palette: { type: PALETTE, default: nearest },
 };
 
@@ -119,9 +145,16 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     hatch: linkProgram(gl, HATCH_FS, [
-      "u_source", "u_res", "u_spacing", "u_thickness",
-      "u_inkColor", "u_paperColor", "u_t1", "u_t2",
-      "u_preserveColor", "u_levels",
+      "u_source",
+      "u_res",
+      "u_spacing",
+      "u_thickness",
+      "u_inkColor",
+      "u_paperColor",
+      "u_t1",
+      "u_t2",
+      "u_preserveColor",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -129,7 +162,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const flowCrosshatch = (input: any, options = defaults) => {
   const { spacing, thickness, t1, t2, inkColor, paperColor, preserveColor, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -141,30 +175,46 @@ const flowCrosshatch = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "flowCrosshatch:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.hatch, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.hatch.uniforms.u_source, 0);
-        gl.uniform2f(cache.hatch.uniforms.u_res, W, H);
-        gl.uniform1f(cache.hatch.uniforms.u_spacing, spacing);
-        gl.uniform1f(cache.hatch.uniforms.u_thickness, thickness);
-        gl.uniform3f(cache.hatch.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
-        gl.uniform3f(cache.hatch.uniforms.u_paperColor, paperColor[0], paperColor[1], paperColor[2]);
-        gl.uniform1f(cache.hatch.uniforms.u_t1, t1);
-        gl.uniform1f(cache.hatch.uniforms.u_t2, t2);
-        gl.uniform1i(cache.hatch.uniforms.u_preserveColor, preserveColor ? 1 : 0);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.hatch.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.hatch,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.hatch.uniforms.u_source, 0);
+          gl.uniform2f(cache.hatch.uniforms.u_res, W, H);
+          gl.uniform1f(cache.hatch.uniforms.u_spacing, spacing);
+          gl.uniform1f(cache.hatch.uniforms.u_thickness, thickness);
+          gl.uniform3f(cache.hatch.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
+          gl.uniform3f(
+            cache.hatch.uniforms.u_paperColor,
+            paperColor[0],
+            paperColor[1],
+            paperColor[2],
+          );
+          gl.uniform1f(cache.hatch.uniforms.u_t1, t1);
+          gl.uniform1f(cache.hatch.uniforms.u_t2, t2);
+          gl.uniform1i(cache.hatch.uniforms.u_preserveColor, preserveColor ? 1 : 0);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.hatch.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Flow Crosshatch", "WebGL2",
-            `spacing=${spacing}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Flow Crosshatch",
+            "WebGL2",
+            `spacing=${spacing}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -180,6 +230,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Crosshatch ink strokes that follow the image's edge flow — hair curves along its strands, cheeks around the cheekbone, instead of a fixed global angle",
+  description:
+    "Crosshatch ink strokes that follow the image's edge flow — hair curves along its strands, cheeks around the cheekbone, instead of a fixed global angle",
   noWASM: "Tangent-field hatching at 1280×720 needs the GPU.",
 });

@@ -30,7 +30,7 @@ const PATTERN = {
   HALFTONE_DOT: "HALFTONE_DOT",
   DIAGONAL: "DIAGONAL",
   CROSS: "CROSS",
-  DIAMOND: "DIAMOND"
+  DIAMOND: "DIAMOND",
 };
 
 const bayer8 = (() => {
@@ -42,29 +42,30 @@ const bayer8 = (() => {
     const offsets = [0, 2, 3, 1];
     return offsets[quadrant] + 4 * bayer(x % half, y % half, half);
   };
-  for (let y = 0; y < 8; y++)
-    for (let x = 0; x < 8; x++)
-      m[y * 8 + x] = bayer(x, y, 8) / 64;
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) m[y * 8 + x] = bayer(x, y, 8) / 64;
   return m;
 })();
 
 const PATTERN_SIZE = 64;
 
-const generatePattern = (type: string, size: number): { data: Float32Array; w: number; h: number } => {
+const generatePattern = (
+  type: string,
+  size: number,
+): { data: Float32Array; w: number; h: number } => {
   const s = size;
   const data = new Float32Array(s * s);
 
   switch (type) {
     case PATTERN.BAYER_8X8: {
       for (let y = 0; y < s; y++)
-        for (let x = 0; x < s; x++)
-          data[y * s + x] = bayer8[(y % 8) * 8 + (x % 8)];
+        for (let x = 0; x < s; x++) data[y * s + x] = bayer8[(y % 8) * 8 + (x % 8)];
       return { data, w: s, h: s };
     }
     case PATTERN.BAYER_16X16: {
       for (let y = 0; y < s; y++)
         for (let x = 0; x < s; x++) {
-          const bx = x % 16, by = y % 16;
+          const bx = x % 16,
+            by = y % 16;
           const b4 = bayer8[(by % 8) * 8 + (bx % 8)];
           const quadrant = (bx >= 8 ? 1 : 0) + (by >= 8 ? 2 : 0);
           data[y * s + x] = (b4 + [0, 2, 3, 1][quadrant]) / 4;
@@ -74,15 +75,14 @@ const generatePattern = (type: string, size: number): { data: Float32Array; w: n
     case PATTERN.HALFTONE_DOT: {
       for (let y = 0; y < s; y++)
         for (let x = 0; x < s; x++) {
-          const cx = (x % 8) - 3.5, cy = (y % 8) - 3.5;
+          const cx = (x % 8) - 3.5,
+            cy = (y % 8) - 3.5;
           data[y * s + x] = Math.sqrt(cx * cx + cy * cy) / 5;
         }
       return { data, w: s, h: s };
     }
     case PATTERN.DIAGONAL: {
-      for (let y = 0; y < s; y++)
-        for (let x = 0; x < s; x++)
-          data[y * s + x] = ((x + y) % 8) / 8;
+      for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) data[y * s + x] = ((x + y) % 8) / 8;
       return { data, w: s, h: s };
     }
     case PATTERN.CROSS: {
@@ -118,19 +118,19 @@ export const optionTypes = {
       { name: "Halftone dot", value: PATTERN.HALFTONE_DOT },
       { name: "Diagonal", value: PATTERN.DIAGONAL },
       { name: "Cross", value: PATTERN.CROSS },
-      { name: "Diamond", value: PATTERN.DIAMOND }
+      { name: "Diamond", value: PATTERN.DIAMOND },
     ],
     default: PATTERN.BAYER_8X8,
-    desc: "Threshold pattern shape"
+    desc: "Threshold pattern shape",
   },
   scale: { type: RANGE, range: [1, 8], step: 1, default: 1, desc: "Pattern tile scale factor" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   pattern: optionTypes.pattern.default,
   scale: optionTypes.scale.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 2 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 2 } },
 };
 
 type ThresholdMapOptions = FilterOptionValues & {
@@ -181,7 +181,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, TM_FS, [
-      "u_source", "u_pattern", "u_res", "u_patternSize", "u_scale",
+      "u_source",
+      "u_pattern",
+      "u_res",
+      "u_patternSize",
+      "u_scale",
     ] as const),
     patternTex: null,
     patternKey: "",
@@ -189,7 +193,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-const ensurePatternTex = (gl: WebGL2RenderingContext, cache: Cache, pattern: string): WebGLTexture | null => {
+const ensurePatternTex = (
+  gl: WebGL2RenderingContext,
+  cache: Cache,
+  pattern: string,
+): WebGLTexture | null => {
   if (cache.patternTex && cache.patternKey === pattern) return cache.patternTex;
   if (!cache.patternTex) {
     const tex = gl.createTexture();
@@ -208,7 +216,17 @@ const ensurePatternTex = (gl: WebGL2RenderingContext, cache: Cache, pattern: str
   gl.bindTexture(gl.TEXTURE_2D, cache.patternTex);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, PATTERN_SIZE, PATTERN_SIZE, 0, gl.RED, gl.UNSIGNED_BYTE, bytes);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.R8,
+    PATTERN_SIZE,
+    PATTERN_SIZE,
+    0,
+    gl.RED,
+    gl.UNSIGNED_BYTE,
+    bytes,
+  );
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   cache.patternKey = pattern;
@@ -236,25 +254,36 @@ const thresholdMap = (input: any, options: ThresholdMapOptions = defaults) => {
         const sourceTex = ensureTexture(gl, "thresholdMap:source", W, H);
         uploadSourceTexture(gl, sourceTex, input);
 
-        drawPass(gl, null, W, H, cache.prog, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.prog.uniforms.u_source, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, patternTex);
-          gl.uniform1i(cache.prog.uniforms.u_pattern, 1);
-          gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-          gl.uniform1f(cache.prog.uniforms.u_patternSize, PATTERN_SIZE);
-          gl.uniform1f(cache.prog.uniforms.u_scale, scale);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.prog,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.prog.uniforms.u_source, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, patternTex);
+            gl.uniform1i(cache.prog.uniforms.u_pattern, 1);
+            gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+            gl.uniform1f(cache.prog.uniforms.u_patternSize, PATTERN_SIZE);
+            gl.uniform1f(cache.prog.uniforms.u_scale, scale);
+          },
+          vao,
+        );
 
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("Threshold Map", "WebGL2",
-              `${pattern} scale=${scale}${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "Threshold Map",
+              "WebGL2",
+              `${pattern} scale=${scale}${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -284,7 +313,12 @@ const thresholdMap = (input: any, options: ThresholdMapOptions = defaults) => {
       const on = lum > threshold;
       const value = on ? 255 : 0;
 
-      const color = paletteGetColor(palette, rgba(value, value, value, buf[i + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(value, value, value, buf[i + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
@@ -298,5 +332,5 @@ export default defineFilter({
   func: thresholdMap,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

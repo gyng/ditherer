@@ -23,14 +23,19 @@ const generate = (): number[][] => {
 
   // Seed: place ~10% of points randomly (deterministic PRNG)
   let seed = 42;
-  const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const rng = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
   const initialCount = Math.floor(N * 0.1);
   const positions: number[] = [];
   for (let i = 0; i < N; i++) positions.push(i);
   // Fisher-Yates shuffle
   for (let i = positions.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
-    const tmp = positions[i]; positions[i] = positions[j]; positions[j] = tmp;
+    const tmp = positions[i];
+    positions[i] = positions[j];
+    positions[j] = tmp;
   }
   for (let i = 0; i < initialCount; i++) grid[positions[i]] = 1;
 
@@ -39,13 +44,14 @@ const generate = (): number[][] => {
     energy.fill(0);
     for (let i = 0; i < N; i++) {
       if (!grid[i]) continue;
-      const px = i % SIZE, py = (i / SIZE) | 0;
+      const px = i % SIZE,
+        py = (i / SIZE) | 0;
       // Only compute within ~4σ radius for performance
       const r = Math.ceil(sigma * 4);
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
-          const nx = ((px + dx) % SIZE + SIZE) % SIZE;
-          const ny = ((py + dy) % SIZE + SIZE) % SIZE;
+          const nx = (((px + dx) % SIZE) + SIZE) % SIZE;
+          const ny = (((py + dy) % SIZE) + SIZE) % SIZE;
           energy[ny * SIZE + nx] += gaussian(dx, dy, sigma);
         }
       }
@@ -53,12 +59,13 @@ const generate = (): number[][] => {
   };
 
   const addEnergy = (idx: number, sign: number) => {
-    const px = idx % SIZE, py = (idx / SIZE) | 0;
+    const px = idx % SIZE,
+      py = (idx / SIZE) | 0;
     const r = Math.ceil(sigma * 4);
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
-        const nx = ((px + dx) % SIZE + SIZE) % SIZE;
-        const ny = ((py + dy) % SIZE + SIZE) % SIZE;
+        const nx = (((px + dx) % SIZE) + SIZE) % SIZE;
+        const ny = (((py + dy) % SIZE) + SIZE) % SIZE;
         energy[ny * SIZE + nx] += sign * gaussian(dx, dy, sigma);
       }
     }
@@ -72,9 +79,13 @@ const generate = (): number[][] => {
 
   while (filledCount > 0) {
     // Find tightest cluster (highest energy among filled points)
-    let maxE = -Infinity, maxIdx = 0;
+    let maxE = -Infinity,
+      maxIdx = 0;
     for (let i = 0; i < N; i++) {
-      if (grid[i] && energy[i] > maxE) { maxE = energy[i]; maxIdx = i; }
+      if (grid[i] && energy[i] > maxE) {
+        maxE = energy[i];
+        maxIdx = i;
+      }
     }
     grid[maxIdx] = 0;
     addEnergy(maxIdx, -1);
@@ -98,9 +109,13 @@ const generate = (): number[][] => {
   // Phase 2: Fill voids
   while (currentRank < N) {
     // Find largest void (lowest energy among empty points)
-    let minE = Infinity, minIdx = 0;
+    let minE = Infinity,
+      minIdx = 0;
     for (let i = 0; i < N; i++) {
-      if (!grid[i] && energy[i] < minE) { minE = energy[i]; minIdx = i; }
+      if (!grid[i] && energy[i] < minE) {
+        minE = energy[i];
+        minIdx = i;
+      }
     }
     grid[minIdx] = 1;
     addEnergy(minIdx, 1);

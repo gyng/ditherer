@@ -34,7 +34,9 @@ describe("quasicrystal wave geometry", () => {
   it.each([5, 7, 8, 10])("creates %i unique evenly spaced directions", (order) => {
     const directions = quasicrystalDirections(order);
     expect(directions).toHaveLength(order);
-    expect(new Set(directions.map(({ x, y }) => `${x.toFixed(8)}:${y.toFixed(8)}`)).size).toBe(order);
+    expect(new Set(directions.map(({ x, y }) => `${x.toFixed(8)}:${y.toFixed(8)}`)).size).toBe(
+      order,
+    );
     for (const direction of directions) {
       expect(Math.hypot(direction.x, direction.y)).toBeCloseTo(1);
     }
@@ -57,13 +59,16 @@ const crossoverFilters = [
 ] as const;
 
 describe("simulation and artistic crossover registry", () => {
-  it.each(crossoverFilters)("registers %s as a worker-resolvable WebGL2 filter", (name, category) => {
-    const entry = filterList.find((candidate) => candidate.displayName === name);
-    expect(entry?.category).toBe(category);
-    expect(entry?.filter.name).toBe(name);
-    expect(entry?.filter.requiresGL).toBe(true);
-    expect(filterIndex[name]).toBe(entry?.filter);
-  });
+  it.each(crossoverFilters)(
+    "registers %s as a worker-resolvable WebGL2 filter",
+    (name, category) => {
+      const entry = filterList.find((candidate) => candidate.displayName === name);
+      expect(entry?.category).toBe(category);
+      expect(entry?.filter.name).toBe(name);
+      expect(entry?.filter.requiresGL).toBe(true);
+      expect(filterIndex[name]).toBe(entry?.filter);
+    },
+  );
 
   it.each(crossoverFilters)("describes every %s control", (name) => {
     const filter = filterIndex[name];
@@ -73,8 +78,11 @@ describe("simulation and artistic crossover registry", () => {
     }
   });
 
-  it.each(crossoverFilters)("only animates %s when the default evolves", (name, _category, animated) => {
-    expect(filterIndex[name].temporal === true).toBe(animated);
-    expect(filterIndex[name].autoAnimate === true).toBe(animated);
-  });
+  it.each(crossoverFilters)(
+    "only animates %s when the default evolves",
+    (name, _category, animated) => {
+      expect(filterIndex[name].temporal === true).toBe(animated);
+      expect(filterIndex[name].autoAnimate === true).toBe(animated);
+    },
+  );
 });

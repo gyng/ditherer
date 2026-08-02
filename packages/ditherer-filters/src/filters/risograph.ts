@@ -17,12 +17,46 @@ import { risographBlurRadius, stencilInkVariation } from "./printSimulationContr
 export const optionTypes = {
   color1: { type: COLOR, default: THEMES.RISOGRAPH[1].slice(0, 3), desc: "First ink color" },
   color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3), desc: "Second ink color" },
-  misregX: { type: RANGE, range: [0, 20], step: 1, default: 4, desc: "Horizontal misregistration offset" },
-  misregY: { type: RANGE, range: [0, 20], step: 1, default: 2, desc: "Vertical misregistration offset" },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Paper texture grain amount" },
-  inkBleed: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Ink spreading/bleeding amount" },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance split for two-color separation" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional palette applied after the two fixed ink layers" }
+  misregX: {
+    type: RANGE,
+    range: [0, 20],
+    step: 1,
+    default: 4,
+    desc: "Horizontal misregistration offset",
+  },
+  misregY: {
+    type: RANGE,
+    range: [0, 20],
+    step: 1,
+    default: 2,
+    desc: "Vertical misregistration offset",
+  },
+  grain: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Paper texture grain amount",
+  },
+  inkBleed: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.2,
+    desc: "Ink spreading/bleeding amount",
+  },
+  threshold: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 128,
+    desc: "Luminance split for two-color separation",
+  },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional palette applied after the two fixed ink layers",
+  },
 };
 
 export const defaults = {
@@ -33,7 +67,7 @@ export const defaults = {
   grain: optionTypes.grain.default,
   inkBleed: optionTypes.inkBleed.default,
   threshold: optionTypes.threshold.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type RisographOptions = FilterOptionValues & {
@@ -64,21 +98,31 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
   const H = input.height;
 
   if (
-    risographGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    risographGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderRisographGL(input, W, H, {
       color1: [color1[0], color1[1], color1[2]],
       color2: [color2[0], color2[1], color2[2]],
-      misregX, misregY, grain, inkBleed, threshold,
+      misregX,
+      misregY,
+      grain,
+      inkBleed,
+      threshold,
       levels,
     });
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Risograph", "WebGL2", `inkBleed=${inkBleed} misreg=(${misregX},${misregY})${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Risograph",
+          "WebGL2",
+          `inkBleed=${inkBleed} misreg=(${misregX},${misregY})${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -109,7 +153,8 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
   } else {
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
-        let sum = 0, cnt = 0;
+        let sum = 0,
+          cnt = 0;
         for (let ky = -blurR; ky <= blurR; ky++) {
           const ny = Math.max(0, Math.min(H - 1, y + ky));
           for (let kx = -blurR; kx <= blurR; kx++) {
@@ -126,7 +171,10 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
   // Render: two-color separation with misregistration
   // Fill with paper white
   for (let i = 0; i < outBuf.length; i += 4) {
-    outBuf[i] = 245; outBuf[i + 1] = 240; outBuf[i + 2] = 235; outBuf[i + 3] = buf[i + 3];
+    outBuf[i] = 245;
+    outBuf[i + 1] = 240;
+    outBuf[i + 2] = 235;
+    outBuf[i + 3] = buf[i + 3];
   }
 
   // Layer 1: color1 (no offset)
@@ -135,7 +183,7 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
       const l = blurred[y * W + x];
       if (l >= threshold) continue;
 
-      const darkness = (1 - l / 255);
+      const darkness = 1 - l / 255;
       // Grain noise
       const n = grain > 0 ? stencilInkVariation(x, y, 0) * grain * 100 : 0;
       const intensity = Math.max(0, Math.min(1, darkness + n / 255));
@@ -163,8 +211,12 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
       const i = getBufferIndex(x, y, W);
       // Multiply blend
       outBuf[i] = Math.round(outBuf[i] * (1 - intensity * 0.7) + color2[0] * intensity * 0.7);
-      outBuf[i + 1] = Math.round(outBuf[i + 1] * (1 - intensity * 0.7) + color2[1] * intensity * 0.7);
-      outBuf[i + 2] = Math.round(outBuf[i + 2] * (1 - intensity * 0.7) + color2[2] * intensity * 0.7);
+      outBuf[i + 1] = Math.round(
+        outBuf[i + 1] * (1 - intensity * 0.7) + color2[1] * intensity * 0.7,
+      );
+      outBuf[i + 2] = Math.round(
+        outBuf[i + 2] * (1 - intensity * 0.7) + color2[2] * intensity * 0.7,
+      );
     }
   }
 
@@ -172,7 +224,12 @@ const risograph = (input: any, options: RisographOptions = defaults) => {
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], buf[i + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], buf[i + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
@@ -187,5 +244,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Fixed two-master stencil print with spot inks, registration offset, correlated ink variation, and controllable bleed",
+  description:
+    "Fixed two-master stencil print with spot inks, registration offset, correlated ink variation, and controllable bleed",
 });

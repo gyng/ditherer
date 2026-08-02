@@ -90,8 +90,20 @@ void main() {
 
 export const optionTypes = {
   scale: { type: RANGE, range: [1, 60], step: 1, default: 16, desc: "Refraction distance (px)" },
-  ior: { type: RANGE, range: [0, 4], step: 0.05, default: 1.2, desc: "How strongly the surface bends light" },
-  intensity: { type: RANGE, range: [0, 4], step: 0.05, default: 1.6, desc: "Caustic highlight strength" },
+  ior: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.05,
+    default: 1.2,
+    desc: "How strongly the surface bends light",
+  },
+  intensity: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.05,
+    default: 1.6,
+    desc: "Caustic highlight strength",
+  },
   shadow: { type: RANGE, range: [0, 1], step: 0.05, default: 0.4, desc: "Defocus shadow strength" },
   tint: { type: COLOR, default: [255, 250, 200], desc: "Caustic highlight colour" },
   palette: { type: PALETTE, default: nearest },
@@ -112,8 +124,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     caustic: linkProgram(gl, CAUSTIC_FS, [
-      "u_source", "u_res", "u_ior", "u_scale", "u_intensity",
-      "u_shadow", "u_tint", "u_levels", "u_time",
+      "u_source",
+      "u_res",
+      "u_ior",
+      "u_scale",
+      "u_intensity",
+      "u_shadow",
+      "u_tint",
+      "u_levels",
+      "u_time",
     ] as const),
   };
   return _cache;
@@ -121,7 +140,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const caustics = (input: any, options = defaults) => {
   const { scale, ior, intensity, shadow, tint, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -133,29 +153,40 @@ const caustics = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "caustics:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.caustic, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.caustic.uniforms.u_source, 0);
-        gl.uniform2f(cache.caustic.uniforms.u_res, W, H);
-        gl.uniform1f(cache.caustic.uniforms.u_ior, ior);
-        gl.uniform1f(cache.caustic.uniforms.u_scale, scale);
-        gl.uniform1f(cache.caustic.uniforms.u_intensity, intensity);
-        gl.uniform1f(cache.caustic.uniforms.u_shadow, shadow);
-        gl.uniform3f(cache.caustic.uniforms.u_tint, tint[0], tint[1], tint[2]);
-        gl.uniform1f(cache.caustic.uniforms.u_time, (performance.now() / 1000) % 1000);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.caustic.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.caustic,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.caustic.uniforms.u_source, 0);
+          gl.uniform2f(cache.caustic.uniforms.u_res, W, H);
+          gl.uniform1f(cache.caustic.uniforms.u_ior, ior);
+          gl.uniform1f(cache.caustic.uniforms.u_scale, scale);
+          gl.uniform1f(cache.caustic.uniforms.u_intensity, intensity);
+          gl.uniform1f(cache.caustic.uniforms.u_shadow, shadow);
+          gl.uniform3f(cache.caustic.uniforms.u_tint, tint[0], tint[1], tint[2]);
+          gl.uniform1f(cache.caustic.uniforms.u_time, (performance.now() / 1000) % 1000);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.caustic.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Caustics", "WebGL2",
-            `ior=${ior} scale=${scale}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Caustics",
+            "WebGL2",
+            `ior=${ior} scale=${scale}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -171,6 +202,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Refract light through the image as if it were a glass surface — bright caustic webs where gradients converge, shadows where they diverge",
-  noWASM: "Gradient-driven refraction on the GPU has no CPU equivalent that'd be fast enough to be interactive.",
+  description:
+    "Refract light through the image as if it were a glass surface — bright caustic webs where gradients converge, shadows where they diverge",
+  noWASM:
+    "Gradient-driven refraction on the GPU has no CPU equivalent that'd be fast enough to be interactive.",
 });

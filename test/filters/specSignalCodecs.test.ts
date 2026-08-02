@@ -29,11 +29,16 @@ describe("specification codec primitives", () => {
     expect(decodeFaxRuns(black, 3)).toEqual(Uint8Array.from([1, 1, 1]));
     expect(encodeFaxRuns(new Uint8Array(64)).estimatedBits).toBe(25);
     expect(encodeFaxRuns(new Uint8Array(64).fill(1)).estimatedBits).toBe(40);
-    expect(encodeFaxRuns(new Uint8Array())).toEqual({ runs: [], startsBlack: false, estimatedBits: 12 });
+    expect(encodeFaxRuns(new Uint8Array())).toEqual({
+      runs: [],
+      startsBlack: false,
+      estimatedBits: 12,
+    });
     expect(decodeFaxRuns(encodeFaxRuns(new Uint8Array()), 0)).toEqual(new Uint8Array());
     expect(decodeFaxRuns(encoded, Number.NaN)).toEqual(new Uint8Array());
-    expect(decodeFaxRuns({ runs: [Number.NaN, 2], startsBlack: false, estimatedBits: 0 }, 2))
-      .toEqual(Uint8Array.from([1, 1]));
+    expect(
+      decodeFaxRuns({ runs: [Number.NaN, 2], startsBlack: false, estimatedBits: 0 }, 2),
+    ).toEqual(Uint8Array.from([1, 1]));
   });
 
   it("preserves fax rows on a clean channel and deterministically conceals damage", () => {
@@ -75,16 +80,28 @@ describe("specification codec primitives", () => {
 
   it("uses T.4 standard scan geometry while retaining old sample-count states", () => {
     expect(resolveFaxSampling(3456, { scanMode: "STANDARD" })).toEqual({
-      scaleX: 2, scaleY: 4, mrK: 2, mode: "STANDARD",
+      scaleX: 2,
+      scaleY: 4,
+      mrK: 2,
+      mode: "STANDARD",
     });
     expect(resolveFaxSampling(3456, { scanMode: "FINE" })).toEqual({
-      scaleX: 2, scaleY: 2, mrK: 4, mode: "FINE",
+      scaleX: 2,
+      scaleY: 2,
+      mrK: 4,
+      mode: "FINE",
     });
     expect(resolveFaxSampling(3456, { scanMode: "SUPERFINE" })).toEqual({
-      scaleX: 1, scaleY: 1, mrK: 4, mode: "SUPERFINE",
+      scaleX: 1,
+      scaleY: 1,
+      mrK: 4,
+      mode: "SUPERFINE",
     });
     expect(resolveFaxSampling(1000, { scanMode: "STANDARD", resolution: 100 })).toEqual({
-      scaleX: 10, scaleY: 10, mrK: 2, mode: "LEGACY",
+      scaleX: 10,
+      scaleY: 10,
+      mrK: 2,
+      mode: "LEGACY",
     });
   });
 
@@ -95,30 +112,32 @@ describe("specification codec primitives", () => {
     expect(apolloFramesPerPicture("1280_0625", 15)).toBe(24);
     expect(apolloFramesPerPicture("bad", Number.NaN)).toBe(3);
 
-    const timing = Array.from({ length: 15 }, (_, frame) =>
-      apolloTiming("320_10", 15, frame));
-    expect(timing.map((value) => value.pictureIndex))
-      .toEqual([0, 0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 8, 8, 9]);
+    const timing = Array.from({ length: 15 }, (_, frame) => apolloTiming("320_10", 15, frame));
+    expect(timing.map((value) => value.pictureIndex)).toEqual([
+      0, 0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 8, 8, 9,
+    ]);
     expect(timing.filter((value) => value.newPicture)).toHaveLength(10);
     expect(timing[1].picturePhase).toBeCloseTo(2 / 3);
     expect(timing[2].picturePhase).toBeCloseTo(1 / 3);
   });
 
   it("keeps legacy Teletext custom-column states out of the new 24x40 lock", () => {
-    expect(resolveTeletextGeometry(800, 480, { columns: 40, standardPage: true }))
-      .toMatchObject({
-        columns: 40,
-        rows: 24,
-        cellW: 20,
-        cellH: 20,
-        blockW: 10,
-        blockH: 20 / 3,
-        standardPage: true,
-      });
-    expect(resolveTeletextGeometry(800, 480, { columns: 80, standardPage: true }))
-      .toMatchObject({ columns: 80, standardPage: false });
-    expect(resolveTeletextGeometry(800, 480, { columns: 60, standardPage: undefined }))
-      .toMatchObject({ columns: 60, standardPage: false });
+    expect(resolveTeletextGeometry(800, 480, { columns: 40, standardPage: true })).toMatchObject({
+      columns: 40,
+      rows: 24,
+      cellW: 20,
+      cellH: 20,
+      blockW: 10,
+      blockH: 20 / 3,
+      standardPage: true,
+    });
+    expect(resolveTeletextGeometry(800, 480, { columns: 80, standardPage: true })).toMatchObject({
+      columns: 80,
+      standardPage: false,
+    });
+    expect(
+      resolveTeletextGeometry(800, 480, { columns: 60, standardPage: undefined }),
+    ).toMatchObject({ columns: 60, standardPage: false });
   });
 
   it("uses the Game Boy cartridge's 128x112 active sensor geometry", () => {
@@ -130,16 +149,25 @@ describe("specification codec primitives", () => {
 
   it("corrects every Hamming 8/4 single-bit error and rejects double-bit errors", () => {
     const teletextCodewords = [
-      0x15, 0x02, 0x49, 0x5e, 0x64, 0x73, 0x38, 0x2f,
-      0xd0, 0xc7, 0x8c, 0x9b, 0xa1, 0xb6, 0xfd, 0xea,
+      0x15, 0x02, 0x49, 0x5e, 0x64, 0x73, 0x38, 0x2f, 0xd0, 0xc7, 0x8c, 0x9b, 0xa1, 0xb6, 0xfd,
+      0xea,
     ];
     for (let nibble = 0; nibble < 16; nibble++) {
       const encoded = encodeHamming84(nibble);
-      expect(encoded, `ETSI codeword for nibble ${nibble.toString(16)}`)
-        .toBe(teletextCodewords[nibble]);
-      expect(decodeHamming84(encoded)).toEqual({ value: nibble, corrected: false, uncorrectable: false });
+      expect(encoded, `ETSI codeword for nibble ${nibble.toString(16)}`).toBe(
+        teletextCodewords[nibble],
+      );
+      expect(decodeHamming84(encoded)).toEqual({
+        value: nibble,
+        corrected: false,
+        uncorrectable: false,
+      });
       for (let bit = 0; bit < 8; bit++) {
-        expect(decodeHamming84(encoded ^ (1 << bit))).toEqual({ value: nibble, corrected: true, uncorrectable: false });
+        expect(decodeHamming84(encoded ^ (1 << bit))).toEqual({
+          value: nibble,
+          corrected: true,
+          uncorrectable: false,
+        });
       }
       for (let first = 0; first < 8; first++) {
         for (let second = first + 1; second < 8; second++) {
@@ -159,7 +187,8 @@ describe("specification codec primitives", () => {
 
   it("round-trips the reversible JPEG 2000 5/3 transform exactly", () => {
     const fixtures = Array.from({ length: 65 }, (_, length) =>
-      Array.from({ length }, (_, index) => ((index * 71 + length * 37) % 509) - 254));
+      Array.from({ length }, (_, index) => ((index * 71 + length * 37) % 509) - 254),
+    );
     for (const fixture of fixtures) {
       const source = Int32Array.from(fixture);
       expect(inverse53(forward53(source))).toEqual(source);

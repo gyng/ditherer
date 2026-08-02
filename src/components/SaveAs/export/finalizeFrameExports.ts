@@ -47,7 +47,9 @@ export const finalizeGifExport = async ({
   const { blob } = await encodeGifBlob(normalizedFrames, colorTable);
   setGifResult(
     blob,
-    aborted ? `Partial GIF preview ready (${capturedFrameCount} captured).` : "GIF ready to save or copy.",
+    aborted
+      ? `Partial GIF preview ready (${capturedFrameCount} captured).`
+      : "GIF ready to save or copy.",
   );
   onEncoded?.({
     normalizedFrameCount: normalizedFrames.length,

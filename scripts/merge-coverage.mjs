@@ -36,23 +36,23 @@ const browserCoveragePaths = [
 const readCoverage = async (filePath) =>
   JSON.parse(await readFile(path.join(root, filePath), "utf8"));
 
-const unitMap = libCoverage.createCoverageMap(
-  JSON.parse(await readFile(unitCoveragePath, "utf8")),
-);
+const unitMap = libCoverage.createCoverageMap(JSON.parse(await readFile(unitCoveragePath, "utf8")));
 const browserMap = libCoverage.createCoverageMap({});
 
 for (const filePath of browserCoveragePaths) {
   browserMap.merge(await readCoverage(filePath));
 }
 
-const locationKey = (location) => location
-  ? `${location.start.line}:${location.start.column ?? ""}-${location.end.line}:${location.end.column ?? ""}`
-  : "";
+const locationKey = (location) =>
+  location
+    ? `${location.start.line}:${location.start.column ?? ""}-${location.end.line}:${location.end.column ?? ""}`
+    : "";
 
 const counterSignatures = {
   statement: (entry) => locationKey(entry),
   function: (entry) => `${entry.name}|${locationKey(entry.decl)}|${locationKey(entry.loc)}`,
-  branch: (entry) => `${entry.type}|${locationKey(entry.loc)}|${entry.locations.map(locationKey).join("|")}`,
+  branch: (entry) =>
+    `${entry.type}|${locationKey(entry.loc)}|${entry.locations.map(locationKey).join("|")}`,
 };
 
 const addCountersByLocation = (base, incoming, mapKey, counterKey, signature) => {
@@ -73,7 +73,9 @@ const addCountersByLocation = (base, incoming, mapKey, counterKey, signature) =>
     const baseCount = base[counterKey][baseId];
     const incomingCount = incoming[counterKey][incomingId];
     if (Array.isArray(baseCount) && Array.isArray(incomingCount)) {
-      base[counterKey][baseId] = baseCount.map((count, outcome) => count + (incomingCount[outcome] ?? 0));
+      base[counterKey][baseId] = baseCount.map(
+        (count, outcome) => count + (incomingCount[outcome] ?? 0),
+      );
     } else if (typeof baseCount === "number" && typeof incomingCount === "number") {
       base[counterKey][baseId] = baseCount + incomingCount;
     }
@@ -110,9 +112,10 @@ for (const filename of filenames) {
     continue;
   }
   const unitSummary = unitMap.fileCoverageFor(filename).toSummary().toJSON();
-  const unitExecuted = unitSummary.statements.covered > 0
-    || unitSummary.functions.covered > 0
-    || unitSummary.branches.covered > 0;
+  const unitExecuted =
+    unitSummary.statements.covered > 0 ||
+    unitSummary.functions.covered > 0 ||
+    unitSummary.branches.covered > 0;
   map.addFileCoverage(unitExecuted ? mergeFileByLocation(unit, browser) : browser);
 }
 
@@ -121,10 +124,12 @@ for (const filename of filenames) {
 // merged denominator, including GL, React, workers, and export orchestration.
 map.filter((filename) => {
   const relative = path.relative(root, filename).replaceAll(path.sep, "/");
-  return !relative.startsWith("src/gl-smoke/")
-    && relative !== "src/ncParity.ts"
-    && relative !== "src/wasmSmoke.ts"
-    && !relative.startsWith("packages/ditherer-filters/src/wasm/");
+  return (
+    !relative.startsWith("src/gl-smoke/") &&
+    relative !== "src/ncParity.ts" &&
+    relative !== "src/wasmSmoke.ts" &&
+    !relative.startsWith("packages/ditherer-filters/src/wasm/")
+  );
 });
 
 const thresholds = {

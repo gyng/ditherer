@@ -50,8 +50,9 @@ describe("radar equation range falloff", () => {
     // Halfway cancels half the exponent: r^-4 * r^2 = r^-2.
     expect(combined(0.4, 0.5) / combined(0.2, 0.5)).toBeCloseTo(1 / 4, 6);
     // Partial STC always lifts the far return relative to no STC.
-    expect(combined(0.8, 0.55) / combined(0.1, 0.55))
-      .toBeGreaterThan(combined(0.8, 0) / combined(0.1, 0));
+    expect(combined(0.8, 0.55) / combined(0.1, 0.55)).toBeGreaterThan(
+      combined(0.8, 0) / combined(0.1, 0),
+    );
   });
 });
 
@@ -117,7 +118,14 @@ describe("all-bearing mean persistence (scope origin)", () => {
 
 describe("sweep-angle wrap", () => {
   it("wraps elapsed angle into [0, 2pi)", () => {
-    for (const [bearing, sweep] of [[0, 0], [1, 5], [5, 1], [-3, 3], [7, -7], [0.2, 6.2]]) {
+    for (const [bearing, sweep] of [
+      [0, 0],
+      [1, 5],
+      [5, 1],
+      [-3, 3],
+      [7, -7],
+      [0.2, 6.2],
+    ]) {
       const d = sweepElapsedAngle(bearing, sweep);
       expect(d).toBeGreaterThanOrEqual(0);
       expect(d).toBeLessThan(TWO_PI);
@@ -148,14 +156,16 @@ describe("sweep-angle wrap", () => {
     const sweep = 90 * DEG;
     const behind = persistenceDecay(sweepElapsedAngle(sweep - 10 * DEG, sweep), tau);
     const ahead = persistenceDecay(sweepElapsedAngle(sweep + 10 * DEG, sweep), tau);
-    expect(behind).toBeGreaterThan(0.9);   // just painted
-    expect(ahead).toBeLessThan(0.1);       // almost a full revolution stale
+    expect(behind).toBeGreaterThan(0.9); // just painted
+    expect(ahead).toBeLessThan(0.1); // almost a full revolution stale
     expect(behind).toBeGreaterThan(ahead * 10);
 
     // The wrap is seamless: crossing the 0/2pi seam changes nothing.
     const nearZero = 5 * DEG;
-    expect(persistenceDecay(sweepElapsedAngle(355 * DEG, nearZero), tau))
-      .toBeCloseTo(persistenceDecay(10 * DEG, tau), 9);
+    expect(persistenceDecay(sweepElapsedAngle(355 * DEG, nearZero), tau)).toBeCloseTo(
+      persistenceDecay(10 * DEG, tau),
+      9,
+    );
   });
 
   it("advances the bearing with the frame index and wraps at a full turn", () => {
@@ -174,7 +184,7 @@ describe("sweep-angle wrap", () => {
     // with the subtraction and the naive wrap returns a small NEGATIVE angle.
     // These pairs all produce phi just under k*2pi in double precision.
     const nearSeam: [number, number][] = [
-      [1, 6119.999999999999],   // phi = 106.81415022205296 -> -1.42e-14 unguarded
+      [1, 6119.999999999999], // phi = 106.81415022205296 -> -1.42e-14 unguarded
       [1, 11879.999999999998],
       [1, 12239.999999999998],
       [1, 13319.999999999998],
@@ -199,8 +209,12 @@ describe("sweep-angle wrap", () => {
     expect(sweepElapsedAngle(Number.MAX_VALUE, -1e300)).toBeGreaterThanOrEqual(0);
     expect(sweepElapsedAngle(-Number.MAX_VALUE, 1e300)).toBeLessThan(TWO_PI);
     for (const bad of [Number.NaN, Infinity, -Infinity]) {
-      for (const value of [sweepElapsedAngle(bad, 1), sweepElapsedAngle(1, bad),
-        sweepBearing(bad, 6), sweepBearing(6, bad)]) {
+      for (const value of [
+        sweepElapsedAngle(bad, 1),
+        sweepElapsedAngle(1, bad),
+        sweepBearing(bad, 6),
+        sweepBearing(6, bad),
+      ]) {
         expect(Number.isNaN(value)).toBe(false);
         expect(value).toBeGreaterThanOrEqual(0);
         expect(value).toBeLessThan(TWO_PI);

@@ -23,7 +23,9 @@ const replaceActiveFilter = async (page: Page, name: string) => {
   await expect(page.getByLabel("Active filter parameters")).toContainText(name);
 };
 
-test("generated filter inputs validate, reveal dependencies, reset, and persist edits", async ({ page }) => {
+test("generated filter inputs validate, reveal dependencies, reset, and persist edits", async ({
+  page,
+}) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto("/?testMedia=image%3Apepper.png");
@@ -43,12 +45,16 @@ test("generated filter inputs validate, reveal dependencies, reset, and persist 
   await expect(temporalBleed).toHaveAttribute("aria-invalid", "true");
   await temporalBleed.press("Enter");
   await expect(temporalBleed).toHaveValue("1");
-  const resetTemporalBleed = inspector.getByRole("button", { name: "Reset Temporal Bleed to default" });
+  const resetTemporalBleed = inspector.getByRole("button", {
+    name: "Reset Temporal Bleed to default",
+  });
   await expect(resetTemporalBleed).toBeEnabled();
   await resetTemporalBleed.click();
   await expect(temporalBleed).toHaveValue("0");
   await inspector.getByLabel("Help for Temporal Bleed").click();
-  await expect(inspector.getByRole("note").filter({ hasText: "Carry quantization error across frames" })).toBeVisible();
+  await expect(
+    inspector.getByRole("note").filter({ hasText: "Carry quantization error across frames" }),
+  ).toBeVisible();
 
   const palette = inspector.getByRole("combobox", { name: "palette", exact: true });
   await palette.selectOption("User/Adaptive");
@@ -58,7 +64,9 @@ test("generated filter inputs validate, reveal dependencies, reset, and persist 
   const initialPaletteSize = await paletteColors.count();
   await expect(paletteColors.first()).toBeVisible();
   await inspector.getByRole("button", { name: "Add GAMEBOY to favorite palettes" }).click();
-  await expect(inspector.getByRole("button", { name: "Remove GAMEBOY from favorite palettes" })).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    inspector.getByRole("button", { name: "Remove GAMEBOY from favorite palettes" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await inspector.getByRole("button", { name: /Add color/ }).click();
   await inspector.getByRole("button", { name: /Add to palette/ }).click();
   await expect(paletteColors).toHaveCount(initialPaletteSize + 1);
@@ -86,7 +94,9 @@ test("generated filter inputs validate, reveal dependencies, reset, and persist 
   const savePalette = page.getByRole("dialog", { name: "Save current palette as" });
   await savePalette.getByRole("textbox").fill("Dogfood Palette");
   await savePalette.getByRole("button", { name: "OK" }).click();
-  await expect(inspector.getByRole("combobox", { name: "Palette theme" })).toHaveValue("🎨 Dogfood Palette");
+  await expect(inspector.getByRole("combobox", { name: "Palette theme" })).toHaveValue(
+    "🎨 Dogfood Palette",
+  );
   await inspector.getByRole("button", { name: /Delete$/ }).click();
 
   await replaceActiveFilter(page, "ASCII");

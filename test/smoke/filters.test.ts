@@ -46,9 +46,9 @@ describe("smoke: run each filter on a test image", () => {
 
   // Filters that need special handling or are async
   const skipFilters = new Set([
-    "Glitch",    // async, dispatches actions
-    "Program",   // uses eval
-    "Halftone",  // uses canvas compositing not supported in jsdom
+    "Glitch", // async, dispatches actions
+    "Program", // uses eval
+    "Halftone", // uses canvas compositing not supported in jsdom
   ]);
 
   for (const entry of filterList) {
@@ -63,9 +63,7 @@ describe("smoke: run each filter on a test image", () => {
       const input = cloneCanvas(canvas, true);
       const result = entry.filter.func(input, entry.filter.options);
       // Filter should return a canvas or a string (ASYNC_FILTER)
-      expect(
-        result instanceof HTMLCanvasElement || typeof result === "string"
-      ).toBe(true);
+      expect(result instanceof HTMLCanvasElement || typeof result === "string").toBe(true);
     });
   }
 });
@@ -93,7 +91,7 @@ describe("smoke: filters return valid canvases", () => {
     const input = cloneCanvas(canvas, true);
     const output = filterIndex["Infinite Call Windows"].func(
       input,
-      filterIndex["Infinite Call Windows"].defaults
+      filterIndex["Infinite Call Windows"].defaults,
     );
     expect(output).toBeInstanceOf(HTMLCanvasElement);
     expect(output.width).toBe(16);
@@ -120,20 +118,25 @@ describe("smoke: filters return valid canvases", () => {
 const makeFakeInputCanvas = (w: number, h: number, fill: number[]) => {
   const data = new Uint8ClampedArray(w * h * 4);
   for (let i = 0; i < data.length; i += 4) {
-    data[i] = fill[0]; data[i + 1] = fill[1];
-    data[i + 2] = fill[2]; data[i + 3] = fill[3];
+    data[i] = fill[0];
+    data[i + 1] = fill[1];
+    data[i + 2] = fill[2];
+    data[i + 3] = fill[3];
   }
   return {
     width: w,
     height: h,
     // cloneCanvas(input, false) only reads .width/.height, so no drawImage needed.
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: cw,
-        height: ch
-      })
-    } : null
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: cw,
+              height: ch,
+            }),
+          }
+        : null,
   };
 };
 
@@ -153,7 +156,7 @@ const runAndCaptureAll = (filterFn, input, options): Uint8ClampedArray[] => {
       const instance = Reflect.construct(target, args) as object;
       if (args[0] instanceof Uint8ClampedArray) captured.push(args[0]);
       return instance;
-    }
+    },
   });
 
   try {
@@ -185,18 +188,22 @@ describe("linearize safety: every filter produces opaque output with _linearize=
   //   • filters that return without ever constructing ImageData get skipped
   //     (no palette path → the bug this test guards against can't manifest)
   const hardSkip = new Set([
-    "Glitch",   // async, dispatches actions — doesn't return a canvas
-    "Program",  // uses eval on user code — too risky to invoke blind
+    "Glitch", // async, dispatches actions — doesn't return a canvas
+    "Program", // uses eval on user code — too risky to invoke blind
   ]);
 
   const checkAlpha = (
     name: string,
-    filter: typeof filterIndex[string],
+    filter: (typeof filterIndex)[string],
     options: Record<string, unknown>,
   ) => {
     let captures: Uint8ClampedArray[];
     try {
-      captures = runAndCaptureAll(filter.func, makeFakeInputCanvas(8, 8, [128, 64, 32, 255]), options);
+      captures = runAndCaptureAll(
+        filter.func,
+        makeFakeInputCanvas(8, 8, [128, 64, 32, 255]),
+        options,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // Filters that throw on the fake canvas (usually drawImage/cloneCanvas
@@ -221,11 +228,16 @@ describe("linearize safety: every filter produces opaque output with _linearize=
         if (data[i] > maxAlpha) maxAlpha = data[i];
       }
     }
-    expect(maxAlpha, `${name} alpha collapsed to ${maxAlpha} (linearize bug?)`).toBeGreaterThan(100);
+    expect(maxAlpha, `${name} alpha collapsed to ${maxAlpha} (linearize bug?)`).toBeGreaterThan(
+      100,
+    );
   };
 
   for (const [name, filter] of Object.entries(filterIndex)) {
-    if (hardSkip.has(name)) { it.skip(`${name} (hard-skip)`, () => {}); continue; }
+    if (hardSkip.has(name)) {
+      it.skip(`${name} (hard-skip)`, () => {});
+      continue;
+    }
     if ((filter as { requiresGL?: boolean }).requiresGL) {
       it.skip(`${name} (requiresGL, covered by gl-smoke)`, () => {});
       continue;

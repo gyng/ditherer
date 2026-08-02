@@ -18,12 +18,14 @@ export const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason
       imageData: input.slice().buffer,
       width,
       height,
-      chain: [{
-        id: "crt-worker-smoke",
-        filterName: "rgbStripe",
-        displayName: "CRT emulation",
-        options: workerDefaults,
-      }],
+      chain: [
+        {
+          id: "crt-worker-smoke",
+          filterName: "rgbStripe",
+          displayName: "CRT emulation",
+          options: workerDefaults,
+        },
+      ],
       frameIndex: 0,
       isAnimating: false,
       linearize: false,
@@ -46,11 +48,16 @@ export const runWorkerCrt = async (): Promise<{ ok: true } | { ok: false; reason
       ? { ok: true }
       : { ok: false, reason: `worker CRT changed only ${changedChannels} color channels` };
   } catch (error) {
-    return { ok: false, reason: `worker CRT threw: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      ok: false,
+      reason: `worker CRT threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 };
 
-export const runWorkerSpecFilters = async (): Promise<{ ok: true } | { ok: false; reason: string }> => {
+export const runWorkerSpecFilters = async (): Promise<
+  { ok: true } | { ok: false; reason: string }
+> => {
   const width = 48;
   const height = 32;
   const inputCanvas = makeGradientCanvas(width, height);
@@ -99,24 +106,44 @@ export const runWorkerSpecFilters = async (): Promise<{ ok: true } | { ok: false
         degaussFrame: -2147483648,
       });
       if (first.width !== width || first.height !== height) {
-        return { ok: false, reason: `${name} worker size drifted to ${first.width}x${first.height}` };
+        return {
+          ok: false,
+          reason: `${name} worker size drifted to ${first.width}x${first.height}`,
+        };
       }
-      if (first.stepTimes.length !== 1 || !first.prevOutputs[id] || !first.prevInputs[id] || !first.emaMaps[id]) {
-        return { ok: false, reason: `${name} did not complete a worker step with temporal snapshots` };
+      if (
+        first.stepTimes.length !== 1 ||
+        !first.prevOutputs[id] ||
+        !first.prevInputs[id] ||
+        !first.emaMaps[id]
+      ) {
+        return {
+          ok: false,
+          reason: `${name} did not complete a worker step with temporal snapshots`,
+        };
       }
       const output = new Uint8ClampedArray(first.imageData);
       let changed = 0;
       let low = 255;
       let high = 0;
       for (let i = 0; i < output.length; i += 4) {
-        if (output[i] !== input[i] || output[i + 1] !== input[i + 1] || output[i + 2] !== input[i + 2]) changed += 1;
-        if (output[i + 3] < 200) return { ok: false, reason: `${name} worker emitted transparent pixels` };
+        if (
+          output[i] !== input[i] ||
+          output[i + 1] !== input[i + 1] ||
+          output[i + 2] !== input[i + 2]
+        )
+          changed += 1;
+        if (output[i + 3] < 200)
+          return { ok: false, reason: `${name} worker emitted transparent pixels` };
         const luma = output[i] * 0.299 + output[i + 1] * 0.587 + output[i + 2] * 0.114;
         low = Math.min(low, luma);
         high = Math.max(high, luma);
       }
       if (changed < width || high - low < 8) {
-        return { ok: false, reason: `${name} worker output was inert (changed=${changed}, range=${(high - low).toFixed(2)})` };
+        return {
+          ok: false,
+          reason: `${name} worker output was inert (changed=${changed}, range=${(high - low).toFixed(2)})`,
+        };
       }
 
       if (temporalNames.has(name)) {
@@ -143,7 +170,10 @@ export const runWorkerSpecFilters = async (): Promise<{ ok: true } | { ok: false
     }
     return { ok: true };
   } catch (error) {
-    return { ok: false, reason: `spec-filter worker threw: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      ok: false,
+      reason: `spec-filter worker threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 };
 
@@ -154,7 +184,11 @@ export const runWorkerSpecFilters = async (): Promise<{ ok: true } | { ok: false
 // would sail through. Assert the output is actually a subset of that palette.
 export const runQuantizePaletteSubset = (): { ok: true } | { ok: false; reason: string } => {
   const filter = filterIndex.Quantize;
-  const colors = [[0, 0, 0], [255, 255, 255], [255, 64, 32]];
+  const colors = [
+    [0, 0, 0],
+    [255, 255, 255],
+    [255, 64, 32],
+  ];
   const source = makeGradientCanvas(16, 16);
   const defaults = { ...(filter.defaults ?? {}) } as Record<string, unknown>;
   const palette = defaults.palette as Record<string, unknown> | undefined;
@@ -171,7 +205,8 @@ export const runQuantizePaletteSubset = (): { ok: true } | { ok: false; reason: 
     _linearize: false,
     _webglAcceleration: true,
   }) as HTMLCanvasElement;
-  const data = output.getContext("2d", { willReadFrequently: true })
+  const data = output
+    .getContext("2d", { willReadFrequently: true })
     ?.getImageData(0, 0, output.width, output.height).data;
   if (!data) return { ok: false, reason: "Quantize readback failed" };
 
@@ -180,7 +215,10 @@ export const runQuantizePaletteSubset = (): { ok: true } | { ok: false; reason: 
   for (let i = 0; i < data.length; i += 4) seen.add(`${data[i]},${data[i + 1]},${data[i + 2]}`);
   const strays = [...seen].filter((c) => !allowed.has(c));
   if (strays.length > 0) {
-    return { ok: false, reason: `Quantize emitted non-palette colors: ${strays.slice(0, 3).join(" | ")}` };
+    return {
+      ok: false,
+      reason: `Quantize emitted non-palette colors: ${strays.slice(0, 3).join(" | ")}`,
+    };
   }
   // A shader that collapsed to one colour would also be "a subset".
   if (seen.size < 2) return { ok: false, reason: `Quantize collapsed to ${seen.size} color(s)` };
@@ -203,8 +241,11 @@ export const runCmykAngles = (): { ok: true } | { ok: false; reason: string } =>
       _linearize: false,
       _webglAcceleration: true,
     }) as HTMLCanvasElement;
-    return output.getContext("2d", { willReadFrequently: true })
-      ?.getImageData(0, 0, output.width, output.height).data ?? null;
+    return (
+      output
+        .getContext("2d", { willReadFrequently: true })
+        ?.getImageData(0, 0, output.width, output.height).data ?? null
+    );
   };
   const differs = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
     for (let i = 0; i < a.length; i += 4) {
@@ -221,7 +262,10 @@ export const runCmykAngles = (): { ok: true } | { ok: false; reason: string } =>
     const rotated = render({ [angle]: 30 });
     if (!rotated) return { ok: false, reason: `CMYK readback failed for ${angle}` };
     if (!differs(base, rotated)) {
-      return { ok: false, reason: `${angle} has no effect on output — not reaching its separation` };
+      return {
+        ok: false,
+        reason: `${angle} has no effect on output — not reaching its separation`,
+      };
     }
   }
   // ...and each must be independent: rotating C only must not equal rotating K
@@ -229,7 +273,10 @@ export const runCmykAngles = (): { ok: true } | { ok: false; reason: string } =>
   const c = render({ angleC: 30 });
   const k = render({ angleK: 30 });
   if (c && k && !differs(c, k)) {
-    return { ok: false, reason: "angleC and angleK produce identical output — likely the same uniform" };
+    return {
+      ok: false,
+      reason: "angleC and angleK produce identical output — likely the same uniform",
+    };
   }
   return { ok: true };
 };
@@ -255,14 +302,18 @@ export const runMedianCutBackendAgreement = (): { ok: true } | { ok: false; reas
       _linearize: false,
       _webglAcceleration: webgl,
     }) as HTMLCanvasElement;
-    return output.getContext("2d", { willReadFrequently: true })
-      ?.getImageData(0, 0, output.width, output.height).data ?? null;
+    return (
+      output
+        .getContext("2d", { willReadFrequently: true })
+        ?.getImageData(0, 0, output.width, output.height).data ?? null
+    );
   };
 
   for (const levels of [7, 8, 13]) {
     const gpu = render(true, levels);
     const cpu = render(false, levels);
-    if (!gpu || !cpu) return { ok: false, reason: `Median Cut readback failed at ${levels} colors` };
+    if (!gpu || !cpu)
+      return { ok: false, reason: `Median Cut readback failed at ${levels} colors` };
 
     let mismatched = 0;
     let firstExample = "";
@@ -278,7 +329,10 @@ export const runMedianCutBackendAgreement = (): { ok: true } | { ok: false; reas
       }
     }
     if (cpuColors.size > levels) {
-      return { ok: false, reason: `Median Cut emitted ${cpuColors.size} colors for a ${levels}-color maximum` };
+      return {
+        ok: false,
+        reason: `Median Cut emitted ${cpuColors.size} colors for a ${levels}-color maximum`,
+      };
     }
     if (mismatched > 0) {
       return {
@@ -289,7 +343,8 @@ export const runMedianCutBackendAgreement = (): { ok: true } | { ok: false; reas
     // Guard the guard: if the GL path silently fell back to JS, both renders
     // would be the JS one and agreement would be meaningless.
     const changed = cpu.some((v, i) => i % 4 !== 3 && v !== 0);
-    if (!changed) return { ok: false, reason: `Median Cut produced an empty render at ${levels} colors` };
+    if (!changed)
+      return { ok: false, reason: `Median Cut produced an empty render at ${levels} colors` };
   }
   return { ok: true };
 };
@@ -309,8 +364,11 @@ export const runTriangleDitherSeed = (): { ok: true } | { ok: false; reason: str
       _linearize: false,
       _webglAcceleration: true,
     }) as HTMLCanvasElement;
-    return output.getContext("2d", { willReadFrequently: true })
-      ?.getImageData(0, 0, output.width, output.height).data ?? null;
+    return (
+      output
+        .getContext("2d", { willReadFrequently: true })
+        ?.getImageData(0, 0, output.width, output.height).data ?? null
+    );
   };
   const same = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
     for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
@@ -322,7 +380,8 @@ export const runTriangleDitherSeed = (): { ok: true } | { ok: false; reason: str
   const c = render({ seed: 7 });
   if (!a || !b || !c) return { ok: false, reason: "Triangle dither readback failed" };
 
-  if (!same(a, b)) return { ok: false, reason: "same seed rendered differently — noise is not reproducible" };
+  if (!same(a, b))
+    return { ok: false, reason: "same seed rendered differently — noise is not reproducible" };
   if (same(a, c)) return { ok: false, reason: "seed has no effect on the noise" };
 
   // Default palette is nearest levels=2, so this must come out 1-bit per
@@ -330,7 +389,9 @@ export const runTriangleDitherSeed = (): { ok: true } | { ok: false; reason: str
   // just adding noise to the image.
   const values = new Set<number>();
   for (let i = 0; i < a.length; i += 4) {
-    values.add(a[i]); values.add(a[i + 1]); values.add(a[i + 2]);
+    values.add(a[i]);
+    values.add(a[i + 1]);
+    values.add(a[i + 2]);
   }
   const binary = [...values].every((v) => v === 0 || v === 255);
   if (!binary) {
@@ -376,8 +437,9 @@ export const runHalftoneBackends = (): { ok: true } | { ok: false; reason: strin
       _linearize: false,
       _webglAcceleration: webgl,
     }) as HTMLCanvasElement;
-    return output.getContext("2d", { willReadFrequently: true })
-      ?.getImageData(0, 0, W, H).data ?? null;
+    return (
+      output.getContext("2d", { willReadFrequently: true })?.getImageData(0, 0, W, H).data ?? null
+    );
   };
   const meanLuma = (d: Uint8ClampedArray) => {
     let sum = 0;
@@ -393,8 +455,13 @@ export const runHalftoneBackends = (): { ok: true } | { ok: false; reason: strin
   // compositing fallback is broken and nobody would know.
   const jsMean = meanLuma(js);
   const glMean = meanLuma(gl);
-  if (jsMean < 1) return { ok: false, reason: `JS fallback rendered a blank image (mean luma ${jsMean.toFixed(2)})` };
-  if (glMean < 1) return { ok: false, reason: `GL path rendered a blank image (mean luma ${glMean.toFixed(2)})` };
+  if (jsMean < 1)
+    return {
+      ok: false,
+      reason: `JS fallback rendered a blank image (mean luma ${jsMean.toFixed(2)})`,
+    };
+  if (glMean < 1)
+    return { ok: false, reason: `GL path rendered a blank image (mean luma ${glMean.toFixed(2)})` };
 
   // ...and it must be recognisably the same picture. The two rasterise dots
   // differently — shader coverage vs canvas arcs with a screen composite — so
@@ -410,17 +477,25 @@ export const runHalftoneBackends = (): { ok: true } | { ok: false; reason: strin
   }
 
   // Both must respond to the grid size — it's the filter's headline control.
-  for (const [label, data] of [["gl", render(true, { size: 24 })], ["js", render(false, { size: 24 })]] as const) {
+  for (const [label, data] of [
+    ["gl", render(true, { size: 24 })],
+    ["js", render(false, { size: 24 })],
+  ] as const) {
     if (!data) return { ok: false, reason: `Halftone ${label} readback failed at size=24` };
     const base = label === "gl" ? gl : js;
     let changed = false;
     for (let i = 0; i < data.length; i += 4) {
-      if (data[i] !== base[i] || data[i + 1] !== base[i + 1] || data[i + 2] !== base[i + 2]) { changed = true; break; }
+      if (data[i] !== base[i] || data[i + 1] !== base[i + 1] || data[i + 2] !== base[i + 2]) {
+        changed = true;
+        break;
+      }
     }
     if (!changed) return { ok: false, reason: `Halftone ${label}: size has no effect on output` };
   }
 
-  console.log(`halftone: gl mean luma ${glMean.toFixed(1)}, js ${jsMean.toFixed(1)} (${ratio.toFixed(2)}x)`);
+  console.log(
+    `halftone: gl mean luma ${glMean.toFixed(1)}, js ${jsMean.toFixed(1)} (${ratio.toFixed(2)}x)`,
+  );
   return { ok: true };
 };
 
@@ -462,7 +537,12 @@ export const runHalftoneBackends = (): { ok: true } | { ok: false; reason: strin
 // defaults (Brightness/Contrast is brightness 0 / contrast 0 / gamma 1; Levels is
 // 0..255 with gamma 1), and an identity transform is unaffected by the space it
 // runs in — so testing them at their defaults would measure nothing.
-const LINEARIZE_AWARE: { name: string; opts?: Record<string, unknown>; why?: string; knownDead?: string }[] = [
+const LINEARIZE_AWARE: {
+  name: string;
+  opts?: Record<string, unknown>;
+  why?: string;
+  knownDead?: string;
+}[] = [
   { name: "Binarize" },
   { name: "Brightness/Contrast", opts: { brightness: 10, contrast: 15 } },
   { name: "Convolve" },
@@ -498,7 +578,10 @@ export const runLinearizeIsLive = (): { ok: true } | { ok: false; reason: string
 
   for (const { name, opts, knownDead } of LINEARIZE_AWARE) {
     const filter = filterIndex[name];
-    if (!filter) { missing.push(name); continue; }
+    if (!filter) {
+      missing.push(name);
+      continue;
+    }
     const render = (linearize: boolean): Uint8ClampedArray | null => {
       const source = makeSmoothRamp(32, 32);
       const options = {
@@ -509,12 +592,17 @@ export const runLinearizeIsLive = (): { ok: true } | { ok: false; reason: string
         _webglAcceleration: true,
       };
       const output = filter.func(source, options) as HTMLCanvasElement;
-      return output.getContext("2d", { willReadFrequently: true })
-        ?.getImageData(0, 0, 32, 32).data ?? null;
+      return (
+        output.getContext("2d", { willReadFrequently: true })?.getImageData(0, 0, 32, 32).data ??
+        null
+      );
     };
     const off = render(false);
     const on = render(true);
-    if (!off || !on) { dead.push(`${name}(readback failed)`); continue; }
+    if (!off || !on) {
+      dead.push(`${name}(readback failed)`);
+      continue;
+    }
     let changed = 0;
     for (let i = 0; i < off.length; i += 4) {
       if (off[i] !== on[i] || off[i + 1] !== on[i + 1] || off[i + 2] !== on[i + 2]) changed += 1;
@@ -546,7 +634,6 @@ export const runLinearizeIsLive = (): { ok: true } | { ok: false; reason: string
   return { ok: true };
 };
 
-
 // Does orderedGL's OKLab mode actually do OKLab?
 //
 // Two failure modes, both silent:
@@ -574,16 +661,37 @@ export const runOrderedOklabPalette = (): { ok: true } | { ok: false; reason: st
 
   // [source, nearest-in-OKLab, nearest-in-RGB] — found by search, margins >35%.
   const TRIPLES: [number[], number[], number[]][] = [
-    [[125, 209, 54], [7, 195, 232], [232, 79, 43]],
-    [[22, 90, 162], [138, 27, 42], [12, 214, 123]],
-    [[32, 151, 116], [136, 140, 5], [81, 209, 131]],
-    [[30, 167, 42], [228, 219, 68], [15, 54, 74]],
-    [[239, 177, 46], [96, 238, 224], [217, 69, 187]],
+    [
+      [125, 209, 54],
+      [7, 195, 232],
+      [232, 79, 43],
+    ],
+    [
+      [22, 90, 162],
+      [138, 27, 42],
+      [12, 214, 123],
+    ],
+    [
+      [32, 151, 116],
+      [136, 140, 5],
+      [81, 209, 131],
+    ],
+    [
+      [30, 167, 42],
+      [228, 219, 68],
+      [15, 54, 74],
+    ],
+    [
+      [239, 177, 46],
+      [96, 238, 224],
+      [217, 69, 187],
+    ],
   ];
 
   const flat = (rgb: number[], w: number, h: number): HTMLCanvasElement => {
     const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2d context unavailable");
     ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
@@ -596,29 +704,39 @@ export const runOrderedOklabPalette = (): { ok: true } | { ok: false; reason: st
     const basePalette = defaults.palette as Record<string, unknown>;
     const output = filter.func(flat(src, 16, 16), {
       ...defaults,
-      thresholdMap: "BAYER_16X16",   // levels=256 -> bias +-0.5, quant ~= source
+      thresholdMap: "BAYER_16X16", // levels=256 -> bias +-0.5, quant ~= source
       palette: {
         ...basePalette,
         options: {
           ...((basePalette.options as Record<string, unknown>) ?? {}),
-          colors: [[...okAnswer, 255], [...rgbAnswer, 255]],
+          colors: [
+            [...okAnswer, 255],
+            [...rgbAnswer, 255],
+          ],
           colorDistanceAlgorithm: "OKLAB",
         },
       },
       _linearize: false,
       _webglAcceleration: true,
     }) as HTMLCanvasElement;
-    const data = output.getContext("2d", { willReadFrequently: true })
+    const data = output
+      .getContext("2d", { willReadFrequently: true })
       ?.getImageData(0, 0, output.width, output.height).data;
     if (!data) return { ok: false, reason: "Ordered OKLab readback failed" };
 
-    let okCount = 0, rgbCount = 0, other = 0;
+    let okCount = 0,
+      rgbCount = 0,
+      other = 0;
     let otherExample = "";
     for (let i = 0; i < data.length; i += 4) {
       const px = [data[i], data[i + 1], data[i + 2]];
       if (px[0] === okAnswer[0] && px[1] === okAnswer[1] && px[2] === okAnswer[2]) okCount++;
-      else if (px[0] === rgbAnswer[0] && px[1] === rgbAnswer[1] && px[2] === rgbAnswer[2]) rgbCount++;
-      else { other++; if (!otherExample) otherExample = `${px}`; }
+      else if (px[0] === rgbAnswer[0] && px[1] === rgbAnswer[1] && px[2] === rgbAnswer[2])
+        rgbCount++;
+      else {
+        other++;
+        if (!otherExample) otherExample = `${px}`;
+      }
     }
     const total = data.length / 4;
     if (other > 0) {

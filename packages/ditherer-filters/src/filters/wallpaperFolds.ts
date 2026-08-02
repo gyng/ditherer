@@ -20,8 +20,10 @@ const foldReflect = (v: number, size: number): number => {
 };
 
 /** P1 (o): pure translation. */
-export const foldP1 = (x: number, y: number, sz: number): [number, number] =>
-  [modPos(x, sz), modPos(y, sz)];
+export const foldP1 = (x: number, y: number, sz: number): [number, number] => [
+  modPos(x, sz),
+  modPos(y, sz),
+];
 
 /**
  * P2 (2222): 180° rotation, NO mirror lines. Cell is 2·sz × sz; the right half
@@ -31,28 +33,42 @@ export const foldP1 = (x: number, y: number, sz: number): [number, number] =>
 export const foldP2 = (x: number, y: number, sz: number): [number, number] => {
   let fx = modPos(x, 2 * sz);
   let fy = modPos(y, sz);
-  if (fx >= sz) { fx = 2 * sz - fx; fy = sz - fy; }
+  if (fx >= sz) {
+    fx = 2 * sz - fx;
+    fy = sz - fy;
+  }
   return [fx, fy];
 };
 
 /** PMM (*2222): mirror lines on both axes. */
-export const foldPMM = (x: number, y: number, sz: number): [number, number] =>
-  [foldReflect(x, sz), foldReflect(y, sz)];
+export const foldPMM = (x: number, y: number, sz: number): [number, number] => [
+  foldReflect(x, sz),
+  foldReflect(y, sz),
+];
 
 /** P4M (*442): square kaleidoscope — mirrors on both axes plus the diagonal. */
 export const foldP4M = (x: number, y: number, sz: number): [number, number] => {
   let fx = foldReflect(x, sz);
   let fy = foldReflect(y, sz);
-  if (fy > fx) { const t = fx; fx = fy; fy = t; }
+  if (fy > fx) {
+    const t = fx;
+    fx = fy;
+    fy = t;
+  }
   return [fx, fy];
 };
 
 /** Round axial hex coords (q, r) to the nearest hex-lattice centre. */
 const hexRound = (q: number, r: number): [number, number] => {
-  const x = q, z = r, y = -x - z;
-  let rx = Math.round(x), rz = Math.round(z);
+  const x = q,
+    z = r,
+    y = -x - z;
+  let rx = Math.round(x),
+    rz = Math.round(z);
   const ry = Math.round(y);
-  const dx = Math.abs(rx - x), dy = Math.abs(ry - y), dz = Math.abs(rz - z);
+  const dx = Math.abs(rx - x),
+    dy = Math.abs(ry - y),
+    dz = Math.abs(rz - z);
   // Reset the axis with the largest rounding error to keep x+y+z=0. When that
   // is the (unreturned) y axis, rx and rz already stand.
   if (dx > dy && dx > dz) rx = -ry - rz;
@@ -69,15 +85,16 @@ const hexRound = (q: number, r: number): [number, number] => {
 export const foldP6M = (x: number, y: number, sz: number): [number, number] => {
   // Cartesian -> axial (basis a1=(1,0), a2=(1/2, √3/2), scaled by sz).
   const q = (x - y / SQRT3) / sz;
-  const r = (y * 2 / SQRT3) / sz;
+  const r = (y * 2) / SQRT3 / sz;
   const [cq, cr] = hexRound(q, r);
   const cx = (cq + cr / 2) * sz;
-  const cy = (cr * SQRT3 / 2) * sz;
-  const dx = x - cx, dy = y - cy;
+  const cy = ((cr * SQRT3) / 2) * sz;
+  const dx = x - cx,
+    dy = y - cy;
   const rr = Math.hypot(dx, dy);
   let a = rr > 0 ? Math.atan2(dy, dx) : 0;
-  a = modPos(a, Math.PI / 3);        // 6-fold
-  a = Math.abs(a - Math.PI / 6);     // mirror within the 60° sector -> [0, 30°]
+  a = modPos(a, Math.PI / 3); // 6-fold
+  a = Math.abs(a - Math.PI / 6); // mirror within the 60° sector -> [0, 30°]
   // Map the wedge point into [0, sz]² for source sampling (deterministic from
   // the invariant offset, so the sampled pattern inherits the symmetry).
   const fx = rr * Math.cos(a);

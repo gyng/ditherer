@@ -17,15 +17,61 @@ export const optionTypes = {
     default: SKY_MODE.CLOUDS,
     desc: "Environment treatment applied to likely connected sky regions",
   },
-  skyStart: { type: RANGE, range: [0.15, 0.85], step: 0.01, default: 0.4, desc: "Approximate horizon as a fraction of image height" },
+  skyStart: {
+    type: RANGE,
+    range: [0.15, 0.85],
+    step: 0.01,
+    default: 0.4,
+    desc: "Approximate horizon as a fraction of image height",
+  },
   gradientTop: { type: COLOR, default: [72, 139, 238], desc: "Zenith color of the painted sky" },
-  gradientBottom: { type: COLOR, default: [224, 239, 252], desc: "Near-horizon color of the painted sky" },
-  cloudAmount: { type: RANGE, range: [0, 1], step: 0.05, default: 0.48, desc: "Coverage and brightness of coherent painted cloud masses" },
-  cloudSoftness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.62, desc: "Feathering of cloud bodies into the sky" },
-  cloudScale: { type: RANGE, range: [1, 12], step: 0.5, default: 4.5, desc: "Scale of the multi-octave cloud masses" },
-  horizonGlow: { type: RANGE, range: [0, 1], step: 0.05, default: 0.32, desc: "Warm luminous haze concentrated near the horizon" },
-  maskTolerance: { type: RANGE, range: [0, 1], step: 0.05, default: 0.46, desc: "Admit neutral and less-blue pixels into the sky-confidence mask" },
-  blend: { type: RANGE, range: [0, 1], step: 0.05, default: 0.88, desc: "Strength of the painted environment over detected sky" },
+  gradientBottom: {
+    type: COLOR,
+    default: [224, 239, 252],
+    desc: "Near-horizon color of the painted sky",
+  },
+  cloudAmount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.48,
+    desc: "Coverage and brightness of coherent painted cloud masses",
+  },
+  cloudSoftness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.62,
+    desc: "Feathering of cloud bodies into the sky",
+  },
+  cloudScale: {
+    type: RANGE,
+    range: [1, 12],
+    step: 0.5,
+    default: 4.5,
+    desc: "Scale of the multi-octave cloud masses",
+  },
+  horizonGlow: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.32,
+    desc: "Warm luminous haze concentrated near the horizon",
+  },
+  maskTolerance: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.46,
+    desc: "Admit neutral and less-blue pixels into the sky-confidence mask",
+  },
+  blend: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.88,
+    desc: "Strength of the painted environment over detected sky",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -45,12 +91,22 @@ export const defaults = {
 
 const animeSky = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const resolved = { ...defaults, ...options };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderAnimeSkyGL(
-    input, W, H, resolved.mode === SKY_MODE.CLOUDS, resolved.skyStart,
-    resolved.gradientTop, resolved.gradientBottom, resolved.cloudAmount,
-    resolved.cloudSoftness, resolved.cloudScale, resolved.horizonGlow,
-    resolved.maskTolerance, resolved.blend,
+    input,
+    W,
+    H,
+    resolved.mode === SKY_MODE.CLOUDS,
+    resolved.skyStart,
+    resolved.gradientTop,
+    resolved.gradientBottom,
+    resolved.cloudAmount,
+    resolved.cloudSoftness,
+    resolved.cloudScale,
+    resolved.horizonGlow,
+    resolved.maskTolerance,
+    resolved.blend,
   );
   if (!rendered) return input;
   const identity = paletteIsIdentity(resolved.palette);
@@ -65,6 +121,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Conservative sky repaint with coherent clouds, horizon light, and an authored color gradient",
+  description:
+    "Conservative sky repaint with coherent clouds, horizon light, and an authored color gradient",
   requiresGL: true,
 });

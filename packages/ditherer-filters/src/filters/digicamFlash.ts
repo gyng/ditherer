@@ -18,15 +18,67 @@ import { flashLinearChannel } from "./consumerImagingQualityContracts";
 import { defineFilter } from "./types";
 
 export const optionTypes = {
-  flashPower: { type: RANGE, range: [0, 2], step: 0.05, default: 0.85, desc: "Additional on-axis flash exposure in stops; zero disables the flash contribution" },
-  falloff: { type: RANGE, range: [0.5, 6], step: 0.05, default: 2.2, desc: "Off-axis softness of the flash beam across the flat-scene proxy" },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of the projected flash beam" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.44, desc: "Vertical center of the projected flash beam" },
-  ambient: { type: RANGE, range: [0, 1], step: 0.01, default: 0.78, desc: "Ambient exposure retained before the flash contribution is added" },
-  edgeBurn: { type: RANGE, range: [0, 1], step: 0.01, default: 0.18, desc: "Lens-edge vignetting applied to ambient and flash exposure" },
-  whiteClip: { type: RANGE, range: [200, 255], step: 1, default: 245, desc: "Sensor saturation capacity expressed as an sRGB code value" },
-  warmth: { type: RANGE, range: [-0.3, 0.3], step: 0.01, default: 0.02, desc: "Flash-only white-balance tint: warm (+) to cool (−)" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette applied after flash exposure and sensor clipping" },
+  flashPower: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.85,
+    desc: "Additional on-axis flash exposure in stops; zero disables the flash contribution",
+  },
+  falloff: {
+    type: RANGE,
+    range: [0.5, 6],
+    step: 0.05,
+    default: 2.2,
+    desc: "Off-axis softness of the flash beam across the flat-scene proxy",
+  },
+  centerX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Horizontal center of the projected flash beam",
+  },
+  centerY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.44,
+    desc: "Vertical center of the projected flash beam",
+  },
+  ambient: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.78,
+    desc: "Ambient exposure retained before the flash contribution is added",
+  },
+  edgeBurn: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.18,
+    desc: "Lens-edge vignetting applied to ambient and flash exposure",
+  },
+  whiteClip: {
+    type: RANGE,
+    range: [200, 255],
+    step: 1,
+    default: 245,
+    desc: "Sensor saturation capacity expressed as an sRGB code value",
+  },
+  warmth: {
+    type: RANGE,
+    range: [-0.3, 0.3],
+    step: 0.01,
+    default: 0.02,
+    desc: "Flash-only white-balance tint: warm (+) to cool (−)",
+  },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional output palette applied after flash exposure and sensor clipping",
+  },
 };
 
 export const defaults = {
@@ -90,8 +142,15 @@ let program: Program | null = null;
 const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (program) return program;
   program = linkProgram(gl, FLASH_FS, [
-    "u_source", "u_res", "u_center", "u_flashGain", "u_falloff",
-    "u_ambient", "u_edgeBurn", "u_saturation", "u_warmth",
+    "u_source",
+    "u_res",
+    "u_center",
+    "u_flashGain",
+    "u_falloff",
+    "u_ambient",
+    "u_edgeBurn",
+    "u_saturation",
+    "u_warmth",
   ] as const);
   return program;
 };
@@ -103,16 +162,12 @@ const bounded = (value: unknown, fallback: number, minimum: number, maximum: num
 
 const srgbToLinear = (value: number): number => {
   const normalized = Math.max(0, Math.min(1, value / 255));
-  return normalized <= 0.04045
-    ? normalized / 12.92
-    : ((normalized + 0.055) / 1.055) ** 2.4;
+  return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
 };
 
 const linearToSrgb = (value: number): number => {
   const linear = Math.max(0, value);
-  return 255 * (linear <= 0.0031308
-    ? linear * 12.92
-    : 1.055 * linear ** (1 / 2.4) - 0.055);
+  return 255 * (linear <= 0.0031308 ? linear * 12.92 : 1.055 * linear ** (1 / 2.4) - 0.055);
 };
 
 const digicamFlash = (input: any, options = defaults) => {
@@ -139,25 +194,39 @@ const digicamFlash = (input: any, options = defaults) => {
       resizeGLCanvas(canvas, width, height);
       const sourceTexture = ensureTexture(gl, "digicamFlash:source", width, height);
       uploadSourceTexture(gl, sourceTexture, input);
-      drawPass(gl, null, width, height, shader, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-        gl.uniform1i(shader.uniforms.u_source, 0);
-        gl.uniform2f(shader.uniforms.u_res, width, height);
-        gl.uniform2f(shader.uniforms.u_center, centerX, centerY);
-        gl.uniform1f(shader.uniforms.u_flashGain, flashGain);
-        gl.uniform1f(shader.uniforms.u_falloff, falloff);
-        gl.uniform1f(shader.uniforms.u_ambient, ambient);
-        gl.uniform1f(shader.uniforms.u_edgeBurn, edgeBurn);
-        gl.uniform1f(shader.uniforms.u_saturation, saturation);
-        gl.uniform1f(shader.uniforms.u_warmth, warmth);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        width,
+        height,
+        shader,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+          gl.uniform1i(shader.uniforms.u_source, 0);
+          gl.uniform2f(shader.uniforms.u_res, width, height);
+          gl.uniform2f(shader.uniforms.u_center, centerX, centerY);
+          gl.uniform1f(shader.uniforms.u_flashGain, flashGain);
+          gl.uniform1f(shader.uniforms.u_falloff, falloff);
+          gl.uniform1f(shader.uniforms.u_ambient, ambient);
+          gl.uniform1f(shader.uniforms.u_edgeBurn, edgeBurn);
+          gl.uniform1f(shader.uniforms.u_saturation, saturation);
+          gl.uniform1f(shader.uniforms.u_warmth, warmth);
+        },
+        vao,
+      );
       const rendered = readoutToCanvas(canvas, width, height);
       if (rendered) {
         const identityPalette = paletteIsIdentity(palette);
-        const output = identityPalette ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+        const output = identityPalette
+          ? rendered
+          : applyPalettePassToCanvas(rendered, width, height, palette);
         if (output) {
-          logFilterBackend("Digicam Flash", "WebGL2", `flash=${flashPower.toFixed(2)}EV${identityPalette ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Digicam Flash",
+            "WebGL2",
+            `flash=${flashPower.toFixed(2)}EV${identityPalette ? "" : "+palettePass"}`,
+          );
           return output;
         }
       }
@@ -187,13 +256,14 @@ const digicamFlash = (input: any, options = defaults) => {
       const lensTransmission = 1 - edgeBurn * edgeRadius * edgeRadius;
       for (let channel = 0; channel < 3; channel += 1) {
         const reflectance = srgbToLinear(source[index + channel]);
-        const captured = flashLinearChannel(
-          reflectance,
-          ambient * lensTransmission,
-          flashGain * beam * lensTransmission,
-          tint[channel],
-          saturation,
-        ) / Math.max(0.001, saturation);
+        const captured =
+          flashLinearChannel(
+            reflectance,
+            ambient * lensTransmission,
+            flashGain * beam * lensTransmission,
+            tint[channel],
+            saturation,
+          ) / Math.max(0.001, saturation);
         result[index + channel] = linearToSrgb(Math.min(1, captured));
       }
       result[index + 3] = source[index + 3];
@@ -210,5 +280,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Flat-depth visible-image proxy for on-camera flash: linear ambient-plus-flash exposure, beam falloff, vignetting, white balance, and sensor saturation",
+  description:
+    "Flat-depth visible-image proxy for on-camera flash: linear ambient-plus-flash exposure, beam falloff, vignetting, white balance, and sensor saturation",
 });

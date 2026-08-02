@@ -91,7 +91,11 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, TAA_FS, [
-    "u_source", "u_history", "u_texel", "u_blend", "u_slack",
+    "u_source",
+    "u_history",
+    "u_texel",
+    "u_blend",
+    "u_slack",
   ] as const);
   return _prog;
 };
@@ -100,7 +104,8 @@ const temporalAA = (input: any, options: TemporalAAOptions = defaults) => {
   const blend = Math.min(0.95, Math.max(0, Number(options.blend ?? defaults.blend)));
   const slack = Math.max(0, Number(options.slack ?? defaults.slack));
   const prev = options._prevOutput ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -121,17 +126,25 @@ const temporalAA = (input: any, options: TemporalAAOptions = defaults) => {
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prev!);
   }
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, haveHist ? histEntry.tex : sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_history, 1);
-    gl.uniform2f(prog.uniforms.u_texel, 1 / W, 1 / H);
-    gl.uniform1f(prog.uniforms.u_blend, haveHist ? blend : 0);
-    gl.uniform1f(prog.uniforms.u_slack, slack / 255);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, haveHist ? histEntry.tex : sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_history, 1);
+      gl.uniform2f(prog.uniforms.u_texel, 1 / W, 1 / H);
+      gl.uniform1f(prog.uniforms.u_blend, haveHist ? blend : 0);
+      gl.uniform1f(prog.uniforms.u_slack, slack / 255);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -147,7 +160,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Blend the previous output back into the current frame, neighborhood-clamped to suppress ghosting — temporal anti-aliasing for video",
+  description:
+    "Blend the previous output back into the current frame, neighborhood-clamped to suppress ghosting — temporal anti-aliasing for video",
   temporal: true,
   requiresGL: true,
   autoAnimate: true,

@@ -10,7 +10,8 @@ const resourceMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@gyng/ditherer-filters", async () => {
-  const actual = await vi.importActual<typeof import("@gyng/ditherer-filters")>("@gyng/ditherer-filters");
+  const actual =
+    await vi.importActual<typeof import("@gyng/ditherer-filters")>("@gyng/ditherer-filters");
   return {
     ...actual,
     disposeSharedFilterResources: resourceMocks.disposeSharedFilterResources,
@@ -19,7 +20,9 @@ vi.mock("@gyng/ditherer-filters", async () => {
 });
 
 vi.mock("@gyng/ditherer-filters/client", async () => {
-  const actual = await vi.importActual<typeof import("@gyng/ditherer-filters/client")>("@gyng/ditherer-filters/client");
+  const actual = await vi.importActual<typeof import("@gyng/ditherer-filters/client")>(
+    "@gyng/ditherer-filters/client",
+  );
   return {
     ...actual,
     USE_WORKER: true,
@@ -60,7 +63,11 @@ describe("FilterProvider processing reset", () => {
     const root = createRoot(container);
     resourceMocks.workerRPC.mockReset();
     await act(async () => {
-      root.render(<FilterProvider><Probe /></FilterProvider>);
+      root.render(
+        <FilterProvider>
+          <Probe />
+        </FilterProvider>,
+      );
     });
     return root;
   };
@@ -121,9 +128,11 @@ describe("FilterProvider processing reset", () => {
   it("terminates an active stale worker before applying an option edit", async () => {
     const root = await mountProvider();
     let rejectPending: ((error: Error) => void) | undefined;
-    resourceMocks.workerRPC.mockReturnValueOnce(new Promise((_resolve, reject) => {
-      rejectPending = reject;
-    }));
+    resourceMocks.workerRPC.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectPending = reject;
+      }),
+    );
     const input = document.createElement("canvas");
     input.width = 1;
     input.height = 1;
@@ -144,9 +153,11 @@ describe("FilterProvider processing reset", () => {
   it("ignores a disposed worker rejection and accepts work from the fresh generation", async () => {
     const root = await mountProvider();
     let rejectPending: ((error: Error) => void) | undefined;
-    resourceMocks.workerRPC.mockReturnValueOnce(new Promise((_resolve, reject) => {
-      rejectPending = reject;
-    }));
+    resourceMocks.workerRPC.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectPending = reject;
+      }),
+    );
     const staleInput = document.createElement("canvas");
     staleInput.width = 1;
     staleInput.height = 1;
@@ -199,7 +210,9 @@ describe("FilterProvider processing reset", () => {
           ema: options._ema,
         });
         if (temporalSnapshots.length === 1) {
-          return new Promise<HTMLCanvasElement>((resolve) => { resolveFallback = resolve; });
+          return new Promise<HTMLCanvasElement>((resolve) => {
+            resolveFallback = resolve;
+          });
         }
         const output = document.createElement("canvas");
         output.width = filterInput.width;
@@ -221,7 +234,9 @@ describe("FilterProvider processing reset", () => {
     input.height = 1;
 
     latest.actions.filterImageAsync(input);
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(resolveFallback).toBeTypeOf("function");
     await act(async () => {
       latest.actions.loadImage(document.createElement("canvas"));
@@ -283,10 +298,9 @@ describe("FilterProvider processing reset", () => {
     input.width = width;
     input.height = height;
     latest.actions.filterImageAsync(input);
-    await vi.waitFor(() => expect(error).toHaveBeenCalledWith(
-      "Main-thread worker fallback failed:",
-      expect.any(Error),
-    ));
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith("Main-thread worker fallback failed:", expect.any(Error)),
+    );
     expect(getCanvasPoolStats().releases).toBeGreaterThan(0);
 
     resourceMocks.workerRPC.mockResolvedValueOnce({
@@ -324,9 +338,8 @@ describe("FilterProvider processing reset", () => {
     const suffixFilter: FilterDefinition = {
       name: "Worker transaction suffix",
       func: (input, options = {}) => {
-        fallbackPreviousOutputLength = options._prevOutput instanceof Uint8ClampedArray
-          ? options._prevOutput.length
-          : undefined;
+        fallbackPreviousOutputLength =
+          options._prevOutput instanceof Uint8ClampedArray ? options._prevOutput.length : undefined;
         return new Promise<HTMLCanvasElement>((resolve) => {
           resolveFallback = () => resolve(input as HTMLCanvasElement);
         });
@@ -430,12 +443,19 @@ describe("FilterProvider processing reset", () => {
     input.height = height;
     const createElement = document.createElement.bind(document);
     let injected = false;
-    vi.spyOn(document, "createElement").mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
+    vi.spyOn(document, "createElement").mockImplementation(((
+      tagName: string,
+      options?: ElementCreationOptions,
+    ) => {
       const element = createElement(tagName, options);
       if (tagName === "canvas" && !injected) {
         injected = true;
-        vi.spyOn((element as HTMLCanvasElement).getContext("2d")!, "putImageData")
-          .mockImplementationOnce(() => { throw new Error("injected worker putImageData failure"); });
+        vi.spyOn(
+          (element as HTMLCanvasElement).getContext("2d")!,
+          "putImageData",
+        ).mockImplementationOnce(() => {
+          throw new Error("injected worker putImageData failure");
+        });
       }
       return element;
     }) as typeof document.createElement);
@@ -443,10 +463,12 @@ describe("FilterProvider processing reset", () => {
     resetCanvasPoolStats();
 
     expect(() => latest.actions.filterImageAsync(input)).not.toThrow();
-    await vi.waitFor(() => expect(error).toHaveBeenCalledWith(
-      "Worker failed, falling back to main thread:",
-      expect.any(Error),
-    ));
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith(
+        "Worker failed, falling back to main thread:",
+        expect.any(Error),
+      ),
+    );
     await vi.waitFor(() => expect(latest.state.outputImage).toBe(input));
     expect(getCanvasPoolStats().releases).toBeGreaterThanOrEqual(1);
     await act(async () => root.unmount());
@@ -484,7 +506,9 @@ describe("FilterProvider processing reset", () => {
       width,
       height,
       stepTimes: [{ name: fallbackFilter.name, filterName: fallbackFilter.name, ms: 1 }],
-      prevOutputs: { [entryId]: { imageData: new Uint8ClampedArray(pixelCount).buffer, width, height } },
+      prevOutputs: {
+        [entryId]: { imageData: new Uint8ClampedArray(pixelCount).buffer, width, height },
+      },
       prevInputs: { [entryId]: new Uint8ClampedArray(pixelCount).buffer },
       emaMaps: { [entryId]: new Float32Array(pixelCount).buffer },
     });
@@ -526,7 +550,9 @@ describe("FilterProvider processing reset", () => {
     Object.defineProperty(latest.state.chain[0].filter.options!, "injected", {
       configurable: true,
       enumerable: true,
-      get: () => { throw new Error("injected worker serialization failure"); },
+      get: () => {
+        throw new Error("injected worker serialization failure");
+      },
     });
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const input = document.createElement("canvas");
@@ -534,10 +560,9 @@ describe("FilterProvider processing reset", () => {
     input.height = 1;
 
     expect(() => latest.actions.filterImageAsync(input)).not.toThrow();
-    await vi.waitFor(() => expect(error).toHaveBeenCalledWith(
-      "Main-thread worker fallback failed:",
-      expect.any(Error),
-    ));
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith("Main-thread worker fallback failed:", expect.any(Error)),
+    );
     expect(resourceMocks.workerRPC).not.toHaveBeenCalled();
 
     delete latest.state.chain[0].filter.options!.injected;

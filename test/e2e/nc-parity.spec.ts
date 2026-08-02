@@ -19,10 +19,22 @@ const WIDTH = 24;
 const HEIGHT = 24;
 
 const PICO8 = [
-  [0, 0, 0, 255], [29, 43, 83, 255], [126, 37, 83, 255], [0, 135, 81, 255],
-  [171, 82, 54, 255], [95, 87, 79, 255], [194, 195, 199, 255], [255, 241, 232, 255],
-  [255, 0, 77, 255], [255, 163, 0, 255], [255, 236, 39, 255], [0, 228, 54, 255],
-  [41, 173, 255, 255], [131, 118, 156, 255], [255, 119, 168, 255], [255, 204, 170, 255],
+  [0, 0, 0, 255],
+  [29, 43, 83, 255],
+  [126, 37, 83, 255],
+  [0, 135, 81, 255],
+  [171, 82, 54, 255],
+  [95, 87, 79, 255],
+  [194, 195, 199, 255],
+  [255, 241, 232, 255],
+  [255, 0, 77, 255],
+  [255, 163, 0, 255],
+  [255, 236, 39, 255],
+  [0, 228, 54, 255],
+  [41, 173, 255, 255],
+  [131, 118, 156, 255],
+  [255, 119, 168, 255],
+  [255, 204, 170, 255],
 ];
 
 // A smooth two-axis gradient with a luma ramp — exercises far more of the
@@ -91,7 +103,9 @@ const CASES: Case[] = [
 
 test("the GL shader matches the CPU reference for every algorithm", async ({ page }) => {
   const consoleErrors: string[] = [];
-  page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
+  page.on("console", (m) => {
+    if (m.type() === "error") consoleErrors.push(m.text());
+  });
 
   await page.goto("/nc-parity.html");
   await expect(page.locator('[data-testid="status"]')).toHaveText("ready", { timeout: 30_000 });
@@ -104,9 +118,11 @@ test("the GL shader matches the CPU reference for every algorithm", async ({ pag
   for (const testCase of CASES) {
     const rendered = await page.evaluate(
       ({ width, height, rgba, options }) =>
-        (window as unknown as {
-          __ncParity: { render: (r: unknown) => number[] | null };
-        }).__ncParity.render({ width, height, rgba, options }),
+        (
+          window as unknown as {
+            __ncParity: { render: (r: unknown) => number[] | null };
+          }
+        ).__ncParity.render({ width, height, rgba, options }),
       { width: WIDTH, height: HEIGHT, rgba: sourceArray, options: testCase.options },
     );
     expect(rendered, `${testCase.name}: harness returned no pixels`).toBeTruthy();

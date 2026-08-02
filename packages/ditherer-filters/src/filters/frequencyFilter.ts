@@ -25,7 +25,7 @@ import { normalizeEnumOption, normalizeRangeOption } from "../utils/filterOption
 const MODE = {
   LOW: "LOW",
   HIGH: "HIGH",
-  BAND: "BAND"
+  BAND: "BAND",
 };
 
 export const optionTypes = {
@@ -34,15 +34,33 @@ export const optionTypes = {
     options: [
       { name: "Low-pass", value: MODE.LOW },
       { name: "High-pass", value: MODE.HIGH },
-      { name: "Band-pass", value: MODE.BAND }
+      { name: "Band-pass", value: MODE.BAND },
     ],
     default: MODE.HIGH,
-    desc: "Which frequency band to keep"
+    desc: "Which frequency band to keep",
   },
-  radius: { type: RANGE, range: [1, 24], step: 1, default: 6, desc: "Approximate cutoff radius for the low-frequency blur" },
-  bandWidth: { type: RANGE, range: [1, 24], step: 1, default: 6, desc: "Additional blur width used for the outer edge of band-pass mode" },
-  gain: { type: RANGE, range: [0, 4], step: 0.05, default: 1.5, desc: "Boost the kept band before remapping back into the image" },
-  palette: { type: PALETTE, default: nearest }
+  radius: {
+    type: RANGE,
+    range: [1, 24],
+    step: 1,
+    default: 6,
+    desc: "Approximate cutoff radius for the low-frequency blur",
+  },
+  bandWidth: {
+    type: RANGE,
+    range: [1, 24],
+    step: 1,
+    default: 6,
+    desc: "Additional blur width used for the outer edge of band-pass mode",
+  },
+  gain: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.05,
+    default: 1.5,
+    desc: "Boost the kept band before remapping back into the image",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -50,7 +68,7 @@ export const defaults = {
   radius: optionTypes.radius.default,
   bandWidth: optionTypes.bandWidth.default,
   gain: optionTypes.gain.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type FrequencyFilterPalette = {
@@ -171,19 +189,26 @@ const getVertProg = (gl: WebGL2RenderingContext): Program => {
 const getCombineProg = (gl: WebGL2RenderingContext): Program => {
   if (_combine) return _combine;
   _combine = linkProgram(gl, COMBINE_FS, [
-    "u_source", "u_lowA", "u_lowB", "u_gain", "u_mode", "u_paletteLevels",
+    "u_source",
+    "u_lowA",
+    "u_lowB",
+    "u_gain",
+    "u_mode",
+    "u_paletteLevels",
   ] as const);
   return _combine;
 };
 
-const modeId = (m: string) => m === MODE.LOW ? 0 : m === MODE.BAND ? 2 : 1;
+const modeId = (m: string) => (m === MODE.LOW ? 0 : m === MODE.BAND ? 2 : 1);
 
 const blurInto = (
   gl: WebGL2RenderingContext,
   vao: WebGLVertexArrayObject,
-  W: number, H: number,
+  W: number,
+  H: number,
   sourceTex: WebGLTexture,
-  tempName: string, lowName: string,
+  tempName: string,
+  lowName: string,
   radius: number,
 ) => {
   const sigma = sigmaForRadius(radius);
@@ -191,33 +216,49 @@ const blurInto = (
   const vertProg = getVertProg(gl);
   const temp = ensureTexture(gl, tempName, W, H);
   const low = ensureTexture(gl, lowName, W, H);
-  drawPass(gl, temp, W, H, horizProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex);
-    gl.uniform1i(horizProg.uniforms.u_source, 0);
-    gl.uniform2f(horizProg.uniforms.u_texel, 1 / W, 1 / H);
-    gl.uniform1i(horizProg.uniforms.u_radius, radius);
-    gl.uniform1f(horizProg.uniforms.u_sigma, sigma);
-  }, vao);
-  drawPass(gl, low, W, H, vertProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp.tex);
-    gl.uniform1i(vertProg.uniforms.u_source, 0);
-    gl.uniform2f(vertProg.uniforms.u_texel, 1 / W, 1 / H);
-    gl.uniform1i(vertProg.uniforms.u_radius, radius);
-    gl.uniform1f(vertProg.uniforms.u_sigma, sigma);
-  }, vao);
+  drawPass(
+    gl,
+    temp,
+    W,
+    H,
+    horizProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex);
+      gl.uniform1i(horizProg.uniforms.u_source, 0);
+      gl.uniform2f(horizProg.uniforms.u_texel, 1 / W, 1 / H);
+      gl.uniform1i(horizProg.uniforms.u_radius, radius);
+      gl.uniform1f(horizProg.uniforms.u_sigma, sigma);
+    },
+    vao,
+  );
+  drawPass(
+    gl,
+    low,
+    W,
+    H,
+    vertProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp.tex);
+      gl.uniform1i(vertProg.uniforms.u_source, 0);
+      gl.uniform2f(vertProg.uniforms.u_texel, 1 / W, 1 / H);
+      gl.uniform1i(vertProg.uniforms.u_radius, radius);
+      gl.uniform1f(vertProg.uniforms.u_sigma, sigma);
+    },
+    vao,
+  );
   return low;
 };
 
 const frequencyFilter = (input: any, options: FrequencyFilterOptions = defaults) => {
-  const mode = normalizeEnumOption(
-    options.mode, [MODE.LOW, MODE.HIGH, MODE.BAND], defaults.mode);
+  const mode = normalizeEnumOption(options.mode, [MODE.LOW, MODE.HIGH, MODE.BAND], defaults.mode);
   const radius = normalizeRangeOption(options.radius, defaults.radius, 1, 24, true);
   const bandWidth = normalizeRangeOption(options.bandWidth, defaults.bandWidth, 1, 24, true);
   const gain = normalizeRangeOption(options.gain, defaults.gain, 0, 4, false);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -228,33 +269,61 @@ const frequencyFilter = (input: any, options: FrequencyFilterOptions = defaults)
   const sourceTex = ensureTexture(gl, "frequencyFilter:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
 
-  const lowA = blurInto(gl, vao, W, H, sourceTex.tex,
-    "frequencyFilter:tempA", "frequencyFilter:lowA", radius);
-  const lowB = mode === MODE.BAND
-    ? blurInto(gl, vao, W, H, sourceTex.tex,
-        "frequencyFilter:tempB", "frequencyFilter:lowB", radius + bandWidth)
-    : lowA;
+  const lowA = blurInto(
+    gl,
+    vao,
+    W,
+    H,
+    sourceTex.tex,
+    "frequencyFilter:tempA",
+    "frequencyFilter:lowA",
+    radius,
+  );
+  const lowB =
+    mode === MODE.BAND
+      ? blurInto(
+          gl,
+          vao,
+          W,
+          H,
+          sourceTex.tex,
+          "frequencyFilter:tempB",
+          "frequencyFilter:lowB",
+          radius + bandWidth,
+        )
+      : lowA;
 
   const pOpts = (palette as { options?: { levels?: number } }).options;
-  const isNearestPalette = palette === defaults.palette ||
-    (palette as { name?: string }).name === "nearest";
+  const isNearestPalette =
+    palette === defaults.palette || (palette as { name?: string }).name === "nearest";
   const shaderLevels = isNearestPalette ? (pOpts?.levels ?? 256) : 256;
 
   const combineProg = getCombineProg(gl);
-  drawPass(gl, null, W, H, combineProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(combineProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, lowA.tex);
-    gl.uniform1i(combineProg.uniforms.u_lowA, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, lowB.tex);
-    gl.uniform1i(combineProg.uniforms.u_lowB, 2);
-    gl.uniform1f(combineProg.uniforms.u_gain, gain);
-    gl.uniform1i(combineProg.uniforms.u_mode, modeId(mode));
-    gl.uniform1i(combineProg.uniforms.u_paletteLevels, Math.max(1, Math.min(256, Math.round(shaderLevels))));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    combineProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(combineProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, lowA.tex);
+      gl.uniform1i(combineProg.uniforms.u_lowA, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, lowB.tex);
+      gl.uniform1i(combineProg.uniforms.u_lowB, 2);
+      gl.uniform1f(combineProg.uniforms.u_gain, gain);
+      gl.uniform1i(combineProg.uniforms.u_mode, modeId(mode));
+      gl.uniform1i(
+        combineProg.uniforms.u_paletteLevels,
+        Math.max(1, Math.min(256, Math.round(shaderLevels))),
+      );
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return glUnavailableStub(W, H);
@@ -262,8 +331,13 @@ const frequencyFilter = (input: any, options: FrequencyFilterOptions = defaults)
   const skipPostPass = isNearestPalette || paletteIsIdentity(palette);
   const out = skipPostPass
     ? rendered
-    : (applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) || rendered);
-  logFilterBackend("Frequency Filter", "WebGL2", `mode=${mode} r=${radius}${skipPostPass ? "" : "+palettePass"}`);
+    : applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) ||
+      rendered;
+  logFilterBackend(
+    "Frequency Filter",
+    "WebGL2",
+    `mode=${mode} r=${radius}${skipPostPass ? "" : "+palettePass"}`,
+  );
   return out;
 };
 
@@ -273,6 +347,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Low, high, or mid-band frequency separation via Gaussian (and difference-of-Gaussian) spatial-domain filtering",
+  description:
+    "Low, high, or mid-band frequency separation via Gaussian (and difference-of-Gaussian) spatial-domain filtering",
   requiresGL: true,
 });

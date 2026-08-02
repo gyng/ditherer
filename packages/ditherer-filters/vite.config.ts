@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import filterModules from "./src/generated/filter-modules.json";
+import filterModules from "./src/generated/filter-modules.json" with { type: "json" };
 
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,10 +22,12 @@ export default defineConfig({
         client: path.join(packageRoot, "src/client.ts"),
         worker: path.join(packageRoot, "src/worker.ts"),
         "wasm-bindings": path.join(packageRoot, "src/wasm-bindings.ts"),
-        ...Object.fromEntries(filterModules.map((name) => [
-          `filters/${name}`,
-          path.join(packageRoot, `src/filters/${name}.ts`),
-        ])),
+        ...Object.fromEntries(
+          filterModules.map((name) => [
+            `filters/${name}`,
+            path.join(packageRoot, `src/filters/${name}.ts`),
+          ]),
+        ),
       },
       formats: ["es"],
     },

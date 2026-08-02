@@ -51,20 +51,23 @@ describe("runWorkerFilterRequest", () => {
   });
 
   it("runs a non-GL chain end-to-end and reports step timings", async () => {
-    const result = await runWorkerFilterRequest({
-      ...baseRequest(),
-      imageData: seedImageData(4, 4),
-      width: 4,
-      height: 4,
-      chain: [
-        {
-          id: "grayscale",
-          filterName: "Grayscale",
-          displayName: "Grayscale",
-          options: filterIndex.Grayscale.defaults,
-        },
-      ],
-    }, makeCanvas);
+    const result = await runWorkerFilterRequest(
+      {
+        ...baseRequest(),
+        imageData: seedImageData(4, 4),
+        width: 4,
+        height: 4,
+        chain: [
+          {
+            id: "grayscale",
+            filterName: "Grayscale",
+            displayName: "Grayscale",
+            options: filterIndex.Grayscale.defaults,
+          },
+        ],
+      },
+      makeCanvas,
+    );
 
     expect(result.width).toBe(4);
     expect(result.height).toBe(4);
@@ -81,20 +84,23 @@ describe("runWorkerFilterRequest", () => {
   it("draws the GL-unavailable stub for requiresGL filters in jsdom", async () => {
     // "Invert" is requiresGL: true — with no WebGL2 the dispatcher swaps in
     // the amber error tile rather than letting the filter pass-through.
-    const result = await runWorkerFilterRequest({
-      ...baseRequest(),
-      imageData: seedImageData(16, 16),
-      width: 16,
-      height: 16,
-      chain: [
-        {
-          id: "invert",
-          filterName: "Invert",
-          displayName: "Invert",
-          options: filterIndex.Invert.defaults,
-        },
-      ],
-    }, makeCanvas);
+    const result = await runWorkerFilterRequest(
+      {
+        ...baseRequest(),
+        imageData: seedImageData(16, 16),
+        width: 16,
+        height: 16,
+        chain: [
+          {
+            id: "invert",
+            filterName: "Invert",
+            displayName: "Invert",
+            options: filterIndex.Invert.defaults,
+          },
+        ],
+      },
+      makeCanvas,
+    );
 
     expect(result.stepTimes[0].name).toBe("Invert");
     expect(result.stepTimes[0].backend).toMatch(/^GL-unavailable/);
@@ -104,20 +110,23 @@ describe("runWorkerFilterRequest", () => {
   });
 
   it("skips unknown filter names without throwing", async () => {
-    const result = await runWorkerFilterRequest({
-      ...baseRequest(),
-      imageData: seedImageData(2, 2),
-      width: 2,
-      height: 2,
-      chain: [
-        {
-          id: "fake",
-          filterName: "ThisFilterDoesNotExist",
-          displayName: "Ghost",
-          options: {},
-        },
-      ],
-    }, makeCanvas);
+    const result = await runWorkerFilterRequest(
+      {
+        ...baseRequest(),
+        imageData: seedImageData(2, 2),
+        width: 2,
+        height: 2,
+        chain: [
+          {
+            id: "fake",
+            filterName: "ThisFilterDoesNotExist",
+            displayName: "Ghost",
+            options: {},
+          },
+        ],
+      },
+      makeCanvas,
+    );
 
     expect(result.stepTimes).toHaveLength(0);
     expect(result.width).toBe(2);
@@ -127,14 +136,17 @@ describe("runWorkerFilterRequest", () => {
     // The preprocess step runs before the chain; easiest smoke is to ask
     // for grayscale + an empty chain and confirm the output is free of
     // non-grayscale pixels (R == G == B per pixel).
-    const result = await runWorkerFilterRequest({
-      ...baseRequest(),
-      imageData: seedImageData(3, 3),
-      width: 3,
-      height: 3,
-      chain: [],
-      convertGrayscale: true,
-    }, makeCanvas);
+    const result = await runWorkerFilterRequest(
+      {
+        ...baseRequest(),
+        imageData: seedImageData(3, 3),
+        width: 3,
+        height: 3,
+        chain: [],
+        convertGrayscale: true,
+      },
+      makeCanvas,
+    );
 
     const pixels = new Uint8ClampedArray(result.imageData);
     let nonGrayscale = 0;
@@ -151,16 +163,19 @@ describe("runWorkerFilterRequest", () => {
     const height = 47;
     let requestCanvas: FilterCanvas | undefined;
     resetCanvasPoolStats();
-    const result = await runWorkerFilterRequest({
-      ...baseRequest(),
-      imageData: seedImageData(width, height),
-      width,
-      height,
-      chain: [],
-    }, (w, h) => {
-      requestCanvas = takePooledCanvas(w, h) as FilterCanvas;
-      return requestCanvas;
-    });
+    const result = await runWorkerFilterRequest(
+      {
+        ...baseRequest(),
+        imageData: seedImageData(width, height),
+        width,
+        height,
+        chain: [],
+      },
+      (w, h) => {
+        requestCanvas = takePooledCanvas(w, h) as FilterCanvas;
+        return requestCanvas;
+      },
+    );
 
     expect(result.imageData.byteLength).toBe(width * height * 4);
     expect(getCanvasPoolStats().releases).toBe(1);
@@ -172,14 +187,17 @@ describe("runWorkerFilterRequest", () => {
     const height = 59;
     resetCanvasPoolStats();
     for (let index = 0; index < 6; index += 1) {
-      await runWorkerFilterRequest({
-        ...baseRequest(),
-        imageData: seedImageData(width, height),
-        width,
-        height,
-        chain: [],
-        convertGrayscale: true,
-      }, (w, h) => takePooledCanvas(w, h) as FilterCanvas);
+      await runWorkerFilterRequest(
+        {
+          ...baseRequest(),
+          imageData: seedImageData(width, height),
+          width,
+          height,
+          chain: [],
+          convertGrayscale: true,
+        },
+        (w, h) => takePooledCanvas(w, h) as FilterCanvas,
+      );
     }
     expect(getCanvasPoolStats().allocations).toBeLessThanOrEqual(2);
     expect(getCanvasPoolStats().reuses).toBeGreaterThan(0);

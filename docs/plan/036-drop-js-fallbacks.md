@@ -12,15 +12,15 @@ Each filter keeps exactly **one** implementation:
 
 Audit script: `docs/plan/036-audit.sh` produces this breakdown.
 
-| Category | Count | Action |
-|---|---:|---|
-| **GL-only** (no WASM code in wrapper) | 173 | delete JS body |
-| **GL+WASM** (both paths in wrapper) | 27 | delete WASM + JS bodies |
-| **WASM-only** (no GL code) | 0 | — |
-| **JS-only** tagged `noGL` + `noWASM` | 8 | keep JS, out of scope |
-| **JS-only** tagged `noGL` only | 5 | keep JS, out of scope |
-| **JS-only** untagged, all `mainThread: true` temporal filters | 30 | keep JS, out of scope (separate GL-porting project) |
-| **Total filters** | 243 | |
+| Category                                                      | Count | Action                                              |
+| ------------------------------------------------------------- | ----: | --------------------------------------------------- |
+| **GL-only** (no WASM code in wrapper)                         |   173 | delete JS body                                      |
+| **GL+WASM** (both paths in wrapper)                           |    27 | delete WASM + JS bodies                             |
+| **WASM-only** (no GL code)                                    |     0 | —                                                   |
+| **JS-only** tagged `noGL` + `noWASM`                          |     8 | keep JS, out of scope                               |
+| **JS-only** tagged `noGL` only                                |     5 | keep JS, out of scope                               |
+| **JS-only** untagged, all `mainThread: true` temporal filters |    30 | keep JS, out of scope (separate GL-porting project) |
+| **Total filters**                                             |   243 |                                                     |
 
 "Delete" means strip the WASM/JS dispatch blocks from the filter wrapper `.ts` — not delete any file. `*GL.ts` files stay; `utils/index.ts` WASM exports that no caller uses after this get pruned.
 
@@ -28,13 +28,13 @@ Audit script: `docs/plan/036-audit.sh` produces this breakdown.
 
 These gate the GL path on an option combo and currently fall through for the rest — they need resolving before mechanical deletion of the JS body:
 
-| Filter | GL gated on… | Options |
-|---|---|---|
-| `facet` | `fillMode === CENTER` | Expand shader to compute per-cell average via two-pass FBO reduction, OR remove AVERAGE from the enum |
-| `halftoneLine` | palette is identity | Apply standard `applyPalettePassToCanvas` after readout (other filters already do this; this one just missed the pattern) |
-| `pixelate` | palette is identity AND `!_linearize` | Route non-identity via palette pass; inline sRGB↔linear for `_linearize` |
-| `triangleDither` | `!palette.options.colors` (LEVELS only) | Upload custom-colour palette as RGBA8 texture + nearest-colour search in shader, OR restrict to LEVELS in the UI |
-| `crossStitch` | palette identity OR `threadColor === SOURCE` | Apply palette to thread texel only in shader (leave fabric raw) |
+| Filter           | GL gated on…                                 | Options                                                                                                                   |
+| ---------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `facet`          | `fillMode === CENTER`                        | Expand shader to compute per-cell average via two-pass FBO reduction, OR remove AVERAGE from the enum                     |
+| `halftoneLine`   | palette is identity                          | Apply standard `applyPalettePassToCanvas` after readout (other filters already do this; this one just missed the pattern) |
+| `pixelate`       | palette is identity AND `!_linearize`        | Route non-identity via palette pass; inline sRGB↔linear for `_linearize`                                                  |
+| `triangleDither` | `!palette.options.colors` (LEVELS only)      | Upload custom-colour palette as RGBA8 texture + nearest-colour search in shader, OR restrict to LEVELS in the UI          |
+| `crossStitch`    | palette identity OR `threadColor === SOURCE` | Apply palette to thread texel only in shader (leave fabric raw)                                                           |
 
 Every resolution either expands the GL shader or trims a UI option — no in-flight JS fallback allowed after Phase 1.
 
@@ -71,6 +71,7 @@ Golden-image tests may diff against JS output. Audit `src/test/`; accept golden 
 ### Phase 1 — resolve the 5 partial-GL filters (2–3 days)
 
 One commit per filter. Each either expands the shader or trims an option. Order by risk:
+
 1. `halftoneLine` (trivial — apply palette pass after readout like others).
 2. `pixelate` (apply palette pass + inline sRGB↔linear).
 3. `crossStitch` (palette-texture sampling for thread only).
@@ -90,6 +91,7 @@ const foo = (input, options) => {
 ```
 
 Delete:
+
 - WASM dispatch block (for GL+WASM cases)
 - JS loop body
 - `_wasmAcceleration` plumbing
@@ -135,13 +137,13 @@ Grep each, delete the ones with zero callers.
 
 ## Risk register
 
-| Risk | Mitigation |
-|---|---|
-| GL-unavailable users get silently broken filters | Phase 0 error tile + `requiresGL` UI badge + banner |
-| Partial-GL shader rewrites change output visibly | Land each Phase 1 commit with before/after screenshots on a canonical image |
-| Dead Rust code hard to detect | Manually enumerate `wasm*` exports, cross-reference callers post-Phase 2 |
-| Test suite hardcoded to JS output | Accept golden regeneration as part of this migration |
-| Worker GL fails on Safari edge cases | Keep existing worker → main-thread fallback in `FilterContext` untouched |
+| Risk                                                                                | Mitigation                                                                                 |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| GL-unavailable users get silently broken filters                                    | Phase 0 error tile + `requiresGL` UI badge + banner                                        |
+| Partial-GL shader rewrites change output visibly                                    | Land each Phase 1 commit with before/after screenshots on a canonical image                |
+| Dead Rust code hard to detect                                                       | Manually enumerate `wasm*` exports, cross-reference callers post-Phase 2                   |
+| Test suite hardcoded to JS output                                                   | Accept golden regeneration as part of this migration                                       |
+| Worker GL fails on Safari edge cases                                                | Keep existing worker → main-thread fallback in `FilterContext` untouched                   |
 | Someone deletes a `_wasmAcceleration` option that a URL-serialized preset relied on | Grep presets/URLs for `_wasmAcceleration`; these are internal escape hatches, safe to drop |
 
 ## Scope estimate

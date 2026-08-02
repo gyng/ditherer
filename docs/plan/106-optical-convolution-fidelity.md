@@ -14,12 +14,12 @@ primitives where possible.
 
 ## Evidence
 
-- **Despeckle** replaces high-variance pixels with the neighbourhood *mean* and
+- **Despeckle** replaces high-variance pixels with the neighbourhood _mean_ and
   keeps low-variance pixels (`pick = variance > threshSq ? mean : self`). Edges
   are high-variance, so it box-blurs edges while leaving flat, speckle-prone
   regions untouched — the opposite of despeckling — and there is no median at
   all despite the "median sampling" control label.
-- **Sharpen** builds its unsharp mask from a uniform *box* blur (separable, both
+- **Sharpen** builds its unsharp mask from a uniform _box_ blur (separable, both
   paths), not the Gaussian that defines unsharp masking, and composites in gamma
   space, producing boxy, ringy halos and tonal shifts.
 - **Bloom** blurs with a single-scale uniform box and thresholds/composites in
@@ -31,7 +31,7 @@ primitives where possible.
 
 ## References
 
-- Gonzalez & Woods, *Digital Image Processing* — median filtering for
+- Gonzalez & Woods, _Digital Image Processing_ — median filtering for
   salt-and-pepper (impulse) noise; center-weighted / thresholded median.
 - The unsharp masking definition: `out = src + (src − Gaussian(src)) · amount`.
 - J. Jimenez, "Next Generation Post Processing in Call of Duty: Advanced
@@ -98,4 +98,3 @@ primitives where possible.
   generated catalog verification, and the production application build.
 
 Status: Complete
-

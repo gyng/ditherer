@@ -9,10 +9,7 @@ export const APPLE_HGR_COLORS = {
   orange: [255, 128, 32],
 };
 
-export const decodeAppleHgrDots = (
-  bits: Uint8Array,
-  bytePhases: Uint8Array,
-): Uint8ClampedArray => {
+export const decodeAppleHgrDots = (bits: Uint8Array, bytePhases: Uint8Array): Uint8ClampedArray => {
   const output = new Uint8ClampedArray(bits.length * 3);
 
   for (let x = 0; x < bits.length; x++) {
@@ -23,8 +20,12 @@ export const decodeAppleHgrDots = (
       } else {
         const delayed = Boolean(bytePhases[Math.floor(x / 7)]);
         color = delayed
-          ? (x % 2 === 0 ? APPLE_HGR_COLORS.blue : APPLE_HGR_COLORS.orange)
-          : (x % 2 === 0 ? APPLE_HGR_COLORS.purple : APPLE_HGR_COLORS.green);
+          ? x % 2 === 0
+            ? APPLE_HGR_COLORS.blue
+            : APPLE_HGR_COLORS.orange
+          : x % 2 === 0
+            ? APPLE_HGR_COLORS.purple
+            : APPLE_HGR_COLORS.green;
       }
     }
     output.set(color, x * 3);
@@ -36,11 +37,7 @@ export const decodeAppleHgrDots = (
 export const spectrumColor = (index: number, bright: boolean): number[] => {
   const color = Math.max(0, Math.min(7, Math.trunc(index)));
   const level = bright ? 255 : 205;
-  return [
-    color & 2 ? level : 0,
-    color & 4 ? level : 0,
-    color & 1 ? level : 0,
-  ];
+  return [color & 2 ? level : 0, color & 4 ? level : 0, color & 1 ? level : 0];
 };
 
 /**
@@ -50,7 +47,7 @@ export const spectrumColor = (index: number, bright: boolean): number[] => {
 export const spectrumFlashPhase = (frameIndex: number, previewFps: number): number => {
   const frame = Number.isFinite(frameIndex) ? Math.max(0, Math.floor(frameIndex)) : 0;
   const fps = Number.isFinite(previewFps) ? Math.max(1, Math.min(60, previewFps)) : 50;
-  const halfCycleFrames = Math.max(1, Math.round(fps * 16 / 50));
+  const halfCycleFrames = Math.max(1, Math.round((fps * 16) / 50));
   return Math.floor(frame / halfCycleFrames) % 2;
 };
 
@@ -61,11 +58,7 @@ export type SpectrumAttribute = {
   bitmap: Uint8Array;
 };
 
-const rgbDistance = (
-  source: Uint8Array,
-  offset: number,
-  color: number[],
-): number => {
+const rgbDistance = (source: Uint8Array, offset: number, color: number[]): number => {
   const dr = (source[offset] ?? 0) - (color[0] ?? 0);
   const dg = (source[offset + 1] ?? 0) - (color[1] ?? 0);
   const db = (source[offset + 2] ?? 0) - (color[2] ?? 0);
@@ -106,8 +99,8 @@ export const chooseSpectrumAttribute = (source: Uint8Array): SpectrumAttribute =
   const bitmap = new Uint8Array(pixels);
   for (let pixel = 0; pixel < pixels; pixel++) {
     const offset = pixel * 3;
-    bitmap[pixel] = rgbDistance(source, offset, inkColor)
-      < rgbDistance(source, offset, paperColor) ? 1 : 0;
+    bitmap[pixel] =
+      rgbDistance(source, offset, inkColor) < rgbDistance(source, offset, paperColor) ? 1 : 0;
   }
 
   return { ink: bestInk, paper: bestPaper, bright: bestBright, bitmap };
@@ -122,16 +115,10 @@ export const HAM6_OP = {
 
 const nibbleToByte = (value: number): number => (value & 15) * 17;
 
-const paletteComponent = (
-  palette: Uint8Array,
-  color: number,
-  component: number,
-): number => nibbleToByte(Math.round((palette[color * 4 + component] ?? 0) / 17));
+const paletteComponent = (palette: Uint8Array, color: number, component: number): number =>
+  nibbleToByte(Math.round((palette[color * 4 + component] ?? 0) / 17));
 
-export const decodeHam6Scanline = (
-  codes: Uint8Array,
-  palette: Uint8Array,
-): Uint8ClampedArray => {
+export const decodeHam6Scanline = (codes: Uint8Array, palette: Uint8Array): Uint8ClampedArray => {
   const output = new Uint8ClampedArray(codes.length * 4);
   let red = paletteComponent(palette, 0, 0);
   let green = paletteComponent(palette, 0, 1);
@@ -139,7 +126,7 @@ export const decodeHam6Scanline = (
 
   for (let pixel = 0; pixel < codes.length; pixel++) {
     const code = codes[pixel] ?? 0;
-    const operation = code >>> 4 & 3;
+    const operation = (code >>> 4) & 3;
     const data = code & 15;
     if (operation === HAM6_OP.DIRECT) {
       red = paletteComponent(palette, data, 0);
@@ -163,10 +150,7 @@ export type Ham6Encoding = {
   output: Uint8ClampedArray;
 };
 
-export const encodeHam6Scanline = (
-  source: Uint8Array,
-  palette: Uint8Array,
-): Ham6Encoding => {
+export const encodeHam6Scanline = (source: Uint8Array, palette: Uint8Array): Ham6Encoding => {
   const pixels = Math.floor(source.length / 3);
   const codes = new Uint8Array(pixels);
   let red = paletteComponent(palette, 0, 0);
@@ -184,7 +168,12 @@ export const encodeHam6Scanline = (
     let bestGreen = green;
     let bestBlue = blue;
 
-    const consider = (code: number, candidateRed: number, candidateGreen: number, candidateBlue: number) => {
+    const consider = (
+      code: number,
+      candidateRed: number,
+      candidateGreen: number,
+      candidateBlue: number,
+    ) => {
       const dr = targetRed - candidateRed;
       const dg = targetGreen - candidateGreen;
       const db = targetBlue - candidateBlue;
@@ -230,8 +219,8 @@ export type PxlTiming = {
 export const pxlTiming = (frameIndex: number, previewFps: number): PxlTiming => {
   const frame = Number.isFinite(frameIndex) ? Math.max(0, Math.floor(frameIndex)) : 0;
   const fps = Number.isFinite(previewFps) ? Math.max(1, Math.min(60, previewFps)) : 30;
-  const captureIndex = Math.floor(frame * 15 / fps);
-  const previousCapture = Math.floor(Math.max(0, frame - 1) * 15 / fps);
+  const captureIndex = Math.floor((frame * 15) / fps);
+  const previousCapture = Math.floor((Math.max(0, frame - 1) * 15) / fps);
   return {
     captureIndex,
     newCapture: frame === 0 || captureIndex !== previousCapture,

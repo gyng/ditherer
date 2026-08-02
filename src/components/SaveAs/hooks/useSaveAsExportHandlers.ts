@@ -1,5 +1,9 @@
 import { useCallback, type RefObject } from "react";
-import { runCurrentFrameContactSheetExport, runCurrentFrameGifExport, runCurrentFrameSequenceExport } from "../export/currentFrameExport";
+import {
+  runCurrentFrameContactSheetExport,
+  runCurrentFrameGifExport,
+  runCurrentFrameSequenceExport,
+} from "../export/currentFrameExport";
 import { runLoopExport } from "../export/loopExportOrchestrator";
 import { copyBlobWithFeedback, saveBlob } from "../export/blobActions";
 import { startCanvasRecording, startRealtimeLoopRecording } from "../export/realtimeVideoRecording";
@@ -7,7 +11,10 @@ import { runReliableVideoExport } from "../export/reliableVideoExport";
 import type { FilterActions } from "context/filterContextValue";
 import type { RecordingFormat, VideoFrameCallbackVideo } from "../helpers";
 
-type ExportProgressLogger = (label: string, stats: Record<string, number | string | boolean | null>) => void;
+type ExportProgressLogger = (
+  label: string,
+  stats: Record<string, number | string | boolean | null>,
+) => void;
 
 type RenderedSeekFn = (
   video: HTMLVideoElement,
@@ -19,11 +26,14 @@ type RenderedPlaybackFrameFn = (
   targetTime: number,
   previousRenderVersion: number,
   expectedFrameMs: number,
-) => Promise<{
-  renderedTime: number | null;
-  renderVersion: number;
-  frameToken: number;
-} | undefined>;
+) => Promise<
+  | {
+      renderedTime: number | null;
+      renderVersion: number;
+      frameToken: number;
+    }
+  | undefined
+>;
 
 interface UseSaveAsExportHandlersOptions {
   outputCanvasRef: RefObject<HTMLCanvasElement | null>;
@@ -200,7 +210,7 @@ export const useSaveAsExportHandlers = ({
     const fps = autoRecordFps ? undefined : recordFps;
     startCanvasRecording({
       sourceCanvas: source,
-      sourceVideo: stateVideo ? stateVideo as VideoFrameCallbackVideo : null,
+      sourceVideo: stateVideo ? (stateVideo as VideoFrameCallbackVideo) : null,
       includeVideoAudio,
       fps,
       recordingFormat: activeRecFormat,
@@ -254,12 +264,16 @@ export const useSaveAsExportHandlers = ({
       ? "mp4"
       : recordedBlob.type.includes("webm")
         ? "webm"
-        : (activeRecFormat?.ext || "webm");
+        : activeRecFormat?.ext || "webm";
     saveBlob(recordedBlob, ext);
   }, [recordedBlob, activeRecFormat]);
 
   const handleCopyVideo = useCallback(async () => {
-    await copyBlobWithFeedback(recordedBlob, setCopySuccess, "Video clipboard copy failed (browser may not support video mime type):");
+    await copyBlobWithFeedback(
+      recordedBlob,
+      setCopySuccess,
+      "Video clipboard copy failed (browser may not support video mime type):",
+    );
   }, [recordedBlob, setCopySuccess]);
 
   const handleSaveGif = useCallback(() => {
@@ -283,7 +297,11 @@ export const useSaveAsExportHandlers = ({
   }, [contactSheetBlob]);
 
   const handleCopyContactSheet = useCallback(async () => {
-    await copyBlobWithFeedback(contactSheetBlob, setCopySuccess, "Contact sheet clipboard copy failed:");
+    await copyBlobWithFeedback(
+      contactSheetBlob,
+      setCopySuccess,
+      "Contact sheet clipboard copy failed:",
+    );
   }, [contactSheetBlob, setCopySuccess]);
 
   const handleAbortExport = useCallback(() => {
@@ -306,12 +324,12 @@ export const useSaveAsExportHandlers = ({
       const reliableFps = autoRecordFps
         ? Math.max(1, Math.min(reliableMaxFps, sourceEstimatedFps))
         : recordFps;
-      const rangeStartSec = reliableScope === "range"
-        ? Math.max(0, Math.min(vid.duration, reliableRangeStart))
-        : 0;
-      const rangeEndSec = reliableScope === "range"
-        ? Math.max(rangeStartSec + 0.001, Math.min(vid.duration, reliableRangeEnd))
-        : vid.duration;
+      const rangeStartSec =
+        reliableScope === "range" ? Math.max(0, Math.min(vid.duration, reliableRangeStart)) : 0;
+      const rangeEndSec =
+        reliableScope === "range"
+          ? Math.max(rangeStartSec + 0.001, Math.min(vid.duration, reliableRangeEnd))
+          : vid.duration;
       const exportDurationSec = Math.max(0.001, rangeEndSec - rangeStartSec);
       const wasPaused = vid.paused;
       const previousTime = vid.currentTime || 0;
@@ -324,27 +342,29 @@ export const useSaveAsExportHandlers = ({
       clearRecordedResult();
       updateProgress("Preparing reliable offline render...", 0.02);
 
-      const run = async () => runReliableVideoExport({
-        video: vid,
-        preferredMode: videoLoopMode,
-        includeAudio,
-        reliableFps,
-        sourceEstimatedFps,
-        reliableMaxFps,
-        rangeStartSec,
-        rangeEndSec,
-        exportDurationSec,
-        reliableScope,
-        reliableStrictValidation,
-        reliableSettleFrames,
-        getScaledCanvas,
-        waitForRenderedSeek,
-        updateProgress,
-        isAborted: () => exportAbortRef.current,
-        renderFrameForExport: (sourceCanvas, frame) => actions.renderFrameForExport(sourceCanvas, frame),
-        clearExportSession: actions.clearExportSession,
-        logReliableRenderProfile,
-      });
+      const run = async () =>
+        runReliableVideoExport({
+          video: vid,
+          preferredMode: videoLoopMode,
+          includeAudio,
+          reliableFps,
+          sourceEstimatedFps,
+          reliableMaxFps,
+          rangeStartSec,
+          rangeEndSec,
+          exportDurationSec,
+          reliableScope,
+          reliableStrictValidation,
+          reliableSettleFrames,
+          getScaledCanvas,
+          waitForRenderedSeek,
+          updateProgress,
+          isAborted: () => exportAbortRef.current,
+          renderFrameForExport: (sourceCanvas, frame) =>
+            actions.renderFrameForExport(sourceCanvas, frame),
+          clearExportSession: actions.clearExportSession,
+          logReliableRenderProfile,
+        });
 
       run()
         .then((result) => {
@@ -353,17 +373,23 @@ export const useSaveAsExportHandlers = ({
             return;
           }
           setRecordedResult(result.blob);
-          updateProgress(result.aborted
-            ? "Partial WebM preview ready after stopping."
-            : result.audioIncluded
-              ? "Reliable WebM with source audio ready to save or copy."
-              : (includeAudio && result.audioUnavailableReason)
-                ? "Reliable WebM ready to save or copy. Source audio could not be decoded, so this export is silent."
-                : "Reliable WebM ready to save or copy.", null);
+          updateProgress(
+            result.aborted
+              ? "Partial WebM preview ready after stopping."
+              : result.audioIncluded
+                ? "Reliable WebM with source audio ready to save or copy."
+                : includeAudio && result.audioUnavailableReason
+                  ? "Reliable WebM ready to save or copy. Source audio could not be decoded, so this export is silent."
+                  : "Reliable WebM ready to save or copy.",
+            null,
+          );
         })
         .catch((error) => {
           console.error("Reliable video export failed:", error);
-          updateProgress(error instanceof Error ? error.message : "Reliable video export failed.", null);
+          updateProgress(
+            error instanceof Error ? error.message : "Reliable video export failed.",
+            null,
+          );
         })
         .finally(() => {
           exportAbortRef.current = false;
@@ -482,96 +508,100 @@ export const useSaveAsExportHandlers = ({
     gifFilterPalette,
   ]);
 
-  const handleExportLoop = useCallback(async (mode: "gif" | "sequence" | "contact") => {
-    const vid = stateVideo;
-    if (!vid) return;
-    const source = outputCanvasRef.current;
-    if (!source) return;
+  const handleExportLoop = useCallback(
+    async (mode: "gif" | "sequence" | "contact") => {
+      const vid = stateVideo;
+      if (!vid) return;
+      const source = outputCanvasRef.current;
+      if (!source) return;
 
-    exportAbortRef.current = false;
-    setExporting(true);
-    try {
-      await runLoopExport({
-        mode,
-        video: vid,
-        sourceCanvas: source,
-        mult,
-        targetFrameCount: frames,
-        contactColumns,
-        loopExportScope,
-        loopRangeStart,
-        loopRangeEnd,
-        loopAutoFps,
-        gifFps,
-        loopCaptureMode,
-        gifPaletteSource,
-        gifFilterPalette,
-        estimateVideoFps,
-        getScaledCanvas,
-        waitForRenderedSeek,
-        waitForRenderedPlaybackFrame,
-        waitForVideoSeekSettled,
-        getCurrentRenderVersion: () => renderVersionRef.current,
-        updateProgress: (message, value) => updateProgress(message, value),
-        clearProgress,
-        isAborted: () => exportAbortRef.current,
-        clearGifResult,
-        clearSequenceResult,
-        setGifResult,
-        setSequenceResult,
-        clearContactSheetResult,
-        setContactSheetResult,
-        createHiddenExportVideo,
-        renderFrameForExport: (sourceCanvas, frame) => actions.renderFrameForExport(sourceCanvas, frame),
-        clearExportSession: actions.clearExportSession,
-        logGifExportProfile,
-      });
-    } catch (error) {
-      console.error(
-        mode === "gif"
-          ? "GIF loop export failed:"
-          : mode === "sequence"
-            ? "Sequence zip failed:"
-            : "Contact sheet export failed:",
-        error,
-      );
-    } finally {
-      setExporting(false);
-      clearProgress();
-    }
-  }, [
-    stateVideo,
-    outputCanvasRef,
-    exportAbortRef,
-    setExporting,
-    mult,
-    contactColumns,
-    loopExportScope,
-    loopRangeStart,
-    loopRangeEnd,
-    loopAutoFps,
-    gifFps,
-    loopCaptureMode,
-    gifPaletteSource,
-    gifFilterPalette,
-    estimateVideoFps,
-    getScaledCanvas,
-    waitForRenderedSeek,
-    waitForRenderedPlaybackFrame,
-    waitForVideoSeekSettled,
-    renderVersionRef,
-    updateProgress,
-    clearProgress,
-    clearGifResult,
-    clearSequenceResult,
-    setGifResult,
-    setSequenceResult,
-    clearContactSheetResult,
-    setContactSheetResult,
-    createHiddenExportVideo,
-    actions,
-    logGifExportProfile,
-  ]);
+      exportAbortRef.current = false;
+      setExporting(true);
+      try {
+        await runLoopExport({
+          mode,
+          video: vid,
+          sourceCanvas: source,
+          mult,
+          targetFrameCount: frames,
+          contactColumns,
+          loopExportScope,
+          loopRangeStart,
+          loopRangeEnd,
+          loopAutoFps,
+          gifFps,
+          loopCaptureMode,
+          gifPaletteSource,
+          gifFilterPalette,
+          estimateVideoFps,
+          getScaledCanvas,
+          waitForRenderedSeek,
+          waitForRenderedPlaybackFrame,
+          waitForVideoSeekSettled,
+          getCurrentRenderVersion: () => renderVersionRef.current,
+          updateProgress: (message, value) => updateProgress(message, value),
+          clearProgress,
+          isAborted: () => exportAbortRef.current,
+          clearGifResult,
+          clearSequenceResult,
+          setGifResult,
+          setSequenceResult,
+          clearContactSheetResult,
+          setContactSheetResult,
+          createHiddenExportVideo,
+          renderFrameForExport: (sourceCanvas, frame) =>
+            actions.renderFrameForExport(sourceCanvas, frame),
+          clearExportSession: actions.clearExportSession,
+          logGifExportProfile,
+        });
+      } catch (error) {
+        console.error(
+          mode === "gif"
+            ? "GIF loop export failed:"
+            : mode === "sequence"
+              ? "Sequence zip failed:"
+              : "Contact sheet export failed:",
+          error,
+        );
+      } finally {
+        setExporting(false);
+        clearProgress();
+      }
+    },
+    [
+      stateVideo,
+      outputCanvasRef,
+      exportAbortRef,
+      setExporting,
+      mult,
+      contactColumns,
+      loopExportScope,
+      loopRangeStart,
+      loopRangeEnd,
+      loopAutoFps,
+      gifFps,
+      loopCaptureMode,
+      gifPaletteSource,
+      gifFilterPalette,
+      estimateVideoFps,
+      getScaledCanvas,
+      waitForRenderedSeek,
+      waitForRenderedPlaybackFrame,
+      waitForVideoSeekSettled,
+      renderVersionRef,
+      updateProgress,
+      clearProgress,
+      clearGifResult,
+      clearSequenceResult,
+      setGifResult,
+      setSequenceResult,
+      clearContactSheetResult,
+      setContactSheetResult,
+      createHiddenExportVideo,
+      actions,
+      logGifExportProfile,
+    ],
+  );
 
   const handleExportSequence = useCallback(async () => {
     exportAbortRef.current = false;

@@ -8,22 +8,28 @@ import { renderFlipGL } from "./flipGL";
 const MODE = { HORIZONTAL: "HORIZONTAL", VERTICAL: "VERTICAL", BOTH: "BOTH" };
 
 export const optionTypes = {
-  mode: { type: ENUM, options: [
-    { name: "Horizontal", value: MODE.HORIZONTAL },
-    { name: "Vertical", value: MODE.VERTICAL },
-    { name: "Both", value: MODE.BOTH }
-  ], default: MODE.HORIZONTAL, desc: "Flip axis — horizontal, vertical, or both" },
-  palette: { type: PALETTE, default: nearest }
+  mode: {
+    type: ENUM,
+    options: [
+      { name: "Horizontal", value: MODE.HORIZONTAL },
+      { name: "Vertical", value: MODE.VERTICAL },
+      { name: "Both", value: MODE.BOTH },
+    ],
+    default: MODE.HORIZONTAL,
+    desc: "Flip axis — horizontal, vertical, or both",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   mode: optionTypes.mode.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const flipFilter = (input: any, options: typeof defaults = defaults) => {
   const { mode, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const flipX = mode === MODE.HORIZONTAL || mode === MODE.BOTH;
   const flipY = mode === MODE.VERTICAL || mode === MODE.BOTH;
   const rendered = renderFlipGL(input, W, H, flipX, flipY);

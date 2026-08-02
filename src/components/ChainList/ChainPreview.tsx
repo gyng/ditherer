@@ -11,7 +11,13 @@ interface ChainPreviewProps {
   pinned?: boolean;
 }
 
-const ChainPreview = ({ sourceCanvas, top, left, stepNumber, pinned = false }: ChainPreviewProps) => {
+const ChainPreview = ({
+  sourceCanvas,
+  top,
+  left,
+  stepNumber,
+  pinned = false,
+}: ChainPreviewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const draggingRef = useRef(false);
@@ -37,29 +43,32 @@ const ChainPreview = ({ sourceCanvas, top, left, stepNumber, pinned = false }: C
     return () => cancelAnimationFrame(rafId);
   }, [sourceCanvas, width, height]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!pinned) return;
-    e.preventDefault();
-    draggingRef.current = true;
-    startRef.current = { x: e.clientX, y: e.clientY, ox: dragOffset.x, oy: dragOffset.y };
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!pinned) return;
+      e.preventDefault();
+      draggingRef.current = true;
+      startRef.current = { x: e.clientX, y: e.clientY, ox: dragOffset.x, oy: dragOffset.y };
 
-    const handleMouseMove = (ev: MouseEvent) => {
-      if (!draggingRef.current) return;
-      setDragOffset({
-        x: startRef.current.ox + (ev.clientX - startRef.current.x),
-        y: startRef.current.oy + (ev.clientY - startRef.current.y),
-      });
-    };
+      const handleMouseMove = (ev: MouseEvent) => {
+        if (!draggingRef.current) return;
+        setDragOffset({
+          x: startRef.current.ox + (ev.clientX - startRef.current.x),
+          y: startRef.current.oy + (ev.clientY - startRef.current.y),
+        });
+      };
 
-    const handleMouseUp = () => {
-      draggingRef.current = false;
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
+      const handleMouseUp = () => {
+        draggingRef.current = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  }, [pinned, dragOffset]);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [pinned, dragOffset],
+  );
 
   return (
     <div

@@ -15,10 +15,10 @@ Koschmieder exponential airlight law).
 - **Solarize** applies a knife-edge, per-channel invert
   (`c.r > threshold ? 1 - c.r : c.r`, independently for R/G/B). Each channel
   flips at a different input level, producing garish false colour with no basis
-  in the Sabattier density curve, which reverses *tone* smoothly through a
+  in the Sabattier density curve, which reverses _tone_ smoothly through a
   re-exposure hump.
 - **Dodge/Burn** multiplies the gamma-encoded RGB by a factor
-  (`rgb * factor`). Dodging and burning are *exposure* changes — multiplicative
+  (`rgb * factor`). Dodging and burning are _exposure_ changes — multiplicative
   in linear light — so scaling gamma-encoded values gives the wrong tonal
   response.
 - **Atmospheric Haze** uses transmission linear in depth
@@ -29,7 +29,7 @@ Koschmieder exponential airlight law).
 ## References
 
 - Sabattier / solarization H&D characteristic curve — partial re-exposure
-  reverses density through a hump (Langford, *Basic Photography*).
+  reverses density through a hump (Langford, _Basic Photography_).
 - Dodge/burn as local exposure control (multiplicative in linear light /
   additive in log-density).
 - H. Koschmieder, 1924; Narasimhan & Nayar, "Vision and the Atmosphere" —
@@ -85,4 +85,3 @@ Koschmieder exponential airlight law).
   typecheck, catalog, and build.
 
 Status: Complete
-

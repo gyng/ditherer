@@ -1,13 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { gaussianBlurRGBA, gaussianBlur1D } from "utils/blur";
 
-const makeRgba = (width: number, height: number, fill: (x: number, y: number) => [number, number, number, number]) => {
+const makeRgba = (
+  width: number,
+  height: number,
+  fill: (x: number, y: number) => [number, number, number, number],
+) => {
   const buf = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
       const [r, g, b, a] = fill(x, y);
-      buf[i] = r; buf[i + 1] = g; buf[i + 2] = b; buf[i + 3] = a;
+      buf[i] = r;
+      buf[i + 1] = g;
+      buf[i + 2] = b;
+      buf[i + 3] = a;
     }
   }
   return buf;
@@ -26,7 +33,9 @@ describe("gaussianBlurRGBA", () => {
   });
 
   it("spreads a single bright pixel outward", () => {
-    const buf = makeRgba(9, 9, (x, y) => (x === 4 && y === 4 ? [255, 255, 255, 255] : [0, 0, 0, 0]));
+    const buf = makeRgba(9, 9, (x, y) =>
+      x === 4 && y === 4 ? [255, 255, 255, 255] : [0, 0, 0, 0],
+    );
     const { r } = gaussianBlurRGBA(buf, 9, 9, 1.5);
     // Center should be the brightest, neighbors brighter than far pixels
     const center = r[4 * 9 + 4];

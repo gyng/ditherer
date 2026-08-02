@@ -21,25 +21,24 @@ const SOURCE_OPTIONS: Array<{ value: AudioVizSource; label: string }> = [
 
 const isFirefox = typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent);
 
-const AudioVizControls = ({
-  channel,
-  title,
-}: {
-  channel: AudioVizChannel;
-  title?: string;
-}) => {
+const AudioVizControls = ({ channel, title }: { channel: AudioVizChannel; title?: string }) => {
   const [snapshot, setSnapshot] = useState<AudioVizSnapshot>(() => getAudioVizSnapshot(channel));
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [requestingDevices, setRequestingDevices] = useState(false);
-  const needsPermissionGrant = snapshot.source === "microphone"
-    && audioDevices.length > 0
-    && audioDevices.every((device) => !device.deviceId);
+  const needsPermissionGrant =
+    snapshot.source === "microphone" &&
+    audioDevices.length > 0 &&
+    audioDevices.every((device) => !device.deviceId);
 
-  useEffect(() => subscribeAudioViz((changedChannel) => {
-    if (changedChannel === channel) {
-      setSnapshot(getAudioVizSnapshot(channel));
-    }
-  }), [channel]);
+  useEffect(
+    () =>
+      subscribeAudioViz((changedChannel) => {
+        if (changedChannel === channel) {
+          setSnapshot(getAudioVizSnapshot(channel));
+        }
+      }),
+    [channel],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +77,9 @@ const AudioVizControls = ({
         // ignore
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [snapshot.status, snapshot.source, audioDevices]);
 
   useEffect(() => {
@@ -97,7 +98,9 @@ const AudioVizControls = ({
         if (!cancelled) setRequestingDevices(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [snapshot.source]);
 
   const levelPercent = Math.round(Math.min(1, Math.max(0, snapshot.rawMetrics.level)) * 100);
@@ -106,7 +109,10 @@ const AudioVizControls = ({
   const statusText = useMemo(() => {
     if (snapshot.status === "error" && snapshot.error) return snapshot.error;
     if (snapshot.status === "connecting") return "Connecting...";
-    if (snapshot.status === "live") return snapshot.source === "display" ? "Listening to shared audio" : "Listening to microphone";
+    if (snapshot.status === "live")
+      return snapshot.source === "display"
+        ? "Listening to shared audio"
+        : "Listening to microphone";
     return "Idle";
   }, [snapshot]);
 
@@ -142,19 +148,17 @@ const AudioVizControls = ({
             {SOURCE_OPTIONS.map((option) => {
               const disabledForFirefox = option.value === "display" && isFirefox;
               return (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  disabled={disabledForFirefox}
-                >
-                  {option.label}{disabledForFirefox ? " (not supported on Firefox)" : ""}
+                <option key={option.value} value={option.value} disabled={disabledForFirefox}>
+                  {option.label}
+                  {disabledForFirefox ? " (not supported on Firefox)" : ""}
                 </option>
               );
             })}
           </select>
           {isFirefox && snapshot.source === "microphone" && (
             <span className={s.deviceHint}>
-              Firefox doesn&apos;t support tab/system audio capture. Use a mic (Stereo Mix, VB-CABLE, etc.).
+              Firefox doesn&apos;t support tab/system audio capture. Use a mic (Stereo Mix,
+              VB-CABLE, etc.).
             </span>
           )}
         </label>
@@ -173,7 +177,9 @@ const AudioVizControls = ({
               }}
             >
               <option value="">
-                {audioDevices.length > 0 ? "Default microphone" : "Request permission to list microphones"}
+                {audioDevices.length > 0
+                  ? "Default microphone"
+                  : "Request permission to list microphones"}
               </option>
               {audioDevices.map((device, index) => (
                 <option key={device.deviceId || `${device.label}-${index}`} value={device.deviceId}>
@@ -188,7 +194,9 @@ const AudioVizControls = ({
         <div className={s.deviceBlock}>
           <div className={s.deviceRow}>
             <div className={s.deviceLabel}>
-              Connected mic: {snapshot.deviceLabel || (snapshot.status === "connecting" ? "Requesting permission..." : "Not connected")}
+              Connected mic:{" "}
+              {snapshot.deviceLabel ||
+                (snapshot.status === "connecting" ? "Requesting permission..." : "Not connected")}
             </div>
             <div className={s.deviceStatus}>{statusText}</div>
           </div>
@@ -212,14 +220,17 @@ const AudioVizControls = ({
           )}
           {audioDevices.length === 0 && (
             <div className={s.deviceHint}>
-              In Firefox, microphones are only listed once permission is granted. Click above to unlock the dropdown.
+              In Firefox, microphones are only listed once permission is granted. Click above to
+              unlock the dropdown.
             </div>
           )}
-          {!audioDevices.some((device) => device.deviceId === snapshot.deviceId) && snapshot.deviceLabel && snapshot.deviceId && (
-            <div className={s.deviceHint}>
-              Current device is active but no longer in the available device list.
-            </div>
-          )}
+          {!audioDevices.some((device) => device.deviceId === snapshot.deviceId) &&
+            snapshot.deviceLabel &&
+            snapshot.deviceId && (
+              <div className={s.deviceHint}>
+                Current device is active but no longer in the available device list.
+              </div>
+            )}
         </div>
       )}
       {snapshot.enabled && snapshot.status === "live" && (
@@ -243,9 +254,11 @@ const AudioVizControls = ({
           </div>
           <div
             className={s.levelMeter}
-            title={snapshot.detectedBpm != null
-              ? `Beat grid — ${Math.round(snapshot.detectedBpm)} BPM`
-              : "Beat grid — waiting for a detected BPM"}
+            title={
+              snapshot.detectedBpm != null
+                ? `Beat grid — ${Math.round(snapshot.detectedBpm)} BPM`
+                : "Beat grid — waiting for a detected BPM"
+            }
           >
             <span>Beat</span>
             <div style={{ flex: 1 }}>
@@ -286,11 +299,10 @@ const AudioVizControls = ({
         <span>Auto-normalize input</span>
       </label>
       <div className={s.hint}>
-        Stretches every metric to its recent range (per-metric overrides on each patch-panel node). Input-level AGC rides the raw signal at the hardware layer — mic only.
+        Stretches every metric to its recent range (per-metric overrides on each patch-panel node).
+        Input-level AGC rides the raw signal at the hardware layer — mic only.
       </div>
-      {snapshot.source !== "microphone" && (
-        <div className={s.status}>{statusText}</div>
-      )}
+      {snapshot.source !== "microphone" && <div className={s.status}>{statusText}</div>}
     </div>
   );
 };

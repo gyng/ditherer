@@ -75,12 +75,30 @@ void main() {
 `;
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [0, 180], step: 1, default: 0, desc: "Centre angle in degrees (0 = horizontal, 90 = vertical)" },
+  angle: {
+    type: RANGE,
+    range: [0, 180],
+    step: 1,
+    default: 0,
+    desc: "Centre angle in degrees (0 = horizontal, 90 = vertical)",
+  },
   wedge: { type: RANGE, range: [1, 90], step: 1, default: 20, desc: "Wedge half-width in degrees" },
-  softness: { type: RANGE, range: [0, 45], step: 0.5, default: 5, desc: "Smooth rolloff at the wedge edge" },
+  softness: {
+    type: RANGE,
+    range: [0, 45],
+    step: 0.5,
+    default: 5,
+    desc: "Smooth rolloff at the wedge edge",
+  },
   invert: { type: BOOL, default: false, desc: "Invert — kill the wedge instead of keeping it" },
-  gain: { type: RANGE, range: [0, 4], step: 0.05, default: 1, desc: "Gain applied to the kept band" },
-  palette: { type: PALETTE, default: nearest }
+  gain: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.05,
+    default: 1,
+    desc: "Gain applied to the kept band",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -89,7 +107,7 @@ export const defaults = {
   softness: optionTypes.softness.default,
   invert: optionTypes.invert.default,
   gain: optionTypes.gain.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { wedge: Program };
@@ -98,7 +116,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     wedge: linkProgram(gl, WEDGE_FS, [
-      "u_input", "u_padRes", "u_angle", "u_wedge", "u_softness", "u_invert", "u_gain",
+      "u_input",
+      "u_padRes",
+      "u_angle",
+      "u_wedge",
+      "u_softness",
+      "u_invert",
+      "u_gain",
     ] as const),
   };
   return _cache;
@@ -110,9 +134,9 @@ const fftAngularWedge = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -129,17 +153,25 @@ const fftAngularWedge = (input: any, options = defaults) => {
           const angleRad = (angle * Math.PI) / 180;
           const wedgeRad = (wedge * Math.PI) / 180;
           const softnessRad = (softness * Math.PI) / 180;
-          drawPass(gl, modified, fwd.paddedW, fwd.paddedH, cache.wedge, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.wedge.uniforms.u_input, 0);
-            gl.uniform2f(cache.wedge.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-            gl.uniform1f(cache.wedge.uniforms.u_angle, angleRad);
-            gl.uniform1f(cache.wedge.uniforms.u_wedge, wedgeRad);
-            gl.uniform1f(cache.wedge.uniforms.u_softness, softnessRad);
-            gl.uniform1i(cache.wedge.uniforms.u_invert, invert ? 1 : 0);
-            gl.uniform1f(cache.wedge.uniforms.u_gain, gain);
-          }, vao);
+          drawPass(
+            gl,
+            modified,
+            fwd.paddedW,
+            fwd.paddedH,
+            cache.wedge,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.wedge.uniforms.u_input, 0);
+              gl.uniform2f(cache.wedge.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+              gl.uniform1f(cache.wedge.uniforms.u_angle, angleRad);
+              gl.uniform1f(cache.wedge.uniforms.u_wedge, wedgeRad);
+              gl.uniform1f(cache.wedge.uniforms.u_softness, softnessRad);
+              gl.uniform1i(cache.wedge.uniforms.u_invert, invert ? 1 : 0);
+              gl.uniform1f(cache.wedge.uniforms.u_gain, gain);
+            },
+            vao,
+          );
           const inv = inverseFFT2D(gl, modified, fwd.paddedW, fwd.paddedH, fwd.logW, fwd.logH);
           if (inv) {
             finaliseIFFT(gl, inv, sourceTex, W, H, fwd.paddedW, fwd.paddedH, W, H);
@@ -148,8 +180,11 @@ const fftAngularWedge = (input: any, options = defaults) => {
               const identity = paletteIsIdentity(palette);
               const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Angular Wedge", "WebGL2",
-                  `angle=${angle} wedge=${wedge} ${invert ? "kill" : "keep"}${identity ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Angular Wedge",
+                  "WebGL2",
+                  `angle=${angle} wedge=${wedge} ${invert ? "kill" : "keep"}${identity ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -168,6 +203,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Keep or kill only the FFT bins within a wedge of angles — isolates directional patterns (horizontal lines, diagonal weaves) or removes them while leaving everything else intact",
+  description:
+    "Keep or kill only the FFT bins within a wedge of angles — isolates directional patterns (horizontal lines, diagonal weaves) or removes them while leaving everything else intact",
   noWASM: "Needs GPU 2D FFT.",
 });

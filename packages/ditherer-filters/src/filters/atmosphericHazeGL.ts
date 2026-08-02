@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 import { SRGB_GLSL } from "./opticalConvolutionContracts";
@@ -67,10 +74,18 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_strength", "u_horizon", "u_softness",
-    "u_highlightBloom", "u_tint", "u_depthMode",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_strength",
+      "u_horizon",
+      "u_softness",
+      "u_highlightBloom",
+      "u_tint",
+      "u_depthMode",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -78,9 +93,14 @@ export const atmosphericHazeGLAvailable = (): boolean => glAvailable();
 
 export const renderAtmosphericHazeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  strength: number, horizon: number, softness: number, highlightBloom: number,
-  tint: [number, number, number], depthMode: 0 | 1 | 2,
+  width: number,
+  height: number,
+  strength: number,
+  horizon: number,
+  softness: number,
+  highlightBloom: number,
+  tint: [number, number, number],
+  depthMode: 0 | 1 | 2,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -90,17 +110,25 @@ export const renderAtmosphericHazeGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "atmosphericHaze:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_strength, strength);
-    gl.uniform1f(cache.prog.uniforms.u_horizon, horizon);
-    gl.uniform1f(cache.prog.uniforms.u_softness, softness);
-    gl.uniform1f(cache.prog.uniforms.u_highlightBloom, highlightBloom);
-    gl.uniform3f(cache.prog.uniforms.u_tint, tint[0], tint[1], tint[2]);
-    gl.uniform1i(cache.prog.uniforms.u_depthMode, depthMode);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_strength, strength);
+      gl.uniform1f(cache.prog.uniforms.u_horizon, horizon);
+      gl.uniform1f(cache.prog.uniforms.u_softness, softness);
+      gl.uniform1f(cache.prog.uniforms.u_highlightBloom, highlightBloom);
+      gl.uniform3f(cache.prog.uniforms.u_tint, tint[0], tint[1], tint[2]);
+      gl.uniform1i(cache.prog.uniforms.u_depthMode, depthMode);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

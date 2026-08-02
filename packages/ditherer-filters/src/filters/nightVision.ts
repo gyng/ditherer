@@ -26,18 +26,51 @@ import {
   nightVisionIntensifierResponse,
   nightVisionNoiseAmplitude,
 } from "./imagingSimulationContracts";
-import {
-  normalizePaletteOption,
-  normalizeRangeOption,
-} from "../utils/filterOptions";
+import { normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
 
 export const optionTypes = {
-  gain: { type: RANGE, range: [1, 8], step: 0.1, default: 4, desc: "Visible-luminance exposure multiplier before phosphor display" },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Equivalent-background and signal-dependent shot noise" },
-  bloomRadius: { type: RANGE, range: [0, 8], step: 1, default: 3, desc: "Phosphor glow radius around bright areas" },
-  bloomStrength: { type: RANGE, range: [0, 2], step: 0.05, default: 0.6, desc: "Phosphor bloom intensity" },
-  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Circular optical edge darkening" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Noise refresh rate in frames per second" },
+  gain: {
+    type: RANGE,
+    range: [1, 8],
+    step: 0.1,
+    default: 4,
+    desc: "Visible-luminance exposure multiplier before phosphor display",
+  },
+  grain: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Equivalent-background and signal-dependent shot noise",
+  },
+  bloomRadius: {
+    type: RANGE,
+    range: [0, 8],
+    step: 1,
+    default: 3,
+    desc: "Phosphor glow radius around bright areas",
+  },
+  bloomStrength: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.6,
+    desc: "Phosphor bloom intensity",
+  },
+  vignette: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.7,
+    desc: "Circular optical edge darkening",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Noise refresh rate in frames per second",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -48,9 +81,13 @@ export const optionTypes = {
       } else {
         actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
       }
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional final palette mapping after the green phosphor response" }
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional final palette mapping after the green phosphor response",
+  },
 };
 
 export const defaults = {
@@ -60,7 +97,7 @@ export const defaults = {
   bloomStrength: optionTypes.bloomStrength.default,
   vignette: optionTypes.vignette.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type NightVisionOptions = Partial<typeof defaults> & {
@@ -178,18 +215,50 @@ void main() {
 }
 `;
 
-type Cache = { amp: Program; blur: Program; comp: Program; fboA: WebGLFramebuffer | null; texA: WebGLTexture | null; fboB: WebGLFramebuffer | null; texB: WebGLTexture | null; fboC: WebGLFramebuffer | null; texC: WebGLTexture | null; w: number; h: number };
+type Cache = {
+  amp: Program;
+  blur: Program;
+  comp: Program;
+  fboA: WebGLFramebuffer | null;
+  texA: WebGLTexture | null;
+  fboB: WebGLFramebuffer | null;
+  texB: WebGLTexture | null;
+  fboC: WebGLFramebuffer | null;
+  texC: WebGLTexture | null;
+  w: number;
+  h: number;
+};
 let _cache: Cache | null = null;
 
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     amp: linkProgram(gl, NV_AMPLIFY_FS, ["u_source", "u_gain"] as const),
-    blur: linkProgram(gl, NV_BLUR_FS, ["u_input", "u_res", "u_radius", "u_axis", "u_threshold"] as const),
-    comp: linkProgram(gl, NV_COMPOSITE_FS, [
-      "u_lum", "u_bloom", "u_source", "u_res", "u_bloomStrength", "u_grain", "u_vignette", "u_seed",
+    blur: linkProgram(gl, NV_BLUR_FS, [
+      "u_input",
+      "u_res",
+      "u_radius",
+      "u_axis",
+      "u_threshold",
     ] as const),
-    fboA: null, texA: null, fboB: null, texB: null, fboC: null, texC: null, w: 0, h: 0,
+    comp: linkProgram(gl, NV_COMPOSITE_FS, [
+      "u_lum",
+      "u_bloom",
+      "u_source",
+      "u_res",
+      "u_bloomStrength",
+      "u_grain",
+      "u_vignette",
+      "u_seed",
+    ] as const),
+    fboA: null,
+    texA: null,
+    fboB: null,
+    texB: null,
+    fboC: null,
+    texC: null,
+    w: 0,
+    h: 0,
   };
   return _cache;
 };
@@ -220,17 +289,23 @@ const ensureTargets = (gl: WebGL2RenderingContext, cache: Cache, w: number, h: n
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
     return [tex, fbo];
   };
-  const a = make(); const b = make(); const c = make();
-  cache.texA = a?.[0] ?? null; cache.fboA = a?.[1] ?? null;
-  cache.texB = b?.[0] ?? null; cache.fboB = b?.[1] ?? null;
-  cache.texC = c?.[0] ?? null; cache.fboC = c?.[1] ?? null;
-  cache.w = w; cache.h = h;
+  const a = make();
+  const b = make();
+  const c = make();
+  cache.texA = a?.[0] ?? null;
+  cache.fboA = a?.[1] ?? null;
+  cache.texB = b?.[0] ?? null;
+  cache.fboB = b?.[1] ?? null;
+  cache.texC = c?.[0] ?? null;
+  cache.fboC = c?.[1] ?? null;
+  cache.w = w;
+  cache.h = h;
 };
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -240,7 +315,8 @@ const mulberry32 = (seed: number) => {
 const drawTo = (
   gl: WebGL2RenderingContext,
   fbo: WebGLFramebuffer | null,
-  w: number, h: number,
+  w: number,
+  h: number,
   prog: Program,
   setup: () => void,
   vao: WebGLVertexArrayObject,
@@ -254,10 +330,7 @@ const drawTo = (
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 };
 
-const nightVision = (
-  input: any,
-  options: NightVisionOptions = defaults
-) => {
+const nightVision = (input: any, options: NightVisionOptions = defaults) => {
   const supplied = { ...defaults, ...options };
   const resolved = {
     ...supplied,
@@ -269,14 +342,7 @@ const nightVision = (
     animSpeed: normalizeRangeOption(supplied.animSpeed, defaults.animSpeed, 1, 30, true),
     palette: normalizePaletteOption(supplied.palette, defaults.palette),
   };
-  const {
-    gain,
-    grain,
-    bloomRadius,
-    bloomStrength,
-    vignette,
-    palette
-  } = resolved;
+  const { gain, grain, bloomRadius, bloomStrength, vignette, palette } = resolved;
 
   const frameIndex = resolved._frameIndex || 0;
   const W = input.width;
@@ -295,37 +361,61 @@ const nightVision = (
         uploadSourceTexture(gl, sourceTex, input);
 
         // 1. Amplify → texA
-        drawTo(gl, cache.fboA, W, H, cache.amp, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.amp.uniforms.u_source, 0);
-          gl.uniform1f(cache.amp.uniforms.u_gain, gain);
-        }, vao);
+        drawTo(
+          gl,
+          cache.fboA,
+          W,
+          H,
+          cache.amp,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.amp.uniforms.u_source, 0);
+            gl.uniform1f(cache.amp.uniforms.u_gain, gain);
+          },
+          vao,
+        );
 
         const radius = Math.max(0, Math.min(8, Math.round(bloomRadius)));
 
         // 2. Horizontal bloom pass: texA (with threshold) → texB
         if (radius > 0 && bloomStrength > 0) {
-          drawTo(gl, cache.fboB, W, H, cache.blur, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, cache.texA);
-            gl.uniform1i(cache.blur.uniforms.u_input, 0);
-            gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-            gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-            gl.uniform2f(cache.blur.uniforms.u_axis, 1, 0);
-            gl.uniform1f(cache.blur.uniforms.u_threshold, 0.6);
-          }, vao);
+          drawTo(
+            gl,
+            cache.fboB,
+            W,
+            H,
+            cache.blur,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, cache.texA);
+              gl.uniform1i(cache.blur.uniforms.u_input, 0);
+              gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+              gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+              gl.uniform2f(cache.blur.uniforms.u_axis, 1, 0);
+              gl.uniform1f(cache.blur.uniforms.u_threshold, 0.6);
+            },
+            vao,
+          );
 
           // 3. Vertical bloom pass: texB → texC
-          drawTo(gl, cache.fboC, W, H, cache.blur, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, cache.texB);
-            gl.uniform1i(cache.blur.uniforms.u_input, 0);
-            gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-            gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-            gl.uniform2f(cache.blur.uniforms.u_axis, 0, 1);
-            gl.uniform1f(cache.blur.uniforms.u_threshold, 0.0);
-          }, vao);
+          drawTo(
+            gl,
+            cache.fboC,
+            W,
+            H,
+            cache.blur,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, cache.texB);
+              gl.uniform1i(cache.blur.uniforms.u_input, 0);
+              gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+              gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+              gl.uniform2f(cache.blur.uniforms.u_axis, 0, 1);
+              gl.uniform1f(cache.blur.uniforms.u_threshold, 0.0);
+            },
+            vao,
+          );
         } else {
           // Zero bloom by clearing texC.
           gl.bindFramebuffer(gl.FRAMEBUFFER, cache.fboC);
@@ -335,30 +425,44 @@ const nightVision = (
         }
 
         // 4. Composite → default framebuffer (canvas)
-        drawTo(gl, null, W, H, cache.comp, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, cache.texA);
-          gl.uniform1i(cache.comp.uniforms.u_lum, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, cache.texC);
-          gl.uniform1i(cache.comp.uniforms.u_bloom, 1);
-          gl.activeTexture(gl.TEXTURE2);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.comp.uniforms.u_source, 2);
-          gl.uniform2f(cache.comp.uniforms.u_res, W, H);
-          gl.uniform1f(cache.comp.uniforms.u_bloomStrength, bloomStrength);
-          gl.uniform1f(cache.comp.uniforms.u_grain, grain);
-          gl.uniform1f(cache.comp.uniforms.u_vignette, vignette);
-          gl.uniform1f(cache.comp.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
-        }, vao);
+        drawTo(
+          gl,
+          null,
+          W,
+          H,
+          cache.comp,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, cache.texA);
+            gl.uniform1i(cache.comp.uniforms.u_lum, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, cache.texC);
+            gl.uniform1i(cache.comp.uniforms.u_bloom, 1);
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.comp.uniforms.u_source, 2);
+            gl.uniform2f(cache.comp.uniforms.u_res, W, H);
+            gl.uniform1f(cache.comp.uniforms.u_bloomStrength, bloomStrength);
+            gl.uniform1f(cache.comp.uniforms.u_grain, grain);
+            gl.uniform1f(cache.comp.uniforms.u_vignette, vignette);
+            gl.uniform1f(
+              cache.comp.uniforms.u_seed,
+              ((frameIndex * 7919 + 31337) % 1000000) * 0.001,
+            );
+          },
+          vao,
+        );
 
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("Night vision", "WebGL2",
-              `gain=${gain} bloom=${bloomRadius}${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "Night vision",
+              "WebGL2",
+              `gain=${gain} bloom=${bloomRadius}${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -381,9 +485,7 @@ const nightVision = (
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
       const alpha = buf[i + 3] / 255;
-      const L = alpha > 0
-        ? buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722
-        : 0;
+      const L = alpha > 0 ? buf[i] * 0.2126 + buf[i + 1] * 0.7152 + buf[i + 2] * 0.0722 : 0;
       const norm = L / 255;
       const amplified = nightVisionIntensifierResponse(norm, gain);
       lum[y * W + x] = amplified;
@@ -490,6 +592,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Visible-luminance image-intensifier proxy with MCP-like gain, signal-dependent noise, green phosphor bloom, and tube vignette",
+  description:
+    "Visible-luminance image-intensifier proxy with MCP-like gain, signal-dependent noise, green phosphor bloom, and tube vignette",
   temporal: true,
 });

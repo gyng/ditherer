@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -149,9 +156,17 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     gauss: linkProgram(gl, GAUSS_FS, ["u_input", "u_res", "u_dir", "u_sigma", "u_radius"] as const),
     sumie: linkProgram(gl, SUMIE_FS, [
-      "u_source", "u_blurred", "u_res", "u_washLevels", "u_washStrength",
-      "u_washSoftness", "u_edgeThreshold", "u_edgeStrength",
-      "u_inkColor", "u_paperColor", "u_grain",
+      "u_source",
+      "u_blurred",
+      "u_res",
+      "u_washLevels",
+      "u_washStrength",
+      "u_washSoftness",
+      "u_edgeThreshold",
+      "u_edgeStrength",
+      "u_inkColor",
+      "u_paperColor",
+      "u_grain",
     ] as const),
   };
   return _cache;
@@ -161,7 +176,8 @@ export const sumiEGLAvailable = (): boolean => glAvailable();
 
 export const renderSumiEGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   brushSoftness: number,
   washLevels: number,
   washStrength: number,
@@ -185,44 +201,81 @@ export const renderSumiEGL = (
   uploadSourceTexture(gl, sourceTex, source);
 
   const tempH = ensureTexture(gl, "sumie:tempH", width, height);
-  drawPass(gl, tempH, width, height, cache.gauss, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.gauss.uniforms.u_input, 0);
-    gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
-    gl.uniform2f(cache.gauss.uniforms.u_dir, 1 / width, 0);
-    gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    tempH,
+    width,
+    height,
+    cache.gauss,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.gauss.uniforms.u_input, 0);
+      gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
+      gl.uniform2f(cache.gauss.uniforms.u_dir, 1 / width, 0);
+      gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
   const blurTex = ensureTexture(gl, "sumie:blur", width, height);
-  drawPass(gl, blurTex, width, height, cache.gauss, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
-    gl.uniform1i(cache.gauss.uniforms.u_input, 0);
-    gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
-    gl.uniform2f(cache.gauss.uniforms.u_dir, 0, 1 / height);
-    gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    blurTex,
+    width,
+    height,
+    cache.gauss,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
+      gl.uniform1i(cache.gauss.uniforms.u_input, 0);
+      gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
+      gl.uniform2f(cache.gauss.uniforms.u_dir, 0, 1 / height);
+      gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.sumie, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.sumie.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, blurTex.tex);
-    gl.uniform1i(cache.sumie.uniforms.u_blurred, 1);
-    gl.uniform2f(cache.sumie.uniforms.u_res, width, height);
-    gl.uniform1i(cache.sumie.uniforms.u_washLevels, Math.max(2, Math.min(6, Math.round(washLevels))));
-    gl.uniform1f(cache.sumie.uniforms.u_washStrength, washStrength);
-    gl.uniform1f(cache.sumie.uniforms.u_washSoftness, washSoftness);
-    gl.uniform1f(cache.sumie.uniforms.u_edgeThreshold, edgeThreshold);
-    gl.uniform1f(cache.sumie.uniforms.u_edgeStrength, edgeStrength);
-    gl.uniform3f(cache.sumie.uniforms.u_inkColor, inkColor[0] / 255, inkColor[1] / 255, inkColor[2] / 255);
-    gl.uniform3f(cache.sumie.uniforms.u_paperColor, paperColor[0] / 255, paperColor[1] / 255, paperColor[2] / 255);
-    gl.uniform1f(cache.sumie.uniforms.u_grain, grain);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.sumie,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.sumie.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, blurTex.tex);
+      gl.uniform1i(cache.sumie.uniforms.u_blurred, 1);
+      gl.uniform2f(cache.sumie.uniforms.u_res, width, height);
+      gl.uniform1i(
+        cache.sumie.uniforms.u_washLevels,
+        Math.max(2, Math.min(6, Math.round(washLevels))),
+      );
+      gl.uniform1f(cache.sumie.uniforms.u_washStrength, washStrength);
+      gl.uniform1f(cache.sumie.uniforms.u_washSoftness, washSoftness);
+      gl.uniform1f(cache.sumie.uniforms.u_edgeThreshold, edgeThreshold);
+      gl.uniform1f(cache.sumie.uniforms.u_edgeStrength, edgeStrength);
+      gl.uniform3f(
+        cache.sumie.uniforms.u_inkColor,
+        inkColor[0] / 255,
+        inkColor[1] / 255,
+        inkColor[2] / 255,
+      );
+      gl.uniform3f(
+        cache.sumie.uniforms.u_paperColor,
+        paperColor[0] / 255,
+        paperColor[1] / 255,
+        paperColor[2] / 255,
+      );
+      gl.uniform1f(cache.sumie.uniforms.u_grain, grain);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

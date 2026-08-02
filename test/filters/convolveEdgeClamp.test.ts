@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("utils", async importOriginal => {
+vi.mock("utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("utils")>();
   return { ...actual, cloneCanvas: (input: any) => input };
 });
@@ -18,12 +18,23 @@ const makeCanvas = (width: number, height: number, pixels: Pixel[]) => {
     height,
     // No "webgl2" support here, so convolveGLAvailable() is false and the
     // CPU non-separable path (the one under test) is exercised.
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
-      putImageData: (image: { data: Uint8ClampedArray }) => { written = new Uint8ClampedArray(image.data); },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
+            putImageData: (image: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(image.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
-  return { canvas, output: () => { if (!written) throw new Error("no output"); return written; } };
+  return {
+    canvas,
+    output: () => {
+      if (!written) throw new Error("no output");
+      return written;
+    },
+  };
 };
 
 const g = (v: number): Pixel => [v, v, v, 255];
@@ -36,9 +47,15 @@ describe("Convolve 2D (non-separable) CPU path clamps both edges", () => {
     // Buggy (unclamped): right tap wraps to flat index (x+kx-half)+W*(y+ky-half)
     // = (0,2) = 250 -> 5*150-(150+150+100+250)=100.
     const fixture = makeCanvas(3, 3, [
-      g(0),   g(0),   g(150), // row 0
-      g(0),   g(100), g(150), // row 1 (test pixel is x=2,y=1)
-      g(250), g(0),   g(150), // row 2
+      g(0),
+      g(0),
+      g(150), // row 0
+      g(0),
+      g(100),
+      g(150), // row 1 (test pixel is x=2,y=1)
+      g(250),
+      g(0),
+      g(150), // row 2
     ]);
 
     convolve.func(fixture.canvas, {
@@ -60,9 +77,15 @@ describe("Convolve 2D (non-separable) CPU path clamps both edges", () => {
     // Buggy (unclamped): down tap reads past the buffer end -> undefined||0 = 0
     // -> 5*80-(60+0+40+50)=250.
     const fixture = makeCanvas(3, 3, [
-      g(0),  g(0),  g(0), // row 0
-      g(0),  g(60), g(0), // row 1 (up-neighbour of the test pixel)
-      g(40), g(80), g(50), // row 2 (test pixel is x=1,y=2; left=40, right=50)
+      g(0),
+      g(0),
+      g(0), // row 0
+      g(0),
+      g(60),
+      g(0), // row 1 (up-neighbour of the test pixel)
+      g(40),
+      g(80),
+      g(50), // row 2 (test pixel is x=1,y=2; left=40, right=50)
     ]);
 
     convolve.func(fixture.canvas, {

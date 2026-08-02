@@ -9,7 +9,7 @@ import {
   rgba2hsvaMemo,
   rgba2labaMemo,
   luminance,
-  srgbPaletteGetColor
+  srgbPaletteGetColor,
 } from "../utils/index";
 
 type Quadlet = number[];
@@ -24,11 +24,11 @@ export const DIRECTION = {
   CIRCULAR: "CIRCULAR",
   SPIRAL: "SPIRAL",
   SPIRAL_CUT: "SPIRAL_CUT",
-  DIAGONAL_TOP_RIGHT: "DIAGONAL_TOP_RIGHT"
+  DIAGONAL_TOP_RIGHT: "DIAGONAL_TOP_RIGHT",
 };
 export const SORT_DIRECTION = {
   ASCENDING: "ASCENDING",
-  DESCENDING: "DESCENDING"
+  DESCENDING: "DESCENDING",
 };
 
 export const COMPARATOR = {
@@ -41,14 +41,10 @@ export const COMPARATOR = {
   SVHA: "SVHA",
   LABA: "LABA",
   ABLA: "ABLA",
-  BALA: "BALA"
+  BALA: "BALA",
 };
 
-const compareQuadlet = (
-  a: Quadlet,
-  b: Quadlet,
-  dir: SortDirection
-) => {
+const compareQuadlet = (a: Quadlet, b: Quadlet, dir: SortDirection) => {
   const dirMul = dir === SORT_DIRECTION.ASCENDING ? 1 : -1;
   const rd = (a[0] - b[0]) * dirMul;
   if (rd !== 0) {
@@ -81,62 +77,38 @@ export const SORTS = {
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.HSVA]: (
-    aRgba: Quadlet,
-    bRgba: Quadlet,
-    dir: SortDirection
-  ) => {
+  [COMPARATOR.HSVA]: (aRgba: Quadlet, bRgba: Quadlet, dir: SortDirection) => {
     const a = rgba2hsvaMemo(aRgba);
     const b = rgba2hsvaMemo(bRgba);
     return compareQuadlet(a, b, dir);
   },
-  [COMPARATOR.SVHA]: (
-    aRgba: Quadlet,
-    bRgba: Quadlet,
-    dir: SortDirection
-  ) => {
+  [COMPARATOR.SVHA]: (aRgba: Quadlet, bRgba: Quadlet, dir: SortDirection) => {
     const a = rgba2hsvaMemo(aRgba);
     const b = rgba2hsvaMemo(bRgba);
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.VSHA]: (
-    aRgba: Quadlet,
-    bRgba: Quadlet,
-    dir: SortDirection
-  ) => {
+  [COMPARATOR.VSHA]: (aRgba: Quadlet, bRgba: Quadlet, dir: SortDirection) => {
     const a = rgba2hsvaMemo(aRgba);
     const b = rgba2hsvaMemo(bRgba);
     const ap = [a[2], a[1], a[0], a[3]];
     const bp = [b[2], b[1], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.LABA]: (
-    aRgba: Quadlet,
-    bRgba: Quadlet,
-    dir: SortDirection
-  ) => {
+  [COMPARATOR.LABA]: (aRgba: Quadlet, bRgba: Quadlet, dir: SortDirection) => {
     const a = rgba2labaMemo(aRgba);
     const b = rgba2labaMemo(bRgba);
     return compareQuadlet(a, b, dir);
   },
-  [COMPARATOR.ABLA]: (
-    aRgba: Quadlet,
-    bRgba: Quadlet,
-    dir: SortDirection
-  ) => {
+  [COMPARATOR.ABLA]: (aRgba: Quadlet, bRgba: Quadlet, dir: SortDirection) => {
     const a = rgba2labaMemo(aRgba);
     const b = rgba2labaMemo(bRgba);
     const ap = [a[1], a[2], a[0], a[3]];
     const bp = [b[1], b[2], b[0], b[3]];
     return compareQuadlet(ap, bp, dir);
   },
-  [COMPARATOR.BALA]: (
-    aRgba: Quadlet,
-    bRgba: Quadlet,
-    dir: SortDirection
-  ) => {
+  [COMPARATOR.BALA]: (aRgba: Quadlet, bRgba: Quadlet, dir: SortDirection) => {
     const a = rgba2labaMemo(aRgba);
     const b = rgba2labaMemo(bRgba);
     const ap = [a[2], a[1], a[0], a[3]];
@@ -148,70 +120,71 @@ export const SORTS = {
     const lumA = luminance(a, linear);
     const lumB = luminance(b, linear);
     return (lumA - lumB) * dirMul;
-  }
+  },
 };
 
-const spiralIterator = (endIntervalOnTurn: boolean) => (init: IteratorInit): IteratorFn => {
-  const { w, h } = init;
-  const total = w * h;
-  const cx = init.x + Math.floor(w / 2);
-  const cy = init.y + Math.floor(h / 2);
+const spiralIterator =
+  (endIntervalOnTurn: boolean) =>
+  (init: IteratorInit): IteratorFn => {
+    const { w, h } = init;
+    const total = w * h;
+    const cx = init.x + Math.floor(w / 2);
+    const cy = init.y + Math.floor(h / 2);
 
-  // Textbook square spiral walked outward from the centre, in offsets around
-  // (cx, cy), emitting only the cells that land inside the image.
-  //
-  // The previous version bailed — `return null` — the first time the walk left
-  // the image. A centre-out spiral has to leave it (the centre is never the true
-  // centre for even dimensions, and the rings overhang the short axis), so it
-  // stopped early: on a 6x6 it reached 25 of 36 pixels, never touching the top
-  // row or the left column, and duplicated others because its ring bookkeeping
-  // and its turn conditions disagreed. Out-of-range cells are skipped now, and
-  // the walk runs until every pixel has been emitted exactly once.
-  let ox = 0;
-  let oy = 0;
-  let dx = 0;
-  let dy = -1;
-  let emitted = 0;
-  let steps = 0;
-  // Enough room for the spiral to enclose the image from an off-centre start.
-  const span = 2 * Math.max(w, h) + 2;
-  const budget = span * span;
+    // Textbook square spiral walked outward from the centre, in offsets around
+    // (cx, cy), emitting only the cells that land inside the image.
+    //
+    // The previous version bailed — `return null` — the first time the walk left
+    // the image. A centre-out spiral has to leave it (the centre is never the true
+    // centre for even dimensions, and the rings overhang the short axis), so it
+    // stopped early: on a 6x6 it reached 25 of 36 pixels, never touching the top
+    // row or the left column, and duplicated others because its ring bookkeeping
+    // and its turn conditions disagreed. Out-of-range cells are skipped now, and
+    // the walk runs until every pixel has been emitted exactly once.
+    let ox = 0;
+    let oy = 0;
+    let dx = 0;
+    let dy = -1;
+    let emitted = 0;
+    let steps = 0;
+    // Enough room for the spiral to enclose the image from an off-centre start.
+    const span = 2 * Math.max(w, h) + 2;
+    const budget = span * span;
 
-  return () => {
-    while (emitted < total && steps < budget) {
-      const x = cx + ox;
-      const y = cy + oy;
-      const inBounds = x >= 0 && y >= 0 && x < w && y < h;
+    return () => {
+      while (emitted < total && steps < budget) {
+        const x = cx + ox;
+        const y = cy + oy;
+        const inBounds = x >= 0 && y >= 0 && x < w && y < h;
 
-      // Corners of the square spiral — where the walk changes heading.
-      const turning =
-        ox === oy || (ox < 0 && ox === -oy) || (ox > 0 && ox === 1 - oy);
-      if (turning) {
-        const swap = dx;
-        dx = -dy;
-        dy = swap;
+        // Corners of the square spiral — where the walk changes heading.
+        const turning = ox === oy || (ox < 0 && ox === -oy) || (ox > 0 && ox === 1 - oy);
+        if (turning) {
+          const swap = dx;
+          dx = -dy;
+          dy = swap;
+        }
+        ox += dx;
+        oy += dy;
+        steps += 1;
+
+        if (!inBounds) continue;
+        emitted += 1;
+
+        return {
+          x,
+          y,
+          i: getBufferIndex(x, y, w),
+          w,
+          h,
+          wrapX: false,
+          wrapY: false,
+          endInterval: endIntervalOnTurn && turning,
+        };
       }
-      ox += dx;
-      oy += dy;
-      steps += 1;
-
-      if (!inBounds) continue;
-      emitted += 1;
-
-      return {
-        x,
-        y,
-        i: getBufferIndex(x, y, w),
-        w,
-        h,
-        wrapX: false,
-        wrapY: false,
-        endInterval: endIntervalOnTurn && turning,
-      };
-    }
-    return null;
+      return null;
+    };
   };
-};
 
 // Circular iterator: concentric rings from center, each ring is one interval
 const circularIterator = (init: IteratorInit): IteratorFn => {
@@ -240,7 +213,7 @@ const circularIterator = (init: IteratorInit): IteratorFn => {
   });
 
   let idx = 0;
-  const ringWidth = Math.max(1, maxR / Math.min(w, h) * 3);
+  const ringWidth = Math.max(1, (maxR / Math.min(w, h)) * 3);
 
   return () => {
     if (idx >= pixels.length) return null;
@@ -383,7 +356,7 @@ export const ITERATORS = {
 
       return nextResult;
     };
-  }
+  },
 };
 
 export const optionTypes = {
@@ -395,19 +368,19 @@ export const optionTypes = {
       { name: "Circular", value: DIRECTION.CIRCULAR },
       { name: "Spiral", value: DIRECTION.SPIRAL },
       { name: "Spiral (non-continuous)", value: DIRECTION.SPIRAL_CUT },
-      { name: "Diagonal (top-right)", value: DIRECTION.DIAGONAL_TOP_RIGHT }
+      { name: "Diagonal (top-right)", value: DIRECTION.DIAGONAL_TOP_RIGHT },
     ],
     default: DIRECTION.COLUMN,
-    desc: "Pixel traversal direction for sorting"
+    desc: "Pixel traversal direction for sorting",
   },
   sortDirection: {
     type: ENUM,
     options: [
       { name: "Ascending", value: SORT_DIRECTION.ASCENDING },
-      { name: "Descending", value: SORT_DIRECTION.DESCENDING }
+      { name: "Descending", value: SORT_DIRECTION.DESCENDING },
     ],
     default: SORT_DIRECTION.ASCENDING,
-    desc: "Sort order — light-to-dark or dark-to-light"
+    desc: "Sort order — light-to-dark or dark-to-light",
   },
   comparator: {
     type: ENUM,
@@ -421,45 +394,45 @@ export const optionTypes = {
       { name: "LABA", value: COMPARATOR.LABA },
       { name: "ABLA", value: COMPARATOR.ABLA },
       { name: "BALA", value: COMPARATOR.BALA },
-      { name: "Luminance", value: COMPARATOR.LUMINANCE }
+      { name: "Luminance", value: COMPARATOR.LUMINANCE },
     ],
     default: COMPARATOR.LUMINANCE,
-    desc: "Color space / channel priority for sorting"
+    desc: "Color space / channel priority for sorting",
   },
   sortPixelLuminanceAbove: {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
     default: 50,
-    desc: "Only sort pixels brighter than this"
+    desc: "Only sort pixels brighter than this",
   },
   sortPixelLuminanceBelow: {
     type: RANGE,
     range: [0, 255],
     step: 0.5,
     default: 200,
-    desc: "Only sort pixels darker than this"
+    desc: "Only sort pixels darker than this",
   },
   sortPixelLuminanceChangeAbove: {
     type: RANGE,
     range: [-255, 255],
     step: 1,
     default: -255,
-    desc: "Min luminance delta to start a sort interval"
+    desc: "Min luminance delta to start a sort interval",
   },
   sortPixelLuminanceChangeBelow: {
     type: RANGE,
     range: [-255, 255],
     step: 1,
     default: 255,
-    desc: "Max luminance delta to start a sort interval"
+    desc: "Max luminance delta to start a sort interval",
   },
   extraIntervalStartChance: {
     type: RANGE,
     range: [0, 1],
     step: 0.01,
     default: 0,
-    desc: "Chance for pixels outside the luminance gates to join or start sortable spans"
+    desc: "Chance for pixels outside the luminance gates to join or start sortable spans",
   },
   seed: {
     type: RANGE,
@@ -473,10 +446,18 @@ export const optionTypes = {
     range: [0, 5000],
     step: 1,
     default: 0,
-    desc: "Max sorted run length — 0 = unlimited"
+    desc: "Max sorted run length — 0 = unlimited",
   },
-  palette: { type: PALETTE, default: palettes.nearest, desc: "Optional output palette and quantization" },
-  linearLuminance: { type: BOOL, default: false, desc: "Use linear-light luminance instead of sRGB" }
+  palette: {
+    type: PALETTE,
+    default: palettes.nearest,
+    desc: "Optional output palette and quantization",
+  },
+  linearLuminance: {
+    type: BOOL,
+    default: false,
+    desc: "Use linear-light luminance instead of sRGB",
+  },
 };
 
 export const defaults = {
@@ -487,13 +468,11 @@ export const defaults = {
   linearLuminance: optionTypes.linearLuminance.default,
   sortPixelLuminanceAbove: optionTypes.sortPixelLuminanceAbove.default,
   sortPixelLuminanceBelow: optionTypes.sortPixelLuminanceBelow.default,
-  sortPixelLuminanceChangeAbove:
-    optionTypes.sortPixelLuminanceChangeAbove.default,
-  sortPixelLuminanceChangeBelow:
-    optionTypes.sortPixelLuminanceChangeBelow.default,
+  sortPixelLuminanceChangeAbove: optionTypes.sortPixelLuminanceChangeAbove.default,
+  sortPixelLuminanceChangeBelow: optionTypes.sortPixelLuminanceChangeBelow.default,
   extraIntervalStartChance: optionTypes.extraIntervalStartChance.default,
   seed: optionTypes.seed.default,
-  maxIntervalSize: optionTypes.maxIntervalSize.default
+  maxIntervalSize: optionTypes.maxIntervalSize.default,
 };
 
 type PixelsortPalette = {
@@ -525,10 +504,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const pixelsortFilter = (
-  input: any,
-  options: PixelsortOptions = defaults
-) => {
+const pixelsortFilter = (input: any, options: PixelsortOptions = defaults) => {
   const {
     direction = defaults.direction,
     sortDirection = defaults.sortDirection,
@@ -567,7 +543,9 @@ const pixelsortFilter = (
   let interval = newInterval();
 
   const fillInterval = () => {
-    interval.pixels.sort((a, b) => SORTS[comparator as keyof typeof SORTS](a, b, sortDirection, linearLuminance));
+    interval.pixels.sort((a, b) =>
+      SORTS[comparator as keyof typeof SORTS](a, b, sortDirection, linearLuminance),
+    );
 
     for (let i = 0; i < interval.trail.length; i += 1) {
       const bufIdx = interval.trail[i];
@@ -586,18 +564,11 @@ const pixelsortFilter = (
     x: 0,
     y: 0,
     w: input.width,
-    h: input.height
+    h: input.height,
   });
 
-   
   while ((cur = iterator())) {
-     
-    const pixel = rgba(
-      buf[cur.i],
-      buf[cur.i + 1],
-      buf[cur.i + 2],
-      buf[cur.i + 3]
-    );
+    const pixel = rgba(buf[cur.i], buf[cur.i + 1], buf[cur.i + 2], buf[cur.i + 3]);
     const pixelLum = lum(pixel);
     const lumDelta = lastLum != null ? lastLum - pixelLum : 0;
     lastLum = pixelLum;
@@ -606,13 +577,9 @@ const pixelsortFilter = (
       pixelLum >= sortPixelLuminanceAbove && pixelLum <= sortPixelLuminanceBelow;
 
     const enoughLuminosityDelta =
-      lumDelta >= sortPixelLuminanceChangeAbove &&
-      lumDelta <= sortPixelLuminanceChangeBelow;
+      lumDelta >= sortPixelLuminanceChangeAbove && lumDelta <= sortPixelLuminanceChangeBelow;
 
-    if (
-      (inLuminosityWindow && enoughLuminosityDelta) ||
-      random() < extraStartChance
-    ) {
+    if ((inLuminosityWindow && enoughLuminosityDelta) || random() < extraStartChance) {
       interval.pixels.push(pixel);
       interval.trail.push(cur.i);
 
@@ -642,6 +609,7 @@ export default defineFilter({
   options: defaults,
   defaults,
   description: "Deterministically sort gated pixel spans by luminance or color-space channel order",
-  noWASM: "Segmenting scan-spans by luminance thresholds then sorting each run in place is inherently serial; the win from native code doesn't offset the call overhead for realistic span lengths.",
+  noWASM:
+    "Segmenting scan-spans by luminance thresholds then sorting each run in place is inherently serial; the win from native code doesn't offset the call overhead for realistic span lengths.",
   noGL: "Sorting a pixel run in place isn't a fragment-shader operation — would need bitonic sort per row in compute shaders, which WebGL2 doesn't provide.",
 });

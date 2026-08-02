@@ -25,14 +25,47 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  blockCount: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Number of glitch blocks per frame" },
-  maxBlockSize: { type: RANGE, range: [10, 200], step: 5, default: 60, desc: "Maximum block dimension in pixels" },
-  corruption: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Intensity of color/offset corruption" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Preview animation frame rate" },
-  animate: { type: ACTION, label: "Play / Stop", desc: "Start or stop frame-varying block corruption", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
-  }},
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  blockCount: {
+    type: RANGE,
+    range: [1, 50],
+    step: 1,
+    default: 10,
+    desc: "Number of glitch blocks per frame",
+  },
+  maxBlockSize: {
+    type: RANGE,
+    range: [10, 200],
+    step: 5,
+    default: 60,
+    desc: "Maximum block dimension in pixels",
+  },
+  corruption: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "Intensity of color/offset corruption",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 8,
+    desc: "Preview animation frame rate",
+  },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    desc: "Start or stop frame-varying block corruption",
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 8);
+      }
+    },
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -40,7 +73,7 @@ export const defaults = {
   maxBlockSize: optionTypes.maxBlockSize.default,
   corruption: optionTypes.corruption.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const MAX_BLOCKS = 50;
@@ -120,7 +153,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     glitch: linkProgram(gl, GLITCH_FS, [
-      "u_source", "u_res", "u_blockCount", "u_blockA", "u_blockB", "u_levels",
+      "u_source",
+      "u_res",
+      "u_blockCount",
+      "u_blockA",
+      "u_blockB",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -128,13 +166,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
-  return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 };
 
 const glitchBlocks = (input: any, options = defaults) => {
   const { blockCount, maxBlockSize, corruption, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   // Precompute block list — same RNG order as the original CPU path, so
   // the GL output lines up with the reference frame for reproducibility.
@@ -142,7 +186,15 @@ const glitchBlocks = (input: any, options = defaults) => {
   const n = Math.max(0, Math.min(MAX_BLOCKS, Math.round(blockCount)));
   const blockA = new Float32Array(MAX_BLOCKS * 4);
   const blockB = new Float32Array(MAX_BLOCKS * 4);
-  type Block = { srcX: number; srcY: number; dstX: number; dstY: number; bw: number; bh: number; chOff: number };
+  type Block = {
+    srcX: number;
+    srcY: number;
+    dstX: number;
+    dstY: number;
+    bw: number;
+    bh: number;
+    chOff: number;
+  };
   const blocks: Block[] = [];
   for (let b = 0; b < n; b++) {
     const bw = Math.round(10 + rng() * (maxBlockSize - 10));
@@ -172,26 +224,33 @@ const glitchBlocks = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "glitchBlocks:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.glitch, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.glitch.uniforms.u_source, 0);
-        gl.uniform2f(cache.glitch.uniforms.u_res, W, H);
-        gl.uniform1i(cache.glitch.uniforms.u_blockCount, n);
-        gl.uniform4fv(cache.glitch.uniforms.u_blockA, blockA);
-        gl.uniform4fv(cache.glitch.uniforms.u_blockB, blockB);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.glitch.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.glitch,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.glitch.uniforms.u_source, 0);
+          gl.uniform2f(cache.glitch.uniforms.u_res, W, H);
+          gl.uniform1i(cache.glitch.uniforms.u_blockCount, n);
+          gl.uniform4fv(cache.glitch.uniforms.u_blockA, blockA);
+          gl.uniform4fv(cache.glitch.uniforms.u_blockB, blockB);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.glitch.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Glitch Blocks", "WebGL2",
-            `n=${n}${identity ? "" : "+palettePass"}`);
+          logFilterBackend("Glitch Blocks", "WebGL2", `n=${n}${identity ? "" : "+palettePass"}`);
           return out;
         }
       }
@@ -212,8 +271,10 @@ const glitchBlocks = (input: any, options = defaults) => {
     const { srcX, srcY, dstX, dstY, bw, bh, chOff } = blk;
     for (let dy = 0; dy < bh; dy++) {
       for (let dx = 0; dx < bw; dx++) {
-        const sx = srcX + dx, sy = srcY + dy;
-        const px = dstX + dx, py = dstY + dy;
+        const sx = srcX + dx,
+          sy = srcY + dy;
+        const px = dstX + dx,
+          py = dstY + dy;
         if (px < 0 || px >= W || py < 0 || py >= H) continue;
 
         const si = getBufferIndex(sx, sy, W);
@@ -232,7 +293,12 @@ const glitchBlocks = (input: any, options = defaults) => {
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], outBuf[i + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], outBuf[i + 3]);
     }
 
@@ -240,4 +306,11 @@ const glitchBlocks = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Glitch Blocks", func: glitchBlocks, optionTypes, options: defaults, defaults, temporal: true });
+export default defineFilter({
+  name: "Glitch Blocks",
+  func: glitchBlocks,
+  optionTypes,
+  options: defaults,
+  defaults,
+  temporal: true,
+});

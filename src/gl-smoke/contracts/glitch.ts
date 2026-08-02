@@ -15,7 +15,10 @@ const luma = (px: Uint8ClampedArray, i: number): number =>
 export const runAnalogStaticGhostAndAlpha = (): Result => {
   const filter = filterIndex["Analog Static"] as FilterLike | undefined;
   if (!filter) return { ok: false, reason: "Analog Static missing from registry" };
-  const w = 80, h = 24, barX = 12, delay = 12;
+  const w = 80,
+    h = 24,
+    barX = 12,
+    delay = 12;
 
   const source = document.createElement("canvas");
   source.width = w;
@@ -28,7 +31,9 @@ export const runAnalogStaticGhostAndAlpha = (): Result => {
       const o = (y * w + x) * 4;
       const bright = x >= barX && x < barX + 3; // a bright vertical bar
       const v = bright ? 255 : 0;
-      image.data[o] = v; image.data[o + 1] = v; image.data[o + 2] = v;
+      image.data[o] = v;
+      image.data[o + 1] = v;
+      image.data[o + 2] = v;
       image.data[o + 3] = x < w / 2 ? 255 : 90; // varying alpha
     }
   }
@@ -58,11 +63,17 @@ export const runAnalogStaticGhostAndAlpha = (): Result => {
   const ghostLuma = luma(out, (midY * w + ghostX) * 4);
   const bgLuma = luma(out, (midY * w + (w - 2)) * 4);
   if (!(ghostLuma > bgLuma + 20)) {
-    return { ok: false, reason: `no multipath ghost at x=${ghostX} (luma ${ghostLuma.toFixed(1)} vs bg ${bgLuma.toFixed(1)})` };
+    return {
+      ok: false,
+      reason: `no multipath ghost at x=${ghostX} (luma ${ghostLuma.toFixed(1)} vs bg ${bgLuma.toFixed(1)})`,
+    };
   }
   for (let i = 3; i < out.length; i += 4) {
     if (Math.abs(out[i] - expectedAlpha[i]) > 2) {
-      return { ok: false, reason: `Analog Static altered alpha at ${i}: ${expectedAlpha[i]} -> ${out[i]}` };
+      return {
+        ok: false,
+        reason: `Analog Static altered alpha at ${i}: ${expectedAlpha[i]} -> ${out[i]}`,
+      };
     }
   }
   return { ok: true };

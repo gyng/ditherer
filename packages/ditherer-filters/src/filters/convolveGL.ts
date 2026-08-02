@@ -71,7 +71,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, CONVOLVE_FS, [
-      "u_source", "u_res", "u_kWidth", "u_linearize", "u_kernel[0]",
+      "u_source",
+      "u_res",
+      "u_kWidth",
+      "u_linearize",
+      "u_kernel[0]",
     ] as const),
   };
   return _cache;
@@ -105,16 +109,24 @@ export const renderConvolveGL = (
   const sourceTex = ensureTexture(gl, "convolve:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_kWidth, kWidth);
-    gl.uniform1i(cache.prog.uniforms.u_linearize, linearize ? 1 : 0);
-    const loc = cache.prog.uniforms["u_kernel[0]"];
-    if (loc) gl.uniform1fv(loc, flat);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_kWidth, kWidth);
+      gl.uniform1i(cache.prog.uniforms.u_linearize, linearize ? 1 : 0);
+      const loc = cache.prog.uniforms["u_kernel[0]"];
+      if (loc) gl.uniform1fv(loc, flat);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

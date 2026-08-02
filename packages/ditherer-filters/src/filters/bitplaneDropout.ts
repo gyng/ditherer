@@ -31,13 +31,41 @@ export const optionTypes = {
       { name: "Freeze from previous", value: MODE.FREEZE },
       { name: "Flip bits", value: MODE.FLIP },
     ],
-    desc: "How corrupted bitplanes are applied"
+    desc: "How corrupted bitplanes are applied",
   },
-  targetBits: { type: RANGE, range: [1, 255], step: 1, default: 7, desc: "Bitmask of target planes (1=LSB, 128=MSB)" },
-  perChannel: { type: BOOL, default: true, desc: "Corrupt R/G/B with independent masks instead of one shared mask" },
-  burstChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.12, desc: "Chance that a corruption burst starts on this frame" },
-  burstLength: { type: RANGE, range: [1, 180], step: 1, default: 24, desc: "Burst duration in frames before recovery" },
-  recoverRate: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "Extra chance to shorten the active burst each frame" },
+  targetBits: {
+    type: RANGE,
+    range: [1, 255],
+    step: 1,
+    default: 7,
+    desc: "Bitmask of target planes (1=LSB, 128=MSB)",
+  },
+  perChannel: {
+    type: BOOL,
+    default: true,
+    desc: "Corrupt R/G/B with independent masks instead of one shared mask",
+  },
+  burstChance: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.12,
+    desc: "Chance that a corruption burst starts on this frame",
+  },
+  burstLength: {
+    type: RANGE,
+    range: [1, 180],
+    step: 1,
+    default: 24,
+    desc: "Burst duration in frames before recovery",
+  },
+  recoverRate: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.08,
+    desc: "Extra chance to shorten the active burst each frame",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -45,9 +73,9 @@ export const optionTypes = {
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -58,7 +86,7 @@ export const defaults = {
   burstLength: optionTypes.burstLength.default,
   recoverRate: optionTypes.recoverRate.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type BitplaneDropoutOptions = FilterOptionValues & {
@@ -157,6 +185,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Corrupt specific RGB bitplanes in bursts so significance levels drop, freeze, or flip like real digital faults",
+  description:
+    "Corrupt specific RGB bitplanes in bursts so significance levels drop, freeze, or flip like real digital faults",
   temporal: true,
 });

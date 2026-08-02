@@ -17,20 +17,34 @@ import {
 const BASELINE = { BLACK: "BLACK", ORIGINAL: "ORIGINAL" };
 
 export const optionTypes = {
-  gain: { type: RANGE, range: [0.5, 5], step: 0.1, default: 2, desc: "Strength of the motion-reactive echo against the static background" },
+  gain: {
+    type: RANGE,
+    range: [0.5, 5],
+    step: 0.1,
+    default: 2,
+    desc: "Strength of the motion-reactive echo against the static background",
+  },
   baseline: {
     type: ENUM,
     options: [
       { name: "Black", value: BASELINE.BLACK },
-      { name: "Original", value: BASELINE.ORIGINAL }
+      { name: "Original", value: BASELINE.ORIGINAL },
     ],
     default: BASELINE.ORIGINAL,
-    desc: "Whether the stable parts of the image stay visible or fall to black"
+    desc: "Whether the stable parts of the image stay visible or fall to black",
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -82,7 +96,8 @@ const echoCombiner = (input: any, options: EchoCombinerOptions = defaults) => {
   const gain = Number(options.gain ?? defaults.gain);
   const baseline = String(options.baseline ?? defaults.baseline);
   const ema = options._ema ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -108,17 +123,25 @@ const echoCombiner = (input: any, options: EchoCombinerOptions = defaults) => {
     haveEma = true;
   }
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
-    gl.uniform1i(prog.uniforms.u_ema, 1);
-    gl.uniform1f(prog.uniforms.u_gain, gain);
-    gl.uniform1i(prog.uniforms.u_baseline, baseline === BASELINE.ORIGINAL ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_haveEma, haveEma ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
+      gl.uniform1i(prog.uniforms.u_ema, 1);
+      gl.uniform1f(prog.uniforms.u_gain, gain);
+      gl.uniform1i(prog.uniforms.u_baseline, baseline === BASELINE.ORIGINAL ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_haveEma, haveEma ? 1 : 0);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -134,7 +157,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded",
+  description:
+    "Amplify the difference from the recent average so moving regions resonate while static ones stay grounded",
   temporal: true,
   requiresGL: true,
 });

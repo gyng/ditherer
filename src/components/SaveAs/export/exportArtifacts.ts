@@ -7,27 +7,17 @@ export const revokeObjectUrl = (url: string | null) => {
   }
 };
 
-export const replaceObjectUrl = (
-  previousUrl: string | null,
-  blob: Blob | null,
-) => {
+export const replaceObjectUrl = (previousUrl: string | null, blob: Blob | null) => {
   revokeObjectUrl(previousUrl);
   return blob ? URL.createObjectURL(blob) : null;
 };
 
-export const canvasToBlob = (
-  canvas: HTMLCanvasElement,
-  type: string,
-  quality?: number,
-) =>
+export const canvasToBlob = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
   new Promise<Blob | null>((resolve) => {
     canvas.toBlob((blob) => resolve(blob), type, quality);
   });
 
-export const encodeGifBlob = async (
-  frames: GifFrame[],
-  colorTable?: number[][] | null,
-) => {
+export const encodeGifBlob = async (frames: GifFrame[], colorTable?: number[][] | null) => {
   const normalizedFrames = normalizeGifFrames(frames);
   const { encode } = await import("modern-gif");
   const output = await encode({
@@ -62,10 +52,16 @@ export const encodePngSequenceZip = async (
     if (!ctx) {
       throw new Error("Failed to initialize PNG sequence canvas.");
     }
-    ctx.putImageData(new ImageData(new Uint8ClampedArray(frame.data), frame.width, frame.height), 0, 0);
+    ctx.putImageData(
+      new ImageData(new Uint8ClampedArray(frame.data), frame.width, frame.height),
+      0,
+      0,
+    );
     const blob = await canvasToBlob(canvas, "image/png");
     if (blob) {
-      zipFiles[`ditherer-seq-${String(i).padStart(4, "0")}.png`] = new Uint8Array(await blob.arrayBuffer());
+      zipFiles[`ditherer-seq-${String(i).padStart(4, "0")}.png`] = new Uint8Array(
+        await blob.arrayBuffer(),
+      );
     }
   }
 

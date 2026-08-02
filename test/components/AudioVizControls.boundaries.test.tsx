@@ -16,7 +16,9 @@ vi.mock("utils/audioVizBridge", () => ({
   requestMicPermissionAndList: audio.requestDevices,
   subscribeAudioViz: (subscriber: (channel: string) => void) => {
     audio.subscriber = subscriber;
-    return () => { audio.subscriber = null; };
+    return () => {
+      audio.subscriber = null;
+    };
   },
   updateAudioVizChannel: audio.update,
 }));
@@ -65,9 +67,15 @@ const device = (deviceId: string, label: string): MediaDeviceInfo => ({
 const setValue = (element: HTMLInputElement | HTMLSelectElement, value: string | boolean) => {
   act(() => {
     if (typeof value === "boolean") {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "checked")?.set?.call(element, value);
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "checked")?.set?.call(
+        element,
+        value,
+      );
     } else {
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(element, value);
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(
+        element,
+        value,
+      );
     }
     element.dispatchEvent(new Event("change", { bubbles: true }));
   });
@@ -117,7 +125,10 @@ describe("AudioVizControls state boundaries", () => {
 
     expect(container.textContent).toContain("Studio mic");
     expect(container.textContent).toContain("Microphone 2");
-    expect(mediaDevices.addEventListener).toHaveBeenCalledWith("devicechange", expect.any(Function));
+    expect(mediaDevices.addEventListener).toHaveBeenCalledWith(
+      "devicechange",
+      expect.any(Function),
+    );
 
     const selects = container.querySelectorAll<HTMLSelectElement>("select");
     setValue(selects[1], "mic-1");
@@ -128,7 +139,10 @@ describe("AudioVizControls state boundaries", () => {
     });
 
     act(() => root.unmount());
-    expect(mediaDevices.removeEventListener).toHaveBeenCalledWith("devicechange", expect.any(Function));
+    expect(mediaDevices.removeEventListener).toHaveBeenCalledWith(
+      "devicechange",
+      expect.any(Function),
+    );
     root = createRoot(container);
   });
 
@@ -146,10 +160,15 @@ describe("AudioVizControls state boundaries", () => {
     expect(container.textContent).toContain("Listening to shared audio");
     expect(container.querySelector('[data-testid="beat-strip"]')?.textContent).toBe("chain");
     expect(container.querySelector('[data-testid="bpm-readout"]')?.textContent).toBe("128.4");
-    expect(container.querySelector<HTMLElement>('[title^="Beat grid"]')?.title).toContain("128 BPM");
-    expect(container.querySelector<HTMLElement>('[title^="Live input"] [style*="width"]')?.style.width).toBe("100%");
+    expect(container.querySelector<HTMLElement>('[title^="Beat grid"]')?.title).toContain(
+      "128 BPM",
+    );
+    expect(
+      container.querySelector<HTMLElement>('[title^="Live input"] [style*="width"]')?.style.width,
+    ).toBe("100%");
 
-    const [enabled, normalize] = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    const [enabled, normalize] =
+      container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
     act(() => {
       enabled.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       normalize.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -193,8 +212,9 @@ describe("AudioVizControls state boundaries", () => {
     expect(container.textContent).toContain("Microphone denied");
     expect(container.textContent).toContain("no longer in the available device list");
 
-    const permission = Array.from(container.querySelectorAll("button"))
-      .find((button) => button.textContent?.includes("Grant mic permission"));
+    const permission = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Grant mic permission"),
+    );
     expect(permission).toBeTruthy();
     audio.requestDevices.mockResolvedValue([device("new", "Granted mic")]);
     await act(async () => {
@@ -216,8 +236,16 @@ describe("AudioVizControls state boundaries", () => {
   it("ignores async device results after unmount", async () => {
     let resolveList!: (devices: MediaDeviceInfo[]) => void;
     let resolveRequest!: (devices: MediaDeviceInfo[]) => void;
-    audio.listDevices.mockReturnValue(new Promise((resolve) => { resolveList = resolve; }));
-    audio.requestDevices.mockReturnValue(new Promise((resolve) => { resolveRequest = resolve; }));
+    audio.listDevices.mockReturnValue(
+      new Promise((resolve) => {
+        resolveList = resolve;
+      }),
+    );
+    audio.requestDevices.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
     act(() => root.render(<AudioVizControls channel="chain" />));
     act(() => root.unmount());
     root = createRoot(container);

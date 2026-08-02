@@ -25,15 +25,22 @@
 
 1. Add `src/filters/infiniteCallWindows.ts`
 2. Register in `src/filters/index.ts`:
+
 - import
 - named export
 - include in `filterIndex`
 - include in `filterList` as `Infinite call windows`
+
 3. Add preset in `src/components/ChainList/index.tsx`:
+
 - `Meeting Meltdown` using `Infinite call windows` (+ finishing filters)
+
 4. Update `src/components/SaveAs/index.tsx` temporal detection:
+
 - include `"Infinite Call Windows"` in `TEMPORAL_FILTERS`
+
 5. Add smoke coverage in `test/smoke/filters.test.ts`:
+
 - registration and fallback behavior check
 
 ### Rendering choices locked for v1
@@ -78,30 +85,38 @@ If `_prevOutput` is unavailable (first frame / reset), return input unchanged.
 ## Control Surface (v1)
 
 1. `layout` (ENUM)
+
 - `Center stack` (single nested self-view stack)
 - `2x2 grid`
 - `3x3 grid`
 - `Picture-in-picture`
 
 2. `depth` (RANGE, integer)
+
 - How many recursion generations to render (example range 1 to 12)
 
 3. `scalePerDepth` (RANGE)
+
 - Shrink factor applied each generation (example 0.65 to 0.98)
 
 4. `drift` (RANGE)
+
 - Pixel/fractional offset growth per generation for “UI drift”
 
 5. `mix` (RANGE)
+
 - Recursive layer blend amount vs fresh input
 
 6. `uiChrome` (BOOL)
+
 - Draws pane border/title strip and tiny status indicators
 
 7. `digitalDegrade` (RANGE)
+
 - Strength of digital artifacts on recursive layers
 
 8. `accentHue` (RANGE)
+
 - Tint accent used by window chrome and subtle highlights
 
 9. `animSpeed` (RANGE)
@@ -173,10 +188,12 @@ Suggested internal steps:
 
 1. Build a temp canvas from `_prevOutput`
 2. For depth level `d`:
+
 - compute destination rect from layout engine
 - draw transformed previous frame into rect
 - apply per-depth alpha falloff and degrade amount
 - optionally draw pane chrome
+
 3. Blend recursive result over current frame according to `mix`
 
 Prefer canvas draw operations for geometry, then pixel-buffer pass for degradation where needed.
@@ -193,11 +210,13 @@ Prefer canvas draw operations for geometry, then pixel-buffer pass for degradati
 ## Registration and Discoverability
 
 1. Add import and `filterList` entry in `src/filters/index.ts`
+
 - Display name: `Infinite call windows`
 - Category: `Advanced`
 - Description should mention “recursive meeting panes”
 
 2. Add at least one curated preset in `src/components/ChainList/index.tsx`
+
 - Example preset name: `Meeting Meltdown`
 - Suggested chain: `Infinite call windows` + `JPEG artifact` + `Sharpen` (or `Bloom` for neon variant)
 
@@ -210,14 +229,17 @@ Prefer canvas draw operations for geometry, then pixel-buffer pass for degradati
 ### Unit and smoke coverage
 
 1. `test/smoke/filters.test.ts`
+
 - Filter is registered and callable
 - First-frame behavior without `_prevOutput` returns usable output
 
 2. New focused tests (for pure helpers if extracted)
+
 - Layout rect generation is deterministic for each mode
 - Depth falloff / rect clipping respects bounds
 
 3. Optional pixel-level regression fixture (small canvas)
+
 - Verify recursive composition modifies expected regions when `_prevOutput` is provided
 
 ### Manual QA checklist
@@ -251,12 +273,15 @@ Prefer canvas draw operations for geometry, then pixel-buffer pass for degradati
 ## Risks and Mitigations
 
 1. Risk: Visual clutter at high depth
+
 - Mitigation: clamp defaults, size cutoffs, alpha falloff
 
 2. Risk: Frame-time spikes on high-resolution video
+
 - Mitigation: early exits, avoid degradation pass when strength is 0, keep chrome cheap
 
 3. Risk: Overlap with `Video feedback` identity
+
 - Mitigation: prioritize tiled pane layout and UI chrome, minimize psychedelic color drift
 
 ---

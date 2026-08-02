@@ -10,8 +10,9 @@ import { filterIndex, filterList } from "filters/index";
 
 describe("anime color-script looks", () => {
   it("resolves every supported scene mood and safely falls back", () => {
-    expect(["BALANCED", "CLEAR_DAY", "GOLDEN_HOUR", "BLUE_HOUR", "NEON_NIGHT"].map(animeLookId))
-      .toEqual([0, 1, 2, 3, 4]);
+    expect(
+      ["BALANCED", "CLEAR_DAY", "GOLDEN_HOUR", "BLUE_HOUR", "NEON_NIGHT"].map(animeLookId),
+    ).toEqual([0, 1, 2, 3, 4]);
     expect(animeLookId("unknown")).toBe(0);
   });
 });
@@ -33,7 +34,8 @@ describe("cel value grouping", () => {
 describe("XDoG ink response", () => {
   it("darkens monotonically as the difference drops below threshold", () => {
     const responses = [-0.1, -0.04, 0, 0.04].map((difference) =>
-      xdogInkResponse(difference, 0, 24));
+      xdogInkResponse(difference, 0, 24),
+    );
     expect(responses).toEqual([...responses].sort((left, right) => right - left));
     expect(responses[0]).toBeGreaterThan(0.9);
     expect(responses.at(-1)).toBeLessThan(0.25);

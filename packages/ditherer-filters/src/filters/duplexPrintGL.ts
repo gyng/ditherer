@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -32,7 +39,9 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, ["u_source", "u_inkA", "u_inkB", "u_paper", "u_curve"] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, ["u_source", "u_inkA", "u_inkB", "u_paper", "u_curve"] as const),
+  };
   return _cache;
 };
 
@@ -40,7 +49,8 @@ export const duplexPrintGLAvailable = (): boolean => glAvailable();
 
 export const renderDuplexPrintGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   inkA: [number, number, number],
   inkB: [number, number, number],
   paper: [number, number, number],
@@ -54,14 +64,22 @@ export const renderDuplexPrintGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "duplexPrint:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform3f(cache.prog.uniforms.u_inkA, inkA[0] / 255, inkA[1] / 255, inkA[2] / 255);
-    gl.uniform3f(cache.prog.uniforms.u_inkB, inkB[0] / 255, inkB[1] / 255, inkB[2] / 255);
-    gl.uniform3f(cache.prog.uniforms.u_paper, paper[0] / 255, paper[1] / 255, paper[2] / 255);
-    gl.uniform1f(cache.prog.uniforms.u_curve, mixCurve);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform3f(cache.prog.uniforms.u_inkA, inkA[0] / 255, inkA[1] / 255, inkA[2] / 255);
+      gl.uniform3f(cache.prog.uniforms.u_inkB, inkB[0] / 255, inkB[1] / 255, inkB[2] / 255);
+      gl.uniform3f(cache.prog.uniforms.u_paper, paper[0] / 255, paper[1] / 255, paper[2] / 255);
+      gl.uniform1f(cache.prog.uniforms.u_curve, mixCurve);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

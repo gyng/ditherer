@@ -2,8 +2,15 @@ import { ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { logFilterBackend } from "../utils/index";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glUnavailableStub,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -30,7 +37,13 @@ export const optionTypes = {
     default: 4,
     desc: "Base spacing for the first undecimated multiscale decomposition level",
   },
-  levels: { type: RANGE, range: [1, 4], step: 1, default: 3, desc: "Number of dyadic, undecimated detail levels" },
+  levels: {
+    type: RANGE,
+    range: [1, 4],
+    step: 1,
+    default: 3,
+    desc: "Number of dyadic, undecimated detail levels",
+  },
   channels: {
     type: ENUM,
     options: [
@@ -41,12 +54,48 @@ export const optionTypes = {
     default: CHANNELS.LUMA,
     desc: "Color components most affected by coefficient loss",
   },
-  quality: { type: RANGE, range: [1, 100], step: 1, default: 38, desc: "Coefficient precision; lower values produce stronger codec breakup" },
-  detailLoss: { type: RANGE, range: [0, 1], step: 0.01, default: 0.72, desc: "Attenuation of horizontal, vertical, and diagonal detail bands" },
-  bitplaneDrop: { type: RANGE, range: [0, 7], step: 1, default: 2, desc: "Discard simulated least-significant coefficient bit-planes" },
-  codeblockLoss: { type: RANGE, range: [0, 1], step: 0.01, default: 0.04, desc: "Drop deterministic 32x32 simulated coefficient blocks" },
-  ringing: { type: RANGE, range: [0, 1], step: 0.01, default: 0.22, desc: "Haloing around reconstructed high-contrast edges" },
-  randomSeed: { type: RANGE, range: [0, 9999], step: 1, default: 2000, desc: "Deterministic code-block loss seed" },
+  quality: {
+    type: RANGE,
+    range: [1, 100],
+    step: 1,
+    default: 38,
+    desc: "Coefficient precision; lower values produce stronger codec breakup",
+  },
+  detailLoss: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.72,
+    desc: "Attenuation of horizontal, vertical, and diagonal detail bands",
+  },
+  bitplaneDrop: {
+    type: RANGE,
+    range: [0, 7],
+    step: 1,
+    default: 2,
+    desc: "Discard simulated least-significant coefficient bit-planes",
+  },
+  codeblockLoss: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.04,
+    desc: "Drop deterministic 32x32 simulated coefficient blocks",
+  },
+  ringing: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.22,
+    desc: "Haloing around reconstructed high-contrast edges",
+  },
+  randomSeed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 2000,
+    desc: "Deterministic code-block loss seed",
+  },
 };
 
 export const defaults = {
@@ -156,8 +205,19 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_scale", "u_quantStep", "u_detailKeep", "u_ringing", "u_channels",
-    "u_transform", "u_levels", "u_bitplaneDrop", "u_codeblockLoss", "u_seed", "u_lossless",
+    "u_source",
+    "u_res",
+    "u_scale",
+    "u_quantStep",
+    "u_detailKeep",
+    "u_ringing",
+    "u_channels",
+    "u_transform",
+    "u_levels",
+    "u_bitplaneDrop",
+    "u_codeblockLoss",
+    "u_seed",
+    "u_lossless",
   ] as const);
   return _prog;
 };
@@ -171,7 +231,8 @@ const finiteClamp = (value: unknown, fallback: number, low: number, high: number
 };
 
 const waveletCodec = (input: any, options: WaveletOptions = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   if (W < 1 || H < 1) return input;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -181,9 +242,10 @@ const waveletCodec = (input: any, options: WaveletOptions = defaults) => {
   resizeGLCanvas(canvas, W, H);
   const sourceTex = ensureTexture(gl, "waveletCodec:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
-  const transform = String(options.transform) === TRANSFORM.REVERSIBLE_53
-    ? TRANSFORM.REVERSIBLE_53
-    : TRANSFORM.IRREVERSIBLE_97;
+  const transform =
+    String(options.transform) === TRANSFORM.REVERSIBLE_53
+      ? TRANSFORM.REVERSIBLE_53
+      : TRANSFORM.IRREVERSIBLE_97;
   const scale = [2, 4, 8].includes(Number(options.scale)) ? Number(options.scale) : defaults.scale;
   const levels = Math.round(finiteClamp(options.levels, defaults.levels, 1, 4));
   const quality = Math.round(finiteClamp(options.quality, defaults.quality, 1, 100));
@@ -192,30 +254,46 @@ const waveletCodec = (input: any, options: WaveletOptions = defaults) => {
   const codeblockLoss = finiteClamp(options.codeblockLoss, defaults.codeblockLoss, 0, 1);
   const ringing = finiteClamp(options.ringing, defaults.ringing, 0, 1);
   const randomSeed = finiteClamp(options.randomSeed, defaults.randomSeed, 0, 9999);
-  const lossless = transform === TRANSFORM.REVERSIBLE_53
-    && quality === 100 && detailLoss === 0 && bitplaneDrop === 0
-    && codeblockLoss === 0 && ringing === 0;
+  const lossless =
+    transform === TRANSFORM.REVERSIBLE_53 &&
+    quality === 100 &&
+    detailLoss === 0 &&
+    bitplaneDrop === 0 &&
+    codeblockLoss === 0 &&
+    ringing === 0;
   const quantStep = 0.002 + Math.pow((101 - quality) / 100, 1.6) * 0.28;
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_scale, scale);
-    gl.uniform1f(prog.uniforms.u_quantStep, quantStep);
-    gl.uniform1f(prog.uniforms.u_detailKeep, 1 - detailLoss);
-    gl.uniform1f(prog.uniforms.u_ringing, ringing);
-    gl.uniform1i(prog.uniforms.u_channels, channelId[String(options.channels)] ?? 1);
-    gl.uniform1i(prog.uniforms.u_transform, transform === TRANSFORM.REVERSIBLE_53 ? 0 : 1);
-    gl.uniform1i(prog.uniforms.u_levels, levels);
-    gl.uniform1f(prog.uniforms.u_bitplaneDrop, bitplaneDrop);
-    gl.uniform1f(prog.uniforms.u_codeblockLoss, codeblockLoss);
-    gl.uniform1f(prog.uniforms.u_seed, randomSeed);
-    gl.uniform1i(prog.uniforms.u_lossless, lossless ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_scale, scale);
+      gl.uniform1f(prog.uniforms.u_quantStep, quantStep);
+      gl.uniform1f(prog.uniforms.u_detailKeep, 1 - detailLoss);
+      gl.uniform1f(prog.uniforms.u_ringing, ringing);
+      gl.uniform1i(prog.uniforms.u_channels, channelId[String(options.channels)] ?? 1);
+      gl.uniform1i(prog.uniforms.u_transform, transform === TRANSFORM.REVERSIBLE_53 ? 0 : 1);
+      gl.uniform1i(prog.uniforms.u_levels, levels);
+      gl.uniform1f(prog.uniforms.u_bitplaneDrop, bitplaneDrop);
+      gl.uniform1f(prog.uniforms.u_codeblockLoss, codeblockLoss);
+      gl.uniform1f(prog.uniforms.u_seed, randomSeed);
+      gl.uniform1i(prog.uniforms.u_lossless, lossless ? 1 : 0);
+    },
+    vao,
+  );
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
-  logFilterBackend("Wavelet Codec", "WebGL2", `${transform} levels=${levels} quality=${quality}${lossless ? " lossless" : ""}`);
+  logFilterBackend(
+    "Wavelet Codec",
+    "WebGL2",
+    `${transform} levels=${levels} quality=${quality}${lossless ? " lossless" : ""}`,
+  );
   return output;
 };
 
@@ -225,6 +303,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "JPEG 2000-inspired undecimated multiscale decomposition with 5/3- or 9/7-derived kernels, bit-plane loss and code-block damage",
+  description:
+    "JPEG 2000-inspired undecimated multiscale decomposition with 5/3- or 9/7-derived kernels, bit-plane loss and code-block damage",
   requiresGL: true,
 });

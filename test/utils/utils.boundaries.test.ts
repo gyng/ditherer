@@ -24,7 +24,9 @@ describe("utility decision boundaries", () => {
     const pixel = [10, 20, 30, 255];
     const getColor = vi.fn(() => [255, 255, 255, 255]);
     expect(utils.srgbPaletteGetColor(null, pixel, {})).toBe(pixel);
-    expect(utils.srgbPaletteGetColor({ getColor }, pixel, { mode: 1 })).toEqual([255, 255, 255, 255]);
+    expect(utils.srgbPaletteGetColor({ getColor }, pixel, { mode: 1 })).toEqual([
+      255, 255, 255, 255,
+    ]);
     expect(utils.linearPaletteGetColor({}, [0.1, 0.2, 0.3, 1], {})).toEqual([0.1, 0.2, 0.3, 1]);
     expect(utils.linearPaletteGetColor({ getColor }, [0.1, 0.2, 0.3, 1], {})).toHaveLength(4);
     expect(utils.paletteGetColor({ getColor }, pixel, {}, false)).toEqual([255, 255, 255, 255]);
@@ -55,17 +57,15 @@ describe("utility decision boundaries", () => {
 
   it("covers median-cut terminal modes, Lab input, alpha ordering, and singleton buckets", () => {
     const colors = new Uint8ClampedArray([
-      1, 2, 3, 0,
-      20, 10, 5, 64,
-      200, 220, 240, 128,
-      255, 250, 245, 255,
+      1, 2, 3, 0, 20, 10, 5, 64, 200, 220, 240, 128, 255, 250, 245, 255,
     ]);
     for (const adaptMode of ["AVERAGE", "FIRST", "MID", "unknown"]) {
       expect(utils.medianCutPalette(colors, 0, false, adaptMode, "RGB")).toHaveLength(1);
     }
     expect(utils.medianCutPalette(colors, 3, true, "MID", "LAB").length).toBeGreaterThan(0);
-    expect(utils.medianCutPalette(new Uint8ClampedArray([1, 2, 3, 4]), 4, false, "MID"))
-      .toHaveLength(1);
+    expect(
+      utils.medianCutPalette(new Uint8ClampedArray([1, 2, 3, 4]), 4, false, "MID"),
+    ).toHaveLength(1);
   });
 
   it("preserves mathematical defaults and respects every buffer boundary", () => {
@@ -92,8 +92,12 @@ describe("utility decision boundaries", () => {
 
   it("resolves palette algorithms and all WASM palette-mode mappings", () => {
     expect(utils.resolvePaletteColorAlgorithm(null)).toBeNull();
-    expect(utils.resolvePaletteColorAlgorithm({ options: { colorDistanceAlgorithm: RGB_NEAREST } })).toBe(RGB_NEAREST);
-    expect(utils.resolvePaletteColorAlgorithm({ defaults: { colorDistanceAlgorithm: LAB_NEAREST } })).toBe(LAB_NEAREST);
+    expect(
+      utils.resolvePaletteColorAlgorithm({ options: { colorDistanceAlgorithm: RGB_NEAREST } }),
+    ).toBe(RGB_NEAREST);
+    expect(
+      utils.resolvePaletteColorAlgorithm({ defaults: { colorDistanceAlgorithm: LAB_NEAREST } }),
+    ).toBe(LAB_NEAREST);
     expect(utils.resolvePaletteColorAlgorithm({ options: {}, defaults: {} })).toBeNull();
     expect(utils.colorAlgorithmToWasmMode(RGB_NEAREST)).toBe(utils.WASM_PALETTE_MODE.RGB);
     expect(utils.colorAlgorithmToWasmMode(RGB_APPROX)).toBe(utils.WASM_PALETTE_MODE.RGB_APPROX);

@@ -29,11 +29,35 @@ export const optionTypes = {
     default: SOURCE.EMA,
     desc: "Compare against the running background model or just the previous frame",
   },
-  depth: { type: RANGE, range: [0.5, 8], step: 0.5, default: 3, desc: "How strongly temporal changes emboss the surface shading" },
-  decay: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.08, desc: "How quickly old change history relaxes out of the relief map" },
-  lightAngle: { type: RANGE, range: [0, 360], step: 5, default: 45, desc: "Direction of the relighting used for the embossed temporal surface" },
+  depth: {
+    type: RANGE,
+    range: [0.5, 8],
+    step: 0.5,
+    default: 3,
+    desc: "How strongly temporal changes emboss the surface shading",
+  },
+  decay: {
+    type: RANGE,
+    range: [0.01, 0.3],
+    step: 0.01,
+    default: 0.08,
+    desc: "How quickly old change history relaxes out of the relief map",
+  },
+  lightAngle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 5,
+    default: 45,
+    desc: "Direction of the relighting used for the embossed temporal surface",
+  },
   invert: { type: BOOL, default: false, desc: "Flip raised and recessed motion structure" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -130,8 +154,12 @@ let _emaScratch: Uint8ClampedArray | null = null;
 const getEnergyProg = (gl: WebGL2RenderingContext): Program => {
   if (_energyProg) return _energyProg;
   _energyProg = linkProgram(gl, ENERGY_FS, [
-    "u_source", "u_reference", "u_prevEnergy",
-    "u_decayRetain", "u_haveRef", "u_havePrev",
+    "u_source",
+    "u_reference",
+    "u_prevEnergy",
+    "u_decayRetain",
+    "u_haveRef",
+    "u_havePrev",
   ] as const);
   return _energyProg;
 };
@@ -139,7 +167,11 @@ const getEnergyProg = (gl: WebGL2RenderingContext): Program => {
 const getReliefProg = (gl: WebGL2RenderingContext): Program => {
   if (_reliefProg) return _reliefProg;
   _reliefProg = linkProgram(gl, RELIEF_FS, [
-    "u_source", "u_energy", "u_texel", "u_lightDir", "u_depthSign",
+    "u_source",
+    "u_energy",
+    "u_texel",
+    "u_lightDir",
+    "u_depthSign",
   ] as const);
   return _reliefProg;
 };
@@ -148,12 +180,13 @@ const temporalRelief = (input: any, options: TemporalReliefOptions = defaults) =
   const sourceMode = options.source ?? defaults.source;
   const depth = Number(options.depth ?? defaults.depth);
   const decay = Math.max(0, Math.min(1, Number(options.decay ?? defaults.decay)));
-  const lightAngle = Number(options.lightAngle ?? defaults.lightAngle) * Math.PI / 180;
+  const lightAngle = (Number(options.lightAngle ?? defaults.lightAngle) * Math.PI) / 180;
   const invert = Boolean(options.invert ?? defaults.invert);
   const frameIndex = Number(options._frameIndex ?? 0);
   const prevInput = options._prevInput ?? null;
   const ema = options._ema ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -188,37 +221,53 @@ const temporalRelief = (input: any, options: TemporalReliefOptions = defaults) =
   const energyA = ensureTexture(gl, "temporalRelief:energyA", W, H);
   const energyB = ensureTexture(gl, "temporalRelief:energyB", W, H);
   const writeEnergy = frameIndex % 2 === 0 ? energyA : energyB;
-  const readEnergy  = frameIndex % 2 === 0 ? energyB : energyA;
+  const readEnergy = frameIndex % 2 === 0 ? energyB : energyA;
   const havePrev = frameIndex > 0;
 
   // Pass 1 — write new energy.
-  drawPass(gl, writeEnergy, W, H, energyProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(energyProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
-    gl.uniform1i(energyProg.uniforms.u_reference, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, readEnergy.tex);
-    gl.uniform1i(energyProg.uniforms.u_prevEnergy, 2);
-    gl.uniform1f(energyProg.uniforms.u_decayRetain, 1 - decay);
-    gl.uniform1f(energyProg.uniforms.u_haveRef, haveRef ? 1 : 0);
-    gl.uniform1f(energyProg.uniforms.u_havePrev, havePrev ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    writeEnergy,
+    W,
+    H,
+    energyProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(energyProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+      gl.uniform1i(energyProg.uniforms.u_reference, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, readEnergy.tex);
+      gl.uniform1i(energyProg.uniforms.u_prevEnergy, 2);
+      gl.uniform1f(energyProg.uniforms.u_decayRetain, 1 - decay);
+      gl.uniform1f(energyProg.uniforms.u_haveRef, haveRef ? 1 : 0);
+      gl.uniform1f(energyProg.uniforms.u_havePrev, havePrev ? 1 : 0);
+    },
+    vao,
+  );
 
   // Pass 2 — relight energy as embossed grayscale to the GL canvas.
-  drawPass(gl, null, W, H, reliefProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(reliefProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, writeEnergy.tex);
-    gl.uniform1i(reliefProg.uniforms.u_energy, 1);
-    gl.uniform2f(reliefProg.uniforms.u_texel, 1 / W, 1 / H);
-    gl.uniform2f(reliefProg.uniforms.u_lightDir, Math.cos(lightAngle), Math.sin(lightAngle));
-    gl.uniform1f(reliefProg.uniforms.u_depthSign, invert ? -depth : depth);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    reliefProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(reliefProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, writeEnergy.tex);
+      gl.uniform1i(reliefProg.uniforms.u_energy, 1);
+      gl.uniform2f(reliefProg.uniforms.u_texel, 1 / W, 1 / H);
+      gl.uniform2f(reliefProg.uniforms.u_lightDir, Math.cos(lightAngle), Math.sin(lightAngle));
+      gl.uniform1f(reliefProg.uniforms.u_depthSign, invert ? -depth : depth);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -234,7 +283,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Convert recent motion history into embossed grayscale surface shading so change reads like raised relief",
+  description:
+    "Convert recent motion history into embossed grayscale surface shading so change reads like raised relief",
   temporal: true,
   requiresGL: true,
 });

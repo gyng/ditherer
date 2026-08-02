@@ -82,8 +82,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, RELIEF_FS, [
-      "u_source", "u_res", "u_lightX", "u_lightY", "u_height",
-      "u_specular", "u_baseMode", "u_tint", "u_levels",
+      "u_source",
+      "u_res",
+      "u_lightX",
+      "u_lightY",
+      "u_height",
+      "u_specular",
+      "u_baseMode",
+      "u_tint",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -92,7 +99,9 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 export const reliefMapGLAvailable = (): boolean => glAvailable();
 
 export const RELIEF_BASE_MODE_ID: Record<string, number> = {
-  ORIGINAL: 0, GRAYSCALE: 1, TINT: 2,
+  ORIGINAL: 0,
+  GRAYSCALE: 1,
+  TINT: 2,
 };
 
 export const renderReliefMapGL = (
@@ -122,19 +131,27 @@ export const renderReliefMapGL = (
   const sourceTex = ensureTexture(gl, "reliefMap:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_lightX, lightX);
-    gl.uniform1f(cache.prog.uniforms.u_lightY, lightY);
-    gl.uniform1f(cache.prog.uniforms.u_height, heightScale);
-    gl.uniform1f(cache.prog.uniforms.u_specular, specular);
-    gl.uniform1i(cache.prog.uniforms.u_baseMode, modeId);
-    gl.uniform3f(cache.prog.uniforms.u_tint, tint[0], tint[1], tint[2]);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_lightX, lightX);
+      gl.uniform1f(cache.prog.uniforms.u_lightY, lightY);
+      gl.uniform1f(cache.prog.uniforms.u_height, heightScale);
+      gl.uniform1f(cache.prog.uniforms.u_specular, specular);
+      gl.uniform1i(cache.prog.uniforms.u_baseMode, modeId);
+      gl.uniform3f(cache.prog.uniforms.u_tint, tint[0], tint[1], tint[2]);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

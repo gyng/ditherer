@@ -1,7 +1,16 @@
 import {
-  drawPass, ensureFloatTexture, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
-  type Program, type TexEntry,
+  drawPass,
+  ensureFloatTexture,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
+  type Program,
+  type TexEntry,
 } from "../gl/index";
 import { SRGB_GLSL } from "./opticalConvolutionContracts";
 
@@ -92,7 +101,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     linearize: linkProgram(gl, LINEARIZE_FS, ["u_source"] as const),
     gauss: linkProgram(gl, GAUSS_FS, ["u_input", "u_res", "u_dir", "u_sigma", "u_radius"] as const),
-    composite: linkProgram(gl, ORTON_FS, ["u_source", "u_blurred", "u_strength", "u_contrast", "u_saturation"] as const),
+    composite: linkProgram(gl, ORTON_FS, [
+      "u_source",
+      "u_blurred",
+      "u_strength",
+      "u_contrast",
+      "u_saturation",
+    ] as const),
   };
   return _cache;
 };
@@ -126,45 +141,77 @@ export const renderOrtonGL = (
   const linTex = (name: string): TexEntry =>
     ensureFloatTexture(gl, name, width, height) ?? ensureTexture(gl, name, width, height);
   const linSourceTex = linTex("orton:linSource");
-  drawPass(gl, linSourceTex, width, height, cache.linearize, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.linearize.uniforms.u_source, 0);
-  }, vao);
+  drawPass(
+    gl,
+    linSourceTex,
+    width,
+    height,
+    cache.linearize,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.linearize.uniforms.u_source, 0);
+    },
+    vao,
+  );
 
   const tempH = linTex("orton:tempH");
-  drawPass(gl, tempH, width, height, cache.gauss, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, linSourceTex.tex);
-    gl.uniform1i(cache.gauss.uniforms.u_input, 0);
-    gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
-    gl.uniform2f(cache.gauss.uniforms.u_dir, 1 / width, 0);
-    gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    tempH,
+    width,
+    height,
+    cache.gauss,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, linSourceTex.tex);
+      gl.uniform1i(cache.gauss.uniforms.u_input, 0);
+      gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
+      gl.uniform2f(cache.gauss.uniforms.u_dir, 1 / width, 0);
+      gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
   const blurTex = linTex("orton:blur");
-  drawPass(gl, blurTex, width, height, cache.gauss, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
-    gl.uniform1i(cache.gauss.uniforms.u_input, 0);
-    gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
-    gl.uniform2f(cache.gauss.uniforms.u_dir, 0, 1 / height);
-    gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    blurTex,
+    width,
+    height,
+    cache.gauss,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
+      gl.uniform1i(cache.gauss.uniforms.u_input, 0);
+      gl.uniform2f(cache.gauss.uniforms.u_res, width, height);
+      gl.uniform2f(cache.gauss.uniforms.u_dir, 0, 1 / height);
+      gl.uniform1f(cache.gauss.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.gauss.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.composite, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, blurTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_blurred, 1);
-    gl.uniform1f(cache.composite.uniforms.u_strength, strength);
-    gl.uniform1f(cache.composite.uniforms.u_contrast, contrast);
-    gl.uniform1f(cache.composite.uniforms.u_saturation, saturation);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.composite,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, blurTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_blurred, 1);
+      gl.uniform1f(cache.composite.uniforms.u_strength, strength);
+      gl.uniform1f(cache.composite.uniforms.u_contrast, contrast);
+      gl.uniform1f(cache.composite.uniforms.u_saturation, saturation);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

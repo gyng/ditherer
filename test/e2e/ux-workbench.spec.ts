@@ -21,7 +21,9 @@ test("browse looks opens the look library from the compose step", async ({ page 
   await writeBrowserCoverage(page, "ux-onboarding");
 });
 
-test("ranks and bounds filter typeahead results with keyboard selection and recents", async ({ page }) => {
+test("ranks and bounds filter typeahead results with keyboard selection and recents", async ({
+  page,
+}) => {
   await startBrowserCoverage(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
@@ -93,7 +95,10 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   await expect(outputWindow).toBeVisible();
   await expect(page.locator("#source-task")).toBeVisible();
   await expect(page.locator("#compose-task")).toBeHidden();
-  await expect(page.getByRole("button", { name: "Source", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Source", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
   await page.waitForTimeout(400);
@@ -107,7 +112,10 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   // Compose now shows the stage list and the active-stage inspector together.
   await expect(page.locator("#active-filter-options")).toBeVisible();
   await expect(page.locator("#preview-output-settings")).toBeHidden();
-  await expect(page.getByRole("button", { name: "Compose", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Compose", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await expect(chainComposer.getByText("1 stage", { exact: true })).toBeVisible();
   const activeStage = chainComposer.locator('[data-stage-active="true"]');
   await expect(activeStage).toHaveCount(1);
@@ -118,24 +126,30 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   await activeStage.getByRole("button", { name: /More actions for/ }).click();
   await expect(activeStage.getByRole("button", { name: /Reset .* to defaults/ })).toBeVisible();
 
-  const unlabeledControls = await page.locator("input:not([type=hidden]), select, textarea").evaluateAll((elements) =>
-    elements
-      .filter((element) => (element as HTMLElement).offsetParent !== null)
-      .filter((element) => {
-        const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-        return control.labels?.length === 0
-          && !control.getAttribute("aria-label")
-          && !control.getAttribute("aria-labelledby");
-      })
-      .map((element) => `${element.tagName.toLowerCase()}#${element.id || "(no-id)"}`)
-  );
+  const unlabeledControls = await page
+    .locator("input:not([type=hidden]), select, textarea")
+    .evaluateAll((elements) =>
+      elements
+        .filter((element) => (element as HTMLElement).offsetParent !== null)
+        .filter((element) => {
+          const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+          return (
+            control.labels?.length === 0 &&
+            !control.getAttribute("aria-label") &&
+            !control.getAttribute("aria-labelledby")
+          );
+        })
+        .map((element) => `${element.tagName.toLowerCase()}#${element.id || "(no-id)"}`),
+    );
   expect(unlabeledControls).toEqual([]);
 
   const inputBox = await inputWindow.boundingBox();
   const outputBox = await outputWindow.boundingBox();
   expect(inputBox).not.toBeNull();
   expect(outputBox).not.toBeNull();
-  expect(inputBox!.x + inputBox!.width <= outputBox!.x || outputBox!.x + outputBox!.width <= inputBox!.x).toBe(true);
+  expect(
+    inputBox!.x + inputBox!.width <= outputBox!.x || outputBox!.x + outputBox!.width <= inputBox!.x,
+  ).toBe(true);
 
   // Adjust merged into Compose: the inspector is already visible here.
   await expect(chainComposer).toBeVisible();
@@ -156,7 +170,10 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   await page.getByRole("button", { name: "Preview", exact: true }).click();
   await expect(page.locator("#compose-task")).toBeHidden();
   await expect(page.locator("#preview-output-settings")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Preview", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Preview", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(inputWindow).toBeInViewport();
   await expect(outputWindow).toBeInViewport();
@@ -169,18 +186,24 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   await holdBefore.dispatchEvent("pointerup");
   await expect(holdBefore).toHaveAttribute("aria-pressed", "false");
 
-  const exportButton = page.getByRole("group", { name: "Save and export" })
+  const exportButton = page
+    .getByRole("group", { name: "Save and export" })
     .getByRole("button", { name: "Export…" });
   await exportButton.click();
   const saveDialog = page.getByRole("dialog", { name: "Save As" });
   await expect(saveDialog).toBeVisible();
-  const saveDialogBackground = await saveDialog.evaluate((element) => getComputedStyle(element).backgroundColor);
+  const saveDialogBackground = await saveDialog.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
   expect(saveDialogBackground).not.toBe("rgba(0, 0, 0, 0)");
   await expect(saveDialog.locator(":focus")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(saveDialog).toBeHidden();
   await expect(exportButton).toBeFocused();
-  await expect(page.getByRole("button", { name: "Preview", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Preview", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 
   await page.keyboard.press("Control+k");
   const commandPalette = page.getByRole("dialog", { name: "Command palette" });
@@ -195,7 +218,9 @@ test("docks canvases, compares output, and restores modal focus", async ({ page 
   await expect(webMCPBadge).toBeVisible();
   await expect(webMCPBadge).toHaveAttribute("data-phase", "unsupported");
   await webMCPBadge.focus();
-  await expect(page.getByRole("tooltip")).toContainText("enable chrome://flags/#enable-webmcp-testing");
+  await expect(page.getByRole("tooltip")).toContainText(
+    "enable chrome://flags/#enable-webmcp-testing",
+  );
   await writeBrowserCoverage(page, "ux-workbench-desktop");
 });
 
@@ -231,7 +256,10 @@ test("uses one focused mobile task and keeps library actions reachable", async (
   expect(typeaheadBox!.y).toBeGreaterThanOrEqual(0);
   expect(typeaheadBox!.x + typeaheadBox!.width).toBeLessThanOrEqual(390);
   expect(typeaheadBox!.y + typeaheadBox!.height).toBeLessThanOrEqual(844);
-  const typeaheadItemBox = await typeahead.getByTestId("filter-typeahead-item").first().boundingBox();
+  const typeaheadItemBox = await typeahead
+    .getByTestId("filter-typeahead-item")
+    .first()
+    .boundingBox();
   expect(typeaheadItemBox).not.toBeNull();
   expect(typeaheadItemBox!.height).toBeGreaterThanOrEqual(60);
   await page.keyboard.press("Escape");
@@ -285,10 +313,17 @@ test("keeps the compact workbench focused and its touch targets reachable", asyn
   expect(taskNavBox!.height).toBeLessThanOrEqual(60);
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Open filter and preset library" })).toContainText("Library");
-  await expect(page.getByRole("button", { name: "Load a random curated preset" })).toContainText("Random look");
+  await expect(page.getByRole("button", { name: "Open filter and preset library" })).toContainText(
+    "Library",
+  );
+  await expect(page.getByRole("button", { name: "Load a random curated preset" })).toContainText(
+    "Random look",
+  );
   const activeStage = page.locator('[data-stage-active="true"]');
-  const toggleTarget = await activeStage.getByRole("checkbox", { name: /Disable/ }).locator("..").boundingBox();
+  const toggleTarget = await activeStage
+    .getByRole("checkbox", { name: /Disable/ })
+    .locator("..")
+    .boundingBox();
   const stageNumber = await activeStage.locator('[aria-label="Stage 1"]').boundingBox();
   const chainBox = await activeStage.locator("..").boundingBox();
   const moreBox = await activeStage.getByRole("button", { name: /More actions for/ }).boundingBox();
@@ -330,7 +365,9 @@ test("keeps desktop chrome within the viewport and canvas actions on one row", a
 
   const outputWindow = page.getByText(/^Output - /).locator("..");
   const saveAsBox = await outputWindow.getByRole("button", { name: "Save As..." }).boundingBox();
-  const screensaverBox = await outputWindow.getByRole("button", { name: "Screensaver" }).boundingBox();
+  const screensaverBox = await outputWindow
+    .getByRole("button", { name: "Screensaver" })
+    .boundingBox();
   expect(saveAsBox).not.toBeNull();
   expect(screensaverBox).not.toBeNull();
   expect(Math.abs(saveAsBox!.y - screensaverBox!.y)).toBeLessThanOrEqual(2);
@@ -346,7 +383,9 @@ test("keeps desktop chrome within the viewport and canvas actions on one row", a
     expect(box!.height).toBeGreaterThanOrEqual(24);
   }
 
-  const swatchBox = await page.getByRole("button", { name: /^Remove palette color 1,/ }).boundingBox();
+  const swatchBox = await page
+    .getByRole("button", { name: /^Remove palette color 1,/ })
+    .boundingBox();
   const extractBox = await page.getByRole("button", { name: /Extract from input/ }).boundingBox();
   expect(swatchBox).not.toBeNull();
   expect(extractBox).not.toBeNull();
@@ -392,10 +431,14 @@ test("uses touch-sized source, section, and preview controls on phones", async (
 
   const outputWindow = page.getByText(/^Output - /).locator("..");
   const outputBox = await outputWindow.boundingBox();
-  const screensaverBox = await outputWindow.getByRole("button", { name: "Screensaver" }).boundingBox();
+  const screensaverBox = await outputWindow
+    .getByRole("button", { name: "Screensaver" })
+    .boundingBox();
   expect(outputBox).not.toBeNull();
   expect(screensaverBox).not.toBeNull();
-  expect(screensaverBox!.x + screensaverBox!.width).toBeLessThanOrEqual(outputBox!.x + outputBox!.width);
+  expect(screensaverBox!.x + screensaverBox!.width).toBeLessThanOrEqual(
+    outputBox!.x + outputBox!.width,
+  );
 
   await outputWindow.getByRole("button", { name: "Save As..." }).click();
   const saveDialog = page.getByRole("dialog", { name: "Save As" });
@@ -455,7 +498,9 @@ test("keeps compact confirmation and timing dialogs touch-operable", async ({ pa
 
   await page.getByRole("button", { name: "Set random cycle interval" }).click();
   const cycleDialog = page.getByRole("dialog", { name: "Random chain swap" });
-  await expect(cycleDialog.getByRole("button", { name: "Close random cycle settings" })).toBeVisible();
+  await expect(
+    cycleDialog.getByRole("button", { name: "Close random cycle settings" }),
+  ).toBeVisible();
   for (const input of await cycleDialog.getByRole("spinbutton").all()) {
     const box = await input.boundingBox();
     expect(box).not.toBeNull();

@@ -39,8 +39,13 @@ test("media, command, fullscreen, and screensaver boundaries recover cleanly", a
   await expect.poll(() => inputTitle.textContent()).not.toBe(firstRandomVideoTitle);
   expect(new URL(page.url()).searchParams.get("testMedia")).toMatch(/^video:/);
 
-  await page.getByTitle("Scale the input video to comfortably fit the browser area right of the sidebar").click();
-  const inputCanvas = page.getByText(/^Input - /).locator("..").locator("canvas");
+  await page
+    .getByTitle("Scale the input video to comfortably fit the browser area right of the sidebar")
+    .click();
+  const inputCanvas = page
+    .getByText(/^Input - /)
+    .locator("..")
+    .locator("canvas");
   await inputCanvas.click();
   await expect(page.getByText(/^(▶ PLAY|❚❚ PAUSE)$/)).toBeVisible();
   await page.getByTitle("Step backward by roughly one frame").click();
@@ -65,7 +70,9 @@ test("media, command, fullscreen, and screensaver boundaries recover cleanly", a
   for (const mode of ["Contain", "Cover"]) {
     await outputWindow.getByRole("button", { name: "Fullscreen" }).click();
     await outputWindow.getByRole("button", { name: mode, exact: true }).click();
-    await expect.poll(() => outputWindow.evaluate((element) => element === document.fullscreenElement)).toBe(true);
+    await expect
+      .poll(() => outputWindow.evaluate((element) => element === document.fullscreenElement))
+      .toBe(true);
     await page.evaluate(() => document.exitFullscreen());
     await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
   }
@@ -82,7 +89,9 @@ test("media, command, fullscreen, and screensaver boundaries recover cleanly", a
   await expect(screensaver).toBeVisible();
   await seconds.fill("0.2");
   await screensaver.getByRole("button", { name: "Start", exact: true }).click();
-  await expect.poll(() => outputWindow.evaluate((element) => element === document.fullscreenElement)).toBe(true);
+  await expect
+    .poll(() => outputWindow.evaluate((element) => element === document.fullscreenElement))
+    .toBe(true);
   await page.evaluate(() => document.exitFullscreen());
   await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
 

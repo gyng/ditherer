@@ -102,17 +102,27 @@ void main() {
 `;
 
 export const optionTypes = {
-  logScale: { type: BOOL, default: true, desc: "Log y-axis — typical natural-image 1/f slope becomes a straight line" },
-  samples: { type: RANGE, range: [4, 64], step: 1, default: 24, desc: "Number of angular samples averaged per radial bin" },
+  logScale: {
+    type: BOOL,
+    default: true,
+    desc: "Log y-axis — typical natural-image 1/f slope becomes a straight line",
+  },
+  samples: {
+    type: RANGE,
+    range: [4, 64],
+    step: 1,
+    default: 24,
+    desc: "Number of angular samples averaged per radial bin",
+  },
   showGrid: { type: BOOL, default: true, desc: "Show reference grid" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   logScale: optionTypes.logScale.default,
   samples: optionTypes.samples.default,
   showGrid: optionTypes.showGrid.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { plot: Program };
@@ -121,8 +131,16 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     plot: linkProgram(gl, PLOT_FS, [
-      "u_fft", "u_padRes", "u_outRes", "u_logScale", "u_numSamples",
-      "u_lineColor", "u_bgColor", "u_gridColor", "u_showGrid", "u_levels",
+      "u_fft",
+      "u_padRes",
+      "u_outRes",
+      "u_logScale",
+      "u_numSamples",
+      "u_lineColor",
+      "u_bgColor",
+      "u_gridColor",
+      "u_showGrid",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -134,9 +152,9 @@ const fftRadialProfile = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -148,30 +166,41 @@ const fftRadialProfile = (input: any, options = defaults) => {
       uploadSourceTexture(gl, sourceTex, input);
       const fwd = forwardFFT2D(gl, sourceTex, W, H);
       if (fwd) {
-        drawPass(gl, null, W, H, cache.plot, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-          gl.uniform1i(cache.plot.uniforms.u_fft, 0);
-          gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-          gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
-          gl.uniform1f(cache.plot.uniforms.u_logScale, logScale ? 1 : 0);
-          gl.uniform1i(cache.plot.uniforms.u_numSamples, samples);
-          gl.uniform3f(cache.plot.uniforms.u_lineColor, 120, 220, 120);
-          gl.uniform3f(cache.plot.uniforms.u_bgColor, 20, 24, 28);
-          gl.uniform3f(cache.plot.uniforms.u_gridColor, 60, 70, 80);
-          gl.uniform1i(cache.plot.uniforms.u_showGrid, showGrid ? 1 : 0);
-          const identity = paletteIsIdentity(palette);
-          const pOpts = (palette as { options?: { levels?: number } }).options;
-          const levels = identity ? (pOpts?.levels ?? 256) : 256;
-          gl.uniform1f(cache.plot.uniforms.u_levels, levels);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.plot,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+            gl.uniform1i(cache.plot.uniforms.u_fft, 0);
+            gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+            gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
+            gl.uniform1f(cache.plot.uniforms.u_logScale, logScale ? 1 : 0);
+            gl.uniform1i(cache.plot.uniforms.u_numSamples, samples);
+            gl.uniform3f(cache.plot.uniforms.u_lineColor, 120, 220, 120);
+            gl.uniform3f(cache.plot.uniforms.u_bgColor, 20, 24, 28);
+            gl.uniform3f(cache.plot.uniforms.u_gridColor, 60, 70, 80);
+            gl.uniform1i(cache.plot.uniforms.u_showGrid, showGrid ? 1 : 0);
+            const identity = paletteIsIdentity(palette);
+            const pOpts = (palette as { options?: { levels?: number } }).options;
+            const levels = identity ? (pOpts?.levels ?? 256) : 256;
+            gl.uniform1f(cache.plot.uniforms.u_levels, levels);
+          },
+          vao,
+        );
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("FFT Radial Profile", "WebGL2",
-              `samples=${samples} log=${logScale}${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "FFT Radial Profile",
+              "WebGL2",
+              `samples=${samples} log=${logScale}${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -188,6 +217,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Graph of angular-averaged power spectrum vs spatial frequency — natural images show ~1/f slope, patterned sources show sharp peaks",
+  description:
+    "Graph of angular-averaged power spectrum vs spatial frequency — natural images show ~1/f slope, patterned sources show sharp peaks",
   noWASM: "Needs GPU 2D FFT.",
 });

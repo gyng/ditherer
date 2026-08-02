@@ -123,9 +123,7 @@ describe("screensaver swap markers", () => {
   });
 
   it("notifyScreensaverVideoSwap records performance.now() independently", () => {
-    const spy = vi.spyOn(performance, "now")
-      .mockReturnValueOnce(100)
-      .mockReturnValueOnce(200);
+    const spy = vi.spyOn(performance, "now").mockReturnValueOnce(100).mockReturnValueOnce(200);
     notifyScreensaverChainSwap();
     notifyScreensaverVideoSwap();
     expect(getLastScreensaverChainSwapAt()).toBe(100);

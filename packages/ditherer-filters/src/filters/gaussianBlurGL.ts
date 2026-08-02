@@ -81,26 +81,42 @@ export const renderGaussianBlurGL = (
 
   // Horizontal pass → scratch.
   const temp = ensureTexture(gl, "gauss:temp", width, height);
-  drawPass(gl, temp, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, inputEntry.tex);
-    gl.uniform1i(cache.prog.uniforms.u_input, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2f(cache.prog.uniforms.u_dir, 1 / width, 0);
-    gl.uniform1f(cache.prog.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.prog.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    temp,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, inputEntry.tex);
+      gl.uniform1i(cache.prog.uniforms.u_input, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2f(cache.prog.uniforms.u_dir, 1 / width, 0);
+      gl.uniform1f(cache.prog.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.prog.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
   // Vertical pass → gl canvas.
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp.tex);
-    gl.uniform1i(cache.prog.uniforms.u_input, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2f(cache.prog.uniforms.u_dir, 0, 1 / height);
-    gl.uniform1f(cache.prog.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.prog.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp.tex);
+      gl.uniform1i(cache.prog.uniforms.u_input, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2f(cache.prog.uniforms.u_dir, 0, 1 / height);
+      gl.uniform1f(cache.prog.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.prog.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

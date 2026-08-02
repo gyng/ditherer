@@ -1,10 +1,7 @@
 import { COLOR, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { logFilterBackend } from "../utils/index";
-import {
-  normalizeColorOption,
-  normalizeRangeOption,
-} from "../utils/filterOptions";
+import { normalizeColorOption, normalizeRangeOption } from "../utils/filterOptions";
 import { SRGB_GLSL } from "./opticalConvolutionContracts";
 import {
   drawPass,
@@ -166,17 +163,81 @@ export const everhartThornleyResponse = (
 };
 
 export const optionTypes = {
-  relief: { type: RANGE, range: [1, 80], step: 0.5, default: 24, desc: "How strongly source luminance is read as surface height" },
-  baseYield: { type: RANGE, range: [0.1, 3], step: 0.05, default: 1, desc: "Secondary-electron yield at normal incidence (δ₀)" },
-  yieldCeiling: { type: RANGE, range: [1, 16], step: 0.5, default: 4, desc: "Where the detector saturates, limiting the sec θ edge bloom" },
-  detectorAzimuth: { type: RANGE, range: [0, 360], step: 1, default: 135, desc: "Where the Everhart-Thornley detector sits around the stage" },
-  detectorElevation: { type: RANGE, range: [5, 85], step: 1, default: 30, desc: "Height of the detector above the specimen plane" },
-  detectorMix: { type: RANGE, range: [0, 1], step: 0.01, default: 0.45, desc: "Directional detector shading versus pure yield contrast" },
-  gain: { type: RANGE, range: [0, 3], step: 0.05, default: 1, desc: "Video amplifier gain, applied last to everything the detector collected" },
-  scanJitter: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Line-to-line gain drift across the raster" },
-  shotNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Shot noise from a finite count of collected electrons" },
-  charging: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Charge build-up streaking off the steepest slopes" },
-  tint: { type: COLOR, default: [255, 255, 255], desc: "Display stain on the monochrome electron signal; hue only, exposure stays with gain" },
+  relief: {
+    type: RANGE,
+    range: [1, 80],
+    step: 0.5,
+    default: 24,
+    desc: "How strongly source luminance is read as surface height",
+  },
+  baseYield: {
+    type: RANGE,
+    range: [0.1, 3],
+    step: 0.05,
+    default: 1,
+    desc: "Secondary-electron yield at normal incidence (δ₀)",
+  },
+  yieldCeiling: {
+    type: RANGE,
+    range: [1, 16],
+    step: 0.5,
+    default: 4,
+    desc: "Where the detector saturates, limiting the sec θ edge bloom",
+  },
+  detectorAzimuth: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 135,
+    desc: "Where the Everhart-Thornley detector sits around the stage",
+  },
+  detectorElevation: {
+    type: RANGE,
+    range: [5, 85],
+    step: 1,
+    default: 30,
+    desc: "Height of the detector above the specimen plane",
+  },
+  detectorMix: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.45,
+    desc: "Directional detector shading versus pure yield contrast",
+  },
+  gain: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 1,
+    desc: "Video amplifier gain, applied last to everything the detector collected",
+  },
+  scanJitter: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.25,
+    desc: "Line-to-line gain drift across the raster",
+  },
+  shotNoise: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Shot noise from a finite count of collected electrons",
+  },
+  charging: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Charge build-up streaking off the steepest slopes",
+  },
+  tint: {
+    type: COLOR,
+    default: [255, 255, 255],
+    desc: "Display stain on the monochrome electron signal; hue only, exposure stays with gain",
+  },
 };
 
 export const defaults = {
@@ -193,10 +254,11 @@ export const defaults = {
   tint: optionTypes.tint.default,
 };
 
-type SemOptions = FilterOptionValues & Partial<typeof defaults> & {
-  _frameIndex?: number;
-  _webglAcceleration?: boolean;
-};
+type SemOptions = FilterOptionValues &
+  Partial<typeof defaults> & {
+    _frameIndex?: number;
+    _webglAcceleration?: boolean;
+  };
 
 const FS = `#version 300 es
 precision highp float;
@@ -337,8 +399,20 @@ void main() {
 `;
 
 const UNIFORMS = [
-  "u_source", "u_res", "u_relief", "u_delta0", "u_ceiling", "u_detAz", "u_detEl",
-  "u_detMix", "u_gain", "u_jitter", "u_shot", "u_charging", "u_tint", "u_seed",
+  "u_source",
+  "u_res",
+  "u_relief",
+  "u_delta0",
+  "u_ceiling",
+  "u_detAz",
+  "u_detEl",
+  "u_detMix",
+  "u_gain",
+  "u_jitter",
+  "u_shot",
+  "u_charging",
+  "u_tint",
+  "u_seed",
 ] as const;
 
 let _prog: Program | null = null;
@@ -356,8 +430,18 @@ const scanningElectronMicrograph = (
   const relief = normalizeRangeOption(supplied.relief, defaults.relief, 1, 80);
   const baseYield = normalizeRangeOption(supplied.baseYield, defaults.baseYield, 0.1, 3);
   const yieldCeiling = normalizeRangeOption(supplied.yieldCeiling, defaults.yieldCeiling, 1, 16);
-  const detectorAzimuth = normalizeRangeOption(supplied.detectorAzimuth, defaults.detectorAzimuth, 0, 360);
-  const detectorElevation = normalizeRangeOption(supplied.detectorElevation, defaults.detectorElevation, 5, 85);
+  const detectorAzimuth = normalizeRangeOption(
+    supplied.detectorAzimuth,
+    defaults.detectorAzimuth,
+    0,
+    360,
+  );
+  const detectorElevation = normalizeRangeOption(
+    supplied.detectorElevation,
+    defaults.detectorElevation,
+    5,
+    85,
+  );
   const detectorMix = normalizeRangeOption(supplied.detectorMix, defaults.detectorMix, 0, 1);
   const gain = normalizeRangeOption(supplied.gain, defaults.gain, 0, 3);
   const scanJitter = normalizeRangeOption(supplied.scanJitter, defaults.scanJitter, 0, 1);
@@ -366,7 +450,8 @@ const scanningElectronMicrograph = (
   const tint = normalizeColorOption(supplied.tint, defaults.tint);
   const frameIndex = normalizeRangeOption(supplied._frameIndex, 0, 0, 1e9, true);
 
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   if (!glAvailable()) return glUnavailableStub(W, H);
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -377,29 +462,40 @@ const scanningElectronMicrograph = (
   const sourceTex = ensureTexture(gl, "scanningElectronMicrograph:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_relief, relief);
-    gl.uniform1f(prog.uniforms.u_delta0, baseYield);
-    gl.uniform1f(prog.uniforms.u_ceiling, yieldCeiling);
-    gl.uniform1f(prog.uniforms.u_detAz, (detectorAzimuth * Math.PI) / 180);
-    gl.uniform1f(prog.uniforms.u_detEl, (detectorElevation * Math.PI) / 180);
-    gl.uniform1f(prog.uniforms.u_detMix, detectorMix);
-    gl.uniform1f(prog.uniforms.u_gain, gain);
-    gl.uniform1f(prog.uniforms.u_jitter, scanJitter);
-    gl.uniform1f(prog.uniforms.u_shot, shotNoise);
-    gl.uniform1f(prog.uniforms.u_charging, charging);
-    gl.uniform3f(prog.uniforms.u_tint, tint[0] / 255, tint[1] / 255, tint[2] / 255);
-    gl.uniform1f(prog.uniforms.u_seed, ((frameIndex * 7919 + 104729) % 1000000) * 0.001);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_relief, relief);
+      gl.uniform1f(prog.uniforms.u_delta0, baseYield);
+      gl.uniform1f(prog.uniforms.u_ceiling, yieldCeiling);
+      gl.uniform1f(prog.uniforms.u_detAz, (detectorAzimuth * Math.PI) / 180);
+      gl.uniform1f(prog.uniforms.u_detEl, (detectorElevation * Math.PI) / 180);
+      gl.uniform1f(prog.uniforms.u_detMix, detectorMix);
+      gl.uniform1f(prog.uniforms.u_gain, gain);
+      gl.uniform1f(prog.uniforms.u_jitter, scanJitter);
+      gl.uniform1f(prog.uniforms.u_shot, shotNoise);
+      gl.uniform1f(prog.uniforms.u_charging, charging);
+      gl.uniform3f(prog.uniforms.u_tint, tint[0] / 255, tint[1] / 255, tint[2] / 255);
+      gl.uniform1f(prog.uniforms.u_seed, ((frameIndex * 7919 + 104729) % 1000000) * 0.001);
+    },
+    vao,
+  );
 
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
-  logFilterBackend("Scanning Electron Micrograph", "WebGL2",
-    `relief=${relief} delta0=${baseYield} detector=${detectorAzimuth}deg`);
+  logFilterBackend(
+    "Scanning Electron Micrograph",
+    "WebGL2",
+    `relief=${relief} delta0=${baseYield} detector=${detectorAzimuth}deg`,
+  );
   return output;
 };
 
@@ -409,6 +505,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Reads image luminance as invented topography — there is no real specimen — then runs SEM contrast over it: secant-law secondary-electron yield (δ₀ sec θ) for bright rims, off-axis Everhart-Thornley shading, scan-line drift, shot noise, and charging streaks, in monochrome",
+  description:
+    "Reads image luminance as invented topography — there is no real specimen — then runs SEM contrast over it: secant-law secondary-electron yield (δ₀ sec θ) for bright rims, off-axis Everhart-Thornley shading, scan-line drift, shot noise, and charging streaks, in monochrome",
   requiresGL: true,
 });

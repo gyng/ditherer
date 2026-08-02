@@ -74,15 +74,23 @@ describe("Floyd-Steinberg 640×480", () => {
 describe("Convolve (Gaussian 3×3) 320×240", () => {
   const opts = { ...convolve.defaults, _linearize: false };
   const optsLinear = { ...convolve.defaults, _linearize: true };
-  bench("sRGB path", () => { convolve.func(canvas320, opts as any); });
-  bench("linear path", () => { convolve.func(canvas320, optsLinear as any); });
+  bench("sRGB path", () => {
+    convolve.func(canvas320, opts as any);
+  });
+  bench("linear path", () => {
+    convolve.func(canvas320, optsLinear as any);
+  });
 });
 
 describe("Convolve (Gaussian 3×3) 640×480", () => {
   const opts = { ...convolve.defaults, _linearize: false };
   const optsLinear = { ...convolve.defaults, _linearize: true };
-  bench("sRGB path", () => { convolve.func(canvas640, opts as any); });
-  bench("linear path", () => { convolve.func(canvas640, optsLinear as any); });
+  bench("sRGB path", () => {
+    convolve.func(canvas640, opts as any);
+  });
+  bench("linear path", () => {
+    convolve.func(canvas640, optsLinear as any);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -118,5 +126,7 @@ describe("Binarize 640×480", () => {
   // Naming options by hand is what allowed that; spreading defaults cannot drift
   // out of sync with the filter.
   const opts = { ...binarize.defaults, _linearize: false };
-  bench("sRGB path", () => { binarize.func(canvas640, opts as any); });
+  bench("sRGB path", () => {
+    binarize.func(canvas640, opts as any);
+  });
 });

@@ -3,18 +3,49 @@ import { defineFilter } from "./types";
 import { logFilterBackend } from "../utils/index";
 import { SRGB_GLSL } from "./opticalConvolutionContracts";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glUnavailableStub,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
 const DIRECTION = { UP: "UP", DOWN: "DOWN", BOTH: "BOTH" };
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0.5, 0.99], step: 0.01, default: 0.78, desc: "Normalized full-well level above which pixels spill excess charge" },
-  strength: { type: RANGE, range: [0, 3], step: 0.05, default: 0.8, desc: "Gain applied to accumulated excess charge in the vertical trail" },
-  length: { type: RANGE, range: [1, 32], step: 1, default: 18, desc: "Maximum smear length in pixels" },
-  decay: { type: RANGE, range: [0.5, 0.98], step: 0.01, default: 0.86, desc: "How slowly spilled charge fades along the column" },
+  threshold: {
+    type: RANGE,
+    range: [0.5, 0.99],
+    step: 0.01,
+    default: 0.78,
+    desc: "Normalized full-well level above which pixels spill excess charge",
+  },
+  strength: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.8,
+    desc: "Gain applied to accumulated excess charge in the vertical trail",
+  },
+  length: {
+    type: RANGE,
+    range: [1, 32],
+    step: 1,
+    default: 18,
+    desc: "Maximum smear length in pixels",
+  },
+  decay: {
+    type: RANGE,
+    range: [0.5, 0.98],
+    step: 0.01,
+    default: 0.86,
+    desc: "How slowly spilled charge fades along the column",
+  },
   direction: {
     type: ENUM,
     options: [
@@ -25,7 +56,13 @@ export const optionTypes = {
     default: DIRECTION.DOWN,
     desc: "Column direction in which the simulated overflow charge propagates",
   },
-  antiBlooming: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Fraction of excess charge removed by a simulated anti-blooming drain" },
+  antiBlooming: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.2,
+    desc: "Fraction of excess charge removed by a simulated anti-blooming drain",
+  },
 };
 
 export const defaults = {
@@ -99,19 +136,31 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_threshold", "u_strength", "u_decay",
-    "u_antiBlooming", "u_length", "u_direction",
+    "u_source",
+    "u_res",
+    "u_threshold",
+    "u_strength",
+    "u_decay",
+    "u_antiBlooming",
+    "u_length",
+    "u_direction",
   ] as const);
   return _prog;
 };
 
-const boundedOption = (value: unknown, fallback: number, minimum: number, maximum: number): number => {
+const boundedOption = (
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number => {
   const numeric = Number(value);
   return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
 };
 
 const ccdChargeSmear = (input: any, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
   const { gl, canvas } = ctx;
@@ -125,24 +174,33 @@ const ccdChargeSmear = (input: any, options = defaults) => {
   const decay = boundedOption(options.decay, defaults.decay, 0.5, 0.98);
   const antiBlooming = boundedOption(options.antiBlooming, defaults.antiBlooming, 0, 1);
   const length = Math.round(boundedOption(options.length, defaults.length, 1, 32));
-  const direction = options.direction === DIRECTION.UP || options.direction === DIRECTION.BOTH
-    ? options.direction
-    : DIRECTION.DOWN;
+  const direction =
+    options.direction === DIRECTION.UP || options.direction === DIRECTION.BOTH
+      ? options.direction
+      : DIRECTION.DOWN;
   // GL texture Y grows upward while canvas/display Y grows downward. A DOWN
   // trail therefore gathers overload from the higher texture coordinate.
   const directionId = direction === DIRECTION.DOWN ? 0 : direction === DIRECTION.BOTH ? 2 : 1;
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_threshold, threshold);
-    gl.uniform1f(prog.uniforms.u_strength, strength);
-    gl.uniform1f(prog.uniforms.u_decay, decay);
-    gl.uniform1f(prog.uniforms.u_antiBlooming, antiBlooming);
-    gl.uniform1i(prog.uniforms.u_length, length);
-    gl.uniform1i(prog.uniforms.u_direction, directionId);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_threshold, threshold);
+      gl.uniform1f(prog.uniforms.u_strength, strength);
+      gl.uniform1f(prog.uniforms.u_decay, decay);
+      gl.uniform1f(prog.uniforms.u_antiBlooming, antiBlooming);
+      gl.uniform1i(prog.uniforms.u_length, length);
+      gl.uniform1i(prog.uniforms.u_direction, directionId);
+    },
+    vao,
+  );
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
   logFilterBackend("CCD Charge Smear", "WebGL2", `${direction} len=${length}`);
@@ -155,6 +213,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Visible-light proxy for CCD full-well overflow, with additive column blooming and an anti-blooming drain",
+  description:
+    "Visible-light proxy for CCD full-well overflow, with additive column blooming and an anti-blooming drain",
   requiresGL: true,
 });

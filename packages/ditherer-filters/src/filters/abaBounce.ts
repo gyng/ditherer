@@ -14,13 +14,35 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 2], step: 0.05, default: 1.1, desc: "How hard the third beat reflects backward from B toward and past A" },
-  cadenceDrift: { type: RANGE, range: [0, 1], step: 0.05, default: 0.45, desc: "How much the emphasized bounce beat wanders between strict ABA timing and a looser variable-frame cadence" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) actions.stopAnimLoop();
-    else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
-  }},
+  strength: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1.1,
+    desc: "How hard the third beat reflects backward from B toward and past A",
+  },
+  cadenceDrift: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.45,
+    desc: "How much the emphasized bounce beat wanders between strict ABA timing and a looser variable-frame cadence",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) actions.stopAnimLoop();
+      else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+    },
+  },
 };
 
 export const defaults = {
@@ -29,9 +51,10 @@ export const defaults = {
   animSpeed: optionTypes.animSpeed.default,
 };
 
-type AbaBounceOptions = FilterOptionValues & typeof defaults & {
-  _frameIndex?: number;
-};
+type AbaBounceOptions = FilterOptionValues &
+  typeof defaults & {
+    _frameIndex?: number;
+  };
 
 const FS = `#version 300 es
 precision highp float;
@@ -58,19 +81,25 @@ const getProg = (gl: WebGL2RenderingContext): Program => {
 
 const computeEffectivePhase = (frameIndex: number, cadenceDrift: number) => {
   const phase = ((frameIndex % 3) + 3) % 3;
-  const cadenceOffset = cadenceDrift <= 0
-    ? 0
-    : ((Math.sin(frameIndex * 0.91) + Math.sin(frameIndex * 0.37 + 1.7)) * 0.25 + 0.5) < cadenceDrift
-      ? 1
-      : 0;
+  const cadenceOffset =
+    cadenceDrift <= 0
+      ? 0
+      : (Math.sin(frameIndex * 0.91) + Math.sin(frameIndex * 0.37 + 1.7)) * 0.25 + 0.5 <
+          cadenceDrift
+        ? 1
+        : 0;
   return (phase + cadenceOffset) % 3;
 };
 
 const abaBounce = (input: any, options: AbaBounceOptions = defaults) => {
   const strength = Math.max(0, Number(options.strength ?? defaults.strength));
-  const cadenceDrift = Math.max(0, Math.min(1, Number(options.cadenceDrift ?? defaults.cadenceDrift)));
+  const cadenceDrift = Math.max(
+    0,
+    Math.min(1, Number(options.cadenceDrift ?? defaults.cadenceDrift)),
+  );
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -97,15 +126,23 @@ const abaBounce = (input: any, options: AbaBounceOptions = defaults) => {
   const vao = getQuadVAO(gl);
   resizeGLCanvas(canvas, W, H);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, aTex.tex);
-    gl.uniform1i(prog.uniforms.u_a, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, bTex.tex);
-    gl.uniform1i(prog.uniforms.u_b, 1);
-    gl.uniform1f(prog.uniforms.u_strength, strength);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, aTex.tex);
+      gl.uniform1i(prog.uniforms.u_a, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, bTex.tex);
+      gl.uniform1i(prog.uniforms.u_b, 1);
+      gl.uniform1f(prog.uniforms.u_strength, strength);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -121,7 +158,8 @@ export default defineFilter<AbaBounceOptions>({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Store A and B, then turn the emphasized beat into a reflected reverse frame whose cadence can drift off the strict ABA grid",
+  description:
+    "Store A and B, then turn the emphasized beat into a reflected reverse frame whose cadence can drift off the strict ABA grid",
   temporal: true,
   requiresGL: true,
 });

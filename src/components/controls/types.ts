@@ -1,4 +1,8 @@
-import type { FilterOptionDefinition, FilterOptionDefinitions, FilterOptionValues } from "@gyng/ditherer-filters";
+import type {
+  FilterOptionDefinition,
+  FilterOptionDefinitions,
+  FilterOptionValues,
+} from "@gyng/ditherer-filters";
 
 export type ControlSetter = (optionName: string, value: unknown, chainIndex?: number) => void;
 export type PaletteColorSaver = (name: string, colors: number[][]) => void;
@@ -21,7 +25,10 @@ export interface ControlProps<TDefinition = FilterOptionDefinition, TValue = unk
 export type BoolControlProps = ControlProps<ControlMeta, boolean>;
 export type EnumControlProps = ControlProps<
   ControlMeta & {
-    options: Array<{ name?: string; value: string | number } | { label: string; options: Array<{ name?: string; value: string | number }> }>;
+    options: Array<
+      | { name?: string; value: string | number }
+      | { label: string; options: Array<{ name?: string; value: string | number }> }
+    >;
   },
   string | number
 >;

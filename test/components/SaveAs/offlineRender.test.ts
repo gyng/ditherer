@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  buildOfflineTimeline,
-  renderOfflineFrames,
-} from "components/SaveAs/export/offlineRender";
+import { buildOfflineTimeline, renderOfflineFrames } from "components/SaveAs/export/offlineRender";
 
 const makeVideo = (duration = 1, initialTime = 0) => {
   let currentTime = initialTime;
@@ -40,12 +37,7 @@ describe("buildOfflineTimeline", () => {
     const frames = buildOfflineTimeline(1, 4);
 
     expect(frames).toHaveLength(4);
-    expect(frames.map((frame) => frame.timestampUs)).toEqual([
-      0,
-      250000,
-      500000,
-      750000,
-    ]);
+    expect(frames.map((frame) => frame.timestampUs)).toEqual([0, 250000, 500000, 750000]);
     expect(frames[3].timeSec).toBeCloseTo(0.75, 3);
     expect(frames[3].durationUs).toBe(250000);
   });
@@ -88,22 +80,31 @@ describe("renderOfflineFrames", () => {
     expect(video.addEventListener).toHaveBeenCalledWith("seeked", expect.any(Function));
     expect(waitForFrame).toHaveBeenNthCalledWith(1, video, 0, 500);
     expect(waitForFrame).toHaveBeenNthCalledWith(2, video, 0.5, 500);
-    expect(onFrame).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      index: 0,
-      timestampUs: 0,
-      durationUs: 500000,
-      width: 1,
-      height: 1,
-      pixels: new Uint8ClampedArray([10, 20, 30, 255]),
-    }));
+    expect(onFrame).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        index: 0,
+        timestampUs: 0,
+        durationUs: 500000,
+        width: 1,
+        height: 1,
+        pixels: new Uint8ClampedArray([10, 20, 30, 255]),
+      }),
+    );
     expect(onProgress.mock.calls.map(([progress]) => progress.phase)).toEqual([
-      "rewind", "seek", "capture", "seek", "capture",
+      "rewind",
+      "seek",
+      "capture",
+      "seek",
+      "capture",
     ]);
-    expect(result).toEqual(expect.objectContaining({
-      frameCount: 2,
-      durationSec: 1,
-      aborted: false,
-    }));
+    expect(result).toEqual(
+      expect.objectContaining({
+        frameCount: 2,
+        durationSec: 1,
+        aborted: false,
+      }),
+    );
     expect(result.metrics.seekMs).toBeGreaterThanOrEqual(0);
     expect(result.metrics.captureMs).toBeGreaterThanOrEqual(0);
     expect(result.metrics.encodeMs).toBeGreaterThanOrEqual(0);
@@ -154,18 +155,23 @@ describe("renderOfflineFrames", () => {
       onFrame: vi.fn(),
     };
 
-    await expect(renderOfflineFrames({
-      ...common,
-      getFrameCanvas: () => null,
-    })).rejects.toThrow("Failed to capture export frame canvas");
+    await expect(
+      renderOfflineFrames({
+        ...common,
+        getFrameCanvas: () => null,
+      }),
+    ).rejects.toThrow("Failed to capture export frame canvas");
 
-    await expect(renderOfflineFrames({
-      ...common,
-      getFrameCanvas: () => ({
-        width: 1,
-        height: 1,
-        getContext: () => null,
-      } as unknown as HTMLCanvasElement),
-    })).rejects.toThrow("Failed to read export frame pixels");
+    await expect(
+      renderOfflineFrames({
+        ...common,
+        getFrameCanvas: () =>
+          ({
+            width: 1,
+            height: 1,
+            getContext: () => null,
+          }) as unknown as HTMLCanvasElement,
+      }),
+    ).rejects.toThrow("Failed to read export frame pixels");
   });
 });

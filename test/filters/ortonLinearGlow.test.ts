@@ -5,7 +5,10 @@ vi.mock("utils", async (importOriginal) => {
   return { ...actual, cloneCanvas: (input: HTMLCanvasElement) => input };
 });
 
-import { linearToSrgb, srgbToLinear } from "../../packages/ditherer-filters/src/filters/opticalConvolutionContracts";
+import {
+  linearToSrgb,
+  srgbToLinear,
+} from "../../packages/ditherer-filters/src/filters/opticalConvolutionContracts";
 
 // Orton's Gaussian glow + screen composite (ortonGL.ts:29 `acc += texture(u_input, uv) * w`,
 // :53 `screen = 1.0 - (1.0 - s.rgb) * (1.0 - b)`, :54 `mix(s.rgb, screen, u_strength)`) is an
@@ -34,16 +37,23 @@ const linearGlowScreen = (sSrgb: number, neighborsSrgb: number[], strength: numb
 // mock-canvas: a dark background strip with one bright highlight pixel, read back via
 // getImageData like the sibling GL/CPU filter tests (opticalStylizers.test.ts, crtDegauss.test.ts).
 const makeStripCanvas = (values: number[]) => {
-  const w = values.length, h = 1;
+  const w = values.length,
+    h = 1;
   const data = new Uint8ClampedArray(w * h * 4);
-  values.forEach((v, i) => { data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v; data[i * 4 + 3] = 255; });
+  values.forEach((v, i) => {
+    data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
+    data[i * 4 + 3] = 255;
+  });
   return {
     width: w,
     height: h,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(data), width: w, height: h }),
-      putImageData: () => {},
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(data), width: w, height: h }),
+            putImageData: () => {},
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
 };
 
@@ -56,7 +66,7 @@ describe("Orton glow: linear vs gamma screen composite (ortonGL.ts fix)", () => 
     const buf = strip.getContext("2d")!.getImageData(0, 0, 3, 1).data;
     const toUnit = (i: number) => buf[i * 4] / 255;
 
-    const darkSourceSrgb = toUnit(0);                 // the dark pixel receiving the glow
+    const darkSourceSrgb = toUnit(0); // the dark pixel receiving the glow
     const neighborsSrgb = [toUnit(0), toUnit(1), toUnit(2)]; // 3-tap box blur around it
     const strength = 0.7;
 

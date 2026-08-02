@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { addFrameDelay, captureCurrentOutputFrames } from "components/SaveAs/export/liveFrameExport";
+import {
+  addFrameDelay,
+  captureCurrentOutputFrames,
+} from "components/SaveAs/export/liveFrameExport";
 
 describe("addFrameDelay", () => {
   it("adds delay without changing frame pixels", () => {
@@ -21,16 +24,21 @@ describe("captureCurrentOutputFrames", () => {
     const imageData = new ImageData(new Uint8ClampedArray([1, 2, 3, 255]), 1, 1);
     const getImageData = vi.fn(() => imageData);
     const getContext = vi.fn(() => ({ getImageData }));
-    const getScaledCanvas = vi.fn(() => ({
-      width: 1,
-      height: 1,
-      getContext,
-    } as unknown as HTMLCanvasElement));
+    const getScaledCanvas = vi.fn(
+      () =>
+        ({
+          width: 1,
+          height: 1,
+          getContext,
+        }) as unknown as HTMLCanvasElement,
+    );
     const onProgress = vi.fn();
-    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
+    const raf = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
 
     const result = await captureCurrentOutputFrames({
       frameCount: 2,

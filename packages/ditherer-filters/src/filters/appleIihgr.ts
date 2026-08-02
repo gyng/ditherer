@@ -11,8 +11,20 @@ const MONITOR_GREEN = "GREEN";
 const MONITOR_MONO = "MONO";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Luminance threshold that sets each 280×192 HGR picture element" },
-  dither: { type: RANGE, range: [0, 1], step: 0.01, default: 0.42, desc: "Ordered pre-dither used when converting continuous-tone images into the one-bit HGR dot stream" },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Luminance threshold that sets each 280×192 HGR picture element",
+  },
+  dither: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.42,
+    desc: "Ordered pre-dither used when converting continuous-tone images into the one-bit HGR dot stream",
+  },
   phase: {
     type: ENUM,
     options: [
@@ -33,7 +45,13 @@ export const optionTypes = {
     default: MONITOR_COLOR,
     desc: "Display decoder: NTSC artifact color or the common monochrome monitor alternatives",
   },
-  colorBleed: { type: RANGE, range: [0, 0.5], step: 0.01, default: 0.08, desc: "Horizontal NTSC color-bandwidth blend after exact HGR dot decoding" },
+  colorBleed: {
+    type: RANGE,
+    range: [0, 0.5],
+    step: 0.01,
+    default: 0.08,
+    desc: "Horizontal NTSC color-bandwidth blend after exact HGR dot decoding",
+  },
 };
 
 export const defaults = {
@@ -138,7 +156,8 @@ const finiteClamp = (value: unknown, fallback: number, low: number, high: number
 };
 
 const appleIihgr = (input: FilterCanvas, options: AppleHgrOptions = defaults): FilterCanvas => {
-  const phase = options.phase === PHASE_PURPLE_GREEN ? 1 : options.phase === PHASE_BLUE_ORANGE ? 2 : 0;
+  const phase =
+    options.phase === PHASE_PURPLE_GREEN ? 1 : options.phase === PHASE_BLUE_ORANGE ? 2 : 0;
   const monitor = options.monitor === MONITOR_GREEN ? 1 : options.monitor === MONITOR_MONO ? 2 : 0;
   const output = renderGLSinglePass({
     source: input,
@@ -166,6 +185,7 @@ export default defineFilter({
   optionTypes,
   defaults,
   options: defaults,
-  description: "Apple II high-resolution bitmap decoded through its phase-dependent NTSC artifact-color rules",
+  description:
+    "Apple II high-resolution bitmap decoded through its phase-dependent NTSC artifact-color rules",
   requiresGL: true,
 });

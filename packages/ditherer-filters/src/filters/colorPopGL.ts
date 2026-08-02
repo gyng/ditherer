@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -51,7 +58,13 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    prog: linkProgram(gl, FS, ["u_source", "u_targetHue", "u_hueWidth", "u_desaturate", "u_softEdge"] as const),
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_targetHue",
+      "u_hueWidth",
+      "u_desaturate",
+      "u_softEdge",
+    ] as const),
   };
   return _cache;
 };
@@ -60,8 +73,12 @@ export const colorPopGLAvailable = (): boolean => glAvailable();
 
 export const renderColorPopGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  targetHue: number, hueWidth: number, desaturateOthers: number, softness: number,
+  width: number,
+  height: number,
+  targetHue: number,
+  hueWidth: number,
+  desaturateOthers: number,
+  softness: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -72,14 +89,22 @@ export const renderColorPopGL = (
   const sourceTex = ensureTexture(gl, "colorPop:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
   const softEdge = hueWidth + softness * 90;
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform1f(cache.prog.uniforms.u_targetHue, targetHue);
-    gl.uniform1f(cache.prog.uniforms.u_hueWidth, hueWidth);
-    gl.uniform1f(cache.prog.uniforms.u_desaturate, desaturateOthers);
-    gl.uniform1f(cache.prog.uniforms.u_softEdge, softEdge);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform1f(cache.prog.uniforms.u_targetHue, targetHue);
+      gl.uniform1f(cache.prog.uniforms.u_hueWidth, hueWidth);
+      gl.uniform1f(cache.prog.uniforms.u_desaturate, desaturateOthers);
+      gl.uniform1f(cache.prog.uniforms.u_softEdge, softEdge);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

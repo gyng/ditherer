@@ -6,13 +6,19 @@ import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend
 import { renderKuwaharaGL } from "./kuwaharaGL";
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [1, 16], step: 1, default: 3, desc: "Filter kernel radius — larger = more painterly" },
-  palette: { type: PALETTE, default: nearest }
+  radius: {
+    type: RANGE,
+    range: [1, 16],
+    step: 1,
+    default: 3,
+    desc: "Filter kernel radius — larger = more painterly",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   radius: optionTypes.radius.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const kuwahara = (input: any, options: typeof defaults = defaults) => {
@@ -34,4 +40,5 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  requiresGL: true });
+  requiresGL: true,
+});

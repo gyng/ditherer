@@ -22,7 +22,14 @@ export const RGB_ADAPT_FIRST = "RGB_ADAPT_FIRST";
 export const LAB_ADAPT_MID = "LAB_ADAPT_MID";
 export const LAB_ADAPT_AVERAGE = "LAB_ADAPT_AVERAGE";
 export const LAB_ADAPT_FIRST = "LAB_ADAPT_FIRST";
-type ExtractMode = typeof TOP | typeof RGB_ADAPT_MID | typeof RGB_ADAPT_AVERAGE | typeof RGB_ADAPT_FIRST | typeof LAB_ADAPT_MID | typeof LAB_ADAPT_AVERAGE | typeof LAB_ADAPT_FIRST;
+type ExtractMode =
+  | typeof TOP
+  | typeof RGB_ADAPT_MID
+  | typeof RGB_ADAPT_AVERAGE
+  | typeof RGB_ADAPT_FIRST
+  | typeof LAB_ADAPT_MID
+  | typeof LAB_ADAPT_AVERAGE
+  | typeof LAB_ADAPT_FIRST;
 type AdaptModeEntry = { colorMode: string; adaptMode: string };
 
 export const modeMap: Record<Exclude<ExtractMode, typeof TOP>, AdaptModeEntry> = {
@@ -31,7 +38,7 @@ export const modeMap: Record<Exclude<ExtractMode, typeof TOP>, AdaptModeEntry> =
   [RGB_ADAPT_FIRST]: { colorMode: "RGB", adaptMode: "FIRST" },
   [LAB_ADAPT_MID]: { colorMode: "LAB", adaptMode: "MID" },
   [LAB_ADAPT_AVERAGE]: { colorMode: "LAB", adaptMode: "AVERAGE" },
-  [LAB_ADAPT_FIRST]: { colorMode: "LAB", adaptMode: "FIRST" }
+  [LAB_ADAPT_FIRST]: { colorMode: "LAB", adaptMode: "FIRST" },
 };
 
 // Convert a desired color count to median cut recursion depth (rounds up to nearest power of 2)
@@ -64,7 +71,9 @@ interface ColorArrayState {
 const readPaletteNames = (key: string): string[] => {
   try {
     const value = JSON.parse(localStorage.getItem(key) || "[]") as unknown;
-    return Array.isArray(value) ? value.filter((name): name is string => typeof name === "string") : [];
+    return Array.isArray(value)
+      ? value.filter((name): name is string => typeof name === "string")
+      : [];
   } catch {
     return [];
   }
@@ -75,14 +84,12 @@ const PALETTE_RECENTS_KEY = "ditherer-palette-recents";
 
 const onDeleteColor = (
   e: React.KeyboardEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>,
-  props: ColorArrayProps
+  props: ColorArrayProps,
 ) => {
   const colorIndex = parseInt(e.currentTarget.dataset.idx || "0", 10);
   props.onSetPaletteOption(
     "colors",
-    props.value.filter(
-      (_, idx) => idx !== colorIndex
-    )
+    props.value.filter((_, idx) => idx !== colorIndex),
   );
 };
 
@@ -100,13 +107,16 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
     extractCollapsed: true,
     paletteQuery: "",
     favoritePalettes: readPaletteNames(PALETTE_FAVORITES_KEY),
-    recentPalettes: readPaletteNames(PALETTE_RECENTS_KEY)
+    recentPalettes: readPaletteNames(PALETTE_RECENTS_KEY),
   };
 
   selectTheme = (name: string) => {
     const colors = THEMES[name];
     if (!colors) return;
-    const recentPalettes = [name, ...this.state.recentPalettes.filter((entry) => entry !== name)].slice(0, 8);
+    const recentPalettes = [
+      name,
+      ...this.state.recentPalettes.filter((entry) => entry !== name),
+    ].slice(0, 8);
     localStorage.setItem(PALETTE_RECENTS_KEY, JSON.stringify(recentPalettes));
     this.setState({ recentPalettes });
     this.props.onSetPaletteOption("colors", colors);
@@ -132,9 +142,10 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
           const count = parseInt(value, 10);
           if (count > 0) {
             const imageData = ctx.getImageData(
-              0, 0,
+              0,
+              0,
               this.props.inputCanvas.width || 0,
-              this.props.inputCanvas.height || 0
+              this.props.inputCanvas.height || 0,
             ).data;
 
             let colors;
@@ -147,7 +158,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
                 colorCountToDepth(count),
                 true,
                 mode.adaptMode,
-                mode.colorMode
+                mode.colorMode,
               ) as PaletteColor[];
             }
             this.props.onSetPaletteOption("colors", colors);
@@ -185,23 +196,32 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
     }
 
     const currentThemeKey = findMatchingThemeKey(this.props.value);
-    const currentTheme = currentThemeKey ? [currentThemeKey, THEMES[currentThemeKey]] as const : null;
+    const currentTheme = currentThemeKey
+      ? ([currentThemeKey, THEMES[currentThemeKey]] as const)
+      : null;
     const customThemeName = "Custom";
     const currentThemeName = currentThemeKey || customThemeName;
     const currentThemeDescription = currentThemeKey ? getThemeDescription(currentThemeKey) : null;
     const paletteNeedle = this.state.paletteQuery.trim().toLowerCase();
     const matchesPaletteQuery = (name: string, desc = "") =>
       !paletteNeedle || `${name} ${desc}`.toLowerCase().includes(paletteNeedle);
-    const namedOptions = (names: string[]) => names
-      .filter((name) => THEMES[name] && matchesPaletteQuery(name, getThemeDescription(name) || ""))
-      .map((name) => <option key={name} value={name}>{name}</option>);
+    const namedOptions = (names: string[]) =>
+      names
+        .filter(
+          (name) => THEMES[name] && matchesPaletteQuery(name, getThemeDescription(name) || ""),
+        )
+        .map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ));
 
     const themePicker = (
       <select
         className={s.enum}
         aria-label="Palette theme"
         value={currentThemeName}
-        onChange={e => this.selectTheme(e.target.value)}
+        onChange={(e) => this.selectTheme(e.target.value)}
       >
         {this.state.favoritePalettes.length > 0 && (
           <optgroup label="Favorites">{namedOptions(this.state.favoritePalettes)}</optgroup>
@@ -212,8 +232,8 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
         {Object.entries(THEME_CATEGORIES).map(([cat, entries]) => (
           <optgroup key={cat} label={cat}>
             {entries
-              .filter(e => THEMES[e.key] && matchesPaletteQuery(e.key, e.desc))
-              .map(e => (
+              .filter((e) => THEMES[e.key] && matchesPaletteQuery(e.key, e.desc))
+              .map((e) => (
                 <option key={e.key} value={e.key} title={e.desc}>
                   {e.key}
                 </option>
@@ -222,8 +242,8 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
         ))}
         {/* User-saved palettes (prefixed with 🎨) not in categories */}
         {Object.keys(THEMES)
-          .filter(k => k.startsWith("🎨") && matchesPaletteQuery(k))
-          .map(k => (
+          .filter((k) => k.startsWith("🎨") && matchesPaletteQuery(k))
+          .map((k) => (
             <option key={k} value={k}>
               {k}
             </option>
@@ -248,17 +268,17 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
               aria-label={`Remove palette color ${colorIndex + 1}, ${color}`}
               role="button"
               tabIndex={0}
-              onKeyDown={e => {
+              onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onDeleteColor(e, this.props);
                 }
               }}
-              onClick={e => {
+              onClick={(e) => {
                 onDeleteColor(e, this.props);
               }}
               style={{
-                backgroundColor: color
+                backgroundColor: color,
               }}
             />
           );
@@ -268,22 +288,20 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
 
     const colorPicker = (
       <div>
-        <button
-          onClick={() => this.setState({ pickerOpen: !this.state.pickerOpen })}
-        >
+        <button onClick={() => this.setState({ pickerOpen: !this.state.pickerOpen })}>
           {this.state.pickerOpen ? "🖌 Close picker" : "🖌 Add color"}
         </button>
         {this.state.pickerOpen && (
           <div className={s.pickerContainer}>
             <RgbaColorPicker
               color={this.state.pickerColor}
-              onChange={color => this.setState({ pickerColor: color })}
+              onChange={(color) => this.setState({ pickerColor: color })}
             />
             <div className={s.pickerPreview}>
               <div
                 className={s.pickerSwatch}
                 style={{
-                  backgroundColor: `rgba(${this.state.pickerColor.r}, ${this.state.pickerColor.g}, ${this.state.pickerColor.b}, ${this.state.pickerColor.a})`
+                  backgroundColor: `rgba(${this.state.pickerColor.r}, ${this.state.pickerColor.g}, ${this.state.pickerColor.b}, ${this.state.pickerColor.a})`,
                 }}
               />
               <button
@@ -291,7 +309,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
                 onClick={() => {
                   const c = this.state.pickerColor;
                   this.props.onAddPaletteColor(
-                    rgba(c.r, c.g, c.b, Math.round(c.a * 255)) as PaletteColor
+                    rgba(c.r, c.g, c.b, Math.round(c.a * 255)) as PaletteColor,
                   );
                 }}
               >
@@ -309,8 +327,8 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
           this.setState({
             modal: {
               type: "extract",
-              defaultValue: "16"
-            }
+              defaultValue: "16",
+            },
           });
         }}
       >
@@ -330,7 +348,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
               { name: "RGB Median cut (average)", value: RGB_ADAPT_AVERAGE },
               { name: "RGB Median cut (median)", value: RGB_ADAPT_MID },
               { name: "Top N by frequency", value: TOP },
-            ]
+            ],
           }}
           onSetFilterOption={(name, value) => {
             this.setState({ extractMode: String(value) as ExtractMode });
@@ -394,7 +412,7 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
     const modalTitles = {
       extract: "Number of colors to extract",
       savePalette: "Save current palette as",
-      importPalette: "Paste theme JSON"
+      importPalette: "Paste theme JSON",
     };
 
     return (
@@ -411,10 +429,14 @@ export default class ColorArray extends React.Component<ColorArrayProps, ColorAr
           <button
             className={s.paletteFavoriteButton}
             disabled={!currentThemeKey}
-            aria-label={currentThemeKey && this.state.favoritePalettes.includes(currentThemeKey)
-              ? `Remove ${currentThemeKey} from favorite palettes`
-              : `Add ${currentThemeKey || "current palette"} to favorite palettes`}
-            aria-pressed={Boolean(currentThemeKey && this.state.favoritePalettes.includes(currentThemeKey))}
+            aria-label={
+              currentThemeKey && this.state.favoritePalettes.includes(currentThemeKey)
+                ? `Remove ${currentThemeKey} from favorite palettes`
+                : `Add ${currentThemeKey || "current palette"} to favorite palettes`
+            }
+            aria-pressed={Boolean(
+              currentThemeKey && this.state.favoritePalettes.includes(currentThemeKey),
+            )}
             onClick={() => currentThemeKey && this.toggleFavoriteTheme(currentThemeKey)}
             title="Favorite this palette"
           >

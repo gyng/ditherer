@@ -32,9 +32,39 @@ import {
 const COLORMAP = { TOPOGRAPHIC: "TOPOGRAPHIC", BATHYMETRIC: "BATHYMETRIC", THERMAL: "THERMAL" };
 
 const COLORMAPS: Record<string, number[][]> = {
-  [COLORMAP.TOPOGRAPHIC]: [[0,100,0],[34,139,34],[144,238,144],[255,255,150],[210,180,80],[160,82,45],[139,90,43],[200,200,200],[255,255,255]],
-  [COLORMAP.BATHYMETRIC]: [[0,0,80],[0,0,140],[0,50,180],[0,100,200],[50,150,220],[100,200,240],[180,230,250],[220,240,255],[245,250,255]],
-  [COLORMAP.THERMAL]: [[0,0,50],[20,0,100],[80,0,140],[160,0,100],[220,60,20],[255,160,0],[255,220,50],[255,255,150],[255,255,255]]
+  [COLORMAP.TOPOGRAPHIC]: [
+    [0, 100, 0],
+    [34, 139, 34],
+    [144, 238, 144],
+    [255, 255, 150],
+    [210, 180, 80],
+    [160, 82, 45],
+    [139, 90, 43],
+    [200, 200, 200],
+    [255, 255, 255],
+  ],
+  [COLORMAP.BATHYMETRIC]: [
+    [0, 0, 80],
+    [0, 0, 140],
+    [0, 50, 180],
+    [0, 100, 200],
+    [50, 150, 220],
+    [100, 200, 240],
+    [180, 230, 250],
+    [220, 240, 255],
+    [245, 250, 255],
+  ],
+  [COLORMAP.THERMAL]: [
+    [0, 0, 50],
+    [20, 0, 100],
+    [80, 0, 140],
+    [160, 0, 100],
+    [220, 60, 20],
+    [255, 160, 0],
+    [255, 220, 50],
+    [255, 255, 150],
+    [255, 255, 255],
+  ],
 };
 
 const MAX_STOPS = 9;
@@ -44,22 +74,39 @@ const sampleGradient = (stops: number[][], t: number): [number, number, number] 
   const pos = ct * (stops.length - 1);
   const idx = Math.floor(pos);
   const frac = pos - idx;
-  if (idx >= stops.length - 1) return [stops[stops.length-1][0], stops[stops.length-1][1], stops[stops.length-1][2]];
-  const a = stops[idx], b = stops[idx + 1];
-  return [Math.round(a[0]+(b[0]-a[0])*frac), Math.round(a[1]+(b[1]-a[1])*frac), Math.round(a[2]+(b[2]-a[2])*frac)];
+  if (idx >= stops.length - 1)
+    return [stops[stops.length - 1][0], stops[stops.length - 1][1], stops[stops.length - 1][2]];
+  const a = stops[idx],
+    b = stops[idx + 1];
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * frac),
+    Math.round(a[1] + (b[1] - a[1]) * frac),
+    Math.round(a[2] + (b[2] - a[2]) * frac),
+  ];
 };
 
 export const optionTypes = {
   bands: { type: RANGE, range: [3, 20], step: 1, default: 8, desc: "Number of elevation bands" },
-  colormap: { type: ENUM, options: [
-    { name: "Topographic", value: COLORMAP.TOPOGRAPHIC },
-    { name: "Bathymetric", value: COLORMAP.BATHYMETRIC },
-    { name: "Thermal", value: COLORMAP.THERMAL }
-  ], default: COLORMAP.TOPOGRAPHIC, desc: "Color scheme for the contour bands" },
+  colormap: {
+    type: ENUM,
+    options: [
+      { name: "Topographic", value: COLORMAP.TOPOGRAPHIC },
+      { name: "Bathymetric", value: COLORMAP.BATHYMETRIC },
+      { name: "Thermal", value: COLORMAP.THERMAL },
+    ],
+    default: COLORMAP.TOPOGRAPHIC,
+    desc: "Color scheme for the contour bands",
+  },
   lineColor: { type: COLOR, default: [40, 30, 20], desc: "Iso-contour line color" },
-  lineWidth: { type: RANGE, range: [0, 3], step: 0.1, default: 1, desc: "Contour line thickness in pixels (0 disables lines)" },
+  lineWidth: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.1,
+    default: 1,
+    desc: "Contour line thickness in pixels (0 disables lines)",
+  },
   lineOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Contour line opacity" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -68,7 +115,7 @@ export const defaults = {
   lineColor: optionTypes.lineColor.default,
   lineWidth: optionTypes.lineWidth.default,
   lineOpacity: optionTypes.lineOpacity.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const COLORMAP_VALUES = Object.values(COLORMAP);
@@ -156,8 +203,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     cm: linkProgram(gl, CM_FS, [
-      "u_source", "u_bands", "u_stopCount", "u_stops", "u_levels",
-      "u_texel", "u_lineColor", "u_lineWidth", "u_lineOpacity",
+      "u_source",
+      "u_bands",
+      "u_stopCount",
+      "u_stops",
+      "u_levels",
+      "u_texel",
+      "u_lineColor",
+      "u_lineWidth",
+      "u_lineOpacity",
     ] as const),
   };
   return _cache;
@@ -170,7 +224,8 @@ const contourMap = (input: any, options: Partial<typeof defaults> = defaults) =>
   const lineWidth = normalizeRangeOption(options.lineWidth, defaults.lineWidth, 0, 3, false);
   const lineOpacity = normalizeRangeOption(options.lineOpacity, defaults.lineOpacity, 0, 1, false);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const stops = COLORMAPS[colormap] || COLORMAPS[COLORMAP.TOPOGRAPHIC];
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -190,29 +245,40 @@ const contourMap = (input: any, options: Partial<typeof defaults> = defaults) =>
         stopArr[i * 3 + 2] = stops[i][2];
       }
 
-      drawPass(gl, null, W, H, cache.cm, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.cm.uniforms.u_source, 0);
-        gl.uniform1i(cache.cm.uniforms.u_bands, bands);
-        gl.uniform1i(cache.cm.uniforms.u_stopCount, Math.min(stops.length, MAX_STOPS));
-        gl.uniform3fv(cache.cm.uniforms.u_stops, stopArr);
-        gl.uniform2f(cache.cm.uniforms.u_texel, 1 / W, 1 / H);
-        gl.uniform3f(cache.cm.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
-        gl.uniform1f(cache.cm.uniforms.u_lineWidth, lineWidth);
-        gl.uniform1f(cache.cm.uniforms.u_lineOpacity, lineOpacity);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.cm.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.cm,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.cm.uniforms.u_source, 0);
+          gl.uniform1i(cache.cm.uniforms.u_bands, bands);
+          gl.uniform1i(cache.cm.uniforms.u_stopCount, Math.min(stops.length, MAX_STOPS));
+          gl.uniform3fv(cache.cm.uniforms.u_stops, stopArr);
+          gl.uniform2f(cache.cm.uniforms.u_texel, 1 / W, 1 / H);
+          gl.uniform3f(cache.cm.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
+          gl.uniform1f(cache.cm.uniforms.u_lineWidth, lineWidth);
+          gl.uniform1f(cache.cm.uniforms.u_lineOpacity, lineOpacity);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.cm.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Contour Map", "WebGL2",
-            `${colormap} bands=${bands}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Contour Map",
+            "WebGL2",
+            `${colormap} bands=${bands}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -239,10 +305,12 @@ const contourMap = (input: any, options: Partial<typeof defaults> = defaults) =>
   const height = new Float32Array(W * H);
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      let sum = 0, count = 0;
+      let sum = 0,
+        count = 0;
       for (let dy = -1; dy <= 1; dy++)
         for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx, ny = y + dy;
+          const nx = x + dx,
+            ny = y + dy;
           if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
           sum += lum[ny * W + nx];
           count++;
@@ -265,12 +333,14 @@ const contourMap = (input: any, options: Partial<typeof defaults> = defaults) =>
       // Iso-contour line: this pixel sits on a level boundary if its band index
       // differs from the right or bottom neighbour's band index.
       const bi = bandIndexAt(x, y);
-      const onLine = lineStrength > 0 && (
-        (x + 1 < W && bandIndexAt(x + 1, y) !== bi) ||
-        (y + 1 < H && bandIndexAt(x, y + 1) !== bi)
-      );
+      const onLine =
+        lineStrength > 0 &&
+        ((x + 1 < W && bandIndexAt(x + 1, y) !== bi) ||
+          (y + 1 < H && bandIndexAt(x, y + 1) !== bi));
 
-      let cr = fr, cg = fg, cb = fb;
+      let cr = fr,
+        cg = fg,
+        cb = fb;
       if (onLine) {
         cr = Math.round(fr + (lineColor[0] - fr) * lineStrength);
         cg = Math.round(fg + (lineColor[1] - fg) * lineStrength);
@@ -285,4 +355,10 @@ const contourMap = (input: any, options: Partial<typeof defaults> = defaults) =>
   return output;
 };
 
-export default defineFilter({ name: "Contour Map", func: contourMap, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Contour Map",
+  func: contourMap,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

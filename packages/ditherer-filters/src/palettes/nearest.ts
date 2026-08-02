@@ -6,12 +6,12 @@ const optionTypes = {
     type: RANGE,
     range: [1, 256],
     default: 2,
-    desc: "How many evenly spaced brightness levels each RGB channel can use. Lower values posterize harder; 256 keeps the original channel precision."
-  }
+    desc: "How many evenly spaced brightness levels each RGB channel can use. Lower values posterize harder; 256 keeps the original channel precision.",
+  },
 };
 
 const defaults = {
-  levels: optionTypes.levels.default
+  levels: optionTypes.levels.default,
 };
 
 // Scratch buffer reused across getColor calls — avoids per-pixel allocations.
@@ -19,10 +19,7 @@ const defaults = {
 const _out: PaletteColor = [0, 0, 0, 0];
 
 // Gets nearest color
-const getColor = (
-  color: number[],
-  options = defaults
-): number[] => {
+const getColor = (color: number[], options = defaults): number[] => {
   if (options.levels >= 256) {
     return color;
   }
@@ -40,7 +37,7 @@ const nearest: PaletteDefinition<typeof defaults> = {
   getColor,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
 };
 
 export default nearest;

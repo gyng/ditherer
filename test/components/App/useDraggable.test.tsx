@@ -123,26 +123,32 @@ describe("useDraggable", () => {
     const onPositionChange = vi.fn();
 
     act(() => {
-      root.render(<DraggableProbe position={{ x: 120, y: 80 }} onPositionChange={onPositionChange} />);
+      root.render(
+        <DraggableProbe position={{ x: 120, y: 80 }} onPositionChange={onPositionChange} />,
+      );
     });
 
     const element = container.firstElementChild as HTMLElement;
     attachRectStub(element);
 
     act(() => {
-      element.dispatchEvent(new MouseEvent("mousedown", {
-        bubbles: true,
-        clientX: 170,
-        clientY: 130,
-      }));
+      element.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          clientX: 170,
+          clientY: 130,
+        }),
+      );
     });
 
     act(() => {
-      document.dispatchEvent(new MouseEvent("mousemove", {
-        bubbles: true,
-        clientX: 250,
-        clientY: 210,
-      }));
+      document.dispatchEvent(
+        new MouseEvent("mousemove", {
+          bubbles: true,
+          clientX: 250,
+          clientY: 210,
+        }),
+      );
     });
 
     act(() => {
@@ -158,26 +164,32 @@ describe("useDraggable", () => {
     const onPositionChange = vi.fn();
 
     act(() => {
-      root.render(<DraggableProbe position={{ x: 120, y: 80 }} onPositionChange={onPositionChange} />);
+      root.render(
+        <DraggableProbe position={{ x: 120, y: 80 }} onPositionChange={onPositionChange} />,
+      );
     });
 
     const element = container.firstElementChild as HTMLElement;
     attachStaticOffsetRectStub(element, { x: 10, y: 10 });
 
     act(() => {
-      element.dispatchEvent(new MouseEvent("mousedown", {
-        bubbles: true,
-        clientX: 150,
-        clientY: 110,
-      }));
+      element.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          clientX: 150,
+          clientY: 110,
+        }),
+      );
     });
 
     act(() => {
-      document.dispatchEvent(new MouseEvent("mousemove", {
-        bubbles: true,
-        clientX: 160,
-        clientY: 120,
-      }));
+      document.dispatchEvent(
+        new MouseEvent("mousemove", {
+          bubbles: true,
+          clientX: 160,
+          clientY: 120,
+        }),
+      );
     });
 
     act(() => {
@@ -191,7 +203,9 @@ describe("useDraggable", () => {
   it("identifies every resize edge and clears the cursor over the interior", () => {
     const onScaleAbsolute = vi.fn();
     act(() => {
-      root.render(<DraggableProbe position={{ x: 100, y: 80 }} onScaleAbsolute={onScaleAbsolute} />);
+      root.render(
+        <DraggableProbe position={{ x: 100, y: 80 }} onScaleAbsolute={onScaleAbsolute} />,
+      );
     });
     const element = container.firstElementChild as HTMLElement;
     attachRectStub(element);
@@ -219,27 +233,30 @@ describe("useDraggable", () => {
   it("scales from horizontal, vertical, and corner borders and releases listeners", () => {
     const onScaleAbsolute = vi.fn();
     act(() => {
-      root.render(<DraggableProbe position={{ x: 100, y: 80 }} onScaleAbsolute={onScaleAbsolute} />);
+      root.render(
+        <DraggableProbe position={{ x: 100, y: 80 }} onScaleAbsolute={onScaleAbsolute} />,
+      );
     });
     const element = container.firstElementChild as HTMLElement;
     attachRectStub(element, 160, 120);
 
-    const resize = (
-      start: { x: number; y: number },
-      end: { x: number; y: number },
-    ) => {
+    const resize = (start: { x: number; y: number }, end: { x: number; y: number }) => {
       act(() => {
-        element.dispatchEvent(new MouseEvent("mousedown", {
-          bubbles: true,
-          cancelable: true,
-          clientX: start.x,
-          clientY: start.y,
-        }));
-        document.dispatchEvent(new MouseEvent("mousemove", {
-          bubbles: true,
-          clientX: end.x,
-          clientY: end.y,
-        }));
+        element.dispatchEvent(
+          new MouseEvent("mousedown", {
+            bubbles: true,
+            cancelable: true,
+            clientX: start.x,
+            clientY: start.y,
+          }),
+        );
+        document.dispatchEvent(
+          new MouseEvent("mousemove", {
+            bubbles: true,
+            clientX: end.x,
+            clientY: end.y,
+          }),
+        );
         document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
       });
     };
@@ -256,7 +273,9 @@ describe("useDraggable", () => {
 
     const callsAfterRelease = onScaleAbsolute.mock.calls.length;
     act(() => {
-      document.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 900, clientY: 900 }));
+      document.dispatchEvent(
+        new MouseEvent("mousemove", { bubbles: true, clientX: 900, clientY: 900 }),
+      );
     });
     expect(onScaleAbsolute).toHaveBeenCalledTimes(callsAfterRelease);
   });
@@ -286,7 +305,9 @@ describe("useDraggable", () => {
   it("recovers two- and three-dimensional transform matrices and clamps on viewport resize", () => {
     const onPositionChange = vi.fn();
     const getComputedStyle = vi.spyOn(window, "getComputedStyle");
-    getComputedStyle.mockReturnValue({ transform: "matrix(1, 0, 0, 1, 40, 50)" } as CSSStyleDeclaration);
+    getComputedStyle.mockReturnValue({
+      transform: "matrix(1, 0, 0, 1, 40, 50)",
+    } as CSSStyleDeclaration);
     act(() => {
       root.render(<DraggableProbe position={{ x: 0, y: 0 }} onPositionChange={onPositionChange} />);
     });
@@ -294,8 +315,12 @@ describe("useDraggable", () => {
     attachRectStub(element, 160, 120);
 
     act(() => {
-      element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 100, clientY: 100 }));
-      document.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 120, clientY: 130 }));
+      element.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, clientX: 100, clientY: 100 }),
+      );
+      document.dispatchEvent(
+        new MouseEvent("mousemove", { bubbles: true, clientX: 120, clientY: 130 }),
+      );
       document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     });
     expect(onPositionChange).toHaveBeenLastCalledWith({ x: 60, y: 80 });
@@ -335,7 +360,9 @@ describe("useDraggable", () => {
     attachRectStub(element, 160, 120);
 
     act(() => {
-      element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 20, clientY: 20 }));
+      element.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, clientX: 20, clientY: 20 }),
+      );
       element.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 1, clientY: 1 }));
       element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 10 }));
       window.dispatchEvent(new Event("resize"));

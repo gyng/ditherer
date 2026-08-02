@@ -45,7 +45,7 @@ entry points rather than reaching into the engine source tree.
 ```ts
 const session = createFilterSession([
   { id: "mono", filter: "Grayscale" },
-  { id: "dither", filter: "Floyd-Steinberg", options: { /* overrides */ } },
+  { id: "dither", filter: "Floyd-Steinberg", options: {/* overrides */} },
 ]);
 
 const result = await session.process(inputCanvas, {

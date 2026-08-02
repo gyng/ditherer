@@ -14,15 +14,27 @@ import { motionBlurGLAvailable, renderMotionBlurGL } from "./motionBlurGL";
 import { srgbToLinear, linearToSrgb } from "./opticalConvolutionContracts";
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Direction of the blur in degrees" },
-  length: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Number of pixels sampled along the blur direction" },
-  palette: { type: PALETTE, default: nearest }
+  angle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 5,
+    default: 0,
+    desc: "Direction of the blur in degrees",
+  },
+  length: {
+    type: RANGE,
+    range: [1, 50],
+    step: 1,
+    default: 10,
+    desc: "Number of pixels sampled along the blur direction",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   angle: optionTypes.angle.default,
   length: optionTypes.length.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const motionBlurFilter = (input: any, options = defaults) => {
@@ -31,16 +43,22 @@ const motionBlurFilter = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    motionBlurGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    motionBlurGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderMotionBlurGL(input, W, H, angle, length, levels);
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Motion Blur", "WebGL2", `angle=${angle} length=${length}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Motion Blur",
+          "WebGL2",
+          `angle=${angle} length=${length}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -66,7 +84,9 @@ const motionBlurFilter = (input: any, options = defaults) => {
   // centre tap's alpha (the untouched source pixel) carries through.
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let slr = 0, slg = 0, slb = 0;
+      let slr = 0,
+        slg = 0,
+        slb = 0;
       let count = 0;
 
       for (let t = -halfLen; t <= halfLen; t++) {
@@ -83,7 +103,9 @@ const motionBlurFilter = (input: any, options = defaults) => {
           const cx = Math.max(0, Math.min(W - 1, Math.round(sx)));
           const cy = Math.max(0, Math.min(H - 1, Math.round(sy)));
           const ci = getBufferIndex(cx, cy, W);
-          r = buf[ci]; g = buf[ci + 1]; b = buf[ci + 2];
+          r = buf[ci];
+          g = buf[ci + 1];
+          b = buf[ci + 2];
         } else {
           const fx = sx - sx0;
           const fy = sy - sy0;
@@ -93,12 +115,15 @@ const motionBlurFilter = (input: any, options = defaults) => {
           const i11 = getBufferIndex(sx0 + 1, sy0 + 1, W);
           const vals = [0, 0, 0];
           for (let ch = 0; ch < 3; ch++) {
-            vals[ch] = buf[i00 + ch] * (1 - fx) * (1 - fy) +
-                      buf[i10 + ch] * fx * (1 - fy) +
-                      buf[i01 + ch] * (1 - fx) * fy +
-                      buf[i11 + ch] * fx * fy;
+            vals[ch] =
+              buf[i00 + ch] * (1 - fx) * (1 - fy) +
+              buf[i10 + ch] * fx * (1 - fy) +
+              buf[i01 + ch] * (1 - fx) * fy +
+              buf[i11 + ch] * fx * fy;
           }
-          r = vals[0]; g = vals[1]; b = vals[2];
+          r = vals[0];
+          g = vals[1];
+          b = vals[2];
         }
 
         slr += srgbToLinear(r / 255);
@@ -127,5 +152,5 @@ export default defineFilter({
   func: motionBlurFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

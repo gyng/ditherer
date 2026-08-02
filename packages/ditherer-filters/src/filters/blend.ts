@@ -31,11 +31,16 @@ const MODE = {
   SOFT_LIGHT: "SOFT_LIGHT",
   HARD_LIGHT: "HARD_LIGHT",
   DIFFERENCE: "DIFFERENCE",
-  EXCLUSION: "EXCLUSION"
+  EXCLUSION: "EXCLUSION",
 };
 const MODE_ID: Record<string, number> = {
-  MULTIPLY: 0, SCREEN: 1, OVERLAY: 2, SOFT_LIGHT: 3,
-  HARD_LIGHT: 4, DIFFERENCE: 5, EXCLUSION: 6,
+  MULTIPLY: 0,
+  SCREEN: 1,
+  OVERLAY: 2,
+  SOFT_LIGHT: 3,
+  HARD_LIGHT: 4,
+  DIFFERENCE: 5,
+  EXCLUSION: 6,
 };
 
 export const optionTypes = {
@@ -48,21 +53,27 @@ export const optionTypes = {
       { name: "Soft Light", value: MODE.SOFT_LIGHT },
       { name: "Hard Light", value: MODE.HARD_LIGHT },
       { name: "Difference", value: MODE.DIFFERENCE },
-      { name: "Exclusion", value: MODE.EXCLUSION }
+      { name: "Exclusion", value: MODE.EXCLUSION },
     ],
     default: MODE.MULTIPLY,
-    desc: "Blend mode used to combine the color with the image"
+    desc: "Blend mode used to combine the color with the image",
   },
   color: { type: COLOR, default: [200, 150, 100], desc: "Solid color to blend with the image" },
-  opacity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Mix amount between original (0) and blended result (1)" },
-  palette: { type: PALETTE, default: nearest }
+  opacity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "Mix amount between original (0) and blended result (1)",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   mode: optionTypes.mode.default,
   color: optionTypes.color.default,
   opacity: optionTypes.opacity.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const BLEND_FS = `#version 300 es
@@ -114,7 +125,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     blend: linkProgram(gl, BLEND_FS, [
-      "u_source", "u_color", "u_mode", "u_opacity", "u_levels",
+      "u_source",
+      "u_color",
+      "u_mode",
+      "u_opacity",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -136,9 +151,8 @@ const blendChannel = (a: number, b: number, mode: string): number => {
       result = an < 0.5 ? 2 * an * bn : 1 - 2 * (1 - an) * (1 - bn);
       break;
     case MODE.SOFT_LIGHT:
-      result = bn < 0.5
-        ? an - (1 - 2 * bn) * an * (1 - an)
-        : an + (2 * bn - 1) * (Math.sqrt(an) - an);
+      result =
+        bn < 0.5 ? an - (1 - 2 * bn) * an * (1 - an) : an + (2 * bn - 1) * (Math.sqrt(an) - an);
       break;
     case MODE.HARD_LIGHT:
       result = bn < 0.5 ? 2 * an * bn : 1 - 2 * (1 - an) * (1 - bn);
@@ -171,25 +185,37 @@ const blendFilter = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "blend:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.blend, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.blend.uniforms.u_source, 0);
-        gl.uniform3f(cache.blend.uniforms.u_color, color[0] / 255, color[1] / 255, color[2] / 255);
-        gl.uniform1i(cache.blend.uniforms.u_mode, MODE_ID[mode] ?? 0);
-        gl.uniform1f(cache.blend.uniforms.u_opacity, opacity);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.blend.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.blend,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.blend.uniforms.u_source, 0);
+          gl.uniform3f(
+            cache.blend.uniforms.u_color,
+            color[0] / 255,
+            color[1] / 255,
+            color[2] / 255,
+          );
+          gl.uniform1i(cache.blend.uniforms.u_mode, MODE_ID[mode] ?? 0);
+          gl.uniform1f(cache.blend.uniforms.u_opacity, opacity);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.blend.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Blend", "WebGL2",
-            `${mode}${identity ? "" : "+palettePass"}`);
+          logFilterBackend("Blend", "WebGL2", `${mode}${identity ? "" : "+palettePass"}`);
           return out;
         }
       }
@@ -231,5 +257,5 @@ export default defineFilter({
   func: blendFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

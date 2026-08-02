@@ -42,7 +42,9 @@ const fetchVideoBytes = async (video: HTMLVideoElement): Promise<ArrayBuffer> =>
 };
 
 const createDecodeContext = () => {
-  const AudioContextCtor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioContextCtor =
+    window.AudioContext ||
+    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextCtor) {
     throw new Error("This browser does not support AudioContext decoding.");
   }
@@ -71,7 +73,9 @@ const extractPlanarChunk = (
   const availableFrames = Math.max(0, Math.min(chunkFrames, audioBuffer.length - startFrame));
 
   for (let channel = 0; channel < channelCount; channel += 1) {
-    const sourceChannel = audioBuffer.getChannelData(Math.min(channel, audioBuffer.numberOfChannels - 1));
+    const sourceChannel = audioBuffer.getChannelData(
+      Math.min(channel, audioBuffer.numberOfChannels - 1),
+    );
     const slice = sourceChannel.subarray(startFrame, startFrame + availableFrames);
     planar.set(slice, channel * chunkFrames);
   }
@@ -145,7 +149,9 @@ export const prepareOfflineAudioTrack = async (
           }
 
           const chunkFrames = Math.min(AUDIO_CHUNK_FRAMES, totalFrames - startFrame);
-          onProgress?.(`Encoding audio ${(Math.floor(startFrame / AUDIO_CHUNK_FRAMES)) + 1}/${Math.ceil(totalFrames / AUDIO_CHUNK_FRAMES)}`);
+          onProgress?.(
+            `Encoding audio ${Math.floor(startFrame / AUDIO_CHUNK_FRAMES) + 1}/${Math.ceil(totalFrames / AUDIO_CHUNK_FRAMES)}`,
+          );
 
           const planar = extractPlanarChunk(resampled, startFrame, chunkFrames, numberOfChannels);
           const audioData = new AudioData({

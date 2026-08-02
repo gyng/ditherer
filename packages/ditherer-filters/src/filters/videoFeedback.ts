@@ -15,16 +15,60 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  zoom: { type: RANGE, range: [1.01, 1.2], step: 0.01, default: 1.05, desc: "Scale factor per feedback iteration" },
-  rotation: { type: RANGE, range: [-10, 10], step: 0.5, default: 1, desc: "Rotation degrees per iteration" },
-  offsetX: { type: RANGE, range: [-0.2, 0.2], step: 0.01, default: 0, desc: "Horizontal drift as fraction of width" },
-  offsetY: { type: RANGE, range: [-0.2, 0.2], step: 0.01, default: 0, desc: "Vertical drift as fraction of height" },
-  mix: { type: RANGE, range: [0.3, 0.95], step: 0.05, default: 0.7, desc: "Blend ratio of feedback vs fresh input" },
-  colorShift: { type: RANGE, range: [0, 30], step: 1, default: 5, desc: "Hue rotation degrees per iteration" },
+  zoom: {
+    type: RANGE,
+    range: [1.01, 1.2],
+    step: 0.01,
+    default: 1.05,
+    desc: "Scale factor per feedback iteration",
+  },
+  rotation: {
+    type: RANGE,
+    range: [-10, 10],
+    step: 0.5,
+    default: 1,
+    desc: "Rotation degrees per iteration",
+  },
+  offsetX: {
+    type: RANGE,
+    range: [-0.2, 0.2],
+    step: 0.01,
+    default: 0,
+    desc: "Horizontal drift as fraction of width",
+  },
+  offsetY: {
+    type: RANGE,
+    range: [-0.2, 0.2],
+    step: 0.01,
+    default: 0,
+    desc: "Vertical drift as fraction of height",
+  },
+  mix: {
+    type: RANGE,
+    range: [0.3, 0.95],
+    step: 0.05,
+    default: 0.7,
+    desc: "Blend ratio of feedback vs fresh input",
+  },
+  colorShift: {
+    type: RANGE,
+    range: [0, 30],
+    step: 1,
+    default: 5,
+    desc: "Hue rotation degrees per iteration",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -85,8 +129,13 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_prev", "u_invAffine", "u_centerUv",
-    "u_mix", "u_shift", "u_havePrev",
+    "u_source",
+    "u_prev",
+    "u_invAffine",
+    "u_centerUv",
+    "u_mix",
+    "u_shift",
+    "u_havePrev",
   ] as const);
   return _prog;
 };
@@ -99,7 +148,8 @@ const videoFeedback = (input: any, options: VideoFeedbackOptions = defaults) => 
   const mix = Number(options.mix ?? defaults.mix);
   const colorShift = Number(options.colorShift ?? defaults.colorShift);
   const prev = options._prevOutput ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -125,7 +175,7 @@ const videoFeedback = (input: any, options: VideoFeedbackOptions = defaults) => 
   // Inverse (sample location in prev) is:
   //   p  = (R*S)^-1 * (p' - center - offset) + center
   // In UV space the same matrix applies to (uv - centerUv); then add 0.5.
-  const rad = rotation * Math.PI / 180;
+  const rad = (rotation * Math.PI) / 180;
   const c = Math.cos(rad) * zoom;
   const s = Math.sin(rad) * zoom;
   // Inverse of [c -s; s c] is (1/det) * [c s; -s c] where det = c^2 + s^2 = zoom^2
@@ -135,20 +185,28 @@ const videoFeedback = (input: any, options: VideoFeedbackOptions = defaults) => 
   const invC = -s / det;
   const invD = c / det;
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex.tex);
-    gl.uniform1i(prog.uniforms.u_prev, 1);
-    // mat2 column-major: [m00, m10, m01, m11] = [invA, invC, invB, invD]
-    gl.uniformMatrix2fv(prog.uniforms.u_invAffine, false, [invA, invC, invB, invD]);
-    gl.uniform2f(prog.uniforms.u_centerUv, 0.5 + offsetX, 0.5 + offsetY);
-    gl.uniform1f(prog.uniforms.u_mix, mix);
-    gl.uniform1f(prog.uniforms.u_shift, colorShift / 120);
-    gl.uniform1f(prog.uniforms.u_havePrev, havePrev ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, prevTex.tex);
+      gl.uniform1i(prog.uniforms.u_prev, 1);
+      // mat2 column-major: [m00, m10, m01, m11] = [invA, invC, invB, invD]
+      gl.uniformMatrix2fv(prog.uniforms.u_invAffine, false, [invA, invC, invB, invD]);
+      gl.uniform2f(prog.uniforms.u_centerUv, 0.5 + offsetX, 0.5 + offsetY);
+      gl.uniform1f(prog.uniforms.u_mix, mix);
+      gl.uniform1f(prog.uniforms.u_shift, colorShift / 120);
+      gl.uniform1f(prog.uniforms.u_havePrev, havePrev ? 1 : 0);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -164,7 +222,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns",
+  description:
+    "Camera-pointing-at-monitor effect — infinite recursive tunnels and fractal patterns",
   temporal: true,
   requiresGL: true,
 });

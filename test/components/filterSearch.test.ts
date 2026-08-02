@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildFilterSearchIndex, normalizeFilterSearchText, searchFilterIndex } from "components/filterSearch";
+import {
+  buildFilterSearchIndex,
+  normalizeFilterSearchText,
+  searchFilterIndex,
+} from "components/filterSearch";
 
 const entries = [
   {
@@ -37,19 +41,22 @@ describe("filter typeahead search", () => {
 
   it("ranks exact and name-prefix matches ahead of descriptive matches", () => {
     const result = searchFilterIndex(index, "film", 10);
-    expect(result.items.map((entry) => entry.displayName)).toEqual([
-      "Film Burn",
-      "Film Grain",
-    ]);
+    expect(result.items.map((entry) => entry.displayName)).toEqual(["Film Burn", "Film Grain"]);
   });
 
   it("matches every token across names, categories, descriptions, and keywords", () => {
-    expect(searchFilterIndex(index, "gpu horizon", 10).items[0]?.displayName).toBe("Black Hole Lens");
-    expect(searchFilterIndex(index, "glitch projector", 10).items[0]?.displayName).toBe("Film Burn");
+    expect(searchFilterIndex(index, "gpu horizon", 10).items[0]?.displayName).toBe(
+      "Black Hole Lens",
+    );
+    expect(searchFilterIndex(index, "glitch projector", 10).items[0]?.displayName).toBe(
+      "Film Burn",
+    );
   });
 
   it("handles common typeahead suffixes", () => {
-    expect(searchFilterIndex(index, "raymarching", 10).items[0]?.displayName).toBe("Heightfield Raymarch");
+    expect(searchFilterIndex(index, "raymarching", 10).items[0]?.displayName).toBe(
+      "Heightfield Raymarch",
+    );
     expect(searchFilterIndex(index, "tracing", 10).items[0]?.displayName).toBe("Black Hole Lens");
   });
 

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import mode7 from "filters/mode7";
 
-const makeCanvas = (width: number, height: number, pixelAt: (x: number, y: number) => [number, number, number, number]) => {
+const makeCanvas = (
+  width: number,
+  height: number,
+  pixelAt: (x: number, y: number) => [number, number, number, number],
+) => {
   const data = new Uint8ClampedArray(width * height * 4);
 
   for (let y = 0; y < height; y++) {
@@ -18,13 +22,16 @@ const makeCanvas = (width: number, height: number, pixelAt: (x: number, y: numbe
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: cw,
-        height: ch
-      })
-    } : null
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: cw,
+              height: ch,
+            }),
+          }
+        : null,
   };
 };
 
@@ -40,7 +47,7 @@ const runAndCapture = (filterFn, input, options): Uint8ClampedArray | null => {
       const instance = Reflect.construct(target, args) as object;
       if (args[0] instanceof Uint8ClampedArray) captured = args[0];
       return instance;
-    }
+    },
   });
 
   try {
@@ -64,7 +71,7 @@ describe("Mode 7", () => {
       horizon: 0,
       pitch: 80,
       fov: 70,
-      tile: false
+      tile: false,
     });
 
     expect(data).not.toBeNull();
@@ -78,13 +85,13 @@ describe("Mode 7", () => {
       ...mode7.defaults,
       horizon: 0.8,
       pitch: 10,
-      sky: true
+      sky: true,
     });
     const withoutSky = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
       horizon: 0.8,
       pitch: 10,
-      sky: false
+      sky: false,
     });
 
     expect(withSky).not.toBeNull();
@@ -94,7 +101,9 @@ describe("Mode 7", () => {
 
     expect(topHalfWithSky.some((value, index) => index % 4 !== 3 && value > 0)).toBe(true);
     expect(topHalfWithSky).not.toEqual(topHalfWithoutSky);
-    expect(new Set(topHalfWithSky.filter((_value, index) => index % 4 !== 3)).size).toBeLessThan(12);
+    expect(new Set(topHalfWithSky.filter((_value, index) => index % 4 !== 3)).size).toBeLessThan(
+      12,
+    );
   });
 
   it("supports multiple distinct retro sky motifs", () => {
@@ -104,29 +113,29 @@ describe("Mode 7", () => {
       horizon: 1,
       pitch: -5,
       sky: true,
-      skyStyle: "sunsetCircuit"
+      skyStyle: "sunsetCircuit",
     });
     const city = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
       horizon: 1,
       pitch: -5,
       sky: true,
-      skyStyle: "muteCity"
+      skyStyle: "muteCity",
     });
     const storm = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
       horizon: 1,
       pitch: -5,
       sky: true,
-      skyStyle: "stormRun"
+      skyStyle: "stormRun",
     });
 
     expect(sunset).not.toBeNull();
     expect(city).not.toBeNull();
     expect(storm).not.toBeNull();
-    const sunsetSky = Array.from(sunset!.slice(0, sunset!.length * 3 / 4));
-    const citySky = Array.from(city!.slice(0, city!.length * 3 / 4));
-    const stormSky = Array.from(storm!.slice(0, storm!.length * 3 / 4));
+    const sunsetSky = Array.from(sunset!.slice(0, (sunset!.length * 3) / 4));
+    const citySky = Array.from(city!.slice(0, (city!.length * 3) / 4));
+    const stormSky = Array.from(storm!.slice(0, (storm!.length * 3) / 4));
 
     expect(sunsetSky).not.toEqual(citySky);
     expect(citySky).not.toEqual(stormSky);
@@ -143,7 +152,7 @@ describe("Mode 7", () => {
       tile: false,
       fly: true,
       forwardSpeed: 4,
-      _frameIndex: 20
+      _frameIndex: 20,
     });
 
     expect(data).not.toBeNull();
@@ -158,7 +167,7 @@ describe("Mode 7", () => {
       pitch: 45,
       fly: true,
       forwardSpeed: 3,
-      _frameIndex: 20
+      _frameIndex: 20,
     });
     const climbing = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
@@ -167,7 +176,7 @@ describe("Mode 7", () => {
       fly: true,
       forwardSpeed: 3,
       liftSpeed: 0.5,
-      _frameIndex: 20
+      _frameIndex: 20,
     });
 
     expect(cruising).not.toBeNull();
@@ -181,14 +190,14 @@ describe("Mode 7", () => {
       ...mode7.defaults,
       pitch: 80,
       fov: 70,
-      tile: true
+      tile: true,
     });
     const turning = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
       pitch: 80,
       fov: 70,
       tile: true,
-      yaw: 30
+      yaw: 30,
     });
 
     expect(straight).not.toBeNull();
@@ -200,14 +209,14 @@ describe("Mode 7", () => {
     const input = makeCanvas(8, 8, (x, y) => [x * 20, y * 25, 0, 255]);
     const base = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
-      tile: true
+      tile: true,
     });
     const translated = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
       tile: true,
       cameraX: 1.25,
       cameraY: 1.8,
-      cameraZ: 0.75
+      cameraZ: 0.75,
     });
 
     expect(base).not.toBeNull();
@@ -219,13 +228,13 @@ describe("Mode 7", () => {
     const input = makeCanvas(8, 8, (x, y) => [x * 25, y * 25, 0, 255]);
     const base = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
-      tile: true
+      tile: true,
     });
     const banked = runAndCapture(mode7.func, input, {
       ...mode7.defaults,
       tile: true,
       pitch: 42,
-      roll: 18
+      roll: 18,
     });
 
     expect(base).not.toBeNull();

@@ -1,12 +1,7 @@
 import { RANGE, COLOR, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
-import {
-  cloneCanvas,
-  getBufferIndex,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, getBufferIndex, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
   drawPass,
@@ -22,12 +17,30 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  dotSize: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Circular pin-strike diameter in pixels" },
-  spacing: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Edge-to-edge gap between pin positions" },
-  inkDensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Maximum fraction of pin positions that fire" },
+  dotSize: {
+    type: RANGE,
+    range: [2, 12],
+    step: 1,
+    default: 4,
+    desc: "Circular pin-strike diameter in pixels",
+  },
+  spacing: {
+    type: RANGE,
+    range: [1, 8],
+    step: 1,
+    default: 2,
+    desc: "Edge-to-edge gap between pin positions",
+  },
+  inkDensity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.8,
+    desc: "Maximum fraction of pin positions that fire",
+  },
   inkColor: { type: COLOR, default: [10, 10, 40], desc: "Dot ink color" },
   paperColor: { type: COLOR, default: [240, 235, 220], desc: "Background paper color" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -36,7 +49,7 @@ export const defaults = {
   inkDensity: optionTypes.inkDensity.default,
   inkColor: optionTypes.inkColor.default,
   paperColor: optionTypes.paperColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Fixed circular printer-pin strikes. A 4x4 ordered threshold over cells
@@ -109,8 +122,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     dm: linkProgram(gl, DM_FS, [
-      "u_source", "u_res", "u_cellSize", "u_dotSize",
-      "u_inkDensity", "u_inkColor", "u_paperColor",
+      "u_source",
+      "u_res",
+      "u_cellSize",
+      "u_dotSize",
+      "u_inkDensity",
+      "u_inkColor",
+      "u_paperColor",
     ] as const),
   };
   return _cache;
@@ -121,20 +139,25 @@ const finite = (value: unknown, fallback: number, min: number, max: number) => {
   return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
 };
 
-const validColor = (value: unknown, fallback: number[]): number[] => (
-  Array.isArray(value) && value.length >= 3 && value.slice(0, 3).every(channel => Number.isFinite(Number(channel)))
-    ? value.slice(0, 3).map(channel => Math.max(0, Math.min(255, Number(channel))))
-    : fallback
-);
+const validColor = (value: unknown, fallback: number[]): number[] =>
+  Array.isArray(value) &&
+  value.length >= 3 &&
+  value.slice(0, 3).every((channel) => Number.isFinite(Number(channel)))
+    ? value.slice(0, 3).map((channel) => Math.max(0, Math.min(255, Number(channel))))
+    : fallback;
 
-const dotMatrix = (input: any, options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults) => {
+const dotMatrix = (
+  input: any,
+  options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults,
+) => {
   const dotSize = Math.round(finite(options.dotSize, defaults.dotSize, 2, 12));
   const spacing = Math.round(finite(options.spacing, defaults.spacing, 1, 8));
   const inkDensity = finite(options.inkDensity, defaults.inkDensity, 0, 1);
   const inkColor = validColor(options.inkColor, defaults.inkColor);
   const paperColor = validColor(options.paperColor, defaults.paperColor);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const cellSize = dotSize + spacing;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -147,25 +170,46 @@ const dotMatrix = (input: any, options: Partial<typeof defaults> & { _webglAccel
       const sourceTex = ensureTexture(gl, "dotMatrix:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.dm, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.dm.uniforms.u_source, 0);
-        gl.uniform2f(cache.dm.uniforms.u_res, W, H);
-        gl.uniform1f(cache.dm.uniforms.u_cellSize, cellSize);
-        gl.uniform1f(cache.dm.uniforms.u_dotSize, dotSize);
-        gl.uniform1f(cache.dm.uniforms.u_inkDensity, inkDensity);
-        gl.uniform3f(cache.dm.uniforms.u_inkColor, inkColor[0] / 255, inkColor[1] / 255, inkColor[2] / 255);
-        gl.uniform3f(cache.dm.uniforms.u_paperColor, paperColor[0] / 255, paperColor[1] / 255, paperColor[2] / 255);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.dm,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.dm.uniforms.u_source, 0);
+          gl.uniform2f(cache.dm.uniforms.u_res, W, H);
+          gl.uniform1f(cache.dm.uniforms.u_cellSize, cellSize);
+          gl.uniform1f(cache.dm.uniforms.u_dotSize, dotSize);
+          gl.uniform1f(cache.dm.uniforms.u_inkDensity, inkDensity);
+          gl.uniform3f(
+            cache.dm.uniforms.u_inkColor,
+            inkColor[0] / 255,
+            inkColor[1] / 255,
+            inkColor[2] / 255,
+          );
+          gl.uniform3f(
+            cache.dm.uniforms.u_paperColor,
+            paperColor[0] / 255,
+            paperColor[1] / 255,
+            paperColor[2] / 255,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Dot Matrix", "WebGL2",
-            `size=${dotSize}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Dot Matrix",
+            "WebGL2",
+            `size=${dotSize}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -187,11 +231,18 @@ const dotMatrix = (input: any, options: Partial<typeof defaults> & { _webglAccel
       let alphaWeight = 0;
       for (let sy = 0; sy < 4; sy++) {
         for (let sx = 0; sx < 4; sx++) {
-          const sampleX = Math.max(0, Math.min(W - 1, Math.floor(cx + (sx + 0.5) * cellSize / 4)));
-          const sampleY = Math.max(0, Math.min(H - 1, Math.floor(cy + (sy + 0.5) * cellSize / 4)));
+          const sampleX = Math.max(
+            0,
+            Math.min(W - 1, Math.floor(cx + ((sx + 0.5) * cellSize) / 4)),
+          );
+          const sampleY = Math.max(
+            0,
+            Math.min(H - 1, Math.floor(cy + ((sy + 0.5) * cellSize) / 4)),
+          );
           const i = getBufferIndex(sampleX, sampleY, W);
           const alpha = buf[i + 3] / 255;
-          weightedLuma += (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255 * alpha;
+          weightedLuma +=
+            ((0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255) * alpha;
           alphaWeight += alpha;
         }
       }
@@ -231,5 +282,5 @@ export default defineFilter({
   func: dotMatrix,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

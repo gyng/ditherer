@@ -11,13 +11,28 @@ vi.mock("utils", async (importOriginal) => {
 
 import { initWasmFromBinary, wasmIsLoaded } from "@gyng/ditherer-filters";
 import {
-  atkinson, burkes, floydSteinberg, jarvis, sierra, sierra2, sierraLite, stucki,
+  atkinson,
+  burkes,
+  floydSteinberg,
+  jarvis,
+  sierra,
+  sierra2,
+  sierraLite,
+  stucki,
 } from "filters/errorDiffusing";
 import { ORDER, TEMPORAL_MODE } from "filters/errorDiffusingFilterFactory";
 import nearest from "palettes/nearest";
 import {
-  ATKINSON, BURKES, FLOYD_STEINBERG, JARVIS, SIERRA, SIERRA_2, SIERRA_LITE, STUCKI,
-  diffuse, type Tap,
+  ATKINSON,
+  BURKES,
+  FLOYD_STEINBERG,
+  JARVIS,
+  SIERRA,
+  SIERRA_2,
+  SIERRA_LITE,
+  STUCKI,
+  diffuse,
+  type Tap,
 } from "../fixtures/errorDiffusionReference";
 
 // Pins the error-diffusion filters against an independent reference
@@ -57,12 +72,15 @@ const makeCanvas = (data: Uint8ClampedArray) => {
   const canvas = {
     width: W,
     height: H,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width: W, height: H }),
-      putImageData: (img: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(img.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width: W, height: H }),
+            putImageData: (img: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(img.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return { canvas, written: () => written };
 };

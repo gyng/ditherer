@@ -4,21 +4,21 @@ import {
   reconcileAudioFrameCount,
 } from "components/SaveAs/export/offlineAudioEncode";
 
-type BufferShape = Pick<AudioBuffer,
+type BufferShape = Pick<
+  AudioBuffer,
   "duration" | "length" | "numberOfChannels" | "sampleRate" | "getChannelData"
 >;
 
-const makeBuffer = (overrides: Partial<BufferShape> = {}): AudioBuffer => ({
-  duration: 0.03,
-  length: 1440,
-  numberOfChannels: 2,
-  sampleRate: 48_000,
-  getChannelData: (channel: number) => Float32Array.from(
-    { length: 1440 },
-    (_, index) => channel + index / 10_000,
-  ),
-  ...overrides,
-}) as AudioBuffer;
+const makeBuffer = (overrides: Partial<BufferShape> = {}): AudioBuffer =>
+  ({
+    duration: 0.03,
+    length: 1440,
+    numberOfChannels: 2,
+    sampleRate: 48_000,
+    getChannelData: (channel: number) =>
+      Float32Array.from({ length: 1440 }, (_, index) => channel + index / 10_000),
+    ...overrides,
+  }) as AudioBuffer;
 
 class AudioDataStub {
   static instances: AudioDataStub[] = [];
@@ -74,11 +74,14 @@ beforeEach(() => {
   AudioEncoderStub.isConfigSupported.mockClear();
   vi.stubGlobal("AudioData", AudioDataStub);
   vi.stubGlobal("AudioEncoder", AudioEncoderStub);
-  vi.stubGlobal("fetch", vi.fn(async () => ({
-    ok: true,
-    status: 200,
-    arrayBuffer: async () => new ArrayBuffer(8),
-  })));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => new ArrayBuffer(8),
+    })),
+  );
 });
 
 afterEach(() => {
@@ -96,24 +99,32 @@ describe("offline audio preparation", () => {
   });
 
   it("reports unreadable sources, failed fetches, and missing decode support", async () => {
-    await expect(prepareOfflineAudioTrack(document.createElement("video"), 1_000_000))
-      .rejects.toThrow("readable video source");
+    await expect(
+      prepareOfflineAudioTrack(document.createElement("video"), 1_000_000),
+    ).rejects.toThrow("readable video source");
 
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 403 } as Response);
-    await expect(prepareOfflineAudioTrack(makeVideo(), 1_000_000))
-      .rejects.toThrow("(403)");
+    await expect(prepareOfflineAudioTrack(makeVideo(), 1_000_000)).rejects.toThrow("(403)");
 
-    await expect(prepareOfflineAudioTrack(makeVideo(), 1_000_000))
-      .rejects.toThrow("does not support AudioContext");
+    await expect(prepareOfflineAudioTrack(makeVideo(), 1_000_000)).rejects.toThrow(
+      "does not support AudioContext",
+    );
   });
 
   it("uses the WebKit decode fallback and returns null for decode or empty-audio failures", async () => {
-    const close = vi.fn(async () => { throw new Error("already closed"); });
+    const close = vi.fn(async () => {
+      throw new Error("already closed");
+    });
     const WebkitContext = class {
-      decodeAudioData = vi.fn(async () => { throw new Error("no audio track"); });
+      decodeAudioData = vi.fn(async () => {
+        throw new Error("no audio track");
+      });
       close = close;
     };
-    Object.defineProperty(window, "webkitAudioContext", { configurable: true, value: WebkitContext });
+    Object.defineProperty(window, "webkitAudioContext", {
+      configurable: true,
+      value: WebkitContext,
+    });
     await expect(prepareOfflineAudioTrack(makeVideo(), 1_000_000)).resolves.toBeNull();
     expect(close).toHaveBeenCalledOnce();
 
@@ -124,8 +135,9 @@ describe("offline audio preparation", () => {
   it("rejects a browser without Opus encoding support", async () => {
     stubDecodeContext(async () => makeBuffer());
     AudioEncoderStub.supported = false;
-    await expect(prepareOfflineAudioTrack(makeVideo(), 30_000))
-      .rejects.toThrow("cannot encode Opus audio");
+    await expect(prepareOfflineAudioTrack(makeVideo(), 30_000)).rejects.toThrow(
+      "cannot encode Opus audio",
+    );
   });
 
   it("encodes bounded stereo chunks, progress, mux output, and cleanup", async () => {
@@ -153,7 +165,12 @@ describe("offline audio preparation", () => {
 
   it("resamples mono input and honors aborts without requiring a progress callback", async () => {
     const decoded = makeBuffer({ sampleRate: 44_100, numberOfChannels: 1 });
-    const resampled = makeBuffer({ sampleRate: 48_000, numberOfChannels: 1, length: 960, duration: 0.02 });
+    const resampled = makeBuffer({
+      sampleRate: 48_000,
+      numberOfChannels: 1,
+      length: 960,
+      duration: 0.02,
+    });
     stubDecodeContext(async () => decoded);
     const source = { buffer: null as AudioBuffer | null, connect: vi.fn(), start: vi.fn() };
     const OfflineContext = class {

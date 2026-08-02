@@ -76,9 +76,27 @@ void main() {
 `;
 
 export const optionTypes = {
-  cylinderRadius: { type: RANGE, range: [10, 400], step: 1, default: 80, desc: "Mirror radius (px) — below this is the 'reflection' view" },
-  maxRadius: { type: RANGE, range: [50, 2048], step: 1, default: 500, desc: "Outer radius of the distorted annulus" },
-  twist: { type: RANGE, range: [0, 360], step: 1, default: 0, desc: "Angular twist around the cylinder (degrees)" },
+  cylinderRadius: {
+    type: RANGE,
+    range: [10, 400],
+    step: 1,
+    default: 80,
+    desc: "Mirror radius (px) — below this is the 'reflection' view",
+  },
+  maxRadius: {
+    type: RANGE,
+    range: [50, 2048],
+    step: 1,
+    default: 500,
+    desc: "Outer radius of the distorted annulus",
+  },
+  twist: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 0,
+    desc: "Angular twist around the cylinder (degrees)",
+  },
   palette: { type: PALETTE, default: nearest },
 };
 
@@ -93,16 +111,32 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, ANAMORPH_FS, ["u_source", "u_res", "u_cylR", "u_maxR", "u_twist", "u_levels"] as const) };
+  _cache = {
+    prog: linkProgram(gl, ANAMORPH_FS, [
+      "u_source",
+      "u_res",
+      "u_cylR",
+      "u_maxR",
+      "u_twist",
+      "u_levels",
+    ] as const),
+  };
   return _cache;
 };
 
 const anamorphicCylinder = (input: any, options: Partial<typeof defaults> = defaults) => {
-  const cylinderRadius = normalizeRangeOption(options.cylinderRadius, defaults.cylinderRadius, 10, 400, true);
+  const cylinderRadius = normalizeRangeOption(
+    options.cylinderRadius,
+    defaults.cylinderRadius,
+    10,
+    400,
+    true,
+  );
   const maxRadius = normalizeRangeOption(options.maxRadius, defaults.maxRadius, 50, 2048, true);
   const twist = normalizeRangeOption(options.twist, defaults.twist, 0, 360);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -115,25 +149,36 @@ const anamorphicCylinder = (input: any, options: Partial<typeof defaults> = defa
       gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      drawPass(gl, null, W, H, cache.prog, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.prog.uniforms.u_source, 0);
-        gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-        gl.uniform1f(cache.prog.uniforms.u_cylR, cylinderRadius);
-        gl.uniform1f(cache.prog.uniforms.u_maxR, Math.max(maxRadius, cylinderRadius + 10));
-        gl.uniform1f(cache.prog.uniforms.u_twist, (twist * Math.PI) / 180);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.prog,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.prog.uniforms.u_source, 0);
+          gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+          gl.uniform1f(cache.prog.uniforms.u_cylR, cylinderRadius);
+          gl.uniform1f(cache.prog.uniforms.u_maxR, Math.max(maxRadius, cylinderRadius + 10));
+          gl.uniform1f(cache.prog.uniforms.u_twist, (twist * Math.PI) / 180);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Anamorphic Cylinder", "WebGL2",
-            `cyl=${cylinderRadius} max=${maxRadius}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Anamorphic Cylinder",
+            "WebGL2",
+            `cyl=${cylinderRadius} max=${maxRadius}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -149,6 +194,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Cylindrical anamorphosis — classic 'stretched disc' distortion that unwarps when viewed in a reflective cylinder placed at the centre",
+  description:
+    "Cylindrical anamorphosis — classic 'stretched disc' distortion that unwarps when viewed in a reflective cylinder placed at the centre",
   noWASM: "Pure per-pixel warp; GL natural fit.",
 });

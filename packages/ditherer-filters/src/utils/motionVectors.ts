@@ -26,7 +26,7 @@ export const MOTION_SOURCE = {
   LIGHTNESS: "LIGHTNESS",
 } as const;
 
-export type MotionSourceMode = typeof MOTION_SOURCE[keyof typeof MOTION_SOURCE];
+export type MotionSourceMode = (typeof MOTION_SOURCE)[keyof typeof MOTION_SOURCE];
 
 export type MotionVector = {
   dx: number;
@@ -91,7 +91,13 @@ export const prepareMotionAnalysisBuffers = (
     } else if (mode === MOTION_SOURCE.BLUE) {
       currentScalar[p] = curBByte;
       previousScalar[p] = prevBByte;
-    } else if (isHueMode || isHsvSaturationMode || isValueMode || isHslSaturationMode || isLightnessMode) {
+    } else if (
+      isHueMode ||
+      isHsvSaturationMode ||
+      isValueMode ||
+      isHslSaturationMode ||
+      isLightnessMode
+    ) {
       const curR = curRByte / 255;
       const curG = curGByte / 255;
       const curB = curBByte / 255;
@@ -109,18 +115,20 @@ export const prepareMotionAnalysisBuffers = (
       let curHue = 0;
       let prevHue = 0;
       if (curDelta > 0) {
-        curHue = curMax === curR
-          ? ((curG - curB) / curDelta + (curG < curB ? 6 : 0)) * 60
-          : curMax === curG
-            ? ((curB - curR) / curDelta + 2) * 60
-            : ((curR - curG) / curDelta + 4) * 60;
+        curHue =
+          curMax === curR
+            ? ((curG - curB) / curDelta + (curG < curB ? 6 : 0)) * 60
+            : curMax === curG
+              ? ((curB - curR) / curDelta + 2) * 60
+              : ((curR - curG) / curDelta + 4) * 60;
       }
       if (prevDelta > 0) {
-        prevHue = prevMax === prevR
-          ? ((prevG - prevB) / prevDelta + (prevG < prevB ? 6 : 0)) * 60
-          : prevMax === prevG
-            ? ((prevB - prevR) / prevDelta + 2) * 60
-            : ((prevR - prevG) / prevDelta + 4) * 60;
+        prevHue =
+          prevMax === prevR
+            ? ((prevG - prevB) / prevDelta + (prevG < prevB ? 6 : 0)) * 60
+            : prevMax === prevG
+              ? ((prevB - prevR) / prevDelta + 2) * 60
+              : ((prevR - prevG) / prevDelta + 4) * 60;
       }
 
       if (isHueMode) {
@@ -135,13 +143,15 @@ export const prepareMotionAnalysisBuffers = (
       } else if (isHslSaturationMode) {
         const curLightness = (curMax + curMin) * 0.5;
         const prevLightness = (prevMax + prevMin) * 0.5;
-        currentScalar[p] = curDelta > 0 ? (curDelta / (1 - Math.abs(2 * curLightness - 1))) * 255 : 0;
-        previousScalar[p] = prevDelta > 0 ? (prevDelta / (1 - Math.abs(2 * prevLightness - 1))) * 255 : 0;
+        currentScalar[p] =
+          curDelta > 0 ? (curDelta / (1 - Math.abs(2 * curLightness - 1))) * 255 : 0;
+        previousScalar[p] =
+          prevDelta > 0 ? (prevDelta / (1 - Math.abs(2 * prevLightness - 1))) * 255 : 0;
         if (!Number.isFinite(currentScalar[p])) currentScalar[p] = 0;
         if (!Number.isFinite(previousScalar[p])) previousScalar[p] = 0;
       } else {
-        currentScalar[p] = ((curMax + curMin) * 0.5) * 255;
-        previousScalar[p] = ((prevMax + prevMin) * 0.5) * 255;
+        currentScalar[p] = (curMax + curMin) * 0.5 * 255;
+        previousScalar[p] = (prevMax + prevMin) * 0.5 * 255;
       }
     } else {
       currentScalar[p] = curRByte * 0.2126 + curGByte * 0.7152 + curBByte * 0.0722;
@@ -159,7 +169,7 @@ export const prepareMotionAnalysisBuffers = (
 export const hsvToRgb = (h: number, s: number, v: number): [number, number, number] => {
   const hh = ((h % 360) + 360) % 360;
   const c = v * s;
-  const x = c * (1 - Math.abs((hh / 60) % 2 - 1));
+  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1));
   const m = v - c;
   let r: number;
   let g: number;
@@ -172,11 +182,7 @@ export const hsvToRgb = (h: number, s: number, v: number): [number, number, numb
   else if (hh < 300) [r, g, b] = [x, 0, c];
   else [r, g, b] = [c, 0, x];
 
-  return [
-    clamp255((r + m) * 255),
-    clamp255((g + m) * 255),
-    clamp255((b + m) * 255),
-  ];
+  return [clamp255((r + m) * 255), clamp255((g + m) * 255), clamp255((b + m) * 255)];
 };
 
 export const directionColor = (
@@ -272,8 +278,28 @@ export const drawVectorGlyph = (
     drawLine(outBuf, width, height, tailX, tailY, x1, y1, color, alpha);
     const backX = x1 - ux * head;
     const backY = y1 - uy * head;
-    drawLine(outBuf, width, height, x1, y1, backX + nx * head * 0.35, backY + ny * head * 0.35, color, alpha);
-    drawLine(outBuf, width, height, x1, y1, backX - nx * head * 0.35, backY - ny * head * 0.35, color, alpha);
+    drawLine(
+      outBuf,
+      width,
+      height,
+      x1,
+      y1,
+      backX + nx * head * 0.35,
+      backY + ny * head * 0.35,
+      color,
+      alpha,
+    );
+    drawLine(
+      outBuf,
+      width,
+      height,
+      x1,
+      y1,
+      backX - nx * head * 0.35,
+      backY - ny * head * 0.35,
+      color,
+      alpha,
+    );
     return;
   }
 
@@ -281,8 +307,28 @@ export const drawVectorGlyph = (
     const backX = x1 - ux * head;
     const backY = y1 - uy * head;
     drawLine(outBuf, width, height, tailX, tailY, backX, backY, color, alpha);
-    drawLine(outBuf, width, height, x1, y1, backX + nx * head * 0.55, backY + ny * head * 0.55, color, alpha);
-    drawLine(outBuf, width, height, x1, y1, backX - nx * head * 0.55, backY - ny * head * 0.55, color, alpha);
+    drawLine(
+      outBuf,
+      width,
+      height,
+      x1,
+      y1,
+      backX + nx * head * 0.55,
+      backY + ny * head * 0.55,
+      color,
+      alpha,
+    );
+    drawLine(
+      outBuf,
+      width,
+      height,
+      x1,
+      y1,
+      backX - nx * head * 0.55,
+      backY - ny * head * 0.55,
+      color,
+      alpha,
+    );
     drawLine(
       outBuf,
       width,
@@ -298,8 +344,28 @@ export const drawVectorGlyph = (
   }
 
   drawLine(outBuf, width, height, tailX, tailY, x1, y1, color, alpha);
-  drawLine(outBuf, width, height, x1, y1, x1 - ux * head + nx * head * 0.5, y1 - uy * head + ny * head * 0.5, color, alpha);
-  drawLine(outBuf, width, height, x1, y1, x1 - ux * head - nx * head * 0.5, y1 - uy * head - ny * head * 0.5, color, alpha);
+  drawLine(
+    outBuf,
+    width,
+    height,
+    x1,
+    y1,
+    x1 - ux * head + nx * head * 0.5,
+    y1 - uy * head + ny * head * 0.5,
+    color,
+    alpha,
+  );
+  drawLine(
+    outBuf,
+    width,
+    height,
+    x1,
+    y1,
+    x1 - ux * head - nx * head * 0.5,
+    y1 - uy * head - ny * head * 0.5,
+    color,
+    alpha,
+  );
 };
 
 export const averageBlockError = (
@@ -350,21 +416,29 @@ export const averageBlockError = (
         const scalarIndex = rowOffset + x;
         const sampleScalarIndex = sampleRowOffset + sampleX;
         const sampleIndex = getBufferIndex(sampleX, sampleY, width);
-        const currentValue = currentScalar ? (currentScalar[scalarIndex] ?? 0) : (
-          mode === MOTION_SOURCE.RED ? readChannel(current, i)
-            : mode === MOTION_SOURCE.GREEN ? readChannel(current, i + 1)
-            : mode === MOTION_SOURCE.BLUE ? readChannel(current, i + 2)
-            : readChannel(current, i) * 0.2126 + readChannel(current, i + 1) * 0.7152 + readChannel(current, i + 2) * 0.0722
-        );
+        const currentValue = currentScalar
+          ? (currentScalar[scalarIndex] ?? 0)
+          : mode === MOTION_SOURCE.RED
+            ? readChannel(current, i)
+            : mode === MOTION_SOURCE.GREEN
+              ? readChannel(current, i + 1)
+              : mode === MOTION_SOURCE.BLUE
+                ? readChannel(current, i + 2)
+                : readChannel(current, i) * 0.2126 +
+                  readChannel(current, i + 1) * 0.7152 +
+                  readChannel(current, i + 2) * 0.0722;
 
         const prevValue = previousScalar
           ? (previousScalar[sampleScalarIndex] ?? 0)
-          : mode === MOTION_SOURCE.RED ? readChannel(previous, sampleIndex)
-            : mode === MOTION_SOURCE.GREEN ? readChannel(previous, sampleIndex + 1)
-            : mode === MOTION_SOURCE.BLUE ? readChannel(previous, sampleIndex + 2)
-            : readChannel(previous, sampleIndex) * 0.2126
-              + readChannel(previous, sampleIndex + 1) * 0.7152
-              + readChannel(previous, sampleIndex + 2) * 0.0722;
+          : mode === MOTION_SOURCE.RED
+            ? readChannel(previous, sampleIndex)
+            : mode === MOTION_SOURCE.GREEN
+              ? readChannel(previous, sampleIndex + 1)
+              : mode === MOTION_SOURCE.BLUE
+                ? readChannel(previous, sampleIndex + 2)
+                : readChannel(previous, sampleIndex) * 0.2126 +
+                  readChannel(previous, sampleIndex + 1) * 0.7152 +
+                  readChannel(previous, sampleIndex + 2) * 0.0722;
         const diff = Math.abs(currentValue - prevValue);
         error += circularRange > 0 ? Math.min(diff, circularRange - diff) : diff;
         count += 1;
@@ -401,16 +475,29 @@ export const estimateMotionVector = (
   // Full sample count for this block (constant across all candidate
   // displacements), so the early-out prune is exact.
   const unit = mode === MOTION_SOURCE.RGB ? 3 : 1;
-  const fullBlockCount = Math.max(0, Math.min(cellSize, width - x))
-    * Math.max(0, Math.min(cellSize, height - y)) * unit;
+  const fullBlockCount =
+    Math.max(0, Math.min(cellSize, width - x)) * Math.max(0, Math.min(cellSize, height - y)) * unit;
 
   // Seed with the zero vector so tied candidates (flat / low-texture blocks,
   // where every displacement has equal SAD) resolve to no motion instead of the
   // first-scanned (-searchRadius, -searchRadius), which would creep flat regions
   // diagonally each frame. A real match must strictly beat the stationary block.
   let bestError = averageBlockError(
-    current, previous, width, height, x, y, cellSize,
-    0, 0, mode, currentScalar, previousScalar, circularRange, Infinity, fullBlockCount,
+    current,
+    previous,
+    width,
+    height,
+    x,
+    y,
+    cellSize,
+    0,
+    0,
+    mode,
+    currentScalar,
+    previousScalar,
+    circularRange,
+    Infinity,
+    fullBlockCount,
   );
 
   for (let dy = -searchRadius; dy <= searchRadius; dy += 1) {
@@ -462,7 +549,7 @@ export const blurVectorGrid = (
   amount: number,
   searchRadius: number,
 ) => {
-  if (amount <= 0) return vectors.map(vector => ({ ...vector }));
+  if (amount <= 0) return vectors.map((vector) => ({ ...vector }));
 
   const out = new Array<MotionVector>(vectors.length);
   for (let y = 0; y < rows; y += 1) {
@@ -516,7 +603,7 @@ export const blendVectorFields = (
   amount: number,
 ) => {
   if (!previous || amount <= 0 || previous.length !== current.length) {
-    return current.map(vector => ({ ...vector }));
+    return current.map((vector) => ({ ...vector }));
   }
 
   const out = new Array<MotionVector>(current.length);
@@ -573,7 +660,10 @@ export const encodeVectorStateGroups = (vectorGroups: MotionVector[][]) => {
   return out;
 };
 
-export const decodeVectorState = (state: Float32Array | null | undefined, expectedLength: number) => {
+export const decodeVectorState = (
+  state: Float32Array | null | undefined,
+  expectedLength: number,
+) => {
   if (!state || state.length !== expectedLength * 4) return undefined;
   const out = new Array<MotionVector>(expectedLength);
   for (let i = 0; i < expectedLength; i += 1) {
@@ -603,7 +693,11 @@ export const fadeBuffer = (outBuf: Uint8ClampedArray, factor: number) => {
   }
 };
 
-export const blendSourceIntoBuffer = (outBuf: Uint8ClampedArray, source: Uint8ClampedArray, dim: number) => {
+export const blendSourceIntoBuffer = (
+  outBuf: Uint8ClampedArray,
+  source: Uint8ClampedArray,
+  dim: number,
+) => {
   for (let i = 0; i < outBuf.length; i += 4) {
     outBuf[i] = clamp255((outBuf[i] ?? 0) + (source[i] ?? 0) * dim);
     outBuf[i + 1] = clamp255((outBuf[i + 1] ?? 0) + (source[i + 1] ?? 0) * dim);

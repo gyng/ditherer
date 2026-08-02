@@ -54,8 +54,8 @@ masquerading as frequency separation).
 ## Outcome
 
 - Duotone now composites two ink density curves over paper (monotonic shadow ink
-  + midtone-bump second ink), producing a real overprint crossover — black →
-  shadow ink, white → paper — instead of a gradient map.
+  - midtone-bump second ink), producing a real overprint crossover — black →
+    shadow ink, white → paper — instead of a gradient map.
 - Wallpaper Tiling's P2 is a genuine 180° rotation (no mirror lines) and P6M is a
   real hexagonal 6-fold + mirror kaleidoscope (nearest hex centre + D6 fold), all
   backed by the invariance-tested `wallpaperFolds.ts`.

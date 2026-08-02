@@ -18,12 +18,32 @@ import {
 
 export const optionTypes = {
   intensity: { type: RANGE, range: [1, 20], step: 1, default: 8, desc: "Max pixel displacement" },
-  turbulence: { type: RANGE, range: [1, 5], step: 0.5, default: 2, desc: "Noise frequency in the warp pattern" },
-  settleSpeed: { type: RANGE, range: [0.02, 0.2], step: 0.01, default: 0.08, desc: "How fast distortion fades after motion stops" },
+  turbulence: {
+    type: RANGE,
+    range: [1, 5],
+    step: 0.5,
+    default: 2,
+    desc: "Noise frequency in the warp pattern",
+  },
+  settleSpeed: {
+    type: RANGE,
+    range: [0.02, 0.2],
+    step: 0.01,
+    default: 0.08,
+    desc: "How fast distortion fades after motion stops",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -115,7 +135,12 @@ let _emaScratch: Uint8ClampedArray | null = null;
 const getEnergyProg = (gl: WebGL2RenderingContext): Program => {
   if (_energyProg) return _energyProg;
   _energyProg = linkProgram(gl, ENERGY_FS, [
-    "u_source", "u_ema", "u_prevEnergy", "u_settle", "u_haveEma", "u_havePrev",
+    "u_source",
+    "u_ema",
+    "u_prevEnergy",
+    "u_settle",
+    "u_haveEma",
+    "u_havePrev",
   ] as const);
   return _energyProg;
 };
@@ -123,7 +148,13 @@ const getEnergyProg = (gl: WebGL2RenderingContext): Program => {
 const getWarpProg = (gl: WebGL2RenderingContext): Program => {
   if (_warpProg) return _warpProg;
   _warpProg = linkProgram(gl, WARP_FS, [
-    "u_source", "u_energy", "u_resolution", "u_texel", "u_intensity", "u_turbulence", "u_t",
+    "u_source",
+    "u_energy",
+    "u_resolution",
+    "u_texel",
+    "u_intensity",
+    "u_turbulence",
+    "u_t",
   ] as const);
   return _warpProg;
 };
@@ -134,7 +165,8 @@ const wakeTurbulence = (input: any, options: WakeTurbulenceOptions = defaults) =
   const settleSpeed = normalizeRangeOption(options.settleSpeed, defaults.settleSpeed, 0.02, 0.2);
   const ema = options._ema ?? null;
   const frameIndex = normalizeRangeOption(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER, true);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -164,37 +196,53 @@ const wakeTurbulence = (input: any, options: WakeTurbulenceOptions = defaults) =
   const energyA = ensureTexture(gl, "wakeTurbulence:energyA", W, H);
   const energyB = ensureTexture(gl, "wakeTurbulence:energyB", W, H);
   const writeEnergy = frameIndex % 2 === 0 ? energyA : energyB;
-  const readEnergy  = frameIndex % 2 === 0 ? energyB : energyA;
+  const readEnergy = frameIndex % 2 === 0 ? energyB : energyA;
   const havePrev = frameIndex > 0;
 
-  drawPass(gl, writeEnergy, W, H, energyProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(energyProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
-    gl.uniform1i(energyProg.uniforms.u_ema, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, readEnergy.tex);
-    gl.uniform1i(energyProg.uniforms.u_prevEnergy, 2);
-    gl.uniform1f(energyProg.uniforms.u_settle, settleSpeed);
-    gl.uniform1f(energyProg.uniforms.u_haveEma, haveEma ? 1 : 0);
-    gl.uniform1f(energyProg.uniforms.u_havePrev, havePrev ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    writeEnergy,
+    W,
+    H,
+    energyProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(energyProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
+      gl.uniform1i(energyProg.uniforms.u_ema, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, readEnergy.tex);
+      gl.uniform1i(energyProg.uniforms.u_prevEnergy, 2);
+      gl.uniform1f(energyProg.uniforms.u_settle, settleSpeed);
+      gl.uniform1f(energyProg.uniforms.u_haveEma, haveEma ? 1 : 0);
+      gl.uniform1f(energyProg.uniforms.u_havePrev, havePrev ? 1 : 0);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, W, H, warpProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(warpProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, writeEnergy.tex);
-    gl.uniform1i(warpProg.uniforms.u_energy, 1);
-    gl.uniform2f(warpProg.uniforms.u_resolution, W, H);
-    gl.uniform2f(warpProg.uniforms.u_texel, 1 / W, 1 / H);
-    gl.uniform1f(warpProg.uniforms.u_intensity, intensity);
-    gl.uniform1f(warpProg.uniforms.u_turbulence, turbulence);
-    gl.uniform1f(warpProg.uniforms.u_t, frameIndex * 0.15);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    warpProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(warpProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, writeEnergy.tex);
+      gl.uniform1i(warpProg.uniforms.u_energy, 1);
+      gl.uniform2f(warpProg.uniforms.u_resolution, W, H);
+      gl.uniform2f(warpProg.uniforms.u_texel, 1 / W, 1 / H);
+      gl.uniform1f(warpProg.uniforms.u_intensity, intensity);
+      gl.uniform1f(warpProg.uniforms.u_turbulence, turbulence);
+      gl.uniform1f(warpProg.uniforms.u_t, frameIndex * 0.15);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {

@@ -1,10 +1,6 @@
 import { RANGE, ACTION } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
-import {
-  cloneCanvas,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import {
   drawPass,
   ensureTexture,
@@ -19,13 +15,39 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  baseSpeed: { type: RANGE, range: [0, 10], step: 0.5, default: 2, desc: "Hue rotation degrees per frame for static areas" },
-  motionMultiplier: { type: RANGE, range: [0, 20], step: 1, default: 8, desc: "Extra hue rotation per unit of motion" },
-  saturationBoost: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Boost saturation in moving areas" },
+  baseSpeed: {
+    type: RANGE,
+    range: [0, 10],
+    step: 0.5,
+    default: 2,
+    desc: "Hue rotation degrees per frame for static areas",
+  },
+  motionMultiplier: {
+    type: RANGE,
+    range: [0, 20],
+    step: 1,
+    default: 8,
+    desc: "Extra hue rotation per unit of motion",
+  },
+  saturationBoost: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.3,
+    desc: "Boost saturation in moving areas",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -36,35 +58,45 @@ export const defaults = {
 };
 
 const rgb2hsl = (r: number, g: number, b: number): [number, number, number] => {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
   const l = (max + min) / 2;
   if (max === min) return [0, 0, l];
   const d = max - min;
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  const h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) / 6
-    : max === g ? ((b - r) / d + 2) / 6
-    : ((r - g) / d + 4) / 6;
+  const h =
+    max === r
+      ? ((g - b) / d + (g < b ? 6 : 0)) / 6
+      : max === g
+        ? ((b - r) / d + 2) / 6
+        : ((r - g) / d + 4) / 6;
   return [h * 360, s, l];
 };
 
 const hue2rgb = (p: number, q: number, t: number) => {
-  if (t < 0) t += 1; if (t > 1) t -= 1;
-  if (t < 1/6) return p + (q - p) * 6 * t;
-  if (t < 1/2) return q;
-  if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+  if (t < 0) t += 1;
+  if (t > 1) t -= 1;
+  if (t < 1 / 6) return p + (q - p) * 6 * t;
+  if (t < 1 / 2) return q;
+  if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
   return p;
 };
 
 const hsl2rgb = (h: number, s: number, l: number): [number, number, number] => {
-  h = ((h % 360) + 360) % 360 / 360;
-  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  h = (((h % 360) + 360) % 360) / 360;
+  if (s === 0) {
+    const v = Math.round(l * 255);
+    return [v, v, v];
+  }
   const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
   const p = 2 * l - q;
   return [
-    Math.round(hue2rgb(p, q, h + 1/3) * 255),
+    Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
     Math.round(hue2rgb(p, q, h) * 255),
-    Math.round(hue2rgb(p, q, h - 1/3) * 255),
+    Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
   ];
 };
 
@@ -144,13 +176,23 @@ void main() {
 }
 `;
 
-type Cache = { cc: Program; emaTex: WebGLTexture | null; emaBuf: Uint8ClampedArray | null; w: number; h: number };
+type Cache = {
+  cc: Program;
+  emaTex: WebGLTexture | null;
+  emaBuf: Uint8ClampedArray | null;
+  w: number;
+  h: number;
+};
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   const prog = linkProgram(gl, CC_FS, [
-    "u_source", "u_ema", "u_hasEma", "u_globalShift",
-    "u_motionMultiplier", "u_saturationBoost",
+    "u_source",
+    "u_ema",
+    "u_hasEma",
+    "u_globalShift",
+    "u_motionMultiplier",
+    "u_saturationBoost",
   ] as const);
   _cache = { cc: prog, emaTex: null, emaBuf: null, w: 0, h: 0 };
   return _cache;
@@ -180,7 +222,8 @@ const temporalColorCycle = (input: any, options: TemporalColorCycleOptions = def
   const saturationBoost = Number(options.saturationBoost ?? defaults.saturationBoost);
   const ema = options._ema ?? null;
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const globalShift = frameIndex * baseSpeed;
 
   if (glAvailable() && options._webglAcceleration !== false) {
@@ -206,23 +249,34 @@ const temporalColorCycle = (input: any, options: TemporalColorCycleOptions = def
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, u8);
       }
 
-      drawPass(gl, null, W, H, cache.cc, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.cc.uniforms.u_source, 0);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, emaTex);
-        gl.uniform1i(cache.cc.uniforms.u_ema, 1);
-        gl.uniform1i(cache.cc.uniforms.u_hasEma, hasEma ? 1 : 0);
-        gl.uniform1f(cache.cc.uniforms.u_globalShift, globalShift);
-        gl.uniform1f(cache.cc.uniforms.u_motionMultiplier, motionMultiplier);
-        gl.uniform1f(cache.cc.uniforms.u_saturationBoost, saturationBoost);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.cc,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.cc.uniforms.u_source, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, emaTex);
+          gl.uniform1i(cache.cc.uniforms.u_ema, 1);
+          gl.uniform1i(cache.cc.uniforms.u_hasEma, hasEma ? 1 : 0);
+          gl.uniform1f(cache.cc.uniforms.u_globalShift, globalShift);
+          gl.uniform1f(cache.cc.uniforms.u_motionMultiplier, motionMultiplier);
+          gl.uniform1f(cache.cc.uniforms.u_saturationBoost, saturationBoost);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
-        logFilterBackend("Color Cycle", "WebGL2",
-          `shift=${globalShift.toFixed(1)} motion=${motionMultiplier}`);
+        logFilterBackend(
+          "Color Cycle",
+          "WebGL2",
+          `shift=${globalShift.toFixed(1)} motion=${motionMultiplier}`,
+        );
         return rendered;
       }
     }
@@ -239,18 +293,32 @@ const temporalColorCycle = (input: any, options: TemporalColorCycleOptions = def
 
   for (let i = 0; i < buf.length; i += 4) {
     const motion = ema
-      ? (Math.abs(buf[i] - ema[i]) + Math.abs(buf[i + 1] - ema[i + 1]) + Math.abs(buf[i + 2] - ema[i + 2])) / 765
+      ? (Math.abs(buf[i] - ema[i]) +
+          Math.abs(buf[i + 1] - ema[i + 1]) +
+          Math.abs(buf[i + 2] - ema[i + 2])) /
+        765
       : 0;
 
     const [hRaw, sRaw, l] = rgb2hsl(buf[i], buf[i + 1], buf[i + 2]);
     const h = hRaw + globalShift + motion * motionMultiplier * 30;
     const s = Math.min(1, sRaw + motion * saturationBoost);
     const [r, g, b] = hsl2rgb(h, s, l);
-    outBuf[i] = r; outBuf[i + 1] = g; outBuf[i + 2] = b; outBuf[i + 3] = buf[i + 3];
+    outBuf[i] = r;
+    outBuf[i + 1] = g;
+    outBuf[i + 2] = b;
+    outBuf[i + 3] = buf[i + 3];
   }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;
 };
 
-export default defineFilter({ name: "Color Cycle", func: temporalColorCycle, optionTypes, options: defaults, defaults, description: "Hue rotates over time — moving areas cycle faster creating rainbow trails" , temporal: true });
+export default defineFilter({
+  name: "Color Cycle",
+  func: temporalColorCycle,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Hue rotates over time — moving areas cycle faster creating rainbow trails",
+  temporal: true,
+});

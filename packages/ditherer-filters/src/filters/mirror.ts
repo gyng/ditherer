@@ -16,7 +16,7 @@ const MODE = {
   HORIZONTAL: "HORIZONTAL",
   VERTICAL: "VERTICAL",
   BOTH: "BOTH",
-  KALEIDOSCOPE: "KALEIDOSCOPE"
+  KALEIDOSCOPE: "KALEIDOSCOPE",
 };
 
 export const optionTypes = {
@@ -26,15 +26,27 @@ export const optionTypes = {
       { name: "Horizontal", value: MODE.HORIZONTAL },
       { name: "Vertical", value: MODE.VERTICAL },
       { name: "Both", value: MODE.BOTH },
-      { name: "Kaleidoscope", value: MODE.KALEIDOSCOPE }
+      { name: "Kaleidoscope", value: MODE.KALEIDOSCOPE },
     ],
     default: MODE.KALEIDOSCOPE,
-    desc: "Mirror mode — simple flip or kaleidoscope"
+    desc: "Mirror mode — simple flip or kaleidoscope",
   },
-  segments: { type: RANGE, range: [2, 16], step: 1, default: 6, desc: "Number of kaleidoscope wedge segments" },
-  offsetX: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Horizontal center offset" },
+  segments: {
+    type: RANGE,
+    range: [2, 16],
+    step: 1,
+    default: 6,
+    desc: "Number of kaleidoscope wedge segments",
+  },
+  offsetX: {
+    type: RANGE,
+    range: [-1, 1],
+    step: 0.01,
+    default: 0,
+    desc: "Horizontal center offset",
+  },
   offsetY: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Vertical center offset" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -42,7 +54,7 @@ export const defaults = {
   segments: optionTypes.segments.default,
   offsetX: optionTypes.offsetX.default,
   offsetY: optionTypes.offsetY.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const mirror = (input: any, options = defaults) => {
@@ -51,16 +63,22 @@ const mirror = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    mirrorGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    mirrorGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderMirrorGL(input, W, H, mode, segments, offsetX, offsetY, levels);
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Mirror", "WebGL2", `${mode}${mode === "KALEIDOSCOPE" ? ` segments=${segments}` : ""}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Mirror",
+          "WebGL2",
+          `${mode}${mode === "KALEIDOSCOPE" ? ` segments=${segments}` : ""}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -79,7 +97,8 @@ const mirror = (input: any, options = defaults) => {
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let sx = x, sy = y;
+      let sx = x,
+        sy = y;
 
       if (mode === MODE.KALEIDOSCOPE) {
         const dx = x - cx;
@@ -112,7 +131,10 @@ const mirror = (input: any, options = defaults) => {
 
       const srcIdx = getBufferIndex(sx, sy, W);
       const dstIdx = getBufferIndex(x, y, W);
-      const r = buf[srcIdx], g = buf[srcIdx + 1], b = buf[srcIdx + 2], a = buf[srcIdx + 3];
+      const r = buf[srcIdx],
+        g = buf[srcIdx + 1],
+        b = buf[srcIdx + 2],
+        a = buf[srcIdx + 3];
 
       const color = paletteGetColor(palette, rgba(r, g, b, a), palette.options, false);
       fillBufferPixel(outBuf, dstIdx, color[0], color[1], color[2], a);
@@ -128,5 +150,5 @@ export default defineFilter({
   func: mirror,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

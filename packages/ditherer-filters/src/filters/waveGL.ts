@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -43,11 +50,19 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res",
-    "u_amplitudeX", "u_frequencyX", "u_amplitudeY", "u_frequencyY",
-    "u_phaseX", "u_phaseY", "u_diagonal",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_amplitudeX",
+      "u_frequencyX",
+      "u_amplitudeY",
+      "u_frequencyY",
+      "u_phaseX",
+      "u_phaseY",
+      "u_diagonal",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -55,10 +70,14 @@ export const waveGLAvailable = (): boolean => glAvailable();
 
 export const renderWaveGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  amplitudeX: number, frequencyX: number,
-  amplitudeY: number, frequencyY: number,
-  phaseX: number, phaseY: number,
+  width: number,
+  height: number,
+  amplitudeX: number,
+  frequencyX: number,
+  amplitudeY: number,
+  frequencyY: number,
+  phaseX: number,
+  phaseY: number,
   diagonal: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
@@ -69,18 +88,26 @@ export const renderWaveGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "wave:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_amplitudeX, amplitudeX);
-    gl.uniform1f(cache.prog.uniforms.u_frequencyX, frequencyX);
-    gl.uniform1f(cache.prog.uniforms.u_amplitudeY, amplitudeY);
-    gl.uniform1f(cache.prog.uniforms.u_frequencyY, frequencyY);
-    gl.uniform1f(cache.prog.uniforms.u_phaseX, phaseX);
-    gl.uniform1f(cache.prog.uniforms.u_phaseY, phaseY);
-    gl.uniform1i(cache.prog.uniforms.u_diagonal, diagonal ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_amplitudeX, amplitudeX);
+      gl.uniform1f(cache.prog.uniforms.u_frequencyX, frequencyX);
+      gl.uniform1f(cache.prog.uniforms.u_amplitudeY, amplitudeY);
+      gl.uniform1f(cache.prog.uniforms.u_frequencyY, frequencyY);
+      gl.uniform1f(cache.prog.uniforms.u_phaseX, phaseX);
+      gl.uniform1f(cache.prog.uniforms.u_phaseY, phaseY);
+      gl.uniform1i(cache.prog.uniforms.u_diagonal, diagonal ? 1 : 0);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

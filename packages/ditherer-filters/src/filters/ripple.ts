@@ -26,10 +26,28 @@ import {
 
 export const optionTypes = {
   amplitude: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Wave height in pixels" },
-  wavelength: { type: RANGE, range: [5, 100], step: 1, default: 30, desc: "Distance between wave peaks" },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of ripple origin" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical center of ripple origin" },
-  palette: { type: PALETTE, default: nearest }
+  wavelength: {
+    type: RANGE,
+    range: [5, 100],
+    step: 1,
+    default: 30,
+    desc: "Distance between wave peaks",
+  },
+  centerX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Horizontal center of ripple origin",
+  },
+  centerY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Vertical center of ripple origin",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -37,7 +55,7 @@ export const defaults = {
   wavelength: optionTypes.wavelength.default,
   centerX: optionTypes.centerX.default,
   centerY: optionTypes.centerY.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const RIPPLE_FS = `#version 300 es
@@ -84,7 +102,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     ripple: linkProgram(gl, RIPPLE_FS, [
-      "u_source", "u_res", "u_amplitude", "u_wavelength", "u_center", "u_levels",
+      "u_source",
+      "u_res",
+      "u_amplitude",
+      "u_wavelength",
+      "u_center",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -92,8 +115,10 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const rippleFilter = (input: any, options = defaults) => {
   const { amplitude, wavelength, centerX, centerY, palette } = options;
-  const W = input.width, H = input.height;
-  const cx = W * centerX, cy = H * centerY;
+  const W = input.width,
+    H = input.height;
+  const cx = W * centerX,
+    cy = H * centerY;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -105,26 +130,37 @@ const rippleFilter = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "ripple:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.ripple, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.ripple.uniforms.u_source, 0);
-        gl.uniform2f(cache.ripple.uniforms.u_res, W, H);
-        gl.uniform1f(cache.ripple.uniforms.u_amplitude, amplitude);
-        gl.uniform1f(cache.ripple.uniforms.u_wavelength, wavelength);
-        gl.uniform2f(cache.ripple.uniforms.u_center, cx, cy);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.ripple.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.ripple,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.ripple.uniforms.u_source, 0);
+          gl.uniform2f(cache.ripple.uniforms.u_res, W, H);
+          gl.uniform1f(cache.ripple.uniforms.u_amplitude, amplitude);
+          gl.uniform1f(cache.ripple.uniforms.u_wavelength, wavelength);
+          gl.uniform2f(cache.ripple.uniforms.u_center, cx, cy);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.ripple.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Ripple", "WebGL2",
-            `amp=${amplitude} wl=${wavelength}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Ripple",
+            "WebGL2",
+            `amp=${amplitude} wl=${wavelength}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -142,7 +178,8 @@ const rippleFilter = (input: any, options = defaults) => {
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      const dx = x - cx, dy = y - cy;
+      const dx = x - cx,
+        dy = y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 1) {
         const i = getBufferIndex(x, y, W);
@@ -150,19 +187,40 @@ const rippleFilter = (input: any, options = defaults) => {
         continue;
       }
 
-      const displacement = Math.sin(dist * 2 * Math.PI / wavelength) * amplitude;
-      const sx = x + dx / dist * displacement;
-      const sy = y + dy / dist * displacement;
+      const displacement = Math.sin((dist * 2 * Math.PI) / wavelength) * amplitude;
+      const sx = x + (dx / dist) * displacement;
+      const sy = y + (dy / dist) * displacement;
 
-      const sx0 = Math.floor(sx), sy0 = Math.floor(sy);
-      const fx = sx - sx0, fy = sy - sy0;
+      const sx0 = Math.floor(sx),
+        sy0 = Math.floor(sy);
+      const fx = sx - sx0,
+        fy = sy - sy0;
       const sample = (ch: number) => {
-        const get = (px: number, py: number) => buf[getBufferIndex(Math.max(0, Math.min(W - 1, px)), Math.max(0, Math.min(H - 1, py)), W) + ch];
-        return get(sx0, sy0) * (1 - fx) * (1 - fy) + get(sx0 + 1, sy0) * fx * (1 - fy) + get(sx0, sy0 + 1) * (1 - fx) * fy + get(sx0 + 1, sy0 + 1) * fx * fy;
+        const get = (px: number, py: number) =>
+          buf[
+            getBufferIndex(Math.max(0, Math.min(W - 1, px)), Math.max(0, Math.min(H - 1, py)), W) +
+              ch
+          ];
+        return (
+          get(sx0, sy0) * (1 - fx) * (1 - fy) +
+          get(sx0 + 1, sy0) * fx * (1 - fy) +
+          get(sx0, sy0 + 1) * (1 - fx) * fy +
+          get(sx0 + 1, sy0 + 1) * fx * fy
+        );
       };
 
       const di = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(Math.round(sample(0)), Math.round(sample(1)), Math.round(sample(2)), Math.round(sample(3))), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(
+          Math.round(sample(0)),
+          Math.round(sample(1)),
+          Math.round(sample(2)),
+          Math.round(sample(3)),
+        ),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, di, color[0], color[1], color[2], Math.round(sample(3)));
     }
   }
@@ -171,4 +229,10 @@ const rippleFilter = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Ripple", func: rippleFilter, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Ripple",
+  func: rippleFilter,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

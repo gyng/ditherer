@@ -10,7 +10,12 @@ import {
   logFilterBackend,
 } from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
-import { projectionFilmGLAvailable, renderProjectionFilmGL, type DustSpec, type ScratchSpec } from "./projectionFilmGL";
+import {
+  projectionFilmGLAvailable,
+  renderProjectionFilmGL,
+  type DustSpec,
+  type ScratchSpec,
+} from "./projectionFilmGL";
 import {
   filmDensityNoise,
   filmGrainAmplitude,
@@ -18,16 +23,58 @@ import {
 } from "./analogFilmQualityContracts";
 
 export const optionTypes = {
-  gateWeave: { type: RANGE, range: [0, 10], step: 0.5, default: 2, desc: "Projector gate weave jitter in pixels" },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Film grain noise intensity" },
-  dustAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Area-scaled dark dust and gate-debris density" },
-  scratchAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Vertical emulsion-scratch density — nonzero settings retain at least one line" },
-  flicker: { type: RANGE, range: [0, 0.2], step: 0.005, default: 0.05, desc: "Frame-to-frame brightness flicker" },
-  vignette: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Edge darkening intensity" },
+  gateWeave: {
+    type: RANGE,
+    range: [0, 10],
+    step: 0.5,
+    default: 2,
+    desc: "Projector gate weave jitter in pixels",
+  },
+  grain: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Film grain noise intensity",
+  },
+  dustAmount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.2,
+    desc: "Area-scaled dark dust and gate-debris density",
+  },
+  scratchAmount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Vertical emulsion-scratch density — nonzero settings retain at least one line",
+  },
+  flicker: {
+    type: RANGE,
+    range: [0, 0.2],
+    step: 0.005,
+    default: 0.05,
+    desc: "Frame-to-frame brightness flicker",
+  },
+  vignette: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Edge darkening intensity",
+  },
   warmth: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warm color cast" },
   bloom: { type: RANGE, range: [0, 2], step: 0.05, default: 0.4, desc: "Highlight bloom strength" },
   bloomRadius: { type: RANGE, range: [1, 15], step: 1, default: 6, desc: "Bloom glow radius" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 18, desc: "Projection frame rate for weave, grain, dust, scratches, and flicker" },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 18,
+    desc: "Projection frame rate for weave, grain, dust, scratches, and flicker",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -38,9 +85,9 @@ export const optionTypes = {
       } else {
         actions.startAnimLoop(inputCanvas, options.animSpeed || 18);
       }
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -54,14 +101,14 @@ export const defaults = {
   bloom: optionTypes.bloom.default,
   bloomRadius: optionTypes.bloomRadius.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Simple seeded pseudo-random for deterministic per-frame noise
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -73,10 +120,7 @@ type ProjectionFilmOptions = Partial<typeof defaults> & {
   _webglAcceleration?: boolean;
 };
 
-const projectionFilm = (
-  input: any,
-  options: ProjectionFilmOptions = defaults
-) => {
+const projectionFilm = (input: any, options: ProjectionFilmOptions = defaults) => {
   const {
     gateWeave = defaults.gateWeave,
     grain = defaults.grain,
@@ -100,12 +144,8 @@ const projectionFilm = (
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
   // --- Gate weave: random per-frame horizontal + vertical jitter ---
-  const weaveX = gateWeave > 0
-    ? Math.round((rng() - 0.5) * gateWeave * 2)
-    : 0;
-  const weaveY = gateWeave > 0
-    ? Math.round((rng() - 0.5) * gateWeave * 2)
-    : 0;
+  const weaveX = gateWeave > 0 ? Math.round((rng() - 0.5) * gateWeave * 2) : 0;
+  const weaveY = gateWeave > 0 ? Math.round((rng() - 0.5) * gateWeave * 2) : 0;
 
   // --- Light flicker: per-frame brightness multiplier ---
   const flickerMul = 1 + (rng() - 0.5) * flicker * 2;
@@ -123,7 +163,10 @@ const projectionFilm = (
   );
   const scratches: ScratchSpec[] = [];
   if (artifactCounts.scratches > 0) {
-    const boundedScratchAmount = Math.min(1, Math.max(0, Number.isFinite(scratchAmount) ? scratchAmount : defaults.scratchAmount));
+    const boundedScratchAmount = Math.min(
+      1,
+      Math.max(0, Number.isFinite(scratchAmount) ? scratchAmount : defaults.scratchAmount),
+    );
     const severity = 0.45 + 0.55 * Math.sqrt(boundedScratchAmount);
     for (let s = 0; s < artifactCounts.scratches; s++) {
       const fullHeight = scratchRng() < 0.55;
@@ -148,13 +191,13 @@ const projectionFilm = (
   // --- Dust: pre-compute random dust speck positions ---
   const dustSpecs: Array<{ x: number; y: number; radius: number; opacity: number }> = [];
   if (artifactCounts.dust > 0) {
-    const defectScale = Math.max(0.75, Math.sqrt(W * H / (640 * 480)));
+    const defectScale = Math.max(0.75, Math.sqrt((W * H) / (640 * 480)));
     for (let d = 0; d < artifactCounts.dust; d++) {
       dustSpecs.push({
         x: Math.floor(dustRng() * W),
         y: Math.floor(dustRng() * H),
         radius: Math.min(6, 1 + Math.floor(dustRng() * 2 * defectScale)),
-        opacity: 0.3 + dustRng() * 0.7
+        opacity: 0.3 + dustRng() * 0.7,
       });
     }
   }
@@ -170,26 +213,42 @@ const projectionFilm = (
   // scratch positions are built here on the CPU (they need the seeded RNG
   // sequence used by the JS reference) and uploaded as uniform arrays.
   if (
-    projectionFilmGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    projectionFilmGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
-    const dust: DustSpec[] = dustSpecs.map(d => ({ x: d.x, y: d.y, radius: d.radius, opacity: d.opacity }));
+    const dust: DustSpec[] = dustSpecs.map((d) => ({
+      x: d.x,
+      y: d.y,
+      radius: d.radius,
+      opacity: d.opacity,
+    }));
     const scr: ScratchSpec[] = scratches;
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderProjectionFilmGL(input, W, H, {
-      weaveX, weaveY, warmth, flickerMul, grain,
+      weaveX,
+      weaveY,
+      warmth,
+      flickerMul,
+      grain,
       grainSeed,
       vignette,
-      dust, scratches: scr,
-      bloom, bloomRadius,
+      dust,
+      scratches: scr,
+      bloom,
+      bloomRadius,
       levels,
     });
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Projection film", "WebGL2",
-          `weave=${gateWeave} dust=${dust.length} scratches=${scr.length} bloom=${bloom}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Projection film",
+          "WebGL2",
+          `weave=${gateWeave} dust=${dust.length} scratches=${scr.length} bloom=${bloom}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -299,8 +358,14 @@ const projectionFilm = (
             155 + 100 * scratch.polarity,
           ];
           outBuf[si] = Math.min(255, Math.round(outBuf[si] + (target[0] - outBuf[si]) * blend));
-          outBuf[si + 1] = Math.min(255, Math.round(outBuf[si + 1] + (target[1] - outBuf[si + 1]) * blend));
-          outBuf[si + 2] = Math.min(255, Math.round(outBuf[si + 2] + (target[2] - outBuf[si + 2]) * blend));
+          outBuf[si + 1] = Math.min(
+            255,
+            Math.round(outBuf[si + 1] + (target[1] - outBuf[si + 1]) * blend),
+          );
+          outBuf[si + 2] = Math.min(
+            255,
+            Math.round(outBuf[si + 2] + (target[2] - outBuf[si + 2]) * blend),
+          );
         }
       }
     }
@@ -314,7 +379,7 @@ const projectionFilm = (
     // Extract bright pixels
     const bright = new Float32Array(outBuf.length);
     for (let j = 0; j < outBuf.length; j += 4) {
-      bright[j]     = Math.max(0, outBuf[j]     - threshold);
+      bright[j] = Math.max(0, outBuf[j] - threshold);
       bright[j + 1] = Math.max(0, outBuf[j + 1] - threshold);
       bright[j + 2] = Math.max(0, outBuf[j + 2] - threshold);
     }
@@ -323,15 +388,22 @@ const projectionFilm = (
     const blurH = new Float32Array(outBuf.length);
     for (let by = 0; by < H; by++) {
       for (let bx = 0; bx < W; bx++) {
-        let sr = 0, sg = 0, sb = 0, count = 0;
+        let sr = 0,
+          sg = 0,
+          sb = 0,
+          count = 0;
         for (let kx = -r; kx <= r; kx++) {
           const nx = Math.max(0, Math.min(W - 1, bx + kx));
           const ki = getBufferIndex(nx, by, W);
-          sr += bright[ki]; sg += bright[ki + 1]; sb += bright[ki + 2];
+          sr += bright[ki];
+          sg += bright[ki + 1];
+          sb += bright[ki + 2];
           count++;
         }
         const bi = getBufferIndex(bx, by, W);
-        blurH[bi] = sr / count; blurH[bi + 1] = sg / count; blurH[bi + 2] = sb / count;
+        blurH[bi] = sr / count;
+        blurH[bi + 1] = sg / count;
+        blurH[bi + 2] = sb / count;
       }
     }
 
@@ -339,21 +411,28 @@ const projectionFilm = (
     const blurHV = new Float32Array(outBuf.length);
     for (let bx = 0; bx < W; bx++) {
       for (let by = 0; by < H; by++) {
-        let sr = 0, sg = 0, sb = 0, count = 0;
+        let sr = 0,
+          sg = 0,
+          sb = 0,
+          count = 0;
         for (let ky = -r; ky <= r; ky++) {
           const ny = Math.max(0, Math.min(H - 1, by + ky));
           const ki = getBufferIndex(bx, ny, W);
-          sr += blurH[ki]; sg += blurH[ki + 1]; sb += blurH[ki + 2];
+          sr += blurH[ki];
+          sg += blurH[ki + 1];
+          sb += blurH[ki + 2];
           count++;
         }
         const bi = getBufferIndex(bx, by, W);
-        blurHV[bi] = sr / count; blurHV[bi + 1] = sg / count; blurHV[bi + 2] = sb / count;
+        blurHV[bi] = sr / count;
+        blurHV[bi + 1] = sg / count;
+        blurHV[bi + 2] = sb / count;
       }
     }
 
     // Additive composite
     for (let j = 0; j < outBuf.length; j += 4) {
-      outBuf[j]     = Math.min(255, outBuf[j]     + blurHV[j]     * bloom);
+      outBuf[j] = Math.min(255, outBuf[j] + blurHV[j] * bloom);
       outBuf[j + 1] = Math.min(255, outBuf[j + 1] + blurHV[j + 1] * bloom);
       outBuf[j + 2] = Math.min(255, outBuf[j + 2] + blurHV[j + 2] * bloom);
     }
@@ -370,6 +449,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Mechanical 16/35 mm projection with gate weave, density grain, area-scaled dark debris, emulsion scratches, lamp flicker, and lens bloom",
+  description:
+    "Mechanical 16/35 mm projection with gate weave, density grain, area-scaled dark debris, emulsion scratches, lamp flicker, and lens bloom",
   temporal: true,
 });

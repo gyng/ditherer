@@ -10,7 +10,9 @@ const context = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("context/useFilter", () => ({ useFilter: () => context.current }));
 vi.mock("react-colorful", () => ({
   HexColorPicker: ({ onChange }: { onChange: (color: string) => void }) => (
-    <button type="button" onClick={() => onChange("#102030")}>pick hex</button>
+    <button type="button" onClick={() => onChange("#102030")}>
+      pick hex
+    </button>
   ),
   RgbaColorPicker: () => null,
 }));
@@ -27,7 +29,14 @@ let inputCanvas: HTMLCanvasElement;
 
 const optionTypes = {
   run: { type: "ACTION", label: "Run effect", desc: "Action help", action: vi.fn() },
-  amount: { type: "RANGE", range: [0, 10], step: 0.5, default: 4, label: "Amount", desc: "Range help" },
+  amount: {
+    type: "RANGE",
+    range: [0, 10],
+    step: 0.5,
+    default: 4,
+    label: "Amount",
+    desc: "Range help",
+  },
   enabled: { type: "BOOL", default: true, label: "Enabled", desc: "Boolean help" },
   mode: {
     type: "ENUM",
@@ -64,22 +73,36 @@ const options = {
 };
 
 const render = (props: Record<string, unknown> = {}) => {
-  act(() => root.render(
-    <Controls optionTypes={optionTypes as never} options={options as never} inputCanvas={inputCanvas} {...props} />,
-  ));
+  act(() =>
+    root.render(
+      <Controls
+        optionTypes={optionTypes as never}
+        options={options as never}
+        inputCanvas={inputCanvas}
+        {...props}
+      />,
+    ),
+  );
 };
 
-const setValue = (element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, value: string) => {
+const setValue = (
+  element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+  value: string,
+) => {
   act(() => {
-    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")?.set?.call(element, value);
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")?.set?.call(
+      element,
+      value,
+    );
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
   });
 };
 
 const clickText = (selector: string, label: string) => {
-  const target = Array.from(container.querySelectorAll(selector))
-    .find((element) => element.textContent?.trim() === label);
+  const target = Array.from(container.querySelectorAll(selector)).find(
+    (element) => element.textContent?.trim() === label,
+  );
   expect(target).toBeTruthy();
   act(() => target!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 };
@@ -118,13 +141,16 @@ describe("Controls dispatcher and atoms", () => {
     expect(container.querySelector('[title="Boolean help"]')).not.toBeNull();
     expect(container.querySelector('canvas[aria-label*="levels"]')).not.toBeNull();
 
-    const actionButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find(button => button.textContent?.trim() === "Run effect")!;
+    const actionButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Run effect",
+    )!;
     const actionDescription = actionButton.getAttribute("aria-describedby");
     expect(actionButton.title).toBe("Action help");
     expect(actionDescription).toBeTruthy();
     expect(document.getElementById(actionDescription!)?.textContent).toBe("Action help");
-    expect(container.querySelector('[aria-label="Help for Run effect"][title="Action help"]')).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Help for Run effect"][title="Action help"]'),
+    ).not.toBeNull();
 
     clickText("button", "Run effect");
     expect(optionTypes.run.action).toHaveBeenCalledWith(
@@ -144,25 +170,30 @@ describe("Controls dispatcher and atoms", () => {
 
     const boolInfo = container.querySelector('[title="Boolean help"]')!;
     const enabledLabel = boolInfo.parentElement!;
-    const checkbox = enabledLabel.parentElement!.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const checkbox =
+      enabledLabel.parentElement!.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(checkbox).toBeTruthy();
     act(() => checkbox.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(actions.setFilterOption).toHaveBeenCalledWith("enabled", true);
     expect(enabledLabel).toBeTruthy();
     act(() => enabledLabel!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(actions.setFilterOption).toHaveBeenCalledWith("enabled", true);
-    const resetEnabled = container.querySelector<HTMLButtonElement>('button[aria-label="Reset Enabled to default"]')!;
+    const resetEnabled = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reset Enabled to default"]',
+    )!;
     expect(resetEnabled.disabled).toBe(false);
     act(() => resetEnabled.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(actions.setFilterOption).toHaveBeenCalledWith("enabled", true);
 
-    const mode = Array.from(container.querySelectorAll("select"))
-      .find((select) => Array.from(select.options).some((entry) => entry.value === "B"))!;
+    const mode = Array.from(container.querySelectorAll("select")).find((select) =>
+      Array.from(select.options).some((entry) => entry.value === "B"),
+    )!;
     setValue(mode, "B");
     expect(actions.setFilterOption).toHaveBeenCalledWith("mode", "B");
 
-    const palette = Array.from(container.querySelectorAll("select"))
-      .find((select) => select.value === nearest.name)!;
+    const palette = Array.from(container.querySelectorAll("select")).find(
+      (select) => select.value === nearest.name,
+    )!;
     const paletteDescription = palette.getAttribute("aria-describedby");
     expect(paletteDescription).toBeTruthy();
     expect(document.getElementById(paletteDescription!)?.textContent).toBe("Palette help");
@@ -192,7 +223,9 @@ describe("Controls dispatcher and atoms", () => {
     act(() => number.dispatchEvent(new FocusEvent("focusout", { bubbles: true })));
     expect(actions.setFilterOption).toHaveBeenCalledWith("amount", 10);
 
-    const resetAmount = container.querySelector<HTMLButtonElement>('button[aria-label="Reset Amount to default"]')!;
+    const resetAmount = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reset Amount to default"]',
+    )!;
     expect(resetAmount).toBeTruthy();
     expect(resetAmount.disabled).toBe(false);
     act(() => resetAmount.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -259,11 +292,12 @@ describe("Controls dispatcher and atoms", () => {
       boolFallback: 0,
       enumFallback: null,
     };
-    act(() => root.render(
-      <Controls optionTypes={sparseTypes as never} options={sparseOptions as never} />,
-    ));
-    const sparseAction = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find(button => button.textContent?.trim() === "runFallback")!;
+    act(() =>
+      root.render(<Controls optionTypes={sparseTypes as never} options={sparseOptions as never} />),
+    );
+    const sparseAction = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "runFallback",
+    )!;
     expect(sparseAction.hasAttribute("aria-describedby")).toBe(false);
     expect(sparseAction.hasAttribute("title")).toBe(false);
     expect(container.querySelector<HTMLInputElement>('input[type="range"]')?.value).toBe("0.25");
@@ -290,23 +324,27 @@ describe("Controls dispatcher and atoms", () => {
       },
     };
 
-    act(() => root.render(
-      <Controls
-        optionTypes={searchableTypes as never}
-        options={{ edgeAmount: 0.5, hiddenMatch: "hidden" }}
-        query="  HORIZONTAL  "
-      />,
-    ));
+    act(() =>
+      root.render(
+        <Controls
+          optionTypes={searchableTypes as never}
+          options={{ edgeAmount: 0.5, hiddenMatch: "hidden" }}
+          query="  HORIZONTAL  "
+        />,
+      ),
+    );
     expect(container.textContent).toContain("Tape Edge");
     expect(container.textContent).not.toContain("hidden");
 
-    act(() => root.render(
-      <Controls
-        optionTypes={searchableTypes as never}
-        options={{ edgeAmount: 0.5, hiddenMatch: "hidden" }}
-        query="not-present"
-      />,
-    ));
+    act(() =>
+      root.render(
+        <Controls
+          optionTypes={searchableTypes as never}
+          options={{ edgeAmount: 0.5, hiddenMatch: "hidden" }}
+          query="not-present"
+        />,
+      ),
+    );
     expect(container.textContent).toContain("No settings match “not-present”");
   });
 });

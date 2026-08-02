@@ -34,17 +34,80 @@ export const optionTypes = {
     default: PHOSPHOR_PROFILE.P22_COLOR,
     desc: "Phosphor timing model; standard P22 is fast while long persistence is explicit",
   },
-  refreshRate: { type: RANGE, range: [24, 240], step: 1, default: 60, desc: "Display refresh used to convert measured milliseconds into per-frame retention" },
-  redT10Ms: { type: RANGE, range: [0.01, 1000], step: 0.01, default: 1, desc: "Custom red decay time to 10% of initial luminance, in milliseconds", visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.CUSTOM_T10 },
-  greenT10Ms: { type: RANGE, range: [0.01, 1000], step: 0.01, default: 0.06, desc: "Custom green decay time to 10% of initial luminance, in milliseconds", visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.CUSTOM_T10 },
-  blueT10Ms: { type: RANGE, range: [0.01, 1000], step: 0.01, default: 0.022, desc: "Custom blue decay time to 10% of initial luminance, in milliseconds", visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.CUSTOM_T10 },
-  redDecay: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.15, desc: "Legacy red loss per rendered frame", visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.LEGACY_FRAME },
-  greenDecay: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.05, desc: "Legacy green loss per rendered frame", visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.LEGACY_FRAME },
-  blueDecay: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.2, desc: "Legacy blue loss per rendered frame", visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.LEGACY_FRAME },
-  animSpeed: { type: RANGE, range: [1, 60], step: 1, default: 30, desc: "Preview-loop frame rate; independent from the simulated tube refresh" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed ?? defaults.animSpeed); }
-  }, desc: "Start or stop temporal phosphor decay" },
+  refreshRate: {
+    type: RANGE,
+    range: [24, 240],
+    step: 1,
+    default: 60,
+    desc: "Display refresh used to convert measured milliseconds into per-frame retention",
+  },
+  redT10Ms: {
+    type: RANGE,
+    range: [0.01, 1000],
+    step: 0.01,
+    default: 1,
+    desc: "Custom red decay time to 10% of initial luminance, in milliseconds",
+    visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.CUSTOM_T10,
+  },
+  greenT10Ms: {
+    type: RANGE,
+    range: [0.01, 1000],
+    step: 0.01,
+    default: 0.06,
+    desc: "Custom green decay time to 10% of initial luminance, in milliseconds",
+    visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.CUSTOM_T10,
+  },
+  blueT10Ms: {
+    type: RANGE,
+    range: [0.01, 1000],
+    step: 0.01,
+    default: 0.022,
+    desc: "Custom blue decay time to 10% of initial luminance, in milliseconds",
+    visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.CUSTOM_T10,
+  },
+  redDecay: {
+    type: RANGE,
+    range: [0.01, 0.3],
+    step: 0.01,
+    default: 0.15,
+    desc: "Legacy red loss per rendered frame",
+    visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.LEGACY_FRAME,
+  },
+  greenDecay: {
+    type: RANGE,
+    range: [0.01, 0.3],
+    step: 0.01,
+    default: 0.05,
+    desc: "Legacy green loss per rendered frame",
+    visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.LEGACY_FRAME,
+  },
+  blueDecay: {
+    type: RANGE,
+    range: [0.01, 0.3],
+    step: 0.01,
+    default: 0.2,
+    desc: "Legacy blue loss per rendered frame",
+    visibleWhen: (options: any) => options.profile === PHOSPHOR_PROFILE.LEGACY_FRAME,
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 60],
+    step: 1,
+    default: 30,
+    desc: "Preview-loop frame rate; independent from the simulated tube refresh",
+  },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed ?? defaults.animSpeed);
+      }
+    },
+    desc: "Start or stop temporal phosphor decay",
+  },
 };
 
 export const defaults = {
@@ -142,7 +205,8 @@ const phosphorDecay = (input: any, options: PhosphorDecayOptions = defaults) => 
     ];
   }
   const prev = options._prevOutput ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -163,20 +227,32 @@ const phosphorDecay = (input: any, options: PhosphorDecayOptions = defaults) => 
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prev!);
   }
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, haveHist ? histEntry.tex : sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_history, 1);
-    gl.uniform3f(prog.uniforms.u_retain, retain[0], retain[1], retain[2]);
-    gl.uniform1f(prog.uniforms.u_haveHist, haveHist ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, haveHist ? histEntry.tex : sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_history, 1);
+      gl.uniform3f(prog.uniforms.u_retain, retain[0], retain[1], retain[2]);
+      gl.uniform1f(prog.uniforms.u_haveHist, haveHist ? 1 : 0);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
-    logFilterBackend("Phosphor Decay", "WebGL2", `${profile} retain=${retain.map(value => value.toFixed(3)).join("/")}`);
+    logFilterBackend(
+      "Phosphor Decay",
+      "WebGL2",
+      `${profile} retain=${retain.map((value) => value.toFixed(3)).join("/")}`,
+    );
     return rendered;
   }
   return glUnavailableStub(W, H);
@@ -188,7 +264,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Refresh-aware CRT phosphor persistence with measured P22 timing, custom decay-to-10% values, and explicit long-afterglow profiles",
+  description:
+    "Refresh-aware CRT phosphor persistence with measured P22 timing, custom decay-to-10% values, and explicit long-afterglow profiles",
   temporal: true,
   requiresGL: true,
 });

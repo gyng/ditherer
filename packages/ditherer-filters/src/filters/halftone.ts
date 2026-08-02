@@ -1,18 +1,54 @@
 import { PALETTE, RANGE, STRING, BOOL } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, getBufferIndex, rgba, srgbBufToLinearFloat, delinearizeColorF, srgbPaletteGetColor, linearPaletteGetColor, logFilterBackend } from "../utils/index";
+import {
+  cloneCanvas,
+  getBufferIndex,
+  rgba,
+  srgbBufToLinearFloat,
+  delinearizeColorF,
+  srgbPaletteGetColor,
+  linearPaletteGetColor,
+  logFilterBackend,
+} from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { halftoneGLAvailable, parseCssColorRgb, renderHalftoneGL } from "./halftoneGL";
 
 export const optionTypes = {
-  size: { type: RANGE, range: [1, 512], step: 1, default: 6, desc: "Sampling grid cell size in pixels" },
-  sizeMultiplier: { type: RANGE, range: [0, 5], step: 0.1, default: 1, desc: "Multiplier for rendered dot size relative to grid cell" },
-  offset: { type: RANGE, range: [0, 3], step: 0.1, default: 0.3, desc: "RGB channel separation distance as fraction of cell size" },
-  levels: { type: RANGE, range: [0, 255], default: 32, desc: "Number of distinct dot sizes for quantization" },
+  size: {
+    type: RANGE,
+    range: [1, 512],
+    step: 1,
+    default: 6,
+    desc: "Sampling grid cell size in pixels",
+  },
+  sizeMultiplier: {
+    type: RANGE,
+    range: [0, 5],
+    step: 0.1,
+    default: 1,
+    desc: "Multiplier for rendered dot size relative to grid cell",
+  },
+  offset: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.1,
+    default: 0.3,
+    desc: "RGB channel separation distance as fraction of cell size",
+  },
+  levels: {
+    type: RANGE,
+    range: [0, 255],
+    default: 32,
+    desc: "Number of distinct dot sizes for quantization",
+  },
   palette: { type: PALETTE, default: nearest },
   squareDots: { type: BOOL, default: false, desc: "Use square dots instead of circles" },
-  background: { type: STRING, default: "black", desc: "Background fill color behind the halftone dots" }
+  background: {
+    type: STRING,
+    default: "black",
+    desc: "Background fill color behind the halftone dots",
+  },
 };
 
 export const defaults = {
@@ -22,23 +58,16 @@ export const defaults = {
   levels: optionTypes.levels.default,
   palette: { ...optionTypes.palette.default, options: { levels: 8 } },
   squareDots: optionTypes.squareDots.default,
-  background: optionTypes.background.default
+  background: optionTypes.background.default,
 };
 
-type HalftoneOptions = FilterOptionValues & typeof defaults & {
-  _linearize?: boolean;
-};
+type HalftoneOptions = FilterOptionValues &
+  typeof defaults & {
+    _linearize?: boolean;
+  };
 
-const halftone = (
-  input: any,
-  options: HalftoneOptions = defaults
-) => {
-  const getOffset = (
-    radians: number,
-    radius: number,
-    x0: number,
-    y0: number
-  ) => {
+const halftone = (input: any, options: HalftoneOptions = defaults) => {
+  const getOffset = (radians: number, radius: number, x0: number, y0: number) => {
     const x = x0 + radius * Math.cos(radians);
     const y = y0 + radius * Math.sin(radians);
     return [x, y];
@@ -63,17 +92,28 @@ const halftone = (
   if (halftoneGLAvailable() && (options as any)._webglAcceleration !== false) {
     const bgRgb = parseCssColorRgb(typeof background === "string" ? background : "black");
     if (bgRgb) {
-      const W = input.width, H = input.height;
+      const W = input.width,
+        H = input.height;
       const rendered = renderHalftoneGL(
-        input, W, H, size,
-        options.sizeMultiplier, options.offset,
-        effectiveLevels, options.squareDots, bgRgb,
+        input,
+        W,
+        H,
+        size,
+        options.sizeMultiplier,
+        options.offset,
+        effectiveLevels,
+        options.squareDots,
+        bgRgb,
         options._linearize === true,
       );
       if (rendered) {
         const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Halftone", "WebGL2", `size=${size} levels=${effectiveLevels}${isNearest ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Halftone",
+            "WebGL2",
+            `size=${size} levels=${effectiveLevels}${isNearest ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -118,17 +158,18 @@ const halftone = (
         }
 
         // Quantize mean color via palette (float 0-1), then convert to sRGB for drawing
-        const quantizedColor = linearPaletteGetColor(palette, meanColor, { ...palette.options, levels: effectiveLevels });
+        const quantizedColor = linearPaletteGetColor(palette, meanColor, {
+          ...palette.options,
+          levels: effectiveLevels,
+        });
         const srgbColor = delinearizeColorF(quantizedColor);
-        const radii = srgbColor.map(
-          (c: number) => c * (size / 2 / 255) * options.sizeMultiplier
-        );
+        const radii = srgbColor.map((c: number) => c * (size / 2 / 255) * options.sizeMultiplier);
 
         const alphaFrac = srgbColor[3] / 255;
         const colors = [
           `rgba(255, 0, 0, ${alphaFrac}`,
           `rgba(0, 255, 0, ${alphaFrac}`,
-          `rgba(0, 0, 255, ${alphaFrac}`
+          `rgba(0, 0, 255, ${alphaFrac}`,
         ];
 
         const centerX = x + size / 2;
@@ -137,7 +178,7 @@ const halftone = (
         const centers = [
           getOffset((2 * Math.PI) / 3, offsetDistance, centerX, centerY),
           getOffset((2 * 2 * Math.PI) / 3, offsetDistance, centerX, centerY),
-          getOffset(2 * Math.PI, offsetDistance, centerX, centerY)
+          getOffset(2 * Math.PI, offsetDistance, centerX, centerY),
         ];
 
         for (let c = 0; c < 3; c += 1) {
@@ -171,15 +212,18 @@ const halftone = (
           }
         }
 
-        const quantizedColor = srgbPaletteGetColor(palette, meanColor, { ...palette.options, levels: effectiveLevels });
+        const quantizedColor = srgbPaletteGetColor(palette, meanColor, {
+          ...palette.options,
+          levels: effectiveLevels,
+        });
         const radii = quantizedColor.map(
-          (c: number) => c * (size / 2 / 255) * options.sizeMultiplier
+          (c: number) => c * (size / 2 / 255) * options.sizeMultiplier,
         );
 
         const colors = [
           `rgba(255, 0, 0, ${meanColor[3] / 255}`,
           `rgba(0, 255, 0, ${meanColor[3] / 255}`,
-          `rgba(0, 0, 255, ${meanColor[3] / 255}`
+          `rgba(0, 0, 255, ${meanColor[3] / 255}`,
         ];
 
         const centerX = x + size / 2;
@@ -188,7 +232,7 @@ const halftone = (
         const centers = [
           getOffset((2 * Math.PI) / 3, offsetDistance, centerX, centerY),
           getOffset((2 * 2 * Math.PI) / 3, offsetDistance, centerX, centerY),
-          getOffset(2 * Math.PI, offsetDistance, centerX, centerY)
+          getOffset(2 * Math.PI, offsetDistance, centerX, centerY),
         ];
 
         for (let c = 0; c < 3; c += 1) {
@@ -215,5 +259,5 @@ export default defineFilter<HalftoneOptions>({
   func: halftone,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
 });

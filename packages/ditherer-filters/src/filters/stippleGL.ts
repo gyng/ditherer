@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 import { PRINTMAKING_TONE_GLSL, stippleDotRadiusPx } from "./printmakingToneContracts";
@@ -78,7 +85,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, FS, [
-      "u_source", "u_res", "u_cell", "u_dotRadius", "u_inkColor", "u_paperColor",
+      "u_source",
+      "u_res",
+      "u_cell",
+      "u_dotRadius",
+      "u_inkColor",
+      "u_paperColor",
     ] as const),
   };
   return _cache;
@@ -88,9 +100,12 @@ export const stippleGLAvailable = (): boolean => glAvailable();
 
 export const renderStippleGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  density: number, maxDotSize: number,
-  inkColor: number[], paperColor: number[],
+  width: number,
+  height: number,
+  density: number,
+  maxDotSize: number,
+  inkColor: number[],
+  paperColor: number[],
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -104,16 +119,34 @@ export const renderStippleGL = (
   const cell = Math.max(1, density);
   const dotRadius = stippleDotRadiusPx(maxDotSize);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_cell, cell);
-    gl.uniform1f(cache.prog.uniforms.u_dotRadius, dotRadius);
-    gl.uniform3f(cache.prog.uniforms.u_inkColor, inkColor[0] / 255, inkColor[1] / 255, inkColor[2] / 255);
-    gl.uniform3f(cache.prog.uniforms.u_paperColor, paperColor[0] / 255, paperColor[1] / 255, paperColor[2] / 255);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_cell, cell);
+      gl.uniform1f(cache.prog.uniforms.u_dotRadius, dotRadius);
+      gl.uniform3f(
+        cache.prog.uniforms.u_inkColor,
+        inkColor[0] / 255,
+        inkColor[1] / 255,
+        inkColor[2] / 255,
+      );
+      gl.uniform3f(
+        cache.prog.uniforms.u_paperColor,
+        paperColor[0] / 255,
+        paperColor[1] / 255,
+        paperColor[2] / 255,
+      );
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

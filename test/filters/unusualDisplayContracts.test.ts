@@ -10,23 +10,26 @@ import { filterIndex, filterList } from "filters/index";
 
 describe("Baird mechanical raster", () => {
   it("uses exactly 30 vertical scan columns", () => {
-    expect(Array.from({ length: 30 }, (_, column) => bairdScanColumn((column + 0.5) / 30)))
-      .toEqual(Array.from({ length: 30 }, (_, column) => column));
+    expect(Array.from({ length: 30 }, (_, column) => bairdScanColumn((column + 0.5) / 30))).toEqual(
+      Array.from({ length: 30 }, (_, column) => column),
+    );
     expect(bairdScanColumn(-1)).toBe(0);
     expect(bairdScanColumn(2)).toBe(29);
   });
 
   it("retains the 12.5 Hz picture cadence at arbitrary preview rates", () => {
-    expect(Array.from({ length: 8 }, (_, frame) => bairdFrameIndex(frame, 25)))
-      .toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+    expect(Array.from({ length: 8 }, (_, frame) => bairdFrameIndex(frame, 25))).toEqual([
+      0, 0, 1, 1, 2, 2, 3, 3,
+    ]);
     expect(bairdFrameIndex(Number.NaN, Number.POSITIVE_INFINITY)).toBe(0);
   });
 });
 
 describe("CGA composite carrier", () => {
   it("repeats its four-pixel NTSC phase without negative residues", () => {
-    expect(Array.from({ length: 12 }, (_, index) => cgaCarrierPhase(index - 4)))
-      .toEqual([0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3]);
+    expect(Array.from({ length: 12 }, (_, index) => cgaCarrierPhase(index - 4))).toEqual([
+      0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
+    ]);
   });
 });
 

@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  computeCrc, getU32, setU32,
-  transformRepeat, transformSubstitute, transformTranspose,
+  computeCrc,
+  getU32,
+  setU32,
+  transformRepeat,
+  transformSubstitute,
+  transformTranspose,
 } from "filters/glitchblob";
 
 // glitchblob corrupts an encoded image's bitstream — 475 lines, noGL + noWASM,
@@ -162,9 +166,7 @@ describe("transformRepeat length behaviour", () => {
       expect(out.length).toBe(32 + 5 - 1);
       expect(Array.from(out.slice(20, 25))).toEqual([20, 20, 20, 20, 20]);
       // Everything before the splice is untouched...
-      expect(Array.from(out.slice(0, 20))).toEqual(
-        Array.from({ length: 20 }, (_, i) => i),
-      );
+      expect(Array.from(out.slice(0, 20))).toEqual(Array.from({ length: 20 }, (_, i) => i));
       // ...and the tail after the replaced byte follows the run.
       expect(Array.from(out.slice(25, 30))).toEqual([21, 22, 23, 24, 25]);
     } finally {

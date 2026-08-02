@@ -171,12 +171,27 @@ const getCache = (gl: WebGL2RenderingContext): Cache => {
   if (cache) return cache;
   cache = {
     density: linkProgram(gl, DENSITY_FS, [
-      "u_source", "u_res", "u_display", "u_beamWidth", "u_intensity", "u_noiseFloor", "u_frameSeed",
+      "u_source",
+      "u_res",
+      "u_display",
+      "u_beamWidth",
+      "u_intensity",
+      "u_noiseFloor",
+      "u_frameSeed",
     ] as const),
     blurH: linkProgram(gl, BLUR_H_FS, ["u_density", "u_res", "u_radius"] as const),
     final: linkProgram(gl, FINAL_FS, [
-      "u_density", "u_blurH", "u_prevOutput", "u_hasPrev", "u_res", "u_radius",
-      "u_bloomStrength", "u_phosphor", "u_graticule", "u_graticuleDivs", "u_persistence",
+      "u_density",
+      "u_blurH",
+      "u_prevOutput",
+      "u_hasPrev",
+      "u_res",
+      "u_radius",
+      "u_bloomStrength",
+      "u_phosphor",
+      "u_graticule",
+      "u_graticuleDivs",
+      "u_persistence",
     ] as const),
   };
   return cache;
@@ -197,8 +212,17 @@ const uploadPrevOutput = (
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-    new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA8,
+    width,
+    height,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
+  );
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   return texture;
 };
@@ -238,52 +262,83 @@ export const renderOscilloscopeGL = (
   const horizontalTexture = ensureTexture(gl, "oscilloscope:hblur", width, height);
   uploadSourceTexture(gl, sourceTexture, source);
 
-  drawPass(gl, densityTexture, width, height, programs.density, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(programs.density.uniforms.u_source, 0);
-    gl.uniform2f(programs.density.uniforms.u_res, width, height);
-    gl.uniform1i(programs.density.uniforms.u_display, displayIds[params.display] ?? 0);
-    gl.uniform1f(programs.density.uniforms.u_beamWidth, Math.max(0.5, params.beamWidth));
-    gl.uniform1f(programs.density.uniforms.u_intensity, Math.max(0, params.intensity));
-    gl.uniform1f(programs.density.uniforms.u_noiseFloor, Math.max(0, params.noiseFloor));
-    gl.uniform1f(programs.density.uniforms.u_frameSeed, params.frameIndex * 3571 + 41);
-  }, vao);
+  drawPass(
+    gl,
+    densityTexture,
+    width,
+    height,
+    programs.density,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(programs.density.uniforms.u_source, 0);
+      gl.uniform2f(programs.density.uniforms.u_res, width, height);
+      gl.uniform1i(programs.density.uniforms.u_display, displayIds[params.display] ?? 0);
+      gl.uniform1f(programs.density.uniforms.u_beamWidth, Math.max(0.5, params.beamWidth));
+      gl.uniform1f(programs.density.uniforms.u_intensity, Math.max(0, params.intensity));
+      gl.uniform1f(programs.density.uniforms.u_noiseFloor, Math.max(0, params.noiseFloor));
+      gl.uniform1f(programs.density.uniforms.u_frameSeed, params.frameIndex * 3571 + 41);
+    },
+    vao,
+  );
 
-  drawPass(gl, horizontalTexture, width, height, programs.blurH, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, densityTexture.tex);
-    gl.uniform1i(programs.blurH.uniforms.u_density, 0);
-    gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
-    gl.uniform1i(programs.blurH.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    horizontalTexture,
+    width,
+    height,
+    programs.blurH,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, densityTexture.tex);
+      gl.uniform1i(programs.blurH.uniforms.u_density, 0);
+      gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
+      gl.uniform1i(programs.blurH.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  const previousTexture = params.prevOutput && params.persistence > 0
-    ? uploadPrevOutput(gl, params.prevOutput, width, height)
-    : null;
-  drawPass(gl, null, width, height, programs.final, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, densityTexture.tex);
-    gl.uniform1i(programs.final.uniforms.u_density, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, horizontalTexture.tex);
-    gl.uniform1i(programs.final.uniforms.u_blurH, 1);
-    if (previousTexture) {
-      gl.activeTexture(gl.TEXTURE2);
-      gl.bindTexture(gl.TEXTURE_2D, previousTexture);
-      gl.uniform1i(programs.final.uniforms.u_prevOutput, 2);
-      gl.uniform1i(programs.final.uniforms.u_hasPrev, 1);
-    } else {
-      gl.uniform1i(programs.final.uniforms.u_hasPrev, 0);
-    }
-    gl.uniform2f(programs.final.uniforms.u_res, width, height);
-    gl.uniform1i(programs.final.uniforms.u_radius, radius);
-    gl.uniform1f(programs.final.uniforms.u_bloomStrength, Math.max(0, params.bloomStrength));
-    gl.uniform3f(programs.final.uniforms.u_phosphor, ...params.phosphorColor);
-    gl.uniform1i(programs.final.uniforms.u_graticule, params.graticule ? 1 : 0);
-    gl.uniform1i(programs.final.uniforms.u_graticuleDivs, Math.max(2, Math.round(params.graticuleDivs)));
-    gl.uniform1f(programs.final.uniforms.u_persistence, Math.max(0, Math.min(1, params.persistence)));
-  }, vao);
+  const previousTexture =
+    params.prevOutput && params.persistence > 0
+      ? uploadPrevOutput(gl, params.prevOutput, width, height)
+      : null;
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    programs.final,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, densityTexture.tex);
+      gl.uniform1i(programs.final.uniforms.u_density, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, horizontalTexture.tex);
+      gl.uniform1i(programs.final.uniforms.u_blurH, 1);
+      if (previousTexture) {
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, previousTexture);
+        gl.uniform1i(programs.final.uniforms.u_prevOutput, 2);
+        gl.uniform1i(programs.final.uniforms.u_hasPrev, 1);
+      } else {
+        gl.uniform1i(programs.final.uniforms.u_hasPrev, 0);
+      }
+      gl.uniform2f(programs.final.uniforms.u_res, width, height);
+      gl.uniform1i(programs.final.uniforms.u_radius, radius);
+      gl.uniform1f(programs.final.uniforms.u_bloomStrength, Math.max(0, params.bloomStrength));
+      gl.uniform3f(programs.final.uniforms.u_phosphor, ...params.phosphorColor);
+      gl.uniform1i(programs.final.uniforms.u_graticule, params.graticule ? 1 : 0);
+      gl.uniform1i(
+        programs.final.uniforms.u_graticuleDivs,
+        Math.max(2, Math.round(params.graticuleDivs)),
+      );
+      gl.uniform1f(
+        programs.final.uniforms.u_persistence,
+        Math.max(0, Math.min(1, params.persistence)),
+      );
+    },
+    vao,
+  );
 
   const output = readoutToCanvas(canvas, width, height);
   if (previousTexture) gl.deleteTexture(previousTexture);

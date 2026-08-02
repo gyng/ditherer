@@ -15,14 +15,44 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [5, 80], step: 1, default: 15, desc: "Minimum temporal change to show as an edge" },
-  sensitivity: { type: RANGE, range: [1, 10], step: 0.5, default: 3, desc: "Amplify edge brightness" },
-  accumulate: { type: BOOL, default: true, desc: "Build up edges over time vs show only instantaneous changes" },
-  decayRate: { type: RANGE, range: [0.01, 0.3], step: 0.01, default: 0.08, desc: "How fast accumulated edges fade" },
+  threshold: {
+    type: RANGE,
+    range: [5, 80],
+    step: 1,
+    default: 15,
+    desc: "Minimum temporal change to show as an edge",
+  },
+  sensitivity: {
+    type: RANGE,
+    range: [1, 10],
+    step: 0.5,
+    default: 3,
+    desc: "Amplify edge brightness",
+  },
+  accumulate: {
+    type: BOOL,
+    default: true,
+    desc: "Build up edges over time vs show only instantaneous changes",
+  },
+  decayRate: {
+    type: RANGE,
+    range: [0.01, 0.3],
+    step: 0.01,
+    default: 0.08,
+    desc: "How fast accumulated edges fade",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -81,14 +111,25 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_prevInput", "u_prevOutput",
-    "u_threshold", "u_sensitivity", "u_decayRetain",
-    "u_havePrevInput", "u_haveAccum",
+    "u_source",
+    "u_prevInput",
+    "u_prevOutput",
+    "u_threshold",
+    "u_sensitivity",
+    "u_decayRetain",
+    "u_havePrevInput",
+    "u_haveAccum",
   ] as const);
   return _prog;
 };
 
-const uploadHistory = (gl: WebGL2RenderingContext, tex: WebGLTexture, w: number, h: number, buf: Uint8ClampedArray) => {
+const uploadHistory = (
+  gl: WebGL2RenderingContext,
+  tex: WebGLTexture,
+  w: number,
+  h: number,
+  buf: Uint8ClampedArray,
+) => {
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
@@ -101,7 +142,8 @@ const temporalEdge = (input: any, options: TemporalEdgeOptions = defaults) => {
   const decayRate = Number(options.decayRate ?? defaults.decayRate);
   const prevInput = options._prevInput ?? null;
   const prevOutput = options._prevOutput ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -121,26 +163,38 @@ const temporalEdge = (input: any, options: TemporalEdgeOptions = defaults) => {
   if (havePrevInput) uploadHistory(gl, prevInTex.tex, W, H, prevInput!);
   if (haveAccum) uploadHistory(gl, prevOutTex.tex, W, H, prevOutput!);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, havePrevInput ? prevInTex.tex : sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_prevInput, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, haveAccum ? prevOutTex.tex : sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_prevOutput, 2);
-    gl.uniform1f(prog.uniforms.u_threshold, threshold / 255);
-    gl.uniform1f(prog.uniforms.u_sensitivity, sensitivity);
-    gl.uniform1f(prog.uniforms.u_decayRetain, 1 - decayRate);
-    gl.uniform1f(prog.uniforms.u_havePrevInput, havePrevInput ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_haveAccum, haveAccum ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, havePrevInput ? prevInTex.tex : sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_prevInput, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, haveAccum ? prevOutTex.tex : sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_prevOutput, 2);
+      gl.uniform1f(prog.uniforms.u_threshold, threshold / 255);
+      gl.uniform1f(prog.uniforms.u_sensitivity, sensitivity);
+      gl.uniform1f(prog.uniforms.u_decayRetain, 1 - decayRate);
+      gl.uniform1f(prog.uniforms.u_havePrevInput, havePrevInput ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_haveAccum, haveAccum ? 1 : 0);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
-    logFilterBackend("Temporal Edge", "WebGL2", `thresh=${threshold} sens=${sensitivity} accum=${accumulate}`);
+    logFilterBackend(
+      "Temporal Edge",
+      "WebGL2",
+      `thresh=${threshold} sens=${sensitivity} accum=${accumulate}`,
+    );
     return rendered;
   }
   return glUnavailableStub(W, H);

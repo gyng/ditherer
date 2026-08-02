@@ -1,6 +1,14 @@
 import { PALETTE, RANGE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { clamp, cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor, logFilterBackend } from "../utils/index";
+import {
+  clamp,
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+  logFilterBackend,
+} from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
 import { defineFilter } from "./types";
 import { foliageSimplifierGLAvailable, renderFoliageSimplifierGL } from "./foliageSimplifierGL";
@@ -61,11 +69,41 @@ const boxBlur = (buf: Uint8ClampedArray, width: number, height: number, radius: 
 };
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [1, 12], step: 1, default: 4, desc: "Neighborhood size used to merge noisy foliage detail" },
-  regionMerge: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "How strongly foliage regions collapse into grouped masses" },
-  edgePreserve: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Preserve silhouettes and hard edges while simplifying interiors" },
-  brushiness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "Quantize simplified regions slightly for a brush-like painted look" },
-  shadowRetention: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Keep darker foliage pockets from washing out too aggressively" },
+  radius: {
+    type: RANGE,
+    range: [1, 12],
+    step: 1,
+    default: 4,
+    desc: "Neighborhood size used to merge noisy foliage detail",
+  },
+  regionMerge: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.65,
+    desc: "How strongly foliage regions collapse into grouped masses",
+  },
+  edgePreserve: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.7,
+    desc: "Preserve silhouettes and hard edges while simplifying interiors",
+  },
+  brushiness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.35,
+    desc: "Quantize simplified regions slightly for a brush-like painted look",
+  },
+  shadowRetention: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.6,
+    desc: "Keep darker foliage pockets from washing out too aggressively",
+  },
   palette: { type: PALETTE, default: nearest },
 };
 
@@ -84,16 +122,32 @@ const foliageSimplifier = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    foliageSimplifierGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    foliageSimplifierGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
-    const rendered = renderFoliageSimplifierGL(input, W, H, radius, regionMerge, edgePreserve, brushiness, shadowRetention, levels);
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
+    const rendered = renderFoliageSimplifierGL(
+      input,
+      W,
+      H,
+      radius,
+      regionMerge,
+      edgePreserve,
+      brushiness,
+      shadowRetention,
+      levels,
+    );
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Foliage Simplifier", "WebGL2", `radius=${radius} merge=${regionMerge}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Foliage Simplifier",
+          "WebGL2",
+          `radius=${radius} merge=${regionMerge}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -125,7 +179,11 @@ const foliageSimplifier = (input: any, options = defaults) => {
       const saturation = maxChannel === 0 ? 0 : (maxChannel - minChannel) / maxChannel;
       const greenDominance = clamp(0, 1, (g - Math.max(r * 0.82, b * 0.9)) / 90);
       const warmLeafDominance = clamp(0, 1, (Math.min(r, g) - b) / 110);
-      const foliageMask = clamp(0, 1, saturation * Math.max(greenDominance, warmLeafDominance * 0.65) * 1.35);
+      const foliageMask = clamp(
+        0,
+        1,
+        saturation * Math.max(greenDominance, warmLeafDominance * 0.65) * 1.35,
+      );
 
       const edge = (Math.abs(r - br) + Math.abs(g - bg) + Math.abs(b - bb)) / (255 * 3);
       const preserve = 1 - edge * edgePreserve;

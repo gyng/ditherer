@@ -59,15 +59,27 @@ void main() {
 `;
 
 export const optionTypes = {
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 1, desc: "Blend between original magnitudes (0) and uniform magnitude (1)" },
-  gain: { type: RANGE, range: [0.1, 50], step: 0.1, default: 10, desc: "Target magnitude for all non-DC bins" },
-  palette: { type: PALETTE, default: nearest }
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 1,
+    desc: "Blend between original magnitudes (0) and uniform magnitude (1)",
+  },
+  gain: {
+    type: RANGE,
+    range: [0.1, 50],
+    step: 0.1,
+    default: 10,
+    desc: "Target magnitude for all non-DC bins",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   amount: optionTypes.amount.default,
   gain: optionTypes.gain.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { phaseOnly: Program };
@@ -75,7 +87,12 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    phaseOnly: linkProgram(gl, PHASE_ONLY_FS, ["u_input", "u_padRes", "u_gain", "u_amount"] as const),
+    phaseOnly: linkProgram(gl, PHASE_ONLY_FS, [
+      "u_input",
+      "u_padRes",
+      "u_gain",
+      "u_amount",
+    ] as const),
   };
   return _cache;
 };
@@ -86,9 +103,9 @@ const fftPhaseOnly = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -102,14 +119,22 @@ const fftPhaseOnly = (input: any, options = defaults) => {
       if (fwd) {
         const modified = ensureFloatTex(gl, "fftPhaseOnly:modified", fwd.paddedW, fwd.paddedH);
         if (modified) {
-          drawPass(gl, modified, fwd.paddedW, fwd.paddedH, cache.phaseOnly, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.phaseOnly.uniforms.u_input, 0);
-            gl.uniform2f(cache.phaseOnly.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-            gl.uniform1f(cache.phaseOnly.uniforms.u_gain, gain);
-            gl.uniform1f(cache.phaseOnly.uniforms.u_amount, amount);
-          }, vao);
+          drawPass(
+            gl,
+            modified,
+            fwd.paddedW,
+            fwd.paddedH,
+            cache.phaseOnly,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.phaseOnly.uniforms.u_input, 0);
+              gl.uniform2f(cache.phaseOnly.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+              gl.uniform1f(cache.phaseOnly.uniforms.u_gain, gain);
+              gl.uniform1f(cache.phaseOnly.uniforms.u_amount, amount);
+            },
+            vao,
+          );
           const inv = inverseFFT2D(gl, modified, fwd.paddedW, fwd.paddedH, fwd.logW, fwd.logH);
           if (inv) {
             finaliseIFFT(gl, inv, sourceTex, W, H, fwd.paddedW, fwd.paddedH, W, H);
@@ -118,8 +143,11 @@ const fftPhaseOnly = (input: any, options = defaults) => {
               const identity = paletteIsIdentity(palette);
               const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Phase Only", "WebGL2",
-                  `amount=${amount} gain=${gain}${identity ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Phase Only",
+                  "WebGL2",
+                  `amount=${amount} gain=${gain}${identity ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -138,6 +166,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Keep the FFT phase, replace all magnitudes with a constant — classic demo that phase carries most of the image's structure",
+  description:
+    "Keep the FFT phase, replace all magnitudes with a constant — classic demo that phase carries most of the image's structure",
   noWASM: "Needs GPU 2D FFT.",
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("utils", async importOriginal => {
+vi.mock("utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("utils")>();
   return {
     ...actual,
@@ -22,14 +22,17 @@ const makeSolidCanvas = (width: number, height: number, rgba: [number, number, n
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, w: number, h: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: w,
-        height: h,
-      }),
-      putImageData: () => {},
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, w: number, h: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: w,
+              height: h,
+            }),
+            putImageData: () => {},
+          }
+        : null,
   };
 };
 

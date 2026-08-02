@@ -19,8 +19,18 @@ export interface ExportFrameOptions {
 }
 
 export interface FilterActions {
-  loadMediaAsync: (file: File, volume?: number, playbackRate?: number, options?: { preserveScale?: boolean }) => Promise<void>;
-  loadVideoFromUrlAsync: (src: string, volume?: number, playbackRate?: number, options?: { preserveScale?: boolean }) => Promise<void>;
+  loadMediaAsync: (
+    file: File,
+    volume?: number,
+    playbackRate?: number,
+    options?: { preserveScale?: boolean },
+  ) => Promise<void>;
+  loadVideoFromUrlAsync: (
+    src: string,
+    volume?: number,
+    playbackRate?: number,
+    options?: { preserveScale?: boolean },
+  ) => Promise<void>;
   filterImageAsync: (input: HTMLCanvasElement | OffscreenCanvas | null) => void;
   triggerDegauss: (inputCanvas: HTMLCanvasElement | null) => void;
   triggerBurst: (inputCanvas: HTMLCanvasElement | null, frames: number, fps?: number) => void;
@@ -32,7 +42,11 @@ export interface FilterActions {
     options: ExportFrameOptions,
   ) => Promise<HTMLCanvasElement | OffscreenCanvas | null>;
   clearExportSession: (sessionId: string) => void;
-  loadImage: (image: CanvasImageSource, time?: number | null, video?: AnimatedVideoElement | null) => void;
+  loadImage: (
+    image: CanvasImageSource,
+    time?: number | null,
+    video?: AnimatedVideoElement | null,
+  ) => void;
   selectFilter: (name: string, filter: FilterDefinition | { filter: FilterDefinition }) => void;
   setConvertGrayscale: (value: boolean) => void;
   setLinearize: (value: boolean) => void;
@@ -48,7 +62,11 @@ export interface FilterActions {
   toggleVideo: () => void;
   setScalingAlgorithm: (algorithm: string) => void;
   setFilterOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => void;
-  setFilterPaletteOption: (optionName: string, value: FilterOptionValue, chainIndex?: number) => void;
+  setFilterPaletteOption: (
+    optionName: string,
+    value: FilterOptionValue,
+    chainIndex?: number,
+  ) => void;
   addPaletteColor: (color: number[], chainIndex?: number) => void;
   importState: (json: string) => void;
   saveCurrentColorPalette: (name: string, colors: number[][]) => void;

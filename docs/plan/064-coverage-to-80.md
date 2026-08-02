@@ -12,12 +12,12 @@ contract, or state transition that could realistically regress.
 
 The 2026-07-21 Vitest baseline covers 1,775 passing tests across 117 files:
 
-| Metric | Unit coverage |
-|---|---:|
-| Statements | 58.57% |
-| Branches | 51.46% |
-| Functions | 47.35% |
-| Lines | 58.28% |
+| Metric     | Unit coverage |
+| ---------- | ------------: |
+| Statements |        58.57% |
+| Branches   |        51.46% |
+| Functions  |        47.35% |
+| Lines      |        58.28% |
 
 Merging that unit map with the last complete browser map gives a preliminary
 87.48% lines, 86.02% statements, 69.35% functions, and 70.96% branches. Those
@@ -27,12 +27,12 @@ gap is approximately 456 function declarations and 1,506 branch outcomes.
 
 The first fresh full browser run established the authoritative merged baseline:
 
-| Metric | Fresh merged baseline |
-|---|---:|
+| Metric     |    Fresh merged baseline |
+| ---------- | -----------------------: |
 | Statements | 88.60% (31,933 / 36,038) |
-| Branches | 75.27% (12,552 / 16,674) |
-| Functions | 75.46% (3,233 / 4,284) |
-| Lines | 90.10% (28,544 / 31,679) |
+| Branches   | 75.27% (12,552 / 16,674) |
+| Functions  |   75.46% (3,233 / 4,284) |
+| Lines      | 90.10% (28,544 / 31,679) |
 
 That reduced the actual gap to 195 functions and 788 branch outcomes.
 
@@ -104,12 +104,12 @@ The final clean unit run covers 1,808 passing tests across 121 files (with 156
 explicitly skipped cases). Merging that map with the clean 31-test browser run
 produces:
 
-| Metric | Merged coverage |
-|---|---:|
+| Metric     |          Merged coverage |
+| ---------- | -----------------------: |
 | Statements | 91.56% (32,930 / 35,963) |
-| Branches | 80.07% (13,331 / 16,648) |
-| Functions | 89.73% (3,839 / 4,278) |
-| Lines | 92.32% (29,192 / 31,618) |
+| Branches   | 80.07% (13,331 / 16,648) |
+| Functions  |   89.73% (3,839 / 4,278) |
+| Lines      | 92.32% (29,192 / 31,618) |
 
 The merged thresholds are now 80 for all four metrics.
 

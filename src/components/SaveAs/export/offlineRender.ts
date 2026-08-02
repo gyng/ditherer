@@ -36,8 +36,14 @@ type RenderOfflineFramesArgs = {
   fps: number;
   startTimeSec?: number;
   endTimeSec?: number;
-  getFrameCanvas: (frame: OfflineTimelineFrame) => Promise<HTMLCanvasElement | null> | HTMLCanvasElement | null;
-  waitForFrame: (video: HTMLVideoElement, targetTime: number, expectedFrameMs: number) => Promise<void>;
+  getFrameCanvas: (
+    frame: OfflineTimelineFrame,
+  ) => Promise<HTMLCanvasElement | null> | HTMLCanvasElement | null;
+  waitForFrame: (
+    video: HTMLVideoElement,
+    targetTime: number,
+    expectedFrameMs: number,
+  ) => Promise<void>;
   onFrame: (frame: OfflineFrameSample) => Promise<void> | void;
   onProgress?: (progress: OfflineRenderProgress) => void;
   isAborted?: () => boolean;
@@ -45,12 +51,20 @@ type RenderOfflineFramesArgs = {
 
 const FRAME_END_EPSILON_SEC = 0.0005;
 
-export const buildOfflineTimeline = (durationSec: number, fps: number, startTimeSec = 0, endTimeSec = durationSec): OfflineTimelineFrame[] => {
+export const buildOfflineTimeline = (
+  durationSec: number,
+  fps: number,
+  startTimeSec = 0,
+  endTimeSec = durationSec,
+): OfflineTimelineFrame[] => {
   if (!Number.isFinite(durationSec) || durationSec <= 0) {
     throw new Error("Offline export requires a finite positive duration.");
   }
   const clampedStartSec = Math.max(0, Math.min(durationSec, startTimeSec || 0));
-  const clampedEndSec = Math.max(clampedStartSec + FRAME_END_EPSILON_SEC, Math.min(durationSec, endTimeSec || durationSec));
+  const clampedEndSec = Math.max(
+    clampedStartSec + FRAME_END_EPSILON_SEC,
+    Math.min(durationSec, endTimeSec || durationSec),
+  );
   const exportDurationSec = clampedEndSec - clampedStartSec;
   if (!Number.isFinite(exportDurationSec) || exportDurationSec <= 0) {
     throw new Error("Offline export requires a positive time range.");
@@ -64,13 +78,17 @@ export const buildOfflineTimeline = (durationSec: number, fps: number, startTime
   for (let index = 0; index < frameCount; index += 1) {
     const nominalTimeSec = index * frameDurationSec;
     const targetTimeSec = Math.min(
-      Math.max(clampedStartSec, clampedEndSec - Math.min(FRAME_END_EPSILON_SEC, frameDurationSec * 0.5)),
-      clampedStartSec + nominalTimeSec
+      Math.max(
+        clampedStartSec,
+        clampedEndSec - Math.min(FRAME_END_EPSILON_SEC, frameDurationSec * 0.5),
+      ),
+      clampedStartSec + nominalTimeSec,
     );
     const remainingSec = Math.max(0, clampedEndSec - (clampedStartSec + nominalTimeSec));
-    const durationForFrameSec = index === frameCount - 1
-      ? Math.max(remainingSec || frameDurationSec, FRAME_END_EPSILON_SEC)
-      : frameDurationSec;
+    const durationForFrameSec =
+      index === frameCount - 1
+        ? Math.max(remainingSec || frameDurationSec, FRAME_END_EPSILON_SEC)
+        : frameDurationSec;
 
     frames.push({
       index,
@@ -93,10 +111,18 @@ export const renderOfflineFrames = async ({
   onFrame,
   onProgress,
   isAborted,
-}: RenderOfflineFramesArgs): Promise<{ frameCount: number; durationSec: number; aborted: boolean; metrics: OfflineRenderMetrics }> => {
+}: RenderOfflineFramesArgs): Promise<{
+  frameCount: number;
+  durationSec: number;
+  aborted: boolean;
+  metrics: OfflineRenderMetrics;
+}> => {
   const sourceDurationSec = video.duration;
   const timeline = buildOfflineTimeline(sourceDurationSec, fps, startTimeSec, endTimeSec);
-  const durationSec = Math.max(FRAME_END_EPSILON_SEC, Math.min(sourceDurationSec, endTimeSec) - Math.max(0, startTimeSec));
+  const durationSec = Math.max(
+    FRAME_END_EPSILON_SEC,
+    Math.min(sourceDurationSec, endTimeSec) - Math.max(0, startTimeSec),
+  );
   const captureStartedAt = performance.now();
   const metrics: OfflineRenderMetrics = {
     seekMs: 0,

@@ -7,7 +7,7 @@ Status: Complete
 Fix two verifiable correctness classes found by a fresh survey angle (beyond the
 exhausted "name contradicts process" backlog):
 
-- **Seam A — gamma-vs-linear**: filters that integrate/average/accumulate *light*
+- **Seam A — gamma-vs-linear**: filters that integrate/average/accumulate _light_
   (a linear-light operation) but do the arithmetic on gamma-encoded sRGB, so
   bright detail smeared over dark areas comes out too dark and midtones shift.
   Each claims a camera/film/optical process and should reuse the existing
@@ -19,6 +19,7 @@ exhausted "name contradicts process" backlog):
 ## Evidence
 
 ### Seam A (light averaged in gamma space)
+
 - **Motion Blur** (`motionBlur.ts`, `motionBlurGL.ts`) — line-integral average
   along the motion path done as a plain gamma `+=` / `/count`.
 - **Radial Blur** (`radialBlur.ts`) — zoom/spin sample average in gamma (GL + CPU).
@@ -33,10 +34,11 @@ exhausted "name contradicts process" backlog):
 - **Volumetric Light** (`volumetricLight.ts`) — ray-march light-shaft
   accumulation from gamma-luma emitters + additive composite in gamma.
 - **CCD Charge Smear** (`ccdChargeSmear.ts`) — well-overflow thresholded on gamma
-  luma, excess accumulated + additively composited in gamma. *(Verify first — it
-  was reworked for 0.4.0; only include if it genuinely operates in gamma.)*
+  luma, excess accumulated + additively composited in gamma. _(Verify first — it
+  was reworked for 0.4.0; only include if it genuinely operates in gamma.)_
 
 ### Seam B (forced-opaque / dropped source alpha)
+
 - **Temporal Color Cycle** (`temporalColorCycle.ts`) — GL `vec4(rgb,1.0)` and CPU
   `[i+3]=255` on a pure HSL hue-cycle; `src.a` / `buf[i+3]` both available.
 - **Scanline Warp** (`scanlineWarpGL.ts`) — GL-only warp samples only `.rgb`,
@@ -61,7 +63,7 @@ exhausted "name contradicts process" backlog):
 2. **Seam B**: carry source alpha (`src.a` / `buf[si+3]`) — warp/interpolate it
    where the transform is geometric; average it where tiles are averaged.
 3. Add framework-free unit tests: Seam A asserts a bright-over-dark average is
-   *brighter* in linear than the old gamma result (and matches the linear
+   _brighter_ in linear than the old gamma result (and matches the linear
    reference); Seam B asserts output alpha equals the carried source alpha.
 4. Add real-browser GL-smoke contracts for the GL-only / GL-critical cases;
    register them in `src/gl-smoke/suites.ts` (single registration edit done by
@@ -108,7 +110,7 @@ exhausted "name contradicts process" backlog):
   both paths by design.
 - One pre-existing GL-smoke contract was re-baselined, not a regression: CCD's
   `additive-overload-drain-and-direction` anti-blooming threshold moved 0.4→0.5
-  because a smaller *linear* spill re-encodes concavely onto a near-black
+  because a smaller _linear_ spill re-encodes concavely onto a near-black
   background, so the measured sRGB byte-energy drops ~58% (still a strong drain),
   where the old gamma filter produced >60%.
 

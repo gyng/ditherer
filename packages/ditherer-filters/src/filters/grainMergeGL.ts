@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -52,7 +59,7 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    blur:  linkProgram(gl, BLUR_FS,  ["u_input", "u_res", "u_dir", "u_radius"] as const),
+    blur: linkProgram(gl, BLUR_FS, ["u_input", "u_res", "u_dir", "u_radius"] as const),
     merge: linkProgram(gl, MERGE_FS, ["u_source", "u_blurred", "u_strength"] as const),
   };
   return _cache;
@@ -62,8 +69,10 @@ export const grainMergeGLAvailable = (): boolean => glAvailable();
 
 export const renderGrainMergeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  radius: number, strength: number,
+  width: number,
+  height: number,
+  radius: number,
+  strength: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   if (radius > 10) return null;
   const ctx = getGLCtx();
@@ -79,33 +88,57 @@ export const renderGrainMergeGL = (
   const tempH = ensureTexture(gl, "grainMerge:tempH", width, height);
   const tempV = ensureTexture(gl, "grainMerge:tempV", width, height);
 
-  drawPass(gl, tempH, width, height, cache.blur, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, srcTex.tex);
-    gl.uniform1i(cache.blur.uniforms.u_input, 0);
-    gl.uniform2f(cache.blur.uniforms.u_res, width, height);
-    gl.uniform2f(cache.blur.uniforms.u_dir, 1 / width, 0);
-    gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    tempH,
+    width,
+    height,
+    cache.blur,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, srcTex.tex);
+      gl.uniform1i(cache.blur.uniforms.u_input, 0);
+      gl.uniform2f(cache.blur.uniforms.u_res, width, height);
+      gl.uniform2f(cache.blur.uniforms.u_dir, 1 / width, 0);
+      gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  drawPass(gl, tempV, width, height, cache.blur, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
-    gl.uniform1i(cache.blur.uniforms.u_input, 0);
-    gl.uniform2f(cache.blur.uniforms.u_res, width, height);
-    gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / height);
-    gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    tempV,
+    width,
+    height,
+    cache.blur,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
+      gl.uniform1i(cache.blur.uniforms.u_input, 0);
+      gl.uniform2f(cache.blur.uniforms.u_res, width, height);
+      gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / height);
+      gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.merge, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, srcTex.tex);
-    gl.uniform1i(cache.merge.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, tempV.tex);
-    gl.uniform1i(cache.merge.uniforms.u_blurred, 1);
-    gl.uniform1f(cache.merge.uniforms.u_strength, strength);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.merge,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, srcTex.tex);
+      gl.uniform1i(cache.merge.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, tempV.tex);
+      gl.uniform1i(cache.merge.uniforms.u_blurred, 1);
+      gl.uniform1f(cache.merge.uniforms.u_strength, strength);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

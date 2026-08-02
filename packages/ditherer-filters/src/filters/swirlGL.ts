@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -63,9 +70,9 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_centre", "u_radius", "u_angle",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, ["u_source", "u_res", "u_centre", "u_radius", "u_angle"] as const),
+  };
   return _cache;
 };
 
@@ -73,8 +80,12 @@ export const swirlGLAvailable = (): boolean => glAvailable();
 
 export const renderSwirlGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  centreX: number, centreY: number, radius: number, angleRad: number,
+  width: number,
+  height: number,
+  centreX: number,
+  centreY: number,
+  radius: number,
+  angleRad: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -84,14 +95,22 @@ export const renderSwirlGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "swirl:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2f(cache.prog.uniforms.u_centre, centreX, centreY);
-    gl.uniform1f(cache.prog.uniforms.u_radius, radius);
-    gl.uniform1f(cache.prog.uniforms.u_angle, angleRad);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2f(cache.prog.uniforms.u_centre, centreX, centreY);
+      gl.uniform1f(cache.prog.uniforms.u_radius, radius);
+      gl.uniform1f(cache.prog.uniforms.u_angle, angleRad);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

@@ -3,7 +3,7 @@ import { getFilterBackends, subscribeFilterBackends } from "@gyng/ditherer-filte
 import s from "./libraryBrowser.module.css";
 
 type Props = {
-  filterNames: string[];  // one or more display names to aggregate
+  filterNames: string[]; // one or more display names to aggregate
 };
 
 // Poll `getFilterBackends` reactively: subscribe to new-backend events and
@@ -11,7 +11,7 @@ type Props = {
 // useState snapshot is fine as long as we refresh when the set changes.
 const useBackends = (filterNames: string[]): Set<string> => {
   const [tick, setTick] = useState(0);
-  useEffect(() => subscribeFilterBackends(() => setTick(t => t + 1)), []);
+  useEffect(() => subscribeFilterBackends(() => setTick((t) => t + 1)), []);
   // tick is referenced so the effect triggers a re-read; ESLint would
   // otherwise consider `tick` unused.
   void tick;
@@ -32,8 +32,16 @@ export const BackendTags = ({ filterNames }: Props) => {
   if (!hasGL && !hasWasm) return null;
   return (
     <>
-      {hasGL ? <span className={`${s.tag} ${s.tagGL}`} title="WebGL2 accelerated">GL</span> : null}
-      {hasWasm ? <span className={`${s.tag} ${s.tagWasm}`} title="WASM accelerated">WASM</span> : null}
+      {hasGL ? (
+        <span className={`${s.tag} ${s.tagGL}`} title="WebGL2 accelerated">
+          GL
+        </span>
+      ) : null}
+      {hasWasm ? (
+        <span className={`${s.tag} ${s.tagWasm}`} title="WASM accelerated">
+          WASM
+        </span>
+      ) : null}
     </>
   );
 };

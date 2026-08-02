@@ -48,5 +48,7 @@
 }
 
 @keyframes audio-bpm-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

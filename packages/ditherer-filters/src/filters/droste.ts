@@ -75,7 +75,13 @@ void main() {
 `;
 
 export const optionTypes = {
-  twist: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3, desc: "Twist per log-radius step (controls the spiral tightness)" },
+  twist: {
+    type: RANGE,
+    range: [-2, 2],
+    step: 0.01,
+    default: 0.3,
+    desc: "Twist per log-radius step (controls the spiral tightness)",
+  },
   rInner: { type: RANGE, range: [1, 200], step: 1, default: 40, desc: "Inner radius (px)" },
   rOuter: { type: RANGE, range: [10, 2048], step: 1, default: 400, desc: "Outer radius (px)" },
   angle: { type: RANGE, range: [0, 360], step: 1, default: 0, desc: "Overall rotation (degrees)" },
@@ -94,13 +100,24 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, DROSTE_FS, ["u_source", "u_res", "u_twist", "u_rInner", "u_rOuter", "u_angle", "u_levels"] as const) };
+  _cache = {
+    prog: linkProgram(gl, DROSTE_FS, [
+      "u_source",
+      "u_res",
+      "u_twist",
+      "u_rInner",
+      "u_rOuter",
+      "u_angle",
+      "u_levels",
+    ] as const),
+  };
   return _cache;
 };
 
 const droste = (input: any, options = defaults) => {
   const { twist, rInner, rOuter, angle, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -113,26 +130,37 @@ const droste = (input: any, options = defaults) => {
       gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      drawPass(gl, null, W, H, cache.prog, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.prog.uniforms.u_source, 0);
-        gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-        gl.uniform1f(cache.prog.uniforms.u_twist, twist);
-        gl.uniform1f(cache.prog.uniforms.u_rInner, rInner);
-        gl.uniform1f(cache.prog.uniforms.u_rOuter, rOuter);
-        gl.uniform1f(cache.prog.uniforms.u_angle, (angle * Math.PI) / 180);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.prog,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.prog.uniforms.u_source, 0);
+          gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+          gl.uniform1f(cache.prog.uniforms.u_twist, twist);
+          gl.uniform1f(cache.prog.uniforms.u_rInner, rInner);
+          gl.uniform1f(cache.prog.uniforms.u_rOuter, rOuter);
+          gl.uniform1f(cache.prog.uniforms.u_angle, (angle * Math.PI) / 180);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Droste", "WebGL2",
-            `twist=${twist} r=[${rInner},${rOuter}]${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Droste",
+            "WebGL2",
+            `twist=${twist} r=[${rInner},${rOuter}]${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -148,6 +176,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Log-polar spiral recursion — pulls the image into itself Escher-style. Twist controls the spiral, rInner/rOuter bound the recursion radius",
+  description:
+    "Log-polar spiral recursion — pulls the image into itself Escher-style. Twist controls the spiral, rInner/rOuter bound the recursion radius",
   noWASM: "Pure per-pixel warp; GL natural fit.",
 });

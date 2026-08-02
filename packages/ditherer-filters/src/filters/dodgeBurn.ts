@@ -1,16 +1,28 @@
 import { RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import {
-  cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor,
-  logFilterBackend, logFilterWasmStatus,
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+  logFilterBackend,
+  logFilterWasmStatus,
 } from "../utils/index";
 import { defineFilter } from "./types";
 import { normalizeEnumOption, normalizeRangeOption } from "../utils/filterOptions";
 import { SRGB_GLSL, linearToSrgb, srgbToLinear } from "./opticalConvolutionContracts";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -18,21 +30,32 @@ const MODE = { DODGE: "DODGE", BURN: "BURN", BOTH: "BOTH" };
 const MODE_ID: Record<string, number> = { DODGE: 0, BURN: 1, BOTH: 2 };
 
 export const optionTypes = {
-  mode: { type: ENUM, options: [
-    { name: "Dodge (lighten shadows)", value: MODE.DODGE },
-    { name: "Burn (darken highlights)", value: MODE.BURN },
-    { name: "Both", value: MODE.BOTH }
-  ], default: MODE.BOTH, desc: "Lighten shadows, darken highlights, or both" },
+  mode: {
+    type: ENUM,
+    options: [
+      { name: "Dodge (lighten shadows)", value: MODE.DODGE },
+      { name: "Burn (darken highlights)", value: MODE.BURN },
+      { name: "Both", value: MODE.BOTH },
+    ],
+    default: MODE.BOTH,
+    desc: "Lighten shadows, darken highlights, or both",
+  },
   strength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Effect intensity" },
-  range: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance range affected by dodge/burn" },
-  palette: { type: PALETTE, default: nearest }
+  range: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 128,
+    desc: "Luminance range affected by dodge/burn",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   mode: optionTypes.mode.default,
   strength: optionTypes.strength.default,
   range: optionTypes.range.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Dodge/burn are local EXPOSURE changes, so the factor is applied in linear
@@ -73,7 +96,15 @@ type Cache = { db: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { db: linkProgram(gl, DB_FS, ["u_source", "u_mode", "u_strength", "u_range", "u_levels"] as const) };
+  _cache = {
+    db: linkProgram(gl, DB_FS, [
+      "u_source",
+      "u_mode",
+      "u_strength",
+      "u_range",
+      "u_levels",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -82,7 +113,8 @@ const dodgeBurn = (input: any, options: Partial<typeof defaults> = defaults) => 
   const strength = normalizeRangeOption(options.strength, defaults.strength, 0, 1);
   const lumRange = normalizeRangeOption(options.range, defaults.range, 0, 255);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -94,17 +126,25 @@ const dodgeBurn = (input: any, options: Partial<typeof defaults> = defaults) => 
       const sourceTex = ensureTexture(gl, "dodgeBurn:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.db, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.db.uniforms.u_source, 0);
-        gl.uniform1i(cache.db.uniforms.u_mode, MODE_ID[mode] ?? 2);
-        gl.uniform1f(cache.db.uniforms.u_strength, strength);
-        gl.uniform1f(cache.db.uniforms.u_range, lumRange);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.db.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.db,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.db.uniforms.u_source, 0);
+          gl.uniform1i(cache.db.uniforms.u_mode, MODE_ID[mode] ?? 2);
+          gl.uniform1f(cache.db.uniforms.u_strength, strength);
+          gl.uniform1f(cache.db.uniforms.u_range, lumRange);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.db.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
@@ -134,7 +174,9 @@ const dodgeBurn = (input: any, options: Partial<typeof defaults> = defaults) => 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const r = buf[i], g = buf[i + 1], b = buf[i + 2];
+      const r = buf[i],
+        g = buf[i + 1],
+        b = buf[i + 2];
       const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
       let factor = 1;
@@ -146,7 +188,11 @@ const dodgeBurn = (input: any, options: Partial<typeof defaults> = defaults) => 
       }
 
       const color = paletteGetColor(
-        palette, rgba(expose(r, factor), expose(g, factor), expose(b, factor), buf[i + 3]), palette.options, false);
+        palette,
+        rgba(expose(r, factor), expose(g, factor), expose(b, factor), buf[i + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
@@ -155,4 +201,10 @@ const dodgeBurn = (input: any, options: Partial<typeof defaults> = defaults) => 
   return output;
 };
 
-export default defineFilter({ name: "Dodge / Burn", func: dodgeBurn, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Dodge / Burn",
+  func: dodgeBurn,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

@@ -62,13 +62,21 @@ const RGB_SPLIT_COLORS: [number, number, number][] = [
   [90, 255, 120],
   [100, 170, 255],
 ];
-const HSV_SPLIT_CHANNELS = [MOTION_SOURCE.HUE, MOTION_SOURCE.HSV_SATURATION, MOTION_SOURCE.VALUE] as const;
+const HSV_SPLIT_CHANNELS = [
+  MOTION_SOURCE.HUE,
+  MOTION_SOURCE.HSV_SATURATION,
+  MOTION_SOURCE.VALUE,
+] as const;
 const HSV_SPLIT_COLORS: [number, number, number][] = [
   [255, 180, 60],
   [80, 255, 200],
   [255, 255, 255],
 ];
-const HSL_SPLIT_CHANNELS = [MOTION_SOURCE.HUE, MOTION_SOURCE.HSL_SATURATION, MOTION_SOURCE.LIGHTNESS] as const;
+const HSL_SPLIT_CHANNELS = [
+  MOTION_SOURCE.HUE,
+  MOTION_SOURCE.HSL_SATURATION,
+  MOTION_SOURCE.LIGHTNESS,
+] as const;
 const HSL_SPLIT_COLORS: [number, number, number][] = [
   [255, 180, 60],
   [255, 120, 220],
@@ -114,33 +122,29 @@ const magnitudeHeat = (t: number): [number, number, number] => {
 };
 
 const isSplitDisplay = (display: string) =>
-  display === DISPLAY.RGB_SPLIT_ARROWS
-  || display === DISPLAY.RGB_SPLIT_OVERLAY
-  || display === DISPLAY.RGB_SPLIT_TRAILS
-  || display === DISPLAY.HSV_SPLIT_ARROWS
-  || display === DISPLAY.HSV_SPLIT_OVERLAY
-  || display === DISPLAY.HSL_SPLIT_ARROWS
-  || display === DISPLAY.HSL_SPLIT_OVERLAY;
+  display === DISPLAY.RGB_SPLIT_ARROWS ||
+  display === DISPLAY.RGB_SPLIT_OVERLAY ||
+  display === DISPLAY.RGB_SPLIT_TRAILS ||
+  display === DISPLAY.HSV_SPLIT_ARROWS ||
+  display === DISPLAY.HSV_SPLIT_OVERLAY ||
+  display === DISPLAY.HSL_SPLIT_ARROWS ||
+  display === DISPLAY.HSL_SPLIT_OVERLAY;
 
 const isHeatDisplay = (display: string) =>
   display === DISPLAY.HEAT || display === DISPLAY.HEAT_ARROWS;
 
 const isOverlayDisplay = (display: string) =>
-  display === DISPLAY.OVERLAY
-  || display === DISPLAY.RGB_SPLIT_OVERLAY
-  || display === DISPLAY.HSV_SPLIT_OVERLAY
-  || display === DISPLAY.HSL_SPLIT_OVERLAY;
+  display === DISPLAY.OVERLAY ||
+  display === DISPLAY.RGB_SPLIT_OVERLAY ||
+  display === DISPLAY.HSV_SPLIT_OVERLAY ||
+  display === DISPLAY.HSL_SPLIT_OVERLAY;
 
 const isTrailDisplay = (display: string) =>
   display === DISPLAY.TRAILS || display === DISPLAY.RGB_SPLIT_TRAILS;
 
 const confidenceColor = (confidence: number): [number, number, number] => {
   const c = Math.max(0, Math.min(1, confidence));
-  return [
-    Math.round(40 + c * 215),
-    Math.round(40 + c * 215),
-    Math.round(50 + c * 80),
-  ];
+  return [Math.round(40 + c * 215), Math.round(40 + c * 215), Math.round(50 + c * 80)];
 };
 
 const averageBlockColor = (
@@ -287,7 +291,8 @@ export const optionTypes = {
     ],
     default: COLOR.DIRECTION,
     desc: "Choose whether color encodes direction, strength, source color, or confidence",
-    visibleWhen: (options: any) => !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
+    visibleWhen: (options: any) =>
+      !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
   },
   glyphMode: {
     type: ENUM,
@@ -324,7 +329,8 @@ export const optionTypes = {
     label: "Fade By Speed",
     default: true,
     desc: "Dim short vectors and emphasize stronger motion",
-    visibleWhen: (options: any) => !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
+    visibleWhen: (options: any) =>
+      !isHeatDisplay(options.display) && !isSplitDisplay(options.display),
   },
   backgroundDim: {
     type: RANGE,
@@ -333,7 +339,8 @@ export const optionTypes = {
     step: 0.05,
     default: 0.55,
     desc: "How much of the source image stays visible behind overlays",
-    visibleWhen: (options: any) => options.display !== DISPLAY.ARROWS && options.display !== DISPLAY.RGB_SPLIT_ARROWS,
+    visibleWhen: (options: any) =>
+      options.display !== DISPLAY.ARROWS && options.display !== DISPLAY.RGB_SPLIT_ARROWS,
   },
   trailDecay: {
     type: RANGE,
@@ -352,10 +359,14 @@ export const optionTypes = {
     default: 15,
     desc: "Playback speed when using the built-in animation toggle",
   },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) actions.stopAnimLoop();
-    else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
-  } },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) actions.stopAnimLoop();
+      else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+    },
+  },
 };
 
 export const defaults = {
@@ -462,16 +473,18 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
   const cols = Math.ceil(width / cellSize);
   const rows = Math.ceil(height / cellSize);
   const cellCount = cols * rows;
-  const splitChannels = display === DISPLAY.HSV_SPLIT_ARROWS || display === DISPLAY.HSV_SPLIT_OVERLAY
-    ? HSV_SPLIT_CHANNELS
-    : display === DISPLAY.HSL_SPLIT_ARROWS || display === DISPLAY.HSL_SPLIT_OVERLAY
-      ? HSL_SPLIT_CHANNELS
-      : RGB_SPLIT_CHANNELS;
-  const splitColors = display === DISPLAY.HSV_SPLIT_ARROWS || display === DISPLAY.HSV_SPLIT_OVERLAY
-    ? HSV_SPLIT_COLORS
-    : display === DISPLAY.HSL_SPLIT_ARROWS || display === DISPLAY.HSL_SPLIT_OVERLAY
-      ? HSL_SPLIT_COLORS
-      : RGB_SPLIT_COLORS;
+  const splitChannels =
+    display === DISPLAY.HSV_SPLIT_ARROWS || display === DISPLAY.HSV_SPLIT_OVERLAY
+      ? HSV_SPLIT_CHANNELS
+      : display === DISPLAY.HSL_SPLIT_ARROWS || display === DISPLAY.HSL_SPLIT_OVERLAY
+        ? HSL_SPLIT_CHANNELS
+        : RGB_SPLIT_CHANNELS;
+  const splitColors =
+    display === DISPLAY.HSV_SPLIT_ARROWS || display === DISPLAY.HSV_SPLIT_OVERLAY
+      ? HSV_SPLIT_COLORS
+      : display === DISPLAY.HSL_SPLIT_ARROWS || display === DISPLAY.HSL_SPLIT_OVERLAY
+        ? HSL_SPLIT_COLORS
+        : RGB_SPLIT_COLORS;
   const cacheMode = splitDisplay ? display : sourceMode;
   const cacheKey = `${width}x${height}:${cellSize}:${searchRadius}:${cacheMode}`;
   const needsSourceColor = colorMode === COLOR.SOURCE && !splitDisplay;
@@ -479,13 +492,24 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
   let vectorFields: MotionVector[][];
 
   if (splitDisplay) {
-    const previousCombined = decodeVectorState(vectorStateCache.get(cacheKey) || null, cellCount * splitChannels.length);
+    const previousCombined = decodeVectorState(
+      vectorStateCache.get(cacheKey) || null,
+      cellCount * splitChannels.length,
+    );
     const previousFields = previousCombined
-      ? splitChannels.map((_, channelIndex) => previousCombined.slice(channelIndex * cellCount, (channelIndex + 1) * cellCount))
+      ? splitChannels.map((_, channelIndex) =>
+          previousCombined.slice(channelIndex * cellCount, (channelIndex + 1) * cellCount),
+        )
       : [];
 
     vectorFields = splitChannels.map((channelMode, channelIndex) => {
-      const analysisBuffers = prepareMotionAnalysisBuffers(buf, prevInput, width, height, channelMode);
+      const analysisBuffers = prepareMotionAnalysisBuffers(
+        buf,
+        prevInput,
+        width,
+        height,
+        channelMode,
+      );
       const estimated = new Array<MotionVector>(cellCount);
       let vectorIndex = 0;
       for (let y = 0; y < height; y += cellSize) {
@@ -536,7 +560,10 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
       }
     }
 
-    const previousVectors = decodeVectorState(vectorStateCache.get(cacheKey) || null, estimated.length);
+    const previousVectors = decodeVectorState(
+      vectorStateCache.get(cacheKey) || null,
+      estimated.length,
+    );
     let vectors = blurVectorGrid(estimated, cols, rows, spatialSmoothing, searchRadius);
     vectors = blendVectorFields(vectors, previousVectors, temporalSmoothing);
     setCachedVectors(cacheKey, encodeVectorState(vectors));
@@ -563,15 +590,24 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
               if (px >= width) break;
               const i = getBufferIndex(px, py, width);
               outBuf[i] = Math.round(outBuf[i] * (1 - heatAlpha) + heatColor[0] * heatAlpha);
-              outBuf[i + 1] = Math.round(outBuf[i + 1] * (1 - heatAlpha) + heatColor[1] * heatAlpha);
-              outBuf[i + 2] = Math.round(outBuf[i + 2] * (1 - heatAlpha) + heatColor[2] * heatAlpha);
+              outBuf[i + 1] = Math.round(
+                outBuf[i + 1] * (1 - heatAlpha) + heatColor[1] * heatAlpha,
+              );
+              outBuf[i + 2] = Math.round(
+                outBuf[i + 2] * (1 - heatAlpha) + heatColor[2] * heatAlpha,
+              );
               outBuf[i + 3] = 255;
             }
           }
         }
       }
 
-      if (!splitDisplay && (vector.error > threshold || vector.magnitude < minMagnitude || vector.confidence < confidenceCutoff)) {
+      if (
+        !splitDisplay &&
+        (vector.error > threshold ||
+          vector.magnitude < minMagnitude ||
+          vector.confidence < confidenceCutoff)
+      ) {
         vectorIndex += 1;
         continue;
       }
@@ -582,7 +618,11 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
       if (splitDisplay) {
         for (let channelIndex = 0; channelIndex < splitChannels.length; channelIndex += 1) {
           const splitVector = vectorFields[channelIndex][vectorIndex];
-          if (splitVector.error > threshold || splitVector.magnitude < minMagnitude || splitVector.confidence < confidenceCutoff) {
+          if (
+            splitVector.error > threshold ||
+            splitVector.magnitude < minMagnitude ||
+            splitVector.confidence < confidenceCutoff
+          ) {
             continue;
           }
           const offsetX = centerX + cellSize * SPLIT_OFFSETS[channelIndex][0];
@@ -590,18 +630,38 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
           const endX = offsetX + splitVector.dx * scale;
           const endY = offsetY + splitVector.dy * scale;
           const alpha = Math.round(115 + splitVector.motionStrength * 120);
-          drawVectorGlyph(outBuf, width, height, offsetX, offsetY, endX, endY, splitColors[channelIndex], glyphMode, alpha);
+          drawVectorGlyph(
+            outBuf,
+            width,
+            height,
+            offsetX,
+            offsetY,
+            endX,
+            endY,
+            splitColors[channelIndex],
+            glyphMode,
+            alpha,
+          );
         }
       } else {
         const endX = centerX + vector.dx * scale;
         const endY = centerY + vector.dy * scale;
         const color = resolveVectorColor(vector, sourceMode, colorMode, sourceColor);
-        const alpha = showMagnitude
-          ? Math.round(120 + vector.motionStrength * 135)
-          : 235;
+        const alpha = showMagnitude ? Math.round(120 + vector.motionStrength * 135) : 235;
 
         if (display !== DISPLAY.HEAT) {
-          drawVectorGlyph(outBuf, width, height, centerX, centerY, endX, endY, color, glyphMode, alpha);
+          drawVectorGlyph(
+            outBuf,
+            width,
+            height,
+            centerX,
+            centerY,
+            endX,
+            endY,
+            color,
+            glyphMode,
+            alpha,
+          );
         }
       }
 
@@ -619,6 +679,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Estimate local motion between frames and render stable arrows, trails, or heat overlays for debugging and stylized analysis",
+  description:
+    "Estimate local motion between frames and render stable arrows, trails, or heat overlays for debugging and stylized analysis",
   temporal: true,
 });

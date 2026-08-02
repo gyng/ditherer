@@ -18,9 +18,14 @@ const reference = (
   l: readonly [number, number, number],
   r: readonly [number, number, number],
 ): [number, number, number] =>
-  [0, 1, 2].map(row =>
-    M_LEFT[row][0] * l[0] + M_LEFT[row][1] * l[1] + M_LEFT[row][2] * l[2]
-    + M_RIGHT[row][0] * r[0] + M_RIGHT[row][1] * r[1] + M_RIGHT[row][2] * r[2],
+  [0, 1, 2].map(
+    (row) =>
+      M_LEFT[row][0] * l[0] +
+      M_LEFT[row][1] * l[1] +
+      M_LEFT[row][2] * l[2] +
+      M_RIGHT[row][0] * r[0] +
+      M_RIGHT[row][1] * r[1] +
+      M_RIGHT[row][2] * r[2],
   ) as [number, number, number];
 
 describe("Dubois red/cyan projection", () => {
@@ -51,6 +56,6 @@ describe("Dubois red/cyan projection", () => {
     const [R, G, B] = out;
     expect(G).toBeGreaterThan(1); // 0.378476 + 0.73364 - 0.0184503
     expect(B).toBeGreaterThan(1); // -0.0721527 - 0.112961 + 1.2264
-    expect(R).toBeLessThan(0);    // -0.0434706 - 0.0879388 - 0.00155529
+    expect(R).toBeLessThan(0); // -0.0434706 - 0.0879388 - 0.00155529
   });
 });

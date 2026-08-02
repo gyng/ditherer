@@ -20,20 +20,24 @@ const CHANNEL = {
   R: "R",
   G: "G",
   B: "B",
-  LUMA: "LUMA"
+  LUMA: "LUMA",
 };
 
 const CHANNEL_ID: Record<string, number> = { RGB: 0, R: 1, G: 2, B: 3, LUMA: 4 };
 
 const DEFAULT_POINTS = JSON.stringify([
   [0, 0],
-  [255, 255]
+  [255, 255],
 ]);
 
 const parsePoints = (value: string): [number, number][] => {
   try {
     const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [[0, 0], [255, 255]];
+    if (!Array.isArray(parsed))
+      return [
+        [0, 0],
+        [255, 255],
+      ];
 
     const normalized = parsed
       .filter((entry) => Array.isArray(entry) && entry.length >= 2)
@@ -44,17 +48,25 @@ const parsePoints = (value: string): [number, number][] => {
         const y = rawX <= 1 && rawY <= 1 ? rawY * 255 : rawY;
         return [
           Math.max(0, Math.min(255, Math.round(x))),
-          Math.max(0, Math.min(255, Math.round(y)))
+          Math.max(0, Math.min(255, Math.round(y))),
         ] as [number, number];
       })
       .sort((a, b) => a[0] - b[0]);
 
-    if (normalized.length < 2) return [[0, 0], [255, 255]];
+    if (normalized.length < 2)
+      return [
+        [0, 0],
+        [255, 255],
+      ];
     if (normalized[0][0] !== 0) normalized.unshift([0, normalized[0][1]]);
-    if (normalized[normalized.length - 1][0] !== 255) normalized.push([255, normalized[normalized.length - 1][1]]);
+    if (normalized[normalized.length - 1][0] !== 255)
+      normalized.push([255, normalized[normalized.length - 1][1]]);
     return normalized;
   } catch {
-    return [[0, 0], [255, 255]];
+    return [
+      [0, 0],
+      [255, 255],
+    ];
   }
 };
 
@@ -81,23 +93,23 @@ export const optionTypes = {
       { name: "Red", value: CHANNEL.R },
       { name: "Green", value: CHANNEL.G },
       { name: "Blue", value: CHANNEL.B },
-      { name: "Luma", value: CHANNEL.LUMA }
+      { name: "Luma", value: CHANNEL.LUMA },
     ],
     default: CHANNEL.RGB,
-    desc: "Which channel is remapped by the curve"
+    desc: "Which channel is remapped by the curve",
   },
   points: {
     type: CURVE,
     default: DEFAULT_POINTS,
-    desc: "Tone curve editor. Points are still stored as JSON pairs for saved chains and URLs."
+    desc: "Tone curve editor. Points are still stored as JSON pairs for saved chains and URLs.",
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   channel: optionTypes.channel.default,
   points: optionTypes.points.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // 256×1 R8 LUT texture is sampled via texelFetch — one lookup per channel.
@@ -151,9 +163,7 @@ let _lutTex: WebGLTexture | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    cv: linkProgram(gl, CURVES_FS, [
-      "u_source", "u_lut", "u_channel", "u_levels",
-    ] as const),
+    cv: linkProgram(gl, CURVES_FS, ["u_source", "u_lut", "u_channel", "u_levels"] as const),
   };
   return _cache;
 };
@@ -199,17 +209,25 @@ const curves = (input: any, options: typeof defaults = defaults) => {
   uploadSourceTexture(gl, sourceTex, input);
 
   const identity = paletteIsIdentity(palette);
-  drawPass(gl, null, W, H, cache.cv, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.cv.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, lutTex);
-    gl.uniform1i(cache.cv.uniforms.u_lut, 1);
-    gl.uniform1i(cache.cv.uniforms.u_channel, CHANNEL_ID[channel] ?? 0);
-    const pOpts = (palette as { options?: { levels?: number } }).options;
-    gl.uniform1f(cache.cv.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.cv,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.cv.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, lutTex);
+      gl.uniform1i(cache.cv.uniforms.u_lut, 1);
+      gl.uniform1i(cache.cv.uniforms.u_channel, CHANNEL_ID[channel] ?? 0);
+      const pOpts = (palette as { options?: { levels?: number } }).options;
+      gl.uniform1f(cache.cv.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;

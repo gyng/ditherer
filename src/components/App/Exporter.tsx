@@ -9,29 +9,29 @@ const Exporter = () => {
 
   return (
     <div>
-      <button onClick={() => {
-        const json = actions.exportState(state, "json");
-        setJsonValue(json);
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(json).then(
-            () => setModal("json"),
-            () => setModal("json")
-          );
-        } else {
-          setModal("json");
-        }
-      }}>
+      <button
+        onClick={() => {
+          const json = actions.exportState(state, "json");
+          setJsonValue(json);
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(json).then(
+              () => setModal("json"),
+              () => setModal("json"),
+            );
+          } else {
+            setModal("json");
+          }
+        }}
+      >
         ⇧ JSON
       </button>
-      <button onClick={() => setModal("import")}>
-        Import
-      </button>
+      <button onClick={() => setModal("import")}>Import</button>
 
       {modal === "import" && (
         <ModalInput
           title="Paste JSON"
           multiline
-          onConfirm={json => {
+          onConfirm={(json) => {
             if (!json) {
               setModal(null);
               return;

@@ -25,21 +25,52 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  jitterX: { type: RANGE, range: [0, 100], default: 4, desc: "Maximum horizontal pixel displacement per row" },
-  jitterXSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1, desc: "How much horizontal jitter carries over to the next row" },
-  jitterY: { type: RANGE, range: [0, 100], default: 0, desc: "Maximum vertical pixel displacement per column" },
-  jitterYSpread: { type: RANGE, range: [0, 5], default: 0.5, step: 0.1, desc: "How much vertical jitter carries over to the next column" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview animation frame rate" },
+  jitterX: {
+    type: RANGE,
+    range: [0, 100],
+    default: 4,
+    desc: "Maximum horizontal pixel displacement per row",
+  },
+  jitterXSpread: {
+    type: RANGE,
+    range: [0, 5],
+    default: 0.5,
+    step: 0.1,
+    desc: "How much horizontal jitter carries over to the next row",
+  },
+  jitterY: {
+    type: RANGE,
+    range: [0, 100],
+    default: 0,
+    desc: "Maximum vertical pixel displacement per column",
+  },
+  jitterYSpread: {
+    type: RANGE,
+    range: [0, 5],
+    default: 0.5,
+    step: 0.1,
+    desc: "How much vertical jitter carries over to the next column",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 12,
+    desc: "Preview animation frame rate",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
     desc: "Start or stop frame-varying row and column jitter",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) { actions.stopAnimLoop(); }
-      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
-    }
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
+      }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -48,13 +79,13 @@ export const defaults = {
   jitterY: optionTypes.jitterY.default,
   jitterYSpread: optionTypes.jitterYSpread.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -129,10 +160,7 @@ const ensureMapTex = (gl: WebGL2RenderingContext, cache: Cache, len: number) => 
   return tex;
 };
 
-const jitterFilter = (
-  input: any,
-  options = defaults
-) => {
+const jitterFilter = (input: any, options = defaults) => {
   const { jitterX, jitterXSpread, jitterY, jitterYSpread, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
   const W = input.width;
@@ -174,8 +202,8 @@ const jitterFilter = (
         for (let i = 0; i < W; i++) {
           const dy = ((jitterYMap[i] % H) + H) % H;
           const dx = ((jitterXMap[i] % W) + W) % W;
-          bytes[i * 4] = Math.min(254, Math.round(dy / H * 255));
-          bytes[i * 4 + 1] = Math.min(254, Math.round(dx / W * 255));
+          bytes[i * 4] = Math.min(254, Math.round((dy / H) * 255));
+          bytes[i * 4 + 1] = Math.min(254, Math.round((dx / W) * 255));
         }
         gl.bindTexture(gl.TEXTURE_2D, mapTex);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
@@ -184,24 +212,35 @@ const jitterFilter = (
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
-        drawPass(gl, null, W, H, cache.prog, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.prog.uniforms.u_source, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, mapTex);
-          gl.uniform1i(cache.prog.uniforms.u_maps, 1);
-          gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-          gl.uniform1i(cache.prog.uniforms.u_mapLen, W);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.prog,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.prog.uniforms.u_source, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, mapTex);
+            gl.uniform1i(cache.prog.uniforms.u_maps, 1);
+            gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+            gl.uniform1i(cache.prog.uniforms.u_mapLen, W);
+          },
+          vao,
+        );
 
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("Jitter", "WebGL2",
-              `x=${jitterX} y=${jitterY}${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "Jitter",
+              "WebGL2",
+              `x=${jitterX} y=${jitterY}${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -220,11 +259,7 @@ const jitterFilter = (
   for (let x = 0; x < W; x += 1) {
     for (let y = 0; y < H; y += 1) {
       const i = getBufferIndex(x, y, W);
-      const jI = getBufferIndex(
-        (x + jitterYMap[x]) % W,
-        (y + jitterXMap[y]) % H,
-        W
-      );
+      const jI = getBufferIndex((x + jitterYMap[x]) % W, (y + jitterXMap[y]) % H, W);
 
       const pixel = rgba(buf[jI], buf[jI + 1], buf[jI + 2], buf[jI + 3]);
       const color = paletteGetColor(palette, pixel, palette.options, false);

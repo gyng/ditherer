@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  LAYOUT, centeredRect, clamp01, clamp255, clampRect, hslToRgb, layoutRect,
+  LAYOUT,
+  centeredRect,
+  clamp01,
+  clamp255,
+  clampRect,
+  hslToRgb,
+  layoutRect,
 } from "filters/infiniteCallWindows";
 
 // 454 lines, noGL + noWASM, covered only by the smoke sweep's "doesn't throw".
@@ -52,7 +58,12 @@ describe("panes stay inside the frame", () => {
 
   it.each(LAYOUTS)("%s survives a frame smaller than a pane", (layout) => {
     // Degenerate sizes are where geometry tends to go negative.
-    for (const [w, h] of [[1, 1], [4, 4], [8, 8], [10, 3]]) {
+    for (const [w, h] of [
+      [1, 1],
+      [4, 4],
+      [8, 8],
+      [10, 3],
+    ]) {
       for (let level = 0; level < 4; level++) {
         const r = layoutRect(layout, level, 0, w, h, 0.84, 0.018);
         if (!r) continue;
@@ -187,7 +198,10 @@ describe("hslToRgb matches the published conversion", () => {
   ])("%s", (_name, h, s, l, expected) => {
     const got = hslToRgb(h as number, s as number, l as number);
     for (let i = 0; i < 3; i++) {
-      expect(Math.abs(got[i] - (expected as number[])[i]), `channel ${i}: ${got}`).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(got[i] - (expected as number[])[i]),
+        `channel ${i}: ${got}`,
+      ).toBeLessThanOrEqual(1);
     }
   });
 

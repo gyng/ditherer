@@ -23,10 +23,13 @@ runNpm(["pack", "--pack-destination", packDirectory], packageRoot);
 const tarballName = (await readdir(packDirectory)).find((name) => name.endsWith(".tgz"));
 if (!tarballName) throw new Error("npm pack did not produce a tarball");
 
-runNpm([
-  "install",
-  "--ignore-scripts",
-  "--no-save",
-  "--package-lock=false",
-  path.join(packDirectory, tarballName),
-], fixtureRoot);
+runNpm(
+  [
+    "install",
+    "--ignore-scripts",
+    "--no-save",
+    "--package-lock=false",
+    path.join(packDirectory, tarballName),
+  ],
+  fixtureRoot,
+);

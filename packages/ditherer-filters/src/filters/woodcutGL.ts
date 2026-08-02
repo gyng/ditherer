@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 import { PRINTMAKING_TONE_GLSL } from "./printmakingToneContracts";
@@ -87,10 +94,17 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_threshold", "u_lineWeight", "u_edgeStrength",
-    "u_inkColor", "u_paperColor",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_threshold",
+      "u_lineWeight",
+      "u_edgeStrength",
+      "u_inkColor",
+      "u_paperColor",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -98,9 +112,13 @@ export const woodcutGLAvailable = (): boolean => glAvailable();
 
 export const renderWoodcutGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  threshold: number, lineWeight: number, edgeStrength: number,
-  inkColor: [number, number, number], paperColor: [number, number, number],
+  width: number,
+  height: number,
+  threshold: number,
+  lineWeight: number,
+  edgeStrength: number,
+  inkColor: [number, number, number],
+  paperColor: [number, number, number],
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -110,16 +128,24 @@ export const renderWoodcutGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "woodcut:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_threshold, threshold);
-    gl.uniform1f(cache.prog.uniforms.u_lineWeight, lineWeight);
-    gl.uniform1f(cache.prog.uniforms.u_edgeStrength, edgeStrength);
-    gl.uniform3f(cache.prog.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
-    gl.uniform3f(cache.prog.uniforms.u_paperColor, paperColor[0], paperColor[1], paperColor[2]);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_threshold, threshold);
+      gl.uniform1f(cache.prog.uniforms.u_lineWeight, lineWeight);
+      gl.uniform1f(cache.prog.uniforms.u_edgeStrength, edgeStrength);
+      gl.uniform3f(cache.prog.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
+      gl.uniform3f(cache.prog.uniforms.u_paperColor, paperColor[0], paperColor[1], paperColor[2]);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

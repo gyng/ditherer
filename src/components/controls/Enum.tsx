@@ -22,9 +22,11 @@ const Enum = (props: EnumControlProps) => {
           desc={props.types?.desc}
           currentValue={props.value}
           defaultValue={props.defaultValue}
-          onReset={props.defaultValue !== undefined
-            ? () => props.onSetFilterOption(props.name, props.defaultValue)
-            : undefined}
+          onReset={
+            props.defaultValue !== undefined
+              ? () => props.onSetFilterOption(props.name, props.defaultValue)
+              : undefined
+          }
         />
       )}
 
@@ -34,15 +36,17 @@ const Enum = (props: EnumControlProps) => {
         aria-describedby={!props.hideLabel && props.types?.desc ? `${inputId}-help` : undefined}
         className={s.enum}
         value={props.value}
-        onChange={e => props.onSetFilterOption(props.name, e.target.value)}
+        onChange={(e) => props.onSetFilterOption(props.name, e.target.value)}
       >
-        {props.types.options.map((option) => (
+        {props.types.options.map((option) =>
           "options" in option ? (
             <optgroup key={option.label} label={option.label}>
               {option.options.map(renderOption)}
             </optgroup>
-          ) : renderOption(option)
-        ))}
+          ) : (
+            renderOption(option)
+          ),
+        )}
       </select>
     </div>
   );

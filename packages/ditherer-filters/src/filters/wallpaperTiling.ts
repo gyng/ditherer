@@ -2,7 +2,11 @@ import { RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
 import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
-import { normalizeEnumOption, normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
+import {
+  normalizeEnumOption,
+  normalizePaletteOption,
+  normalizeRangeOption,
+} from "../utils/filterOptions";
 import { WALLPAPER_FOLDS_GLSL } from "./wallpaperFolds";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
@@ -88,11 +92,29 @@ export const optionTypes = {
       { name: "P6M (hex kaleidoscope)", value: GROUP.P6M },
     ],
     default: GROUP.P4M,
-    desc: "Wallpaper symmetry group"
+    desc: "Wallpaper symmetry group",
   },
-  cellSize: { type: RANGE, range: [10, 800], step: 1, default: 120, desc: "Fundamental-domain size (px)" },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Tiling centre X (fraction of width)" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Tiling centre Y (fraction of height)" },
+  cellSize: {
+    type: RANGE,
+    range: [10, 800],
+    step: 1,
+    default: 120,
+    desc: "Fundamental-domain size (px)",
+  },
+  centerX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Tiling centre X (fraction of width)",
+  },
+  centerY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Tiling centre Y (fraction of height)",
+  },
   angle: { type: RANGE, range: [0, 360], step: 1, default: 0, desc: "Overall rotation (degrees)" },
   palette: { type: PALETTE, default: nearest },
 };
@@ -112,19 +134,33 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, WALLPAPER_FS, ["u_source", "u_res", "u_group", "u_cellSize", "u_centre", "u_angle", "u_levels"] as const) };
+  _cache = {
+    prog: linkProgram(gl, WALLPAPER_FS, [
+      "u_source",
+      "u_res",
+      "u_group",
+      "u_cellSize",
+      "u_centre",
+      "u_angle",
+      "u_levels",
+    ] as const),
+  };
   return _cache;
 };
 
 const wallpaperTiling = (input: any, options: Partial<typeof defaults> = defaults) => {
-  const group = normalizeEnumOption(options.group,
-    [GROUP.P1, GROUP.P2, GROUP.PMM, GROUP.P4M, GROUP.P6M], defaults.group);
+  const group = normalizeEnumOption(
+    options.group,
+    [GROUP.P1, GROUP.P2, GROUP.PMM, GROUP.P4M, GROUP.P6M],
+    defaults.group,
+  );
   const cellSize = normalizeRangeOption(options.cellSize, defaults.cellSize, 10, 800, true);
   const centerX = normalizeRangeOption(options.centerX, defaults.centerX, 0, 1);
   const centerY = normalizeRangeOption(options.centerY, defaults.centerY, 0, 1);
   const angle = normalizeRangeOption(options.angle, defaults.angle, 0, 360);
   const palette = normalizePaletteOption(options.palette, defaults.palette);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -137,26 +173,37 @@ const wallpaperTiling = (input: any, options: Partial<typeof defaults> = default
       gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      drawPass(gl, null, W, H, cache.prog, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.prog.uniforms.u_source, 0);
-        gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-        gl.uniform1i(cache.prog.uniforms.u_group, GROUP_ID[group] ?? 3);
-        gl.uniform1f(cache.prog.uniforms.u_cellSize, cellSize);
-        gl.uniform2f(cache.prog.uniforms.u_centre, centerX * W, centerY * H);
-        gl.uniform1f(cache.prog.uniforms.u_angle, (angle * Math.PI) / 180);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.prog,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.prog.uniforms.u_source, 0);
+          gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+          gl.uniform1i(cache.prog.uniforms.u_group, GROUP_ID[group] ?? 3);
+          gl.uniform1f(cache.prog.uniforms.u_cellSize, cellSize);
+          gl.uniform2f(cache.prog.uniforms.u_centre, centerX * W, centerY * H);
+          gl.uniform1f(cache.prog.uniforms.u_angle, (angle * Math.PI) / 180);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Wallpaper Tiling", "WebGL2",
-            `${group} cell=${cellSize}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Wallpaper Tiling",
+            "WebGL2",
+            `${group} cell=${cellSize}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -172,6 +219,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Crystallographic symmetry tiling (P1 / P2 / PMM / P4M / P6M) — reflects & rotates the image into a repeating wallpaper pattern",
+  description:
+    "Crystallographic symmetry tiling (P1 / P2 / PMM / P4M / P6M) — reflects & rotates the image into a repeating wallpaper pattern",
   noWASM: "Pure per-pixel coordinate remap; GL natural fit.",
 });

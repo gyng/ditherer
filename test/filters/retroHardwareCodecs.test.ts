@@ -17,7 +17,8 @@ describe("Apple II HGR display contract", () => {
   it("decodes clear, adjacent, and isolated dots using byte phase", () => {
     const bits = Uint8Array.from([
       0, // clear -> black
-      1, 1, // adjacent set dots -> white
+      1,
+      1, // adjacent set dots -> white
       0,
       1, // isolated even -> purple in phase 0
       0,
@@ -72,22 +73,17 @@ describe("ZX Spectrum attribute cells", () => {
   });
 
   it("swaps FLASH ink and paper every 16 hardware frames", () => {
-    expect(Array.from({ length: 33 }, (_, frame) => spectrumFlashPhase(frame, 50)))
-      .toEqual([
-        ...new Array(16).fill(0),
-        ...new Array(16).fill(1),
-        0,
-      ]);
+    expect(Array.from({ length: 33 }, (_, frame) => spectrumFlashPhase(frame, 50))).toEqual([
+      ...new Array(16).fill(0),
+      ...new Array(16).fill(1),
+      0,
+    ]);
     expect(spectrumFlashPhase(Number.POSITIVE_INFINITY, Number.NaN)).toBe(0);
   });
 });
 
 describe("Amiga OCS HAM6", () => {
-  const palette = Uint8Array.from([
-    0, 0, 0, 255,
-    17, 34, 51, 255,
-    ...new Array(14 * 4).fill(0),
-  ]);
+  const palette = Uint8Array.from([0, 0, 0, 255, 17, 34, 51, 255, ...new Array(14 * 4).fill(0)]);
 
   it("decodes the documented direct, blue, red, and green opcodes", () => {
     const codes = Uint8Array.from([
@@ -98,20 +94,12 @@ describe("Amiga OCS HAM6", () => {
     ]);
     const output = decodeHam6Scanline(codes, palette);
     expect(Array.from(output)).toEqual([
-      17, 34, 51, 255,
-      17, 34, 255, 255,
-      136, 34, 255, 255,
-      136, 68, 255, 255,
+      17, 34, 51, 255, 17, 34, 255, 255, 136, 34, 255, 255, 136, 68, 255, 255,
     ]);
   });
 
   it("encodes to legal opcodes and reconstructs only 4-bit component levels", () => {
-    const source = Uint8Array.from([
-      18, 35, 52,
-      19, 35, 250,
-      132, 36, 249,
-      130, 70, 247,
-    ]);
+    const source = Uint8Array.from([18, 35, 52, 19, 35, 250, 132, 36, 249, 130, 70, 247]);
     const encoded = encodeHam6Scanline(source, palette);
     expect(encoded.codes).toHaveLength(4);
     expect(decodeHam6Scanline(encoded.codes, palette)).toEqual(encoded.output);
@@ -144,7 +132,16 @@ describe("PXL-2000 ping-pong timing", () => {
   it("holds each 15 Hz CCD capture for two frames at a 30 fps preview", () => {
     const sequence = Array.from({ length: 8 }, (_, frame) => pxlTiming(frame, 30));
     expect(sequence.map((entry) => entry.captureIndex)).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
-    expect(sequence.map((entry) => entry.newCapture)).toEqual([true, false, true, false, true, false, true, false]);
+    expect(sequence.map((entry) => entry.newCapture)).toEqual([
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+    ]);
   });
 
   it("retains the exact rational capture cadence at non-multiple preview rates", () => {

@@ -42,14 +42,20 @@ const TIMELINE_PREROLL_SEC = 1.5;
 const TIMELINE_POSTROLL_SEC = 0.05;
 const FRAME_TIME_EPSILON_US = 50_000;
 
-const flushDecoderWithTimeout = async (decoder: VideoDecoder, framesDecoded: number, chunksDecoded: number) => {
+const flushDecoderWithTimeout = async (
+  decoder: VideoDecoder,
+  framesDecoded: number,
+  chunksDecoded: number,
+) => {
   await Promise.race([
     decoder.flush(),
     new Promise<never>((_, reject) => {
       window.setTimeout(() => {
-        reject(new Error(
-          `VideoDecoder.flush() timed out after ${FLUSH_TIMEOUT_MS}ms with ${framesDecoded} frame${framesDecoded === 1 ? "" : "s"} decoded from ${chunksDecoded} chunk${chunksDecoded === 1 ? "" : "s"}.`,
-        ));
+        reject(
+          new Error(
+            `VideoDecoder.flush() timed out after ${FLUSH_TIMEOUT_MS}ms with ${framesDecoded} frame${framesDecoded === 1 ? "" : "s"} decoded from ${chunksDecoded} chunk${chunksDecoded === 1 ? "" : "s"}.`,
+          ),
+        );
       }, FLUSH_TIMEOUT_MS);
     }),
   ]);
@@ -114,7 +120,11 @@ export const decodeSourceFramesWithWebCodecs = async ({
         const relativeUs = Math.max(0, frame.timestamp - requestedStartUs);
         const decodeFraction = Math.min(1, relativeUs / requestedDurationUs);
         const stageFraction = 0.08 + decodeFraction * 0.22;
-        if (stageFraction >= lastReportedFraction + 0.005 || frames.length <= 3 || decodeFraction >= 0.995) {
+        if (
+          stageFraction >= lastReportedFraction + 0.005 ||
+          frames.length <= 3 ||
+          decodeFraction >= 0.995
+        ) {
           lastReportedFraction = stageFraction;
           onProgress?.({
             message: `Decoding source frames (${Math.round(decodeFraction * 100)}% · ${frames.length} frame${frames.length === 1 ? "" : "s"})...`,
@@ -133,7 +143,12 @@ export const decodeSourceFramesWithWebCodecs = async ({
     const demuxStartedAt = performance.now();
     const decodeStartedAt = performance.now();
     lastReportedFraction = 0.08;
-    const chunkStream = demuxer.read("video", startTimeSec, endTimeSec, AVSeekFlag.AVSEEK_FLAG_BACKWARD);
+    const chunkStream = demuxer.read(
+      "video",
+      startTimeSec,
+      endTimeSec,
+      AVSeekFlag.AVSEEK_FLAG_BACKWARD,
+    );
     const reader = chunkStream.getReader();
     try {
       for (;;) {
@@ -167,9 +182,11 @@ export const decodeSourceFramesWithWebCodecs = async ({
       decoder.flush(),
       new Promise<never>((_, reject) => {
         window.setTimeout(() => {
-          reject(new Error(
-            `VideoDecoder.flush() timed out after ${FLUSH_TIMEOUT_MS}ms with ${frames.length} frame${frames.length === 1 ? "" : "s"} decoded from ${metrics.decodedChunks} chunk${metrics.decodedChunks === 1 ? "" : "s"}.`,
-          ));
+          reject(
+            new Error(
+              `VideoDecoder.flush() timed out after ${FLUSH_TIMEOUT_MS}ms with ${frames.length} frame${frames.length === 1 ? "" : "s"} decoded from ${metrics.decodedChunks} chunk${metrics.decodedChunks === 1 ? "" : "s"}.`,
+            ),
+          );
         }, FLUSH_TIMEOUT_MS);
       }),
     ]);
@@ -273,11 +290,9 @@ export const decodeTimelineFramesWithWebCodecs = async ({
           const candidateDelta = Math.abs(candidate.timestampUs - targetUs);
           const preferCandidate =
             candidate.timestampUs <= targetUs + FRAME_TIME_EPSILON_US &&
-            (
-              bestFrame.timestampUs > targetUs + FRAME_TIME_EPSILON_US ||
+            (bestFrame.timestampUs > targetUs + FRAME_TIME_EPSILON_US ||
               candidateDelta < bestDelta ||
-              (candidateDelta === bestDelta && candidate.timestampUs > bestFrame.timestampUs)
-            );
+              (candidateDelta === bestDelta && candidate.timestampUs > bestFrame.timestampUs));
           if (preferCandidate) {
             bestFrame.frame.close();
             bestFrame = candidate;
@@ -292,7 +307,12 @@ export const decodeTimelineFramesWithWebCodecs = async ({
 
       try {
         decoder.configure(supportConfig);
-        const chunkStream = demuxer.read("video", windowStartSec, windowEndSec, AVSeekFlag.AVSEEK_FLAG_BACKWARD);
+        const chunkStream = demuxer.read(
+          "video",
+          windowStartSec,
+          windowEndSec,
+          AVSeekFlag.AVSEEK_FLAG_BACKWARD,
+        );
         const reader = chunkStream.getReader();
         let localChunks = 0;
         try {
@@ -350,7 +370,10 @@ export const decodeTimelineFramesWithWebCodecs = async ({
   }
 };
 
-export const selectFramesForTimeline = (decodedFrames: DecodedFrame[], timeline: OfflineTimelineFrame[]) => {
+export const selectFramesForTimeline = (
+  decodedFrames: DecodedFrame[],
+  timeline: OfflineTimelineFrame[],
+) => {
   if (!decodedFrames.length) {
     throw new Error("No decoded source frames are available.");
   }
@@ -371,5 +394,9 @@ export const selectFramesForTimeline = (decodedFrames: DecodedFrame[], timeline:
   });
 };
 
-export const buildDecodedTimeline = (durationSec: number, fps: number, startTimeSec = 0, endTimeSec = durationSec) =>
-  buildOfflineTimeline(durationSec, fps, startTimeSec, endTimeSec);
+export const buildDecodedTimeline = (
+  durationSec: number,
+  fps: number,
+  startTimeSec = 0,
+  endTimeSec = durationSec,
+) => buildOfflineTimeline(durationSec, fps, startTimeSec, endTimeSec);

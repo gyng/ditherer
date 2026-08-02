@@ -28,20 +28,18 @@ interface SaveAsProps {
 
 const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const { state, actions } = useFilter();
-  const temporalFilterNamesRef = useRef(new Set(
-    filterList.filter(hasTemporalBehavior).map((entry) => entry.filter.name)
-  ));
+  const temporalFilterNamesRef = useRef(
+    new Set(filterList.filter(hasTemporalBehavior).map((entry) => entry.filter.name)),
+  );
 
   // Tab
   const hasAnimatedFilter = (state.chain || []).some(
-    (entry) => entry.enabled !== false && temporalFilterNamesRef.current.has(entry.filter?.name)
+    (entry) => entry.enabled !== false && temporalFilterNamesRef.current.has(entry.filter?.name),
   );
   const isAnimated = !!state.video || hasAnimatedFilter;
   const showVideoTab = isAnimated || state.realtimeFiltering;
   // Default to Video tab only when input is actually video/animated, not just because realtime is on
-  const [activeTab, setActiveTab] = useState<"image" | "video">(
-    isAnimated ? "video" : "image"
-  );
+  const [activeTab, setActiveTab] = useState<"image" | "video">(isAnimated ? "video" : "image");
 
   // Image settings
   const [format, setFormat] = useState("png");
@@ -59,7 +57,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const [recordFps, setRecordFps] = useState(30);
   const [includeVideoAudio, setIncludeVideoAudio] = useState(true);
   const [videoLoopMode, setVideoLoopMode] = useState<"realtime" | "offline" | "webcodecs">(
-    state.video ? "webcodecs" : "realtime"
+    state.video ? "webcodecs" : "realtime",
   );
   const [reliableScope, setReliableScope] = useState<"loop" | "range">("loop");
   const [reliableStrictValidation, setReliableStrictValidation] = useState(false);
@@ -75,14 +73,18 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   const [gifPaletteSource, setGifPaletteSource] = useState<"auto" | "filter">("auto");
   const [contactColumns, setContactColumns] = useState(5);
   const [loopAutoFps, setLoopAutoFps] = useState(true);
-  const [loopCaptureMode, setLoopCaptureMode] = useState<"realtime" | "offline" | "webcodecs">("offline");
+  const [loopCaptureMode, setLoopCaptureMode] = useState<"realtime" | "offline" | "webcodecs">(
+    "offline",
+  );
 
   // Recording state
   const [capturing, setCapturing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [sourceTime, setSourceTime] = useState(0);
   const [sourceDuration, setSourceDuration] = useState(0);
-  const [reliableVideoSupport, setReliableVideoSupport] = useState<ReliableVideoSupport | null>(null);
+  const [reliableVideoSupport, setReliableVideoSupport] = useState<ReliableVideoSupport | null>(
+    null,
+  );
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -131,13 +133,19 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     setProgressValue(null);
   }, []);
 
-  const logReliableRenderProfile = useCallback((label: string, stats: Record<string, number | string | boolean | null>) => {
-    console.info("[reliable-export]", label, stats);
-  }, []);
+  const logReliableRenderProfile = useCallback(
+    (label: string, stats: Record<string, number | string | boolean | null>) => {
+      console.info("[reliable-export]", label, stats);
+    },
+    [],
+  );
 
-  const logGifExportProfile = useCallback((label: string, stats: Record<string, number | string | boolean | null>) => {
-    console.info("[gif-export]", label, stats);
-  }, []);
+  const logGifExportProfile = useCallback(
+    (label: string, stats: Record<string, number | string | boolean | null>) => {
+      console.info("[gif-export]", label, stats);
+    },
+    [],
+  );
 
   const setManualPause = useCallback((video: HTMLVideoElement | null, manualPause: boolean) => {
     if (!video) return;
@@ -181,7 +189,10 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   ]);
   const canUseGifFilterPalette = !!gifFilterPalette;
   const gifPalettePreview = gifFilterPalette?.slice(0, GIF_PALETTE_PREVIEW_LIMIT) ?? [];
-  const gifPaletteOverflow = Math.max(0, (gifFilterPalette?.length ?? 0) - gifPalettePreview.length);
+  const gifPaletteOverflow = Math.max(
+    0,
+    (gifFilterPalette?.length ?? 0) - gifPalettePreview.length,
+  );
 
   useEffect(() => {
     if (gifPaletteSource === "filter" && !canUseGifFilterPalette) {
@@ -193,7 +204,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -297,7 +308,10 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
         if (!cancelled) {
           setReliableVideoSupport({
             supported: false,
-            reason: error instanceof Error ? error.message : "Reliable export support could not be determined.",
+            reason:
+              error instanceof Error
+                ? error.message
+                : "Reliable export support could not be determined.",
             audio: false,
           });
         }
@@ -306,7 +320,16 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
     return () => {
       cancelled = true;
     };
-  }, [state.video, includeVideoAudio, canvasReady, exportW, exportH, autoRecordFps, recordFps, estimateVideoFps]);
+  }, [
+    state.video,
+    includeVideoAudio,
+    canvasReady,
+    exportW,
+    exportH,
+    autoRecordFps,
+    recordFps,
+    estimateVideoFps,
+  ]);
 
   const {
     handleSave,
@@ -401,7 +424,7 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   };
 
   const recFormatOptions = {
-    options: recordingFormats.map(f => ({ value: f.label })),
+    options: recordingFormats.map((f) => ({ value: f.label })),
   };
 
   const recordingPanelProps = {
@@ -503,95 +526,95 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   };
 
   return (
-      <WindowDialog
-        className={[controls.window, s.dialog].join(" ")}
-        title="Save As"
-        onClose={capturing || exporting ? () => undefined : onClose}
-      >
-        <div className={["handle", controls.titleBar, s.titleBar].join(" ")}>
-          <span>Save As</span>
-          <button
-            className={s.closeBtn}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={!capturing && !exporting ? onClose : undefined}
-            title="Close"
-          >
-            &#10005;
-          </button>
-        </div>
+    <WindowDialog
+      className={[controls.window, s.dialog].join(" ")}
+      title="Save As"
+      onClose={capturing || exporting ? () => undefined : onClose}
+    >
+      <div className={["handle", controls.titleBar, s.titleBar].join(" ")}>
+        <span>Save As</span>
+        <button
+          className={s.closeBtn}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={!capturing && !exporting ? onClose : undefined}
+          title="Close"
+        >
+          &#10005;
+        </button>
+      </div>
 
-        {/* Tabs */}
-        <div className={s.tabs} role="tablist" aria-label="Export type">
+      {/* Tabs */}
+      <div className={s.tabs} role="tablist" aria-label="Export type">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "image"}
+          data-dialog-initial-focus={activeTab === "image" ? "true" : undefined}
+          className={[s.tab, activeTab === "image" ? s.tabActive : ""].join(" ")}
+          onClick={() => setActiveTab("image")}
+        >
+          Image
+        </button>
+        {showVideoTab && (
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === "image"}
-            data-dialog-initial-focus={activeTab === "image" ? "true" : undefined}
-            className={[s.tab, activeTab === "image" ? s.tabActive : ""].join(" ")}
-            onClick={() => setActiveTab("image")}
+            aria-selected={activeTab === "video"}
+            data-dialog-initial-focus={activeTab === "video" ? "true" : undefined}
+            className={[s.tab, activeTab === "video" ? s.tabActive : ""].join(" ")}
+            onClick={() => setActiveTab("video")}
           >
-            Image
+            Video
           </button>
-          {showVideoTab && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "video"}
-              data-dialog-initial-focus={activeTab === "video" ? "true" : undefined}
-              className={[s.tab, activeTab === "video" ? s.tabActive : ""].join(" ")}
-              onClick={() => setActiveTab("video")}
-            >
-              Video
-            </button>
-          )}
-        </div>
+        )}
+      </div>
 
-        <div className={s.tabContent}>
-          {/* ---- Image Tab ---- */}
-          {activeTab === "image" && (
-            <ImageTab
-              format={format}
-              quality={quality}
-              resolution={resolution}
-              customMultiplier={customMultiplier}
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              exportWidth={exportW}
-              exportHeight={exportH}
-              largeExport={largeExport}
-              canvasReady={!!canvasReady}
-              copySuccess={copySuccess}
-              setFormat={setFormat}
-              setQuality={setQuality}
-              setResolution={setResolution}
-              setCustomMultiplier={setCustomMultiplier}
-              onSave={handleSave}
-              onCopy={handleCopy}
-            />
-          )}
+      <div className={s.tabContent}>
+        {/* ---- Image Tab ---- */}
+        {activeTab === "image" && (
+          <ImageTab
+            format={format}
+            quality={quality}
+            resolution={resolution}
+            customMultiplier={customMultiplier}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            exportWidth={exportW}
+            exportHeight={exportH}
+            largeExport={largeExport}
+            canvasReady={!!canvasReady}
+            copySuccess={copySuccess}
+            setFormat={setFormat}
+            setQuality={setQuality}
+            setResolution={setResolution}
+            setCustomMultiplier={setCustomMultiplier}
+            onSave={handleSave}
+            onCopy={handleCopy}
+          />
+        )}
 
-          {/* ---- Video Tab ---- */}
-          {activeTab === "video" && (
-            <VideoTab
-              videoVolume={state.videoVolume}
-              videoFormat={videoFormat}
-              videoFormatOptions={videoFormatOptions.options}
-              onSetVideoFormat={(value) => {
-                setVideoFormat(value);
-                if (value === "contact" && loopCaptureMode === "offline") {
-                  setLoopCaptureMode("webcodecs");
-                }
-                if (value === "contact") {
-                  setFrames(30);
-                  setContactColumns(5);
-                }
-              }}
-              recordingPanel={recordingPanelProps}
-              frameExportPanel={frameExportPanelProps}
-            />
-          )}
-        </div>
-      </WindowDialog>
+        {/* ---- Video Tab ---- */}
+        {activeTab === "video" && (
+          <VideoTab
+            videoVolume={state.videoVolume}
+            videoFormat={videoFormat}
+            videoFormatOptions={videoFormatOptions.options}
+            onSetVideoFormat={(value) => {
+              setVideoFormat(value);
+              if (value === "contact" && loopCaptureMode === "offline") {
+                setLoopCaptureMode("webcodecs");
+              }
+              if (value === "contact") {
+                setFrames(30);
+                setContactColumns(5);
+              }
+            }}
+            recordingPanel={recordingPanelProps}
+            frameExportPanel={frameExportPanelProps}
+          />
+        )}
+      </div>
+    </WindowDialog>
   );
 };
 

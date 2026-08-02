@@ -12,7 +12,11 @@ export const shaderValidationOverrides = (
         ...palette,
         options: {
           ...((palette?.options as Record<string, unknown> | undefined) ?? {}),
-          colors: [[0, 0, 0], [255, 255, 255], [255, 64, 32]],
+          colors: [
+            [0, 0, 0],
+            [255, 255, 255],
+            [255, 64, 32],
+          ],
           colorDistanceAlgorithm: "RGB",
         },
       },
@@ -22,7 +26,7 @@ export const shaderValidationOverrides = (
   return {};
 };
 
-export const outputScaleFor = (name: string): number => name === "Pixel Art Upscale" ? 2 : 1;
+export const outputScaleFor = (name: string): number => (name === "Pixel Art Upscale" ? 2 : 1);
 
 export const STRICT_SPEC_FILTERS = new Set([
   "Apollo Slow-Scan TV",
@@ -95,7 +99,4 @@ export const migratedScalarDefaults = new Set([
   "VHS / NTSC",
 ]);
 
-export const migratedEnumDefaults = new Set([
-  "Anaglyph:depthSource",
-  "Convolve:kernel",
-]);
+export const migratedEnumDefaults = new Set(["Anaglyph:depthSource", "Convolve:kernel"]);

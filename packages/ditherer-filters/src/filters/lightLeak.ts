@@ -8,14 +8,37 @@ import { renderLightLeakGL } from "./lightLeakGL";
 const POS = { TL: "TL", TR: "TR", BL: "BL", BR: "BR" };
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Additional edge exposure applied in linear light" },
-  position: { type: ENUM, options: [
-    { name: "Top-Left", value: POS.TL }, { name: "Top-Right", value: POS.TR },
-    { name: "Bottom-Left", value: POS.BL }, { name: "Bottom-Right", value: POS.BR }
-  ], default: POS.TR, desc: "Corner where the light leak originates" },
-  color: { type: COLOR, default: [255, 120, 50], desc: "Spectral color of the leaking light without hidden channel bias" },
-  spread: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.4, desc: "How far the leak extends into the image" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  intensity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "Additional edge exposure applied in linear light",
+  },
+  position: {
+    type: ENUM,
+    options: [
+      { name: "Top-Left", value: POS.TL },
+      { name: "Top-Right", value: POS.TR },
+      { name: "Bottom-Left", value: POS.BL },
+      { name: "Bottom-Right", value: POS.BR },
+    ],
+    default: POS.TR,
+    desc: "Corner where the light leak originates",
+  },
+  color: {
+    type: COLOR,
+    default: [255, 120, 50],
+    desc: "Spectral color of the leaking light without hidden channel bias",
+  },
+  spread: {
+    type: RANGE,
+    range: [0.1, 1],
+    step: 0.05,
+    default: 0.4,
+    desc: "How far the leak extends into the image",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -23,7 +46,7 @@ export const defaults = {
   position: optionTypes.position.default,
   color: optionTypes.color.default,
   spread: optionTypes.spread.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const lightLeak = (input: any, options: Partial<typeof defaults> = defaults) => {
@@ -34,20 +57,31 @@ const lightLeak = (input: any, options: Partial<typeof defaults> = defaults) => 
     spread = defaults.spread,
     palette = defaults.palette,
   } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const srcX = position === POS.TR || position === POS.BR ? Math.max(0, W - 1) : 0;
   const srcY = position === POS.BL || position === POS.BR ? Math.max(0, H - 1) : 0;
   const maxDist = Math.sqrt(W * W + H * H) * spread;
 
-  const rendered = renderLightLeakGL(input, W, H,
-      srcX, srcY,
-      [leakColor[0], leakColor[1], leakColor[2]],
-      intensity, maxDist,);
+  const rendered = renderLightLeakGL(
+    input,
+    W,
+    H,
+    srcX,
+    srcY,
+    [leakColor[0], leakColor[1], leakColor[2]],
+    intensity,
+    maxDist,
+  );
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("Light Leak", "WebGL2", identity ? `pos=${position}` : `pos=${position}+palettePass`);
+  logFilterBackend(
+    "Light Leak",
+    "WebGL2",
+    identity ? `pos=${position}` : `pos=${position}+palettePass`,
+  );
   return out ?? input;
 };
 
@@ -57,6 +91,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Edge-entering film fog modeled as spectrally faithful additional exposure in linear light",
+  description:
+    "Edge-entering film fog modeled as spectrally faithful additional exposure in linear light",
   requiresGL: true,
 });

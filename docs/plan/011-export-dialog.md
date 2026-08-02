@@ -96,36 +96,44 @@
 
 The following move into the SaveAs component or are deleted:
 
-| Current location | What | Action |
-|---|---|---|
-| App state | `capturing`, `hasCapture` | Move into SaveAs |
-| App refs | `mediaRecorderRef`, `chunksRef`, `streamRef`, `captureVideoRef` | Move into SaveAs |
-| App refs | `captureDragRef` | Delete |
-| App hook | `captureDrag = useDraggable(captureDragRef)` | Delete |
-| App callback | `handleCapture` | Move into SaveAs |
-| App callback | `handleSaveImage` | Move into SaveAs |
-| App callback | `handleDownloadCapture` | Delete |
-| App effect | "Create capture video element once" (lines 80–85) | Move into SaveAs |
-| App JSX | Capture window (lines 568–593) | Delete |
-| App JSX | Record button on Output title bar | Replace with single floppy button |
-| App JSX | Sidebar "Capture output video" button (lines 403–412) | Delete |
-| App CSS | `.captureSection` | Delete |
-| App CSS | `.rec` (REC blink indicator) | Move to SaveAs styles |
+| Current location | What                                                            | Action                            |
+| ---------------- | --------------------------------------------------------------- | --------------------------------- |
+| App state        | `capturing`, `hasCapture`                                       | Move into SaveAs                  |
+| App refs         | `mediaRecorderRef`, `chunksRef`, `streamRef`, `captureVideoRef` | Move into SaveAs                  |
+| App refs         | `captureDragRef`                                                | Delete                            |
+| App hook         | `captureDrag = useDraggable(captureDragRef)`                    | Delete                            |
+| App callback     | `handleCapture`                                                 | Move into SaveAs                  |
+| App callback     | `handleSaveImage`                                               | Move into SaveAs                  |
+| App callback     | `handleDownloadCapture`                                         | Delete                            |
+| App effect       | "Create capture video element once" (lines 80–85)               | Move into SaveAs                  |
+| App JSX          | Capture window (lines 568–593)                                  | Delete                            |
+| App JSX          | Record button on Output title bar                               | Replace with single floppy button |
+| App JSX          | Sidebar "Capture output video" button (lines 403–412)           | Delete                            |
+| App CSS          | `.captureSection`                                               | Delete                            |
+| App CSS          | `.rec` (REC blink indicator)                                    | Move to SaveAs styles             |
 
 ### Output Title Bar — Before & After
 
 **Before** (two buttons):
+
 ```tsx
 <span className={s.titleBarButtons}>
-  <button title="Save image (PNG)" onClick={handleSaveImage}>&#128190;</button>
-  <button title="Record video" onClick={handleCapture}>&#9679;</button>
+  <button title="Save image (PNG)" onClick={handleSaveImage}>
+    &#128190;
+  </button>
+  <button title="Record video" onClick={handleCapture}>
+    &#9679;
+  </button>
 </span>
 ```
 
 **After** (one button):
+
 ```tsx
 <span className={s.titleBarButtons}>
-  <button title="Save As..." onClick={() => setShowSaveAs(true)}>&#128190;</button>
+  <button title="Save As..." onClick={() => setShowSaveAs(true)}>
+    &#128190;
+  </button>
 </span>
 ```
 
@@ -143,6 +151,7 @@ interface SaveAsProps {
 ```
 
 **State:**
+
 ```
 activeTab:        "image" | "video"
 format:           "png" | "jpeg" | "webp"
@@ -163,6 +172,7 @@ copySuccess:      boolean
 ```
 
 **Refs:**
+
 ```
 mediaRecorderRef: MediaRecorder | null
 chunksRef:        BlobPart[]
@@ -174,6 +184,7 @@ timerRef:         number | null (interval ID)
 **Key functions:**
 
 `getScaledCanvas()` — nearest-neighbor upscale of output canvas:
+
 ```tsx
 const mult = resolution === "custom" ? customMultiplier : parseInt(resolution);
 if (mult === 1) return source;
@@ -187,20 +198,28 @@ return scaled;
 ```
 
 `handleSave()` — image download:
+
 ```tsx
 const mimeType = `image/${format}`;
-canvas.toBlob(blob => { /* createObjectURL → <a>.click() → revokeObjectURL */ },
-  mimeType, format === "png" ? undefined : quality);
+canvas.toBlob(
+  (blob) => {
+    /* createObjectURL → <a>.click() → revokeObjectURL */
+  },
+  mimeType,
+  format === "png" ? undefined : quality,
+);
 ```
 
 `handleCopy()` — clipboard:
+
 ```tsx
-canvas.toBlob(blob => {
+canvas.toBlob((blob) => {
   navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 }, "image/png");
 ```
 
 `handleRecord()` — WebM start/stop toggle:
+
 ```tsx
 // Start: captureStream(25) → new MediaRecorder(stream, { mimeType, videoBitsPerSecond })
 //        Also mixes audio track from state.video if volume > 0 (existing pattern)
@@ -209,33 +228,38 @@ canvas.toBlob(blob => {
 ```
 
 `handleExportGif()` — frame capture + encode:
+
 ```tsx
 // rAF loop capturing `frames` frames → getScaledCanvas() → getImageData()
 // dynamic import("modern-gif").encode() → download blob
 ```
 
 `handleExportSequence()` — numbered PNGs:
+
 ```tsx
 // rAF loop capturing `frames` frames → getScaledCanvas() → toBlob("image/png")
 // Download each as ditherer-seq-NNNN.png
 ```
 
 **Codec detection on mount:**
+
 ```tsx
 useEffect(() => {
-  const supported = ["vp9", "vp8"].filter(c =>
-    MediaRecorder.isTypeSupported(`video/webm; codecs=${c}`)
+  const supported = ["vp9", "vp8"].filter((c) =>
+    MediaRecorder.isTypeSupported(`video/webm; codecs=${c}`),
   );
   // Set codec to first supported, expose list to Enum
 }, []);
 ```
 
 **Keyboard/mouse:**
+
 - Escape → `onClose()`
 - Click overlay → `onClose()` (unless recording/exporting)
 - `e.stopPropagation()` on dialog to prevent overlay close
 
 **Edge cases:**
+
 - Save/Copy disabled when `canvas.width === 0` (no image loaded)
 - Video tab disabled when `!state.video && !state.realtimeFiltering`
 - GIF/Sequence disabled when `!state.realtimeFiltering && !state.video` (identical frames)
@@ -284,6 +308,7 @@ Based on `ModalInput/styles.module.css` and `ChainList` confirm dialog patterns:
 ### `src/components/App/index.tsx`
 
 **Remove:**
+
 - State: `capturing`, `hasCapture`
 - Refs: `mediaRecorderRef`, `chunksRef`, `streamRef`, `captureVideoRef`, `captureDragRef`
 - Hooks: `captureDrag = useDraggable(captureDragRef)`
@@ -292,12 +317,14 @@ Based on `ModalInput/styles.module.css` and `ChainList` confirm dialog patterns:
 - JSX: Capture window div, record button on Output title bar, sidebar capture button + `.captureSection`
 
 **Add:**
+
 - State: `showSaveAs` (boolean)
 - Import: `SaveAs` from `components/SaveAs`
 - JSX: Single floppy button on Output title bar → `onClick={() => setShowSaveAs(true)}`
 - JSX: `{showSaveAs && <SaveAs outputCanvasRef={outputCanvasRef} onClose={() => setShowSaveAs(false)} />}`
 
 **Keep unchanged:**
+
 - `makeFilename()` helper (move to shared util or keep in App and pass as prop — or just duplicate in SaveAs since it's 5 lines)
 - "Copy output to input" button in sidebar (different feature, stays)
 
@@ -317,16 +344,16 @@ Based on `ModalInput/styles.module.css` and `ChainList` confirm dialog patterns:
 
 ## Reused Patterns
 
-| Pattern | Source | Usage in SaveAs |
-|---|---|---|
-| `<Range>` control | `components/controls/Range.tsx` | Quality, bitrate, frames, FPS sliders |
-| `<Enum>` control | `components/controls/Enum.tsx` | Format, codec dropdowns |
-| Overlay + dialog shell | `ModalInput/styles.module.css` | `.overlay`, `.dialog`, `.titleBar` |
-| Win98 button style | `ModalInput/styles.module.css:57-69` | `.btn` |
-| Close button (X) | `ChainList/styles.module.css:280-298` | `.closeBtn` |
-| Download via blob | `controls/ColorArray.tsx:270-284` | All download functions |
-| Audio track mixing | `App/index.tsx:160-168` | WebM recording with video audio |
-| `makeFilename(ext)` | `App/index.tsx:18-23` | Timestamped filenames |
+| Pattern                | Source                                | Usage in SaveAs                       |
+| ---------------------- | ------------------------------------- | ------------------------------------- |
+| `<Range>` control      | `components/controls/Range.tsx`       | Quality, bitrate, frames, FPS sliders |
+| `<Enum>` control       | `components/controls/Enum.tsx`        | Format, codec dropdowns               |
+| Overlay + dialog shell | `ModalInput/styles.module.css`        | `.overlay`, `.dialog`, `.titleBar`    |
+| Win98 button style     | `ModalInput/styles.module.css:57-69`  | `.btn`                                |
+| Close button (X)       | `ChainList/styles.module.css:280-298` | `.closeBtn`                           |
+| Download via blob      | `controls/ColorArray.tsx:270-284`     | All download functions                |
+| Audio track mixing     | `App/index.tsx:160-168`               | WebM recording with video audio       |
+| `makeFilename(ext)`    | `App/index.tsx:18-23`                 | Timestamped filenames                 |
 
 ---
 

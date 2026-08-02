@@ -1,5 +1,4 @@
-/* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
-  // lots of mutation
+// lots of mutation
 
 import { BOOL, ENUM, RANGE } from "../constants/controlTypes";
 import { cloneCanvas } from "../utils/index";
@@ -17,7 +16,7 @@ const formatMap: Record<string, string> = {
   [IMAGE_PNG]: "image/png",
   [IMAGE_WEBP]: "image/webp",
   [IMAGE_BMP]: "image/gif",
-  [IMAGE_ICO]: "image/ico"
+  [IMAGE_ICO]: "image/ico",
 };
 
 export const optionTypes = {
@@ -26,33 +25,45 @@ export const optionTypes = {
     options: [
       {
         name: "image/jpeg",
-        value: IMAGE_JPEG
+        value: IMAGE_JPEG,
       },
       {
         name: "image/png",
-        value: IMAGE_PNG
+        value: IMAGE_PNG,
       },
       {
         name: "image/webp",
-        value: IMAGE_WEBP
+        value: IMAGE_WEBP,
       },
       {
         name: "image/bmp",
-        value: IMAGE_BMP
+        value: IMAGE_BMP,
       },
       {
         name: "image/ico",
-        value: IMAGE_ICO
-      }
+        value: IMAGE_ICO,
+      },
     ],
     default: IMAGE_JPEG,
-    desc: "Image format to corrupt"
+    desc: "Image format to corrupt",
   },
-  errors: { type: RANGE, range: [0, 300], step: 1, default: 30, desc: "Number of byte-level corruptions" },
+  errors: {
+    type: RANGE,
+    range: [0, 300],
+    step: 1,
+    default: 30,
+    desc: "Number of byte-level corruptions",
+  },
   errTranspose: { type: BOOL, default: true, desc: "Enable byte transposition errors" },
   errRepeat: { type: BOOL, default: false, desc: "Enable byte repetition errors" },
   errSubstitute: { type: BOOL, default: true, desc: "Enable byte substitution errors" },
-  jpegQuality: { type: RANGE, range: [0, 1], step: 0.01, default: 0.92, desc: "JPEG quality before corruption" }
+  jpegQuality: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.92,
+    desc: "JPEG quality before corruption",
+  },
 };
 
 const defaults = {
@@ -61,7 +72,7 @@ const defaults = {
   errSubstitute: optionTypes.errSubstitute.default,
   errors: optionTypes.errors.default,
   format: optionTypes.format.default,
-  jpegQuality: optionTypes.jpegQuality.default
+  jpegQuality: optionTypes.jpegQuality.default,
 };
 
 type GlitchblobOptions = FilterOptionValues & typeof defaults;
@@ -98,7 +109,7 @@ const canvasToBlob = (
     return offscreen.convertToBlob({ type: mime });
   }
   return new Promise((resolve, reject) => {
-    (image as HTMLCanvasElement).toBlob(blob => {
+    (image as HTMLCanvasElement).toBlob((blob) => {
       if (blob) resolve(blob);
       else reject(new Error("Canvas export failed"));
     }, mime);
@@ -121,8 +132,7 @@ const isExpectedGlitchFailure = (error: unknown) => {
   );
 };
 
-const blobToUint8Array = async (blob: Blob) =>
-  new Uint8Array(await blob.arrayBuffer());
+const blobToUint8Array = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer());
 
 export const transformTranspose = (
   header: number,
@@ -172,27 +182,25 @@ export const transformRepeat = (
 export const setU32 = (data: Uint8Array, value: number) => {
   const tmpBuf = new ArrayBuffer(4);
   new DataView(tmpBuf).setUint32(0, value);
-   
+
   data[0] = new Uint8Array(tmpBuf)[0];
   data[1] = new Uint8Array(tmpBuf)[1];
   data[2] = new Uint8Array(tmpBuf)[2];
   data[3] = new Uint8Array(tmpBuf)[3];
-   
 };
 
 export const getU32 = (data: Uint8Array) => {
   const tmpBuf = new ArrayBuffer(4);
-   
+
   new Uint8Array(tmpBuf)[0] = data[0];
   new Uint8Array(tmpBuf)[1] = data[1];
   new Uint8Array(tmpBuf)[2] = data[2];
   new Uint8Array(tmpBuf)[3] = data[3];
-   
+
   return new DataView(tmpBuf).getUint32(0);
 };
 
 export const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
-   
   function buildCRC32Table(poly: number) {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n += 1) {
@@ -215,7 +223,7 @@ export const computeCrc = (data: Uint8Array, crcBuf: Uint8Array) => {
     crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
   }
   crc ^= 0xffffffff;
-   
+
   setU32(crcBuf, crc);
 };
 
@@ -261,10 +269,7 @@ const postprocessPNG = (ctx: PngContext) => {
     let chunkOffset = 8;
     chunkTmp.set(data, chunkOffset);
     chunkOffset += data.length;
-    computeCrc(
-      chunkTmp.subarray(4, chunkOffset),
-      chunkTmp.subarray(chunkOffset, chunkOffset + 4)
-    );
+    computeCrc(chunkTmp.subarray(4, chunkOffset), chunkTmp.subarray(chunkOffset, chunkOffset + 4));
     chunkOffset += 4;
     out.set(chunkTmp.subarray(0, chunkOffset), outOff);
     outOff += chunkOffset;
@@ -308,7 +313,7 @@ const preprocessPNG = (buffer: Uint8Array): PngContext => {
     }
     const headerType = String.fromCharCode.apply(
       null,
-      Array.from(buffer.subarray(offset, offset + 4))
+      Array.from(buffer.subarray(offset, offset + 4)),
     );
     offset += 4;
 
@@ -349,7 +354,7 @@ const preprocessPNG = (buffer: Uint8Array): PngContext => {
     }
     const headerType = String.fromCharCode.apply(
       null,
-      Array.from(buffer.subarray(offset, offset + 4))
+      Array.from(buffer.subarray(offset, offset + 4)),
     );
     offset += 4;
     if (headerType === "IDAT") {
@@ -377,7 +382,7 @@ const preprocessPNG = (buffer: Uint8Array): PngContext => {
   return {
     filter: inflateSync(filterDeflated),
     skippedBeforeIdat,
-    skippedAfterIdat
+    skippedAfterIdat,
   };
 };
 
@@ -401,14 +406,16 @@ const glitchblob = async (
       header = 0;
     }
 
-    const corruptors: Array<(
-      _header: number,
-      _inputBytes: Uint8Array,
-      _width: number,
-      _height: number,
-      _currentX: number,
-      _currentY: number
-    ) => Uint8Array> = [];
+    const corruptors: Array<
+      (
+        _header: number,
+        _inputBytes: Uint8Array,
+        _width: number,
+        _height: number,
+        _currentX: number,
+        _currentY: number,
+      ) => Uint8Array
+    > = [];
 
     if (errTranspose) corruptors.push(transformTranspose);
     if (errSubstitute) corruptors.push(transformSubstitute);

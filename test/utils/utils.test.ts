@@ -10,8 +10,14 @@ describe("utils", () => {
   });
 
   it("scales a 2d array, ignoring null values", () => {
-    const input = [[1, 2], [null, 4]];
-    const expected = [[2, 4], [null, 8]];
+    const input = [
+      [1, 2],
+      [null, 4],
+    ];
+    const expected = [
+      [2, 4],
+      [null, 8],
+    ];
     const actual = utils.scaleMatrix(input, 2);
     expect(actual).toEqual(expected);
   });
@@ -41,10 +47,7 @@ describe("utils", () => {
 
   it("samples bilinear values between four corners", () => {
     const buf = new Uint8ClampedArray([
-      0, 0, 0, 255,
-      255, 0, 0, 255,
-      0, 255, 0, 255,
-      255, 255, 255, 255
+      0, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 255, 255, 255, 255,
     ]);
     const actual = utils.sampleBilinear(buf, 2, 2, 0.5, 0.5);
     expect(actual).toEqual([128, 128, 64, 255]);
@@ -52,10 +55,7 @@ describe("utils", () => {
 
   it("clamps bilinear sampling outside image bounds", () => {
     const buf = new Uint8ClampedArray([
-      10, 20, 30, 255,
-      40, 50, 60, 255,
-      70, 80, 90, 255,
-      100, 110, 120, 255
+      10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255,
     ]);
     const actual = utils.sampleBilinear(buf, 2, 2, -4, 3);
     expect(actual).toEqual([70, 80, 90, 255]);
@@ -97,11 +97,7 @@ describe("utils", () => {
   });
 
   describe("medianCut", () => {
-    const input = new Uint8ClampedArray([
-      0, 0, 0, 0,
-      127, 127, 127, 127,
-      255, 255, 255, 255
-    ]);
+    const input = new Uint8ClampedArray([0, 0, 0, 0, 127, 127, 127, 127, 255, 255, 255, 255]);
 
     it("returns an array of colours", () => {
       const palette = utils.medianCutPalette(input, 1, true, "MID", "RGB");
@@ -244,9 +240,18 @@ describe("utils", () => {
   describe("uniqueColors", () => {
     it("returns distinct rgba tuples counted across the buffer", () => {
       const buf = new Uint8ClampedArray([
-        10, 20, 30, 255,
-        40, 50, 60, 255,
-        10, 20, 30, 255, // duplicate of first
+        10,
+        20,
+        30,
+        255,
+        40,
+        50,
+        60,
+        255,
+        10,
+        20,
+        30,
+        255, // duplicate of first
       ]);
       const colors = utils.uniqueColors(buf);
       expect(colors).toHaveLength(2);
@@ -345,11 +350,7 @@ describe("utils", () => {
 
   describe("medianCutPalette", () => {
     it("returns one color when limit is 0", () => {
-      const buf = new Uint8ClampedArray([
-        255, 0, 0, 255,
-        0, 255, 0, 255,
-        0, 0, 255, 255,
-      ]);
+      const buf = new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255]);
       const palette = utils.medianCutPalette(buf, 0, false, "MID");
       expect(Array.isArray(palette)).toBe(true);
       expect(palette.length).toBeGreaterThanOrEqual(1);
@@ -357,14 +358,8 @@ describe("utils", () => {
 
     it("subdivides into 2^limit buckets", () => {
       const buf = new Uint8ClampedArray([
-        255, 0, 0, 255,
-        200, 0, 0, 255,
-        0, 255, 0, 255,
-        0, 200, 0, 255,
-        0, 0, 255, 255,
-        0, 0, 200, 255,
-        255, 255, 0, 255,
-        200, 200, 0, 255,
+        255, 0, 0, 255, 200, 0, 0, 255, 0, 255, 0, 255, 0, 200, 0, 255, 0, 0, 255, 255, 0, 0, 200,
+        255, 255, 255, 0, 255, 200, 200, 0, 255,
       ]);
       const palette = utils.medianCutPalette(buf, 2, false, "AVERAGE");
       expect(palette.length).toBeLessThanOrEqual(4);

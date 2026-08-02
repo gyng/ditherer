@@ -26,19 +26,25 @@ const makeCanvas = (fill: (x: number, y: number) => [number, number, number]) =>
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4;
       const [r, g, b] = fill(x, y);
-      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
     }
   }
   let written: Uint8ClampedArray | null = null;
   const canvas = {
     width: W,
     height: H,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
-      putImageData: (img: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(img.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
+            putImageData: (img: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(img.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return { canvas, written: () => written };
 };
@@ -77,19 +83,24 @@ describe("Octree Quantize", () => {
   //
   // The tight timeout is the point: without it a regression stalls the run
   // instead of reporting.
-  it.each([2, 3, 4, 6, 8])("terminates at levels=%i, below the octree's own floor", (levels) => {
-    const colors = distinctColors(run({ levels, sampleRate: 1 }));
-    expect(colors.size).toBeGreaterThan(0);
-    expect(colors.size).toBeLessThanOrEqual(levels);
-  }, 5000);
+  it.each([2, 3, 4, 6, 8])(
+    "terminates at levels=%i, below the octree's own floor",
+    (levels) => {
+      const colors = distinctColors(run({ levels, sampleRate: 1 }));
+      expect(colors.size).toBeGreaterThan(0);
+      expect(colors.size).toBeLessThanOrEqual(levels);
+    },
+    5000,
+  );
 
   it("never emits more colors than requested", () => {
     // The whole contract of the levels knob. A broken reducible-node walk could
     // stop early and leave the palette far larger than asked for.
     for (const levels of [2, 4, 12, 32]) {
       const colors = distinctColors(run({ levels }));
-      expect(colors.size, `levels=${levels} produced ${colors.size} colors`)
-        .toBeLessThanOrEqual(levels);
+      expect(colors.size, `levels=${levels} produced ${colors.size} colors`).toBeLessThanOrEqual(
+        levels,
+      );
     }
   });
 

@@ -3,6 +3,7 @@
 **Goal:** Add a new temporal analysis filter that estimates local frame-to-frame motion and renders it as a readable field of arrows. The filter should feel more like a debugging or data-visualization tool than the existing artistic motion filters, while still being visually useful on live video.
 
 **Why a separate filter instead of only extending `Optical Flow`:**
+
 - `src/filters/opticalFlow.ts` already estimates block motion and can render arrows, but its UX is organized around three high-level display modes and a color-wheel aesthetic
 - The requested feature wants the arrow field itself to be the primary output, with channel-aware motion sources such as `RGB`, `R`, `G`, `B`, and `Luma`
 - Keeping this as a sibling filter avoids turning `Optical Flow` into a kitchen-sink control surface and lets us describe the new filter clearly in the picker
@@ -48,6 +49,7 @@ The first two cover the main ask. `Magnitude heat` is optional but cheap once ve
 11. `animate`
 
 `arrowColorMode` can stay compact in v1:
+
 - `Direction`
 - `Source channel`
 - `White`
@@ -73,12 +75,14 @@ These are the strongest follow-up ideas if we want the filter to feel more speci
 These improve the base filter without changing its identity.
 
 **Suggested options:**
+
 - `temporalSmoothing` — blend each cell's vector with the previous frame's vector to reduce jitter
 - `spatialSmoothing` — lightly average neighboring cell vectors so the field reads as a flow instead of noisy independent arrows
 - `confidenceCutoff` — hide weak or ambiguous vectors
 - `minMagnitude` — suppress tiny micro-motion that clutters the frame
 
 **Why it helps:**
+
 - makes live webcam and handheld video feel much less flickery
 - turns the output from "technical prototype" into something more intentional
 
@@ -87,11 +91,13 @@ These improve the base filter without changing its identity.
 These add time memory and are likely the highest-payoff "cool" feature after the base arrow field.
 
 **Suggested modes:**
+
 1. `Trails` — arrows fade over several frames like a long-exposure wind map
 2. `Comets` — vectors render as heads plus tapered streaks
 3. `Ghost field` — old arrows decay slowly on top of the current frame
 
 **Implementation note:**
+
 - These can use `_prevOutput` for a simple visual persistence pass
 - If we later want true vector persistence instead of image persistence, we can keep a small module-level per-cell vector buffer
 
@@ -100,6 +106,7 @@ These add time memory and are likely the highest-payoff "cool" feature after the
 Classic arrows are readable, but swapping the glyph can completely change the personality of the filter.
 
 **Suggested `glyphMode` values:**
+
 1. `Arrow`
 2. `Needle`
 3. `Line`
@@ -107,6 +114,7 @@ Classic arrows are readable, but swapping the glyph can completely change the pe
 5. `Dot + Tail`
 
 **Why it helps:**
+
 - `Line` and `Needle` can feel more elegant and less diagram-like
 - `Triangle` reads well at small sizes
 - `Dot + Tail` can look more alive in video than rigid arrowheads
@@ -116,6 +124,7 @@ Classic arrows are readable, but swapping the glyph can completely change the pe
 The output gets much more expressive if color communicates different motion properties.
 
 **Suggested `colorMode` values:**
+
 1. `Direction wheel`
 2. `Magnitude heat`
 3. `Source color`
@@ -124,6 +133,7 @@ The output gets much more expressive if color communicates different motion prop
 6. `Monochrome`
 
 **Extra idea:**
+
 - in `Channel tint`, use a red/green/blue palette to match the selected source mode and make the analysis intent obvious at a glance
 
 ### E. Hybrid visualization modes
@@ -131,6 +141,7 @@ The output gets much more expressive if color communicates different motion prop
 These can make the filter more legible and more visually distinct.
 
 **Suggested `display` expansions:**
+
 1. `Heat + Arrows`
 2. `Contours + Arrows`
 3. `Sparse overlay`
@@ -157,11 +168,13 @@ These would likely become sibling filters or special render modes rather than de
 ### 1. Reuse the temporal pipeline contract
 
 The filter should read:
+
 - `_prevInput`
 - `_frameIndex`
 - `_isAnimating`
 
 and declare:
+
 - `mainThread: true`
 
 No `FilterContext` architecture changes should be required.
@@ -169,6 +182,7 @@ No `FilterContext` architecture changes should be required.
 ### 2. Start from the existing optical-flow matcher
 
 The block-search logic in `src/filters/opticalFlow.ts` is already close to what we want:
+
 - block-based search over a local neighborhood
 - bilinear sampling from the previous frame
 - thresholded best-match selection
@@ -177,11 +191,13 @@ The block-search logic in `src/filters/opticalFlow.ts` is already close to what 
 For maintainability, we should extract the shared pieces into a small helper rather than copy-paste the whole file.
 
 **Likely shared helpers:**
+
 - block error function with pluggable channel weighting
 - line / arrow drawing helper
 - HSV or direction-to-color helper
 
 **Likely location:**
+
 - `src/utils/motionVectors.ts` or `src/filters/sharedMotion.ts`
 
 ### 3. Add channel-aware matching
@@ -215,6 +231,7 @@ The first version can render vectors directly from the current frame pair, but t
 - motion trails that persist even when the next frame is noisy
 
 **Practical implementation path:**
+
 - v1: stateless render from current best match
 - v1.5: optional module-level vector buffer keyed by grid size and frame dimensions
 - reuse `mainThread: true` so this state persists across frames
@@ -222,11 +239,13 @@ The first version can render vectors directly from the current frame pair, but t
 ### 5. Register the filter
 
 Touch `src/filters/index.ts` to:
+
 - import/export the new filter
 - add it to `filterIndex`
 - add a `filterList` entry under `Advanced`
 
 Suggested description:
+
 - `Estimate local motion between frames and render it as an arrow field for debugging, analysis, and stylized overlays`
 
 ---
@@ -242,6 +261,7 @@ Add focused tests for the reusable helper layer:
 3. A translated synthetic block returns the expected displacement within the configured search radius
 
 **Likely file:**
+
 - `test/filters/motionVectors.test.ts`
 
 ### Smoke coverage
@@ -267,12 +287,14 @@ If we simply fork `src/filters/opticalFlow.ts`, the two filters will drift. The 
 ### Risk: too many options
 
 This feature could easily balloon into a full motion-analysis toolbox. v1 should stay focused on:
+
 - vector estimation
 - display mode
 - source channel selection
 - readable arrows
 
 Leave advanced ideas for later:
+
 - temporal smoothing of vectors
 - per-cell confidence rendering
 - long-exposure vector trails

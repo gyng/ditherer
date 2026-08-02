@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -86,10 +93,19 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_density", "u_dotSize", "u_burnish",
-    "u_burrStrength", "u_plateWear", "u_inkColor", "u_paperColor",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_density",
+      "u_dotSize",
+      "u_burnish",
+      "u_burrStrength",
+      "u_plateWear",
+      "u_inkColor",
+      "u_paperColor",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -97,9 +113,13 @@ export const mezzotintGLAvailable = (): boolean => glAvailable();
 
 export const renderMezzotintGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  density: number, dotSize: number,
-  burnish: number, burrStrength: number, plateWear: number,
+  width: number,
+  height: number,
+  density: number,
+  dotSize: number,
+  burnish: number,
+  burrStrength: number,
+  plateWear: number,
   inkColor: [number, number, number],
   paperColor: [number, number, number],
 ): HTMLCanvasElement | OffscreenCanvas | null => {
@@ -111,18 +131,26 @@ export const renderMezzotintGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "mezzotint:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_density, density);
-    gl.uniform1f(cache.prog.uniforms.u_dotSize, dotSize);
-    gl.uniform1f(cache.prog.uniforms.u_burnish, burnish);
-    gl.uniform1f(cache.prog.uniforms.u_burrStrength, burrStrength);
-    gl.uniform1f(cache.prog.uniforms.u_plateWear, plateWear);
-    gl.uniform3f(cache.prog.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
-    gl.uniform3f(cache.prog.uniforms.u_paperColor, paperColor[0], paperColor[1], paperColor[2]);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_density, density);
+      gl.uniform1f(cache.prog.uniforms.u_dotSize, dotSize);
+      gl.uniform1f(cache.prog.uniforms.u_burnish, burnish);
+      gl.uniform1f(cache.prog.uniforms.u_burrStrength, burrStrength);
+      gl.uniform1f(cache.prog.uniforms.u_plateWear, plateWear);
+      gl.uniform3f(cache.prog.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
+      gl.uniform3f(cache.prog.uniforms.u_paperColor, paperColor[0], paperColor[1], paperColor[2]);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

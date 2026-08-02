@@ -7,7 +7,7 @@ export const CRT_PROFILE = {
   CUSTOM: "CUSTOM",
 } as const;
 
-export type CrtProfile = typeof CRT_PROFILE[keyof typeof CRT_PROFILE];
+export type CrtProfile = (typeof CRT_PROFILE)[keyof typeof CRT_PROFILE];
 
 export type CrtProfileDefaults = {
   visibleScanlines: number;
@@ -26,34 +26,76 @@ const P22_T10_MS = Object.freeze({ red: 1, green: 0.06, blue: 0.022 });
 
 const PROFILES: Record<CrtProfile, CrtProfileDefaults> = {
   [CRT_PROFILE.CONSUMER_525]: {
-    visibleScanlines: 240, interlaced: true, mask: "HEX_GAP", overscan: 0.035,
-    curvature: 0.1, beamMinSigma: 0.18, beamMaxSigma: 0.42,
-    cornerFocus: 0.12, damperWires: 0, phosphorT10Ms: P22_T10_MS,
+    visibleScanlines: 240,
+    interlaced: true,
+    mask: "HEX_GAP",
+    overscan: 0.035,
+    curvature: 0.1,
+    beamMinSigma: 0.18,
+    beamMaxSigma: 0.42,
+    cornerFocus: 0.12,
+    damperWires: 0,
+    phosphorT10Ms: P22_T10_MS,
   },
   [CRT_PROFILE.CONSUMER_625]: {
-    visibleScanlines: 288, interlaced: true, mask: "TILED", overscan: 0.035,
-    curvature: 0.1, beamMinSigma: 0.18, beamMaxSigma: 0.42,
-    cornerFocus: 0.12, damperWires: 0, phosphorT10Ms: P22_T10_MS,
+    visibleScanlines: 288,
+    interlaced: true,
+    mask: "TILED",
+    overscan: 0.035,
+    curvature: 0.1,
+    beamMinSigma: 0.18,
+    beamMaxSigma: 0.42,
+    cornerFocus: 0.12,
+    damperWires: 0,
+    phosphorT10Ms: P22_T10_MS,
   },
   [CRT_PROFILE.ARCADE_240P]: {
-    visibleScanlines: 240, interlaced: false, mask: "TILED", overscan: 0.025,
-    curvature: 0.08, beamMinSigma: 0.16, beamMaxSigma: 0.39,
-    cornerFocus: 0.1, damperWires: 0, phosphorT10Ms: P22_T10_MS,
+    visibleScanlines: 240,
+    interlaced: false,
+    mask: "TILED",
+    overscan: 0.025,
+    curvature: 0.08,
+    beamMinSigma: 0.16,
+    beamMaxSigma: 0.39,
+    cornerFocus: 0.1,
+    damperWires: 0,
+    phosphorT10Ms: P22_T10_MS,
   },
   [CRT_PROFILE.APERTURE_GRILLE]: {
-    visibleScanlines: 480, interlaced: false, mask: "VERTICAL", overscan: 0.01,
-    curvature: 0.025, beamMinSigma: 0.24, beamMaxSigma: 0.46,
-    cornerFocus: 0.06, damperWires: 2, phosphorT10Ms: P22_T10_MS,
+    visibleScanlines: 480,
+    interlaced: false,
+    mask: "VERTICAL",
+    overscan: 0.01,
+    curvature: 0.025,
+    beamMinSigma: 0.24,
+    beamMaxSigma: 0.46,
+    cornerFocus: 0.06,
+    damperWires: 2,
+    phosphorT10Ms: P22_T10_MS,
   },
   [CRT_PROFILE.BROADCAST]: {
-    visibleScanlines: 480, interlaced: true, mask: "LADDER", overscan: 0.07,
-    curvature: 0.045, beamMinSigma: 0.22, beamMaxSigma: 0.44,
-    cornerFocus: 0.055, damperWires: 0, phosphorT10Ms: P22_T10_MS,
+    visibleScanlines: 480,
+    interlaced: true,
+    mask: "LADDER",
+    overscan: 0.07,
+    curvature: 0.045,
+    beamMinSigma: 0.22,
+    beamMaxSigma: 0.44,
+    cornerFocus: 0.055,
+    damperWires: 0,
+    phosphorT10Ms: P22_T10_MS,
   },
   [CRT_PROFILE.CUSTOM]: {
-    visibleScanlines: 240, interlaced: false, mask: "HEX_GAP", overscan: 0,
-    curvature: 0, beamMinSigma: 0.18, beamMaxSigma: 0.42,
-    cornerFocus: 0, damperWires: 0, phosphorT10Ms: P22_T10_MS,
+    visibleScanlines: 240,
+    interlaced: false,
+    mask: "HEX_GAP",
+    overscan: 0,
+    curvature: 0,
+    beamMinSigma: 0.18,
+    beamMaxSigma: 0.42,
+    cornerFocus: 0,
+    damperWires: 0,
+    phosphorT10Ms: P22_T10_MS,
   },
 };
 
@@ -71,9 +113,10 @@ export const resolveVisibleScanlines = (
   outputHeight: number,
 ): number => {
   const key = String(profile) as CrtProfile;
-  const desired = key === CRT_PROFILE.CUSTOM
-    ? customLines
-    : (PROFILES[key] ?? PROFILES[CRT_PROFILE.CUSTOM]).visibleScanlines;
+  const desired =
+    key === CRT_PROFILE.CUSTOM
+      ? customLines
+      : (PROFILES[key] ?? PROFILES[CRT_PROFILE.CUSTOM]).visibleScanlines;
   const finite = Number.isFinite(desired) ? desired : 240;
   return Math.max(1, Math.min(Math.max(1, Math.round(outputHeight)), Math.round(finite)));
 };
@@ -83,7 +126,7 @@ export const resolveCrtProfileSetting = (
   value: number,
   controlDefault: number,
   profileDefault: number,
-): number => value === controlDefault ? profileDefault : value;
+): number => (value === controlDefault ? profileDefault : value);
 
 export const crtBeamSigma = (
   luminance: number,
@@ -93,7 +136,10 @@ export const crtBeamSigma = (
   cornerFocus: number,
 ): number => {
   const luma = Math.min(1, Math.max(0, Number.isFinite(luminance) ? luminance : 0));
-  const radius = Math.min(1.5, Math.max(0, Number.isFinite(normalizedRadius) ? normalizedRadius : 0));
+  const radius = Math.min(
+    1.5,
+    Math.max(0, Number.isFinite(normalizedRadius) ? normalizedRadius : 0),
+  );
   const low = Math.max(0.01, Number.isFinite(minimum) ? minimum : 0.18);
   const high = Math.max(low, Number.isFinite(maximum) ? maximum : 0.42);
   const corner = Math.max(0, Number.isFinite(cornerFocus) ? cornerFocus : 0);
@@ -102,9 +148,7 @@ export const crtBeamSigma = (
 
 const srgbEncode = (linear: number): number => {
   const value = Math.min(1, Math.max(0, linear));
-  return value <= 0.0031308
-    ? value * 12.92
-    : 1.055 * value ** (1 / 2.4) - 0.055;
+  return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055;
 };
 
 export const crtSignalToSrgb = (signal: number, gamma: number): number => {

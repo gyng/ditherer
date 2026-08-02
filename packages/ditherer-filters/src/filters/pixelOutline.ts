@@ -1,10 +1,5 @@
 import { RANGE, COLOR } from "../constants/controlTypes";
-import {
-  cloneCanvas,
-  getBufferIndex,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, getBufferIndex, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import { defineFilter } from "./types";
 import {
   drawPass,
@@ -20,25 +15,41 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  outlineColor: { type: COLOR, default: [0, 0, 0], desc: "Border color painted around sharp color changes" },
-  outlineWidth: { type: RANGE, range: [0.1, 4], step: 0.1, default: 1, desc: "Thickness of the sprite-like outline" },
-  mergeThreshold: { type: RANGE, range: [0, 128], step: 1, default: 24, desc: "Neighbor color difference required before drawing an outline" }
+  outlineColor: {
+    type: COLOR,
+    default: [0, 0, 0],
+    desc: "Border color painted around sharp color changes",
+  },
+  outlineWidth: {
+    type: RANGE,
+    range: [0.1, 4],
+    step: 0.1,
+    default: 1,
+    desc: "Thickness of the sprite-like outline",
+  },
+  mergeThreshold: {
+    type: RANGE,
+    range: [0, 128],
+    step: 1,
+    default: 24,
+    desc: "Neighbor color difference required before drawing an outline",
+  },
 };
 
 export const defaults = {
   outlineColor: optionTypes.outlineColor.default,
   outlineWidth: optionTypes.outlineWidth.default,
-  mergeThreshold: optionTypes.mergeThreshold.default
+  mergeThreshold: optionTypes.mergeThreshold.default,
 };
 
 const colorDelta = (buf: Uint8ClampedArray, a: number, b: number) => {
   const alphaA = buf[a + 3] / 255;
   const alphaB = buf[b + 3] / 255;
-  const rgb = (
-    Math.abs(buf[a] * alphaA - buf[b] * alphaB)
-    + Math.abs(buf[a + 1] * alphaA - buf[b + 1] * alphaB)
-    + Math.abs(buf[a + 2] * alphaA - buf[b + 2] * alphaB)
-  ) / 3;
+  const rgb =
+    (Math.abs(buf[a] * alphaA - buf[b] * alphaB) +
+      Math.abs(buf[a + 1] * alphaA - buf[b + 1] * alphaB) +
+      Math.abs(buf[a + 2] * alphaA - buf[b + 2] * alphaB)) /
+    3;
   return Math.max(rgb, Math.abs(buf[a + 3] - buf[b + 3]));
 };
 
@@ -104,7 +115,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     po: linkProgram(gl, PX_OUTLINE_FS, [
-      "u_source", "u_res", "u_threshold", "u_width", "u_outlineColor",
+      "u_source",
+      "u_res",
+      "u_threshold",
+      "u_width",
+      "u_outlineColor",
     ] as const),
   };
   return _cache;
@@ -115,13 +130,17 @@ const finite = (value: unknown, fallback: number, min: number, max: number) => {
   return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
 };
 
-const validColor = (value: unknown, fallback: number[]): number[] => (
-  Array.isArray(value) && value.length >= 3 && value.slice(0, 3).every(channel => Number.isFinite(Number(channel)))
-    ? value.slice(0, 3).map(channel => Math.max(0, Math.min(255, Number(channel))))
-    : fallback
-);
+const validColor = (value: unknown, fallback: number[]): number[] =>
+  Array.isArray(value) &&
+  value.length >= 3 &&
+  value.slice(0, 3).every((channel) => Number.isFinite(Number(channel)))
+    ? value.slice(0, 3).map((channel) => Math.max(0, Math.min(255, Number(channel))))
+    : fallback;
 
-const pixelOutline = (input: any, options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults) => {
+const pixelOutline = (
+  input: any,
+  options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults,
+) => {
   const outlineColor = validColor(options.outlineColor, defaults.outlineColor);
   const outlineWidth = finite(options.outlineWidth, defaults.outlineWidth, 0.1, 4);
   const mergeThreshold = finite(options.mergeThreshold, defaults.mergeThreshold, 0, 128);
@@ -138,15 +157,28 @@ const pixelOutline = (input: any, options: Partial<typeof defaults> & { _webglAc
       const sourceTex = ensureTexture(gl, "pixelOutline:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.po, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.po.uniforms.u_source, 0);
-        gl.uniform2f(cache.po.uniforms.u_res, W, H);
-        gl.uniform1f(cache.po.uniforms.u_threshold, mergeThreshold);
-        gl.uniform1f(cache.po.uniforms.u_width, outlineWidth);
-        gl.uniform3f(cache.po.uniforms.u_outlineColor, outlineColor[0] / 255, outlineColor[1] / 255, outlineColor[2] / 255);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.po,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.po.uniforms.u_source, 0);
+          gl.uniform2f(cache.po.uniforms.u_res, W, H);
+          gl.uniform1f(cache.po.uniforms.u_threshold, mergeThreshold);
+          gl.uniform1f(cache.po.uniforms.u_width, outlineWidth);
+          gl.uniform3f(
+            cache.po.uniforms.u_outlineColor,
+            outlineColor[0] / 255,
+            outlineColor[1] / 255,
+            outlineColor[2] / 255,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
@@ -171,9 +203,12 @@ const pixelOutline = (input: any, options: Partial<typeof defaults> & { _webglAc
       let edge = false;
 
       if (x > 0 && colorDelta(buf, i, getBufferIndex(x - 1, y, W)) > mergeThreshold) edge = true;
-      if (!edge && x < W - 1 && colorDelta(buf, i, getBufferIndex(x + 1, y, W)) > mergeThreshold) edge = true;
-      if (!edge && y > 0 && colorDelta(buf, i, getBufferIndex(x, y - 1, W)) > mergeThreshold) edge = true;
-      if (!edge && y < H - 1 && colorDelta(buf, i, getBufferIndex(x, y + 1, W)) > mergeThreshold) edge = true;
+      if (!edge && x < W - 1 && colorDelta(buf, i, getBufferIndex(x + 1, y, W)) > mergeThreshold)
+        edge = true;
+      if (!edge && y > 0 && colorDelta(buf, i, getBufferIndex(x, y - 1, W)) > mergeThreshold)
+        edge = true;
+      if (!edge && y < H - 1 && colorDelta(buf, i, getBufferIndex(x, y + 1, W)) > mergeThreshold)
+        edge = true;
 
       edgeMap[y * W + x] = edge ? 1 : 0;
     }
@@ -211,5 +246,5 @@ export default defineFilter({
   func: pixelOutline,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

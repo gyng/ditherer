@@ -10,7 +10,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("file picker, drop, paste, video controls, and copy-output ingestion work together", async ({ page }) => {
+test("file picker, drop, paste, video controls, and copy-output ingestion work together", async ({
+  page,
+}) => {
   await startBrowserCoverage(page);
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -22,20 +24,31 @@ test("file picker, drop, paste, video controls, and copy-output ingestion work t
   await expect(page.getByText("Input - lenna.png", { exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.has("testMedia")).toBe(false);
 
-  const inputWindow = page.getByText("Input - lenna.png", { exact: true }).locator("..").locator("..");
+  const inputWindow = page
+    .getByText("Input - lenna.png", { exact: true })
+    .locator("..")
+    .locator("..");
   await inputWindow.evaluate(async (element) => {
-    const bytes = await fetch("/test-assets/image/airplane.png").then((response) => response.arrayBuffer());
+    const bytes = await fetch("/test-assets/image/airplane.png").then((response) =>
+      response.arrayBuffer(),
+    );
     const transfer = new DataTransfer();
     transfer.items.add(new File([bytes], "dropped-airplane.png", { type: "image/png" }));
-    element.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }));
+    element.dispatchEvent(
+      new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }),
+    );
   });
   await expect(page.getByText("Input - dropped-airplane.png", { exact: true })).toBeVisible();
 
   await page.evaluate(async () => {
-    const bytes = await fetch("/test-assets/image/goldhill.png").then((response) => response.arrayBuffer());
+    const bytes = await fetch("/test-assets/image/goldhill.png").then((response) =>
+      response.arrayBuffer(),
+    );
     const transfer = new DataTransfer();
     transfer.items.add(new File([bytes], "pasted-goldhill.png", { type: "image/png" }));
-    window.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: transfer }));
+    window.dispatchEvent(
+      new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: transfer }),
+    );
   });
   await expect(page.getByText("Input - pasted-goldhill.png", { exact: true })).toBeVisible();
 

@@ -68,12 +68,10 @@ const MAX_SCATTER_TAPS = MAX_SCATTER_RADIUS;
 /** Floor on dose, so the mottle expression stays finite for degenerate inputs. */
 const MIN_DOSE_QUANTA = 1e-6;
 
-const finite = (value: number, fallback = 0): number =>
-  Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 
 /** Non-finite or non-positive dose is meaningless; fall back to unit fluence. */
-const positiveDose = (value: number): number =>
-  Number.isFinite(value) && value > 0 ? value : 1;
+const positiveDose = (value: number): number => (Number.isFinite(value) && value > 0 ? value : 1);
 
 /**
  * Beer–Lambert law: I = I₀·exp(−μ·t). Transmission through a path of
@@ -81,10 +79,8 @@ const positiveDose = (value: number): number =>
  * (μ·t per unit density). Exactly 1 at zero density and monotonically
  * decreasing in density; never negative.
  */
-export const beerLambertTransmission = (
-  density: number,
-  attenuation: number,
-): number => Math.exp(-Math.max(0, finite(attenuation)) * Math.max(0, finite(density)));
+export const beerLambertTransmission = (density: number, attenuation: number): number =>
+  Math.exp(-Math.max(0, finite(attenuation)) * Math.max(0, finite(density)));
 
 /**
  * ABSOLUTE standard deviation of quantum mottle on the transmission estimate.
@@ -99,13 +95,9 @@ export const beerLambertTransmission = (
  * Guards here only reject meaningless inputs; the GLSL twin is
  * MOTTLE_AMPLITUDE_GLSL below, whose uniforms are pre-normalised.
  */
-export const quantumMottleAmplitude = (
-  transmission: number,
-  dose: number,
-  gain: number,
-): number => Math.max(0, finite(gain)) * Math.sqrt(
-  Math.max(0, finite(transmission)) / Math.max(MIN_DOSE_QUANTA, positiveDose(dose)),
-);
+export const quantumMottleAmplitude = (transmission: number, dose: number, gain: number): number =>
+  Math.max(0, finite(gain)) *
+  Math.sqrt(Math.max(0, finite(transmission)) / Math.max(MIN_DOSE_QUANTA, positiveDose(dose)));
 
 /**
  * The mottle amplitude as GLSL, kept as one string so the shader and
@@ -114,8 +106,7 @@ export const quantumMottleAmplitude = (
  * `u_dose` is normalised to the option range before upload, so the max() here
  * only mirrors the kernel's degenerate-input guard.
  */
-export const MOTTLE_AMPLITUDE_GLSL =
-  `max(0.0, u_mottle) * sqrt(max(0.0, transmission) / max(${MIN_DOSE_QUANTA}, u_dose))`;
+export const MOTTLE_AMPLITUDE_GLSL = `max(0.0, u_mottle) * sqrt(max(0.0, transmission) / max(${MIN_DOSE_QUANTA}, u_dose))`;
 
 /**
  * Veiling glare: the detector sees primary transmission plus a broad scattered
@@ -135,10 +126,7 @@ export const veilingGlareMix = (
  * material reads white: the POSITIVE (bone-white) view shows 1−T, while the
  * film-negative view shows T itself.
  */
-export const radiographDisplayIntensity = (
-  transmission: number,
-  positive: boolean,
-): number => {
+export const radiographDisplayIntensity = (transmission: number, positive: boolean): number => {
   const t = Math.max(0, Math.min(1, finite(transmission)));
   return positive ? 1 - t : t;
 };
@@ -153,7 +141,13 @@ export const optionTypes = {
     default: DENSITY_SOURCE.LUMA,
     desc: "Which end of the luminance range stands in for path-integrated density",
   },
-  attenuation: { type: RANGE, range: [0, 8], step: 0.05, default: 2.6, desc: "Attenuation coefficient × thickness (μ·t) driving the Beer–Lambert exponential" },
+  attenuation: {
+    type: RANGE,
+    range: [0, 8],
+    step: 0.05,
+    default: 2.6,
+    desc: "Attenuation coefficient × thickness (μ·t) driving the Beer–Lambert exponential",
+  },
   display: {
     type: ENUM,
     options: [
@@ -163,12 +157,46 @@ export const optionTypes = {
     default: DISPLAY.POSITIVE,
     desc: "Lightbox positive showing 1−T, or the raw transmitted-intensity negative",
   },
-  scatter: { type: RANGE, range: [0, 1], step: 0.01, default: 0.28, desc: "Fraction of the detected signal arriving as Compton-scattered veiling glare" },
-  scatterRadius: { type: RANGE, range: [1, MAX_SCATTER_RADIUS], step: 1, default: 32, desc: "Spread of the scattered-radiation pedestal, in pixels" },
-  dose: { type: RANGE, range: [4, 400], step: 1, default: 80, desc: "Relative photon fluence; higher dose means less quantum mottle" },
-  mottle: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Gain on the Poisson photon noise: the grain is coarsest in the open beam, while dense regions lose signal-to-noise" },
-  tint: { type: COLOR, default: [186, 208, 255], desc: "Cool viewing-box cast applied to the developed image" },
-  tintStrength: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "How strongly the viewing-box tint colours the result" },
+  scatter: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.28,
+    desc: "Fraction of the detected signal arriving as Compton-scattered veiling glare",
+  },
+  scatterRadius: {
+    type: RANGE,
+    range: [1, MAX_SCATTER_RADIUS],
+    step: 1,
+    default: 32,
+    desc: "Spread of the scattered-radiation pedestal, in pixels",
+  },
+  dose: {
+    type: RANGE,
+    range: [4, 400],
+    step: 1,
+    default: 80,
+    desc: "Relative photon fluence; higher dose means less quantum mottle",
+  },
+  mottle: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.1,
+    desc: "Gain on the Poisson photon noise: the grain is coarsest in the open beam, while dense regions lose signal-to-noise",
+  },
+  tint: {
+    type: COLOR,
+    default: [186, 208, 255],
+    desc: "Cool viewing-box cast applied to the developed image",
+  },
+  tintStrength: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "How strongly the viewing-box tint colours the result",
+  },
 };
 
 export const defaults = {
@@ -303,14 +331,29 @@ const initGLCache = (gl: WebGL2RenderingContext): GLCache => {
   if (_glCache) return _glCache;
   _glCache = {
     attenuate: linkProgram(gl, XRAY_ATTENUATE_FS, [
-      "u_source", "u_attenuation", "u_densitySource",
+      "u_source",
+      "u_attenuation",
+      "u_densitySource",
     ] as const),
     blur: linkProgram(gl, XRAY_BLUR_FS, [
-      "u_input", "u_res", "u_axis", "u_radius", "u_sigma",
+      "u_input",
+      "u_res",
+      "u_axis",
+      "u_radius",
+      "u_sigma",
     ] as const),
     develop: linkProgram(gl, XRAY_DEVELOP_FS, [
-      "u_source", "u_primary", "u_scatter", "u_res", "u_scatterMix", "u_dose",
-      "u_mottle", "u_seed", "u_positive", "u_tint", "u_tintStrength",
+      "u_source",
+      "u_primary",
+      "u_scatter",
+      "u_res",
+      "u_scatterMix",
+      "u_dose",
+      "u_mottle",
+      "u_seed",
+      "u_positive",
+      "u_tint",
+      "u_tintStrength",
     ] as const),
   };
   return _glCache;
@@ -324,18 +367,27 @@ const xray = (input: any, options: Partial<typeof defaults> = defaults) => {
     defaults.densitySource,
   );
   const display = normalizeEnumOption(
-    options.display, [DISPLAY.POSITIVE, DISPLAY.NEGATIVE], defaults.display);
+    options.display,
+    [DISPLAY.POSITIVE, DISPLAY.NEGATIVE],
+    defaults.display,
+  );
   const attenuation = normalizeRangeOption(options.attenuation, defaults.attenuation, 0, 8);
   const scatter = normalizeRangeOption(options.scatter, defaults.scatter, 0, 1);
   const scatterRadius = normalizeRangeOption(
-    options.scatterRadius, defaults.scatterRadius, 1, MAX_SCATTER_RADIUS, true);
+    options.scatterRadius,
+    defaults.scatterRadius,
+    1,
+    MAX_SCATTER_RADIUS,
+    true,
+  );
   const dose = normalizeRangeOption(options.dose, defaults.dose, 4, 400);
   const mottle = normalizeRangeOption(options.mottle, defaults.mottle, 0, 1);
   const tint = normalizeColorOption(options.tint, defaults.tint);
   const tintStrength = normalizeRangeOption(options.tintStrength, defaults.tintStrength, 0, 1);
   const frameIndex = normalizeRangeOption(runtime._frameIndex, 0, 0, 1e9, true);
 
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
   const { gl, canvas } = ctx;
@@ -354,16 +406,24 @@ const xray = (input: any, options: Partial<typeof defaults> = defaults) => {
   const tmpTex = linTex("xray:tmp");
   const scatterTex = linTex("xray:scatter");
 
-  drawPass(gl, primaryTex, W, H, cache.attenuate, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.attenuate.uniforms.u_source, 0);
-    gl.uniform1f(cache.attenuate.uniforms.u_attenuation, attenuation);
-    gl.uniform1i(
-      cache.attenuate.uniforms.u_densitySource,
-      densitySource === DENSITY_SOURCE.INVERSE_LUMA ? 1 : 0,
-    );
-  }, vao);
+  drawPass(
+    gl,
+    primaryTex,
+    W,
+    H,
+    cache.attenuate,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.attenuate.uniforms.u_source, 0);
+      gl.uniform1f(cache.attenuate.uniforms.u_attenuation, attenuation);
+      gl.uniform1i(
+        cache.attenuate.uniforms.u_densitySource,
+        densitySource === DENSITY_SOURCE.INVERSE_LUMA ? 1 : 0,
+      );
+    },
+    vao,
+  );
 
   // sigma = r/3, so the 3σ support is exactly scatterRadius pixels and the tap
   // bound below never truncates: every setting on the slider delivers its full
@@ -371,38 +431,54 @@ const xray = (input: any, options: Partial<typeof defaults> = defaults) => {
   const sigma = sigmaForRadius(scatterRadius);
   const loopRadius = Math.min(MAX_SCATTER_TAPS, Math.max(1, Math.ceil(sigma * 3)));
   const gaussianPass = (src: TexEntry, dst: TexEntry, axisX: number, axisY: number): void => {
-    drawPass(gl, dst, W, H, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-      gl.uniform2f(cache.blur.uniforms.u_axis, axisX, axisY);
-      gl.uniform1i(cache.blur.uniforms.u_radius, loopRadius);
-      gl.uniform1f(cache.blur.uniforms.u_sigma, sigma);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      W,
+      H,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+        gl.uniform2f(cache.blur.uniforms.u_axis, axisX, axisY);
+        gl.uniform1i(cache.blur.uniforms.u_radius, loopRadius);
+        gl.uniform1f(cache.blur.uniforms.u_sigma, sigma);
+      },
+      vao,
+    );
   };
   gaussianPass(primaryTex, tmpTex, 1, 0);
   gaussianPass(tmpTex, scatterTex, 0, 1);
 
-  drawPass(gl, null, W, H, cache.develop, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.develop.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, primaryTex.tex);
-    gl.uniform1i(cache.develop.uniforms.u_primary, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, scatterTex.tex);
-    gl.uniform1i(cache.develop.uniforms.u_scatter, 2);
-    gl.uniform2f(cache.develop.uniforms.u_res, W, H);
-    gl.uniform1f(cache.develop.uniforms.u_scatterMix, scatter);
-    gl.uniform1f(cache.develop.uniforms.u_dose, dose);
-    gl.uniform1f(cache.develop.uniforms.u_mottle, mottle);
-    gl.uniform1f(cache.develop.uniforms.u_seed, frameIndex * 1.618);
-    gl.uniform1i(cache.develop.uniforms.u_positive, display === DISPLAY.POSITIVE ? 1 : 0);
-    gl.uniform3f(cache.develop.uniforms.u_tint, tint[0], tint[1], tint[2]);
-    gl.uniform1f(cache.develop.uniforms.u_tintStrength, tintStrength);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.develop,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.develop.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, primaryTex.tex);
+      gl.uniform1i(cache.develop.uniforms.u_primary, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, scatterTex.tex);
+      gl.uniform1i(cache.develop.uniforms.u_scatter, 2);
+      gl.uniform2f(cache.develop.uniforms.u_res, W, H);
+      gl.uniform1f(cache.develop.uniforms.u_scatterMix, scatter);
+      gl.uniform1f(cache.develop.uniforms.u_dose, dose);
+      gl.uniform1f(cache.develop.uniforms.u_mottle, mottle);
+      gl.uniform1f(cache.develop.uniforms.u_seed, frameIndex * 1.618);
+      gl.uniform1i(cache.develop.uniforms.u_positive, display === DISPLAY.POSITIVE ? 1 : 0);
+      gl.uniform3f(cache.develop.uniforms.u_tint, tint[0], tint[1], tint[2]);
+      gl.uniform1f(cache.develop.uniforms.u_tintStrength, tintStrength);
+    },
+    vao,
+  );
 
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
@@ -416,6 +492,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Beer–Lambert radiograph proxy — a photograph carries no radiodensity data, so image luminance stands in for path-integrated density — with Compton-scatter veiling glare and dose-dependent quantum mottle",
+  description:
+    "Beer–Lambert radiograph proxy — a photograph carries no radiodensity data, so image luminance stands in for path-integrated density — with Compton-scatter veiling glare and dose-dependent quantum mottle",
   requiresGL: true,
 });

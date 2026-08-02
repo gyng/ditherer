@@ -25,20 +25,38 @@ export const optionTypes = {
     type: ENUM,
     options: [
       { name: "Absolute (0–255)", value: THRESHOLD_ABSOLUTE },
-      { name: "Relative (% of max)", value: THRESHOLD_RELATIVE }
+      { name: "Relative (% of max)", value: THRESHOLD_RELATIVE },
     ],
-    default: THRESHOLD_ABSOLUTE
+    default: THRESHOLD_ABSOLUTE,
   },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 180, desc: "Brightness cutoff — only pixels above this value glow" },
-  strength:  { type: RANGE, range: [0, 3], step: 0.05, default: 0.8, desc: "Intensity of the additive glow composite" },
-  radius:    { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Blur radius for the glow spread" }
+  threshold: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 180,
+    desc: "Brightness cutoff — only pixels above this value glow",
+  },
+  strength: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.8,
+    desc: "Intensity of the additive glow composite",
+  },
+  radius: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 8,
+    desc: "Blur radius for the glow spread",
+  },
 };
 
 export const defaults = {
   thresholdMode: optionTypes.thresholdMode.default,
   threshold: optionTypes.threshold.default,
   strength: optionTypes.strength.default,
-  radius: optionTypes.radius.default
+  radius: optionTypes.radius.default,
 };
 
 const MAX_BLOOM_RADIUS = 30;
@@ -118,19 +136,35 @@ const initGLCache = (gl: WebGL2RenderingContext): GLCache => {
   if (_glCache) return _glCache;
   _glCache = {
     extract: linkProgram(gl, BLOOM_EXTRACT_FS, ["u_source", "u_threshold"] as const),
-    blur: linkProgram(gl, BLOOM_BLUR_FS, ["u_input", "u_res", "u_axis", "u_radius", "u_sigma"] as const),
-    composite: linkProgram(gl, BLOOM_COMPOSITE_FS, ["u_source", "u_b1", "u_b2", "u_b3", "u_strength"] as const),
+    blur: linkProgram(gl, BLOOM_BLUR_FS, [
+      "u_input",
+      "u_res",
+      "u_axis",
+      "u_radius",
+      "u_sigma",
+    ] as const),
+    composite: linkProgram(gl, BLOOM_COMPOSITE_FS, [
+      "u_source",
+      "u_b1",
+      "u_b2",
+      "u_b3",
+      "u_strength",
+    ] as const),
   };
   return _glCache;
 };
 
 const bloom = (input: any, options: Partial<typeof defaults> = defaults) => {
   const thresholdMode = normalizeEnumOption(
-    options.thresholdMode, [THRESHOLD_ABSOLUTE, THRESHOLD_RELATIVE], defaults.thresholdMode);
+    options.thresholdMode,
+    [THRESHOLD_ABSOLUTE, THRESHOLD_RELATIVE],
+    defaults.thresholdMode,
+  );
   const strength = normalizeRangeOption(options.strength, defaults.strength, 0, 3);
   const radius = normalizeRangeOption(options.radius, defaults.radius, 1, MAX_BLOOM_RADIUS, true);
   const thresholdRaw = normalizeRangeOption(options.threshold, defaults.threshold, 0, 255);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   // Resolve threshold (CPU — relative mode needs a reduction over all pixels).
   let threshold = thresholdRaw;
@@ -161,32 +195,44 @@ const bloom = (input: any, options: Partial<typeof defaults> = defaults) => {
     ensureFloatTexture(gl, name, W, H) ?? ensureTexture(gl, name, W, H);
   const extractTex: TexEntry = linTex("bloom:extract");
   const tmpTex: TexEntry = linTex("bloom:tmp");
-  const scaleTex: TexEntry[] = [
-    linTex("bloom:b1"),
-    linTex("bloom:b2"),
-    linTex("bloom:b3"),
-  ];
+  const scaleTex: TexEntry[] = [linTex("bloom:b1"), linTex("bloom:b2"), linTex("bloom:b3")];
 
   const sigma = sigmaForRadius(radius * 2);
   const loopRadius = Math.min(MAX_BLOOM_RADIUS, Math.max(1, Math.ceil(sigma * 3)));
   const gaussianPass = (src: TexEntry, dst: TexEntry, axisX: number, axisY: number): void => {
-    drawPass(gl, dst, W, H, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-      gl.uniform2f(cache.blur.uniforms.u_axis, axisX, axisY);
-      gl.uniform1i(cache.blur.uniforms.u_radius, loopRadius);
-      gl.uniform1f(cache.blur.uniforms.u_sigma, sigma);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      W,
+      H,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+        gl.uniform2f(cache.blur.uniforms.u_axis, axisX, axisY);
+        gl.uniform1i(cache.blur.uniforms.u_radius, loopRadius);
+        gl.uniform1f(cache.blur.uniforms.u_sigma, sigma);
+      },
+      vao,
+    );
   };
 
-  drawPass(gl, extractTex, W, H, cache.extract, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.extract.uniforms.u_source, 0);
-    gl.uniform1f(cache.extract.uniforms.u_threshold, threshold / 255);
-  }, vao);
+  drawPass(
+    gl,
+    extractTex,
+    W,
+    H,
+    cache.extract,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.extract.uniforms.u_source, 0);
+      gl.uniform1f(cache.extract.uniforms.u_threshold, threshold / 255);
+    },
+    vao,
+  );
 
   // Progressive blur: each scale re-blurs the previous, widening the glow.
   let previous = extractTex;
@@ -196,25 +242,37 @@ const bloom = (input: any, options: Partial<typeof defaults> = defaults) => {
     previous = scale;
   }
 
-  drawPass(gl, null, W, H, cache.composite, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, scaleTex[0].tex);
-    gl.uniform1i(cache.composite.uniforms.u_b1, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, scaleTex[1].tex);
-    gl.uniform1i(cache.composite.uniforms.u_b2, 2);
-    gl.activeTexture(gl.TEXTURE3);
-    gl.bindTexture(gl.TEXTURE_2D, scaleTex[2].tex);
-    gl.uniform1i(cache.composite.uniforms.u_b3, 3);
-    gl.uniform1f(cache.composite.uniforms.u_strength, strength);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.composite,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, scaleTex[0].tex);
+      gl.uniform1i(cache.composite.uniforms.u_b1, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, scaleTex[1].tex);
+      gl.uniform1i(cache.composite.uniforms.u_b2, 2);
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, scaleTex[2].tex);
+      gl.uniform1i(cache.composite.uniforms.u_b3, 3);
+      gl.uniform1f(cache.composite.uniforms.u_strength, strength);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;
-  logFilterBackend("Bloom", "WebGL2", `radius=${radius} thresh=${threshold.toFixed(0)} linear-multiscale`);
+  logFilterBackend(
+    "Bloom",
+    "WebGL2",
+    `radius=${radius} thresh=${threshold.toFixed(0)} linear-multiscale`,
+  );
   return rendered;
 };
 

@@ -26,17 +26,35 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [1, 50], step: 1, default: 10, desc: "Blur intensity — increases with distance from center" },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal position of the blur center (0=left, 1=right)" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the blur center (0=top, 1=bottom)" },
-  palette: { type: PALETTE, default: nearest }
+  strength: {
+    type: RANGE,
+    range: [1, 50],
+    step: 1,
+    default: 10,
+    desc: "Blur intensity — increases with distance from center",
+  },
+  centerX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Horizontal position of the blur center (0=left, 1=right)",
+  },
+  centerY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Vertical position of the blur center (0=top, 1=bottom)",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   strength: optionTypes.strength.default,
   centerX: optionTypes.centerX.default,
   centerY: optionTypes.centerY.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const BLUR_FS = `#version 300 es
@@ -98,8 +116,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     blur: linkProgram(gl, BLUR_FS, [
-      "u_source", "u_res", "u_center", "u_strength",
-      "u_maxDist", "u_samples", "u_levels",
+      "u_source",
+      "u_res",
+      "u_center",
+      "u_strength",
+      "u_maxDist",
+      "u_samples",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -124,27 +147,38 @@ const radialBlurFilter = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "radialBlur:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.blur, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.blur.uniforms.u_source, 0);
-        gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-        gl.uniform2f(cache.blur.uniforms.u_center, cx, cy);
-        gl.uniform1f(cache.blur.uniforms.u_strength, strength);
-        gl.uniform1f(cache.blur.uniforms.u_maxDist, maxDist);
-        gl.uniform1i(cache.blur.uniforms.u_samples, samples);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.blur.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.blur,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.blur.uniforms.u_source, 0);
+          gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+          gl.uniform2f(cache.blur.uniforms.u_center, cx, cy);
+          gl.uniform1f(cache.blur.uniforms.u_strength, strength);
+          gl.uniform1f(cache.blur.uniforms.u_maxDist, maxDist);
+          gl.uniform1i(cache.blur.uniforms.u_samples, samples);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.blur.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Radial Blur", "WebGL2",
-            `strength=${strength}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Radial Blur",
+            "WebGL2",
+            `strength=${strength}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -171,7 +205,12 @@ const radialBlurFilter = (input: any, options = defaults) => {
       const srcA = buf[i + 3];
 
       if (blurDist < 0.5) {
-        const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], srcA), palette.options, false);
+        const color = paletteGetColor(
+          palette,
+          rgba(buf[i], buf[i + 1], buf[i + 2], srcA),
+          palette.options,
+          false,
+        );
         fillBufferPixel(outBuf, i, color[0], color[1], color[2], srcA);
         continue;
       }
@@ -179,7 +218,9 @@ const radialBlurFilter = (input: any, options = defaults) => {
       // Zoom/spin blur integrates light along the sampled trajectory —
       // average the radiance in linear light, not the gamma-encoded sRGB
       // values. Alpha is a center-tap (not blurred/converted).
-      let srLin = 0, sgLin = 0, sbLin = 0;
+      let srLin = 0,
+        sgLin = 0,
+        sbLin = 0;
       let count = 0;
 
       for (let t = 0; t < samples; t++) {
@@ -215,5 +256,5 @@ export default defineFilter({
   func: radialBlurFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

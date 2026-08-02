@@ -37,18 +37,61 @@ export const optionTypes = {
       { name: "Sobel (classic)", value: MODE.SOBEL },
     ],
     default: MODE.XDOG,
-    desc: "Edge detection algorithm — XDoG for clean manga lines, FDoG for contour-following strokes, Sobel for the classic look"
+    desc: "Edge detection algorithm — XDoG for clean manga lines, FDoG for contour-following strokes, Sobel for the classic look",
   },
-  sigma: { type: RANGE, range: [0.3, 5], step: 0.1, default: 0.3, desc: "Fine-scale Gaussian sigma — controls line sensitivity (XDoG/FDoG)" },
-  k: { type: RANGE, range: [1.2, 6], step: 0.1, default: 4.5, desc: "Ratio between the two Gaussian scales (XDoG/FDoG)" },
-  sharpness: { type: RANGE, range: [1, 200], step: 1, default: 65, desc: "Soft-threshold steepness — higher = crisper binary lines (XDoG/FDoG)" },
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0, desc: "Edge threshold — XDoG/FDoG: ε for tanh gate; Sobel: scaled to 0-100 sensitivity" },
-  flowSamples: { type: RANGE, range: [5, 30], step: 1, default: 15, desc: "Samples along the tangent direction for FDoG flow blur", visibleWhen: (opts: any) => opts.mode === MODE.FDOG },
-  lineWidth: { type: RANGE, range: [0.1, 5], step: 0.1, default: 1.2, desc: "Dilate lines for thicker strokes" },
-  cleanupRadius: { type: RANGE, range: [0, 3], step: 1, default: 1, desc: "Remove isolated noise pixels" },
+  sigma: {
+    type: RANGE,
+    range: [0.3, 5],
+    step: 0.1,
+    default: 0.3,
+    desc: "Fine-scale Gaussian sigma — controls line sensitivity (XDoG/FDoG)",
+  },
+  k: {
+    type: RANGE,
+    range: [1.2, 6],
+    step: 0.1,
+    default: 4.5,
+    desc: "Ratio between the two Gaussian scales (XDoG/FDoG)",
+  },
+  sharpness: {
+    type: RANGE,
+    range: [1, 200],
+    step: 1,
+    default: 65,
+    desc: "Soft-threshold steepness — higher = crisper binary lines (XDoG/FDoG)",
+  },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0,
+    desc: "Edge threshold — XDoG/FDoG: ε for tanh gate; Sobel: scaled to 0-100 sensitivity",
+  },
+  flowSamples: {
+    type: RANGE,
+    range: [5, 30],
+    step: 1,
+    default: 15,
+    desc: "Samples along the tangent direction for FDoG flow blur",
+    visibleWhen: (opts: any) => opts.mode === MODE.FDOG,
+  },
+  lineWidth: {
+    type: RANGE,
+    range: [0.1, 5],
+    step: 0.1,
+    default: 1.2,
+    desc: "Dilate lines for thicker strokes",
+  },
+  cleanupRadius: {
+    type: RANGE,
+    range: [0, 3],
+    step: 1,
+    default: 1,
+    desc: "Remove isolated noise pixels",
+  },
   lineColor: { type: COLOR, default: [0, 0, 0], desc: "Ink/line color" },
   bgColor: { type: COLOR, default: [255, 255, 255], desc: "Background paper color" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -62,7 +105,7 @@ export const defaults = {
   cleanupRadius: optionTypes.cleanupRadius.default,
   lineColor: optionTypes.lineColor.default,
   bgColor: optionTypes.bgColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 2 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 2 } },
 };
 
 // ── Shared shaders ──────────────────────────────────────────────────────
@@ -306,23 +349,47 @@ void main() {
 
 // ── Cache ───────────────────────────────────────────────────────────────
 type Cache = {
-  luma: Program; blur: Program; xdog: Program; sobel: Program;
-  tangent: Program; etf: Program; flowBlur: Program;
-  dilate: Program; render: Program;
+  luma: Program;
+  blur: Program;
+  xdog: Program;
+  sobel: Program;
+  tangent: Program;
+  etf: Program;
+  flowBlur: Program;
+  dilate: Program;
+  render: Program;
 };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     luma: linkProgram(gl, LUMA_FS, ["u_source"] as const),
-    blur: linkProgram(gl, BLUR_FS, ["u_input", "u_res", "u_axis", "u_radius", "u_weights"] as const),
+    blur: linkProgram(gl, BLUR_FS, [
+      "u_input",
+      "u_res",
+      "u_axis",
+      "u_radius",
+      "u_weights",
+    ] as const),
     xdog: linkProgram(gl, XDOG_FS, ["u_blurA", "u_blurB", "u_sharpness", "u_threshold"] as const),
     sobel: linkProgram(gl, SOBEL_FS, ["u_input", "u_res", "u_threshold"] as const),
     tangent: linkProgram(gl, TANGENT_FS, ["u_input", "u_res"] as const),
     etf: linkProgram(gl, ETF_FS, ["u_tangent", "u_res"] as const),
-    flowBlur: linkProgram(gl, FLOW_BLUR_FS, ["u_input", "u_tangent", "u_res", "u_sigma", "u_samples"] as const),
+    flowBlur: linkProgram(gl, FLOW_BLUR_FS, [
+      "u_input",
+      "u_tangent",
+      "u_res",
+      "u_sigma",
+      "u_samples",
+    ] as const),
     dilate: linkProgram(gl, DILATE_FS, ["u_input", "u_res", "u_ceilR", "u_reach"] as const),
-    render: linkProgram(gl, RENDER_FS, ["u_edges", "u_res", "u_cleanupR", "u_lineColor", "u_bgColor"] as const),
+    render: linkProgram(gl, RENDER_FS, [
+      "u_edges",
+      "u_res",
+      "u_cleanupR",
+      "u_lineColor",
+      "u_bgColor",
+    ] as const),
   };
   return _cache;
 };
@@ -341,34 +408,69 @@ const buildKernel = (sigma: number): { radius: number; weights: Float32Array } =
 };
 
 const runBlurPasses = (
-  gl: WebGL2RenderingContext, vao: WebGLVertexArrayObject,
-  cache: Cache, input: TexEntry, temp: TexEntry, output: TexEntry,
-  W: number, H: number, sigma: number,
+  gl: WebGL2RenderingContext,
+  vao: WebGLVertexArrayObject,
+  cache: Cache,
+  input: TexEntry,
+  temp: TexEntry,
+  output: TexEntry,
+  W: number,
+  H: number,
+  sigma: number,
 ) => {
   const { radius, weights } = buildKernel(sigma);
-  drawPass(gl, temp, W, H, cache.blur, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, input.tex);
-    gl.uniform1i(cache.blur.uniforms.u_input, 0);
-    gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-    gl.uniform2f(cache.blur.uniforms.u_axis, 1, 0);
-    gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-    gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
-  }, vao);
-  drawPass(gl, output, W, H, cache.blur, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp.tex);
-    gl.uniform1i(cache.blur.uniforms.u_input, 0);
-    gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-    gl.uniform2f(cache.blur.uniforms.u_axis, 0, 1);
-    gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-    gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
-  }, vao);
+  drawPass(
+    gl,
+    temp,
+    W,
+    H,
+    cache.blur,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, input.tex);
+      gl.uniform1i(cache.blur.uniforms.u_input, 0);
+      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+      gl.uniform2f(cache.blur.uniforms.u_axis, 1, 0);
+      gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+      gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
+    },
+    vao,
+  );
+  drawPass(
+    gl,
+    output,
+    W,
+    H,
+    cache.blur,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp.tex);
+      gl.uniform1i(cache.blur.uniforms.u_input, 0);
+      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+      gl.uniform2f(cache.blur.uniforms.u_axis, 0, 1);
+      gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+      gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
+    },
+    vao,
+  );
 };
 
 const lineArt = (input: any, options = defaults) => {
-  const { mode, sigma, k, sharpness, threshold, flowSamples, lineWidth, cleanupRadius, lineColor, bgColor, palette } = options;
-  const W = input.width, H = input.height;
+  const {
+    mode,
+    sigma,
+    k,
+    sharpness,
+    threshold,
+    flowSamples,
+    lineWidth,
+    cleanupRadius,
+    lineColor,
+    bgColor,
+    palette,
+  } = options;
+  const W = input.width,
+    H = input.height;
   const radius = Math.max(0, lineWidth - 1);
   const ceilR = Math.ceil(radius);
   const reach = radius + 0.35;
@@ -390,22 +492,37 @@ const lineArt = (input: any, options = defaults) => {
       const dilateTex: TexEntry = ensureTexture(gl, "lineArt:dilate", W, H);
 
       // 1. Luminance
-      drawPass(gl, lumaTex, W, H, cache.luma, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.luma.uniforms.u_source, 0);
-      }, vao);
+      drawPass(
+        gl,
+        lumaTex,
+        W,
+        H,
+        cache.luma,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.luma.uniforms.u_source, 0);
+        },
+        vao,
+      );
 
       if (mode === MODE.SOBEL) {
         // Sobel: single pass, threshold mapped from [0,1] to [0,100].
-        drawPass(gl, edgeTex, W, H, cache.sobel, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
-          gl.uniform1i(cache.sobel.uniforms.u_input, 0);
-          gl.uniform2f(cache.sobel.uniforms.u_res, W, H);
-          gl.uniform1f(cache.sobel.uniforms.u_threshold, threshold * 100);
-        }, vao);
-
+        drawPass(
+          gl,
+          edgeTex,
+          W,
+          H,
+          cache.sobel,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
+            gl.uniform1i(cache.sobel.uniforms.u_input, 0);
+            gl.uniform2f(cache.sobel.uniforms.u_res, W, H);
+            gl.uniform1f(cache.sobel.uniforms.u_threshold, threshold * 100);
+          },
+          vao,
+        );
       } else if (mode === MODE.FDOG) {
         // FDoG: tangent field → ETF refinement → flow-aligned blur.
         const tangentA: TexEntry = ensureTexture(gl, "lineArt:tangentA", W, H);
@@ -414,113 +531,193 @@ const lineArt = (input: any, options = defaults) => {
         const flowB: TexEntry = ensureTexture(gl, "lineArt:flowB", W, H);
 
         // Initial tangent field from Sobel gradients.
-        drawPass(gl, tangentA, W, H, cache.tangent, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
-          gl.uniform1i(cache.tangent.uniforms.u_input, 0);
-          gl.uniform2f(cache.tangent.uniforms.u_res, W, H);
-        }, vao);
+        drawPass(
+          gl,
+          tangentA,
+          W,
+          H,
+          cache.tangent,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
+            gl.uniform1i(cache.tangent.uniforms.u_input, 0);
+            gl.uniform2f(cache.tangent.uniforms.u_res, W, H);
+          },
+          vao,
+        );
 
         // ETF refinement: 3 ping-pong passes.
-        let etfSrc = tangentA, etfDst = tangentB;
+        let etfSrc = tangentA,
+          etfDst = tangentB;
         for (let pass = 0; pass < 3; pass++) {
-          drawPass(gl, etfDst, W, H, cache.etf, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, etfSrc.tex);
-            gl.uniform1i(cache.etf.uniforms.u_tangent, 0);
-            gl.uniform2f(cache.etf.uniforms.u_res, W, H);
-          }, vao);
+          drawPass(
+            gl,
+            etfDst,
+            W,
+            H,
+            cache.etf,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, etfSrc.tex);
+              gl.uniform1i(cache.etf.uniforms.u_tangent, 0);
+              gl.uniform2f(cache.etf.uniforms.u_res, W, H);
+            },
+            vao,
+          );
           [etfSrc, etfDst] = [etfDst, etfSrc];
         }
         const etfResult = etfSrc;
 
         // Flow-aligned blur at σ.
         const samples = Math.max(3, Math.min(30, Math.round(flowSamples)));
-        drawPass(gl, flowA, W, H, cache.flowBlur, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
-          gl.uniform1i(cache.flowBlur.uniforms.u_input, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, etfResult.tex);
-          gl.uniform1i(cache.flowBlur.uniforms.u_tangent, 1);
-          gl.uniform2f(cache.flowBlur.uniforms.u_res, W, H);
-          gl.uniform1f(cache.flowBlur.uniforms.u_sigma, sigma);
-          gl.uniform1i(cache.flowBlur.uniforms.u_samples, samples);
-        }, vao);
+        drawPass(
+          gl,
+          flowA,
+          W,
+          H,
+          cache.flowBlur,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
+            gl.uniform1i(cache.flowBlur.uniforms.u_input, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, etfResult.tex);
+            gl.uniform1i(cache.flowBlur.uniforms.u_tangent, 1);
+            gl.uniform2f(cache.flowBlur.uniforms.u_res, W, H);
+            gl.uniform1f(cache.flowBlur.uniforms.u_sigma, sigma);
+            gl.uniform1i(cache.flowBlur.uniforms.u_samples, samples);
+          },
+          vao,
+        );
 
         // Flow-aligned blur at kσ.
-        drawPass(gl, flowB, W, H, cache.flowBlur, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
-          gl.uniform1i(cache.flowBlur.uniforms.u_input, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, etfResult.tex);
-          gl.uniform1i(cache.flowBlur.uniforms.u_tangent, 1);
-          gl.uniform2f(cache.flowBlur.uniforms.u_res, W, H);
-          gl.uniform1f(cache.flowBlur.uniforms.u_sigma, sigma * k);
-          gl.uniform1i(cache.flowBlur.uniforms.u_samples, samples);
-        }, vao);
+        drawPass(
+          gl,
+          flowB,
+          W,
+          H,
+          cache.flowBlur,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, lumaTex.tex);
+            gl.uniform1i(cache.flowBlur.uniforms.u_input, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, etfResult.tex);
+            gl.uniform1i(cache.flowBlur.uniforms.u_tangent, 1);
+            gl.uniform2f(cache.flowBlur.uniforms.u_res, W, H);
+            gl.uniform1f(cache.flowBlur.uniforms.u_sigma, sigma * k);
+            gl.uniform1i(cache.flowBlur.uniforms.u_samples, samples);
+          },
+          vao,
+        );
 
         // XDoG threshold on flow-blurred pair.
-        drawPass(gl, edgeTex, W, H, cache.xdog, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, flowA.tex);
-          gl.uniform1i(cache.xdog.uniforms.u_blurA, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, flowB.tex);
-          gl.uniform1i(cache.xdog.uniforms.u_blurB, 1);
-          gl.uniform1f(cache.xdog.uniforms.u_sharpness, sharpness);
-          gl.uniform1f(cache.xdog.uniforms.u_threshold, threshold);
-        }, vao);
-
+        drawPass(
+          gl,
+          edgeTex,
+          W,
+          H,
+          cache.xdog,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, flowA.tex);
+            gl.uniform1i(cache.xdog.uniforms.u_blurA, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, flowB.tex);
+            gl.uniform1i(cache.xdog.uniforms.u_blurB, 1);
+            gl.uniform1f(cache.xdog.uniforms.u_sharpness, sharpness);
+            gl.uniform1f(cache.xdog.uniforms.u_threshold, threshold);
+          },
+          vao,
+        );
       } else {
         // XDoG (default): isotropic separable blur.
         runBlurPasses(gl, vao, cache, lumaTex, blurTemp, blurA, W, H, sigma);
         runBlurPasses(gl, vao, cache, lumaTex, blurTemp, blurB, W, H, sigma * k);
-        drawPass(gl, edgeTex, W, H, cache.xdog, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, blurA.tex);
-          gl.uniform1i(cache.xdog.uniforms.u_blurA, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, blurB.tex);
-          gl.uniform1i(cache.xdog.uniforms.u_blurB, 1);
-          gl.uniform1f(cache.xdog.uniforms.u_sharpness, sharpness);
-          gl.uniform1f(cache.xdog.uniforms.u_threshold, threshold);
-        }, vao);
+        drawPass(
+          gl,
+          edgeTex,
+          W,
+          H,
+          cache.xdog,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, blurA.tex);
+            gl.uniform1i(cache.xdog.uniforms.u_blurA, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, blurB.tex);
+            gl.uniform1i(cache.xdog.uniforms.u_blurB, 1);
+            gl.uniform1f(cache.xdog.uniforms.u_sharpness, sharpness);
+            gl.uniform1f(cache.xdog.uniforms.u_threshold, threshold);
+          },
+          vao,
+        );
       }
 
       // Dilate (if lineWidth > 1)
       let finalEdge = edgeTex;
       if (lineWidth > 1) {
-        drawPass(gl, dilateTex, W, H, cache.dilate, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, edgeTex.tex);
-          gl.uniform1i(cache.dilate.uniforms.u_input, 0);
-          gl.uniform2f(cache.dilate.uniforms.u_res, W, H);
-          gl.uniform1i(cache.dilate.uniforms.u_ceilR, Math.min(4, ceilR));
-          gl.uniform1f(cache.dilate.uniforms.u_reach, reach);
-        }, vao);
+        drawPass(
+          gl,
+          dilateTex,
+          W,
+          H,
+          cache.dilate,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, edgeTex.tex);
+            gl.uniform1i(cache.dilate.uniforms.u_input, 0);
+            gl.uniform2f(cache.dilate.uniforms.u_res, W, H);
+            gl.uniform1i(cache.dilate.uniforms.u_ceilR, Math.min(4, ceilR));
+            gl.uniform1f(cache.dilate.uniforms.u_reach, reach);
+          },
+          vao,
+        );
         finalEdge = dilateTex;
       }
 
       // Cleanup + render → default framebuffer
-      drawPass(gl, null, W, H, cache.render, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, finalEdge.tex);
-        gl.uniform1i(cache.render.uniforms.u_edges, 0);
-        gl.uniform2f(cache.render.uniforms.u_res, W, H);
-        gl.uniform1i(cache.render.uniforms.u_cleanupR, Math.min(3, Math.max(0, Math.round(cleanupRadius))));
-        gl.uniform3f(cache.render.uniforms.u_lineColor, lineColor[0] / 255, lineColor[1] / 255, lineColor[2] / 255);
-        gl.uniform3f(cache.render.uniforms.u_bgColor, bgColor[0] / 255, bgColor[1] / 255, bgColor[2] / 255);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.render,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, finalEdge.tex);
+          gl.uniform1i(cache.render.uniforms.u_edges, 0);
+          gl.uniform2f(cache.render.uniforms.u_res, W, H);
+          gl.uniform1i(
+            cache.render.uniforms.u_cleanupR,
+            Math.min(3, Math.max(0, Math.round(cleanupRadius))),
+          );
+          gl.uniform3f(
+            cache.render.uniforms.u_lineColor,
+            lineColor[0] / 255,
+            lineColor[1] / 255,
+            lineColor[2] / 255,
+          );
+          gl.uniform3f(
+            cache.render.uniforms.u_bgColor,
+            bgColor[0] / 255,
+            bgColor[1] / 255,
+            bgColor[2] / 255,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Line Art", "WebGL2",
-            `${mode} σ=${sigma}${mode === MODE.FDOG ? " flow" : ""}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Line Art",
+            "WebGL2",
+            `${mode} σ=${sigma}${mode === MODE.FDOG ? " flow" : ""}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -543,20 +740,25 @@ const lineArt = (input: any, options = defaults) => {
     const rad = Math.min(MAX_KERNEL, Math.max(1, Math.ceil(sig * 3)));
     const kern = new Float32Array(rad * 2 + 1);
     let kSum = 0;
-    for (let i = -rad; i <= rad; i++) { kern[i + rad] = Math.exp(-(i * i) / (2 * sig * sig)); kSum += kern[i + rad]; }
+    for (let i = -rad; i <= rad; i++) {
+      kern[i + rad] = Math.exp(-(i * i) / (2 * sig * sig));
+      kSum += kern[i + rad];
+    }
     for (let i = 0; i < kern.length; i++) kern[i] /= kSum;
     const tmp = new Float32Array(W * H);
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         let v = 0;
-        for (let ki = -rad; ki <= rad; ki++) v += src[y * W + Math.max(0, Math.min(W - 1, x + ki))] * kern[ki + rad];
+        for (let ki = -rad; ki <= rad; ki++)
+          v += src[y * W + Math.max(0, Math.min(W - 1, x + ki))] * kern[ki + rad];
         tmp[y * W + x] = v;
       }
     const out2 = new Float32Array(W * H);
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         let v = 0;
-        for (let ki = -rad; ki <= rad; ki++) v += tmp[Math.max(0, Math.min(H - 1, y + ki)) * W + x] * kern[ki + rad];
+        for (let ki = -rad; ki <= rad; ki++)
+          v += tmp[Math.max(0, Math.min(H - 1, y + ki)) * W + x] * kern[ki + rad];
         out2[y * W + x] = v;
       }
     return out2;
@@ -569,8 +771,8 @@ const lineArt = (input: any, options = defaults) => {
     edgeMask = new Float32Array(W * H);
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
-        const gx = (lumF[y * W + Math.min(W-1, x+1)] - lumF[y * W + Math.max(0, x-1)]) * 255;
-        const gy = (lumF[Math.min(H-1, y+1) * W + x] - lumF[Math.max(0, y-1) * W + x]) * 255;
+        const gx = (lumF[y * W + Math.min(W - 1, x + 1)] - lumF[y * W + Math.max(0, x - 1)]) * 255;
+        const gy = (lumF[Math.min(H - 1, y + 1) * W + x] - lumF[Math.max(0, y - 1) * W + x]) * 255;
         const mag = Math.sqrt(gx * gx + gy * gy);
         edgeMask[y * W + x] = mag > sobelThresh ? 0 : 1;
       }
@@ -580,7 +782,8 @@ const lineArt = (input: any, options = defaults) => {
     edgeMask = new Float32Array(W * H);
     for (let i = 0; i < W * H; i++) {
       const d = gA[i] - gB[i];
-      edgeMask[i] = d >= 0 ? 1 : Math.max(0, Math.min(1, 1 + Math.tanh(sharpness * (d + threshold))));
+      edgeMask[i] =
+        d >= 0 ? 1 : Math.max(0, Math.min(1, 1 + Math.tanh(sharpness * (d + threshold))));
     }
   }
 
@@ -594,7 +797,12 @@ const lineArt = (input: any, options = defaults) => {
         for (let ky = -ceilR; ky <= ceilR; ky++)
           for (let kx = -ceilR; kx <= ceilR; kx++) {
             if (Math.hypot(kx, ky) > reach) continue;
-            minVal = Math.min(minVal, edgeMask[Math.max(0, Math.min(H-1, y+ky)) * W + Math.max(0, Math.min(W-1, x+kx))]);
+            minVal = Math.min(
+              minVal,
+              edgeMask[
+                Math.max(0, Math.min(H - 1, y + ky)) * W + Math.max(0, Math.min(W - 1, x + kx))
+              ],
+            );
           }
         finalEdges[y * W + x] = minVal;
       }
@@ -605,12 +813,20 @@ const lineArt = (input: any, options = defaults) => {
     const cleaned = new Float32Array(W * H);
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
-        if (finalEdges[y * W + x] > 0.5) { cleaned[y * W + x] = 1; continue; }
+        if (finalEdges[y * W + x] > 0.5) {
+          cleaned[y * W + x] = 1;
+          continue;
+        }
         let nb = 0;
         for (let ky = -cleanupRadius; ky <= cleanupRadius; ky++)
           for (let kx = -cleanupRadius; kx <= cleanupRadius; kx++) {
             if (kx === 0 && ky === 0) continue;
-            if (finalEdges[Math.max(0, Math.min(H-1, y+ky)) * W + Math.max(0, Math.min(W-1, x+kx))] < 0.5) nb++;
+            if (
+              finalEdges[
+                Math.max(0, Math.min(H - 1, y + ky)) * W + Math.max(0, Math.min(W - 1, x + kx))
+              ] < 0.5
+            )
+              nb++;
           }
         cleaned[y * W + x] = nb >= 2 ? 0 : 1;
       }
@@ -631,4 +847,10 @@ const lineArt = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Line Art", func: lineArt, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Line Art",
+  func: lineArt,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

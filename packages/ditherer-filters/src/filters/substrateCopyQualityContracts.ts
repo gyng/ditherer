@@ -1,4 +1,4 @@
-const finite = (value: number, fallback = 0): number => Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 const unit = (value: number): number => Math.min(1, Math.max(0, finite(value)));
 
 /**
@@ -41,8 +41,10 @@ const hash = (x: number, y: number): number => {
 
 const smooth = (value: number): number => value * value * (3 - 2 * value);
 const valueNoise = (x: number, y: number): number => {
-  const ix = Math.floor(x), iy = Math.floor(y);
-  const fx = smooth(x - ix), fy = smooth(y - iy);
+  const ix = Math.floor(x),
+    iy = Math.floor(y);
+  const fx = smooth(x - ix),
+    fy = smooth(y - iy);
   const top = hash(ix, iy) * (1 - fx) + hash(ix + 1, iy) * fx;
   const bottom = hash(ix, iy + 1) * (1 - fx) + hash(ix + 1, iy + 1) * fx;
   return top * (1 - fy) + bottom * fy;
@@ -56,9 +58,14 @@ export const washiFiberVariation = (x: number, y: number): number => {
   const crossingFiber = valueNoise(safeX / 5.5 + 31, safeY / 17 + 11);
   const sheetFormation = valueNoise(safeX / 42 + 7, safeY / 42 + 19);
   const fineFiber = valueNoise(safeX / 12 + 23, safeY / 2.4 + 5);
-  return Math.min(1, Math.max(-1,
-    (longFiber - 0.5) * 0.9
-    + (crossingFiber - 0.5) * 0.55
-    + (fineFiber - 0.5) * 0.35
-    + (sheetFormation - 0.5) * 0.2));
+  return Math.min(
+    1,
+    Math.max(
+      -1,
+      (longFiber - 0.5) * 0.9 +
+        (crossingFiber - 0.5) * 0.55 +
+        (fineFiber - 0.5) * 0.35 +
+        (sheetFormation - 0.5) * 0.2,
+    ),
+  );
 };

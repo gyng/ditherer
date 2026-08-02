@@ -76,15 +76,55 @@ export const optionTypes = {
     default: SYMMETRY.EIGHT,
     desc: "Forbidden rotational order of the aperiodic interference field",
   },
-  scale: { type: RANGE, range: [5, 100], step: 1, default: 29, desc: "Wavelength of the interfering plane waves in pixels" },
-  rotation: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Rotation of the wave-vector constellation" },
-  sourceInfluence: { type: RANGE, range: [0, 3], step: 0.02, default: 0.7, desc: "Source-luminance phase modulation of the aperiodic field" },
-  facets: { type: RANGE, range: [2, 12], step: 1, default: 6, desc: "Number of terraced material levels" },
-  bevel: { type: RANGE, range: [0, 5], step: 0.05, default: 1.8, desc: "Directional relief shading across interference facets" },
-  sourceMix: { type: RANGE, range: [0, 1], step: 0.01, default: 0.34, desc: "Amount of source color embedded in the mosaic material" },
+  scale: {
+    type: RANGE,
+    range: [5, 100],
+    step: 1,
+    default: 29,
+    desc: "Wavelength of the interfering plane waves in pixels",
+  },
+  rotation: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 0,
+    desc: "Rotation of the wave-vector constellation",
+  },
+  sourceInfluence: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.02,
+    default: 0.7,
+    desc: "Source-luminance phase modulation of the aperiodic field",
+  },
+  facets: {
+    type: RANGE,
+    range: [2, 12],
+    step: 1,
+    default: 6,
+    desc: "Number of terraced material levels",
+  },
+  bevel: {
+    type: RANGE,
+    range: [0, 5],
+    step: 0.05,
+    default: 1.8,
+    desc: "Directional relief shading across interference facets",
+  },
+  sourceMix: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.34,
+    desc: "Amount of source color embedded in the mosaic material",
+  },
   low: { type: COLOR, default: [13, 19, 38], desc: "Color of low interference-energy facets" },
   mid: { type: COLOR, default: [23, 158, 158], desc: "Color of middle interference-energy facets" },
-  high: { type: COLOR, default: [244, 190, 72], desc: "Color of high interference-energy facets and ridges" },
+  high: {
+    type: COLOR,
+    default: [244, 190, 72],
+    desc: "Color of high interference-energy facets and ridges",
+  },
 };
 
 export const defaults = {
@@ -101,14 +141,30 @@ export const defaults = {
 };
 
 const quasicrystalMosaic = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "quasicrystalMosaic", fragmentShader: FS,
-    uniformNames: ["u_order", "u_scale", "u_rotation", "u_sourceInfluence", "u_facets", "u_bevel", "u_sourceMix", "u_low", "u_mid", "u_high"],
+    source: input,
+    width: W,
+    height: H,
+    key: "quasicrystalMosaic",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_order",
+      "u_scale",
+      "u_rotation",
+      "u_sourceInfluence",
+      "u_facets",
+      "u_bevel",
+      "u_sourceMix",
+      "u_low",
+      "u_mid",
+      "u_high",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1i(u.u_order, Number(options.symmetry));
       gl.uniform1f(u.u_scale, Number(options.scale));
-      gl.uniform1f(u.u_rotation, Number(options.rotation) * Math.PI / 180);
+      gl.uniform1f(u.u_rotation, (Number(options.rotation) * Math.PI) / 180);
       gl.uniform1f(u.u_sourceInfluence, Number(options.sourceInfluence));
       gl.uniform1f(u.u_facets, Number(options.facets));
       gl.uniform1f(u.u_bevel, Number(options.bevel));
@@ -119,7 +175,11 @@ const quasicrystalMosaic = (input: HTMLCanvasElement | OffscreenCanvas, options 
     },
   });
   if (!rendered) return input;
-  logFilterBackend("Quasicrystal Mosaic", "WebGL2", `${options.symmetry}-fold scale=${options.scale}`);
+  logFilterBackend(
+    "Quasicrystal Mosaic",
+    "WebGL2",
+    `${options.symmetry}-fold scale=${options.scale}`,
+  );
   return rendered;
 };
 
@@ -129,6 +189,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Aperiodic interference facets with forbidden rotational symmetry, source-modulated phase, and relief shading",
+  description:
+    "Aperiodic interference facets with forbidden rotational symmetry, source-modulated phase, and relief shading",
   requiresGL: true,
 });

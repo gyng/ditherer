@@ -32,11 +32,19 @@ export const NC_BAYER_8X8 = "NC_BAYER_8X8";
 // the threshold can be built as the article's (raw + 0.5) / levels.
 const thresholdMaps = {
   [NC_BAYER_2X2]: {
-    raw: [[0, 2], [3, 1]],
+    raw: [
+      [0, 2],
+      [3, 1],
+    ],
     levels: 4,
   },
   [NC_BAYER_4X4]: {
-    raw: [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]],
+    raw: [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ],
     levels: 16,
   },
   [NC_BAYER_8X8]: {
@@ -212,7 +220,9 @@ export const paletteColorsFor = (palette: NCandidatePalette | undefined): number
 
 const nCandidateDither = (input: any, options: NCandidateOptions = defaults) => {
   const algo = String(options.algo ?? defaults.algo);
-  const thresholdKey = resolveThresholdMapKey(String(options.thresholdMap ?? defaults.thresholdMap));
+  const thresholdKey = resolveThresholdMapKey(
+    String(options.thresholdMap ?? defaults.thresholdMap),
+  );
   const threshold = thresholdMaps[thresholdKey];
   const colorspace = String(options.colorspace ?? defaults.colorspace);
   const requestedColors = (options.palette ?? defaults.palette)?.options?.colors?.length ?? 0;
@@ -220,15 +230,15 @@ const nCandidateDither = (input: any, options: NCandidateOptions = defaults) => 
   // Say so when the palette didn't fit the shader — this shows up in the
   // inline-timing tooltip, so a reduced palette is visible rather than a
   // silent surprise.
-  const paletteNote = requestedColors > paletteRgb.length
-    ? `K=${paletteRgb.length}<-${requestedColors} (median-cut to shader cap)`
-    : `K=${paletteRgb.length}`;
+  const paletteNote =
+    requestedColors > paletteRgb.length
+      ? `K=${paletteRgb.length}<-${requestedColors} (median-cut to shader cap)`
+      : `K=${paletteRgb.length}`;
 
   // The global gamma-correct toggle implies the linear working space, but an
   // explicit colorspace choice still wins.
-  const space = colorspace === COLORSPACE.SRGB && options._linearize
-    ? COLORSPACE.LINEAR
-    : colorspace;
+  const space =
+    colorspace === COLORSPACE.SRGB && options._linearize ? COLORSPACE.LINEAR : colorspace;
 
   const rendered = renderNCandidateGL(input, input.width, input.height, {
     thresholdMap: threshold.raw,

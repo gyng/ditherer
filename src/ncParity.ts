@@ -8,7 +8,11 @@
 // checks. See docs/plan/055-n-candidate-dithering.md.
 import nCandidateDither from "@gyng/ditherer-filters/filters/nCandidateDither";
 import { getGLCtx } from "@gyng/ditherer-filters";
-import { renderNCandidateGL, NC_ALGO, NC_SPACE } from "@gyng/ditherer-filters/filters/nCandidateDitherGL";
+import {
+  renderNCandidateGL,
+  NC_ALGO,
+  NC_SPACE,
+} from "@gyng/ditherer-filters/filters/nCandidateDitherGL";
 
 type RenderRequest = {
   width: number;
@@ -94,7 +98,12 @@ const bench = async ({ width, height, rgba, palette, maxPal, candidates, reps }:
   if (!ext) return { error: "EXT_disjoint_timer_query_webgl2 unavailable" };
 
   const opts = {
-    thresholdMap: [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]],
+    thresholdMap: [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ],
     thresholdLevels: 16,
     thresholdMapKey: "NC_BAYER_4X4",
     algo: NC_ALGO.EMA_EXACT,
@@ -160,9 +169,11 @@ const bench = async ({ width, height, rgba, palette, maxPal, candidates, reps }:
   };
 };
 
-(window as unknown as {
-  __ncParity: { render: typeof render; bench: typeof bench };
-}).__ncParity = { render, bench };
+(
+  window as unknown as {
+    __ncParity: { render: typeof render; bench: typeof bench };
+  }
+).__ncParity = { render, bench };
 
 const status = document.querySelector('[data-testid="status"]');
 if (status) status.textContent = "ready";

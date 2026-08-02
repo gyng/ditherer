@@ -9,7 +9,7 @@ technique they are named after: Crosshatch, Engraving, Woodcut, and Stipple.
 All four convey tone by hard luminance thresholds over a fixed device-space
 lattice, so a mid-grey region and a near-black region receive identical marks,
 and the marks never follow the subject's form. The rebuild makes tone a
-*continuous function of local mark density* and models each technique's
+_continuous function of local mark density_ and models each technique's
 defining mark structure, while keeping each filter distinct from the existing
 Flow Crosshatch (which already owns the form-following hatch look).
 
@@ -31,10 +31,10 @@ Flow Crosshatch (which already owns the form-following hatch look).
   (`threshold*1.5`, `*0.3`, `mag > 30.0`). Relief carving prints white gouges
   that follow the block's form and grain and taper with tone.
 - **Stipple** (`stippleGL.ts`) places exactly one hash-jittered dot per fixed
-  lattice cell and conveys tone by growing the *dot radius*
+  lattice cell and conveys tone by growing the _dot radius_
   (`dotR = maxDotSize * darkness`). Constant count with variable radius on a
   grid is amplitude-modulated halftone — the opposite of stippling, whose dots
-  are near-constant size and whose *spatial density* rises in dark areas on a
+  are near-constant size and whose _spatial density_ rises in dark areas on a
   blue-noise distribution.
 
 ## References
@@ -118,4 +118,3 @@ Flow Crosshatch (which already owns the form-following hatch look).
   catalog verification, and the production application build.
 
 Status: Complete
-

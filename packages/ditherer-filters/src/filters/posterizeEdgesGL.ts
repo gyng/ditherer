@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -75,10 +82,16 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_levels", "u_edgeThreshold",
-    "u_dilationRadius", "u_edgeColor",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_levels",
+      "u_edgeThreshold",
+      "u_dilationRadius",
+      "u_edgeColor",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -86,8 +99,11 @@ export const posterizeEdgesGLAvailable = (): boolean => glAvailable();
 
 export const renderPosterizeEdgesGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  levels: number, edgeThreshold: number, edgeWidth: number,
+  width: number,
+  height: number,
+  levels: number,
+  edgeThreshold: number,
+  edgeWidth: number,
   edgeColor: [number, number, number],
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
@@ -99,15 +115,23 @@ export const renderPosterizeEdgesGL = (
   const sourceTex = ensureTexture(gl, "posterizeEdges:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
   const dilationRadius = Math.max(0, Math.min(3, Math.floor(edgeWidth) - 1));
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-    gl.uniform1f(cache.prog.uniforms.u_edgeThreshold, edgeThreshold);
-    gl.uniform1i(cache.prog.uniforms.u_dilationRadius, dilationRadius);
-    gl.uniform3f(cache.prog.uniforms.u_edgeColor, edgeColor[0], edgeColor[1], edgeColor[2]);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+      gl.uniform1f(cache.prog.uniforms.u_edgeThreshold, edgeThreshold);
+      gl.uniform1i(cache.prog.uniforms.u_dilationRadius, dilationRadius);
+      gl.uniform3f(cache.prog.uniforms.u_edgeColor, edgeColor[0], edgeColor[1], edgeColor[2]);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

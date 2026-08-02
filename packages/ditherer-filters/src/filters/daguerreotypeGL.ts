@@ -138,8 +138,15 @@ const getPrograms = (gl: WebGL2RenderingContext): Cache => {
   cache = {
     blurH: linkProgram(gl, BLUR_H_FS, ["u_input", "u_res", "u_radius"] as const),
     final: linkProgram(gl, DAGUERREOTYPE_FS, [
-      "u_blurH", "u_res", "u_radius", "u_silverTone", "u_vignette", "u_metallic",
-      "u_gilding", "u_viewAngle", "u_plateAge",
+      "u_blurH",
+      "u_res",
+      "u_radius",
+      "u_silverTone",
+      "u_vignette",
+      "u_metallic",
+      "u_gilding",
+      "u_viewAngle",
+      "u_plateAge",
     ] as const),
   };
   return cache;
@@ -169,27 +176,43 @@ export const renderDaguerreotypeGL = (
   uploadSourceTexture(gl, sourceTexture, source);
   const horizontalTexture = ensureTexture(gl, "daguerreotype:blurH", width, height);
 
-  drawPass(gl, horizontalTexture, width, height, programs.blurH, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(programs.blurH.uniforms.u_input, 0);
-    gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
-    gl.uniform1i(programs.blurH.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    horizontalTexture,
+    width,
+    height,
+    programs.blurH,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(programs.blurH.uniforms.u_input, 0);
+      gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
+      gl.uniform1i(programs.blurH.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, programs.final, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, horizontalTexture.tex);
-    gl.uniform1i(programs.final.uniforms.u_blurH, 0);
-    gl.uniform2f(programs.final.uniforms.u_res, width, height);
-    gl.uniform1i(programs.final.uniforms.u_radius, radius);
-    gl.uniform1f(programs.final.uniforms.u_silverTone, silverTone);
-    gl.uniform1f(programs.final.uniforms.u_vignette, vignette);
-    gl.uniform1f(programs.final.uniforms.u_metallic, metallic);
-    gl.uniform1f(programs.final.uniforms.u_gilding, gilding);
-    gl.uniform1f(programs.final.uniforms.u_viewAngle, viewAngle);
-    gl.uniform1f(programs.final.uniforms.u_plateAge, plateAge);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    programs.final,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, horizontalTexture.tex);
+      gl.uniform1i(programs.final.uniforms.u_blurH, 0);
+      gl.uniform2f(programs.final.uniforms.u_res, width, height);
+      gl.uniform1i(programs.final.uniforms.u_radius, radius);
+      gl.uniform1f(programs.final.uniforms.u_silverTone, silverTone);
+      gl.uniform1f(programs.final.uniforms.u_vignette, vignette);
+      gl.uniform1f(programs.final.uniforms.u_metallic, metallic);
+      gl.uniform1f(programs.final.uniforms.u_gilding, gilding);
+      gl.uniform1f(programs.final.uniforms.u_viewAngle, viewAngle);
+      gl.uniform1f(programs.final.uniforms.u_plateAge, plateAge);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

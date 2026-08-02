@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("utils", async importOriginal => {
+vi.mock("utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("utils")>();
   return {
     ...actual,
@@ -25,14 +25,17 @@ const makeGradientCanvas = (width: number, height: number) => {
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, w: number, h: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: w,
-        height: h,
-      }),
-      putImageData: () => {},
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, w: number, h: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: w,
+              height: h,
+            }),
+            putImageData: () => {},
+          }
+        : null,
   };
 };
 
@@ -65,7 +68,11 @@ describe("CRT Degauss", () => {
     const input = makeGradientCanvas(4, 4);
     const original = input.getContext("2d")!.getImageData(0, 0, 4, 4).data;
 
-    const result = runAndCapture(input, { ...crtDegauss.defaults, _frameIndex: 0, _isAnimating: false });
+    const result = runAndCapture(input, {
+      ...crtDegauss.defaults,
+      _frameIndex: 0,
+      _isAnimating: false,
+    });
 
     expect(result).toEqual(original);
   });
@@ -75,13 +82,14 @@ describe("CRT Degauss", () => {
     const original = input.getContext("2d")!.getImageData(0, 0, 4, 4).data;
 
     runAndCapture(input, { ...crtDegauss.defaults, _frameIndex: 0, _isAnimating: false });
-    crtDegauss.optionTypes.degauss.action(
-      { triggerBurst: () => {} },
-      input,
-      null,
-      { ...crtDegauss.defaults }
-    );
-    const active = runAndCapture(input, { ...crtDegauss.defaults, _frameIndex: 1, _isAnimating: true });
+    crtDegauss.optionTypes.degauss.action({ triggerBurst: () => {} }, input, null, {
+      ...crtDegauss.defaults,
+    });
+    const active = runAndCapture(input, {
+      ...crtDegauss.defaults,
+      _frameIndex: 1,
+      _isAnimating: true,
+    });
 
     expect(active).not.toEqual(original);
   });
@@ -142,12 +150,10 @@ describe("CRT Degauss", () => {
   it("wires the action button to a bounded burst", () => {
     const triggerBurst = vi.fn();
 
-    crtDegauss.optionTypes.degauss.action(
-      { triggerBurst },
-      { width: 1, height: 1 },
-      null,
-      { duration: 33, animSpeed: 17 }
-    );
+    crtDegauss.optionTypes.degauss.action({ triggerBurst }, { width: 1, height: 1 }, null, {
+      duration: 33,
+      animSpeed: 17,
+    });
 
     expect(triggerBurst).toHaveBeenCalledWith(expect.anything(), 33, 17);
   });

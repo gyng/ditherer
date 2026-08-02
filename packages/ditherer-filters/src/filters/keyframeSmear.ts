@@ -15,9 +15,27 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  keyframeInterval: { type: RANGE, range: [2, 30], step: 1, default: 8, desc: "How many frames pass before a new keyframe is captured" },
-  smear: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "How strongly the held keyframe drags into the in-between frames" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
+  keyframeInterval: {
+    type: RANGE,
+    range: [2, 30],
+    step: 1,
+    default: 8,
+    desc: "How many frames pass before a new keyframe is captured",
+  },
+  smear: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.65,
+    desc: "How strongly the held keyframe drags into the in-between frames",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -68,10 +86,14 @@ const getProg = (gl: WebGL2RenderingContext): Program => {
 };
 
 const keyframeSmear = (input: any, options: KeyframeSmearOptions = defaults) => {
-  const keyframeInterval = Math.max(2, Math.round(Number(options.keyframeInterval ?? defaults.keyframeInterval)));
+  const keyframeInterval = Math.max(
+    2,
+    Math.round(Number(options.keyframeInterval ?? defaults.keyframeInterval)),
+  );
   const smear = Math.max(0, Math.min(1, Number(options.smear ?? defaults.smear)));
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -101,15 +123,23 @@ const keyframeSmear = (input: any, options: KeyframeSmearOptions = defaults) => 
   const phase = Math.min(1, _framesSinceCapture / Math.max(1, keyframeInterval));
   const smearMix = smear * (1 - phase * 0.45);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, keyTex.tex);
-    gl.uniform1i(prog.uniforms.u_keyframe, 1);
-    gl.uniform1f(prog.uniforms.u_smearMix, smearMix);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, keyTex.tex);
+      gl.uniform1i(prog.uniforms.u_keyframe, 1);
+      gl.uniform1f(prog.uniforms.u_smearMix, smearMix);
+    },
+    vao,
+  );
 
   _framesSinceCapture++;
 
@@ -127,7 +157,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Capture sparse keyframes and drag them through the in-between frames for compressed, smeared temporal interpolation",
+  description:
+    "Capture sparse keyframes and drag them through the in-between frames for compressed, smeared temporal interpolation",
   temporal: true,
   requiresGL: true,
 });

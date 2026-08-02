@@ -12,19 +12,22 @@ let root: Root;
 let onSetFilterOption: ReturnType<typeof vi.fn>;
 
 const render = (value: unknown) => {
-  act(() => root.render(
-    <Curve
-      name="toneCurve"
-      value={value}
-      types={{ desc: "Tone mapping curve" }}
-      onSetFilterOption={onSetFilterOption}
-    />,
-  ));
+  act(() =>
+    root.render(
+      <Curve
+        name="toneCurve"
+        value={value}
+        types={{ desc: "Tone mapping curve" }}
+        onSetFilterOption={onSetFilterOption}
+      />,
+    ),
+  );
 };
 
 const clickButton = (label: string) => {
-  const target = Array.from(container.querySelectorAll("button"))
-    .find((button) => button.textContent === label);
+  const target = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent === label,
+  );
   expect(target).toBeTruthy();
   act(() => target!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 };
@@ -51,7 +54,9 @@ describe("Curve control", () => {
     render("not json");
     expect(container.querySelectorAll("circle")).toHaveLength(2);
     render({ unexpected: true });
-    expect((container.querySelector("textarea") as HTMLTextAreaElement).value).toBe("[[0,0],[255,255]]");
+    expect((container.querySelector("textarea") as HTMLTextAreaElement).value).toBe(
+      "[[0,0],[255,255]]",
+    );
   });
 
   it("adds, constrains, drags, and removes interior points", () => {
@@ -59,22 +64,40 @@ describe("Curve control", () => {
     const svg = container.querySelector("svg")!;
     Object.defineProperty(svg, "getBoundingClientRect", {
       configurable: true,
-      value: () => ({ left: 0, top: 0, width: 255, height: 255, right: 255, bottom: 255, x: 0, y: 0, toJSON: () => ({}) }),
+      value: () => ({
+        left: 0,
+        top: 0,
+        width: 255,
+        height: 255,
+        right: 255,
+        bottom: 255,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
     });
 
-    act(() => svg.dispatchEvent(new MouseEvent("pointerdown", {
-      bubbles: true,
-      clientX: 64,
-      clientY: 64,
-    })));
+    act(() =>
+      svg.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          clientX: 64,
+          clientY: 64,
+        }),
+      ),
+    );
     expect(onSetFilterOption).toHaveBeenLastCalledWith("toneCurve", "[[0,0],[64,191],[255,255]]");
     expect(container.querySelectorAll("circle")).toHaveLength(3);
 
-    act(() => window.dispatchEvent(new MouseEvent("pointermove", {
-      bubbles: true,
-      clientX: 300,
-      clientY: -20,
-    })));
+    act(() =>
+      window.dispatchEvent(
+        new MouseEvent("pointermove", {
+          bubbles: true,
+          clientX: 300,
+          clientY: -20,
+        }),
+      ),
+    );
     expect(onSetFilterOption).toHaveBeenLastCalledWith("toneCurve", "[[0,0],[254,255],[255,255]]");
     act(() => window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true })));
 

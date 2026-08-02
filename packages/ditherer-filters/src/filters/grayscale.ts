@@ -83,12 +83,20 @@ const grayscale = (input: any, options: GrayscaleOptions = {}) => {
       const sourceTex = ensureTexture(gl, "grayscale:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.gray, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.gray.uniforms.u_source, 0);
-        gl.uniform1i(cache.gray.uniforms.u_linearize, linearize ? 1 : 0);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.gray,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.gray.uniforms.u_source, 0);
+          gl.uniform1i(cache.gray.uniforms.u_linearize, linearize ? 1 : 0);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
@@ -136,5 +144,5 @@ export default defineFilter<GrayscaleOptions>({
   func: grayscale,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
 });

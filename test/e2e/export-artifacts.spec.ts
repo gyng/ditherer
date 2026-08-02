@@ -61,7 +61,9 @@ test("JPEG and WebP image exports honor quality and custom sizing", async ({ pag
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
     const download = await downloadPromise;
     const bytes = await downloadBytes(download);
-    expect(download.suggestedFilename()).toMatch(new RegExp(`^ditherer-.*\\.${expected.extension}$`));
+    expect(download.suggestedFilename()).toMatch(
+      new RegExp(`^ditherer-.*\\.${expected.extension}$`),
+    );
     if (expected.value === "jpeg") {
       expect(bytes.subarray(0, 2).toString("hex")).toBe(expected.signature);
     } else {
@@ -93,12 +95,19 @@ test("video contact-sheet export renders a selected range and downloads PNG", as
   await dialog.getByRole("button", { name: "Render Range", exact: true }).click();
 
   const ready = dialog.getByText("Contact sheet PNG ready to save or copy.");
-  await expect.poll(async () => {
-    if (await ready.isVisible()) return "ready";
-    return browserErrors[0] || "pending";
-  }, { timeout: 60_000 }).toBe("ready");
+  await expect
+    .poll(
+      async () => {
+        if (await ready.isVisible()) return "ready";
+        return browserErrors[0] || "pending";
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("ready");
   const preview = dialog.getByRole("img", { name: "Contact sheet export preview" });
-  await expect.poll(() => preview.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect
+    .poll(() => preview.evaluate((image) => (image as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
 
   const downloadPromise = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
@@ -123,7 +132,8 @@ test("offline GIF export renders a short selected range and downloads GIF", asyn
   const dialog = page.getByRole("dialog", { name: "Save As" });
   await dialog.getByRole("tab", { name: "Video" }).click();
   await dialog.getByRole("radio", { name: "gif" }).check();
-  await dialog.getByRole("combobox", { name: "Capture Mode" })
+  await dialog
+    .getByRole("combobox", { name: "Capture Mode" })
     .selectOption({ label: "Offline Render (Browser, Slower)" });
   await dialog.getByRole("checkbox", { name: "Match source" }).uncheck();
   await dialog.getByRole("slider", { name: "Manual FPS" }).fill("4");
@@ -133,10 +143,15 @@ test("offline GIF export renders a short selected range and downloads GIF", asyn
   await dialog.getByRole("button", { name: "Render Range", exact: true }).click();
 
   const preview = dialog.getByRole("img", { name: "GIF export preview" });
-  await expect.poll(async () => {
-    if (await preview.isVisible()) return "ready";
-    return browserErrors[0] || "pending";
-  }, { timeout: 60_000 }).toBe("ready");
+  await expect
+    .poll(
+      async () => {
+        if (await preview.isVisible()) return "ready";
+        return browserErrors[0] || "pending";
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("ready");
 
   const downloadPromise = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
@@ -170,10 +185,15 @@ test("offline and realtime recording paths both produce downloadable video", asy
   await dialog.getByRole("button", { name: "Start rendering", exact: true }).click();
 
   const save = dialog.getByRole("button", { name: "Save", exact: true });
-  await expect.poll(async () => {
-    if (await save.isEnabled()) return "ready";
-    return browserErrors[0] || "pending";
-  }, { timeout: 90_000 }).toBe("ready");
+  await expect
+    .poll(
+      async () => {
+        if (await save.isEnabled()) return "ready";
+        return browserErrors[0] || "pending";
+      },
+      { timeout: 90_000 },
+    )
+    .toBe("ready");
 
   let downloadPromise = page.waitForEvent("download");
   await save.click();
@@ -213,19 +233,24 @@ test("sequence export can be cancelled, retried, and downloaded as ZIP", async (
   await page.goto("/?testMedia=video%3Aakiyo.mp4");
   await expect(page.getByText("Input - akiyo.mp4", { exact: true })).toBeVisible();
   const sourcePosition = page.getByRole("slider", { name: "Video position" });
-  await expect.poll(async () => Number(await sourcePosition.getAttribute("max"))).toBeGreaterThan(0);
+  await expect
+    .poll(async () => Number(await sourcePosition.getAttribute("max")))
+    .toBeGreaterThan(0);
 
   await page.getByRole("button", { name: "Export…", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Save As" });
   await dialog.getByRole("tab", { name: "Video" }).click();
   await dialog.getByRole("radio", { name: "sequence" }).check();
-  await dialog.getByRole("combobox", { name: "Capture Mode" })
+  await dialog
+    .getByRole("combobox", { name: "Capture Mode" })
     .selectOption({ label: "Offline Render (Browser, Slower)" });
   await dialog.getByRole("checkbox", { name: "Match source" }).uncheck();
   await dialog.getByRole("slider", { name: "Manual FPS" }).fill("30");
   await dialog.getByRole("button", { name: "Render Whole Video", exact: true }).click();
   await dialog.getByRole("button", { name: "Stop", exact: true }).click();
-  await expect(dialog.getByRole("button", { name: "Render Whole Video", exact: true })).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Render Whole Video", exact: true }),
+  ).toBeVisible();
 
   await dialog.getByRole("slider", { name: "Manual FPS" }).fill("4");
   await dialog.getByRole("radio", { name: "Timestamp range" }).check();
@@ -234,10 +259,15 @@ test("sequence export can be cancelled, retried, and downloaded as ZIP", async (
   await dialog.getByRole("button", { name: "Render Range", exact: true }).click();
 
   const ready = dialog.getByText("Sequence ZIP ready to save or copy.");
-  await expect.poll(async () => {
-    if (await ready.isVisible()) return "ready";
-    return browserErrors[0] || "pending";
-  }, { timeout: 60_000 }).toBe("ready");
+  await expect
+    .poll(
+      async () => {
+        if (await ready.isVisible()) return "ready";
+        return browserErrors[0] || "pending";
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("ready");
 
   const downloadPromise = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();

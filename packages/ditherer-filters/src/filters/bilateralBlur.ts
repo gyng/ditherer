@@ -14,11 +14,17 @@ const WORKING_RESOLUTION = {
 
 export const optionTypes = {
   sigmaSpatial: {
-    type: RANGE, range: [1, 12], step: 0.5, default: 5,
+    type: RANGE,
+    range: [1, 12],
+    step: 0.5,
+    default: 5,
     desc: "Spatial Gaussian standard deviation in output pixels",
   },
   sigmaRange: {
-    type: RANGE, range: [1, 100], step: 1, default: 30,
+    type: RANGE,
+    range: [1, 100],
+    step: 1,
+    default: 30,
     desc: "Color-similarity standard deviation — higher values smooth across stronger color edges",
   },
   workingResolution: {
@@ -41,11 +47,12 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
-type BilateralOptions = Omit<Partial<typeof defaults>, "workingResolution"> & Record<string, unknown> & {
-  workingResolution?: unknown;
-  _webglAcceleration?: boolean;
-  _linearize?: boolean;
-};
+type BilateralOptions = Omit<Partial<typeof defaults>, "workingResolution"> &
+  Record<string, unknown> & {
+    workingResolution?: unknown;
+    _webglAcceleration?: boolean;
+    _linearize?: boolean;
+  };
 
 const finite = (value: unknown, fallback: number, min: number, max: number): number => {
   const parsed = typeof value === "number" ? value : Number.NaN;
@@ -53,28 +60,30 @@ const finite = (value: unknown, fallback: number, min: number, max: number): num
 };
 
 const resolveWorkingResolution = (options: BilateralOptions): keyof typeof WORKING_RESOLUTION => {
-  if (options.workingResolution === WORKING_RESOLUTION.FULL
-    || options.workingResolution === WORKING_RESOLUTION.HALF
-    || options.workingResolution === WORKING_RESOLUTION.QUARTER) {
+  if (
+    options.workingResolution === WORKING_RESOLUTION.FULL ||
+    options.workingResolution === WORKING_RESOLUTION.HALF ||
+    options.workingResolution === WORKING_RESOLUTION.QUARTER
+  ) {
     return options.workingResolution;
   }
   // Old URLs only carry these keys when they differed from the former defaults.
   if ("useDownsample" in options && options.useDownsample === false) return WORKING_RESOLUTION.FULL;
   if ("downsampleFactor" in options && typeof options.downsampleFactor === "number") {
-    return options.downsampleFactor >= 3 ? WORKING_RESOLUTION.QUARTER : options.downsampleFactor <= 1
-      ? WORKING_RESOLUTION.FULL
-      : WORKING_RESOLUTION.HALF;
+    return options.downsampleFactor >= 3
+      ? WORKING_RESOLUTION.QUARTER
+      : options.downsampleFactor <= 1
+        ? WORKING_RESOLUTION.FULL
+        : WORKING_RESOLUTION.HALF;
   }
   return WORKING_RESOLUTION.HALF;
 };
 
-const srgbToLinear = (value: number): number => value <= 0.04045
-  ? value / 12.92
-  : ((value + 0.055) / 1.055) ** 2.4;
+const srgbToLinear = (value: number): number =>
+  value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 
-const linearToSrgb = (value: number): number => value <= 0.0031308
-  ? value * 12.92
-  : 1.055 * Math.max(0, value) ** (1 / 2.4) - 0.055;
+const linearToSrgb = (value: number): number =>
+  value <= 0.0031308 ? value * 12.92 : 1.055 * Math.max(0, value) ** (1 / 2.4) - 0.055;
 
 type Guide = { width: number; height: number; values: Float32Array };
 
@@ -90,7 +99,11 @@ const buildGuide = (
   const values = new Float32Array(workWidth * workHeight * 4);
   for (let workY = 0; workY < workHeight; workY++) {
     for (let workX = 0; workX < workWidth; workX++) {
-      let red = 0; let green = 0; let blue = 0; let alphaSum = 0; let count = 0;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let alphaSum = 0;
+      let count = 0;
       const endY = Math.min(height, (workY + 1) * factor);
       const endX = Math.min(width, (workX + 1) * factor);
       for (let y = workY * factor; y < endY; y++) {
@@ -135,7 +148,10 @@ const guidedPass = (
       const center = (y * guide.width + x) * 4;
       const centerAlpha = guide.values[center + 3];
       if (centerAlpha <= 1e-6) continue;
-      let red = 0; let green = 0; let blue = 0; let weightSum = 0;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let weightSum = 0;
       for (let offset = -radius; offset <= radius; offset++) {
         const neighborX = horizontal ? Math.max(0, Math.min(guide.width - 1, x + offset)) : x;
         const neighborY = horizontal ? y : Math.max(0, Math.min(guide.height - 1, y + offset));
@@ -145,7 +161,8 @@ const guidedPass = (
         const deltaBlue = (guide.values[center + 2] - guide.values[neighbor + 2]) * 255;
         const spatialWeight = Math.exp(-(offset * offset) / spatialDenominator);
         const rangeWeight = Math.exp(
-          -(deltaRed * deltaRed + deltaGreen * deltaGreen + deltaBlue * deltaBlue) / rangeDenominator,
+          -(deltaRed * deltaRed + deltaGreen * deltaGreen + deltaBlue * deltaBlue) /
+            rangeDenominator,
         );
         const weight = spatialWeight * rangeWeight * guide.values[neighbor + 3];
         red += signal[neighbor] * weight;
@@ -211,7 +228,10 @@ const reconstruct = (
       const workY = (y + 0.5) / factor - 0.5;
       const baseX = Math.floor(workX);
       const baseY = Math.floor(workY);
-      let red = 0; let green = 0; let blue = 0; let weightSum = 0;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let weightSum = 0;
       for (let offsetY = -1; offsetY <= 1; offsetY++) {
         for (let offsetX = -1; offsetX <= 1; offsetX++) {
           const candidateX = Math.max(0, Math.min(guide.width - 1, baseX + offsetX));
@@ -224,7 +244,8 @@ const reconstruct = (
           const deltaBlue = (centerBlue - guide.values[candidate + 2]) * 255;
           const spatialWeight = Math.exp(-(spatialX * spatialX + spatialY * spatialY) / 2);
           const rangeWeight = Math.exp(
-            -(deltaRed * deltaRed + deltaGreen * deltaGreen + deltaBlue * deltaBlue) / rangeDenominator,
+            -(deltaRed * deltaRed + deltaGreen * deltaGreen + deltaBlue * deltaBlue) /
+              rangeDenominator,
           );
           const weight = spatialWeight * rangeWeight * guide.values[candidate + 3];
           red += blurred[candidate] * weight;
@@ -255,13 +276,17 @@ const canonicalizeTransparentRgb = (
   height: number,
 ): HTMLCanvasElement | OffscreenCanvas => {
   const context = canvas.getContext("2d", { willReadFrequently: true }) as
-    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!context) return canvas;
   const image = context.getImageData(0, 0, width, height);
   let changed = false;
   for (let index = 0; index < image.data.length; index += 4) {
-    if (image.data[index + 3] === 0
-      && (image.data[index] !== 0 || image.data[index + 1] !== 0 || image.data[index + 2] !== 0)) {
+    if (
+      image.data[index + 3] === 0 &&
+      (image.data[index] !== 0 || image.data[index + 1] !== 0 || image.data[index + 2] !== 0)
+    ) {
       image.data[index] = 0;
       image.data[index + 1] = 0;
       image.data[index + 2] = 0;
@@ -282,8 +307,8 @@ export const resolveBilateralWorkFactor = (
   requested: number,
 ): number | null => {
   let factor = requested;
-  while (factor < 4
-    && Math.ceil(width / factor) * Math.ceil(height / factor) > MAX_GL_WORK_PIXELS) factor *= 2;
+  while (factor < 4 && Math.ceil(width / factor) * Math.ceil(height / factor) > MAX_GL_WORK_PIXELS)
+    factor *= 2;
   return Math.ceil(width / factor) * Math.ceil(height / factor) <= MAX_GL_WORK_PIXELS
     ? Math.min(4, factor)
     : null;
@@ -296,8 +321,11 @@ export const resolveBilateralCpuFactor = (
 ): number | null => {
   if (width * height > MAX_CPU_OUTPUT_PIXELS) return null;
   let factor = requested;
-  while (factor < 64
-    && Math.ceil(width / factor) * Math.ceil(height / factor) > MAX_CPU_WORK_PIXELS) factor *= 2;
+  while (
+    factor < 64 &&
+    Math.ceil(width / factor) * Math.ceil(height / factor) > MAX_CPU_WORK_PIXELS
+  )
+    factor *= 2;
   return Math.ceil(width / factor) * Math.ceil(height / factor) <= MAX_CPU_WORK_PIXELS
     ? factor
     : null;
@@ -307,8 +335,12 @@ const bilateralBlur = (input: any, options: BilateralOptions = defaults) => {
   const sigmaSpatial = finite(options.sigmaSpatial, defaults.sigmaSpatial, 1, 12);
   const sigmaRange = finite(options.sigmaRange, defaults.sigmaRange, 1, 100);
   const workingResolution = resolveWorkingResolution(options);
-  const requestedFactor = workingResolution === WORKING_RESOLUTION.FULL ? 1
-    : workingResolution === WORKING_RESOLUTION.QUARTER ? 4 : 2;
+  const requestedFactor =
+    workingResolution === WORKING_RESOLUTION.FULL
+      ? 1
+      : workingResolution === WORKING_RESOLUTION.QUARTER
+        ? 4
+        : 2;
   const linearize = options._linearize === true;
   const palette = options.palette ?? defaults.palette;
   const width = input.width;
@@ -323,18 +355,27 @@ const bilateralBlur = (input: any, options: BilateralOptions = defaults) => {
     let rendered: HTMLCanvasElement | OffscreenCanvas | null = null;
     try {
       rendered = renderBilateralBlurGL(
-        input, width, height, sigmaSpatial, sigmaRange, factor, linearize,
+        input,
+        width,
+        height,
+        sigmaSpatial,
+        sigmaRange,
+        factor,
+        linearize,
       );
     } catch {
       // A lost/undersized GL context falls through to the bounded CPU path.
     }
     if (rendered) {
       const identity = paletteIsIdentity(palette);
-      const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+      const output = identity
+        ? rendered
+        : applyPalettePassToCanvas(rendered, width, height, palette);
       if (output) {
         if (!identity) canonicalizeTransparentRgb(output, width, height);
         logFilterBackend(
-          "Bilateral Blur", "WebGL2",
+          "Bilateral Blur",
+          "WebGL2",
           `σs=${sigmaSpatial} σr=${sigmaRange} ${workingResolution}${factor !== requestedFactor ? `→1/${factor} safety` : ""}${linearize ? "+linear" : ""}${identity ? "" : "+palettePass"}`,
         );
         return output;
@@ -348,7 +389,8 @@ const bilateralBlur = (input: any, options: BilateralOptions = defaults) => {
     return input;
   }
   logFilterWasmStatus(
-    "Bilateral Blur", false,
+    "Bilateral Blur",
+    false,
     `guided separable JS${cpuFactor !== factor ? ` (1/${cpuFactor} safety)` : ""}`,
   );
   const inputContext = input.getContext("2d", { willReadFrequently: true });
@@ -360,7 +402,14 @@ const bilateralBlur = (input: any, options: BilateralOptions = defaults) => {
   const horizontal = guidedPass(guide.values, guide, radius, sigmaWork, sigmaRange, true);
   const blurred = guidedPass(horizontal, guide, radius, sigmaWork, sigmaRange, false);
   const outputPixels = reconstruct(
-    source, width, height, guide, blurred, cpuFactor, sigmaRange, linearize,
+    source,
+    width,
+    height,
+    guide,
+    blurred,
+    cpuFactor,
+    sigmaRange,
+    linearize,
   );
   const output = cloneCanvas(input, false);
   const outputContext = output.getContext("2d");

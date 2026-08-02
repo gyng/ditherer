@@ -13,22 +13,49 @@ import { applyPalettePassToCanvas } from "../palettes/backend";
 import { scanLineShiftGLAvailable, renderScanLineShiftGL } from "./scanLineShiftGL";
 
 export const optionTypes = {
-  maxShift: { type: RANGE, range: [0, 200], step: 1, default: 30, desc: "Maximum horizontal shift in pixels" },
-  blockHeight: { type: RANGE, range: [1, 50], step: 1, default: 4, desc: "Height of each shifted block" },
-  chance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Probability of shifting each block" },
+  maxShift: {
+    type: RANGE,
+    range: [0, 200],
+    step: 1,
+    default: 30,
+    desc: "Maximum horizontal shift in pixels",
+  },
+  blockHeight: {
+    type: RANGE,
+    range: [1, 50],
+    step: 1,
+    default: 4,
+    desc: "Height of each shifted block",
+  },
+  chance: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Probability of shifting each block",
+  },
   colorShift: { type: BOOL, default: true, desc: "Shift RGB channels independently" },
   wrap: { type: BOOL, default: true, desc: "Wrap shifted pixels around edges" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Preview animation frame rate" },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 8,
+    desc: "Preview animation frame rate",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
     desc: "Start or stop frame-varying scan-line block shifts",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) { actions.stopAnimLoop(); }
-      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
-    }
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 8);
+      }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -38,13 +65,13 @@ export const defaults = {
   colorShift: optionTypes.colorShift.default,
   wrap: optionTypes.wrap.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -58,16 +85,33 @@ const scanLineShift = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    scanLineShiftGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    scanLineShiftGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
-    const rendered = renderScanLineShiftGL(input, W, H, maxShift, blockHeight, chance, colorShift, wrap, frameIndex, levels);
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
+    const rendered = renderScanLineShiftGL(
+      input,
+      W,
+      H,
+      maxShift,
+      blockHeight,
+      chance,
+      colorShift,
+      wrap,
+      frameIndex,
+      levels,
+    );
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Scan Line Shift", "WebGL2", `block=${blockHeight} max=${maxShift} chance=${chance}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Scan Line Shift",
+          "WebGL2",
+          `block=${blockHeight} max=${maxShift} chance=${chance}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -86,7 +130,8 @@ const scanLineShift = (input: any, options = defaults) => {
   for (let blockY = 0; blockY < H; blockY += blockHeight) {
     const shouldShift = rng() < chance;
     const shift = shouldShift ? Math.round((rng() * 2 - 1) * maxShift) : 0;
-    const rShift = (colorShift && shouldShift) ? Math.round((rng() * 2 - 1) * Math.min(maxShift, 10)) : 0;
+    const rShift =
+      colorShift && shouldShift ? Math.round((rng() * 2 - 1) * Math.min(maxShift, 10)) : 0;
 
     for (let dy = 0; dy < blockHeight && blockY + dy < H; dy++) {
       const y = blockY + dy;

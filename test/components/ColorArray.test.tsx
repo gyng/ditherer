@@ -18,7 +18,11 @@ vi.mock("@gyng/ditherer-filters", async (importOriginal) => {
   };
 });
 vi.mock("react-colorful", () => ({
-  RgbaColorPicker: ({ onChange }: { onChange: (color: { r: number; g: number; b: number; a: number }) => void }) => (
+  RgbaColorPicker: ({
+    onChange,
+  }: {
+    onChange: (color: { r: number; g: number; b: number; a: number }) => void;
+  }) => (
     <button type="button" onClick={() => onChange({ r: 10, g: 20, b: 30, a: 0.5 })}>
       choose rgba
     </button>
@@ -26,7 +30,13 @@ vi.mock("react-colorful", () => ({
   HexColorPicker: () => null,
 }));
 vi.mock("components/ModalInput", () => ({
-  default: ({ title, defaultValue, multiline, onConfirm, onCancel }: {
+  default: ({
+    title,
+    defaultValue,
+    multiline,
+    onConfirm,
+    onCancel,
+  }: {
     title: string;
     defaultValue: string;
     multiline?: boolean;
@@ -36,8 +46,15 @@ vi.mock("components/ModalInput", () => ({
     <div data-testid="modal" data-multiline={String(Boolean(multiline))}>
       <span>{title}</span>
       <span>{defaultValue}</span>
-      <button type="button" onClick={() => onConfirm(bridge.modalValues.get(title) ?? defaultValue)}>confirm modal</button>
-      <button type="button" onClick={onCancel}>cancel modal</button>
+      <button
+        type="button"
+        onClick={() => onConfirm(bridge.modalValues.get(title) ?? defaultValue)}
+      >
+        confirm modal
+      </button>
+      <button type="button" onClick={onCancel}>
+        cancel modal
+      </button>
     </div>
   ),
 }));
@@ -57,21 +74,23 @@ let callbacks: {
   onDeleteColorPalette: ReturnType<typeof vi.fn>;
 };
 
-const customColors = [[1, 2, 3, 255], [4, 5, 6, 128]];
+const customColors = [
+  [1, 2, 3, 255],
+  [4, 5, 6, 128],
+];
 
 const render = (value: unknown = customColors) => {
-  act(() => root.render(
-    <ColorArray
-      name="colors"
-      inputCanvas={canvas}
-      value={value as number[][]}
-      {...callbacks}
-    />,
-  ));
+  act(() =>
+    root.render(
+      <ColorArray name="colors" inputCanvas={canvas} value={value as number[][]} {...callbacks} />,
+    ),
+  );
 };
 
-const findByText = (selector: string, text: string) => Array.from(container.querySelectorAll(selector))
-  .find((element) => element.textContent?.includes(text)) ?? null;
+const findByText = (selector: string, text: string) =>
+  Array.from(container.querySelectorAll(selector)).find((element) =>
+    element.textContent?.includes(text),
+  ) ?? null;
 
 const click = (element: Element | null) => {
   expect(element).not.toBeNull();
@@ -133,10 +152,14 @@ describe("ColorArray palette editor", () => {
     click(swatches[0]);
     expect(callbacks.onSetPaletteOption).toHaveBeenCalledTimes(callsBeforeDelete + 1);
     expect(callbacks.onSetPaletteOption).toHaveBeenLastCalledWith("colors", [customColors[1]]);
-    act(() => swatches[1].dispatchEvent(new KeyboardEvent("keydown", {
-      key: "Enter",
-      bubbles: true,
-    })));
+    act(() =>
+      swatches[1].dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+        }),
+      ),
+    );
     expect(callbacks.onSetPaletteOption).toHaveBeenLastCalledWith("colors", [customColors[0]]);
   });
 
@@ -181,7 +204,9 @@ describe("ColorArray palette editor", () => {
 
     bridge.modalValues.set("Paste theme JSON", "[[9,8,7,255]]");
     click(findByText("button", "Import palette"));
-    expect(container.querySelector('[data-testid="modal"]')?.getAttribute("data-multiline")).toBe("true");
+    expect(container.querySelector('[data-testid="modal"]')?.getAttribute("data-multiline")).toBe(
+      "true",
+    );
     click(findByText("button", "confirm modal"));
     expect(callbacks.onSetPaletteOption).toHaveBeenLastCalledWith("colors", [[9, 8, 7, 255]]);
 
@@ -197,7 +222,9 @@ describe("ColorArray palette editor", () => {
     const revokeObjectURL = vi.fn();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
     render();
 
     bridge.modalValues.set("Save current palette as", "");

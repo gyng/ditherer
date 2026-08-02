@@ -52,19 +52,24 @@ describe("current-frame export orchestration", () => {
       clearGifResult: vi.fn(),
       setGifResult: vi.fn(),
       gifPaletteSource: "filter" as const,
-      gifFilterPalette: [[0, 0, 0], [255, 255, 255]],
+      gifFilterPalette: [
+        [0, 0, 0],
+        [255, 255, 255],
+      ],
     };
 
     await runCurrentFrameGifExport(options);
 
     expect(options.clearGifResult).toHaveBeenCalledOnce();
     expect(mocks.capture).toHaveBeenCalledWith(expect.objectContaining({ frameCount: 2 }));
-    expect(mocks.finalizeGif).toHaveBeenCalledWith(expect.objectContaining({
-      frames: [expect.objectContaining({ delay: 50 })],
-      colorTable: options.gifFilterPalette,
-      capturedFrameCount: 1,
-      aborted: false,
-    }));
+    expect(mocks.finalizeGif).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frames: [expect.objectContaining({ delay: 50 })],
+        colorTable: options.gifFilterPalette,
+        capturedFrameCount: 1,
+        aborted: false,
+      }),
+    );
     expect(options.clearProgress).toHaveBeenCalledOnce();
   });
 
@@ -95,11 +100,13 @@ describe("current-frame export orchestration", () => {
     await runCurrentFrameSequenceExport(options);
 
     expect(options.clearSequenceResult).toHaveBeenCalledOnce();
-    expect(mocks.finalizeSequence).toHaveBeenCalledWith(expect.objectContaining({
-      frames: [expect.objectContaining({ delay: 0 })],
-      progressBase: 0.86,
-      progressSpan: 0.08,
-    }));
+    expect(mocks.finalizeSequence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frames: [expect.objectContaining({ delay: 0 })],
+        progressBase: 0.86,
+        progressSpan: 0.08,
+      }),
+    );
     expect(options.clearProgress).toHaveBeenCalledOnce();
   });
 
@@ -128,10 +135,12 @@ describe("current-frame export orchestration", () => {
     await runCurrentFrameContactSheetExport(options);
 
     expect(options.clearContactSheetResult).toHaveBeenCalledOnce();
-    expect(mocks.finalizeContact).toHaveBeenCalledWith(expect.objectContaining({
-      frames: [expect.objectContaining({ delay: 0 })],
-      columns: 3,
-    }));
+    expect(mocks.finalizeContact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frames: [expect.objectContaining({ delay: 0 })],
+        columns: 3,
+      }),
+    );
 
     mocks.capture.mockResolvedValueOnce({ capturedFrames: [], aborted: false });
     await runCurrentFrameContactSheetExport(options);

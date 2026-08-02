@@ -158,8 +158,16 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     blurH: linkProgram(gl, BLUR_H_LUM_FS, ["u_source", "u_res", "u_radius"] as const),
     blurV: linkProgram(gl, BLUR_V_FS, ["u_input", "u_res", "u_radius"] as const),
     final: linkProgram(gl, RISO_FS, [
-      "u_blurred", "u_source", "u_res", "u_color1", "u_color2", "u_misregX", "u_misregY",
-      "u_grain", "u_threshold", "u_levels",
+      "u_blurred",
+      "u_source",
+      "u_res",
+      "u_color1",
+      "u_color2",
+      "u_misregX",
+      "u_misregY",
+      "u_grain",
+      "u_threshold",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -197,38 +205,72 @@ export const renderRisographGL = (
   const temp1 = ensureTexture(gl, "risograph:lumH", width, height);
   const temp2 = ensureTexture(gl, "risograph:lumHV", width, height);
 
-  drawPass(gl, temp1, width, height, cache.blurH, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.blurH.uniforms.u_source, 0);
-    gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
-    gl.uniform1i(cache.blurH.uniforms.u_radius, blurR);
-  }, vao);
+  drawPass(
+    gl,
+    temp1,
+    width,
+    height,
+    cache.blurH,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.blurH.uniforms.u_source, 0);
+      gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
+      gl.uniform1i(cache.blurH.uniforms.u_radius, blurR);
+    },
+    vao,
+  );
 
-  drawPass(gl, temp2, width, height, cache.blurV, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp1.tex);
-    gl.uniform1i(cache.blurV.uniforms.u_input, 0);
-    gl.uniform2f(cache.blurV.uniforms.u_res, width, height);
-    gl.uniform1i(cache.blurV.uniforms.u_radius, blurR);
-  }, vao);
+  drawPass(
+    gl,
+    temp2,
+    width,
+    height,
+    cache.blurV,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp1.tex);
+      gl.uniform1i(cache.blurV.uniforms.u_input, 0);
+      gl.uniform2f(cache.blurV.uniforms.u_res, width, height);
+      gl.uniform1i(cache.blurV.uniforms.u_radius, blurR);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.final, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp2.tex);
-    gl.uniform1i(cache.final.uniforms.u_blurred, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.final.uniforms.u_source, 1);
-    gl.uniform2f(cache.final.uniforms.u_res, width, height);
-    gl.uniform3f(cache.final.uniforms.u_color1, params.color1[0], params.color1[1], params.color1[2]);
-    gl.uniform3f(cache.final.uniforms.u_color2, params.color2[0], params.color2[1], params.color2[2]);
-    gl.uniform1i(cache.final.uniforms.u_misregX, params.misregX);
-    gl.uniform1i(cache.final.uniforms.u_misregY, params.misregY);
-    gl.uniform1f(cache.final.uniforms.u_grain, params.grain);
-    gl.uniform1f(cache.final.uniforms.u_threshold, params.threshold);
-    gl.uniform1f(cache.final.uniforms.u_levels, params.levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.final,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp2.tex);
+      gl.uniform1i(cache.final.uniforms.u_blurred, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.final.uniforms.u_source, 1);
+      gl.uniform2f(cache.final.uniforms.u_res, width, height);
+      gl.uniform3f(
+        cache.final.uniforms.u_color1,
+        params.color1[0],
+        params.color1[1],
+        params.color1[2],
+      );
+      gl.uniform3f(
+        cache.final.uniforms.u_color2,
+        params.color2[0],
+        params.color2[1],
+        params.color2[2],
+      );
+      gl.uniform1i(cache.final.uniforms.u_misregX, params.misregX);
+      gl.uniform1i(cache.final.uniforms.u_misregY, params.misregY);
+      gl.uniform1f(cache.final.uniforms.u_grain, params.grain);
+      gl.uniform1f(cache.final.uniforms.u_threshold, params.threshold);
+      gl.uniform1f(cache.final.uniforms.u_levels, params.levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

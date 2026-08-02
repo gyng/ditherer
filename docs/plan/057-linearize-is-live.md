@@ -12,15 +12,15 @@ accepts the option and ignores it is indistinguishable from one that honours it.
 
 12 of 13 honour it. Changed pixels out of 1024, `_linearize` off vs on:
 
-| filter | changed | filter | changed |
-|---|---:|---|---:|
-| Binarize | 864 | Levels | 1024 |
-| Brightness/Contrast | 864 | N-Candidate | 248 |
-| Convolve | 1024 | Ordered | 512 |
-| Floyd-Steinberg | 840 | Pixelate | 1024 |
-| Grayscale | 1024 | Quantize | 1024 |
-| **Halftone** | **0** | Random | 879 |
-| | | Riemersma | 636 |
+| filter              | changed | filter      | changed |
+| ------------------- | ------: | ----------- | ------: |
+| Binarize            |     864 | Levels      |    1024 |
+| Brightness/Contrast |     864 | N-Candidate |     248 |
+| Convolve            |    1024 | Ordered     |     512 |
+| Floyd-Steinberg     |     840 | Pixelate    |    1024 |
+| Grayscale           |    1024 | Quantize    |    1024 |
+| **Halftone**        |   **0** | Random      |     879 |
+|                     |         | Riemersma   |     636 |
 
 `runLinearizeIsLive` in `src/gl-smoke/contracts/core.ts` keeps this honest.
 
@@ -40,7 +40,7 @@ means deciding what that means in GL — dot area proportional to linear intensi
 presumably — which changes the look and still leaves the backends structurally
 different. That's a design call, not a defect to guess at in a shader.
 
-Pinned via `knownDead` in the sweep, which asserts it is *still* dead: fixing it
+Pinned via `knownDead` in the sweep, which asserts it is _still_ dead: fixing it
 trips the check and prompts removing the pin, rather than leaving a stale
 exclusion that quietly shrinks coverage.
 
@@ -57,13 +57,13 @@ worth recording, because anyone extending this sweep will hit the same walls:
    levels 256 — identity — so the pass is skipped entirely. Needs a real palette.
 3. **The fixture kept answering the wrong question.** `makeGradientCanvas` is
    flat bands plus a 245/10 checker: convolutions are identity on flat regions
-   and clamp at the extremes in *both* spaces. A linear ramp is worse — a sharpen
+   and clamp at the extremes in _both_ spaces. A linear ramp is worse — a sharpen
    kernel is a discrete Laplacian, exactly zero on a linear gradient. A smooth
    low-frequency sinusoid is worse again for the default kernel (which is
    `GAUSSIAN_3X3`, not Sharpen — that's just the ENUM's first listed option): a
    3×3 blur barely moves a 32px wave, so the spaces agree below 1 LSB. And a
    70/185 checker made contrast saturate both ends identically. What works is
-   high-frequency detail in a *narrow* mid band (110/150): wide enough that a 3×3
+   high-frequency detail in a _narrow_ mid band (110/150): wide enough that a 3×3
    kernel's averaging differs measurably between spaces, narrow enough that tone
    adjustments don't hit the clamps.
 4. **Wrong filter entirely.** `filterIndex["Sharpen"]` is `sharpen.ts` (an

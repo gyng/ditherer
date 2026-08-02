@@ -27,14 +27,59 @@ import {
 import { screenHalftoneDecision } from "./printSimulationContracts";
 
 export const optionTypes = {
-  plates: { type: RANGE, range: [2, 4], step: 1, default: 3, desc: "Number of spot-color plates to layer" },
-  offset: { type: RANGE, range: [0, 24], step: 1, default: 6, desc: "Maximum misregistration offset between plates in pixels" },
-  angleJitter: { type: RANGE, range: [0, 45], step: 1, default: 12, label: "Offset angle spread", desc: "Deterministically fan adjacent plate-offset directions by this angle" },
-  paperColor: { type: COLOR, default: [244, 237, 224], desc: "Base paper stock color under the inks" },
-  inkStrength: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.75, desc: "Opacity of each spot-color layer" },
-  screenFrequency: { type: RANGE, range: [8, 120], step: 1, default: 32, desc: "Halftone cells across the shorter image axis" },
-  dotGain: { type: RANGE, range: [-0.2, 0.4], step: 0.01, default: 0.05, desc: "Pressure-driven expansion or contraction of printed halftone dots" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional palette applied after the spot-color print" }
+  plates: {
+    type: RANGE,
+    range: [2, 4],
+    step: 1,
+    default: 3,
+    desc: "Number of spot-color plates to layer",
+  },
+  offset: {
+    type: RANGE,
+    range: [0, 24],
+    step: 1,
+    default: 6,
+    desc: "Maximum misregistration offset between plates in pixels",
+  },
+  angleJitter: {
+    type: RANGE,
+    range: [0, 45],
+    step: 1,
+    default: 12,
+    label: "Offset angle spread",
+    desc: "Deterministically fan adjacent plate-offset directions by this angle",
+  },
+  paperColor: {
+    type: COLOR,
+    default: [244, 237, 224],
+    desc: "Base paper stock color under the inks",
+  },
+  inkStrength: {
+    type: RANGE,
+    range: [0.1, 1],
+    step: 0.05,
+    default: 0.75,
+    desc: "Opacity of each spot-color layer",
+  },
+  screenFrequency: {
+    type: RANGE,
+    range: [8, 120],
+    step: 1,
+    default: 32,
+    desc: "Halftone cells across the shorter image axis",
+  },
+  dotGain: {
+    type: RANGE,
+    range: [-0.2, 0.4],
+    step: 0.01,
+    default: 0.05,
+    desc: "Pressure-driven expansion or contraction of printed halftone dots",
+  },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional palette applied after the spot-color print",
+  },
 };
 
 export const defaults = {
@@ -45,14 +90,14 @@ export const defaults = {
   inkStrength: optionTypes.inkStrength.default,
   screenFrequency: optionTypes.screenFrequency.default,
   dotGain: optionTypes.dotGain.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const SPOT_COLORS = [
   THEMES.RISOGRAPH[1].slice(0, 3),
   THEMES.RISOGRAPH[2].slice(0, 3),
   THEMES.RISOGRAPH[4].slice(0, 3),
-  THEMES.RISOGRAPH[3].slice(0, 3)
+  THEMES.RISOGRAPH[3].slice(0, 3),
 ];
 
 const SP_FS = `#version 300 es
@@ -123,8 +168,16 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     sp: linkProgram(gl, SP_FS, [
-      "u_source", "u_res", "u_plates", "u_paper", "u_inkStrength",
-      "u_plateColor", "u_plateOffset", "u_screenAngle", "u_cellSize", "u_dotGain",
+      "u_source",
+      "u_res",
+      "u_plates",
+      "u_paper",
+      "u_inkStrength",
+      "u_plateColor",
+      "u_plateOffset",
+      "u_screenAngle",
+      "u_cellSize",
+      "u_dotGain",
     ] as const),
   };
   return _cache;
@@ -132,14 +185,30 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
-const sampleChannel = (data: Uint8ClampedArray, width: number, height: number, x: number, y: number, channel: number) => {
+const sampleChannel = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  channel: number,
+) => {
   const sx = Math.max(0, Math.min(width - 1, Math.round(x)));
   const sy = Math.max(0, Math.min(height - 1, Math.round(y)));
   return data[getBufferIndex(sx, sy, width) + channel];
 };
 
 const screenPrint = (input: any, options: Partial<typeof defaults> = defaults) => {
-  const { plates, offset, angleJitter, paperColor, inkStrength, screenFrequency, dotGain, palette } = { ...defaults, ...options };
+  const {
+    plates,
+    offset,
+    angleJitter,
+    paperColor,
+    inkStrength,
+    screenFrequency,
+    dotGain,
+    palette,
+  } = { ...defaults, ...options };
   const width = input.width;
   const height = input.height;
   const activeColors = SPOT_COLORS.slice(0, plates);
@@ -153,8 +222,9 @@ const screenPrint = (input: any, options: Partial<typeof defaults> = defaults) =
       Math.sin(theta) * offset * (0.5 + p * 0.25),
     ];
   });
-  const screenAngles = activeColors.map((_, p) =>
-    22.5 + p * 60 + (p % 2 === 0 ? angleJitter : -angleJitter));
+  const screenAngles = activeColors.map(
+    (_, p) => 22.5 + p * 60 + (p % 2 === 0 ? angleJitter : -angleJitter),
+  );
   const cellSize = Math.max(2, Math.min(width, height) / screenFrequency);
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -179,28 +249,46 @@ const screenPrint = (input: any, options: Partial<typeof defaults> = defaults) =
         angleArr[p] = screenAngles[p];
       }
 
-      drawPass(gl, null, width, height, cache.sp, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.sp.uniforms.u_source, 0);
-        gl.uniform2f(cache.sp.uniforms.u_res, width, height);
-        gl.uniform1i(cache.sp.uniforms.u_plates, activeColors.length);
-        gl.uniform3f(cache.sp.uniforms.u_paper, paperColor[0] / 255, paperColor[1] / 255, paperColor[2] / 255);
-        gl.uniform1f(cache.sp.uniforms.u_inkStrength, inkStrength);
-        gl.uniform3fv(cache.sp.uniforms.u_plateColor, colorArr);
-        gl.uniform2fv(cache.sp.uniforms.u_plateOffset, offsetArr);
-        gl.uniform1fv(cache.sp.uniforms.u_screenAngle, angleArr);
-        gl.uniform1f(cache.sp.uniforms.u_cellSize, cellSize);
-        gl.uniform1f(cache.sp.uniforms.u_dotGain, dotGain);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        width,
+        height,
+        cache.sp,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.sp.uniforms.u_source, 0);
+          gl.uniform2f(cache.sp.uniforms.u_res, width, height);
+          gl.uniform1i(cache.sp.uniforms.u_plates, activeColors.length);
+          gl.uniform3f(
+            cache.sp.uniforms.u_paper,
+            paperColor[0] / 255,
+            paperColor[1] / 255,
+            paperColor[2] / 255,
+          );
+          gl.uniform1f(cache.sp.uniforms.u_inkStrength, inkStrength);
+          gl.uniform3fv(cache.sp.uniforms.u_plateColor, colorArr);
+          gl.uniform2fv(cache.sp.uniforms.u_plateOffset, offsetArr);
+          gl.uniform1fv(cache.sp.uniforms.u_screenAngle, angleArr);
+          gl.uniform1f(cache.sp.uniforms.u_cellSize, cellSize);
+          gl.uniform1f(cache.sp.uniforms.u_dotGain, dotGain);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, width, height);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
-        const out = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+        const out = identity
+          ? rendered
+          : applyPalettePassToCanvas(rendered, width, height, palette);
         if (out) {
-          logFilterBackend("Screen Print", "WebGL2",
-            `plates=${plates}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Screen Print",
+            "WebGL2",
+            `plates=${plates}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -233,16 +321,19 @@ const screenPrint = (input: any, options: Partial<typeof defaults> = defaults) =
         const srcG = sampleChannel(buf, width, height, x - offX, y - offY, 1);
         const srcB = sampleChannel(buf, width, height, x - offX, y - offY, 2);
 
-        const plateLuma = p === 0
-          ? 1 - srcR / 255
-          : p === 1
-            ? 1 - srcG / 255
-            : p === 2
-              ? 1 - srcB / 255
-              : 1 - (srcR * 0.2126 + srcG * 0.7152 + srcB * 0.0722) / 255;
+        const plateLuma =
+          p === 0
+            ? 1 - srcR / 255
+            : p === 1
+              ? 1 - srcG / 255
+              : p === 2
+                ? 1 - srcB / 255
+                : 1 - (srcR * 0.2126 + srcG * 0.7152 + srcB * 0.0722) / 255;
 
         const coverage = Math.max(0, Math.min(1, plateLuma * inkStrength));
-        const ink = screenHalftoneDecision(coverage, x, y, cellSize, screenAngles[p], dotGain) ? 1 : 0;
+        const ink = screenHalftoneDecision(coverage, x, y, cellSize, screenAngles[p], dotGain)
+          ? 1
+          : 0;
         if (ink <= 0.01) continue;
 
         const i = getBufferIndex(x, y, width);
@@ -260,7 +351,7 @@ const screenPrint = (input: any, options: Partial<typeof defaults> = defaults) =
         palette,
         rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], buf[i + 3]),
         palette.options,
-        false
+        false,
       );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
@@ -276,5 +367,6 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Rotated clustered-dot spot-color screens with subtractive overprint, dot gain, and deterministic plate misregistration"
+  description:
+    "Rotated clustered-dot spot-color screens with subtractive overprint, dot gain, and deterministic plate misregistration",
 });

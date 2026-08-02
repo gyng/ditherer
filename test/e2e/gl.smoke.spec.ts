@@ -1,8 +1,5 @@
 import { expect, test } from "@playwright/test";
-import {
-  startBrowserCoverage,
-  writeBrowserCoverage,
-} from "./browserCoverage";
+import { startBrowserCoverage, writeBrowserCoverage } from "./browserCoverage";
 import type { GlSmokeResult } from "../../src/gl-smoke/types";
 
 test.setTimeout(120_000);
@@ -25,10 +22,13 @@ test("every reachable GL shader compiles and renders in a real browser", async (
     // Surface the first few failures so the CI log tells you what's broken.
     const preview = (result?.failures ?? []).slice(0, 20);
     throw new Error(
-      `GL smoke failed — passed=${result?.passed} failed=${result?.failed} skipped=${result?.skipped}\n`
-      + preview.map((f: { name: string; mode: string; reason: string }) =>
-        `  • ${f.name} [${f.mode}]: ${f.reason}`,
-      ).join("\n"),
+      `GL smoke failed — passed=${result?.passed} failed=${result?.failed} skipped=${result?.skipped}\n` +
+        preview
+          .map(
+            (f: { name: string; mode: string; reason: string }) =>
+              `  • ${f.name} [${f.mode}]: ${f.reason}`,
+          )
+          .join("\n"),
     );
   }
   expect(result.failed).toBe(0);
@@ -37,17 +37,17 @@ test("every reachable GL shader compiles and renders in a real browser", async (
   // sweep (e.g. a filter dropping its ENUM option) show up as a visible
   // drop in the CI log instead of silently passing.
   console.log(
-    `gl-smoke: passed=${result.passed} skipped=${result.skipped} `
-    + `glFilters=${result.glFilters} requiredGL=${result.requiredGLFilters} `
-    + `compiles=${result.shaderCompiles} links=${result.programLinks} draws=${result.drawCalls} `
-    + `time=${result.timings.totalMs.toFixed(0)}ms `
-    + `(registry=${result.timings.registryMs.toFixed(0)}ms contracts=${result.timings.contractsMs.toFixed(0)}ms)`,
+    `gl-smoke: passed=${result.passed} skipped=${result.skipped} ` +
+      `glFilters=${result.glFilters} requiredGL=${result.requiredGLFilters} ` +
+      `compiles=${result.shaderCompiles} links=${result.programLinks} draws=${result.drawCalls} ` +
+      `time=${result.timings.totalMs.toFixed(0)}ms ` +
+      `(registry=${result.timings.registryMs.toFixed(0)}ms contracts=${result.timings.contractsMs.toFixed(0)}ms)`,
   );
   console.log(
-    "gl-smoke suites: "
-    + Object.entries(result.timings.suitesMs)
-      .map(([name, elapsed]) => `${name}=${elapsed.toFixed(0)}ms`)
-      .join(" "),
+    "gl-smoke suites: " +
+      Object.entries(result.timings.suitesMs)
+        .map(([name, elapsed]) => `${name}=${elapsed.toFixed(0)}ms`)
+        .join(" "),
   );
   // Coverage floor: lowering this requires an intentional review of which GPU
   // path was removed or stopped activating. New filters are discovered without

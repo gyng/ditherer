@@ -16,8 +16,15 @@ type Props = {
   snapshot?: AudioVizSnapshot;
 };
 
-const AudioBpmReadout = ({ channel, showUnit = true, compact = false, snapshot: externalSnapshot }: Props) => {
-  const [localSnapshot, setLocalSnapshot] = useState(() => externalSnapshot ?? getAudioVizSnapshot(channel));
+const AudioBpmReadout = ({
+  channel,
+  showUnit = true,
+  compact = false,
+  snapshot: externalSnapshot,
+}: Props) => {
+  const [localSnapshot, setLocalSnapshot] = useState(
+    () => externalSnapshot ?? getAudioVizSnapshot(channel),
+  );
   useEffect(() => {
     if (externalSnapshot) return undefined;
     return subscribeAudioViz((ch) => {
@@ -31,7 +38,8 @@ const AudioBpmReadout = ({ channel, showUnit = true, compact = false, snapshot: 
   if (detectedBpm != null) {
     return (
       <span className={compact ? s.compact : s.readout}>
-        {Math.round(detectedBpm)}{showUnit ? " BPM" : ""}
+        {Math.round(detectedBpm)}
+        {showUnit ? " BPM" : ""}
         {bpmOverride != null ? <span className={s.suffix}> override</span> : null}
       </span>
     );
@@ -46,24 +54,28 @@ const AudioBpmReadout = ({ channel, showUnit = true, compact = false, snapshot: 
   }
 
   const pct = Math.round(tempoWarmupProgress * 100);
-  const tooltip = status === "connecting"
-    ? "Connecting to audio source"
-    : tempoStatus === "silent"
-      ? "Signal too quiet for tempo lock"
-      : tempoStatus === "warmup"
-        ? `Warming up (${pct}%) — needs ~5 seconds of audio`
-        : tempoStatus === "searching"
-          ? "Searching for tempo"
-          : "Waiting for tempo";
+  const tooltip =
+    status === "connecting"
+      ? "Connecting to audio source"
+      : tempoStatus === "silent"
+        ? "Signal too quiet for tempo lock"
+        : tempoStatus === "warmup"
+          ? `Warming up (${pct}%) — needs ~5 seconds of audio`
+          : tempoStatus === "searching"
+            ? "Searching for tempo"
+            : "Waiting for tempo";
 
   return (
-    <span
-      className={compact ? s.compactPending : s.pending}
-      title={tooltip}
-    >
+    <span className={compact ? s.compactPending : s.pending} title={tooltip}>
       <span className={s.spinner} aria-hidden="true" />
       <span className={s.pendingText}>
-        {tempoStatus === "warmup" ? `${pct}%` : tempoStatus === "silent" ? "quiet" : tempoStatus === "searching" ? "search" : "wait"}
+        {tempoStatus === "warmup"
+          ? `${pct}%`
+          : tempoStatus === "silent"
+            ? "quiet"
+            : tempoStatus === "searching"
+              ? "search"
+              : "wait"}
       </span>
     </span>
   );

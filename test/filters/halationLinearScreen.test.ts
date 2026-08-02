@@ -11,8 +11,7 @@ import {
 // the property without a WebGL context.
 
 // OLD behaviour: screen the glow straight onto the sRGB source, output sRGB.
-const gammaScreen = (srcSrgb: number, glow: number): number =>
-  1 - (1 - srcSrgb) * (1 - glow);
+const gammaScreen = (srcSrgb: number, glow: number): number => 1 - (1 - srcSrgb) * (1 - glow);
 
 // NEW behaviour (mirrors COMPOSITE_FS): source -> linear, screen the glow in
 // linear light, then encode back to sRGB.
@@ -36,7 +35,8 @@ describe("Halation linear-light screen composite", () => {
   });
 
   it("matches the GLSL contract: screen computed in linear then sRGB-encoded", () => {
-    const src = 0.2, glow = 0.35;
+    const src = 0.2,
+      glow = 0.35;
     const expected = linearToSrgb(1 - (1 - srgbToLinear(src)) * (1 - glow));
     expect(linearScreen(src, glow)).toBeCloseTo(expected, 12);
   });

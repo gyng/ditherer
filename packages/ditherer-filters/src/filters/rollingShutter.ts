@@ -36,10 +36,34 @@ export const optionTypes = {
     default: DIRECTION.FORWARD,
     desc: "Which edge of the sensor is captured first",
   },
-  readout: { type: RANGE, range: [0, 1], step: 0.01, default: 0.85, desc: "Fraction of a frame spanned by the sensor readout" },
-  skew: { type: RANGE, range: [-64, 64], step: 1, default: 18, desc: "Position shear accumulated across the readout, in pixels" },
-  wobble: { type: RANGE, range: [0, 24], step: 0.5, default: 3, desc: "Sinusoidal readout-clock instability in pixels" },
-  exposureBlend: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Blend neighboring capture times for a softer electronic shutter" },
+  readout: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.85,
+    desc: "Fraction of a frame spanned by the sensor readout",
+  },
+  skew: {
+    type: RANGE,
+    range: [-64, 64],
+    step: 1,
+    default: 18,
+    desc: "Position shear accumulated across the readout, in pixels",
+  },
+  wobble: {
+    type: RANGE,
+    range: [0, 24],
+    step: 0.5,
+    default: 3,
+    desc: "Sinusoidal readout-clock instability in pixels",
+  },
+  exposureBlend: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.2,
+    desc: "Blend neighboring capture times for a softer electronic shutter",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Preview frame rate" },
   animate: {
     type: ACTION,
@@ -117,14 +141,24 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_previous", "u_res", "u_havePrevious", "u_readout",
-    "u_skew", "u_wobble", "u_exposureBlend", "u_frame", "u_axis", "u_reverse",
+    "u_source",
+    "u_previous",
+    "u_res",
+    "u_havePrevious",
+    "u_readout",
+    "u_skew",
+    "u_wobble",
+    "u_exposureBlend",
+    "u_frame",
+    "u_axis",
+    "u_reverse",
   ] as const);
   return _prog;
 };
 
 const rollingShutter = (input: any, options: RollingShutterOptions = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const previous = options._prevInput ?? null;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -143,27 +177,42 @@ const rollingShutter = (input: any, options: RollingShutterOptions = defaults) =
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, previous!);
   }
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, havePrevious ? previousTex.tex : sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_previous, 1);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_havePrevious, havePrevious ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_readout, Number(options.readout ?? defaults.readout));
-    gl.uniform1f(prog.uniforms.u_skew, Number(options.skew ?? defaults.skew));
-    gl.uniform1f(prog.uniforms.u_wobble, Number(options.wobble ?? defaults.wobble));
-    gl.uniform1f(prog.uniforms.u_exposureBlend, Number(options.exposureBlend ?? defaults.exposureBlend));
-    gl.uniform1f(prog.uniforms.u_frame, Number(options._frameIndex ?? 0));
-    gl.uniform1i(prog.uniforms.u_axis, options.axis === AXIS.COLUMNS ? 1 : 0);
-    gl.uniform1i(prog.uniforms.u_reverse, options.direction === DIRECTION.REVERSE ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, havePrevious ? previousTex.tex : sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_previous, 1);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_havePrevious, havePrevious ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_readout, Number(options.readout ?? defaults.readout));
+      gl.uniform1f(prog.uniforms.u_skew, Number(options.skew ?? defaults.skew));
+      gl.uniform1f(prog.uniforms.u_wobble, Number(options.wobble ?? defaults.wobble));
+      gl.uniform1f(
+        prog.uniforms.u_exposureBlend,
+        Number(options.exposureBlend ?? defaults.exposureBlend),
+      );
+      gl.uniform1f(prog.uniforms.u_frame, Number(options._frameIndex ?? 0));
+      gl.uniform1i(prog.uniforms.u_axis, options.axis === AXIS.COLUMNS ? 1 : 0);
+      gl.uniform1i(prog.uniforms.u_reverse, options.direction === DIRECTION.REVERSE ? 1 : 0);
+    },
+    vao,
+  );
 
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
-  logFilterBackend("Rolling Shutter", "WebGL2", `${options.axis ?? defaults.axis} skew=${options.skew ?? defaults.skew}`);
+  logFilterBackend(
+    "Rolling Shutter",
+    "WebGL2",
+    `${options.axis ?? defaults.axis} skew=${options.skew ?? defaults.skew}`,
+  );
   return output;
 };
 
@@ -173,7 +222,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "CMOS rolling-shutter readout that bends motion progressively across sensor rows or columns",
+  description:
+    "CMOS rolling-shutter readout that bends motion progressively across sensor rows or columns",
   temporal: true,
   autoAnimate: true,
   autoAnimateFps: 15,

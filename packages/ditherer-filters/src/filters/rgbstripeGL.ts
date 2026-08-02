@@ -533,7 +533,11 @@ const compileShader = (gl: WebGL2RenderingContext, type: number, src: string): W
   return sh;
 };
 
-const linkProgram = (gl: WebGL2RenderingContext, fsSrc: string, uniformNames: string[]): Program => {
+const linkProgram = (
+  gl: WebGL2RenderingContext,
+  fsSrc: string,
+  uniformNames: string[],
+): Program => {
   const vs = compileShader(gl, gl.VERTEX_SHADER, VS);
   const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
   const prog = gl.createProgram();
@@ -568,24 +572,51 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   const mainUniforms = [
-    "u_input","u_mask","u_res","u_maskSize","u_maskCompensation",
-    "u_brightness","u_contrast","u_exposure","u_gamma",
-    "u_phosphorScale","u_visibleScanlines","u_scanlineStrength","u_includeScanline",
-    "u_beamMinWidth","u_beamMaxWidth","u_cornerFocus",
-    "u_misconvergence","u_curvature","u_overscan","u_vignette",
-    "u_damperWires","u_damperWireStrength",
-    "u_flicker","u_flickerAmount",
-    "u_isDegaussing","u_degaussAge","u_degaussT",
-    "u_degaussWobbleX","u_degaussWobbleY","u_degaussMiscBoost",
+    "u_input",
+    "u_mask",
+    "u_res",
+    "u_maskSize",
+    "u_maskCompensation",
+    "u_brightness",
+    "u_contrast",
+    "u_exposure",
+    "u_gamma",
+    "u_phosphorScale",
+    "u_visibleScanlines",
+    "u_scanlineStrength",
+    "u_includeScanline",
+    "u_beamMinWidth",
+    "u_beamMaxWidth",
+    "u_cornerFocus",
+    "u_misconvergence",
+    "u_curvature",
+    "u_overscan",
+    "u_vignette",
+    "u_damperWires",
+    "u_damperWireStrength",
+    "u_flicker",
+    "u_flickerAmount",
+    "u_isDegaussing",
+    "u_degaussAge",
+    "u_degaussT",
+    "u_degaussWobbleX",
+    "u_degaussWobbleY",
+    "u_degaussMiscBoost",
   ];
   const main = linkProgram(gl, FS_MAIN, mainUniforms);
-  const beam = linkProgram(gl, FS_BEAM, ["u_input","u_res","u_radius"]);
-  const bright = linkProgram(gl, FS_BRIGHT, ["u_input","u_threshold"]);
-  const blur = linkProgram(gl, FS_BLUR, ["u_input","u_res","u_dir","u_radius"]);
-  const bloomComp = linkProgram(gl, FS_BLOOM_COMP, ["u_main","u_bloom","u_strength"]);
-  const interlace = linkProgram(gl, FS_INTERLACE, ["u_current","u_prev","u_res","u_visibleScanlines","u_field"]);
-  const persist = linkProgram(gl, FS_PERSIST, ["u_main","u_prev","u_keep"]);
-  const output = linkProgram(gl, FS_OUTPUT, ["u_input","u_paletteLevels"]);
+  const beam = linkProgram(gl, FS_BEAM, ["u_input", "u_res", "u_radius"]);
+  const bright = linkProgram(gl, FS_BRIGHT, ["u_input", "u_threshold"]);
+  const blur = linkProgram(gl, FS_BLUR, ["u_input", "u_res", "u_dir", "u_radius"]);
+  const bloomComp = linkProgram(gl, FS_BLOOM_COMP, ["u_main", "u_bloom", "u_strength"]);
+  const interlace = linkProgram(gl, FS_INTERLACE, [
+    "u_current",
+    "u_prev",
+    "u_res",
+    "u_visibleScanlines",
+    "u_field",
+  ]);
+  const persist = linkProgram(gl, FS_PERSIST, ["u_main", "u_prev", "u_keep"]);
+  const output = linkProgram(gl, FS_OUTPUT, ["u_input", "u_paletteLevels"]);
 
   // Full-screen quad in clip space.
   const vao = gl.createVertexArray();
@@ -593,11 +624,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   gl.bindVertexArray(vao);
   const buf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),
-    gl.STATIC_DRAW,
-  );
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0);
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   gl.bindVertexArray(null);
@@ -610,7 +637,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 type TexEntry = { tex: WebGLTexture; fbo: WebGLFramebuffer; w: number; h: number };
 const _texPool: Record<string, TexEntry> = {};
 
-const ensureTexture = (gl: WebGL2RenderingContext, name: string, w: number, h: number): TexEntry => {
+const ensureTexture = (
+  gl: WebGL2RenderingContext,
+  name: string,
+  w: number,
+  h: number,
+): TexEntry => {
   let e = _texPool[name];
   if (e && e.w === w && e.h === h) return e;
   if (e) {
@@ -636,7 +668,8 @@ const ensureTexture = (gl: WebGL2RenderingContext, name: string, w: number, h: n
 const drawTo = (
   gl: WebGL2RenderingContext,
   target: TexEntry | null, // null means default framebuffer (gl canvas)
-  w: number, h: number,
+  w: number,
+  h: number,
   prog: Program,
   setUniforms: () => void,
   vao: WebGLVertexArrayObject,
@@ -659,7 +692,8 @@ export const renderRgbStripeGL = (
   const gl = getCtx();
   if (!gl || !_glCanvas) return null;
   const cache = initCache(gl);
-  const W = o.width, H = o.height;
+  const W = o.width,
+    H = o.height;
 
   // Resize the GL canvas (drives default framebuffer size).
   if (_glCanvas.width !== W) _glCanvas.width = W;
@@ -678,7 +712,7 @@ export const renderRgbStripeGL = (
   // Convert RGB f32 to RGBA u8 for upload.
   const maskBytes = new Uint8Array(o.maskW * o.maskH * 4);
   for (let i = 0; i < o.maskW * o.maskH; i++) {
-    maskBytes[i * 4]     = Math.round(o.mask[i * 3]     * 255);
+    maskBytes[i * 4] = Math.round(o.mask[i * 3] * 255);
     maskBytes[i * 4 + 1] = Math.round(o.mask[i * 3 + 1] * 255);
     maskBytes[i * 4 + 2] = Math.round(o.mask[i * 3 + 2] * 255);
     maskBytes[i * 4 + 3] = 255;
@@ -687,7 +721,17 @@ export const renderRgbStripeGL = (
   // Looking at masks: VERTICAL has 1, e where e=1-strength (0..1), STAGGERED
   // has 0.8, 0.9 max — all ≤1, safe to encode as u8.
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, o.maskW, o.maskH, 0, gl.RGBA, gl.UNSIGNED_BYTE, maskBytes);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA8,
+    o.maskW,
+    o.maskH,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    maskBytes,
+  );
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
   // Previous-frame texture (for interlace + persistence). Uploaded with
@@ -698,95 +742,161 @@ export const renderRgbStripeGL = (
   const prevEntry = ensureTexture(gl, "prev", W, H);
   if (hasPrev) {
     gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, o.prevOutput as Uint8ClampedArray);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA8,
+      W,
+      H,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      o.prevOutput as Uint8ClampedArray,
+    );
   }
 
   // Pass 1: main → texA.
   const texA = ensureTexture(gl, "A", W, H);
-  drawTo(gl, texA, W, H, cache.main, () => {
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inputEntry.tex);
-    gl.uniform1i(cache.main.uniforms.u_input, 0);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskEntry.tex);
-    gl.uniform1i(cache.main.uniforms.u_mask, 1);
-    gl.uniform2f(cache.main.uniforms.u_res, W, H);
-    gl.uniform2f(cache.main.uniforms.u_maskSize, o.maskW, o.maskH);
-    gl.uniform3f(cache.main.uniforms.u_maskCompensation, ...o.maskCompensation);
-    gl.uniform1f(cache.main.uniforms.u_brightness, o.brightness);
-    gl.uniform1f(cache.main.uniforms.u_contrast, o.contrast);
-    gl.uniform1f(cache.main.uniforms.u_exposure, o.exposure);
-    gl.uniform1f(cache.main.uniforms.u_gamma, o.gamma);
-    gl.uniform1f(cache.main.uniforms.u_phosphorScale, o.phosphorScale);
-    gl.uniform1f(cache.main.uniforms.u_visibleScanlines, o.visibleScanlines);
-    gl.uniform1f(cache.main.uniforms.u_scanlineStrength, o.scanlineStrength);
-    gl.uniform1i(cache.main.uniforms.u_includeScanline, o.includeScanline ? 1 : 0);
-    gl.uniform1f(cache.main.uniforms.u_beamMinWidth, o.beamMinWidth);
-    gl.uniform1f(cache.main.uniforms.u_beamMaxWidth, o.beamMaxWidth);
-    gl.uniform1f(cache.main.uniforms.u_cornerFocus, o.cornerFocus);
-    gl.uniform1f(cache.main.uniforms.u_misconvergence, o.misconvergence);
-    gl.uniform1f(cache.main.uniforms.u_curvature, o.curvature);
-    gl.uniform1f(cache.main.uniforms.u_overscan, o.overscan);
-    gl.uniform1f(cache.main.uniforms.u_vignette, o.vignette);
-    gl.uniform1i(cache.main.uniforms.u_damperWires, o.damperWires);
-    gl.uniform1f(cache.main.uniforms.u_damperWireStrength, o.damperWireStrength);
-    gl.uniform1f(cache.main.uniforms.u_flicker, o.flicker);
-    gl.uniform1f(cache.main.uniforms.u_flickerAmount, computeFlickerAmount(o));
-    gl.uniform1i(cache.main.uniforms.u_isDegaussing, o.isDegaussing ? 1 : 0);
-    gl.uniform1f(cache.main.uniforms.u_degaussAge, o.degaussAge);
-    gl.uniform1f(cache.main.uniforms.u_degaussT, o.degaussT);
-    gl.uniform1f(cache.main.uniforms.u_degaussWobbleX, o.degaussWobbleX);
-    gl.uniform1f(cache.main.uniforms.u_degaussWobbleY, o.degaussWobbleY);
-    const miscBoost = o.isDegaussing ? o.degaussT * o.degaussT * 50 : 0;
-    gl.uniform1f(cache.main.uniforms.u_degaussMiscBoost, miscBoost);
-  }, cache.vao);
+  drawTo(
+    gl,
+    texA,
+    W,
+    H,
+    cache.main,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, inputEntry.tex);
+      gl.uniform1i(cache.main.uniforms.u_input, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, maskEntry.tex);
+      gl.uniform1i(cache.main.uniforms.u_mask, 1);
+      gl.uniform2f(cache.main.uniforms.u_res, W, H);
+      gl.uniform2f(cache.main.uniforms.u_maskSize, o.maskW, o.maskH);
+      gl.uniform3f(cache.main.uniforms.u_maskCompensation, ...o.maskCompensation);
+      gl.uniform1f(cache.main.uniforms.u_brightness, o.brightness);
+      gl.uniform1f(cache.main.uniforms.u_contrast, o.contrast);
+      gl.uniform1f(cache.main.uniforms.u_exposure, o.exposure);
+      gl.uniform1f(cache.main.uniforms.u_gamma, o.gamma);
+      gl.uniform1f(cache.main.uniforms.u_phosphorScale, o.phosphorScale);
+      gl.uniform1f(cache.main.uniforms.u_visibleScanlines, o.visibleScanlines);
+      gl.uniform1f(cache.main.uniforms.u_scanlineStrength, o.scanlineStrength);
+      gl.uniform1i(cache.main.uniforms.u_includeScanline, o.includeScanline ? 1 : 0);
+      gl.uniform1f(cache.main.uniforms.u_beamMinWidth, o.beamMinWidth);
+      gl.uniform1f(cache.main.uniforms.u_beamMaxWidth, o.beamMaxWidth);
+      gl.uniform1f(cache.main.uniforms.u_cornerFocus, o.cornerFocus);
+      gl.uniform1f(cache.main.uniforms.u_misconvergence, o.misconvergence);
+      gl.uniform1f(cache.main.uniforms.u_curvature, o.curvature);
+      gl.uniform1f(cache.main.uniforms.u_overscan, o.overscan);
+      gl.uniform1f(cache.main.uniforms.u_vignette, o.vignette);
+      gl.uniform1i(cache.main.uniforms.u_damperWires, o.damperWires);
+      gl.uniform1f(cache.main.uniforms.u_damperWireStrength, o.damperWireStrength);
+      gl.uniform1f(cache.main.uniforms.u_flicker, o.flicker);
+      gl.uniform1f(cache.main.uniforms.u_flickerAmount, computeFlickerAmount(o));
+      gl.uniform1i(cache.main.uniforms.u_isDegaussing, o.isDegaussing ? 1 : 0);
+      gl.uniform1f(cache.main.uniforms.u_degaussAge, o.degaussAge);
+      gl.uniform1f(cache.main.uniforms.u_degaussT, o.degaussT);
+      gl.uniform1f(cache.main.uniforms.u_degaussWobbleX, o.degaussWobbleX);
+      gl.uniform1f(cache.main.uniforms.u_degaussWobbleY, o.degaussWobbleY);
+      const miscBoost = o.isDegaussing ? o.degaussT * o.degaussT * 50 : 0;
+      gl.uniform1f(cache.main.uniforms.u_degaussMiscBoost, miscBoost);
+    },
+    cache.vao,
+  );
 
   // Pass 2: beam spread (optional) → texB. If skipped, just keep texA.
   let mainTex = texA;
   if (o.beamSpread > 0) {
     const texB = ensureTexture(gl, "B", W, H);
-    drawTo(gl, texB, W, H, cache.beam, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-      gl.uniform1i(cache.beam.uniforms.u_input, 0);
-      gl.uniform2f(cache.beam.uniforms.u_res, W, H);
-      gl.uniform1i(cache.beam.uniforms.u_radius, Math.min(16, Math.round(o.beamSpread)));
-    }, cache.vao);
+    drawTo(
+      gl,
+      texB,
+      W,
+      H,
+      cache.beam,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+        gl.uniform1i(cache.beam.uniforms.u_input, 0);
+        gl.uniform2f(cache.beam.uniforms.u_res, W, H);
+        gl.uniform1i(cache.beam.uniforms.u_radius, Math.min(16, Math.round(o.beamSpread)));
+      },
+      cache.vao,
+    );
     mainTex = texB;
   }
 
   // Pass 3-5: bloom (optional). Bright extract → blurH → blurV → composite.
   if (o.bloom) {
     const texBright = ensureTexture(gl, "bright", W, H);
-    drawTo(gl, texBright, W, H, cache.bright, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-      gl.uniform1i(cache.bright.uniforms.u_input, 0);
-      gl.uniform1f(cache.bright.uniforms.u_threshold, o.bloomThreshold);
-    }, cache.vao);
+    drawTo(
+      gl,
+      texBright,
+      W,
+      H,
+      cache.bright,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+        gl.uniform1i(cache.bright.uniforms.u_input, 0);
+        gl.uniform1f(cache.bright.uniforms.u_threshold, o.bloomThreshold);
+      },
+      cache.vao,
+    );
 
     const texBlurH = ensureTexture(gl, "blurH", W, H);
-    drawTo(gl, texBlurH, W, H, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBright.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-      gl.uniform2f(cache.blur.uniforms.u_dir, 1 / W, 0);
-      gl.uniform1i(cache.blur.uniforms.u_radius, Math.min(32, o.bloomRadius));
-    }, cache.vao);
+    drawTo(
+      gl,
+      texBlurH,
+      W,
+      H,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texBright.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+        gl.uniform2f(cache.blur.uniforms.u_dir, 1 / W, 0);
+        gl.uniform1i(cache.blur.uniforms.u_radius, Math.min(32, o.bloomRadius));
+      },
+      cache.vao,
+    );
 
     const texBlurV = ensureTexture(gl, "blurV", W, H);
-    drawTo(gl, texBlurV, W, H, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBlurH.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-      gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / H);
-      gl.uniform1i(cache.blur.uniforms.u_radius, Math.min(32, o.bloomRadius));
-    }, cache.vao);
+    drawTo(
+      gl,
+      texBlurV,
+      W,
+      H,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texBlurH.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+        gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / H);
+        gl.uniform1i(cache.blur.uniforms.u_radius, Math.min(32, o.bloomRadius));
+      },
+      cache.vao,
+    );
 
     const texBloomed = ensureTexture(gl, "bloomed", W, H);
-    drawTo(gl, texBloomed, W, H, cache.bloomComp, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-      gl.uniform1i(cache.bloomComp.uniforms.u_main, 0);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texBlurV.tex);
-      gl.uniform1i(cache.bloomComp.uniforms.u_bloom, 1);
-      gl.uniform1f(cache.bloomComp.uniforms.u_strength, o.bloomStrength);
-    }, cache.vao);
+    drawTo(
+      gl,
+      texBloomed,
+      W,
+      H,
+      cache.bloomComp,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+        gl.uniform1i(cache.bloomComp.uniforms.u_main, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, texBlurV.tex);
+        gl.uniform1i(cache.bloomComp.uniforms.u_bloom, 1);
+        gl.uniform1f(cache.bloomComp.uniforms.u_strength, o.bloomStrength);
+      },
+      cache.vao,
+    );
     mainTex = texBloomed;
   }
 
@@ -794,37 +904,66 @@ export const renderRgbStripeGL = (
   // rendered opposite field from history. Static images remain fully woven.
   if (o.interlace && hasPrev) {
     const texInterlaced = ensureTexture(gl, "interlaced", W, H);
-    drawTo(gl, texInterlaced, W, H, cache.interlace, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-      gl.uniform1i(cache.interlace.uniforms.u_current, 0);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
-      gl.uniform1i(cache.interlace.uniforms.u_prev, 1);
-      gl.uniform2f(cache.interlace.uniforms.u_res, W, H);
-      gl.uniform1f(cache.interlace.uniforms.u_visibleScanlines, o.visibleScanlines);
-      gl.uniform1i(cache.interlace.uniforms.u_field, o.interlaceField);
-    }, cache.vao);
+    drawTo(
+      gl,
+      texInterlaced,
+      W,
+      H,
+      cache.interlace,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+        gl.uniform1i(cache.interlace.uniforms.u_current, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
+        gl.uniform1i(cache.interlace.uniforms.u_prev, 1);
+        gl.uniform2f(cache.interlace.uniforms.u_res, W, H);
+        gl.uniform1f(cache.interlace.uniforms.u_visibleScanlines, o.visibleScanlines);
+        gl.uniform1i(cache.interlace.uniforms.u_field, o.interlaceField);
+      },
+      cache.vao,
+    );
     mainTex = texInterlaced;
   }
 
   // Pass N: persistence (optional), still in emitted-light space.
   if (o.persistence > 0 && hasPrev) {
     const texPersist = ensureTexture(gl, "persisted", W, H);
-    drawTo(gl, texPersist, W, H, cache.persist, () => {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-      gl.uniform1i(cache.persist.uniforms.u_main, 0);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
-      gl.uniform1i(cache.persist.uniforms.u_prev, 1);
-      gl.uniform1f(cache.persist.uniforms.u_keep, o.persistence);
-    }, cache.vao);
+    drawTo(
+      gl,
+      texPersist,
+      W,
+      H,
+      cache.persist,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+        gl.uniform1i(cache.persist.uniforms.u_main, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, prevEntry.tex);
+        gl.uniform1i(cache.persist.uniforms.u_prev, 1);
+        gl.uniform1f(cache.persist.uniforms.u_keep, o.persistence);
+      },
+      cache.vao,
+    );
     mainTex = texPersist;
   }
 
   // Encode linear emitted light for the browser and quantize only afterward.
-  drawTo(gl, null, W, H, cache.output, () => {
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
-    gl.uniform1i(cache.output.uniforms.u_input, 0);
-    gl.uniform1i(cache.output.uniforms.u_paletteLevels, o.paletteLevels);
-  }, cache.vao);
+  drawTo(
+    gl,
+    null,
+    W,
+    H,
+    cache.output,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, mainTex.tex);
+      gl.uniform1i(cache.output.uniforms.u_input, 0);
+      gl.uniform1i(cache.output.uniforms.u_paletteLevels, o.paletteLevels);
+    },
+    cache.vao,
+  );
 
   // Build the output 2D canvas via drawImage — the browser handles the
   // framebuffer flip so the result is correctly oriented relative to the
@@ -851,7 +990,9 @@ const computeFlickerAmount = (o: RenderOpts): number => {
 // Identify whether the supplied palette is the default `nearest` palette
 // (the only one supported by the shader path). For anything else, the
 // caller should fall back to the JS pipeline.
-export const paletteShaderLevels = (palette: { name?: string; options?: { levels?: number; colors?: number[][] } } | undefined): number | null => {
+export const paletteShaderLevels = (
+  palette: { name?: string; options?: { levels?: number; colors?: number[][] } } | undefined,
+): number | null => {
   if (!palette) return 256;
   if (palette.name !== nearestPalette.name) return null;
   if (palette.options?.colors) return null;

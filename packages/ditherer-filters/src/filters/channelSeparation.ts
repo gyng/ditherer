@@ -37,7 +37,7 @@ export const optionTypes = {
   aOffsetX: { type: RANGE, range: [0, 100], default: 0, desc: "Alpha channel horizontal offset" },
   aOffsetY: { type: RANGE, range: [0, 100], default: 0, desc: "Alpha channel vertical offset" },
   aOpacity: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Alpha channel opacity" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -53,7 +53,7 @@ export const defaults = {
   aOffsetX: optionTypes.aOffsetX.default,
   aOffsetY: optionTypes.aOffsetY.default,
   aOpacity: optionTypes.aOpacity.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const CS_FS = `#version 300 es
@@ -100,16 +100,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     cs: linkProgram(gl, CS_FS, [
-      "u_source", "u_res", "u_rOff", "u_gOff", "u_bOff", "u_aOff", "u_opacity",
+      "u_source",
+      "u_res",
+      "u_rOff",
+      "u_gOff",
+      "u_bOff",
+      "u_aOff",
+      "u_opacity",
     ] as const),
   };
   return _cache;
 };
 
-const channelSeparation = (
-  input: any,
-  options = defaults
-) => {
+const channelSeparation = (input: any, options = defaults) => {
   const {
     rOffsetX,
     rOffsetY,
@@ -123,9 +126,10 @@ const channelSeparation = (
     aOffsetX,
     aOffsetY,
     aOpacity,
-    palette
+    palette,
   } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -137,24 +141,36 @@ const channelSeparation = (
       const sourceTex = ensureTexture(gl, "channelSeparation:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.cs, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.cs.uniforms.u_source, 0);
-        gl.uniform2f(cache.cs.uniforms.u_res, W, H);
-        gl.uniform2f(cache.cs.uniforms.u_rOff, rOffsetX, rOffsetY);
-        gl.uniform2f(cache.cs.uniforms.u_gOff, gOffsetX, gOffsetY);
-        gl.uniform2f(cache.cs.uniforms.u_bOff, bOffsetX, bOffsetY);
-        gl.uniform2f(cache.cs.uniforms.u_aOff, aOffsetX, aOffsetY);
-        gl.uniform4f(cache.cs.uniforms.u_opacity, rOpacity, gOpacity, bOpacity, aOpacity);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.cs,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.cs.uniforms.u_source, 0);
+          gl.uniform2f(cache.cs.uniforms.u_res, W, H);
+          gl.uniform2f(cache.cs.uniforms.u_rOff, rOffsetX, rOffsetY);
+          gl.uniform2f(cache.cs.uniforms.u_gOff, gOffsetX, gOffsetY);
+          gl.uniform2f(cache.cs.uniforms.u_bOff, bOffsetX, bOffsetY);
+          gl.uniform2f(cache.cs.uniforms.u_aOff, aOffsetX, aOffsetY);
+          gl.uniform4f(cache.cs.uniforms.u_opacity, rOpacity, gOpacity, bOpacity, aOpacity);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Channel separation", "WebGL2", identity ? "direct" : "direct+palettePass");
+          logFilterBackend(
+            "Channel separation",
+            "WebGL2",
+            identity ? "direct" : "direct+palettePass",
+          );
           return out;
         }
       }
@@ -201,7 +217,7 @@ const channelSeparation = (
         color[0] * rOpacity,
         color[1] * gOpacity,
         color[2] * bOpacity,
-        color[3] * aOpacity
+        color[3] * aOpacity,
       );
     }
   }
@@ -215,5 +231,5 @@ export default defineFilter({
   func: channelSeparation,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
 });

@@ -20,7 +20,10 @@ let root: Root;
 
 const setValue = (element: HTMLInputElement | HTMLSelectElement, value: string) => {
   act(() => {
-    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")?.set?.call(element, value);
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")?.set?.call(
+      element,
+      value,
+    );
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
   });
@@ -31,15 +34,21 @@ const click = (element: Element | null) => {
   act(() => element!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 };
 
-const button = (label: string) => Array.from(container.querySelectorAll("button"))
-  .find((entry) => entry.textContent?.includes(label)) ?? null;
+const button = (label: string) =>
+  Array.from(container.querySelectorAll("button")).find((entry) =>
+    entry.textContent?.includes(label),
+  ) ?? null;
 
-const callbackRecord = () => new Proxy<Record<string, ReturnType<typeof vi.fn>>>({}, {
-  get(target, key: string) {
-    target[key] ??= vi.fn();
-    return target[key];
-  },
-});
+const callbackRecord = () =>
+  new Proxy<Record<string, ReturnType<typeof vi.fn>>>(
+    {},
+    {
+      get(target, key: string) {
+        target[key] ??= vi.fn();
+        return target[key];
+      },
+    },
+  );
 
 beforeEach(() => {
   container = document.createElement("div");
@@ -56,26 +65,33 @@ afterEach(() => {
 describe("SaveAs panels", () => {
   it("routes image format, quality, resolution, and clipboard actions", () => {
     const cb = callbackRecord();
-    const render = (overrides: Record<string, unknown> = {}) => act(() => root.render(<ImageTab {...({
-      format: "png",
-      quality: 0.9,
-      resolution: "1",
-      customMultiplier: 2,
-      canvasWidth: 100,
-      canvasHeight: 50,
-      exportWidth: 100,
-      exportHeight: 50,
-      largeExport: false,
-      canvasReady: true,
-      copySuccess: false,
-      setFormat: cb.setFormat,
-      setQuality: cb.setQuality,
-      setResolution: cb.setResolution,
-      setCustomMultiplier: cb.setCustomMultiplier,
-      onSave: cb.onSave,
-      onCopy: cb.onCopy,
-      ...overrides,
-    } as never)} />));
+    const render = (overrides: Record<string, unknown> = {}) =>
+      act(() =>
+        root.render(
+          <ImageTab
+            {...({
+              format: "png",
+              quality: 0.9,
+              resolution: "1",
+              customMultiplier: 2,
+              canvasWidth: 100,
+              canvasHeight: 50,
+              exportWidth: 100,
+              exportHeight: 50,
+              largeExport: false,
+              canvasReady: true,
+              copySuccess: false,
+              setFormat: cb.setFormat,
+              setQuality: cb.setQuality,
+              setResolution: cb.setResolution,
+              setCustomMultiplier: cb.setCustomMultiplier,
+              onSave: cb.onSave,
+              onCopy: cb.onCopy,
+              ...overrides,
+            } as never)}
+          />,
+        ),
+      );
     render();
     expect(container.textContent).toContain("100 x 50 → 100 x 50");
     expect(container.textContent).not.toContain("Quality");
@@ -94,7 +110,9 @@ describe("SaveAs panels", () => {
     const quality = container.querySelector<HTMLInputElement>('input[type="range"]')!;
     setValue(quality, "0.5");
     expect(cb.setQuality).toHaveBeenCalledWith(0.5);
-    const custom = container.querySelector<HTMLInputElement>('input[aria-label="Custom resolution multiplier"]')!;
+    const custom = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Custom resolution multiplier"]',
+    )!;
     setValue(custom, "99");
     expect(cb.setCustomMultiplier).toHaveBeenCalledWith(8);
     setValue(custom, "bad");
@@ -132,17 +150,30 @@ describe("SaveAs panels", () => {
       contactSheetUrl: null,
       progress: null,
       progressValue: null,
-      ...Object.fromEntries([
-        "onSetFrames", "onSetLoopCaptureMode", "onSetLoopAutoFps", "onSetGifFps",
-        "onSetContactColumns", "onSetGifPaletteSource", "onSetLoopExportScope",
-        "onSetLoopRangeStart", "onSetLoopRangeEnd", "onAbortExport", "onVideoExport",
-        "onSaveGif", "onCopyGif", "onSaveSequence", "onCopySequence",
-        "onSaveContactSheet", "onCopyContactSheet",
-      ].map((name) => [name, cb[name]])),
+      ...Object.fromEntries(
+        [
+          "onSetFrames",
+          "onSetLoopCaptureMode",
+          "onSetLoopAutoFps",
+          "onSetGifFps",
+          "onSetContactColumns",
+          "onSetGifPaletteSource",
+          "onSetLoopExportScope",
+          "onSetLoopRangeStart",
+          "onSetLoopRangeEnd",
+          "onAbortExport",
+          "onVideoExport",
+          "onSaveGif",
+          "onCopyGif",
+          "onSaveSequence",
+          "onCopySequence",
+          "onSaveContactSheet",
+          "onCopyContactSheet",
+        ].map((name) => [name, cb[name]]),
+      ),
     };
-    const render = (overrides: Record<string, unknown> = {}) => act(() => root.render(
-      <FrameExportPanel {...({ ...base, ...overrides } as never)} />,
-    ));
+    const render = (overrides: Record<string, unknown> = {}) =>
+      act(() => root.render(<FrameExportPanel {...({ ...base, ...overrides } as never)} />));
 
     const descriptions = new Set<string>();
     for (const videoFormat of ["gif", "sequence", "contact"]) {
@@ -172,15 +203,20 @@ describe("SaveAs panels", () => {
     });
     expect(container.textContent).toContain("+5 more");
     expect(container.textContent).toContain("12 frames");
-    expect(container.querySelector<HTMLImageElement>('img[alt="GIF export preview"]')?.src).toContain("blob:gif");
-    expect(container.querySelector<HTMLElement>('[aria-hidden="true"] div')?.getAttribute("style")).toContain("100%");
+    expect(
+      container.querySelector<HTMLImageElement>('img[alt="GIF export preview"]')?.src,
+    ).toContain("blob:gif");
+    expect(
+      container.querySelector<HTMLElement>('[aria-hidden="true"] div')?.getAttribute("style"),
+    ).toContain("100%");
 
     const selects = container.querySelectorAll("select");
     setValue(selects[0], "realtime");
     setValue(selects[1], "auto");
     expect(cb.onSetLoopCaptureMode).toHaveBeenCalledWith("realtime");
     expect(cb.onSetGifPaletteSource).toHaveBeenCalledWith("auto");
-    for (const radio of container.querySelectorAll<HTMLInputElement>('input[type="radio"]')) click(radio);
+    for (const radio of container.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
+      click(radio);
     expect(cb.onSetLoopExportScope).toHaveBeenCalledWith("loop");
     render({ loopExportScope: "loop" });
     click(container.querySelector('input[name="loopExportRange"][value="range"]'));
@@ -217,7 +253,12 @@ describe("SaveAs panels", () => {
     click(button("Stop"));
     expect(cb.onAbortExport).toHaveBeenCalled();
 
-    render({ hasSourceVideo: false, videoFormat: "contact", contactSheetBlob: new Blob(), contactSheetUrl: "blob:sheet" });
+    render({
+      hasSourceVideo: false,
+      videoFormat: "contact",
+      contactSheetBlob: new Blob(),
+      contactSheetUrl: "blob:sheet",
+    });
     expect(container.textContent).toContain("Render Contact Sheet");
     expect(container.textContent).toContain("Contact sheet PNG ready");
     const contactRanges = container.querySelectorAll<HTMLInputElement>('input[type="range"]');
@@ -267,23 +308,44 @@ describe("SaveAs panels", () => {
       progress: null,
       progressValue: null,
       videoPreviewRef: { current: null },
-      ...Object.fromEntries([
-        "onSetVideoLoopMode", "onSetIncludeVideoAudio", "onSetSelectedRecFormat",
-        "onSetAutoRecordFps", "onSetRecordFps", "onSetReliableMaxFps",
-        "onSetAutoBitrate", "onSetBitrate", "onSetReliableSettleFrames",
-        "onSetReliableStrictValidation", "onSetReliableScope", "onSetReliableRangeStart",
-        "onSetReliableRangeEnd", "onRecord", "onRecordLoop", "onSaveVideo", "onCopyVideo",
-      ].map((name) => [name, cb[name]])),
+      ...Object.fromEntries(
+        [
+          "onSetVideoLoopMode",
+          "onSetIncludeVideoAudio",
+          "onSetSelectedRecFormat",
+          "onSetAutoRecordFps",
+          "onSetRecordFps",
+          "onSetReliableMaxFps",
+          "onSetAutoBitrate",
+          "onSetBitrate",
+          "onSetReliableSettleFrames",
+          "onSetReliableStrictValidation",
+          "onSetReliableScope",
+          "onSetReliableRangeStart",
+          "onSetReliableRangeEnd",
+          "onRecord",
+          "onRecordLoop",
+          "onSaveVideo",
+          "onCopyVideo",
+        ].map((name) => [name, cb[name]]),
+      ),
     };
-    const render = (overrides: Record<string, unknown> = {}) => act(() => root.render(
-      <RecordingPanel {...({ ...base, ...overrides } as never)} />,
-    ));
+    const render = (overrides: Record<string, unknown> = {}) =>
+      act(() => root.render(<RecordingPanel {...({ ...base, ...overrides } as never)} />));
 
     for (const mode of ["realtime", "offline", "webcodecs"]) {
-      render({ videoLoopMode: mode, reliableVideoSupport: { supported: true, audio: true }, reliableStrictValidation: mode === "offline" });
-      expect(container.textContent).toContain(mode === "realtime" ? "fastest" : mode === "offline" ? "Browser" : "WebCodecs");
+      render({
+        videoLoopMode: mode,
+        reliableVideoSupport: { supported: true, audio: true },
+        reliableStrictValidation: mode === "offline",
+      });
+      expect(container.textContent).toContain(
+        mode === "realtime" ? "fastest" : mode === "offline" ? "Browser" : "WebCodecs",
+      );
     }
-    render({ reliableVideoSupport: { supported: false, reason: "Codec unavailable", audio: false } });
+    render({
+      reliableVideoSupport: { supported: false, reason: "Codec unavailable", audio: false },
+    });
     expect(container.textContent).toContain("Codec unavailable");
 
     render();
@@ -296,12 +358,14 @@ describe("SaveAs panels", () => {
     setValue(selects[1], "WebM");
     expect(cb.onSetVideoLoopMode).toHaveBeenCalledWith("realtime");
     expect(cb.onSetSelectedRecFormat).toHaveBeenCalledWith("WebM");
-    for (const checkbox of container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) click(checkbox);
+    for (const checkbox of container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
+      click(checkbox);
     expect(cb.onSetIncludeVideoAudio).toHaveBeenCalled();
     expect(cb.onSetAutoRecordFps).toHaveBeenCalled();
     expect(cb.onSetAutoBitrate).toHaveBeenCalled();
     expect(cb.onSetReliableStrictValidation).toHaveBeenCalled();
-    for (const radio of container.querySelectorAll<HTMLInputElement>('input[type="radio"]')) click(radio);
+    for (const radio of container.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
+      click(radio);
     expect(cb.onSetReliableScope).toHaveBeenCalled();
     for (const range of container.querySelectorAll<HTMLInputElement>('input[type="range"]')) {
       setValue(range, range.value === "1" ? "2" : "1");
@@ -319,7 +383,14 @@ describe("SaveAs panels", () => {
     expect(cb.onSaveVideo).toHaveBeenCalled();
     expect(cb.onCopyVideo).toHaveBeenCalled();
 
-    render({ hasSourceVideo: false, videoLoopMode: "realtime", autoRecordFps: false, autoBitrate: true, capturing: true, recordedUrl: "blob:recording" });
+    render({
+      hasSourceVideo: false,
+      videoLoopMode: "realtime",
+      autoRecordFps: false,
+      autoBitrate: true,
+      capturing: true,
+      recordedUrl: "blob:recording",
+    });
     expect(container.textContent).toContain("■ Stop");
     expect(container.querySelector("video")).not.toBeNull();
     click(button("Stop"));
@@ -338,15 +409,33 @@ describe("SaveAs panels", () => {
       capturing: false,
       exporting: false,
     };
-    const frameExportPanel = { hasSourceVideo: false, frames: 1, loopCaptureMode: "offline", loopAutoFps: true, gifFps: 10, contactColumns: 1 };
-    const render = (format: string) => act(() => root.render(<VideoTab {...({
-      videoVolume: 0,
-      videoFormat: format,
-      videoFormatOptions: [{ value: "recording" }, { value: "gif" }, { name: "contact sheet", value: "contact" }],
-      onSetVideoFormat: cb.onSetVideoFormat,
-      recordingPanel,
-      frameExportPanel,
-    } as never)} />));
+    const frameExportPanel = {
+      hasSourceVideo: false,
+      frames: 1,
+      loopCaptureMode: "offline",
+      loopAutoFps: true,
+      gifFps: 10,
+      contactColumns: 1,
+    };
+    const render = (format: string) =>
+      act(() =>
+        root.render(
+          <VideoTab
+            {...({
+              videoVolume: 0,
+              videoFormat: format,
+              videoFormatOptions: [
+                { value: "recording" },
+                { value: "gif" },
+                { name: "contact sheet", value: "contact" },
+              ],
+              onSetVideoFormat: cb.onSetVideoFormat,
+              recordingPanel,
+              frameExportPanel,
+            } as never)}
+          />,
+        ),
+      );
     render("recording");
     expect(container.textContent).toContain("Record");
     render("gif");

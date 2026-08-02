@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -180,10 +187,20 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     vhs: linkProgram(gl, VHS_FS, [
-      "u_source", "u_rowState", "u_prev", "u_res",
-      "u_vJitter", "u_chromaOffX", "u_chromaOffY",
-      "u_chromaBandwidth", "u_saturation", "u_brightness",
-      "u_ghosting", "u_hasPrev", "u_tapeNoise", "u_frameIndex",
+      "u_source",
+      "u_rowState",
+      "u_prev",
+      "u_res",
+      "u_vJitter",
+      "u_chromaOffX",
+      "u_chromaOffY",
+      "u_chromaBandwidth",
+      "u_saturation",
+      "u_brightness",
+      "u_ghosting",
+      "u_hasPrev",
+      "u_tapeNoise",
+      "u_frameIndex",
     ] as const),
     blur: linkProgram(gl, BLUR_FS, ["u_input", "u_res"] as const),
   };
@@ -233,8 +250,14 @@ const uploadPrevOutputTexture = (
   const prevUpload = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texImage2D(
-    gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,
-    gl.RGBA, gl.UNSIGNED_BYTE,
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    width,
+    height,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
     new Uint8Array(prevOutput.buffer, prevOutput.byteOffset, prevOutput.byteLength),
   );
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevUpload);
@@ -250,7 +273,7 @@ export const vhsGLAvailable = (): boolean => glAvailable();
 export type VHSGLParams = {
   rowShift: Int32Array;
   rowNoise: Float32Array;
-  staticBar: Uint8Array;      // 1 per row in a noise bar
+  staticBar: Uint8Array; // 1 per row in a noise bar
   dropoutPacked: Float32Array;
   vJitter: number;
   chromaOffX: number;
@@ -267,7 +290,8 @@ export type VHSGLParams = {
 
 export const renderVHSGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   params: VHSGLParams,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
@@ -298,36 +322,52 @@ export const renderVHSGL = (
   // apply the blur into the final GL canvas, otherwise straight to canvas.
   const intermediate = params.doBlur ? ensureTexture(gl, "vhs:intermediate", width, height) : null;
 
-  drawPass(gl, intermediate, width, height, cache.vhs, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.vhs.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, rowStateTex);
-    gl.uniform1i(cache.vhs.uniforms.u_rowState, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
-    gl.uniform1i(cache.vhs.uniforms.u_prev, 2);
-    gl.uniform2f(cache.vhs.uniforms.u_res, width, height);
-    gl.uniform1f(cache.vhs.uniforms.u_vJitter, params.vJitter);
-    gl.uniform1f(cache.vhs.uniforms.u_chromaOffX, params.chromaOffX);
-    gl.uniform1f(cache.vhs.uniforms.u_chromaOffY, params.chromaOffY);
-    gl.uniform1f(cache.vhs.uniforms.u_chromaBandwidth, params.chromaBandwidth);
-    gl.uniform1f(cache.vhs.uniforms.u_saturation, params.saturation);
-    gl.uniform1f(cache.vhs.uniforms.u_brightness, params.brightness);
-    gl.uniform1f(cache.vhs.uniforms.u_ghosting, params.ghosting);
-    gl.uniform1i(cache.vhs.uniforms.u_hasPrev, prevTex ? 1 : 0);
-    gl.uniform1f(cache.vhs.uniforms.u_tapeNoise, params.tapeNoise);
-    gl.uniform1f(cache.vhs.uniforms.u_frameIndex, params.frameIndex);
-  }, vao);
+  drawPass(
+    gl,
+    intermediate,
+    width,
+    height,
+    cache.vhs,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.vhs.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, rowStateTex);
+      gl.uniform1i(cache.vhs.uniforms.u_rowState, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, prevTex);
+      gl.uniform1i(cache.vhs.uniforms.u_prev, 2);
+      gl.uniform2f(cache.vhs.uniforms.u_res, width, height);
+      gl.uniform1f(cache.vhs.uniforms.u_vJitter, params.vJitter);
+      gl.uniform1f(cache.vhs.uniforms.u_chromaOffX, params.chromaOffX);
+      gl.uniform1f(cache.vhs.uniforms.u_chromaOffY, params.chromaOffY);
+      gl.uniform1f(cache.vhs.uniforms.u_chromaBandwidth, params.chromaBandwidth);
+      gl.uniform1f(cache.vhs.uniforms.u_saturation, params.saturation);
+      gl.uniform1f(cache.vhs.uniforms.u_brightness, params.brightness);
+      gl.uniform1f(cache.vhs.uniforms.u_ghosting, params.ghosting);
+      gl.uniform1i(cache.vhs.uniforms.u_hasPrev, prevTex ? 1 : 0);
+      gl.uniform1f(cache.vhs.uniforms.u_tapeNoise, params.tapeNoise);
+      gl.uniform1f(cache.vhs.uniforms.u_frameIndex, params.frameIndex);
+    },
+    vao,
+  );
 
   if (params.doBlur && intermediate) {
-    drawPass(gl, null, width, height, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, intermediate.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, width, height);
-    }, vao);
+    drawPass(
+      gl,
+      null,
+      width,
+      height,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, intermediate.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, width, height);
+      },
+      vao,
+    );
   }
 
   const result = readoutToCanvas(canvas, width, height);

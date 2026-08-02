@@ -31,15 +31,15 @@ The filter itself runs synchronously in the reducer, blocking the main thread.
 
 ### Per-frame allocations (Floyd-Steinberg at 720p, 1280×720 = 921,600 pixels)
 
-| Allocation | Type | Size |
-|---|---|---|
-| `cloneCanvas()` | HTMLCanvasElement | — |
-| `getImageData()` | Uint8ClampedArray | ~3.5 MB |
-| `srgbBufToLinearFloat()` (linear path) | Float32Array | ~14 MB |
-| `Array.from(linearBuf)` | JS Array | ~28 MB (boxed) |
-| per-pixel `[errBuf[i], …]` array | JS Array | 921,600 × alloc |
-| per-pixel `[pixel[0]-color[0], …]` error array | JS Array | 921,600 × alloc |
-| `new ImageData(buf, w, h)` | ImageData | negligible |
+| Allocation                                     | Type              | Size            |
+| ---------------------------------------------- | ----------------- | --------------- |
+| `cloneCanvas()`                                | HTMLCanvasElement | —               |
+| `getImageData()`                               | Uint8ClampedArray | ~3.5 MB         |
+| `srgbBufToLinearFloat()` (linear path)         | Float32Array      | ~14 MB          |
+| `Array.from(linearBuf)`                        | JS Array          | ~28 MB (boxed)  |
+| per-pixel `[errBuf[i], …]` array               | JS Array          | 921,600 × alloc |
+| per-pixel `[pixel[0]-color[0], …]` error array | JS Array          | 921,600 × alloc |
+| `new ImageData(buf, w, h)`                     | ImageData         | negligible      |
 
 The JS `Array.from(linearBuf)` in `errorDiffusingFilterFactory.ts:49-50` converts a typed Float32Array into a boxed JS Array. This is the largest single allocation and also the slowest to GC.
 
@@ -114,10 +114,10 @@ With `?perf` active, open Chrome DevTools → Memory → Allocation instrumentat
 ```ts
 // FilterContext.tsx — loadFrame(), new version
 const loadFrame = () => {
-  if (!video.paused && video.src !== '') {
+  if (!video.paused && video.src !== "") {
     ctx.drawImage(video, 0, 0);
     requestAnimationFrame(loadFrame);
-    dispatch({ type: 'LOAD_IMAGE', image: canvas, time: video.currentTime, video, dispatch });
+    dispatch({ type: "LOAD_IMAGE", image: canvas, time: video.currentTime, video, dispatch });
   }
 };
 ```
@@ -133,21 +133,23 @@ const loadFrame = () => {
 **File:** `src/filters/errorDiffusingFilterFactory.ts:48-50`
 
 **Current:**
+
 ```ts
 const errBuf = useLinear
-  ? Array.from(linearBuf)  // JS boxed Array — 28 MB, slow GC
-  : Array.from(buf);       // JS boxed Array — 14 MB
+  ? Array.from(linearBuf) // JS boxed Array — 28 MB, slow GC
+  : Array.from(buf); // JS boxed Array — 14 MB
 ```
 
 **Fix:** Use typed arrays throughout.
 
 ```ts
 const errBuf = useLinear
-  ? new Float32Array(linearBuf)  // typed copy — 14 MB, fast, no GC boxing
+  ? new Float32Array(linearBuf) // typed copy — 14 MB, fast, no GC boxing
   : new Float32Array(buf.length); // for sRGB path, keep as float for accumulation
 ```
 
 For the sRGB non-linear path, also replace `Array.from(buf)` with a typed copy:
+
 ```ts
 : Float32Array.from(buf);  // or just new Float32Array(buf) which copies
 ```
@@ -163,10 +165,11 @@ This halves the allocation size and eliminates boxed-array GC overhead.
 **File:** `src/filters/errorDiffusingFilterFactory.ts:59-61`
 
 **Current:**
+
 ```ts
-const pixel = [errBuf[i], errBuf[i+1], errBuf[i+2], errBuf[i+3]];
+const pixel = [errBuf[i], errBuf[i + 1], errBuf[i + 2], errBuf[i + 3]];
 const color = paletteGetColor(palette, pixel, palette.options, true);
-const error = [pixel[0]-color[0], pixel[1]-color[1], pixel[2]-color[2], 0];
+const error = [pixel[0] - color[0], pixel[1] - color[1], pixel[2] - color[2], 0];
 ```
 
 **Fix:** 4 scalar locals, no allocations. Requires `paletteGetColor` to either accept scalars or return a reusable typed buffer. Simplest approach: pass array but use a module-level scratch buffer:
@@ -177,8 +180,10 @@ const _pixelScratch = new Float32Array(4);
 const _colorScratch = new Float32Array(4);
 
 // inside loop
-_pixelScratch[0] = errBuf[i]; _pixelScratch[1] = errBuf[i+1];
-_pixelScratch[2] = errBuf[i+2]; _pixelScratch[3] = errBuf[i+3];
+_pixelScratch[0] = errBuf[i];
+_pixelScratch[1] = errBuf[i + 1];
+_pixelScratch[2] = errBuf[i + 2];
+_pixelScratch[3] = errBuf[i + 3];
 // paletteGetColor needs to write into _colorScratch rather than allocating
 const er = _pixelScratch[0] - _colorScratch[0];
 const eg = _pixelScratch[1] - _colorScratch[1];
@@ -195,16 +200,23 @@ const eb = _pixelScratch[2] - _colorScratch[2];
 Replace `rgba()`, `sub()`, `scale()` calls with scalar operations. `addBufferPixel` already writes in-place; the issue is `scale(error, weight)` allocates a temporary array per kernel cell.
 
 Inline as:
+
 ```ts
-const er = errBuf[i] - color[0], eg = errBuf[i+1] - color[1], eb = errBuf[i+2] - color[2];
+const er = errBuf[i] - color[0],
+  eg = errBuf[i + 1] - color[1],
+  eb = errBuf[i + 2] - color[2];
 for (let h = 0; h < kernelHeight; h++) {
   for (let w = 0; w < kernelWidth; w++) {
     const weight = errorMatrix.kernel[h][w];
     if (weight != null) {
-      const ti = getBufferIndex(x + w + errorMatrix.offset[0], y + h + errorMatrix.offset[1], output.width);
-      errBuf[ti]   += er * weight;
-      errBuf[ti+1] += eg * weight;
-      errBuf[ti+2] += eb * weight;
+      const ti = getBufferIndex(
+        x + w + errorMatrix.offset[0],
+        y + h + errorMatrix.offset[1],
+        output.width,
+      );
+      errBuf[ti] += er * weight;
+      errBuf[ti + 1] += eg * weight;
+      errBuf[ti + 2] += eb * weight;
     }
   }
 }
@@ -235,6 +247,7 @@ fillBufferPixel(outFloat, i, cr, cg, cb, floatBuf[i+3]);
 ## Phase 5 — Buffer Pooling
 
 After Phases 3–4, the remaining large allocations per frame are:
+
 - `getImageData()` — Uint8ClampedArray (unavoidable; browser API)
 - `new Float32Array(buf.length)` for linear/error buffers (poolable)
 - `cloneCanvas()` output canvas (poolable)
@@ -260,8 +273,9 @@ export const releaseFloat = (buf: Float32Array) => {
 };
 
 export const acquireCanvas = (w: number, h: number): HTMLCanvasElement => {
-  const c = canvasPool.pop() ?? document.createElement('canvas');
-  c.width = w; c.height = h;
+  const c = canvasPool.pop() ?? document.createElement("canvas");
+  c.width = w;
+  c.height = h;
   return c;
 };
 
@@ -294,10 +308,12 @@ loadFrame()
 ```
 
 **Files to create:**
+
 - `src/workers/filterWorker.ts` — receives message, imports filter by name, runs it, posts result
 - `src/context/workerBridge.ts` — wraps Worker, manages pending requests, exposes `applyFilter(imageData, filterName, opts): Promise<ImageData>`
 
 **Constraints:**
+
 - Worker cannot access the DOM — filters must accept `ImageData` directly rather than `HTMLCanvasElement`. This requires a filter API shim in the worker.
 - WASM module (`rgba2laba`) must be re-initialised inside the worker via `?init` import.
 - The `canvas.toBlob` fix (Phase 2) is a prerequisite — otherwise frame dispatch is already async and worker benefits are harder to measure.
@@ -308,21 +324,21 @@ loadFrame()
 
 ## Success Criteria
 
-| Metric | How to measure | Baseline (2026-04-10) |
-|---|---|---|
+| Metric                           | How to measure | Baseline (2026-04-10)        |
+| -------------------------------- | -------------- | ---------------------------- |
 | Floyd-Steinberg 640×480 ms/frame | `vitest bench` | ~48ms (sRGB), ~48ms (linear) |
-| Convolve 3×3 640×480 ms/frame | `vitest bench` | ~29ms (sRGB), ~58ms (linear) |
-| Ordered Bayer 640×480 ms/frame | `vitest bench` | ~77ms (sRGB) |
+| Convolve 3×3 640×480 ms/frame    | `vitest bench` | ~29ms (sRGB), ~58ms (linear) |
+| Ordered Bayer 640×480 ms/frame   | `vitest bench` | ~77ms (sRGB)                 |
 
 ---
 
 ## Implementation Order
 
-| Phase | Status | Notes |
-|---|---|---|
-| **1 — Harness** | ✅ Done | `test/perf/filterBench.bench.ts`, `colorDistanceBench.bench.ts`, always-on perf stats in sidebar |
-| **2 — toBlob** | ✅ Done | Video frames dispatch canvas directly |
-| **3 — Float32 errBuf** | ✅ Done | `errBuf` is `Float32Array`, no boxed JS arrays |
-| **4 — Scalar hot loop** | ✅ Done | Scratch buffers + scalar `er/eg/eb`, no per-pixel allocations |
-| **5 — Buffer pool** | Skipped | Benchmarks after Phases 3–4 show remaining bottleneck is algorithmic cost, not allocation. Typed arrays eliminated GC pressure. Remaining per-frame allocations are unavoidable (`getImageData`) or cheap (`Float32Array` copy). Worker offload (Phase 6) further isolates GC from the UI thread. |
-| **6 — Worker** | ✅ Done | `src/workers/filterWorker.ts` + `workerRPC.ts`, full chain support with main-thread fallback |
+| Phase                   | Status  | Notes                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1 — Harness**         | ✅ Done | `test/perf/filterBench.bench.ts`, `colorDistanceBench.bench.ts`, always-on perf stats in sidebar                                                                                                                                                                                                  |
+| **2 — toBlob**          | ✅ Done | Video frames dispatch canvas directly                                                                                                                                                                                                                                                             |
+| **3 — Float32 errBuf**  | ✅ Done | `errBuf` is `Float32Array`, no boxed JS arrays                                                                                                                                                                                                                                                    |
+| **4 — Scalar hot loop** | ✅ Done | Scratch buffers + scalar `er/eg/eb`, no per-pixel allocations                                                                                                                                                                                                                                     |
+| **5 — Buffer pool**     | Skipped | Benchmarks after Phases 3–4 show remaining bottleneck is algorithmic cost, not allocation. Typed arrays eliminated GC pressure. Remaining per-frame allocations are unavoidable (`getImageData`) or cheap (`Float32Array` copy). Worker offload (Phase 6) further isolates GC from the UI thread. |
+| **6 — Worker**          | ✅ Done | `src/workers/filterWorker.ts` + `workerRPC.ts`, full chain support with main-thread fallback                                                                                                                                                                                                      |

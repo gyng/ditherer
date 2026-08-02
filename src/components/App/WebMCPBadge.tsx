@@ -21,9 +21,10 @@ const tooltipText = (status: WebMCPStatus) => {
 
 const WebMCPBadge = ({ status }: { status: WebMCPStatus }) => {
   const tooltipId = useId();
-  const count = status.phase === "ready" || status.phase === "partial"
-    ? `${status.registered}/${status.total}`
-    : null;
+  const count =
+    status.phase === "ready" || status.phase === "partial"
+      ? `${status.registered}/${status.total}`
+      : null;
 
   return (
     <span className={s.webMCPBadgeWrap}>

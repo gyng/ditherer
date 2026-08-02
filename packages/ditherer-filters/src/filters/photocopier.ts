@@ -26,11 +26,35 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  contrast: { type: RANGE, range: [0.75, 3], step: 0.05, default: 1.55, desc: "Xerographic density contrast without discrete posterization" },
-  edgeDarken: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Toner buildup along high-contrast detail edges" },
-  speckle: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "Fixed toner deposits in light areas and transfer voids in dense areas" },
-  generationLoss: { type: RANGE, range: [0, 1], step: 0.05, default: 0.25, desc: "Copy-of-a-copy detail loss and progressive density buildup" },
-  palette: { type: PALETTE, default: nearest, desc: "Output toner and paper palette" }
+  contrast: {
+    type: RANGE,
+    range: [0.75, 3],
+    step: 0.05,
+    default: 1.55,
+    desc: "Xerographic density contrast without discrete posterization",
+  },
+  edgeDarken: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.3,
+    desc: "Toner buildup along high-contrast detail edges",
+  },
+  speckle: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.08,
+    desc: "Fixed toner deposits in light areas and transfer voids in dense areas",
+  },
+  generationLoss: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.25,
+    desc: "Copy-of-a-copy detail loss and progressive density buildup",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Output toner and paper palette" },
 };
 
 export const defaults = {
@@ -38,7 +62,7 @@ export const defaults = {
   edgeDarken: optionTypes.edgeDarken.default,
   speckle: optionTypes.speckle.default,
   generationLoss: optionTypes.generationLoss.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const PC_FS = `#version 300 es
@@ -134,8 +158,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     pc: linkProgram(gl, PC_FS, [
-      "u_source", "u_res", "u_contrast", "u_edgeDarken",
-      "u_speckle", "u_generationLoss", "u_levels",
+      "u_source",
+      "u_res",
+      "u_contrast",
+      "u_edgeDarken",
+      "u_speckle",
+      "u_generationLoss",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -149,7 +178,8 @@ const coordinateHash = (x: number, y: number, offset = 0): number => {
 
 const photocopier = (input: any, options: Partial<typeof defaults> = defaults) => {
   const { contrast, edgeDarken, speckle, generationLoss, palette } = { ...defaults, ...options };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -161,27 +191,38 @@ const photocopier = (input: any, options: Partial<typeof defaults> = defaults) =
       const sourceTex = ensureTexture(gl, "photocopier:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.pc, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.pc.uniforms.u_source, 0);
-        gl.uniform2f(cache.pc.uniforms.u_res, W, H);
-        gl.uniform1f(cache.pc.uniforms.u_contrast, contrast);
-        gl.uniform1f(cache.pc.uniforms.u_edgeDarken, edgeDarken);
-        gl.uniform1f(cache.pc.uniforms.u_speckle, speckle);
-        gl.uniform1f(cache.pc.uniforms.u_generationLoss, generationLoss);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.pc.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.pc,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.pc.uniforms.u_source, 0);
+          gl.uniform2f(cache.pc.uniforms.u_res, W, H);
+          gl.uniform1f(cache.pc.uniforms.u_contrast, contrast);
+          gl.uniform1f(cache.pc.uniforms.u_edgeDarken, edgeDarken);
+          gl.uniform1f(cache.pc.uniforms.u_speckle, speckle);
+          gl.uniform1f(cache.pc.uniforms.u_generationLoss, generationLoss);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.pc.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Photocopier", "WebGL2",
-            `contrast=${contrast}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Photocopier",
+            "WebGL2",
+            `contrast=${contrast}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -212,13 +253,28 @@ const photocopier = (input: any, options: Partial<typeof defaults> = defaults) =
       const right = lum[y * W + Math.min(W - 1, x + radius)] / 255;
       const top = lum[Math.max(0, y - radius) * W + x] / 255;
       const bottom = lum[Math.min(H - 1, y + radius) * W + x] / 255;
-      let l = photocopierGenerationTone(sourceLuma, (sourceLuma + left + right + top + bottom) / 5, contrast, generationLoss);
+      let l = photocopierGenerationTone(
+        sourceLuma,
+        (sourceLuma + left + right + top + bottom) / 5,
+        contrast,
+        generationLoss,
+      );
 
       if (edgeDarken > 0 && x > 0 && x < W - 1 && y > 0 && y < H - 1) {
-        const gx = -lum[(y - 1) * W + (x - 1)] - 2 * lum[y * W + (x - 1)] - lum[(y + 1) * W + (x - 1)]
-                  + lum[(y - 1) * W + (x + 1)] + 2 * lum[y * W + (x + 1)] + lum[(y + 1) * W + (x + 1)];
-        const gy = -lum[(y - 1) * W + (x - 1)] - 2 * lum[(y - 1) * W + x] - lum[(y - 1) * W + (x + 1)]
-                  + lum[(y + 1) * W + (x - 1)] + 2 * lum[(y + 1) * W + x] + lum[(y + 1) * W + (x + 1)];
+        const gx =
+          -lum[(y - 1) * W + (x - 1)] -
+          2 * lum[y * W + (x - 1)] -
+          lum[(y + 1) * W + (x - 1)] +
+          lum[(y - 1) * W + (x + 1)] +
+          2 * lum[y * W + (x + 1)] +
+          lum[(y + 1) * W + (x + 1)];
+        const gy =
+          -lum[(y - 1) * W + (x - 1)] -
+          2 * lum[(y - 1) * W + x] -
+          lum[(y - 1) * W + (x + 1)] +
+          lum[(y + 1) * W + (x - 1)] +
+          2 * lum[(y + 1) * W + x] +
+          lum[(y + 1) * W + (x + 1)];
         const edge = Math.sqrt(gx * gx + gy * gy) / 1440;
         l -= edge * edgeDarken;
         l = Math.max(0, l);
@@ -250,5 +306,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Fixed-sheet xerographic copy with continuous density transfer, edge toner, background scatter, and transfer voids",
+  description:
+    "Fixed-sheet xerographic copy with continuous density transfer, edge toner, background scatter, and transfer voids",
 });

@@ -29,7 +29,9 @@ import {
 const palettes = { nearest, user };
 
 const getThemeKeys = (): string[] =>
-  Object.keys(THEMES).filter((k) => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0);
+  Object.keys(THEMES).filter(
+    (k) => k !== "EMPTY" && Array.isArray(THEMES[k]) && THEMES[k].length > 0,
+  );
 
 const getRandomPresetPalette = () => {
   const themeKeys = getThemeKeys();
@@ -43,8 +45,9 @@ const isRangeOption = (option: FilterOptionDefinition): option is RangeOptionDef
 const isEnumOption = (option: FilterOptionDefinition): option is EnumOptionDefinition =>
   option.type === ENUM && Array.isArray((option as EnumOptionDefinition).options);
 
-export const isPaletteOption = (option: FilterOptionDefinition): option is PaletteOptionDefinition =>
-  option.type === PALETTE;
+export const isPaletteOption = (
+  option: FilterOptionDefinition,
+): option is PaletteOptionDefinition => option.type === PALETTE;
 
 const isEnumOptionGroup = (option: EnumOption | EnumOptionGroup): option is EnumOptionGroup =>
   Array.isArray((option as EnumOptionGroup).options);
@@ -89,9 +92,10 @@ export const randomizeOptions = (base: FilterDefinition): FilterOptionValues => 
         if (roll < 0.4) {
           // Nearest with randomized levels
           if (typeof palOpts.levels === "number") {
-            palOpts.levels = Math.max(2, Math.min(256,
-              Math.round(palOpts.levels + (Math.random() - 0.5) * 128)
-            ));
+            palOpts.levels = Math.max(
+              2,
+              Math.min(256, Math.round(palOpts.levels + (Math.random() - 0.5) * 128)),
+            );
           }
           options[key] = { ...paletteList[0].palette, options: palOpts };
         } else if (roll < 0.7) {
@@ -105,11 +109,14 @@ export const randomizeOptions = (base: FilterDefinition): FilterOptionValues => 
       case COLOR: {
         const def = Array.isArray(defaults[key]) ? defaults[key] : [128, 128, 128];
         options[key] = def.map((c) =>
-          Math.max(0, Math.min(255, Math.round(c + (Math.random() - 0.5) * 120)))
+          Math.max(0, Math.min(255, Math.round(c + (Math.random() - 0.5) * 120))),
         );
         break;
       }
-      case ACTION: case STRING: case TEXT: case COLOR_ARRAY:
+      case ACTION:
+      case STRING:
+      case TEXT:
+      case COLOR_ARRAY:
         break;
     }
   }
@@ -122,7 +129,9 @@ export const createRandomFilterEntry = (entry: FilterListEntry, forcePresetPalet
   const options = randomizeOptions(base);
 
   if (forcePresetPalette) {
-    const paletteKey = Object.entries(base.optionTypes || {}).find(([, spec]) => isPaletteOption(spec))?.[0];
+    const paletteKey = Object.entries(base.optionTypes || {}).find(([, spec]) =>
+      isPaletteOption(spec),
+    )?.[0];
     if (paletteKey) {
       options[paletteKey] = getRandomPresetPalette();
     }

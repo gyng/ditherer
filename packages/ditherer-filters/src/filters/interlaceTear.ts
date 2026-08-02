@@ -25,14 +25,47 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  tearOffset: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Horizontal shift of torn scan lines" },
-  tearPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the tear" },
-  fieldShift: { type: RANGE, range: [0, 20], step: 1, default: 3, desc: "Interlace field displacement" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview animation frame rate" },
-  animate: { type: ACTION, label: "Play / Stop", desc: "Start or stop frame-varying interlace tearing", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 12); }
-  }},
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  tearOffset: {
+    type: RANGE,
+    range: [0, 100],
+    step: 1,
+    default: 20,
+    desc: "Horizontal shift of torn scan lines",
+  },
+  tearPosition: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Vertical position of the tear",
+  },
+  fieldShift: {
+    type: RANGE,
+    range: [0, 20],
+    step: 1,
+    default: 3,
+    desc: "Interlace field displacement",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 12,
+    desc: "Preview animation frame rate",
+  },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    desc: "Start or stop frame-varying interlace tearing",
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
+      }
+    },
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -40,7 +73,7 @@ export const defaults = {
   tearPosition: optionTypes.tearPosition.default,
   fieldShift: optionTypes.fieldShift.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Shader replicates the CPU path's per-row row-index-driven shift math.
@@ -100,8 +133,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     tear: linkProgram(gl, TEAR_FS, [
-      "u_source", "u_res", "u_tearOffset", "u_tearY",
-      "u_fieldShift", "u_seed", "u_levels",
+      "u_source",
+      "u_res",
+      "u_tearOffset",
+      "u_tearY",
+      "u_fieldShift",
+      "u_seed",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -109,13 +147,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
-  return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 };
 
 const interlaceTear = (input: any, options = defaults) => {
   const { tearOffset, tearPosition, fieldShift, palette } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const tearY = Math.round(H * tearPosition);
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -128,27 +172,38 @@ const interlaceTear = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "interlaceTear:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.tear, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.tear.uniforms.u_source, 0);
-        gl.uniform2f(cache.tear.uniforms.u_res, W, H);
-        gl.uniform1f(cache.tear.uniforms.u_tearOffset, tearOffset);
-        gl.uniform1f(cache.tear.uniforms.u_tearY, tearY);
-        gl.uniform1f(cache.tear.uniforms.u_fieldShift, fieldShift);
-        gl.uniform1f(cache.tear.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.tear.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.tear,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.tear.uniforms.u_source, 0);
+          gl.uniform2f(cache.tear.uniforms.u_res, W, H);
+          gl.uniform1f(cache.tear.uniforms.u_tearOffset, tearOffset);
+          gl.uniform1f(cache.tear.uniforms.u_tearY, tearY);
+          gl.uniform1f(cache.tear.uniforms.u_fieldShift, fieldShift);
+          gl.uniform1f(cache.tear.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.tear.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Interlace Tear", "WebGL2",
-            `tearOff=${tearOffset}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Interlace Tear",
+            "WebGL2",
+            `tearOff=${tearOffset}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -179,11 +234,16 @@ const interlaceTear = (input: any, options = defaults) => {
     const totalShift = baseShift + tearShift;
 
     for (let x = 0; x < W; x++) {
-      const srcX = ((x - totalShift) % W + W) % W;
+      const srcX = (((x - totalShift) % W) + W) % W;
       const si = getBufferIndex(srcX, y, W);
       const di = getBufferIndex(x, y, W);
 
-      const color = paletteGetColor(palette, rgba(buf[si], buf[si + 1], buf[si + 2], buf[si + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(buf[si], buf[si + 1], buf[si + 2], buf[si + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, di, color[0], color[1], color[2], buf[si + 3]);
     }
   }
@@ -192,4 +252,11 @@ const interlaceTear = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Interlace Tear", func: interlaceTear, optionTypes, options: defaults, defaults, temporal: true });
+export default defineFilter({
+  name: "Interlace Tear",
+  func: interlaceTear,
+  optionTypes,
+  options: defaults,
+  defaults,
+  temporal: true,
+});

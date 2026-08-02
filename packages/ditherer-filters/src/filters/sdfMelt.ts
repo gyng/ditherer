@@ -62,13 +62,49 @@ void main() {
 }`;
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.48, desc: "Luminance isosurface used as the melt boundary" },
-  inflate: { type: RANGE, range: [-24, 24], step: 1, default: 5, desc: "Expand or erode the signed-distance silhouette" },
-  melt: { type: RANGE, range: [0, 2], step: 0.05, default: 0.85, desc: "Downward distortion and boundary wobble" },
-  noiseScale: { type: RANGE, range: [1, 40], step: 1, default: 12, desc: "Scale of the animated melt field" },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.48,
+    desc: "Luminance isosurface used as the melt boundary",
+  },
+  inflate: {
+    type: RANGE,
+    range: [-24, 24],
+    step: 1,
+    default: 5,
+    desc: "Expand or erode the signed-distance silhouette",
+  },
+  melt: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.85,
+    desc: "Downward distortion and boundary wobble",
+  },
+  noiseScale: {
+    type: RANGE,
+    range: [1, 40],
+    step: 1,
+    default: 12,
+    desc: "Scale of the animated melt field",
+  },
   bevel: { type: RANGE, range: [0.1, 4], step: 0.1, default: 1.4, desc: "Inflated edge curvature" },
-  metallic: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Liquid-chrome highlight response" },
-  animateSpeed: { type: RANGE, range: [0, 3], step: 0.05, default: 0.55, desc: "Melt-field animation speed" },
+  metallic: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "Liquid-chrome highlight response",
+  },
+  animateSpeed: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.55,
+    desc: "Melt-field animation speed",
+  },
   background: { type: COLOR, default: [15, 12, 22], desc: "Color outside the melted silhouette" },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
@@ -87,10 +123,24 @@ export const defaults = {
 
 const sdfMelt = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const runtime = options as typeof defaults & { _frameIndex?: number };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "sdfMelt", fragmentShader: FS,
-    uniformNames: ["u_threshold", "u_inflate", "u_melt", "u_noiseScale", "u_bevel", "u_metallic", "u_time", "u_background"],
+    source: input,
+    width: W,
+    height: H,
+    key: "sdfMelt",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_threshold",
+      "u_inflate",
+      "u_melt",
+      "u_noiseScale",
+      "u_bevel",
+      "u_metallic",
+      "u_time",
+      "u_background",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1f(u.u_threshold, options.threshold);
       gl.uniform1f(u.u_inflate, options.inflate);
@@ -99,13 +149,24 @@ const sdfMelt = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults)
       gl.uniform1f(u.u_bevel, options.bevel);
       gl.uniform1f(u.u_metallic, options.metallic);
       gl.uniform1f(u.u_time, (runtime._frameIndex ?? 0) * options.animateSpeed * 0.035);
-      gl.uniform3f(u.u_background, options.background[0], options.background[1], options.background[2]);
+      gl.uniform3f(
+        u.u_background,
+        options.background[0],
+        options.background[1],
+        options.background[2],
+      );
     },
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("SDF Melt", "WebGL2", `inflate=${options.inflate}${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "SDF Melt",
+    "WebGL2",
+    `inflate=${options.inflate}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({

@@ -42,9 +42,7 @@ const main = async () => {
   const wasmLab = Array.from(
     rawWasmRgba2laba(sample[0], sample[1], sample[2], sample[3], ref.x, ref.y, ref.z),
   );
-  const maxLabDiff = Math.max(
-    ...jsLab.map((value, index) => Math.abs(value - wasmLab[index])),
-  );
+  const maxLabDiff = Math.max(...jsLab.map((value, index) => Math.abs(value - wasmLab[index])));
 
   const rawQuantized = Array.from(rawQuantizeBufferRgb(sampleBuffer, paletteFlat));
   const wrappedQuantized = utilsWasmReady

@@ -1,8 +1,7 @@
 export type UnitRgb = readonly [number, number, number];
 
-const unit = (value: number): number => Number.isFinite(value)
-  ? Math.min(1, Math.max(0, value))
-  : 0;
+const unit = (value: number): number =>
+  Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 
 const smoothstep = (low: number, high: number, value: number): number => {
   const t = unit((value - low) / (high - low));
@@ -33,20 +32,14 @@ export const estimateVisibleNir = (
 };
 
 /** Kodak-style color-infrared ordering: estimated NIR→R, visible R→G, visible G→B. */
-export const aerochromeChannels = (rgb: UnitRgb, estimatedNir: number): [number, number, number] => [
-  unit(estimatedNir),
-  unit(rgb[0]),
-  unit(rgb[1]),
-];
+export const aerochromeChannels = (
+  rgb: UnitRgb,
+  estimatedNir: number,
+): [number, number, number] => [unit(estimatedNir), unit(rgb[0]), unit(rgb[1])];
 
 export const MEZZOTINT_ROCKER_ANGLES = [0, 45, 90, 135] as const;
 
-const BAYER_4 = [
-  0, 8, 2, 10,
-  12, 4, 14, 6,
-  3, 11, 1, 9,
-  15, 7, 13, 5,
-] as const;
+const BAYER_4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5] as const;
 
 /** True means the dark LCD state is active for this display-native pixel. */
 export const lcdOrderedDecision = (
@@ -93,7 +86,7 @@ export const daguerreotypePlateReflection = (
 ): number => {
   const x = Number.isFinite(normalizedX) ? Math.min(1, Math.max(-1, normalizedX)) : 0;
   const y = Number.isFinite(normalizedY) ? Math.min(1, Math.max(-1, normalizedY)) : 0;
-  const angle = (Number.isFinite(angleDegrees) ? angleDegrees : 0) * Math.PI / 180;
+  const angle = ((Number.isFinite(angleDegrees) ? angleDegrees : 0) * Math.PI) / 180;
   const directional = unit(0.5 + 0.5 * (x * Math.cos(angle) + y * Math.sin(angle)));
   return unit((0.12 + 0.88 * directional) * unit(metallic));
 };

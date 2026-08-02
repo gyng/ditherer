@@ -14,14 +14,54 @@ import { logFilterBackend } from "../utils/index";
 import { defineFilter } from "./types";
 
 export const optionTypes = {
-  spread: { type: RANGE, range: [0, 12], step: 1, default: 4, desc: "Maximum capillary reach of dark ink along the paper fibers" },
-  absorbency: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "How strongly neighboring ink transfers through the porous sheet" },
+  spread: {
+    type: RANGE,
+    range: [0, 12],
+    step: 1,
+    default: 4,
+    desc: "Maximum capillary reach of dark ink along the paper fibers",
+  },
+  absorbency: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.55,
+    desc: "How strongly neighboring ink transfers through the porous sheet",
+  },
   paperTint: { type: COLOR, default: [242, 235, 217], desc: "Base color of the unprinted paper" },
-  inkColor: { type: COLOR, default: [24, 18, 14], desc: "Color of the deposited ink after liquid absorption" },
-  grain: { type: RANGE, range: [0, 1], step: 0.05, default: 0.22, desc: "Fine and broad paper-fiber texture in the unprinted substrate" },
-  fiberAngle: { type: RANGE, range: [0, 180], step: 1, default: 8, desc: "Dominant in-plane paper-fiber direction in degrees" },
-  anisotropy: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Difference between capillary reach along and across the fibers" },
-  feather: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "Softness and partial saturation at the outer wet-ink boundary" },
+  inkColor: {
+    type: COLOR,
+    default: [24, 18, 14],
+    desc: "Color of the deposited ink after liquid absorption",
+  },
+  grain: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.22,
+    desc: "Fine and broad paper-fiber texture in the unprinted substrate",
+  },
+  fiberAngle: {
+    type: RANGE,
+    range: [0, 180],
+    step: 1,
+    default: 8,
+    desc: "Dominant in-plane paper-fiber direction in degrees",
+  },
+  anisotropy: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.65,
+    desc: "Difference between capillary reach along and across the fibers",
+  },
+  feather: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.35,
+    desc: "Softness and partial saturation at the outer wet-ink boundary",
+  },
 };
 
 export const defaults = {
@@ -130,8 +170,16 @@ const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (!cache) {
     cache = {
       ink: linkProgram(gl, INK_BLEED_FS, [
-        "u_source", "u_res", "u_spread", "u_absorbency", "u_paperTint", "u_inkColor",
-        "u_grain", "u_fiberAngle", "u_anisotropy", "u_feather",
+        "u_source",
+        "u_res",
+        "u_spread",
+        "u_absorbency",
+        "u_paperTint",
+        "u_inkColor",
+        "u_grain",
+        "u_fiberAngle",
+        "u_anisotropy",
+        "u_feather",
       ] as const),
     };
   }
@@ -140,7 +188,8 @@ const getProgram = (gl: WebGL2RenderingContext): Program => {
 
 const inkBleed = (input: any, options: Partial<typeof defaults> = defaults) => {
   const resolved = { ...defaults, ...options };
-  const { spread, absorbency, paperTint, inkColor, grain, fiberAngle, anisotropy, feather } = resolved;
+  const { spread, absorbency, paperTint, inkColor, grain, fiberAngle, anisotropy, feather } =
+    resolved;
   const width = input.width;
   const height = input.height;
   const context = getGLCtx();
@@ -152,20 +201,38 @@ const inkBleed = (input: any, options: Partial<typeof defaults> = defaults) => {
   resizeGLCanvas(canvas, width, height);
   const sourceTexture = ensureTexture(gl, "inkBleed:source", width, height);
   uploadSourceTexture(gl, sourceTexture, input);
-  drawPass(gl, null, width, height, program, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(program.uniforms.u_source, 0);
-    gl.uniform2f(program.uniforms.u_res, width, height);
-    gl.uniform1i(program.uniforms.u_spread, Math.max(0, Math.min(12, Math.round(spread))));
-    gl.uniform1f(program.uniforms.u_absorbency, absorbency);
-    gl.uniform3f(program.uniforms.u_paperTint, paperTint[0] / 255, paperTint[1] / 255, paperTint[2] / 255);
-    gl.uniform3f(program.uniforms.u_inkColor, inkColor[0] / 255, inkColor[1] / 255, inkColor[2] / 255);
-    gl.uniform1f(program.uniforms.u_grain, grain);
-    gl.uniform1f(program.uniforms.u_fiberAngle, fiberAngle);
-    gl.uniform1f(program.uniforms.u_anisotropy, anisotropy);
-    gl.uniform1f(program.uniforms.u_feather, feather);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    program,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(program.uniforms.u_source, 0);
+      gl.uniform2f(program.uniforms.u_res, width, height);
+      gl.uniform1i(program.uniforms.u_spread, Math.max(0, Math.min(12, Math.round(spread))));
+      gl.uniform1f(program.uniforms.u_absorbency, absorbency);
+      gl.uniform3f(
+        program.uniforms.u_paperTint,
+        paperTint[0] / 255,
+        paperTint[1] / 255,
+        paperTint[2] / 255,
+      );
+      gl.uniform3f(
+        program.uniforms.u_inkColor,
+        inkColor[0] / 255,
+        inkColor[1] / 255,
+        inkColor[2] / 255,
+      );
+      gl.uniform1f(program.uniforms.u_grain, grain);
+      gl.uniform1f(program.uniforms.u_fiberAngle, fiberAngle);
+      gl.uniform1f(program.uniforms.u_anisotropy, anisotropy);
+      gl.uniform1f(program.uniforms.u_feather, feather);
+    },
+    vao,
+  );
 
   const output = readoutToCanvas(canvas, width, height);
   logFilterBackend("Ink Bleed", "WebGL2", `spread=${spread} absorbency=${absorbency}`);
@@ -178,6 +245,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Dark ink wicks through an anisotropic paper-fiber field with heterogeneous capillary edges",
+  description:
+    "Dark ink wicks through an anisotropic paper-fiber field with heterogeneous capillary edges",
   requiresGL: true,
 });

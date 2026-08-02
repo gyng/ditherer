@@ -43,7 +43,11 @@ type FilterDefinition = {
   defaults?: Record<string, unknown>;
   options?: Record<string, unknown>;
   optionTypes?: Record<string, unknown>;
-  func: (input: HTMLCanvasElement, options?: Record<string, unknown>, dispatch?: unknown) => unknown;
+  func: (
+    input: HTMLCanvasElement,
+    options?: Record<string, unknown>,
+    dispatch?: unknown,
+  ) => unknown;
   mainThread?: boolean;
 };
 
@@ -64,11 +68,11 @@ const EMA_ALPHA = 0.1;
 const CPU_COUNT = os.cpus().length;
 const DEFAULT_WORKER_COUNT = Math.max(
   1,
-  Math.min(30, Number(process.env.GALLERY_WORKERS || String(Math.max(1, CPU_COUNT - 2))))
+  Math.min(30, Number(process.env.GALLERY_WORKERS || String(Math.max(1, CPU_COUNT - 2)))),
 );
 const DEFAULT_WORKER_ITEM_CONCURRENCY = Math.max(
   1,
-  Number(process.env.GALLERY_WORKER_ITEM_CONCURRENCY || "1")
+  Number(process.env.GALLERY_WORKER_ITEM_CONCURRENCY || "1"),
 );
 const PROGRESS_EVERY = Math.max(1, Number(process.env.GALLERY_PROGRESS_EVERY || "25"));
 const WORKER_MODE = process.env.GALLERY_WORKER_MODE === "1";
@@ -137,8 +141,7 @@ const isCanvasElementLike = (value: unknown): value is HTMLCanvasElement =>
   "getContext" in value &&
   typeof value.getContext === "function";
 
-const getErrorMessage = (err: unknown) =>
-  err instanceof Error ? err.message : String(err);
+const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 const slugify = (value: string) =>
   value
@@ -149,7 +152,7 @@ const slugify = (value: string) =>
 const getAssetRelativePath = (
   kind: GalleryKind,
   previewSource: "image" | "video",
-  basename: string
+  basename: string,
 ) => path.posix.join(kind, previewSource === "video" ? "animated" : "static", basename);
 
 const getCategories = (items: Array<{ category: string }>) => {
@@ -165,7 +168,7 @@ const getCategories = (items: Array<{ category: string }>) => {
 
 const resolveFilterOptions = (
   filter: { defaults?: Record<string, unknown>; options?: Record<string, unknown> },
-  overrideOptions?: Record<string, unknown>
+  overrideOptions?: Record<string, unknown>,
 ) => ({
   ...(filter.defaults || {}),
   ...(filter.options || {}),
@@ -173,26 +176,30 @@ const resolveFilterOptions = (
 });
 
 const getGifPaletteColorTable = (
-  optionCandidates: Array<Record<string, unknown> | undefined>
+  optionCandidates: Array<Record<string, unknown> | undefined>,
 ): GifColorTable | null => {
-  const paletteCandidates = optionCandidates.map((options) => (options as PaletteOptionValue | undefined)?.palette);
+  const paletteCandidates = optionCandidates.map(
+    (options) => (options as PaletteOptionValue | undefined)?.palette,
+  );
 
   for (const palette of paletteCandidates) {
     const rawColors = palette?.options?.colors;
     if (!Array.isArray(rawColors) || rawColors.length === 0) continue;
     const deduped = rawColors
-      .map((color: number[]) => [color[0], color[1], color[2]].map((channel) => {
-        const n = Number(channel);
-        if (!Number.isFinite(n)) return 0;
-        return Math.max(0, Math.min(255, Math.round(n)));
-      }))
+      .map((color: number[]) =>
+        [color[0], color[1], color[2]].map((channel) => {
+          const n = Number(channel);
+          if (!Number.isFinite(n)) return 0;
+          return Math.max(0, Math.min(255, Math.round(n)));
+        }),
+      )
       .filter((color: number[]) => color.length === 3)
-      .filter((color: number[], index: number, all: number[][]) =>
-        all.findIndex((candidate) => (
-          candidate[0] === color[0] &&
-          candidate[1] === color[1] &&
-          candidate[2] === color[2]
-        )) === index
+      .filter(
+        (color: number[], index: number, all: number[][]) =>
+          all.findIndex(
+            (candidate) =>
+              candidate[0] === color[0] && candidate[1] === color[1] && candidate[2] === color[2],
+          ) === index,
       )
       .slice(0, 256);
 
@@ -215,7 +222,7 @@ const isAnimatedFilterEntry = (entry: FilterListEntry) =>
 
 const isAnimatedPreset = (
   preset: (typeof CHAIN_PRESETS)[number],
-  filterByName: Map<string, FilterListEntry>
+  filterByName: Map<string, FilterListEntry>,
 ) =>
   preset.filters.some((presetEntry) => {
     const match = filterByName.get(presetEntry.name);
@@ -250,7 +257,7 @@ const updateTemporalState = (
 
 const runFilterPreview = (
   entry: FilterListEntry,
-  sourceCanvas: HTMLCanvasElement
+  sourceCanvas: HTMLCanvasElement,
 ): HTMLCanvasElement | null => {
   const prevInputByKey = new Map<string, Uint8ClampedArray>();
   const prevOutputByKey = new Map<string, Uint8ClampedArray>();
@@ -263,7 +270,9 @@ const runFilterPreview = (
   for (let frame = 0; frame < PREVIEW_FRAMES; frame += 1) {
     const inputFrame = cloneCanvas(sourceCanvas, true) as HTMLCanvasElement;
     const inCtx = inputFrame.getContext("2d");
-    const inPixels = inCtx ? inCtx.getImageData(0, 0, inputFrame.width, inputFrame.height).data : null;
+    const inPixels = inCtx
+      ? inCtx.getImageData(0, 0, inputFrame.width, inputFrame.height).data
+      : null;
     const opts = {
       ...resolveFilterOptions(entry.filter as FilterDefinition),
       _frameIndex: frame,
@@ -288,7 +297,7 @@ const runFilterPreview = (
 
 const runAnimatedFilterPreview = (
   entry: FilterListEntry,
-  sourceFrames: HTMLCanvasElement[]
+  sourceFrames: HTMLCanvasElement[],
 ): AnimatedPreviewResult | null => {
   const prevInputByKey = new Map<string, Uint8ClampedArray>();
   const prevOutputByKey = new Map<string, Uint8ClampedArray>();
@@ -302,7 +311,9 @@ const runAnimatedFilterPreview = (
   for (let frame = 0; frame < sourceFrames.length; frame += 1) {
     const inputFrame = cloneCanvas(sourceFrames[frame], true) as HTMLCanvasElement;
     const inCtx = inputFrame.getContext("2d");
-    const inPixels = inCtx ? inCtx.getImageData(0, 0, inputFrame.width, inputFrame.height).data : null;
+    const inPixels = inCtx
+      ? inCtx.getImageData(0, 0, inputFrame.width, inputFrame.height).data
+      : null;
     const opts = {
       ...resolvedOptions,
       _frameIndex: frame,
@@ -329,7 +340,7 @@ const runAnimatedFilterPreview = (
 const runPresetPreview = (
   sourceCanvas: HTMLCanvasElement,
   preset: (typeof CHAIN_PRESETS)[number],
-  filterByName: Map<string, FilterListEntry>
+  filterByName: Map<string, FilterListEntry>,
 ): HTMLCanvasElement | null => {
   const prevInputByKey = new Map<string, Uint8ClampedArray>();
   const prevOutputByKey = new Map<string, Uint8ClampedArray>();
@@ -346,7 +357,9 @@ const runPresetPreview = (
       const needsTemporal = hasTemporalBehavior(match);
       const isAnimatingPreview = needsTemporal || hasAnimatedOption(match);
       const inCtx = pipeline.getContext("2d");
-      const inPixels = inCtx ? inCtx.getImageData(0, 0, pipeline.width, pipeline.height).data : null;
+      const inPixels = inCtx
+        ? inCtx.getImageData(0, 0, pipeline.width, pipeline.height).data
+        : null;
       const opts = {
         ...resolveFilterOptions(match.filter as FilterDefinition, presetEntry.options),
         _frameIndex: frame,
@@ -374,7 +387,7 @@ const runPresetPreview = (
 const runAnimatedPresetPreview = (
   sourceFrames: HTMLCanvasElement[],
   preset: (typeof CHAIN_PRESETS)[number],
-  filterByName: Map<string, FilterListEntry>
+  filterByName: Map<string, FilterListEntry>,
 ): AnimatedPreviewResult | null => {
   const prevInputByKey = new Map<string, Uint8ClampedArray>();
   const prevOutputByKey = new Map<string, Uint8ClampedArray>();
@@ -382,7 +395,9 @@ const runAnimatedPresetPreview = (
   const resolvedOptionStack = preset.filters
     .map((presetEntry) => {
       const match = filterByName.get(presetEntry.name);
-      return match ? resolveFilterOptions(match.filter as FilterDefinition, presetEntry.options) : undefined;
+      return match
+        ? resolveFilterOptions(match.filter as FilterDefinition, presetEntry.options)
+        : undefined;
     })
     .filter(Boolean)
     .reverse() as Record<string, unknown>[];
@@ -399,7 +414,9 @@ const runAnimatedPresetPreview = (
       const needsTemporal = hasTemporalBehavior(match);
       const isAnimatingPreview = isAnimatedFilterEntry(match);
       const inCtx = pipeline.getContext("2d");
-      const inPixels = inCtx ? inCtx.getImageData(0, 0, pipeline.width, pipeline.height).data : null;
+      const inPixels = inCtx
+        ? inCtx.getImageData(0, 0, pipeline.width, pipeline.height).data
+        : null;
       const opts = {
         ...resolveFilterOptions(match.filter as FilterDefinition, presetEntry.options),
         _frameIndex: frame,
@@ -451,7 +468,7 @@ const toPngBufferAsync = (canvas: HTMLCanvasElement): Promise<Buffer> =>
 
 const encodeGifBuffer = async (
   frames: HTMLCanvasElement[],
-  colorTable?: GifColorTable | null
+  colorTable?: GifColorTable | null,
 ): Promise<Buffer> => {
   if (frames.length === 0) {
     throw new Error("Cannot encode animated preview without frames.");
@@ -505,7 +522,8 @@ const loadAnimatedSourceFrames = async (): Promise<HTMLCanvasElement[]> => {
       path.join(tempDir, "frame-%03d.png"),
     ]);
 
-    const files = fs.readdirSync(tempDir)
+    const files = fs
+      .readdirSync(tempDir)
       .filter((file) => file.endsWith(".png"))
       .sort();
     const frames: HTMLCanvasElement[] = [];
@@ -517,7 +535,9 @@ const loadAnimatedSourceFrames = async (): Promise<HTMLCanvasElement[]> => {
       frames.push(canvas as unknown as HTMLCanvasElement);
     }
     if (frames.length === 0) {
-      throw new Error(`ffmpeg did not produce any frames from ${path.relative(process.cwd(), videoPath)}`);
+      throw new Error(
+        `ffmpeg did not produce any frames from ${path.relative(process.cwd(), videoPath)}`,
+      );
     }
     return frames;
   } finally {
@@ -528,7 +548,7 @@ const loadAnimatedSourceFrames = async (): Promise<HTMLCanvasElement[]> => {
 const runWithConcurrency = async <T, R>(
   items: T[],
   concurrency: number,
-  worker: (item: T, index: number) => Promise<R>
+  worker: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> => {
   if (items.length === 0) return [];
   const results = new Array<R>(items.length);
@@ -593,7 +613,7 @@ const BENCH_MAX_TOTAL_MS = 2000;
 const timeFilterRuns = (
   filter: FilterDefinition,
   sourceCanvas: HTMLCanvasElement,
-  options: Record<string, unknown>
+  options: Record<string, unknown>,
 ): number | null => {
   try {
     // Warmup — discount JIT compile and wasm module warm-up.
@@ -618,7 +638,10 @@ const timeFilterRuns = (
   }
 };
 
-const captureWasmStatus = (filterName: string, fallbackReason: string): { didWasm: boolean; reason: string } => {
+const captureWasmStatus = (
+  filterName: string,
+  fallbackReason: string,
+): { didWasm: boolean; reason: string } => {
   const status = getFilterWasmStatuses().get(filterName);
   if (status) return status;
   return { didWasm: false, reason: fallbackReason };
@@ -629,11 +652,22 @@ const captureWasmStatus = (filterName: string, fallbackReason: string): { didWas
 // listed here just get the default bench.
 type VariantSpec = { name: string; overrides: Record<string, unknown> };
 
-const getFilterVariants = (filterName: string, defaults: Record<string, unknown>): VariantSpec[] => {
+const getFilterVariants = (
+  filterName: string,
+  defaults: Record<string, unknown>,
+): VariantSpec[] => {
   const ed = new Set([
-    "Floyd-Steinberg", "False Floyd-Steinberg", "Atkinson", "Sierra",
-    "Sierra 2-row", "Sierra lite", "Jarvis", "Stucki", "Burkes",
-    "Stripe (Horizontal)", "Stripe (Vertical)",
+    "Floyd-Steinberg",
+    "False Floyd-Steinberg",
+    "Atkinson",
+    "Sierra",
+    "Sierra 2-row",
+    "Sierra lite",
+    "Jarvis",
+    "Stucki",
+    "Burkes",
+    "Stripe (Horizontal)",
+    "Stripe (Vertical)",
   ]);
   if (ed.has(filterName)) {
     return [
@@ -646,9 +680,7 @@ const getFilterVariants = (filterName: string, defaults: Record<string, unknown>
     ];
   }
   if (filterName === "Ordered") {
-    return [
-      { name: "linearize", overrides: { _linearize: true } },
-    ];
+    return [{ name: "linearize", overrides: { _linearize: true } }];
   }
   // No known variants for other filters.
   return defaults ? [] : [];
@@ -656,7 +688,7 @@ const getFilterVariants = (filterName: string, defaults: Record<string, unknown>
 
 const benchFilter = (
   entry: FilterListEntry,
-  sourceCanvas: HTMLCanvasElement
+  sourceCanvas: HTMLCanvasElement,
 ): FilterPerf | undefined => {
   const filter = entry.filter as FilterDefinition;
   const defaults = resolveFilterOptions(filter);
@@ -680,12 +712,26 @@ const benchFilter = (
   const variants: VariantPerf[] = [];
   for (const v of variantsForThisFilter) {
     resetFilterWasmStatus(statusKey);
-    const vWasm = timeFilterRuns(filter, sourceCanvas, { ...defaults, ...v.overrides, _wasmAcceleration: true });
+    const vWasm = timeFilterRuns(filter, sourceCanvas, {
+      ...defaults,
+      ...v.overrides,
+      _wasmAcceleration: true,
+    });
     const vStatus = captureWasmStatus(statusKey, "no wasm path");
     resetFilterWasmStatus(statusKey);
-    const vJs = timeFilterRuns(filter, sourceCanvas, { ...defaults, ...v.overrides, _wasmAcceleration: false });
+    const vJs = timeFilterRuns(filter, sourceCanvas, {
+      ...defaults,
+      ...v.overrides,
+      _wasmAcceleration: false,
+    });
     if (vWasm != null && vJs != null) {
-      variants.push({ name: v.name, didWasm: vStatus.didWasm, reason: vStatus.reason, jsMs: vJs, wasmMs: vWasm });
+      variants.push({
+        name: v.name,
+        didWasm: vStatus.didWasm,
+        reason: vStatus.reason,
+        jsMs: vJs,
+        wasmMs: vWasm,
+      });
     }
   }
 
@@ -696,7 +742,7 @@ const renderFilterItem = async (
   entry: FilterListEntry,
   sourceCanvas: HTMLCanvasElement,
   animatedSourceFrames: HTMLCanvasElement[],
-  outputDir: string
+  outputDir: string,
 ): Promise<GalleryItem> => {
   const perf = benchFilter(entry, sourceCanvas);
   if (BENCH_ONLY) {
@@ -773,7 +819,7 @@ const renderPresetItem = async (
   filterByName: Map<string, FilterListEntry>,
   sourceCanvas: HTMLCanvasElement,
   animatedSourceFrames: HTMLCanvasElement[],
-  outputDir: string
+  outputDir: string,
 ): Promise<GalleryItem> => {
   const animatedPreview = isAnimatedPreset(preset, filterByName);
   if (animatedPreview) {
@@ -837,7 +883,7 @@ const chunkTasksRoundRobin = (tasks: GalleryTask[], workerCount: number) => {
 
 const runWorkerPool = async (
   tasks: GalleryTask[],
-  outputDir: string
+  outputDir: string,
 ): Promise<GalleryTaskResult[]> => {
   if (tasks.length === 0) return [];
   const workerCount = Math.min(DEFAULT_WORKER_COUNT, tasks.length);
@@ -845,42 +891,41 @@ const runWorkerPool = async (
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ditherer-gallery-workers-"));
 
   try {
-    const batches = await Promise.all(taskGroups.map((group, workerIndex) => (
-      new Promise<GalleryTaskResult[]>((resolve, reject) => {
-        const taskFile = path.join(tempDir, `tasks-${workerIndex}.json`);
-        const resultFile = path.join(tempDir, `results-${workerIndex}.json`);
-        writeWorkerPayload(taskFile, { tasks: group, items: [] });
-        const child = spawn(
-          getNpxCommand(),
-          ["vite-node", "scripts/generate-gallery.ts"],
-          {
-            cwd: process.cwd(),
-            env: {
-              ...process.env,
-              GALLERY_WORKER_MODE: "1",
-              GALLERY_WORKER_INDEX: String(workerIndex + 1),
-              GALLERY_TASK_FILE: taskFile,
-              GALLERY_RESULT_FILE: resultFile,
-              GALLERY_OUTPUT_DIR: outputDir,
-              GALLERY_WORKER_ITEM_CONCURRENCY: String(DEFAULT_WORKER_ITEM_CONCURRENCY),
-            },
-            stdio: "inherit",
-          }
-        );
-        child.on("error", reject);
-        child.on("exit", (code) => {
-          if (code !== 0) {
-            reject(new Error(`Gallery worker ${workerIndex + 1} exited with code ${code}`));
-            return;
-          }
-          if (!fs.existsSync(resultFile)) {
-            reject(new Error(`Gallery worker ${workerIndex + 1} did not write ${resultFile}`));
-            return;
-          }
-          resolve(readWorkerPayload(resultFile).items);
-        });
-      })
-    )));
+    const batches = await Promise.all(
+      taskGroups.map(
+        (group, workerIndex) =>
+          new Promise<GalleryTaskResult[]>((resolve, reject) => {
+            const taskFile = path.join(tempDir, `tasks-${workerIndex}.json`);
+            const resultFile = path.join(tempDir, `results-${workerIndex}.json`);
+            writeWorkerPayload(taskFile, { tasks: group, items: [] });
+            const child = spawn(getNpxCommand(), ["vite-node", "scripts/generate-gallery.ts"], {
+              cwd: process.cwd(),
+              env: {
+                ...process.env,
+                GALLERY_WORKER_MODE: "1",
+                GALLERY_WORKER_INDEX: String(workerIndex + 1),
+                GALLERY_TASK_FILE: taskFile,
+                GALLERY_RESULT_FILE: resultFile,
+                GALLERY_OUTPUT_DIR: outputDir,
+                GALLERY_WORKER_ITEM_CONCURRENCY: String(DEFAULT_WORKER_ITEM_CONCURRENCY),
+              },
+              stdio: "inherit",
+            });
+            child.on("error", reject);
+            child.on("exit", (code) => {
+              if (code !== 0) {
+                reject(new Error(`Gallery worker ${workerIndex + 1} exited with code ${code}`));
+                return;
+              }
+              if (!fs.existsSync(resultFile)) {
+                reject(new Error(`Gallery worker ${workerIndex + 1} did not write ${resultFile}`));
+                return;
+              }
+              resolve(readWorkerPayload(resultFile).items);
+            });
+          }),
+      ),
+    );
     return batches.flat();
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -890,7 +935,7 @@ const runWorkerPool = async (
 const buildFallbackItem = (
   task: GalleryTask,
   allFilters: FilterListEntry[],
-  filterByName: Map<string, FilterListEntry>
+  filterByName: Map<string, FilterListEntry>,
 ): GalleryItem => {
   if (task.kind === "filters") {
     const entry = allFilters[task.index];
@@ -919,15 +964,23 @@ const runWorkerMain = async () => {
   const resultFile = process.env.GALLERY_RESULT_FILE;
   const outputDir = process.env.GALLERY_OUTPUT_DIR;
   if (!taskFile || !resultFile || !outputDir) {
-    throw new Error("Worker mode requires GALLERY_TASK_FILE, GALLERY_RESULT_FILE, and GALLERY_OUTPUT_DIR.");
+    throw new Error(
+      "Worker mode requires GALLERY_TASK_FILE, GALLERY_RESULT_FILE, and GALLERY_OUTPUT_DIR.",
+    );
   }
 
   // Wait for the WASM module to load so per-filter benches can exercise the
   // WASM path. The default wasmReady path uses fetch() which doesn't work in
   // Node, so we also feed the .wasm bytes in directly from disk as a fallback.
-  try { await wasmReady; } catch (err) { console.error("wasmReady failed:", err); }
   try {
-    const wasmPath = path.resolve("packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm");
+    await wasmReady;
+  } catch (err) {
+    console.error("wasmReady failed:", err);
+  }
+  try {
+    const wasmPath = path.resolve(
+      "packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm",
+    );
     if (fs.existsSync(wasmPath)) {
       const wasmBytes = fs.readFileSync(wasmPath);
       await initWasmFromBinary(wasmBytes);
@@ -948,9 +1001,21 @@ const runWorkerMain = async () => {
     DEFAULT_WORKER_ITEM_CONCURRENCY,
     async (task) => {
       try {
-        const item = task.kind === "filters"
-          ? await renderFilterItem(allFilters[task.index], sourceCanvas, animatedSourceFrames, outputDir)
-          : await renderPresetItem(CHAIN_PRESETS[task.index], filterByName, sourceCanvas, animatedSourceFrames, outputDir);
+        const item =
+          task.kind === "filters"
+            ? await renderFilterItem(
+                allFilters[task.index],
+                sourceCanvas,
+                animatedSourceFrames,
+                outputDir,
+              )
+            : await renderPresetItem(
+                CHAIN_PRESETS[task.index],
+                filterByName,
+                sourceCanvas,
+                animatedSourceFrames,
+                outputDir,
+              );
         done += 1;
         if (done % PROGRESS_EVERY === 0 || done === payload.tasks.length) {
           console.log(`Worker ${WORKER_INDEX}: ${done}/${payload.tasks.length}`);
@@ -962,21 +1027,25 @@ const runWorkerMain = async () => {
           console.log(`Worker ${WORKER_INDEX}: ${done}/${payload.tasks.length}`);
         }
         const item = buildFallbackItem(task, allFilters, filterByName);
-        console.error(`FAIL: ${task.kind.slice(0, -1)} ${item.displayName}: ${getErrorMessage(err)}`);
+        console.error(
+          `FAIL: ${task.kind.slice(0, -1)} ${item.displayName}: ${getErrorMessage(err)}`,
+        );
         return { kind: task.kind, index: task.index, item } satisfies GalleryTaskResult;
       }
-    }
+    },
   );
 
   writeWorkerPayload(resultFile, { tasks: payload.tasks, items });
 };
 
-const formatMs = (ms: number) => ms < 10 ? ms.toFixed(2) : ms.toFixed(1);
+const formatMs = (ms: number) => (ms < 10 ? ms.toFixed(2) : ms.toFixed(1));
 const formatSpeedup = (jsMs: number, wasmMs: number) =>
   wasmMs <= 0 ? "—" : `${(jsMs / wasmMs).toFixed(2)}×`;
 
 const buildPerfMarkdown = (filterResults: GalleryItem[]) => {
-  const withPerf = filterResults.filter((r): r is GalleryItem & { perf: FilterPerf } => r.perf !== undefined);
+  const withPerf = filterResults.filter(
+    (r): r is GalleryItem & { perf: FilterPerf } => r.perf !== undefined,
+  );
   const wasmCount = withPerf.filter((r) => r.perf.didWasm).length;
   const jsCount = withPerf.length - wasmCount;
   const totalFilters = filterResults.length;
@@ -1023,7 +1092,9 @@ const buildPerfMarkdown = (filterResults: GalleryItem[]) => {
   }
 
   // Candidates for porting: JS-only filters sorted by JS cost (biggest wins first).
-  const candidates = withPerf.filter((r) => !r.perf.didWasm).sort((a, b) => b.perf.jsMs - a.perf.jsMs);
+  const candidates = withPerf
+    .filter((r) => !r.perf.didWasm)
+    .sort((a, b) => b.perf.jsMs - a.perf.jsMs);
   if (candidates.length > 0) {
     md += "## Candidates for Rust/WASM porting (JS-only, slowest first)\n\n";
     md += "| filter | category | js ms | reason |\n|---|---|---:|---|\n";
@@ -1041,7 +1112,7 @@ const buildPerfMarkdown = (filterResults: GalleryItem[]) => {
   const sortedAll = [...withPerf].sort((a, b) => {
     // WASM-accelerated first (by speedup desc), then JS-only (by js ms desc).
     if (a.perf.didWasm !== b.perf.didWasm) return a.perf.didWasm ? -1 : 1;
-    if (a.perf.didWasm) return (b.perf.jsMs / b.perf.wasmMs) - (a.perf.jsMs / a.perf.wasmMs);
+    if (a.perf.didWasm) return b.perf.jsMs / b.perf.wasmMs - a.perf.jsMs / a.perf.wasmMs;
     return b.perf.jsMs - a.perf.jsMs;
   });
   for (const r of sortedAll) {
@@ -1102,7 +1173,7 @@ async function main() {
     throw new Error(`Could not find source image. Tried:\n${sourceCandidates.join("\n")}`);
   }
   console.log(
-    `Source image: ${path.relative(process.cwd(), sourcePath)} | workers=${DEFAULT_WORKER_COUNT} | per-worker concurrency=${DEFAULT_WORKER_ITEM_CONCURRENCY}`
+    `Source image: ${path.relative(process.cwd(), sourcePath)} | workers=${DEFAULT_WORKER_COUNT} | per-worker concurrency=${DEFAULT_WORKER_ITEM_CONCURRENCY}`,
   );
 
   const outputDir = path.resolve("docs/gallery");
@@ -1117,9 +1188,9 @@ async function main() {
   const tasks: GalleryTask[] = BENCH_ONLY
     ? allFilters.map((_, index) => ({ kind: "filters", index }) satisfies GalleryTask)
     : [
-      ...allFilters.map((_, index) => ({ kind: "filters", index }) satisfies GalleryTask),
-      ...CHAIN_PRESETS.map((_, index) => ({ kind: "presets", index }) satisfies GalleryTask),
-    ];
+        ...allFilters.map((_, index) => ({ kind: "filters", index }) satisfies GalleryTask),
+        ...CHAIN_PRESETS.map((_, index) => ({ kind: "presets", index }) satisfies GalleryTask),
+      ];
   const workerResults = await runWorkerPool(tasks, outputDir);
 
   const filterResults = new Array<GalleryItem>(allFilters.length);
@@ -1137,7 +1208,7 @@ async function main() {
   if (BENCH_ONLY) {
     const benched = filterResults.filter((r) => r?.perf).length;
     console.log(
-      `\nBench-only: ${benched}/${filterResults.length} filters measured -> docs/gallery/PERF.md`
+      `\nBench-only: ${benched}/${filterResults.length} filters measured -> docs/gallery/PERF.md`,
     );
     return;
   }
@@ -1145,7 +1216,7 @@ async function main() {
   const md = buildGalleryMarkdown(filterResults, presetResults);
   fs.writeFileSync(path.resolve("docs/gallery/GALLERY.md"), md);
   console.log(
-    `\nDone: ${filterResults.length} filters + ${presetResults.length} presets -> docs/gallery/ + docs/gallery/GALLERY.md + docs/gallery/PERF.md`
+    `\nDone: ${filterResults.length} filters + ${presetResults.length} presets -> docs/gallery/ + docs/gallery/GALLERY.md + docs/gallery/PERF.md`,
   );
 }
 

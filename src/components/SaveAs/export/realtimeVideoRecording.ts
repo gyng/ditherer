@@ -20,7 +20,10 @@ interface StartCanvasRecordingOptions {
   onStop?: () => void;
 }
 
-interface StartRealtimeLoopRecordingOptions extends Omit<StartCanvasRecordingOptions, "sourceVideo"> {
+interface StartRealtimeLoopRecordingOptions extends Omit<
+  StartCanvasRecordingOptions,
+  "sourceVideo"
+> {
   video: HTMLVideoElement;
   sourceVideo: VideoFrameCallbackVideo | null;
   timerRef: RefLike<number | null>;
@@ -46,7 +49,8 @@ export const buildRecorderOptions = (
 export const getLoopStopDelayMs = (durationSec: number, playbackRate: number) =>
   (durationSec / (playbackRate || 1)) * 1000 + 200;
 
-const nextAnimationFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+const nextAnimationFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 export const startCanvasRecording = ({
   sourceCanvas,
@@ -67,15 +71,17 @@ export const startCanvasRecording = ({
   streamRef.current = stream;
 
   if (includeVideoAudio && sourceVideo?.captureStream) {
-    const videoStream = fps != null
-      ? sourceVideo.captureStream?.(fps)
-      : sourceVideo.captureStream?.();
+    const videoStream =
+      fps != null ? sourceVideo.captureStream?.(fps) : sourceVideo.captureStream?.();
     if (videoStream) {
       videoStream.getAudioTracks().forEach((track) => stream.addTrack(track.clone()));
     }
   }
 
-  const recorder = new MediaRecorder(stream, buildRecorderOptions(recordingFormat, autoBitrate, bitrateMbps));
+  const recorder = new MediaRecorder(
+    stream,
+    buildRecorderOptions(recordingFormat, autoBitrate, bitrateMbps),
+  );
   mediaRecorderRef.current = recorder;
   chunksRef.current = [];
 

@@ -31,10 +31,32 @@ export const optionTypes = {
   color2: { type: COLOR, default: THEMES.RISOGRAPH[2].slice(0, 3), desc: "Second ink color" },
   color3: { type: COLOR, default: THEMES.RISOGRAPH[4].slice(0, 3), desc: "Third ink color" },
   color4: { type: COLOR, default: THEMES.RISOGRAPH[3].slice(0, 3), desc: "Fourth ink color" },
-  layers: { type: RANGE, range: [2, 4], step: 1, default: 3, desc: "Number of ink layers to print" },
-  misregistration: { type: RANGE, range: [0, 20], step: 1, default: 5, desc: "Print alignment error in pixels" },
-  grain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Paper texture grain amount" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional palette applied after the fixed spot-ink layers" }
+  layers: {
+    type: RANGE,
+    range: [2, 4],
+    step: 1,
+    default: 3,
+    desc: "Number of ink layers to print",
+  },
+  misregistration: {
+    type: RANGE,
+    range: [0, 20],
+    step: 1,
+    default: 5,
+    desc: "Print alignment error in pixels",
+  },
+  grain: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.25,
+    desc: "Paper texture grain amount",
+  },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional palette applied after the fixed spot-ink layers",
+  },
 };
 
 export const defaults = {
@@ -45,7 +67,7 @@ export const defaults = {
   layers: optionTypes.layers.default,
   misregistration: optionTypes.misregistration.default,
   grain: optionTypes.grain.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const RISO_FS = `#version 300 es
@@ -126,14 +148,22 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     riso: linkProgram(gl, RISO_FS, [
-      "u_source", "u_res", "u_layers", "u_grain", "u_inkColor", "u_inkOffset",
+      "u_source",
+      "u_res",
+      "u_layers",
+      "u_grain",
+      "u_inkColor",
+      "u_inkOffset",
     ] as const),
   };
   return _cache;
 };
 
 const risographMulti = (input: any, options: Partial<typeof defaults> = defaults) => {
-  const { color1, color2, color3, color4, layers, misregistration, grain, palette } = { ...defaults, ...options };
+  const { color1, color2, color3, color4, layers, misregistration, grain, palette } = {
+    ...defaults,
+    ...options,
+  };
   const W = input.width;
   const H = input.height;
 
@@ -167,24 +197,35 @@ const risographMulti = (input: any, options: Partial<typeof defaults> = defaults
         offArr[i * 2 + 1] = offsets[i][1];
       }
 
-      drawPass(gl, null, W, H, cache.riso, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.riso.uniforms.u_source, 0);
-        gl.uniform2f(cache.riso.uniforms.u_res, W, H);
-        gl.uniform1i(cache.riso.uniforms.u_layers, layers);
-        gl.uniform1f(cache.riso.uniforms.u_grain, grain);
-        gl.uniform3fv(cache.riso.uniforms.u_inkColor, colorArr);
-        gl.uniform2fv(cache.riso.uniforms.u_inkOffset, offArr);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.riso,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.riso.uniforms.u_source, 0);
+          gl.uniform2f(cache.riso.uniforms.u_res, W, H);
+          gl.uniform1i(cache.riso.uniforms.u_layers, layers);
+          gl.uniform1f(cache.riso.uniforms.u_grain, grain);
+          gl.uniform3fv(cache.riso.uniforms.u_inkColor, colorArr);
+          gl.uniform2fv(cache.riso.uniforms.u_inkOffset, offArr);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Risograph (multi-layer)", "WebGL2",
-            `layers=${layers}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Risograph (multi-layer)",
+            "WebGL2",
+            `layers=${layers}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -206,7 +247,12 @@ const risographMulti = (input: any, options: Partial<typeof defaults> = defaults
       lum[y * W + x] = (0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255;
     }
 
-  for (let i = 0; i < outBuf.length; i += 4) { outBuf[i] = 245; outBuf[i + 1] = 240; outBuf[i + 2] = 235; outBuf[i + 3] = buf[i + 3]; }
+  for (let i = 0; i < outBuf.length; i += 4) {
+    outBuf[i] = 245;
+    outBuf[i + 1] = 240;
+    outBuf[i + 2] = 235;
+    outBuf[i + 3] = buf[i + 3];
+  }
 
   const activeColors = colors.slice(0, layers);
   const thresholds = activeColors.map((_, i) => (i + 1) / (activeColors.length + 1));
@@ -241,7 +287,12 @@ const risographMulti = (input: any, options: Partial<typeof defaults> = defaults
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], buf[i + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(outBuf[i], outBuf[i + 1], outBuf[i + 2], buf[i + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
 
@@ -255,5 +306,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Fixed multi-master stencil print with balanced registration offsets and correlated emulsion-ink variation",
+  description:
+    "Fixed multi-master stencil print with balanced registration offsets and correlated emulsion-ink variation",
 });

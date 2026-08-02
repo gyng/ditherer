@@ -19,13 +19,19 @@ const makeCanvas = (width: number, height: number, pixels: Pixel[]) => {
   const arcs: Arc[] = [];
   let fillStyle = "";
   const ctx = {
-    set fillStyle(v: string) { fillStyle = v; },
-    get fillStyle() { return fillStyle; },
+    set fillStyle(v: string) {
+      fillStyle = v;
+    },
+    get fillStyle() {
+      return fillStyle;
+    },
     globalCompositeOperation: "source-over",
     getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
     fillRect: () => {},
     beginPath: () => {},
-    arc: (cx: number, cy: number, r: number) => { arcs.push({ cx, cy, r, style: fillStyle }); },
+    arc: (cx: number, cy: number, r: number) => {
+      arcs.push({ cx, cy, r, style: fillStyle });
+    },
     fill: () => {},
   };
   const canvas = {
@@ -68,8 +74,8 @@ describe("Halftone levels control (BUG 2 wired)", () => {
 
   it("changes the dot radius when levels changes (nearest palette)", () => {
     // The default palette is `nearest`, whose getColor honours `levels`.
-    const coarse = run(2);   // 100 -> 0
-    const fine = run(32);    // 100 -> ~99
+    const coarse = run(2); // 100 -> 0
+    const fine = run(32); // 100 -> ~99
     expect(coarse).not.toBeCloseTo(fine, 3);
     expect(coarse).toBeCloseTo(0, 5);
     expect(fine).toBeGreaterThan(1);
@@ -107,8 +113,8 @@ describe("Halftone cell averaging (BUG 1 direction: CPU averages the block)", ()
   it("derives the dot tone from the cell mean, not the centre pixel", () => {
     const checker: Pixel[] = [
       [255, 255, 255, 255], // (0,0)
-      [0, 0, 0, 255],       // (1,0)
-      [0, 0, 0, 255],       // (0,1)
+      [0, 0, 0, 255], // (1,0)
+      [0, 0, 0, 255], // (0,1)
       [255, 255, 255, 255], // (1,1) — centre sample, distinct from the mean
     ];
     const { canvas, arcs } = makeCanvas(2, 2, checker);
@@ -122,7 +128,7 @@ describe("Halftone cell averaging (BUG 1 direction: CPU averages the block)", ()
     } as never);
 
     const r = redRadius(arcs);
-    expect(r).toBeCloseTo(1.0, 5);   // == average (127.5)
-    expect(r).toBeLessThan(1.5);     // != centre point-sample (would be 2.0)
+    expect(r).toBeCloseTo(1.0, 5); // == average (127.5)
+    expect(r).toBeLessThan(1.5); // != centre point-sample (would be 2.0)
   });
 });

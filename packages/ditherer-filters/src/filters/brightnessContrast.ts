@@ -16,11 +16,35 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  brightness: { type: RANGE, range: [-255, 255], step: 1, default: 0, desc: "Additive brightness offset applied to all channels" },
-  contrast: { type: RANGE, range: [-40, 40], step: 0.1, default: 0, desc: "Contrast adjustment — positive increases, negative decreases" },
-  exposure: { type: RANGE, range: [-4, 4], step: 0.1, default: 1, desc: "Exposure multiplier applied before contrast" },
-  gamma: { type: RANGE, range: [-1.5, 7.5], step: 0.1, default: 1, desc: "Gamma correction curve (>1 darkens midtones, <1 brightens)" },
-  palette: { type: PALETTE, default: palettes.nearest }
+  brightness: {
+    type: RANGE,
+    range: [-255, 255],
+    step: 1,
+    default: 0,
+    desc: "Additive brightness offset applied to all channels",
+  },
+  contrast: {
+    type: RANGE,
+    range: [-40, 40],
+    step: 0.1,
+    default: 0,
+    desc: "Contrast adjustment — positive increases, negative decreases",
+  },
+  exposure: {
+    type: RANGE,
+    range: [-4, 4],
+    step: 0.1,
+    default: 1,
+    desc: "Exposure multiplier applied before contrast",
+  },
+  gamma: {
+    type: RANGE,
+    range: [-1.5, 7.5],
+    step: 0.1,
+    default: 1,
+    desc: "Gamma correction curve (>1 darkens midtones, <1 brightens)",
+  },
+  palette: { type: PALETTE, default: palettes.nearest },
 };
 
 export const defaults = {
@@ -28,12 +52,13 @@ export const defaults = {
   contrast: optionTypes.contrast.default,
   exposure: optionTypes.exposure.default,
   gamma: optionTypes.gamma.default,
-  palette: optionTypes.palette.default
+  palette: optionTypes.palette.default,
 };
 
-type BrightnessContrastOptions = FilterOptionValues & typeof defaults & {
-  _linearize?: boolean;
-};
+type BrightnessContrastOptions = FilterOptionValues &
+  typeof defaults & {
+    _linearize?: boolean;
+  };
 
 const BC_FS = `#version 300 es
 precision highp float;
@@ -91,17 +116,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     bc: linkProgram(gl, BC_FS, [
-      "u_source", "u_brightness", "u_contrast", "u_exposure",
-      "u_gamma", "u_linearize", "u_levels",
+      "u_source",
+      "u_brightness",
+      "u_contrast",
+      "u_exposure",
+      "u_gamma",
+      "u_linearize",
+      "u_levels",
     ] as const),
   };
   return _cache;
 };
 
-const brightnessContrast = (
-  input: any,
-  options: BrightnessContrastOptions = defaults
-) => {
+const brightnessContrast = (input: any, options: BrightnessContrastOptions = defaults) => {
   const { brightness, contrast, exposure, gamma, palette } = options;
   const linearize = options._linearize === true;
   const W = input.width;
@@ -117,24 +144,35 @@ const brightnessContrast = (
   uploadSourceTexture(gl, sourceTex, input);
 
   const identity = paletteIsIdentity(palette);
-  drawPass(gl, null, W, H, cache.bc, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.bc.uniforms.u_source, 0);
-    gl.uniform1f(cache.bc.uniforms.u_brightness, brightness);
-    gl.uniform1f(cache.bc.uniforms.u_contrast, contrast);
-    gl.uniform1f(cache.bc.uniforms.u_exposure, exposure);
-    gl.uniform1f(cache.bc.uniforms.u_gamma, gamma);
-    gl.uniform1i(cache.bc.uniforms.u_linearize, linearize ? 1 : 0);
-    const pOpts = (palette as { options?: { levels?: number } }).options;
-    gl.uniform1f(cache.bc.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.bc,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.bc.uniforms.u_source, 0);
+      gl.uniform1f(cache.bc.uniforms.u_brightness, brightness);
+      gl.uniform1f(cache.bc.uniforms.u_contrast, contrast);
+      gl.uniform1f(cache.bc.uniforms.u_exposure, exposure);
+      gl.uniform1f(cache.bc.uniforms.u_gamma, gamma);
+      gl.uniform1i(cache.bc.uniforms.u_linearize, linearize ? 1 : 0);
+      const pOpts = (palette as { options?: { levels?: number } }).options;
+      gl.uniform1f(cache.bc.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("Brightness/Contrast", "WebGL2",
-    `${linearize ? "linearized" : "direct"}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Brightness/Contrast",
+    "WebGL2",
+    `${linearize ? "linearized" : "direct"}${identity ? "" : "+palettePass"}`,
+  );
   return out ?? input;
 };
 

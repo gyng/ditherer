@@ -15,10 +15,34 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [2, 16], step: 1, default: 5, desc: "Number of posterized tone bands in the held result" },
-  holdThreshold: { type: RANGE, range: [0, 96], step: 1, default: 18, desc: "Tone change required before a held band begins to release" },
-  releaseSpeed: { type: RANGE, range: [0.05, 1], step: 0.05, default: 0.25, desc: "How quickly a conflicting tone pushes the held band to update" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
+  levels: {
+    type: RANGE,
+    range: [2, 16],
+    step: 1,
+    default: 5,
+    desc: "Number of posterized tone bands in the held result",
+  },
+  holdThreshold: {
+    type: RANGE,
+    range: [0, 96],
+    step: 1,
+    default: 18,
+    desc: "Tone change required before a held band begins to release",
+  },
+  releaseSpeed: {
+    type: RANGE,
+    range: [0.05, 1],
+    step: 0.05,
+    default: 0.25,
+    desc: "How quickly a conflicting tone pushes the held band to update",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -117,8 +141,12 @@ let _lastLevels = -1;
 const getStateProg = (gl: WebGL2RenderingContext): Program => {
   if (_stateProg) return _stateProg;
   _stateProg = linkProgram(gl, STATE_FS, [
-    "u_source", "u_prevState", "u_levels",
-    "u_holdThreshold", "u_releaseSpeed", "u_isFirst",
+    "u_source",
+    "u_prevState",
+    "u_levels",
+    "u_holdThreshold",
+    "u_releaseSpeed",
+    "u_isFirst",
   ] as const);
   return _stateProg;
 };
@@ -134,7 +162,8 @@ const temporalPosterHold = (input: any, options: TemporalPosterHoldOptions = def
   const holdThreshold = Math.max(0, Number(options.holdThreshold ?? defaults.holdThreshold));
   const releaseSpeed = Math.max(0.01, Number(options.releaseSpeed ?? defaults.releaseSpeed));
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -151,32 +180,48 @@ const temporalPosterHold = (input: any, options: TemporalPosterHoldOptions = def
   const stateA = ensureTexture(gl, "temporalPosterHold:stateA", W, H);
   const stateB = ensureTexture(gl, "temporalPosterHold:stateB", W, H);
   const writeState = frameIndex % 2 === 0 ? stateA : stateB;
-  const readState  = frameIndex % 2 === 0 ? stateB : stateA;
+  const readState = frameIndex % 2 === 0 ? stateB : stateA;
   const isFirst = frameIndex === 0 || _lastLevels !== levels;
   _lastLevels = levels;
 
-  drawPass(gl, writeState, W, H, stateProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(stateProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, readState.tex);
-    gl.uniform1i(stateProg.uniforms.u_prevState, 1);
-    gl.uniform1f(stateProg.uniforms.u_levels, levels);
-    gl.uniform1f(stateProg.uniforms.u_holdThreshold, holdThreshold / 255);
-    gl.uniform1f(stateProg.uniforms.u_releaseSpeed, releaseSpeed);
-    gl.uniform1f(stateProg.uniforms.u_isFirst, isFirst ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    writeState,
+    W,
+    H,
+    stateProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(stateProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, readState.tex);
+      gl.uniform1i(stateProg.uniforms.u_prevState, 1);
+      gl.uniform1f(stateProg.uniforms.u_levels, levels);
+      gl.uniform1f(stateProg.uniforms.u_holdThreshold, holdThreshold / 255);
+      gl.uniform1f(stateProg.uniforms.u_releaseSpeed, releaseSpeed);
+      gl.uniform1f(stateProg.uniforms.u_isFirst, isFirst ? 1 : 0);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, W, H, renderProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(renderProg.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, writeState.tex);
-    gl.uniform1i(renderProg.uniforms.u_state, 1);
-    gl.uniform1f(renderProg.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    renderProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(renderProg.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, writeState.tex);
+      gl.uniform1i(renderProg.uniforms.u_state, 1);
+      gl.uniform1f(renderProg.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -192,7 +237,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Posterized tone bands update with temporal hysteresis so broad regions stick before snapping to a new tone",
+  description:
+    "Posterized tone bands update with temporal hysteresis so broad regions stick before snapping to a new tone",
   temporal: true,
   requiresGL: true,
 });

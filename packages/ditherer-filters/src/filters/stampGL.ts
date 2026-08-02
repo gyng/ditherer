@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -131,10 +138,16 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_threshold", "u_roughness",
-    "u_inkColor", "u_paperColor",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_threshold",
+      "u_roughness",
+      "u_inkColor",
+      "u_paperColor",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -142,9 +155,12 @@ export const stampGLAvailable = (): boolean => glAvailable();
 
 export const renderStampGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  threshold: number, roughness: number,
-  inkColor: [number, number, number], paperColor: [number, number, number],
+  width: number,
+  height: number,
+  threshold: number,
+  roughness: number,
+  inkColor: [number, number, number],
+  paperColor: [number, number, number],
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -154,15 +170,23 @@ export const renderStampGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "stamp:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_threshold, threshold);
-    gl.uniform1f(cache.prog.uniforms.u_roughness, roughness);
-    gl.uniform3f(cache.prog.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
-    gl.uniform3f(cache.prog.uniforms.u_paperColor, paperColor[0], paperColor[1], paperColor[2]);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_threshold, threshold);
+      gl.uniform1f(cache.prog.uniforms.u_roughness, roughness);
+      gl.uniform3f(cache.prog.uniforms.u_inkColor, inkColor[0], inkColor[1], inkColor[2]);
+      gl.uniform3f(cache.prog.uniforms.u_paperColor, paperColor[0], paperColor[1], paperColor[2]);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

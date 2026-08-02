@@ -7,11 +7,39 @@ import { renderTeletextGL } from "./teletextGL";
 
 export const optionTypes = {
   columns: { type: RANGE, range: [20, 80], step: 1, default: 40, desc: "Character grid width" },
-  standardPage: { type: BOOL, default: true, desc: "Use ETSI System B's 24-row geometry while the column count remains 40" },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance threshold per block cell" },
-  blockGap: { type: RANGE, range: [0, 3], step: 1, default: 1, desc: "Pixel gap between character blocks" },
-  bitErrorRate: { type: RANGE, range: [0, 0.05], step: 0.0001, default: 0.002, desc: "Transmission bit error probability before Hamming/parity decoding" },
-  burstErrors: { type: RANGE, range: [0, 1], step: 0.01, default: 0.12, desc: "Correlate data errors into horizontal packet bursts" },
+  standardPage: {
+    type: BOOL,
+    default: true,
+    desc: "Use ETSI System B's 24-row geometry while the column count remains 40",
+  },
+  threshold: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 128,
+    desc: "Luminance threshold per block cell",
+  },
+  blockGap: {
+    type: RANGE,
+    range: [0, 3],
+    step: 1,
+    default: 1,
+    desc: "Pixel gap between character blocks",
+  },
+  bitErrorRate: {
+    type: RANGE,
+    range: [0, 0.05],
+    step: 0.0001,
+    default: 0.002,
+    desc: "Transmission bit error probability before Hamming/parity decoding",
+  },
+  burstErrors: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.12,
+    desc: "Correlate data errors into horizontal packet bursts",
+  },
   concealment: {
     type: ENUM,
     options: [
@@ -22,8 +50,14 @@ export const optionTypes = {
     default: "BLANK",
     desc: "Decoder response to uncorrectable packet addresses and parity failures",
   },
-  randomSeed: { type: RANGE, range: [0, 9999], step: 1, default: 706, desc: "Deterministic System B packet-channel seed" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" }
+  randomSeed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 706,
+    desc: "Deterministic System B packet-channel seed",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
 export const defaults = {
@@ -35,7 +69,7 @@ export const defaults = {
   burstErrors: optionTypes.burstErrors.default,
   concealment: optionTypes.concealment.default,
   randomSeed: optionTypes.randomSeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 8 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 8 } },
 };
 
 type TeletextOptions = FilterOptionValues & Partial<typeof defaults>;
@@ -88,10 +122,7 @@ export const resolveTeletextGeometry = (
   };
 };
 
-const teletext = (
-  input: any,
-  options: TeletextOptions = defaults
-) => {
+const teletext = (input: any, options: TeletextOptions = defaults) => {
   const W = input.width;
   const H = input.height;
   if (W < 1 || H < 1) return input;
@@ -101,17 +132,31 @@ const teletext = (
   const palette = options.palette ?? defaults.palette;
   const { columns, rows, cellW, cellH, blockW, blockH } = resolveTeletextGeometry(W, H, options);
 
-  const rendered = renderTeletextGL(input, W, H, columns, threshold, blockGap,
-      cellW, cellH, rows, blockW, blockH,
-      finiteClamp(options.bitErrorRate, defaults.bitErrorRate, 0, 0.05),
-      finiteClamp(options.burstErrors, defaults.burstErrors, 0, 1),
-      options.concealment === "REPEAT" ? 1 : options.concealment === "CORRUPT" ? 2 : 0,
-      finiteClamp(options.randomSeed, defaults.randomSeed, 0, 9999),
-    );
+  const rendered = renderTeletextGL(
+    input,
+    W,
+    H,
+    columns,
+    threshold,
+    blockGap,
+    cellW,
+    cellH,
+    rows,
+    blockW,
+    blockH,
+    finiteClamp(options.bitErrorRate, defaults.bitErrorRate, 0, 0.05),
+    finiteClamp(options.burstErrors, defaults.burstErrors, 0, 1),
+    options.concealment === "REPEAT" ? 1 : options.concealment === "CORRUPT" ? 2 : 0,
+    finiteClamp(options.randomSeed, defaults.randomSeed, 0, 9999),
+  );
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("Teletext", "WebGL2", `System B ${columns}x${rows} ber=${finiteClamp(options.bitErrorRate, defaults.bitErrorRate, 0, 0.05)}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Teletext",
+    "WebGL2",
+    `System B ${columns}x${rows} ber=${finiteClamp(options.bitErrorRate, defaults.bitErrorRate, 0, 0.05)}${identity ? "" : "+palettePass"}`,
+  );
   return out ?? input;
 };
 
@@ -121,5 +166,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "ETSI System B alphamosaics with 45-byte packet, Hamming-address and odd-parity channel faults",
-  requiresGL: true });
+  description:
+    "ETSI System B alphamosaics with 45-byte packet, Hamming-address and odd-parity channel faults",
+  requiresGL: true,
+});

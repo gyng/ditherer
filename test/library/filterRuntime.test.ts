@@ -21,9 +21,10 @@ const canvas = (width = 3, height = 2): HTMLCanvasElement => {
 
 describe("browser filter library runtime", () => {
   it("runs catalog filters by canonical name", async () => {
-    const result = await runFilterChain(canvas(), [
-      { id: "gray", filter: "Grayscale" },
-    ], { webglAcceleration: false, wasmAcceleration: false });
+    const result = await runFilterChain(canvas(), [{ id: "gray", filter: "Grayscale" }], {
+      webglAcceleration: false,
+      wasmAcceleration: false,
+    });
 
     expect(result.canvas.width).toBe(3);
     expect(result.canvas.height).toBe(2);
@@ -43,12 +44,16 @@ describe("browser filter library runtime", () => {
       },
     };
 
-    await runFilterChain(canvas(), [
-      { id: "capture", filter: definition, options: { amount: 7 } },
-    ], { wasmAcceleration: false });
+    await runFilterChain(
+      canvas(),
+      [{ id: "capture", filter: definition, options: { amount: 7 } }],
+      { wasmAcceleration: false },
+    );
 
     expect(seen[0].amount).toBe(7);
-    expect((seen[0].palette as { options: { _wasmAcceleration: boolean } }).options._wasmAcceleration).toBe(false);
+    expect(
+      (seen[0].palette as { options: { _wasmAcceleration: boolean } }).options._wasmAcceleration,
+    ).toBe(false);
     expect(definition.options).toEqual({
       amount: 2,
       palette: { name: "test", options: { levels: 4 } },
@@ -95,10 +100,14 @@ describe("browser filter library runtime", () => {
 
   it("reports unknown filters without corrupting the rest of a chain", async () => {
     const onError = vi.fn();
-    const result = await runFilterChain(canvas(), [
-      { id: "missing", filter: "Not in this catalog" },
-      { id: "gray", filter: filterIndex.Grayscale },
-    ], { onError, webglAcceleration: false });
+    const result = await runFilterChain(
+      canvas(),
+      [
+        { id: "missing", filter: "Not in this catalog" },
+        { id: "gray", filter: filterIndex.Grayscale },
+      ],
+      { onError, webglAcceleration: false },
+    );
 
     expect(result.steps).toHaveLength(2);
     expect(result.steps[0].error).toMatch(/Unknown filter/);
@@ -135,7 +144,10 @@ describe("browser filter library runtime", () => {
         id: "first",
         filter: {
           name: "Deferred first",
-          func: () => new Promise<HTMLCanvasElement | OffscreenCanvas>((resolve) => { resolveFirst = resolve; }),
+          func: () =>
+            new Promise<HTMLCanvasElement | OffscreenCanvas>((resolve) => {
+              resolveFirst = resolve;
+            }),
         },
       },
       { id: "later", filter: { name: "Later", func: later } },
@@ -171,9 +183,14 @@ describe("browser filter library runtime", () => {
     ];
     resetCanvasPoolStats();
 
-    const released = await runFilterChain(canvas(width, height), chain, {}, {
-      retainStepCanvases: false,
-    });
+    const released = await runFilterChain(
+      canvas(width, height),
+      chain,
+      {},
+      {
+        retainStepCanvases: false,
+      },
+    );
     expect(released.canvas).toBe(second);
     expect(getCanvasPoolStats().releases).toBe(1);
     expect(takePooledCanvas(width, height)).toBe(first);
@@ -196,16 +213,23 @@ describe("browser filter library runtime", () => {
     const first = takePooledCanvas(width, height);
     resetCanvasPoolStats();
 
-    await expect(runFilterChain(canvas(width, height), [
-      { id: "first", filter: { name: "First before resolve failure", func: () => first } },
-      { id: "second", filter: { name: "Resolve failure", func: (input) => input } },
-    ], {}, {
-      retainStepCanvases: false,
-      resolveOptions: (_entry, index, defaults) => {
-        if (index === 1) throw new Error("injected resolveOptions failure");
-        return defaults;
-      },
-    })).rejects.toThrow("injected resolveOptions failure");
+    await expect(
+      runFilterChain(
+        canvas(width, height),
+        [
+          { id: "first", filter: { name: "First before resolve failure", func: () => first } },
+          { id: "second", filter: { name: "Resolve failure", func: (input) => input } },
+        ],
+        {},
+        {
+          retainStepCanvases: false,
+          resolveOptions: (_entry, index, defaults) => {
+            if (index === 1) throw new Error("injected resolveOptions failure");
+            return defaults;
+          },
+        },
+      ),
+    ).rejects.toThrow("injected resolveOptions failure");
 
     expect(getCanvasPoolStats().releases).toBe(1);
     expect(takePooledCanvas(width, height)).toBe(first);
@@ -217,12 +241,19 @@ describe("browser filter library runtime", () => {
     const first = takePooledCanvas(width, height);
     resetCanvasPoolStats();
 
-    await expect(runFilterChain(canvas(width, height), [
-      { id: "first", filter: { name: "Rejected step callback", func: () => first } },
-    ], {}, {
-      retainStepCanvases: false,
-      onStep: () => { throw new Error("injected onStep failure"); },
-    })).rejects.toThrow("injected onStep failure");
+    await expect(
+      runFilterChain(
+        canvas(width, height),
+        [{ id: "first", filter: { name: "Rejected step callback", func: () => first } }],
+        {},
+        {
+          retainStepCanvases: false,
+          onStep: () => {
+            throw new Error("injected onStep failure");
+          },
+        },
+      ),
+    ).rejects.toThrow("injected onStep failure");
 
     expect(getCanvasPoolStats().releases).toBe(1);
     expect(takePooledCanvas(width, height)).toBe(first);

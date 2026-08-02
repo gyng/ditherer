@@ -66,13 +66,49 @@ void main() {
 }`;
 
 export const optionTypes = {
-  thickness: { type: RANGE, range: [1, 80], step: 1, default: 28, desc: "Glass thickness and refraction travel distance" },
+  thickness: {
+    type: RANGE,
+    range: [1, 80],
+    step: 1,
+    default: 28,
+    desc: "Glass thickness and refraction travel distance",
+  },
   ior: { type: RANGE, range: [1.01, 2.5], step: 0.01, default: 1.45, desc: "Index of refraction" },
-  roughness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.12, desc: "Micro-surface blur and highlight breakup" },
-  dispersion: { type: RANGE, range: [0, 3], step: 0.05, default: 0.55, desc: "Prismatic separation of red, green, and blue rays" },
-  dropletScale: { type: RANGE, range: [2, 40], step: 1, default: 12, desc: "Scale of the procedural droplet surface" },
-  sourceInfluence: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "How much source luminance shapes the glass" },
-  animateSpeed: { type: RANGE, range: [0, 3], step: 0.05, default: 0.35, desc: "Droplet motion speed" },
+  roughness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.12,
+    desc: "Micro-surface blur and highlight breakup",
+  },
+  dispersion: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.55,
+    desc: "Prismatic separation of red, green, and blue rays",
+  },
+  dropletScale: {
+    type: RANGE,
+    range: [2, 40],
+    step: 1,
+    default: 12,
+    desc: "Scale of the procedural droplet surface",
+  },
+  sourceInfluence: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.35,
+    desc: "How much source luminance shapes the glass",
+  },
+  animateSpeed: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.35,
+    desc: "Droplet motion speed",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -89,10 +125,23 @@ export const defaults = {
 
 const glassSurface = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const runtime = options as typeof defaults & { _frameIndex?: number };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "glassSurface", fragmentShader: FS,
-    uniformNames: ["u_thickness", "u_ior", "u_roughness", "u_dispersion", "u_dropletScale", "u_sourceInfluence", "u_time"],
+    source: input,
+    width: W,
+    height: H,
+    key: "glassSurface",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_thickness",
+      "u_ior",
+      "u_roughness",
+      "u_dispersion",
+      "u_dropletScale",
+      "u_sourceInfluence",
+      "u_time",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1f(u.u_thickness, options.thickness);
       gl.uniform1f(u.u_ior, options.ior);
@@ -105,8 +154,14 @@ const glassSurface = (input: HTMLCanvasElement | OffscreenCanvas, options = defa
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Glass Surface", "WebGL2", `ior=${options.ior}${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Glass Surface",
+    "WebGL2",
+    `ior=${options.ior}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({

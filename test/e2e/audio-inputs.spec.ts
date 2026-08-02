@@ -11,35 +11,45 @@ test.beforeEach(async ({ page }) => {
 });
 
 const expectVisibleControlsLabelled = async (scope: Locator) => {
-  const unlabeled = await scope.locator("input:not([type=hidden]), select, textarea").evaluateAll((elements) =>
-    elements
-      .filter((element) => (element as HTMLElement).offsetParent !== null)
-      .filter((element) => {
-        const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-        return control.labels?.length === 0
-          && !control.getAttribute("aria-label")
-          && !control.getAttribute("aria-labelledby");
-      })
-      .map((element) => `${element.tagName.toLowerCase()}#${element.id || "(no-id)"}`),
-  );
+  const unlabeled = await scope
+    .locator("input:not([type=hidden]), select, textarea")
+    .evaluateAll((elements) =>
+      elements
+        .filter((element) => (element as HTMLElement).offsetParent !== null)
+        .filter((element) => {
+          const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+          return (
+            control.labels?.length === 0 &&
+            !control.getAttribute("aria-label") &&
+            !control.getAttribute("aria-labelledby")
+          );
+        })
+        .map((element) => `${element.tagName.toLowerCase()}#${element.id || "(no-id)"}`),
+    );
   expect(unlabeled).toEqual([]);
 };
 
 const connectionPathCount = (dialog: Locator) => dialog.locator("svg path").count();
 
-test("chain, filter, and screensaver audio inputs expose usable Auto Viz mappings", async ({ page }) => {
+test("chain, filter, and screensaver audio inputs expose usable Auto Viz mappings", async ({
+  page,
+}) => {
   await startBrowserCoverage(page);
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto("/?testMedia=image%3Apepper.png");
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  await page.getByRole("combobox", { name: "Load a preset" }).selectOption({ label: "Amber Terminal" });
+  await page
+    .getByRole("combobox", { name: "Load a preset" })
+    .selectOption({ label: "Amber Terminal" });
 
   await page.getByTitle("Open chain audio visualizer mapping").click();
   const chainAudio = page.getByRole("dialog", { name: "Chain audio visualizer settings" });
   await expect(chainAudio).toBeVisible();
-  await expect(chainAudio.getByRole("checkbox", { name: "Enable audio visualizer input" })).not.toBeChecked();
+  await expect(
+    chainAudio.getByRole("checkbox", { name: "Enable audio visualizer input" }),
+  ).not.toBeChecked();
   await expect(chainAudio.getByRole("combobox", { name: "Source" })).toHaveValue("microphone");
   await chainAudio.getByRole("combobox", { name: "Auto Viz mode" }).selectOption("punchy");
   await chainAudio.getByRole("slider", { name: /Density/ }).fill("0.4");
@@ -61,7 +71,10 @@ test("chain, filter, and screensaver audio inputs expose usable Auto Viz mapping
   await chainAudio.getByRole("button", { name: "Clear", exact: true }).click();
   await expect(chainAudio).toBeHidden();
 
-  const firstEntry = page.getByRole("listbox", { name: "Filter chain" }).getByRole("option").first();
+  const firstEntry = page
+    .getByRole("listbox", { name: "Filter chain" })
+    .getByRole("option")
+    .first();
   await firstEntry.getByRole("button", { name: /More actions for/ }).click();
   await firstEntry.getByRole("button", { name: /Map audio visualizer to/ }).click();
   const filterAudio = page.getByRole("dialog", { name: /Audio visualizer settings for/ });

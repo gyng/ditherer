@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -54,10 +61,15 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_levels", "u_lineWidth",
-    "u_lineColor", "u_fillMode",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_levels",
+      "u_lineWidth",
+      "u_lineColor",
+      "u_fillMode",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -67,8 +79,10 @@ export type ContourFillMode = 0 | 1 | 2;
 
 export const renderContourLinesGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  levels: number, lineWidth: number,
+  width: number,
+  height: number,
+  levels: number,
+  lineWidth: number,
   lineColor: [number, number, number],
   fillMode: ContourFillMode,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
@@ -80,14 +94,22 @@ export const renderContourLinesGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "contourLines:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-    gl.uniform1f(cache.prog.uniforms.u_lineWidth, lineWidth);
-    gl.uniform3f(cache.prog.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
-    gl.uniform1i(cache.prog.uniforms.u_fillMode, fillMode);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+      gl.uniform1f(cache.prog.uniforms.u_lineWidth, lineWidth);
+      gl.uniform3f(cache.prog.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
+      gl.uniform1i(cache.prog.uniforms.u_fillMode, fillMode);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

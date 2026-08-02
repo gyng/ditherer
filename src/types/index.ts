@@ -21,12 +21,7 @@ export interface Palette {
 export interface AnimateOption extends OptionType {
   type: "ACTION";
   label: string;
-  action: (
-    actions: unknown,
-    inputCanvas: unknown,
-    filterFunc: unknown,
-    options: unknown,
-  ) => void;
+  action: (actions: unknown, inputCanvas: unknown, filterFunc: unknown, options: unknown) => void;
 }
 
 export interface Filter {

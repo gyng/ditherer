@@ -78,10 +78,7 @@ export const sharedTestMediaForSource = (
   return validateSharedTestMedia({ kind, file });
 };
 
-export const updateTestMediaSearch = (
-  search: string,
-  media: SharedTestMedia | null,
-): string => {
+export const updateTestMediaSearch = (search: string, media: SharedTestMedia | null): string => {
   const params = new URLSearchParams(search);
   const valid = validateSharedTestMedia(media);
   if (valid) params.set(TEST_MEDIA_PARAM, `${valid.kind}:${valid.file}`);

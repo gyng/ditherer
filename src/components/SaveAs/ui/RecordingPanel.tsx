@@ -24,11 +24,13 @@ const recordingModeHelper = (
   if (mode === "offline") {
     return support?.supported
       ? `Offline Render (Browser) is slower but steadier. It samples exact timestamps with browser seek and exports WebM${includeVideoAudio && videoVolume > 0 ? " with source audio" : ""} via WebCodecs.${strictValidation ? " Strict validation is slower but more conservative." : " Fast validation is on for quicker seeks."}`
-      : (support?.reason || "Offline Render (Browser) needs WebCodecs video encoding support in this browser.");
+      : support?.reason ||
+          "Offline Render (Browser) needs WebCodecs video encoding support in this browser.";
   }
   return support?.supported
     ? `Offline Render (WebCodecs) can be faster or slower depending on the source. It decodes source frames with WebCodecs before the offline render pass, then exports WebM${includeVideoAudio && videoVolume > 0 ? " with source audio" : ""}. It may fall back to the browser path if decode fails.`
-    : (support?.reason || "Offline Render (WebCodecs) needs WebCodecs video encoding support in this browser.");
+    : support?.reason ||
+        "Offline Render (WebCodecs) needs WebCodecs video encoding support in this browser.";
 };
 
 export const RecordingPanel = ({
@@ -86,23 +88,41 @@ export const RecordingPanel = ({
         <div className={s.row}>
           <span className={s.rowLabel}>
             Capture Mode
-            <span className={s.inlineInfo} title="Choose between realtime loop recording and deterministic reliable offline rendering.">(i)</span>
+            <span
+              className={s.inlineInfo}
+              title="Choose between realtime loop recording and deterministic reliable offline rendering."
+            >
+              (i)
+            </span>
           </span>
           <Enum
             name="Capture Mode"
             types={VIDEO_LOOP_MODE_OPTIONS}
             value={videoLoopMode}
             hideLabel
-            onSetFilterOption={(_, value) => onSetVideoLoopMode(value as "offline" | "realtime" | "webcodecs")}
+            onSetFilterOption={(_, value) =>
+              onSetVideoLoopMode(value as "offline" | "realtime" | "webcodecs")
+            }
           />
         </div>
         <div className={s.helperText}>
-          {recordingModeHelper(videoLoopMode, includeVideoAudio, videoVolume, reliableVideoSupport, reliableStrictValidation)}
+          {recordingModeHelper(
+            videoLoopMode,
+            includeVideoAudio,
+            videoVolume,
+            reliableVideoSupport,
+            reliableStrictValidation,
+          )}
         </div>
         <div className={s.row}>
           <span className={s.rowLabel}>
             Audio
-            <span className={s.inlineInfo} title="Include or exclude audio from the source video in exported video files. This is separate from preview volume, so muted playback can still export audio.">(i)</span>
+            <span
+              className={s.inlineInfo}
+              title="Include or exclude audio from the source video in exported video files. This is separate from preview volume, so muted playback can still export audio."
+            >
+              (i)
+            </span>
           </span>
           <label className={s.checkboxLabel}>
             <input
@@ -114,13 +134,18 @@ export const RecordingPanel = ({
           </label>
         </div>
         <div className={s.helperText}>
-          Preview volume and export audio are separate. You can mute playback and still include source audio in the final video.
+          Preview volume and export audio are separate. You can mute playback and still include
+          source audio in the final video.
         </div>
-        {videoLoopMode !== "realtime" && reliableVideoSupport?.audio === false && includeVideoAudio && reliableVideoSupport?.supported && (
-          <div className={s.helperText}>
-            Source audio could not be verified for reliable export, so the render may fall back to silent video.
-          </div>
-        )}
+        {videoLoopMode !== "realtime" &&
+          reliableVideoSupport?.audio === false &&
+          includeVideoAudio &&
+          reliableVideoSupport?.supported && (
+            <div className={s.helperText}>
+              Source audio could not be verified for reliable export, so the render may fall back to
+              silent video.
+            </div>
+          )}
       </>
     )}
 
@@ -128,7 +153,12 @@ export const RecordingPanel = ({
       <div className={s.row}>
         <span className={s.rowLabel}>
           Codec
-          <span className={s.inlineInfo} title="Select the browser-supported recording codec/container for realtime capture.">(i)</span>
+          <span
+            className={s.inlineInfo}
+            title="Select the browser-supported recording codec/container for realtime capture."
+          >
+            (i)
+          </span>
         </span>
         <Enum
           name="Codec"
@@ -143,7 +173,12 @@ export const RecordingPanel = ({
     <div className={s.row}>
       <span className={s.rowLabel}>
         FPS
-        <span className={s.inlineInfo} title="Frames per second for export. Turn Auto off to choose a fixed FPS manually.">(i)</span>
+        <span
+          className={s.inlineInfo}
+          title="Frames per second for export. Turn Auto off to choose a fixed FPS manually."
+        >
+          (i)
+        </span>
       </span>
       <div className={s.fpsControls}>
         <label className={s.checkboxLabel}>
@@ -158,7 +193,12 @@ export const RecordingPanel = ({
           <div className={s.inlineSliderGroup}>
             <span className={s.inlineSliderLabel}>
               Max Encoding FPS
-              <span className={s.inlineInfo} title="When Auto FPS is on, reliable export uses the lower of the source-estimated FPS and this cap. Lower values speed up export by encoding fewer frames.">(i)</span>
+              <span
+                className={s.inlineInfo}
+                title="When Auto FPS is on, reliable export uses the lower of the source-estimated FPS and this cap. Lower values speed up export by encoding fewer frames."
+              >
+                (i)
+              </span>
             </span>
             <div className={s.inlineSliderRow}>
               <input
@@ -169,7 +209,9 @@ export const RecordingPanel = ({
                 max={30}
                 step={1}
                 value={reliableMaxFps}
-                onChange={(event) => onSetReliableMaxFps(parseInt(event.target.value) || DEFAULT_RELIABLE_MAX_FPS)}
+                onChange={(event) =>
+                  onSetReliableMaxFps(parseInt(event.target.value) || DEFAULT_RELIABLE_MAX_FPS)
+                }
               />
               <span className={s.sliderValue}>{reliableMaxFps}</span>
             </div>
@@ -191,7 +233,12 @@ export const RecordingPanel = ({
     <div className={s.row}>
       <span className={s.rowLabel}>
         Bitrate
-        <span className={s.inlineInfo} title="Controls output quality and file size for realtime recording. Higher bitrate usually means larger files and fewer compression artifacts.">(i)</span>
+        <span
+          className={s.inlineInfo}
+          title="Controls output quality and file size for realtime recording. Higher bitrate usually means larger files and fewer compression artifacts."
+        >
+          (i)
+        </span>
       </span>
       <label className={s.checkboxLabel}>
         <input
@@ -200,14 +247,21 @@ export const RecordingPanel = ({
           onChange={(event) => onSetAutoBitrate(event.target.checked)}
         />
         Auto
-        <span className={s.inlineInfo} title="When enabled, the browser chooses the recording bitrate automatically.">(i)</span>
+        <span
+          className={s.inlineInfo}
+          title="When enabled, the browser chooses the recording bitrate automatically."
+        >
+          (i)
+        </span>
       </label>
     </div>
     {!autoBitrate && (
       <div className={s.row}>
         <span className={s.rowLabel}>
           Mbps
-          <span className={s.inlineInfo} title="Manual recording bitrate in megabits per second.">(i)</span>
+          <span className={s.inlineInfo} title="Manual recording bitrate in megabits per second.">
+            (i)
+          </span>
         </span>
         <div className={s.sliderRow}>
           <input
@@ -230,7 +284,12 @@ export const RecordingPanel = ({
         <div className={s.row}>
           <span className={s.rowLabel}>
             Settle
-            <span className={s.inlineInfo} title="How many animation frames to wait after each seek before capturing. Lower is faster; higher is safer if you see wrong-frame captures.">(i)</span>
+            <span
+              className={s.inlineInfo}
+              title="How many animation frames to wait after each seek before capturing. Lower is faster; higher is safer if you see wrong-frame captures."
+            >
+              (i)
+            </span>
           </span>
           <div className={s.sliderRow}>
             <input
@@ -241,7 +300,11 @@ export const RecordingPanel = ({
               max={2}
               step={1}
               value={reliableSettleFrames}
-              onChange={(event) => onSetReliableSettleFrames(parseInt(event.target.value) || DEFAULT_RELIABLE_SETTLE_FRAMES)}
+              onChange={(event) =>
+                onSetReliableSettleFrames(
+                  parseInt(event.target.value) || DEFAULT_RELIABLE_SETTLE_FRAMES,
+                )
+              }
             />
             <span className={s.sliderValue}>{reliableSettleFrames}</span>
           </div>
@@ -249,7 +312,12 @@ export const RecordingPanel = ({
         <div className={s.row}>
           <span className={s.rowLabel}>
             Validation
-            <span className={s.inlineInfo} title={`Fast mode waits for \`seeked\` plus ${reliableSettleFrames} animation frame${reliableSettleFrames === 1 ? "" : "s"}. Turn strict validation on only if you see wrong-frame captures.`}>(i)</span>
+            <span
+              className={s.inlineInfo}
+              title={`Fast mode waits for \`seeked\` plus ${reliableSettleFrames} animation frame${reliableSettleFrames === 1 ? "" : "s"}. Turn strict validation on only if you see wrong-frame captures.`}
+            >
+              (i)
+            </span>
           </span>
           <label className={s.checkboxLabel}>
             <input
@@ -263,7 +331,12 @@ export const RecordingPanel = ({
         <div className={s.row}>
           <span className={s.rowLabel}>
             Export Range
-            <span className={s.inlineInfo} title="Choose whether reliable export covers the full loop or only a selected timestamp range.">(i)</span>
+            <span
+              className={s.inlineInfo}
+              title="Choose whether reliable export covers the full loop or only a selected timestamp range."
+            >
+              (i)
+            </span>
           </span>
           <div className={s.radioGroup}>
             {RELIABLE_SCOPE_OPTIONS.options.map((option) => (
@@ -286,7 +359,12 @@ export const RecordingPanel = ({
     {hasSourceVideo && videoLoopMode !== "realtime" && reliableScope === "range" && (
       <>
         <div className={s.row}>
-          <span className={s.rowLabel}>Start <span className={s.inlineInfo} title="Start timestamp for reliable export.">(i)</span></span>
+          <span className={s.rowLabel}>
+            Start{" "}
+            <span className={s.inlineInfo} title="Start timestamp for reliable export.">
+              (i)
+            </span>
+          </span>
           <div className={s.sliderRow}>
             <input
               className={s.slider}
@@ -296,13 +374,25 @@ export const RecordingPanel = ({
               max={Math.max(0, videoDuration)}
               step={0.01}
               value={Math.min(reliableRangeStart, Math.max(0, reliableRangeEnd - 0.01))}
-              onChange={(event) => onSetReliableRangeStart(Math.min(parseFloat(event.target.value) || 0, Math.max(0, reliableRangeEnd - 0.01)))}
+              onChange={(event) =>
+                onSetReliableRangeStart(
+                  Math.min(
+                    parseFloat(event.target.value) || 0,
+                    Math.max(0, reliableRangeEnd - 0.01),
+                  ),
+                )
+              }
             />
             <span className={s.sliderValue}>{reliableRangeStart.toFixed(2)}</span>
           </div>
         </div>
         <div className={s.row}>
-          <span className={s.rowLabel}>End <span className={s.inlineInfo} title="End timestamp for reliable export.">(i)</span></span>
+          <span className={s.rowLabel}>
+            End{" "}
+            <span className={s.inlineInfo} title="End timestamp for reliable export.">
+              (i)
+            </span>
+          </span>
           <div className={s.sliderRow}>
             <input
               className={s.slider}
@@ -312,7 +402,14 @@ export const RecordingPanel = ({
               max={Math.max(0.01, videoDuration)}
               step={0.01}
               value={Math.max(reliableRangeEnd, Math.min(videoDuration, reliableRangeStart + 0.01))}
-              onChange={(event) => onSetReliableRangeEnd(Math.max(parseFloat(event.target.value) || 0.01, Math.min(videoDuration, reliableRangeStart + 0.01)))}
+              onChange={(event) =>
+                onSetReliableRangeEnd(
+                  Math.max(
+                    parseFloat(event.target.value) || 0.01,
+                    Math.min(videoDuration, reliableRangeStart + 0.01),
+                  ),
+                )
+              }
             />
             <span className={s.sliderValue}>{reliableRangeEnd.toFixed(2)}</span>
           </div>
@@ -329,11 +426,24 @@ export const RecordingPanel = ({
       {hasSourceVideo && (
         <button
           className={s.btn}
-          disabled={capturing || (videoLoopMode !== "realtime" && !exporting && reliableVideoSupport?.supported === false)}
+          disabled={
+            capturing ||
+            (videoLoopMode !== "realtime" &&
+              !exporting &&
+              reliableVideoSupport?.supported === false)
+          }
           onClick={onRecordLoop}
-          title={videoLoopMode === "realtime" ? "Seek to start and record one full loop" : (reliableVideoSupport?.reason || "Start offline rendering")}
+          title={
+            videoLoopMode === "realtime"
+              ? "Seek to start and record one full loop"
+              : reliableVideoSupport?.reason || "Start offline rendering"
+          }
         >
-          {videoLoopMode === "realtime" ? "⟲ Record loop" : exporting ? "Stop render" : "Start rendering"}
+          {videoLoopMode === "realtime"
+            ? "⟲ Record loop"
+            : exporting
+              ? "Stop render"
+              : "Start rendering"}
         </button>
       )}
     </div>
@@ -343,7 +453,9 @@ export const RecordingPanel = ({
           ● REC {formatTime(recordingTime)}
           {hasSourceVideo && sourceDuration > 0 && (
             <span className={s.sourceTimecode}>
-              {" "}· source {formatTime(Math.floor(sourceTime))} / {formatTime(Math.floor(sourceDuration))}
+              {" "}
+              · source {formatTime(Math.floor(sourceTime))} /{" "}
+              {formatTime(Math.floor(sourceDuration))}
             </span>
           )}
         </div>

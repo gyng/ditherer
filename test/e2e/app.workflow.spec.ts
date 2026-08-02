@@ -10,17 +10,19 @@ const setControlToAlternateValue = async (control: Locator) => {
     return;
   }
   if (type === "range") {
-    const min = Number(await control.getAttribute("min") ?? 0);
-    const max = Number(await control.getAttribute("max") ?? 1);
-    const step = Number(await control.getAttribute("step") ?? 1);
+    const min = Number((await control.getAttribute("min")) ?? 0);
+    const max = Number((await control.getAttribute("max")) ?? 1);
+    const step = Number((await control.getAttribute("step")) ?? 1);
     const steps = Math.max(1, Math.round(((max - min) * 0.37) / step));
     await control.fill(String(min + steps * step));
     return;
   }
   if ((await control.evaluate((node) => node.tagName)) === "SELECT") {
-    const values = await control.locator("option:not([disabled])").evaluateAll((options) =>
-      options.map((option) => (option as HTMLOptionElement).value).filter(Boolean),
-    );
+    const values = await control
+      .locator("option:not([disabled])")
+      .evaluateAll((options) =>
+        options.map((option) => (option as HTMLOptionElement).value).filter(Boolean),
+      );
     if (values.length > 1) await control.selectOption(values.at(-1));
   }
 };
@@ -30,14 +32,14 @@ const changeVisibleControls = async (page: Page, scope = page.locator("body")) =
   const count = await controls.count();
   for (let index = 0; index < count; index += 1) {
     const control = controls.nth(index);
-    if (!await control.isVisible() || await control.isDisabled()) continue;
+    if (!(await control.isVisible()) || (await control.isDisabled())) continue;
     await setControlToAlternateValue(control);
   }
 };
 
 const clickChainEntryAction = async (entry: Locator, actionName: RegExp) => {
   const action = entry.getByRole("button", { name: actionName });
-  if (!await action.isVisible()) {
+  if (!(await action.isVisible())) {
     await entry.getByRole("button", { name: /More actions for/ }).click();
   }
   await expect(action).toBeVisible();
@@ -52,7 +54,9 @@ test("core application workflows remain operable together", async ({ page }) => 
   await expect(page.getByText("Input - pepper.png", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Compose", exact: true }).click();
   await page.getByRole("button", { name: "Apply Chain" }).click();
-  await expect(page.getByText(/output is current|Auto apply on · output updates as you edit/)).toBeVisible();
+  await expect(
+    page.getByText(/output is current|Auto apply on · output updates as you edit/),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
   await page.getByLabel("Pre-convert to grayscale").check();
@@ -73,7 +77,7 @@ test("core application workflows remain operable together", async ({ page }) => 
 
   const firstEntry = chain.getByRole("option").first();
   await firstEntry.click();
-  const firstName = (await firstEntry.textContent() ?? "").trim();
+  const firstName = ((await firstEntry.textContent()) ?? "").trim();
   await firstEntry.getByRole("checkbox").click();
   await firstEntry.getByRole("checkbox").click();
   await clickChainEntryAction(firstEntry, /Randomize options for/);
@@ -120,12 +124,16 @@ test("core application workflows remain operable together", async ({ page }) => 
 
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.locator("#test-video-select").selectOption({ label: "akiyo.mp4" });
-  await expect(page.getByText("Input - akiyo.mp4", { exact: true })).toHaveText("Input - akiyo.mp4");
+  await expect(page.getByText("Input - akiyo.mp4", { exact: true })).toHaveText(
+    "Input - akiyo.mp4",
+  );
   await page.getByRole("button", { name: /^(▶ Play|⏸ Pause)$/ }).click();
   await page.getByLabel("Mute").click();
   await page.getByTitle("Step forward by roughly one frame").click();
   await page.locator("#test-image-select").selectOption({ label: "pepper.png" });
-  await expect(page.getByText("Input - pepper.png", { exact: true })).toHaveText("Input - pepper.png");
+  await expect(page.getByText("Input - pepper.png", { exact: true })).toHaveText(
+    "Input - pepper.png",
+  );
 
   await writeBrowserCoverage(page, "app-workflow");
 });

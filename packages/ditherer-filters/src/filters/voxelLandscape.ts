@@ -75,13 +75,43 @@ void main() {
 }`;
 
 export const optionTypes = {
-  cellSize: { type: RANGE, range: [2, 64], step: 1, default: 12, desc: "Source-pixel block size used to build terrain columns" },
-  heightScale: { type: RANGE, range: [0.05, 1], step: 0.05, default: 0.55, desc: "Maximum luminance-derived column height" },
+  cellSize: {
+    type: RANGE,
+    range: [2, 64],
+    step: 1,
+    default: 12,
+    desc: "Source-pixel block size used to build terrain columns",
+  },
+  heightScale: {
+    type: RANGE,
+    range: [0.05, 1],
+    step: 0.05,
+    default: 0.55,
+    desc: "Maximum luminance-derived column height",
+  },
   pitch: { type: RANGE, range: [10, 80], step: 1, default: 35, desc: "Virtual camera elevation" },
-  yaw: { type: RANGE, range: [-180, 180], step: 1, default: 28, desc: "Virtual camera orbit around the landscape" },
+  yaw: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 28,
+    desc: "Virtual camera orbit around the landscape",
+  },
   fog: { type: RANGE, range: [0, 2], step: 0.05, default: 0.35, desc: "Distance fog density" },
-  sunAngle: { type: RANGE, range: [0, 360], step: 1, default: 135, desc: "Directional terrain light" },
-  waterLevel: { type: RANGE, range: [0, 0.8], step: 0.02, default: 0, desc: "Optional blue floor that fills low terrain" },
+  sunAngle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 135,
+    desc: "Directional terrain light",
+  },
+  waterLevel: {
+    type: RANGE,
+    range: [0, 0.8],
+    step: 0.02,
+    default: 0,
+    desc: "Optional blue floor that fills low terrain",
+  },
   skyColor: { type: COLOR, default: [104, 146, 194], desc: "Sky and distance-fog color" },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
@@ -99,10 +129,24 @@ export const defaults = {
 };
 
 const voxelLandscape = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "voxelLandscape", fragmentShader: FS,
-    uniformNames: ["u_cellSize", "u_heightScale", "u_pitch", "u_yaw", "u_fog", "u_sunAngle", "u_waterLevel", "u_skyColor"],
+    source: input,
+    width: W,
+    height: H,
+    key: "voxelLandscape",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_cellSize",
+      "u_heightScale",
+      "u_pitch",
+      "u_yaw",
+      "u_fog",
+      "u_sunAngle",
+      "u_waterLevel",
+      "u_skyColor",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1f(u.u_cellSize, options.cellSize);
       gl.uniform1f(u.u_heightScale, options.heightScale);
@@ -116,8 +160,14 @@ const voxelLandscape = (input: HTMLCanvasElement | OffscreenCanvas, options = de
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Voxel Landscape", "WebGL2", `cell=${options.cellSize}${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Voxel Landscape",
+    "WebGL2",
+    `cell=${options.cellSize}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({

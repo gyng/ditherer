@@ -32,7 +32,7 @@ export const nextPow2 = (n: number): number => {
 
 export const log2Int = (n: number): number => {
   let l = 0;
-  while ((1 << l) < n) l++;
+  while (1 << l < n) l++;
   return l;
 };
 
@@ -201,10 +201,7 @@ export const createFFTProgramCache = (
   linker: ProgramLinker = linkProgram,
 ): FFTCache => {
   const ownedPrograms: Program[] = [];
-  const own = (
-    source: string,
-    uniforms: readonly string[],
-  ): Program => {
+  const own = (source: string, uniforms: readonly string[]): Program => {
     const program = linker(gl, source, uniforms);
     ownedPrograms.push(program);
     return program;
@@ -214,15 +211,28 @@ export const createFFTProgramCache = (
       extract: own(EXTRACT_FS, ["u_source", "u_srcRes", "u_padRes"] as const),
       bitrev: own(BIT_REVERSE_FS, ["u_input", "u_res", "u_axis", "u_logN"] as const),
       butterfly: own(BUTTERFLY_FS, [
-        "u_input", "u_res", "u_axis", "u_m", "u_halfM", "u_sign",
+        "u_input",
+        "u_res",
+        "u_axis",
+        "u_m",
+        "u_halfM",
+        "u_sign",
       ] as const),
       finalise: own(INV_FINALISE_FS, [
-        "u_fft", "u_source", "u_srcRes", "u_padRes", "u_invN",
+        "u_fft",
+        "u_source",
+        "u_srcRes",
+        "u_padRes",
+        "u_invN",
       ] as const),
     };
   } catch (error) {
     for (const program of ownedPrograms) {
-      try { gl.deleteProgram(program.prog); } catch { /* continue cleanup */ }
+      try {
+        gl.deleteProgram(program.prog);
+      } catch {
+        /* continue cleanup */
+      }
     }
     throw error;
   }
@@ -246,10 +256,18 @@ const discardFloatTarget = (
   framebuffer: WebGLFramebuffer | null,
 ): void => {
   if (texture) {
-    try { gl.deleteTexture(texture); } catch { /* continue cleanup */ }
+    try {
+      gl.deleteTexture(texture);
+    } catch {
+      /* continue cleanup */
+    }
   }
   if (framebuffer) {
-    try { gl.deleteFramebuffer(framebuffer); } catch { /* context loss */ }
+    try {
+      gl.deleteFramebuffer(framebuffer);
+    } catch {
+      /* context loss */
+    }
   }
 };
 
@@ -363,76 +381,122 @@ export const forwardFFT2D = (
   if (!pingA || !pingB) return null;
 
   // 1. Extract luminance → pingA.
-  drawPass(gl, pingA, paddedW, paddedH, cache.extract, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.extract.uniforms.u_source, 0);
-    gl.uniform2f(cache.extract.uniforms.u_srcRes, srcW, srcH);
-    gl.uniform2f(cache.extract.uniforms.u_padRes, paddedW, paddedH);
-  }, vao);
+  drawPass(
+    gl,
+    pingA,
+    paddedW,
+    paddedH,
+    cache.extract,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.extract.uniforms.u_source, 0);
+      gl.uniform2f(cache.extract.uniforms.u_srcRes, srcW, srcH);
+      gl.uniform2f(cache.extract.uniforms.u_padRes, paddedW, paddedH);
+    },
+    vao,
+  );
 
   let src = pingA;
   let dst = pingB;
 
   // 2. Bit-reverse along rows.
-  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
-  }, vao);
+  drawPass(
+    gl,
+    dst,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
+    },
+    vao,
+  );
   [src, dst] = [dst, src];
 
   // 3. Row butterflies.
   for (let s = 1; s <= logW; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
   }
 
   // 4. Bit-reverse along columns.
-  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
-  }, vao);
+  drawPass(
+    gl,
+    dst,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
+    },
+    vao,
+  );
   [src, dst] = [dst, src];
 
   // 5. Column butterflies.
   for (let s = 1; s <= logH; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
   }
 
   return {
-    tex: src.tex, fbo: src.fbo,
-    paddedW, paddedH, srcW, srcH, logW, logH,
+    tex: src.tex,
+    fbo: src.fbo,
+    paddedW,
+    paddedH,
+    srcW,
+    srcH,
+    logW,
+    logH,
   };
 };
 
@@ -459,14 +523,22 @@ export const inverseFFT2D = (
   const pingB = ensureFloatTex(gl, "fft2d:pong", paddedW, paddedH);
   if (!pingA || !pingB) return null;
 
-  drawPass(gl, pingA, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, input.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
-  }, vao);
+  drawPass(
+    gl,
+    pingA,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, input.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
+    },
+    vao,
+  );
 
   let src = pingA;
   let dst = pingB;
@@ -475,42 +547,66 @@ export const inverseFFT2D = (
   for (let s = 1; s <= logW; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, 1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, 1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
   }
 
-  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
-  }, vao);
+  drawPass(
+    gl,
+    dst,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
+    },
+    vao,
+  );
   [src, dst] = [dst, src];
 
   for (let s = 1; s <= logH; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, 1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, 1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
   }
 
@@ -538,56 +634,88 @@ export const forwardFFT2DFromExtract = (
   const pingB = ensureFloatTex(gl, "fft2d:pong", paddedW, paddedH);
   if (!pingA || !pingB) return null;
 
-  drawPass(gl, pingA, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, extracted.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
-  }, vao);
+  drawPass(
+    gl,
+    pingA,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, extracted.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
+    },
+    vao,
+  );
   let src = pingA;
   let dst = pingB;
 
   for (let s = 1; s <= logW; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
   }
 
-  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
-  }, vao);
+  drawPass(
+    gl,
+    dst,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
+    },
+    vao,
+  );
   [src, dst] = [dst, src];
 
   for (let s = 1; s <= logH; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
   }
   return src;
@@ -622,77 +750,120 @@ export const forwardFFT2DToStage = (
   if (!pingA || !pingB) return null;
 
   // Stage 0: extract → pingA.
-  drawPass(gl, pingA, paddedW, paddedH, cache.extract, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.extract.uniforms.u_source, 0);
-    gl.uniform2f(cache.extract.uniforms.u_srcRes, srcW, srcH);
-    gl.uniform2f(cache.extract.uniforms.u_padRes, paddedW, paddedH);
-  }, vao);
+  drawPass(
+    gl,
+    pingA,
+    paddedW,
+    paddedH,
+    cache.extract,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.extract.uniforms.u_source, 0);
+      gl.uniform2f(cache.extract.uniforms.u_srcRes, srcW, srcH);
+      gl.uniform2f(cache.extract.uniforms.u_padRes, paddedW, paddedH);
+    },
+    vao,
+  );
 
   let src = pingA;
   let dst = pingB;
   let stage = 0;
-  if (stage >= stopStage) return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
+  if (stage >= stopStage)
+    return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
 
   // Row bit-reverse + butterflies count as stages 1..logW+1 in this scheme.
   // We treat the bit-reverse as part of stage 1 so the first butterfly runs
   // next — match Cooley-Tukey convention.
-  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
-  }, vao);
+  drawPass(
+    gl,
+    dst,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 0);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logW);
+    },
+    vao,
+  );
   [src, dst] = [dst, src];
 
   for (let s = 1; s <= logW; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 0);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
     stage++;
-    if (stage >= stopStage) return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
+    if (stage >= stopStage)
+      return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
   }
 
   // Column bit-reverse.
-  drawPass(gl, dst, paddedW, paddedH, cache.bitrev, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-    gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
-    gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
-    gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
-    gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
-  }, vao);
+  drawPass(
+    gl,
+    dst,
+    paddedW,
+    paddedH,
+    cache.bitrev,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.bitrev.uniforms.u_input, 0);
+      gl.uniform2f(cache.bitrev.uniforms.u_res, paddedW, paddedH);
+      gl.uniform1i(cache.bitrev.uniforms.u_axis, 1);
+      gl.uniform1i(cache.bitrev.uniforms.u_logN, logH);
+    },
+    vao,
+  );
   [src, dst] = [dst, src];
 
   for (let s = 1; s <= logH; s++) {
     const m = 1 << s;
     const halfM = m >> 1;
-    drawPass(gl, dst, paddedW, paddedH, cache.butterfly, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
-      gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
-      gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
-      gl.uniform1i(cache.butterfly.uniforms.u_m, m);
-      gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
-      gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
-    }, vao);
+    drawPass(
+      gl,
+      dst,
+      paddedW,
+      paddedH,
+      cache.butterfly,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(cache.butterfly.uniforms.u_input, 0);
+        gl.uniform2f(cache.butterfly.uniforms.u_res, paddedW, paddedH);
+        gl.uniform1i(cache.butterfly.uniforms.u_axis, 1);
+        gl.uniform1i(cache.butterfly.uniforms.u_m, m);
+        gl.uniform1i(cache.butterfly.uniforms.u_halfM, halfM);
+        gl.uniform1f(cache.butterfly.uniforms.u_sign, -1);
+      },
+      vao,
+    );
     [src, dst] = [dst, src];
     stage++;
-    if (stage >= stopStage) return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
+    if (stage >= stopStage)
+      return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
   }
   return { tex: src.tex, fbo: src.fbo, paddedW, paddedH, srcW, srcH, logW, logH };
 };
@@ -720,15 +891,23 @@ export const finaliseIFFT = (
   const vao = getQuadVAO(gl);
   const invN = 1 / (paddedW * paddedH);
 
-  drawPass(gl, null, targetCanvasW, targetCanvasH, cache.finalise, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, ifftResult.tex);
-    gl.uniform1i(cache.finalise.uniforms.u_fft, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.finalise.uniforms.u_source, 1);
-    gl.uniform2f(cache.finalise.uniforms.u_srcRes, srcW, srcH);
-    gl.uniform2f(cache.finalise.uniforms.u_padRes, paddedW, paddedH);
-    gl.uniform1f(cache.finalise.uniforms.u_invN, invN);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    targetCanvasW,
+    targetCanvasH,
+    cache.finalise,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, ifftResult.tex);
+      gl.uniform1i(cache.finalise.uniforms.u_fft, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.finalise.uniforms.u_source, 1);
+      gl.uniform2f(cache.finalise.uniforms.u_srcRes, srcW, srcH);
+      gl.uniform2f(cache.finalise.uniforms.u_padRes, paddedW, paddedH);
+      gl.uniform1f(cache.finalise.uniforms.u_invN, invN);
+    },
+    vao,
+  );
 };

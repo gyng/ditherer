@@ -17,10 +17,12 @@ Ditherer is a browser-based image/video processing tool. Users load an image, se
 The UI follows an implicit atomic design pattern:
 
 **Tokens** — Design primitives defined in CSS custom properties:
+
 - Colors: `--light-gray`, `--gray`, `--beautiful-blue`, `--bg-color`
 - Layout values are inline (no token system yet)
 
 **Atoms** — Leaf control components in `src/components/controls/`. Each renders a single HTML control:
+
 - `Range.tsx` — `<input type="range">` with editable value display
 - `Bool.tsx` — `<input type="checkbox">`
 - `Enum.tsx` — `<select>` dropdown
@@ -28,16 +30,19 @@ The UI follows an implicit atomic design pattern:
 - `Textly.tsx` — `<textarea>`
 
 **Molecules** — Composed controls:
+
 - `Palette.tsx` — palette selector + nested atom controls for palette options
 - `ColorArray.tsx` — color swatch grid + palette extraction UI (stateful)
 
 **Organisms** — Sections of the app:
+
 - `Controls` (`src/components/controls/index.tsx`) — dispatches to the right atom/molecule based on `optionTypes.type`
 - `ChainList` (`src/components/ChainList/index.tsx`) — filter chain editor, presets, drag/drop reordering
 - `Exporter` (`src/components/App/Exporter.tsx`) — URL/JSON state export panel
 - `SaveAs` (`src/components/SaveAs/index.tsx`) — image/video file export dialog (uses MediaRecorder for video)
 
 **Page** — Single page app:
+
 - `App` (`src/components/App/index.tsx`) — top-level layout: sidebar controls + draggable canvas area
 
 ### State Management
@@ -45,6 +50,7 @@ The UI follows an implicit atomic design pattern:
 App state is managed via React Context + `useReducer` in `src/reducers/filters.ts`. Components consume state via `useFilter()` (`src/context/useFilter.ts`). No external state library.
 
 Key state shape:
+
 - `chain` — array of `ChainEntry { id, displayName, filter, enabled }` (max 16 entries)
 - `activeIndex` — which chain entry is selected for editing
 - `selected` — compat shim derived from `chain[activeIndex]`
@@ -61,14 +67,14 @@ Filters are the core domain (more than 300 catalog entries). Each filter is a se
 ```typescript
 // Every filter exports this shape
 export const optionTypes = {
-  paramName: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "What this controls" }
-}
+  paramName: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "What this controls" },
+};
 
 export const defaults = {
-  paramName: optionTypes.paramName.default
-}
+  paramName: optionTypes.paramName.default,
+};
 
-const filterFunc = (input: HTMLCanvasElement, options = defaults) => HTMLCanvasElement
+const filterFunc = (input: HTMLCanvasElement, options = defaults) => HTMLCanvasElement;
 
 export default {
   name: "FilterName",
@@ -77,25 +83,25 @@ export default {
   optionTypes,
   defaults,
   description: "One-line user-facing summary",
-  mainThread: true   // optional — only if the filter needs the temporal pipeline (see below)
-}
+  mainThread: true, // optional — only if the filter needs the temporal pipeline (see below)
+};
 ```
 
 The `optionTypes` declaration drives the UI — the Controls component reads it and renders the appropriate atom/molecule for each option. This is a **data-driven UI** pattern: filters declare what controls they need, the framework renders them. Every option should have a `desc` so users get tooltips.
 
 **Control type → component mapping:**
 
-| `optionTypes.type` | Component |
-|--------------------|-----------|
-| `RANGE` | `Range` |
-| `BOOL` | `Bool` |
-| `ENUM` | `Enum` |
-| `STRING` | `Stringly` |
-| `TEXT` | `Textly` |
-| `COLOR` | color picker |
-| `COLOR_ARRAY` | `ColorArray` |
-| `PALETTE` | `Palette` |
-| `ACTION` | button (e.g., `animate` for play/stop) |
+| `optionTypes.type` | Component                              |
+| ------------------ | -------------------------------------- |
+| `RANGE`            | `Range`                                |
+| `BOOL`             | `Bool`                                 |
+| `ENUM`             | `Enum`                                 |
+| `STRING`           | `Stringly`                             |
+| `TEXT`             | `Textly`                               |
+| `COLOR`            | color picker                           |
+| `COLOR_ARRAY`      | `ColorArray`                           |
+| `PALETTE`          | `Palette`                              |
+| `ACTION`           | button (e.g., `animate` for play/stop) |
 
 **Adding a new filter:** Create a new file in `packages/ditherer-filters/src/filters/`, define `optionTypes`, `defaults`, and the filter function, then register it in `packages/ditherer-filters/src/filters/index.ts` (both the import and a `filterList` entry with `displayName`/`category`/`description`). If the filter is worker-capable (`mainThread` is not `true`), it must also be present in the `filterIndex` registry in that same file or the browser worker path will silently skip it. The UI controls are generated automatically from `optionTypes`.
 
@@ -103,15 +109,15 @@ The `optionTypes` declaration drives the UI — the Controls component reads it 
 
 Filters can read state from previous frames via injected options:
 
-| Option | Type | Description |
-|---|---|---|
-| `_prevOutput` | `Uint8ClampedArray \| null` | This filter's output pixels from the previous frame |
-| `_prevInput` | `Uint8ClampedArray \| null` | This filter's input pixels from the previous frame |
-| `_ema` | `Float32Array \| null` | Exponential moving average of input pixels (α=0.1, ~10-frame window) |
-| `_frameIndex` | `number` | Global frame counter |
-| `_isAnimating` | `boolean` | Whether the animation loop is running |
-| `_linearize` | `boolean` | User has gamma-correct mode on |
-| `_wasmAcceleration` | `boolean` | User has WASM accel on |
+| Option              | Type                        | Description                                                          |
+| ------------------- | --------------------------- | -------------------------------------------------------------------- |
+| `_prevOutput`       | `Uint8ClampedArray \| null` | This filter's output pixels from the previous frame                  |
+| `_prevInput`        | `Uint8ClampedArray \| null` | This filter's input pixels from the previous frame                   |
+| `_ema`              | `Float32Array \| null`      | Exponential moving average of input pixels (α=0.1, ~10-frame window) |
+| `_frameIndex`       | `number`                    | Global frame counter                                                 |
+| `_isAnimating`      | `boolean`                   | Whether the animation loop is running                                |
+| `_linearize`        | `boolean`                   | User has gamma-correct mode on                                       |
+| `_wasmAcceleration` | `boolean`                   | User has WASM accel on                                               |
 
 These are populated by `FilterContext` and persist across calls in main-thread refs.
 
@@ -291,7 +297,7 @@ tests.
 - The Controls dispatcher (`controls/index.jsx`) is a **switch on type** — keep it flat, don't nest logic.
 - CSS Modules for component styles. Global styles only in `src/styles/`.
 - For draggable floating windows that use `position: fixed` + `transform`, compute drag offsets from the element's live `getBoundingClientRect()` at mouse-down time. Using cached position refs can cause a visible snap on the first drag after mount/remount.
-- **Reuse the shared chrome tokens for option/section headers.** `controls/styles.module.css` exports `.optionGroup`, `.optionGroupLegend`, and `.subsectionHeader`. Compose them at every section header instead of redefining `font-size` / `font-weight` / `text-transform` locally — that's how header styles drift across panels. If you need different spacing or color, create a local class that *composes* the canonical token.
+- **Reuse the shared chrome tokens for option/section headers.** `controls/styles.module.css` exports `.optionGroup`, `.optionGroupLegend`, and `.subsectionHeader`. Compose them at every section header instead of redefining `font-size` / `font-weight` / `text-transform` locally — that's how header styles drift across panels. If you need different spacing or color, create a local class that _composes_ the canonical token.
 
 ### Performance
 

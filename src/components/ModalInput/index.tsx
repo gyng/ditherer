@@ -7,7 +7,7 @@ const ModalInput = ({
   defaultValue = "",
   multiline = false,
   onConfirm,
-  onCancel
+  onCancel,
 }: {
   title: string;
   defaultValue?: string;
@@ -29,7 +29,7 @@ const ModalInput = ({
         title={title}
         onClose={onCancel}
         initialFocusRef={inputRef}
-        onMouseDown={e => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className={s.titleBar}>{title}</div>
         <div className={s.body}>
@@ -37,7 +37,7 @@ const ModalInput = ({
             <textarea
               ref={inputRef as React.RefObject<HTMLTextAreaElement>}
               value={value}
-              onChange={e => setValue(e.target.value)}
+              onChange={(e) => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
               spellCheck={false}
               aria-label={title}
@@ -47,17 +47,21 @@ const ModalInput = ({
               ref={inputRef as React.RefObject<HTMLInputElement>}
               type="text"
               value={value}
-              onChange={e => setValue(e.target.value)}
+              onChange={(e) => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
               aria-label={title}
             />
           )}
           <div className={s.buttons}>
-            <button onClick={() => {
-              if (navigator.clipboard) {
-                navigator.clipboard.writeText(value);
-              }
-            }}>Copy</button>
+            <button
+              onClick={() => {
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(value);
+                }
+              }}
+            >
+              Copy
+            </button>
             <button onClick={() => onConfirm(value)}>OK</button>
             <button onClick={onCancel}>Cancel</button>
           </div>

@@ -1,8 +1,19 @@
 import { ACTION, BOOL, ENUM, PALETTE, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba, logFilterBackend } from "../utils/index";
-import { paletteIndexDriftGLAvailable, renderPaletteIndexDriftGL, MAX_PALETTE as DRIFT_MAX_PALETTE } from "./paletteIndexDriftGL";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  paletteGetColor,
+  rgba,
+  logFilterBackend,
+} from "../utils/index";
+import {
+  paletteIndexDriftGLAvailable,
+  renderPaletteIndexDriftGL,
+  MAX_PALETTE as DRIFT_MAX_PALETTE,
+} from "./paletteIndexDriftGL";
 
 const DRIFT = {
   ROTATE: "ROTATE",
@@ -58,15 +69,20 @@ const buildPalette = (src: Uint8ClampedArray, size: number, palette?: PaletteLik
     }
   }
 
-  const entries = [...bins.values()]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, Math.max(2, size));
+  const entries = [...bins.values()].sort((a, b) => b.count - a.count).slice(0, Math.max(2, size));
 
   if (entries.length === 0) {
-    return [[0, 0, 0], [255, 255, 255]];
+    return [
+      [0, 0, 0],
+      [255, 255, 255],
+    ];
   }
 
-  return entries.map((e) => [Math.round(e.r / e.count), Math.round(e.g / e.count), Math.round(e.b / e.count)]);
+  return entries.map((e) => [
+    Math.round(e.r / e.count),
+    Math.round(e.g / e.count),
+    Math.round(e.b / e.count),
+  ]);
 };
 
 const nearestPaletteIndex = (r: number, g: number, b: number, palette: number[][]) => {
@@ -133,7 +149,13 @@ const applyDrift = (mode: string, driftRate: number, rng: () => number) => {
 };
 
 export const optionTypes = {
-  paletteSize: { type: RANGE, range: [2, 96], step: 1, default: 24, desc: "Number of indexed colors used before drift remapping" },
+  paletteSize: {
+    type: RANGE,
+    range: [2, 96],
+    step: 1,
+    default: 24,
+    desc: "Number of indexed colors used before drift remapping",
+  },
   driftMode: {
     type: ENUM,
     default: DRIFT.ROTATE,
@@ -142,11 +164,25 @@ export const optionTypes = {
       { name: "Swap indices", value: DRIFT.SWAP },
       { name: "Bank shift", value: DRIFT.BANK_SHIFT },
     ],
-    desc: "How index table corruption evolves over time"
+    desc: "How index table corruption evolves over time",
   },
-  driftRate: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Probability/intensity of index table drift per frame" },
-  lockLuma: { type: BOOL, default: true, desc: "Preserve source luminance while palette indices drift" },
-  ditherBeforeIndex: { type: BOOL, default: true, desc: "Inject subtle noise before index lookup to mimic unstable quantizers" },
+  driftRate: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.2,
+    desc: "Probability/intensity of index table drift per frame",
+  },
+  lockLuma: {
+    type: BOOL,
+    default: true,
+    desc: "Preserve source luminance while palette indices drift",
+  },
+  ditherBeforeIndex: {
+    type: BOOL,
+    default: true,
+    desc: "Inject subtle noise before index lookup to mimic unstable quantizers",
+  },
   palette: { type: PALETTE, default: nearest },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
@@ -155,7 +191,7 @@ export const optionTypes = {
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
-    }
+    },
   },
 };
 
@@ -210,16 +246,27 @@ const paletteIndexDrift = (input: any, options: PaletteIndexDriftOptions = defau
   // but the per-pixel nearest-index + LUT-remap + luma-lock loop runs in a
   // fragment shader.
   if (
-    paletteIndexDriftGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
-    && indexPalette.length <= DRIFT_MAX_PALETTE
+    paletteIndexDriftGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false &&
+    indexPalette.length <= DRIFT_MAX_PALETTE
   ) {
     const ditherSeed = frameIndex * 10007 + 13;
     const rendered = renderPaletteIndexDriftGL(
-      input, w, h, indexPalette, driftMap, lockLuma, ditherBeforeIndex, ditherSeed,
+      input,
+      w,
+      h,
+      indexPalette,
+      driftMap,
+      lockLuma,
+      ditherBeforeIndex,
+      ditherSeed,
     );
     if (rendered) {
-      logFilterBackend("Palette Index Drift", "WebGL2", `mode=${driftMode} N=${indexPalette.length}`);
+      logFilterBackend(
+        "Palette Index Drift",
+        "WebGL2",
+        `mode=${driftMode} N=${indexPalette.length}`,
+      );
       return rendered;
     }
   }
@@ -268,6 +315,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Map into an indexed palette, then drift the lookup table over time so colors break while geometry stays stable",
+  description:
+    "Map into an indexed palette, then drift the lookup table over time so colors break while geometry stays stable",
   temporal: true,
 });

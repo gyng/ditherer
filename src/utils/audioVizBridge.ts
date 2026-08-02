@@ -151,9 +151,8 @@ const METRIC_KEYS: AudioVizMetric[] = [
 
 const BEATS_PER_BAR = 4;
 
-const emptyMetrics = (): AudioVizMetricValues => Object.fromEntries(
-  METRIC_KEYS.map((metric) => [metric, 0]),
-) as AudioVizMetricValues;
+const emptyMetrics = (): AudioVizMetricValues =>
+  Object.fromEntries(METRIC_KEYS.map((metric) => [metric, 0])) as AudioVizMetricValues;
 
 const defaultSnapshot = (): AudioVizSnapshot => ({
   enabled: false,
@@ -250,12 +249,8 @@ export const computeAdaptiveRange = (
 ): { normalized: number; low: number; high: number } => {
   const lowAnchor = prevLow ?? value;
   const highAnchor = prevHigh ?? value;
-  const low = value < lowAnchor
-    ? value
-    : lowAnchor + (value - lowAnchor) * NORMALIZER_RELEASE;
-  const high = value > highAnchor
-    ? value
-    : highAnchor + (value - highAnchor) * NORMALIZER_RELEASE;
+  const low = value < lowAnchor ? value : lowAnchor + (value - lowAnchor) * NORMALIZER_RELEASE;
+  const high = value > highAnchor ? value : highAnchor + (value - highAnchor) * NORMALIZER_RELEASE;
   const span = Math.max(NORMALIZER_MIN_SPAN, high - low);
   const floor = high - span;
   return { normalized: clamp01((value - floor) / span), low, high };
@@ -340,7 +335,6 @@ export const tapDownbeat = (channel: AudioVizChannel) => {
   }
   emitChange(channel);
 };
-
 
 const resetIdleBeatState = (runtime: ChannelRuntime) => {
   runtime.beatPulse = 0;
@@ -443,7 +437,10 @@ const evaluateTempo = (runtime: ChannelRuntime) => {
   const doubleCandidate = candidateBpm * 2;
   const bestAligned = [candidateBpm, halfCandidate, doubleCandidate]
     .filter((bpm) => bpm >= TEMPO_MIN_BPM && bpm <= TEMPO_MAX_BPM)
-    .reduce((best, bpm) => Math.abs(bpm - currentBpm) < Math.abs(best - currentBpm) ? bpm : best, candidateBpm);
+    .reduce(
+      (best, bpm) => (Math.abs(bpm - currentBpm) < Math.abs(best - currentBpm) ? bpm : best),
+      candidateBpm,
+    );
   runtime.tempoBpm = currentBpm * (1 - smoothing) + bestAligned * smoothing;
   runtime.tempoConfidence = runtime.tempoConfidence * 0.7 + confidence * 0.3;
 };
@@ -530,7 +527,7 @@ export const stereoStats = (
     rightTotal += rightFreq[i] / 255;
   }
   const total = leftTotal + rightTotal;
-  const balance = total > 0 ? clamp01((leftTotal - rightTotal) / total * 0.5 + 0.5) : 0.5;
+  const balance = total > 0 ? clamp01(((leftTotal - rightTotal) / total) * 0.5 + 0.5) : 0.5;
 
   let width = 0;
   if (leftTime && rightTime) {
@@ -560,8 +557,12 @@ const startMeterLoop = (channel: AudioVizChannel) => {
 
   const freq = new Uint8Array(runtime.analyser.frequencyBinCount);
   const time = new Uint8Array(runtime.analyser.fftSize);
-  const leftFreq = runtime.leftAnalyser ? new Uint8Array(runtime.leftAnalyser.frequencyBinCount) : null;
-  const rightFreq = runtime.rightAnalyser ? new Uint8Array(runtime.rightAnalyser.frequencyBinCount) : null;
+  const leftFreq = runtime.leftAnalyser
+    ? new Uint8Array(runtime.leftAnalyser.frequencyBinCount)
+    : null;
+  const rightFreq = runtime.rightAnalyser
+    ? new Uint8Array(runtime.rightAnalyser.frequencyBinCount)
+    : null;
   const leftTime = runtime.leftAnalyser ? new Uint8Array(runtime.leftAnalyser.fftSize) : null;
   const rightTime = runtime.rightAnalyser ? new Uint8Array(runtime.rightAnalyser.fftSize) : null;
 
@@ -584,7 +585,11 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     const level = clamp01(Math.sqrt(rms / time.length) * 1.8);
     const subKick = bucketAverage(freq, 0, Math.max(1, Math.floor(freq.length * 0.025)));
     const bass = bucketAverage(freq, 0, Math.max(2, Math.floor(freq.length * 0.08)));
-    const mid = bucketAverage(freq, Math.floor(freq.length * 0.08), Math.max(3, Math.floor(freq.length * 0.35)));
+    const mid = bucketAverage(
+      freq,
+      Math.floor(freq.length * 0.08),
+      Math.max(3, Math.floor(freq.length * 0.35)),
+    );
     const treble = bucketAverage(freq, Math.floor(freq.length * 0.35), freq.length);
     current.bassEnvelope = current.bassEnvelope * 0.8 + bass * 0.2;
     current.midEnvelope = current.midEnvelope * 0.84 + mid * 0.16;
@@ -620,15 +625,22 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     current.peakDecay = Math.max(level, current.peakDecay * 0.93);
     const centroid = spectralCentroid(freq);
     const bandRatio = clamp01(bass / Math.max(0.05, treble + 0.05));
-    const { width: stereoWidth, balance: stereoBalance } = stereoStats(leftFreq, rightFreq, leftTime, rightTime);
+    const { width: stereoWidth, balance: stereoBalance } = stereoStats(
+      leftFreq,
+      rightFreq,
+      leftTime,
+      rightTime,
+    );
     const roughness = clamp01((zeroCrossRate(time) * 1.5 + treble * 0.7) / 2.2);
     const harmonic = clamp01((1 - spectralFlux) * (0.35 + mid * 0.65));
-    const percussive = clamp01((onset * 0.7) + (pulse * 0.3));
+    const percussive = clamp01(onset * 0.7 + pulse * 0.3);
     const now = performance.now();
-    const overrideBpm = current.snapshot.bpmOverride != null && current.snapshot.bpmOverride > 0
-      ? current.snapshot.bpmOverride
-      : null;
-    const msSinceLastBeat = current.lastBeatAt == null ? Number.POSITIVE_INFINITY : now - current.lastBeatAt;
+    const overrideBpm =
+      current.snapshot.bpmOverride != null && current.snapshot.bpmOverride > 0
+        ? current.snapshot.bpmOverride
+        : null;
+    const msSinceLastBeat =
+      current.lastBeatAt == null ? Number.POSITIVE_INFINITY : now - current.lastBeatAt;
     const beatEnergy = Math.max(
       subKick * 1.35 + pulse * 0.85,
       bass * 0.95 + onset * 1.15,
@@ -636,11 +648,11 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     );
     const bassFloor = current.bassEnvelope * 1.3 + 0.04;
     const energyFloor = Math.max(0.3, current.levelEma * 1.7 + current.onsetEma * 4.5);
-    const beatTriggered = msSinceLastBeat >= MIN_BEAT_INTERVAL_MS && (
-      (subKick > 0.07 && pulse > 0.06)
-      || (onset > 0.12 && bass > bassFloor)
-      || beatEnergy > energyFloor
-    );
+    const beatTriggered =
+      msSinceLastBeat >= MIN_BEAT_INTERVAL_MS &&
+      ((subKick > 0.07 && pulse > 0.06) ||
+        (onset > 0.12 && bass > bassFloor) ||
+        beatEnergy > energyFloor);
 
     if (overrideBpm != null) {
       const overrideBeatIntervalMs = 60000 / overrideBpm;
@@ -649,7 +661,10 @@ const startMeterLoop = (channel: AudioVizChannel) => {
         current.beatPulse = 1;
         current.beatHold = 1;
       } else if (now - current.lastBeatAt >= overrideBeatIntervalMs) {
-        const beatsElapsed = Math.max(1, Math.floor((now - current.lastBeatAt) / overrideBeatIntervalMs));
+        const beatsElapsed = Math.max(
+          1,
+          Math.floor((now - current.lastBeatAt) / overrideBeatIntervalMs),
+        );
         current.lastBeatAt += beatsElapsed * overrideBeatIntervalMs;
         current.beatPulse = 1;
         current.beatHold = 1;
@@ -663,10 +678,12 @@ const startMeterLoop = (channel: AudioVizChannel) => {
       if (current.lastBeatAt != null) {
         const interval = now - current.lastBeatAt;
         if (interval >= MIN_BEAT_INTERVAL_MS && interval < MAX_BEAT_INTERVAL_MS) {
-          current.beatIntervalEma = current.beatIntervalEma == null
-            ? interval
-            : current.beatIntervalEma * 0.8 + interval * 0.2;
-          const error = current.beatIntervalEma == null ? 0 : Math.abs(interval - current.beatIntervalEma);
+          current.beatIntervalEma =
+            current.beatIntervalEma == null
+              ? interval
+              : current.beatIntervalEma * 0.8 + interval * 0.2;
+          const error =
+            current.beatIntervalEma == null ? 0 : Math.abs(interval - current.beatIntervalEma);
           current.beatConfidence = clamp01(1 - error / Math.max(180, current.beatIntervalEma || 1));
         }
       }
@@ -684,9 +701,8 @@ const startMeterLoop = (channel: AudioVizChannel) => {
     const detectedBeatBpm = current.tempoBpm;
     const detectedBpm = overrideBpm ?? detectedBeatBpm;
     const effectiveBpm = detectedBpm;
-    const effectiveBeatIntervalMs = effectiveBpm != null && effectiveBpm > 0
-      ? 60000 / effectiveBpm
-      : null;
+    const effectiveBeatIntervalMs =
+      effectiveBpm != null && effectiveBpm > 0 ? 60000 / effectiveBpm : null;
     current.subKickEma = current.subKickEma * 0.85 + subKick * 0.15;
 
     let tempoPhase = 0;
@@ -812,7 +828,18 @@ const startRuntime = async (channel: AudioVizChannel) => {
   if (runtimes[channel].requestToken !== requestToken) return;
 
   if (!enabled) {
-    updateSnapshot(channel, { enabled: false, status: "idle", error: null, detectedBpm: null, tempoStatus: "idle", tempoWarmupProgress: 0, rawMetrics: emptyMetrics(), normalizedMetrics: emptyMetrics(), metrics: emptyMetrics(), normalize });
+    updateSnapshot(channel, {
+      enabled: false,
+      status: "idle",
+      error: null,
+      detectedBpm: null,
+      tempoStatus: "idle",
+      tempoWarmupProgress: 0,
+      rawMetrics: emptyMetrics(),
+      normalizedMetrics: emptyMetrics(),
+      metrics: emptyMetrics(),
+      normalize,
+    });
     return;
   }
 
@@ -824,7 +851,9 @@ const startRuntime = async (channel: AudioVizChannel) => {
       stream.getTracks().forEach((track) => track.stop());
       return;
     }
-    const AudioContextCtor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextCtor =
+      window.AudioContext ||
+      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextCtor) {
       stream.getTracks().forEach((track) => track.stop());
       throw new Error("AudioContext is not available in this browser.");
@@ -874,17 +903,22 @@ const startRuntime = async (channel: AudioVizChannel) => {
       enabled: true,
       source,
       normalize,
-      deviceId: typeof settings?.deviceId === "string" ? settings.deviceId : runtime.snapshot.deviceId,
+      deviceId:
+        typeof settings?.deviceId === "string" ? settings.deviceId : runtime.snapshot.deviceId,
       deviceLabel: audioTrack?.label || (source === "microphone" ? "Microphone" : "Shared audio"),
       status: "live",
       error: null,
     });
 
     for (const track of stream.getTracks()) {
-      track.addEventListener("ended", () => {
-        if (!runtimes[channel].snapshot.enabled) return;
-        void updateAudioVizChannel(channel, { enabled: false });
-      }, { once: true });
+      track.addEventListener(
+        "ended",
+        () => {
+          if (!runtimes[channel].snapshot.enabled) return;
+          void updateAudioVizChannel(channel, { enabled: false });
+        },
+        { once: true },
+      );
     }
 
     startMeterLoop(channel);
@@ -926,7 +960,9 @@ if (typeof window !== "undefined") {
       if (!analyser) return { hasAnalyser: false };
       const buf = new Uint8Array(analyser.fftSize);
       analyser.getByteTimeDomainData(buf);
-      let min = 255, max = 0, sumAbs = 0;
+      let min = 255,
+        max = 0,
+        sumAbs = 0;
       for (let i = 0; i < buf.length; i++) {
         if (buf[i] < min) min = buf[i];
         if (buf[i] > max) max = buf[i];
@@ -944,7 +980,8 @@ if (typeof window !== "undefined") {
         settings: track.getSettings(),
       }));
     },
-    contextState: (channel: AudioVizChannel = "chain") => runtimes[channel].audioContext?.state ?? null,
+    contextState: (channel: AudioVizChannel = "chain") =>
+      runtimes[channel].audioContext?.state ?? null,
     report: (channel: AudioVizChannel = "chain") => {
       const runtime = runtimes[channel];
       const analyser = runtime.analyser;
@@ -954,13 +991,21 @@ if (typeof window !== "undefined") {
       if (analyser) {
         const buf = new Uint8Array(analyser.fftSize);
         analyser.getByteTimeDomainData(buf);
-        let min = 255, max = 0, sumAbs = 0;
+        let min = 255,
+          max = 0,
+          sumAbs = 0;
         for (let i = 0; i < buf.length; i++) {
           if (buf[i] < min) min = buf[i];
           if (buf[i] > max) max = buf[i];
           sumAbs += Math.abs(buf[i] - 128);
         }
-        timeStats = { hasAnalyser: true, min, max, meanAbs: +(sumAbs / buf.length).toFixed(2), firstBytes: Array.from(buf.slice(0, 8)) };
+        timeStats = {
+          hasAnalyser: true,
+          min,
+          max,
+          meanAbs: +(sumAbs / buf.length).toFixed(2),
+          firstBytes: Array.from(buf.slice(0, 8)),
+        };
       }
       let stereoStats: Record<string, unknown> = { hasSplit: false };
       if (leftAnalyser && rightAnalyser) {
@@ -968,7 +1013,10 @@ if (typeof window !== "undefined") {
         const rt = new Uint8Array(rightAnalyser.fftSize);
         leftAnalyser.getByteTimeDomainData(lt);
         rightAnalyser.getByteTimeDomainData(rt);
-        let midSq = 0, sideSq = 0, lSq = 0, rSq = 0;
+        let midSq = 0,
+          sideSq = 0,
+          lSq = 0,
+          rSq = 0;
         for (let i = 0; i < lt.length; i++) {
           const l = (lt[i] - 128) / 128;
           const r = (rt[i] - 128) / 128;
@@ -1051,7 +1099,11 @@ export const updateAudioVizChannel = async (
   channel: AudioVizChannel,
   partial: Partial<AudioVizChannelConfig>,
 ) => {
-  const shouldRestart = "enabled" in partial || "source" in partial || "deviceId" in partial || "autoGainInput" in partial;
+  const shouldRestart =
+    "enabled" in partial ||
+    "source" in partial ||
+    "deviceId" in partial ||
+    "autoGainInput" in partial;
   updateSnapshot(channel, partial);
   if (shouldRestart) {
     await startRuntime(channel);
@@ -1074,9 +1126,8 @@ export const resetAudioVizTempo = async (
   runtime.tempoConfidence = 0;
   const clearOverride = options?.clearOverride ?? false;
   const bpmOverride = clearOverride ? null : runtime.snapshot.bpmOverride;
-  const bpmValue = bpmOverride != null && bpmOverride > 0
-    ? clamp01(bpmOverride / BPM_NORMALIZATION_MAX)
-    : 0;
+  const bpmValue =
+    bpmOverride != null && bpmOverride > 0 ? clamp01(bpmOverride / BPM_NORMALIZATION_MAX) : 0;
   updateSnapshot(channel, {
     ...(clearOverride ? { bpmOverride: null } : {}),
     detectedBpm: bpmOverride,
@@ -1142,5 +1193,7 @@ export const setGlobalAudioVizModulation = (
 ) => {
   globalModulations[channel] = modulation;
   emitChange(channel);
-  globalModulationTarget.dispatchEvent(new CustomEvent<AudioVizChannel>("change", { detail: channel }));
+  globalModulationTarget.dispatchEvent(
+    new CustomEvent<AudioVizChannel>("change", { detail: channel }),
+  );
 };

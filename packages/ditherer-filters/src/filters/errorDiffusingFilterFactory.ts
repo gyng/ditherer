@@ -61,10 +61,10 @@ export const ROW_ALT = {
 // visible boundary artifacts ("stitch seams").
 export const ERR_STRATEGY = {
   RENORMALIZE: "RENORMALIZE", // energy-preserving — visible seams at sub-quadrant boundaries
-  CLAMPED:     "CLAMPED",     // renormalize but cap the scale factor (default)
-  DROP:        "DROP",        // raw weights, energy lost into visited targets — darker output
-  ROTATE:      "ROTATE",      // rotate kernel each step to follow the curve direction
-  SYMMETRIC:   "SYMMETRIC",   // ignore filter kernel, use uniform 8-neighbor distribution
+  CLAMPED: "CLAMPED", // renormalize but cap the scale factor (default)
+  DROP: "DROP", // raw weights, energy lost into visited targets — darker output
+  ROTATE: "ROTATE", // rotate kernel each step to follow the curve direction
+  SYMMETRIC: "SYMMETRIC", // ignore filter kernel, use uniform 8-neighbor distribution
 };
 
 export const TEMPORAL_MODE = {
@@ -74,7 +74,10 @@ export const TEMPORAL_MODE = {
 };
 
 const CUSTOM_ORDERS = new Set<string>([
-  ORDER.HILBERT, ORDER.SPIRAL, ORDER.DIAGONAL, ORDER.RANDOM_PIXEL,
+  ORDER.HILBERT,
+  ORDER.SPIRAL,
+  ORDER.DIAGONAL,
+  ORDER.RANDOM_PIXEL,
 ]);
 
 // Cap for CLAMPED renormalization. ~2× lets pixels with most neighbors
@@ -85,17 +88,18 @@ const CLAMP_MAX_SCALE = 2;
 // Uniform 8-neighbor kernel for the SYMMETRIC strategy. Total weight = 1.
 const SYMMETRIC_TUPLES = [
   { dx: -1, dy: -1, weight: 1 / 8 },
-  { dx:  0, dy: -1, weight: 1 / 8 },
-  { dx:  1, dy: -1, weight: 1 / 8 },
-  { dx: -1, dy:  0, weight: 1 / 8 },
-  { dx:  1, dy:  0, weight: 1 / 8 },
-  { dx: -1, dy:  1, weight: 1 / 8 },
-  { dx:  0, dy:  1, weight: 1 / 8 },
-  { dx:  1, dy:  1, weight: 1 / 8 },
+  { dx: 0, dy: -1, weight: 1 / 8 },
+  { dx: 1, dy: -1, weight: 1 / 8 },
+  { dx: -1, dy: 0, weight: 1 / 8 },
+  { dx: 1, dy: 0, weight: 1 / 8 },
+  { dx: -1, dy: 1, weight: 1 / 8 },
+  { dx: 0, dy: 1, weight: 1 / 8 },
+  { dx: 1, dy: 1, weight: 1 / 8 },
 ];
 const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
 const readF32 = (buf: Float32Array, index: number) => buf[index] ?? 0;
-const readTuple = (tuples: Tuple[], index: number): Tuple => tuples[index] ?? { dx: 0, dy: 0, weight: 0 };
+const readTuple = (tuples: Tuple[], index: number): Tuple =>
+  tuples[index] ?? { dx: 0, dy: 0, weight: 0 };
 
 // Round to f32 after every arithmetic step in the error-diffusion loops below,
 // because the Rust kernel does — its error buffer, kernel weights and scale are
@@ -154,39 +158,58 @@ const usesTemporalVote = (opts: ErrorDiffusingRuntimeOptions) =>
   opts.temporalMode === TEMPORAL_MODE.VOTE;
 
 export const optionTypes = {
-  serpentine: { type: BOOL, default: true, visibleWhen: isRowMajorOrder, desc: "Alternate scan direction per row to reduce directional artifacts (only affects Horizontal/Vertical scan orders)" },
-  scanOrder: { type: ENUM, options: [
-    { name: "Horizontal", value: ORDER.HORIZONTAL },
-    { name: "Vertical", value: ORDER.VERTICAL },
-    { name: "Hilbert Curve", value: ORDER.HILBERT },
-    { name: "Spiral", value: ORDER.SPIRAL },
-    { name: "Diagonal", value: ORDER.DIAGONAL },
-    { name: "Random Pixel", value: ORDER.RANDOM_PIXEL },
-  ], default: ORDER.HORIZONTAL, desc: "How pixels are walked. Horizontal/Vertical sweep rows or columns; the rest follow space-filling or chaotic visit orders." },
-  rowAlternation: { type: ENUM, options: [
-    { name: "Boustrophedon", value: ROW_ALT.BOUSTROPHEDON },
-    { name: "Reverse", value: ROW_ALT.REVERSE },
-    { name: "2-Row Blocks", value: ROW_ALT.BLOCK2 },
-    { name: "3-Row Blocks", value: ROW_ALT.BLOCK3 },
-    { name: "4-Row Blocks", value: ROW_ALT.BLOCK4 },
-    { name: "8-Row Blocks", value: ROW_ALT.BLOCK8 },
-    { name: "Triangular", value: ROW_ALT.TRIANGULAR },
-    { name: "Gray Code", value: ROW_ALT.GRAYCODE },
-    { name: "Bit Reverse", value: ROW_ALT.BITREVERSE },
-    { name: "Prime", value: ROW_ALT.PRIME },
-    { name: "Random", value: ROW_ALT.RANDOM },
-  ], default: ROW_ALT.BOUSTROPHEDON,
-    visibleWhen: (opts: ErrorDiffusingRuntimeOptions) => isRowMajorOrder(opts) && opts.serpentine !== false,
-    desc: "Per-row direction pattern. Only applies to Horizontal/Vertical scan orders." },
-  errorStrategy: { type: ENUM, options: [
-    { name: "Renormalize", value: ERR_STRATEGY.RENORMALIZE },
-    { name: "Renormalize (Clamped)", value: ERR_STRATEGY.CLAMPED },
-    { name: "Drop", value: ERR_STRATEGY.DROP },
-    { name: "Rotate Kernel", value: ERR_STRATEGY.ROTATE },
-    { name: "Symmetric", value: ERR_STRATEGY.SYMMETRIC },
-  ], default: ERR_STRATEGY.CLAMPED,
+  serpentine: {
+    type: BOOL,
+    default: true,
+    visibleWhen: isRowMajorOrder,
+    desc: "Alternate scan direction per row to reduce directional artifacts (only affects Horizontal/Vertical scan orders)",
+  },
+  scanOrder: {
+    type: ENUM,
+    options: [
+      { name: "Horizontal", value: ORDER.HORIZONTAL },
+      { name: "Vertical", value: ORDER.VERTICAL },
+      { name: "Hilbert Curve", value: ORDER.HILBERT },
+      { name: "Spiral", value: ORDER.SPIRAL },
+      { name: "Diagonal", value: ORDER.DIAGONAL },
+      { name: "Random Pixel", value: ORDER.RANDOM_PIXEL },
+    ],
+    default: ORDER.HORIZONTAL,
+    desc: "How pixels are walked. Horizontal/Vertical sweep rows or columns; the rest follow space-filling or chaotic visit orders.",
+  },
+  rowAlternation: {
+    type: ENUM,
+    options: [
+      { name: "Boustrophedon", value: ROW_ALT.BOUSTROPHEDON },
+      { name: "Reverse", value: ROW_ALT.REVERSE },
+      { name: "2-Row Blocks", value: ROW_ALT.BLOCK2 },
+      { name: "3-Row Blocks", value: ROW_ALT.BLOCK3 },
+      { name: "4-Row Blocks", value: ROW_ALT.BLOCK4 },
+      { name: "8-Row Blocks", value: ROW_ALT.BLOCK8 },
+      { name: "Triangular", value: ROW_ALT.TRIANGULAR },
+      { name: "Gray Code", value: ROW_ALT.GRAYCODE },
+      { name: "Bit Reverse", value: ROW_ALT.BITREVERSE },
+      { name: "Prime", value: ROW_ALT.PRIME },
+      { name: "Random", value: ROW_ALT.RANDOM },
+    ],
+    default: ROW_ALT.BOUSTROPHEDON,
+    visibleWhen: (opts: ErrorDiffusingRuntimeOptions) =>
+      isRowMajorOrder(opts) && opts.serpentine !== false,
+    desc: "Per-row direction pattern. Only applies to Horizontal/Vertical scan orders.",
+  },
+  errorStrategy: {
+    type: ENUM,
+    options: [
+      { name: "Renormalize", value: ERR_STRATEGY.RENORMALIZE },
+      { name: "Renormalize (Clamped)", value: ERR_STRATEGY.CLAMPED },
+      { name: "Drop", value: ERR_STRATEGY.DROP },
+      { name: "Rotate Kernel", value: ERR_STRATEGY.ROTATE },
+      { name: "Symmetric", value: ERR_STRATEGY.SYMMETRIC },
+    ],
+    default: ERR_STRATEGY.CLAMPED,
     visibleWhen: isCustomOrderOpts,
-    desc: "How error gets distributed to unvisited neighbors in custom-order scans (Hilbert/Spiral/Diagonal/Random Pixel). Renormalize is energy-preserving but creates visible seams at curve sub-quadrant boundaries; Clamped caps the spike; Drop loses energy (darker output) but has no seams; Rotate aligns the kernel with the local curve direction; Symmetric replaces the filter's kernel with a uniform 8-neighbor distribution." },
+    desc: "How error gets distributed to unvisited neighbors in custom-order scans (Hilbert/Spiral/Diagonal/Random Pixel). Renormalize is energy-preserving but creates visible seams at curve sub-quadrant boundaries; Clamped caps the spike; Drop loses energy (darker output) but has no seams; Rotate aligns the kernel with the local curve direction; Symmetric replaces the filter's kernel with a uniform 8-neighbor distribution.",
+  },
   temporalMode: {
     type: ENUM,
     options: [
@@ -214,10 +237,18 @@ export const optionTypes = {
     desc: "How many recent quantized frames participate in the temporal vote consensus",
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
-  palette: { type: PALETTE, default: palettes.nearest }
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
+  palette: { type: PALETTE, default: palettes.nearest },
 };
 
 export const defaults = {
@@ -229,13 +260,17 @@ export const defaults = {
   temporalBleed: optionTypes.temporalBleed.default,
   voteWindow: optionTypes.voteWindow.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: optionTypes.palette.default
+  palette: optionTypes.palette.default,
 };
 
 // Transpose an interleaved RGBA Uint8ClampedArray of size w*h.
 // Used by VERTICAL serpentine to reuse the standard horizontal scan/kernel
 // code: transpose in, scan, transpose out.
-const transposeRGBA8 = (src: Uint8ClampedArray, w: number, h: number): Uint8ClampedArray<ArrayBuffer> => {
+const transposeRGBA8 = (
+  src: Uint8ClampedArray,
+  w: number,
+  h: number,
+): Uint8ClampedArray<ArrayBuffer> => {
   const dst = new Uint8ClampedArray(src.length);
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
@@ -263,7 +298,7 @@ const isPrime = (n: number): boolean => {
 // row direction that's distinct from the multiplicative-hash Random mode.
 const bitReverseParity = (y: number, H: number): number => {
   let bits = 1;
-  while ((1 << bits) < H) bits += 1;
+  while (1 << bits < H) bits += 1;
   let r = 0;
   for (let b = 0; b < bits; b += 1) if (y & (1 << b)) r |= 1 << (bits - 1 - b);
   return r & 1;
@@ -271,8 +306,7 @@ const bitReverseParity = (y: number, H: number): number => {
 
 // Triangular: segment lengths grow 1,2,3,4,... Find which segment row y is in
 // (segment k spans rows [k(k+1)/2, (k+1)(k+2)/2)) and use the segment parity.
-const triangularSegment = (y: number): number =>
-  Math.floor((-1 + Math.sqrt(1 + 8 * y)) / 2);
+const triangularSegment = (y: number): number => Math.floor((-1 + Math.sqrt(1 + 8 * y)) / 2);
 
 // Convert a 2D kernel/offset pair into a flat (dx, dy, weight) tuple list,
 // dropping nulls and the self-pixel. Used by the custom-order scan path so
@@ -280,7 +314,7 @@ const triangularSegment = (y: number): number =>
 type Tuple = { dx: number; dy: number; weight: number };
 const kernelToTuples = (
   kernel: (number | null)[][],
-  offset: number[]
+  offset: number[],
 ): { tuples: Tuple[]; total: number } => {
   const tuples: Tuple[] = [];
   let total = 0;
@@ -408,7 +442,7 @@ const randomPixelOrder = (W: number, H: number): Int32Array => {
   for (let i = 0; i < order.length; i += 1) order[i] = i;
   let seed = ((W * 73856093) ^ (H * 19349663)) >>> 0;
   for (let i = order.length - 1; i > 0; i -= 1) {
-    seed = ((seed * 1103515245) + 12345) >>> 0;
+    seed = (seed * 1103515245 + 12345) >>> 0;
     const j = seed % (i + 1);
     const tmp = order[i] ?? 0;
     order[i] = order[j] ?? 0;
@@ -424,11 +458,7 @@ const buildVisitOrder = (order: string, W: number, H: number): Int32Array => {
   return randomPixelOrder(W, H); // RANDOM_PIXEL fallback
 };
 
-const majorityColorAt = (
-  frames: Uint8ClampedArray[],
-  filled: number,
-  pixelIndex: number
-) => {
+const majorityColorAt = (frames: Uint8ClampedArray[], filled: number, pixelIndex: number) => {
   let bestColor = 0;
   let bestCount = -1;
   let bestLastSeen = -1;
@@ -436,23 +466,23 @@ const majorityColorAt = (
   for (let f = 0; f < filled; f += 1) {
     const frame = frames[f];
     if (!frame) continue;
-    const color = (
-      ((readU8(frame, pixelIndex) << 24) >>> 0) |
-      (readU8(frame, pixelIndex + 1) << 16) |
-      (readU8(frame, pixelIndex + 2) << 8) |
-      readU8(frame, pixelIndex + 3)
-    ) >>> 0;
+    const color =
+      (((readU8(frame, pixelIndex) << 24) >>> 0) |
+        (readU8(frame, pixelIndex + 1) << 16) |
+        (readU8(frame, pixelIndex + 2) << 8) |
+        readU8(frame, pixelIndex + 3)) >>>
+      0;
     let count = 1;
     let lastSeen = f;
     for (let g = f + 1; g < filled; g += 1) {
       const compare = frames[g];
       if (!compare) continue;
-      const compareColor = (
-        ((readU8(compare, pixelIndex) << 24) >>> 0) |
-        (readU8(compare, pixelIndex + 1) << 16) |
-        (readU8(compare, pixelIndex + 2) << 8) |
-        readU8(compare, pixelIndex + 3)
-      ) >>> 0;
+      const compareColor =
+        (((readU8(compare, pixelIndex) << 24) >>> 0) |
+          (readU8(compare, pixelIndex + 1) << 16) |
+          (readU8(compare, pixelIndex + 2) << 8) |
+          readU8(compare, pixelIndex + 3)) >>>
+        0;
       if (compareColor === color) {
         count += 1;
         lastSeen = g;
@@ -471,7 +501,7 @@ const majorityColorAt = (
 export const errorDiffusingFilter = (
   name: string,
   errorMatrix: any,
-  defaultOptions: any
+  defaultOptions: any,
 ): FilterDefinition => {
   let voteFrames: Uint8ClampedArray[] = [];
   let voteHead = 0;
@@ -488,10 +518,7 @@ export const errorDiffusingFilter = (
     voteDepth = depth;
   };
 
-  const filter = (
-    input: any,
-    options: ErrorDiffusingRuntimeOptions = defaultOptions
-  ) => {
+  const filter = (input: any, options: ErrorDiffusingRuntimeOptions = defaultOptions) => {
     const palette = (options.palette ?? defaultOptions.palette) as NonNullable<
       ErrorDiffusingRuntimeOptions["palette"]
     >;
@@ -554,16 +581,16 @@ export const errorDiffusingFilter = (
     // we only look at this value when serpentine is on.
     const ROW_ALT_TO_WASM: Record<string, number> = {
       [ROW_ALT.BOUSTROPHEDON]: WASM_ROW_ALT.BOUSTROPHEDON,
-      [ROW_ALT.REVERSE]:       WASM_ROW_ALT.REVERSE,
-      [ROW_ALT.BLOCK2]:        WASM_ROW_ALT.BLOCK2,
-      [ROW_ALT.BLOCK3]:        WASM_ROW_ALT.BLOCK3,
-      [ROW_ALT.BLOCK4]:        WASM_ROW_ALT.BLOCK4,
-      [ROW_ALT.BLOCK8]:        WASM_ROW_ALT.BLOCK8,
-      [ROW_ALT.TRIANGULAR]:    WASM_ROW_ALT.TRIANGULAR,
-      [ROW_ALT.GRAYCODE]:      WASM_ROW_ALT.GRAYCODE,
-      [ROW_ALT.BITREVERSE]:    WASM_ROW_ALT.BITREVERSE,
-      [ROW_ALT.PRIME]:         WASM_ROW_ALT.PRIME,
-      [ROW_ALT.RANDOM]:        WASM_ROW_ALT.RANDOM,
+      [ROW_ALT.REVERSE]: WASM_ROW_ALT.REVERSE,
+      [ROW_ALT.BLOCK2]: WASM_ROW_ALT.BLOCK2,
+      [ROW_ALT.BLOCK3]: WASM_ROW_ALT.BLOCK3,
+      [ROW_ALT.BLOCK4]: WASM_ROW_ALT.BLOCK4,
+      [ROW_ALT.BLOCK8]: WASM_ROW_ALT.BLOCK8,
+      [ROW_ALT.TRIANGULAR]: WASM_ROW_ALT.TRIANGULAR,
+      [ROW_ALT.GRAYCODE]: WASM_ROW_ALT.GRAYCODE,
+      [ROW_ALT.BITREVERSE]: WASM_ROW_ALT.BITREVERSE,
+      [ROW_ALT.PRIME]: WASM_ROW_ALT.PRIME,
+      [ROW_ALT.RANDOM]: WASM_ROW_ALT.RANDOM,
     };
 
     let didWasm = false;
@@ -572,9 +599,7 @@ export const errorDiffusingFilter = (
     else if (!wasmIsLoaded()) wasmReason = "wasm not loaded yet";
 
     if (!wasmReason) {
-      const pOpts = palette?.options as
-        | { colors?: number[][]; levels?: number }
-        | undefined;
+      const pOpts = palette?.options as { colors?: number[][]; levels?: number } | undefined;
       let paletteMode: number | null = null;
       let paletteColors: number[][] | null = null;
       let levelsArg = 0;
@@ -597,7 +622,7 @@ export const errorDiffusingFilter = (
       }
 
       if (paletteMode !== null) {
-        const bleedPrevIn  = bleedActive ? prevInputForLoop  : null;
+        const bleedPrevIn = bleedActive ? prevInputForLoop : null;
         const bleedPrevOut = bleedActive ? prevOutputForLoop : null;
 
         if (isCustomOrder) {
@@ -606,21 +631,23 @@ export const errorDiffusingFilter = (
           // for SYMMETRIC we substitute the 8-neighbor kernel; the rest just
           // use the filter's base kernel as the only entry.
           const visitOrder = buildVisitOrder(scanOrder, W, H);
-          const visitOrderU32 = visitOrder instanceof Uint32Array
-            ? visitOrder
-            : new Uint32Array(visitOrder);
+          const visitOrderU32 =
+            visitOrder instanceof Uint32Array ? visitOrder : new Uint32Array(visitOrder);
 
-          const { tuples: baseTuples, total: kernelTotal } = kernelToTuples(errorMatrix.kernel, errorMatrix.offset);
-          const useDrop      = errorStrategy === ERR_STRATEGY.DROP;
-          const useClamp     = errorStrategy === ERR_STRATEGY.CLAMPED;
-          const useRotate    = errorStrategy === ERR_STRATEGY.ROTATE;
+          const { tuples: baseTuples, total: kernelTotal } = kernelToTuples(
+            errorMatrix.kernel,
+            errorMatrix.offset,
+          );
+          const useDrop = errorStrategy === ERR_STRATEGY.DROP;
+          const useClamp = errorStrategy === ERR_STRATEGY.CLAMPED;
+          const useRotate = errorStrategy === ERR_STRATEGY.ROTATE;
           const useSymmetric = errorStrategy === ERR_STRATEGY.SYMMETRIC;
           const symTotal = SYMMETRIC_TUPLES.reduce((s, t) => s + t.weight, 0);
 
           let kernelSets: { dx: number; dy: number; weight: number }[][];
           let kernelSetTotals: number[];
           if (useRotate) {
-            kernelSets = [0, 1, 2, 3].map(d => rotateTuples(baseTuples, d));
+            kernelSets = [0, 1, 2, 3].map((d) => rotateTuples(baseTuples, d));
             kernelSetTotals = kernelSets.map(() => kernelTotal);
           } else if (useSymmetric) {
             kernelSets = [SYMMETRIC_TUPLES];
@@ -638,27 +665,40 @@ export const errorDiffusingFilter = (
             starts[i] = cursor;
             lens[i] = kernelSets[i].length;
             for (const t of kernelSets[i]) {
-              tuples[cursor * 3]     = t.dx;
+              tuples[cursor * 3] = t.dx;
               tuples[cursor * 3 + 1] = t.dy;
               tuples[cursor * 3 + 2] = t.weight;
               cursor += 1;
             }
           }
           const totals = new Float32Array(kernelSetTotals);
-          const wasmStrategy = useDrop ? WASM_ERR_STRATEGY.DROP
-            : useClamp ? WASM_ERR_STRATEGY.CLAMPED
-            : useRotate ? WASM_ERR_STRATEGY.ROTATE
-            : useSymmetric ? WASM_ERR_STRATEGY.SYMMETRIC
-            : WASM_ERR_STRATEGY.RENORMALIZE;
+          const wasmStrategy = useDrop
+            ? WASM_ERR_STRATEGY.DROP
+            : useClamp
+              ? WASM_ERR_STRATEGY.CLAMPED
+              : useRotate
+                ? WASM_ERR_STRATEGY.ROTATE
+                : useSymmetric
+                  ? WASM_ERR_STRATEGY.SYMMETRIC
+                  : WASM_ERR_STRATEGY.RENORMALIZE;
 
           wasmErrorDiffuseCustomOrder(
-            buf, buf, W, H,
+            buf,
+            buf,
+            W,
+            H,
             visitOrderU32,
-            tuples, starts, lens, totals,
-            wasmStrategy, !!useLinear,
-            bleedPrevIn, bleedPrevOut,
+            tuples,
+            starts,
+            lens,
+            totals,
+            wasmStrategy,
+            !!useLinear,
+            bleedPrevIn,
+            bleedPrevOut,
             bleedActive ? temporalBleed : 0,
-            paletteMode, levelsArg,
+            paletteMode,
+            levelsArg,
             paletteColors,
           );
           didWasm = true;
@@ -676,20 +716,36 @@ export const errorDiffusingFilter = (
           }
           const rowAltCode = ROW_ALT_TO_WASM[rowAlt] ?? WASM_ROW_ALT.BOUSTROPHEDON;
           wasmErrorDiffuseBuffer(
-            buf, buf, W, H,
-            kernelFlat, kw, kh,
-            errorMatrix.offset[0], errorMatrix.offset[1],
-            !!serpentine, rowAltCode, !!useLinear,
-            bleedPrevIn, bleedPrevOut,
+            buf,
+            buf,
+            W,
+            H,
+            kernelFlat,
+            kw,
+            kh,
+            errorMatrix.offset[0],
+            errorMatrix.offset[1],
+            !!serpentine,
+            rowAltCode,
+            !!useLinear,
+            bleedPrevIn,
+            bleedPrevOut,
             bleedActive ? temporalBleed : 0,
-            paletteMode, levelsArg,
+            paletteMode,
+            levelsArg,
             paletteColors,
           );
           didWasm = true;
         }
       }
     }
-    logFilterWasmStatus(name, didWasm, didWasm ? `palette=${(palette as { name?: string })?.name ?? "?"}${isCustomOrder ? ` order=${scanOrder}` : ""}` : (wasmReason || "unknown"));
+    logFilterWasmStatus(
+      name,
+      didWasm,
+      didWasm
+        ? `palette=${(palette as { name?: string })?.name ?? "?"}${isCustomOrder ? ` order=${scanOrder}` : ""}`
+        : wasmReason || "unknown",
+    );
 
     // errBuf: Float32Array for both paths — avoids boxed JS Array GC pressure.
     // Linear path: values 0.0–1.0. sRGB path: values 0–255 (float for error accumulation).
@@ -715,15 +771,27 @@ export const errorDiffusingFilter = (
         const prevInputLinear = srgbBufToLinearFloat(prevInputForLoop);
         const prevOutputLinear = srgbBufToLinearFloat(prevOutputForLoop);
         for (let j = 0; j < errBuf.length; j += 4) {
-          errBuf[j] = readF32(errBuf, j) + (readF32(prevInputLinear, j) - readF32(prevOutputLinear, j)) * temporalBleed;
-          errBuf[j + 1] = readF32(errBuf, j + 1) + (readF32(prevInputLinear, j + 1) - readF32(prevOutputLinear, j + 1)) * temporalBleed;
-          errBuf[j + 2] = readF32(errBuf, j + 2) + (readF32(prevInputLinear, j + 2) - readF32(prevOutputLinear, j + 2)) * temporalBleed;
+          errBuf[j] =
+            readF32(errBuf, j) +
+            (readF32(prevInputLinear, j) - readF32(prevOutputLinear, j)) * temporalBleed;
+          errBuf[j + 1] =
+            readF32(errBuf, j + 1) +
+            (readF32(prevInputLinear, j + 1) - readF32(prevOutputLinear, j + 1)) * temporalBleed;
+          errBuf[j + 2] =
+            readF32(errBuf, j + 2) +
+            (readF32(prevInputLinear, j + 2) - readF32(prevOutputLinear, j + 2)) * temporalBleed;
         }
       } else {
         for (let j = 0; j < errBuf.length; j += 4) {
-          errBuf[j] = readF32(errBuf, j) + (readU8(prevInputForLoop, j) - readU8(prevOutputForLoop, j)) * temporalBleed;
-          errBuf[j + 1] = readF32(errBuf, j + 1) + (readU8(prevInputForLoop, j + 1) - readU8(prevOutputForLoop, j + 1)) * temporalBleed;
-          errBuf[j + 2] = readF32(errBuf, j + 2) + (readU8(prevInputForLoop, j + 2) - readU8(prevOutputForLoop, j + 2)) * temporalBleed;
+          errBuf[j] =
+            readF32(errBuf, j) +
+            (readU8(prevInputForLoop, j) - readU8(prevOutputForLoop, j)) * temporalBleed;
+          errBuf[j + 1] =
+            readF32(errBuf, j + 1) +
+            (readU8(prevInputForLoop, j + 1) - readU8(prevOutputForLoop, j + 1)) * temporalBleed;
+          errBuf[j + 2] =
+            readF32(errBuf, j + 2) +
+            (readU8(prevInputForLoop, j + 2) - readU8(prevOutputForLoop, j + 2)) * temporalBleed;
         }
       }
     }
@@ -737,228 +805,257 @@ export const errorDiffusingFilter = (
     const _pix = [0, 0, 0, 0];
 
     if (!didWasm) {
-    if (isCustomOrder) {
-      // Custom-order scan: walk a precomputed visit order, push error only to
-      // not-yet-visited targets. The errorStrategy option picks how the error
-      // is distributed when neighbors are blocked (visible at curve sub-quadrant
-      // boundaries — see ERR_STRATEGY for tradeoffs).
-      const visitOrder = buildVisitOrder(scanOrder, W, H);
-      const visited = new Uint8Array(W * H);
-      const { tuples: baseTuples, total: kernelTotal } = kernelToTuples(errorMatrix.kernel, errorMatrix.offset);
+      if (isCustomOrder) {
+        // Custom-order scan: walk a precomputed visit order, push error only to
+        // not-yet-visited targets. The errorStrategy option picks how the error
+        // is distributed when neighbors are blocked (visible at curve sub-quadrant
+        // boundaries — see ERR_STRATEGY for tradeoffs).
+        const visitOrder = buildVisitOrder(scanOrder, W, H);
+        const visited = new Uint8Array(W * H);
+        const { tuples: baseTuples, total: kernelTotal } = kernelToTuples(
+          errorMatrix.kernel,
+          errorMatrix.offset,
+        );
 
-      const useDrop      = errorStrategy === ERR_STRATEGY.DROP;
-      const useClamp     = errorStrategy === ERR_STRATEGY.CLAMPED;
-      const useRotate    = errorStrategy === ERR_STRATEGY.ROTATE;
-      const useSymmetric = errorStrategy === ERR_STRATEGY.SYMMETRIC;
+        const useDrop = errorStrategy === ERR_STRATEGY.DROP;
+        const useClamp = errorStrategy === ERR_STRATEGY.CLAMPED;
+        const useRotate = errorStrategy === ERR_STRATEGY.ROTATE;
+        const useSymmetric = errorStrategy === ERR_STRATEGY.SYMMETRIC;
 
-      // Pick the tuple set(s) we'll iterate over per pixel:
-      // - SYMMETRIC: fixed uniform 8-neighbor, no rotation
-      // - ROTATE: 4 precomputed cardinal rotations of the filter's kernel
-      // - everything else: the filter's kernel as-is
-      const symTotal = SYMMETRIC_TUPLES.reduce((s, t) => s + t.weight, 0);
-      const rotatedSets: Tuple[][] = useRotate
-        ? [0, 1, 2, 3].map(d => rotateTuples(baseTuples, d))
-        : [];
-      const staticTuples: Tuple[] = useSymmetric ? SYMMETRIC_TUPLES : baseTuples;
-      const staticTotal = useSymmetric ? symTotal : kernelTotal;
+        // Pick the tuple set(s) we'll iterate over per pixel:
+        // - SYMMETRIC: fixed uniform 8-neighbor, no rotation
+        // - ROTATE: 4 precomputed cardinal rotations of the filter's kernel
+        // - everything else: the filter's kernel as-is
+        const symTotal = SYMMETRIC_TUPLES.reduce((s, t) => s + t.weight, 0);
+        const rotatedSets: Tuple[][] = useRotate
+          ? [0, 1, 2, 3].map((d) => rotateTuples(baseTuples, d))
+          : [];
+        const staticTuples: Tuple[] = useSymmetric ? SYMMETRIC_TUPLES : baseTuples;
+        const staticTotal = useSymmetric ? symTotal : kernelTotal;
 
-      for (let step = 0; step < visitOrder.length; step += 1) {
-        const linearIdx = visitOrder[step] ?? 0;
-        visited[linearIdx] = 1;
-        const x = linearIdx % W;
-        const y = (linearIdx / W) | 0;
-        const i = linearIdx * 4;
+        for (let step = 0; step < visitOrder.length; step += 1) {
+          const linearIdx = visitOrder[step] ?? 0;
+          visited[linearIdx] = 1;
+          const x = linearIdx % W;
+          const y = (linearIdx / W) | 0;
+          const i = linearIdx * 4;
 
-        let er: number;
-        let eg: number;
-        let eb: number;
-        if (useLinear) {
-          _pix[0] = readF32(errBuf, i); _pix[1] = readF32(errBuf, i + 1);
-          _pix[2] = readF32(errBuf, i + 2); _pix[3] = readF32(errBuf, i + 3);
-          const color = linearPaletteGetColor(palette, _pix, palette.options);
-          er = f32(_pix[0] - (color[0] ?? 0));
-          eg = f32(_pix[1] - (color[1] ?? 0));
-          eb = f32(_pix[2] - (color[2] ?? 0));
-          linearBuf![i] = color[0] ?? 0;
-          linearBuf![i + 1] = color[1] ?? 0;
-          linearBuf![i + 2] = color[2] ?? 0;
-        } else {
-          const pr = readF32(errBuf, i);
-          const pg = readF32(errBuf, i + 1);
-          const pb = readF32(errBuf, i + 2);
-          _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = readF32(errBuf, i + 3);
-          const color = (palette.getColor ?? palettes.nearest.getColor)(
-            _pix,
-            palette.options as { levels: number } | undefined
-          );
-          fillBufferPixel(buf, i, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, readU8(buf, i + 3));
-          er = f32(pr - (color[0] ?? 0));
-          eg = f32(pg - (color[1] ?? 0));
-          eb = f32(pb - (color[2] ?? 0));
-        }
+          let er: number;
+          let eg: number;
+          let eb: number;
+          if (useLinear) {
+            _pix[0] = readF32(errBuf, i);
+            _pix[1] = readF32(errBuf, i + 1);
+            _pix[2] = readF32(errBuf, i + 2);
+            _pix[3] = readF32(errBuf, i + 3);
+            const color = linearPaletteGetColor(palette, _pix, palette.options);
+            er = f32(_pix[0] - (color[0] ?? 0));
+            eg = f32(_pix[1] - (color[1] ?? 0));
+            eb = f32(_pix[2] - (color[2] ?? 0));
+            linearBuf![i] = color[0] ?? 0;
+            linearBuf![i + 1] = color[1] ?? 0;
+            linearBuf![i + 2] = color[2] ?? 0;
+          } else {
+            const pr = readF32(errBuf, i);
+            const pg = readF32(errBuf, i + 1);
+            const pb = readF32(errBuf, i + 2);
+            _pix[0] = pr;
+            _pix[1] = pg;
+            _pix[2] = pb;
+            _pix[3] = readF32(errBuf, i + 3);
+            const color = (palette.getColor ?? palettes.nearest.getColor)(
+              _pix,
+              palette.options as { levels: number } | undefined,
+            );
+            fillBufferPixel(
+              buf,
+              i,
+              color[0] ?? 0,
+              color[1] ?? 0,
+              color[2] ?? 0,
+              readU8(buf, i + 3),
+            );
+            er = f32(pr - (color[0] ?? 0));
+            eg = f32(pg - (color[1] ?? 0));
+            eb = f32(pb - (color[2] ?? 0));
+          }
 
-        // Choose this step's tuple set. ROTATE looks one step ahead in the
-        // visit order to find the local "forward" cardinal and rotates the
-        // kernel to match.
-        let stepTuples: Tuple[];
-        let stepTotal: number;
-        if (useRotate && step + 1 < visitOrder.length) {
-          const nextIdx = visitOrder[step + 1] ?? linearIdx;
-          const nx = nextIdx % W;
-          const ny = (nextIdx / W) | 0;
-          stepTuples = rotatedSets[snapDirection(nx - x, ny - y)] ?? baseTuples;
-          stepTotal = kernelTotal;
-        } else {
-          stepTuples = staticTuples;
-          stepTotal = staticTotal;
-        }
-        const tupleCount = stepTuples.length;
+          // Choose this step's tuple set. ROTATE looks one step ahead in the
+          // visit order to find the local "forward" cardinal and rotates the
+          // kernel to match.
+          let stepTuples: Tuple[];
+          let stepTotal: number;
+          if (useRotate && step + 1 < visitOrder.length) {
+            const nextIdx = visitOrder[step + 1] ?? linearIdx;
+            const nx = nextIdx % W;
+            const ny = (nextIdx / W) | 0;
+            stepTuples = rotatedSets[snapDirection(nx - x, ny - y)] ?? baseTuples;
+            stepTotal = kernelTotal;
+          } else {
+            stepTuples = staticTuples;
+            stepTotal = staticTotal;
+          }
+          const tupleCount = stepTuples.length;
 
-        // Compute scale factor according to strategy.
-        let scale = 1;
-        if (!useDrop) {
-          let unvisitedWeight = 0;
+          // Compute scale factor according to strategy.
+          let scale = 1;
+          if (!useDrop) {
+            let unvisitedWeight = 0;
+            for (let k = 0; k < tupleCount; k += 1) {
+              const t = readTuple(stepTuples, k);
+              const tx = x + t.dx;
+              const ty = y + t.dy;
+              if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
+              if (visited[ty * W + tx]) continue;
+              // Rust accumulates this in an f32, so each += rounds.
+              unvisitedWeight = f32(unvisitedWeight + f32(t.weight));
+            }
+            if (unvisitedWeight === 0) continue;
+            scale = f32(f32(stepTotal) / unvisitedWeight);
+            if (useClamp && scale > CLAMP_MAX_SCALE) scale = CLAMP_MAX_SCALE;
+          }
+
+          // Push error to unvisited targets.
           for (let k = 0; k < tupleCount; k += 1) {
             const t = readTuple(stepTuples, k);
             const tx = x + t.dx;
             const ty = y + t.dy;
             if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
-            if (visited[ty * W + tx]) continue;
-            // Rust accumulates this in an f32, so each += rounds.
-            unvisitedWeight = f32(unvisitedWeight + f32(t.weight));
+            const targetLinear = ty * W + tx;
+            if (visited[targetLinear]) continue;
+            const ti = targetLinear * 4;
+            // WASM receives `tuples` as a Float32Array, so its weight is already
+            // f32-rounded before the multiply; t.weight here is still the f64
+            // original.
+            const w = f32(f32(t.weight) * scale);
+            errBuf[ti] = readF32(errBuf, ti) + f32(er * w);
+            errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w);
+            errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w);
           }
-          if (unvisitedWeight === 0) continue;
-          scale = f32(f32(stepTotal) / unvisitedWeight);
-          if (useClamp && scale > CLAMP_MAX_SCALE) scale = CLAMP_MAX_SCALE;
         }
-
-        // Push error to unvisited targets.
-        for (let k = 0; k < tupleCount; k += 1) {
-          const t = readTuple(stepTuples, k);
-          const tx = x + t.dx;
-          const ty = y + t.dy;
-          if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
-          const targetLinear = ty * W + tx;
-          if (visited[targetLinear]) continue;
-          const ti = targetLinear * 4;
-          // WASM receives `tuples` as a Float32Array, so its weight is already
-          // f32-rounded before the multiply; t.weight here is still the f64
-          // original.
-          const w = f32(f32(t.weight) * scale);
-          errBuf[ti] = readF32(errBuf, ti) + f32(er * w);
-          errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w);
-          errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w);
-        }
-      }
-    } else {
-    for (let y = 0; y < H; y += 1) {
-      // Pick scan direction for this row. Random/Bit-reverse give a stable
-      // per-row direction (deterministic across frames so animation doesn't flicker).
-      let reverse: boolean;
-      if (!serpentine) {
-        reverse = false;
-      } else if (rowAlt === ROW_ALT.RANDOM) {
-        reverse = (((y * 2654435761) >>> 0) & 1) === 1;
-      } else if (rowAlt === ROW_ALT.BITREVERSE) {
-        reverse = bitReverseParity(y, H) === 1;
-      } else if (rowAlt === ROW_ALT.GRAYCODE) {
-        reverse = ((y ^ (y >> 1)) & 1) === 1;
-      } else if (rowAlt === ROW_ALT.PRIME) {
-        reverse = isPrime(y);
-      } else if (rowAlt === ROW_ALT.TRIANGULAR) {
-        reverse = (triangularSegment(y) & 1) === 1;
-      } else if (rowAlt === ROW_ALT.BLOCK2) {
-        reverse = ((y >> 1) & 1) === 1;
-      } else if (rowAlt === ROW_ALT.BLOCK3) {
-        reverse = (((y / 3) | 0) & 1) === 1;
-      } else if (rowAlt === ROW_ALT.BLOCK4) {
-        reverse = ((y >> 2) & 1) === 1;
-      } else if (rowAlt === ROW_ALT.BLOCK8) {
-        reverse = ((y >> 3) & 1) === 1;
-      } else if (rowAlt === ROW_ALT.REVERSE) {
-        reverse = (y & 1) === 0;
       } else {
-        reverse = (y & 1) === 1;
-      }
-      const xStart = reverse ? W - 1 : 0;
-      const xEnd = reverse ? -1 : W;
-      const xStep = reverse ? -1 : 1;
-
-      for (let x = xStart; x !== xEnd; x += xStep) {
-        const i = (x + W * y) * 4;
-
-        if (useLinear) {
-          _pix[0] = readF32(errBuf, i); _pix[1] = readF32(errBuf, i + 1);
-          _pix[2] = readF32(errBuf, i + 2); _pix[3] = readF32(errBuf, i + 3);
-          const color = linearPaletteGetColor(palette, _pix, palette.options);
-          const er = f32(_pix[0] - (color[0] ?? 0));
-          const eg = f32(_pix[1] - (color[1] ?? 0));
-          const eb = f32(_pix[2] - (color[2] ?? 0));
-
-          linearBuf![i] = color[0] ?? 0;
-          linearBuf![i + 1] = color[1] ?? 0;
-          linearBuf![i + 2] = color[2] ?? 0;
-
-          for (let h = 0; h < kernelHeight; h += 1) {
-            for (let w = 0; w < kernelWidth; w += 1) {
-              const weight = errorMatrix.kernel[h]?.[w];
-              if (weight == null) continue;
-              // Serpentine re-aims the kernel so it still points at pixels the
-              // reversed scan hasn't reached yet: dx_rev = -dx_fwd. Mirroring the
-              // index *and* multiplying by the reversed step cancelled out for
-              // any centred kernel (Floyd-Steinberg included), leaving the kernel
-              // un-aimed — see the note in wasm/rgba2laba/src/lib.rs.
-              const dxFwd = w + offsetX;
-              const tx = x + (reverse ? -dxFwd : dxFwd);
-              const ty = y + h + offsetY;
-              if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
-              const ti = (tx + W * ty) * 4;
-              // Rust's KEntry stores `weight: v as f32`, so it multiplies by the
-              // f32-rounded weight; this is still the f64 kernel value.
-              const w32 = f32(weight);
-              errBuf[ti] = readF32(errBuf, ti) + f32(er * w32);
-              errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w32);
-              errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w32);
-            }
+        for (let y = 0; y < H; y += 1) {
+          // Pick scan direction for this row. Random/Bit-reverse give a stable
+          // per-row direction (deterministic across frames so animation doesn't flicker).
+          let reverse: boolean;
+          if (!serpentine) {
+            reverse = false;
+          } else if (rowAlt === ROW_ALT.RANDOM) {
+            reverse = (((y * 2654435761) >>> 0) & 1) === 1;
+          } else if (rowAlt === ROW_ALT.BITREVERSE) {
+            reverse = bitReverseParity(y, H) === 1;
+          } else if (rowAlt === ROW_ALT.GRAYCODE) {
+            reverse = ((y ^ (y >> 1)) & 1) === 1;
+          } else if (rowAlt === ROW_ALT.PRIME) {
+            reverse = isPrime(y);
+          } else if (rowAlt === ROW_ALT.TRIANGULAR) {
+            reverse = (triangularSegment(y) & 1) === 1;
+          } else if (rowAlt === ROW_ALT.BLOCK2) {
+            reverse = ((y >> 1) & 1) === 1;
+          } else if (rowAlt === ROW_ALT.BLOCK3) {
+            reverse = (((y / 3) | 0) & 1) === 1;
+          } else if (rowAlt === ROW_ALT.BLOCK4) {
+            reverse = ((y >> 2) & 1) === 1;
+          } else if (rowAlt === ROW_ALT.BLOCK8) {
+            reverse = ((y >> 3) & 1) === 1;
+          } else if (rowAlt === ROW_ALT.REVERSE) {
+            reverse = (y & 1) === 0;
+          } else {
+            reverse = (y & 1) === 1;
           }
-        } else {
-          const pr = readF32(errBuf, i), pg = readF32(errBuf, i + 1), pb = readF32(errBuf, i + 2);
-          _pix[0] = pr; _pix[1] = pg; _pix[2] = pb; _pix[3] = readF32(errBuf, i + 3);
-          const color = (palette.getColor ?? palettes.nearest.getColor)(
-            _pix,
-            palette.options as { levels: number } | undefined
-          );
-          fillBufferPixel(buf, i, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, readU8(buf, i + 3));
-          const er = f32(pr - (color[0] ?? 0));
-          const eg = f32(pg - (color[1] ?? 0));
-          const eb = f32(pb - (color[2] ?? 0));
+          const xStart = reverse ? W - 1 : 0;
+          const xEnd = reverse ? -1 : W;
+          const xStep = reverse ? -1 : 1;
 
-          for (let h = 0; h < kernelHeight; h += 1) {
-            for (let w = 0; w < kernelWidth; w += 1) {
-              const weight = errorMatrix.kernel[h]?.[w];
-              if (weight == null) continue;
-              // Serpentine re-aims the kernel so it still points at pixels the
-              // reversed scan hasn't reached yet: dx_rev = -dx_fwd. Mirroring the
-              // index *and* multiplying by the reversed step cancelled out for
-              // any centred kernel (Floyd-Steinberg included), leaving the kernel
-              // un-aimed — see the note in wasm/rgba2laba/src/lib.rs.
-              const dxFwd = w + offsetX;
-              const tx = x + (reverse ? -dxFwd : dxFwd);
-              const ty = y + h + offsetY;
-              if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
-              const ti = (tx + W * ty) * 4;
-              // Rust's KEntry stores `weight: v as f32`, so it multiplies by the
-              // f32-rounded weight; this is still the f64 kernel value.
-              const w32 = f32(weight);
-              errBuf[ti] = readF32(errBuf, ti) + f32(er * w32);
-              errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w32);
-              errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w32);
+          for (let x = xStart; x !== xEnd; x += xStep) {
+            const i = (x + W * y) * 4;
+
+            if (useLinear) {
+              _pix[0] = readF32(errBuf, i);
+              _pix[1] = readF32(errBuf, i + 1);
+              _pix[2] = readF32(errBuf, i + 2);
+              _pix[3] = readF32(errBuf, i + 3);
+              const color = linearPaletteGetColor(palette, _pix, palette.options);
+              const er = f32(_pix[0] - (color[0] ?? 0));
+              const eg = f32(_pix[1] - (color[1] ?? 0));
+              const eb = f32(_pix[2] - (color[2] ?? 0));
+
+              linearBuf![i] = color[0] ?? 0;
+              linearBuf![i + 1] = color[1] ?? 0;
+              linearBuf![i + 2] = color[2] ?? 0;
+
+              for (let h = 0; h < kernelHeight; h += 1) {
+                for (let w = 0; w < kernelWidth; w += 1) {
+                  const weight = errorMatrix.kernel[h]?.[w];
+                  if (weight == null) continue;
+                  // Serpentine re-aims the kernel so it still points at pixels the
+                  // reversed scan hasn't reached yet: dx_rev = -dx_fwd. Mirroring the
+                  // index *and* multiplying by the reversed step cancelled out for
+                  // any centred kernel (Floyd-Steinberg included), leaving the kernel
+                  // un-aimed — see the note in wasm/rgba2laba/src/lib.rs.
+                  const dxFwd = w + offsetX;
+                  const tx = x + (reverse ? -dxFwd : dxFwd);
+                  const ty = y + h + offsetY;
+                  if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
+                  const ti = (tx + W * ty) * 4;
+                  // Rust's KEntry stores `weight: v as f32`, so it multiplies by the
+                  // f32-rounded weight; this is still the f64 kernel value.
+                  const w32 = f32(weight);
+                  errBuf[ti] = readF32(errBuf, ti) + f32(er * w32);
+                  errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w32);
+                  errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w32);
+                }
+              }
+            } else {
+              const pr = readF32(errBuf, i),
+                pg = readF32(errBuf, i + 1),
+                pb = readF32(errBuf, i + 2);
+              _pix[0] = pr;
+              _pix[1] = pg;
+              _pix[2] = pb;
+              _pix[3] = readF32(errBuf, i + 3);
+              const color = (palette.getColor ?? palettes.nearest.getColor)(
+                _pix,
+                palette.options as { levels: number } | undefined,
+              );
+              fillBufferPixel(
+                buf,
+                i,
+                color[0] ?? 0,
+                color[1] ?? 0,
+                color[2] ?? 0,
+                readU8(buf, i + 3),
+              );
+              const er = f32(pr - (color[0] ?? 0));
+              const eg = f32(pg - (color[1] ?? 0));
+              const eb = f32(pb - (color[2] ?? 0));
+
+              for (let h = 0; h < kernelHeight; h += 1) {
+                for (let w = 0; w < kernelWidth; w += 1) {
+                  const weight = errorMatrix.kernel[h]?.[w];
+                  if (weight == null) continue;
+                  // Serpentine re-aims the kernel so it still points at pixels the
+                  // reversed scan hasn't reached yet: dx_rev = -dx_fwd. Mirroring the
+                  // index *and* multiplying by the reversed step cancelled out for
+                  // any centred kernel (Floyd-Steinberg included), leaving the kernel
+                  // un-aimed — see the note in wasm/rgba2laba/src/lib.rs.
+                  const dxFwd = w + offsetX;
+                  const tx = x + (reverse ? -dxFwd : dxFwd);
+                  const ty = y + h + offsetY;
+                  if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
+                  const ti = (tx + W * ty) * 4;
+                  // Rust's KEntry stores `weight: v as f32`, so it multiplies by the
+                  // f32-rounded weight; this is still the f64 kernel value.
+                  const w32 = f32(weight);
+                  errBuf[ti] = readF32(errBuf, ti) + f32(er * w32);
+                  errBuf[ti + 1] = readF32(errBuf, ti + 1) + f32(eg * w32);
+                  errBuf[ti + 2] = readF32(errBuf, ti + 2) + f32(eb * w32);
+                }
+              }
             }
           }
         }
-      }
-    }
-    } // end row-major branch
+      } // end row-major branch
     } // end !didWasm
 
     if (!didWasm && useLinear) {
@@ -987,7 +1084,8 @@ export const errorDiffusingFilter = (
       const filled = Math.min(voteHead, voteWindow);
       const orderedFrames: Uint8ClampedArray[] = [];
       for (let f = 0; f < filled; f += 1) {
-        const frame = voteFrames[((voteHead - filled + f) % voteWindow + voteWindow) % voteWindow];
+        const frame =
+          voteFrames[(((voteHead - filled + f) % voteWindow) + voteWindow) % voteWindow];
         if (frame) orderedFrames.push(frame);
       }
 

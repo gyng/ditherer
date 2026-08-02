@@ -1,7 +1,9 @@
 # 016 — Authentic Corruption Filters
 
 ## Goal
+
 Strengthen authenticity-oriented corruption simulation by:
+
 1. Upgrading `JPEG artifact` from simple block quantization to a codec-like pipeline.
 2. Adding four new corruption filters representing real-world failure modes:
    - Bitplane Dropout
@@ -11,6 +13,7 @@ Strengthen authenticity-oriented corruption simulation by:
 3. Adding presets that compose these effects into plausible failure chains.
 
 ## Scope
+
 - Rewrite `src/filters/jpegArtifact.ts` with:
   - YCbCr conversion
   - 8x8 DCT/IDCT quantization path
@@ -28,10 +31,12 @@ Strengthen authenticity-oriented corruption simulation by:
 - Add chain presets in `src/components/ChainList/presets.ts`.
 
 ## Validation
+
 - Typecheck/build via `npm run build`.
 - Smoke-check filter registration and preset naming consistency.
 
 ## Risks
+
 - DCT path can be CPU-heavy on large frames.
 - Temporal corruption modes need `mainThread: true` where prior-frame state is used.
 - New controls must remain understandable in existing control UI.

@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -55,8 +62,10 @@ export type MorphMode = "DILATE" | "ERODE" | "OPEN" | "CLOSE";
 
 export const renderMorphologyGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  mode: MorphMode, radius: number,
+  width: number,
+  height: number,
+  mode: MorphMode,
+  radius: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -73,14 +82,22 @@ export const renderMorphologyGL = (
     target: ReturnType<typeof ensureTexture> | null,
     isDilate: boolean,
   ) => {
-    drawPass(gl, target, width, height, cache.prog, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, srcTex);
-      gl.uniform1i(cache.prog.uniforms.u_input, 0);
-      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-      gl.uniform1i(cache.prog.uniforms.u_radius, radius);
-      gl.uniform1i(cache.prog.uniforms.u_isDilate, isDilate ? 1 : 0);
-    }, vao);
+    drawPass(
+      gl,
+      target,
+      width,
+      height,
+      cache.prog,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, srcTex);
+        gl.uniform1i(cache.prog.uniforms.u_input, 0);
+        gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+        gl.uniform1i(cache.prog.uniforms.u_radius, radius);
+        gl.uniform1i(cache.prog.uniforms.u_isDilate, isDilate ? 1 : 0);
+      },
+      vao,
+    );
   };
 
   if (mode === "DILATE" || mode === "ERODE") {

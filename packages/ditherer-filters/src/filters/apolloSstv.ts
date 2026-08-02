@@ -31,16 +31,68 @@ export const optionTypes = {
     default: "320_10",
     desc: "Apollo camera scan mode from the NASA scan-converter design",
   },
-  bandwidth: { type: RANGE, range: [0.1, 0.8], step: 0.01, default: 0.5, desc: "Slow-scan video bandwidth in MHz; nominal Apollo bandwidth is 0.5 MHz" },
-  phosphorPersistence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.62, desc: "High-persistence kinescope retention in the RCA converter" },
-  vidiconLag: { type: RANGE, range: [0, 1], step: 0.01, default: 0.34, desc: "TK-22 vidicon target lag during optical recapture" },
-  vidiconBloom: { type: RANGE, range: [0, 1], step: 0.01, default: 0.24, desc: "Highlight blooming in the vidicon recapture stage" },
-  discHold: { type: BOOL, default: true, desc: "Hold the magnetic-disc field until the next slow-scan picture arrives" },
+  bandwidth: {
+    type: RANGE,
+    range: [0.1, 0.8],
+    step: 0.01,
+    default: 0.5,
+    desc: "Slow-scan video bandwidth in MHz; nominal Apollo bandwidth is 0.5 MHz",
+  },
+  phosphorPersistence: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.62,
+    desc: "High-persistence kinescope retention in the RCA converter",
+  },
+  vidiconLag: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.34,
+    desc: "TK-22 vidicon target lag during optical recapture",
+  },
+  vidiconBloom: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.24,
+    desc: "Highlight blooming in the vidicon recapture stage",
+  },
+  discHold: {
+    type: BOOL,
+    default: true,
+    desc: "Hold the magnetic-disc field until the next slow-scan picture arrives",
+  },
   interlace: { type: BOOL, default: true, desc: "Convert to 525-line, 60-field interlaced output" },
-  rfNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "RF link and analogue tape noise" },
-  syncError: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "Pulse/tone synchronizer timing and tape wow/flutter error" },
-  randomSeed: { type: RANGE, range: [0, 9999], step: 1, default: 11, desc: "Deterministic RF and timing fault seed" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 30, desc: "Ground-converter preview frame rate" },
+  rfNoise: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.08,
+    desc: "RF link and analogue tape noise",
+  },
+  syncError: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.08,
+    desc: "Pulse/tone synchronizer timing and tape wow/flutter error",
+  },
+  randomSeed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 11,
+    desc: "Deterministic RF and timing fault seed",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 30,
+    desc: "Ground-converter preview frame rate",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -145,17 +197,33 @@ let program: Program | null = null;
 const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (program) return program;
   program = linkProgram(gl, FS, [
-    "u_source", "u_history", "u_res", "u_haveHistory", "u_virtualLines", "u_bandwidth",
-    "u_persistence", "u_vidiconLag", "u_bloom", "u_hold", "u_interlace", "u_frame",
-    "u_picturePhase", "u_pictureIndex", "u_newPicture", "u_noise", "u_syncError", "u_seed",
+    "u_source",
+    "u_history",
+    "u_res",
+    "u_haveHistory",
+    "u_virtualLines",
+    "u_bandwidth",
+    "u_persistence",
+    "u_vidiconLag",
+    "u_bloom",
+    "u_hold",
+    "u_interlace",
+    "u_frame",
+    "u_picturePhase",
+    "u_pictureIndex",
+    "u_newPicture",
+    "u_noise",
+    "u_syncError",
+    "u_seed",
   ] as const);
   return program;
 };
 
-type ApolloOptions = FilterOptionValues & Partial<typeof defaults> & {
-  _frameIndex?: number;
-  _prevOutput?: Uint8ClampedArray | null;
-};
+type ApolloOptions = FilterOptionValues &
+  Partial<typeof defaults> & {
+    _frameIndex?: number;
+    _prevOutput?: Uint8ClampedArray | null;
+  };
 
 const finiteClamp = (value: unknown, fallback: number, low: number, high: number): number => {
   const numeric = Number(value);
@@ -184,12 +252,12 @@ export const apolloTiming = (
   const frame = Math.floor(finiteClamp(frameIndex, 0, 0, Number.MAX_SAFE_INTEGER));
   const cameraNumerator = highResolution ? 5 : 10;
   const cameraDenominator = highResolution ? 8 : 1;
-  const pictures = frame * cameraNumerator / (previewFps * cameraDenominator);
+  const pictures = (frame * cameraNumerator) / (previewFps * cameraDenominator);
   const pictureIndex = Math.floor(pictures + 1e-12);
   const rawPhase = pictures - pictureIndex;
   const picturePhase = rawPhase < 1e-10 ? 0 : Math.min(1, Math.max(0, rawPhase));
-  const previousPictures = Math.max(0, frame - 1) * cameraNumerator
-    / (previewFps * cameraDenominator);
+  const previousPictures =
+    (Math.max(0, frame - 1) * cameraNumerator) / (previewFps * cameraDenominator);
   const previousIndex = Math.floor(previousPictures + 1e-12);
   return {
     pictureIndex,
@@ -198,8 +266,12 @@ export const apolloTiming = (
   };
 };
 
-const apolloSstv = (input: HTMLCanvasElement | OffscreenCanvas, options: ApolloOptions = defaults) => {
-  const width = input.width, height = input.height;
+const apolloSstv = (
+  input: HTMLCanvasElement | OffscreenCanvas,
+  options: ApolloOptions = defaults,
+) => {
+  const width = input.width,
+    height = input.height;
   if (width < 1 || height < 1) return input;
   const context = getGLCtx();
   if (!context) return glUnavailableStub(width, height);
@@ -212,9 +284,8 @@ const apolloSstv = (input: HTMLCanvasElement | OffscreenCanvas, options: ApolloO
   const history = ensureTexture(gl, "apolloSstv:history", width, height);
   const previous = options._prevOutput ?? null;
   const frame = Math.floor(finiteClamp(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER));
-  const haveHistory = frame > 0
-    && previous instanceof Uint8ClampedArray
-    && previous.length === width * height * 4;
+  const haveHistory =
+    frame > 0 && previous instanceof Uint8ClampedArray && previous.length === width * height * 4;
   if (haveHistory) {
     gl.bindTexture(gl.TEXTURE_2D, history.tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -229,36 +300,48 @@ const apolloSstv = (input: HTMLCanvasElement | OffscreenCanvas, options: ApolloO
   const noise = finiteClamp(options.rfNoise, defaults.rfNoise, 0, 1);
   const syncError = finiteClamp(options.syncError, defaults.syncError, 0, 1);
   const seed = finiteClamp(options.randomSeed, defaults.randomSeed, 0, 9999);
-  drawPass(gl, null, width, height, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, source.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, haveHistory ? history.tex : source.tex);
-    gl.uniform1i(prog.uniforms.u_history, 1);
-    gl.uniform2f(prog.uniforms.u_res, width, height);
-    gl.uniform1f(prog.uniforms.u_haveHistory, haveHistory ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_virtualLines, highResolution ? 1280 : 320);
-    gl.uniform1f(prog.uniforms.u_bandwidth, bandwidth);
-    gl.uniform1f(prog.uniforms.u_persistence, persistence);
-    gl.uniform1f(prog.uniforms.u_vidiconLag, vidiconLag);
-    gl.uniform1f(prog.uniforms.u_bloom, bloom);
-    gl.uniform1f(prog.uniforms.u_hold, options.discHold === false ? 0 : 1);
-    gl.uniform1f(prog.uniforms.u_interlace, options.interlace === false ? 0 : 1);
-    gl.uniform1f(prog.uniforms.u_frame, frame);
-    gl.uniform1f(prog.uniforms.u_picturePhase, timing.picturePhase);
-    gl.uniform1f(prog.uniforms.u_pictureIndex, timing.pictureIndex);
-    gl.uniform1f(prog.uniforms.u_newPicture, timing.newPicture ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_noise, noise);
-    gl.uniform1f(prog.uniforms.u_syncError, syncError);
-    gl.uniform1f(prog.uniforms.u_seed, seed);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, source.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, haveHistory ? history.tex : source.tex);
+      gl.uniform1i(prog.uniforms.u_history, 1);
+      gl.uniform2f(prog.uniforms.u_res, width, height);
+      gl.uniform1f(prog.uniforms.u_haveHistory, haveHistory ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_virtualLines, highResolution ? 1280 : 320);
+      gl.uniform1f(prog.uniforms.u_bandwidth, bandwidth);
+      gl.uniform1f(prog.uniforms.u_persistence, persistence);
+      gl.uniform1f(prog.uniforms.u_vidiconLag, vidiconLag);
+      gl.uniform1f(prog.uniforms.u_bloom, bloom);
+      gl.uniform1f(prog.uniforms.u_hold, options.discHold === false ? 0 : 1);
+      gl.uniform1f(prog.uniforms.u_interlace, options.interlace === false ? 0 : 1);
+      gl.uniform1f(prog.uniforms.u_frame, frame);
+      gl.uniform1f(prog.uniforms.u_picturePhase, timing.picturePhase);
+      gl.uniform1f(prog.uniforms.u_pictureIndex, timing.pictureIndex);
+      gl.uniform1f(prog.uniforms.u_newPicture, timing.newPicture ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_noise, noise);
+      gl.uniform1f(prog.uniforms.u_syncError, syncError);
+      gl.uniform1f(prog.uniforms.u_seed, seed);
+    },
+    vao,
+  );
   const rendered = readoutToCanvas(canvas, width, height);
   if (!rendered) return glUnavailableStub(width, height);
   const palette = options.palette ?? defaults.palette;
   const identity = paletteIsIdentity(palette);
   const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
-  logFilterBackend("Apollo Slow-Scan TV", "WebGL2", `${highResolution ? "1280/0.625" : "320/10"} NASA converter${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Apollo Slow-Scan TV",
+    "WebGL2",
+    `${highResolution ? "1280/0.625" : "320/10"} NASA converter${identity ? "" : "+palettePass"}`,
+  );
   return output ?? rendered;
 };
 

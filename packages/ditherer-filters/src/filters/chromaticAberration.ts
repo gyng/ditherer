@@ -24,7 +24,7 @@ import {
   type Program,
 } from "../gl/index";
 
-const MODE_AXIAL       = "AXIAL";
+const MODE_AXIAL = "AXIAL";
 const MODE_INDEPENDENT = "INDEPENDENT";
 
 export const optionTypes = {
@@ -32,21 +32,69 @@ export const optionTypes = {
     type: ENUM,
     options: [
       { name: "Axial (angle + radial)", value: MODE_AXIAL },
-      { name: "Per-channel", value: MODE_INDEPENDENT }
+      { name: "Per-channel", value: MODE_INDEPENDENT },
     ],
     default: MODE_AXIAL,
-    desc: "Aberration model — axial or manual per-channel offsets"
+    desc: "Aberration model — axial or manual per-channel offsets",
   },
-  strength: { type: RANGE, range: [0, 50], step: 0.5, default: 8, desc: "Overall aberration intensity" },
-  angle:    { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Direction of color fringing in degrees" },
-  radial:   { type: BOOL, default: true, desc: "Increase fringing toward image edges" },
-  rOffsetX: { type: RANGE, range: [-50, 50], step: 0.5, default: -8, desc: "Red channel horizontal offset" },
-  rOffsetY: { type: RANGE, range: [-50, 50], step: 0.5, default: 0, desc: "Red channel vertical offset" },
-  gOffsetX: { type: RANGE, range: [-50, 50], step: 0.5, default: 0, desc: "Green channel horizontal offset" },
-  gOffsetY: { type: RANGE, range: [-50, 50], step: 0.5, default: 0, desc: "Green channel vertical offset" },
-  bOffsetX: { type: RANGE, range: [-50, 50], step: 0.5, default: 8, desc: "Blue channel horizontal offset" },
-  bOffsetY: { type: RANGE, range: [-50, 50], step: 0.5, default: 0, desc: "Blue channel vertical offset" },
-  palette: { type: PALETTE, default: nearest }
+  strength: {
+    type: RANGE,
+    range: [0, 50],
+    step: 0.5,
+    default: 8,
+    desc: "Overall aberration intensity",
+  },
+  angle: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 0,
+    desc: "Direction of color fringing in degrees",
+  },
+  radial: { type: BOOL, default: true, desc: "Increase fringing toward image edges" },
+  rOffsetX: {
+    type: RANGE,
+    range: [-50, 50],
+    step: 0.5,
+    default: -8,
+    desc: "Red channel horizontal offset",
+  },
+  rOffsetY: {
+    type: RANGE,
+    range: [-50, 50],
+    step: 0.5,
+    default: 0,
+    desc: "Red channel vertical offset",
+  },
+  gOffsetX: {
+    type: RANGE,
+    range: [-50, 50],
+    step: 0.5,
+    default: 0,
+    desc: "Green channel horizontal offset",
+  },
+  gOffsetY: {
+    type: RANGE,
+    range: [-50, 50],
+    step: 0.5,
+    default: 0,
+    desc: "Green channel vertical offset",
+  },
+  bOffsetX: {
+    type: RANGE,
+    range: [-50, 50],
+    step: 0.5,
+    default: 8,
+    desc: "Blue channel horizontal offset",
+  },
+  bOffsetY: {
+    type: RANGE,
+    range: [-50, 50],
+    step: 0.5,
+    default: 0,
+    desc: "Blue channel vertical offset",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -60,7 +108,7 @@ export const defaults = {
   gOffsetY: optionTypes.gOffsetY.default,
   bOffsetX: optionTypes.bOffsetX.default,
   bOffsetY: optionTypes.bOffsetY.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const CA_FS = `#version 300 es
@@ -135,8 +183,17 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     ca: linkProgram(gl, CA_FS, [
-      "u_source", "u_res", "u_mode", "u_strength", "u_dx", "u_dy",
-      "u_radial", "u_rOffset", "u_gOffset", "u_bOffset", "u_levels",
+      "u_source",
+      "u_res",
+      "u_mode",
+      "u_strength",
+      "u_dx",
+      "u_dy",
+      "u_radial",
+      "u_rOffset",
+      "u_gOffset",
+      "u_bOffset",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -145,7 +202,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 const clampCoord = (v: number, max: number) => Math.max(0, Math.min(max - 1, Math.round(v)));
 
 const chromaticAberration = (input: any, options = defaults) => {
-  const { mode, strength, angle, radial, rOffsetX, rOffsetY, gOffsetX, gOffsetY, bOffsetX, bOffsetY, palette } = options;
+  const {
+    mode,
+    strength,
+    angle,
+    radial,
+    rOffsetX,
+    rOffsetY,
+    gOffsetX,
+    gOffsetY,
+    bOffsetX,
+    bOffsetY,
+    palette,
+  } = options;
   const W = input.width;
   const H = input.height;
   const rad = (angle * Math.PI) / 180;
@@ -162,31 +231,42 @@ const chromaticAberration = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "chromaticAberration:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.ca, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.ca.uniforms.u_source, 0);
-        gl.uniform2f(cache.ca.uniforms.u_res, W, H);
-        gl.uniform1i(cache.ca.uniforms.u_mode, mode === MODE_INDEPENDENT ? 1 : 0);
-        gl.uniform1f(cache.ca.uniforms.u_strength, strength);
-        gl.uniform1f(cache.ca.uniforms.u_dx, dx);
-        gl.uniform1f(cache.ca.uniforms.u_dy, dy);
-        gl.uniform1i(cache.ca.uniforms.u_radial, radial ? 1 : 0);
-        gl.uniform2f(cache.ca.uniforms.u_rOffset, rOffsetX, rOffsetY);
-        gl.uniform2f(cache.ca.uniforms.u_gOffset, gOffsetX, gOffsetY);
-        gl.uniform2f(cache.ca.uniforms.u_bOffset, bOffsetX, bOffsetY);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.ca.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.ca,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.ca.uniforms.u_source, 0);
+          gl.uniform2f(cache.ca.uniforms.u_res, W, H);
+          gl.uniform1i(cache.ca.uniforms.u_mode, mode === MODE_INDEPENDENT ? 1 : 0);
+          gl.uniform1f(cache.ca.uniforms.u_strength, strength);
+          gl.uniform1f(cache.ca.uniforms.u_dx, dx);
+          gl.uniform1f(cache.ca.uniforms.u_dy, dy);
+          gl.uniform1i(cache.ca.uniforms.u_radial, radial ? 1 : 0);
+          gl.uniform2f(cache.ca.uniforms.u_rOffset, rOffsetX, rOffsetY);
+          gl.uniform2f(cache.ca.uniforms.u_gOffset, gOffsetX, gOffsetY);
+          gl.uniform2f(cache.ca.uniforms.u_bOffset, bOffsetX, bOffsetY);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.ca.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Chromatic aberration", "WebGL2",
-            `${mode} strength=${strength}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Chromatic aberration",
+            "WebGL2",
+            `${mode} strength=${strength}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -212,9 +292,12 @@ const chromaticAberration = (input: any, options = defaults) => {
       let rX: number, rY: number, gX: number, gY: number, bX: number, bY: number;
 
       if (mode === MODE_INDEPENDENT) {
-        rX = clampCoord(x + rOffsetX, W); rY = clampCoord(y + rOffsetY, H);
-        gX = clampCoord(x + gOffsetX, W); gY = clampCoord(y + gOffsetY, H);
-        bX = clampCoord(x + bOffsetX, W); bY = clampCoord(y + bOffsetY, H);
+        rX = clampCoord(x + rOffsetX, W);
+        rY = clampCoord(y + rOffsetY, H);
+        gX = clampCoord(x + gOffsetX, W);
+        gY = clampCoord(y + gOffsetY, H);
+        bX = clampCoord(x + bOffsetX, W);
+        bY = clampCoord(y + bOffsetY, H);
       } else {
         let distFactor = 1;
         if (radial) {
@@ -223,9 +306,12 @@ const chromaticAberration = (input: any, options = defaults) => {
           distFactor = Math.sqrt(distX * distX + distY * distY) / maxDist;
         }
         const offset = strength * distFactor;
-        rX = clampCoord(x - dx * offset, W); rY = clampCoord(y - dy * offset, H);
-        gX = x;                               gY = y;
-        bX = clampCoord(x + dx * offset, W); bY = clampCoord(y + dy * offset, H);
+        rX = clampCoord(x - dx * offset, W);
+        rY = clampCoord(y - dy * offset, H);
+        gX = x;
+        gY = y;
+        bX = clampCoord(x + dx * offset, W);
+        bY = clampCoord(y + dy * offset, H);
       }
 
       const rI = getBufferIndex(rX, rY, W);
@@ -235,7 +321,7 @@ const chromaticAberration = (input: any, options = defaults) => {
       const col = srgbPaletteGetColor(
         palette,
         rgba(buf[rI], buf[gI + 1], buf[bI + 2], buf[i + 3]),
-        palette.options
+        palette.options,
       );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
@@ -250,5 +336,5 @@ export default defineFilter({
   func: chromaticAberration,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
 });

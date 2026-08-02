@@ -57,15 +57,27 @@ void main() {
 `;
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 0.2], step: 0.001, default: 0.02, desc: "Minimum magnitude (relative to DC) to keep" },
-  softness: { type: RANGE, range: [0, 0.2], step: 0.001, default: 0.005, desc: "Smoothstep rolloff around the gate" },
-  palette: { type: PALETTE, default: nearest }
+  threshold: {
+    type: RANGE,
+    range: [0, 0.2],
+    step: 0.001,
+    default: 0.02,
+    desc: "Minimum magnitude (relative to DC) to keep",
+  },
+  softness: {
+    type: RANGE,
+    range: [0, 0.2],
+    step: 0.001,
+    default: 0.005,
+    desc: "Smoothstep rolloff around the gate",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   threshold: optionTypes.threshold.default,
   softness: optionTypes.softness.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { gate: Program };
@@ -73,7 +85,13 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    gate: linkProgram(gl, GATE_FS, ["u_input", "u_padRes", "u_threshold", "u_dcMag", "u_softness"] as const),
+    gate: linkProgram(gl, GATE_FS, [
+      "u_input",
+      "u_padRes",
+      "u_threshold",
+      "u_dcMag",
+      "u_softness",
+    ] as const),
   };
   return _cache;
 };
@@ -84,9 +102,9 @@ const fftSpectralGate = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -106,15 +124,23 @@ const fftSpectralGate = (input: any, options = defaults) => {
         const dcMag = Math.hypot(dcPixel[0], dcPixel[1]);
         const masked = ensureFloatTex(gl, "fftSpectralGate:masked", fwd.paddedW, fwd.paddedH);
         if (masked) {
-          drawPass(gl, masked, fwd.paddedW, fwd.paddedH, cache.gate, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.gate.uniforms.u_input, 0);
-            gl.uniform2f(cache.gate.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-            gl.uniform1f(cache.gate.uniforms.u_threshold, threshold);
-            gl.uniform1f(cache.gate.uniforms.u_dcMag, dcMag);
-            gl.uniform1f(cache.gate.uniforms.u_softness, softness);
-          }, vao);
+          drawPass(
+            gl,
+            masked,
+            fwd.paddedW,
+            fwd.paddedH,
+            cache.gate,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.gate.uniforms.u_input, 0);
+              gl.uniform2f(cache.gate.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+              gl.uniform1f(cache.gate.uniforms.u_threshold, threshold);
+              gl.uniform1f(cache.gate.uniforms.u_dcMag, dcMag);
+              gl.uniform1f(cache.gate.uniforms.u_softness, softness);
+            },
+            vao,
+          );
           const inv = inverseFFT2D(gl, masked, fwd.paddedW, fwd.paddedH, fwd.logW, fwd.logH);
           if (inv) {
             finaliseIFFT(gl, inv, sourceTex, W, H, fwd.paddedW, fwd.paddedH, W, H);
@@ -123,8 +149,11 @@ const fftSpectralGate = (input: any, options = defaults) => {
               const isNearest = (palette as { name?: string }).name === "nearest";
               const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Spectral Gate", "WebGL2",
-                  `threshold=${threshold}${isNearest ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Spectral Gate",
+                  "WebGL2",
+                  `threshold=${threshold}${isNearest ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -143,6 +172,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Keep only frequency bins above a threshold relative to DC — frequency-domain denoise that preserves dominant structure",
+  description:
+    "Keep only frequency bins above a threshold relative to DC — frequency-domain denoise that preserves dominant structure",
   noWASM: "Real 2D FFT is only practical via GPU butterfly passes.",
 });

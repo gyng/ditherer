@@ -71,4 +71,3 @@ each step so the simulation is genuinely incompressible.
   the no-projection path still renders), lint, typecheck, catalog, and build.
 
 Status: Complete
-

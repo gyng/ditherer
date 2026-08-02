@@ -8,11 +8,11 @@
 
 The algorithm `<select>` is a flat list of 61 entries in arbitrary order. Presets (CGA test, Vaporwave, Gameboy) are interleaved with base algorithms. No visual structure guides the user.
 
-| Principle | Violation |
-|---|---|
-| **Hick's Law** | 61 undifferentiated choices = decision paralysis |
-| **Chunking (Miller's Law)** | No visual grouping — impossible to scan by category |
-| **Recognition > Recall** | Users must remember filter names; can't browse by intent |
+| Principle                    | Violation                                                  |
+| ---------------------------- | ---------------------------------------------------------- |
+| **Hick's Law**               | 61 undifferentiated choices = decision paralysis           |
+| **Chunking (Miller's Law)**  | No visual grouping — impossible to scan by category        |
+| **Recognition > Recall**     | Users must remember filter names; can't browse by intent   |
 | **Information Architecture** | No structure mapping "what do I want?" to filter selection |
 
 ---
@@ -25,16 +25,16 @@ Use native HTML `<optgroup>` to organize filters into semantic categories. Zero 
 
 Each filter's `displayName` maps to exactly one category:
 
-| Category | Count | Filters |
-|---|---|---|
-| **Dithering** | 19 | Atkinson (Mac), Atkinson (Macintosh II color test), Binarize, Burkes, False Floyd-Steinberg, Floyd-Steinberg, Floyd-Steinberg (CGA test), Floyd-Steinberg (Vaporwave test), Jarvis, Ordered, Ordered (Gameboy), Ordered (Windows 16-color), Quantize (No dithering), Random, Sierra (full), Sierra (lite), Sierra (two-row), Stucki, Triangle dither |
-| **Color** | 10 | Brightness/Contrast, Color balance, Color shift, Duotone, Grayscale, Histogram equalization, Histogram equalization (per-channel), Invert, Posterize, Solarize |
-| **Stylize** | 9 | ASCII, Halftone, K-means, Kuwahara, Mavica FD7, Pixelate, Stripe (horizontal), Stripe (vertical), Voronoi |
-| **Distort** | 7 | Chromatic aberration, Chromatic aberration (per-channel), Displace, Displace (smooth), Lens distortion, Lens distortion (pincushion), Wave |
-| **Glitch** | 5 | Bit crush, Channel separation, Glitch, Jitter, Pixelsort |
-| **Simulate** | 7 | Anisotropic diffusion, CRT emulation, Reaction-diffusion (coral), Reaction-diffusion (labyrinth), Reaction-diffusion (worms), Scanline, VHS emulation |
-| **Blur & Edges** | 3 | Bloom, Convolve, Convolve (edge detection) |
-| **Advanced** | 1 | Program |
+| Category         | Count | Filters                                                                                                                                                                                                                                                                                                                                              |
+| ---------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dithering**    | 19    | Atkinson (Mac), Atkinson (Macintosh II color test), Binarize, Burkes, False Floyd-Steinberg, Floyd-Steinberg, Floyd-Steinberg (CGA test), Floyd-Steinberg (Vaporwave test), Jarvis, Ordered, Ordered (Gameboy), Ordered (Windows 16-color), Quantize (No dithering), Random, Sierra (full), Sierra (lite), Sierra (two-row), Stucki, Triangle dither |
+| **Color**        | 10    | Brightness/Contrast, Color balance, Color shift, Duotone, Grayscale, Histogram equalization, Histogram equalization (per-channel), Invert, Posterize, Solarize                                                                                                                                                                                       |
+| **Stylize**      | 9     | ASCII, Halftone, K-means, Kuwahara, Mavica FD7, Pixelate, Stripe (horizontal), Stripe (vertical), Voronoi                                                                                                                                                                                                                                            |
+| **Distort**      | 7     | Chromatic aberration, Chromatic aberration (per-channel), Displace, Displace (smooth), Lens distortion, Lens distortion (pincushion), Wave                                                                                                                                                                                                           |
+| **Glitch**       | 5     | Bit crush, Channel separation, Glitch, Jitter, Pixelsort                                                                                                                                                                                                                                                                                             |
+| **Simulate**     | 7     | Anisotropic diffusion, CRT emulation, Reaction-diffusion (coral), Reaction-diffusion (labyrinth), Reaction-diffusion (worms), Scanline, VHS emulation                                                                                                                                                                                                |
+| **Blur & Edges** | 3     | Bloom, Convolve, Convolve (edge detection)                                                                                                                                                                                                                                                                                                           |
+| **Advanced**     | 1     | Program                                                                                                                                                                                                                                                                                                                                              |
 
 **Total: 19 + 10 + 9 + 7 + 5 + 7 + 3 + 1 = 61**
 
@@ -59,12 +59,19 @@ Add a `category` string to every entry in `filterList`. Reorder entries to be gr
 
 ```ts
 export const filterCategories = [
-  "Dithering", "Color", "Stylize", "Distort",
-  "Glitch", "Simulate", "Blur & Edges", "Advanced"
+  "Dithering",
+  "Color",
+  "Stylize",
+  "Distort",
+  "Glitch",
+  "Simulate",
+  "Blur & Edges",
+  "Advanced",
 ];
 ```
 
 Each entry becomes:
+
 ```ts
 { displayName: "Floyd-Steinberg", filter: floydSteinberg, category: "Dithering" },
 ```
@@ -76,17 +83,19 @@ Each entry becomes:
 Import `filterCategories` from `filters`. Replace the flat `filterList.map()` with grouped rendering:
 
 ```tsx
-{filterCategories.map(cat => (
-  <optgroup key={cat} label={cat}>
-    {filterList
-      .filter(f => f.category === cat)
-      .map(f => (
-        <option key={f.displayName} value={f.displayName}>
-          {f.displayName}
-        </option>
-      ))}
-  </optgroup>
-))}
+{
+  filterCategories.map((cat) => (
+    <optgroup key={cat} label={cat}>
+      {filterList
+        .filter((f) => f.category === cat)
+        .map((f) => (
+          <option key={f.displayName} value={f.displayName}>
+            {f.displayName}
+          </option>
+        ))}
+    </optgroup>
+  ));
+}
 ```
 
 ### Step 3 — Style optgroup labels
@@ -106,11 +115,11 @@ Override browser default italic on optgroup labels:
 
 ## Files to modify
 
-| File | Change |
-|---|---|
-| `src/filters/index.ts` | Add `category` to each filterList entry, reorder by group, export `filterCategories` |
-| `src/components/App/index.tsx` | Import `filterCategories`, render `<optgroup>` groups |
-| `src/components/controls/styles.module.css` | Style optgroup labels |
+| File                                        | Change                                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `src/filters/index.ts`                      | Add `category` to each filterList entry, reorder by group, export `filterCategories` |
+| `src/components/App/index.tsx`              | Import `filterCategories`, render `<optgroup>` groups                                |
+| `src/components/controls/styles.module.css` | Style optgroup labels                                                                |
 
 No new files, components, or dependencies.
 

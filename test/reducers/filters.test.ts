@@ -66,7 +66,9 @@ describe("filters reducer", () => {
   it("should handle SET_FILTER_OPTION", () => {
     const prevState = {
       otherStuff: "foo",
-      chain: [{ id: "test", displayName: "Test", filter: { options: { foo: "bar" } }, enabled: true }],
+      chain: [
+        { id: "test", displayName: "Test", filter: { options: { foo: "bar" } }, enabled: true },
+      ],
       activeIndex: 0,
     };
     const nextState = reducer(prevState, {
@@ -81,7 +83,14 @@ describe("filters reducer", () => {
   it("should handle SET_FILTER_PALETTE_OPTION", () => {
     const prevState = {
       otherStuff: "foo",
-      chain: [{ id: "test", displayName: "Test", filter: { options: { palette: { name: "nearest", options: { foo: "bar" } } } }, enabled: true }],
+      chain: [
+        {
+          id: "test",
+          displayName: "Test",
+          filter: { options: { palette: { name: "nearest", options: { foo: "bar" } } } },
+          enabled: true,
+        },
+      ],
       activeIndex: 0,
     };
     const nextState = reducer(prevState, {
@@ -89,13 +98,23 @@ describe("filters reducer", () => {
       optionName: "optionName",
       value: "someValue",
     });
-    expect(nextState.selected.filter.options.palette.options).toEqual({ foo: "bar", optionName: "someValue" });
+    expect(nextState.selected.filter.options.palette.options).toEqual({
+      foo: "bar",
+      optionName: "someValue",
+    });
   });
 
   it("should handle ADD_PALETTE_COLOR", () => {
     const prevState = {
       otherStuff: "foo",
-      chain: [{ id: "test", displayName: "Test", filter: { options: { palette: { name: "nearest", options: { colors: ["bar"] } } } }, enabled: true }],
+      chain: [
+        {
+          id: "test",
+          displayName: "Test",
+          filter: { options: { palette: { name: "nearest", options: { colors: ["bar"] } } } },
+          enabled: true,
+        },
+      ],
       activeIndex: 0,
     };
     const nextState = reducer(prevState, { type: "ADD_PALETTE_COLOR", color: "someColour" });
@@ -106,7 +125,14 @@ describe("filters reducer", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const prevState = {
       ...initialState,
-      chain: [{ id: "test", displayName: "Test", filter: { options: { palette: { options: { foo: "bar" } } } }, enabled: true }],
+      chain: [
+        {
+          id: "test",
+          displayName: "Test",
+          filter: { options: { palette: { options: { foo: "bar" } } } },
+          enabled: true,
+        },
+      ],
       activeIndex: 0,
       selected: {
         displayName: "Test",
@@ -154,7 +180,7 @@ describe("filters reducer", () => {
     });
 
     expect(nextState.activeIndex).toBe(1);
-    expect(nextState.chain.map(entry => entry.id)).toEqual(["second", "first"]);
+    expect(nextState.chain.map((entry) => entry.id)).toEqual(["second", "first"]);
     expect(nextState.selected.displayName).toBe("First");
     expect(nextState.selected.filter).toEqual({ name: "first" });
   });
@@ -264,9 +290,7 @@ describe("filters reducer", () => {
   it("CHAIN_REPLACE swaps filter + displayName in place", () => {
     const state = {
       ...initialState,
-      chain: [
-        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true },
-      ],
+      chain: [{ id: "a", displayName: "A", filter: { name: "a" }, enabled: true }],
       activeIndex: 0,
     };
     const next = reducer(state, {
@@ -285,23 +309,26 @@ describe("filters reducer", () => {
       chain: [{ id: "a", displayName: "A", filter: { name: "a" }, enabled: true }],
       activeIndex: 0,
     };
-    expect(reducer(state, {
-      type: "CHAIN_REPLACE",
-      id: "nope",
-      displayName: "x",
-      filter: { name: "x" },
-    })).toBe(state);
+    expect(
+      reducer(state, {
+        type: "CHAIN_REPLACE",
+        id: "nope",
+        displayName: "x",
+        filter: { name: "x" },
+      }),
+    ).toBe(state);
   });
 
   it("SET_CHAIN_AUDIO_MODULATION writes the modulation onto the matching entry", () => {
     const state = {
       ...initialState,
-      chain: [
-        { id: "a", displayName: "A", filter: { name: "a" }, enabled: true, audioMod: null },
-      ],
+      chain: [{ id: "a", displayName: "A", filter: { name: "a" }, enabled: true, audioMod: null }],
       activeIndex: 0,
     };
-    const modulation = { connections: [{ metric: "beat", target: "amount", weight: 0.5 }], normalizedMetrics: [] };
+    const modulation = {
+      connections: [{ metric: "beat", target: "amount", weight: 0.5 }],
+      normalizedMetrics: [],
+    };
     const next = reducer(state, {
       type: "SET_CHAIN_AUDIO_MODULATION",
       id: "a",

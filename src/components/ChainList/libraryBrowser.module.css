@@ -12,7 +12,10 @@
   border-top: 2px solid #ffffff;
   border-right: 2px solid #404040;
   border-bottom: 2px solid #404040;
-  box-shadow: 1px 1px 0 #000, 2px 2px 0 #000, inset 1px 1px 0 #dfdfdf;
+  box-shadow:
+    1px 1px 0 #000,
+    2px 2px 0 #000,
+    inset 1px 1px 0 #dfdfdf;
   resize: both;
   overflow: auto;
   box-sizing: border-box;
@@ -194,14 +197,7 @@
 .thumbnail {
   flex: 0 0 auto;
   background: #111;
-  background-image: linear-gradient(
-    90deg,
-    #111 0%,
-    #222 40%,
-    #333 50%,
-    #222 60%,
-    #111 100%
-  );
+  background-image: linear-gradient(90deg, #111 0%, #222 40%, #333 50%, #222 60%, #111 100%);
   background-size: 200% 100%;
   animation: thumbShimmer 1.6s linear infinite;
   border: 1px solid #444;
@@ -223,8 +219,12 @@
 }
 
 @keyframes thumbShimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .listItemActive {

@@ -108,10 +108,26 @@ void main() {
 `;
 
 export const optionTypes = {
-  length: { type: RANGE, range: [2, 60], step: 1, default: 16, desc: "Streamline length in pixels" },
-  steps: { type: RANGE, range: [4, 64], step: 1, default: 24, desc: "Integration samples per direction" },
+  length: {
+    type: RANGE,
+    range: [2, 60],
+    step: 1,
+    default: 16,
+    desc: "Streamline length in pixels",
+  },
+  steps: {
+    type: RANGE,
+    range: [4, 64],
+    step: 1,
+    default: 24,
+    desc: "Integration samples per direction",
+  },
   contrast: { type: RANGE, range: [0.5, 4], step: 0.1, default: 2.0, desc: "LIC output contrast" },
-  colorFromSource: { type: BOOL, default: true, desc: "Modulate the source image by LIC — off = pure monochrome silk" },
+  colorFromSource: {
+    type: BOOL,
+    default: true,
+    desc: "Modulate the source image by LIC — off = pure monochrome silk",
+  },
   palette: { type: PALETTE, default: nearest },
 };
 
@@ -129,8 +145,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     lic: linkProgram(gl, LIC_FS, [
-      "u_source", "u_res", "u_length", "u_steps",
-      "u_contrast", "u_colorFromSource", "u_levels", "u_seed",
+      "u_source",
+      "u_res",
+      "u_length",
+      "u_steps",
+      "u_contrast",
+      "u_colorFromSource",
+      "u_levels",
+      "u_seed",
     ] as const),
   };
   return _cache;
@@ -138,7 +160,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const lic = (input: any, options = defaults) => {
   const { length, steps, contrast, colorFromSource, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -150,28 +173,39 @@ const lic = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "lic:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.lic, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.lic.uniforms.u_source, 0);
-        gl.uniform2f(cache.lic.uniforms.u_res, W, H);
-        gl.uniform1f(cache.lic.uniforms.u_length, length);
-        gl.uniform1i(cache.lic.uniforms.u_steps, Math.max(4, Math.min(64, Math.round(steps))));
-        gl.uniform1f(cache.lic.uniforms.u_contrast, contrast);
-        gl.uniform1i(cache.lic.uniforms.u_colorFromSource, colorFromSource ? 1 : 0);
-        gl.uniform1f(cache.lic.uniforms.u_seed, 7.0);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.lic.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.lic,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.lic.uniforms.u_source, 0);
+          gl.uniform2f(cache.lic.uniforms.u_res, W, H);
+          gl.uniform1f(cache.lic.uniforms.u_length, length);
+          gl.uniform1i(cache.lic.uniforms.u_steps, Math.max(4, Math.min(64, Math.round(steps))));
+          gl.uniform1f(cache.lic.uniforms.u_contrast, contrast);
+          gl.uniform1i(cache.lic.uniforms.u_colorFromSource, colorFromSource ? 1 : 0);
+          gl.uniform1f(cache.lic.uniforms.u_seed, 7.0);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.lic.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Line Integral Convolution", "WebGL2",
-            `len=${length} steps=${steps}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Line Integral Convolution",
+            "WebGL2",
+            `len=${length} steps=${steps}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -187,6 +221,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Line Integral Convolution — convolve noise along the gradient-tangent flow field, revealing the image's edge flow as silky directional streaks",
+  description:
+    "Line Integral Convolution — convolve noise along the gradient-tangent flow field, revealing the image's edge flow as silky directional streaks",
   noWASM: "Per-pixel streamline integration needs the GPU to stay interactive.",
 });

@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -69,10 +76,20 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_stripWidth", "u_cosA", "u_sinA", "u_viewAngle",
-    "u_viewCount", "u_parallax", "u_crosstalk", "u_lensStrength",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_stripWidth",
+      "u_cosA",
+      "u_sinA",
+      "u_viewAngle",
+      "u_viewCount",
+      "u_parallax",
+      "u_crosstalk",
+      "u_lensStrength",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -80,9 +97,15 @@ export const lenticularGLAvailable = (): boolean => glAvailable();
 
 export const renderLenticularGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  stripWidth: number, angleRad: number, viewAngle: number, viewCount: number,
-  parallax: number, crosstalk: number, lensStrength: number,
+  width: number,
+  height: number,
+  stripWidth: number,
+  angleRad: number,
+  viewAngle: number,
+  viewCount: number,
+  parallax: number,
+  crosstalk: number,
+  lensStrength: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -92,19 +115,30 @@ export const renderLenticularGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "lenticular:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_stripWidth, stripWidth);
-    gl.uniform1f(cache.prog.uniforms.u_cosA, Math.cos(angleRad));
-    gl.uniform1f(cache.prog.uniforms.u_sinA, Math.sin(angleRad));
-    gl.uniform1f(cache.prog.uniforms.u_viewAngle, Math.max(-1, Math.min(1, viewAngle)));
-    gl.uniform1i(cache.prog.uniforms.u_viewCount, Math.max(2, Math.min(12, Math.round(viewCount))));
-    gl.uniform1f(cache.prog.uniforms.u_parallax, Math.max(0, Math.min(24, parallax)));
-    gl.uniform1f(cache.prog.uniforms.u_crosstalk, Math.max(0, Math.min(0.5, crosstalk)));
-    gl.uniform1f(cache.prog.uniforms.u_lensStrength, Math.max(0, Math.min(1, lensStrength)));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_stripWidth, stripWidth);
+      gl.uniform1f(cache.prog.uniforms.u_cosA, Math.cos(angleRad));
+      gl.uniform1f(cache.prog.uniforms.u_sinA, Math.sin(angleRad));
+      gl.uniform1f(cache.prog.uniforms.u_viewAngle, Math.max(-1, Math.min(1, viewAngle)));
+      gl.uniform1i(
+        cache.prog.uniforms.u_viewCount,
+        Math.max(2, Math.min(12, Math.round(viewCount))),
+      );
+      gl.uniform1f(cache.prog.uniforms.u_parallax, Math.max(0, Math.min(24, parallax)));
+      gl.uniform1f(cache.prog.uniforms.u_crosstalk, Math.max(0, Math.min(0.5, crosstalk)));
+      gl.uniform1f(cache.prog.uniforms.u_lensStrength, Math.max(0, Math.min(1, lensStrength)));
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

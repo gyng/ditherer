@@ -14,11 +14,23 @@ import { defineFilter } from "./types";
 import { edgeGlowGLAvailable, renderEdgeGlowGL } from "./edgeGlowGL";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 100], step: 1, default: 30, desc: "Edge detection sensitivity" },
-  glowRadius: { type: RANGE, range: [0, 8], step: 1, default: 3, desc: "Blur radius for the glow effect" },
+  threshold: {
+    type: RANGE,
+    range: [0, 100],
+    step: 1,
+    default: 30,
+    desc: "Edge detection sensitivity",
+  },
+  glowRadius: {
+    type: RANGE,
+    range: [0, 8],
+    step: 1,
+    default: 3,
+    desc: "Blur radius for the glow effect",
+  },
   edgeColor: { type: COLOR, default: [0, 255, 200], desc: "Neon glow color for detected edges" },
   backgroundColor: { type: COLOR, default: [0, 0, 10], desc: "Background fill color" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -26,7 +38,7 @@ export const defaults = {
   glowRadius: optionTypes.glowRadius.default,
   edgeColor: optionTypes.edgeColor.default,
   backgroundColor: optionTypes.backgroundColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const edgeGlow = (input: any, options = defaults) => {
@@ -35,13 +47,19 @@ const edgeGlow = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    edgeGlowGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    edgeGlowGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderEdgeGlowGL(
-      input, W, H, threshold, glowRadius,
+      input,
+      W,
+      H,
+      threshold,
+      glowRadius,
       edgeColor as [number, number, number],
       backgroundColor as [number, number, number],
       levels,
@@ -49,7 +67,11 @@ const edgeGlow = (input: any, options = defaults) => {
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Edge Glow", "WebGL2", `threshold=${threshold} glow=${glowRadius}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Edge Glow",
+          "WebGL2",
+          `threshold=${threshold} glow=${glowRadius}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -135,5 +157,5 @@ export default defineFilter({
   func: edgeGlow,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

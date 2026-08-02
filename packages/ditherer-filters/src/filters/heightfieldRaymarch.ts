@@ -71,13 +71,49 @@ void main() {
 }`;
 
 export const optionTypes = {
-  depth: { type: RANGE, range: [1, 80], step: 1, default: 28, desc: "Luminance height and parallax depth in pixels" },
-  viewAngle: { type: RANGE, range: [0, 360], step: 1, default: 225, desc: "Direction from which the height field is viewed" },
-  viewTilt: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Grazing angle of the virtual camera" },
-  lightAngle: { type: RANGE, range: [0, 360], step: 1, default: 135, desc: "Direction of the surface light" },
-  specular: { type: RANGE, range: [0, 2], step: 0.05, default: 0.4, desc: "Glossy highlight strength" },
+  depth: {
+    type: RANGE,
+    range: [1, 80],
+    step: 1,
+    default: 28,
+    desc: "Luminance height and parallax depth in pixels",
+  },
+  viewAngle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 225,
+    desc: "Direction from which the height field is viewed",
+  },
+  viewTilt: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.65,
+    desc: "Grazing angle of the virtual camera",
+  },
+  lightAngle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 135,
+    desc: "Direction of the surface light",
+  },
+  specular: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.4,
+    desc: "Glossy highlight strength",
+  },
   shadow: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Self-shadow strength" },
-  steps: { type: RANGE, range: [8, 64], step: 4, default: 40, desc: "Ray-march steps; more resolves finer relief" },
+  steps: {
+    type: RANGE,
+    range: [8, 64],
+    step: 4,
+    default: 40,
+    desc: "Ray-march steps; more resolves finer relief",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -93,10 +129,23 @@ export const defaults = {
 };
 
 const heightfieldRaymarch = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "heightfieldRaymarch", fragmentShader: FS,
-    uniformNames: ["u_depth", "u_viewAngle", "u_viewTilt", "u_lightAngle", "u_specular", "u_shadow", "u_steps"],
+    source: input,
+    width: W,
+    height: H,
+    key: "heightfieldRaymarch",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_depth",
+      "u_viewAngle",
+      "u_viewTilt",
+      "u_lightAngle",
+      "u_specular",
+      "u_shadow",
+      "u_steps",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1f(u.u_depth, options.depth);
       gl.uniform1f(u.u_viewAngle, options.viewAngle);
@@ -109,8 +158,14 @@ const heightfieldRaymarch = (input: HTMLCanvasElement | OffscreenCanvas, options
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Heightfield Raymarch", "WebGL2", `${options.steps} steps${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Heightfield Raymarch",
+    "WebGL2",
+    `${options.steps} steps${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({

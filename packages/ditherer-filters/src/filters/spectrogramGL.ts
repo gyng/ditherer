@@ -125,10 +125,22 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    mag: linkProgram(gl, MAG_FS, ["u_source", "u_W", "u_H", "u_numBins", "u_dynamicRange"] as const),
+    mag: linkProgram(gl, MAG_FS, [
+      "u_source",
+      "u_W",
+      "u_H",
+      "u_numBins",
+      "u_dynamicRange",
+    ] as const),
     render: linkProgram(gl, RENDER_FS, [
-      "u_mags", "u_source", "u_res", "u_numBins", "u_logFrequency",
-      "u_stopCount", "u_stops[0]", "u_levels",
+      "u_mags",
+      "u_source",
+      "u_res",
+      "u_numBins",
+      "u_logFrequency",
+      "u_stopCount",
+      "u_stops[0]",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -161,15 +173,23 @@ export const renderSpectrogramGL = (
 
   // Pass 1: magnitudes (W × numBins).
   const magsTex = ensureTexture(gl, "spectrogram:mags", width, numBins);
-  drawPass(gl, magsTex, width, numBins, cache.mag, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.mag.uniforms.u_source, 0);
-    gl.uniform1i(cache.mag.uniforms.u_W, width);
-    gl.uniform1i(cache.mag.uniforms.u_H, height);
-    gl.uniform1i(cache.mag.uniforms.u_numBins, numBins);
-    gl.uniform1f(cache.mag.uniforms.u_dynamicRange, Math.max(20, Math.min(100, dynamicRange)));
-  }, vao);
+  drawPass(
+    gl,
+    magsTex,
+    width,
+    numBins,
+    cache.mag,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.mag.uniforms.u_source, 0);
+      gl.uniform1i(cache.mag.uniforms.u_W, width);
+      gl.uniform1i(cache.mag.uniforms.u_H, height);
+      gl.uniform1i(cache.mag.uniforms.u_numBins, numBins);
+      gl.uniform1f(cache.mag.uniforms.u_dynamicRange, Math.max(20, Math.min(100, dynamicRange)));
+    },
+    vao,
+  );
 
   // Pass 2: render.
   const stopCount = Math.min(SPECTROGRAM_MAX_STOPS, stops.length);
@@ -180,21 +200,29 @@ export const renderSpectrogramGL = (
     flatStops[i * 3 + 2] = stops[i][2];
   }
 
-  drawPass(gl, null, width, height, cache.render, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, magsTex.tex);
-    gl.uniform1i(cache.render.uniforms.u_mags, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.render.uniforms.u_source, 1);
-    gl.uniform2f(cache.render.uniforms.u_res, width, height);
-    gl.uniform1i(cache.render.uniforms.u_numBins, numBins);
-    gl.uniform1i(cache.render.uniforms.u_logFrequency, logScale ? 1 : 0);
-    gl.uniform1i(cache.render.uniforms.u_stopCount, stopCount);
-    const loc = cache.render.uniforms["u_stops[0]"];
-    if (loc) gl.uniform3fv(loc, flatStops);
-    gl.uniform1f(cache.render.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.render,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, magsTex.tex);
+      gl.uniform1i(cache.render.uniforms.u_mags, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.render.uniforms.u_source, 1);
+      gl.uniform2f(cache.render.uniforms.u_res, width, height);
+      gl.uniform1i(cache.render.uniforms.u_numBins, numBins);
+      gl.uniform1i(cache.render.uniforms.u_logFrequency, logScale ? 1 : 0);
+      gl.uniform1i(cache.render.uniforms.u_stopCount, stopCount);
+      const loc = cache.render.uniforms["u_stops[0]"];
+      if (loc) gl.uniform3fv(loc, flatStops);
+      gl.uniform1f(cache.render.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

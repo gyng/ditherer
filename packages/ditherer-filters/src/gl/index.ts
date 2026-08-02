@@ -10,11 +10,7 @@
 // - Texture pool is keyed by caller-provided names. Namespace with a filter
 //   prefix (e.g., "gaussian:temp") to avoid collisions.
 
-import {
-  getCanvasPoolStats,
-  releasePooledCanvas,
-  takePooledCanvas,
-} from "../utils/index";
+import { getCanvasPoolStats, releasePooledCanvas, takePooledCanvas } from "../utils/index";
 
 type GLCanvas = HTMLCanvasElement | OffscreenCanvas;
 
@@ -35,7 +31,8 @@ export type GLCtx = {
 const createGLCanvas = (w = 1, h = 1): GLCanvas | null => {
   if (typeof document !== "undefined") {
     const c = document.createElement("canvas");
-    c.width = w; c.height = h;
+    c.width = w;
+    c.height = h;
     return c;
   }
   if (typeof OffscreenCanvas !== "undefined") {
@@ -50,13 +47,13 @@ export const getGLCtx = (): GLCtx | null => {
   _supportChecked = true;
   const c = createGLCanvas();
   if (!c) return null;
-  const gl = (c.getContext("webgl2", {
+  const gl = c.getContext("webgl2", {
     premultipliedAlpha: false,
     preserveDrawingBuffer: true,
     antialias: false,
     depth: false,
     stencil: false,
-  }) as WebGL2RenderingContext | null);
+  }) as WebGL2RenderingContext | null;
   if (!gl) return null;
   _supported = true;
   _gl = gl;
@@ -79,10 +76,20 @@ export const glAvailable = (): boolean => getGLCtx() !== null;
 // HTMLCanvasElement on the main thread and an OffscreenCanvas inside a
 // worker — both satisfy the filter output contract.
 export const glUnavailableStub = (w: number, h: number): GLCanvas => {
-  const canvas = (typeof document !== "undefined"
-    ? (() => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; })()
-    : new OffscreenCanvas(w, h)) as GLCanvas;
-  const ctx = canvas.getContext("2d") as (CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null);
+  const canvas = (
+    typeof document !== "undefined"
+      ? (() => {
+          const c = document.createElement("canvas");
+          c.width = w;
+          c.height = h;
+          return c;
+        })()
+      : new OffscreenCanvas(w, h)
+  ) as GLCanvas;
+  const ctx = canvas.getContext("2d") as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!ctx) return canvas;
   // Dark plate, amber text — stays recognisable against most source images.
   (ctx as CanvasRenderingContext2D).fillStyle = "#1a1a1a";
@@ -175,7 +182,11 @@ const compileShader = (gl: WebGL2RenderingContext, type: number, src: string): W
     }
     return sh;
   } catch (error) {
-    try { gl.deleteShader(sh); } catch { /* preserve the compile failure */ }
+    try {
+      gl.deleteShader(sh);
+    } catch {
+      /* preserve the compile failure */
+    }
     throw error;
   }
 };
@@ -192,19 +203,39 @@ export const linkProgram = (
   let prog: WebGLProgram | null = null;
   const cleanup = () => {
     if (prog && vs) {
-      try { gl.detachShader(prog, vs); } catch { /* continue cleanup */ }
+      try {
+        gl.detachShader(prog, vs);
+      } catch {
+        /* continue cleanup */
+      }
     }
     if (prog && fs) {
-      try { gl.detachShader(prog, fs); } catch { /* continue cleanup */ }
+      try {
+        gl.detachShader(prog, fs);
+      } catch {
+        /* continue cleanup */
+      }
     }
     if (vs) {
-      try { gl.deleteShader(vs); } catch { /* context loss: nothing else can free it */ }
+      try {
+        gl.deleteShader(vs);
+      } catch {
+        /* context loss: nothing else can free it */
+      }
     }
     if (fs) {
-      try { gl.deleteShader(fs); } catch { /* context loss: nothing else can free it */ }
+      try {
+        gl.deleteShader(fs);
+      } catch {
+        /* context loss: nothing else can free it */
+      }
     }
     if (prog) {
-      try { gl.deleteProgram(prog); } catch { /* context loss: nothing else can free it */ }
+      try {
+        gl.deleteProgram(prog);
+      } catch {
+        /* context loss: nothing else can free it */
+      }
     }
   };
   try {
@@ -243,9 +274,7 @@ export const linkProgram = (
 // Cached full-screen quad VAO.
 let _quadVao: WebGLVertexArrayObject | null = null;
 
-export const createQuadVAO = (
-  gl: WebGL2RenderingContext,
-): WebGLVertexArrayObject => {
+export const createQuadVAO = (gl: WebGL2RenderingContext): WebGLVertexArrayObject => {
   const vao = gl.createVertexArray();
   if (!vao) throw new Error("createVertexArray failed");
   let buffer: WebGLBuffer | null = null;
@@ -254,21 +283,29 @@ export const createQuadVAO = (
     if (!buffer) throw new Error("createBuffer failed");
     gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),
-      gl.STATIC_DRAW,
-    );
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.bindVertexArray(null);
     return vao;
   } catch (error) {
-    try { gl.bindVertexArray(null); } catch { /* continue cleanup */ }
-    if (buffer) {
-      try { gl.deleteBuffer(buffer); } catch { /* context loss */ }
+    try {
+      gl.bindVertexArray(null);
+    } catch {
+      /* continue cleanup */
     }
-    try { gl.deleteVertexArray(vao); } catch { /* context loss */ }
+    if (buffer) {
+      try {
+        gl.deleteBuffer(buffer);
+      } catch {
+        /* context loss */
+      }
+    }
+    try {
+      gl.deleteVertexArray(vao);
+    } catch {
+      /* context loss */
+    }
     throw error;
   }
 };
@@ -297,10 +334,18 @@ const discardTextureTarget = (
   framebuffer: WebGLFramebuffer | null,
 ): void => {
   if (texture) {
-    try { gl.deleteTexture(texture); } catch { /* continue cleanup */ }
+    try {
+      gl.deleteTexture(texture);
+    } catch {
+      /* continue cleanup */
+    }
   }
   if (framebuffer) {
-    try { gl.deleteFramebuffer(framebuffer); } catch { /* context loss */ }
+    try {
+      gl.deleteFramebuffer(framebuffer);
+    } catch {
+      /* context loss */
+    }
   }
 };
 
@@ -399,17 +444,7 @@ export const uploadFloatTexture = (
 ): void => {
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.bindTexture(gl.TEXTURE_2D, entry.tex);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA16F,
-    width,
-    height,
-    0,
-    gl.RGBA,
-    gl.FLOAT,
-    data,
-  );
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.FLOAT, data);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 };
 
@@ -473,18 +508,15 @@ export const drawPass = (
 // UNPACK_FLIP_Y=true and shaders use JS-y conventions). Returns
 // OffscreenCanvas when running in a Web Worker, HTMLCanvasElement on the
 // main thread — both satisfy the FilterCanvas contract.
-export const readoutToCanvas = (
-  glCanvas: GLCanvas,
-  w: number,
-  h: number,
-): GLCanvas | null => {
+export const readoutToCanvas = (glCanvas: GLCanvas, w: number, h: number): GLCanvas | null => {
   const out = acquireReadoutCanvas(w, h);
   if (!out) return null;
   // willReadFrequently so the next filter's getImageData on this canvas
   // doesn't pay a GPU readback cost. Sticky from the first getContext call.
-  const ctx = out.getContext("2d", { willReadFrequently: true }) as (
-    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
-  );
+  const ctx = out.getContext("2d", { willReadFrequently: true }) as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!ctx) {
     releasePooledCanvas(out);
     return null;

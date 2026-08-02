@@ -49,7 +49,7 @@ import { resolveRegisteredFilter } from "utils/registeredFilters";
 type FilterOptionMap = FilterOptionValues;
 type PaletteColor = number[];
 type StepTime = { name: string; ms: number; backend?: string };
-type ScalingAlgorithm = typeof SCALING_ALGORITHM[keyof typeof SCALING_ALGORITHM];
+type ScalingAlgorithm = (typeof SCALING_ALGORITHM)[keyof typeof SCALING_ALGORITHM];
 type PaletteOptionState = SerializedPaletteState & { options?: FilterOptionMap };
 type DrawableImage = CanvasImageSource & { width: number; height: number };
 
@@ -81,10 +81,10 @@ const makeChainEntry = (displayName: string, filter: FilterDefinition): ChainEnt
 
 const resolveImportedChainId = (value: unknown, usedIds: Set<string>): string => {
   if (
-    typeof value === "string"
-    && value.trim().length > 0
-    && value.length <= MAX_SERIALIZED_CHAIN_ID_LENGTH
-    && !usedIds.has(value)
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= MAX_SERIALIZED_CHAIN_ID_LENGTH &&
+    !usedIds.has(value)
   ) {
     usedIds.add(value);
     return value;
@@ -99,10 +99,12 @@ const deserializeRandomCycleSeconds = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
 
 const deserializeDisplayName = (fallback: string, ...values: unknown[]): string => {
-  const valid = values.find((value): value is string =>
-    typeof value === "string"
-    && value.trim().length > 0
-    && value.length <= MAX_SERIALIZED_DISPLAY_NAME_LENGTH);
+  const valid = values.find(
+    (value): value is string =>
+      typeof value === "string" &&
+      value.trim().length > 0 &&
+      value.length <= MAX_SERIALIZED_DISPLAY_NAME_LENGTH,
+  );
   return valid ?? fallback;
 };
 
@@ -112,47 +114,65 @@ const deserializeAudioMod = (
   if (!value || typeof value !== "object") return null;
   const connections = Array.isArray(value.c)
     ? value.c
-      .filter((connection) => typeof connection?.k === "string" && typeof connection?.o === "string" && typeof connection?.w === "number")
-      .map((connection) => ({
-        metric: connection.k as EntryAudioModulation["connections"][number]["metric"],
-        target: connection.o,
-        weight: connection.w,
-      }))
+        .filter(
+          (connection) =>
+            typeof connection?.k === "string" &&
+            typeof connection?.o === "string" &&
+            typeof connection?.w === "number",
+        )
+        .map((connection) => ({
+          metric: connection.k as EntryAudioModulation["connections"][number]["metric"],
+          target: connection.o,
+          weight: connection.w,
+        }))
     : [];
   if (connections.length > 0) {
     return {
       connections,
       normalizedMetrics: Array.isArray(value.z)
-        ? value.z.filter((metric): metric is EntryAudioModulation["connections"][number]["metric"] => typeof metric === "string")
+        ? value.z.filter(
+            (metric): metric is EntryAudioModulation["connections"][number]["metric"] =>
+              typeof metric === "string",
+          )
         : [],
     };
   }
 
   const metrics = Array.isArray(value.m)
     ? value.m
-      .filter((metric) => typeof metric?.k === "string" && typeof metric?.o === "string" && typeof metric?.w === "number")
-      .map((metric) => ({
-        metric: metric.k as EntryAudioModulation["connections"][number]["metric"],
-        target: metric.o,
-        weight: metric.w,
-      }))
+        .filter(
+          (metric) =>
+            typeof metric?.k === "string" &&
+            typeof metric?.o === "string" &&
+            typeof metric?.w === "number",
+        )
+        .map((metric) => ({
+          metric: metric.k as EntryAudioModulation["connections"][number]["metric"],
+          target: metric.o,
+          weight: metric.w,
+        }))
     : [];
   if (metrics.length > 0) {
     return {
       connections: metrics,
       normalizedMetrics: Array.isArray(value.z)
-        ? value.z.filter((metric): metric is EntryAudioModulation["connections"][number]["metric"] => typeof metric === "string")
+        ? value.z.filter(
+            (metric): metric is EntryAudioModulation["connections"][number]["metric"] =>
+              typeof metric === "string",
+          )
         : [],
     };
   }
 
   if (typeof value.k !== "string" || !Array.isArray(value.t)) return null;
   const legacyTargets = value.t
-    .filter((target): target is { o: string; w: number } =>
-      typeof target === "object"
-      && target != null
-      && typeof target.o === "string"
-      && typeof target.w === "number")
+    .filter(
+      (target): target is { o: string; w: number } =>
+        typeof target === "object" &&
+        target != null &&
+        typeof target.o === "string" &&
+        typeof target.w === "number",
+    )
     .map((target) => target.o);
   if (legacyTargets.length === 0) return null;
   return {
@@ -214,12 +234,12 @@ export type FilterReducerState = typeof initialState;
 const updateChainEntryOptions = (
   chain: ChainEntry[],
   index: number,
-  updater: (opts: FilterOptionMap | undefined) => FilterOptionMap
+  updater: (opts: FilterOptionMap | undefined) => FilterOptionMap,
 ): ChainEntry[] =>
   chain.map((entry, i) =>
     i === index
       ? { ...entry, filter: { ...entry.filter, options: updater(entry.filter.options) } }
-      : entry
+      : entry,
   );
 
 const getPaletteState = (value: unknown): PaletteOptionState | null => {
@@ -247,16 +267,20 @@ const migrateFilterOptions = (
 ): FilterOptionMap => {
   if (filterName !== "Bilateral Blur") return options;
   const migrated = { ...options };
-  const hasNewResolution = serializedOptions.workingResolution === "FULL"
-    || serializedOptions.workingResolution === "HALF"
-    || serializedOptions.workingResolution === "QUARTER";
+  const hasNewResolution =
+    serializedOptions.workingResolution === "FULL" ||
+    serializedOptions.workingResolution === "HALF" ||
+    serializedOptions.workingResolution === "QUARTER";
   if (!hasNewResolution) {
     if (serializedOptions.useDownsample === false) {
       migrated.workingResolution = "FULL";
     } else if (typeof serializedOptions.downsampleFactor === "number") {
-      migrated.workingResolution = serializedOptions.downsampleFactor >= 3
-        ? "QUARTER"
-        : serializedOptions.downsampleFactor <= 1 ? "FULL" : "HALF";
+      migrated.workingResolution =
+        serializedOptions.downsampleFactor >= 3
+          ? "QUARTER"
+          : serializedOptions.downsampleFactor <= 1
+            ? "FULL"
+            : "HALF";
     }
   }
   delete migrated.useSeparableApproximation;
@@ -267,7 +291,7 @@ const migrateFilterOptions = (
 
 // Deserialize a filter from saved state, resolving local references
 const deserializeFilter = (
-  savedFilter: SerializedFilterReference | null | undefined
+  savedFilter: SerializedFilterReference | null | undefined,
 ): FilterDefinition | null => {
   if (!savedFilter?.name) return null;
   const localFilter = resolveRegisteredFilter(savedFilter.name);
@@ -282,21 +306,19 @@ const deserializeFilter = (
     result.options = migrateFilterOptions(
       savedFilter.name,
       result.options as FilterOptionMap,
-      (savedFilter.options as FilterOptionMap | undefined) ?? result.options as FilterOptionMap,
+      (savedFilter.options as FilterOptionMap | undefined) ?? (result.options as FilterOptionMap),
     );
   }
   const palette = getPaletteState(result.options?.palette);
   if (palette != null) {
-    const localPalette = paletteList.find(
-      p => p.palette.name === palette.name
-    );
+    const localPalette = paletteList.find((p) => p.palette.name === palette.name);
     if (localPalette) {
       result.options = {
         ...(result.options || {}),
         palette: {
           ...localPalette.palette,
           ...(palette.options !== undefined ? { options: palette.options } : {}),
-        }
+        },
       };
     }
   }
@@ -308,7 +330,7 @@ const withSelected = (
   state: Omit<FilterReducerState, "selected"> & {
     chain: ChainEntry[];
     activeIndex: number;
-  }
+  },
 ): FilterReducerState => ({
   ...state,
   selected: deriveSelected(state.chain, state.activeIndex),
@@ -403,7 +425,11 @@ type ImageAction =
 
 type ScalarStateAction =
   | {
-      type: typeof SET_GRAYSCALE | typeof SET_LINEARIZE | typeof SET_WASM_ACCELERATION | typeof SET_WEBGL_ACCELERATION;
+      type:
+        | typeof SET_GRAYSCALE
+        | typeof SET_LINEARIZE
+        | typeof SET_WASM_ACCELERATION
+        | typeof SET_WEBGL_ACCELERATION;
       value: boolean;
     }
   | {
@@ -456,7 +482,7 @@ export type FilterReducerAction =
 
 const filterReducer = (
   state: FilterReducerState = initialState,
-  action: FilterReducerAction
+  action: FilterReducerAction,
 ): FilterReducerState => {
   switch (action.type) {
     case LOAD_STATE: {
@@ -495,7 +521,7 @@ const filterReducer = (
           // Re-resolve palette references
           const palette = getPaletteState(migratedOpts.palette);
           if (palette?.name) {
-            const localPalette = paletteList.find(p => p.palette.name === palette.name);
+            const localPalette = paletteList.find((p) => p.palette.name === palette.name);
             if (localPalette) {
               migratedOpts.palette = { ...localPalette.palette, options: palette.options };
             }
@@ -530,19 +556,21 @@ const filterReducer = (
             data.selected.displayName,
             data.selected.name,
           ),
-          deserializedFilter
+          deserializedFilter,
         );
         return withSelected({
           ...state,
           chain: [entry],
           activeIndex: 0,
-          convertGrayscale: typeof data.convertGrayscale === "boolean"
-            ? data.convertGrayscale
-            : state.convertGrayscale,
+          convertGrayscale:
+            typeof data.convertGrayscale === "boolean"
+              ? data.convertGrayscale
+              : state.convertGrayscale,
           linearize: typeof data.linearize === "boolean" ? data.linearize : state.linearize,
-          wasmAcceleration: typeof data.wasmAcceleration === "boolean"
-            ? data.wasmAcceleration
-            : state.wasmAcceleration,
+          wasmAcceleration:
+            typeof data.wasmAcceleration === "boolean"
+              ? data.wasmAcceleration
+              : state.wasmAcceleration,
           randomCycleSeconds: deserializeRandomCycleSeconds(data.r),
         });
       }
@@ -565,9 +593,10 @@ const filterReducer = (
       const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
       if (idx === -1) return state;
       const chain = state.chain.filter((_, i) => i !== idx);
-      const activeIndex = idx < state.activeIndex
-        ? state.activeIndex - 1
-        : Math.min(state.activeIndex, chain.length - 1);
+      const activeIndex =
+        idx < state.activeIndex
+          ? state.activeIndex - 1
+          : Math.min(state.activeIndex, chain.length - 1);
       return withSelected({ ...state, chain, activeIndex });
     }
     case CHAIN_REORDER: {
@@ -595,7 +624,7 @@ const filterReducer = (
     }
     case CHAIN_TOGGLE: {
       const chain = state.chain.map((e: ChainEntry) =>
-        e.id === action.id ? { ...e, enabled: !e.enabled } : e
+        e.id === action.id ? { ...e, enabled: !e.enabled } : e,
       );
       return withSelected({ ...state, chain });
     }
@@ -603,9 +632,7 @@ const filterReducer = (
       const idx = state.chain.findIndex((e: ChainEntry) => e.id === action.id);
       if (idx === -1) return state;
       const chain = state.chain.map((e: ChainEntry, i: number) =>
-        i === idx
-          ? { ...e, displayName: action.displayName, filter: action.filter }
-          : e
+        i === idx ? { ...e, displayName: action.displayName, filter: action.filter } : e,
       );
       return withSelected({ ...state, chain });
     }
@@ -632,7 +659,7 @@ const filterReducer = (
     }
     case SET_CHAIN_AUDIO_MODULATION: {
       const chain = state.chain.map((entry) =>
-        entry.id === action.id ? { ...entry, audioMod: action.modulation } : entry
+        entry.id === action.id ? { ...entry, audioMod: action.modulation } : entry,
       );
       return withSelected({ ...state, chain });
     }
@@ -652,7 +679,7 @@ const filterReducer = (
     // --- Option mutations: support chainIndex with activeIndex fallback ---
     case SET_FILTER_OPTION: {
       const ci = action.chainIndex ?? state.activeIndex;
-      const chain = updateChainEntryOptions(state.chain, ci, opts => ({
+      const chain = updateChainEntryOptions(state.chain, ci, (opts) => ({
         ...opts,
         [action.optionName]: action.value,
       }));
@@ -672,7 +699,7 @@ const filterReducer = (
       // `props.value.optionTypes` became undefined and the inner Controls
       // fell back to the owning filter's optionTypes (manifesting as the
       // filter's own sliders appearing duplicated inside the palette).
-      const chain = updateChainEntryOptions(state.chain, ci, opts => ({
+      const chain = updateChainEntryOptions(state.chain, ci, (opts) => ({
         ...opts,
         palette: {
           ...(currentPalette as Record<string, unknown>),
@@ -692,7 +719,7 @@ const filterReducer = (
         console.warn("Tried to add color to null palette", state);
         return state;
       }
-      const chain = updateChainEntryOptions(state.chain, ci, opts => ({
+      const chain = updateChainEntryOptions(state.chain, ci, (opts) => ({
         ...opts,
         palette: {
           ...(currentPalette as Record<string, unknown>),
@@ -716,9 +743,11 @@ const filterReducer = (
           const smoothingEnabled = action.algorithm === SCALING_ALGORITHM.AUTO;
           context.imageSmoothingEnabled = smoothingEnabled;
           context.drawImage(
-            state.inputImage, 0, 0,
+            state.inputImage,
+            0,
+            0,
             state.inputImage.width * (state.scale || 1),
-            state.inputImage.height * (state.scale || 1)
+            state.inputImage.height * (state.scale || 1),
           );
         }
       }
@@ -736,11 +765,11 @@ const filterReducer = (
       if (state.video) state.video.playbackRate = action.rate;
       return { ...state, videoPlaybackRate: action.rate };
     case LOAD_IMAGE: {
-      if (
-        state.video != null &&
-        (!action.video || action.video !== state.video)
-      ) {
-        const oldVideo = state.video as HTMLVideoElement & { __objectUrl?: string; __manualPause?: boolean };
+      if (state.video != null && (!action.video || action.video !== state.video)) {
+        const oldVideo = state.video as HTMLVideoElement & {
+          __objectUrl?: string;
+          __manualPause?: boolean;
+        };
         oldVideo.__manualPause = true;
         oldVideo.onplaying = null;
         oldVideo.onpause = null;
@@ -768,7 +797,7 @@ const filterReducer = (
         time: action.time || 0,
         inputFrameToken: action.frameToken ?? state.inputFrameToken,
         video: action.video || null,
-        realtimeFiltering: state.realtimeFiltering
+        realtimeFiltering: state.realtimeFiltering,
       };
 
       // Trigger chain-based filtering via FilterContext (not inline)

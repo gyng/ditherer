@@ -1,5 +1,9 @@
 import { planLoopCaptureRouting } from "./exportRouting";
-import { finalizeContactSheetExport, finalizeGifExport, finalizeSequenceExport } from "./finalizeFrameExports";
+import {
+  finalizeContactSheetExport,
+  finalizeGifExport,
+  finalizeSequenceExport,
+} from "./finalizeFrameExports";
 import { captureLoopOfflineFrames, type LoopGifProfile } from "./loopOfflineCapture";
 import { captureLoopPlaybackFrames } from "./loopPlaybackCapture";
 import type { GifFrame, SourceVideoWithObjectUrl } from "../helpers";
@@ -60,7 +64,10 @@ interface RunLoopExportOptions {
   createHiddenExportVideo: (video: HTMLVideoElement) => Promise<HTMLVideoElement>;
   renderFrameForExport: RenderFrameForExport;
   clearExportSession: (sessionId: string) => void;
-  logGifExportProfile: (label: string, stats: Record<string, number | string | boolean | null>) => void;
+  logGifExportProfile: (
+    label: string,
+    stats: Record<string, number | string | boolean | null>,
+  ) => void;
 }
 
 export const runLoopExport = async ({
@@ -98,15 +105,20 @@ export const runLoopExport = async ({
   clearExportSession,
   logGifExportProfile,
 }: RunLoopExportOptions) => {
-  const rangeStartSec = loopExportScope === "range"
-    ? Math.max(0, Math.min(video.duration, loopRangeStart))
-    : 0;
-  const rangeEndSec = loopExportScope === "range"
-    ? Math.max(rangeStartSec + 0.001, Math.min(video.duration, loopRangeEnd))
-    : video.duration;
+  const rangeStartSec =
+    loopExportScope === "range" ? Math.max(0, Math.min(video.duration, loopRangeStart)) : 0;
+  const rangeEndSec =
+    loopExportScope === "range"
+      ? Math.max(rangeStartSec + 0.001, Math.min(video.duration, loopRangeEnd))
+      : video.duration;
   const exportDuration = Math.max(0.001, rangeEndSec - rangeStartSec);
 
-  updateProgress(loopExportScope === "range" ? `Seeking start (${rangeStartSec.toFixed(2)}s)...` : "Rewinding...", 0.04);
+  updateProgress(
+    loopExportScope === "range"
+      ? `Seeking start (${rangeStartSec.toFixed(2)}s)...`
+      : "Rewinding...",
+    0.04,
+  );
   if (mode === "gif") {
     clearGifResult();
   } else if (mode === "sequence") {
@@ -131,10 +143,14 @@ export const runLoopExport = async ({
 
   const capturedFrames: GifFrame[] = [];
   const duration = rangeEndSec;
-  const captureFps = mode === "contact"
-    ? Math.max(1, targetFrameCount / exportDuration)
-    : loopAutoFps ? estimateVideoFps(video, gifFps) : gifFps;
-  const sourceUrl = (video as SourceVideoWithObjectUrl).__objectUrl || video.currentSrc || video.src;
+  const captureFps =
+    mode === "contact"
+      ? Math.max(1, targetFrameCount / exportDuration)
+      : loopAutoFps
+        ? estimateVideoFps(video, gifFps)
+        : gifFps;
+  const sourceUrl =
+    (video as SourceVideoWithObjectUrl).__objectUrl || video.currentSrc || video.src;
   const loopRoutingPlan = planLoopCaptureRouting({
     captureMode: loopCaptureMode,
     sourceUrl: sourceUrl || null,
@@ -144,19 +160,22 @@ export const runLoopExport = async ({
   const useWebCodecsCapture = loopRoutingPlan.shouldAttemptWebCodecs;
   const useVFC = usePlaybackCapture && loopAutoFps && "requestVideoFrameCallback" in video;
   let aborted = false;
-  const gifProfile: LoopGifProfile | null = mode === "gif" ? {
-    path: loopRoutingPlan.path,
-    fallbackReason: loopRoutingPlan.fallbackReason || "",
-    decodeLoadMs: 0,
-    decodeConfigMs: 0,
-    demuxMs: 0,
-    decodeMs: 0,
-    renderMs: 0,
-    encodeMs: 0,
-    selectedFrames: 0,
-    decodedChunks: 0,
-    decodedFrames: 0,
-  } : null;
+  const gifProfile: LoopGifProfile | null =
+    mode === "gif"
+      ? {
+          path: loopRoutingPlan.path,
+          fallbackReason: loopRoutingPlan.fallbackReason || "",
+          decodeLoadMs: 0,
+          decodeConfigMs: 0,
+          demuxMs: 0,
+          decodeMs: 0,
+          renderMs: 0,
+          encodeMs: 0,
+          selectedFrames: 0,
+          decodedChunks: 0,
+          decodedFrames: 0,
+        }
+      : null;
 
   if (!usePlaybackCapture) {
     const offlineResult = await captureLoopOfflineFrames({

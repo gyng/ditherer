@@ -40,7 +40,13 @@ import {
   linearFloatToSrgbBuf,
   linearPaletteGetColor,
 } from "../utils/index";
-import { HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST, RGB_APPROX, RGB_NEAREST } from "../constants/color";
+import {
+  HSV_NEAREST,
+  LAB_NEAREST,
+  OKLAB_NEAREST,
+  RGB_APPROX,
+  RGB_NEAREST,
+} from "../constants/color";
 
 // Bivariant hack on getColor so we accept specialized palette definitions
 // (e.g., `nearest` with `{ levels: number }`) without callers needing to
@@ -130,12 +136,14 @@ export const applyPaletteToBuffer = (
   // is amortising the JS<->WASM boundary over the whole buffer rather than
   // paying it per pixel — per-pixel WASM is actually SLOWER than plain JS here
   // (see test/perf/colorDistanceBench.bench.ts).
-  const algo = hasColors && wasmAcceleration && wasmIsLoaded()
-    ? resolvePaletteColorAlgorithm(palette)
-    : null;
+  const algo =
+    hasColors && wasmAcceleration && wasmIsLoaded() ? resolvePaletteColorAlgorithm(palette) : null;
   // Every colour-distance algorithm now has a whole-buffer Rust counterpart, so
   // nothing custom-palette falls to the per-pixel JS loop when WASM is up.
-  const WHOLE_BUFFER: Record<string, (b: Uint8ClampedArray | Uint8Array, c: number[][]) => Uint8Array> = {
+  const WHOLE_BUFFER: Record<
+    string,
+    (b: Uint8ClampedArray | Uint8Array, c: number[][]) => Uint8Array
+  > = {
     [RGB_NEAREST]: wasmQuantizeBufferRgb,
     // Lab was the biggest win: the slowest path by far (5.9s vs 1.3s at
     // 1920x1080) precisely because it already used WASM — per pixel, paying
@@ -186,7 +194,9 @@ export const applyPalettePassToCanvas = (
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   if (!palette || paletteIsIdentity(palette)) return canvas;
   const ctx = canvas.getContext("2d", { willReadFrequently: true }) as
-    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!ctx) return null;
   const pixels = ctx.getImageData(0, 0, width, height).data;
   applyPaletteToBuffer(pixels, pixels, width, height, palette, wasmAcceleration);
@@ -206,13 +216,18 @@ export const applyLinearPalettePassToCanvas = (
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   if (!palette || paletteIsIdentity(palette)) return canvas;
   const ctx = canvas.getContext("2d", { willReadFrequently: true }) as
-    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!ctx) return null;
   const pixels = ctx.getImageData(0, 0, width, height).data;
   const floatBuf = srgbBufToLinearFloat(pixels);
   for (let i = 0; i < floatBuf.length; i += 4) {
     const pixel: [number, number, number, number] = [
-      floatBuf[i], floatBuf[i + 1], floatBuf[i + 2], floatBuf[i + 3],
+      floatBuf[i],
+      floatBuf[i + 1],
+      floatBuf[i + 2],
+      floatBuf[i + 3],
     ];
     const col = linearPaletteGetColor(
       palette as Parameters<typeof linearPaletteGetColor>[0],

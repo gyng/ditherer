@@ -12,7 +12,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("floating windows, comparison, fullscreen modes, and theme persistence work together", async ({ page }) => {
+test("floating windows, comparison, fullscreen modes, and theme persistence work together", async ({
+  page,
+}) => {
   await startBrowserCoverage(page);
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -24,8 +26,14 @@ test("floating windows, comparison, fullscreen modes, and theme persistence work
   const inputWindow = inputTitle.locator("../..");
   const outputCanvas = outputTitle.locator("..").locator("canvas").first();
   await page.getByRole("button", { name: "Float", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Float", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "Lock", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Float", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("button", { name: "Lock", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
 
   const beforeDrag = await inputWindow.boundingBox();
   expect(beforeDrag).not.toBeNull();
@@ -35,7 +43,9 @@ test("floating windows, comparison, fullscreen modes, and theme persistence work
   await page.mouse.up();
   const afterDrag = await inputWindow.boundingBox();
   expect(afterDrag).not.toBeNull();
-  expect(Math.abs(afterDrag!.x - beforeDrag!.x) + Math.abs(afterDrag!.y - beforeDrag!.y)).toBeGreaterThan(40);
+  expect(
+    Math.abs(afterDrag!.x - beforeDrag!.x) + Math.abs(afterDrag!.y - beforeDrag!.y),
+  ).toBeGreaterThan(40);
 
   await page.getByRole("button", { name: "Lock", exact: true }).click();
   const lockedPosition = await inputWindow.boundingBox();
@@ -48,7 +58,10 @@ test("floating windows, comparison, fullscreen modes, and theme persistence work
   expect(afterLockedDrag?.y).toBeCloseTo(lockedPosition!.y, 0);
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "Float", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Float", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await page.getByRole("button", { name: "Dock", exact: true }).click();
   await page.getByRole("button", { name: "Output only", exact: true }).click();
   await expect(inputTitle).toBeHidden();

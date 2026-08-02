@@ -7,7 +7,7 @@ import { renderHalftoneLineGL } from "./halftoneLineGL";
 const ANGLE_MODE = {
   CONSTANT: "CONSTANT",
   LUMINANCE: "LUMINANCE",
-  GRADIENT: "GRADIENT"
+  GRADIENT: "GRADIENT",
 };
 
 export const optionTypes = {
@@ -17,15 +17,25 @@ export const optionTypes = {
     options: [
       { name: "Constant", value: ANGLE_MODE.CONSTANT },
       { name: "Vary by luminance", value: ANGLE_MODE.LUMINANCE },
-      { name: "Vary by gradient", value: ANGLE_MODE.GRADIENT }
+      { name: "Vary by gradient", value: ANGLE_MODE.GRADIENT },
     ],
     default: ANGLE_MODE.CONSTANT,
-    desc: "How line angle is chosen per cell"
+    desc: "How line angle is chosen per cell",
   },
-  baseAngle: { type: RANGE, range: [0, 180], step: 1, default: 45, desc: "Base line angle in degrees" },
+  baseAngle: {
+    type: RANGE,
+    range: [0, 180],
+    step: 1,
+    default: 45,
+    desc: "Base line angle in degrees",
+  },
   inkColor: { type: COLOR, default: [20, 18, 15], desc: "Ink color of the rendered line marks" },
-  paperColor: { type: COLOR, default: [245, 240, 226], desc: "Paper color behind the halftone lines" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  paperColor: {
+    type: COLOR,
+    default: [245, 240, 226],
+    desc: "Paper color behind the halftone lines",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -34,7 +44,7 @@ export const defaults = {
   baseAngle: optionTypes.baseAngle.default,
   inkColor: optionTypes.inkColor.default,
   paperColor: optionTypes.paperColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Pre-palette-map ink and paper on the CPU so the shader renders final
@@ -44,18 +54,37 @@ export const defaults = {
 const halftoneLine = (input: any, options: typeof defaults = defaults) => {
   const normalized = { ...defaults, ...options };
   const cellSize = Math.max(8, Math.min(48, Number(normalized.cellSize) || defaults.cellSize));
-  const angleMode = normalized.angleMode === ANGLE_MODE.LUMINANCE || normalized.angleMode === ANGLE_MODE.GRADIENT
-    ? normalized.angleMode : ANGLE_MODE.CONSTANT;
-  const baseAngle = Number.isFinite(Number(normalized.baseAngle)) ? Number(normalized.baseAngle) : defaults.baseAngle;
+  const angleMode =
+    normalized.angleMode === ANGLE_MODE.LUMINANCE || normalized.angleMode === ANGLE_MODE.GRADIENT
+      ? normalized.angleMode
+      : ANGLE_MODE.CONSTANT;
+  const baseAngle = Number.isFinite(Number(normalized.baseAngle))
+    ? Number(normalized.baseAngle)
+    : defaults.baseAngle;
   const inkColor = Array.isArray(normalized.inkColor) ? normalized.inkColor : defaults.inkColor;
-  const paperColor = Array.isArray(normalized.paperColor) ? normalized.paperColor : defaults.paperColor;
+  const paperColor = Array.isArray(normalized.paperColor)
+    ? normalized.paperColor
+    : defaults.paperColor;
   const palette = normalized.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
-  const inkMapped = srgbPaletteGetColor(palette, rgba(inkColor[0], inkColor[1], inkColor[2], 255), palette.options);
-  const paperMapped = srgbPaletteGetColor(palette, rgba(paperColor[0], paperColor[1], paperColor[2], 255), palette.options);
-  const modeInt = angleMode === ANGLE_MODE.CONSTANT ? 0 : angleMode === ANGLE_MODE.LUMINANCE ? 1 : 2;
+  const W = input.width,
+    H = input.height;
+  const inkMapped = srgbPaletteGetColor(
+    palette,
+    rgba(inkColor[0], inkColor[1], inkColor[2], 255),
+    palette.options,
+  );
+  const paperMapped = srgbPaletteGetColor(
+    palette,
+    rgba(paperColor[0], paperColor[1], paperColor[2], 255),
+    palette.options,
+  );
+  const modeInt =
+    angleMode === ANGLE_MODE.CONSTANT ? 0 : angleMode === ANGLE_MODE.LUMINANCE ? 1 : 2;
   const rendered = renderHalftoneLineGL(
-    input, W, H, cellSize,
+    input,
+    W,
+    H,
+    cellSize,
     modeInt as 0 | 1 | 2,
     (baseAngle * Math.PI) / 180,
     [inkMapped[0], inkMapped[1], inkMapped[2]],

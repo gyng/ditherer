@@ -21,12 +21,15 @@ const makeCanvas = (width: number, height: number, pixels: readonly Pixel[]) => 
   const canvas = {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
-      putImageData: (image: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(image.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
+            putImageData: (image: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(image.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return {
     canvas,
@@ -82,7 +85,8 @@ describe("Delaunay quality contracts", () => {
 
   it("does not let invisible RGB tint visible triangle representatives", () => {
     const pixels: Pixel[] = Array.from({ length: 16 * 16 }, (_, index) =>
-      index % 5 === 0 ? [230, 35, 20, 255] : [0, 0, 255, 0]);
+      index % 5 === 0 ? [230, 35, 20, 255] : [0, 0, 255, 0],
+    );
     const fixture = makeCanvas(16, 16, pixels);
     delaunay.func(fixture.canvas, {
       ...delaunayDefaults,
@@ -117,9 +121,13 @@ describe("Stained Glass color statistics", () => {
   it("implements distinct average, weighted-median, and dominant-cluster modes", () => {
     const ids = new Int32Array(visible.length);
     const source = toBuffer(visible);
-    const average = Array.from(resolveStainedGlassCellColors(ids, source, 1, "AVERAGE").slice(0, 3));
+    const average = Array.from(
+      resolveStainedGlassCellColors(ids, source, 1, "AVERAGE").slice(0, 3),
+    );
     const median = Array.from(resolveStainedGlassCellColors(ids, source, 1, "MEDIAN").slice(0, 3));
-    const dominant = Array.from(resolveStainedGlassCellColors(ids, source, 1, "DOMINANT").slice(0, 3));
+    const dominant = Array.from(
+      resolveStainedGlassCellColors(ids, source, 1, "DOMINANT").slice(0, 3),
+    );
     expect(new Set([average.join(","), median.join(","), dominant.join(",")]).size).toBe(3);
     expect(dominant).toEqual([240, 20, 20]);
   });
@@ -129,8 +137,9 @@ describe("Stained Glass color statistics", () => {
     const expanded = [...visible, ...Array.from({ length: 20 }, () => [255, 0, 255, 0] as const)];
     const expandedIds = new Int32Array(expanded.length);
     for (const mode of ["AVERAGE", "MEDIAN", "DOMINANT"] as const) {
-      expect(Array.from(resolveStainedGlassCellColors(expandedIds, toBuffer(expanded), 1, mode)))
-        .toEqual(Array.from(resolveStainedGlassCellColors(baselineIds, toBuffer(visible), 1, mode)));
+      expect(
+        Array.from(resolveStainedGlassCellColors(expandedIds, toBuffer(expanded), 1, mode)),
+      ).toEqual(Array.from(resolveStainedGlassCellColors(baselineIds, toBuffer(visible), 1, mode)));
     }
   });
 });
@@ -144,25 +153,35 @@ describe("Median Cut palette contracts", () => {
     varied[index * 4 + 3] = 255;
   }
 
-  it.each([3, 5, 7, 13, 17, 31])("honors a maximum of %i colors exactly when enough colors exist", (levels) => {
-    const palette = buildMedianCutPalette(varied, levels, "AVERAGE", "RGB");
-    expect(palette).toHaveLength(levels);
-  });
+  it.each([3, 5, 7, 13, 17, 31])(
+    "honors a maximum of %i colors exactly when enough colors exist",
+    (levels) => {
+      const palette = buildMedianCutPalette(varied, levels, "AVERAGE", "RGB");
+      expect(palette).toHaveLength(levels);
+    },
+  );
 
   it("ignores hidden RGB when building its visible palette", () => {
     const visibleOnly = new Uint8ClampedArray([
-      230, 30, 20, 255,
-      20, 210, 40, 255,
-      30, 40, 220, 255,
-      180, 160, 40, 255,
+      230, 30, 20, 255, 20, 210, 40, 255, 30, 40, 220, 255, 180, 160, 40, 255,
     ]);
     const hiddenChanged = new Uint8ClampedArray([
       ...visibleOnly,
-      255, 0, 255, 0,
-      0, 255, 255, 0,
-      255, 255, 255, 0,
+      255,
+      0,
+      255,
+      0,
+      0,
+      255,
+      255,
+      0,
+      255,
+      255,
+      255,
+      0,
     ]);
-    expect(buildMedianCutPalette(hiddenChanged, 3, "AVERAGE", "RGB"))
-      .toEqual(buildMedianCutPalette(visibleOnly, 3, "AVERAGE", "RGB"));
+    expect(buildMedianCutPalette(hiddenChanged, 3, "AVERAGE", "RGB")).toEqual(
+      buildMedianCutPalette(visibleOnly, 3, "AVERAGE", "RGB"),
+    );
   });
 });

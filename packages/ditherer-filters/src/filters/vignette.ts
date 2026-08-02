@@ -27,19 +27,37 @@ import {
 const SHAPE = { CIRCLE: "CIRCLE", ELLIPSE: "ELLIPSE" };
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "Maximum darkening amount at the edges" },
-  radius: { type: RANGE, range: [0.2, 1.5], step: 0.05, default: 0.8, desc: "Distance from center where darkening begins" },
-  softness: { type: RANGE, range: [0.1, 1], step: 0.05, default: 0.4, desc: "Width of the transition zone between clear and dark" },
+  strength: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "Maximum darkening amount at the edges",
+  },
+  radius: {
+    type: RANGE,
+    range: [0.2, 1.5],
+    step: 0.05,
+    default: 0.8,
+    desc: "Distance from center where darkening begins",
+  },
+  softness: {
+    type: RANGE,
+    range: [0.1, 1],
+    step: 0.05,
+    default: 0.4,
+    desc: "Width of the transition zone between clear and dark",
+  },
   shape: {
     type: ENUM,
     options: [
       { name: "Circle", value: SHAPE.CIRCLE },
-      { name: "Ellipse", value: SHAPE.ELLIPSE }
+      { name: "Ellipse", value: SHAPE.ELLIPSE },
     ],
     default: SHAPE.ELLIPSE,
-    desc: "Vignette shape — ellipse matches the image aspect ratio"
+    desc: "Vignette shape — ellipse matches the image aspect ratio",
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -47,7 +65,7 @@ export const defaults = {
   radius: optionTypes.radius.default,
   softness: optionTypes.softness.default,
   shape: optionTypes.shape.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const VIG_FS = `#version 300 es
@@ -96,8 +114,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     vig: linkProgram(gl, VIG_FS, [
-      "u_source", "u_res", "u_strength", "u_radius",
-      "u_softness", "u_shape", "u_levels",
+      "u_source",
+      "u_res",
+      "u_strength",
+      "u_radius",
+      "u_softness",
+      "u_shape",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -110,7 +133,8 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
 
 const vignetteFilter = (input: any, options = defaults) => {
   const { strength, radius, softness, shape, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -122,27 +146,38 @@ const vignetteFilter = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "vignette:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.vig, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.vig.uniforms.u_source, 0);
-        gl.uniform2f(cache.vig.uniforms.u_res, W, H);
-        gl.uniform1f(cache.vig.uniforms.u_strength, strength);
-        gl.uniform1f(cache.vig.uniforms.u_radius, radius);
-        gl.uniform1f(cache.vig.uniforms.u_softness, softness);
-        gl.uniform1i(cache.vig.uniforms.u_shape, shape === SHAPE.ELLIPSE ? 1 : 0);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.vig.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.vig,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.vig.uniforms.u_source, 0);
+          gl.uniform2f(cache.vig.uniforms.u_res, W, H);
+          gl.uniform1f(cache.vig.uniforms.u_strength, strength);
+          gl.uniform1f(cache.vig.uniforms.u_radius, radius);
+          gl.uniform1f(cache.vig.uniforms.u_softness, softness);
+          gl.uniform1i(cache.vig.uniforms.u_shape, shape === SHAPE.ELLIPSE ? 1 : 0);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.vig.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Vignette", "WebGL2",
-            `${shape} s=${strength}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Vignette",
+            "WebGL2",
+            `${shape} s=${strength}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -193,5 +228,5 @@ export default defineFilter({
   func: vignetteFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

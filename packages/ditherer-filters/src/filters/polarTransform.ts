@@ -22,12 +22,12 @@ import {
 
 const MODE = {
   RECT_TO_POLAR: "RECT_TO_POLAR",
-  POLAR_TO_RECT: "POLAR_TO_RECT"
+  POLAR_TO_RECT: "POLAR_TO_RECT",
 };
 
 const INTERPOLATION = {
   NEAREST: "NEAREST",
-  BILINEAR: "BILINEAR"
+  BILINEAR: "BILINEAR",
 };
 
 export const optionTypes = {
@@ -35,23 +35,41 @@ export const optionTypes = {
     type: ENUM,
     options: [
       { name: "Rect -> Polar", value: MODE.RECT_TO_POLAR },
-      { name: "Polar -> Rect", value: MODE.POLAR_TO_RECT }
+      { name: "Polar -> Rect", value: MODE.POLAR_TO_RECT },
     ],
     default: MODE.RECT_TO_POLAR,
-    desc: "Wrap the image around a circle or unwrap a circular image into a strip"
+    desc: "Wrap the image around a circle or unwrap a circular image into a strip",
   },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal center of the transform" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical center of the transform" },
-  angle: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Rotation offset in degrees" },
+  centerX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Horizontal center of the transform",
+  },
+  centerY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Vertical center of the transform",
+  },
+  angle: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 0,
+    desc: "Rotation offset in degrees",
+  },
   interpolation: {
     type: ENUM,
     options: [
       { name: "Nearest", value: INTERPOLATION.NEAREST },
-      { name: "Bilinear", value: INTERPOLATION.BILINEAR }
+      { name: "Bilinear", value: INTERPOLATION.BILINEAR },
     ],
     default: INTERPOLATION.BILINEAR,
-    desc: "Sampling method for remapped pixels"
-  }
+    desc: "Sampling method for remapped pixels",
+  },
 };
 
 export const defaults = {
@@ -59,7 +77,7 @@ export const defaults = {
   centerX: optionTypes.centerX.default,
   centerY: optionTypes.centerY.default,
   angle: optionTypes.angle.default,
-  interpolation: optionTypes.interpolation.default
+  interpolation: optionTypes.interpolation.default,
 };
 
 const POLAR_FS = `#version 300 es
@@ -130,8 +148,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     polar: linkProgram(gl, POLAR_FS, [
-      "u_source", "u_res", "u_mode", "u_center",
-      "u_angleOffset", "u_maxRadius", "u_nearest",
+      "u_source",
+      "u_res",
+      "u_mode",
+      "u_center",
+      "u_angleOffset",
+      "u_maxRadius",
+      "u_nearest",
     ] as const),
   };
   return _cache;
@@ -144,7 +167,7 @@ const polarTransform = (input: any, options = defaults) => {
   const cx = W * centerX;
   const cy = H * centerY;
   const maxRadius = Math.max(1, Math.min(W, H) * 0.5);
-  const angleOffset = angle * Math.PI / 180;
+  const angleOffset = (angle * Math.PI) / 180;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -164,17 +187,28 @@ const polarTransform = (input: any, options = defaults) => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, wantLinear ? gl.LINEAR : gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, wantLinear ? gl.LINEAR : gl.NEAREST);
 
-      drawPass(gl, null, W, H, cache.polar, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.polar.uniforms.u_source, 0);
-        gl.uniform2f(cache.polar.uniforms.u_res, W, H);
-        gl.uniform1i(cache.polar.uniforms.u_mode, mode === MODE.POLAR_TO_RECT ? 1 : 0);
-        gl.uniform2f(cache.polar.uniforms.u_center, cx, cy);
-        gl.uniform1f(cache.polar.uniforms.u_angleOffset, angleOffset);
-        gl.uniform1f(cache.polar.uniforms.u_maxRadius, maxRadius);
-        gl.uniform1i(cache.polar.uniforms.u_nearest, interpolation === INTERPOLATION.NEAREST ? 1 : 0);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.polar,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.polar.uniforms.u_source, 0);
+          gl.uniform2f(cache.polar.uniforms.u_res, W, H);
+          gl.uniform1i(cache.polar.uniforms.u_mode, mode === MODE.POLAR_TO_RECT ? 1 : 0);
+          gl.uniform2f(cache.polar.uniforms.u_center, cx, cy);
+          gl.uniform1f(cache.polar.uniforms.u_angleOffset, angleOffset);
+          gl.uniform1f(cache.polar.uniforms.u_maxRadius, maxRadius);
+          gl.uniform1i(
+            cache.polar.uniforms.u_nearest,
+            interpolation === INTERPOLATION.NEAREST ? 1 : 0,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
@@ -213,12 +247,12 @@ const polarTransform = (input: any, options = defaults) => {
         } else {
           let theta = Math.atan2(dy, dx) - angleOffset;
           if (theta < 0) theta += Math.PI * 2;
-          sx = theta / (Math.PI * 2) * (W - 1);
-          sy = radius / maxRadius * (H - 1);
+          sx = (theta / (Math.PI * 2)) * (W - 1);
+          sy = (radius / maxRadius) * (H - 1);
         }
       } else {
         const theta = (x / Math.max(1, W - 1)) * Math.PI * 2 + angleOffset;
-        const radius = y / Math.max(1, H - 1) * maxRadius;
+        const radius = (y / Math.max(1, H - 1)) * maxRadius;
         sx = cx + Math.cos(theta) * radius;
         sy = cy + Math.sin(theta) * radius;
       }
@@ -249,5 +283,5 @@ export default defineFilter({
   func: polarTransform,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

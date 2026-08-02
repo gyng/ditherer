@@ -41,19 +41,15 @@ const Harness = ({
 };
 
 const render = (mult = 2, gifFps = 10, canvasWidth = 8, canvasHeight = 6) => {
-  act(() => root.render(
-    <Harness
-      mult={mult}
-      gifFps={gifFps}
-      canvasWidth={canvasWidth}
-      canvasHeight={canvasHeight}
-    />,
-  ));
+  act(() =>
+    root.render(
+      <Harness mult={mult} gifFps={gifFps} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />,
+    ),
+  );
 };
 
-const immediateRaf = (onFrame?: () => void) => vi
-  .spyOn(window, "requestAnimationFrame")
-  .mockImplementation((callback: FrameRequestCallback) => {
+const immediateRaf = (onFrame?: () => void) =>
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback: FrameRequestCallback) => {
     onFrame?.();
     callback(performance.now());
     return 1;
@@ -126,11 +122,18 @@ describe("useSaveAsRenderSync", () => {
   });
 
   it("estimates frame rates from standardized and legacy counters with clamping", () => {
-    expect(latest.estimateVideoFps({
-      duration: 2,
-      getVideoPlaybackQuality: () => ({ totalVideoFrames: 48 }),
-    } as never, 30)).toBe(24);
-    expect(latest.estimateVideoFps({ duration: 1, webkitDecodedFrameCount: 120 } as never, 30)).toBe(60);
+    expect(
+      latest.estimateVideoFps(
+        {
+          duration: 2,
+          getVideoPlaybackQuality: () => ({ totalVideoFrames: 48 }),
+        } as never,
+        30,
+      ),
+    ).toBe(24);
+    expect(
+      latest.estimateVideoFps({ duration: 1, webkitDecodedFrameCount: 120 } as never, 30),
+    ).toBe(60);
     expect(latest.estimateVideoFps({ duration: 10, mozPresentedFrames: 5 } as never, 30)).toBe(1);
     expect(latest.estimateVideoFps({ duration: 0 } as never, 25)).toBe(25);
   });
@@ -139,7 +142,9 @@ describe("useSaveAsRenderSync", () => {
     const video = seekableVideo(0);
     const cancel = vi.fn();
     Object.assign(video, {
-      requestVideoFrameCallback: (callback: (now: number, metadata: { mediaTime: number }) => void) => {
+      requestVideoFrameCallback: (
+        callback: (now: number, metadata: { mediaTime: number }) => void,
+      ) => {
         callback(0, { mediaTime: 1.5 });
         return 7;
       },
@@ -230,8 +235,9 @@ describe("useSaveAsRenderSync", () => {
     await latest.waitForVideoSeekSettled(video, 4, 20);
     expect(video.currentTime).toBe(4);
 
-    await expect(latest.createHiddenExportVideo({ currentSrc: "", src: "" } as never))
-      .rejects.toThrow("No source video URL");
+    await expect(
+      latest.createHiddenExportVideo({ currentSrc: "", src: "" } as never),
+    ).rejects.toThrow("No source video URL");
 
     const originalCreate = document.createElement.bind(document);
     const clone = originalCreate("video");

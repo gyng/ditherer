@@ -54,13 +54,47 @@ void main() {
 }`;
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [-180, 180], step: 1, default: -38, desc: "Direction the colored contour light arrives from" },
-  width: { type: RANGE, range: [1, 12], step: 0.5, default: 3, desc: "Distance used to find the lit side of silhouettes" },
-  threshold: { type: RANGE, range: [0.01, 0.4], step: 0.01, default: 0.14, desc: "Minimum directional color contrast that receives rim light" },
-  intensity: { type: RANGE, range: [0, 2], step: 0.05, default: 0.5, desc: "Brightness of the colored contour light" },
-  halo: { type: RANGE, range: [0, 1], step: 0.05, default: 0.26, desc: "Amount of broader glow surrounding the narrow rim" },
+  angle: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: -38,
+    desc: "Direction the colored contour light arrives from",
+  },
+  width: {
+    type: RANGE,
+    range: [1, 12],
+    step: 0.5,
+    default: 3,
+    desc: "Distance used to find the lit side of silhouettes",
+  },
+  threshold: {
+    type: RANGE,
+    range: [0.01, 0.4],
+    step: 0.01,
+    default: 0.14,
+    desc: "Minimum directional color contrast that receives rim light",
+  },
+  intensity: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.5,
+    desc: "Brightness of the colored contour light",
+  },
+  halo: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.26,
+    desc: "Amount of broader glow surrounding the narrow rim",
+  },
   color: { type: COLOR, default: [113, 221, 255], desc: "Color of the composited rim and halo" },
-  protectHighlights: { type: BOOL, default: true, desc: "Reduce the effect over highlights that are already near white" },
+  protectHighlights: {
+    type: BOOL,
+    default: true,
+    desc: "Reduce the effect over highlights that are already near white",
+  },
 };
 
 export const defaults = {
@@ -84,8 +118,13 @@ const animeRimLight = (input: FilterCanvas, options = defaults) => {
     key: "anime-rim-light-v1",
     fragmentShader,
     uniformNames: [
-      "u_direction", "u_width", "u_threshold", "u_intensity", "u_halo",
-      "u_color", "u_protectHighlights",
+      "u_direction",
+      "u_width",
+      "u_threshold",
+      "u_intensity",
+      "u_halo",
+      "u_color",
+      "u_protectHighlights",
     ],
     setUniforms: (gl, uniforms) => {
       gl.uniform2f(uniforms.u_direction, direction.x, direction.y);
@@ -97,7 +136,12 @@ const animeRimLight = (input: FilterCanvas, options = defaults) => {
       gl.uniform1i(uniforms.u_protectHighlights, resolved.protectHighlights ? 1 : 0);
     },
   });
-  if (output) logFilterBackend("Anime Rim Light", "WebGL2", `angle=${resolved.angle} width=${resolved.width}`);
+  if (output)
+    logFilterBackend(
+      "Anime Rim Light",
+      "WebGL2",
+      `angle=${resolved.angle} width=${resolved.width}`,
+    );
   return output ?? input;
 };
 
@@ -107,6 +151,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Directional colored contour light for anime-style compositing and dramatic scene accents",
+  description:
+    "Directional colored contour light for anime-style compositing and dramatic scene accents",
   requiresGL: true,
 });

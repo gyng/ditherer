@@ -17,7 +17,12 @@ export type NCandidateColorspace = "SRGB" | "LINEAR" | "LIQ";
 export type ThresholdMatrix = { raw: number[][]; levels: number };
 
 export const BAYER_4X4_RAW: ThresholdMatrix = {
-  raw: [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]],
+  raw: [
+    [0, 8, 2, 10],
+    [12, 4, 14, 6],
+    [3, 11, 1, 9],
+    [15, 7, 13, 5],
+  ],
   levels: 16,
 };
 
@@ -114,23 +119,22 @@ export const preparePalette = (
   return { work, out, count };
 };
 
-const dist2 = (
-  pal: Float64Array, k: number, x: number, y: number, z: number,
-): number => {
+const dist2 = (pal: Float64Array, k: number, x: number, y: number, z: number): number => {
   const dr = x - pal[k * 3];
   const dg = y - pal[k * 3 + 1];
   const db = z - pal[k * 3 + 2];
   return dr * dr + dg * dg + db * db;
 };
 
-const findClosest = (
-  pal: Float64Array, count: number, x: number, y: number, z: number,
-): number => {
+const findClosest = (pal: Float64Array, count: number, x: number, y: number, z: number): number => {
   let best = 0;
   let bestD = Infinity;
   for (let k = 0; k < count; k++) {
     const d = dist2(pal, k, x, y, z);
-    if (d < bestD) { bestD = d; best = k; }
+    if (d < bestD) {
+      bestD = d;
+      best = k;
+    }
   }
   return best;
 };
@@ -138,10 +142,15 @@ const findClosest = (
 // Closest point on segment [A,B] to C, as the mixing factor t.
 // t = clamp(dot(C-A, B-A) / |B-A|^2, minT, maxT)
 export const solveT = (
-  a: readonly number[], b: readonly number[], c: readonly number[],
-  minT: number, maxT: number,
+  a: readonly number[],
+  b: readonly number[],
+  c: readonly number[],
+  minT: number,
+  maxT: number,
 ): number => {
-  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1],
+    dz = b[2] - a[2];
   const delta2 = dx * dx + dy * dy + dz * dz;
   let t = 0;
   // Degenerate segment (c_k == mean): leave t at 0 and let the clamp decide,
@@ -155,10 +164,16 @@ export const solveT = (
 // Yliluoma-2's original luma-weighted color difference. Only reachable from
 // EMA-Sweep, mirroring the reference's `use_luma` restriction.
 const lumaDist2 = (
-  px: number, py: number, pz: number,
-  mx: number, my: number, mz: number,
+  px: number,
+  py: number,
+  pz: number,
+  mx: number,
+  my: number,
+  mz: number,
 ): number => {
-  const dr = px - mx, dg = py - my, db = pz - mz;
+  const dr = px - mx,
+    dg = py - my,
+    db = pz - mz;
   const lumaDiff = lumaOf([px, py, pz]) - lumaOf([mx, my, mz]);
   const weighted =
     dr * dr * LUMA_WEIGHTS[0] + dg * dg * LUMA_WEIGHTS[1] + db * db * LUMA_WEIGHTS[2];
@@ -179,11 +194,14 @@ export const candidateWeights = (
   if (params.algo === "KNOLL") {
     // No seed candidate: the first iteration runs with zero error, which picks
     // closest(p) anyway.
-    let ex = 0, ey = 0, ez = 0;
+    let ex = 0,
+      ey = 0,
+      ez = 0;
     let weightSum = 0;
     for (let i = 0; i < N; i++) {
       const idx = findClosest(
-        work, count,
+        work,
+        count,
         p[0] + ex * params.strength,
         p[1] + ey * params.strength,
         p[2] + ez * params.strength,
@@ -201,7 +219,9 @@ export const candidateWeights = (
   // EMA variants: seed the running mean with the closest palette color at
   // weight 1, then move it toward a best candidate N times.
   const seed = findClosest(work, count, p[0], p[1], p[2]);
-  let mx = work[seed * 3], my = work[seed * 3 + 1], mz = work[seed * 3 + 2];
+  let mx = work[seed * 3],
+    my = work[seed * 3 + 1],
+    mz = work[seed * 3 + 2];
   out[seed] = 1;
 
   // The reference nudges the open ends off 0.0/1.0: t=0 never moves the mean,
@@ -223,7 +243,9 @@ export const candidateWeights = (
     let bestDist = Infinity;
 
     for (let k = 0; k < count; k++) {
-      const cr = work[k * 3], cg = work[k * 3 + 1], cb = work[k * 3 + 2];
+      const cr = work[k * 3],
+        cg = work[k * 3 + 1],
+        cb = work[k * 3 + 2];
 
       if (params.algo === "EMA_SWEEP") {
         // linspace(minT, maxT, sweepTests, endpoint=False)
@@ -235,19 +257,28 @@ export const candidateWeights = (
           const d = params.lumaWeighted
             ? lumaDist2(p[0], p[1], p[2], rx, ry, rz)
             : (p[0] - rx) ** 2 + (p[1] - ry) ** 2 + (p[2] - rz) ** 2;
-          if (d < bestDist) { bestDist = d; bestT = t; bestK = k; }
+          if (d < bestDist) {
+            bestDist = d;
+            bestT = t;
+            bestK = k;
+          }
         }
         continue;
       }
 
-      const t = params.algo === "EMA_CONSTANT"
-        ? params.constantT
-        : solveT([mx, my, mz], [cr, cg, cb], p, minT, maxT);
+      const t =
+        params.algo === "EMA_CONSTANT"
+          ? params.constantT
+          : solveT([mx, my, mz], [cr, cg, cb], p, minT, maxT);
       const rx = mx + (cr - mx) * t;
       const ry = my + (cg - my) * t;
       const rz = mz + (cb - mz) * t;
       const d = (p[0] - rx) ** 2 + (p[1] - ry) ** 2 + (p[2] - rz) ** 2;
-      if (d < bestDist) { bestDist = d; bestT = t; bestK = k; }
+      if (d < bestDist) {
+        bestDist = d;
+        bestT = t;
+        bestK = k;
+      }
     }
 
     out[bestK] += bestT;
@@ -266,9 +297,7 @@ export const candidateWeights = (
 // Walk the luma-sorted palette and emit the entry where the cumulative weight
 // first crosses the threshold. Unused candidates have weight 0 and are skipped
 // for free.
-export const pickIndex = (
-  weights: Float64Array, count: number, threshold: number,
-): number => {
+export const pickIndex = (weights: Float64Array, count: number, threshold: number): number => {
   let cumulative = 0;
   let idx = count - 1;
   for (let k = 0; k < count; k++) {

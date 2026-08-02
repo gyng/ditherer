@@ -9,18 +9,63 @@ const TINT_RED = "RED";
 const TINT_MONO = "MONO";
 
 export const optionTypes = {
-  originalAspect: { type: BOOL, default: true, desc: "Present the historical narrow 3:7 portrait picture instead of filling the canvas" },
-  tint: { type: ENUM, options: [
-    { name: "Amber neon", value: TINT_AMBER },
-    { name: "Red neon", value: TINT_RED },
-    { name: "Neutral lamp", value: TINT_MONO },
-  ], default: TINT_AMBER, desc: "Color of the receiver's modulated neon viewing lamp" },
-  spotSize: { type: RANGE, range: [0.25, 1.5], step: 0.05, default: 0.82, desc: "Diameter of the scanning aperture relative to one raster cell" },
-  bandwidth: { type: RANGE, range: [0.15, 1], step: 0.05, default: 0.55, desc: "Audio-channel video bandwidth; lower values smear detail along each vertical scan" },
-  discWobble: { type: RANGE, range: [0, 1.5], step: 0.05, default: 0.28, desc: "Nipkow-disc eccentricity measured in scan-column widths" },
-  syncDrift: { type: RANGE, range: [0, 2], step: 0.05, default: 0.18, desc: "Vertical picture slip caused by imperfect motor synchronization" },
-  flicker: { type: RANGE, range: [0, 0.6], step: 0.02, default: 0.16, desc: "Brightness fluctuation at the fixed 12.5-picture-per-second cadence" },
-  animSpeed: { type: RANGE, range: [13, 60], step: 1, default: 25, desc: "Preview frame rate; the simulated picture cadence remains 12.5 Hz" },
+  originalAspect: {
+    type: BOOL,
+    default: true,
+    desc: "Present the historical narrow 3:7 portrait picture instead of filling the canvas",
+  },
+  tint: {
+    type: ENUM,
+    options: [
+      { name: "Amber neon", value: TINT_AMBER },
+      { name: "Red neon", value: TINT_RED },
+      { name: "Neutral lamp", value: TINT_MONO },
+    ],
+    default: TINT_AMBER,
+    desc: "Color of the receiver's modulated neon viewing lamp",
+  },
+  spotSize: {
+    type: RANGE,
+    range: [0.25, 1.5],
+    step: 0.05,
+    default: 0.82,
+    desc: "Diameter of the scanning aperture relative to one raster cell",
+  },
+  bandwidth: {
+    type: RANGE,
+    range: [0.15, 1],
+    step: 0.05,
+    default: 0.55,
+    desc: "Audio-channel video bandwidth; lower values smear detail along each vertical scan",
+  },
+  discWobble: {
+    type: RANGE,
+    range: [0, 1.5],
+    step: 0.05,
+    default: 0.28,
+    desc: "Nipkow-disc eccentricity measured in scan-column widths",
+  },
+  syncDrift: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.18,
+    desc: "Vertical picture slip caused by imperfect motor synchronization",
+  },
+  flicker: {
+    type: RANGE,
+    range: [0, 0.6],
+    step: 0.02,
+    default: 0.16,
+    desc: "Brightness fluctuation at the fixed 12.5-picture-per-second cadence",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [13, 60],
+    step: 1,
+    default: 25,
+    desc: "Preview frame rate; the simulated picture cadence remains 12.5 Hz",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -119,7 +164,16 @@ const bairdTelevisor = (input: FilterCanvas, options: BairdOptions = defaults): 
     height: input.height,
     key: "baird-televisor:v1",
     fragmentShader: FS,
-    uniformNames: ["u_frame", "u_spotSize", "u_bandwidth", "u_wobble", "u_syncDrift", "u_flicker", "u_originalAspect", "u_tint"],
+    uniformNames: [
+      "u_frame",
+      "u_spotSize",
+      "u_bandwidth",
+      "u_wobble",
+      "u_syncDrift",
+      "u_flicker",
+      "u_originalAspect",
+      "u_tint",
+    ],
     setUniforms: (gl, uniforms) => {
       gl.uniform1f(uniforms.u_frame, picture);
       gl.uniform1f(uniforms.u_spotSize, clamp(options.spotSize, defaults.spotSize, 0.25, 1.5));
@@ -132,7 +186,11 @@ const bairdTelevisor = (input: FilterCanvas, options: BairdOptions = defaults): 
     },
   });
   if (!output) return input;
-  logFilterBackend("Baird Televisor", "WebGL2", "30 vertical lines at 12.5 pictures/s + neon Nipkow aperture");
+  logFilterBackend(
+    "Baird Televisor",
+    "WebGL2",
+    "30 vertical lines at 12.5 pictures/s + neon Nipkow aperture",
+  );
   return output;
 };
 
@@ -142,7 +200,8 @@ export default defineFilter({
   optionTypes,
   defaults,
   options: defaults,
-  description: "Baird/BBC 30-line vertical mechanical television with a Nipkow-disc raster and modulated neon lamp",
+  description:
+    "Baird/BBC 30-line vertical mechanical television with a Nipkow-disc raster and modulated neon lamp",
   requiresGL: true,
   temporal: true,
   autoAnimate: true,

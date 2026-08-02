@@ -30,30 +30,37 @@ describe("GL smoke harness fixtures", () => {
   it("records declarative suites sequentially and converts throws into failures", async () => {
     const order: string[] = [];
     const records: { name: string; mode: string; ok: boolean }[] = [];
-    const timings = await runContractSuites([
-      {
-        name: "first",
-        contracts: [{
-          name: "A",
-          mode: "pass",
-          run: async () => {
-            order.push("A");
-            return { ok: true };
-          },
-        }],
-      },
-      {
-        name: "second",
-        contracts: [{
-          name: "B",
-          mode: "throw",
-          run: () => {
-            order.push("B");
-            throw new Error("boom");
-          },
-        }],
-      },
-    ], (name, mode, result) => records.push({ name, mode, ok: result.ok }));
+    const timings = await runContractSuites(
+      [
+        {
+          name: "first",
+          contracts: [
+            {
+              name: "A",
+              mode: "pass",
+              run: async () => {
+                order.push("A");
+                return { ok: true };
+              },
+            },
+          ],
+        },
+        {
+          name: "second",
+          contracts: [
+            {
+              name: "B",
+              mode: "throw",
+              run: () => {
+                order.push("B");
+                throw new Error("boom");
+              },
+            },
+          ],
+        },
+      ],
+      (name, mode, result) => records.push({ name, mode, ok: result.ok }),
+    );
 
     expect(order).toEqual(["A", "B"]);
     expect(records).toEqual([

@@ -13,11 +13,16 @@ beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   vi.useFakeTimers();
   observerCallbacks = [];
-  vi.stubGlobal("IntersectionObserver", class {
-    constructor(callback: ObserverCallback) { observerCallbacks.push(callback); }
-    observe() {}
-    disconnect() {}
-  });
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(callback: ObserverCallback) {
+        observerCallbacks.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -52,11 +57,14 @@ describe("Thumbnail", () => {
     };
     const filterByName = new Map([
       ["Good", { displayName: "Good", category: "Test", filter }],
-      ["No canvas", {
-        displayName: "No canvas",
-        category: "Test",
-        filter: { ...filter, name: "No canvas", func: vi.fn(() => undefined) },
-      }],
+      [
+        "No canvas",
+        {
+          displayName: "No canvas",
+          category: "Test",
+          filter: { ...filter, name: "No canvas", func: vi.fn(() => undefined) },
+        },
+      ],
     ]) as never;
     const chain = [
       { name: "Missing" },
@@ -64,9 +72,16 @@ describe("Thumbnail", () => {
       { name: "No canvas" },
     ];
 
-    act(() => root.render(
-      <Thumbnail cacheKey="chain:good" chain={chain} filterByName={filterByName} source={source} />,
-    ));
+    act(() =>
+      root.render(
+        <Thumbnail
+          cacheKey="chain:good"
+          chain={chain}
+          filterByName={filterByName}
+          source={source}
+        />,
+      ),
+    );
     expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("false");
     act(() => observerCallbacks[0]([{ isIntersecting: false } as IntersectionObserverEntry]));
     expect(filter.func).not.toHaveBeenCalled();
@@ -80,9 +95,11 @@ describe("Thumbnail", () => {
     expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("true");
     expect(container.querySelector("img")?.draggable).toBe(false);
 
-    act(() => root.render(
-      <Thumbnail cacheKey="chain:good" chain={[]} filterByName={new Map()} source={source} />,
-    ));
+    act(() =>
+      root.render(
+        <Thumbnail cacheKey="chain:good" chain={[]} filterByName={new Map()} source={source} />,
+      ),
+    );
     expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("true");
   });
 
@@ -94,37 +111,55 @@ describe("Thumbnail", () => {
       defaults: {},
       options: {},
       optionTypes: {},
-      func: () => { throw new Error("broken thumbnail filter"); },
+      func: () => {
+        throw new Error("broken thumbnail filter");
+      },
     };
     const filterByName = new Map([
       ["Broken", { displayName: "Broken", category: "Test", filter: broken }],
     ]) as never;
 
-    act(() => root.render(
-      <Thumbnail cacheKey="chain:broken" chain={[{ name: "Broken" }]} filterByName={filterByName} source={source} />,
-    ));
+    act(() =>
+      root.render(
+        <Thumbnail
+          cacheKey="chain:broken"
+          chain={[{ name: "Broken" }]}
+          filterByName={filterByName}
+          source={source}
+        />,
+      ),
+    );
     act(() => observerCallbacks[0]([{ isIntersecting: true } as IntersectionObserverEntry]));
     act(() => vi.runAllTimers());
     expect(container.querySelector("img")).toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("Broken"), expect.any(Error));
 
-    act(() => root.render(
-      <Thumbnail cacheKey="chain:cancel" chain={[]} filterByName={new Map()} source={source} />,
-    ));
+    act(() =>
+      root.render(
+        <Thumbnail cacheKey="chain:cancel" chain={[]} filterByName={new Map()} source={source} />,
+      ),
+    );
     act(() => observerCallbacks.at(-1)?.([{ isIntersecting: true } as IntersectionObserverEntry]));
-    act(() => root.render(
-      <Thumbnail cacheKey="chain:cancel" chain={[]} filterByName={new Map()} source={null} />,
-    ));
+    act(() =>
+      root.render(
+        <Thumbnail cacheKey="chain:cancel" chain={[]} filterByName={new Map()} source={null} />,
+      ),
+    );
     act(() => vi.runAllTimers());
     expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("false");
   });
 
   it("uses requestIdleCallback when the browser provides it", () => {
-    vi.stubGlobal("requestIdleCallback", vi.fn((callback: () => void) => callback()));
+    vi.stubGlobal(
+      "requestIdleCallback",
+      vi.fn((callback: () => void) => callback()),
+    );
     const source = sourceCanvas();
-    act(() => root.render(
-      <Thumbnail cacheKey="chain:idle" chain={[]} filterByName={new Map()} source={source} />,
-    ));
+    act(() =>
+      root.render(
+        <Thumbnail cacheKey="chain:idle" chain={[]} filterByName={new Map()} source={source} />,
+      ),
+    );
     act(() => observerCallbacks[0]([{ isIntersecting: true } as IntersectionObserverEntry]));
     expect(window.requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 200 });
     expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("true");

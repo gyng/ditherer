@@ -4,13 +4,53 @@ import { logFilterBackend } from "../utils/index";
 import { defineFilter, type FilterCanvas, type FilterOptionValues } from "./types";
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.46, desc: "Luminance needed to address a gas-discharge cell" },
-  dither: { type: RANGE, range: [0, 1], step: 0.01, default: 0.38, desc: "Ordered 4×4 threshold modulation used to translate continuous tones into bistable cells" },
-  dotBloom: { type: RANGE, range: [0, 2], step: 0.05, default: 0.85, desc: "Orange-neon halo surrounding each addressed electrode intersection" },
-  electrodeGrid: { type: RANGE, range: [0, 1], step: 0.05, default: 0.28, desc: "Visibility of the fine 512×512 horizontal and vertical electrode structure" },
-  glassTint: { type: RANGE, range: [0, 1], step: 0.05, default: 0.42, desc: "Warm reflected light in the translucent glass panel" },
-  microficheUnderlay: { type: RANGE, range: [0, 0.8], step: 0.05, default: 0, desc: "Optional color-image underlay, recalling PLATO's rear-projected microfiche overlay" },
-  invert: { type: BOOL, default: false, desc: "Address dark source regions instead of bright regions" },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.46,
+    desc: "Luminance needed to address a gas-discharge cell",
+  },
+  dither: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.38,
+    desc: "Ordered 4×4 threshold modulation used to translate continuous tones into bistable cells",
+  },
+  dotBloom: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.85,
+    desc: "Orange-neon halo surrounding each addressed electrode intersection",
+  },
+  electrodeGrid: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.28,
+    desc: "Visibility of the fine 512×512 horizontal and vertical electrode structure",
+  },
+  glassTint: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.42,
+    desc: "Warm reflected light in the translucent glass panel",
+  },
+  microficheUnderlay: {
+    type: RANGE,
+    range: [0, 0.8],
+    step: 0.05,
+    default: 0,
+    desc: "Optional color-image underlay, recalling PLATO's rear-projected microfiche overlay",
+  },
+  invert: {
+    type: BOOL,
+    default: false,
+    desc: "Address dark source regions instead of bright regions",
+  },
 };
 
 export const defaults = {
@@ -102,14 +142,25 @@ const platoPlasma = (input: FilterCanvas, options: PlatoOptions = defaults): Fil
     height: input.height,
     key: "plato-plasma:v1",
     fragmentShader: FS,
-    uniformNames: ["u_threshold", "u_dither", "u_bloom", "u_grid", "u_glass", "u_underlay", "u_invert"],
+    uniformNames: [
+      "u_threshold",
+      "u_dither",
+      "u_bloom",
+      "u_grid",
+      "u_glass",
+      "u_underlay",
+      "u_invert",
+    ],
     setUniforms: (gl, uniforms) => {
       gl.uniform1f(uniforms.u_threshold, clamp(options.threshold, defaults.threshold, 0, 1));
       gl.uniform1f(uniforms.u_dither, clamp(options.dither, defaults.dither, 0, 1));
       gl.uniform1f(uniforms.u_bloom, clamp(options.dotBloom, defaults.dotBloom, 0, 2));
       gl.uniform1f(uniforms.u_grid, clamp(options.electrodeGrid, defaults.electrodeGrid, 0, 1));
       gl.uniform1f(uniforms.u_glass, clamp(options.glassTint, defaults.glassTint, 0, 1));
-      gl.uniform1f(uniforms.u_underlay, clamp(options.microficheUnderlay, defaults.microficheUnderlay, 0, 0.8));
+      gl.uniform1f(
+        uniforms.u_underlay,
+        clamp(options.microficheUnderlay, defaults.microficheUnderlay, 0, 0.8),
+      );
       gl.uniform1i(uniforms.u_invert, options.invert === true ? 1 : 0);
     },
   });
@@ -124,6 +175,7 @@ export default defineFilter({
   optionTypes,
   defaults,
   options: defaults,
-  description: "Control Data PLATO CC546: a square 512×512 bistable orange-neon plasma panel with optional microfiche underlay",
+  description:
+    "Control Data PLATO CC546: a square 512×512 bistable orange-neon plasma panel with optional microfiche underlay",
   requiresGL: true,
 });

@@ -4,13 +4,16 @@ import ascii from "filters/ascii";
 const makeCanvas = (width: number, height: number, data: Uint8ClampedArray | number[]) => ({
   width,
   height,
-  getContext: (type: string) => type === "2d" ? {
-    getImageData: () => ({
-      data: new Uint8ClampedArray(data),
-      width,
-      height,
-    }),
-  } : null,
+  getContext: (type: string) =>
+    type === "2d"
+      ? {
+          getImageData: () => ({
+            data: new Uint8ClampedArray(data),
+            width,
+            height,
+          }),
+        }
+      : null,
 });
 
 describe("ascii", () => {
@@ -44,21 +47,44 @@ describe("ascii", () => {
         __shadowBlurs: shadowBlurs,
         __shadowColors: shadowColors,
         __transforms: transforms,
-        getContext: (type: string) => type === "2d" ? {
-          drawImage: () => {},
-          fillRect: () => {},
-          fillText: (text: string) => { drawn.push(text); },
-          set fillStyle(value: string) { fills.push(value); },
-          save: () => { transforms.saves += 1; },
-          restore: () => { transforms.restores += 1; },
-          translate: (x: number, y: number) => { transforms.translates.push([x, y]); },
-          rotate: (radians: number) => { transforms.rotates.push(radians); },
-          scale: (x: number, y: number) => { transforms.scales.push([x, y]); },
-          set font(value: string) { fonts.push(value); },
-          set shadowBlur(value: number) { shadowBlurs.push(value); },
-          set shadowColor(value: string) { shadowColors.push(value); },
-          set textBaseline(_value: string) {},
-        } : null,
+        getContext: (type: string) =>
+          type === "2d"
+            ? {
+                drawImage: () => {},
+                fillRect: () => {},
+                fillText: (text: string) => {
+                  drawn.push(text);
+                },
+                set fillStyle(value: string) {
+                  fills.push(value);
+                },
+                save: () => {
+                  transforms.saves += 1;
+                },
+                restore: () => {
+                  transforms.restores += 1;
+                },
+                translate: (x: number, y: number) => {
+                  transforms.translates.push([x, y]);
+                },
+                rotate: (radians: number) => {
+                  transforms.rotates.push(radians);
+                },
+                scale: (x: number, y: number) => {
+                  transforms.scales.push([x, y]);
+                },
+                set font(value: string) {
+                  fonts.push(value);
+                },
+                set shadowBlur(value: number) {
+                  shadowBlurs.push(value);
+                },
+                set shadowColor(value: string) {
+                  shadowColors.push(value);
+                },
+                set textBaseline(_value: string) {},
+              }
+            : null,
       } as any;
       return lastCanvas;
     }) as typeof document.createElement;
@@ -71,17 +97,14 @@ describe("ascii", () => {
 
   it("exposes shared charset options alongside built-ins", () => {
     const charsetValues = ascii.optionTypes.charset.options.flatMap((option) =>
-      Array.isArray(option.options) ? option.options.map((grouped) => grouped.value) : [option.value]
+      Array.isArray(option.options)
+        ? option.options.map((grouped) => grouped.value)
+        : [option.value],
     );
 
-    expect(charsetValues).toEqual(expect.arrayContaining([
-      "ASCII",
-      "BRAILLE",
-      "BLOCK",
-      "MATRIX_FILM",
-      "MOJIBAKE",
-      "EMOJI",
-    ]));
+    expect(charsetValues).toEqual(
+      expect.arrayContaining(["ASCII", "BRAILLE", "BLOCK", "MATRIX_FILM", "MOJIBAKE", "EMOJI"]),
+    );
     expect(ascii.defaults.sourceInfluence).toBe(1);
     expect(ascii.defaults.textDensity).toBe(1);
     expect(ascii.defaults.characterSizeVariation).toBe(0);
@@ -170,8 +193,7 @@ describe("ascii", () => {
     expect(lastCanvas.__transforms.saves).toBeGreaterThan(0);
     expect(lastCanvas.__transforms.restores).toBe(lastCanvas.__transforms.saves);
     expect(
-      lastCanvas.__transforms.rotates.length > 0 ||
-      lastCanvas.__transforms.scales.length > 0
+      lastCanvas.__transforms.rotates.length > 0 || lastCanvas.__transforms.scales.length > 0,
     ).toBe(true);
   });
 

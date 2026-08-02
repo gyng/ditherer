@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -92,9 +99,18 @@ let program: Program | null = null;
 const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (program) return program;
   program = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_mode", "u_skyStart", "u_gradientTop",
-    "u_gradientBottom", "u_cloudAmount", "u_cloudSoftness", "u_cloudScale",
-    "u_horizonGlow", "u_maskTolerance", "u_blend",
+    "u_source",
+    "u_res",
+    "u_mode",
+    "u_skyStart",
+    "u_gradientTop",
+    "u_gradientBottom",
+    "u_cloudAmount",
+    "u_cloudSoftness",
+    "u_cloudScale",
+    "u_horizonGlow",
+    "u_maskTolerance",
+    "u_blend",
   ] as const);
   return program;
 };
@@ -119,25 +135,44 @@ export const renderAnimeSkyGL = (
   const context = getGLCtx();
   if (!context) return null;
   const { gl, canvas } = context;
-  const current = getProgram(gl), vao = getQuadVAO(gl);
+  const current = getProgram(gl),
+    vao = getQuadVAO(gl);
   resizeGLCanvas(canvas, width, height);
   const sourceTexture = ensureTexture(gl, "animeSky:source", width, height);
   uploadSourceTexture(gl, sourceTexture, source);
-  drawPass(gl, null, width, height, current, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(current.uniforms.u_source, 0);
-    gl.uniform2f(current.uniforms.u_res, width, height);
-    gl.uniform1i(current.uniforms.u_mode, clouds ? 1 : 0);
-    gl.uniform1f(current.uniforms.u_skyStart, skyStart);
-    gl.uniform3f(current.uniforms.u_gradientTop, gradientTop[0]! / 255, gradientTop[1]! / 255, gradientTop[2]! / 255);
-    gl.uniform3f(current.uniforms.u_gradientBottom, gradientBottom[0]! / 255, gradientBottom[1]! / 255, gradientBottom[2]! / 255);
-    gl.uniform1f(current.uniforms.u_cloudAmount, cloudAmount);
-    gl.uniform1f(current.uniforms.u_cloudSoftness, cloudSoftness);
-    gl.uniform1f(current.uniforms.u_cloudScale, cloudScale);
-    gl.uniform1f(current.uniforms.u_horizonGlow, horizonGlow);
-    gl.uniform1f(current.uniforms.u_maskTolerance, maskTolerance);
-    gl.uniform1f(current.uniforms.u_blend, blend);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    current,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(current.uniforms.u_source, 0);
+      gl.uniform2f(current.uniforms.u_res, width, height);
+      gl.uniform1i(current.uniforms.u_mode, clouds ? 1 : 0);
+      gl.uniform1f(current.uniforms.u_skyStart, skyStart);
+      gl.uniform3f(
+        current.uniforms.u_gradientTop,
+        gradientTop[0]! / 255,
+        gradientTop[1]! / 255,
+        gradientTop[2]! / 255,
+      );
+      gl.uniform3f(
+        current.uniforms.u_gradientBottom,
+        gradientBottom[0]! / 255,
+        gradientBottom[1]! / 255,
+        gradientBottom[2]! / 255,
+      );
+      gl.uniform1f(current.uniforms.u_cloudAmount, cloudAmount);
+      gl.uniform1f(current.uniforms.u_cloudSoftness, cloudSoftness);
+      gl.uniform1f(current.uniforms.u_cloudScale, cloudScale);
+      gl.uniform1f(current.uniforms.u_horizonGlow, horizonGlow);
+      gl.uniform1f(current.uniforms.u_maskTolerance, maskTolerance);
+      gl.uniform1f(current.uniforms.u_blend, blend);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

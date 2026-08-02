@@ -1,6 +1,10 @@
 import { CHAIN_PRESETS, type PresetFilterEntry } from "components/ChainList/presets";
 import type { FilterActions, FilterState } from "context/filterContextValue";
-import type { FilterDefinition, FilterListEntry, FilterOptionDefinition } from "@gyng/ditherer-filters";
+import type {
+  FilterDefinition,
+  FilterListEntry,
+  FilterOptionDefinition,
+} from "@gyng/ditherer-filters";
 
 type ChainSnapshotEntry = FilterState["chain"][number];
 type ResolvedPresetFilter = {
@@ -24,7 +28,11 @@ type ModelContextLike = {
   ) => void | Promise<void>;
   unregisterTool?: (toolName: string) => void;
   getTools?: () => Promise<Array<{ name: string; [key: string]: unknown }>>;
-  executeTool?: (tool: unknown, args: string, options?: { signal?: AbortSignal }) => Promise<unknown>;
+  executeTool?: (
+    tool: unknown,
+    args: string,
+    options?: { signal?: AbortSignal },
+  ) => Promise<unknown>;
 };
 
 declare global {
@@ -109,7 +117,10 @@ const dataUrlToFile = (dataUrl: string, filename: string, mimeType?: string): Fi
   return new File([bytes], filename, { type: mimeType || detectedMime });
 };
 
-const resolvePresetFilter = (filterList: FilterListEntry[], entry: PresetFilterEntry): ResolvedPresetFilter | null => {
+const resolvePresetFilter = (
+  filterList: FilterListEntry[],
+  entry: PresetFilterEntry,
+): ResolvedPresetFilter | null => {
   const found = filterList.find((f) => f.displayName === entry.name);
   if (!found) return null;
   return {
@@ -145,7 +156,12 @@ const describeOptionValue = (
   value: unknown,
   definition: FilterOptionDefinition | undefined,
 ): unknown => {
-  if (definition?.type !== "PALETTE" || !value || typeof value !== "object" || Array.isArray(value)) {
+  if (
+    definition?.type !== "PALETTE" ||
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
     return value;
   }
 
@@ -156,16 +172,16 @@ const describeOptionValue = (
   };
 };
 
-const assertValidOptionValue = (
-  entry: ChainSnapshotEntry,
-  optionName: string,
-  value: unknown,
-) => {
+const assertValidOptionValue = (entry: ChainSnapshotEntry, optionName: string, value: unknown) => {
   const definitions = entry.filter?.optionTypes || {};
   const definition = definitions[optionName];
   if (!definition) {
-    const available = Object.keys(definitions).filter((name) => definitions[name]?.type !== "ACTION");
-    throw new Error(`Unknown option "${optionName}" for ${entry.displayName}. Available options: ${available.join(", ") || "none"}`);
+    const available = Object.keys(definitions).filter(
+      (name) => definitions[name]?.type !== "ACTION",
+    );
+    throw new Error(
+      `Unknown option "${optionName}" for ${entry.displayName}. Available options: ${available.join(", ") || "none"}`,
+    );
   }
 
   switch (definition.type) {
@@ -183,11 +199,16 @@ const assertValidOptionValue = (
       if (typeof value !== "boolean") throw new Error(`${optionName} must be a boolean`);
       break;
     case "ENUM": {
-      const options = "options" in definition
-        ? definition.options.flatMap((option) => "options" in option ? option.options : [option])
-        : [];
+      const options =
+        "options" in definition
+          ? definition.options.flatMap((option) =>
+              "options" in option ? option.options : [option],
+            )
+          : [];
       if (!options.some((option) => Object.is(option.value, value))) {
-        throw new Error(`${optionName} must be one of: ${options.map((option) => String(option.value)).join(", ")}`);
+        throw new Error(
+          `${optionName} must be one of: ${options.map((option) => String(option.value)).join(", ")}`,
+        );
       }
       break;
     }
@@ -261,13 +282,16 @@ const recordCanvas = async (
     recorder.onstop = () => resolve();
     recorder.start(100);
     pulseFrame();
-    window.setTimeout(() => {
-      pulseFrame();
-      requestAnimationFrame(() => {
-        if (recorder.state !== "inactive") recorder.stop();
-        stream.getTracks().forEach((t) => t.stop());
-      });
-    }, Math.max(200, durationSeconds * 1000));
+    window.setTimeout(
+      () => {
+        pulseFrame();
+        requestAnimationFrame(() => {
+          if (recorder.state !== "inactive") recorder.stop();
+          stream.getTracks().forEach((t) => t.stop());
+        });
+      },
+      Math.max(200, durationSeconds * 1000),
+    );
   });
 
   const blob = new Blob(chunks, { type: chosenMime });
@@ -279,7 +303,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}listFilters`,
     title: "List Ditherer filters",
-    description: "Find image and video filters available in Ditherer by name, description, or exact category. Use this before choosing a filter for a chain.",
+    description:
+      "Find image and video filters available in Ditherer by name, description, or exact category. Use this before choosing a filter for a chain.",
     inputSchema: {
       type: "object",
       properties: {
@@ -313,7 +338,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}listPresets`,
     title: "List Ditherer presets",
-    description: "Find curated Ditherer filter-chain presets by name, description, or exact category. Use this before applying a preset.",
+    description:
+      "Find curated Ditherer filter-chain presets by name, description, or exact category. Use this before applying a preset.",
     inputSchema: {
       type: "object",
       properties: {
@@ -346,7 +372,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}getCurrentChain`,
     title: "Inspect current filter chain",
-    description: "Inspect Ditherer's current filter chain, selected stage, current values, and editable option definitions. Use this before changing a stage option.",
+    description:
+      "Inspect Ditherer's current filter chain, selected stage, current values, and editable option definitions. Use this before changing a stage option.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     execute: async () => {
@@ -361,12 +388,17 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
             enabled: entry.enabled !== false,
             displayName: entry.displayName,
             options: Object.fromEntries(
-              Object.entries(entry.filter?.options || {})
-                .map(([name, value]) => [name, describeOptionValue(value, definitions[name])]),
+              Object.entries(entry.filter?.options || {}).map(([name, value]) => [
+                name,
+                describeOptionValue(value, definitions[name]),
+              ]),
             ),
             optionDefinitions: Object.fromEntries(
               Object.entries(definitions)
-                .filter(([, definition]) => definition.type !== "ACTION" && definition.type !== "THRESHOLD_MAP_PREVIEW")
+                .filter(
+                  ([, definition]) =>
+                    definition.type !== "ACTION" && definition.type !== "THRESHOLD_MAP_PREVIEW",
+                )
                 .map(([name, definition]) => [name, describeOptionDefinition(definition)]),
             ),
           };
@@ -377,7 +409,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}applyPreset`,
     title: "Apply a Ditherer preset",
-    description: "Replace the current Ditherer chain with one named preset from listPresets and update the visible editor.",
+    description:
+      "Replace the current Ditherer chain with one named preset from listPresets and update the visible editor.",
     inputSchema: {
       type: "object",
       required: ["name"],
@@ -396,7 +429,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
       const actions = bindings.getActions();
       const filterList = bindings.getFilterList();
       const first = resolvePresetFilter(filterList, preset.filters[0]);
-      if (!first) throw new Error(`Missing filter "${preset.filters[0].name}" for preset "${name}"`);
+      if (!first)
+        throw new Error(`Missing filter "${preset.filters[0].name}" for preset "${name}"`);
       actions.selectFilter(first.displayName, first.filter);
       for (let i = 1; i < preset.filters.length; i++) {
         const resolved = resolvePresetFilter(filterList, preset.filters[i]);
@@ -408,7 +442,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}setFilterOption`,
     title: "Set a filter option",
-    description: "Set one editable option on a Ditherer chain stage and update the visible output. Use getCurrentChain first for valid names, types, ranges, and enum values.",
+    description:
+      "Set one editable option on a Ditherer chain stage and update the visible output. Use getCurrentChain first for valid names, types, ranges, and enum values.",
     inputSchema: {
       type: "object",
       required: ["index", "optionName", "value"],
@@ -431,7 +466,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
       const args = (rawArgs || {}) as { index?: number; optionName?: string; value?: unknown };
       const index = Number(args.index);
       const optionName = String(args.optionName || "");
-      if (!Number.isInteger(index) || index < 0) throw new Error("index must be a non-negative integer");
+      if (!Number.isInteger(index) || index < 0)
+        throw new Error("index must be a non-negative integer");
       if (!optionName) throw new Error("optionName is required");
 
       const state = bindings.getState();
@@ -445,7 +481,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}loadMedia`,
     title: "Load media into Ditherer",
-    description: "Load one image or video from a URL or base64 data URL into Ditherer and update the visible source preview.",
+    description:
+      "Load one image or video from a URL or base64 data URL into Ditherer and update the visible source preview.",
     inputSchema: {
       type: "object",
       properties: {
@@ -469,10 +506,14 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
       const actions = bindings.getActions();
       const state = bindings.getState();
       const volume = typeof args.volume === "number" ? args.volume : state.videoVolume;
-      const playbackRate = typeof args.playbackRate === "number" ? args.playbackRate : state.videoPlaybackRate;
-      if (Boolean(args.url) === Boolean(args.dataUrl)) throw new Error("Provide exactly one of url or dataUrl");
-      if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw new Error("volume must be between 0 and 1");
-      if (!Number.isFinite(playbackRate) || playbackRate <= 0 || playbackRate > 16) throw new Error("playbackRate must be greater than 0 and at most 16");
+      const playbackRate =
+        typeof args.playbackRate === "number" ? args.playbackRate : state.videoPlaybackRate;
+      if (Boolean(args.url) === Boolean(args.dataUrl))
+        throw new Error("Provide exactly one of url or dataUrl");
+      if (!Number.isFinite(volume) || volume < 0 || volume > 1)
+        throw new Error("volume must be between 0 and 1");
+      if (!Number.isFinite(playbackRate) || playbackRate <= 0 || playbackRate > 16)
+        throw new Error("playbackRate must be greater than 0 and at most 16");
 
       let file: File;
       if (args.url) {
@@ -480,7 +521,9 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
         if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
         const blob = await res.blob();
         const inferredName = args.filename || args.url.split("/").pop() || "media";
-        file = new File([blob], inferredName, { type: args.mimeType || blob.type || "application/octet-stream" });
+        file = new File([blob], inferredName, {
+          type: args.mimeType || blob.type || "application/octet-stream",
+        });
       } else if (args.dataUrl) {
         file = dataUrlToFile(args.dataUrl, args.filename || "uploaded-media", args.mimeType);
       } else throw new Error("Provide exactly one of url or dataUrl");
@@ -502,7 +545,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}exportImage`,
     title: "Export current image",
-    description: "Encode Ditherer's current visible filtered frame as PNG, JPEG, or WebP, optionally downloading it or returning a data URL.",
+    description:
+      "Encode Ditherer's current visible filtered frame as PNG, JPEG, or WebP, optionally downloading it or returning a data URL.",
     inputSchema: {
       type: "object",
       properties: {
@@ -522,14 +566,21 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
         returnDataUrl?: boolean;
       };
       const canvas = bindings.getOutputCanvas();
-      if (!canvas || canvas.width === 0 || canvas.height === 0) throw new Error("No output canvas to export");
+      if (!canvas || canvas.width === 0 || canvas.height === 0)
+        throw new Error("No output canvas to export");
       const format = args.format || "png";
-      if (!["png", "jpeg", "webp"].includes(format)) throw new Error("format must be png, jpeg, or webp");
+      if (!["png", "jpeg", "webp"].includes(format))
+        throw new Error("format must be png, jpeg, or webp");
       const mimeType = `image/${format}`;
       const quality = typeof args.quality === "number" ? args.quality : 0.92;
-      if (!Number.isFinite(quality) || quality < 0 || quality > 1) throw new Error("quality must be between 0 and 1");
+      if (!Number.isFinite(quality) || quality < 0 || quality > 1)
+        throw new Error("quality must be between 0 and 1");
       const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to export image"))), mimeType, format === "png" ? undefined : quality);
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error("Failed to export image"))),
+          mimeType,
+          format === "png" ? undefined : quality,
+        );
       });
 
       if (args.download) {
@@ -548,7 +599,8 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
   {
     name: `${TOOL_PREFIX}exportVideo`,
     title: "Export a short video",
-    description: "Record Ditherer's current visible filtered canvas as a short WebM clip, optionally downloading it or returning a data URL.",
+    description:
+      "Record Ditherer's current visible filtered canvas as a short WebM clip, optionally downloading it or returning a data URL.",
     inputSchema: {
       type: "object",
       properties: {
@@ -570,18 +622,21 @@ const tools = (bindings: WebMCPBindings): WebMCPTool[] => [
         returnDataUrl?: boolean;
       };
       const canvas = bindings.getOutputCanvas();
-      if (!canvas || canvas.width === 0 || canvas.height === 0) throw new Error("No output canvas to export");
+      if (!canvas || canvas.width === 0 || canvas.height === 0)
+        throw new Error("No output canvas to export");
 
       const state = bindings.getState();
-      const fallbackDuration = state.video && Number.isFinite(state.video.duration) && state.video.duration > 0
-        ? Math.min(15, state.video.duration)
-        : 5;
+      const fallbackDuration =
+        state.video && Number.isFinite(state.video.duration) && state.video.duration > 0
+          ? Math.min(15, state.video.duration)
+          : 5;
       const durationSeconds = Number(args.durationSeconds ?? fallbackDuration);
       const fps = Math.round(Number(args.fps ?? 30));
       if (!Number.isFinite(durationSeconds) || durationSeconds < 0.25 || durationSeconds > 30) {
         throw new Error("durationSeconds must be between 0.25 and 30");
       }
-      if (!Number.isFinite(fps) || fps < 1 || fps > 60) throw new Error("fps must be between 1 and 60");
+      if (!Number.isFinite(fps) || fps < 1 || fps > 60)
+        throw new Error("fps must be between 1 and 60");
       let blob: Blob;
       try {
         blob = await recordCanvas(canvas, durationSeconds, fps, args.mimeType);

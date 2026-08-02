@@ -14,10 +14,11 @@ const Range = (props: RangeControlProps) => {
   const max = props.types.range[1];
   const step = props.step ?? 1;
   const parsedEditValue = Number(editValue);
-  const editValueInvalid = editValue.trim() === ""
-    || !Number.isFinite(parsedEditValue)
-    || parsedEditValue < min
-    || parsedEditValue > max;
+  const editValueInvalid =
+    editValue.trim() === "" ||
+    !Number.isFinite(parsedEditValue) ||
+    parsedEditValue < min ||
+    parsedEditValue > max;
 
   useEffect(() => {
     setEditValue(String(props.value));
@@ -52,9 +53,11 @@ const Range = (props: RangeControlProps) => {
         desc={props.types?.desc}
         currentValue={props.value}
         defaultValue={props.defaultValue}
-        onReset={props.defaultValue !== undefined
-          ? () => props.onSetFilterOption(props.name, props.defaultValue)
-          : undefined}
+        onReset={
+          props.defaultValue !== undefined
+            ? () => props.onSetFilterOption(props.name, props.defaultValue)
+            : undefined
+        }
       />
       <div className={s.rangeGroup}>
         <input
@@ -65,7 +68,7 @@ const Range = (props: RangeControlProps) => {
           max={max}
           value={props.value}
           step={step}
-          onChange={event => {
+          onChange={(event) => {
             const nextValue = Number(event.target.value);
             setEditValue(event.target.value);
             props.onSetFilterOption(props.name, nextValue);
@@ -82,9 +85,9 @@ const Range = (props: RangeControlProps) => {
           value={editValue}
           step={step}
           inputMode="decimal"
-          onChange={event => setEditValue(event.target.value)}
-          onBlur={event => commitEditValue(event.currentTarget.value)}
-          onKeyDown={event => {
+          onChange={(event) => setEditValue(event.target.value)}
+          onBlur={(event) => commitEditValue(event.currentTarget.value)}
+          onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
             if (event.key === "Escape") {
               cancelEditRef.current = true;

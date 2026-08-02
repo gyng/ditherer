@@ -9,7 +9,7 @@ export type WorkerPrevOutputPayload =
 export const getWorkerPrevOutputFrame = (
   payload: WorkerPrevOutputPayload,
   fallbackWidth: number,
-  fallbackHeight: number
+  fallbackHeight: number,
 ) => {
   if (payload instanceof ArrayBuffer) {
     return {

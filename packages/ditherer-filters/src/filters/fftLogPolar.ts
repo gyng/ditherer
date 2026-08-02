@@ -86,10 +86,26 @@ void main() {
 
 export const optionTypes = {
   scale: { type: RANGE, range: [1, 10000], step: 10, default: 1000, desc: "Brightness scale" },
-  rMin: { type: RANGE, range: [0.1, 10], step: 0.1, default: 0.5, desc: "Minimum radius sampled (px)" },
-  rMax: { type: RANGE, range: [10, 1024], step: 1, default: 256, desc: "Maximum radius sampled (px)" },
-  fullTurn: { type: BOOL, default: false, desc: "Show full 2π instead of π (redundant for real images but useful for complex sources)" },
-  palette: { type: PALETTE, default: nearest }
+  rMin: {
+    type: RANGE,
+    range: [0.1, 10],
+    step: 0.1,
+    default: 0.5,
+    desc: "Minimum radius sampled (px)",
+  },
+  rMax: {
+    type: RANGE,
+    range: [10, 1024],
+    step: 1,
+    default: 256,
+    desc: "Maximum radius sampled (px)",
+  },
+  fullTurn: {
+    type: BOOL,
+    default: false,
+    desc: "Show full 2π instead of π (redundant for real images but useful for complex sources)",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -97,7 +113,7 @@ export const defaults = {
   rMin: optionTypes.rMin.default,
   rMax: optionTypes.rMax.default,
   fullTurn: optionTypes.fullTurn.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { plot: Program };
@@ -106,8 +122,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     plot: linkProgram(gl, PLOT_FS, [
-      "u_fft", "u_padRes", "u_outRes", "u_scale",
-      "u_rMin", "u_rMax", "u_mirror", "u_levels",
+      "u_fft",
+      "u_padRes",
+      "u_outRes",
+      "u_scale",
+      "u_rMin",
+      "u_rMax",
+      "u_mirror",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -119,9 +141,9 @@ const fftLogPolar = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -133,28 +155,42 @@ const fftLogPolar = (input: any, options = defaults) => {
       uploadSourceTexture(gl, sourceTex, input);
       const fwd = forwardFFT2D(gl, sourceTex, W, H);
       if (fwd) {
-        drawPass(gl, null, W, H, cache.plot, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-          gl.uniform1i(cache.plot.uniforms.u_fft, 0);
-          gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-          gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
-          gl.uniform1f(cache.plot.uniforms.u_scale, scale);
-          gl.uniform1f(cache.plot.uniforms.u_rMin, rMin);
-          gl.uniform1f(cache.plot.uniforms.u_rMax, Math.min(rMax, Math.min(fwd.paddedW, fwd.paddedH) * 0.5));
-          gl.uniform1i(cache.plot.uniforms.u_mirror, fullTurn ? 1 : 0);
-          const identity = paletteIsIdentity(palette);
-          const pOpts = (palette as { options?: { levels?: number } }).options;
-          const levels = identity ? (pOpts?.levels ?? 256) : 256;
-          gl.uniform1f(cache.plot.uniforms.u_levels, levels);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.plot,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+            gl.uniform1i(cache.plot.uniforms.u_fft, 0);
+            gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+            gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
+            gl.uniform1f(cache.plot.uniforms.u_scale, scale);
+            gl.uniform1f(cache.plot.uniforms.u_rMin, rMin);
+            gl.uniform1f(
+              cache.plot.uniforms.u_rMax,
+              Math.min(rMax, Math.min(fwd.paddedW, fwd.paddedH) * 0.5),
+            );
+            gl.uniform1i(cache.plot.uniforms.u_mirror, fullTurn ? 1 : 0);
+            const identity = paletteIsIdentity(palette);
+            const pOpts = (palette as { options?: { levels?: number } }).options;
+            const levels = identity ? (pOpts?.levels ?? 256) : 256;
+            gl.uniform1f(cache.plot.uniforms.u_levels, levels);
+          },
+          vao,
+        );
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("FFT Log-Polar", "WebGL2",
-              `scale=${scale} r=[${rMin}, ${rMax}]${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "FFT Log-Polar",
+              "WebGL2",
+              `scale=${scale} r=[${rMin}, ${rMax}]${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -171,6 +207,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Log-polar remap of the FFT magnitude. Rotations → horizontal shifts, scaling → vertical shifts (rotation/scale-invariant up to translation)",
+  description:
+    "Log-polar remap of the FFT magnitude. Rotations → horizontal shifts, scaling → vertical shifts (rotation/scale-invariant up to translation)",
   noWASM: "Needs GPU 2D FFT.",
 });

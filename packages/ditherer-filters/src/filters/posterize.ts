@@ -6,18 +6,25 @@ import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend
 import { renderPosterizeGL } from "./posterizeGL";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [2, 32], step: 1, default: 4, desc: "Number of distinct color levels per channel" },
-  palette: { type: PALETTE, default: nearest }
+  levels: {
+    type: RANGE,
+    range: [2, 32],
+    step: 1,
+    default: 4,
+    desc: "Number of distinct color levels per channel",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   levels: optionTypes.levels.default,
-  palette: optionTypes.palette.default
+  palette: optionTypes.palette.default,
 };
 
 const posterize = (input: any, options: typeof defaults = defaults) => {
   const { levels, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderPosterizeGL(input, W, H, levels);
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);

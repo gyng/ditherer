@@ -15,7 +15,9 @@ const Palette = (props: PaletteControlProps) => {
   return (
     <div className={s.group}>
       <div className={s.groupLabelRow}>
-        <label className={s.name} htmlFor={inputId}>{label}</label>
+        <label className={s.name} htmlFor={inputId}>
+          {label}
+        </label>
         {props.types?.desc ? <HelpHint label={label} text={props.types.desc} id={helpId} /> : null}
       </div>
 
@@ -24,12 +26,12 @@ const Palette = (props: PaletteControlProps) => {
         className={s.enum}
         aria-describedby={helpId}
         value={props.value.name}
-        onChange={e => {
-          const selected = paletteList.find(p => p.palette.name === e.target.value);
+        onChange={(e) => {
+          const selected = paletteList.find((p) => p.palette.name === e.target.value);
           if (selected) props.onSetFilterOption(props.name, selected.palette);
         }}
       >
-        {paletteList.map(p => (
+        {paletteList.map((p) => (
           <option key={p.palette.name} value={p.palette.name}>
             {p.name}
           </option>

@@ -4,14 +4,17 @@ import matrixRain, { __testing } from "filters/matrixRain";
 const makeCanvas = (width: number, height: number, data: Uint8ClampedArray | number[]) => ({
   width,
   height,
-  getContext: (type: string) => type === "2d" ? {
-    getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
-      data: new Uint8ClampedArray(data),
-      width: cw,
-      height: ch,
-    }),
-    putImageData: () => {},
-  } : null,
+  getContext: (type: string) =>
+    type === "2d"
+      ? {
+          getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
+            data: new Uint8ClampedArray(data),
+            width: cw,
+            height: ch,
+          }),
+          putImageData: () => {},
+        }
+      : null,
 });
 
 const runAndCapture = (input, options): Uint8ClampedArray | null => {
@@ -45,7 +48,7 @@ const backgroundGreen = (width: number, height: number) => width * height * 2;
 const fillCell = (data: Uint8ClampedArray, width: number, x0: number, y0: number, size: number) => {
   for (let y = y0; y < y0 + size; y++) {
     for (let x = x0; x < x0 + size; x++) {
-      const i = ((y * width) + x) * 4;
+      const i = (y * width + x) * 4;
       data[i] = 255;
       data[i + 1] = 255;
       data[i + 2] = 255;
@@ -66,19 +69,22 @@ describe("matrixRain", () => {
       return {
         width: 0,
         height: 0,
-        getContext: (type: string) => type === "2d" ? {
-          clearRect: () => {},
-          fillText: () => {},
-          putImageData: () => {},
-          drawImage: () => {},
-          getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
-            data: new Uint8ClampedArray(cw * ch * 4).map((_, index) => (
-              index % 4 === 3 ? 255 : 0
-            )),
-            width: cw,
-            height: ch,
-          }),
-        } : null,
+        getContext: (type: string) =>
+          type === "2d"
+            ? {
+                clearRect: () => {},
+                fillText: () => {},
+                putImageData: () => {},
+                drawImage: () => {},
+                getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
+                  data: new Uint8ClampedArray(cw * ch * 4).map((_, index) =>
+                    index % 4 === 3 ? 255 : 0,
+                  ),
+                  width: cw,
+                  height: ch,
+                }),
+              }
+            : null,
       } as any;
     }) as typeof document.createElement;
   });
@@ -100,21 +106,18 @@ describe("matrixRain", () => {
 
     const ema = new Float32Array(source.length);
 
-    const output = runAndCapture(
-      makeCanvas(width, height, source),
-      {
-        ...matrixRain.defaults,
-        columnWidth: 2,
-        trailLength: 3,
-        density: 0,
-        sourceInfluence: 0,
-        classicGreen: true,
-        motionMode: "TRIGGER_DROPS",
-        motionSensitivity: 3,
-        _frameIndex: 0,
-        _ema: ema,
-      }
-    );
+    const output = runAndCapture(makeCanvas(width, height, source), {
+      ...matrixRain.defaults,
+      columnWidth: 2,
+      trailLength: 3,
+      density: 0,
+      sourceInfluence: 0,
+      classicGreen: true,
+      motionMode: "TRIGGER_DROPS",
+      motionSensitivity: 3,
+      _frameIndex: 0,
+      _ema: ema,
+    });
     expect(output).toBeTruthy();
     expect(sumGreen(output!)).toBeGreaterThan(backgroundGreen(width, height));
   });
@@ -169,7 +172,9 @@ describe("matrixRain", () => {
     }
 
     const charsetValues = matrixRain.optionTypes.charset.options.flatMap((option) =>
-      Array.isArray(option.options) ? option.options.map((grouped) => grouped.value) : [option.value]
+      Array.isArray(option.options)
+        ? option.options.map((grouped) => grouped.value)
+        : [option.value],
     );
 
     expect(charsetValues).toEqual(
@@ -265,7 +270,7 @@ describe("matrixRain", () => {
         "DICE_TABLETOP",
         "DOMINOES",
         "CUSTOM",
-      ])
+      ]),
     );
 
     const output = runAndCapture(makeCanvas(width, height, source), {
@@ -322,11 +327,7 @@ describe("matrixRain", () => {
 
   it("supports character flipping and rotation without changing the default behavior", () => {
     expect(matrixRain.defaults.characterFlip).toBe(0);
-    const bitmap = new Uint8Array([
-      255, 0, 0,
-      0, 255, 0,
-      0, 0, 0,
-    ]);
+    const bitmap = new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 0]);
 
     expect(__testing.sampleBitmapAlpha(bitmap, 3, 0, 0, 0)).toBe(1);
     expect(__testing.sampleBitmapAlpha(bitmap, 3, 0, 0, 1)).toBe(0);

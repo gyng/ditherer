@@ -16,9 +16,21 @@ export const COLOR_SPACE = {
 } as const;
 
 export const optionTypes = {
-  k:          { type: RANGE, range: [2, 32], step: 1, default: 8, desc: "Number of color clusters" },
-  iterations: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Clustering iterations for convergence" },
-  sampleRate: { type: RANGE, range: [1, 20], step: 1, default: 4, desc: "Sample every Nth pixel for speed" },
+  k: { type: RANGE, range: [2, 32], step: 1, default: 8, desc: "Number of color clusters" },
+  iterations: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 10,
+    desc: "Clustering iterations for convergence",
+  },
+  sampleRate: {
+    type: RANGE,
+    range: [1, 20],
+    step: 1,
+    default: 4,
+    desc: "Sample every Nth pixel for speed",
+  },
   colorSpace: {
     type: ENUM,
     options: [
@@ -28,8 +40,14 @@ export const optionTypes = {
     default: COLOR_SPACE.LAB,
     desc: "Space used for centroid averaging and nearest-cluster distance",
   },
-  seed: { type: RANGE, range: [0, 9999], step: 1, default: 2718, desc: "Deterministic k-means++ initialization seed" },
-  palette:    { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  seed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 2718,
+    desc: "Deterministic k-means++ initialization seed",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -38,7 +56,7 @@ export const defaults = {
   sampleRate: optionTypes.sampleRate.default,
   colorSpace: optionTypes.colorSpace.default,
   seed: optionTypes.seed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type ColorPoint = [number, number, number];
@@ -52,7 +70,10 @@ const nearestCentroid = (pixel: ColorPoint, centroids: readonly ColorPoint[]): n
   let bestDist = Infinity;
   for (let c = 0; c < centroids.length; c += 1) {
     const d = distSq(pixel, centroids[c]);
-    if (d < bestDist) { bestDist = d; best = c; }
+    if (d < bestDist) {
+      bestDist = d;
+      best = c;
+    }
   }
   return best;
 };
@@ -103,7 +124,8 @@ const kmeans = (input: any, options: Partial<typeof defaults> = defaults) => {
   const sampleRate = Number.isFinite(options.sampleRate)
     ? Math.max(1, Math.min(20, Math.round(Number(options.sampleRate))))
     : defaults.sampleRate;
-  const colorSpace = String(options.colorSpace) === COLOR_SPACE.RGB ? COLOR_SPACE.RGB : COLOR_SPACE.LAB;
+  const colorSpace =
+    String(options.colorSpace) === COLOR_SPACE.RGB ? COLOR_SPACE.RGB : COLOR_SPACE.LAB;
   const seed = Number.isFinite(options.seed) ? Math.round(Number(options.seed)) : defaults.seed;
   const palette = options.palette ?? defaults.palette;
   const output = cloneCanvas(input, false);
@@ -154,11 +176,14 @@ const kmeans = (input: any, options: Partial<typeof defaults> = defaults) => {
   // centroids to uniform or tiny inputs.
   const random = mulberry32(seed);
   const centroids: ColorPoint[] = [];
-  const first = weightedIndex(samples.map(sample => sample.weight), random);
+  const first = weightedIndex(
+    samples.map((sample) => sample.weight),
+    random,
+  );
   centroids.push([...samples[Math.max(0, first)].color]);
   const maximumClusters = Math.max(1, Math.min(32, requestedK, samples.length));
   while (centroids.length < maximumClusters) {
-    const dists = samples.map(s => {
+    const dists = samples.map((s) => {
       let minD = Infinity;
       for (const c of centroids) {
         const distance = distSq(s.color, c);
@@ -197,7 +222,7 @@ const kmeans = (input: any, options: Partial<typeof defaults> = defaults) => {
     if (!moved) break;
   }
 
-  const centroidRgb = centroids.map(centroid => toSrgbColor(centroid, colorSpace));
+  const centroidRgb = centroids.map((centroid) => toSrgbColor(centroid, colorSpace));
   const outBuf = new Uint8ClampedArray(buf.length);
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
@@ -209,7 +234,11 @@ const kmeans = (input: any, options: Partial<typeof defaults> = defaults) => {
       const pixel = toWorkingColor(buf[i], buf[i + 1], buf[i + 2], colorSpace);
       const c = nearestCentroid(pixel, centroids);
       const rgb = centroidRgb[c];
-      const col = srgbPaletteGetColor(palette, [rgb[0], rgb[1], rgb[2], buf[i + 3]], palette.options);
+      const col = srgbPaletteGetColor(
+        palette,
+        [rgb[0], rgb[1], rgb[2], buf[i + 3]],
+        palette.options,
+      );
       fillBufferPixel(outBuf, i, col[0], col[1], col[2], col[3]);
     }
   }

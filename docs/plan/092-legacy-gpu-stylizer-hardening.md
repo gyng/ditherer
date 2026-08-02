@@ -28,11 +28,11 @@ misleading behavior with resolution-aware GPU implementations.
 
 ## Research basis
 
-- Hullin et al., *Physically-Based Real-Time Lens Flare Rendering* (SIGGRAPH
+- Hullin et al., _Physically-Based Real-Time Lens Flare Rendering_ (SIGGRAPH
   2011), identifies unintended lens-system paths—especially interreflection
   ghosts—plus chromatic/geometric aberration and coatings as core flare cues:
   https://resources.mpi-inf.mpg.de/lensflareRendering/
-- He and Bouman, *AM/FM Halftoning*, defines conventional AM tone rendition as
+- He and Bouman, _AM/FM Halftoning_, defines conventional AM tone rendition as
   fixed dot density with varying dot size and evaluates output tone as average
   absorptance constrained to the requested level:
   https://engineering.purdue.edu/~bouman/publications/pdf/jei8.pdf

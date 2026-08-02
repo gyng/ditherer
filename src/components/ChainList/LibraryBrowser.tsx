@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BOOL, COLOR, ENUM, RANGE, STRING, TEXT, filterList, glAvailable, hasTemporalBehavior } from "@gyng/ditherer-filters";
+import {
+  BOOL,
+  COLOR,
+  ENUM,
+  RANGE,
+  STRING,
+  TEXT,
+  filterList,
+  glAvailable,
+  hasTemporalBehavior,
+} from "@gyng/ditherer-filters";
 import type {
   ActionOptionDefinition,
   EnumOption,
@@ -26,12 +36,21 @@ const FILTER_CATEGORIES = ["All", ...new Set(ALL_FILTERS.map((f) => f.category))
 const FAVORITES_KEY = "ditherer-filter-favorites";
 const RECENTS_KEY = "ditherer-filter-recents";
 type CapabilityFilter = "All" | "Favorites" | "Recent" | "Animated" | "Temporal" | "GPU";
-const CAPABILITY_FILTERS: CapabilityFilter[] = ["All", "Favorites", "Recent", "Animated", "Temporal", "GPU"];
+const CAPABILITY_FILTERS: CapabilityFilter[] = [
+  "All",
+  "Favorites",
+  "Recent",
+  "Animated",
+  "Temporal",
+  "GPU",
+];
 
 const readStoredNames = (key: string) => {
   try {
     const value = JSON.parse(localStorage.getItem(key) || "[]") as unknown;
-    return new Set(Array.isArray(value) ? value.filter((name): name is string => typeof name === "string") : []);
+    return new Set(
+      Array.isArray(value) ? value.filter((name): name is string => typeof name === "string") : [],
+    );
   } catch {
     return new Set<string>();
   }
@@ -64,7 +83,7 @@ const includesNeedle = (haystack: string, needle: string) =>
 const hasAnimatedOption = (entry: FilterEntry) =>
   Boolean(
     (entry.filter.optionTypes as FilterOptionDefinitions | undefined)?.["animate"] &&
-    isActionOption((entry.filter.optionTypes as FilterOptionDefinitions)["animate"])
+    isActionOption((entry.filter.optionTypes as FilterOptionDefinitions)["animate"]),
   );
 
 const isActionOption = (option: FilterOptionDefinition): option is ActionOptionDefinition =>
@@ -84,7 +103,10 @@ const getPreviewSourceSize = (source: HTMLImageElement | HTMLCanvasElement | HTM
     return { width: source.videoWidth || 0, height: source.videoHeight || 0 };
   }
   if (source instanceof HTMLImageElement) {
-    return { width: source.naturalWidth || source.width || 0, height: source.naturalHeight || source.height || 0 };
+    return {
+      width: source.naturalWidth || source.width || 0,
+      height: source.naturalHeight || source.height || 0,
+    };
   }
   return { width: source.width || 0, height: source.height || 0 };
 };
@@ -100,7 +122,7 @@ const formatOptionValue = (value: unknown): string => {
 
 const resolveFilterOptions = (
   filter: Pick<FilterDefinition, "defaults" | "options">,
-  overrideOptions?: FilterOptionValues
+  overrideOptions?: FilterOptionValues,
 ) => ({
   ...(filter.defaults || {}),
   ...(filter.options || {}),
@@ -108,13 +130,24 @@ const resolveFilterOptions = (
 });
 
 const rgbToHex = (rgb: number[]) =>
-  `#${rgb.slice(0, 3).map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
+  `#${rgb
+    .slice(0, 3)
+    .map((v) =>
+      Math.max(0, Math.min(255, Math.round(v)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
 
 const hexToRgb = (hex: string): [number, number, number] => {
   const clean = hex.replace("#", "");
-  const value = clean.length === 3
-    ? clean.split("").map((c) => `${c}${c}`).join("")
-    : clean;
+  const value =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => `${c}${c}`)
+          .join("")
+      : clean;
   const n = Number.parseInt(value, 16);
   return [
     Number.isFinite(n) ? (n >> 16) & 255 : 0,
@@ -123,10 +156,7 @@ const hexToRgb = (hex: string): [number, number, number] => {
   ];
 };
 
-const getFilterOptionRows = (
-  entry: FilterEntry,
-  overrideOptions?: FilterOptionValues
-) => {
+const getFilterOptionRows = (entry: FilterEntry, overrideOptions?: FilterOptionValues) => {
   const optionTypes: FilterOptionDefinitions = entry.filter.optionTypes || {};
   const resolvedOptions = resolveFilterOptions(entry.filter, overrideOptions);
 
@@ -157,7 +187,7 @@ const LibraryBrowser = ({
 }: Props) => {
   const filterByName = useMemo(
     () => new Map(ALL_FILTERS.map((entry) => [entry.displayName, entry] as const)),
-    []
+    [],
   );
   const [tab, setTab] = useState<"filters" | "presets">("filters");
   const [query, setQuery] = useState("");
@@ -217,7 +247,7 @@ const LibraryBrowser = ({
             temp: acc.temp || hasTemporalBehavior(match),
           };
         },
-        { anim: false, temp: false }
+        { anim: false, temp: false },
       );
       const tagSearch = `${presetFlags.anim ? "animated anim" : ""} ${presetFlags.temp ? "temporal temp" : ""}`;
       return (
@@ -231,10 +261,16 @@ const LibraryBrowser = ({
   }, [filterByName, presetCategory, query]);
 
   const selectedFilter =
-    filteredFilters.find((entry) => entry.displayName === selectedFilterName) || filteredFilters[0] || null;
+    filteredFilters.find((entry) => entry.displayName === selectedFilterName) ||
+    filteredFilters[0] ||
+    null;
   const selectedPreset =
-    filteredPresets.find((preset) => preset.name === selectedPresetName) || filteredPresets[0] || null;
-  const selectedFilterOverride = selectedFilter ? previewOverrides[selectedFilter.displayName] : undefined;
+    filteredPresets.find((preset) => preset.name === selectedPresetName) ||
+    filteredPresets[0] ||
+    null;
+  const selectedFilterOverride = selectedFilter
+    ? previewOverrides[selectedFilter.displayName]
+    : undefined;
   const selectedFilterResolvedOptions = selectedFilter
     ? resolveFilterOptions(selectedFilter.filter, selectedFilterOverride)
     : undefined;
@@ -244,7 +280,7 @@ const LibraryBrowser = ({
   const presetsUsingSelectedFilter = useMemo(() => {
     if (!selectedFilter) return [];
     return CHAIN_PRESETS.filter((preset) =>
-      preset.filters.some((entry) => entry.name === selectedFilter.displayName)
+      preset.filters.some((entry) => entry.name === selectedFilter.displayName),
     );
   }, [selectedFilter]);
 
@@ -291,14 +327,15 @@ const LibraryBrowser = ({
   const queryFilteredFilterCount = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return ALL_FILTERS.length;
-    return ALL_FILTERS.filter((entry) =>
-      includesNeedle(entry.displayName, needle) ||
-      includesNeedle(entry.category, needle) ||
-      includesNeedle(entry.description || "", needle) ||
-      includesNeedle(
-        `${hasAnimatedOption(entry) ? "animated anim" : ""} ${hasTemporalBehavior(entry) ? "temporal temp" : ""}`,
-        needle
-      )
+    return ALL_FILTERS.filter(
+      (entry) =>
+        includesNeedle(entry.displayName, needle) ||
+        includesNeedle(entry.category, needle) ||
+        includesNeedle(entry.description || "", needle) ||
+        includesNeedle(
+          `${hasAnimatedOption(entry) ? "animated anim" : ""} ${hasTemporalBehavior(entry) ? "temporal temp" : ""}`,
+          needle,
+        ),
     ).length;
   }, [query]);
 
@@ -315,7 +352,7 @@ const LibraryBrowser = ({
             temp: acc.temp || hasTemporalBehavior(match),
           };
         },
-        { anim: false, temp: false }
+        { anim: false, temp: false },
       );
       const tagSearch = `${presetFlags.anim ? "animated anim" : ""} ${presetFlags.temp ? "temporal temp" : ""}`;
       return (
@@ -377,7 +414,8 @@ const LibraryBrowser = ({
       if (mobileView === "details") {
         mobileBackRef.current?.focus({ preventScroll: true });
       } else if (previousView === "details") {
-        const target = tab === "filters" ? selectedFilterButtonRef.current : selectedPresetButtonRef.current;
+        const target =
+          tab === "filters" ? selectedFilterButtonRef.current : selectedPresetButtonRef.current;
         target?.focus({ preventScroll: true });
       }
     });
@@ -422,14 +460,19 @@ const LibraryBrowser = ({
       outCtx.fillText(message, outputCanvas.width / 2, outputCanvas.height / 2);
     };
 
-    const selectedFilterNeedsVideo = tab === "filters" && !!selectedFilter && (
-      hasAnimatedOption(selectedFilter) || hasTemporalBehavior(selectedFilter)
-    );
-    const selectedPresetNeedsVideo = tab === "presets" && !!selectedPreset && selectedPreset.filters.some((presetFilter) => {
-      const match = filterByName.get(presetFilter.name);
-      return !!match && (hasAnimatedOption(match) || hasTemporalBehavior(match));
-    });
-    const activeVideo = previewVideo || ((selectedFilterNeedsVideo || selectedPresetNeedsVideo) ? fallbackVideo : null);
+    const selectedFilterNeedsVideo =
+      tab === "filters" &&
+      !!selectedFilter &&
+      (hasAnimatedOption(selectedFilter) || hasTemporalBehavior(selectedFilter));
+    const selectedPresetNeedsVideo =
+      tab === "presets" &&
+      !!selectedPreset &&
+      selectedPreset.filters.some((presetFilter) => {
+        const match = filterByName.get(presetFilter.name);
+        return !!match && (hasAnimatedOption(match) || hasTemporalBehavior(match));
+      });
+    const activeVideo =
+      previewVideo || (selectedFilterNeedsVideo || selectedPresetNeedsVideo ? fallbackVideo : null);
     const activeSource = previewSource || fallbackImage;
 
     if (!activeVideo && !activeSource) {
@@ -449,7 +492,7 @@ const LibraryBrowser = ({
     const updateTemporalState = (
       key: string,
       inputPixels: Uint8ClampedArray,
-      outputCanvas: HTMLCanvasElement
+      outputCanvas: HTMLCanvasElement,
     ) => {
       prevInputByKey.set(key, new Uint8ClampedArray(inputPixels));
       let ema = emaByKey.get(key);
@@ -470,7 +513,10 @@ const LibraryBrowser = ({
     };
 
     const drawFromSource = (source: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement) => {
-      if (source instanceof HTMLVideoElement && source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (
+        source instanceof HTMLVideoElement &&
+        source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+      ) {
         drawFallback("Video preview not ready");
         return;
       }
@@ -515,7 +561,9 @@ const LibraryBrowser = ({
             _ema: emaByKey.get(key) || null,
           };
           const inCtxStep = work.getContext("2d");
-          const inPixels = inCtxStep ? inCtxStep.getImageData(0, 0, work.width, work.height).data : null;
+          const inPixels = inCtxStep
+            ? inCtxStep.getImageData(0, 0, work.width, work.height).data
+            : null;
           const maybe = (selectedFilter.filter.func as FilterFunction)(work, opts, undefined);
           if (maybe instanceof HTMLCanvasElement) {
             result = maybe;
@@ -539,7 +587,9 @@ const LibraryBrowser = ({
             if (!match) continue;
             const key = `preset:${selectedPreset.name}:${idx}:${presetEntry.name}`;
             const inCtxStep = pipeline.getContext("2d");
-            const inPixels = inCtxStep ? inCtxStep.getImageData(0, 0, pipeline.width, pipeline.height).data : null;
+            const inPixels = inCtxStep
+              ? inCtxStep.getImageData(0, 0, pipeline.width, pipeline.height).data
+              : null;
             const opts = {
               ...resolveFilterOptions(match.filter, presetEntry.options),
               _frameIndex: previewFrameIndex,
@@ -567,10 +617,7 @@ const LibraryBrowser = ({
       outCtx.fillStyle = "#111";
       outCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
 
-      const fit = Math.min(
-        outputCanvas.width / result.width,
-        outputCanvas.height / result.height
-      );
+      const fit = Math.min(outputCanvas.width / result.width, outputCanvas.height / result.height);
       const drawW = Math.max(1, Math.round(result.width * fit));
       const drawH = Math.max(1, Math.round(result.height * fit));
       const dx = Math.floor((outputCanvas.width - drawW) / 2);
@@ -600,7 +647,18 @@ const LibraryBrowser = ({
     }
 
     tick(0);
-  }, [filterByName, open, tab, selectedFilter, selectedFilterResolvedOptions, selectedPreset, previewSource, previewVideo, fallbackImage, fallbackVideo]);
+  }, [
+    filterByName,
+    open,
+    tab,
+    selectedFilter,
+    selectedFilterResolvedOptions,
+    selectedPreset,
+    previewSource,
+    previewVideo,
+    fallbackImage,
+    fallbackVideo,
+  ]);
 
   if (!open) return null;
 
@@ -622,13 +680,19 @@ const LibraryBrowser = ({
       <div className={s.tabs}>
         <button
           className={`${s.tab} ${tab === "filters" ? s.tabActive : ""}`}
-          onClick={() => { setTab("filters"); setMobileView("list"); }}
+          onClick={() => {
+            setTab("filters");
+            setMobileView("list");
+          }}
         >
           Filters ({queryFilteredFilterCount})
         </button>
         <button
           className={`${s.tab} ${tab === "presets" ? s.tabActive : ""}`}
-          onClick={() => { setTab("presets"); setMobileView("list"); }}
+          onClick={() => {
+            setTab("presets");
+            setMobileView("list");
+          }}
         >
           Presets ({queryFilteredPresetCount})
         </button>
@@ -641,7 +705,10 @@ const LibraryBrowser = ({
           className={s.searchInput}
           type="text"
           value={query}
-          onChange={(event) => { setQuery(event.target.value); setMobileView("list"); }}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setMobileView("list");
+          }}
           placeholder={tab === "filters" ? "Search filters..." : "Search presets..."}
           aria-label={tab === "filters" ? "Search filters" : "Search presets"}
         />
@@ -654,7 +721,10 @@ const LibraryBrowser = ({
               key={value}
               className={`${s.capabilityBtn} ${capability === value ? s.capabilityActive : ""}`}
               aria-pressed={capability === value}
-              onClick={() => { setCapability(value); setMobileView("list"); }}
+              onClick={() => {
+                setCapability(value);
+                setMobileView("list");
+              }}
             >
               {value}
             </button>
@@ -669,7 +739,10 @@ const LibraryBrowser = ({
               <button
                 key={category}
                 className={`${s.categoryBtn} ${filterCategory === category ? s.categoryActive : ""}`}
-                onClick={() => { setFilterCategory(category); setMobileView("list"); }}
+                onClick={() => {
+                  setFilterCategory(category);
+                  setMobileView("list");
+                }}
               >
                 {category}
               </button>
@@ -677,65 +750,108 @@ const LibraryBrowser = ({
           </div>
 
           <div className={s.listPane} data-testid="filter-library-list">
-            {filteredFilters.map((entry) => (
+            {filteredFilters.map((entry) =>
               (() => {
                 const anim = hasAnimatedOption(entry);
                 const temp = hasTemporalBehavior(entry);
                 const glBlocked = entry.filter.requiresGL === true && !GL_AVAILABLE_AT_LOAD;
                 return (
-              <div key={entry.displayName} className={s.listItemRow}>
-                <button
-                  ref={selectedFilter?.displayName === entry.displayName ? selectedFilterButtonRef : undefined}
-                  className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}${glBlocked ? " " + s.listItemDisabled : ""}`}
-                  onClick={() => { setSelectedFilterName(entry.displayName); if (isMobile) setMobileView("details"); }}
-                  onDoubleClick={() => !glBlocked && addSelectedFilter(entry)}
-                  disabled={glBlocked}
-                  title={glBlocked ? "WebGL2 is required for this filter but isn't available on this device." : undefined}
-                >
-                <FilterThumbnail filter={entry} filterByName={filterByName} source={previewSource || fallbackImage} />
-                <div className={s.listItemText}>
-                  <div className={s.itemName}>{entry.displayName}</div>
-                  <div className={s.itemMeta}>
-                    {entry.category}
-                    {anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
-                    {temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
-                    {glBlocked ? <span className={`${s.tag} ${s.tagGlRequired}`}>GL req</span> : null}
-                    <BackendTags filterNames={[entry.displayName]} />
+                  <div key={entry.displayName} className={s.listItemRow}>
+                    <button
+                      ref={
+                        selectedFilter?.displayName === entry.displayName
+                          ? selectedFilterButtonRef
+                          : undefined
+                      }
+                      className={`${s.listItem} ${s.listItemWithThumb} ${selectedFilter?.displayName === entry.displayName ? s.listItemActive : ""}${glBlocked ? " " + s.listItemDisabled : ""}`}
+                      onClick={() => {
+                        setSelectedFilterName(entry.displayName);
+                        if (isMobile) setMobileView("details");
+                      }}
+                      onDoubleClick={() => !glBlocked && addSelectedFilter(entry)}
+                      disabled={glBlocked}
+                      title={
+                        glBlocked
+                          ? "WebGL2 is required for this filter but isn't available on this device."
+                          : undefined
+                      }
+                    >
+                      <FilterThumbnail
+                        filter={entry}
+                        filterByName={filterByName}
+                        source={previewSource || fallbackImage}
+                      />
+                      <div className={s.listItemText}>
+                        <div className={s.itemName}>{entry.displayName}</div>
+                        <div className={s.itemMeta}>
+                          {entry.category}
+                          {anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
+                          {temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                          {glBlocked ? (
+                            <span className={`${s.tag} ${s.tagGlRequired}`}>GL req</span>
+                          ) : null}
+                          <BackendTags filterNames={[entry.displayName]} />
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      className={s.favoriteBtn}
+                      aria-label={`${favorites.has(entry.displayName) ? "Remove" : "Add"} ${entry.displayName} ${favorites.has(entry.displayName) ? "from" : "to"} favorites`}
+                      aria-pressed={favorites.has(entry.displayName)}
+                      onClick={() => toggleFavorite(entry.displayName)}
+                      title={
+                        favorites.has(entry.displayName)
+                          ? "Remove from favorites"
+                          : "Add to favorites"
+                      }
+                    >
+                      {favorites.has(entry.displayName) ? "★" : "☆"}
+                    </button>
                   </div>
-                </div>
-                </button>
-                <button
-                  className={s.favoriteBtn}
-                  aria-label={`${favorites.has(entry.displayName) ? "Remove" : "Add"} ${entry.displayName} ${favorites.has(entry.displayName) ? "from" : "to"} favorites`}
-                  aria-pressed={favorites.has(entry.displayName)}
-                  onClick={() => toggleFavorite(entry.displayName)}
-                  title={favorites.has(entry.displayName) ? "Remove from favorites" : "Add to favorites"}
-                >
-                  {favorites.has(entry.displayName) ? "★" : "☆"}
-                </button>
-              </div>
                 );
-              })()
-            ))}
+              })(),
+            )}
             {filteredFilters.length === 0 && (
               <div className={s.empty}>No filters match your search.</div>
             )}
           </div>
 
-          <div ref={detailsRef} className={s.details} data-testid="filter-library-details" data-no-drag="true">
+          <div
+            ref={detailsRef}
+            className={s.details}
+            data-testid="filter-library-details"
+            data-no-drag="true"
+          >
             {selectedFilter ? (
               <>
-                <button ref={mobileBackRef} className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to filters</button>
+                <button
+                  ref={mobileBackRef}
+                  className={s.mobileBack}
+                  onClick={() => setMobileView("list")}
+                >
+                  ← Back to filters
+                </button>
                 <div className={s.detailTitle}>{selectedFilter.displayName}</div>
                 <div className={s.detailMeta}>{selectedFilter.category}</div>
                 <div className={s.detailMeta}>
-                  {hasAnimatedOption(selectedFilter) ? <span className={`${s.tag} ${s.tagAnim}`}>Animated Option</span> : null}
-                  {hasTemporalBehavior(selectedFilter) ? <span className={`${s.tag} ${s.tagTemp}`}>Temporal</span> : null}
+                  {hasAnimatedOption(selectedFilter) ? (
+                    <span className={`${s.tag} ${s.tagAnim}`}>Animated Option</span>
+                  ) : null}
+                  {hasTemporalBehavior(selectedFilter) ? (
+                    <span className={`${s.tag} ${s.tagTemp}`}>Temporal</span>
+                  ) : null}
                 </div>
                 <div className={s.previewWrap}>
-                  <canvas ref={previewCanvasRef} className={s.previewCanvas} width={280} height={180} />
+                  <canvas
+                    ref={previewCanvasRef}
+                    className={s.previewCanvas}
+                    width={280}
+                    height={180}
+                  />
                 </div>
-                <div className={s.detailBody}>{selectedFilter.description || "No description."}</div>
+                <div className={s.detailBody}>
+                  {selectedFilter.description || "No description."}
+                </div>
                 {presetsUsingSelectedFilter.length > 0 ? (
                   <div className={s.presetFilters}>
                     <div className={s.optionsTitle}>Used In Presets</div>
@@ -753,7 +869,9 @@ const LibraryBrowser = ({
                         >
                           {preset.name}
                         </button>
-                        {index < presetsUsingSelectedFilter.length - 1 ? <span className={s.inlineArrow}> {"·"} </span> : null}
+                        {index < presetsUsingSelectedFilter.length - 1 ? (
+                          <span className={s.inlineArrow}> {"·"} </span>
+                        ) : null}
                       </span>
                     ))}
                   </div>
@@ -773,11 +891,13 @@ const LibraryBrowser = ({
                               max={option.optionSpec.range[1]}
                               step={option.optionSpec.step ?? 1}
                               value={Number(option.rawValue)}
-                              onChange={(e) => setPreviewOption(
-                                selectedFilter.displayName,
-                                option.name,
-                                Number(e.target.value)
-                              )}
+                              onChange={(e) =>
+                                setPreviewOption(
+                                  selectedFilter.displayName,
+                                  option.name,
+                                  Number(e.target.value),
+                                )
+                              }
                             />
                             <span className={s.optionValue}> {option.value}</span>
                           </div>
@@ -788,11 +908,13 @@ const LibraryBrowser = ({
                               type="checkbox"
                               aria-label={option.name}
                               checked={Boolean(option.rawValue)}
-                              onChange={(e) => setPreviewOption(
-                                selectedFilter.displayName,
-                                option.name,
-                                e.target.checked
-                              )}
+                              onChange={(e) =>
+                                setPreviewOption(
+                                  selectedFilter.displayName,
+                                  option.name,
+                                  e.target.checked,
+                                )
+                              }
                             />
                             <span className={s.optionValue}> {option.value}</span>
                           </label>
@@ -801,11 +923,13 @@ const LibraryBrowser = ({
                           <select
                             aria-label={option.name}
                             value={String(option.rawValue)}
-                            onChange={(e) => setPreviewOption(
-                              selectedFilter.displayName,
-                              option.name,
-                              e.target.value
-                            )}
+                            onChange={(e) =>
+                              setPreviewOption(
+                                selectedFilter.displayName,
+                                option.name,
+                                e.target.value,
+                              )
+                            }
                           >
                             {(option.optionSpec as EnumOptionDefinition).options
                               .filter((opt): opt is EnumOption => !isEnumOptionGroup(opt))
@@ -821,11 +945,13 @@ const LibraryBrowser = ({
                             type="text"
                             aria-label={option.name}
                             value={String(option.rawValue ?? "")}
-                            onChange={(e) => setPreviewOption(
-                              selectedFilter.displayName,
-                              option.name,
-                              e.target.value
-                            )}
+                            onChange={(e) =>
+                              setPreviewOption(
+                                selectedFilter.displayName,
+                                option.name,
+                                e.target.value,
+                              )
+                            }
                           />
                         ) : null}
                         {option.type === TEXT ? (
@@ -833,11 +959,13 @@ const LibraryBrowser = ({
                             aria-label={option.name}
                             rows={2}
                             value={String(option.rawValue ?? "")}
-                            onChange={(e) => setPreviewOption(
-                              selectedFilter.displayName,
-                              option.name,
-                              e.target.value
-                            )}
+                            onChange={(e) =>
+                              setPreviewOption(
+                                selectedFilter.displayName,
+                                option.name,
+                                e.target.value,
+                              )
+                            }
                           />
                         ) : null}
                         {option.type === COLOR && Array.isArray(option.rawValue) ? (
@@ -845,11 +973,13 @@ const LibraryBrowser = ({
                             type="color"
                             aria-label={option.name}
                             value={rgbToHex(option.rawValue as number[])}
-                            onChange={(e) => setPreviewOption(
-                              selectedFilter.displayName,
-                              option.name,
-                              hexToRgb(e.target.value)
-                            )}
+                            onChange={(e) =>
+                              setPreviewOption(
+                                selectedFilter.displayName,
+                                option.name,
+                                hexToRgb(e.target.value),
+                              )
+                            }
                           />
                         ) : null}
                         {[RANGE, BOOL, ENUM, STRING, TEXT, COLOR].includes(option.type) ? null : (
@@ -877,7 +1007,10 @@ const LibraryBrowser = ({
           <div className={s.categories}>
             <button
               className={`${s.categoryBtn} ${presetCategory === "All" ? s.categoryActive : ""}`}
-                onClick={() => { setPresetCategory("All"); setMobileView("list"); }}
+              onClick={() => {
+                setPresetCategory("All");
+                setMobileView("list");
+              }}
             >
               All
             </button>
@@ -885,7 +1018,10 @@ const LibraryBrowser = ({
               <button
                 key={category}
                 className={`${s.categoryBtn} ${presetCategory === category ? s.categoryActive : ""}`}
-                onClick={() => { setPresetCategory(category); setMobileView("list"); }}
+                onClick={() => {
+                  setPresetCategory(category);
+                  setMobileView("list");
+                }}
               >
                 {category}
               </button>
@@ -893,7 +1029,7 @@ const LibraryBrowser = ({
           </div>
 
           <div className={s.listPane} data-testid="preset-library-list">
-            {filteredPresets.map((preset) => (
+            {filteredPresets.map((preset) =>
               (() => {
                 const flags = preset.filters.reduce(
                   (acc, presetFilter) => {
@@ -904,46 +1040,69 @@ const LibraryBrowser = ({
                       temp: acc.temp || hasTemporalBehavior(match),
                     };
                   },
-                  { anim: false, temp: false }
+                  { anim: false, temp: false },
                 );
                 return (
-              <button
-                key={preset.name}
-                ref={selectedPreset?.name === preset.name ? selectedPresetButtonRef : undefined}
-                className={`${s.listItem} ${s.listItemWithThumb} ${selectedPreset?.name === preset.name ? s.listItemActive : ""}`}
-                onClick={() => { setSelectedPresetName(preset.name); if (isMobile) setMobileView("details"); }}
-                onDoubleClick={() => {
-                  onLoadPreset(preset);
-                  onClose();
-                }}
-              >
-                <PresetThumbnail preset={preset} filterByName={filterByName} source={previewSource || fallbackImage} />
-                <div className={s.listItemText}>
-                  <div className={s.itemName}>{preset.name}</div>
-                  <div className={s.itemMeta}>
-                    {preset.category}
-                    {flags.anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
-                    {flags.temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
-                    <BackendTags filterNames={preset.filters.map(f => f.name)} />
-                  </div>
-                </div>
-              </button>
+                  <button
+                    key={preset.name}
+                    ref={selectedPreset?.name === preset.name ? selectedPresetButtonRef : undefined}
+                    className={`${s.listItem} ${s.listItemWithThumb} ${selectedPreset?.name === preset.name ? s.listItemActive : ""}`}
+                    onClick={() => {
+                      setSelectedPresetName(preset.name);
+                      if (isMobile) setMobileView("details");
+                    }}
+                    onDoubleClick={() => {
+                      onLoadPreset(preset);
+                      onClose();
+                    }}
+                  >
+                    <PresetThumbnail
+                      preset={preset}
+                      filterByName={filterByName}
+                      source={previewSource || fallbackImage}
+                    />
+                    <div className={s.listItemText}>
+                      <div className={s.itemName}>{preset.name}</div>
+                      <div className={s.itemMeta}>
+                        {preset.category}
+                        {flags.anim ? <span className={`${s.tag} ${s.tagAnim}`}>ANIM</span> : null}
+                        {flags.temp ? <span className={`${s.tag} ${s.tagTemp}`}>TEMP</span> : null}
+                        <BackendTags filterNames={preset.filters.map((f) => f.name)} />
+                      </div>
+                    </div>
+                  </button>
                 );
-              })()
-            ))}
+              })(),
+            )}
             {filteredPresets.length === 0 && (
               <div className={s.empty}>No presets match your search.</div>
             )}
           </div>
 
-          <div ref={detailsRef} className={s.details} data-testid="preset-library-details" data-no-drag="true">
+          <div
+            ref={detailsRef}
+            className={s.details}
+            data-testid="preset-library-details"
+            data-no-drag="true"
+          >
             {selectedPreset ? (
               <>
-                <button ref={mobileBackRef} className={s.mobileBack} onClick={() => setMobileView("list")}>← Back to presets</button>
+                <button
+                  ref={mobileBackRef}
+                  className={s.mobileBack}
+                  onClick={() => setMobileView("list")}
+                >
+                  ← Back to presets
+                </button>
                 <div className={s.detailTitle}>{selectedPreset.name}</div>
                 <div className={s.detailMeta}>{selectedPreset.category}</div>
                 <div className={s.previewWrap}>
-                  <canvas ref={previewCanvasRef} className={s.previewCanvas} width={280} height={180} />
+                  <canvas
+                    ref={previewCanvasRef}
+                    className={s.previewCanvas}
+                    width={280}
+                    height={180}
+                  />
                 </div>
                 <div className={s.detailBody}>{selectedPreset.desc}</div>
                 <div className={s.presetFilters}>
@@ -961,14 +1120,18 @@ const LibraryBrowser = ({
                       >
                         {filter.name}
                       </button>
-                      {index < selectedPreset.filters.length - 1 ? <span className={s.inlineArrow}> {"->"} </span> : null}
+                      {index < selectedPreset.filters.length - 1 ? (
+                        <span className={s.inlineArrow}> {"->"} </span>
+                      ) : null}
                     </span>
                   ))}
                 </div>
                 <div className={s.optionsList}>
                   <div className={s.optionsTitle}>Preset Options</div>
                   {selectedPreset.filters.map((presetEntry) => {
-                    const match = ALL_FILTERS.find((entry) => entry.displayName === presetEntry.name);
+                    const match = ALL_FILTERS.find(
+                      (entry) => entry.displayName === presetEntry.name,
+                    );
                     if (!match) {
                       return (
                         <div key={presetEntry.name} className={s.optionRow}>
@@ -981,15 +1144,17 @@ const LibraryBrowser = ({
                     return (
                       <div key={presetEntry.name} className={s.presetOptionGroup}>
                         <div className={s.presetOptionTitle}>{presetEntry.name}</div>
-                        {rows.length > 0 ? rows.map((option) => (
-                          <div key={`${presetEntry.name}:${option.name}`} className={s.optionRow}>
-                            <div className={s.optionName}>
-                              {option.name}
-                              <span className={s.optionValue}> = {option.value}</span>
+                        {rows.length > 0 ? (
+                          rows.map((option) => (
+                            <div key={`${presetEntry.name}:${option.name}`} className={s.optionRow}>
+                              <div className={s.optionName}>
+                                {option.name}
+                                <span className={s.optionValue}> = {option.value}</span>
+                              </div>
+                              <div className={s.optionDesc}>{option.desc}</div>
                             </div>
-                            <div className={s.optionDesc}>{option.desc}</div>
-                          </div>
-                        )) : (
+                          ))
+                        ) : (
                           <div className={s.optionDesc}>No options for this filter.</div>
                         )}
                       </div>

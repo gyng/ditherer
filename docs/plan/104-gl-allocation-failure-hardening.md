@@ -57,8 +57,8 @@ cannot leak partial handles or publish deleted resources.
 ## Verification
 
 - `npx vitest run test/gl/resourceAllocationFailure.test.ts
-  test/filters/jpegArtifactGLResources.test.ts
-  test/gl/resourceDisposalNoContext.test.ts` — 54 tests passed.
+test/filters/jpegArtifactGLResources.test.ts
+test/gl/resourceDisposalNoContext.test.ts` — 54 tests passed.
 - `npm run check` — 2,193 Vitest tests passed, 180 skipped; 34 Rust tests,
   generation, lint, TypeScript, package validation, packed/library/app builds,
   and the production chunk budget passed.

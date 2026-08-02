@@ -34,19 +34,25 @@ const makeCanvas = (fill: (x: number, y: number) => [number, number, number]) =>
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4;
       const [r, g, b] = fill(x, y);
-      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
     }
   }
   let written: Uint8ClampedArray | null = null;
   const canvas = {
     width: W,
     height: H,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
-      putImageData: (img: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(img.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
+            putImageData: (img: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(img.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return { canvas, written: () => written, source: data };
 };
@@ -95,7 +101,18 @@ const luma = (buf: Uint8ClampedArray, i: number) =>
   (0.299 * (buf[i] / 255) + 0.587 * (buf[i + 1] / 255) + 0.114 * (buf[i + 2] / 255)) * buf[i + 3];
 
 const DIRECTIONS = ["ROW", "COLUMN", "CIRCULAR", "SPIRAL", "SPIRAL_CUT", "DIAGONAL_TOP_RIGHT"];
-const COMPARATORS = ["RGBA", "GBRA", "BGRA", "HSVA", "SVHA", "VSHA", "LABA", "ABLA", "BALA", "LUMINANCE"];
+const COMPARATORS = [
+  "RGBA",
+  "GBRA",
+  "BGRA",
+  "HSVA",
+  "SVHA",
+  "VSHA",
+  "LABA",
+  "ABLA",
+  "BALA",
+  "LUMINANCE",
+];
 
 describe("Pixel Sort is a permutation", () => {
   it.each(DIRECTIONS)("%s rearranges pixels without inventing or losing any", (direction) => {
@@ -134,9 +151,12 @@ describe("Pixel Sort is a permutation", () => {
     expect(multiset(out)).toEqual(multiset(source));
 
     // ...and the top row must actually take part now.
-    const topRowMoved = Array.from({ length: W }, (_, x) => x * 4)
-      .some((i) => out[i] !== source[i] || out[i + 1] !== source[i + 1]);
-    expect(topRowMoved, "top row was left untouched — is the spiral still bailing early?").toBe(true);
+    const topRowMoved = Array.from({ length: W }, (_, x) => x * 4).some(
+      (i) => out[i] !== source[i] || out[i + 1] !== source[i + 1],
+    );
+    expect(topRowMoved, "top row was left untouched — is the spiral still bailing early?").toBe(
+      true,
+    );
   });
 });
 
@@ -168,7 +188,11 @@ describe("Pixel Sort actually sorts", () => {
   });
 
   it("sorts each column when traversing by column", () => {
-    const { out } = run({ direction: "COLUMN", comparator: "LUMINANCE", sortDirection: "ASCENDING" });
+    const { out } = run({
+      direction: "COLUMN",
+      comparator: "LUMINANCE",
+      sortDirection: "ASCENDING",
+    });
     for (let x = 0; x < W; x++) {
       for (let y = 1; y < H; y++) {
         const prev = luma(out, ((y - 1) * W + x) * 4);
@@ -234,10 +258,13 @@ describe("Pixel Sort misc", () => {
     const data = new Uint8ClampedArray([10, 20, 30, 255]);
     let written: Uint8ClampedArray | null = null;
     const canvas = {
-      width: 1, height: 1,
+      width: 1,
+      height: 1,
       getContext: () => ({
         getImageData: () => ({ data: new Uint8ClampedArray(data), width: 1, height: 1 }),
-        putImageData: (img: { data: Uint8ClampedArray }) => { written = new Uint8ClampedArray(img.data); },
+        putImageData: (img: { data: Uint8ClampedArray }) => {
+          written = new Uint8ClampedArray(img.data);
+        },
       }),
     } as unknown as HTMLCanvasElement;
     pixelsort.func(canvas, sortEverything as any);

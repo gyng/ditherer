@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -142,8 +149,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     nms: linkProgram(gl, NMS_FS, ["u_source", "u_res", "u_threshold"] as const),
     render: linkProgram(gl, RENDER_FS, [
-      "u_source", "u_edgeMap", "u_res", "u_lineWidth",
-      "u_lineColor", "u_bgColor", "u_mode", "u_overlayMix",
+      "u_source",
+      "u_edgeMap",
+      "u_res",
+      "u_lineWidth",
+      "u_lineColor",
+      "u_bgColor",
+      "u_mode",
+      "u_overlayMix",
     ] as const),
   };
   return _cache;
@@ -153,10 +166,14 @@ export const edgeTraceGLAvailable = (): boolean => glAvailable();
 
 export const renderEdgeTraceGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  threshold: number, lineWidth: number,
-  lineColor: [number, number, number], bgColor: [number, number, number],
-  modeIsOverlay: boolean, overlayMix: number,
+  width: number,
+  height: number,
+  threshold: number,
+  lineWidth: number,
+  lineColor: [number, number, number],
+  bgColor: [number, number, number],
+  modeIsOverlay: boolean,
+  overlayMix: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -169,28 +186,44 @@ export const renderEdgeTraceGL = (
   uploadSourceTexture(gl, sourceTex, source);
 
   const edgeMap = ensureTexture(gl, "edgeTrace:edges", width, height);
-  drawPass(gl, edgeMap, width, height, cache.nms, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.nms.uniforms.u_source, 0);
-    gl.uniform2f(cache.nms.uniforms.u_res, width, height);
-    gl.uniform1f(cache.nms.uniforms.u_threshold, threshold);
-  }, vao);
+  drawPass(
+    gl,
+    edgeMap,
+    width,
+    height,
+    cache.nms,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.nms.uniforms.u_source, 0);
+      gl.uniform2f(cache.nms.uniforms.u_res, width, height);
+      gl.uniform1f(cache.nms.uniforms.u_threshold, threshold);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.render, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.render.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, edgeMap.tex);
-    gl.uniform1i(cache.render.uniforms.u_edgeMap, 1);
-    gl.uniform2f(cache.render.uniforms.u_res, width, height);
-    gl.uniform1f(cache.render.uniforms.u_lineWidth, lineWidth);
-    gl.uniform3f(cache.render.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
-    gl.uniform3f(cache.render.uniforms.u_bgColor, bgColor[0], bgColor[1], bgColor[2]);
-    gl.uniform1i(cache.render.uniforms.u_mode, modeIsOverlay ? 1 : 0);
-    gl.uniform1f(cache.render.uniforms.u_overlayMix, overlayMix);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.render,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.render.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, edgeMap.tex);
+      gl.uniform1i(cache.render.uniforms.u_edgeMap, 1);
+      gl.uniform2f(cache.render.uniforms.u_res, width, height);
+      gl.uniform1f(cache.render.uniforms.u_lineWidth, lineWidth);
+      gl.uniform3f(cache.render.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
+      gl.uniform3f(cache.render.uniforms.u_bgColor, bgColor[0], bgColor[1], bgColor[2]);
+      gl.uniform1i(cache.render.uniforms.u_mode, modeIsOverlay ? 1 : 0);
+      gl.uniform1f(cache.render.uniforms.u_overlayMix, overlayMix);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

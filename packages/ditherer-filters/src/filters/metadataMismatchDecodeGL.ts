@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -94,10 +101,17 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_matrix", "u_range", "u_chroma",
-    "u_gamma", "u_recoveryMix",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_matrix",
+      "u_range",
+      "u_chroma",
+      "u_gamma",
+      "u_recoveryMix",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -105,9 +119,13 @@ export const metadataMismatchDecodeGLAvailable = (): boolean => glAvailable();
 
 export const renderMetadataMismatchDecodeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  matrixInt: number, rangeInt: number, chromaInt: number,
-  gamma: number, recoveryMix: number,
+  width: number,
+  height: number,
+  matrixInt: number,
+  rangeInt: number,
+  chromaInt: number,
+  gamma: number,
+  recoveryMix: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -117,16 +135,24 @@ export const renderMetadataMismatchDecodeGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "metadataMismatchDecode:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_matrix, matrixInt);
-    gl.uniform1i(cache.prog.uniforms.u_range, rangeInt);
-    gl.uniform1i(cache.prog.uniforms.u_chroma, chromaInt);
-    gl.uniform1f(cache.prog.uniforms.u_gamma, gamma);
-    gl.uniform1f(cache.prog.uniforms.u_recoveryMix, recoveryMix);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_matrix, matrixInt);
+      gl.uniform1i(cache.prog.uniforms.u_range, rangeInt);
+      gl.uniform1i(cache.prog.uniforms.u_chroma, chromaInt);
+      gl.uniform1f(cache.prog.uniforms.u_gamma, gamma);
+      gl.uniform1f(cache.prog.uniforms.u_recoveryMix, recoveryMix);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

@@ -18,25 +18,29 @@ const glMocks = vi.hoisted(() => {
   } as unknown as WebGL2RenderingContext;
   return {
     gl,
-    drawPass: vi.fn((
-      _gl: WebGL2RenderingContext,
-      _target: unknown,
-      _width: number,
-      _height: number,
-      _program: unknown,
-      setUniforms: () => void,
-    ) => setUniforms()),
-    ensureTexture: vi.fn((_gl: WebGL2RenderingContext, _name: string, width: number, height: number) => ({
-      tex: {} as WebGLTexture,
-      fbo: {} as WebGLFramebuffer,
-      w: width,
-      h: height,
-    })),
+    drawPass: vi.fn(
+      (
+        _gl: WebGL2RenderingContext,
+        _target: unknown,
+        _width: number,
+        _height: number,
+        _program: unknown,
+        setUniforms: () => void,
+      ) => setUniforms(),
+    ),
+    ensureTexture: vi.fn(
+      (_gl: WebGL2RenderingContext, _name: string, width: number, height: number) => ({
+        tex: {} as WebGLTexture,
+        fbo: {} as WebGLFramebuffer,
+        w: width,
+        h: height,
+      }),
+    ),
     getGLCtx: vi.fn(() => ({
       gl,
       canvas: document.createElement("canvas"),
     })),
-    getQuadVAO: vi.fn(() => ({} as WebGLVertexArrayObject)),
+    getQuadVAO: vi.fn(() => ({}) as WebGLVertexArrayObject),
     glAvailable: vi.fn(() => true),
     glUnavailableStub: vi.fn((width: number, height: number) => {
       const canvas = document.createElement("canvas");
@@ -63,7 +67,8 @@ const glMocks = vi.hoisted(() => {
 });
 
 vi.mock("filters/jpegArtifact", async () => {
-  const actual = await vi.importActual<typeof import("filters/jpegArtifact")>("filters/jpegArtifact");
+  const actual =
+    await vi.importActual<typeof import("filters/jpegArtifact")>("filters/jpegArtifact");
   return { ...actual, tryApplyJpegArtifactToCanvas: jpegMocks.tryApplyJpegArtifactToCanvas };
 });
 

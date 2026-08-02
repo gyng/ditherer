@@ -1,10 +1,6 @@
 import { ACTION, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
-import {
-  cloneCanvas,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import {
   drawPass,
   getGLCtx,
@@ -47,7 +43,7 @@ const medianFromHistory = (
   frames: Uint8ClampedArray[],
   filled: number,
   pixelIndex: number,
-  scratch: number[]
+  scratch: number[],
 ) => {
   for (let i = 0; i < filled; i++) {
     scratch[i] = frames[i][pixelIndex];
@@ -167,7 +163,18 @@ const ensureArrayTex = (gl: WebGL2RenderingContext, cache: Cache, w: number, h: 
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, w, h, MAX_WINDOW, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texImage3D(
+    gl.TEXTURE_2D_ARRAY,
+    0,
+    gl.RGBA8,
+    w,
+    h,
+    MAX_WINDOW,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    null,
+  );
   cache.tex = tex;
   cache.w = w;
   cache.h = h;
@@ -198,7 +205,8 @@ const temporalMedian = (input: any, options: TemporalMedianOptions = defaults) =
       if (arrTex) {
         const restartedAnimation = frameIndex === 0 && lastFrameIndex > 0;
         if (glHistoryW !== W || glHistoryH !== H || restartedAnimation) {
-          glHistoryW = W; glHistoryH = H;
+          glHistoryW = W;
+          glHistoryH = H;
           glHistoryHead = 0;
           glHistoryFilled = 0;
         }
@@ -209,22 +217,36 @@ const temporalMedian = (input: any, options: TemporalMedianOptions = defaults) =
         gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.texSubImage3D(
-          gl.TEXTURE_2D_ARRAY, 0,
-          0, 0, layer,
-          W, H, 1,
-          gl.RGBA, gl.UNSIGNED_BYTE,
+          gl.TEXTURE_2D_ARRAY,
+          0,
+          0,
+          0,
+          layer,
+          W,
+          H,
+          1,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
           input as TexImageSource,
         );
         glHistoryHead++;
         glHistoryFilled = Math.min(glHistoryFilled + 1, MAX_WINDOW);
         const filled = Math.min(glHistoryFilled, windowSize);
 
-        drawPass(gl, null, W, H, cache.prog, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
-          gl.uniform1i(cache.prog.uniforms.u_frames, 0);
-          gl.uniform1i(cache.prog.uniforms.u_filled, filled);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.prog,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
+            gl.uniform1i(cache.prog.uniforms.u_frames, 0);
+            gl.uniform1i(cache.prog.uniforms.u_filled, filled);
+          },
+          vao,
+        );
 
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
@@ -281,6 +303,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Take the per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure",
+  description:
+    "Take the per-pixel median across recent frames to suppress brief motion and flicker while preserving stable structure",
   temporal: true,
 });

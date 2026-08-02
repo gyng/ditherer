@@ -3,13 +3,16 @@ import { useFilter } from "context/useFilter";
 import { MAX_CHAIN_LENGTH } from "reducers/filters";
 import useDraggable from "components/App/useDraggable";
 import { filterIndex, filterList } from "@gyng/ditherer-filters";
-import type {
-  ActionOptionDefinition,
-  FilterOptionDefinitions,
-} from "@gyng/ditherer-filters";
+import type { ActionOptionDefinition, FilterOptionDefinitions } from "@gyng/ditherer-filters";
 import ChainPreview from "./ChainPreview";
 import FilterCombobox from "components/FilterCombobox";
-import { CHAIN_PRESETS, PRESET_CATEGORIES, buildPresetSignatureMap, getChainSignature, type PresetFilterEntry } from "./presets";
+import {
+  CHAIN_PRESETS,
+  PRESET_CATEGORIES,
+  buildPresetSignatureMap,
+  getChainSignature,
+  type PresetFilterEntry,
+} from "./presets";
 import LibraryBrowser from "./LibraryBrowser";
 import WindowDialog from "components/WindowDialog";
 import { createRandomFilterEntry, isPaletteOption, randomizeOptions } from "./randomize";
@@ -54,7 +57,9 @@ const loadUserChains = (): SavedChain[] => {
     if (key?.startsWith(USER_CHAIN_PREFIX)) {
       try {
         chains.push(JSON.parse(localStorage.getItem(key) || ""));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
   return chains;
@@ -86,7 +91,9 @@ const ChainList = ({
   }, []);
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ top: number; left: number } | null>(null);
-  const [pinnedPreviews, setPinnedPreviews] = useState<Map<string, { top: number; left: number }>>(new Map());
+  const [pinnedPreviews, setPinnedPreviews] = useState<Map<string, { top: number; left: number }>>(
+    new Map(),
+  );
   // The intermediate-output cache can momentarily return null between realtime
   // frames; keep the last good canvas so previews don't unmount and flicker.
   const lastPreviewCanvasRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -99,7 +106,9 @@ const ChainList = ({
   const [showRandomCycleModal, setShowRandomCycleModal] = useState(false);
   const [randomCycleSecondsDraft, setRandomCycleSecondsDraft] = useState("2");
   const [randomCycleBpmDraft, setRandomCycleBpmDraft] = useState("120");
-  const [screensaverCycleSeconds, setScreensaverCycleSeconds] = useState<number | null>(getCurrentScreensaverCycleSeconds());
+  const [screensaverCycleSeconds, setScreensaverCycleSeconds] = useState<number | null>(
+    getCurrentScreensaverCycleSeconds(),
+  );
   const dragCounter = useRef(0);
   const libraryDragRef = useRef<HTMLDivElement | null>(null);
   const [libraryDefaultPosition] = useState(() => ({
@@ -167,32 +176,38 @@ const ChainList = ({
     }, HOVER_PREVIEW_CLOSE_DELAY_MS);
   }, []);
 
-  const handleMouseEnter = useCallback((entryId: string, e: React.MouseEvent) => {
-    if (dragIndex !== null || mobileActionsEntryId !== null) return;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    if (hoverCloseTimerRef.current) {
-      clearTimeout(hoverCloseTimerRef.current);
-      hoverCloseTimerRef.current = null;
-    }
-    if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
-    hoverOpenTimerRef.current = setTimeout(() => {
-      showHoverPreview(entryId, rect);
-      hoverOpenTimerRef.current = null;
-    }, HOVER_PREVIEW_OPEN_DELAY_MS);
-  }, [dragIndex, mobileActionsEntryId, showHoverPreview]);
+  const handleMouseEnter = useCallback(
+    (entryId: string, e: React.MouseEvent) => {
+      if (dragIndex !== null || mobileActionsEntryId !== null) return;
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      if (hoverCloseTimerRef.current) {
+        clearTimeout(hoverCloseTimerRef.current);
+        hoverCloseTimerRef.current = null;
+      }
+      if (hoverOpenTimerRef.current) clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = setTimeout(() => {
+        showHoverPreview(entryId, rect);
+        hoverOpenTimerRef.current = null;
+      }, HOVER_PREVIEW_OPEN_DELAY_MS);
+    },
+    [dragIndex, mobileActionsEntryId, showHoverPreview],
+  );
 
   const handleMouseLeave = useCallback(() => {
     scheduleHoverPreviewClose();
   }, [scheduleHoverPreviewClose]);
 
-  const resolvePreviewCanvas = useCallback((entryId: string): HTMLCanvasElement | null => {
-    const canvas = actions.getIntermediatePreview(entryId);
-    if (canvas) {
-      lastPreviewCanvasRef.current.set(entryId, canvas);
-      return canvas;
-    }
-    return lastPreviewCanvasRef.current.get(entryId) ?? null;
-  }, [actions]);
+  const resolvePreviewCanvas = useCallback(
+    (entryId: string): HTMLCanvasElement | null => {
+      const canvas = actions.getIntermediatePreview(entryId);
+      if (canvas) {
+        lastPreviewCanvasRef.current.set(entryId, canvas);
+        return canvas;
+      }
+      return lastPreviewCanvasRef.current.get(entryId) ?? null;
+    },
+    [actions],
+  );
 
   useEffect(() => {
     // Row enter/leave own the hover-preview lifecycle. A global mousemove that
@@ -225,7 +240,10 @@ const ChainList = ({
       let changed = false;
       const next = new Map(current);
       for (const id of next.keys()) {
-        if (!liveIds.has(id)) { next.delete(id); changed = true; }
+        if (!liveIds.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
       }
       return changed ? next : current;
     });
@@ -283,51 +301,64 @@ const ChainList = ({
     if (resolved) actions.chainAdd(resolved.displayName, resolved.filter);
   };
 
-  const logGeneratedChain = useCallback((reason: string, filters: Array<{ displayName: string }>) => {
-    console.info(`[random-chain:${reason}]`, filters.map((filter) => filter.displayName).join(" -> "));
-  }, []);
+  const logGeneratedChain = useCallback(
+    (reason: string, filters: Array<{ displayName: string }>) => {
+      console.info(
+        `[random-chain:${reason}]`,
+        filters.map((filter) => filter.displayName).join(" -> "),
+      );
+    },
+    [],
+  );
 
-  const randomChain = useCallback((reason = "manual") => {
-    // Usually pick 2-4 random filters, with small chances of 1- or 5-filter chains.
-    // Skip filters the runtime flagged as slow this session so slideshow mode
-    // can't land on a filter that just hung the UI.
-    const candidates = filterList.filter((f) =>
-      f && f.category !== "Advanced" && !isSlowFilter(f.filter.name),
-    );
-    if (candidates.length === 0) return;
-    const roll = Math.random();
-    const count = roll < 0.08 ? 1 : roll < 0.92 ? 2 + Math.floor(Math.random() * 3) : 5;
-    const picked: typeof candidates = [];
-    const usedCategories = new Set<string>();
-    for (let i = 0; i < count; i++) {
-      // Prefer filters from categories we haven't used yet
-      const pool = candidates.filter((f) => !usedCategories.has(f.category) && !picked.includes(f));
-      const source = pool.length > 0 ? pool : candidates.filter((f) => !picked.includes(f));
-      if (source.length === 0) break;
-      const pick = source[Math.floor(Math.random() * source.length)];
-      picked.push(pick);
-      usedCategories.add(pick.category);
-    }
-    if (picked.length === 0) return;
-    const paletteEligibleIndices = picked
-      .map((entry, index) => {
-        const optionTypes = entry.filter.optionTypes as FilterOptionDefinitions | undefined;
-        const paletteOption = optionTypes?.["palette"];
-        return paletteOption && isPaletteOption(paletteOption) ? index : -1;
-      })
-      .filter((index) => index >= 0);
-    const shouldForcePresetPalette = paletteEligibleIndices.length > 0 && Math.random() < 0.45;
-    const forcedIndex = shouldForcePresetPalette
-      ? paletteEligibleIndices[Math.floor(Math.random() * paletteEligibleIndices.length)]
-      : -1;
-    const randomized = picked.map((entry, index) => createRandomFilterEntry(entry, index === forcedIndex));
+  const randomChain = useCallback(
+    (reason = "manual") => {
+      // Usually pick 2-4 random filters, with small chances of 1- or 5-filter chains.
+      // Skip filters the runtime flagged as slow this session so slideshow mode
+      // can't land on a filter that just hung the UI.
+      const candidates = filterList.filter(
+        (f) => f && f.category !== "Advanced" && !isSlowFilter(f.filter.name),
+      );
+      if (candidates.length === 0) return;
+      const roll = Math.random();
+      const count = roll < 0.08 ? 1 : roll < 0.92 ? 2 + Math.floor(Math.random() * 3) : 5;
+      const picked: typeof candidates = [];
+      const usedCategories = new Set<string>();
+      for (let i = 0; i < count; i++) {
+        // Prefer filters from categories we haven't used yet
+        const pool = candidates.filter(
+          (f) => !usedCategories.has(f.category) && !picked.includes(f),
+        );
+        const source = pool.length > 0 ? pool : candidates.filter((f) => !picked.includes(f));
+        if (source.length === 0) break;
+        const pick = source[Math.floor(Math.random() * source.length)];
+        picked.push(pick);
+        usedCategories.add(pick.category);
+      }
+      if (picked.length === 0) return;
+      const paletteEligibleIndices = picked
+        .map((entry, index) => {
+          const optionTypes = entry.filter.optionTypes as FilterOptionDefinitions | undefined;
+          const paletteOption = optionTypes?.["palette"];
+          return paletteOption && isPaletteOption(paletteOption) ? index : -1;
+        })
+        .filter((index) => index >= 0);
+      const shouldForcePresetPalette = paletteEligibleIndices.length > 0 && Math.random() < 0.45;
+      const forcedIndex = shouldForcePresetPalette
+        ? paletteEligibleIndices[Math.floor(Math.random() * paletteEligibleIndices.length)]
+        : -1;
+      const randomized = picked.map((entry, index) =>
+        createRandomFilterEntry(entry, index === forcedIndex),
+      );
 
-    logGeneratedChain(reason, randomized);
-    actions.selectFilter(randomized[0].displayName, randomized[0].filter);
-    for (let i = 1; i < randomized.length; i++) {
-      actions.chainAdd(randomized[i].displayName, randomized[i].filter);
-    }
-  }, [actions, logGeneratedChain]);
+      logGeneratedChain(reason, randomized);
+      actions.selectFilter(randomized[0].displayName, randomized[0].filter);
+      for (let i = 1; i < randomized.length; i++) {
+        actions.chainAdd(randomized[i].displayName, randomized[i].filter);
+      }
+    },
+    [actions, logGeneratedChain],
+  );
 
   useEffect(() => {
     randomChainRef.current = randomChain;
@@ -353,10 +384,12 @@ const ChainList = ({
   const cycleLastSwapAtRef = useRef<number>(0);
 
   useEffect(() => {
-    const activeCycleSeconds = screensaverCycleSeconds != null && screensaverCycleSeconds > 0
-      ? screensaverCycleSeconds
-      : randomCycleSeconds;
-    const seconds = activeCycleSeconds != null && activeCycleSeconds > 0 ? activeCycleSeconds : null;
+    const activeCycleSeconds =
+      screensaverCycleSeconds != null && screensaverCycleSeconds > 0
+        ? screensaverCycleSeconds
+        : randomCycleSeconds;
+    const seconds =
+      activeCycleSeconds != null && activeCycleSeconds > 0 ? activeCycleSeconds : null;
     const inScreensaver = screensaverCycleSeconds != null && screensaverCycleSeconds > 0;
     const wasInactive = cycleTickStateRef.current.seconds == null;
     cycleTickStateRef.current = { seconds, inScreensaver };
@@ -391,13 +424,21 @@ const ChainList = ({
     };
   }, []);
 
-  useEffect(() => subscribeRandomCycleSeconds((seconds) => {
-    actions.setRandomCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
-  }), []);
+  useEffect(
+    () =>
+      subscribeRandomCycleSeconds((seconds) => {
+        actions.setRandomCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
+      }),
+    [],
+  );
 
-  useEffect(() => subscribeScreensaverCycleSeconds((seconds) => {
-    setScreensaverCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
-  }), []);
+  useEffect(
+    () =>
+      subscribeScreensaverCycleSeconds((seconds) => {
+        setScreensaverCycleSeconds(seconds == null || seconds <= 0 ? null : seconds);
+      }),
+    [],
+  );
 
   useEffect(() => {
     const syncSavedChains = () => setSavedChains(loadUserChains());
@@ -405,7 +446,7 @@ const ChainList = ({
     return () => window.removeEventListener("ditherer-saved-chains-change", syncSavedChains);
   }, []);
 
-  const loadPreset = (preset: typeof CHAIN_PRESETS[0]) => {
+  const loadPreset = (preset: (typeof CHAIN_PRESETS)[0]) => {
     // Set first filter via selectFilter (resets chain to 1 entry)
     const first = resolvePresetFilter(preset.filters[0]);
     if (!first) return;
@@ -427,7 +468,10 @@ const ChainList = ({
     );
     const pool = safePresets.length > 0 ? safePresets : CHAIN_PRESETS;
     const preset = pool[Math.floor(Math.random() * pool.length)];
-    console.info(`[random-chain:${reason}]`, preset.filters.map((filter) => filter.name).join(" -> "));
+    console.info(
+      `[random-chain:${reason}]`,
+      preset.filters.map((filter) => filter.name).join(" -> "),
+    );
     loadPreset(preset);
     setLoadedSavedName(null);
   };
@@ -439,7 +483,11 @@ const ChainList = ({
   const promptRandomCycle = useCallback(() => {
     const currentSeconds = randomCycleSeconds ?? getLastRandomCycleSeconds() ?? 2;
     setRandomCycleSecondsDraft(currentSeconds.toString());
-    setRandomCycleBpmDraft(secondsToBpm(currentSeconds).toFixed(2).replace(/\.?0+$/, ""));
+    setRandomCycleBpmDraft(
+      secondsToBpm(currentSeconds)
+        .toFixed(2)
+        .replace(/\.?0+$/, ""),
+    );
     setShowRandomCycleModal(true);
   }, [randomCycleSeconds]);
 
@@ -447,14 +495,22 @@ const ChainList = ({
     setRandomCycleSecondsDraft(value);
     const seconds = Number.parseFloat(value);
     if (!Number.isFinite(seconds) || seconds <= 0) return;
-    setRandomCycleBpmDraft(secondsToBpm(seconds).toFixed(2).replace(/\.?0+$/, ""));
+    setRandomCycleBpmDraft(
+      secondsToBpm(seconds)
+        .toFixed(2)
+        .replace(/\.?0+$/, ""),
+    );
   }, []);
 
   const handleRandomCycleBpmChange = useCallback((value: string) => {
     setRandomCycleBpmDraft(value);
     const bpm = Number.parseFloat(value);
     if (!Number.isFinite(bpm) || bpm <= 0) return;
-    setRandomCycleSecondsDraft(bpmToSeconds(bpm).toFixed(3).replace(/\.?0+$/, ""));
+    setRandomCycleSecondsDraft(
+      bpmToSeconds(bpm)
+        .toFixed(3)
+        .replace(/\.?0+$/, ""),
+    );
   }, []);
 
   const confirmRandomCycleModal = useCallback(() => {
@@ -474,11 +530,14 @@ const ChainList = ({
     setShowLibraryBrowser(true);
   }, []);
 
-  const handleLibraryDialogMouseDown = useCallback((event: React.MouseEvent) => {
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-no-drag='true']")) return;
-    libraryDrag.onMouseDown(event);
-  }, [libraryDrag]);
+  const handleLibraryDialogMouseDown = useCallback(
+    (event: React.MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-no-drag='true']")) return;
+      libraryDrag.onMouseDown(event);
+    },
+    [libraryDrag],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Don't intercept keys when the user is typing in an input/textarea/contenteditable
@@ -558,19 +617,24 @@ const ChainList = ({
             value=""
             onChange={(e) => {
               const preset = CHAIN_PRESETS.find((p) => p.name === e.target.value);
-              if (preset) { loadPreset(preset); setLoadedSavedName(null); }
+              if (preset) {
+                loadPreset(preset);
+                setLoadedSavedName(null);
+              }
             }}
             title="Load a preset"
             aria-label="Load a preset"
           >
-            <option value="" disabled>Preset…</option>
+            <option value="" disabled>
+              Preset…
+            </option>
             {PRESET_CATEGORIES.map((cat) => (
               <optgroup key={cat} label={cat}>
-                {CHAIN_PRESETS
-                  .filter((p) => p.category === cat)
-                  .map((p) => (
-                    <option key={p.name} value={p.name} title={p.desc}>{p.name}</option>
-                  ))}
+                {CHAIN_PRESETS.filter((p) => p.category === cat).map((p) => (
+                  <option key={p.name} value={p.name} title={p.desc}>
+                    {p.name}
+                  </option>
+                ))}
               </optgroup>
             ))}
           </select>
@@ -593,8 +657,16 @@ const ChainList = ({
           <button
             className={[s.addBtn, randomCycleSeconds != null ? s.activeToolbarBtn : ""].join(" ")}
             onClick={promptRandomCycle}
-            title={randomCycleSeconds != null ? `Random cycle every ${randomCycleSeconds}s (click to change or stop)` : "Prompt for random cycle interval"}
-            aria-label={randomCycleSeconds != null ? `Random cycle every ${randomCycleSeconds} seconds` : "Set random cycle interval"}
+            title={
+              randomCycleSeconds != null
+                ? `Random cycle every ${randomCycleSeconds}s (click to change or stop)`
+                : "Prompt for random cycle interval"
+            }
+            aria-label={
+              randomCycleSeconds != null
+                ? `Random cycle every ${randomCycleSeconds} seconds`
+                : "Set random cycle interval"
+            }
           >
             <span aria-hidden="true">↻</span> {randomCycleSeconds != null ? "Cycling…" : "Cycle…"}
           </button>
@@ -629,9 +701,13 @@ const ChainList = ({
               title="Load a saved chain"
               aria-label="Load a saved chain"
             >
-              <option value="" disabled>&#9650; Load</option>
+              <option value="" disabled>
+                &#9650; Load
+              </option>
               {savedChains.map((c) => (
-                <option key={c.name} value={c.name}>{c.name}</option>
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
               ))}
             </select>
           )}
@@ -666,11 +742,11 @@ const ChainList = ({
             !entry.enabled ? s.disabled : "",
             dragIndex === index ? s.dragging : "",
             dragOverIndex === index ? s.dragOver : "",
-          ].filter(Boolean).join(" ");
+          ]
+            .filter(Boolean)
+            .join(" ");
 
-          const stepTime = state.stepTimes?.find(
-            (st) => st.name === entry.displayName
-          );
+          const stepTime = state.stepTimes?.find((st) => st.name === entry.displayName);
 
           return (
             <div
@@ -736,13 +812,12 @@ const ChainList = ({
                   {entry.displayName}
                 </button>
               )}
-              <span
-                className={s.entryTime}
-                title={stepTime?.backend ?? undefined}
-              >
+              <span className={s.entryTime} title={stepTime?.backend ?? undefined}>
                 {stepTime ? `${stepTime.ms.toFixed(0)}ms` : ""}
               </span>
-              <div className={`${s.entryActions} ${mobileActionsEntryId === entry.id ? s.entryActionsExpanded : ""}`}>
+              <div
+                className={`${s.entryActions} ${mobileActionsEntryId === entry.id ? s.entryActionsExpanded : ""}`}
+              >
                 <button
                   className={`${s.removeBtn} ${s.mobileMore}`}
                   aria-label={`More actions for ${entry.displayName}`}
@@ -750,7 +825,7 @@ const ChainList = ({
                   onClick={(event) => {
                     event.stopPropagation();
                     clearHoverPreview();
-                    setMobileActionsEntryId((current) => current === entry.id ? null : entry.id);
+                    setMobileActionsEntryId((current) => (current === entry.id ? null : entry.id));
                   }}
                 >
                   ⋯
@@ -761,11 +836,18 @@ const ChainList = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       (entry.filter.optionTypes?.animate as ActionOptionDefinition).action(
-                        actions, state.inputCanvas, entry.filter.func, entry.filter.options
+                        actions,
+                        state.inputCanvas,
+                        entry.filter.func,
+                        entry.filter.options,
                       );
                     }}
                     title={actions.isAnimating() ? "Stop animation" : "Play animation"}
-                    aria-label={actions.isAnimating() ? `Stop ${entry.displayName} animation` : `Play ${entry.displayName} animation`}
+                    aria-label={
+                      actions.isAnimating()
+                        ? `Stop ${entry.displayName} animation`
+                        : `Play ${entry.displayName} animation`
+                    }
                   >
                     {actions.isAnimating() ? "\u23F9" : "\u25B6"}
                   </button>
@@ -786,7 +868,10 @@ const ChainList = ({
                   className={[s.removeBtn, entry.audioMod ? s.audioMappedBtn : ""].join(" ")}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEditAudioMod?.(entry.id, (e.currentTarget as HTMLElement).getBoundingClientRect());
+                    onEditAudioMod?.(
+                      entry.id,
+                      (e.currentTarget as HTMLElement).getBoundingClientRect(),
+                    );
                   }}
                   title="Map audio visualizer to this filter"
                   aria-label={`Map audio visualizer to ${entry.displayName}`}
@@ -869,7 +954,9 @@ const ChainList = ({
         {/* At the cap the reducer ignores CHAIN_ADD, so an enabled picker here
             would just swallow clicks. Say why instead of doing nothing. */}
         <div className={`${s.entry} ${s.addEntry}`} aria-label="Add filter row">
-          <span className={s.addEntrySpacer} aria-hidden="true">+</span>
+          <span className={s.addEntrySpacer} aria-hidden="true">
+            +
+          </span>
           <div className={s.addEntryPicker}>
             {chainIsFull ? (
               <span className={s.addEntryFull}>
@@ -889,9 +976,14 @@ const ChainList = ({
             onClick={(e) => {
               e.stopPropagation();
               const { displayName, filter } = getRandomFilter();
-              actions.chainAdd(displayName, { ...filter, options: filter.options || filter.defaults });
+              actions.chainAdd(displayName, {
+                ...filter,
+                options: filter.options || filter.defaults,
+              });
             }}
-            title={chainIsFull ? `Chain full — ${MAX_CHAIN_LENGTH} filters max` : "Add a random filter"}
+            title={
+              chainIsFull ? `Chain full — ${MAX_CHAIN_LENGTH} filters max` : "Add a random filter"
+            }
             aria-label="Add a random filter"
           >
             ⚄
@@ -916,19 +1008,22 @@ const ChainList = ({
         );
       })}
       {/* Hover preview (only if not already pinned) */}
-      {hoveredEntryId && hoverPos && !pinnedPreviews.has(hoveredEntryId) && (() => {
-        const previewCanvas = resolvePreviewCanvas(hoveredEntryId);
-        if (!previewCanvas) return null;
-        const stepIndex = chain.findIndex((e) => e.id === hoveredEntryId);
-        return (
-          <ChainPreview
-            sourceCanvas={previewCanvas}
-            top={hoverPos.top}
-            left={hoverPos.left}
-            stepNumber={stepIndex + 1}
-          />
-        );
-      })()}
+      {hoveredEntryId &&
+        hoverPos &&
+        !pinnedPreviews.has(hoveredEntryId) &&
+        (() => {
+          const previewCanvas = resolvePreviewCanvas(hoveredEntryId);
+          if (!previewCanvas) return null;
+          const stepIndex = chain.findIndex((e) => e.id === hoveredEntryId);
+          return (
+            <ChainPreview
+              sourceCanvas={previewCanvas}
+              top={hoverPos.top}
+              left={hoverPos.left}
+              stepNumber={stepIndex + 1}
+            />
+          );
+        })()}
 
       {/* Preset / saved chain description */}
       {(() => {
@@ -939,19 +1034,24 @@ const ChainList = ({
           return (
             <div className={s.description}>
               <span className={s.descriptionLabel}>Matched preset</span>
-              <span><strong>{matchedPreset.name}</strong>: {matchedPreset.desc}</span>
+              <span>
+                <strong>{matchedPreset.name}</strong>: {matchedPreset.desc}
+              </span>
             </div>
           );
         }
         // Show saved chain name if loaded
         if (loadedSavedName) {
           const saved = savedChains.find((c) => c.name === loadedSavedName);
-          if (saved) return (
-            <div className={s.description}>
-              <span className={s.descriptionLabel}>Saved chain</span>
-              <span><strong>{saved.name}</strong>: {saved.desc}</span>
-            </div>
-          );
+          if (saved)
+            return (
+              <div className={s.description}>
+                <span className={s.descriptionLabel}>Saved chain</span>
+                <span>
+                  <strong>{saved.name}</strong>: {saved.desc}
+                </span>
+              </div>
+            );
         }
         return null;
       })()}
@@ -977,7 +1077,8 @@ const ChainList = ({
             <div className={s.confirmBody}>
               <div className={s.confirmIcon}>&#9888;</div>
               <div className={s.confirmMessage}>
-                Clear the filter chain?<br />
+                Clear the filter chain?
+                <br />
                 <span className={s.confirmSub}>You can restore it with Undo.</span>
               </div>
             </div>
@@ -994,10 +1095,7 @@ const ChainList = ({
               >
                 OK
               </button>
-              <button
-                className={s.confirmBtn}
-                onClick={() => setShowClearConfirm(false)}
-              >
+              <button className={s.confirmBtn} onClick={() => setShowClearConfirm(false)}>
                 Cancel
               </button>
             </div>
@@ -1006,29 +1104,28 @@ const ChainList = ({
       )}
 
       {showLibraryBrowser && (
-        <div className={s.libraryOverlay} onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setShowLibraryBrowser(false);
-        }}>
         <div
-          ref={libraryDragRef}
-          role="presentation"
-          className={s.libraryBrowserFloat}
+          className={s.libraryOverlay}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowLibraryBrowser(false);
+          }}
         >
-          <LibraryBrowser
-            open={showLibraryBrowser}
-            onClose={() => setShowLibraryBrowser(false)}
-            onAddFilter={(entry) => actions.chainAdd(entry.displayName, entry.filter)}
-            onLoadPreset={(preset) => {
-              loadPreset(preset);
-              setLoadedSavedName(null);
-            }}
-            initialTab={libraryInitialTab}
-            initialQuery={libraryInitialQuery}
-            onDialogMouseDown={handleLibraryDialogMouseDown}
-            previewSource={state.inputImage as HTMLCanvasElement | HTMLImageElement | null}
-            previewVideo={state.video}
-          />
-        </div>
+          <div ref={libraryDragRef} role="presentation" className={s.libraryBrowserFloat}>
+            <LibraryBrowser
+              open={showLibraryBrowser}
+              onClose={() => setShowLibraryBrowser(false)}
+              onAddFilter={(entry) => actions.chainAdd(entry.displayName, entry.filter)}
+              onLoadPreset={(preset) => {
+                loadPreset(preset);
+                setLoadedSavedName(null);
+              }}
+              initialTab={libraryInitialTab}
+              initialQuery={libraryInitialQuery}
+              onDialogMouseDown={handleLibraryDialogMouseDown}
+              previewSource={state.inputImage as HTMLCanvasElement | HTMLImageElement | null}
+              previewVideo={state.video}
+            />
+          </div>
         </div>
       )}
 
@@ -1038,7 +1135,7 @@ const ChainList = ({
             className={[s.confirmDialog, s.randomCycleDialog].join(" ")}
             title="Random chain swap"
             onClose={() => setShowRandomCycleModal(false)}
-            onMouseDown={e => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <div className={s.confirmTitleBar}>
               <span className={s.confirmTitleText}>Random Chain Swap</span>

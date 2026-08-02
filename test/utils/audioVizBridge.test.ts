@@ -26,8 +26,14 @@ import {
 const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
 const originalAudioContext = Object.getOwnPropertyDescriptor(window, "AudioContext");
 const originalWebkitAudioContext = Object.getOwnPropertyDescriptor(window, "webkitAudioContext");
-const originalRequestAnimationFrame = Object.getOwnPropertyDescriptor(window, "requestAnimationFrame");
-const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(window, "cancelAnimationFrame");
+const originalRequestAnimationFrame = Object.getOwnPropertyDescriptor(
+  window,
+  "requestAnimationFrame",
+);
+const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(
+  window,
+  "cancelAnimationFrame",
+);
 
 const setMediaDevices = (value: Partial<MediaDevices> | undefined) => {
   Object.defineProperty(navigator, "mediaDevices", {
@@ -68,25 +74,91 @@ const makeSnapshot = (overrides: Partial<AudioVizSnapshot> = {}): AudioVizSnapsh
   tempoStatus: "idle",
   tempoWarmupProgress: 0,
   rawMetrics: {
-    level: 0, bass: 0, mid: 0, treble: 0, pulse: 0, beat: 0, bpm: 0, beatHold: 0,
-    onset: 0, spectralCentroid: 0, spectralFlux: 0, bandRatio: 0, stereoWidth: 0,
-    stereoBalance: 0.5, zeroCrossing: 0, subKick: 0, bassEnvelope: 0, midEnvelope: 0,
-    trebleEnvelope: 0, peakDecay: 0, roughness: 0, harmonic: 0, percussive: 0,
-    tempoPhase: 0, barPhase: 0, barBeat: 0, beatConfidence: 0,
+    level: 0,
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    pulse: 0,
+    beat: 0,
+    bpm: 0,
+    beatHold: 0,
+    onset: 0,
+    spectralCentroid: 0,
+    spectralFlux: 0,
+    bandRatio: 0,
+    stereoWidth: 0,
+    stereoBalance: 0.5,
+    zeroCrossing: 0,
+    subKick: 0,
+    bassEnvelope: 0,
+    midEnvelope: 0,
+    trebleEnvelope: 0,
+    peakDecay: 0,
+    roughness: 0,
+    harmonic: 0,
+    percussive: 0,
+    tempoPhase: 0,
+    barPhase: 0,
+    barBeat: 0,
+    beatConfidence: 0,
   },
   normalizedMetrics: {
-    level: 0, bass: 0, mid: 0, treble: 0, pulse: 0, beat: 0, bpm: 0, beatHold: 0,
-    onset: 0, spectralCentroid: 0, spectralFlux: 0, bandRatio: 0, stereoWidth: 0,
-    stereoBalance: 0.5, zeroCrossing: 0, subKick: 0, bassEnvelope: 0, midEnvelope: 0,
-    trebleEnvelope: 0, peakDecay: 0, roughness: 0, harmonic: 0, percussive: 0,
-    tempoPhase: 0, barPhase: 0, barBeat: 0, beatConfidence: 0,
+    level: 0,
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    pulse: 0,
+    beat: 0,
+    bpm: 0,
+    beatHold: 0,
+    onset: 0,
+    spectralCentroid: 0,
+    spectralFlux: 0,
+    bandRatio: 0,
+    stereoWidth: 0,
+    stereoBalance: 0.5,
+    zeroCrossing: 0,
+    subKick: 0,
+    bassEnvelope: 0,
+    midEnvelope: 0,
+    trebleEnvelope: 0,
+    peakDecay: 0,
+    roughness: 0,
+    harmonic: 0,
+    percussive: 0,
+    tempoPhase: 0,
+    barPhase: 0,
+    barBeat: 0,
+    beatConfidence: 0,
   },
   metrics: {
-    level: 0, bass: 0, mid: 0, treble: 0, pulse: 0, beat: 0, bpm: 0, beatHold: 0,
-    onset: 0, spectralCentroid: 0, spectralFlux: 0, bandRatio: 0, stereoWidth: 0,
-    stereoBalance: 0.5, zeroCrossing: 0, subKick: 0, bassEnvelope: 0, midEnvelope: 0,
-    trebleEnvelope: 0, peakDecay: 0, roughness: 0, harmonic: 0, percussive: 0,
-    tempoPhase: 0, barPhase: 0, barBeat: 0, beatConfidence: 0,
+    level: 0,
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    pulse: 0,
+    beat: 0,
+    bpm: 0,
+    beatHold: 0,
+    onset: 0,
+    spectralCentroid: 0,
+    spectralFlux: 0,
+    bandRatio: 0,
+    stereoWidth: 0,
+    stereoBalance: 0.5,
+    zeroCrossing: 0,
+    subKick: 0,
+    bassEnvelope: 0,
+    midEnvelope: 0,
+    trebleEnvelope: 0,
+    peakDecay: 0,
+    roughness: 0,
+    harmonic: 0,
+    percussive: 0,
+    tempoPhase: 0,
+    barPhase: 0,
+    barBeat: 0,
+    beatConfidence: 0,
   },
   ...overrides,
 });
@@ -392,11 +464,7 @@ describe("audio input discovery", () => {
     const getUserMedia = vi.fn().mockResolvedValue({
       getTracks: () => [{ stop }],
     });
-    const enumerateDevices = vi.fn().mockResolvedValue([
-      microphone,
-      unlabeledMicrophone,
-      speaker,
-    ]);
+    const enumerateDevices = vi.fn().mockResolvedValue([microphone, unlabeledMicrophone, speaker]);
     setMediaDevices({ getUserMedia, enumerateDevices } as Partial<MediaDevices>);
 
     await expect(requestMicPermissionAndList()).resolves.toEqual([microphone]);
@@ -440,11 +508,13 @@ describe("audio channel configuration", () => {
     });
   });
 
-  const installRuntime = (options: {
-    audioTracks?: number;
-    mediaError?: unknown;
-    frequencyPattern?: (buffer: Uint8Array, frame: number, analyserIndex: number) => void;
-  } = {}) => {
+  const installRuntime = (
+    options: {
+      audioTracks?: number;
+      mediaError?: unknown;
+      frequencyPattern?: (buffer: Uint8Array, frame: number, analyserIndex: number) => void;
+    } = {},
+  ) => {
     const callbacks: FrameRequestCallback[] = [];
     const stop = vi.fn();
     const endedListeners: Array<() => void> = [];
@@ -459,7 +529,7 @@ describe("audio channel configuration", () => {
     } as unknown as MediaStreamTrack;
     const stream = {
       getTracks: () => [track],
-      getAudioTracks: () => options.audioTracks === 0 ? [] : [track],
+      getAudioTracks: () => (options.audioTracks === 0 ? [] : [track]),
     } as unknown as MediaStream;
     const disconnect = vi.fn();
     const connect = vi.fn();
@@ -505,9 +575,10 @@ describe("audio channel configuration", () => {
       }),
     });
     Object.defineProperty(window, "cancelAnimationFrame", { configurable: true, value: vi.fn() });
-    const getUserMedia = options.mediaError === undefined
-      ? vi.fn().mockResolvedValue(stream)
-      : vi.fn().mockRejectedValue(options.mediaError);
+    const getUserMedia =
+      options.mediaError === undefined
+        ? vi.fn().mockResolvedValue(stream)
+        : vi.fn().mockRejectedValue(options.mediaError);
     const getDisplayMedia = vi.fn().mockResolvedValue(stream);
     setMediaDevices({ getUserMedia, getDisplayMedia } as Partial<MediaDevices>);
     return {
@@ -533,7 +604,8 @@ describe("audio channel configuration", () => {
     report: (channel?: "chain" | "screensaver") => Record<string, unknown>;
   };
 
-  const getDebugApi = () => (window as unknown as { __audioVizDebug: AudioVizDebug }).__audioVizDebug;
+  const getDebugApi = () =>
+    (window as unknown as { __audioVizDebug: AudioVizDebug }).__audioVizDebug;
 
   it("reports an idle runtime through the browser diagnostics API", () => {
     const debug = getDebugApi();

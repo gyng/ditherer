@@ -3,5 +3,5 @@ export const UNKNOWN = "UNKNOWN";
 
 export const SCALING_ALGORITHM = {
   AUTO: "AUTO",
-  PIXELATED: "PIXELATED"
+  PIXELATED: "PIXELATED",
 };

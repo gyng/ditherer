@@ -45,7 +45,7 @@ Ditherer is already in a solid operating state, and this initiative materially i
 - `npm run check` passes
 - CI now runs the same primary quality bar used locally
 
-The quality problem is not that the repo is obviously unhealthy. The quality problem is that several behavior-critical seams are still weakly typed, partially enforced, or concentrated in very large modules. That means the current snapshot is healthy, but the *cost and risk of future change* are higher than they need to be.
+The quality problem is not that the repo is obviously unhealthy. The quality problem is that several behavior-critical seams are still weakly typed, partially enforced, or concentrated in very large modules. That means the current snapshot is healthy, but the _cost and risk of future change_ are higher than they need to be.
 
 ## Problem statement
 

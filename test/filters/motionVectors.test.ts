@@ -41,13 +41,16 @@ const drawBlock = (
 const makeFakeCanvas = (width: number, height: number, data: Uint8ClampedArray) => ({
   width,
   height,
-  getContext: (type: string) => type === "2d" ? {
-    getImageData: () => ({
-      data: new Uint8ClampedArray(data),
-      width,
-      height,
-    }),
-  } : null,
+  getContext: (type: string) =>
+    type === "2d"
+      ? {
+          getImageData: () => ({
+            data: new Uint8ClampedArray(data),
+            width,
+            height,
+          }),
+        }
+      : null,
 });
 
 const runAndCapture = (filterFn, input, options): Uint8ClampedArray | null => {
@@ -105,9 +108,42 @@ describe("motion vector helpers", () => {
     const previous = makeBuffer(width, height, [0, 10, 0, 255]);
     const current = makeBuffer(width, height, [200, 10, 0, 255]);
 
-    const redError = averageBlockError(current, previous, width, height, 0, 0, 4, 0, 0, MOTION_SOURCE.RED);
-    const greenError = averageBlockError(current, previous, width, height, 0, 0, 4, 0, 0, MOTION_SOURCE.GREEN);
-    const lumaError = averageBlockError(current, previous, width, height, 0, 0, 4, 0, 0, MOTION_SOURCE.LUMA);
+    const redError = averageBlockError(
+      current,
+      previous,
+      width,
+      height,
+      0,
+      0,
+      4,
+      0,
+      0,
+      MOTION_SOURCE.RED,
+    );
+    const greenError = averageBlockError(
+      current,
+      previous,
+      width,
+      height,
+      0,
+      0,
+      4,
+      0,
+      0,
+      MOTION_SOURCE.GREEN,
+    );
+    const lumaError = averageBlockError(
+      current,
+      previous,
+      width,
+      height,
+      0,
+      0,
+      4,
+      0,
+      0,
+      MOTION_SOURCE.LUMA,
+    );
 
     expect(redError).toBeGreaterThan(greenError);
     expect(lumaError).toBeGreaterThan(greenError);
@@ -117,16 +153,16 @@ describe("motion vector helpers", () => {
   it("treats hue as circular in HSV/HSL analysis buffers", () => {
     const width = 2;
     const height = 1;
-    const previous = new Uint8ClampedArray([
-      255, 0, 0, 255,
-      255, 0, 0, 255,
-    ]);
-    const current = new Uint8ClampedArray([
-      255, 0, 20, 255,
-      255, 0, 20, 255,
-    ]);
+    const previous = new Uint8ClampedArray([255, 0, 0, 255, 255, 0, 0, 255]);
+    const current = new Uint8ClampedArray([255, 0, 20, 255, 255, 0, 20, 255]);
 
-    const hueBuffers = prepareMotionAnalysisBuffers(current, previous, width, height, MOTION_SOURCE.HUE);
+    const hueBuffers = prepareMotionAnalysisBuffers(
+      current,
+      previous,
+      width,
+      height,
+      MOTION_SOURCE.HUE,
+    );
     const hueError = averageBlockError(
       current,
       previous,
@@ -179,7 +215,8 @@ describe("Motion Vectors filter", () => {
 
     let nonBackgroundPixels = 0;
     for (let i = 0; i < captured!.length; i += 4) {
-      const isBackground = captured![i] === 12 && captured![i + 1] === 12 && captured![i + 2] === 14;
+      const isBackground =
+        captured![i] === 12 && captured![i + 1] === 12 && captured![i + 2] === 14;
       if (!isBackground) nonBackgroundPixels += 1;
     }
 

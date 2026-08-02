@@ -34,17 +34,13 @@ const constantKAtRate = (cutoff: number, rate: number): Transfer => {
 };
 
 const butterworth = (cutoff: number): Transfer => {
-  const frequency = Math.min(2 * cutoff, NTSC_RATE) / NTSC_RATE * Math.PI;
+  const frequency = (Math.min(2 * cutoff, NTSC_RATE) / NTSC_RATE) * Math.PI;
   const sin = Math.sin(frequency);
   const cos = Math.cos(frequency);
   const alpha = sin / (2 * Math.SQRT1_2);
   const gain = 1 / (1 + alpha);
   return {
-    num: [
-      (1 - cos) * 0.5 * gain,
-      (1 - cos) * gain,
-      (1 - cos) * 0.5 * gain,
-    ],
+    num: [(1 - cos) * 0.5 * gain, (1 - cos) * gain, (1 - cos) * 0.5 * gain],
     den: [-2 * cos * gain, (1 - alpha) * gain],
   };
 };
@@ -56,9 +52,8 @@ const impulse = (transfer: Transfer, taps: number): Float32Array => {
     const sample = n === 0 ? 1 : 0;
     const value = state[0] + transfer.num[0] * sample;
     for (let i = 0; i < state.length - 1; i++) {
-      state[i] = state[i + 1]
-        + (transfer.num[i + 1] ?? 0) * sample
-        - (transfer.den[i] ?? 0) * value;
+      state[i] =
+        state[i + 1] + (transfer.num[i + 1] ?? 0) * sample - (transfer.den[i] ?? 0) * value;
     }
     result[n] = value;
   }
@@ -112,10 +107,7 @@ export const makeLowpassKernel = (
 export const makeRestorationKernel = (cutoff: number, taps = 17): Float32Array =>
   normalizeDc(impulse(withScale(constantK(cutoff), -1.6), taps));
 
-export const makeCompositePreemphasisKernel = (
-  intensity: number,
-  taps = 17,
-): Float32Array => {
+export const makeCompositePreemphasisKernel = (intensity: number, taps = 17): Float32Array => {
   if (intensity === 0) return makeLowpassKernel(0, "BUTTERWORTH", taps);
   const cutoff = 315_000_000 / 88 / 2;
   return normalizeDc(impulse(withScale(constantK(cutoff), -intensity), taps));
@@ -129,9 +121,10 @@ export const makeSharpenKernel = (
   taps = 17,
 ): Float32Array => {
   const multiplier = filterType === "CONSTANT_K" ? 4 : 1;
-  const base = filterType === "BUTTERWORTH"
-    ? butterworth(cutoff * multiplier * frequency)
-    : constantK(cutoff * multiplier * frequency);
+  const base =
+    filterType === "BUTTERWORTH"
+      ? butterworth(cutoff * multiplier * frequency)
+      : constantK(cutoff * multiplier * frequency);
   return normalizeDc(impulse(withScale(base, -intensity * 2 * frequency), taps));
 };
 
@@ -149,7 +142,7 @@ export const makeNotchKernel = (
 ): Float32Array => {
   if (scale <= 0) return makeLowpassKernel(0, "BUTTERWORTH", taps);
   const normalizedFrequency = Math.min(1, Math.max(0, frequency));
-  const bandwidth = normalizedFrequency / Math.max(power, 1e-4) * Math.PI;
+  const bandwidth = (normalizedFrequency / Math.max(power, 1e-4)) * Math.PI;
   const radians = normalizedFrequency * Math.PI;
   const beta = Math.tan(bandwidth * 0.5);
   const gain = 1 / (1 + beta);
@@ -203,8 +196,14 @@ export const makeConformancePattern = (
 ): Float32Array => {
   const pixels = new Float32Array(width * height * 3);
   const bars = [
-    [0.75, 0.75, 0.75], [0.75, 0.75, 0], [0, 0.75, 0.75], [0, 0.75, 0],
-    [0.75, 0, 0.75], [0.75, 0, 0], [0, 0, 0.75], [0, 0, 0],
+    [0.75, 0.75, 0.75],
+    [0.75, 0.75, 0],
+    [0, 0.75, 0.75],
+    [0, 0.75, 0],
+    [0.75, 0, 0.75],
+    [0.75, 0, 0],
+    [0, 0, 0.75],
+    [0, 0, 0],
   ];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -216,7 +215,7 @@ export const makeConformancePattern = (
         const value = x >= Math.floor(width / 3) ? 1 : 0;
         rgb = [value, value, value];
       } else if (pattern === "smpte") {
-        rgb = bars[Math.min(7, Math.floor(x * 8 / width))];
+        rgb = bars[Math.min(7, Math.floor((x * 8) / width))];
       } else if (pattern === "alternatingLines") {
         const value = y % 2;
         rgb = [value, value, value];
@@ -371,15 +370,21 @@ export const simplex2d = (x: number, y: number, seed: number): number => {
     const yMagnitude = swap ? 2 : 1;
     const gxPositive = swap ? (h & 1) === 0 : (h & 2) === 0;
     const gyPositive = swap ? (h & 2) === 0 : (h & 1) === 0;
-    const gradient = (gxPositive ? xMagnitude : -xMagnitude) * dx
-      + (gyPositive ? yMagnitude : -yMagnitude) * dy;
+    const gradient =
+      (gxPositive ? xMagnitude : -xMagnitude) * dx + (gyPositive ? yMagnitude : -yMagnitude) * dy;
     const weight = Math.max(0, 0.5 - dx * dx - dy * dy);
     value += weight * weight * weight * weight * gradient;
   }
   return value;
 };
 
-const fbm1d = (x: number, seed: number, octaves: number, gain: number, frequency: number): number => {
+const fbm1d = (
+  x: number,
+  seed: number,
+  octaves: number,
+  gain: number,
+  frequency: number,
+): number => {
   let coordinate = x * frequency;
   let value = simplex1d(coordinate, seed);
   let amplitude = gain;

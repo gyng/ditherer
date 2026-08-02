@@ -20,12 +20,23 @@ const makeCanvas = (width: number, height: number, pixels: Pixel[]) => {
   const canvas = {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
-      putImageData: (image: { data: Uint8ClampedArray }) => { written = new Uint8ClampedArray(image.data); },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
+            putImageData: (image: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(image.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
-  return { canvas, output: () => { if (!written) throw new Error("no output"); return written; } };
+  return {
+    canvas,
+    output: () => {
+      if (!written) throw new Error("no output");
+      return written;
+    },
+  };
 };
 
 describe("Motion Blur linear-light averaging (JS path)", () => {

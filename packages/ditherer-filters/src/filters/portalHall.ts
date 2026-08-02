@@ -5,7 +5,7 @@ import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend
 import { logFilterBackend } from "../utils/index";
 import { renderGLSinglePass } from "../utils/glSinglePass";
 
-const FS=`#version 300 es
+const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;out vec4 fragColor;uniform sampler2D u_source;uniform vec2 u_res;
 uniform float u_recursion;uniform float u_twist;uniform float u_scale;uniform float u_glow;uniform float u_steps;uniform float u_time;uniform vec3 u_portalColor;
@@ -21,18 +21,120 @@ void main(){vec2 screen=v_uv*2.0-1.0;screen.x*=u_res.x/max(u_res.y,1.0);vec3 ro=
   float e=0.003,m;vec3 n=normalize(vec3(scene(p+vec3(e,0,0),m)-scene(p-vec3(e,0,0),m),scene(p+vec3(0,e,0),m)-scene(p-vec3(0,e,0),m),scene(p+vec3(0,0,e),m)-scene(p-vec3(0,0,e),m)));
   vec3 light=normalize(vec3(-0.4,0.6,-0.8));float diffuse=0.18+0.85*max(dot(n,light),0.0);float fog=exp(-travel*0.055);
   vec3 rgb=material*diffuse*fog+(u_portalColor/255.0)*(portal*u_glow+portalAccum);fragColor=vec4(clamp(rgb,0.0,1.0),1.0);}`;
-export const optionTypes={
-  recursion:{type:RANGE,range:[1,8],step:1,default:4,desc:"Number of repeating portal-scale states"},twist:{type:RANGE,range:[-2,2],step:0.05,default:0.35,desc:"Rotation applied each time the hall repeats"},
-  scale:{type:RANGE,range:[0.75,1.25],step:0.01,default:0.94,desc:"Non-Euclidean scale change between portal cells"},glow:{type:RANGE,range:[0,4],step:0.1,default:1.6,desc:"Portal-frame emission strength"},
-  steps:{type:RANGE,range:[24,96],step:8,default:72,desc:"Maximum corridor ray-march steps"},speed:{type:RANGE,range:[0,3],step:0.05,default:0.55,desc:"Forward travel speed through the hall"},
-  portalColor:{type:COLOR,default:[112,82,255],desc:"Portal frame and recursive fog color"},palette:{type:PALETTE,default:nearest,desc:"Optional output palette quantization"},};
-export const defaults={recursion:optionTypes.recursion.default,twist:optionTypes.twist.default,scale:optionTypes.scale.default,glow:optionTypes.glow.default,steps:optionTypes.steps.default,
-  speed:optionTypes.speed.default,portalColor:optionTypes.portalColor.default,palette:{...optionTypes.palette.default,options:{levels:256}}};
-const portalHall=(input:HTMLCanvasElement|OffscreenCanvas,options=defaults)=>{const runtime=options as typeof defaults&{_frameIndex?:number};const W=input.width,H=input.height;
-  const rendered=renderGLSinglePass({source:input,width:W,height:H,key:"portalHall",fragmentShader:FS,uniformNames:["u_recursion","u_twist","u_scale","u_glow","u_steps","u_time","u_portalColor"],
-    setUniforms:(gl,u)=>{gl.uniform1f(u.u_recursion,options.recursion);gl.uniform1f(u.u_twist,options.twist);gl.uniform1f(u.u_scale,options.scale);gl.uniform1f(u.u_glow,options.glow);
-      gl.uniform1f(u.u_steps,options.steps);gl.uniform1f(u.u_time,(runtime._frameIndex??0)*options.speed*0.035);gl.uniform3f(u.u_portalColor,options.portalColor[0],options.portalColor[1],options.portalColor[2]);}});
-  if(!rendered)return input;const identity=paletteIsIdentity(options.palette);logFilterBackend("Portal Hall","WebGL2",`recursion=${options.recursion}${identity?"":"+palettePass"}`);
-  return identity?rendered:(applyPalettePassToCanvas(rendered,W,H,options.palette)??rendered);};
-export default defineFilter({name:"Portal Hall",func:portalHall,optionTypes,options:defaults,defaults,
-  description:"Travel through a source-textured corridor of twisting, scale-changing portals",temporal:true,autoAnimate:true,autoAnimateFps:30,requiresGL:true});
+export const optionTypes = {
+  recursion: {
+    type: RANGE,
+    range: [1, 8],
+    step: 1,
+    default: 4,
+    desc: "Number of repeating portal-scale states",
+  },
+  twist: {
+    type: RANGE,
+    range: [-2, 2],
+    step: 0.05,
+    default: 0.35,
+    desc: "Rotation applied each time the hall repeats",
+  },
+  scale: {
+    type: RANGE,
+    range: [0.75, 1.25],
+    step: 0.01,
+    default: 0.94,
+    desc: "Non-Euclidean scale change between portal cells",
+  },
+  glow: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.1,
+    default: 1.6,
+    desc: "Portal-frame emission strength",
+  },
+  steps: {
+    type: RANGE,
+    range: [24, 96],
+    step: 8,
+    default: 72,
+    desc: "Maximum corridor ray-march steps",
+  },
+  speed: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.55,
+    desc: "Forward travel speed through the hall",
+  },
+  portalColor: {
+    type: COLOR,
+    default: [112, 82, 255],
+    desc: "Portal frame and recursive fog color",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
+};
+export const defaults = {
+  recursion: optionTypes.recursion.default,
+  twist: optionTypes.twist.default,
+  scale: optionTypes.scale.default,
+  glow: optionTypes.glow.default,
+  steps: optionTypes.steps.default,
+  speed: optionTypes.speed.default,
+  portalColor: optionTypes.portalColor.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
+};
+const portalHall = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
+  const runtime = options as typeof defaults & { _frameIndex?: number };
+  const W = input.width,
+    H = input.height;
+  const rendered = renderGLSinglePass({
+    source: input,
+    width: W,
+    height: H,
+    key: "portalHall",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_recursion",
+      "u_twist",
+      "u_scale",
+      "u_glow",
+      "u_steps",
+      "u_time",
+      "u_portalColor",
+    ],
+    setUniforms: (gl, u) => {
+      gl.uniform1f(u.u_recursion, options.recursion);
+      gl.uniform1f(u.u_twist, options.twist);
+      gl.uniform1f(u.u_scale, options.scale);
+      gl.uniform1f(u.u_glow, options.glow);
+      gl.uniform1f(u.u_steps, options.steps);
+      gl.uniform1f(u.u_time, (runtime._frameIndex ?? 0) * options.speed * 0.035);
+      gl.uniform3f(
+        u.u_portalColor,
+        options.portalColor[0],
+        options.portalColor[1],
+        options.portalColor[2],
+      );
+    },
+  });
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(options.palette);
+  logFilterBackend(
+    "Portal Hall",
+    "WebGL2",
+    `recursion=${options.recursion}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+};
+export default defineFilter({
+  name: "Portal Hall",
+  func: portalHall,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Travel through a source-textured corridor of twisting, scale-changing portals",
+  temporal: true,
+  autoAnimate: true,
+  autoAnimateFps: 30,
+  requiresGL: true,
+});

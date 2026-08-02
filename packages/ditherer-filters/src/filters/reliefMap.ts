@@ -1,6 +1,13 @@
 import { RANGE, ENUM, COLOR, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "../utils/index";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+  logFilterBackend,
+} from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
 import { defineFilter } from "./types";
 import { reliefMapGLAvailable, renderReliefMapGL } from "./reliefMapGL";
@@ -8,25 +15,43 @@ import { reliefMapGLAvailable, renderReliefMapGL } from "./reliefMapGL";
 const BASE_MODE = {
   ORIGINAL: "ORIGINAL",
   GRAYSCALE: "GRAYSCALE",
-  TINT: "TINT"
+  TINT: "TINT",
 };
 
 export const optionTypes = {
-  lightAngle: { type: RANGE, range: [0, 360], step: 1, default: 135, desc: "Direction of the fake surface light" },
-  height: { type: RANGE, range: [0.1, 8], step: 0.1, default: 2, desc: "How strongly luminance differences act like surface height" },
-  specular: { type: RANGE, range: [0, 1], step: 0.05, default: 0.25, desc: "Add a glossy highlight on bright-facing slopes" },
+  lightAngle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 135,
+    desc: "Direction of the fake surface light",
+  },
+  height: {
+    type: RANGE,
+    range: [0.1, 8],
+    step: 0.1,
+    default: 2,
+    desc: "How strongly luminance differences act like surface height",
+  },
+  specular: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.25,
+    desc: "Add a glossy highlight on bright-facing slopes",
+  },
   baseColorMode: {
     type: ENUM,
     options: [
       { name: "Original color", value: BASE_MODE.ORIGINAL },
       { name: "Grayscale relief", value: BASE_MODE.GRAYSCALE },
-      { name: "Tinted stone", value: BASE_MODE.TINT }
+      { name: "Tinted stone", value: BASE_MODE.TINT },
     ],
     default: BASE_MODE.ORIGINAL,
-    desc: "How the relit surface color is derived"
+    desc: "How the relit surface color is derived",
   },
   tintColor: { type: COLOR, default: [196, 186, 170], desc: "Stone-like tint used in tinted mode" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -35,7 +60,7 @@ export const defaults = {
   specular: optionTypes.specular.default,
   baseColorMode: optionTypes.baseColorMode.default,
   tintColor: optionTypes.tintColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
@@ -46,17 +71,34 @@ const reliefMap = (input: any, options = defaults) => {
   const heightPx = input.height;
 
   if (
-    reliefMapGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    reliefMapGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
-    const rendered = renderReliefMapGL(input, width, heightPx, lightAngle, height, specular, baseColorMode,
-      tintColor as [number, number, number], levels);
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
+    const rendered = renderReliefMapGL(
+      input,
+      width,
+      heightPx,
+      lightAngle,
+      height,
+      specular,
+      baseColorMode,
+      tintColor as [number, number, number],
+      levels,
+    );
     if (rendered) {
-      const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, width, heightPx, palette);
+      const out = isNearest
+        ? rendered
+        : applyPalettePassToCanvas(rendered, width, heightPx, palette);
       if (out) {
-        logFilterBackend("Relief Map", "WebGL2", `${baseColorMode} height=${height} spec=${specular}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Relief Map",
+          "WebGL2",
+          `${baseColorMode} height=${height} spec=${specular}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -135,5 +177,5 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Treat luminance like a height field and relight it as a faux 3D surface"
+  description: "Treat luminance like a height field and relight it as a faux 3D surface",
 });

@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -110,11 +117,25 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_downRes", "u_contrast", "u_edgeEnhance", "u_ditherStrength",
-    "u_exposure", "u_gain", "u_bias", "u_invert", "u_edgeMode", "u_kernel",
-    "u_sensorNoise", "u_seed", "u_frame",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_downRes",
+      "u_contrast",
+      "u_edgeEnhance",
+      "u_ditherStrength",
+      "u_exposure",
+      "u_gain",
+      "u_bias",
+      "u_invert",
+      "u_edgeMode",
+      "u_kernel",
+      "u_sensorNoise",
+      "u_seed",
+      "u_frame",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -122,12 +143,24 @@ export const gameboyCameraGLAvailable = (): boolean => glAvailable();
 
 export const renderGameboyCameraGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  downW: number, downH: number,
+  width: number,
+  height: number,
+  downW: number,
+  downH: number,
   options: {
-    contrast: number; exposure: number; gain: number; bias: number; invert: number;
-    edgeMode: number; edgeEnhance: number; kernelP: number; kernelM: number;
-    kernelX: number; sensorNoise: number; randomSeed: number; frame: number;
+    contrast: number;
+    exposure: number;
+    gain: number;
+    bias: number;
+    invert: number;
+    edgeMode: number;
+    edgeEnhance: number;
+    kernelP: number;
+    kernelM: number;
+    kernelX: number;
+    sensorNoise: number;
+    randomSeed: number;
+    frame: number;
     ditherStrength: number;
   },
 ): HTMLCanvasElement | OffscreenCanvas | null => {
@@ -139,24 +172,32 @@ export const renderGameboyCameraGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "gameboyCamera:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2f(cache.prog.uniforms.u_downRes, downW, downH);
-    gl.uniform1f(cache.prog.uniforms.u_contrast, options.contrast);
-    gl.uniform1f(cache.prog.uniforms.u_exposure, options.exposure);
-    gl.uniform1f(cache.prog.uniforms.u_gain, options.gain);
-    gl.uniform1f(cache.prog.uniforms.u_bias, options.bias);
-    gl.uniform1i(cache.prog.uniforms.u_invert, options.invert);
-    gl.uniform1i(cache.prog.uniforms.u_edgeMode, options.edgeMode);
-    gl.uniform1f(cache.prog.uniforms.u_edgeEnhance, options.edgeEnhance);
-    gl.uniform3f(cache.prog.uniforms.u_kernel, options.kernelP, options.kernelM, options.kernelX);
-    gl.uniform1f(cache.prog.uniforms.u_sensorNoise, options.sensorNoise);
-    gl.uniform1f(cache.prog.uniforms.u_seed, options.randomSeed);
-    gl.uniform1f(cache.prog.uniforms.u_frame, options.frame);
-    gl.uniform1f(cache.prog.uniforms.u_ditherStrength, options.ditherStrength);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2f(cache.prog.uniforms.u_downRes, downW, downH);
+      gl.uniform1f(cache.prog.uniforms.u_contrast, options.contrast);
+      gl.uniform1f(cache.prog.uniforms.u_exposure, options.exposure);
+      gl.uniform1f(cache.prog.uniforms.u_gain, options.gain);
+      gl.uniform1f(cache.prog.uniforms.u_bias, options.bias);
+      gl.uniform1i(cache.prog.uniforms.u_invert, options.invert);
+      gl.uniform1i(cache.prog.uniforms.u_edgeMode, options.edgeMode);
+      gl.uniform1f(cache.prog.uniforms.u_edgeEnhance, options.edgeEnhance);
+      gl.uniform3f(cache.prog.uniforms.u_kernel, options.kernelP, options.kernelM, options.kernelX);
+      gl.uniform1f(cache.prog.uniforms.u_sensorNoise, options.sensorNoise);
+      gl.uniform1f(cache.prog.uniforms.u_seed, options.randomSeed);
+      gl.uniform1f(cache.prog.uniforms.u_frame, options.frame);
+      gl.uniform1f(cache.prog.uniforms.u_ditherStrength, options.ditherStrength);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

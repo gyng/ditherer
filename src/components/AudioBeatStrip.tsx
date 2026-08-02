@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import {
-  getAudioVizSnapshot,
-  subscribeAudioViz,
-  type AudioVizChannel,
-} from "utils/audioVizBridge";
+import { getAudioVizSnapshot, subscribeAudioViz, type AudioVizChannel } from "utils/audioVizBridge";
 
 type Props = {
   channel: AudioVizChannel;
@@ -36,9 +32,10 @@ const AudioBeatStrip = ({ channel, boxes = 4, height = 10, title, mode = "bar" }
   }, [channel]);
 
   const snapshot = snapshotRef.current;
-  const rawPhase = mode === "bar"
-    ? snapshot.rawMetrics.barPhase ?? snapshot.rawMetrics.tempoPhase ?? 0
-    : snapshot.rawMetrics.tempoPhase ?? 0;
+  const rawPhase =
+    mode === "bar"
+      ? (snapshot.rawMetrics.barPhase ?? snapshot.rawMetrics.tempoPhase ?? 0)
+      : (snapshot.rawMetrics.tempoPhase ?? 0);
   const phase = Math.min(1, Math.max(0, rawPhase));
   const pulse = Math.min(1, Math.max(0, snapshot.rawMetrics.beat ?? 0));
   const hasTempo = snapshot.detectedBpm != null && snapshot.detectedBpm > 0;
@@ -47,9 +44,12 @@ const AudioBeatStrip = ({ channel, boxes = 4, height = 10, title, mode = "bar" }
 
   return (
     <div
-      title={title ?? (hasTempo
-        ? `${Math.round(snapshot.detectedBpm!)} BPM — current beat ${active + 1} of ${boxes}`
-        : "No detected BPM yet")}
+      title={
+        title ??
+        (hasTempo
+          ? `${Math.round(snapshot.detectedBpm!)} BPM — current beat ${active + 1} of ${boxes}`
+          : "No detected BPM yet")
+      }
       style={{ display: "flex", gap: 2, width: "100%" }}
     >
       {Array.from({ length: boxes }).map((_, i) => {
@@ -79,7 +79,11 @@ const AudioBeatStrip = ({ channel, boxes = 4, height = 10, title, mode = "bar" }
                 : isDownbeat
                   ? `rgba(255,170,90,${Math.min(1, alpha + 0.15)})`
                   : `rgba(80,160,220,${Math.min(1, alpha)})`,
-              border: isDownbeat ? "1px solid rgba(140,70,0,0.55)" : i === 0 ? "1px solid rgba(0,0,0,0.4)" : "none",
+              border: isDownbeat
+                ? "1px solid rgba(140,70,0,0.55)"
+                : i === 0
+                  ? "1px solid rgba(0,0,0,0.4)"
+                  : "none",
             }}
           />
         );

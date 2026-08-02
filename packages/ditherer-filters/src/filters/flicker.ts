@@ -31,13 +31,35 @@ export const optionTypes = {
     ],
     desc: "Flicker model: live ghosting, hard strobe brightness, or held-frame flashing",
   },
-  amount: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Overall flicker intensity" },
-  flash: { type: RANGE, range: [0.5, 2.5], step: 0.05, default: 1.5, desc: "Brightness multiplier on the flashed beat" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-    if (actions.isAnimating()) actions.stopAnimLoop();
-    else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
-  } },
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.7,
+    desc: "Overall flicker intensity",
+  },
+  flash: {
+    type: RANGE,
+    range: [0.5, 2.5],
+    step: 0.05,
+    default: 1.5,
+    desc: "Brightness multiplier on the flashed beat",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+      if (actions.isAnimating()) actions.stopAnimLoop();
+      else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+    },
+  },
 };
 
 export const defaults = {
@@ -91,14 +113,15 @@ const getProg = (gl: WebGL2RenderingContext): Program => {
   return _prog;
 };
 
-const modeId = (m: string) => m === MODE.STROBE ? 1 : m === MODE.HOLD_FLASH ? 2 : 0;
+const modeId = (m: string) => (m === MODE.STROBE ? 1 : m === MODE.HOLD_FLASH ? 2 : 0);
 
 const flicker = (input: any, options: FlickerOptions = defaults) => {
   const mode = options.mode || defaults.mode;
   const amount = Math.max(0, Math.min(1, Number(options.amount ?? defaults.amount)));
   const flash = Math.max(0, Number(options.flash ?? defaults.flash));
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const phase = ((frameIndex % 3) + 3) % 3;
 
   const ctx = getGLCtx();
@@ -125,17 +148,25 @@ const flicker = (input: any, options: FlickerOptions = defaults) => {
   const sourceTex = ensureTexture(gl, "flicker:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, heldTex.tex);
-    gl.uniform1i(prog.uniforms.u_held, 1);
-    gl.uniform1f(prog.uniforms.u_amount, amount);
-    gl.uniform1f(prog.uniforms.u_flash, flash);
-    gl.uniform1i(prog.uniforms.u_mode, modeId(mode));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, heldTex.tex);
+      gl.uniform1i(prog.uniforms.u_held, 1);
+      gl.uniform1f(prog.uniforms.u_amount, amount);
+      gl.uniform1f(prog.uniforms.u_flash, flash);
+      gl.uniform1i(prog.uniforms.u_mode, modeId(mode));
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -151,7 +182,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Aggressive projector/monitor flicker with live ghost, strobe, and held-frame flash modes",
+  description:
+    "Aggressive projector/monitor flicker with live ghost, strobe, and held-frame flash modes",
   temporal: true,
   requiresGL: true,
 });

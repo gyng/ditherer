@@ -42,12 +42,30 @@ import {
 const LAYER_COUNT = 4;
 
 export const optionTypes = {
-  density: { type: RANGE, range: [2, 20], step: 1, default: 6, desc: "Hatch line spacing in pixels" },
-  angle1: { type: RANGE, range: [0, 180], step: 5, default: 45, desc: "Primary hatch angle in degrees" },
-  angle2: { type: RANGE, range: [0, 180], step: 5, default: 135, desc: "Secondary hatch angle in degrees" },
+  density: {
+    type: RANGE,
+    range: [2, 20],
+    step: 1,
+    default: 6,
+    desc: "Hatch line spacing in pixels",
+  },
+  angle1: {
+    type: RANGE,
+    range: [0, 180],
+    step: 5,
+    default: 45,
+    desc: "Primary hatch angle in degrees",
+  },
+  angle2: {
+    type: RANGE,
+    range: [0, 180],
+    step: 5,
+    default: 135,
+    desc: "Secondary hatch angle in degrees",
+  },
   inkColor: { type: COLOR, default: [0, 0, 0], desc: "Hatch line color" },
   paperColor: { type: COLOR, default: [255, 255, 240], desc: "Background paper color" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -56,7 +74,7 @@ export const defaults = {
   angle2: optionTypes.angle2.default,
   inkColor: optionTypes.inkColor.default,
   paperColor: optionTypes.paperColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Four fixed hatch-line directions (radians) from the two user angles.
@@ -117,8 +135,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     ch: linkProgram(gl, CH_FS, [
-      "u_source", "u_res", "u_density", "u_across",
-      "u_inkColor", "u_paperColor", "u_levels",
+      "u_source",
+      "u_res",
+      "u_density",
+      "u_across",
+      "u_inkColor",
+      "u_paperColor",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -151,27 +174,48 @@ const crosshatch = (input: any, options: Partial<typeof defaults> = defaults) =>
       const sourceTex = ensureTexture(gl, "crosshatch:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.ch, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.ch.uniforms.u_source, 0);
-        gl.uniform2f(cache.ch.uniforms.u_res, W, H);
-        gl.uniform1f(cache.ch.uniforms.u_density, density);
-        gl.uniform2fv(cache.ch.uniforms.u_across, across);
-        gl.uniform3f(cache.ch.uniforms.u_inkColor, inkColor[0] / 255, inkColor[1] / 255, inkColor[2] / 255);
-        gl.uniform3f(cache.ch.uniforms.u_paperColor, paperColor[0] / 255, paperColor[1] / 255, paperColor[2] / 255);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.ch.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.ch,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.ch.uniforms.u_source, 0);
+          gl.uniform2f(cache.ch.uniforms.u_res, W, H);
+          gl.uniform1f(cache.ch.uniforms.u_density, density);
+          gl.uniform2fv(cache.ch.uniforms.u_across, across);
+          gl.uniform3f(
+            cache.ch.uniforms.u_inkColor,
+            inkColor[0] / 255,
+            inkColor[1] / 255,
+            inkColor[2] / 255,
+          );
+          gl.uniform3f(
+            cache.ch.uniforms.u_paperColor,
+            paperColor[0] / 255,
+            paperColor[1] / 255,
+            paperColor[2] / 255,
+          );
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.ch.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Crosshatch", "WebGL2",
-            `density=${density}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Crosshatch",
+            "WebGL2",
+            `density=${density}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -221,5 +265,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Fixed-angle pen-and-ink crosshatching with a continuous tonal ramp — darker areas stack more hatch layers and thicker strokes instead of two hard thresholds",
+  description:
+    "Fixed-angle pen-and-ink crosshatching with a continuous tonal ramp — darker areas stack more hatch layers and thicker strokes instead of two hard thresholds",
 });

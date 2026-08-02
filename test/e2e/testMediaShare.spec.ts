@@ -1,8 +1,5 @@
 import { expect, test } from "@playwright/test";
-import {
-  startBrowserCoverage,
-  writeBrowserCoverage,
-} from "./browserCoverage";
+import { startBrowserCoverage, writeBrowserCoverage } from "./browserCoverage";
 
 const sharedMedia = (url: string) => new URL(url).searchParams.get("testMedia");
 

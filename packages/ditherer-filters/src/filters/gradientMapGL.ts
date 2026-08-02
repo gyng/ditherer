@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -32,9 +39,9 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_color1", "u_color2", "u_color3", "u_mix",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, ["u_source", "u_color1", "u_color2", "u_color3", "u_mix"] as const),
+  };
   return _cache;
 };
 
@@ -42,7 +49,8 @@ export const gradientMapGLAvailable = (): boolean => glAvailable();
 
 export const renderGradientMapGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   color1: [number, number, number],
   color2: [number, number, number],
   color3: [number, number, number],
@@ -56,14 +64,22 @@ export const renderGradientMapGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "gradientMap:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform3f(cache.prog.uniforms.u_color1, color1[0], color1[1], color1[2]);
-    gl.uniform3f(cache.prog.uniforms.u_color2, color2[0], color2[1], color2[2]);
-    gl.uniform3f(cache.prog.uniforms.u_color3, color3[0], color3[1], color3[2]);
-    gl.uniform1f(cache.prog.uniforms.u_mix, mixAmount);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform3f(cache.prog.uniforms.u_color1, color1[0], color1[1], color1[2]);
+      gl.uniform3f(cache.prog.uniforms.u_color2, color2[0], color2[1], color2[2]);
+      gl.uniform3f(cache.prog.uniforms.u_color3, color3[0], color3[1], color3[2]);
+      gl.uniform1f(cache.prog.uniforms.u_mix, mixAmount);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

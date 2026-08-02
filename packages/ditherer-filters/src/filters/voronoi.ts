@@ -1,18 +1,30 @@
 import { RANGE, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, srgbPaletteGetColor } from "../utils/index";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  srgbPaletteGetColor,
+} from "../utils/index";
 import { defineFilter } from "./types";
 
 export const optionTypes = {
   cells: { type: RANGE, range: [5, 2000], step: 1, default: 80, desc: "Number of Voronoi cells" },
-  seed: { type: RANGE, range: [0, 9999], step: 1, default: 1729, desc: "Deterministic cell-layout seed" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  seed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 1729,
+    desc: "Deterministic cell-layout seed",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
   cells: optionTypes.cells.default,
   seed: optionTypes.seed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type VoronoiSeed = { x: number; y: number };
@@ -33,11 +45,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const createSeedGrid = (
-  seeds: readonly VoronoiSeed[],
-  width: number,
-  height: number,
-): SeedGrid => {
+const createSeedGrid = (seeds: readonly VoronoiSeed[], width: number, height: number): SeedGrid => {
   const dimension = Math.max(1, Math.ceil(Math.sqrt(seeds.length)));
   const cellWidth = Math.max(1, width) / dimension;
   const cellHeight = Math.max(1, height) / dimension;
@@ -113,9 +121,8 @@ export const findNearestVoronoiSeed = (
   seeds: readonly VoronoiSeed[],
   width: number,
   height: number,
-): number => seeds.length > 0
-  ? nearestSeedFromGrid(x, y, seeds, createSeedGrid(seeds, width, height))
-  : -1;
+): number =>
+  seeds.length > 0 ? nearestSeedFromGrid(x, y, seeds, createSeedGrid(seeds, width, height)) : -1;
 
 const voronoi = (input: any, options: Partial<typeof defaults> = defaults) => {
   const palette = options.palette ?? defaults.palette;
@@ -135,7 +142,7 @@ const voronoi = (input: any, options: Partial<typeof defaults> = defaults) => {
   const random = mulberry32(seed);
   const seeds = Array.from({ length: cells }, () => ({
     x: random() * W,
-    y: random() * H
+    y: random() * H,
   }));
   const grid = createSeedGrid(seeds, W, H);
 
@@ -158,14 +165,14 @@ const voronoi = (input: any, options: Partial<typeof defaults> = defaults) => {
   }
 
   // Compute average color per cell
-  const avgColors = sums.map(s => {
+  const avgColors = sums.map((s) => {
     const n = s.count || 1;
     const alphaWeight = s.a / 255;
     return rgba(
       alphaWeight > 0 ? Math.round(s.r / alphaWeight) : 0,
       alphaWeight > 0 ? Math.round(s.g / alphaWeight) : 0,
       alphaWeight > 0 ? Math.round(s.b / alphaWeight) : 0,
-      Math.round(s.a / n)
+      Math.round(s.a / n),
     );
   });
 
@@ -191,6 +198,7 @@ export default defineFilter({
   optionTypes,
   defaults,
   description: "Deterministic seeded Voronoi cells filled with alpha-aware average source colors",
-  noWASM: "Two-pass per-cell colour averaging needs a reduction over all assigned pixels — hard to vectorise without randomised-access atomics and not a win over the existing spatial-grid JS path.",
+  noWASM:
+    "Two-pass per-cell colour averaging needs a reduction over all assigned pixels — hard to vectorise without randomised-access atomics and not a win over the existing spatial-grid JS path.",
   noGL: "Per-cell colour averaging is a reduction; WebGL2 fragment shaders can't accumulate into shared per-cell bins without compute shaders or float blend extensions.",
 });

@@ -20,7 +20,9 @@ vi.mock("components/SaveAs/export/currentFrameExport", () => ({
   runCurrentFrameGifExport: mocks.runCurrentFrameGifExport,
   runCurrentFrameSequenceExport: mocks.runCurrentFrameSequenceExport,
 }));
-vi.mock("components/SaveAs/export/loopExportOrchestrator", () => ({ runLoopExport: mocks.runLoopExport }));
+vi.mock("components/SaveAs/export/loopExportOrchestrator", () => ({
+  runLoopExport: mocks.runLoopExport,
+}));
 vi.mock("components/SaveAs/export/blobActions", () => ({
   copyBlobWithFeedback: mocks.copyBlobWithFeedback,
   saveBlob: mocks.saveBlob,
@@ -45,12 +47,27 @@ let video: HTMLVideoElement;
 let options: Record<string, unknown>;
 
 const callbacks = [
-  "clearRecordedResult", "setRecordedResult", "clearGifResult", "setGifResult",
-  "clearSequenceResult", "setSequenceResult", "clearContactSheetResult",
-  "setContactSheetResult", "setCopySuccess", "setCapturing", "setRecordingTime",
-  "setExporting", "updateProgress", "clearProgress", "estimateVideoFps",
-  "waitForRenderedSeek", "waitForRenderedPlaybackFrame", "waitForVideoSeekSettled",
-  "createHiddenExportVideo", "setManualPause", "logReliableRenderProfile",
+  "clearRecordedResult",
+  "setRecordedResult",
+  "clearGifResult",
+  "setGifResult",
+  "clearSequenceResult",
+  "setSequenceResult",
+  "clearContactSheetResult",
+  "setContactSheetResult",
+  "setCopySuccess",
+  "setCapturing",
+  "setRecordingTime",
+  "setExporting",
+  "updateProgress",
+  "clearProgress",
+  "estimateVideoFps",
+  "waitForRenderedSeek",
+  "waitForRenderedPlaybackFrame",
+  "waitForVideoSeekSettled",
+  "createHiddenExportVideo",
+  "setManualPause",
+  "logReliableRenderProfile",
   "logGifExportProfile",
 ] as const;
 
@@ -176,7 +193,12 @@ describe("useSaveAsExportHandlers", () => {
     latest.handleSaveContactSheet();
     await latest.handleCopyContactSheet();
     expect(mocks.saveBlob.mock.calls.map((call) => call[1])).toEqual([
-      "png", "jpeg", "webm", "gif", "zip", "png",
+      "png",
+      "jpeg",
+      "webm",
+      "gif",
+      "zip",
+      "png",
     ]);
     expect(mocks.copyBlobWithFeedback).toHaveBeenCalledTimes(5);
 
@@ -192,11 +214,13 @@ describe("useSaveAsExportHandlers", () => {
 
   it("starts and stops realtime recordings through lifecycle callbacks", () => {
     latest.handleRecord();
-    expect(mocks.startCanvasRecording).toHaveBeenCalledWith(expect.objectContaining({
-      sourceCanvas: canvas,
-      includeVideoAudio: true,
-      fps: undefined,
-    }));
+    expect(mocks.startCanvasRecording).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceCanvas: canvas,
+        includeVideoAudio: true,
+        fps: undefined,
+      }),
+    );
     const recording = mocks.startCanvasRecording.mock.calls[0][0];
     recording.onStart();
     expect(options.setCapturing).toHaveBeenCalledWith(true);
@@ -250,17 +274,21 @@ describe("useSaveAsExportHandlers", () => {
     latest.handleRecordLoop();
     await flush();
     expect(video.pause).toHaveBeenCalled();
-    expect(mocks.runReliableVideoExport).toHaveBeenCalledWith(expect.objectContaining({
-      rangeStartSec: 0,
-      rangeEndSec: 10,
-      reliableFps: 25,
-      reliableScope: "range",
-    }));
+    expect(mocks.runReliableVideoExport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rangeStartSec: 0,
+        rangeEndSec: 10,
+        reliableFps: 25,
+        reliableScope: "range",
+      }),
+    );
     const reliable = mocks.runReliableVideoExport.mock.calls.at(-1)![0];
     await reliable.renderFrameForExport(canvas, 3);
     reliable.clearExportSession();
     expect(reliable.isAborted()).toBe(false);
-    expect((options.actions as Record<string, ReturnType<typeof vi.fn>>).renderFrameForExport).toHaveBeenCalled();
+    expect(
+      (options.actions as Record<string, ReturnType<typeof vi.fn>>).renderFrameForExport,
+    ).toHaveBeenCalled();
     expect(options.waitForRenderedSeek).toHaveBeenCalledWith(video, 2, 40);
     expect(video.play).toHaveBeenCalled();
   });
@@ -321,7 +349,9 @@ describe("useSaveAsExportHandlers", () => {
     latest.handleVideoExport();
     await flush();
     expect(mocks.runLoopExport.mock.calls.slice(-3).map((call) => call[0].mode)).toEqual([
-      "gif", "contact", "sequence",
+      "gif",
+      "contact",
+      "sequence",
     ]);
   });
 });

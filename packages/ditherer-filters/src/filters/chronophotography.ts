@@ -20,8 +20,20 @@ const FADE = { LINEAR: "LINEAR", TAIL: "TAIL", HEAD: "HEAD" };
 const MAX_EXPOSURES = 16;
 
 export const optionTypes = {
-  exposures: { type: RANGE, range: [2, 16], step: 1, default: 8, desc: "Number of ghost copies visible" },
-  interval: { type: RANGE, range: [1, 10], step: 1, default: 2, desc: "Frames between each exposure capture" },
+  exposures: {
+    type: RANGE,
+    range: [2, 16],
+    step: 1,
+    default: 8,
+    desc: "Number of ghost copies visible",
+  },
+  interval: {
+    type: RANGE,
+    range: [1, 10],
+    step: 1,
+    default: 2,
+    desc: "Frames between each exposure capture",
+  },
   blendMode: {
     type: ENUM,
     options: [
@@ -42,11 +54,23 @@ export const optionTypes = {
     default: FADE.LINEAR,
     desc: "Per-exposure weighting (Average mode only)",
   },
-  isolateSubject: { type: BOOL, default: false, desc: "Only show moving parts of each exposure (uses EMA background model)" },
+  isolateSubject: {
+    type: BOOL,
+    default: false,
+    desc: "Only show moving parts of each exposure (uses EMA background model)",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -139,8 +163,15 @@ let _expInterval = 0;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_frames", "u_ema", "u_filled", "u_oldestLayer", "u_capacity",
-    "u_blendMode", "u_fadeMode", "u_isolate", "u_haveEma",
+    "u_frames",
+    "u_ema",
+    "u_filled",
+    "u_oldestLayer",
+    "u_capacity",
+    "u_blendMode",
+    "u_fadeMode",
+    "u_isolate",
+    "u_haveEma",
   ] as const);
   return _prog;
 };
@@ -155,23 +186,38 @@ const ensureArrayTex = (gl: WebGL2RenderingContext, w: number, h: number, capaci
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, w, h, capacity, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texImage3D(
+    gl.TEXTURE_2D_ARRAY,
+    0,
+    gl.RGBA8,
+    w,
+    h,
+    capacity,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    null,
+  );
   _arrTex = tex;
   return tex;
 };
 
-const blendId = (m: string) => m === BLEND.AVERAGE ? 1 : m === BLEND.DARKEN ? 2 : 0;
-const fadeId = (m: string) => m === FADE.TAIL ? 1 : m === FADE.HEAD ? 2 : 0;
+const blendId = (m: string) => (m === BLEND.AVERAGE ? 1 : m === BLEND.DARKEN ? 2 : 0);
+const fadeId = (m: string) => (m === FADE.TAIL ? 1 : m === FADE.HEAD ? 2 : 0);
 
 const chronophotography = (input: any, options: ChronoOptions = defaults) => {
-  const exposures = Math.max(2, Math.min(MAX_EXPOSURES, Math.round(Number(options.exposures ?? defaults.exposures))));
+  const exposures = Math.max(
+    2,
+    Math.min(MAX_EXPOSURES, Math.round(Number(options.exposures ?? defaults.exposures))),
+  );
   const interval = Math.max(1, Math.round(Number(options.interval ?? defaults.interval)));
   const blendMode = String(options.blendMode ?? defaults.blendMode);
   const fadeMode = String(options.fadeMode ?? defaults.fadeMode);
   const isolate = Boolean(options.isolateSubject ?? defaults.isolateSubject);
   const ema = options._ema ?? null;
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -181,9 +227,20 @@ const chronophotography = (input: any, options: ChronoOptions = defaults) => {
   const vao = getQuadVAO(gl);
   resizeGLCanvas(canvas, W, H);
 
-  if (_expW !== W || _expH !== H || _expCount !== exposures || _expInterval !== interval || frameIndex === 0) {
-    _expW = W; _expH = H; _expCount = exposures; _expInterval = interval;
-    _expHead = 0; _expFilled = 0; _frameSinceCapture = interval;
+  if (
+    _expW !== W ||
+    _expH !== H ||
+    _expCount !== exposures ||
+    _expInterval !== interval ||
+    frameIndex === 0
+  ) {
+    _expW = W;
+    _expH = H;
+    _expCount = exposures;
+    _expInterval = interval;
+    _expHead = 0;
+    _expFilled = 0;
+    _frameSinceCapture = interval;
   }
 
   const arrTex = ensureArrayTex(gl, W, H, exposures);
@@ -194,8 +251,19 @@ const chronophotography = (input: any, options: ChronoOptions = defaults) => {
     const layer = _expHead % exposures;
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, layer, W, H, 1,
-      gl.RGBA, gl.UNSIGNED_BYTE, input as TexImageSource);
+    gl.texSubImage3D(
+      gl.TEXTURE_2D_ARRAY,
+      0,
+      0,
+      0,
+      layer,
+      W,
+      H,
+      1,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      input as TexImageSource,
+    );
     _expHead++;
     _expFilled = Math.min(_expFilled + 1, exposures);
     _frameSinceCapture = 0;
@@ -221,23 +289,31 @@ const chronophotography = (input: any, options: ChronoOptions = defaults) => {
     haveEma = true;
   }
 
-  const oldestLayer = ((_expHead - _expFilled) % exposures + exposures) % exposures;
+  const oldestLayer = (((_expHead - _expFilled) % exposures) + exposures) % exposures;
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
-    gl.uniform1i(prog.uniforms.u_frames, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
-    gl.uniform1i(prog.uniforms.u_ema, 1);
-    gl.uniform1i(prog.uniforms.u_filled, _expFilled);
-    gl.uniform1i(prog.uniforms.u_oldestLayer, oldestLayer);
-    gl.uniform1i(prog.uniforms.u_capacity, exposures);
-    gl.uniform1i(prog.uniforms.u_blendMode, blendId(blendMode));
-    gl.uniform1i(prog.uniforms.u_fadeMode, fadeId(fadeMode));
-    gl.uniform1f(prog.uniforms.u_isolate, isolate ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_haveEma, haveEma ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
+      gl.uniform1i(prog.uniforms.u_frames, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, emaTex.tex);
+      gl.uniform1i(prog.uniforms.u_ema, 1);
+      gl.uniform1i(prog.uniforms.u_filled, _expFilled);
+      gl.uniform1i(prog.uniforms.u_oldestLayer, oldestLayer);
+      gl.uniform1i(prog.uniforms.u_capacity, exposures);
+      gl.uniform1i(prog.uniforms.u_blendMode, blendId(blendMode));
+      gl.uniform1i(prog.uniforms.u_fadeMode, fadeId(fadeMode));
+      gl.uniform1f(prog.uniforms.u_isolate, isolate ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_haveEma, haveEma ? 1 : 0);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {

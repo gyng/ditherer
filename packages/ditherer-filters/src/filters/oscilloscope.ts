@@ -1,12 +1,11 @@
 import { ACTION, BOOL, ENUM, PALETTE, RANGE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
+import { cloneCanvas, fillBufferPixel, logFilterBackend } from "../utils/index";
 import {
-  cloneCanvas,
-  fillBufferPixel,
-  logFilterBackend,
-} from "../utils/index";
-import { oscilloscopeBeamDensity, oscilloscopeVoltageRow } from "./instrumentSensorQualityContracts";
+  oscilloscopeBeamDensity,
+  oscilloscopeVoltageRow,
+} from "./instrumentSensorQualityContracts";
 import { oscilloscopeGLAvailable, renderOscilloscopeGL } from "./oscilloscopeGL";
 import { defineFilter, type FilterOptionValues } from "./types";
 
@@ -50,15 +49,63 @@ export const optionTypes = {
     default: PHOSPHOR_GREEN,
     desc: "CRT phosphor emission colour used for the waveform trace",
   },
-  beamWidth: { type: RANGE, range: [0.5, 6], step: 0.1, default: 1.5, desc: "Gaussian electron-beam width in display pixels" },
-  intensity: { type: RANGE, range: [0.25, 4], step: 0.05, default: 1.35, desc: "Trace exposure gain before phosphor saturation" },
-  bloom: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Radius of the optical phosphor halo in pixels" },
-  bloomStrength: { type: RANGE, range: [0, 3], step: 0.05, default: 0.65, desc: "Brightness of the defocused phosphor halo" },
-  persistence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Fraction of the preceding phosphor image retained as afterglow" },
+  beamWidth: {
+    type: RANGE,
+    range: [0.5, 6],
+    step: 0.1,
+    default: 1.5,
+    desc: "Gaussian electron-beam width in display pixels",
+  },
+  intensity: {
+    type: RANGE,
+    range: [0.25, 4],
+    step: 0.05,
+    default: 1.35,
+    desc: "Trace exposure gain before phosphor saturation",
+  },
+  bloom: {
+    type: RANGE,
+    range: [0, 10],
+    step: 1,
+    default: 3,
+    desc: "Radius of the optical phosphor halo in pixels",
+  },
+  bloomStrength: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.65,
+    desc: "Brightness of the defocused phosphor halo",
+  },
+  persistence: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Fraction of the preceding phosphor image retained as afterglow",
+  },
   graticule: { type: BOOL, default: true, desc: "Overlay an amplitude/time measurement graticule" },
-  graticuleDivs: { type: RANGE, range: [4, 16], step: 1, default: 10, desc: "Number of major horizontal and vertical graticule divisions" },
-  noiseFloor: { type: RANGE, range: [0, 0.1], step: 0.005, default: 0.008, desc: "Low-level display-electronics noise added behind the trace" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Refresh rate used by the play control" },
+  graticuleDivs: {
+    type: RANGE,
+    range: [4, 16],
+    step: 1,
+    default: 10,
+    desc: "Number of major horizontal and vertical graticule divisions",
+  },
+  noiseFloor: {
+    type: RANGE,
+    range: [0, 0.1],
+    step: 0.005,
+    default: 0.008,
+    desc: "Low-level display-electronics noise added behind the trace",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Refresh rate used by the play control",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -68,7 +115,11 @@ export const optionTypes = {
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
     },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette applied after the instrument display is rendered" },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional output palette applied after the instrument display is rendered",
+  },
 };
 
 export const defaults = {
@@ -115,7 +166,12 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const finiteOption = (value: unknown, fallback: number, minimum: number, maximum: number): number => {
+const finiteOption = (
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number => {
   const numeric = Number(value);
   return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
 };
@@ -156,7 +212,10 @@ const buildDensity = (
     for (let x = 0; x < width; x += 1) {
       let sum = 0;
       for (let sample = 0; sample < sampleCount; sample += 1) {
-        const sourceY = Math.min(height - 1, Math.max(0, Math.floor((sample + 0.5) * height / sampleCount)));
+        const sourceY = Math.min(
+          height - 1,
+          Math.max(0, Math.floor(((sample + 0.5) * height) / sampleCount)),
+        );
         sum += sourceLevel(data, (sourceY * width + x) * 4, -1);
       }
       addBeam(density, width, height, x, sum / sampleCount, beamWidth, 4);
@@ -176,7 +235,10 @@ const buildDensity = (
     }
     const sampleWeight = 96 / sampleCount;
     for (let sample = 0; sample < sampleCount; sample += 1) {
-      const sourceY = Math.min(height - 1, Math.max(0, Math.floor((sample + 0.5) * height / sampleCount)));
+      const sourceY = Math.min(
+        height - 1,
+        Math.max(0, Math.floor(((sample + 0.5) * height) / sampleCount)),
+      );
       addBeam(
         density,
         width,
@@ -191,7 +253,12 @@ const buildDensity = (
   return density;
 };
 
-const boxBlur = (source: Float32Array, width: number, height: number, radius: number): Float32Array => {
+const boxBlur = (
+  source: Float32Array,
+  width: number,
+  height: number,
+  radius: number,
+): Float32Array => {
   if (radius <= 0) return source;
   const horizontal = new Float32Array(source.length);
   const output = new Float32Array(source.length);
@@ -222,9 +289,10 @@ const boxBlur = (source: Float32Array, width: number, height: number, radius: nu
 
 const oscilloscope = (input: any, options: OscilloscopeOptions = defaults) => {
   const displayCandidate = String(options.display ?? defaults.display);
-  const display = displayCandidate === DISPLAY.TRACE || displayCandidate === DISPLAY.PARADE
-    ? displayCandidate
-    : DISPLAY.WAVEFORM;
+  const display =
+    displayCandidate === DISPLAY.TRACE || displayCandidate === DISPLAY.PARADE
+      ? displayCandidate
+      : DISPLAY.WAVEFORM;
   const phosphorCandidate = String(options.phosphor ?? defaults.phosphor);
   const phosphor = phosphorCandidate in phosphorColors ? phosphorCandidate : defaults.phosphor;
   const beamWidth = finiteOption(options.beamWidth, defaults.beamWidth, 0.5, 6);
@@ -240,10 +308,14 @@ const oscilloscope = (input: any, options: OscilloscopeOptions = defaults) => {
   const frameIndex = finiteOption(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER);
   const width = input.width;
   const height = input.height;
-  const phosphorColor = phosphorColors[phosphor as keyof typeof phosphorColors] ?? phosphorColors[PHOSPHOR_GREEN];
+  const phosphorColor =
+    phosphorColors[phosphor as keyof typeof phosphorColors] ?? phosphorColors[PHOSPHOR_GREEN];
   const paletteName = (palette as { name?: string }).name;
-  const paletteLevels = Number((palette as { options?: { levels?: number } }).options?.levels ?? 256);
-  const identityPalette = paletteName === "nearest" && Number.isFinite(paletteLevels) && paletteLevels >= 256;
+  const paletteLevels = Number(
+    (palette as { options?: { levels?: number } }).options?.levels ?? 256,
+  );
+  const identityPalette =
+    paletteName === "nearest" && Number.isFinite(paletteLevels) && paletteLevels >= 256;
 
   if (oscilloscopeGLAvailable() && options._webglAcceleration !== false) {
     const rendered = renderOscilloscopeGL(input, width, height, {
@@ -261,9 +333,15 @@ const oscilloscope = (input: any, options: OscilloscopeOptions = defaults) => {
       prevOutput: previous,
     });
     if (rendered) {
-      const output = identityPalette ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
+      const output = identityPalette
+        ? rendered
+        : applyPalettePassToCanvas(rendered, width, height, palette);
       if (output) {
-        logFilterBackend("Oscilloscope", "WebGL2", `${display} ${phosphor} persistence=${persistence}${identityPalette ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Oscilloscope",
+          "WebGL2",
+          `${display} ${phosphor} persistence=${persistence}${identityPalette ? "" : "+palettePass"}`,
+        );
         return output;
       }
     }
@@ -278,7 +356,10 @@ const oscilloscope = (input: any, options: OscilloscopeOptions = defaults) => {
   const exposure = new Float32Array(density.length);
   const random = mulberry32(frameIndex * 3571 + 41);
   for (let index = 0; index < density.length; index += 1) {
-    exposure[index] = Math.min(1, 1 - Math.exp(-density[index] * Math.max(0, intensity)) + random() * Math.max(0, noiseFloor));
+    exposure[index] = Math.min(
+      1,
+      1 - Math.exp(-density[index] * Math.max(0, intensity)) + random() * Math.max(0, noiseFloor),
+    );
   }
   const radius = Math.min(10, Math.max(0, Math.round(bloom)));
   const halo = boxBlur(exposure, width, height, radius);
@@ -306,7 +387,8 @@ const oscilloscope = (input: any, options: OscilloscopeOptions = defaults) => {
     const cellHeight = height / divisions;
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
-        const major = x % cellWidth < 1 || y % cellHeight < 1 || x === width - 1 || y === height - 1;
+        const major =
+          x % cellWidth < 1 || y % cellHeight < 1 || x === width - 1 || y === height - 1;
         const centre = Math.abs(x - width / 2) < 1 || Math.abs(y - height / 2) < 1;
         if (!major && !centre) continue;
         const index = (y * width + x) * 4;
@@ -339,6 +421,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Image-derived luma waveform, column trace, or RGB parade rendered as a persistent phosphor instrument display",
+  description:
+    "Image-derived luma waveform, column trace, or RGB parade rendered as a persistent phosphor instrument display",
   temporal: true,
 });

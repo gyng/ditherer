@@ -7,13 +7,16 @@ import scanline from "filters/scanline";
 const makeFakeCanvas = (width: number, height: number, data: Uint8ClampedArray) => ({
   width,
   height,
-  getContext: (type: string) => type === "2d" ? {
-    getImageData: () => ({
-      data: new Uint8ClampedArray(data),
-      width,
-      height,
-    }),
-  } : null,
+  getContext: (type: string) =>
+    type === "2d"
+      ? {
+          getImageData: () => ({
+            data: new Uint8ClampedArray(data),
+            width,
+            height,
+          }),
+        }
+      : null,
 });
 
 const runAndCapture = (filterFn, input, options): Uint8ClampedArray | null => {
@@ -60,7 +63,11 @@ describe.skip("Long Exposure", () => {
       windowSize: 2,
     });
 
-    const second = makeFakeCanvas(2, 1, new Uint8ClampedArray([200, 200, 200, 255, 200, 200, 200, 255]));
+    const second = makeFakeCanvas(
+      2,
+      1,
+      new Uint8ClampedArray([200, 200, 200, 255, 200, 200, 200, 255]),
+    );
     const data = runAndCapture(temporalExposure.func, second, {
       ...temporalExposure.defaults,
       mode: "SHUTTER",
@@ -144,11 +151,11 @@ describe("Scanline", () => {
   it("rgb sub-lines isolate channels by row group", () => {
     const width = 1;
     const height = 3;
-    const input = makeFakeCanvas(width, height, new Uint8ClampedArray([
-      100, 150, 200, 255,
-      100, 150, 200, 255,
-      100, 150, 200, 255,
-    ]));
+    const input = makeFakeCanvas(
+      width,
+      height,
+      new Uint8ClampedArray([100, 150, 200, 255, 100, 150, 200, 255, 100, 150, 200, 255]),
+    );
     const data = runAndCapture(scanline.func, input, {
       ...scanline.defaults,
       mode: "RGB_SUBLINES",

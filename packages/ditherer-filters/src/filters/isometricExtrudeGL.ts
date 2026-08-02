@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -67,8 +74,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     ie: linkProgram(gl, IE_FS, [
-      "u_source", "u_res", "u_depth", "u_step", "u_threshold",
-      "u_shadowColor", "u_shadeFalloff",
+      "u_source",
+      "u_res",
+      "u_depth",
+      "u_step",
+      "u_threshold",
+      "u_shadowColor",
+      "u_shadeFalloff",
     ] as const),
   };
   return _cache;
@@ -97,20 +109,30 @@ export const renderIsometricExtrudeGL = (
   const sourceTex = ensureTexture(gl, "isoExtrude:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.ie, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.ie.uniforms.u_source, 0);
-    gl.uniform2f(cache.ie.uniforms.u_res, width, height);
-    gl.uniform1i(cache.ie.uniforms.u_depth, Math.min(24, Math.max(0, depth)));
-    gl.uniform2f(cache.ie.uniforms.u_step, stepX, stepY);
-    gl.uniform1f(cache.ie.uniforms.u_threshold, threshold);
-    gl.uniform3f(
-      cache.ie.uniforms.u_shadowColor,
-      shadowColor[0] / 255, shadowColor[1] / 255, shadowColor[2] / 255,
-    );
-    gl.uniform1f(cache.ie.uniforms.u_shadeFalloff, shadeFalloff);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.ie,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.ie.uniforms.u_source, 0);
+      gl.uniform2f(cache.ie.uniforms.u_res, width, height);
+      gl.uniform1i(cache.ie.uniforms.u_depth, Math.min(24, Math.max(0, depth)));
+      gl.uniform2f(cache.ie.uniforms.u_step, stepX, stepY);
+      gl.uniform1f(cache.ie.uniforms.u_threshold, threshold);
+      gl.uniform3f(
+        cache.ie.uniforms.u_shadowColor,
+        shadowColor[0] / 255,
+        shadowColor[1] / 255,
+        shadowColor[2] / 255,
+      );
+      gl.uniform1f(cache.ie.uniforms.u_shadeFalloff, shadeFalloff);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

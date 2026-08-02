@@ -5,19 +5,13 @@ const { renderJpegArtifactGL } = vi.hoisted(() => ({
 }));
 
 vi.mock("filters/jpegArtifactGL", async () => {
-  const actual = await vi.importActual<typeof import("filters/jpegArtifactGL")>("filters/jpegArtifactGL");
+  const actual =
+    await vi.importActual<typeof import("filters/jpegArtifactGL")>("filters/jpegArtifactGL");
   return { ...actual, renderJpegArtifactGL };
 });
 
-import {
-  applyJpegArtifactToCanvas,
-  tryApplyJpegArtifactToCanvas,
-} from "filters/jpegArtifact";
-import {
-  getCanvasPoolStats,
-  resetCanvasPoolStats,
-  takePooledCanvas,
-} from "@gyng/ditherer-filters";
+import { applyJpegArtifactToCanvas, tryApplyJpegArtifactToCanvas } from "filters/jpegArtifact";
+import { getCanvasPoolStats, resetCanvasPoolStats, takePooledCanvas } from "@gyng/ditherer-filters";
 
 describe("JPEG Artifact GL failure", () => {
   beforeEach(() => {
@@ -63,9 +57,11 @@ describe("JPEG Artifact GL failure", () => {
     renderJpegArtifactGL.mockReturnValueOnce(rendered);
     resetCanvasPoolStats();
 
-    expect(() => applyJpegArtifactToCanvas(input, {
-      palette: { options: { levels: 2 } },
-    })).toThrow("injected JPEG post-process failure");
+    expect(() =>
+      applyJpegArtifactToCanvas(input, {
+        palette: { options: { levels: 2 } },
+      }),
+    ).toThrow("injected JPEG post-process failure");
     expect(getCanvasPoolStats()).toMatchObject({ releases: 1 });
     expect(takePooledCanvas(width, height)).toBe(rendered);
   });

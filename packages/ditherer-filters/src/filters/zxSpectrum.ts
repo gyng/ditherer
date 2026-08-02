@@ -15,10 +15,30 @@ import { spectrumFlashPhase } from "./retroHardwareCodecs";
 import { defineFilter, type FilterCanvas, type FilterOptionValues } from "./types";
 
 export const optionTypes = {
-  flashProbability: { type: RANGE, range: [0, 1], step: 0.01, default: 0.08, desc: "Fraction of 8×8 attribute cells assigned the hardware FLASH bit" },
-  flashEnabled: { type: BOOL, default: true, desc: "Swap INK and PAPER at the Spectrum's 0.64-second full FLASH cycle" },
-  pixelGrid: { type: BOOL, default: false, desc: "Darken dot and attribute-cell boundaries to expose the 256×192 display geometry" },
-  animSpeed: { type: RANGE, range: [1, 50], step: 1, default: 25, desc: "Preview frame rate used to reproduce the hardware FLASH timing" },
+  flashProbability: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.08,
+    desc: "Fraction of 8×8 attribute cells assigned the hardware FLASH bit",
+  },
+  flashEnabled: {
+    type: BOOL,
+    default: true,
+    desc: "Swap INK and PAPER at the Spectrum's 0.64-second full FLASH cycle",
+  },
+  pixelGrid: {
+    type: BOOL,
+    default: false,
+    desc: "Darken dot and attribute-cell boundaries to expose the 256×192 display geometry",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 50],
+    step: 1,
+    default: 25,
+    desc: "Preview frame rate used to reproduce the hardware FLASH timing",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -157,34 +177,62 @@ const zxSpectrum = (input: FilterCanvas, options: ZxOptions = defaults): FilterC
   const { gl, canvas } = context;
   attributeProgram ??= linkProgram(gl, ATTRIBUTE_FS, ["u_source"]);
   outputProgram ??= linkProgram(gl, OUTPUT_FS, [
-    "u_source", "u_attributes", "u_res", "u_flashProbability", "u_flashPhase", "u_flashEnabled", "u_pixelGrid",
+    "u_source",
+    "u_attributes",
+    "u_res",
+    "u_flashProbability",
+    "u_flashPhase",
+    "u_flashEnabled",
+    "u_pixelGrid",
   ]);
   const source = ensureTexture(gl, "zx-spectrum:source", input.width, input.height);
   const attributes = ensureTexture(gl, "zx-spectrum:attributes", 32, 24);
   uploadSourceTexture(gl, source, input);
   const vao = getQuadVAO(gl);
-  drawPass(gl, attributes, 32, 24, attributeProgram, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, source.tex);
-    gl.uniform1i(attributeProgram?.uniforms.u_source ?? null, 0);
-  }, vao);
+  drawPass(
+    gl,
+    attributes,
+    32,
+    24,
+    attributeProgram,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, source.tex);
+      gl.uniform1i(attributeProgram?.uniforms.u_source ?? null, 0);
+    },
+    vao,
+  );
 
   resizeGLCanvas(canvas, input.width, input.height);
   const speed = Math.max(1, Math.min(50, Number(options.animSpeed) || defaults.animSpeed));
   const frame = Math.max(0, Math.floor(Number(options._frameIndex) || 0));
-  drawPass(gl, null, input.width, input.height, outputProgram, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, source.tex);
-    gl.uniform1i(outputProgram?.uniforms.u_source ?? null, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, attributes.tex);
-    gl.uniform1i(outputProgram?.uniforms.u_attributes ?? null, 1);
-    gl.uniform2f(outputProgram?.uniforms.u_res ?? null, input.width, input.height);
-    gl.uniform1f(outputProgram?.uniforms.u_flashProbability ?? null, Math.max(0, Math.min(1, Number(options.flashProbability) || 0)));
-    gl.uniform1i(outputProgram?.uniforms.u_flashPhase ?? null, spectrumFlashPhase(frame, speed));
-    gl.uniform1i(outputProgram?.uniforms.u_flashEnabled ?? null, options.flashEnabled === false ? 0 : 1);
-    gl.uniform1i(outputProgram?.uniforms.u_pixelGrid ?? null, options.pixelGrid === true ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    input.width,
+    input.height,
+    outputProgram,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, source.tex);
+      gl.uniform1i(outputProgram?.uniforms.u_source ?? null, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, attributes.tex);
+      gl.uniform1i(outputProgram?.uniforms.u_attributes ?? null, 1);
+      gl.uniform2f(outputProgram?.uniforms.u_res ?? null, input.width, input.height);
+      gl.uniform1f(
+        outputProgram?.uniforms.u_flashProbability ?? null,
+        Math.max(0, Math.min(1, Number(options.flashProbability) || 0)),
+      );
+      gl.uniform1i(outputProgram?.uniforms.u_flashPhase ?? null, spectrumFlashPhase(frame, speed));
+      gl.uniform1i(
+        outputProgram?.uniforms.u_flashEnabled ?? null,
+        options.flashEnabled === false ? 0 : 1,
+      );
+      gl.uniform1i(outputProgram?.uniforms.u_pixelGrid ?? null, options.pixelGrid === true ? 1 : 0);
+    },
+    vao,
+  );
   const output = readoutToCanvas(canvas, input.width, input.height);
   if (!output) return input;
   logFilterBackend("ZX Spectrum", "WebGL2", "256x192 bitmap + 32x24 legal attribute map");

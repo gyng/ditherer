@@ -4,8 +4,8 @@ How to get real GPU numbers out of this repo, and the ways it silently lies to
 you if you don't. Measured on WSLg + `google-chrome` + NVIDIA RTX 3080, July 2026.
 
 Correctness suites (`npm run test:gl`) don't need any of this — a software
-rasterizer compiles the same shaders. This matters when the *answer depends on
-GPU behaviour*: register pressure, occupancy, bandwidth, "is this fast enough for
+rasterizer compiles the same shaders. This matters when the _answer depends on
+GPU behaviour_: register pressure, occupancy, bandwidth, "is this fast enough for
 video".
 
 ## Getting on the GPU
@@ -22,12 +22,12 @@ the whole mechanism: Chrome → ANGLE → Mesa's Gallium **d3d12** driver →
 
 Measured, four ways:
 
-| | renderer |
-|---|---|
-| headless, no mesa env | `llvmpipe` (CPU) |
+|                                      | renderer                              |
+| ------------------------------------ | ------------------------------------- |
+| headless, no mesa env                | `llvmpipe` (CPU)                      |
 | **headless, `GALLIUM_DRIVER=d3d12`** | **`D3D12 (NVIDIA GeForce RTX 3080)`** |
-| headed, no mesa env | `llvmpipe` (CPU) |
-| headed, `GALLIUM_DRIVER=d3d12` | `D3D12 (NVIDIA GeForce RTX 3080)` |
+| headed, no mesa env                  | `llvmpipe` (CPU)                      |
+| headed, `GALLIUM_DRIVER=d3d12`       | `D3D12 (NVIDIA GeForce RTX 3080)`     |
 
 The env var is necessary and sufficient. A window is neither — don't force headed
 mode for GPU access, it only costs you the ability to run without a display.
@@ -50,9 +50,9 @@ carefully you time them.
 trusting a number.** Not pedantry — the limits differ enough to invalidate
 design decisions:
 
-| | SwiftShader | RTX 3080 |
-|---|---|---|
-| `MAX_FRAGMENT_UNIFORM_VECTORS` | 4096 | **1024** |
+|                                | SwiftShader | RTX 3080 |
+| ------------------------------ | ----------- | -------- |
+| `MAX_FRAGMENT_UNIFORM_VECTORS` | 4096        | **1024** |
 
 Believe the software renderer and you'd size a uniform array 4× past what the
 real GPU allows. (The ES 3.0 guaranteed minimum is only 224 — mobile is stricter
@@ -67,17 +67,17 @@ tells you.
 `readoutToCanvas` draws the GL canvas into a 2D canvas; forcing that to land
 costs far more than the draw it wraps. At 640×400 a 3080 runs a heavy dither
 shader in ~1ms while the surrounding readback/IPC costs 10–40ms, so wall-clock
-sweeps produce results that contradict themselves — a *bigger* workload timing
-*faster*.
+sweeps produce results that contradict themselves — a _bigger_ workload timing
+_faster_.
 
 Use `EXT_disjoint_timer_query_webgl2`, which brackets only the GL command stream:
 
 ```js
-gl.finish();                              // drain what's queued
+gl.finish(); // drain what's queued
 gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
 render();
 gl.endQuery(ext.TIME_ELAPSED_EXT);
-gl.finish();                              // land our draw inside the window
+gl.finish(); // land our draw inside the window
 // then poll QUERY_RESULT_AVAILABLE, and discard the sample if
 // gl.getParameter(ext.GPU_DISJOINT_EXT) — the spec requires throwing it away
 ```
@@ -91,7 +91,7 @@ card.
 Report `min`/`max`/spread per cell, not a bare median. In practice the bad cells
 had **5× max/min while their medians looked perfectly respectable** — and
 undrained timer queries came out bimodal, some samples at the real cost and
-others at a floor that was *identical across different configurations* (the
+others at a floor that was _identical across different configurations_ (the
 query was timing a window the draw hadn't reached).
 
 Before believing any result:
@@ -117,12 +117,12 @@ A palette cap was set at 64 on the reasoning that a 256-entry per-fragment array
 3. **GPU timer queries, run 1** showed a clean ~30% step between cap=64 and
    cap=128 across two independent palette sizes — exactly the shape of a spill,
    apparently vindicating the original guess.
-4. **Run 2 did not reproduce it**, and measured cost *falling* as the palette
+4. **Run 2 did not reproduce it**, and measured cost _falling_ as the palette
    grew, which is impossible.
 
 The step in run 1 was noise that happened to look like signal across two columns.
-The cap stayed at 64 as a conservative default, explicitly documented as *not
-shown correct*. The lesson isn't "benchmarking is hard" — it's that a plausible
+The cap stayed at 64 as a conservative default, explicitly documented as _not
+shown correct_. The lesson isn't "benchmarking is hard" — it's that a plausible
 mechanism plus one run that agrees with it is exactly how you end up confidently
 wrong. Reproduce first.
 

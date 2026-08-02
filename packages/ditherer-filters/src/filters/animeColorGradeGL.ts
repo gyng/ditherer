@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -108,9 +115,19 @@ let program: Program | null = null;
 const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (program) return program;
   program = linkProgram(gl, FS, [
-    "u_source", "u_look", "u_shadowCool", "u_highlightWarm", "u_blackPoint",
-    "u_whitePoint", "u_contrast", "u_midtoneLift", "u_highlightRollOff",
-    "u_vibrance", "u_chromaDensity", "u_skinProtect", "u_mix",
+    "u_source",
+    "u_look",
+    "u_shadowCool",
+    "u_highlightWarm",
+    "u_blackPoint",
+    "u_whitePoint",
+    "u_contrast",
+    "u_midtoneLift",
+    "u_highlightRollOff",
+    "u_vibrance",
+    "u_chromaDensity",
+    "u_skinProtect",
+    "u_mix",
   ] as const);
   return program;
 };
@@ -141,22 +158,30 @@ export const renderAnimeColorGradeGL = (
   const sourceTexture = ensureTexture(gl, "animeColorGrade:source", width, height);
   uploadSourceTexture(gl, sourceTexture, source);
   resizeGLCanvas(canvas, width, height);
-  drawPass(gl, null, width, height, current, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(current.uniforms.u_source, 0);
-    gl.uniform1i(current.uniforms.u_look, look);
-    gl.uniform1f(current.uniforms.u_shadowCool, shadowCool);
-    gl.uniform1f(current.uniforms.u_highlightWarm, highlightWarm);
-    gl.uniform1f(current.uniforms.u_blackPoint, blackPoint);
-    gl.uniform1f(current.uniforms.u_whitePoint, whitePoint);
-    gl.uniform1f(current.uniforms.u_contrast, contrast);
-    gl.uniform1f(current.uniforms.u_midtoneLift, midtoneLift);
-    gl.uniform1f(current.uniforms.u_highlightRollOff, highlightRollOff);
-    gl.uniform1f(current.uniforms.u_vibrance, vibrance);
-    gl.uniform1f(current.uniforms.u_chromaDensity, chromaDensity);
-    gl.uniform1f(current.uniforms.u_skinProtect, skinProtect);
-    gl.uniform1f(current.uniforms.u_mix, mixAmount);
-  }, getQuadVAO(gl));
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    current,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(current.uniforms.u_source, 0);
+      gl.uniform1i(current.uniforms.u_look, look);
+      gl.uniform1f(current.uniforms.u_shadowCool, shadowCool);
+      gl.uniform1f(current.uniforms.u_highlightWarm, highlightWarm);
+      gl.uniform1f(current.uniforms.u_blackPoint, blackPoint);
+      gl.uniform1f(current.uniforms.u_whitePoint, whitePoint);
+      gl.uniform1f(current.uniforms.u_contrast, contrast);
+      gl.uniform1f(current.uniforms.u_midtoneLift, midtoneLift);
+      gl.uniform1f(current.uniforms.u_highlightRollOff, highlightRollOff);
+      gl.uniform1f(current.uniforms.u_vibrance, vibrance);
+      gl.uniform1f(current.uniforms.u_chromaDensity, chromaDensity);
+      gl.uniform1f(current.uniforms.u_skinProtect, skinProtect);
+      gl.uniform1f(current.uniforms.u_mix, mixAmount);
+    },
+    getQuadVAO(gl),
+  );
   return readoutToCanvas(canvas, width, height);
 };

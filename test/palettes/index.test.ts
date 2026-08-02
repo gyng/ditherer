@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { paletteList, serializePalette, deserializePalette, nearest, user } from "@gyng/ditherer-filters";
+import {
+  paletteList,
+  serializePalette,
+  deserializePalette,
+  nearest,
+  user,
+} from "@gyng/ditherer-filters";
 
 // Covers the small (de)serialization shim that ships palettes across the
 // worker boundary and the postMessage wire format. Without these, palettes

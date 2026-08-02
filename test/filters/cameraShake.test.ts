@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import cameraShake, { __testing } from "filters/cameraShake";
 
-const makeCanvas = (width: number, height: number, pixelAt: (x: number, y: number) => [number, number, number, number]) => {
+const makeCanvas = (
+  width: number,
+  height: number,
+  pixelAt: (x: number, y: number) => [number, number, number, number],
+) => {
   const data = new Uint8ClampedArray(width * height * 4);
 
   for (let y = 0; y < height; y += 1) {
@@ -19,13 +23,16 @@ const makeCanvas = (width: number, height: number, pixelAt: (x: number, y: numbe
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: cw,
-        height: ch,
-      }),
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: cw,
+              height: ch,
+            }),
+          }
+        : null,
   };
 };
 

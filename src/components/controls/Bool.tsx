@@ -18,7 +18,7 @@ const Bool = (props: BoolControlProps) => {
           type="checkbox"
           aria-describedby={helpId}
           checked={Boolean(props.value)}
-          onChange={e => props.onSetFilterOption(props.name, e.target.checked)}
+          onChange={(e) => props.onSetFilterOption(props.name, e.target.checked)}
         />
         <span className={s.label}>{label}</span>
       </label>

@@ -20,29 +20,29 @@ The dithering and filtering pipeline operates on raw sRGB pixel values (0-255). 
 
 ### Affected filters
 
-| Filter | Key operations | Priority | Wrappable? |
-|--------|---------------|----------|------------|
-| Error diffusion (11 variants) | Error subtraction, weighted diffusion | CRITICAL | Yes — factory has single getImageData/putImageData pair |
-| Convolution (blur, sharpen, edge) | Kernel weighted sum/difference | CRITICAL | Yes — uses Array.from(buf), outputBuf |
-| Brightness/Contrast | Brightness/contrast/gamma math | CRITICAL | Yes — uses outputBuf copy |
-| Grayscale | RGB arithmetic mean `(R+G+B)/3` | CRITICAL | Yes |
-| Halftone | Block color averaging | CRITICAL | Partial — reads with getImageData, writes with canvas draw ops. Linearize input buffer only |
-| Ordered dithering | Threshold + quantization | HIGH | Yes |
-| Random dithering | RGB averaging + noise | HIGH | Yes |
-| Quantize | Palette distance lookup | HIGH | Yes |
-| Binarize | Per-channel threshold | MODERATE | Yes |
-| Pixelate | Palette lookup on downsampled pixels | MODERATE | Yes — intermediate buffer only |
+| Filter                            | Key operations                        | Priority | Wrappable?                                                                                  |
+| --------------------------------- | ------------------------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| Error diffusion (11 variants)     | Error subtraction, weighted diffusion | CRITICAL | Yes — factory has single getImageData/putImageData pair                                     |
+| Convolution (blur, sharpen, edge) | Kernel weighted sum/difference        | CRITICAL | Yes — uses Array.from(buf), outputBuf                                                       |
+| Brightness/Contrast               | Brightness/contrast/gamma math        | CRITICAL | Yes — uses outputBuf copy                                                                   |
+| Grayscale                         | RGB arithmetic mean `(R+G+B)/3`       | CRITICAL | Yes                                                                                         |
+| Halftone                          | Block color averaging                 | CRITICAL | Partial — reads with getImageData, writes with canvas draw ops. Linearize input buffer only |
+| Ordered dithering                 | Threshold + quantization              | HIGH     | Yes                                                                                         |
+| Random dithering                  | RGB averaging + noise                 | HIGH     | Yes                                                                                         |
+| Quantize                          | Palette distance lookup               | HIGH     | Yes                                                                                         |
+| Binarize                          | Per-channel threshold                 | MODERATE | Yes                                                                                         |
+| Pixelate                          | Palette lookup on downsampled pixels  | MODERATE | Yes — intermediate buffer only                                                              |
 
 ### Not affected
 
-| Filter | Why |
-|--------|-----|
-| Pixelsort | Already has `linearLuminance` toggle |
-| Invert | Pure `255 - x`, linearity doesn't matter |
-| Channel separation | Pure channel routing |
-| Glitch | Byte-level corruption |
-| VHS / Scanline / RGB Stripe | CRT emulation, artistic intent |
-| Program | User-defined code, can't enforce |
+| Filter                      | Why                                      |
+| --------------------------- | ---------------------------------------- |
+| Pixelsort                   | Already has `linearLuminance` toggle     |
+| Invert                      | Pure `255 - x`, linearity doesn't matter |
+| Channel separation          | Pure channel routing                     |
+| Glitch                      | Byte-level corruption                    |
+| VHS / Scanline / RGB Stripe | CRT emulation, artistic intent           |
+| Program                     | User-defined code, can't enforce         |
 
 ### Special case: Grayscale
 
@@ -103,7 +103,7 @@ for (let i = 0; i < 256; i++) {
 // Mutate RGBA buffer in place. Skip alpha channel.
 export const linearizeBuffer = (buf) => {
   for (let i = 0; i < buf.length; i += 4) {
-    buf[i]     = Math.round(SRGB_TO_LINEAR[buf[i]] * 255);
+    buf[i] = Math.round(SRGB_TO_LINEAR[buf[i]] * 255);
     buf[i + 1] = Math.round(SRGB_TO_LINEAR[buf[i + 1]] * 255);
     buf[i + 2] = Math.round(SRGB_TO_LINEAR[buf[i + 2]] * 255);
   }
@@ -111,7 +111,7 @@ export const linearizeBuffer = (buf) => {
 
 export const delinearizeBuffer = (buf) => {
   for (let i = 0; i < buf.length; i += 4) {
-    buf[i]     = LINEAR_TO_SRGB[buf[i]];
+    buf[i] = LINEAR_TO_SRGB[buf[i]];
     buf[i + 1] = LINEAR_TO_SRGB[buf[i + 1]];
     buf[i + 2] = LINEAR_TO_SRGB[buf[i + 2]];
   }
@@ -123,22 +123,26 @@ Note: both LUTs are 256-entry (input is always 0-255 `Uint8ClampedArray`). The `
 ### 2. Add global state + UI
 
 In `src/reducers/filters.js`, add to `initialState`:
+
 ```javascript
-linearize: true
+linearize: true;
 ```
 
 Add reducer case:
+
 ```javascript
 case "SET_LINEARIZE":
   return { ...state, linearize: action.value };
 ```
 
 In `src/context/FilterContext.jsx`, add action:
+
 ```javascript
-setLinearize: (value) => dispatch({ type: "SET_LINEARIZE", value })
+setLinearize: (value) => dispatch({ type: "SET_LINEARIZE", value });
 ```
 
 In `src/components/App/index.jsx`, add checkbox next to "Pre-convert to grayscale":
+
 ```jsx
 <input type="checkbox" checked={state.linearize}
   onChange={e => actions.setLinearize(e.target.checked)} />
@@ -157,6 +161,7 @@ const output = filterFunc(input, filterOpts);
 ### 4. Wrap each affected filter
 
 **Standard pattern** (errorDiffusion, ordered, random, binarize, quantize, grayscale):
+
 ```javascript
 const buf = inputCtx.getImageData(0, 0, w, h);
 if (options._linearize) linearizeBuffer(buf.data);
@@ -166,6 +171,7 @@ outputCtx.putImageData(buf, 0, 0);
 ```
 
 **Dual-buffer pattern** (brightnessContrast, convolve — read from input, write to separate output buf):
+
 ```javascript
 const inputBuf = inputCtx.getImageData(0, 0, w, h).data;
 if (options._linearize) linearizeBuffer(inputBuf);
@@ -175,6 +181,7 @@ outputCtx.putImageData(new ImageData(outputBuf, w, h), 0, 0);
 ```
 
 **Halftone** (reads buffer, writes via canvas draw — per-color delinearize):
+
 ```javascript
 const buf = inputCtx.getImageData(0, 0, w, h).data;
 if (options._linearize) linearizeBuffer(buf);
@@ -191,12 +198,13 @@ if (options._linearize) {
 ### 5. Update Grayscale
 
 When linearized, use weighted luminance instead of naive `(R+G+B)/3`:
+
 ```javascript
 if (options._linearize) {
   linearizeBuffer(buf);
   for (let i = 0; i < buf.length; i += 4) {
-    const gray = Math.round(0.299 * buf[i] + 0.587 * buf[i+1] + 0.114 * buf[i+2]);
-    buf[i] = buf[i+1] = buf[i+2] = gray;
+    const gray = Math.round(0.299 * buf[i] + 0.587 * buf[i + 1] + 0.114 * buf[i + 2]);
+    buf[i] = buf[i + 1] = buf[i + 2] = gray;
   }
   delinearizeBuffer(buf);
 } else {
@@ -207,6 +215,7 @@ if (options._linearize) {
 ### 6. Filters that ignore the flag
 
 These filters don't check `options._linearize` — the underscore-prefixed key is simply ignored:
+
 - Pixelsort (has its own `linearLuminance` toggle already)
 - Invert, Channel separation
 - Glitch, VHS, Scanline, RGB Stripe

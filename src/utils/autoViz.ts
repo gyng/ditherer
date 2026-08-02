@@ -15,23 +15,59 @@ export type AutoVizTargetOption = {
 
 export const AUTO_VIZ_METRIC_GROUPS: Record<AutoVizMode, AudioVizMetric[]> = {
   balanced: [
-    "beatHold", "beat", "bassEnvelope", "midEnvelope", "trebleEnvelope",
-    "spectralCentroid", "tempoPhase", "barBeat", "bandRatio",
-    "percussive", "harmonic", "peakDecay",
+    "beatHold",
+    "beat",
+    "bassEnvelope",
+    "midEnvelope",
+    "trebleEnvelope",
+    "spectralCentroid",
+    "tempoPhase",
+    "barBeat",
+    "bandRatio",
+    "percussive",
+    "harmonic",
+    "peakDecay",
   ],
   punchy: [
-    "beat", "beatHold", "subKick", "onset", "percussive", "peakDecay",
-    "bassEnvelope", "pulse", "zeroCrossing", "barBeat", "spectralFlux",
+    "beat",
+    "beatHold",
+    "subKick",
+    "onset",
+    "percussive",
+    "peakDecay",
+    "bassEnvelope",
+    "pulse",
+    "zeroCrossing",
+    "barBeat",
+    "spectralFlux",
   ],
   flow: [
-    "tempoPhase", "barPhase", "barBeat", "spectralCentroid", "harmonic",
-    "midEnvelope", "bassEnvelope", "trebleEnvelope", "bandRatio",
-    "stereoWidth", "stereoBalance", "beatConfidence",
+    "tempoPhase",
+    "barPhase",
+    "barBeat",
+    "spectralCentroid",
+    "harmonic",
+    "midEnvelope",
+    "bassEnvelope",
+    "trebleEnvelope",
+    "bandRatio",
+    "stereoWidth",
+    "stereoBalance",
+    "beatConfidence",
   ],
   chaotic: [
-    "beat", "onset", "spectralFlux", "percussive", "roughness", "zeroCrossing",
-    "pulse", "stereoWidth", "stereoBalance", "spectralCentroid",
-    "beatHold", "subKick",
+    "beat",
+    "onset",
+    "spectralFlux",
+    "percussive",
+    "roughness",
+    "zeroCrossing",
+    "pulse",
+    "stereoWidth",
+    "stereoBalance",
+    "spectralCentroid",
+    "beatHold",
+    "subKick",
   ],
 };
 
@@ -45,7 +81,12 @@ export const AUTO_VIZ_DENSITY: Record<AutoVizMode, number> = {
 export const AUTO_VIZ_MIN_CONNECTIONS = 3;
 export const AUTO_VIZ_MAX_CONNECTIONS = 10;
 export const AUTO_VIZ_NORMALIZE_SKIP = new Set<AudioVizMetric>([
-  "bpm", "tempoPhase", "barPhase", "barBeat", "stereoBalance", "beatConfidence",
+  "bpm",
+  "tempoPhase",
+  "barPhase",
+  "barBeat",
+  "stereoBalance",
+  "beatConfidence",
 ]);
 export const AUDIO_METRIC_WEIGHT_MIN = -30;
 export const AUDIO_METRIC_WEIGHT_MAX = 30;
@@ -83,36 +124,119 @@ export const weightRangeFor = (metric: AudioVizMetric): [number, number] =>
   AUTO_VIZ_WEIGHT_RANGES[metric] ?? [0.3, 0.95];
 
 const TRANSIENT_PARAMS = [
-  "amount", "mix", "intensity", "strength", "threshold", "glitch", "noise",
-  "contrast", "edge", "detail", "sharpen", "poster", "posterize",
-  "density", "count", "morph", "iterations", "spread", "dust", "grit",
+  "amount",
+  "mix",
+  "intensity",
+  "strength",
+  "threshold",
+  "glitch",
+  "noise",
+  "contrast",
+  "edge",
+  "detail",
+  "sharpen",
+  "poster",
+  "posterize",
+  "density",
+  "count",
+  "morph",
+  "iterations",
+  "spread",
+  "dust",
+  "grit",
 ];
 const HEAVY_PARAMS = [
-  "size", "scale", "radius", "blur", "smear", "feedback", "decay",
-  "persistence", "block", "pixel", "distort", "warp", "offset", "displace",
-  "line", "scan", "depth", "rows", "cols", "grid", "cell", "tile", "chunk",
+  "size",
+  "scale",
+  "radius",
+  "blur",
+  "smear",
+  "feedback",
+  "decay",
+  "persistence",
+  "block",
+  "pixel",
+  "distort",
+  "warp",
+  "offset",
+  "displace",
+  "line",
+  "scan",
+  "depth",
+  "rows",
+  "cols",
+  "grid",
+  "cell",
+  "tile",
+  "chunk",
 ];
 const TONE_PARAMS = [
-  "hue", "color", "palette", "gamma", "brightness", "saturation", "tone",
-  "warm", "cool", "channel", "rgb", "contrast",
-  "temperature", "lightness", "chroma", "tint", "shade", "value",
+  "hue",
+  "color",
+  "palette",
+  "gamma",
+  "brightness",
+  "saturation",
+  "tone",
+  "warm",
+  "cool",
+  "channel",
+  "rgb",
+  "contrast",
+  "temperature",
+  "lightness",
+  "chroma",
+  "tint",
+  "shade",
+  "value",
 ];
 const FLOW_PARAMS = [
-  "phase", "speed", "angle", "rotate", "offset", "scroll", "drift", "wave",
-  "wobble", "frequency", "motion",
-  "shift", "time", "step", "cycle", "sweep",
+  "phase",
+  "speed",
+  "angle",
+  "rotate",
+  "offset",
+  "scroll",
+  "drift",
+  "wave",
+  "wobble",
+  "frequency",
+  "motion",
+  "shift",
+  "time",
+  "step",
+  "cycle",
+  "sweep",
 ];
 const NOISE_PARAMS = [
-  "noise", "glitch", "detail", "edge", "grain", "jitter", "spark", "rough",
-  "scratch", "hash", "fizz", "speckle",
+  "noise",
+  "glitch",
+  "detail",
+  "edge",
+  "grain",
+  "jitter",
+  "spark",
+  "rough",
+  "scratch",
+  "hash",
+  "fizz",
+  "speckle",
 ];
 const SCORE_DEFAULT = 2;
 
 export const scoreParamForMetric = (metric: AudioVizMetric, optionName: string, label?: string) => {
   const haystack = `${optionName} ${label || ""}`.toLowerCase();
-  const includesKeyword = (keywords: string[]) => keywords.some((keyword) => haystack.includes(keyword));
+  const includesKeyword = (keywords: string[]) =>
+    keywords.some((keyword) => haystack.includes(keyword));
   let score = SCORE_DEFAULT;
-  if (metric === "beat" || metric === "beatHold" || metric === "onset" || metric === "percussive" || metric === "pulse" || metric === "subKick") {
+  if (
+    metric === "beat" ||
+    metric === "beatHold" ||
+    metric === "onset" ||
+    metric === "percussive" ||
+    metric === "pulse" ||
+    metric === "subKick"
+  ) {
     score += includesKeyword(TRANSIENT_PARAMS) ? 6 : 0;
     score += includesKeyword(HEAVY_PARAMS) ? 2 : 0;
   }
@@ -120,11 +244,22 @@ export const scoreParamForMetric = (metric: AudioVizMetric, optionName: string, 
     score += includesKeyword(HEAVY_PARAMS) ? 7 : 0;
     score += includesKeyword(TRANSIENT_PARAMS) ? 2 : 0;
   }
-  if (metric === "spectralCentroid" || metric === "treble" || metric === "harmonic" || metric === "trebleEnvelope" || metric === "bandRatio") {
+  if (
+    metric === "spectralCentroid" ||
+    metric === "treble" ||
+    metric === "harmonic" ||
+    metric === "trebleEnvelope" ||
+    metric === "bandRatio"
+  ) {
     score += includesKeyword(TONE_PARAMS) ? 7 : 0;
     score += includesKeyword(TRANSIENT_PARAMS) ? 1 : 0;
   }
-  if (metric === "tempoPhase" || metric === "bpm" || metric === "barPhase" || metric === "barBeat") {
+  if (
+    metric === "tempoPhase" ||
+    metric === "bpm" ||
+    metric === "barPhase" ||
+    metric === "barBeat"
+  ) {
     score += includesKeyword(FLOW_PARAMS) ? 7 : 0;
     score += includesKeyword(HEAVY_PARAMS) ? 1 : 0;
   }
@@ -145,7 +280,7 @@ export const scoreParamForMetric = (metric: AudioVizMetric, optionName: string, 
   return score;
 };
 
-const shuffleArray = <T,>(items: T[]) => {
+const shuffleArray = <T>(items: T[]) => {
   const next = [...items];
   for (let i = next.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -168,7 +303,12 @@ export const pickMetricsForMode = (
   const reused = shuffled.filter((m) => prevMetrics.has(m));
   const ordered = [...fresh, ...reused];
   const slice = ordered.slice(0, Math.min(count, pool.length));
-  if (mode !== "flow" && !slice.includes("beat") && !slice.includes("beatHold") && slice.length > 0) {
+  if (
+    mode !== "flow" &&
+    !slice.includes("beat") &&
+    !slice.includes("beatHold") &&
+    slice.length > 0
+  ) {
     const inject: AudioVizMetric = Math.random() < 0.5 ? "beat" : "beatHold";
     if (!slice.includes(inject)) slice[slice.length - 1] = inject;
   }
@@ -185,9 +325,8 @@ export const buildAutoVizConnections = (
     return { connections: [], normalizedMetrics: [] };
   }
 
-  const density = densityOverride != null && densityOverride > 0
-    ? densityOverride
-    : AUTO_VIZ_DENSITY[mode];
+  const density =
+    densityOverride != null && densityOverride > 0 ? densityOverride : AUTO_VIZ_DENSITY[mode];
   const desired = Math.round(rangeOptions.length * density);
   const clamped = Math.max(
     AUTO_VIZ_MIN_CONNECTIONS,
@@ -215,13 +354,15 @@ export const buildAutoVizConnections = (
     availableTargets.delete(target);
     const [lo, hi] = weightRangeFor(metric);
     const baseWeight = randomBetween(lo, hi);
-    const sign = mode === "chaotic"
-      ? (Math.random() < 0.4 ? -1 : 1)
-      : (Math.random() < 0.14 ? -1 : 1);
+    const sign =
+      mode === "chaotic" ? (Math.random() < 0.4 ? -1 : 1) : Math.random() < 0.14 ? -1 : 1;
     connections.push({
       metric,
       target,
-      weight: Math.max(AUDIO_METRIC_WEIGHT_MIN, Math.min(AUDIO_METRIC_WEIGHT_MAX, baseWeight * sign)),
+      weight: Math.max(
+        AUDIO_METRIC_WEIGHT_MIN,
+        Math.min(AUDIO_METRIC_WEIGHT_MAX, baseWeight * sign),
+      ),
     });
   }
 
@@ -240,7 +381,9 @@ export const buildAutoVizConnections = (
 
   const normalizedMetrics = connections
     .map((connection) => connection.metric)
-    .filter((metric, index, all) => !AUTO_VIZ_NORMALIZE_SKIP.has(metric) && all.indexOf(metric) === index);
+    .filter(
+      (metric, index, all) => !AUTO_VIZ_NORMALIZE_SKIP.has(metric) && all.indexOf(metric) === index,
+    );
   return { connections, normalizedMetrics };
 };
 
@@ -269,12 +412,16 @@ export const applyAudioModulationToOptions = (
   const modulationByTarget = new Map<string, number>();
   const normalizedMetrics = new Set(modulation.normalizedMetrics ?? []);
   for (const connection of modulation.connections) {
-    const value = getAudioVizMetricValueForMode(
-      snapshot,
-      connection.metric,
-      snapshot.normalize || normalizedMetrics.has(connection.metric),
-    ) * connection.weight;
-    modulationByTarget.set(connection.target, (modulationByTarget.get(connection.target) ?? 0) + value);
+    const value =
+      getAudioVizMetricValueForMode(
+        snapshot,
+        connection.metric,
+        snapshot.normalize || normalizedMetrics.has(connection.metric),
+      ) * connection.weight;
+    modulationByTarget.set(
+      connection.target,
+      (modulationByTarget.get(connection.target) ?? 0) + value,
+    );
   }
   for (const [optionName, modulationValue] of modulationByTarget) {
     let resolvedOptionName = optionName;

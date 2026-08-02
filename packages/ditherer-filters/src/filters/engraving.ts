@@ -40,11 +40,23 @@ import {
 const FOLLOW = 0.5;
 
 export const optionTypes = {
-  lineSpacing: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Distance between engraved lines" },
-  angle: { type: RANGE, range: [0, 180], step: 5, default: 45, desc: "Base burin line angle in degrees" },
+  lineSpacing: {
+    type: RANGE,
+    range: [2, 12],
+    step: 1,
+    default: 4,
+    desc: "Distance between engraved lines",
+  },
+  angle: {
+    type: RANGE,
+    range: [0, 180],
+    step: 5,
+    default: 45,
+    desc: "Base burin line angle in degrees",
+  },
   inkColor: { type: COLOR, default: [10, 10, 20], desc: "Engraved line color" },
   paperColor: { type: COLOR, default: [250, 245, 235], desc: "Background paper color" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -52,7 +64,7 @@ export const defaults = {
   angle: optionTypes.angle.default,
   inkColor: optionTypes.inkColor.default,
   paperColor: optionTypes.paperColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const ENGRAVE_FS = `#version 300 es
@@ -137,8 +149,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     eng: linkProgram(gl, ENGRAVE_FS, [
-      "u_source", "u_res", "u_lineSpacing", "u_baseAngle",
-      "u_inkColor", "u_paperColor", "u_levels",
+      "u_source",
+      "u_res",
+      "u_lineSpacing",
+      "u_baseAngle",
+      "u_inkColor",
+      "u_paperColor",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -150,7 +167,8 @@ const engraving = (input: any, options: Partial<typeof defaults> = defaults) => 
   const inkColor = normalizeColorOption(options.inkColor, defaults.inkColor);
   const paperColor = normalizeColorOption(options.paperColor, defaults.paperColor);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const baseAngle = (angle * Math.PI) / 180;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
@@ -163,27 +181,48 @@ const engraving = (input: any, options: Partial<typeof defaults> = defaults) => 
       const sourceTex = ensureTexture(gl, "engraving:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.eng, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.eng.uniforms.u_source, 0);
-        gl.uniform2f(cache.eng.uniforms.u_res, W, H);
-        gl.uniform1f(cache.eng.uniforms.u_lineSpacing, lineSpacing);
-        gl.uniform1f(cache.eng.uniforms.u_baseAngle, baseAngle);
-        gl.uniform3f(cache.eng.uniforms.u_inkColor, inkColor[0] / 255, inkColor[1] / 255, inkColor[2] / 255);
-        gl.uniform3f(cache.eng.uniforms.u_paperColor, paperColor[0] / 255, paperColor[1] / 255, paperColor[2] / 255);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.eng.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.eng,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.eng.uniforms.u_source, 0);
+          gl.uniform2f(cache.eng.uniforms.u_res, W, H);
+          gl.uniform1f(cache.eng.uniforms.u_lineSpacing, lineSpacing);
+          gl.uniform1f(cache.eng.uniforms.u_baseAngle, baseAngle);
+          gl.uniform3f(
+            cache.eng.uniforms.u_inkColor,
+            inkColor[0] / 255,
+            inkColor[1] / 255,
+            inkColor[2] / 255,
+          );
+          gl.uniform3f(
+            cache.eng.uniforms.u_paperColor,
+            paperColor[0] / 255,
+            paperColor[1] / 255,
+            paperColor[2] / 255,
+          );
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.eng.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Engraving", "WebGL2",
-            `spacing=${lineSpacing}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Engraving",
+            "WebGL2",
+            `spacing=${lineSpacing}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -226,19 +265,26 @@ const engraving = (input: any, options: Partial<typeof defaults> = defaults) => 
       let dir = baseDir;
       if (Math.hypot(gx, gy) > 0.02) {
         let [tx, ty] = gradientTangent(gx, gy);
-        if (tx * baseDir[0] + ty * baseDir[1] < 0) { tx = -tx; ty = -ty; }
+        if (tx * baseDir[0] + ty * baseDir[1] < 0) {
+          tx = -tx;
+          ty = -ty;
+        }
         const mx = baseDir[0] + (tx - baseDir[0]) * FOLLOW;
         const my = baseDir[1] + (ty - baseDir[1]) * FOLLOW;
         const mlen = Math.hypot(mx, my) || 1;
         dir = [mx / mlen, my / mlen];
       }
-      const apX = -dir[1], apY = dir[0];
-      const asX = dir[0], asY = dir[1];
+      const apX = -dir[1],
+        apY = dir[0];
+      const asX = dir[0],
+        asY = dir[1];
 
       const c1 = ruled(x, y, apX, apY, 0.5 * primaryFill);
       const c2 = ruled(x, y, asX, asY, 0.5 * secondaryFill);
-      const cellX = (((x * apX + y * apY) % lineSpacing) + lineSpacing) % lineSpacing - lineSpacing / 2;
-      const cellY = (((x * asX + y * asY) % lineSpacing) + lineSpacing) % lineSpacing - lineSpacing / 2;
+      const cellX =
+        ((((x * apX + y * apY) % lineSpacing) + lineSpacing) % lineSpacing) - lineSpacing / 2;
+      const cellY =
+        ((((x * asX + y * asY) % lineSpacing) + lineSpacing) % lineSpacing) - lineSpacing / 2;
       const dotR = lozengeFill * lineSpacing * 0.32;
       const c3 = lineCoverage(Math.hypot(cellX, cellY), dotR, 0.75);
 
@@ -260,5 +306,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Copperplate line engraving — swelling burin lines with a crossing set and dot-and-lozenge shadow texture that follow the subject's form",
+  description:
+    "Copperplate line engraving — swelling burin lines with a crossing set and dot-and-lozenge shadow texture that follow the subject's form",
 });

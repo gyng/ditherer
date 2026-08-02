@@ -122,38 +122,62 @@ export const buildSdfField = ({
 
   const programs = getPrograms(gl);
   const vao = getQuadVAO(gl);
-  drawPass(gl, fieldA, width, height, programs.seed, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(programs.seed.uniforms.u_source, 0);
-    gl.uniform2f(programs.seed.uniforms.u_res, width, height);
-    gl.uniform1f(programs.seed.uniforms.u_threshold, threshold);
-  }, vao);
+  drawPass(
+    gl,
+    fieldA,
+    width,
+    height,
+    programs.seed,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(programs.seed.uniforms.u_source, 0);
+      gl.uniform2f(programs.seed.uniforms.u_res, width, height);
+      gl.uniform1f(programs.seed.uniforms.u_threshold, threshold);
+    },
+    vao,
+  );
 
   let source = fieldA;
   let target = fieldB;
   let step = 1;
   while (step * 2 < Math.max(width, height)) step *= 2;
   for (; step >= 1; step = Math.floor(step / 2)) {
-    drawPass(gl, target, width, height, programs.jump, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, source.tex);
-      gl.uniform1i(programs.jump.uniforms.u_input, 0);
-      gl.uniform2f(programs.jump.uniforms.u_res, width, height);
-      gl.uniform1f(programs.jump.uniforms.u_step, step);
-    }, vao);
+    drawPass(
+      gl,
+      target,
+      width,
+      height,
+      programs.jump,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, source.tex);
+        gl.uniform1i(programs.jump.uniforms.u_input, 0);
+        gl.uniform2f(programs.jump.uniforms.u_res, width, height);
+        gl.uniform1f(programs.jump.uniforms.u_step, step);
+      },
+      vao,
+    );
     [source, target] = [target, source];
   }
 
   // JFA+1 refinement removes most of the small errors left by the logarithmic
   // schedule while retaining the same parallel gather pattern.
-  drawPass(gl, target, width, height, programs.jump, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, source.tex);
-    gl.uniform1i(programs.jump.uniforms.u_input, 0);
-    gl.uniform2f(programs.jump.uniforms.u_res, width, height);
-    gl.uniform1f(programs.jump.uniforms.u_step, 1);
-  }, vao);
+  drawPass(
+    gl,
+    target,
+    width,
+    height,
+    programs.jump,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, source.tex);
+      gl.uniform1i(programs.jump.uniforms.u_input, 0);
+      gl.uniform2f(programs.jump.uniforms.u_res, width, height);
+      gl.uniform1f(programs.jump.uniforms.u_step, 1);
+    },
+    vao,
+  );
   return target;
 };
 
@@ -230,22 +254,34 @@ export const renderSdfEffect = ({
   let program = effectPrograms.get(key);
   if (!program) {
     program = linkProgram(gl, fragmentShader, [
-      "u_source", "u_sdf", "u_res", "u_threshold", ...uniformNames,
+      "u_source",
+      "u_sdf",
+      "u_res",
+      "u_threshold",
+      ...uniformNames,
     ]);
     effectPrograms.set(key, program);
   }
   const activeProgram = program;
   const vao = getQuadVAO(gl);
-  drawPass(gl, null, width, height, activeProgram, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(activeProgram.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, field.tex);
-    gl.uniform1i(activeProgram.uniforms.u_sdf, 1);
-    gl.uniform2f(activeProgram.uniforms.u_res, width, height);
-    gl.uniform1f(activeProgram.uniforms.u_threshold, threshold);
-    setUniforms?.(gl, activeProgram.uniforms);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    activeProgram,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(activeProgram.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, field.tex);
+      gl.uniform1i(activeProgram.uniforms.u_sdf, 1);
+      gl.uniform2f(activeProgram.uniforms.u_res, width, height);
+      gl.uniform1f(activeProgram.uniforms.u_threshold, threshold);
+      setUniforms?.(gl, activeProgram.uniforms);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

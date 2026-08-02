@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("utils", async importOriginal => {
+vi.mock("utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("utils")>();
   return {
     ...actual,
@@ -13,14 +13,17 @@ import motionPixelate from "filters/motionPixelate";
 const makeFakeCanvas = (width: number, height: number, data: Uint8ClampedArray) => ({
   width,
   height,
-  getContext: (type: string) => type === "2d" ? {
-    getImageData: () => ({
-      data: new Uint8ClampedArray(data),
-      width,
-      height,
-    }),
-    putImageData: () => {},
-  } : null,
+  getContext: (type: string) =>
+    type === "2d"
+      ? {
+          getImageData: () => ({
+            data: new Uint8ClampedArray(data),
+            width,
+            height,
+          }),
+          putImageData: () => {},
+        }
+      : null,
 });
 
 const runAndCapture = (input: any, options: any): Uint8ClampedArray | null => {
@@ -56,10 +59,11 @@ describe("Motion Pixelate", () => {
   });
 
   it("keeps a transparent tile transparent when it is not pixelated (below threshold, pass-through branch)", () => {
-    const input = makeFakeCanvas(2, 2, new Uint8ClampedArray([
-      10, 10, 10, 0, 10, 10, 10, 0,
-      10, 10, 10, 0, 10, 10, 10, 0,
-    ]));
+    const input = makeFakeCanvas(
+      2,
+      2,
+      new Uint8ClampedArray([10, 10, 10, 0, 10, 10, 10, 0, 10, 10, 10, 0, 10, 10, 10, 0]),
+    );
     const data = runAndCapture(input, {
       ...motionPixelate.defaults,
       blockSize: 2,
@@ -75,10 +79,11 @@ describe("Motion Pixelate", () => {
   });
 
   it("keeps a transparent tile transparent when it is pixelated (averaged branch)", () => {
-    const input = makeFakeCanvas(2, 2, new Uint8ClampedArray([
-      10, 10, 10, 0, 200, 200, 200, 0,
-      10, 10, 10, 0, 200, 200, 200, 0,
-    ]));
+    const input = makeFakeCanvas(
+      2,
+      2,
+      new Uint8ClampedArray([10, 10, 10, 0, 200, 200, 200, 0, 10, 10, 10, 0, 200, 200, 200, 0]),
+    );
     const data = runAndCapture(input, {
       ...motionPixelate.defaults,
       blockSize: 2,

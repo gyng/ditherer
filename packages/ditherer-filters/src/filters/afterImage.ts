@@ -1,10 +1,6 @@
 import { RANGE, ACTION } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
-import {
-  cloneCanvas,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import {
   drawPass,
   ensureTexture,
@@ -19,12 +15,32 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 3], step: 0.1, default: 1.5, desc: "Intensity of the complementary ghost" },
-  threshold: { type: RANGE, range: [5, 80], step: 1, default: 20, desc: "Minimum scene change before a ghost appears" },
+  strength: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.1,
+    default: 1.5,
+    desc: "Intensity of the complementary ghost",
+  },
+  threshold: {
+    type: RANGE,
+    range: [5, 80],
+    step: 1,
+    default: 20,
+    desc: "Minimum scene change before a ghost appears",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -71,13 +87,22 @@ void main() {
 }
 `;
 
-type Cache = { ai: Program; emaTex: WebGLTexture | null; emaW: number; emaH: number; emaBuf: Uint8ClampedArray | null };
+type Cache = {
+  ai: Program;
+  emaTex: WebGLTexture | null;
+  emaW: number;
+  emaH: number;
+  emaBuf: Uint8ClampedArray | null;
+};
 let _cache: Cache | null = null;
 
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   const prog = linkProgram(gl, AFTER_FS, [
-    "u_source", "u_ema", "u_strength", "u_threshold",
+    "u_source",
+    "u_ema",
+    "u_strength",
+    "u_threshold",
   ] as const);
   _cache = { ai: prog, emaTex: null, emaW: 0, emaH: 0, emaBuf: null };
   return _cache;
@@ -105,7 +130,8 @@ const afterImage = (input: any, options: AfterImageOptions = defaults) => {
   const strength = Number(options.strength ?? defaults.strength);
   const threshold = Number(options.threshold ?? defaults.threshold);
   const ema = options._ema ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && options._webglAcceleration !== false && ema) {
     const ctx = getGLCtx();
@@ -130,21 +156,28 @@ const afterImage = (input: any, options: AfterImageOptions = defaults) => {
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, u8);
 
-        drawPass(gl, null, W, H, cache.ai, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.ai.uniforms.u_source, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, emaTex);
-          gl.uniform1i(cache.ai.uniforms.u_ema, 1);
-          gl.uniform1f(cache.ai.uniforms.u_strength, strength);
-          gl.uniform1f(cache.ai.uniforms.u_threshold, threshold);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.ai,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.ai.uniforms.u_source, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, emaTex);
+            gl.uniform1i(cache.ai.uniforms.u_ema, 1);
+            gl.uniform1f(cache.ai.uniforms.u_strength, strength);
+            gl.uniform1f(cache.ai.uniforms.u_threshold, threshold);
+          },
+          vao,
+        );
 
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
-          logFilterBackend("After-Image", "WebGL2",
-            `strength=${strength} thresh=${threshold}`);
+          logFilterBackend("After-Image", "WebGL2", `strength=${strength} thresh=${threshold}`);
           return rendered;
         }
       }
@@ -167,10 +200,14 @@ const afterImage = (input: any, options: AfterImageOptions = defaults) => {
   }
 
   for (let i = 0; i < buf.length; i += 4) {
-    const r = buf[i], g = buf[i + 1], b = buf[i + 2];
-    const er = ema[i], eg = ema[i + 1], eb = ema[i + 2];
+    const r = buf[i],
+      g = buf[i + 1],
+      b = buf[i + 2];
+    const er = ema[i],
+      eg = ema[i + 1],
+      eb = ema[i + 2];
 
-    const lumaLoss = ((er - r) + (eg - g) + (eb - b)) / 3;
+    const lumaLoss = (er - r + (eg - g) + (eb - b)) / 3;
     let ghost = 0;
     if (lumaLoss > threshold) {
       ghost = Math.min(1, (lumaLoss - threshold) / 80) * strength * 0.5;
@@ -180,7 +217,7 @@ const afterImage = (input: any, options: AfterImageOptions = defaults) => {
     const invG = 255 - eg;
     const invB = 255 - eb;
 
-    outBuf[i]     = Math.min(255, Math.max(0, Math.round(r + (invR - r) * ghost)));
+    outBuf[i] = Math.min(255, Math.max(0, Math.round(r + (invR - r) * ghost)));
     outBuf[i + 1] = Math.min(255, Math.max(0, Math.round(g + (invG - g) * ghost)));
     outBuf[i + 2] = Math.min(255, Math.max(0, Math.round(b + (invB - b) * ghost)));
     outBuf[i + 3] = 255;
@@ -190,4 +227,13 @@ const afterImage = (input: any, options: AfterImageOptions = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "After-Image", func: afterImage, optionTypes, options: defaults, defaults, description: "Complementary-colored ghost when bright objects move away — retinal fatigue simulation" , temporal: true });
+export default defineFilter({
+  name: "After-Image",
+  func: afterImage,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description:
+    "Complementary-colored ghost when bright objects move away — retinal fatigue simulation",
+  temporal: true,
+});

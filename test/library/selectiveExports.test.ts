@@ -5,12 +5,14 @@ import { lazyFilterNames, loadFilter } from "../../packages/ditherer-filters/src
 
 describe("selective filter exports", () => {
   it("keeps metadata rows aligned with the complete registry", () => {
-    expect(filterCatalog).toEqual(filterList.map((entry) => ({
-      displayName: entry.displayName,
-      filterName: entry.filter.name,
-      category: entry.category,
-      description: entry.description,
-    })));
+    expect(filterCatalog).toEqual(
+      filterList.map((entry) => ({
+        displayName: entry.displayName,
+        filterName: entry.filter.name,
+        category: entry.category,
+        description: entry.description,
+      })),
+    );
   });
 
   it("provides a lazy loader for every canonical filter", async () => {

@@ -110,8 +110,10 @@ export const CHARSET_MAP: Record<string, string> = {
   [CHARSET.ALCHEMY]: "☉☿♀♁♂♃♄☽☾⚶⚷⚸⚹⚱✶✷✹",
   [CHARSET.WEATHER]: "☀☁☂☃☄⚡☼❄✺✹*.:~°",
   [CHARSET.CYRILLIC]: "ДЖИЙЛПФЦЧШЩЪЫЬЭЮЯБГЗКМНОРСТУХ0123456789",
-  [CHARSET.JAPANESE]: "アイウエオカキクケコサシスセソタチツテトナニヌネノマミムメモヤユヨラリルレロワヲン",
-  [CHARSET.HIRAGANA]: "あいうえおかきくけこさしすせそたちつてとなにぬねのまみむめもやゆよらりるれろわをん",
+  [CHARSET.JAPANESE]:
+    "アイウエオカキクケコサシスセソタチツテトナニヌネノマミムメモヤユヨラリルレロワヲン",
+  [CHARSET.HIRAGANA]:
+    "あいうえおかきくけこさしすせそたちつてとなにぬねのまみむめもやゆよらりるれろわをん",
   [CHARSET.CHINESE]: "天地玄黄宇宙洪荒日月盈昃辰宿列张山川云雨雷电风火水木金土",
   [CHARSET.KANJI_LEDGER]: "金銀銅鉄円札株証取引利率勘定帳簿売買先物現物",
   [CHARSET.COSMIC]: "✦✧⋆✶✷✹✺✹☼☾☽⟁⌁⌘∞",
@@ -195,9 +197,7 @@ export const CHARSET_MAP: Record<string, string> = {
 export const SHARED_CHARSET_GROUPS = [
   {
     label: "Featured",
-    options: [
-      { name: "Matrix film", value: CHARSET.MATRIX_FILM },
-    ],
+    options: [{ name: "Matrix film", value: CHARSET.MATRIX_FILM }],
   },
   {
     label: "Languages & Scripts",

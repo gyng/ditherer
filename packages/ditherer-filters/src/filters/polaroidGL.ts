@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -81,10 +88,17 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_warmth", "u_fadedBlacks", "u_saturation",
-    "u_grain", "u_vignette",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_warmth",
+      "u_fadedBlacks",
+      "u_saturation",
+      "u_grain",
+      "u_vignette",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -92,9 +106,13 @@ export const polaroidGLAvailable = (): boolean => glAvailable();
 
 export const renderPolaroidGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  warmth: number, fadedBlacks: number, saturation: number,
-  grain: number, vignette: number,
+  width: number,
+  height: number,
+  warmth: number,
+  fadedBlacks: number,
+  saturation: number,
+  grain: number,
+  vignette: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -104,16 +122,24 @@ export const renderPolaroidGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "polaroid:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_warmth, warmth);
-    gl.uniform1f(cache.prog.uniforms.u_fadedBlacks, fadedBlacks);
-    gl.uniform1f(cache.prog.uniforms.u_saturation, saturation);
-    gl.uniform1f(cache.prog.uniforms.u_grain, grain);
-    gl.uniform1f(cache.prog.uniforms.u_vignette, vignette);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_warmth, warmth);
+      gl.uniform1f(cache.prog.uniforms.u_fadedBlacks, fadedBlacks);
+      gl.uniform1f(cache.prog.uniforms.u_saturation, saturation);
+      gl.uniform1f(cache.prog.uniforms.u_grain, grain);
+      gl.uniform1f(cache.prog.uniforms.u_vignette, vignette);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

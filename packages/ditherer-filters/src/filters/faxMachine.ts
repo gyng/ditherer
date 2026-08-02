@@ -9,12 +9,7 @@ import {
   rgba,
 } from "../utils/index";
 import { defineFilter, type FilterOptionValues } from "./types";
-import {
-  seededUnit,
-  transmitFaxRows,
-  type FaxCoding,
-  type FaxConcealment,
-} from "./signalCodecs";
+import { seededUnit, transmitFaxRows, type FaxCoding, type FaxConcealment } from "./signalCodecs";
 
 export const optionTypes = {
   scanMode: {
@@ -27,7 +22,13 @@ export const optionTypes = {
     default: "STANDARD",
     desc: "T.4 A4 scan density and vertical line pitch",
   },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Black/white document scanner threshold" },
+  threshold: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 128,
+    desc: "Black/white document scanner threshold",
+  },
   coding: {
     type: ENUM,
     options: [
@@ -38,7 +39,13 @@ export const optionTypes = {
     default: "MR",
     desc: "ITU-T T.4/T.6 coding dependency; MR/MMR errors can damage dependent rows",
   },
-  bitErrorRate: { type: RANGE, range: [0, 0.002], step: 0.00001, default: 0.00008, desc: "Raw channel bit error probability applied to encoded line payloads" },
+  bitErrorRate: {
+    type: RANGE,
+    range: [0, 0.002],
+    step: 0.00001,
+    default: 0.00008,
+    desc: "Raw channel bit error probability applied to encoded line payloads",
+  },
   concealment: {
     type: ENUM,
     options: [
@@ -49,9 +56,27 @@ export const optionTypes = {
     default: "PREVIOUS",
     desc: "Damaged scan-line concealment strategy from ITU-T E.453",
   },
-  scanNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.12, desc: "Scanner threshold noise and occasional mechanical row displacement" },
-  yellowing: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Aged thermal-paper yellowing intensity" },
-  randomSeed: { type: RANGE, range: [0, 9999], step: 1, default: 42, desc: "Deterministic scanner and transmission fault seed" },
+  scanNoise: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.12,
+    desc: "Scanner threshold noise and occasional mechanical row displacement",
+  },
+  yellowing: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.3,
+    desc: "Aged thermal-paper yellowing intensity",
+  },
+  randomSeed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 42,
+    desc: "Deterministic scanner and transmission fault seed",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -67,23 +92,28 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } },
 };
 
-type FaxOptions = FilterOptionValues & Partial<typeof defaults> & {
-  _frameIndex?: number;
-  /** Pre-T.4 saved chains used this visual-compression control. */
-  compression?: number;
-  /** Pre-T.4 saved chains used an arbitrary horizontal sample count. */
-  resolution?: number;
-};
+type FaxOptions = FilterOptionValues &
+  Partial<typeof defaults> & {
+    _frameIndex?: number;
+    /** Pre-T.4 saved chains used this visual-compression control. */
+    compression?: number;
+    /** Pre-T.4 saved chains used an arbitrary horizontal sample count. */
+    resolution?: number;
+  };
 
 const finite = (value: unknown, fallback: number): number => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 };
 
-export const resolveFaxBitErrorRate = (options: { bitErrorRate?: unknown; compression?: unknown }): number => {
-  const explicitBer = options.compression === undefined
-    ? finite(options.bitErrorRate, defaults.bitErrorRate)
-    : Math.max(0, Math.min(1, finite(options.compression, 0.4))) * 0.0002;
+export const resolveFaxBitErrorRate = (options: {
+  bitErrorRate?: unknown;
+  compression?: unknown;
+}): number => {
+  const explicitBer =
+    options.compression === undefined
+      ? finite(options.bitErrorRate, defaults.bitErrorRate)
+      : Math.max(0, Math.min(1, finite(options.compression, 0.4))) * 0.0002;
   return Math.max(0, Math.min(0.002, explicitBer));
 };
 
@@ -104,14 +134,14 @@ export const resolveFaxSampling = (
     return { scaleX: legacyScale, scaleY: legacyScale, mrK: 2, mode: "LEGACY" };
   }
   const requestedMode = String(options.scanMode);
-  const mode: keyof typeof SCAN_PROFILES = requestedMode === "FINE"
-    ? "FINE"
-    : requestedMode === "SUPERFINE" ? "SUPERFINE" : "STANDARD";
+  const mode: keyof typeof SCAN_PROFILES =
+    requestedMode === "FINE" ? "FINE" : requestedMode === "SUPERFINE" ? "SUPERFINE" : "STANDARD";
   const profile = SCAN_PROFILES[mode];
   const scaleX = Math.max(1, Math.round(safeWidth / profile.columns));
-  const scaleY = Math.max(1, Math.round(
-    scaleX * profile.horizontalPelsPerMm / profile.verticalLinesPerMm,
-  ));
+  const scaleY = Math.max(
+    1,
+    Math.round((scaleX * profile.horizontalPelsPerMm) / profile.verticalLinesPerMm),
+  );
   return { scaleX, scaleY, mrK: profile.mrK, mode };
 };
 
@@ -130,11 +160,17 @@ const faxMachine = (input: HTMLCanvasElement, options: FaxOptions = defaults) =>
   // The legacy property is not part of new defaults, so its presence reliably
   // identifies a saved pre-T.4 state even after runtime defaults are merged.
   const bitErrorRate = resolveFaxBitErrorRate(options);
-  const coding = (["MH", "MR", "MMR"].includes(String(options.coding)) ? options.coding : defaults.coding) as FaxCoding;
-  const concealment = (["WHITE", "PREVIOUS", "DELETE"].includes(String(options.concealment))
-    ? options.concealment : defaults.concealment) as FaxConcealment;
-  const seed = Math.trunc(finite(options.randomSeed, defaults.randomSeed))
-    + Math.trunc(finite(options._frameIndex, 0)) * 7919;
+  const coding = (
+    ["MH", "MR", "MMR"].includes(String(options.coding)) ? options.coding : defaults.coding
+  ) as FaxCoding;
+  const concealment = (
+    ["WHITE", "PREVIOUS", "DELETE"].includes(String(options.concealment))
+      ? options.concealment
+      : defaults.concealment
+  ) as FaxConcealment;
+  const seed =
+    Math.trunc(finite(options.randomSeed, defaults.randomSeed)) +
+    Math.trunc(finite(options._frameIndex, 0)) * 7919;
   const palette = options.palette ?? defaults.palette;
   const sampling = resolveFaxSampling(width, options);
   const source = inputCtx.getImageData(0, 0, width, height).data;
@@ -145,7 +181,10 @@ const faxMachine = (input: HTMLCanvasElement, options: FaxOptions = defaults) =>
     const rowFault = seededUnit(seed, y, 1) < scanNoise * 0.08;
     const shift = rowFault ? Math.round((seededUnit(seed, y, 2) - 0.5) * 10) : 0;
     for (let x = 0; x < width; x++) {
-      const sx = Math.max(0, Math.min(width - 1, Math.floor(x / sampling.scaleX) * sampling.scaleX + shift));
+      const sx = Math.max(
+        0,
+        Math.min(width - 1, Math.floor(x / sampling.scaleX) * sampling.scaleX + shift),
+      );
       const sy = Math.min(height - 1, Math.floor(y / sampling.scaleY) * sampling.scaleY);
       const index = getBufferIndex(sx, sy, width);
       const luma = source[index] * 0.2126 + source[index + 1] * 0.7152 + source[index + 2] * 0.0722;
@@ -175,14 +214,27 @@ const faxMachine = (input: HTMLCanvasElement, options: FaxOptions = defaults) =>
       const black = channel.rows[y]?.[x] === 1;
       const inkVariation = 0.86 + seededUnit(seed, x + 101, y + 211) * 0.14;
       const rgb = black
-        ? [Math.round(20 * inkVariation), Math.round(20 * inkVariation), Math.round(25 * inkVariation)]
+        ? [
+            Math.round(20 * inkVariation),
+            Math.round(20 * inkVariation),
+            Math.round(25 * inkVariation),
+          ]
         : paper;
-      const color = paletteGetColor(palette, rgba(rgb[0], rgb[1], rgb[2], 255), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(rgb[0], rgb[1], rgb[2], 255),
+        palette.options,
+        false,
+      );
       fillBufferPixel(out, index, color[0], color[1], color[2], 255);
     }
   }
   outputCtx.putImageData(new ImageData(out, width, height), 0, 0);
-  logFilterBackend("Fax Machine", "JavaScript", `${sampling.mode}/${coding} ber=${bitErrorRate} damaged=${channel.damagedRows.length}`);
+  logFilterBackend(
+    "Fax Machine",
+    "JavaScript",
+    `${sampling.mode}/${coding} ber=${bitErrorRate} damaged=${channel.damagedRows.length}`,
+  );
   return output;
 };
 
@@ -192,7 +244,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "ITU-T T.4 Group 3 and T.6 Group 4 scan-line channel with dependent-row damage and E.453 concealment",
+  description:
+    "ITU-T T.4 Group 3 and T.6 Group 4 scan-line channel with dependent-row damage and E.453 concealment",
   temporal: true,
   noGL: "T.4 variable-length line decoding and dependent-row concealment are sequential",
 });

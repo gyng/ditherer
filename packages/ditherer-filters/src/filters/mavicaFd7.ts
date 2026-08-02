@@ -32,7 +32,7 @@ import {
 const readU8 = (buf: Uint8ClampedArray, index: number) => buf[index] ?? 0;
 const JPEG_CODEC_UNAVAILABLE = Symbol("mavica-jpeg-codec-unavailable");
 
-const QUALITY_FINE     = "FINE";
+const QUALITY_FINE = "FINE";
 const QUALITY_STANDARD = "STANDARD";
 const CAPTURE_FIELD = "FIELD";
 const CAPTURE_FRAME = "FRAME";
@@ -49,8 +49,8 @@ const FX_SEPIA = "SEPIA";
 const FX_BW = "BW";
 
 const LIGHTING_AUTO = "AUTO";
-const LIGHTING_DAYLIGHT    = "DAYLIGHT";
-const LIGHTING_TUNGSTEN    = "TUNGSTEN";
+const LIGHTING_DAYLIGHT = "DAYLIGHT";
+const LIGHTING_TUNGSTEN = "TUNGSTEN";
 const LIGHTING_FLUORESCENT = "FLUORESCENT";
 
 // Max working resolution — the FD7 CCD is 640x480.
@@ -65,16 +65,16 @@ export const optionTypes = {
       { name: "Frame (combine two fields)", value: CAPTURE_FRAME },
     ],
     default: CAPTURE_FIELD,
-    desc: "Field uses one interlaced field resampled to full height; Frame combines two fields and can show combing"
+    desc: "Field uses one interlaced field resampled to full height; Frame combines two fields and can show combing",
   },
   quality: {
     type: ENUM,
     options: [
-      { name: "Fine (~72–96 KB/frame)",    value: QUALITY_FINE },
+      { name: "Fine (~72–96 KB/frame)", value: QUALITY_FINE },
       { name: "Standard (~36–48 KB/frame)", value: QUALITY_STANDARD },
     ],
     default: QUALITY_STANDARD,
-    desc: "JPEG compression quality preset with floppy-era file-size bias"
+    desc: "JPEG compression quality preset with floppy-era file-size bias",
   },
   sceneMode: {
     type: ENUM,
@@ -87,7 +87,7 @@ export const optionTypes = {
       { name: "Landscape", value: SCENE_LANDSCAPE },
     ],
     default: SCENE_AUTO,
-    desc: "FD7 Program AE presets affecting tone, color, and clarity bias"
+    desc: "FD7 Program AE presets affecting tone, color, and clarity bias",
   },
   pictureEffect: {
     type: ENUM,
@@ -99,24 +99,52 @@ export const optionTypes = {
       { name: "B&W", value: FX_BW },
     ],
     default: FX_NONE,
-    desc: "FD7 Picture Effect processing in DSP"
+    desc: "FD7 Picture Effect processing in DSP",
   },
   lighting: {
     type: ENUM,
     options: [
-      { name: "Auto WB (default)",           value: LIGHTING_AUTO },
-      { name: "Daylight (warm bias)",         value: LIGHTING_DAYLIGHT },
-      { name: "Tungsten (strong warm cast)",  value: LIGHTING_TUNGSTEN },
-      { name: "Fluorescent (green cast)",     value: LIGHTING_FLUORESCENT },
+      { name: "Auto WB (default)", value: LIGHTING_AUTO },
+      { name: "Daylight (warm bias)", value: LIGHTING_DAYLIGHT },
+      { name: "Tungsten (strong warm cast)", value: LIGHTING_TUNGSTEN },
+      { name: "Fluorescent (green cast)", value: LIGHTING_FLUORESCENT },
     ],
     default: LIGHTING_AUTO,
-    desc: "Auto white balance (default) or period-accurate lighting overrides"
+    desc: "Auto white balance (default) or period-accurate lighting overrides",
   },
-  flash: { type: BOOL, default: false, desc: "Simulate built-in flash; frame mode falls back to field capture when flash fires" },
-  flashPower: { type: RANGE, range: [0, 2], step: 0.05, default: 1, desc: "Built-in flash output strength" },
-  flashFalloff: { type: RANGE, range: [0.8, 3], step: 0.05, default: 1.55, desc: "How quickly flash illumination falls off with distance" },
-  flashOffsetX: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Horizontal flash aim offset (for off-center framing)" },
-  flashOffsetY: { type: RANGE, range: [-1, 1], step: 0.01, default: -0.08, desc: "Vertical flash aim offset (slightly above center feels more camera-like)" },
+  flash: {
+    type: BOOL,
+    default: false,
+    desc: "Simulate built-in flash; frame mode falls back to field capture when flash fires",
+  },
+  flashPower: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1,
+    desc: "Built-in flash output strength",
+  },
+  flashFalloff: {
+    type: RANGE,
+    range: [0.8, 3],
+    step: 0.05,
+    default: 1.55,
+    desc: "How quickly flash illumination falls off with distance",
+  },
+  flashOffsetX: {
+    type: RANGE,
+    range: [-1, 1],
+    step: 0.01,
+    default: 0,
+    desc: "Horizontal flash aim offset (for off-center framing)",
+  },
+  flashOffsetY: {
+    type: RANGE,
+    range: [-1, 1],
+    step: 0.01,
+    default: -0.08,
+    desc: "Vertical flash aim offset (slightly above center feels more camera-like)",
+  },
   smear: { type: BOOL, default: false, desc: "CCD smear artifact on bright highlights" },
   nativeVgaOutput: {
     type: BOOL,
@@ -124,17 +152,22 @@ export const optionTypes = {
     default: false,
     desc: "Limit output to the sensor working size, up to 640×480, instead of rescaling it to a larger input canvas",
   },
-  frameJitter: { type: ENUM, options: [
-    { name: "Off", value: "0" },
-    { name: "Low", value: "1" },
-    { name: "Medium", value: "2" },
-    { name: "High", value: "3" },
-  ], default: "2", desc: "In frame mode, odd-field offset strength (camera/subject motion between fields)" },
+  frameJitter: {
+    type: ENUM,
+    options: [
+      { name: "Off", value: "0" },
+      { name: "Low", value: "1" },
+      { name: "Medium", value: "2" },
+      { name: "High", value: "3" },
+    ],
+    default: "2",
+    desc: "In frame mode, odd-field offset strength (camera/subject motion between fields)",
+  },
 };
 
 export const defaults = {
   captureMode: optionTypes.captureMode.default,
-  quality:  optionTypes.quality.default,
+  quality: optionTypes.quality.default,
   sceneMode: optionTypes.sceneMode.default,
   pictureEffect: optionTypes.pictureEffect.default,
   lighting: optionTypes.lighting.default,
@@ -143,7 +176,7 @@ export const defaults = {
   flashFalloff: optionTypes.flashFalloff.default,
   flashOffsetX: optionTypes.flashOffsetX.default,
   flashOffsetY: optionTypes.flashOffsetY.default,
-  smear:    optionTypes.smear.default,
+  smear: optionTypes.smear.default,
   nativeVgaOutput: optionTypes.nativeVgaOutput.default,
   frameJitter: optionTypes.frameJitter.default,
 };
@@ -155,9 +188,9 @@ type MavicaFd7Options = Partial<typeof defaults> & {
 // AWB colour multipliers — measured from real FD7 output.
 // Daylight already has warm bias: R ~+6%, B ~-6% relative to neutral.
 const AWB = {
-  [LIGHTING_AUTO]:        [1.00, 1.00, 1.00],
-  [LIGHTING_DAYLIGHT]:    [1.03, 1.00, 0.90],
-  [LIGHTING_TUNGSTEN]:    [1.10, 0.97, 0.72],
+  [LIGHTING_AUTO]: [1.0, 1.0, 1.0],
+  [LIGHTING_DAYLIGHT]: [1.03, 1.0, 0.9],
+  [LIGHTING_TUNGSTEN]: [1.1, 0.97, 0.72],
   [LIGHTING_FLUORESCENT]: [0.96, 1.06, 0.92],
 };
 
@@ -194,7 +227,7 @@ const JPEG_PRESETS = {
 
 // Shadow noise sigma — measured: R/B ~8, G ~6.
 const NOISE_PARAMS = {
-  [QUALITY_FINE]:     { rb: 8,  g: 6 },
+  [QUALITY_FINE]: { rb: 8, g: 6 },
   [QUALITY_STANDARD]: { rb: 11, g: 8 },
 };
 
@@ -244,8 +277,10 @@ const estimateSceneComplexity = (buf: Uint8ClampedArray, w: number, h: number) =
       const ix = getBufferIndex(x + step, y, w);
       const iy = getBufferIndex(x, y + step, w);
       const l = 0.299 * readU8(buf, i) + 0.587 * readU8(buf, i + 1) + 0.114 * readU8(buf, i + 2);
-      const lx = 0.299 * readU8(buf, ix) + 0.587 * readU8(buf, ix + 1) + 0.114 * readU8(buf, ix + 2);
-      const ly = 0.299 * readU8(buf, iy) + 0.587 * readU8(buf, iy + 1) + 0.114 * readU8(buf, iy + 2);
+      const lx =
+        0.299 * readU8(buf, ix) + 0.587 * readU8(buf, ix + 1) + 0.114 * readU8(buf, ix + 2);
+      const ly =
+        0.299 * readU8(buf, iy) + 0.587 * readU8(buf, iy + 1) + 0.114 * readU8(buf, iy + 2);
       lumSum += l;
       gradSum += Math.abs(l - lx) + Math.abs(l - ly);
       count += 1;
@@ -262,7 +297,7 @@ const estimateSceneComplexity = (buf: Uint8ClampedArray, w: number, h: number) =
     }
   }
 
-  const gradNorm = clamp(0, 1, (gradSum / Math.max(1, count)) / 80);
+  const gradNorm = clamp(0, 1, gradSum / Math.max(1, count) / 80);
   const varNorm = clamp(0, 1, Math.sqrt(varSum / Math.max(1, count)) / 70);
   return clamp(0, 1, gradNorm * 0.65 + varNorm * 0.35);
 };
@@ -647,40 +682,75 @@ const initGLCache = (gl: WebGL2RenderingContext): GLCache => {
   if (_glCache) return _glCache;
   _glCache = {
     pre: linkProgram(gl, PRE_FS, [
-      "u_source", "u_res", "u_awb", "u_fluorescent", "u_seed",
-      "u_flash", "u_flashPower", "u_flashFalloff", "u_flashCenter", "u_flashMaxR",
-      "u_sceneMode", "u_fx",
+      "u_source",
+      "u_res",
+      "u_awb",
+      "u_fluorescent",
+      "u_seed",
+      "u_flash",
+      "u_flashPower",
+      "u_flashFalloff",
+      "u_flashCenter",
+      "u_flashMaxR",
+      "u_sceneMode",
+      "u_fx",
     ] as const),
     interlace: linkProgram(gl, INTERLACE_FS, [
-      "u_input", "u_res", "u_captureField", "u_jitter", "u_seed",
+      "u_input",
+      "u_res",
+      "u_captureField",
+      "u_jitter",
+      "u_seed",
     ] as const),
     soften: linkProgram(gl, SOFTEN_FS, ["u_input", "u_res", "u_amount"] as const),
     post: linkProgram(gl, POST_FS, [
-      "u_input", "u_alphaSource", "u_res", "u_smear", "u_smearThreshold", "u_flash",
-      "u_noiseRB", "u_noiseG", "u_shadowCut", "u_clipPoint", "u_seed",
+      "u_input",
+      "u_alphaSource",
+      "u_res",
+      "u_smear",
+      "u_smearThreshold",
+      "u_flash",
+      "u_noiseRB",
+      "u_noiseG",
+      "u_shadowCut",
+      "u_clipPoint",
+      "u_seed",
     ] as const),
   };
   return _glCache;
 };
 
 const SCENE_MODE_ID: Record<string, number> = {
-  [SCENE_AUTO]: 0, [SCENE_SOFT_PORTRAIT]: 1, [SCENE_SPORTS]: 2,
-  [SCENE_BEACH_SKI]: 3, [SCENE_SUNSET_MOON]: 4, [SCENE_LANDSCAPE]: 5,
+  [SCENE_AUTO]: 0,
+  [SCENE_SOFT_PORTRAIT]: 1,
+  [SCENE_SPORTS]: 2,
+  [SCENE_BEACH_SKI]: 3,
+  [SCENE_SUNSET_MOON]: 4,
+  [SCENE_LANDSCAPE]: 5,
 };
 const FX_ID: Record<string, number> = {
-  [FX_NONE]: 0, [FX_PASTEL]: 1, [FX_NEG_ART]: 2, [FX_SEPIA]: 3, [FX_BW]: 4,
+  [FX_NONE]: 0,
+  [FX_PASTEL]: 1,
+  [FX_NEG_ART]: 2,
+  [FX_SEPIA]: 3,
+  [FX_BW]: 4,
 };
 
 const runGLPipeline = (
   src: HTMLCanvasElement | OffscreenCanvas,
-  W: number, H: number,
+  W: number,
+  H: number,
   awb: readonly [number, number, number],
   fluorescent: boolean,
   flashOn: boolean,
-  flashPower: number, flashFalloff: number,
-  flashOffsetX: number, flashOffsetY: number,
-  sceneMode: string, pictureEffect: string,
-  captureMode: string, frameJitter: number,
+  flashPower: number,
+  flashFalloff: number,
+  flashOffsetX: number,
+  flashOffsetY: number,
+  sceneMode: string,
+  pictureEffect: string,
+  captureMode: string,
+  frameJitter: number,
   smear: boolean,
   quality: string,
   frameIndex: number,
@@ -703,50 +773,72 @@ const runGLPipeline = (
   const flashCx = W * (0.5 + Math.max(-1, Math.min(1, flashOffsetX)) * 0.2);
   const flashCy = H * (0.45 + Math.max(-1, Math.min(1, flashOffsetY)) * 0.2);
   const flashMaxR = Math.max(W, H) * 0.9;
-  drawPass(gl, preTex, W, H, cache.pre, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.pre.uniforms.u_source, 0);
-    gl.uniform2f(cache.pre.uniforms.u_res, W, H);
-    gl.uniform3f(cache.pre.uniforms.u_awb, awb[0], awb[1], awb[2]);
-    gl.uniform1i(cache.pre.uniforms.u_fluorescent, fluorescent ? 1 : 0);
-    gl.uniform1f(cache.pre.uniforms.u_seed, seed);
-    gl.uniform1i(cache.pre.uniforms.u_flash, flashOn ? 1 : 0);
-    gl.uniform1f(cache.pre.uniforms.u_flashPower, flashPower);
-    gl.uniform1f(cache.pre.uniforms.u_flashFalloff, flashFalloff);
-    gl.uniform2f(cache.pre.uniforms.u_flashCenter, flashCx, H - 1 - flashCy);
-    gl.uniform1f(cache.pre.uniforms.u_flashMaxR, flashMaxR);
-    gl.uniform1i(cache.pre.uniforms.u_sceneMode, SCENE_MODE_ID[sceneMode] ?? 0);
-    gl.uniform1i(cache.pre.uniforms.u_fx, FX_ID[pictureEffect] ?? 0);
-  }, vao);
+  drawPass(
+    gl,
+    preTex,
+    W,
+    H,
+    cache.pre,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.pre.uniforms.u_source, 0);
+      gl.uniform2f(cache.pre.uniforms.u_res, W, H);
+      gl.uniform3f(cache.pre.uniforms.u_awb, awb[0], awb[1], awb[2]);
+      gl.uniform1i(cache.pre.uniforms.u_fluorescent, fluorescent ? 1 : 0);
+      gl.uniform1f(cache.pre.uniforms.u_seed, seed);
+      gl.uniform1i(cache.pre.uniforms.u_flash, flashOn ? 1 : 0);
+      gl.uniform1f(cache.pre.uniforms.u_flashPower, flashPower);
+      gl.uniform1f(cache.pre.uniforms.u_flashFalloff, flashFalloff);
+      gl.uniform2f(cache.pre.uniforms.u_flashCenter, flashCx, H - 1 - flashCy);
+      gl.uniform1f(cache.pre.uniforms.u_flashMaxR, flashMaxR);
+      gl.uniform1i(cache.pre.uniforms.u_sceneMode, SCENE_MODE_ID[sceneMode] ?? 0);
+      gl.uniform1i(cache.pre.uniforms.u_fx, FX_ID[pictureEffect] ?? 0);
+    },
+    vao,
+  );
 
   // Pass 2: interlace. Target = interlaceTex (soften follows in FIELD mode)
   // or the default framebuffer (null = the GL canvas) in FRAME mode so we
   // can readoutToCanvas it directly.
-  const effectiveFieldMode = flashOn && captureMode === CAPTURE_FRAME
-    ? CAPTURE_FIELD
-    : captureMode;
+  const effectiveFieldMode = flashOn && captureMode === CAPTURE_FRAME ? CAPTURE_FIELD : captureMode;
   const fieldMode = effectiveFieldMode === CAPTURE_FIELD;
   const interlaceTarget = fieldMode ? interlaceTex : null;
-  drawPass(gl, interlaceTarget, W, H, cache.interlace, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, preTex.tex);
-    gl.uniform1i(cache.interlace.uniforms.u_input, 0);
-    gl.uniform2f(cache.interlace.uniforms.u_res, W, H);
-    gl.uniform1i(cache.interlace.uniforms.u_captureField, fieldMode ? 1 : 0);
-    gl.uniform1f(cache.interlace.uniforms.u_jitter, Math.max(0, Math.min(3, frameJitter)));
-    gl.uniform1f(cache.interlace.uniforms.u_seed, seed);
-  }, vao);
+  drawPass(
+    gl,
+    interlaceTarget,
+    W,
+    H,
+    cache.interlace,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, preTex.tex);
+      gl.uniform1i(cache.interlace.uniforms.u_input, 0);
+      gl.uniform2f(cache.interlace.uniforms.u_res, W, H);
+      gl.uniform1i(cache.interlace.uniforms.u_captureField, fieldMode ? 1 : 0);
+      gl.uniform1f(cache.interlace.uniforms.u_jitter, Math.max(0, Math.min(3, frameJitter)));
+      gl.uniform1f(cache.interlace.uniforms.u_seed, seed);
+    },
+    vao,
+  );
 
   // Pass 3: vertical soften (FIELD only) → default framebuffer.
   if (fieldMode) {
-    drawPass(gl, null, W, H, cache.soften, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, interlaceTex.tex);
-      gl.uniform1i(cache.soften.uniforms.u_input, 0);
-      gl.uniform2f(cache.soften.uniforms.u_res, W, H);
-      gl.uniform1f(cache.soften.uniforms.u_amount, 0.22);
-    }, vao);
+    drawPass(
+      gl,
+      null,
+      W,
+      H,
+      cache.soften,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, interlaceTex.tex);
+        gl.uniform1i(cache.soften.uniforms.u_input, 0);
+        gl.uniform2f(cache.soften.uniforms.u_res, W, H);
+        gl.uniform1f(cache.soften.uniforms.u_amount, 0.22);
+      },
+      vao,
+    );
   }
   // GL canvas now holds the pre-JPEG result. Hand off to the GL JPEG codec,
   // then run the post pass.
@@ -754,22 +846,29 @@ const runGLPipeline = (
   if (!preJpegCanvas) return null;
   return withPooledCanvasCleanup([preJpegCanvas], () => {
     const preCtx = (preJpegCanvas as HTMLCanvasElement | OffscreenCanvas).getContext("2d") as
-      CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+      | CanvasRenderingContext2D
+      | OffscreenCanvasRenderingContext2D
+      | null;
     const complexityBuf = preCtx?.getImageData(0, 0, W, H).data;
     const complexity = complexityBuf ? estimateSceneComplexity(complexityBuf, W, H) : 0.5;
     const jpegPreset = getBudgetedJpegPreset(quality, complexity, flashOn);
     const jpegCanvas = tryApplyJpegArtifactToCanvas(preJpegCanvas, jpegPreset);
     if (!jpegCanvas) return JPEG_CODEC_UNAVAILABLE;
-    return withPooledCanvasCleanup(
-      jpegCanvas === preJpegCanvas ? [] : [jpegCanvas],
-      () => {
-        // Pass 4: post (smear + noise + clip) reading from the JPEG result.
-        resizeGLCanvas(canvas, W, H);
-        const postSrcTex = ensureTexture(gl, "mavicaFd7:postSrc", W, H);
-        uploadSourceTexture(gl, postSrcTex, jpegCanvas);
+    return withPooledCanvasCleanup(jpegCanvas === preJpegCanvas ? [] : [jpegCanvas], () => {
+      // Pass 4: post (smear + noise + clip) reading from the JPEG result.
+      resizeGLCanvas(canvas, W, H);
+      const postSrcTex = ensureTexture(gl, "mavicaFd7:postSrc", W, H);
+      uploadSourceTexture(gl, postSrcTex, jpegCanvas);
 
-        const { rb: noiseRB, g: noiseG } = NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] ?? NOISE_PARAMS[QUALITY_FINE];
-        drawPass(gl, null, W, H, cache.post, () => {
+      const { rb: noiseRB, g: noiseG } =
+        NOISE_PARAMS[quality as keyof typeof NOISE_PARAMS] ?? NOISE_PARAMS[QUALITY_FINE];
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.post,
+        () => {
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, postSrcTex.tex);
           gl.uniform1i(cache.post.uniforms.u_input, 0);
@@ -785,11 +884,12 @@ const runGLPipeline = (
           gl.uniform1f(cache.post.uniforms.u_shadowCut, flashOn ? 42 : 50);
           gl.uniform1f(cache.post.uniforms.u_clipPoint, flashOn ? 244 : 248);
           gl.uniform1f(cache.post.uniforms.u_seed, seed);
-        }, vao);
+        },
+        vao,
+      );
 
-        return readoutToCanvas(canvas, W, H);
-      },
-    );
+      return readoutToCanvas(canvas, W, H);
+    });
   });
 };
 
@@ -801,11 +901,26 @@ const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
   const supplied = { ...defaults, ...options };
   const resolved = {
     ...supplied,
-    captureMode: normalizeEnumOption(supplied.captureMode, [CAPTURE_FIELD, CAPTURE_FRAME], defaults.captureMode),
-    quality: normalizeEnumOption(supplied.quality, [QUALITY_FINE, QUALITY_STANDARD], defaults.quality),
+    captureMode: normalizeEnumOption(
+      supplied.captureMode,
+      [CAPTURE_FIELD, CAPTURE_FRAME],
+      defaults.captureMode,
+    ),
+    quality: normalizeEnumOption(
+      supplied.quality,
+      [QUALITY_FINE, QUALITY_STANDARD],
+      defaults.quality,
+    ),
     sceneMode: normalizeEnumOption(
       supplied.sceneMode,
-      [SCENE_AUTO, SCENE_SOFT_PORTRAIT, SCENE_SPORTS, SCENE_BEACH_SKI, SCENE_SUNSET_MOON, SCENE_LANDSCAPE],
+      [
+        SCENE_AUTO,
+        SCENE_SOFT_PORTRAIT,
+        SCENE_SPORTS,
+        SCENE_BEACH_SKI,
+        SCENE_SUNSET_MOON,
+        SCENE_LANDSCAPE,
+      ],
       defaults.sceneMode,
     ),
     pictureEffect: normalizeEnumOption(
@@ -825,7 +940,11 @@ const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
     flashOffsetY: normalizeRangeOption(supplied.flashOffsetY, defaults.flashOffsetY, -1, 1),
     smear: normalizeBooleanOption(supplied.smear, defaults.smear),
     nativeVgaOutput: normalizeBooleanOption(supplied.nativeVgaOutput, defaults.nativeVgaOutput),
-    frameJitter: normalizeEnumOption(supplied.frameJitter, ["0", "1", "2", "3"], defaults.frameJitter),
+    frameJitter: normalizeEnumOption(
+      supplied.frameJitter,
+      ["0", "1", "2", "3"],
+      defaults.frameJitter,
+    ),
   };
   const {
     captureMode,
@@ -840,7 +959,7 @@ const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
     flashOffsetY,
     smear,
     nativeVgaOutput,
-    frameJitter
+    frameJitter,
   } = resolved;
   const inputCtx = input.getContext("2d");
   if (!inputCtx) return input;
@@ -855,7 +974,9 @@ const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
 
   const workCanvas = takePooledCanvas(workW, workH);
   const workCtx = workCanvas.getContext("2d", { willReadFrequently: true }) as
-    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!workCtx) {
     releasePooledCanvas(workCanvas);
     return input;
@@ -875,11 +996,14 @@ const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
     const buf = workCtx.getImageData(0, 0, workW, workH).data;
     // Auto white balance is a small CPU reduction; all image stages and the
     // complete JPEG codec remain on the required WebGL2 pipeline.
-    const [rMul, gMul, bMul] = lighting === LIGHTING_AUTO
-      ? computeAutoAwb(buf)
-      : (AWB[lighting as keyof typeof AWB] || AWB[LIGHTING_AUTO]);
+    const [rMul, gMul, bMul] =
+      lighting === LIGHTING_AUTO
+        ? computeAutoAwb(buf)
+        : AWB[lighting as keyof typeof AWB] || AWB[LIGHTING_AUTO];
     const glResult = runGLPipeline(
-      workCanvas, workW, workH,
+      workCanvas,
+      workW,
+      workH,
       [rMul, gMul, bMul],
       lighting === LIGHTING_FLUORESCENT,
       Boolean(flash),
@@ -919,8 +1043,11 @@ const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
         } else {
           outputCtx.drawImage(glResult, 0, 0);
         }
-        logFilterBackend("Mavica FD7", "WebGL2",
-          `${quality} ${sceneMode} ${captureMode}${flash ? " flash" : ""}`);
+        logFilterBackend(
+          "Mavica FD7",
+          "WebGL2",
+          `${quality} ${sceneMode} ${captureMode}${flash ? " flash" : ""}`,
+        );
         transferred = true;
         return output;
       } finally {
@@ -936,7 +1063,8 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  description: "Sony MVC-FD7 still-camera proxy with VGA CCD sampling, interlaced field capture, period JPEG budgets, scene modes, and optional flash artifacts",
+  description:
+    "Sony MVC-FD7 still-camera proxy with VGA CCD sampling, interlaced field capture, period JPEG budgets, scene modes, and optional flash artifacts",
   temporal: true,
   requiresGL: true,
 });

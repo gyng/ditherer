@@ -1,8 +1,6 @@
-const finite = (value: number, fallback = 0): number =>
-  Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 
-const clamp01 = (value: number): number =>
-  Math.max(0, Math.min(1, finite(value)));
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, finite(value)));
 
 /** Map normalized signal amplitude to a top-row-first display coordinate. */
 export const oscilloscopeVoltageRow = (voltage: number, height: number): number => {

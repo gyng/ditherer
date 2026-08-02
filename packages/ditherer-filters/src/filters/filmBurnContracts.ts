@@ -1,6 +1,5 @@
-const unit = (value: number): number => Number.isFinite(value)
-  ? Math.min(1, Math.max(0, value))
-  : 0;
+const unit = (value: number): number =>
+  Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 
 const smoothstep = (low: number, high: number, value: number): number => {
   const t = unit((value - low) / (high - low));

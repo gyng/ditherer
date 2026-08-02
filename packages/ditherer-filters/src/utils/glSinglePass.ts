@@ -55,12 +55,20 @@ export const renderGLSinglePass = ({
   uploadSourceTexture(gl, sourceTexture, source);
   resizeGLCanvas(canvas, width, height);
   const vao = getQuadVAO(gl);
-  drawPass(gl, null, width, height, program, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(program?.uniforms.u_source ?? null, 0);
-    gl.uniform2f(program?.uniforms.u_res ?? null, width, height);
-    setUniforms?.(gl, program?.uniforms ?? {});
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    program,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(program?.uniforms.u_source ?? null, 0);
+      gl.uniform2f(program?.uniforms.u_res ?? null, width, height);
+      setUniforms?.(gl, program?.uniforms ?? {});
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

@@ -58,14 +58,62 @@ void main() {
 }`;
 
 export const optionTypes = {
-  lightX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal light position across the image" },
-  lightY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Vertical light position across the image" },
-  density: { type: RANGE, range: [0.1, 2], step: 0.05, default: 0.9, desc: "Length and spacing of the integrated light ray" },
-  decay: { type: RANGE, range: [0.85, 1], step: 0.0025, default: 0.965, desc: "Light retained at each ray-march step" },
-  exposure: { type: RANGE, range: [0, 0.2], step: 0.005, default: 0.055, desc: "Overall volumetric shaft brightness" },
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.62, desc: "Source luminance that emits into the fog" },
-  noise: { type: RANGE, range: [0, 1], step: 0.05, default: 0.28, desc: "Animated density variation in the fog" },
-  animateSpeed: { type: RANGE, range: [0, 3], step: 0.05, default: 0.5, desc: "Fog-noise animation speed" },
+  lightX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Horizontal light position across the image",
+  },
+  lightY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.2,
+    desc: "Vertical light position across the image",
+  },
+  density: {
+    type: RANGE,
+    range: [0.1, 2],
+    step: 0.05,
+    default: 0.9,
+    desc: "Length and spacing of the integrated light ray",
+  },
+  decay: {
+    type: RANGE,
+    range: [0.85, 1],
+    step: 0.0025,
+    default: 0.965,
+    desc: "Light retained at each ray-march step",
+  },
+  exposure: {
+    type: RANGE,
+    range: [0, 0.2],
+    step: 0.005,
+    default: 0.055,
+    desc: "Overall volumetric shaft brightness",
+  },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.62,
+    desc: "Source luminance that emits into the fog",
+  },
+  noise: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.28,
+    desc: "Animated density variation in the fog",
+  },
+  animateSpeed: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.5,
+    desc: "Fog-noise animation speed",
+  },
   tint: { type: COLOR, default: [255, 224, 168], desc: "Scattered light color" },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
@@ -85,10 +133,24 @@ export const defaults = {
 
 const volumetricLight = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const runtime = options as typeof defaults & { _frameIndex?: number };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "volumetricLight", fragmentShader: FS,
-    uniformNames: ["u_lightPos", "u_density", "u_decay", "u_exposure", "u_threshold", "u_noise", "u_time", "u_tint"],
+    source: input,
+    width: W,
+    height: H,
+    key: "volumetricLight",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_lightPos",
+      "u_density",
+      "u_decay",
+      "u_exposure",
+      "u_threshold",
+      "u_noise",
+      "u_time",
+      "u_tint",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform2f(u.u_lightPos, options.lightX, 1 - options.lightY);
       gl.uniform1f(u.u_density, options.density);
@@ -102,8 +164,14 @@ const volumetricLight = (input: HTMLCanvasElement | OffscreenCanvas, options = d
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Volumetric Light", "WebGL2", `density=${options.density} linear-shafts${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Volumetric Light",
+    "WebGL2",
+    `density=${options.density} linear-shafts${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({

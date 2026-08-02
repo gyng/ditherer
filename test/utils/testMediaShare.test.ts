@@ -25,18 +25,22 @@ describe("test media URL sharing", () => {
   });
 
   it("updates or removes only the test-media parameter", () => {
-    expect(updateTestMediaSearch("?debug=1", { kind: "image", file: "pepper.png" }))
-      .toBe("?debug=1&testMedia=image%3Apepper.png");
-    expect(updateTestMediaSearch("?debug=1&testMedia=image%3Apepper.png", { kind: "video", file: "akiyo.mp4" }))
-      .toBe("?debug=1&testMedia=video%3Aakiyo.mp4");
-    expect(updateTestMediaSearch("?debug=1&testMedia=video%3Aakiyo.mp4", null))
-      .toBe("?debug=1");
+    expect(updateTestMediaSearch("?debug=1", { kind: "image", file: "pepper.png" })).toBe(
+      "?debug=1&testMedia=image%3Apepper.png",
+    );
+    expect(
+      updateTestMediaSearch("?debug=1&testMedia=image%3Apepper.png", {
+        kind: "video",
+        file: "akiyo.mp4",
+      }),
+    ).toBe("?debug=1&testMedia=video%3Aakiyo.mp4");
+    expect(updateTestMediaSearch("?debug=1&testMedia=video%3Aakiyo.mp4", null)).toBe("?debug=1");
   });
 
   it("copies only a valid test-media parameter into explicit share URLs", () => {
-    expect(getShareableTestMediaSearch("?debug=1&testMedia=video%3Aakiyo.mp4"))
-      .toBe("?testMedia=video%3Aakiyo.mp4");
-    expect(getShareableTestMediaSearch("?debug=1&testMedia=video%3Amissing.mp4"))
-      .toBe("");
+    expect(getShareableTestMediaSearch("?debug=1&testMedia=video%3Aakiyo.mp4")).toBe(
+      "?testMedia=video%3Aakiyo.mp4",
+    );
+    expect(getShareableTestMediaSearch("?debug=1&testMedia=video%3Amissing.mp4")).toBe("");
   });
 });

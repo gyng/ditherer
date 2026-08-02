@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -157,9 +164,18 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, MR_FS, [
-      "u_source", "u_atlas", "u_laneInfo", "u_cellData", "u_res",
-      "u_laneCount", "u_rows", "u_charH", "u_charCount",
-      "u_bitmapCellSize", "u_sourceInfluence", "u_classicGreen",
+      "u_source",
+      "u_atlas",
+      "u_laneInfo",
+      "u_cellData",
+      "u_res",
+      "u_laneCount",
+      "u_rows",
+      "u_charH",
+      "u_charCount",
+      "u_bitmapCellSize",
+      "u_sourceInfluence",
+      "u_classicGreen",
     ] as const),
   };
   return _cache;
@@ -223,15 +239,16 @@ export type MatrixRainGLParams = {
   laneCount: number;
   rows: number;
   charH: number;
-  laneInfo: Float32Array;      // laneCount × 4: centerPx, widthPx, _, _
-  cellData: Float32Array;      // laneCount × rows × 4: charIdx, flipMode, illum, glyphScale
+  laneInfo: Float32Array; // laneCount × 4: centerPx, widthPx, _, _
+  cellData: Float32Array; // laneCount × rows × 4: charIdx, flipMode, illum, glyphScale
   sourceInfluence: number;
   classicGreen: boolean;
 };
 
 export const renderMatrixRainGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   params: MatrixRainGLParams,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
@@ -248,28 +265,36 @@ export const renderMatrixRainGL = (
   const laneTex = uploadRGBA32F(gl, 2, params.laneInfo, params.laneCount, 1);
   const cellTex = uploadRGBA32F(gl, 3, params.cellData, params.laneCount, params.rows);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, atlasTex);
-    gl.uniform1i(cache.prog.uniforms.u_atlas, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, laneTex);
-    gl.uniform1i(cache.prog.uniforms.u_laneInfo, 2);
-    gl.activeTexture(gl.TEXTURE3);
-    gl.bindTexture(gl.TEXTURE_2D, cellTex);
-    gl.uniform1i(cache.prog.uniforms.u_cellData, 3);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_laneCount, params.laneCount);
-    gl.uniform1f(cache.prog.uniforms.u_rows, params.rows);
-    gl.uniform1f(cache.prog.uniforms.u_charH, params.charH);
-    gl.uniform1f(cache.prog.uniforms.u_charCount, params.charBitmaps.length);
-    gl.uniform1f(cache.prog.uniforms.u_bitmapCellSize, params.bitmapCellSize);
-    gl.uniform1f(cache.prog.uniforms.u_sourceInfluence, params.sourceInfluence);
-    gl.uniform1i(cache.prog.uniforms.u_classicGreen, params.classicGreen ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+      gl.uniform1i(cache.prog.uniforms.u_atlas, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, laneTex);
+      gl.uniform1i(cache.prog.uniforms.u_laneInfo, 2);
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, cellTex);
+      gl.uniform1i(cache.prog.uniforms.u_cellData, 3);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_laneCount, params.laneCount);
+      gl.uniform1f(cache.prog.uniforms.u_rows, params.rows);
+      gl.uniform1f(cache.prog.uniforms.u_charH, params.charH);
+      gl.uniform1f(cache.prog.uniforms.u_charCount, params.charBitmaps.length);
+      gl.uniform1f(cache.prog.uniforms.u_bitmapCellSize, params.bitmapCellSize);
+      gl.uniform1f(cache.prog.uniforms.u_sourceInfluence, params.sourceInfluence);
+      gl.uniform1i(cache.prog.uniforms.u_classicGreen, params.classicGreen ? 1 : 0);
+    },
+    vao,
+  );
 
   const result = readoutToCanvas(canvas, width, height);
   gl.deleteTexture(atlasTex);

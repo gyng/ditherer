@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -37,8 +44,12 @@ export const invertGLAvailable = (): boolean => glAvailable();
 
 export const renderInvertGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  invertR: boolean, invertG: boolean, invertB: boolean, invertA: boolean,
+  width: number,
+  height: number,
+  invertR: boolean,
+  invertG: boolean,
+  invertB: boolean,
+  invertA: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -48,12 +59,25 @@ export const renderInvertGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "invert:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform4i(cache.prog.uniforms.u_invert,
-      invertR ? 1 : 0, invertG ? 1 : 0, invertB ? 1 : 0, invertA ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform4i(
+        cache.prog.uniforms.u_invert,
+        invertR ? 1 : 0,
+        invertG ? 1 : 0,
+        invertB ? 1 : 0,
+        invertA ? 1 : 0,
+      );
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

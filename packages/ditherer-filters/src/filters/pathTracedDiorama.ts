@@ -138,14 +138,60 @@ void main() {
 }`;
 
 export const optionTypes = {
-  aperture: { type: RANGE, range: [0, 0.12], step: 0.005, default: 0.018, desc: "Lens aperture for stochastic depth of field" },
-  focus: { type: RANGE, range: [1.2, 3], step: 0.05, default: 2.15, desc: "Focus distance from the camera" },
-  lightSize: { type: RANGE, range: [0, 1], step: 0.05, default: 0.45, desc: "Area-light size controlling soft-shadow spread" },
-  bounces: { type: RANGE, range: [1, 2], step: 1, default: 2, desc: "Path depth: direct light only or one reflected bounce" },
-  roughness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.28, desc: "Spread of reflected secondary rays" },
-  exposure: { type: RANGE, range: [0.25, 3], step: 0.05, default: 1.35, desc: "Tone-mapped scene exposure" },
-  maxFrames: { type: RANGE, range: [4, 256], step: 4, default: 96, desc: "Progressive samples accumulated before switching to a rolling average" },
-  roomColor: { type: COLOR, default: [126, 111, 105], desc: "Material color of the diorama walls and floor" },
+  aperture: {
+    type: RANGE,
+    range: [0, 0.12],
+    step: 0.005,
+    default: 0.018,
+    desc: "Lens aperture for stochastic depth of field",
+  },
+  focus: {
+    type: RANGE,
+    range: [1.2, 3],
+    step: 0.05,
+    default: 2.15,
+    desc: "Focus distance from the camera",
+  },
+  lightSize: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.45,
+    desc: "Area-light size controlling soft-shadow spread",
+  },
+  bounces: {
+    type: RANGE,
+    range: [1, 2],
+    step: 1,
+    default: 2,
+    desc: "Path depth: direct light only or one reflected bounce",
+  },
+  roughness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.28,
+    desc: "Spread of reflected secondary rays",
+  },
+  exposure: {
+    type: RANGE,
+    range: [0.25, 3],
+    step: 0.05,
+    default: 1.35,
+    desc: "Tone-mapped scene exposure",
+  },
+  maxFrames: {
+    type: RANGE,
+    range: [4, 256],
+    step: 4,
+    default: 96,
+    desc: "Progressive samples accumulated before switching to a rolling average",
+  },
+  roomColor: {
+    type: COLOR,
+    default: [126, 111, 105],
+    desc: "Material color of the diorama walls and floor",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -170,14 +216,29 @@ let program: Program | null = null;
 const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (program) return program;
   program = linkProgram(gl, FS, [
-    "u_source", "u_history", "u_res", "u_frame", "u_hasHistory", "u_aperture", "u_focus",
-    "u_lightSize", "u_bounces", "u_roughness", "u_exposure", "u_maxFrames", "u_roomColor",
+    "u_source",
+    "u_history",
+    "u_res",
+    "u_frame",
+    "u_hasHistory",
+    "u_aperture",
+    "u_focus",
+    "u_lightSize",
+    "u_bounces",
+    "u_roughness",
+    "u_exposure",
+    "u_maxFrames",
+    "u_roomColor",
   ] as const);
   return program;
 };
 
-const pathTracedDiorama = (input: HTMLCanvasElement | OffscreenCanvas, options: DioramaOptions = defaults) => {
-  const W = input.width, H = input.height;
+const pathTracedDiorama = (
+  input: HTMLCanvasElement | OffscreenCanvas,
+  options: DioramaOptions = defaults,
+) => {
+  const W = input.width,
+    H = input.height;
   const context = getGLCtx();
   if (!context) return input;
   const { gl, canvas } = context;
@@ -185,37 +246,59 @@ const pathTracedDiorama = (input: HTMLCanvasElement | OffscreenCanvas, options: 
   const source = ensureTexture(gl, "pathTracedDiorama:source", W, H);
   const history = ensureTexture(gl, "pathTracedDiorama:history", W, H);
   uploadSourceTexture(gl, source, input);
-  const haveHistory = !!options._prevOutput && options._prevOutput.length === W * H * 4 && (options._frameIndex ?? 0) > 0;
+  const haveHistory =
+    !!options._prevOutput &&
+    options._prevOutput.length === W * H * 4 &&
+    (options._frameIndex ?? 0) > 0;
   if (haveHistory) {
     gl.bindTexture(gl.TEXTURE_2D, history.tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, options._prevOutput!);
   }
   resizeGLCanvas(canvas, W, H);
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, source.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, haveHistory ? history.tex : source.tex);
-    gl.uniform1i(prog.uniforms.u_history, 1);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_frame, options._frameIndex ?? 0);
-    gl.uniform1i(prog.uniforms.u_hasHistory, haveHistory ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_aperture, options.aperture);
-    gl.uniform1f(prog.uniforms.u_focus, options.focus);
-    gl.uniform1f(prog.uniforms.u_lightSize, options.lightSize);
-    gl.uniform1f(prog.uniforms.u_bounces, options.bounces);
-    gl.uniform1f(prog.uniforms.u_roughness, options.roughness);
-    gl.uniform1f(prog.uniforms.u_exposure, options.exposure);
-    gl.uniform1f(prog.uniforms.u_maxFrames, options.maxFrames);
-    gl.uniform3f(prog.uniforms.u_roomColor, options.roomColor[0], options.roomColor[1], options.roomColor[2]);
-  }, getQuadVAO(gl));
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, source.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, haveHistory ? history.tex : source.tex);
+      gl.uniform1i(prog.uniforms.u_history, 1);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_frame, options._frameIndex ?? 0);
+      gl.uniform1i(prog.uniforms.u_hasHistory, haveHistory ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_aperture, options.aperture);
+      gl.uniform1f(prog.uniforms.u_focus, options.focus);
+      gl.uniform1f(prog.uniforms.u_lightSize, options.lightSize);
+      gl.uniform1f(prog.uniforms.u_bounces, options.bounces);
+      gl.uniform1f(prog.uniforms.u_roughness, options.roughness);
+      gl.uniform1f(prog.uniforms.u_exposure, options.exposure);
+      gl.uniform1f(prog.uniforms.u_maxFrames, options.maxFrames);
+      gl.uniform3f(
+        prog.uniforms.u_roomColor,
+        options.roomColor[0],
+        options.roomColor[1],
+        options.roomColor[2],
+      );
+    },
+    getQuadVAO(gl),
+  );
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Path-Traced Diorama", "WebGL2", `sample=${(options._frameIndex ?? 0) + 1}${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Path-Traced Diorama",
+    "WebGL2",
+    `sample=${(options._frameIndex ?? 0) + 1}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({
@@ -224,7 +307,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Progressively path-trace the source as a framed image inside a softly lit miniature room",
+  description:
+    "Progressively path-trace the source as a framed image inside a softly lit miniature room",
   temporal: true,
   autoAnimate: true,
   autoAnimateFps: 30,

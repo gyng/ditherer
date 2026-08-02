@@ -76,13 +76,13 @@ catalog review:
 
 ## References
 
-- Xerox, *Chester Carlson and Xerography*:
+- Xerox, _Chester Carlson and Xerography_:
   https://www.xerox.com/da-dk/innovation/indsigt/chester-carlson-xerography
-- Xerox, *White Spots, Stripes or Random Deletions on Prints and Copies*:
+- Xerox, _White Spots, Stripes or Random Deletions on Prints and Copies_:
   https://www.support.xerox.com/en-us/article/KB0227266
-- Xerox, *Colour Materials Usage Guide*:
+- Xerox, _Colour Materials Usage Guide_:
   https://download.support.xerox.com/pub/docs/DocuColor_12CP/userdocs/any-os/en_GB/UK_DC12CP_MUG.pdf
-- CottonWorks, *Basic Woven Fabric Designs*:
+- CottonWorks, _Basic Woven Fabric Designs_:
   https://cottonworks.com/learning-hub/weaving/basic-woven-fabric-designs/
-- National Diet Library, *Paper conservation by using Japanese paper, washi*:
+- National Diet Library, _Paper conservation by using Japanese paper, washi_:
   https://www.ndl.go.jp/file/preservation/iflapac/pac_faq_wasi_shuhuku_202603.pdf

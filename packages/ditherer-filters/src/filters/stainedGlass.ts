@@ -10,31 +10,46 @@ import {
   logFilterBackend,
 } from "../utils/index";
 import { stainedGlassGLAvailable, renderStainedGlassGL } from "./stainedGlassGL";
-import { resolveStainedGlassCellColors, type StainedGlassColorMode } from "../utils/stainedGlassColor";
+import {
+  resolveStainedGlassCellColors,
+  type StainedGlassColorMode,
+} from "../utils/stainedGlassColor";
 
 export const COLOR_MODE = {
   AVERAGE: "AVERAGE",
   MEDIAN: "MEDIAN",
-  DOMINANT: "DOMINANT"
+  DOMINANT: "DOMINANT",
 } as const;
 
 export const optionTypes = {
   seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Random seed for cell layout" },
   cellSize: { type: RANGE, range: [5, 60], step: 1, default: 20, desc: "Average glass pane size" },
-  irregularity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.5, desc: "How irregular the cell shapes are" },
-  leadingWidth: { type: RANGE, range: [1, 6], step: 1, default: 2, desc: "Lead came (border) width" },
+  irregularity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.5,
+    desc: "How irregular the cell shapes are",
+  },
+  leadingWidth: {
+    type: RANGE,
+    range: [1, 6],
+    step: 1,
+    default: 2,
+    desc: "Lead came (border) width",
+  },
   leadingColor: { type: COLOR, default: [20, 20, 20], desc: "Lead came color" },
   colorMode: {
     type: ENUM,
     options: [
       { name: "Average", value: COLOR_MODE.AVERAGE },
       { name: "Median", value: COLOR_MODE.MEDIAN },
-      { name: "Dominant", value: COLOR_MODE.DOMINANT }
+      { name: "Dominant", value: COLOR_MODE.DOMINANT },
     ],
     default: COLOR_MODE.AVERAGE,
-    desc: "How each pane's color is sampled"
+    desc: "How each pane's color is sampled",
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -44,7 +59,7 @@ export const defaults = {
   leadingWidth: optionTypes.leadingWidth.default,
   leadingColor: optionTypes.leadingColor.default,
   colorMode: optionTypes.colorMode.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const stainedGlass = (input: any, options = defaults) => {
@@ -53,11 +68,14 @@ const stainedGlass = (input: any, options = defaults) => {
   const cellSize = Math.max(1, Math.round(Number(normalized.cellSize) || defaults.cellSize));
   const irregularity = Math.max(0, Math.min(1, Number(normalized.irregularity) || 0));
   const leadingWidth = Math.max(0, Number(normalized.leadingWidth) || 0);
-  const leadingColor = Array.isArray(normalized.leadingColor) ? normalized.leadingColor : defaults.leadingColor;
+  const leadingColor = Array.isArray(normalized.leadingColor)
+    ? normalized.leadingColor
+    : defaults.leadingColor;
   const requestedColorMode = String(normalized.colorMode);
-  const colorMode: StainedGlassColorMode = requestedColorMode === COLOR_MODE.MEDIAN || requestedColorMode === COLOR_MODE.DOMINANT
-    ? requestedColorMode
-    : COLOR_MODE.AVERAGE;
+  const colorMode: StainedGlassColorMode =
+    requestedColorMode === COLOR_MODE.MEDIAN || requestedColorMode === COLOR_MODE.DOMINANT
+      ? requestedColorMode
+      : COLOR_MODE.AVERAGE;
   const palette = normalized.palette ?? defaults.palette;
 
   const output = cloneCanvas(input, false);
@@ -88,7 +106,7 @@ const stainedGlass = (input: any, options = defaults) => {
       const jy = (rand() - 0.5) * cellSize * irregularity;
       seeds.push({
         x: (gx + 0.5) * cellSize + jx,
-        y: (gy + 0.5) * cellSize + jy
+        y: (gy + 0.5) * cellSize + jy,
       });
     }
   }
@@ -98,19 +116,32 @@ const stainedGlass = (input: any, options = defaults) => {
   // run on the GPU. Per-cell colour averages happen on the CPU between the
   // two GL passes (reduction doesn't fit a fragment shader cleanly).
   if (
-    stainedGlassGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    stainedGlassGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const gridCols = cols + 1;
     const gridRows = rows + 1;
     if (gridCols * gridRows <= 65536) {
       const rendered = renderStainedGlassGL(
-        input, buf, W, H, seeds, gridCols, gridRows, cellSize,
-        leadingWidth, leadingColor as [number, number, number], colorMode,
+        input,
+        buf,
+        W,
+        H,
+        seeds,
+        gridCols,
+        gridRows,
+        cellSize,
+        leadingWidth,
+        leadingColor as [number, number, number],
+        colorMode,
         (r, g, b) => paletteGetColor(palette, rgba(r, g, b, 255), palette.options, false),
       );
       if (rendered) {
-        logFilterBackend("Stained Glass", "WebGL2", `cells=${gridCols * gridRows} cellSize=${cellSize}`);
+        logFilterBackend(
+          "Stained Glass",
+          "WebGL2",
+          `cells=${gridCols * gridRows} cellSize=${cellSize}`,
+        );
         return rendered;
       }
     }
@@ -123,7 +154,8 @@ const stainedGlass = (input: any, options = defaults) => {
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let minDist = Infinity, minIdx = 0;
+      let minDist = Infinity,
+        minIdx = 0;
       let min2Dist = Infinity;
 
       // Only check nearby seeds for performance
@@ -136,7 +168,8 @@ const stainedGlass = (input: any, options = defaults) => {
           const checkIdx = si >= 0 && si < seeds.length ? si : -1;
           if (checkIdx === -1) continue;
           const s = seeds[checkIdx];
-          const dx = x - s.x, dy = y - s.y;
+          const dx = x - s.x,
+            dy = y - s.y;
           const d = dx * dx + dy * dy;
           if (d < minDist) {
             min2Dist = minDist;
@@ -152,7 +185,8 @@ const stainedGlass = (input: any, options = defaults) => {
       if (minDist === Infinity) {
         for (let si = 0; si < seeds.length; si++) {
           const s = seeds[si];
-          const dx = x - s.x, dy = y - s.y;
+          const dx = x - s.x,
+            dy = y - s.y;
           const d = dx * dx + dy * dy;
           if (d < minDist) {
             min2Dist = minDist;
@@ -197,9 +231,14 @@ const stainedGlass = (input: any, options = defaults) => {
       const borderDist = (d2 - d1) / 2;
 
       const colorOffset = cellMap[pi] * 4;
-      const cc = resolvedColors[colorOffset + 3] > 0
-        ? [resolvedColors[colorOffset], resolvedColors[colorOffset + 1], resolvedColors[colorOffset + 2]]
-        : [0, 0, 0];
+      const cc =
+        resolvedColors[colorOffset + 3] > 0
+          ? [
+              resolvedColors[colorOffset],
+              resolvedColors[colorOffset + 1],
+              resolvedColors[colorOffset + 2],
+            ]
+          : [0, 0, 0];
       const rawLeading = Math.max(0, Math.min(1, leadingWidth + 0.5 - borderDist));
       const leading = rawLeading * rawLeading * (3 - 2 * rawLeading);
       fillBufferPixel(
@@ -222,5 +261,5 @@ export default defineFilter({
   func: stainedGlass,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

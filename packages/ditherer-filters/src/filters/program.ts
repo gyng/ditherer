@@ -20,14 +20,14 @@ export const optionTypes = {
 r = buf[i + 17];
 g = b;
 b = i % 255;
-a = 255;`
+a = 255;`,
   },
-  palette: { type: PALETTE, default: palettes.nearest }
+  palette: { type: PALETTE, default: palettes.nearest },
 };
 
 export const defaults = {
   program: optionTypes.program.default,
-  palette: optionTypes.palette.default
+  palette: optionTypes.palette.default,
 };
 
 type ProgramPalette = typeof defaults.palette;
@@ -47,10 +47,7 @@ type ProgramPixelFn = (
   palette: ProgramPalette,
 ) => ProgramPixel;
 
-const programFilter = (
-  input: any,
-  options = defaults
-) => {
+const programFilter = (input: any, options = defaults) => {
   const { program, palette } = options;
   const output = cloneCanvas(input, false);
 
@@ -71,8 +68,19 @@ const programFilter = (
     // Compile the user program once. It reads/writes r,g,b,a and reads
     // i,p,w,h,x,y,buf,palette; we return the (possibly mutated) channels.
     pixelFn = new Function(
-      "r", "g", "b", "a", "i", "p", "w", "h", "x", "y", "buf", "palette",
-      `${program}\nreturn [r, g, b, a];`
+      "r",
+      "g",
+      "b",
+      "a",
+      "i",
+      "p",
+      "w",
+      "h",
+      "x",
+      "y",
+      "buf",
+      "palette",
+      `${program}\nreturn [r, g, b, a];`,
     ) as ProgramPixelFn;
   } catch (e) {
     console.error(e);

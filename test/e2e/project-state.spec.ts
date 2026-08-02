@@ -10,13 +10,17 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round-trip", async ({ page }) => {
+test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round-trip", async ({
+  page,
+}) => {
   await startBrowserCoverage(page);
   await page.goto("/?testMedia=image%3Apepper.png");
   await expect(page.getByText("Input - pepper.png", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  await page.getByRole("combobox", { name: "Load a preset" }).selectOption({ label: "Amber Terminal" });
+  await page
+    .getByRole("combobox", { name: "Load a preset" })
+    .selectOption({ label: "Amber Terminal" });
   const chain = page.getByRole("listbox", { name: "Filter chain" });
   await expect(chain.getByRole("option")).toHaveCount(3);
   const originalOrder = await chain.getByRole("option").allTextContents();
@@ -45,7 +49,10 @@ test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round
   await clearDialog.getByRole("button", { name: "Cancel" }).click();
   await expect(chain.getByRole("option")).toHaveCount(3);
   await page.getByRole("button", { name: "Clear filter chain" }).click();
-  await page.getByRole("dialog", { name: "Clear filter chain" }).getByRole("button", { name: "OK" }).click();
+  await page
+    .getByRole("dialog", { name: "Clear filter chain" })
+    .getByRole("button", { name: "OK" })
+    .click();
   await expect(chain.getByRole("option")).toHaveCount(1);
   await expect(chain.getByRole("option").first()).toContainText("None");
   await expect(undo).toBeEnabled();
@@ -60,7 +67,9 @@ test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round
   const savedChains = page.getByRole("combobox", { name: "Load a saved chain" });
   await expect(savedChains).toBeVisible();
 
-  await page.getByRole("combobox", { name: "Load a preset" }).selectOption({ label: "Gameboy Screen" });
+  await page
+    .getByRole("combobox", { name: "Load a preset" })
+    .selectOption({ label: "Gameboy Screen" });
   await savedChains.selectOption("Dogfood Amber");
   await expect(chain.getByRole("option")).toHaveCount(3);
   await expect(page.getByTitle('Delete "Dogfood Amber"')).toBeVisible();

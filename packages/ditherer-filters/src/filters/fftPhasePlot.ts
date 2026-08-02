@@ -75,14 +75,18 @@ void main() {
 
 export const optionTypes = {
   centred: { type: BOOL, default: true, desc: "fftshift — place DC at the image centre" },
-  weightByMagnitude: { type: BOOL, default: true, desc: "Dim low-magnitude bins so noise floor phase doesn't dominate" },
-  palette: { type: PALETTE, default: nearest }
+  weightByMagnitude: {
+    type: BOOL,
+    default: true,
+    desc: "Dim low-magnitude bins so noise floor phase doesn't dominate",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   centred: optionTypes.centred.default,
   weightByMagnitude: optionTypes.weightByMagnitude.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { plot: Program };
@@ -90,7 +94,14 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    plot: linkProgram(gl, PLOT_FS, ["u_fft", "u_padRes", "u_outRes", "u_shift", "u_weighted", "u_levels"] as const),
+    plot: linkProgram(gl, PLOT_FS, [
+      "u_fft",
+      "u_padRes",
+      "u_outRes",
+      "u_shift",
+      "u_weighted",
+      "u_levels",
+    ] as const),
   };
   return _cache;
 };
@@ -101,9 +112,9 @@ const fftPhasePlot = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -115,30 +126,41 @@ const fftPhasePlot = (input: any, options = defaults) => {
       uploadSourceTexture(gl, sourceTex, input);
       const fwd = forwardFFT2D(gl, sourceTex, W, H);
       if (fwd) {
-        drawPass(gl, null, W, H, cache.plot, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-          gl.uniform1i(cache.plot.uniforms.u_fft, 0);
-          gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-          gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
-          gl.uniform1i(cache.plot.uniforms.u_shift, centred ? 1 : 0);
-          gl.uniform1i(cache.plot.uniforms.u_weighted, weightByMagnitude ? 1 : 0);
-          // Only pass in-shader levels quant when the palette is identity
-          // (no colors, levels≥256). Any other palette is handled by the
-          // CPU palette pass on readback so nearest-with-colours actually
-          // picks from that colour list rather than getting silently skipped.
-          const identity = paletteIsIdentity(palette);
-          const pOpts = (palette as { options?: { levels?: number } }).options;
-          const levels = identity ? (pOpts?.levels ?? 256) : 256;
-          gl.uniform1f(cache.plot.uniforms.u_levels, levels);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.plot,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+            gl.uniform1i(cache.plot.uniforms.u_fft, 0);
+            gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+            gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
+            gl.uniform1i(cache.plot.uniforms.u_shift, centred ? 1 : 0);
+            gl.uniform1i(cache.plot.uniforms.u_weighted, weightByMagnitude ? 1 : 0);
+            // Only pass in-shader levels quant when the palette is identity
+            // (no colors, levels≥256). Any other palette is handled by the
+            // CPU palette pass on readback so nearest-with-colours actually
+            // picks from that colour list rather than getting silently skipped.
+            const identity = paletteIsIdentity(palette);
+            const pOpts = (palette as { options?: { levels?: number } }).options;
+            const levels = identity ? (pOpts?.levels ?? 256) : 256;
+            gl.uniform1f(cache.plot.uniforms.u_levels, levels);
+          },
+          vao,
+        );
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("FFT Phase Plot", "WebGL2",
-              `${weightByMagnitude ? "weighted" : "raw"}${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "FFT Phase Plot",
+              "WebGL2",
+              `${weightByMagnitude ? "weighted" : "raw"}${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -155,6 +177,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Hue-mapped phase of the 2D FFT — shows orientation/direction of frequency components",
+  description:
+    "Hue-mapped phase of the 2D FFT — shows orientation/direction of frequency components",
   noWASM: "Needs GPU 2D FFT.",
 });

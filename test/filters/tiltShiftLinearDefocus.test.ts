@@ -48,8 +48,8 @@ describe("Tilt Shift linear-light defocus (tiltShift.ts shader math mirror)", ()
     // Sharp source pixel is dark (in-focus foreground edge), the blurred
     // out-of-focus background carries the bright highlight's spread energy.
     const srcSrgb = 0.05;
-    const blurSrgbGamma = 0.35;   // what an sRGB-space blur would report here
-    const blurSrgbLinear = 0.5;   // what the linear-space blur reports at the same point (brighter)
+    const blurSrgbGamma = 0.35; // what an sRGB-space blur would report here
+    const blurSrgbLinear = 0.5; // what the linear-space blur reports at the same point (brighter)
     const t = 0.7; // mostly defocused
 
     const gammaMix = srcSrgb * (1 - t) + blurSrgbGamma * t;

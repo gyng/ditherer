@@ -21,7 +21,7 @@ import {
   TEXT,
   PALETTE,
   CURVE,
-  THRESHOLD_MAP_PREVIEW
+  THRESHOLD_MAP_PREVIEW,
 } from "@gyng/ditherer-filters";
 
 import { useFilter } from "context/useFilter";
@@ -51,7 +51,8 @@ const Controls = (props: NestedControlsProps) => {
   const inputCanvas = props.inputCanvas;
   const onSetFilterOption = props.onSetFilterOption || actions.setFilterOption;
   const onSetPaletteOption = props.onSetPaletteOption || actions.setFilterPaletteOption;
-  const onAddPaletteColor: (color: number[]) => void = props.onAddPaletteColor || actions.addPaletteColor;
+  const onAddPaletteColor: (color: number[]) => void =
+    props.onAddPaletteColor || actions.addPaletteColor;
   const onSaveColorPalette: (name: string, colors: number[][]) => void =
     props.onSaveColorPalette || actions.saveCurrentColorPalette;
   const onDeleteColorPalette: (name: string) => void =
@@ -63,199 +64,228 @@ const Controls = (props: NestedControlsProps) => {
 
   return (
     <div className={s.controls}>
-      {Object.entries(optionTypes).filter(([name, oType]) => {
-        // Optional visibility predicate — option types may declare a
-        // visibleWhen(options) callback to hide controls that are no-ops
-        // given the current option values (e.g. rowAlternation when the
-        // scan order isn't row-major).
-        const vw = oType.visibleWhen;
-        const isVisible = typeof vw !== "function" || vw(options);
-        const needle = props.query?.trim().toLowerCase();
-        const matchesQuery = !needle || `${humanizeControlName(oType.label || name)} ${oType.desc || ""}`.toLowerCase().includes(needle);
-        return isVisible && matchesQuery;
-      }).map(e => {
-        const [name, oType] = e;
-        // Coalesce missing values to the optionType's default so controls
-        // never flip from uncontrolled (undefined value) to controlled
-        // (defined value) on first interaction — that triggers React's
-        // controlled-input warning. Happens easily when the user replaces
-        // one filter with another that has a different option shape.
-        const value = options[name] !== undefined ? options[name] : oType.default;
+      {Object.entries(optionTypes)
+        .filter(([name, oType]) => {
+          // Optional visibility predicate — option types may declare a
+          // visibleWhen(options) callback to hide controls that are no-ops
+          // given the current option values (e.g. rowAlternation when the
+          // scan order isn't row-major).
+          const vw = oType.visibleWhen;
+          const isVisible = typeof vw !== "function" || vw(options);
+          const needle = props.query?.trim().toLowerCase();
+          const matchesQuery =
+            !needle ||
+            `${humanizeControlName(oType.label || name)} ${oType.desc || ""}`
+              .toLowerCase()
+              .includes(needle);
+          return isVisible && matchesQuery;
+        })
+        .map((e) => {
+          const [name, oType] = e;
+          // Coalesce missing values to the optionType's default so controls
+          // never flip from uncontrolled (undefined value) to controlled
+          // (defined value) on first interaction — that triggers React's
+          // controlled-input warning. Happens easily when the user replaces
+          // one filter with another that has a different option shape.
+          const value = options[name] !== undefined ? options[name] : oType.default;
 
-        switch (oType.type) {
-          case ACTION:
-            {
+          switch (oType.type) {
+            case ACTION: {
               const actionType = oType as ActionOptionDefinition;
               const visibleLabel = actionType.label || name;
               const helpId = actionType.desc ? `${controlsId}-${name}-help` : undefined;
-            return (
-              <div key={name} className={s.actionRow}>
-                <button
-                  type="button"
-                  className={s.actionControl}
-                  title={actionType.desc}
-                  aria-describedby={helpId}
-                  onClick={() => {
-                    actionType.action(actions, inputCanvas ?? null, state.selected?.filter?.func, options);
-                  }}
-                >
-                  {visibleLabel}
-                </button>
-                {actionType.desc ? (
-                  <HelpHint
-                    label={humanizeControlName(visibleLabel)}
-                    text={actionType.desc}
-                    id={helpId}
-                  />
-                ) : null}
-              </div>
-            );
+              return (
+                <div key={name} className={s.actionRow}>
+                  <button
+                    type="button"
+                    className={s.actionControl}
+                    title={actionType.desc}
+                    aria-describedby={helpId}
+                    onClick={() => {
+                      actionType.action(
+                        actions,
+                        inputCanvas ?? null,
+                        state.selected?.filter?.func,
+                        options,
+                      );
+                    }}
+                  >
+                    {visibleLabel}
+                  </button>
+                  {actionType.desc ? (
+                    <HelpHint
+                      label={humanizeControlName(visibleLabel)}
+                      text={actionType.desc}
+                      id={helpId}
+                    />
+                  ) : null}
+                </div>
+              );
             }
-          case RANGE:
-            {
+            case RANGE: {
               const rangeType = oType as RangeOptionDefinition;
-            return (
-              <Range
-                key={name}
-                name={name}
-                types={{ ...controlMeta(rangeType.label, rangeType.desc), range: rangeType.range }}
-                value={typeof value === "number" ? value : Number(value ?? rangeType.default ?? 0)}
-                {...(typeof rangeType.default === "number" ? { defaultValue: rangeType.default } : {})}
-                {...(rangeType.step !== undefined ? { step: rangeType.step } : {})}
-                onSetFilterOption={onSetFilterOption}
-              />
-            );
+              return (
+                <Range
+                  key={name}
+                  name={name}
+                  types={{
+                    ...controlMeta(rangeType.label, rangeType.desc),
+                    range: rangeType.range,
+                  }}
+                  value={
+                    typeof value === "number" ? value : Number(value ?? rangeType.default ?? 0)
+                  }
+                  {...(typeof rangeType.default === "number"
+                    ? { defaultValue: rangeType.default }
+                    : {})}
+                  {...(rangeType.step !== undefined ? { step: rangeType.step } : {})}
+                  onSetFilterOption={onSetFilterOption}
+                />
+              );
             }
-          case PALETTE:
-            {
+            case PALETTE: {
               const paletteType = oType as PaletteOptionDefinition;
-            return (
-              <Palette
-                key={name}
-                name={name}
-                types={controlMeta(paletteType.label, paletteType.desc)}
-                value={value as PaletteValue}
-                {...(((value as PaletteValue | undefined)?.options) !== undefined
-                  ? { paletteOptions: (value as PaletteValue).options }
-                  : {})}
-                onAddPaletteColor={onAddPaletteColor}
-                onSetFilterOption={onSetFilterOption}
-                onSetPaletteOption={onSetPaletteOption}
-                onSaveColorPalette={onSaveColorPalette}
-                onDeleteColorPalette={onDeleteColorPalette}
-                {...(inputCanvas !== undefined ? { inputCanvas } : {})}
-              />
-            );
+              return (
+                <Palette
+                  key={name}
+                  name={name}
+                  types={controlMeta(paletteType.label, paletteType.desc)}
+                  value={value as PaletteValue}
+                  {...((value as PaletteValue | undefined)?.options !== undefined
+                    ? { paletteOptions: (value as PaletteValue).options }
+                    : {})}
+                  onAddPaletteColor={onAddPaletteColor}
+                  onSetFilterOption={onSetFilterOption}
+                  onSetPaletteOption={onSetPaletteOption}
+                  onSaveColorPalette={onSaveColorPalette}
+                  onDeleteColorPalette={onDeleteColorPalette}
+                  {...(inputCanvas !== undefined ? { inputCanvas } : {})}
+                />
+              );
             }
-          case COLOR_ARRAY:
-            return (
-              <ColorArray
-                key={name}
-                name={name}
-                value={Array.isArray(options.colors) ? (options.colors as number[][]) : []}
-                onAddPaletteColor={onAddPaletteColor as (color: number[]) => void}
-                onSetFilterOption={onSetFilterOption}
-                onSetPaletteOption={onSetPaletteOption}
-                onSaveColorPalette={onSaveColorPalette as (name: string, colors: number[][]) => void}
-                onDeleteColorPalette={onDeleteColorPalette}
-                {...(inputCanvas !== undefined ? { inputCanvas } : {})}
-              />
-            );
-          case COLOR:
-            return (
-              <ColorPicker
-                key={name}
-                name={name}
-                types={controlMeta(oType.label, oType.desc)}
-                value={typeof value === "string" || Array.isArray(value) ? value : String(value ?? "")}
-                {...(typeof oType.default === "string" || Array.isArray(oType.default)
-                  ? { defaultValue: oType.default }
-                  : {})}
-                onSetFilterOption={onSetFilterOption}
-              />
-            );
-          case STRING:
-            return (
-              <Stringly
-                key={name}
-                name={name}
-                types={controlMeta(oType.label, oType.desc)}
-                value={typeof value === "string" ? value : String(value ?? "")}
-                {...(typeof oType.default === "string" ? { defaultValue: oType.default } : {})}
-                onSetFilterOption={onSetFilterOption}
-              />
-            );
-          case TEXT:
-            return (
-              <Textly
-                key={name}
-                name={name}
-                types={controlMeta(oType.label, oType.desc)}
-                value={typeof value === "string" ? value : String(value ?? "")}
-                {...(typeof oType.default === "string" ? { defaultValue: oType.default } : {})}
-                onSetFilterOption={onSetFilterOption}
-              />
-            );
-          case CURVE:
-            return (
-              <Curve
-                key={name}
-                name={name}
-                types={oType}
-                value={typeof value === "string" ? value : ""}
-                onSetFilterOption={onSetFilterOption}
-              />
-            );
-          case THRESHOLD_MAP_PREVIEW:
-            {
+            case COLOR_ARRAY:
+              return (
+                <ColorArray
+                  key={name}
+                  name={name}
+                  value={Array.isArray(options.colors) ? (options.colors as number[][]) : []}
+                  onAddPaletteColor={onAddPaletteColor as (color: number[]) => void}
+                  onSetFilterOption={onSetFilterOption}
+                  onSetPaletteOption={onSetPaletteOption}
+                  onSaveColorPalette={
+                    onSaveColorPalette as (name: string, colors: number[][]) => void
+                  }
+                  onDeleteColorPalette={onDeleteColorPalette}
+                  {...(inputCanvas !== undefined ? { inputCanvas } : {})}
+                />
+              );
+            case COLOR:
+              return (
+                <ColorPicker
+                  key={name}
+                  name={name}
+                  types={controlMeta(oType.label, oType.desc)}
+                  value={
+                    typeof value === "string" || Array.isArray(value) ? value : String(value ?? "")
+                  }
+                  {...(typeof oType.default === "string" || Array.isArray(oType.default)
+                    ? { defaultValue: oType.default }
+                    : {})}
+                  onSetFilterOption={onSetFilterOption}
+                />
+              );
+            case STRING:
+              return (
+                <Stringly
+                  key={name}
+                  name={name}
+                  types={controlMeta(oType.label, oType.desc)}
+                  value={typeof value === "string" ? value : String(value ?? "")}
+                  {...(typeof oType.default === "string" ? { defaultValue: oType.default } : {})}
+                  onSetFilterOption={onSetFilterOption}
+                />
+              );
+            case TEXT:
+              return (
+                <Textly
+                  key={name}
+                  name={name}
+                  types={controlMeta(oType.label, oType.desc)}
+                  value={typeof value === "string" ? value : String(value ?? "")}
+                  {...(typeof oType.default === "string" ? { defaultValue: oType.default } : {})}
+                  onSetFilterOption={onSetFilterOption}
+                />
+              );
+            case CURVE:
+              return (
+                <Curve
+                  key={name}
+                  name={name}
+                  types={oType}
+                  value={typeof value === "string" ? value : ""}
+                  onSetFilterOption={onSetFilterOption}
+                />
+              );
+            case THRESHOLD_MAP_PREVIEW: {
               const previewType = oType as ThresholdMapPreviewOptionDefinition;
-            return (
-              <ThresholdMapPreview
-                key={name}
-                name={name}
-                label={previewType.label}
-                desc={previewType.desc}
-                options={options}
-                sourceOption={previewType.sourceOption}
-                polarityOption={previewType.polarityOption}
-              />
-            );
+              return (
+                <ThresholdMapPreview
+                  key={name}
+                  name={name}
+                  label={previewType.label}
+                  desc={previewType.desc}
+                  options={options}
+                  sourceOption={previewType.sourceOption}
+                  polarityOption={previewType.polarityOption}
+                />
+              );
             }
-          case BOOL:
-            return (
-              <Bool
-                key={name}
-                name={name}
-                types={controlMeta(oType.label, oType.desc)}
-                value={Boolean(value)}
-                {...(typeof oType.default === "boolean" ? { defaultValue: oType.default } : {})}
-                onSetFilterOption={onSetFilterOption}
-              />
-            );
-          case ENUM:
-            {
+            case BOOL:
+              return (
+                <Bool
+                  key={name}
+                  name={name}
+                  types={controlMeta(oType.label, oType.desc)}
+                  value={Boolean(value)}
+                  {...(typeof oType.default === "boolean" ? { defaultValue: oType.default } : {})}
+                  onSetFilterOption={onSetFilterOption}
+                />
+              );
+            case ENUM: {
               const enumType = oType as EnumOptionDefinition;
-            return (
-              <Enum
-                key={name}
-                name={name}
-                types={{ ...controlMeta(enumType.label, enumType.desc), options: enumType.options }}
-                value={typeof value === "number" || typeof value === "string" ? value : String(value ?? "")}
-                {...(typeof enumType.default === "number" || typeof enumType.default === "string"
-                  ? { defaultValue: enumType.default }
-                  : {})}
-                onSetFilterOption={onSetFilterOption}
-              />
-            );
+              return (
+                <Enum
+                  key={name}
+                  name={name}
+                  types={{
+                    ...controlMeta(enumType.label, enumType.desc),
+                    options: enumType.options,
+                  }}
+                  value={
+                    typeof value === "number" || typeof value === "string"
+                      ? value
+                      : String(value ?? "")
+                  }
+                  {...(typeof enumType.default === "number" || typeof enumType.default === "string"
+                    ? { defaultValue: enumType.default }
+                    : {})}
+                  onSetFilterOption={onSetFilterOption}
+                />
+              );
             }
-          default:
-            return <div>Unknown setting type</div>;
-        }
-      })}
-      {props.query?.trim() && Object.entries(optionTypes).every(([name, option]) => {
+            default:
+              return <div>Unknown setting type</div>;
+          }
+        })}
+      {props.query?.trim() &&
+      Object.entries(optionTypes).every(([name, option]) => {
         const needle = props.query!.trim().toLowerCase();
-        return !`${humanizeControlName(option.label || name)} ${option.desc || ""}`.toLowerCase().includes(needle);
-      }) ? <p className={s.emptyControls}>No settings match “{props.query.trim()}”.</p> : null}
+        return !`${humanizeControlName(option.label || name)} ${option.desc || ""}`
+          .toLowerCase()
+          .includes(needle);
+      }) ? (
+        <p className={s.emptyControls}>No settings match “{props.query.trim()}”.</p>
+      ) : null}
     </div>
   );
 };

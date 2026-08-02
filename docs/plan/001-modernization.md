@@ -49,8 +49,8 @@ Both luminance functions operate on raw sRGB values without gamma linearization.
 // BROKEN — compares loop counter `i` instead of pixel value `val`
 for (let i = 1; i < input.length; i += 1) {
   const val = input[i];
-  if (i < min) min = val;   // should be: if (val < min)
-  if (i > max) max = val;   // should be: if (val > max)
+  if (i < min) min = val; // should be: if (val < min)
+  if (i > max) max = val; // should be: if (val > max)
 }
 ```
 
@@ -123,6 +123,7 @@ Spiral traversal hardcodes termination at `(0, 0)` instead of the correct corner
 SCSS usage is minimal (5 variables, nesting) — both are native CSS now. Convert instead of keeping `sass` as a dep.
 
 4 files to convert:
+
 - `src/styles/style.scss` → `src/styles/style.module.css`
 - `src/styles/example.scss` → `src/styles/example.module.css`
 - `src/components/App/styles.scss` → `src/components/App/styles.module.css`
@@ -131,6 +132,7 @@ SCSS usage is minimal (5 variables, nesting) — both are native CSS now. Conver
 All 4 are imported as named imports (`import s from "./styles.scss"`) — they are CSS Modules. Rename to `.module.css` for Vite's convention.
 
 Steps:
+
 - Convert 5 SCSS variables → CSS custom properties (`$light-gray` → `--light-gray`, etc.) defined in a `:root` block
 - Nesting works in native CSS (baseline 2023)
 - `composes` works in plain CSS Modules — no change needed
@@ -155,11 +157,13 @@ Scope: 3 class components, 3 container files, 1 reducer, 1 route.
 ### 3.1 Upgrade React 16.2 → 18 + convert to hooks
 
 3 class components to convert:
+
 - `src/components/App/index.jsx` — `App` (uses `componentWillUpdate`)
 - `src/components/App/Exporter.jsx` — `Exporter`
 - `src/components/controls/ColorArray.jsx` — `ColorArray`
 
 Steps:
+
 - Replace `ReactDOM.render()` with `createRoot()` (`src/index.jsx:93`)
 - Convert class components → function components with hooks
 - Remove `react-addons-test-utils` (removed since React 16)
@@ -212,6 +216,7 @@ Current usage is minimal (single root route), but keeping the router to preserve
 ## Phase 5: Testing Infrastructure
 
 ### Current stack (all outdated):
+
 - Karma 2.0 (test runner) — deprecated
 - Mocha 5.0 (test framework)
 - Chai (assertions)
@@ -220,11 +225,13 @@ Current usage is minimal (single root route), but keeping the router to preserve
 - `sinon`, `redux-mock-store` — installed but unused in any test file
 
 ### Target stack:
+
 - **Vitest** (test runner + framework + assertions — shares Vite config)
 - **React Testing Library** (component testing)
 - **Playwright** (E2E if needed)
 
 ### Migration steps:
+
 1. Install Vitest + React Testing Library
 2. Configure Vitest (shares Vite config)
 3. Migrate 3 existing test files (`test/actions/`, `test/reducers/`, `test/utils/`). Note: actions and reducers tests need rewriting to match Phase 3's Context + useReducer structure
@@ -236,6 +243,7 @@ Current usage is minimal (single root route), but keeping the router to preserve
 ## Phase 6: Code Cleanup
 
 ### 6.1 Remove dead code
+
 - Commented-out `debugger` statement (`src/filters/pixelsort.js:219`)
 - Commented-out WASM function (`src/utils/index.js:182-185`)
 
@@ -244,12 +252,14 @@ Current usage is minimal (single root route), but keeping the router to preserve
 `fillBufferPixel` takes `(buf, i, r, g, b, a)` while `addBufferPixel` takes `(buf, i, colorArray)`. Unify to use the same pattern.
 
 ### 6.3 Replace console statements with proper error handling
+
 - `src/index.jsx:87` — console.warn
 - `src/reducers/filters.js:204, 232` — console.warn
 - `src/utils/index.js:173, 178` — console.error (WASM load fallback)
 - `src/filters/program.js:83` — console.error (user-provided program eval failure — may be intentional)
 
 ### 6.4 WASM error handling
+
 - Add `.catch()` to WASM dynamic import (`src/utils/index.js:21-27`)
 - Surface WASM load failures to the UI instead of silent console.error fallback
 
@@ -268,62 +278,62 @@ Current usage is minimal (single root route), but keeping the router to preserve
 
 ### Remove (60 packages)
 
-| Package | Reason |
-|---------|--------|
-| `webpack`, `webpack-cli`, `webpack-dev-server` | → Vite |
-| `@babel/core`, `@babel/plugin-*` (6), `@babel/preset-*` (4), `babel-loader` | → Vite (esbuild) |
-| `babel-eslint` | → @typescript-eslint/parser |
-| `css-loader`, `style-loader`, `postcss-loader`, `file-loader` | → Vite (native) |
-| `html-webpack-plugin`, `compression-webpack-plugin` | → Vite (native) |
-| `postcss-cssnext`, `precss`, `postcss-browser-reporter`, `postcss-import`, `postcss-reporter` | Deprecated / not needed |
-| `autoprefixer` | → Vite Lightning CSS |
-| `eslint-config-airbnb`, `eslint-plugin-import`, `eslint-plugin-jsx-a11y` | → typescript-eslint recommended |
-| `eslint-import-resolver-webpack`, `eslint-plugin-flowtype`, `eslint-plugin-mocha` | No longer needed |
-| `flow-bin`, `flow-typed` | → TypeScript |
-| `redux`, `react-redux`, `redux-thunk` | → Context + useReducer |
-| `lodash.memoize` | → inline Map-based memoizer (1 usage) |
-| `react-router-redux`, `react-router`, `history` | Deprecated / peer dep |
-| `gh-pages` | → GitHub Actions |
-| `prop-types` | → TypeScript |
-| `karma`, `karma-chai`, `karma-mocha`, `karma-mocha-reporter`, `karma-nightmare`, `karma-sourcemap-loader`, `karma-webpack` | → Vitest |
-| `enzyme`, `enzyme-adapter-react-16`, `react-addons-test-utils`, `react-test-renderer` | → React Testing Library |
-| `mocha`, `chai`, `sinon`, `redux-mock-store` | → Vitest (sinon/mock-store unused) |
+| Package                                                                                                                    | Reason                                |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `webpack`, `webpack-cli`, `webpack-dev-server`                                                                             | → Vite                                |
+| `@babel/core`, `@babel/plugin-*` (6), `@babel/preset-*` (4), `babel-loader`                                                | → Vite (esbuild)                      |
+| `babel-eslint`                                                                                                             | → @typescript-eslint/parser           |
+| `css-loader`, `style-loader`, `postcss-loader`, `file-loader`                                                              | → Vite (native)                       |
+| `html-webpack-plugin`, `compression-webpack-plugin`                                                                        | → Vite (native)                       |
+| `postcss-cssnext`, `precss`, `postcss-browser-reporter`, `postcss-import`, `postcss-reporter`                              | Deprecated / not needed               |
+| `autoprefixer`                                                                                                             | → Vite Lightning CSS                  |
+| `eslint-config-airbnb`, `eslint-plugin-import`, `eslint-plugin-jsx-a11y`                                                   | → typescript-eslint recommended       |
+| `eslint-import-resolver-webpack`, `eslint-plugin-flowtype`, `eslint-plugin-mocha`                                          | No longer needed                      |
+| `flow-bin`, `flow-typed`                                                                                                   | → TypeScript                          |
+| `redux`, `react-redux`, `redux-thunk`                                                                                      | → Context + useReducer                |
+| `lodash.memoize`                                                                                                           | → inline Map-based memoizer (1 usage) |
+| `react-router-redux`, `react-router`, `history`                                                                            | Deprecated / peer dep                 |
+| `gh-pages`                                                                                                                 | → GitHub Actions                      |
+| `prop-types`                                                                                                               | → TypeScript                          |
+| `karma`, `karma-chai`, `karma-mocha`, `karma-mocha-reporter`, `karma-nightmare`, `karma-sourcemap-loader`, `karma-webpack` | → Vitest                              |
+| `enzyme`, `enzyme-adapter-react-16`, `react-addons-test-utils`, `react-test-renderer`                                      | → React Testing Library               |
+| `mocha`, `chai`, `sinon`, `redux-mock-store`                                                                               | → Vitest (sinon/mock-store unused)    |
 
 ### Upgrade (10 packages)
 
-| Package | Current | Target |
-|---------|---------|--------|
-| react | 16.2.0 | 18.x |
-| react-dom | 16.2.0 | 18.x |
-| react-router-dom | 4.2.2 | 6.x |
-| react-draggable | 3.0.5 | 4.x |
-| eslint | 4.18.2 | 9.x |
-| eslint-config-prettier | 2.9.0 | 10.x |
-| eslint-plugin-prettier | 2.6.0 | 5.x |
-| eslint-plugin-react | 7.7.0 | 7.37+ |
-| stylelint | 9.1.3 | 16.x |
-| stylelint-config-standard | 18.2.0 | 37.x |
+| Package                   | Current | Target |
+| ------------------------- | ------- | ------ |
+| react                     | 16.2.0  | 18.x   |
+| react-dom                 | 16.2.0  | 18.x   |
+| react-router-dom          | 4.2.2   | 6.x    |
+| react-draggable           | 3.0.5   | 4.x    |
+| eslint                    | 4.18.2  | 9.x    |
+| eslint-config-prettier    | 2.9.0   | 10.x   |
+| eslint-plugin-prettier    | 2.6.0   | 5.x    |
+| eslint-plugin-react       | 7.7.0   | 7.37+  |
+| stylelint                 | 9.1.3   | 16.x   |
+| stylelint-config-standard | 18.2.0  | 37.x   |
 
 ### Add (9 packages)
 
-| Package | Purpose |
-|---------|---------|
-| `vite` | Build tool / dev server |
-| `@vitejs/plugin-react` | React JSX/TSX support |
-| `vite-plugin-wasm` | WASM import support |
-| `vite-plugin-top-level-await` | Top-level await for WASM |
-| `vitest` | Test runner |
-| `@testing-library/react` | Component testing |
-| `typescript` | Type checking |
-| `@typescript-eslint/parser` | ESLint TS parser |
-| `@typescript-eslint/eslint-plugin` | ESLint TS rules |
+| Package                            | Purpose                  |
+| ---------------------------------- | ------------------------ |
+| `vite`                             | Build tool / dev server  |
+| `@vitejs/plugin-react`             | React JSX/TSX support    |
+| `vite-plugin-wasm`                 | WASM import support      |
+| `vite-plugin-top-level-await`      | Top-level await for WASM |
+| `vitest`                           | Test runner              |
+| `@testing-library/react`           | Component testing        |
+| `typescript`                       | Type checking            |
+| `@typescript-eslint/parser`        | ESLint TS parser         |
+| `@typescript-eslint/eslint-plugin` | ESLint TS rules          |
 
 ### Keep (2 packages)
 
-| Package | Why |
-|---------|-----|
-| `pako` | Used by glitchblob filter for PNG deflate/inflate |
-| `prettier` | Code formatting (no config file — uses defaults) |
+| Package    | Why                                               |
+| ---------- | ------------------------------------------------- |
+| `pako`     | Used by glitchblob filter for PNG deflate/inflate |
+| `prettier` | Code formatting (no config file — uses defaults)  |
 
 ### Also delete (config files)
 

@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -109,11 +116,21 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_centre", "u_imageCentre",
-    "u_flareColor", "u_intensity", "u_ghosts", "u_bloomRadius",
-    "u_ghostSpread", "u_streakStrength", "u_chromaticSpread",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_centre",
+      "u_imageCentre",
+      "u_flareColor",
+      "u_intensity",
+      "u_ghosts",
+      "u_bloomRadius",
+      "u_ghostSpread",
+      "u_streakStrength",
+      "u_chromaticSpread",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -121,11 +138,16 @@ export const lensFlareGLAvailable = (): boolean => glAvailable();
 
 export const renderLensFlareGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  centreX: number, centreY: number,
-  intensity: number, flareColor: [number, number, number],
+  width: number,
+  height: number,
+  centreX: number,
+  centreY: number,
+  intensity: number,
+  flareColor: [number, number, number],
   ghosts: number,
-  bloomRadius: number, ghostSpread: number, streakStrength: number,
+  bloomRadius: number,
+  ghostSpread: number,
+  streakStrength: number,
   chromaticSpread: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
@@ -136,20 +158,28 @@ export const renderLensFlareGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "lensFlare:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2f(cache.prog.uniforms.u_centre, centreX, centreY);
-    gl.uniform2f(cache.prog.uniforms.u_imageCentre, width / 2, height / 2);
-    gl.uniform3f(cache.prog.uniforms.u_flareColor, flareColor[0], flareColor[1], flareColor[2]);
-    gl.uniform1f(cache.prog.uniforms.u_intensity, intensity);
-    gl.uniform1i(cache.prog.uniforms.u_ghosts, ghosts | 0);
-    gl.uniform1f(cache.prog.uniforms.u_bloomRadius, bloomRadius);
-    gl.uniform1f(cache.prog.uniforms.u_ghostSpread, ghostSpread);
-    gl.uniform1f(cache.prog.uniforms.u_streakStrength, streakStrength);
-    gl.uniform1f(cache.prog.uniforms.u_chromaticSpread, chromaticSpread);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2f(cache.prog.uniforms.u_centre, centreX, centreY);
+      gl.uniform2f(cache.prog.uniforms.u_imageCentre, width / 2, height / 2);
+      gl.uniform3f(cache.prog.uniforms.u_flareColor, flareColor[0], flareColor[1], flareColor[2]);
+      gl.uniform1f(cache.prog.uniforms.u_intensity, intensity);
+      gl.uniform1i(cache.prog.uniforms.u_ghosts, ghosts | 0);
+      gl.uniform1f(cache.prog.uniforms.u_bloomRadius, bloomRadius);
+      gl.uniform1f(cache.prog.uniforms.u_ghostSpread, ghostSpread);
+      gl.uniform1f(cache.prog.uniforms.u_streakStrength, streakStrength);
+      gl.uniform1f(cache.prog.uniforms.u_chromaticSpread, chromaticSpread);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

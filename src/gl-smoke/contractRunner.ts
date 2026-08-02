@@ -5,11 +5,7 @@ export type ContractSuite = {
   contracts: Contract[];
 };
 
-export type ContractRecorder = (
-  name: string,
-  mode: string,
-  result: CheckResult,
-) => void;
+export type ContractRecorder = (name: string, mode: string, result: CheckResult) => void;
 
 /** Run suites sequentially because filters intentionally share one GL context. */
 export const runContractSuites = async (

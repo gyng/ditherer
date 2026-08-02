@@ -16,18 +16,32 @@ type Written = { data: Uint8ClampedArray };
 const flatCanvas = (value: number, alpha = 255, width = 32, height = 32) => {
   const source = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < source.length; i += 4) {
-    source[i] = value; source[i + 1] = value; source[i + 2] = value; source[i + 3] = alpha;
+    source[i] = value;
+    source[i + 1] = value;
+    source[i + 2] = value;
+    source[i + 3] = alpha;
   }
   let written: Uint8ClampedArray | null = null;
   const canvas = {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
-      putImageData: (image: Written) => { written = new Uint8ClampedArray(image.data); },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
+            putImageData: (image: Written) => {
+              written = new Uint8ClampedArray(image.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
-  return { canvas, output: () => { if (!written) throw new Error("no output"); return written; } };
+  return {
+    canvas,
+    output: () => {
+      if (!written) throw new Error("no output");
+      return written;
+    },
+  };
 };
 
 const meanLuma = (data: Uint8ClampedArray): number => {
@@ -76,11 +90,17 @@ describe.each([
 
   it("does not throw on malformed options and still writes output", () => {
     const fixture = flatCanvas(120);
-    expect(() => filter.func(fixture.canvas, {
-      density: Number.NaN, lineSpacing: Number.NaN, angle1: null,
-      angle2: "INVALID", angle: Number.POSITIVE_INFINITY,
-      palette: identityPalette, _webglAcceleration: false,
-    } as never)).not.toThrow();
+    expect(() =>
+      filter.func(fixture.canvas, {
+        density: Number.NaN,
+        lineSpacing: Number.NaN,
+        angle1: null,
+        angle2: "INVALID",
+        angle: Number.POSITIVE_INFINITY,
+        palette: identityPalette,
+        _webglAcceleration: false,
+      } as never),
+    ).not.toThrow();
     expect(fixture.output().length).toBe(32 * 32 * 4);
   });
 });

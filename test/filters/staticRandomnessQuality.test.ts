@@ -7,10 +7,7 @@ vi.mock("utils", async (importOriginal) => {
 
 import kmeans, { defaults as kmeansDefaults } from "filters/kmeans";
 import pixelsort, { defaults as pixelsortDefaults } from "filters/pixelsort";
-import voronoi, {
-  defaults as voronoiDefaults,
-  findNearestVoronoiSeed,
-} from "filters/voronoi";
+import voronoi, { defaults as voronoiDefaults, findNearestVoronoiSeed } from "filters/voronoi";
 import nearest from "palettes/nearest";
 
 type Pixel = readonly [number, number, number, number];
@@ -24,12 +21,15 @@ const makeCanvas = (width: number, height: number, pixels: readonly Pixel[]) => 
   const canvas = {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
-      putImageData: (image: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(image.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
+            putImageData: (image: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(image.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return {
     canvas,
@@ -56,12 +56,14 @@ describe("static stochastic filters", () => {
       throw new Error("global randomness is not reproducible");
     });
     const fixture = makeCanvas(8, 8, variedPixels(8, 8));
-    expect(() => voronoi.func(fixture.canvas, {
-      ...voronoiDefaults,
-      cells: 12,
-      seed: 41,
-      palette: identityPalette,
-    } as never)).not.toThrow();
+    expect(() =>
+      voronoi.func(fixture.canvas, {
+        ...voronoiDefaults,
+        cells: 12,
+        seed: 41,
+        palette: identityPalette,
+      } as never),
+    ).not.toThrow();
   });
 
   it("K-means does not read global randomness", () => {
@@ -69,11 +71,13 @@ describe("static stochastic filters", () => {
       throw new Error("global randomness is not reproducible");
     });
     const fixture = makeCanvas(8, 8, variedPixels(8, 8));
-    expect(() => kmeans.func(fixture.canvas, {
-      ...kmeansDefaults,
-      seed: 19,
-      palette: identityPalette,
-    } as never)).not.toThrow();
+    expect(() =>
+      kmeans.func(fixture.canvas, {
+        ...kmeansDefaults,
+        seed: 19,
+        palette: identityPalette,
+      } as never),
+    ).not.toThrow();
   });
 
   it("Pixelsort does not read global randomness when extra spans are enabled", () => {
@@ -81,12 +85,14 @@ describe("static stochastic filters", () => {
       throw new Error("global randomness is not reproducible");
     });
     const fixture = makeCanvas(8, 8, variedPixels(8, 8));
-    expect(() => pixelsort.func(fixture.canvas, {
-      ...pixelsortDefaults,
-      seed: 73,
-      extraIntervalStartChance: 0.5,
-      palette: identityPalette,
-    } as never)).not.toThrow();
+    expect(() =>
+      pixelsort.func(fixture.canvas, {
+        ...pixelsortDefaults,
+        seed: 73,
+        extraIntervalStartChance: 0.5,
+        palette: identityPalette,
+      } as never),
+    ).not.toThrow();
   });
 });
 
@@ -108,7 +114,9 @@ describe("Voronoi quality contracts", () => {
       for (let x = 0; x < 311; x += 13) {
         const found = findNearestVoronoiSeed(x, y, seeds, 311, 173);
         const foundDistance = (seeds[found].x - x) ** 2 + (seeds[found].y - y) ** 2;
-        const bruteDistance = Math.min(...seeds.map(site => (site.x - x) ** 2 + (site.y - y) ** 2));
+        const bruteDistance = Math.min(
+          ...seeds.map((site) => (site.x - x) ** 2 + (site.y - y) ** 2),
+        );
         expect(foundDistance, `nearest distance at ${x},${y}`).toBeCloseTo(bruteDistance, 10);
       }
     }
@@ -161,7 +169,11 @@ describe("K-means quality contracts", () => {
   });
 
   it("handles more requested clusters than distinct visible samples", () => {
-    const fixture = makeCanvas(2, 2, Array.from({ length: 4 }, () => [80, 120, 160, 255] as const));
+    const fixture = makeCanvas(
+      2,
+      2,
+      Array.from({ length: 4 }, () => [80, 120, 160, 255] as const),
+    );
     kmeans.func(fixture.canvas, {
       ...kmeansDefaults,
       k: 32,
@@ -225,7 +237,7 @@ describe("Pixelsort quality contracts", () => {
       sortPixelLuminanceChangeAbove: -255,
       sortPixelLuminanceChangeBelow: 255,
     } as never);
-    const sourceColors = new Set(pixels.map(pixel => pixel.join(",")));
+    const sourceColors = new Set(pixels.map((pixel) => pixel.join(",")));
     const output = fixture.output();
     for (let offset = 0; offset < output.length; offset += 4) {
       expect(sourceColors.has(Array.from(output.slice(offset, offset + 4)).join(","))).toBe(true);
@@ -233,10 +245,14 @@ describe("Pixelsort quality contracts", () => {
   });
 
   it("treats a maximum interval size of one as an identity permutation", () => {
-    const fixture = makeCanvas(8, 1, Array.from({ length: 8 }, (_, index) => {
-      const value = 255 - index * 31;
-      return [value, value, value, 255] as const;
-    }));
+    const fixture = makeCanvas(
+      8,
+      1,
+      Array.from({ length: 8 }, (_, index) => {
+        const value = 255 - index * 31;
+        return [value, value, value, 255] as const;
+      }),
+    );
     pixelsort.func(fixture.canvas, {
       ...pixelsortDefaults,
       direction: "ROW",

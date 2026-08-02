@@ -165,15 +165,30 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (cache) return cache;
   cache = {
     guide: linkProgram(gl, GUIDE_FS, [
-      "u_source", "u_sourceRes", "u_workRes", "u_factor", "u_linearize",
+      "u_source",
+      "u_sourceRes",
+      "u_workRes",
+      "u_factor",
+      "u_linearize",
     ] as const),
     bilateral: linkProgram(gl, BILATERAL_FS, [
-      "u_signal", "u_guide", "u_res", "u_direction", "u_radius",
-      "u_sigmaSpatial", "u_sigmaRange",
+      "u_signal",
+      "u_guide",
+      "u_res",
+      "u_direction",
+      "u_radius",
+      "u_sigmaSpatial",
+      "u_sigmaRange",
     ] as const),
     reconstruct: linkProgram(gl, RECONSTRUCT_FS, [
-      "u_source", "u_blurred", "u_guide", "u_sourceRes", "u_workRes",
-      "u_factor", "u_sigmaRange", "u_linearize",
+      "u_source",
+      "u_blurred",
+      "u_guide",
+      "u_sourceRes",
+      "u_workRes",
+      "u_factor",
+      "u_sigmaRange",
+      "u_linearize",
     ] as const),
   };
   return cache;
@@ -206,50 +221,79 @@ export const renderBilateralBlurGL = (
   if (!guide || !horizontal || !blurred) return null;
   uploadSourceTexture(gl, sourceTexture, source);
 
-  drawPass(gl, guide, workWidth, workHeight, programs.guide, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(programs.guide.uniforms.u_source, 0);
-    gl.uniform2f(programs.guide.uniforms.u_sourceRes, width, height);
-    gl.uniform2f(programs.guide.uniforms.u_workRes, workWidth, workHeight);
-    gl.uniform1i(programs.guide.uniforms.u_factor, factor);
-    gl.uniform1i(programs.guide.uniforms.u_linearize, linearize ? 1 : 0);
-  }, vao);
-
-  const bilateralPass = (target: typeof horizontal, signal: WebGLTexture, directionX: number, directionY: number) => {
-    drawPass(gl, target, workWidth, workHeight, programs.bilateral, () => {
+  drawPass(
+    gl,
+    guide,
+    workWidth,
+    workHeight,
+    programs.guide,
+    () => {
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, signal);
-      gl.uniform1i(programs.bilateral.uniforms.u_signal, 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, guide.tex);
-      gl.uniform1i(programs.bilateral.uniforms.u_guide, 1);
-      gl.uniform2f(programs.bilateral.uniforms.u_res, workWidth, workHeight);
-      gl.uniform2f(programs.bilateral.uniforms.u_direction, directionX, directionY);
-      gl.uniform1i(programs.bilateral.uniforms.u_radius, radius);
-      gl.uniform1f(programs.bilateral.uniforms.u_sigmaSpatial, sigmaWork);
-      gl.uniform1f(programs.bilateral.uniforms.u_sigmaRange, sigmaRange);
-    }, vao);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(programs.guide.uniforms.u_source, 0);
+      gl.uniform2f(programs.guide.uniforms.u_sourceRes, width, height);
+      gl.uniform2f(programs.guide.uniforms.u_workRes, workWidth, workHeight);
+      gl.uniform1i(programs.guide.uniforms.u_factor, factor);
+      gl.uniform1i(programs.guide.uniforms.u_linearize, linearize ? 1 : 0);
+    },
+    vao,
+  );
+
+  const bilateralPass = (
+    target: typeof horizontal,
+    signal: WebGLTexture,
+    directionX: number,
+    directionY: number,
+  ) => {
+    drawPass(
+      gl,
+      target,
+      workWidth,
+      workHeight,
+      programs.bilateral,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, signal);
+        gl.uniform1i(programs.bilateral.uniforms.u_signal, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, guide.tex);
+        gl.uniform1i(programs.bilateral.uniforms.u_guide, 1);
+        gl.uniform2f(programs.bilateral.uniforms.u_res, workWidth, workHeight);
+        gl.uniform2f(programs.bilateral.uniforms.u_direction, directionX, directionY);
+        gl.uniform1i(programs.bilateral.uniforms.u_radius, radius);
+        gl.uniform1f(programs.bilateral.uniforms.u_sigmaSpatial, sigmaWork);
+        gl.uniform1f(programs.bilateral.uniforms.u_sigmaRange, sigmaRange);
+      },
+      vao,
+    );
   };
   bilateralPass(horizontal, guide.tex, 1, 0);
   bilateralPass(blurred, horizontal.tex, 0, 1);
 
-  drawPass(gl, null, width, height, programs.reconstruct, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(programs.reconstruct.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, blurred.tex);
-    gl.uniform1i(programs.reconstruct.uniforms.u_blurred, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, guide.tex);
-    gl.uniform1i(programs.reconstruct.uniforms.u_guide, 2);
-    gl.uniform2f(programs.reconstruct.uniforms.u_sourceRes, width, height);
-    gl.uniform2f(programs.reconstruct.uniforms.u_workRes, workWidth, workHeight);
-    gl.uniform1i(programs.reconstruct.uniforms.u_factor, factor);
-    gl.uniform1f(programs.reconstruct.uniforms.u_sigmaRange, sigmaRange);
-    gl.uniform1i(programs.reconstruct.uniforms.u_linearize, linearize ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    programs.reconstruct,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(programs.reconstruct.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, blurred.tex);
+      gl.uniform1i(programs.reconstruct.uniforms.u_blurred, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, guide.tex);
+      gl.uniform1i(programs.reconstruct.uniforms.u_guide, 2);
+      gl.uniform2f(programs.reconstruct.uniforms.u_sourceRes, width, height);
+      gl.uniform2f(programs.reconstruct.uniforms.u_workRes, workWidth, workHeight);
+      gl.uniform1i(programs.reconstruct.uniforms.u_factor, factor);
+      gl.uniform1f(programs.reconstruct.uniforms.u_sigmaRange, sigmaRange);
+      gl.uniform1i(programs.reconstruct.uniforms.u_linearize, linearize ? 1 : 0);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

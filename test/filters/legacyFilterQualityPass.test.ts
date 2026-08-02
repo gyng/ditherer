@@ -135,7 +135,9 @@ describe("reflective display and consumer-imaging contracts", () => {
   });
 
   it("maps Kaleido channels to four bits and shares one color sample per 3×3 cell", () => {
-    const levels = new Set(Array.from({ length: 256 }, (_, value) => kaleidoChannelLevel(value / 255)));
+    const levels = new Set(
+      Array.from({ length: 256 }, (_, value) => kaleidoChannelLevel(value / 255)),
+    );
     expect(levels.size).toBe(16);
     expect(kaleidoChannelLevel(0)).toBe(0);
     expect(kaleidoChannelLevel(1)).toBe(1);
@@ -153,8 +155,10 @@ describe("reflective display and consumer-imaging contracts", () => {
       expect(value).toBeGreaterThanOrEqual(0);
       expect(value).toBeLessThanOrEqual(1);
     }
-    expect(vintageTvRasterGain(20, 240, 240, 0.7))
-      .toBeCloseTo(vintageTvRasterGain(40.5, 480, 240, 0.7), 2);
+    expect(vintageTvRasterGain(20, 240, 240, 0.7)).toBeCloseTo(
+      vintageTvRasterGain(40.5, 480, 240, 0.7),
+      2,
+    );
   });
 
   it("adds flash irradiance in linear light and tints only that contribution", () => {
@@ -172,7 +176,8 @@ describe("reflective display and consumer-imaging contracts", () => {
     const samples = Array.from({ length: 10_000 }, (_, index) => (index + 0.5) / 10_000);
     const horizontal = samples.map((sample) => mavicaFrameJitterOffset(sample, 3, 2));
     const vertical = samples.map((sample) => mavicaFrameJitterOffset(sample, 3, 1));
-    const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    const mean = (values: number[]) =>
+      values.reduce((sum, value) => sum + value, 0) / values.length;
     expect(Math.min(...horizontal)).toBe(-3);
     expect(Math.max(...horizontal)).toBe(3);
     expect(Math.abs(mean(horizontal))).toBeLessThan(0.01);
@@ -236,8 +241,9 @@ describe("mezzotint plate model", () => {
   });
 
   it("lightens a worn plate without reversing tonal order", () => {
-    expect(mezzotintInkCoverage(0.3, 0.92, 1.1, 0.8))
-      .toBeLessThan(mezzotintInkCoverage(0.3, 0.92, 1.1, 0));
+    expect(mezzotintInkCoverage(0.3, 0.92, 1.1, 0.8)).toBeLessThan(
+      mezzotintInkCoverage(0.3, 0.92, 1.1, 0),
+    );
   });
 
   it("rocks the ground in multiple non-duplicate directions", () => {
@@ -306,13 +312,15 @@ describe("ink transport through paper fibers", () => {
 
 describe("cyanotype chemistry surface", () => {
   it("forms more Prussian-blue density from dark positive-image values", () => {
-    expect(cyanotypeBlueDensity(0.1, 0, 1.4, 0.9))
-      .toBeGreaterThan(cyanotypeBlueDensity(0.9, 0, 1.4, 0.9));
+    expect(cyanotypeBlueDensity(0.1, 0, 1.4, 0.9)).toBeGreaterThan(
+      cyanotypeBlueDensity(0.9, 0, 1.4, 0.9),
+    );
   });
 
   it("reverses tonal ordering for a negative print", () => {
-    expect(cyanotypeBlueDensity(0.1, 0, 1.4, 0.9, true))
-      .toBeLessThan(cyanotypeBlueDensity(0.9, 0, 1.4, 0.9, true));
+    expect(cyanotypeBlueDensity(0.1, 0, 1.4, 0.9, true)).toBeLessThan(
+      cyanotypeBlueDensity(0.9, 0, 1.4, 0.9, true),
+    );
   });
 
   it("keeps grain in normalized tone units", () => {
@@ -325,7 +333,9 @@ describe("visible-proxy thermal display", () => {
   it("maps level and span monotonically with a centered midpoint", () => {
     expect(thermalProxyLevelSpan(0.2, 0.5, 0.8)).toBeLessThan(thermalProxyLevelSpan(0.5, 0.5, 0.8));
     expect(thermalProxyLevelSpan(0.5, 0.5, 0.8)).toBeCloseTo(0.5);
-    expect(thermalProxyLevelSpan(0.8, 0.5, 0.8)).toBeGreaterThan(thermalProxyLevelSpan(0.5, 0.5, 0.8));
+    expect(thermalProxyLevelSpan(0.8, 0.5, 0.8)).toBeGreaterThan(
+      thermalProxyLevelSpan(0.5, 0.5, 0.8),
+    );
   });
 
   it("clamps values outside the display window and malformed inputs", () => {
@@ -373,12 +383,16 @@ describe("substrate and copy quality model", () => {
     const neighborhood = 0.58;
     const first = photocopierGenerationTone(source, neighborhood, 1.55, 0);
     const repeated = photocopierGenerationTone(source, neighborhood, 1.55, 1);
-    expect(Math.abs(repeated - photocopierGenerationTone(neighborhood, neighborhood, 1.55, 1)))
-      .toBeLessThan(Math.abs(first - photocopierGenerationTone(neighborhood, neighborhood, 1.55, 0)));
+    expect(
+      Math.abs(repeated - photocopierGenerationTone(neighborhood, neighborhood, 1.55, 1)),
+    ).toBeLessThan(
+      Math.abs(first - photocopierGenerationTone(neighborhood, neighborhood, 1.55, 0)),
+    );
 
     const ramp = Array.from({ length: 256 }, (_, value) =>
-      photocopierGenerationTone(value / 255, value / 255, 1.55, 1));
-    expect(new Set(ramp.map(value => Math.round(value * 255))).size).toBeGreaterThan(128);
+      photocopierGenerationTone(value / 255, value / 255, 1.55, 1),
+    );
+    expect(new Set(ramp.map((value) => Math.round(value * 255))).size).toBeGreaterThan(128);
     for (let index = 1; index < ramp.length; index += 1) {
       expect(ramp[index]).toBeGreaterThanOrEqual(ramp[index - 1]);
     }
@@ -387,7 +401,9 @@ describe("substrate and copy quality model", () => {
   it("caps substrate pattern frequency below the pixel Nyquist limit", () => {
     expect(substratePatternFrequency(40, 240, 16)).toBeLessThanOrEqual(108);
     expect(substratePatternFrequency(12, 240, 16)).toBeGreaterThan(0);
-    expect(Number.isFinite(substratePatternFrequency(Number.NaN, 0, Number.POSITIVE_INFINITY))).toBe(true);
+    expect(
+      Number.isFinite(substratePatternFrequency(Number.NaN, 0, Number.POSITIVE_INFINITY)),
+    ).toBe(true);
   });
 
   it("models washi as correlated directional fibre rather than pixel static", () => {
@@ -395,7 +411,12 @@ describe("substrate and copy quality model", () => {
     const neighbor = washiFiberVariation(22.25, 37);
     const distant = washiFiberVariation(91, 103);
     expect(Math.abs(center - neighbor)).toBeLessThan(Math.abs(center - distant));
-    for (const sample of [center, neighbor, distant, washiFiberVariation(Number.NaN, Number.POSITIVE_INFINITY)]) {
+    for (const sample of [
+      center,
+      neighbor,
+      distant,
+      washiFiberVariation(Number.NaN, Number.POSITIVE_INFINITY),
+    ]) {
       expect(Number.isFinite(sample)).toBe(true);
       expect(sample).toBeGreaterThanOrEqual(-1);
       expect(sample).toBeLessThanOrEqual(1);
@@ -426,7 +447,11 @@ describe("layered print quality model", () => {
     const shadow = duplexPlateCoverages(0, 1);
     const middle = duplexPlateCoverages(0.5, 1);
     expect(shadow.dark + shadow.accent).toBeGreaterThan(middle.dark + middle.accent);
-    for (const sample of [shadow, middle, duplexPlateCoverages(Number.NaN, Number.POSITIVE_INFINITY)]) {
+    for (const sample of [
+      shadow,
+      middle,
+      duplexPlateCoverages(Number.NaN, Number.POSITIVE_INFINITY),
+    ]) {
       expect(sample.dark).toBeGreaterThanOrEqual(0);
       expect(sample.dark).toBeLessThanOrEqual(1);
       expect(sample.accent).toBeGreaterThanOrEqual(0);
@@ -439,11 +464,15 @@ describe("layered print quality model", () => {
     const neighbor = stencilInkVariation(16.25, 24, 1);
     const distant = stencilInkVariation(82, 91, 1);
     expect(Math.abs(center - neighbor)).toBeLessThan(Math.abs(center - distant));
-    expect(Number.isFinite(stencilInkVariation(Number.NaN, Number.POSITIVE_INFINITY, -8))).toBe(true);
+    expect(Number.isFinite(stencilInkVariation(Number.NaN, Number.POSITIVE_INFINITY, -8))).toBe(
+      true,
+    );
   });
 
   it("turns continuous plate coverage into bounded clustered halftone dots", () => {
-    let empty = 0, middle = 0, solid = 0;
+    let empty = 0,
+      middle = 0,
+      solid = 0;
     for (let y = 0; y < 32; y += 1) {
       for (let x = 0; x < 32; x += 1) {
         if (screenHalftoneDecision(0, x, y, 8, 22.5, 0)) empty += 1;
@@ -470,16 +499,8 @@ describe("legacy quality filter surface", () => {
   it("uses the published Dubois red/cyan linear-light projection", () => {
     // Pure left (red-eye) input contributes the left-matrix COLUMN, i.e. a
     // strong red plus tiny negative cyan-channel terms — no green/blue leak.
-    expect(duboisRedCyanLinear([1, 0, 0], [0, 0, 0])).toEqual([
-      0.4561,
-      -0.0400822,
-      -0.0152161,
-    ]);
-    expect(duboisRedCyanLinear([0, 0, 0], [0, 0, 1])).toEqual([
-      -0.00155529,
-      -0.0184503,
-      1.2264,
-    ]);
+    expect(duboisRedCyanLinear([1, 0, 0], [0, 0, 0])).toEqual([0.4561, -0.0400822, -0.0152161]);
+    expect(duboisRedCyanLinear([0, 0, 0], [0, 0, 1])).toEqual([-0.00155529, -0.0184503, 1.2264]);
   });
 
   it("keeps every Bayer layout at two green, one red, and one blue site", () => {
@@ -490,18 +511,25 @@ describe("legacy quality filter surface", () => {
         bayerColorAt(cfa, 0, 1),
         bayerColorAt(cfa, 1, 1),
       ];
-      expect(sites.filter(channel => channel === 0), cfa).toHaveLength(1);
-      expect(sites.filter(channel => channel === 1), cfa).toHaveLength(2);
-      expect(sites.filter(channel => channel === 2), cfa).toHaveLength(1);
+      expect(
+        sites.filter((channel) => channel === 0),
+        cfa,
+      ).toHaveLength(1);
+      expect(
+        sites.filter((channel) => channel === 1),
+        cfa,
+      ).toHaveLength(2);
+      expect(
+        sites.filter((channel) => channel === 2),
+        cfa,
+      ).toHaveLength(1);
     }
   });
 
   it("combines a read-noise floor with signal-dependent Bayer shot noise", () => {
     expect(bayerNoiseSigma(0, 0.04, 0.006)).toBeCloseTo(0.006);
-    expect(bayerNoiseSigma(0.25, 0.04, 0.006))
-      .toBeGreaterThan(bayerNoiseSigma(0, 0.04, 0.006));
-    expect(bayerNoiseSigma(1, 0.04, 0.006))
-      .toBeGreaterThan(bayerNoiseSigma(0.25, 0.04, 0.006));
+    expect(bayerNoiseSigma(0.25, 0.04, 0.006)).toBeGreaterThan(bayerNoiseSigma(0, 0.04, 0.006));
+    expect(bayerNoiseSigma(1, 0.04, 0.006)).toBeGreaterThan(bayerNoiseSigma(0.25, 0.04, 0.006));
     expect(Number.isFinite(bayerNoiseSigma(Number.NaN, Number.POSITIVE_INFINITY, -2))).toBe(true);
   });
 
@@ -550,14 +578,10 @@ describe("legacy quality filter surface", () => {
   it("selects periodic, centered synthetic lenticular views", () => {
     expect(lenticularViewPosition(0.01, 0, 5)).toBe(-1);
     expect(lenticularViewPosition(0.99, 0, 5)).toBe(1);
-    expect(lenticularViewPosition(0.37, 0, 7))
-      .toBe(lenticularViewPosition(1.37, 0, 7));
-    expect(lenticularViewPosition(0.37, -0.5, 7))
-      .not.toBe(lenticularViewPosition(0.37, 0.5, 7));
-    expect(lenticularViewPosition(0.9, 0, 99))
-      .toBe(lenticularViewPosition(0.9, 0, 12));
-    expect(lenticularParallaxOffset(-1, 0.6, 8))
-      .toBeCloseTo(-lenticularParallaxOffset(1, 0.6, 8));
+    expect(lenticularViewPosition(0.37, 0, 7)).toBe(lenticularViewPosition(1.37, 0, 7));
+    expect(lenticularViewPosition(0.37, -0.5, 7)).not.toBe(lenticularViewPosition(0.37, 0.5, 7));
+    expect(lenticularViewPosition(0.9, 0, 99)).toBe(lenticularViewPosition(0.9, 0, 12));
+    expect(lenticularParallaxOffset(-1, 0.6, 8)).toBeCloseTo(-lenticularParallaxOffset(1, 0.6, 8));
   });
 
   it("models RGB stripe and RGBG/Diamond emitter topology", () => {
@@ -570,9 +594,9 @@ describe("legacy quality filter surface", () => {
       lcdSubpixelChannel("PENTILE", 0.25, 0.5, cellX, 0),
       lcdSubpixelChannel("PENTILE", 0.75, 0.5, cellX, 0),
     ]);
-    expect(pentile.filter(channel => channel === 0)).toHaveLength(1);
-    expect(pentile.filter(channel => channel === 1)).toHaveLength(2);
-    expect(pentile.filter(channel => channel === 2)).toHaveLength(1);
+    expect(pentile.filter((channel) => channel === 0)).toHaveLength(1);
+    expect(pentile.filter((channel) => channel === 1)).toHaveLength(2);
+    expect(pentile.filter((channel) => channel === 2)).toHaveLength(1);
     expect(lcdSubpixelChannel("PENTILE", 0.5, 0.5, 0, 0)).toBe(-1);
 
     const diamondCenters = [
@@ -598,8 +622,9 @@ describe("legacy quality filter surface", () => {
     expect(hannWindow(0, 9)).toBeCloseTo(0);
     expect(hannWindow(4, 9)).toBeCloseTo(1);
     expect(hannWindow(8, 9)).toBeCloseTo(0);
-    expect(spectrogramMagnitudeLevel(0.1, 0, 1, 1, 16, 60))
-      .toBeLessThan(spectrogramMagnitudeLevel(1, 0, 1, 1, 16, 60));
+    expect(spectrogramMagnitudeLevel(0.1, 0, 1, 1, 16, 60)).toBeLessThan(
+      spectrogramMagnitudeLevel(1, 0, 1, 1, 16, 60),
+    );
     expect(spectrogramMagnitudeLevel(1, 0, 1, 1, 16, 60)).toBe(1);
     expect(spectrogramMagnitudeLevel(0, 0, 1, 1, 16, 60)).toBe(0);
     expect(spectrogramNyquistBinCount(16, 128)).toBe(9);
@@ -617,8 +642,9 @@ describe("legacy quality filter surface", () => {
       expect(spectrogramBinForRow(0, 101, 65, logarithmic)).toBe(64);
       expect(spectrogramBinForRow(100, 101, 65, logarithmic)).toBe(0);
     }
-    expect(spectrogramBinForRow(50, 101, 65, true))
-      .toBeLessThan(spectrogramBinForRow(50, 101, 65, false));
+    expect(spectrogramBinForRow(50, 101, 65, true)).toBeLessThan(
+      spectrogramBinForRow(50, 101, 65, false),
+    );
   });
 
   it.each(["Lenticular", "LCD display", "Spectrogram"])(
@@ -647,8 +673,9 @@ describe("legacy quality filter surface", () => {
 
   it("models bounded intensifier gain with signal-dependent noise", () => {
     expect(nightVisionIntensifierResponse(0, 8)).toBe(0);
-    expect(nightVisionIntensifierResponse(0.08, 6))
-      .toBeGreaterThan(nightVisionIntensifierResponse(0.08, 1));
+    expect(nightVisionIntensifierResponse(0.08, 6)).toBeGreaterThan(
+      nightVisionIntensifierResponse(0.08, 1),
+    );
     expect(nightVisionIntensifierResponse(1, 8)).toBeLessThanOrEqual(1);
 
     const background = nightVisionNoiseAmplitude(0, 0.5);
@@ -657,7 +684,9 @@ describe("legacy quality filter surface", () => {
     expect(background).toBeGreaterThan(0);
     expect(dim).toBeGreaterThan(background);
     expect(bright).toBeGreaterThan(dim);
-    expect(nightVisionNoiseAmplitude(Number.NaN, Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(0.25);
+    expect(nightVisionNoiseAmplitude(Number.NaN, Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(
+      0.25,
+    );
   });
 
   it("derives B-mode echoes from impedance boundaries and depth", () => {
@@ -703,18 +732,20 @@ describe("legacy quality filter surface", () => {
     expect(catalogFilter("Mavica FD7")?.requiresGL).toBe(true);
   });
 
-  it.each(["Risograph", "Risograph (multi-layer)", "Screen Print / Misregistration", "Duplex / Offset Print"])(
-    "%s exposes described controls and honest fixed-print copy",
-    (displayName) => {
-      const filter = catalogFilter(displayName);
-      expect(filter).toBeDefined();
-      for (const [name, option] of Object.entries(filter?.optionTypes ?? {})) {
-        expect(option.desc, `${displayName}.${name}`).toBeTruthy();
-      }
-      expect(filter?.description, `${displayName}.description`).toBeTruthy();
-      expect(filter?.temporal, `${displayName}.temporal`).not.toBe(true);
-    },
-  );
+  it.each([
+    "Risograph",
+    "Risograph (multi-layer)",
+    "Screen Print / Misregistration",
+    "Duplex / Offset Print",
+  ])("%s exposes described controls and honest fixed-print copy", (displayName) => {
+    const filter = catalogFilter(displayName);
+    expect(filter).toBeDefined();
+    for (const [name, option] of Object.entries(filter?.optionTypes ?? {})) {
+      expect(option.desc, `${displayName}.${name}`).toBeTruthy();
+    }
+    expect(filter?.description, `${displayName}.description`).toBeTruthy();
+    expect(filter?.temporal, `${displayName}.temporal`).not.toBe(true);
+  });
 
   it.each(["Photocopier", "Paper Texture", "Sumi-e"])(
     "%s exposes described controls and honest substrate copy",
@@ -754,17 +785,23 @@ describe("legacy quality filter surface", () => {
     expect(Number(catalogFilter("Film grain")?.options?.amount)).toBeLessThanOrEqual(0.2);
   });
 
-  it.each(["Infrared photography", "Mezzotint", "Nokia LCD", "Daguerreotype", "Film burn", "Ink Bleed", "Cyanotype", "Thermal camera"])(
-    "%s exposes described controls and a real WebGL implementation",
-    (displayName) => {
-      const filter = catalogFilter(displayName);
-      expect(filter).toBeDefined();
-      expect(filter?.requiresGL).toBe(true);
-      for (const [name, option] of Object.entries(filter?.optionTypes ?? {})) {
-        expect(option.desc, `${displayName}.${name}`).toBeTruthy();
-      }
-    },
-  );
+  it.each([
+    "Infrared photography",
+    "Mezzotint",
+    "Nokia LCD",
+    "Daguerreotype",
+    "Film burn",
+    "Ink Bleed",
+    "Cyanotype",
+    "Thermal camera",
+  ])("%s exposes described controls and a real WebGL implementation", (displayName) => {
+    const filter = catalogFilter(displayName);
+    expect(filter).toBeDefined();
+    expect(filter?.requiresGL).toBe(true);
+    for (const [name, option] of Object.entries(filter?.optionTypes ?? {})) {
+      expect(option.desc, `${displayName}.${name}`).toBeTruthy();
+    }
+  });
 
   it("labels the infrared estimate honestly and defaults mezzotint to toned ink", () => {
     expect(catalogFilter("Infrared photography")?.description).toMatch(/estimated/i);
@@ -796,7 +833,9 @@ describe("legacy quality filter surface", () => {
 
   it("labels Watercolor Bleed as a stylized single-field approximation", () => {
     expect(catalogFilter("Watercolor bleed")?.description).toMatch(/stylized|approximation/i);
-    expect(catalogFilter("Watercolor bleed")?.description).not.toMatch(/dark colours migrate faster/i);
+    expect(catalogFilter("Watercolor bleed")?.description).not.toMatch(
+      /dark colours migrate faster/i,
+    );
   });
 
   it("keeps Nokia output binary while spatially distributing middle gray", () => {

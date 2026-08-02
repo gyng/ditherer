@@ -9,17 +9,52 @@ const MODE_PALETTE_1 = "PALETTE_1";
 const MODE_RGBI = "RGBI";
 
 export const optionTypes = {
-  mode: { type: ENUM, options: [
-    { name: "Composite artifact color", value: MODE_COMPOSITE },
-    { name: "320×200 cyan / magenta", value: MODE_PALETTE_0 },
-    { name: "320×200 red / green", value: MODE_PALETTE_1 },
-    { name: "RGBI 16-color", value: MODE_RGBI },
-  ], default: MODE_COMPOSITE, desc: "CGA output path: phase-sensitive television composite or legal direct-drive RGBI palettes" },
-  hue: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Composite decoder reference phase; rotates artifact colors without changing the bitstream" },
-  saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 1.15, desc: "NTSC chroma-demodulation gain for composite artifact colors" },
-  monitorBandwidth: { type: RANGE, range: [0.2, 1], step: 0.05, default: 0.58, desc: "Television luma/chroma bandwidth; lower values blend more adjacent carrier pixels" },
-  blackLevel: { type: RANGE, range: [-0.2, 0.2], step: 0.01, default: 0, desc: "Composite monitor setup and brightness offset" },
-  scanlineStrength: { type: RANGE, range: [0, 0.6], step: 0.02, default: 0.12, desc: "Darkening between the 200 active CGA raster rows" },
+  mode: {
+    type: ENUM,
+    options: [
+      { name: "Composite artifact color", value: MODE_COMPOSITE },
+      { name: "320×200 cyan / magenta", value: MODE_PALETTE_0 },
+      { name: "320×200 red / green", value: MODE_PALETTE_1 },
+      { name: "RGBI 16-color", value: MODE_RGBI },
+    ],
+    default: MODE_COMPOSITE,
+    desc: "CGA output path: phase-sensitive television composite or legal direct-drive RGBI palettes",
+  },
+  hue: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 0,
+    desc: "Composite decoder reference phase; rotates artifact colors without changing the bitstream",
+  },
+  saturation: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1.15,
+    desc: "NTSC chroma-demodulation gain for composite artifact colors",
+  },
+  monitorBandwidth: {
+    type: RANGE,
+    range: [0.2, 1],
+    step: 0.05,
+    default: 0.58,
+    desc: "Television luma/chroma bandwidth; lower values blend more adjacent carrier pixels",
+  },
+  blackLevel: {
+    type: RANGE,
+    range: [-0.2, 0.2],
+    step: 0.01,
+    default: 0,
+    desc: "Composite monitor setup and brightness offset",
+  },
+  scanlineStrength: {
+    type: RANGE,
+    range: [0, 0.6],
+    step: 0.02,
+    default: 0.12,
+    desc: "Darkening between the 200 active CGA raster rows",
+  },
 };
 
 export const defaults = {
@@ -172,7 +207,14 @@ const clamp = (value: unknown, fallback: number, low: number, high: number): num
 };
 
 const cgaComposite = (input: FilterCanvas, options: CgaOptions = defaults): FilterCanvas => {
-  const mode = options.mode === MODE_PALETTE_0 ? 1 : options.mode === MODE_PALETTE_1 ? 2 : options.mode === MODE_RGBI ? 3 : 0;
+  const mode =
+    options.mode === MODE_PALETTE_0
+      ? 1
+      : options.mode === MODE_PALETTE_1
+        ? 2
+        : options.mode === MODE_RGBI
+          ? 3
+          : 0;
   const output = renderGLSinglePass({
     source: input,
     width: input.width,
@@ -182,15 +224,28 @@ const cgaComposite = (input: FilterCanvas, options: CgaOptions = defaults): Filt
     uniformNames: ["u_mode", "u_hue", "u_saturation", "u_bandwidth", "u_blackLevel", "u_scanlines"],
     setUniforms: (gl, uniforms) => {
       gl.uniform1i(uniforms.u_mode, mode);
-      gl.uniform1f(uniforms.u_hue, clamp(options.hue, defaults.hue, -180, 180) * Math.PI / 180);
+      gl.uniform1f(uniforms.u_hue, (clamp(options.hue, defaults.hue, -180, 180) * Math.PI) / 180);
       gl.uniform1f(uniforms.u_saturation, clamp(options.saturation, defaults.saturation, 0, 2));
-      gl.uniform1f(uniforms.u_bandwidth, clamp(options.monitorBandwidth, defaults.monitorBandwidth, 0.2, 1));
-      gl.uniform1f(uniforms.u_blackLevel, clamp(options.blackLevel, defaults.blackLevel, -0.2, 0.2));
-      gl.uniform1f(uniforms.u_scanlines, clamp(options.scanlineStrength, defaults.scanlineStrength, 0, 0.6));
+      gl.uniform1f(
+        uniforms.u_bandwidth,
+        clamp(options.monitorBandwidth, defaults.monitorBandwidth, 0.2, 1),
+      );
+      gl.uniform1f(
+        uniforms.u_blackLevel,
+        clamp(options.blackLevel, defaults.blackLevel, -0.2, 0.2),
+      );
+      gl.uniform1f(
+        uniforms.u_scanlines,
+        clamp(options.scanlineStrength, defaults.scanlineStrength, 0, 0.6),
+      );
     },
   });
   if (!output) return input;
-  logFilterBackend("CGA Composite", "WebGL2", mode === 0 ? "640-carrier-pixel NTSC artifact decode" : "legal CGA direct-drive palette");
+  logFilterBackend(
+    "CGA Composite",
+    "WebGL2",
+    mode === 0 ? "640-carrier-pixel NTSC artifact decode" : "legal CGA direct-drive palette",
+  );
   return output;
 };
 
@@ -200,6 +255,7 @@ export default defineFilter({
   optionTypes,
   defaults,
   options: defaults,
-  description: "IBM CGA graphics through legal RGBI palettes or a phase-sensitive NTSC composite artifact-color decoder",
+  description:
+    "IBM CGA graphics through legal RGBI palettes or a phase-sensitive NTSC composite artifact-color decoder",
   requiresGL: true,
 });

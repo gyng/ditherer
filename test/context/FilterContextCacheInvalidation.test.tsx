@@ -3,7 +3,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@gyng/ditherer-filters/client", async () => {
-  const actual = await vi.importActual<typeof import("@gyng/ditherer-filters/client")>("@gyng/ditherer-filters/client");
+  const actual = await vi.importActual<typeof import("@gyng/ditherer-filters/client")>(
+    "@gyng/ditherer-filters/client",
+  );
   return { ...actual, USE_WORKER: false, disposeFilterWorker: vi.fn() };
 });
 
@@ -31,7 +33,9 @@ const Probe = () => {
 };
 
 const flush = async (operation: () => void | Promise<void>) => {
-  await act(async () => { await operation(); });
+  await act(async () => {
+    await operation();
+  });
 };
 
 const makeCanvas = (width: number, height = 1) => {
@@ -58,7 +62,10 @@ const filter = (
   options,
   defaults: options,
   optionTypes: Object.fromEntries(
-    Object.keys(options).map((key) => [key, { type: "RANGE", range: [0, 20], default: options[key] }]),
+    Object.keys(options).map((key) => [
+      key,
+      { type: "RANGE", range: [0, 20], default: options[key] },
+    ]),
   ),
 });
 
@@ -70,7 +77,13 @@ beforeEach(async () => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await flush(() => root.render(<FilterProvider><Probe /></FilterProvider>));
+  await flush(() =>
+    root.render(
+      <FilterProvider>
+        <Probe />
+      </FilterProvider>,
+    ),
+  );
 });
 
 afterEach(async () => {
@@ -112,7 +125,9 @@ describe("FilterProvider cache dependency invalidation", () => {
 
     await render(input);
     expect(latest.state.outputImage).not.toBe(displayed);
-    expect((latest.state.outputImage as HTMLCanvasElement & { __testPixel?: string }).__testPixel).toBe("green");
+    expect(
+      (latest.state.outputImage as HTMLCanvasElement & { __testPixel?: string }).__testPixel,
+    ).toBe("green");
     expect(getCanvasPoolStats().releases).toBe(releasesBeforeHandoff + 1);
     expect(takePooledCanvas(width, height)).toBe(displayed);
 
@@ -134,15 +149,22 @@ describe("FilterProvider cache dependency invalidation", () => {
       intermediate = takePooledCanvas(width, height) as HTMLCanvasElement;
       return intermediate;
     });
-    const deferredStage = filter("Transactional deferred", () =>
-      new Promise<HTMLCanvasElement>((resolve) => { resolveSecond = resolve; }));
+    const deferredStage = filter(
+      "Transactional deferred",
+      () =>
+        new Promise<HTMLCanvasElement>((resolve) => {
+          resolveSecond = resolve;
+        }),
+    );
     await flush(() => {
       latest.actions.selectFilter(firstStage.name, firstStage);
       latest.actions.chainAdd(deferredStage.name, deferredStage);
     });
     const firstId = latest.state.chain[0].id;
     latest.actions.filterImageAsync(makeCanvas(1));
-    await flush(async () => { await Promise.resolve(); });
+    await flush(async () => {
+      await Promise.resolve();
+    });
     expect(intermediate).toBeTruthy();
     expect(resolveSecond).toBeTypeOf("function");
     expect(latest.actions.getIntermediatePreview(firstId)).toBeNull();
@@ -169,12 +191,17 @@ describe("FilterProvider cache dependency invalidation", () => {
       prefix = takePooledCanvas(prefixWidth, height) as HTMLCanvasElement;
       return prefix;
     });
-    const middleFilter = filter("Pinned middle", () =>
-      takePooledCanvas(prefixWidth + 2, height) as HTMLCanvasElement, { amount: 1 });
+    const middleFilter = filter(
+      "Pinned middle",
+      () => takePooledCanvas(prefixWidth + 2, height) as HTMLCanvasElement,
+      { amount: 1 },
+    );
     const suffixFilter = filter("Pinned suffix", (_input) => {
       suffixRuns += 1;
       if (suffixRuns === 1) return takePooledCanvas(prefixWidth + 4, height) as HTMLCanvasElement;
-      return new Promise<HTMLCanvasElement>((resolve) => { resolveSuffix = resolve; });
+      return new Promise<HTMLCanvasElement>((resolve) => {
+        resolveSuffix = resolve;
+      });
     });
     await flush(() => {
       latest.actions.selectFilter(prefixFilter.name, prefixFilter);
@@ -187,7 +214,9 @@ describe("FilterProvider cache dependency invalidation", () => {
 
     await flush(() => latest.actions.setFilterOption("amount", 2, 1));
     latest.actions.filterImageAsync(input);
-    await flush(async () => { await Promise.resolve(); });
+    await flush(async () => {
+      await Promise.resolve();
+    });
     expect(resolveSuffix).toBeTypeOf("function");
     await flush(() => latest.actions.setLinearize(false));
 
@@ -203,7 +232,9 @@ describe("FilterProvider cache dependency invalidation", () => {
   });
 
   it("automatically reruns static chain output when global chain audio modulation changes", async () => {
-    const stage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 1));
+    const stage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+      makeCanvas(input.width + 1),
+    );
     const tail = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 1));
     const stageFilter = filter("Scheduled audio stage", stage, { amount: 1 });
     const tailFilter = filter("Scheduled audio tail", tail);
@@ -236,7 +267,9 @@ describe("FilterProvider cache dependency invalidation", () => {
 
   it("contains direct main-thread snapshot and step-callback rejection and accepts the next run", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const stage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 1));
+    const stage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+      makeCanvas(input.width + 1),
+    );
     const stageFilter = filter("Recoverable direct stage", stage);
     await flush(() => latest.actions.selectFilter(stageFilter.name, stageFilter));
     const input = makeCanvas(3);
@@ -279,9 +312,11 @@ describe("FilterProvider cache dependency invalidation", () => {
     await flush(() => latest.actions.selectFilter(stage.name, stage));
     resetCanvasPoolStats();
 
-    await expect(latest.actions.renderFrameForExport(makeCanvas(width, height), {
-      sessionId: "recoverable-export",
-    })).rejects.toThrow("injected export output snapshot failure");
+    await expect(
+      latest.actions.renderFrameForExport(makeCanvas(width, height), {
+        sessionId: "recoverable-export",
+      }),
+    ).rejects.toThrow("injected export output snapshot failure");
     const releasesAfterFailure = getCanvasPoolStats().releases;
     expect(releasesAfterFailure).toBeGreaterThanOrEqual(2);
 
@@ -295,8 +330,12 @@ describe("FilterProvider cache dependency invalidation", () => {
   });
 
   it("reruns a paused-video chain when a new frame token redraws the same source canvas", async () => {
-    const firstStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 1));
-    const secondStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 1));
+    const firstStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+      makeCanvas(input.width + 1),
+    );
+    const secondStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+      makeCanvas(input.width + 1),
+    );
     const firstFilter = filter("Frame revision first", firstStage);
     const secondFilter = filter("Frame revision second", secondStage);
     await flush(() => {
@@ -306,7 +345,10 @@ describe("FilterProvider cache dependency invalidation", () => {
 
     const createElement = document.createElement.bind(document);
     let video: HTMLVideoElement | undefined;
-    vi.spyOn(document, "createElement").mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
+    vi.spyOn(document, "createElement").mockImplementation(((
+      tagName: string,
+      options?: ElementCreationOptions,
+    ) => {
       const element = createElement(tagName, options);
       if (tagName === "video") {
         video = element as HTMLVideoElement;
@@ -326,9 +368,13 @@ describe("FilterProvider cache dependency invalidation", () => {
 
     const loading = latest.actions.loadVideoFromUrlAsync("test://paused-video", 0);
     expect(video).toBeTruthy();
-    await flush(() => { video!.onloadedmetadata?.(new Event("loadedmetadata")); });
+    await flush(() => {
+      video!.onloadedmetadata?.(new Event("loadedmetadata"));
+    });
     await loading;
-    await flush(() => { video!.onloadeddata?.(new Event("loadeddata")); });
+    await flush(() => {
+      video!.onloadeddata?.(new Event("loadeddata"));
+    });
     const sharedSource = latest.state.inputImage as HTMLCanvasElement;
     await render(sharedSource);
     const previousOutput = latest.state.outputImage;
@@ -348,10 +394,14 @@ describe("FilterProvider cache dependency invalidation", () => {
   it("plateaus non-caching multi-stage grayscale export canvases", async () => {
     const width = 263;
     const height = 61;
-    const firstFilter = filter("Export pooled first", (input) =>
-      takePooledCanvas(input.width, input.height) as HTMLCanvasElement);
-    const secondFilter = filter("Export pooled second", (input) =>
-      takePooledCanvas(input.width, input.height) as HTMLCanvasElement);
+    const firstFilter = filter(
+      "Export pooled first",
+      (input) => takePooledCanvas(input.width, input.height) as HTMLCanvasElement,
+    );
+    const secondFilter = filter(
+      "Export pooled second",
+      (input) => takePooledCanvas(input.width, input.height) as HTMLCanvasElement,
+    );
     await flush(() => {
       latest.actions.selectFilter(firstFilter.name, firstFilter);
       latest.actions.chainAdd(secondFilter.name, secondFilter);
@@ -382,14 +432,18 @@ describe("FilterProvider cache dependency invalidation", () => {
     "input-canvas",
     "global-audio",
   ] as const)("reruns the complete chain after a %s change", async (change) => {
-    const firstStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas, options: Record<string, unknown> = {}) => {
-      const runtimeOffset = Number(options._linearize === false)
-        + Number(options._wasmAcceleration === false) * 2
-        + Number(options._webglAcceleration === false) * 4;
-      return makeCanvas(input.width + 10 + runtimeOffset, input.height);
-    });
+    const firstStage = vi.fn(
+      (input: HTMLCanvasElement | OffscreenCanvas, options: Record<string, unknown> = {}) => {
+        const runtimeOffset =
+          Number(options._linearize === false) +
+          Number(options._wasmAcceleration === false) * 2 +
+          Number(options._webglAcceleration === false) * 4;
+        return makeCanvas(input.width + 10 + runtimeOffset, input.height);
+      },
+    );
     const secondStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
-      makeCanvas(input.width + 1, input.height));
+      makeCanvas(input.width + 1, input.height),
+    );
     const firstFilter = filter("Cache first", firstStage);
     const secondFilter = filter("Cache second", secondStage);
     await flush(() => {
@@ -434,10 +488,18 @@ describe("FilterProvider cache dependency invalidation", () => {
   it.each(["replace", "audio-modulation"] as const)(
     "evicts an edited middle stage and every downstream stage after %s",
     async (change) => {
-      const firstStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 1));
-      const middleStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 2));
-      const replacementStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 6));
-      const lastStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => makeCanvas(input.width + 3));
+      const firstStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+        makeCanvas(input.width + 1),
+      );
+      const middleStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+        makeCanvas(input.width + 2),
+      );
+      const replacementStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+        makeCanvas(input.width + 6),
+      );
+      const lastStage = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) =>
+        makeCanvas(input.width + 3),
+      );
       const firstFilter = filter("Dependency first", firstStage);
       const middleFilter = filter("Dependency middle", middleStage, { amount: 1 });
       const replacementFilter = filter("Dependency replacement", replacementStage, { amount: 1 });

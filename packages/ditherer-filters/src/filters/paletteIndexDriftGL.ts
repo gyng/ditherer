@@ -82,9 +82,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, DRIFT_FS, [
-      "u_source", "u_res", "u_paletteCount",
-      "u_palette[0]", "u_driftMap[0]",
-      "u_lockLuma", "u_dither", "u_ditherSeed",
+      "u_source",
+      "u_res",
+      "u_paletteCount",
+      "u_palette[0]",
+      "u_driftMap[0]",
+      "u_lockLuma",
+      "u_dither",
+      "u_ditherSeed",
     ] as const),
   };
   return _cache;
@@ -122,20 +127,28 @@ export const renderPaletteIndexDriftGL = (
   const sourceTex = ensureTexture(gl, "paletteIndexDrift:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_paletteCount, palette.length);
-    const locPal = cache.prog.uniforms["u_palette[0]"];
-    if (locPal) gl.uniform3fv(locPal, flatPal);
-    const locDrift = cache.prog.uniforms["u_driftMap[0]"];
-    if (locDrift) gl.uniform1iv(locDrift, flatDrift);
-    gl.uniform1i(cache.prog.uniforms.u_lockLuma, lockLuma ? 1 : 0);
-    gl.uniform1i(cache.prog.uniforms.u_dither, dither ? 1 : 0);
-    gl.uniform1f(cache.prog.uniforms.u_ditherSeed, ditherSeed);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_paletteCount, palette.length);
+      const locPal = cache.prog.uniforms["u_palette[0]"];
+      if (locPal) gl.uniform3fv(locPal, flatPal);
+      const locDrift = cache.prog.uniforms["u_driftMap[0]"];
+      if (locDrift) gl.uniform1iv(locDrift, flatDrift);
+      gl.uniform1i(cache.prog.uniforms.u_lockLuma, lockLuma ? 1 : 0);
+      gl.uniform1i(cache.prog.uniforms.u_dither, dither ? 1 : 0);
+      gl.uniform1f(cache.prog.uniforms.u_ditherSeed, ditherSeed);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

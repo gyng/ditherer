@@ -86,10 +86,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, SCANLINE_FS, [
-      "u_source", "u_res", "u_mode", "u_intensity", "u_gap", "u_height",
-      "u_visibleScanlines", "u_beamMinWidth", "u_beamMaxWidth",
+      "u_source",
+      "u_res",
+      "u_mode",
+      "u_intensity",
+      "u_gap",
+      "u_height",
+      "u_visibleScanlines",
+      "u_beamMinWidth",
+      "u_beamMaxWidth",
       "u_beamStrength",
-      "u_lineHeight", "u_brightness", "u_levels",
+      "u_lineHeight",
+      "u_brightness",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -97,7 +106,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 export const scanlineGLAvailable = (): boolean => glAvailable();
 
-export const SCANLINE_MODE_ID: Record<string, number> = { BEAM_PROFILE: 0, DARKEN: 1, RGB_SUBLINES: 2 };
+export const SCANLINE_MODE_ID: Record<string, number> = {
+  BEAM_PROFILE: 0,
+  DARKEN: 1,
+  RGB_SUBLINES: 2,
+};
 
 export const renderScanlineGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
@@ -127,23 +140,31 @@ export const renderScanlineGL = (
   const sourceTex = ensureTexture(gl, "scanline:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_mode, modeId);
-    gl.uniform1f(cache.prog.uniforms.u_visibleScanlines, visibleScanlines);
-    gl.uniform1f(cache.prog.uniforms.u_beamMinWidth, beamMinWidth);
-    gl.uniform1f(cache.prog.uniforms.u_beamMaxWidth, beamMaxWidth);
-    gl.uniform1f(cache.prog.uniforms.u_beamStrength, beamStrength);
-    gl.uniform1f(cache.prog.uniforms.u_intensity, intensity);
-    gl.uniform1f(cache.prog.uniforms.u_gap, gap);
-    gl.uniform1f(cache.prog.uniforms.u_height, hgt);
-    gl.uniform1f(cache.prog.uniforms.u_lineHeight, lineHeight);
-    gl.uniform1f(cache.prog.uniforms.u_brightness, brightness);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_mode, modeId);
+      gl.uniform1f(cache.prog.uniforms.u_visibleScanlines, visibleScanlines);
+      gl.uniform1f(cache.prog.uniforms.u_beamMinWidth, beamMinWidth);
+      gl.uniform1f(cache.prog.uniforms.u_beamMaxWidth, beamMaxWidth);
+      gl.uniform1f(cache.prog.uniforms.u_beamStrength, beamStrength);
+      gl.uniform1f(cache.prog.uniforms.u_intensity, intensity);
+      gl.uniform1f(cache.prog.uniforms.u_gap, gap);
+      gl.uniform1f(cache.prog.uniforms.u_height, hgt);
+      gl.uniform1f(cache.prog.uniforms.u_lineHeight, lineHeight);
+      gl.uniform1f(cache.prog.uniforms.u_brightness, brightness);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

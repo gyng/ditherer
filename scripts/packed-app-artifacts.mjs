@@ -6,20 +6,20 @@ const workerModulePattern = /(^|\/)filterWorker-[^/]+\.js$/;
 const inlineWasmMarker = "data:application/wasm;base64,";
 export const PACKED_APP_CHUNK_BUDGET_BYTES = 2_000_000;
 
-const largestJavaScriptArtifact = (files) => [...files.entries()]
-  .filter(([name]) => name.endsWith(".js"))
-  .map(([name, contents]) => ({ name, bytes: Buffer.byteLength(contents) }))
-  .sort((left, right) => right.bytes - left.bytes)[0] ?? null;
+const largestJavaScriptArtifact = (files) =>
+  [...files.entries()]
+    .filter(([name]) => name.endsWith(".js"))
+    .map(([name, contents]) => ({ name, bytes: Buffer.byteLength(contents) }))
+    .sort((left, right) => right.bytes - left.bytes)[0] ?? null;
 
 export const summarizePackedAppArtifacts = (files) => ({
   hasHtmlEntry: files.has("index.html"),
   hasWorkerModule: [...files.keys()].some((name) => workerModulePattern.test(name)),
-  hasWasmPayload: [...files.entries()].some(([name, contents]) =>
-    name.includes("rgba2laba")
-    && (
-      name.endsWith(".wasm")
-      || (name.endsWith(".js") && contents.includes(inlineWasmMarker))
-    )),
+  hasWasmPayload: [...files.entries()].some(
+    ([name, contents]) =>
+      name.includes("rgba2laba") &&
+      (name.endsWith(".wasm") || (name.endsWith(".js") && contents.includes(inlineWasmMarker))),
+  ),
 });
 
 export const assertPackedAppArtifacts = (files) => {
@@ -34,8 +34,8 @@ export const assertPackedAppArtifacts = (files) => {
   const largestJavaScript = largestJavaScriptArtifact(files);
   if (largestJavaScript && largestJavaScript.bytes > PACKED_APP_CHUNK_BUDGET_BYTES) {
     throw new Error(
-      `packed Ditherer JavaScript chunk ${largestJavaScript.name} is `
-      + `${largestJavaScript.bytes} bytes (budget ${PACKED_APP_CHUNK_BUDGET_BYTES})`,
+      `packed Ditherer JavaScript chunk ${largestJavaScript.name} is ` +
+        `${largestJavaScript.bytes} bytes (budget ${PACKED_APP_CHUNK_BUDGET_BYTES})`,
     );
   }
   return { ...summary, largestJavaScript };
@@ -49,24 +49,25 @@ const readBuildFiles = async (root, directory = root, files = new Map()) => {
       continue;
     }
     const relativePath = path.relative(root, absolutePath).replaceAll(path.sep, "/");
-    const contents = entry.name.endsWith(".js") || entry.name.endsWith(".html")
-      ? await readFile(absolutePath, "utf8")
-      : "";
+    const contents =
+      entry.name.endsWith(".js") || entry.name.endsWith(".html")
+        ? await readFile(absolutePath, "utf8")
+        : "";
     files.set(relativePath, contents);
   }
   return files;
 };
 
-const isCommand = process.argv[1]
-  && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isCommand =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isCommand) {
   const buildDirectory = path.resolve(process.argv[2] ?? "/tmp/ditherer-packed-app-build");
   const files = await readBuildFiles(buildDirectory);
   const summary = assertPackedAppArtifacts(files);
   console.log(
-    `Packed Ditherer artifacts verified: ${files.size} files, `
-    + `worker=${summary.hasWorkerModule}, wasm=${summary.hasWasmPayload}, `
-    + `largest-js=${summary.largestJavaScript?.bytes ?? 0} bytes`,
+    `Packed Ditherer artifacts verified: ${files.size} files, ` +
+      `worker=${summary.hasWorkerModule}, wasm=${summary.hasWasmPayload}, ` +
+      `largest-js=${summary.largestJavaScript?.bytes ?? 0} bytes`,
   );
 }

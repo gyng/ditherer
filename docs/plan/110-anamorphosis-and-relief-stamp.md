@@ -13,7 +13,7 @@ with morphological ink transfer and edge break-up).
 
 - **Anamorphic Cylinder** maps the annulus with
   `rSrc = cylR·exp(t·ln(maxR/cylR))` — an arbitrary logarithmic radial stretch
-  with no basis in mirror optics — and renders the *raw undistorted source* at
+  with no basis in mirror optics — and renders the _raw undistorted source_ at
   its cartesian position inside the mirror region (you cannot see the flat
   artwork through an opaque cylinder).
 - **Stamp** is a per-pixel luminance threshold with additive white-noise
@@ -25,7 +25,7 @@ with morphological ink transfer and edge break-up).
 
 - Cylindrical-mirror anamorphosis: a point at height z on the cylinder reflects
   to plane radius `r = R_c + z·cot(α)` — the radial map is LINEAR in image
-  height, angle preserved (Hunt/Sharp, *Mathographics*; standard cylindrical
+  height, angle preserved (Hunt/Sharp, _Mathographics_; standard cylindrical
   anamorphosis derivation).
 - Relief/rubber-stamp printing: a raised binary die pressed through ink;
   break-up concentrates at shape boundaries where the stamp starves of ink

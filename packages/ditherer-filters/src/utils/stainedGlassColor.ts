@@ -125,7 +125,11 @@ export const resolveStainedGlassCellColors = (
     let winner: Cluster | null = null;
     let winnerKey = Infinity;
     for (const [key, cluster] of clusters) {
-      if (!winner || cluster.weight > winner.weight || (cluster.weight === winner.weight && key < winnerKey)) {
+      if (
+        !winner ||
+        cluster.weight > winner.weight ||
+        (cluster.weight === winner.weight && key < winnerKey)
+      ) {
         winner = cluster;
         winnerKey = key;
       }

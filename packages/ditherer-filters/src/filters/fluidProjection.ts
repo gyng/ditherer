@@ -5,8 +5,7 @@
 // velocity correction v ← v − ∇p. This module is pure and unit-tested so the
 // projection is verified independently of the GPU path.
 
-const clampInt = (v: number, lo: number, hi: number): number =>
-  v < lo ? lo : v > hi ? hi : v;
+const clampInt = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
 /** Central-difference divergence of a velocity field (Neumann boundary). */
 export const divergence = (
@@ -22,9 +21,7 @@ export const divergence = (
       const xr = clampInt(x + 1, 0, w - 1);
       const yd = clampInt(y - 1, 0, h - 1);
       const yt = clampInt(y + 1, 0, h - 1);
-      out[y * w + x] = 0.5 * (
-        (vx[y * w + xr] - vx[y * w + xl]) + (vy[yt * w + x] - vy[yd * w + x])
-      );
+      out[y * w + x] = 0.5 * (vx[y * w + xr] - vx[y * w + xl] + (vy[yt * w + x] - vy[yd * w + x]));
     }
   }
   return out;
@@ -47,9 +44,8 @@ export const jacobiPressure = (
         const xr = clampInt(x + 1, 0, w - 1);
         const yd = clampInt(y - 1, 0, h - 1);
         const yt = clampInt(y + 1, 0, h - 1);
-        next[y * w + x] = (
-          p[y * w + xl] + p[y * w + xr] + p[yd * w + x] + p[yt * w + x] - div[y * w + x]
-        ) * 0.25;
+        next[y * w + x] =
+          (p[y * w + xl] + p[y * w + xr] + p[yd * w + x] + p[yt * w + x] - div[y * w + x]) * 0.25;
       }
     }
     [p, next] = [next, p];

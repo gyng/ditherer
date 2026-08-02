@@ -25,40 +25,97 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  contrast:   { type: RANGE, range: [1, 5], step: 0.1, default: 3, desc: "Extreme contrast boost" },
-  saturation: { type: RANGE, range: [1, 5], step: 0.1, default: 3, desc: "Extreme saturation boost" },
-  posterize:  { type: RANGE, range: [4, 64], step: 1, default: 16, desc: "Colour reduction — fewer levels = more banded, fried look" },
-  blockiness: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "JPEG-like block artifact intensity — for authentic JPEG artifacts, chain the JPEG Artifact filter after this one" },
-  noise:      { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Random noise grain amount" },
-  sharpness:  { type: RANGE, range: [0, 3], step: 0.05, default: 1.5, desc: "Over-sharpening intensity" },
-  glow:       { type: RANGE, range: [0, 2], step: 0.05, default: 0.6, desc: "Blown-highlight bloom — bright areas bleed and oversaturate" },
-  chromaShift:{ type: RANGE, range: [0, 8], step: 0.5, default: 2, desc: "RGB channel misalignment from re-compression" },
-  warmth:     { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warm color cast toward orange/red" },
-  animSpeed:  { type: RANGE, range: [1, 30], step: 1, default: 8, desc: "Preview animation frame rate" },
+  contrast: { type: RANGE, range: [1, 5], step: 0.1, default: 3, desc: "Extreme contrast boost" },
+  saturation: {
+    type: RANGE,
+    range: [1, 5],
+    step: 0.1,
+    default: 3,
+    desc: "Extreme saturation boost",
+  },
+  posterize: {
+    type: RANGE,
+    range: [4, 64],
+    step: 1,
+    default: 16,
+    desc: "Colour reduction — fewer levels = more banded, fried look",
+  },
+  blockiness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "JPEG-like block artifact intensity — for authentic JPEG artifacts, chain the JPEG Artifact filter after this one",
+  },
+  noise: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Random noise grain amount",
+  },
+  sharpness: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 1.5,
+    desc: "Over-sharpening intensity",
+  },
+  glow: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.6,
+    desc: "Blown-highlight bloom — bright areas bleed and oversaturate",
+  },
+  chromaShift: {
+    type: RANGE,
+    range: [0, 8],
+    step: 0.5,
+    default: 2,
+    desc: "RGB channel misalignment from re-compression",
+  },
+  warmth: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Warm color cast toward orange/red",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 8,
+    desc: "Preview animation frame rate",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
     desc: "Start or stop frame-varying noise in the fried-image preview",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) { actions.stopAnimLoop(); }
-      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
-    }
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 8);
+      }
+    },
   },
-  palette:    { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
-  contrast:   optionTypes.contrast.default,
+  contrast: optionTypes.contrast.default,
   saturation: optionTypes.saturation.default,
-  posterize:  optionTypes.posterize.default,
+  posterize: optionTypes.posterize.default,
   blockiness: optionTypes.blockiness.default,
-  noise:      optionTypes.noise.default,
-  sharpness:  optionTypes.sharpness.default,
-  glow:       optionTypes.glow.default,
-  chromaShift:optionTypes.chromaShift.default,
-  warmth:     optionTypes.warmth.default,
-  animSpeed:  optionTypes.animSpeed.default,
-  palette:    { ...optionTypes.palette.default, options: { levels: 256 } }
+  noise: optionTypes.noise.default,
+  sharpness: optionTypes.sharpness.default,
+  glow: optionTypes.glow.default,
+  chromaShift: optionTypes.chromaShift.default,
+  warmth: optionTypes.warmth.default,
+  animSpeed: optionTypes.animSpeed.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Single-pass GL shader: chromatic shift → contrast S-curve → HSL
@@ -228,9 +285,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     df: linkProgram(gl, DF_FS, [
-      "u_source", "u_res", "u_contrast", "u_saturation", "u_posterize",
-      "u_blockiness", "u_noise", "u_sharpness", "u_glow", "u_chromaShift",
-      "u_warmth", "u_seed", "u_levels",
+      "u_source",
+      "u_res",
+      "u_contrast",
+      "u_saturation",
+      "u_posterize",
+      "u_blockiness",
+      "u_noise",
+      "u_sharpness",
+      "u_glow",
+      "u_chromaShift",
+      "u_warmth",
+      "u_seed",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -239,7 +306,7 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -249,7 +316,9 @@ const mulberry32 = (seed: number) => {
 const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
 const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {
-  r /= 255; g /= 255; b /= 255;
+  r /= 255;
+  g /= 255;
+  b /= 255;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const l = (max + min) / 2;
@@ -257,9 +326,11 @@ const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => 
   const d = max - min;
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
   const h =
-    max === r ? ((g - b) / d + (g < b ? 6 : 0)) / 6 :
-    max === g ? ((b - r) / d + 2) / 6 :
-    ((r - g) / d + 4) / 6;
+    max === r
+      ? ((g - b) / d + (g < b ? 6 : 0)) / 6
+      : max === g
+        ? ((b - r) / d + 2) / 6
+        : ((r - g) / d + 4) / 6;
   return [h, s, l];
 };
 
@@ -281,14 +352,26 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   return [
     Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
     Math.round(hue2rgb(p, q, h) * 255),
-    Math.round(hue2rgb(p, q, h - 1 / 3) * 255)
+    Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
   ];
 };
 
 const deepFry = (input: any, options = defaults) => {
-  const { contrast, saturation, posterize, blockiness, noise, sharpness, glow, chromaShift, warmth, palette } = options;
+  const {
+    contrast,
+    saturation,
+    posterize,
+    blockiness,
+    noise,
+    sharpness,
+    glow,
+    chromaShift,
+    warmth,
+    palette,
+  } = options;
   const frameIndex = (options as { _frameIndex?: number })._frameIndex || 0;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -300,33 +383,44 @@ const deepFry = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "deepFry:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.df, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.df.uniforms.u_source, 0);
-        gl.uniform2f(cache.df.uniforms.u_res, W, H);
-        gl.uniform1f(cache.df.uniforms.u_contrast, contrast);
-        gl.uniform1f(cache.df.uniforms.u_saturation, saturation);
-        gl.uniform1f(cache.df.uniforms.u_posterize, posterize);
-        gl.uniform1f(cache.df.uniforms.u_blockiness, blockiness);
-        gl.uniform1f(cache.df.uniforms.u_noise, noise);
-        gl.uniform1f(cache.df.uniforms.u_sharpness, sharpness);
-        gl.uniform1f(cache.df.uniforms.u_glow, glow);
-        gl.uniform1f(cache.df.uniforms.u_chromaShift, chromaShift);
-        gl.uniform1f(cache.df.uniforms.u_warmth, warmth);
-        gl.uniform1f(cache.df.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.df.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.df,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.df.uniforms.u_source, 0);
+          gl.uniform2f(cache.df.uniforms.u_res, W, H);
+          gl.uniform1f(cache.df.uniforms.u_contrast, contrast);
+          gl.uniform1f(cache.df.uniforms.u_saturation, saturation);
+          gl.uniform1f(cache.df.uniforms.u_posterize, posterize);
+          gl.uniform1f(cache.df.uniforms.u_blockiness, blockiness);
+          gl.uniform1f(cache.df.uniforms.u_noise, noise);
+          gl.uniform1f(cache.df.uniforms.u_sharpness, sharpness);
+          gl.uniform1f(cache.df.uniforms.u_glow, glow);
+          gl.uniform1f(cache.df.uniforms.u_chromaShift, chromaShift);
+          gl.uniform1f(cache.df.uniforms.u_warmth, warmth);
+          gl.uniform1f(cache.df.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.df.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Deep fry", "WebGL2",
-            `c=${contrast} s=${saturation}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Deep fry",
+            "WebGL2",
+            `c=${contrast} s=${saturation}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -345,12 +439,16 @@ const deepFry = (input: any, options = defaults) => {
   const work = new Float32Array(buf.length);
   // Chromatic shift: offset R and B channels horizontally.
   if (chromaShift > 0) {
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const i = getBufferIndex(x, y, W);
-      const rI = getBufferIndex(Math.max(0, Math.min(W - 1, x - Math.round(chromaShift))), y, W);
-      const bI = getBufferIndex(Math.max(0, Math.min(W - 1, x + Math.round(chromaShift))), y, W);
-      work[i] = buf[rI]; work[i + 1] = buf[i + 1]; work[i + 2] = buf[bI + 2]; work[i + 3] = buf[i + 3];
-    }
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const i = getBufferIndex(x, y, W);
+        const rI = getBufferIndex(Math.max(0, Math.min(W - 1, x - Math.round(chromaShift))), y, W);
+        const bI = getBufferIndex(Math.max(0, Math.min(W - 1, x + Math.round(chromaShift))), y, W);
+        work[i] = buf[rI];
+        work[i + 1] = buf[i + 1];
+        work[i + 2] = buf[bI + 2];
+        work[i + 3] = buf[i + 3];
+      }
   } else {
     for (let i = 0; i < buf.length; i++) work[i] = buf[i];
   }
@@ -369,12 +467,14 @@ const deepFry = (input: any, options = defaults) => {
   for (let i = 0; i < work.length; i += 4) {
     const [h, s, l] = rgbToHsl(work[i], work[i + 1], work[i + 2]);
     const [r, g, b] = hslToRgb(h, Math.min(1, s * saturation), l);
-    work[i] = r; work[i + 1] = g; work[i + 2] = b;
+    work[i] = r;
+    work[i + 1] = g;
+    work[i + 2] = b;
   }
 
   if (warmth > 0) {
     for (let i = 0; i < work.length; i += 4) {
-      work[i]     = clamp(work[i] + warmth * 60);
+      work[i] = clamp(work[i] + warmth * 60);
       work[i + 1] = clamp(work[i + 1] + warmth * 20);
       work[i + 2] = clamp(work[i + 2] - warmth * 30);
     }
@@ -384,7 +484,7 @@ const deepFry = (input: any, options = defaults) => {
   if (posterize < 64) {
     const step = 255 / Math.max(1, posterize - 1);
     for (let i = 0; i < work.length; i += 4) {
-      work[i]     = clamp(Math.round(Math.round(work[i] / step) * step));
+      work[i] = clamp(Math.round(Math.round(work[i] / step) * step));
       work[i + 1] = clamp(Math.round(Math.round(work[i + 1] / step) * step));
       work[i + 2] = clamp(Math.round(Math.round(work[i + 2] / step) * step));
     }
@@ -393,36 +493,61 @@ const deepFry = (input: any, options = defaults) => {
   if (blockiness > 0) {
     for (let by = 0; by < H; by += 8) {
       for (let bx = 0; bx < W; bx += 8) {
-        let sumR = 0, sumG = 0, sumB = 0, count = 0;
-        const bw = Math.min(8, W - bx), bh = Math.min(8, H - by);
-        for (let dy = 0; dy < bh; dy++) for (let dx = 0; dx < bw; dx++) {
-          const idx = getBufferIndex(bx + dx, by + dy, W);
-          sumR += work[idx]; sumG += work[idx + 1]; sumB += work[idx + 2]; count++;
-        }
-        const avgR = sumR / count, avgG = sumG / count, avgB = sumB / count;
-        for (let dy = 0; dy < bh; dy++) for (let dx = 0; dx < bw; dx++) {
-          const idx = getBufferIndex(bx + dx, by + dy, W);
-          work[idx]     = work[idx]     * (1 - blockiness) + avgR * blockiness;
-          work[idx + 1] = work[idx + 1] * (1 - blockiness) + avgG * blockiness;
-          work[idx + 2] = work[idx + 2] * (1 - blockiness) + avgB * blockiness;
-        }
+        let sumR = 0,
+          sumG = 0,
+          sumB = 0,
+          count = 0;
+        const bw = Math.min(8, W - bx),
+          bh = Math.min(8, H - by);
+        for (let dy = 0; dy < bh; dy++)
+          for (let dx = 0; dx < bw; dx++) {
+            const idx = getBufferIndex(bx + dx, by + dy, W);
+            sumR += work[idx];
+            sumG += work[idx + 1];
+            sumB += work[idx + 2];
+            count++;
+          }
+        const avgR = sumR / count,
+          avgG = sumG / count,
+          avgB = sumB / count;
+        for (let dy = 0; dy < bh; dy++)
+          for (let dx = 0; dx < bw; dx++) {
+            const idx = getBufferIndex(bx + dx, by + dy, W);
+            work[idx] = work[idx] * (1 - blockiness) + avgR * blockiness;
+            work[idx + 1] = work[idx + 1] * (1 - blockiness) + avgG * blockiness;
+            work[idx + 2] = work[idx + 2] * (1 - blockiness) + avgB * blockiness;
+          }
       }
     }
   }
 
   if (sharpness > 0) {
     const blurred = new Float32Array(work.length);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      let sr = 0, sg = 0, sb = 0, count = 0;
-      for (let ky = -1; ky <= 1; ky++) for (let kx = -1; kx <= 1; kx++) {
-        const ki = getBufferIndex(Math.max(0, Math.min(W - 1, x + kx)), Math.max(0, Math.min(H - 1, y + ky)), W);
-        sr += work[ki]; sg += work[ki + 1]; sb += work[ki + 2]; count++;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        let sr = 0,
+          sg = 0,
+          sb = 0,
+          count = 0;
+        for (let ky = -1; ky <= 1; ky++)
+          for (let kx = -1; kx <= 1; kx++) {
+            const ki = getBufferIndex(
+              Math.max(0, Math.min(W - 1, x + kx)),
+              Math.max(0, Math.min(H - 1, y + ky)),
+              W,
+            );
+            sr += work[ki];
+            sg += work[ki + 1];
+            sb += work[ki + 2];
+            count++;
+          }
+        const i = getBufferIndex(x, y, W);
+        blurred[i] = sr / count;
+        blurred[i + 1] = sg / count;
+        blurred[i + 2] = sb / count;
       }
-      const i = getBufferIndex(x, y, W);
-      blurred[i] = sr / count; blurred[i + 1] = sg / count; blurred[i + 2] = sb / count;
-    }
     for (let i = 0; i < work.length; i += 4) {
-      work[i]     = clamp(work[i]     + sharpness * (work[i]     - blurred[i]));
+      work[i] = clamp(work[i] + sharpness * (work[i] - blurred[i]));
       work[i + 1] = clamp(work[i + 1] + sharpness * (work[i + 1] - blurred[i + 1]));
       work[i + 2] = clamp(work[i + 2] + sharpness * (work[i + 2] - blurred[i + 2]));
     }
@@ -435,24 +560,29 @@ const deepFry = (input: any, options = defaults) => {
       const t = lumV / 255;
       if (t > 0.45) {
         const g2 = Math.min(1, (t - 0.45) / 0.5) * glow;
-        work[i]     = clamp(work[i] + work[i] / 255 * g2 * 255);
-        work[i + 1] = clamp(work[i + 1] + work[i + 1] / 255 * g2 * 255);
-        work[i + 2] = clamp(work[i + 2] + work[i + 2] / 255 * g2 * 255);
+        work[i] = clamp(work[i] + (work[i] / 255) * g2 * 255);
+        work[i + 1] = clamp(work[i + 1] + (work[i + 1] / 255) * g2 * 255);
+        work[i + 2] = clamp(work[i + 2] + (work[i + 2] / 255) * g2 * 255);
       }
     }
   }
 
   const outBuf = new Uint8ClampedArray(buf.length);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = getBufferIndex(x, y, W);
-    let r = work[i], g = work[i + 1], b = work[i + 2];
-    if (noise > 0) {
-      const n = (rng() - 0.5) * noise * 255;
-      r = clamp(r + n); g = clamp(g + n); b = clamp(b + n);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const i = getBufferIndex(x, y, W);
+      let r = work[i],
+        g = work[i + 1],
+        b = work[i + 2];
+      if (noise > 0) {
+        const n = (rng() - 0.5) * noise * 255;
+        r = clamp(r + n);
+        g = clamp(g + n);
+        b = clamp(b + n);
+      }
+      const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
+      fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
-    const color = paletteGetColor(palette, rgba(r, g, b, buf[i + 3]), palette.options, false);
-    fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
-  }
 
   outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
   return output;

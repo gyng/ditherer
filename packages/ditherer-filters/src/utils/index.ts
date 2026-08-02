@@ -49,10 +49,7 @@ export const srgbBufToLinearFloat = (buf: Uint8ClampedArray | Uint8Array) => {
 };
 
 // Convert linear Float32Array → sRGB Uint8ClampedArray
-export const linearFloatToSrgbBuf = (
-  floats: Float32Array,
-  out: Uint8ClampedArray | Uint8Array
-) => {
+export const linearFloatToSrgbBuf = (floats: Float32Array, out: Uint8ClampedArray | Uint8Array) => {
   for (let i = 0; i < floats.length; i += 4) {
     out[i] = linearFloatToSrgb(floats[i] ?? 0);
     out[i + 1] = linearFloatToSrgb(floats[i + 1] ?? 0);
@@ -138,8 +135,10 @@ const readPixel = (buf: NumericBuffer | RgbaLike, offset = 0): [number, number, 
   readValue(buf, offset + 2),
   readValue(buf, offset + 3),
 ];
-const readPaletteColor = (palette: readonly RgbaLike[] | number[][], index: number): [number, number, number, number] =>
-  readPixel(palette[index] ?? [], 0);
+const readPaletteColor = (
+  palette: readonly RgbaLike[] | number[][],
+  index: number,
+): [number, number, number, number] => readPixel(palette[index] ?? [], 0);
 
 // --- Palette color matching ---
 
@@ -168,12 +167,7 @@ export const linearPaletteGetColor = (palette: any, pixel: LinearPixel, options:
 // transparent-output bug. Kept only for pre-existing filters (jitter,
 // scanline, channelSeparation, pixelsort, rgbstripe) that still pass
 // options._linearize and need to be migrated.
-export const paletteGetColor = (
-  palette: any,
-  pixel: RgbaLike,
-  options: any,
-  isLinear: boolean
-) => {
+export const paletteGetColor = (palette: any, pixel: RgbaLike, options: any, isLinear: boolean) => {
   if (!isLinear) return palette.getColor(pixel, options);
   const srgbPixel = delinearizeColorF(pixel);
   const match = palette.getColor(srgbPixel, options);
@@ -185,7 +179,12 @@ export const paletteGetColor = (
 const memoize = (fn: any) => {
   const cache = new Map<number, any>();
   return (input: RgbaLike, ref?: any): any => {
-    const key = (readValue(input, 0) << 24 | readValue(input, 1) << 16 | readValue(input, 2) << 8 | readValue(input, 3)) >>> 0;
+    const key =
+      ((readValue(input, 0) << 24) |
+        (readValue(input, 1) << 16) |
+        (readValue(input, 2) << 8) |
+        readValue(input, 3)) >>>
+      0;
     const cached = cache.get(key);
     if (cached !== undefined) return cached;
     const result = fn(input, ref);
@@ -215,16 +214,19 @@ const bindWasmModule = (mod: typeof import("../wasm/rgba2laba/wasm/rgba2laba")) 
   wasmLoadedFlag = true;
 };
 
-export const wasmReady: Promise<boolean> = import.meta.env.MODE !== "test"
-  ? import("../wasm/rgba2laba/wasm/rgba2laba").then(async (mod) => {
-    await mod.default();
-    bindWasmModule(mod);
-    return true;
-  }).catch(err => {
-    console.error("WASM module failed to load, using JS fallback:", err);
-    return false;
-  })
-  : Promise.resolve(false);
+export const wasmReady: Promise<boolean> =
+  import.meta.env.MODE !== "test"
+    ? import("../wasm/rgba2laba/wasm/rgba2laba")
+        .then(async (mod) => {
+          await mod.default();
+          bindWasmModule(mod);
+          return true;
+        })
+        .catch((err) => {
+          console.error("WASM module failed to load, using JS fallback:", err);
+          return false;
+        })
+    : Promise.resolve(false);
 
 // Node/tooling escape hatch: the default wasmReady path uses `fetch(new URL(...))`
 // which Node's undici can't handle for `file://` wasm URLs. Tooling (the gallery
@@ -277,10 +279,7 @@ const linearize = (c: number) => {
 };
 
 // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
-export const luminanceItuBt709 = (
-  c: RgbaLike,
-  linear = true
-) => {
+export const luminanceItuBt709 = (c: RgbaLike, linear = true) => {
   const [cr, cg, cb, ca] = readPixel(c);
   const [r, g, b] = linear
     ? [linearize(cr), linearize(cg), linearize(cb)]
@@ -289,10 +288,7 @@ export const luminanceItuBt709 = (
 };
 
 // ITU BT.601
-export const luminance = (
-  c: RgbaLike,
-  linear = true
-) => {
+export const luminance = (c: RgbaLike, linear = true) => {
   const [cr, cg, cb, ca] = readPixel(c);
   const [r, g, b] = linear
     ? [linearize(cr), linearize(cg), linearize(cb)]
@@ -309,17 +305,11 @@ export const quantizeValue = (value: number, levels: number) => {
 export const clamp = (min: number, max: number, value: number) =>
   Math.max(min, Math.min(max, value));
 
-export const rgba = (r: number, g: number, b: number, a: number) => [
-  r,
-  g,
-  b,
-  a
-] as [number, number, number, number];
+export const rgba = (r: number, g: number, b: number, a: number) =>
+  [r, g, b, a] as [number, number, number, number];
 
 // mutates input
-export const equalize = (
-  input: NumericBuffer
-) => {
+export const equalize = (input: NumericBuffer) => {
   let min = input[0] ?? 0;
   let max = input[0] ?? 0;
 
@@ -341,12 +331,12 @@ export const equalize = (
 export const referenceTable = {
   CIE_1931: {
     // 2° (CIE 1931)
-    D65: { x: 95.047, y: 100, z: 108.883 }
+    D65: { x: 95.047, y: 100, z: 108.883 },
   },
   CIE_1964: {
     // 10° (CIE 1964)
-    D65: { x: 94.811, y: 100, z: 107.304 }
-  }
+    D65: { x: 94.811, y: 100, z: 107.304 },
+  },
 };
 
 // 0-360, 0-1, 0-1, 0-1
@@ -421,10 +411,7 @@ const labChannelToLinear = (v: number) =>
 
 // https://stackoverflow.com/questions/7880264/convert-lab-color-to-rgb
 // Convert RGB > XYZ > CIE Lab, copying alpha channel
-export const rgba2laba = (
-  input: RgbaLike,
-  ref = referenceTable.CIE_1931.D65
-) => {
+export const rgba2laba = (input: RgbaLike, ref = referenceTable.CIE_1931.D65) => {
   const [ir, ig, ib, ia] = readPixel(input);
   const r = labChannelToLinear(ir) * 100;
   const g = labChannelToLinear(ig) * 100;
@@ -611,7 +598,8 @@ const wasmApplyChannelLutInnerDefault: WasmApplyChannelLutFn = () => {
   console.error("WASM module not loaded!");
 };
 
-let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn = wasmNearestLabPrecomputedInnerDefault;
+let wasmNearestLabPrecomputedInner: WasmNearestLabPrecomputedFn =
+  wasmNearestLabPrecomputedInnerDefault;
 let wasmQuantizeBufferRgbInner: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 const wasmQuantizeBufferLabInnerDefault: WasmQuantizeBufferFn = wasmQuantizeBufferRgbInnerDefault;
 let wasmQuantizeBufferLabInner: WasmQuantizeBufferFn = wasmQuantizeBufferLabInnerDefault;
@@ -638,7 +626,7 @@ let cachedPaletteLabRef: readonly RgbaLike[] | null = null;
 export const wasmNearestLabPrecomputed = (
   pixel: number[],
   palette: number[][],
-  ref = referenceTable.CIE_1931.D65
+  ref = referenceTable.CIE_1931.D65,
 ) => {
   if (cachedPaletteLabRef !== palette) {
     // Pre-convert palette to Lab on JS side, cache as flat [L,a,b, L,a,b, …]
@@ -652,9 +640,13 @@ export const wasmNearestLabPrecomputed = (
     cachedPaletteLabRef = palette;
   }
   return wasmNearestLabPrecomputedInner(
-    readValue(pixel, 0), readValue(pixel, 1), readValue(pixel, 2),
+    readValue(pixel, 0),
+    readValue(pixel, 1),
+    readValue(pixel, 2),
     cachedPaletteLabFlat!,
-    ref.x, ref.y, ref.z
+    ref.x,
+    ref.y,
+    ref.z,
   );
 };
 
@@ -681,8 +673,7 @@ const ensurePaletteFlat = (palette: number[][]) => {
 export const wasmQuantizeBufferRgb = (
   buffer: Uint8ClampedArray | Uint8Array,
   palette: number[][],
-): Uint8Array =>
-  wasmQuantizeBufferRgbInner(buffer, ensurePaletteFlat(palette));
+): Uint8Array => wasmQuantizeBufferRgbInner(buffer, ensurePaletteFlat(palette));
 
 export const wasmQuantizeBufferLab = (
   buffer: Uint8ClampedArray | Uint8Array,
@@ -694,28 +685,31 @@ export const wasmQuantizeBufferLab = (
 export const wasmQuantizeBufferRgbApprox = (
   buffer: Uint8ClampedArray | Uint8Array,
   palette: number[][],
-): Uint8Array =>
-  wasmQuantizeBufferRgbApproxInner(buffer, ensurePaletteFlat(palette));
+): Uint8Array => wasmQuantizeBufferRgbApproxInner(buffer, ensurePaletteFlat(palette));
 
 export const wasmQuantizeBufferHsv = (
   buffer: Uint8ClampedArray | Uint8Array,
   palette: number[][],
-): Uint8Array =>
-  wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
+): Uint8Array => wasmQuantizeBufferHsvInner(buffer, ensurePaletteFlat(palette));
 
 // OKLab takes no whitepoint — it has D65 baked into its matrices, unlike
 // wasmQuantizeBufferLab which threads ref through.
 export const wasmQuantizeBufferOklab = (
   buffer: Uint8ClampedArray | Uint8Array,
   palette: number[][],
-): Uint8Array =>
-  wasmQuantizeBufferOklabInner(buffer, ensurePaletteFlat(palette));
+): Uint8Array => wasmQuantizeBufferOklabInner(buffer, ensurePaletteFlat(palette));
 
 // Resolve the colorDistanceAlgorithm for a palette, honoring the user palette's
 // runtime fallback (defaults.colorDistanceAlgorithm) so random-preset palettes
 // — which only carry `colors` in options — still take the WASM fast path.
 export const resolvePaletteColorAlgorithm = (palette: unknown): string | null => {
-  const p = palette as { options?: { colorDistanceAlgorithm?: string }; defaults?: { colorDistanceAlgorithm?: string } } | null | undefined;
+  const p = palette as
+    | {
+        options?: { colorDistanceAlgorithm?: string };
+        defaults?: { colorDistanceAlgorithm?: string };
+      }
+    | null
+    | undefined;
   return p?.options?.colorDistanceAlgorithm ?? p?.defaults?.colorDistanceAlgorithm ?? null;
 };
 
@@ -736,10 +730,20 @@ const filterBackends = new Map<string, Set<string>>();
 const filterBackendsListeners = new Set<() => void>();
 const recordBackend = (filterName: string, backend: string) => {
   let s = filterBackends.get(filterName);
-  if (!s) { s = new Set(); filterBackends.set(filterName, s); }
+  if (!s) {
+    s = new Set();
+    filterBackends.set(filterName, s);
+  }
   const before = s.size;
   s.add(backend);
-  if (s.size !== before) filterBackendsListeners.forEach(l => { try { l(); } catch { /* ignore */ } });
+  if (s.size !== before)
+    filterBackendsListeners.forEach((l) => {
+      try {
+        l();
+      } catch {
+        /* ignore */
+      }
+    });
 };
 
 // Subscribe to new-backend notifications. Listener fires whenever a filter
@@ -748,7 +752,9 @@ const recordBackend = (filterName: string, backend: string) => {
 // as presets/filters render.
 export const subscribeFilterBackends = (listener: () => void) => {
   filterBackendsListeners.add(listener);
-  return () => { filterBackendsListeners.delete(listener); };
+  return () => {
+    filterBackendsListeners.delete(listener);
+  };
 };
 
 export const logFilterWasmStatus = (filterName: string, didWasm: boolean, reason: string) => {
@@ -786,7 +792,10 @@ export const logFilterBackend = (filterName: string, backend: string, reason: st
 // status label explains *why* this filter is JS-only, and the inline-timing
 // tooltip can surface the reason instead of inviting another "optimise this"
 // request.
-export const logFilterDispatched = (filterName: string, capabilities?: { noGL?: string | undefined; noWASM?: string | undefined }) => {
+export const logFilterDispatched = (
+  filterName: string,
+  capabilities?: { noGL?: string | undefined; noWASM?: string | undefined },
+) => {
   if (filterNamesLogged.has(filterName)) return;
   filterNamesLogged.add(filterName);
   const reasons: string[] = [];
@@ -801,8 +810,7 @@ export const logFilterDispatched = (filterName: string, capabilities?: { noGL?: 
 
 // Snapshot of the most recently recorded status for each filter. Returns a
 // fresh Map so callers can freely mutate/read without disturbing internal state.
-export const getFilterWasmStatuses = (): Map<string, FilterWasmStatus> =>
-  new Map(filterLastStatus);
+export const getFilterWasmStatuses = (): Map<string, FilterWasmStatus> => new Map(filterLastStatus);
 
 // Returns every distinct backend we've observed each filter running under.
 // Populates opportunistically as filters fire (preset thumbnails, live
@@ -836,12 +844,18 @@ export const WASM_PALETTE_MODE = {
 // once already — paletteModeCoverage pins them together.
 export const colorAlgorithmToWasmMode = (algo: string | undefined): number | null => {
   switch (algo) {
-    case RGB_NEAREST: return WASM_PALETTE_MODE.RGB;
-    case RGB_APPROX: return WASM_PALETTE_MODE.RGB_APPROX;
-    case HSV_NEAREST: return WASM_PALETTE_MODE.HSV;
-    case LAB_NEAREST: return WASM_PALETTE_MODE.LAB;
-    case OKLAB_NEAREST: return WASM_PALETTE_MODE.OKLAB;
-    default: return null;
+    case RGB_NEAREST:
+      return WASM_PALETTE_MODE.RGB;
+    case RGB_APPROX:
+      return WASM_PALETTE_MODE.RGB_APPROX;
+    case HSV_NEAREST:
+      return WASM_PALETTE_MODE.HSV;
+    case LAB_NEAREST:
+      return WASM_PALETTE_MODE.LAB;
+    case OKLAB_NEAREST:
+      return WASM_PALETTE_MODE.OKLAB;
+    default:
+      return null;
   }
 };
 
@@ -871,15 +885,27 @@ export const wasmErrorDiffuseBuffer = (
   ref = referenceTable.CIE_1931.D65,
 ): void =>
   wasmErrorDiffuseBufferInner(
-    input, output, width, height,
-    kernel, kernelWidth, kernelHeight, offsetX, offsetY,
-    serpentine, rowAlt, linearize,
+    input,
+    output,
+    width,
+    height,
+    kernel,
+    kernelWidth,
+    kernelHeight,
+    offsetX,
+    offsetY,
+    serpentine,
+    rowAlt,
+    linearize,
     prevInput ?? EMPTY_U8,
     prevOutput ?? EMPTY_U8,
     temporalBleed,
-    paletteMode, levels,
+    paletteMode,
+    levels,
     palette ? ensurePaletteFlat(palette) : new Float64Array(0),
-    ref.x, ref.y, ref.z,
+    ref.x,
+    ref.y,
+    ref.z,
   );
 
 const EMPTY_U8 = new Uint8Array(0);
@@ -907,15 +933,26 @@ export const wasmErrorDiffuseCustomOrder = (
   ref = referenceTable.CIE_1931.D65,
 ): void =>
   wasmErrorDiffuseCustomInner(
-    input, output, width, height,
-    visitOrder, tuples, kernelStarts, kernelLens, kernelTotals,
-    errStrategy, linearize,
+    input,
+    output,
+    width,
+    height,
+    visitOrder,
+    tuples,
+    kernelStarts,
+    kernelLens,
+    kernelTotals,
+    errStrategy,
+    linearize,
     prevInput ?? EMPTY_U8,
     prevOutput ?? EMPTY_U8,
     temporalBleed,
-    paletteMode, levels,
+    paletteMode,
+    levels,
     palette ? ensurePaletteFlat(palette) : new Float64Array(0),
-    ref.x, ref.y, ref.z,
+    ref.x,
+    ref.y,
+    ref.z,
   );
 
 export const wasmRiemersmaDither = (
@@ -933,11 +970,20 @@ export const wasmRiemersmaDither = (
   ref = referenceTable.CIE_1931.D65,
 ): void =>
   wasmRiemersmaDitherInner(
-    input, output, width, height,
-    memoryLength, falloffRatio, errorStrength,
-    linearize, paletteMode, levels,
+    input,
+    output,
+    width,
+    height,
+    memoryLength,
+    falloffRatio,
+    errorStrength,
+    linearize,
+    paletteMode,
+    levels,
     palette ? ensurePaletteFlat(palette) : new Float64Array(0),
-    ref.x, ref.y, ref.z,
+    ref.x,
+    ref.y,
+    ref.z,
   );
 
 // Error-strategy IDs — must match ERR_STRATEGY_* in packages/ditherer-filters/src/wasm/rgba2laba/src/lib.rs
@@ -978,10 +1024,7 @@ export const wasmApplyChannelLut = (
   lutB: Uint8Array,
 ): void => wasmApplyChannelLutInner(input, output, lutR, lutG, lutB);
 
-export const laba2rgba = (
-  input: RgbaLike,
-  ref = referenceTable.CIE_1931.D65
-) => {
+export const laba2rgba = (input: RgbaLike, ref = referenceTable.CIE_1931.D65) => {
   const [l, a, bIn, alpha] = readPixel(input);
   let y = (l + 16) / 116;
   let x = a / 500 + y;
@@ -1019,11 +1062,7 @@ export const laba2rgba = (
 // a can be assumed to be palette colour.
 // Returns squared distance (sqrt omitted — monotone, so comparison ordering
 // is preserved and callers only use this for nearest-color search).
-export const colorDistance = (
-  a: RgbaLike,
-  b: RgbaLike,
-  colorDistanceAlgorithm: string
-) => {
+export const colorDistance = (a: RgbaLike, b: RgbaLike, colorDistanceAlgorithm: string) => {
   const [ar, ag, ab] = readPixel(a);
   const [br, bg, bb] = readPixel(b);
   switch (colorDistanceAlgorithm) {
@@ -1032,9 +1071,11 @@ export const colorDistance = (
     case LAB_NEAREST: {
       const aLab = rgba2labaMemo(a);
       const bLab = rgba2laba(b);
-      return ((bLab[0] ?? 0) - (aLab[0] ?? 0)) ** 2 +
+      return (
+        ((bLab[0] ?? 0) - (aLab[0] ?? 0)) ** 2 +
         ((bLab[1] ?? 0) - (aLab[1] ?? 0)) ** 2 +
-        ((bLab[2] ?? 0) - (aLab[2] ?? 0)) ** 2;
+        ((bLab[2] ?? 0) - (aLab[2] ?? 0)) ** 2
+      );
     }
     case OKLAB_NEAREST: {
       // Same euclidean form as LAB_NEAREST, but on a ~100x smaller scale (L is
@@ -1043,9 +1084,11 @@ export const colorDistance = (
       // quantizers each stay within one algorithm.
       const aOk = rgba2oklabaMemo(a);
       const bOk = rgba2oklaba(b);
-      return ((bOk[0] ?? 0) - (aOk[0] ?? 0)) ** 2 +
+      return (
+        ((bOk[0] ?? 0) - (aOk[0] ?? 0)) ** 2 +
         ((bOk[1] ?? 0) - (aOk[1] ?? 0)) ** 2 +
-        ((bOk[2] ?? 0) - (aOk[2] ?? 0)) ** 2;
+        ((bOk[2] ?? 0) - (aOk[2] ?? 0)) ** 2
+      );
     }
     case RGB_APPROX: {
       const r = (ar + br) / 2;
@@ -1065,7 +1108,7 @@ export const colorDistance = (
       const dH =
         Math.min(
           Math.abs((bHsv[0] ?? 0) - (aHsv[0] ?? 0)),
-          360 - Math.abs((bHsv[0] ?? 0) - (aHsv[0] ?? 0))
+          360 - Math.abs((bHsv[0] ?? 0) - (aHsv[0] ?? 0)),
         ) / 180.0;
       const dS = Math.abs((bHsv[1] ?? 0) - (aHsv[1] ?? 0));
       // dV is NOT divided by 255: rgba2hsva already returns V in 0..1, like S,
@@ -1092,14 +1135,14 @@ export const medianCutPalette = (
   limit: number,
   ignoreAlpha: boolean,
   adaptMode: string,
-  colorMode = "RGB"
+  colorMode = "RGB",
 ) => {
   const [firstR, firstG, firstB, firstA] = readPixel(buf);
   const range = {
     r: { min: firstR, max: firstR },
     g: { min: firstG, max: firstG },
     b: { min: firstB, max: firstB },
-    a: { min: firstA, max: firstA }
+    a: { min: firstA, max: firstA },
   };
 
   const pixels: number[][] = [];
@@ -1133,7 +1176,7 @@ export const medianCutPalette = (
     { channel: 0, range: range.r.max - range.r.min },
     { channel: 1, range: range.g.max - range.g.min },
     { channel: 2, range: range.b.max - range.b.min },
-    { channel: 3, range: range.a.max - range.a.min }
+    { channel: 3, range: range.a.max - range.a.min },
   ].sort((a, b) => b.range - a.range);
 
   const medianCut = (
@@ -1142,7 +1185,7 @@ export const medianCutPalette = (
     remaining: number,
     iterations: number,
     ignAlpha: boolean,
-    adptMode: string
+    adptMode: string,
   ): number[][] => {
     if (bucket.length <= 1) {
       return bucket.length === 0 ? [] : [bucket[0] ?? [0, 0, 0, 0]];
@@ -1174,31 +1217,19 @@ export const medianCutPalette = (
     // Subsort recursively, cycling through channels
     return [bucket.slice(0, midIdx), bucket.slice(midIdx, bucket.length)]
       .map((g: number[][]) =>
-        medianCut(
-          g,
-          channelSequence,
-          remaining - 1,
-          iterations + 1,
-          ignAlpha,
-          adptMode
-        )
+        medianCut(g, channelSequence, remaining - 1, iterations + 1, ignAlpha, adptMode),
       )
       .reduce((a: number[][], b: number[][]) => a.concat(b), []);
   };
 
-  const paletteRaw = medianCut(
-    pixels,
-    channelsByRange,
-    limit,
-    0,
-    ignoreAlpha,
-    adaptMode
-  ).filter(c => c != null);
+  const paletteRaw = medianCut(pixels, channelsByRange, limit, 0, ignoreAlpha, adaptMode).filter(
+    (c) => c != null,
+  );
 
   if (colorMode === "RGB") {
     return paletteRaw;
   } else if (colorMode === "LAB") {
-    return paletteRaw.map(c => laba2rgba(c));
+    return paletteRaw.map((c) => laba2rgba(c));
   }
 
   return [];
@@ -1245,10 +1276,7 @@ export const reducePaletteToCap = (colors: number[][], cap: number): number[][] 
   return unique.slice(0, cap);
 };
 
-export const uniqueColors = (
-  buf: Uint8ClampedArray | Uint8Array,
-  limit?: number
-) => {
+export const uniqueColors = (buf: Uint8ClampedArray | Uint8Array, limit?: number) => {
   const seen: Record<string, { count: number; color: number[] }> = {};
 
   for (let i = 0; i < buf.length; i += 4) {
@@ -1261,66 +1289,52 @@ export const uniqueColors = (
     } else {
       seen[key] = {
         count: 1,
-        color: rgba(r, g, b, a)
+        color: rgba(r, g, b, a),
       };
     }
   }
 
   if (limit) {
-    return (
-      Object.values(seen)
-        .sort((a, b) => {
-          if (
-            !a ||
-            !b ||
-            typeof a.count !== "number" ||
-            typeof b.count !== "number"
-          ) {
-            return 0;
-          }
-
-          if (a.count < b.count) return -1;
-          if (a.count > b.count) return 1;
+    return Object.values(seen)
+      .sort((a, b) => {
+        if (!a || !b || typeof a.count !== "number" || typeof b.count !== "number") {
           return 0;
-        })
-        .slice(0, limit)
-        .map(c => c.color)
-    );
+        }
+
+        if (a.count < b.count) return -1;
+        if (a.count > b.count) return 1;
+        return 0;
+      })
+      .slice(0, limit)
+      .map((c) => c.color);
   }
 
-  return Object.values(seen).map(c => c.color);
+  return Object.values(seen).map((c) => c.color);
 };
 
 // Preserves nulls
-export const scaleMatrix = (
-  mat: Array<Array<number | null>>,
-  scale: number
-) =>
-  mat.map(row => row.map(col => (col ? col * scale : col)));
+export const scaleMatrix = (mat: Array<Array<number | null>>, scale: number) =>
+  mat.map((row) => row.map((col) => (col ? col * scale : col)));
 
 export const add = (a: number[], b: number[]) => [
   (a[0] ?? 0) + (b[0] ?? 0),
   (a[1] ?? 0) + (b[1] ?? 0),
   (a[2] ?? 0) + (b[2] ?? 0),
-  (a[3] ?? 0) + (b[3] ?? 0)
+  (a[3] ?? 0) + (b[3] ?? 0),
 ];
 
 export const sub = (a: number[], b: number[]) => [
   (a[0] ?? 0) - (b[0] ?? 0),
   (a[1] ?? 0) - (b[1] ?? 0),
   (a[2] ?? 0) - (b[2] ?? 0),
-  (a[3] ?? 0) - (b[3] ?? 0)
+  (a[3] ?? 0) - (b[3] ?? 0),
 ];
 
-export const scale = (
-  a: number[],
-  scalar: number,
-  alpha = false
-) => [
+export const scale = (a: number[], scalar: number, alpha = false) => [
   scalar * (a[0] ?? 0),
   scalar * (a[1] ?? 0),
   scalar * (a[2] ?? 0),
-  alpha ? scalar * (a[3] ?? 0) : (a[3] ?? 0)
+  alpha ? scalar * (a[3] ?? 0) : (a[3] ?? 0),
 ];
 
 // contrast factor 0-1 ideally
@@ -1330,38 +1344,33 @@ export const contrast = (color: number[], factor: number) => {
     (color[0] ?? 0) / 255 - 0.5,
     (color[1] ?? 0) / 255 - 0.5,
     (color[2] ?? 0) / 255 - 0.5,
-    color[3] ?? 0
+    color[3] ?? 0,
   ];
 
   return [
     (nC[0] + factor * (nC[0] - 1.0) * nC[0] * (nC[0] - 0.5) + 0.5) * 255,
     (nC[1] + factor * (nC[1] - 1.0) * nC[1] * (nC[1] - 0.5) + 0.5) * 255,
     (nC[2] + factor * (nC[2] - 1.0) * nC[2] * (nC[2] - 0.5) + 0.5) * 255,
-    color[3] ?? 0
+    color[3] ?? 0,
   ];
 };
 
 // factor 0-255, exposure ideally 0-2 (small number)
-export const brightness = (
-  color: number[],
-  factor: number,
-  exposure = 1
-) => [
+export const brightness = (color: number[], factor: number, exposure = 1) => [
   (color[0] ?? 0) * exposure + factor,
   (color[1] ?? 0) * exposure + factor,
   (color[2] ?? 0) * exposure + factor,
-  color[3] ?? 0
+  color[3] ?? 0,
 ];
 
 export const gamma = (color: number[], g: number) => [
   255 * ((color[0] ?? 0) / 255) ** (1 / g),
   255 * ((color[1] ?? 0) / 255) ** (1 / g),
   255 * ((color[2] ?? 0) / 255) ** (1 / g),
-  color[3] ?? 0
+  color[3] ?? 0,
 ];
 
-export const getBufferIndex = (x: number, y: number, width: number) =>
-  (x + width * y) * 4;
+export const getBufferIndex = (x: number, y: number, width: number) => (x + width * y) * 4;
 
 // FIXME: Make signature consistent with addBufferPixel
 export const fillBufferPixel = (
@@ -1370,7 +1379,7 @@ export const fillBufferPixel = (
   r: number,
   g: number,
   b: number,
-  a: number
+  a: number,
 ) => {
   if (i < buf.length) buf[i] = r;
   if (i + 1 < buf.length) buf[i + 1] = g;
@@ -1381,7 +1390,7 @@ export const fillBufferPixel = (
 export const addBufferPixel = (
   buf: Uint8ClampedArray | Uint8Array | Float32Array | number[],
   i: number,
-  color: number[]
+  color: number[],
 ) => {
   if (i < buf.length) buf[i] = (buf[i] ?? 0) + (color[0] ?? 0);
   if (i + 1 < buf.length) buf[i + 1] = (buf[i + 1] ?? 0) + (color[1] ?? 0);
@@ -1431,7 +1440,8 @@ const poolKey = (w: number, h: number): string => `${w}x${h}`;
 const createRawCanvas = (w: number, h: number): HTMLCanvasElement | OffscreenCanvas => {
   if (typeof document !== "undefined") {
     const c = document.createElement("canvas");
-    c.width = w; c.height = h;
+    c.width = w;
+    c.height = h;
     return c;
   }
   return new OffscreenCanvas(w, h);
@@ -1442,7 +1452,9 @@ const resetReusedCanvas = (canvas: HTMLCanvasElement | OffscreenCanvas, w: numbe
   // transforms, and drawing state even when the value is unchanged.
   canvas.width = w;
   const context = canvas.getContext("2d") as
-    | CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!context) return;
   // Keep a small explicit fallback for test/minimal canvas implementations
   // that do not model the dimension-reset side effect.
@@ -1517,7 +1529,7 @@ export const withPooledCanvasCleanup = <T>(
 
 export const cloneCanvas = (
   original: HTMLCanvasElement | OffscreenCanvas,
-  copyData = true
+  copyData = true,
 ): HTMLCanvasElement => {
   const clone = takePooledCanvas(original.width, original.height);
 
@@ -1525,10 +1537,12 @@ export const cloneCanvas = (
   // getImageData on it at least once per subsequent filter. willReadFrequently
   // keeps the backing store CPU-side so those reads don't pay a GPU-readback
   // cost (and don't trigger the browser's "multiple readback" console warning).
-  const isHtmlCanvas = typeof HTMLCanvasElement !== "undefined" && clone instanceof HTMLCanvasElement;
-  const cloneCtx = (isHtmlCanvas
-    ? (clone as HTMLCanvasElement).getContext("2d", { willReadFrequently: true })
-    : (clone as OffscreenCanvas).getContext("2d", { willReadFrequently: true })
+  const isHtmlCanvas =
+    typeof HTMLCanvasElement !== "undefined" && clone instanceof HTMLCanvasElement;
+  const cloneCtx = (
+    isHtmlCanvas
+      ? (clone as HTMLCanvasElement).getContext("2d", { willReadFrequently: true })
+      : (clone as OffscreenCanvas).getContext("2d", { willReadFrequently: true })
   ) as CanvasRenderingContext2D | null;
 
   if (cloneCtx) {

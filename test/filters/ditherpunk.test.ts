@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("utils", async importOriginal => {
+vi.mock("utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("utils")>();
   return {
     ...actual,
@@ -45,20 +45,26 @@ const makeGradientCanvas = (width: number, height: number) => {
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, w: number, h: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: w,
-        height: h,
-      }),
-      putImageData: () => {},
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, w: number, h: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: w,
+              height: h,
+            }),
+            putImageData: () => {},
+          }
+        : null,
   };
 };
 
 type TestCanvas = ReturnType<typeof makeGradientCanvas>;
 
-const runAndCapture = (input: TestCanvas, options: Record<string, unknown>): Uint8ClampedArray | null => {
+const runAndCapture = (
+  input: TestCanvas,
+  options: Record<string, unknown>,
+): Uint8ClampedArray | null => {
   let captured: Uint8ClampedArray | null = null;
   const OriginalImageData = (globalThis as any).ImageData;
 
@@ -107,13 +113,20 @@ describe("ditherpunk ordered maps", () => {
 describe("Riemersma dither", () => {
   beforeAll(async () => {
     if (!wasmIsLoaded()) {
-      const wasm = readFileSync(resolve(process.cwd(), "packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm"));
-      await initWasmFromBinary(wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength));
+      const wasm = readFileSync(
+        resolve(
+          process.cwd(),
+          "packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba_bg.wasm",
+        ),
+      );
+      await initWasmFromBinary(
+        wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength),
+      );
     }
   });
 
   it("is registered as a dithering filter", () => {
-    expect(filterList.some(entry => entry.displayName === "Riemersma")).toBe(true);
+    expect(filterList.some((entry) => entry.displayName === "Riemersma")).toBe(true);
   });
 
   it("quantizes along its Hilbert error-memory path", () => {

@@ -3,11 +3,14 @@ export type CheckResult = { ok: true } | { ok: false; reason: string };
 export type FilterLike = {
   func: (input: unknown, options: unknown) => unknown;
   defaults?: Record<string, unknown>;
-  optionTypes?: Record<string, {
-    type?: string;
-    options?: { value: unknown }[];
-    range?: [number, number];
-  }>;
+  optionTypes?: Record<
+    string,
+    {
+      type?: string;
+      options?: { value: unknown }[];
+      range?: [number, number];
+    }
+  >;
   requiresGL?: boolean;
   temporal?: boolean;
 };

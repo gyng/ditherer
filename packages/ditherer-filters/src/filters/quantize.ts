@@ -3,7 +3,11 @@ import { nearest } from "../palettes/index";
 import { resolvePaletteColorAlgorithm, logFilterBackend } from "../utils/index";
 import { RGB_NEAREST, RGB_APPROX } from "../constants/color";
 import { defineFilter, type FilterOptionValues } from "./types";
-import { applyPalettePassToCanvas, applyLinearPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
+import {
+  applyPalettePassToCanvas,
+  applyLinearPalettePassToCanvas,
+  paletteIsIdentity,
+} from "../palettes/backend";
 import {
   drawPass,
   ensureTexture,
@@ -75,8 +79,12 @@ const initGLCache = (gl: WebGL2RenderingContext): GLCache => {
   if (_glCache) return _glCache;
   _glCache = {
     q: linkProgram(gl, QUANTIZE_FS, [
-      "u_source", "u_algo", "u_linearize", "u_count",
-      "u_palette", "u_paletteLin",
+      "u_source",
+      "u_algo",
+      "u_linearize",
+      "u_count",
+      "u_palette",
+      "u_paletteLin",
     ] as const),
   };
   return _glCache;
@@ -88,11 +96,11 @@ const sRGBToLinearScalar = (v: number): number => {
 };
 
 export const optionTypes = {
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 const defaults = {
-  palette: { ...optionTypes.palette.default, options: { levels: 7 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 7 } },
 };
 
 type QuantizePaletteOptions = {
@@ -101,24 +109,28 @@ type QuantizePaletteOptions = {
   colors?: number[][];
 };
 
-type QuantizeOptions = FilterOptionValues & typeof defaults & {
-  _linearize?: boolean;
-  palette?: typeof defaults.palette & {
-    options?: QuantizePaletteOptions;
+type QuantizeOptions = FilterOptionValues &
+  typeof defaults & {
+    _linearize?: boolean;
+    palette?: typeof defaults.palette & {
+      options?: QuantizePaletteOptions;
+    };
   };
-};
 
 const quantize = (input: any, options: QuantizeOptions = defaults) => {
   const { palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const algo = resolvePaletteColorAlgorithm(palette);
   const paletteOpts = palette.options as { colors?: number[][]; levels?: number } | undefined;
   const colors = paletteOpts?.colors;
 
   // GL in-shader path: user palette with RGB / RGB_APPROX distance, ≤64 colours.
   const glInShader =
-    Array.isArray(colors) && colors.length > 0 && colors.length <= MAX_GL_PALETTE
-    && (algo === RGB_NEAREST || algo === RGB_APPROX);
+    Array.isArray(colors) &&
+    colors.length > 0 &&
+    colors.length <= MAX_GL_PALETTE &&
+    (algo === RGB_NEAREST || algo === RGB_APPROX);
   if (glInShader && colors) {
     const ctx = getGLCtx();
     if (!ctx) return input;
@@ -141,21 +153,32 @@ const quantize = (input: any, options: QuantizeOptions = defaults) => {
       palLin[i * 3 + 2] = sRGBToLinearScalar(c[2] ?? 0);
     }
 
-    drawPass(gl, null, W, H, cache.q, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-      gl.uniform1i(cache.q.uniforms.u_source, 0);
-      gl.uniform1i(cache.q.uniforms.u_algo, algo === RGB_APPROX ? 1 : 0);
-      gl.uniform1i(cache.q.uniforms.u_linearize, options._linearize ? 1 : 0);
-      gl.uniform1i(cache.q.uniforms.u_count, colors.length);
-      gl.uniform3fv(cache.q.uniforms.u_palette, palArr);
-      gl.uniform3fv(cache.q.uniforms.u_paletteLin, palLin);
-    }, vao);
+    drawPass(
+      gl,
+      null,
+      W,
+      H,
+      cache.q,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.q.uniforms.u_source, 0);
+        gl.uniform1i(cache.q.uniforms.u_algo, algo === RGB_APPROX ? 1 : 0);
+        gl.uniform1i(cache.q.uniforms.u_linearize, options._linearize ? 1 : 0);
+        gl.uniform1i(cache.q.uniforms.u_count, colors.length);
+        gl.uniform3fv(cache.q.uniforms.u_palette, palArr);
+        gl.uniform3fv(cache.q.uniforms.u_paletteLin, palLin);
+      },
+      vao,
+    );
 
     const rendered = readoutToCanvas(canvas, W, H);
     if (!rendered) return input;
-    logFilterBackend("Quantize", "WebGL2",
-      `algo=${algo} colors=${colors.length}${options._linearize ? " linearized" : ""}`);
+    logFilterBackend(
+      "Quantize",
+      "WebGL2",
+      `algo=${algo} colors=${colors.length}${options._linearize ? " linearized" : ""}`,
+    );
     return rendered;
   }
 
@@ -169,8 +192,11 @@ const quantize = (input: any, options: QuantizeOptions = defaults) => {
   const out = options._linearize
     ? applyLinearPalettePassToCanvas(input, W, H, palette)
     : applyPalettePassToCanvas(input, W, H, palette);
-  logFilterBackend("Quantize", "WebGL2",
-    `palettePass${options._linearize ? " linear" : ""}${algo ? ` algo=${algo}` : ""}`);
+  logFilterBackend(
+    "Quantize",
+    "WebGL2",
+    `palettePass${options._linearize ? " linear" : ""}${algo ? ` algo=${algo}` : ""}`,
+  );
   return out ?? input;
 };
 

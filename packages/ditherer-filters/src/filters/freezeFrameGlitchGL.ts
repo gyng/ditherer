@@ -82,8 +82,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, FREEZE_FS, [
-      "u_source", "u_prevOutput", "u_freezeGrid", "u_hasPrev",
-      "u_res", "u_blockSize", "u_blocksX", "u_blocksY", "u_channelIndependent",
+      "u_source",
+      "u_prevOutput",
+      "u_freezeGrid",
+      "u_hasPrev",
+      "u_res",
+      "u_blockSize",
+      "u_blocksX",
+      "u_blocksY",
+      "u_channelIndependent",
     ] as const),
   };
   return _cache;
@@ -137,8 +144,17 @@ const uploadPrevOutput = (
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-    new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA8,
+    w,
+    h,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
+  );
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   return tex;
 };
@@ -168,23 +184,31 @@ export const renderFreezeFrameGlitchGL = (
   if (!gridTex) return null;
   const prevTex = prevOutput ? uploadPrevOutput(gl, prevOutput, width, height) : null;
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex ?? sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_prevOutput, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, gridTex);
-    gl.uniform1i(cache.prog.uniforms.u_freezeGrid, 2);
-    gl.uniform1i(cache.prog.uniforms.u_hasPrev, prevTex ? 1 : 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_blockSize, blockSize);
-    gl.uniform1i(cache.prog.uniforms.u_blocksX, blocksX);
-    gl.uniform1i(cache.prog.uniforms.u_blocksY, blocksY);
-    gl.uniform1i(cache.prog.uniforms.u_channelIndependent, channelIndependent ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, prevTex ?? sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_prevOutput, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, gridTex);
+      gl.uniform1i(cache.prog.uniforms.u_freezeGrid, 2);
+      gl.uniform1i(cache.prog.uniforms.u_hasPrev, prevTex ? 1 : 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_blockSize, blockSize);
+      gl.uniform1i(cache.prog.uniforms.u_blocksX, blocksX);
+      gl.uniform1i(cache.prog.uniforms.u_blocksY, blocksY);
+      gl.uniform1i(cache.prog.uniforms.u_channelIndependent, channelIndependent ? 1 : 0);
+    },
+    vao,
+  );
 
   const out = readoutToCanvas(canvas, width, height);
   gl.deleteTexture(gridTex);

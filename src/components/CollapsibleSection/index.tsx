@@ -4,7 +4,13 @@ import s from "./styles.module.css";
 const isCompact = () =>
   typeof window !== "undefined" && window.matchMedia("(max-width: 960px)").matches;
 
-const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible = false, forceOpen }: {
+const CollapsibleSection = ({
+  title,
+  children,
+  defaultOpen = false,
+  collapsible = false,
+  forceOpen,
+}: {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
@@ -12,7 +18,7 @@ const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible 
   forceOpen?: boolean;
 }) => {
   const [collapsed, setCollapsed] = useState(() =>
-    collapsible ? !defaultOpen : (isCompact() && !defaultOpen)
+    collapsible ? !defaultOpen : isCompact() && !defaultOpen,
   );
   const [compact, setCompact] = useState(isCompact);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -37,30 +43,30 @@ const CollapsibleSection = ({ title, children, defaultOpen = false, collapsible 
   }, [collapsible]);
 
   return (
-    <div className={[s.section, collapsed ? s.collapsed : "", collapsible ? s.collapsible : ""].join(" ")}>
+    <div
+      className={[s.section, collapsed ? s.collapsed : "", collapsible ? s.collapsible : ""].join(
+        " ",
+      )}
+    >
       <div
         className={s.header}
         role={canToggle ? "button" : undefined}
         tabIndex={canToggle ? 0 : undefined}
         aria-expanded={canToggle ? !collapsed : undefined}
         onClick={() => {
-          if (canToggle) setCollapsed(c => !c);
+          if (canToggle) setCollapsed((c) => !c);
         }}
         onKeyDown={(e) => {
           if ((e.key === "Enter" || e.key === " ") && canToggle) {
             e.preventDefault();
-            setCollapsed(c => !c);
+            setCollapsed((c) => !c);
           }
         }}
       >
         <h2>{title}</h2>
         <span className={s.toggle}>{collapsed ? "[+]" : "[-]"}</span>
       </div>
-      <div
-        ref={contentRef}
-        className={s.content}
-        style={{ maxHeight: collapsed ? 0 : "none" }}
-      >
+      <div ref={contentRef} className={s.content} style={{ maxHeight: collapsed ? 0 : "none" }}>
         {children}
       </div>
     </div>

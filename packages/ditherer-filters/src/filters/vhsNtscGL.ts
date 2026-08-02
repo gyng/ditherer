@@ -364,19 +364,47 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     composite: linkProgram(gl, COMPOSITE_FS, [
-      "u_source", "u_res", "u_frame", "u_seed", "u_fieldMode", "u_compositeSharpness",
-      "u_compositeNoise", "u_snow", "u_snowAnisotropy", "u_headSwitching",
-      "u_headSwitchingHeight", "u_trackingNoise", "u_trackingHeight",
+      "u_source",
+      "u_res",
+      "u_frame",
+      "u_seed",
+      "u_fieldMode",
+      "u_compositeSharpness",
+      "u_compositeNoise",
+      "u_snow",
+      "u_snowAnisotropy",
+      "u_headSwitching",
+      "u_headSwitchingHeight",
+      "u_trackingNoise",
+      "u_trackingHeight",
     ] as const),
     demodulate: linkProgram(gl, DEMODULATE_FS, [
-      "u_composite", "u_res", "u_frame", "u_fieldMode", "u_demodulation",
+      "u_composite",
+      "u_res",
+      "u_frame",
+      "u_fieldMode",
+      "u_demodulation",
     ] as const),
     tape: linkProgram(gl, TAPE_FS, [
-      "u_yiq", "u_res", "u_frame", "u_seed", "u_filterType", "u_lumaRadius",
-      "u_chromaRadius", "u_tapeChromaDelay", "u_chromaDelayH", "u_chromaDelayV",
-      "u_chromaVertBlend", "u_chromaLoss", "u_chromaPhaseNoise",
-      "u_chromaPhaseError", "u_lumaSmear", "u_ringing", "u_lumaNoise",
-      "u_chromaNoise", "u_edgeWave",
+      "u_yiq",
+      "u_res",
+      "u_frame",
+      "u_seed",
+      "u_filterType",
+      "u_lumaRadius",
+      "u_chromaRadius",
+      "u_tapeChromaDelay",
+      "u_chromaDelayH",
+      "u_chromaDelayV",
+      "u_chromaVertBlend",
+      "u_chromaLoss",
+      "u_chromaPhaseNoise",
+      "u_chromaPhaseError",
+      "u_lumaSmear",
+      "u_ringing",
+      "u_lumaNoise",
+      "u_chromaNoise",
+      "u_edgeWave",
     ] as const),
   };
   return _cache;
@@ -443,57 +471,81 @@ export const renderVHSNTSCGL = (
   const yiqTex = ensureTexture(gl, "vhsNtsc:yiq", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, compositeTex, width, height, cache.composite, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_source, 0);
-    gl.uniform2f(cache.composite.uniforms.u_res, width, height);
-    gl.uniform1f(cache.composite.uniforms.u_frame, params.frame);
-    gl.uniform1f(cache.composite.uniforms.u_seed, params.seed);
-    gl.uniform1i(cache.composite.uniforms.u_fieldMode, params.fieldMode);
-    gl.uniform1f(cache.composite.uniforms.u_compositeSharpness, params.compositeSharpness);
-    gl.uniform1f(cache.composite.uniforms.u_compositeNoise, params.compositeNoise);
-    gl.uniform1f(cache.composite.uniforms.u_snow, params.snow);
-    gl.uniform1f(cache.composite.uniforms.u_snowAnisotropy, params.snowAnisotropy);
-    gl.uniform1f(cache.composite.uniforms.u_headSwitching, params.headSwitching);
-    gl.uniform1f(cache.composite.uniforms.u_headSwitchingHeight, params.headSwitchingHeight);
-    gl.uniform1f(cache.composite.uniforms.u_trackingNoise, params.trackingNoise);
-    gl.uniform1f(cache.composite.uniforms.u_trackingHeight, params.trackingHeight);
-  }, vao);
+  drawPass(
+    gl,
+    compositeTex,
+    width,
+    height,
+    cache.composite,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_source, 0);
+      gl.uniform2f(cache.composite.uniforms.u_res, width, height);
+      gl.uniform1f(cache.composite.uniforms.u_frame, params.frame);
+      gl.uniform1f(cache.composite.uniforms.u_seed, params.seed);
+      gl.uniform1i(cache.composite.uniforms.u_fieldMode, params.fieldMode);
+      gl.uniform1f(cache.composite.uniforms.u_compositeSharpness, params.compositeSharpness);
+      gl.uniform1f(cache.composite.uniforms.u_compositeNoise, params.compositeNoise);
+      gl.uniform1f(cache.composite.uniforms.u_snow, params.snow);
+      gl.uniform1f(cache.composite.uniforms.u_snowAnisotropy, params.snowAnisotropy);
+      gl.uniform1f(cache.composite.uniforms.u_headSwitching, params.headSwitching);
+      gl.uniform1f(cache.composite.uniforms.u_headSwitchingHeight, params.headSwitchingHeight);
+      gl.uniform1f(cache.composite.uniforms.u_trackingNoise, params.trackingNoise);
+      gl.uniform1f(cache.composite.uniforms.u_trackingHeight, params.trackingHeight);
+    },
+    vao,
+  );
 
-  drawPass(gl, yiqTex, width, height, cache.demodulate, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, compositeTex.tex);
-    gl.uniform1i(cache.demodulate.uniforms.u_composite, 0);
-    gl.uniform2f(cache.demodulate.uniforms.u_res, width, height);
-    gl.uniform1f(cache.demodulate.uniforms.u_frame, params.frame);
-    gl.uniform1i(cache.demodulate.uniforms.u_fieldMode, params.fieldMode);
-    gl.uniform1i(cache.demodulate.uniforms.u_demodulation, params.demodulation);
-  }, vao);
+  drawPass(
+    gl,
+    yiqTex,
+    width,
+    height,
+    cache.demodulate,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, compositeTex.tex);
+      gl.uniform1i(cache.demodulate.uniforms.u_composite, 0);
+      gl.uniform2f(cache.demodulate.uniforms.u_res, width, height);
+      gl.uniform1f(cache.demodulate.uniforms.u_frame, params.frame);
+      gl.uniform1i(cache.demodulate.uniforms.u_fieldMode, params.fieldMode);
+      gl.uniform1i(cache.demodulate.uniforms.u_demodulation, params.demodulation);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.tape, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, yiqTex.tex);
-    gl.uniform1i(cache.tape.uniforms.u_yiq, 0);
-    gl.uniform2f(cache.tape.uniforms.u_res, width, height);
-    gl.uniform1f(cache.tape.uniforms.u_frame, params.frame);
-    gl.uniform1f(cache.tape.uniforms.u_seed, params.seed);
-    gl.uniform1i(cache.tape.uniforms.u_filterType, params.filterType);
-    gl.uniform1i(cache.tape.uniforms.u_lumaRadius, params.lumaRadius);
-    gl.uniform1i(cache.tape.uniforms.u_chromaRadius, params.chromaRadius);
-    gl.uniform1f(cache.tape.uniforms.u_tapeChromaDelay, params.tapeChromaDelay);
-    gl.uniform1f(cache.tape.uniforms.u_chromaDelayH, params.chromaDelayH);
-    gl.uniform1f(cache.tape.uniforms.u_chromaDelayV, params.chromaDelayV);
-    gl.uniform1i(cache.tape.uniforms.u_chromaVertBlend, params.chromaVertBlend ? 1 : 0);
-    gl.uniform1f(cache.tape.uniforms.u_chromaLoss, params.chromaLoss);
-    gl.uniform1f(cache.tape.uniforms.u_chromaPhaseNoise, params.chromaPhaseNoise);
-    gl.uniform1f(cache.tape.uniforms.u_chromaPhaseError, params.chromaPhaseError);
-    gl.uniform1f(cache.tape.uniforms.u_lumaSmear, params.lumaSmear);
-    gl.uniform1f(cache.tape.uniforms.u_ringing, params.ringing);
-    gl.uniform1f(cache.tape.uniforms.u_lumaNoise, params.lumaNoise);
-    gl.uniform1f(cache.tape.uniforms.u_chromaNoise, params.chromaNoise);
-    gl.uniform1f(cache.tape.uniforms.u_edgeWave, params.edgeWave);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.tape,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, yiqTex.tex);
+      gl.uniform1i(cache.tape.uniforms.u_yiq, 0);
+      gl.uniform2f(cache.tape.uniforms.u_res, width, height);
+      gl.uniform1f(cache.tape.uniforms.u_frame, params.frame);
+      gl.uniform1f(cache.tape.uniforms.u_seed, params.seed);
+      gl.uniform1i(cache.tape.uniforms.u_filterType, params.filterType);
+      gl.uniform1i(cache.tape.uniforms.u_lumaRadius, params.lumaRadius);
+      gl.uniform1i(cache.tape.uniforms.u_chromaRadius, params.chromaRadius);
+      gl.uniform1f(cache.tape.uniforms.u_tapeChromaDelay, params.tapeChromaDelay);
+      gl.uniform1f(cache.tape.uniforms.u_chromaDelayH, params.chromaDelayH);
+      gl.uniform1f(cache.tape.uniforms.u_chromaDelayV, params.chromaDelayV);
+      gl.uniform1i(cache.tape.uniforms.u_chromaVertBlend, params.chromaVertBlend ? 1 : 0);
+      gl.uniform1f(cache.tape.uniforms.u_chromaLoss, params.chromaLoss);
+      gl.uniform1f(cache.tape.uniforms.u_chromaPhaseNoise, params.chromaPhaseNoise);
+      gl.uniform1f(cache.tape.uniforms.u_chromaPhaseError, params.chromaPhaseError);
+      gl.uniform1f(cache.tape.uniforms.u_lumaSmear, params.lumaSmear);
+      gl.uniform1f(cache.tape.uniforms.u_ringing, params.ringing);
+      gl.uniform1f(cache.tape.uniforms.u_lumaNoise, params.lumaNoise);
+      gl.uniform1f(cache.tape.uniforms.u_chromaNoise, params.chromaNoise);
+      gl.uniform1f(cache.tape.uniforms.u_edgeWave, params.edgeWave);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

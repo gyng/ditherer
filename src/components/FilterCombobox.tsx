@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Command } from "cmdk";
 import * as Popover from "@radix-ui/react-popover";
 import { filterList } from "@gyng/ditherer-filters";
@@ -56,14 +48,15 @@ const getIntentKeywords = (entry: FilterEntry) => {
 };
 
 const getSearchKeywords = (entry: FilterEntry) => {
-  const optionKeywords = Object.entries(entry.filter.optionTypes || {}).flatMap(([name, option]) => [
-    name,
-    option.label || "",
-  ]);
+  const optionKeywords = Object.entries(entry.filter.optionTypes || {}).flatMap(
+    ([name, option]) => [name, option.label || ""],
+  );
   return [
     ...optionKeywords,
     entry.filter.temporal ? "temporal motion history time" : "",
-    entry.filter.autoAnimate || entry.filter.optionTypes?.animate ? "animated animation moving" : "",
+    entry.filter.autoAnimate || entry.filter.optionTypes?.animate
+      ? "animated animation moving"
+      : "",
     entry.filter.requiresGL ? "gpu gl webgl shader" : "",
     entry.filter.noGL ? "cpu sequential" : "",
     entry.filter.noWASM ? "canvas" : "wasm",
@@ -77,10 +70,13 @@ const allFilters = filterList
 
 const filterByName = new Map(allFilters.map((entry) => [entry.displayName, entry] as const));
 const thumbFilterByName = new Map(
-  allFilters.map((entry) => [
-    entry.displayName,
-    { displayName: entry.displayName, filter: entry.filter, category: entry.category },
-  ] as const),
+  allFilters.map(
+    (entry) =>
+      [
+        entry.displayName,
+        { displayName: entry.displayName, filter: entry.filter, category: entry.category },
+      ] as const,
+  ),
 );
 const searchIndex = buildFilterSearchIndex(allFilters);
 const categoryEntries = Array.from(
@@ -107,7 +103,9 @@ const ALL_CATEGORY = {
   examples: ["Every filter, A–Z"],
 };
 const browseCategories = [ALL_CATEGORY, ...categoryEntries];
-const categoryByName = new Map(browseCategories.map((category) => [category.name, category] as const));
+const categoryByName = new Map(
+  browseCategories.map((category) => [category.name, category] as const),
+);
 
 // Category to open into when replacing an existing filter, or null to land on
 // the recents/browse overview.
@@ -129,7 +127,10 @@ const readRecentNames = () => {
 };
 
 const rememberRecentName = (displayName: string, current: string[]) => {
-  const next = [displayName, ...current.filter((name) => name !== displayName)].slice(0, MAX_RECENTS);
+  const next = [displayName, ...current.filter((name) => name !== displayName)].slice(
+    0,
+    MAX_RECENTS,
+  );
   try {
     localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
   } catch {
@@ -141,26 +142,39 @@ const rememberRecentName = (displayName: string, current: string[]) => {
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const highlightMatch = (text: string, query: string): ReactNode => {
-  const terms = normalizeFilterSearchText(query).split(" ").filter((term) => term.length >= 2);
+  const terms = normalizeFilterSearchText(query)
+    .split(" ")
+    .filter((term) => term.length >= 2);
   if (terms.length === 0) return text;
   const matcher = new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "ig");
-  return text.split(matcher).map((part, index) =>
-    terms.some((term) => part.toLocaleLowerCase() === term)
-      ? <mark key={`${part}-${index}`}>{part}</mark>
-      : part
-  );
+  return text
+    .split(matcher)
+    .map((part, index) =>
+      terms.some((term) => part.toLocaleLowerCase() === term) ? (
+        <mark key={`${part}-${index}`}>{part}</mark>
+      ) : (
+        part
+      ),
+    );
 };
 
 type Capability = { label: string; detail: string; tone: "gl" | "temp" | "anim" | "cpu" };
 
-const getCapabilities = (entry: SearchableFilter): Capability[] => [
-  entry.filter.requiresGL ? { label: "WebGL2", detail: "Requires WebGL2", tone: "gl" as const } : null,
-  entry.filter.temporal ? { label: "Temporal", detail: "Uses frame history", tone: "temp" as const } : null,
-  entry.filter.autoAnimate || entry.filter.optionTypes?.animate
-    ? { label: "Animated", detail: "Can evolve over time", tone: "anim" as const }
-    : null,
-  entry.filter.noGL ? { label: "CPU", detail: "Sequential CPU path", tone: "cpu" as const } : null,
-].filter((capability): capability is Capability => Boolean(capability));
+const getCapabilities = (entry: SearchableFilter): Capability[] =>
+  [
+    entry.filter.requiresGL
+      ? { label: "WebGL2", detail: "Requires WebGL2", tone: "gl" as const }
+      : null,
+    entry.filter.temporal
+      ? { label: "Temporal", detail: "Uses frame history", tone: "temp" as const }
+      : null,
+    entry.filter.autoAnimate || entry.filter.optionTypes?.animate
+      ? { label: "Animated", detail: "Can evolve over time", tone: "anim" as const }
+      : null,
+    entry.filter.noGL
+      ? { label: "CPU", detail: "Sequential CPU path", tone: "cpu" as const }
+      : null,
+  ].filter((capability): capability is Capability => Boolean(capability));
 
 interface Props {
   onSelect: (entry: FilterEntry) => void;
@@ -183,8 +197,8 @@ const FilterCombobox = ({
   const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
   const [value, setValue] = useState(currentValue ?? "");
-  const [activeCategory, setActiveCategory] = useState<string | null>(
-    () => (autoFocus ? categoryForFilter(currentValue) : null),
+  const [activeCategory, setActiveCategory] = useState<string | null>(() =>
+    autoFocus ? categoryForFilter(currentValue) : null,
   );
   const [recentNames, setRecentNames] = useState(readRecentNames);
   const [previewSource, setPreviewSource] = useState<HTMLImageElement | null>(null);
@@ -197,21 +211,22 @@ const FilterCombobox = ({
   const descriptionId = useId();
   const normalizedQuery = normalizeFilterSearchText(query);
 
-  const searchResult = useMemo(
-    () => searchFilterIndex(searchIndex, query, MAX_RESULTS),
-    [query],
-  );
+  const searchResult = useMemo(() => searchFilterIndex(searchIndex, query, MAX_RESULTS), [query]);
   const recentEntries = useMemo(
-    () => recentNames.map((name) => filterByName.get(name)).filter((entry): entry is SearchableFilter => Boolean(entry)),
+    () =>
+      recentNames
+        .map((name) => filterByName.get(name))
+        .filter((entry): entry is SearchableFilter => Boolean(entry)),
     [recentNames],
   );
   const selectedCategory = activeCategory ? categoryByName.get(activeCategory) : undefined;
-  const resultEntries = normalizedQuery
-    ? searchResult.items
-    : selectedCategory?.entries ?? [];
-  const resultTotal = normalizedQuery ? searchResult.total : selectedCategory?.entries.length ?? 0;
+  const resultEntries = normalizedQuery ? searchResult.items : (selectedCategory?.entries ?? []);
+  const resultTotal = normalizedQuery
+    ? searchResult.total
+    : (selectedCategory?.entries.length ?? 0);
   const showingResults = normalizedQuery.length > 0 || Boolean(selectedCategory);
-  const selectedEntry = resultEntries.find((entry) => entry.displayName === value) ?? resultEntries[0];
+  const selectedEntry =
+    resultEntries.find((entry) => entry.displayName === value) ?? resultEntries[0];
 
   useEffect(() => {
     if (!open) {
@@ -276,11 +291,14 @@ const FilterCombobox = ({
     close();
   };
 
-  const openFromNavigationKey = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
-    event.preventDefault();
-    openFinder();
-  }, [open, openFinder]);
+  const openFromNavigationKey = useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
+      event.preventDefault();
+      openFinder();
+    },
+    [open, openFinder],
+  );
 
   const browseCategory = (category: string) => {
     const first = categoryByName.get(category)?.entries[0];
@@ -378,14 +396,24 @@ const FilterCombobox = ({
                 >
                   ×
                 </button>
-              ) : <span className={s.searchHint} aria-hidden="true">type</span>}
+              ) : (
+                <span className={s.searchHint} aria-hidden="true">
+                  type
+                </span>
+              )}
             </div>
             <div className={s.statusBar} aria-live="polite">
               {selectedCategory ? (
-                <button type="button" className={s.backButton} onClick={() => setActiveCategory(null)}>
+                <button
+                  type="button"
+                  className={s.backButton}
+                  onClick={() => setActiveCategory(null)}
+                >
                   ← Categories
                 </button>
-              ) : <span className={s.statusLamp} aria-hidden="true" />}
+              ) : (
+                <span className={s.statusLamp} aria-hidden="true" />
+              )}
               <span>{resultStatus}</span>
               {showingResults ? (
                 <span className={s.registryCount}>
@@ -448,14 +476,24 @@ const FilterCombobox = ({
                   {resultEntries.length === 0 ? (
                     <div className={s.empty}>
                       <strong>No matching filters</strong>
-                      <span>Try a broader intent such as “glitch”, “film”, “soft”, or “motion”.</span>
-                      <button type="button" onClick={() => { setQuery(""); setActiveCategory(null); }}>
+                      <span>
+                        Try a broader intent such as “glitch”, “film”, “soft”, or “motion”.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuery("");
+                          setActiveCategory(null);
+                        }}
+                      >
                         Browse categories
                       </button>
                     </div>
                   ) : (
                     <Command.Group
-                      heading={normalizedQuery ? "Best matches" : `${selectedCategory?.name} filters`}
+                      heading={
+                        normalizedQuery ? "Best matches" : `${selectedCategory?.name} filters`
+                      }
                       className={s.group}
                     >
                       {resultEntries.map((item) => {
@@ -471,12 +509,19 @@ const FilterCombobox = ({
                             data-testid="filter-typeahead-item"
                           >
                             <span className={s.itemText}>
-                              <strong className={s.itemName}>{highlightMatch(item.displayName, query)}</strong>
+                              <strong className={s.itemName}>
+                                {highlightMatch(item.displayName, query)}
+                              </strong>
                               <span className={s.itemCategory}>{item.category}</span>
                             </span>
-                            {currentValue === item.displayName ? <span className={s.currentBadge}>Current</span> : null}
+                            {currentValue === item.displayName ? (
+                              <span className={s.currentBadge}>Current</span>
+                            ) : null}
                             {capabilities.slice(0, 2).map((capability) => (
-                              <span key={capability.label} className={`${s.badge} ${s[`badge_${capability.tone}`]}`}>
+                              <span
+                                key={capability.label}
+                                className={`${s.badge} ${s[`badge_${capability.tone}`]}`}
+                              >
                                 {capability.label}
                               </span>
                             ))}
@@ -498,9 +543,13 @@ const FilterCombobox = ({
                       </div>
                       <span className={s.detailCategory}>{selectedEntry.category}</span>
                       <strong className={s.detailTitle}>{selectedEntry.displayName}</strong>
-                      <p className={s.detailDescription}>{selectedEntry.description || "No description available."}</p>
+                      <p className={s.detailDescription}>
+                        {selectedEntry.description || "No description available."}
+                      </p>
                       <div className={s.detailFacts}>
-                        <span>{Object.keys(selectedEntry.filter.optionTypes || {}).length} controls</span>
+                        <span>
+                          {Object.keys(selectedEntry.filter.optionTypes || {}).length} controls
+                        </span>
                         {getCapabilities(selectedEntry).map((capability) => (
                           <span key={capability.detail}>{capability.detail}</span>
                         ))}
@@ -514,7 +563,9 @@ const FilterCombobox = ({
                       </button>
                     </>
                   ) : (
-                    <div className={s.detailPlaceholder}>Broaden the search or browse a category.</div>
+                    <div className={s.detailPlaceholder}>
+                      Broaden the search or browse a category.
+                    </div>
                   )}
                 </aside>
               </div>
@@ -523,9 +574,15 @@ const FilterCombobox = ({
               <span className={s.safetyNote}>
                 {currentValue ? `Esc keeps ${currentValue}` : "Nothing changes until you choose"}
               </span>
-              <span><kbd>↑↓</kbd> inspect</span>
-              <span><kbd>Enter</kbd> choose</span>
-              <span><kbd>Esc</kbd> close</span>
+              <span>
+                <kbd>↑↓</kbd> inspect
+              </span>
+              <span>
+                <kbd>Enter</kbd> choose
+              </span>
+              <span>
+                <kbd>Esc</kbd> close
+              </span>
             </footer>
           </Command>
         </Popover.Content>

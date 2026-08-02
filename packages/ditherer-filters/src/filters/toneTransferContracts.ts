@@ -8,8 +8,7 @@
 
 import { clamp01, linearToSrgb, srgbToLinear } from "./opticalConvolutionContracts";
 
-const finite = (value: number, fallback = 0): number =>
-  Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 
 const smoothstep = (a: number, b: number, x: number): number => {
   const t = clamp01((x - a) / Math.max(1e-6, b - a));
@@ -24,11 +23,7 @@ const smoothstep = (a: number, b: number, x: number): number => {
  * identity (0) to full reversal (1). Applied per channel with the SAME curve,
  * so there is no independent per-channel flip.
  */
-export const solarizeCurve = (
-  t: number,
-  reversal: number,
-  strength: number,
-): number => {
+export const solarizeCurve = (t: number, reversal: number, strength: number): number => {
   const tc = clamp01(t);
   const r = Math.max(0.01, Math.min(0.99, finite(reversal, 0.5)));
   const reflected = Math.max(0, r - (tc - r) * (r / (1 - r)));

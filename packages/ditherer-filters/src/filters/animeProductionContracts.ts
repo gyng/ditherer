@@ -34,6 +34,6 @@ export const xdogInkResponse = (
 };
 
 export const rimDirection = (angleDegrees: number): { x: number; y: number } => {
-  const angle = (Number.isFinite(angleDegrees) ? angleDegrees : 0) * Math.PI / 180;
+  const angle = ((Number.isFinite(angleDegrees) ? angleDegrees : 0) * Math.PI) / 180;
   return { x: Math.cos(angle), y: Math.sin(angle) };
 };

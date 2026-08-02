@@ -26,11 +26,13 @@ const flush = async (operation: () => void | Promise<void>) => {
 };
 
 const mountProvider = async () => {
-  await flush(() => root.render(
-    <FilterProvider>
-      <Probe />
-    </FilterProvider>,
-  ));
+  await flush(() =>
+    root.render(
+      <FilterProvider>
+        <Probe />
+      </FilterProvider>,
+    ),
+  );
 };
 
 beforeEach(async () => {
@@ -105,7 +107,10 @@ describe("FilterProvider action contract", () => {
     const initialId = latest.state.chain[0].id;
     await flush(() => latest.actions.chainAdd("Binarize", filterIndex.Binarize));
     const addedId = latest.state.chain[1].id;
-    expect(latest.state.chain.map((entry) => entry.displayName)).toEqual(["Floyd-Steinberg", "Binarize"]);
+    expect(latest.state.chain.map((entry) => entry.displayName)).toEqual([
+      "Floyd-Steinberg",
+      "Binarize",
+    ]);
 
     await flush(() => {
       latest.actions.chainSetActive(1);
@@ -122,11 +127,15 @@ describe("FilterProvider action contract", () => {
     await flush(() => latest.actions.chainReplace(initialId, "Grayscale", filterIndex.Grayscale));
     expect(latest.state.chain.some((entry) => entry.displayName === "Grayscale")).toBe(true);
 
-    await flush(() => latest.actions.setChainAudioModulation(addedId, {
-      connections: [{ metric: "beat", target: "threshold", weight: 0.5 }],
-      normalizedMetrics: ["beat"],
-    }));
-    expect(latest.state.chain.find((entry) => entry.id === addedId)?.audioMod?.connections).toHaveLength(1);
+    await flush(() =>
+      latest.actions.setChainAudioModulation(addedId, {
+        connections: [{ metric: "beat", target: "threshold", weight: 0.5 }],
+        normalizedMetrics: ["beat"],
+      }),
+    );
+    expect(
+      latest.state.chain.find((entry) => entry.id === addedId)?.audioMod?.connections,
+    ).toHaveLength(1);
 
     await flush(() => latest.actions.chainRemove(addedId));
     expect(latest.state.chain.some((entry) => entry.id === addedId)).toBe(false);
@@ -139,7 +148,9 @@ describe("FilterProvider action contract", () => {
       latest.actions.chainToggle(latest.state.chain[0].id);
     });
     setGlobalAudioVizModulation("chain", {
-      connections: [{ metric: "bass", target: `${latest.state.chain[1].id}:thresholdR`, weight: -0.25 }],
+      connections: [
+        { metric: "bass", target: `${latest.state.chain[1].id}:thresholdR`, weight: -0.25 },
+      ],
       normalizedMetrics: ["bass"],
     });
 
@@ -173,12 +184,16 @@ describe("FilterProvider action contract", () => {
     );
     expect(modulated.thresholdR).not.toBe(96);
 
-    await flush(() => latest.actions.importState(JSON.stringify({
-      selected: { displayName: "Grayscale", filter: { name: "Grayscale" } },
-      convertGrayscale: false,
-      linearize: false,
-      wasmAcceleration: true,
-    })));
+    await flush(() =>
+      latest.actions.importState(
+        JSON.stringify({
+          selected: { displayName: "Grayscale", filter: { name: "Grayscale" } },
+          convertGrayscale: false,
+          linearize: false,
+          wasmAcceleration: true,
+        }),
+      ),
+    );
     expect(latest.state.chain[0].displayName).toBe("Grayscale");
   });
 
@@ -199,10 +214,12 @@ describe("FilterProvider action contract", () => {
 
   it("round-trips single-entry per-entry and ID-qualified global modulation through v2", async () => {
     const entryId = latest.state.chain[0].id;
-    await flush(() => latest.actions.setChainAudioModulation(entryId, {
-      connections: [{ metric: "beat", target: "temporalBleed", weight: 0.5 }],
-      normalizedMetrics: ["beat"],
-    }));
+    await flush(() =>
+      latest.actions.setChainAudioModulation(entryId, {
+        connections: [{ metric: "beat", target: "temporalBleed", weight: 0.5 }],
+        normalizedMetrics: ["beat"],
+      }),
+    );
     setGlobalAudioVizModulation("chain", {
       connections: [{ metric: "bass", target: `${entryId}:animSpeed`, weight: -0.25 }],
       normalizedMetrics: ["bass"],
@@ -215,10 +232,12 @@ describe("FilterProvider action contract", () => {
     const json = latest.actions.exportState(latest.state);
     expect(JSON.parse(json)).toMatchObject({
       v: 2,
-      chain: [{
-        i: entryId,
-        m: { c: [{ k: "beat", o: "temporalBleed", w: 0.5 }], z: ["beat"] },
-      }],
+      chain: [
+        {
+          i: entryId,
+          m: { c: [{ k: "beat", o: "temporalBleed", w: 0.5 }], z: ["beat"] },
+        },
+      ],
       av: {
         chain: { m: { c: [{ o: `${entryId}:animSpeed` }] } },
         screensaver: { m: { c: [{ o: `${entryId}:voteWindow` }] } },
@@ -234,8 +253,9 @@ describe("FilterProvider action contract", () => {
     });
     const restoredChainGlobal = getGlobalAudioVizModulation("chain");
     expect(restoredChainGlobal?.connections[0].target).toBe(`${entryId}:animSpeed`);
-    expect(getGlobalAudioVizModulation("screensaver")?.connections[0].target)
-      .toBe(`${entryId}:voteWindow`);
+    expect(getGlobalAudioVizModulation("screensaver")?.connections[0].target).toBe(
+      `${entryId}:voteWindow`,
+    );
 
     const modulated = applyAudioModulationToOptions(
       restoredEntry.filter.options ?? {},
@@ -273,14 +293,22 @@ describe("FilterProvider action contract", () => {
   });
 
   it("renders isolated export frames and clears temporal sessions", async () => {
-    await expect(latest.actions.renderFrameForExport(null, { sessionId: "none" })).resolves.toBeNull();
+    await expect(
+      latest.actions.renderFrameForExport(null, { sessionId: "none" }),
+    ).resolves.toBeNull();
 
     const input = document.createElement("canvas");
     input.width = 4;
     input.height = 3;
     await flush(() => latest.actions.setConvertGrayscale(true));
-    const first = await latest.actions.renderFrameForExport(input, { sessionId: "export", time: 0 });
-    const second = await latest.actions.renderFrameForExport(input, { sessionId: "export", time: 1 });
+    const first = await latest.actions.renderFrameForExport(input, {
+      sessionId: "export",
+      time: 0,
+    });
+    const second = await latest.actions.renderFrameForExport(input, {
+      sessionId: "export",
+      time: 1,
+    });
     expect(first).toBeInstanceOf(HTMLCanvasElement);
     expect(second).toBeInstanceOf(HTMLCanvasElement);
     expect(first).toMatchObject({ width: 4, height: 3 });
@@ -311,14 +339,18 @@ describe("FilterProvider action contract", () => {
     };
     const throwingFilter: FilterDefinition = {
       name: "Test failure",
-      func: () => { throw new Error("expected filter failure"); },
+      func: () => {
+        throw new Error("expected filter failure");
+      },
       defaults: {},
       options: {},
       optionTypes: {},
     };
     const glFilter: FilterDefinition = {
       name: "Test GL only",
-      func: () => { throw new Error("GL-only function must not run without WebGL2"); },
+      func: () => {
+        throw new Error("GL-only function must not run without WebGL2");
+      },
       defaults: {},
       options: {},
       optionTypes: {},
@@ -344,7 +376,9 @@ describe("FilterProvider action contract", () => {
     expect(error).toHaveBeenCalledWith('Filter "Test failure" threw:', expect.any(Error));
     expect(latest.state.outputImage).toBeInstanceOf(HTMLCanvasElement);
     expect(latest.state.outputImage).toMatchObject({ width: 5, height: 4 });
-    expect(latest.actions.getIntermediatePreview(latest.state.chain[0].id)).toBeInstanceOf(HTMLCanvasElement);
+    expect(latest.actions.getIntermediatePreview(latest.state.chain[0].id)).toBeInstanceOf(
+      HTMLCanvasElement,
+    );
 
     await flush(async () => {
       latest.actions.filterImageAsync(input);
@@ -410,36 +444,42 @@ describe("FilterProvider action contract", () => {
 
     await flush(() => {
       latest.actions.importState(JSON.stringify({ v: 2, chain: [null, { n: "missing" }] }));
-      latest.actions.importState(JSON.stringify({
-        selected: { filter: { name: "missing" } },
-        convertGrayscale: false,
-      }));
+      latest.actions.importState(
+        JSON.stringify({
+          selected: { filter: { name: "missing" } },
+          convertGrayscale: false,
+        }),
+      );
     });
     expect(latest.state.chain).toBe(chainBefore);
     expect(getGlobalAudioVizModulation("chain")).toEqual(baseline);
     expect(getGlobalAudioVizModulation("screensaver")).toEqual(screensaverBaseline);
 
-    await flush(() => latest.actions.importState(JSON.stringify({
-      v: 2,
-      chain: [{ n: "Invert" }],
-      g: false,
-      l: true,
-      w: true,
-      av: {
-        chain: {
-          m: {
-            c: [
-              null,
-              { k: null, o: "amount", w: 1 },
-              { k: "beat", o: null, w: 1 },
-              { k: "beat", o: "amount", w: "invalid" },
-              { k: "bass", o: "amount", w: -0.5 },
-            ],
-            z: [null, "bass", 7],
+    await flush(() =>
+      latest.actions.importState(
+        JSON.stringify({
+          v: 2,
+          chain: [{ n: "Invert" }],
+          g: false,
+          l: true,
+          w: true,
+          av: {
+            chain: {
+              m: {
+                c: [
+                  null,
+                  { k: null, o: "amount", w: 1 },
+                  { k: "beat", o: null, w: 1 },
+                  { k: "beat", o: "amount", w: "invalid" },
+                  { k: "bass", o: "amount", w: -0.5 },
+                ],
+                z: [null, "bass", 7],
+              },
+            },
           },
-        },
-      },
-    })));
+        }),
+      ),
+    );
     expect(getGlobalAudioVizModulation("chain")).toEqual({
       connections: [{ metric: "bass", target: "amount", weight: -0.5 }],
       normalizedMetrics: ["bass"],
@@ -461,19 +501,27 @@ describe("FilterProvider action contract", () => {
       setGlobalAudioVizModulation("screensaver", screensaverBaseline);
       const chainBefore = latest.state.chain;
 
-      await flush(() => latest.actions.importState(JSON.stringify({
-        v: 2,
-        chain: [{ n: name }],
-        av: { chain: { m: { c: [{ k: "beat", o: "amount", w: 1 }] } } },
-      })));
+      await flush(() =>
+        latest.actions.importState(
+          JSON.stringify({
+            v: 2,
+            chain: [{ n: name }],
+            av: { chain: { m: { c: [{ k: "beat", o: "amount", w: 1 }] } } },
+          }),
+        ),
+      );
       expect(latest.state.chain).toBe(chainBefore);
       expect(getGlobalAudioVizModulation("chain")).toEqual(chainBaseline);
       expect(getGlobalAudioVizModulation("screensaver")).toEqual(screensaverBaseline);
 
-      await flush(() => latest.actions.importState(JSON.stringify({
-        selected: { filter: { name } },
-        convertGrayscale: false,
-      })));
+      await flush(() =>
+        latest.actions.importState(
+          JSON.stringify({
+            selected: { filter: { name } },
+            convertGrayscale: false,
+          }),
+        ),
+      );
       expect(latest.state.chain).toBe(chainBefore);
       expect(getGlobalAudioVizModulation("chain")).toEqual(chainBaseline);
       expect(getGlobalAudioVizModulation("screensaver")).toEqual(screensaverBaseline);
@@ -630,7 +678,9 @@ describe("FilterProvider action contract", () => {
 
     const getContext = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const input = document.createElement("canvas");
-    await expect(latest.actions.renderFrameForExport(input, { sessionId: "no-context" })).resolves.toBeNull();
+    await expect(
+      latest.actions.renderFrameForExport(input, { sessionId: "no-context" }),
+    ).resolves.toBeNull();
     getContext.mockRestore();
   });
 });

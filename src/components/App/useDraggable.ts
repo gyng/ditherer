@@ -27,8 +27,15 @@ const getEdge = (el: HTMLElement, clientX: number, clientY: number): Edge => {
 };
 
 const edgeCursor: Record<Edge, string> = {
-  "": "", n: "n-resize", s: "s-resize", e: "e-resize", w: "w-resize",
-  ne: "ne-resize", nw: "nw-resize", se: "se-resize", sw: "sw-resize"
+  "": "",
+  n: "n-resize",
+  s: "s-resize",
+  e: "e-resize",
+  w: "w-resize",
+  ne: "ne-resize",
+  nw: "nw-resize",
+  se: "se-resize",
+  sw: "sw-resize",
 };
 
 type DraggableOptions = {
@@ -41,7 +48,12 @@ type DraggableOptions = {
 
 export default function useDraggable(
   ref: RefObject<HTMLElement | null>,
-  { defaultPosition = { x: 0, y: 0 }, onPositionChange, onScale, onScaleAbsolute }: DraggableOptions = {},
+  {
+    defaultPosition = { x: 0, y: 0 },
+    onPositionChange,
+    onScale,
+    onScaleAbsolute,
+  }: DraggableOptions = {},
 ) {
   const pos = useRef(defaultPosition);
   const dragging = useRef(false);
@@ -62,16 +74,15 @@ export default function useDraggable(
     };
   }, []);
 
-  const applyClampedPosition = useCallback((
-    el: HTMLElement,
-    nextPos: { x: number; y: number },
-    notify = true,
-  ) => {
-    const clamped = clampPosition(el, nextPos);
-    pos.current = clamped;
-    el.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
-    if (notify) onPositionChange?.(clamped);
-  }, [clampPosition, onPositionChange]);
+  const applyClampedPosition = useCallback(
+    (el: HTMLElement, nextPos: { x: number; y: number }, notify = true) => {
+      const clamped = clampPosition(el, nextPos);
+      pos.current = clamped;
+      el.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
+      if (notify) onPositionChange?.(clamped);
+    },
+    [clampPosition, onPositionChange],
+  );
 
   const readTranslateFromStyle = (el: HTMLElement) => {
     const transform = window.getComputedStyle(el).transform;
@@ -91,20 +102,23 @@ export default function useDraggable(
     return null;
   };
 
-  const ensureInitializedPosition = useCallback((notify = false) => {
-    if (!ref.current || isCompact()) return;
-    if (!initialized.current) {
-      applyClampedPosition(ref.current, pos.current, notify);
-      initialized.current = true;
-      return;
-    }
-    const fromStyle = readTranslateFromStyle(ref.current);
-    if (fromStyle) {
-      applyClampedPosition(ref.current, fromStyle, notify);
-    } else {
-      applyClampedPosition(ref.current, pos.current, notify);
-    }
-  }, [applyClampedPosition, ref]);
+  const ensureInitializedPosition = useCallback(
+    (notify = false) => {
+      if (!ref.current || isCompact()) return;
+      if (!initialized.current) {
+        applyClampedPosition(ref.current, pos.current, notify);
+        initialized.current = true;
+        return;
+      }
+      const fromStyle = readTranslateFromStyle(ref.current);
+      if (fromStyle) {
+        applyClampedPosition(ref.current, fromStyle, notify);
+      } else {
+        applyClampedPosition(ref.current, pos.current, notify);
+      }
+    },
+    [applyClampedPosition, ref],
+  );
 
   useLayoutEffect(() => {
     pos.current = defaultPosition;
@@ -116,92 +130,100 @@ export default function useDraggable(
     ensureInitializedPosition();
   }, [ensureInitializedPosition, defaultPosition.x, defaultPosition.y]);
 
-  const onMouseDown = useCallback((e: MouseEvent | React.MouseEvent<Element>) => {
-    if (isCompact()) return;
-    if (!ref.current) return;
-    ensureInitializedPosition();
+  const onMouseDown = useCallback(
+    (e: MouseEvent | React.MouseEvent<Element>) => {
+      if (isCompact()) return;
+      if (!ref.current) return;
+      ensureInitializedPosition();
 
-    const edge = getEdge(ref.current, e.clientX, e.clientY);
+      const edge = getEdge(ref.current, e.clientX, e.clientY);
 
-    if (edge && (onScale || onScaleAbsolute)) {
-      // --- Resize mode: drag border to scale ---
-      didDrag.current = true;
-      e.preventDefault();
-      e.stopPropagation();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const rect = ref.current.getBoundingClientRect();
-      const startSize = Math.max(rect.width, rect.height);
+      if (edge && (onScale || onScaleAbsolute)) {
+        // --- Resize mode: drag border to scale ---
+        didDrag.current = true;
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const rect = ref.current.getBoundingClientRect();
+        const startSize = Math.max(rect.width, rect.height);
+
+        const onMouseMove = (e: MouseEvent) => {
+          let dx = e.clientX - startX;
+          let dy = e.clientY - startY;
+
+          // Flip deltas for left/top edges (dragging left = shrinking)
+          if (edge.includes("w")) dx = -dx;
+          if (edge.includes("n")) dy = -dy;
+
+          // Use the dominant axis for scale
+          const dominant =
+            edge === "e" || edge === "w" ? dx : edge === "n" || edge === "s" ? dy : (dx + dy) / 2; // corners use average
+
+          // Ratio relative to start: 1.0 = no change, 1.5 = 50% bigger
+          const scaleRatio = Math.max(0.05, 1 + dominant / startSize);
+          if (onScaleAbsolute) {
+            onScaleAbsolute(scaleRatio, startSize);
+          }
+        };
+
+        const onMouseUp = () => {
+          document.body.style.cursor = "";
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+        };
+
+        document.body.style.cursor = edgeCursor[edge];
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+        return;
+      }
+
+      // --- Drag mode: move the window ---
+      dragging.current = true;
+      didDrag.current = false;
+      const currentPos = readTranslateFromStyle(ref.current) ?? pos.current;
+      pos.current = currentPos;
+      offset.current = {
+        x: e.clientX - currentPos.x,
+        y: e.clientY - currentPos.y,
+      };
 
       const onMouseMove = (e: MouseEvent) => {
-        let dx = e.clientX - startX;
-        let dy = e.clientY - startY;
-
-        // Flip deltas for left/top edges (dragging left = shrinking)
-        if (edge.includes("w")) dx = -dx;
-        if (edge.includes("n")) dy = -dy;
-
-        // Use the dominant axis for scale
-        const dominant =
-          (edge === "e" || edge === "w") ? dx :
-          (edge === "n" || edge === "s") ? dy :
-          (dx + dy) / 2; // corners use average
-
-        // Ratio relative to start: 1.0 = no change, 1.5 = 50% bigger
-        const scaleRatio = Math.max(0.05, 1 + dominant / startSize);
-        if (onScaleAbsolute) {
-          onScaleAbsolute(scaleRatio, startSize);
-        }
+        if (!dragging.current || !ref.current) return;
+        didDrag.current = true;
+        applyClampedPosition(
+          ref.current,
+          {
+            x: e.clientX - offset.current.x,
+            y: e.clientY - offset.current.y,
+          },
+          true,
+        );
       };
 
       const onMouseUp = () => {
-        document.body.style.cursor = "";
+        dragging.current = false;
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
       };
 
-      document.body.style.cursor = edgeCursor[edge];
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
-      return;
-    }
-
-    // --- Drag mode: move the window ---
-    dragging.current = true;
-    didDrag.current = false;
-    const currentPos = readTranslateFromStyle(ref.current) ?? pos.current;
-    pos.current = currentPos;
-    offset.current = {
-      x: e.clientX - currentPos.x,
-      y: e.clientY - currentPos.y,
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!dragging.current || !ref.current) return;
-      didDrag.current = true;
-      applyClampedPosition(ref.current, {
-        x: e.clientX - offset.current.x,
-        y: e.clientY - offset.current.y,
-      }, true);
-    };
-
-    const onMouseUp = () => {
-      dragging.current = false;
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  }, [ensureInitializedPosition, ref, onScale, onScaleAbsolute]);
+    },
+    [ensureInitializedPosition, ref, onScale, onScaleAbsolute],
+  );
 
   // Update cursor on hover near edges
-  const onMouseMove = useCallback((e: MouseEvent | React.MouseEvent<Element>) => {
-    if (isCompact() || !ref.current || (!onScale && !onScaleAbsolute)) return;
-    ensureInitializedPosition();
-    const edge = getEdge(ref.current, e.clientX, e.clientY);
-    ref.current.style.cursor = edge ? edgeCursor[edge] : "";
-  }, [ensureInitializedPosition, ref, onScale, onScaleAbsolute]);
+  const onMouseMove = useCallback(
+    (e: MouseEvent | React.MouseEvent<Element>) => {
+      if (isCompact() || !ref.current || (!onScale && !onScaleAbsolute)) return;
+      ensureInitializedPosition();
+      const edge = getEdge(ref.current, e.clientX, e.clientY);
+      ref.current.style.cursor = edge ? edgeCursor[edge] : "";
+    },
+    [ensureInitializedPosition, ref, onScale, onScaleAbsolute],
+  );
 
   // Scroll wheel on the window scales up/down
   // Use native listener with { passive: false } so we can preventDefault

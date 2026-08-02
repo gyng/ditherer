@@ -32,9 +32,10 @@ export const runOne = (
     if (ok) return { ok: true, attemptedGL, drewGL };
     return { ok: false, attemptedGL, drewGL, reason: reason ?? "unknown failure" };
   };
-  const input = inputFactory === makeGradientCanvas
-    ? acquireGradientCanvas(inputWidth, inputHeight)
-    : inputFactory(inputWidth, inputHeight);
+  const input =
+    inputFactory === makeGradientCanvas
+      ? acquireGradientCanvas(inputWidth, inputHeight)
+      : inputFactory(inputWidth, inputHeight);
   let output: unknown;
   try {
     output = filter.func(input, options);
@@ -42,7 +43,10 @@ export const runOne = (
     return result(false, `threw: ${error instanceof Error ? error.message : String(error)}`);
   }
   if (glCalls.shaderFailureLogs.length > failuresBefore) {
-    return result(false, `shader compile/link failure: ${glCalls.shaderFailureLogs.slice(failuresBefore).join(" | ")}`);
+    return result(
+      false,
+      `shader compile/link failure: ${glCalls.shaderFailureLogs.slice(failuresBefore).join(" | ")}`,
+    );
   }
   if (requireGLDraw && glCalls.drawCalls === drawsBefore) {
     return result(false, "declares requiresGL but issued no WebGL draw (silent fallback)");
@@ -54,11 +58,15 @@ export const runOne = (
   const expectedWidth = inputWidth * outputScale;
   const expectedHeight = inputHeight * outputScale;
   if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
-    return result(false, `size drift ${canvas.width}x${canvas.height} (expected ${expectedWidth}x${expectedHeight})`);
+    return result(
+      false,
+      `size drift ${canvas.width}x${canvas.height} (expected ${expectedWidth}x${expectedHeight})`,
+    );
   }
   if (requireVisibleOutput) {
     const alpha = maxAlpha(canvas);
-    if (alpha <= 100) return result(false, `maxAlpha=${alpha} (expected > 100, a linearize bug likely)`);
+    if (alpha <= 100)
+      return result(false, `maxAlpha=${alpha} (expected > 100, a linearize bug likely)`);
     const peak = peakLuma(canvas);
     if (peak < 8) return result(false, `peakLuma=${peak.toFixed(2)} (opaque black output)`);
   }
@@ -75,7 +83,8 @@ export const runIdentity = (
   tolerance: number,
 ): CheckResult => {
   const input = makeGradientCanvas(32, 32);
-  const inputPixels = input.getContext("2d", { willReadFrequently: true })
+  const inputPixels = input
+    .getContext("2d", { willReadFrequently: true })
     ?.getImageData(0, 0, 32, 32).data;
   const drawsBefore = glCalls.drawCalls;
   const failuresBefore = glCalls.shaderFailureLogs.length;
@@ -83,13 +92,20 @@ export const runIdentity = (
   try {
     output = filter.func(input, options) as HTMLCanvasElement;
   } catch (error) {
-    return { ok: false, reason: `threw: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      ok: false,
+      reason: `threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
   if (glCalls.shaderFailureLogs.length > failuresBefore) {
-    return { ok: false, reason: `shader failure: ${glCalls.shaderFailureLogs.slice(failuresBefore).join(" | ")}` };
+    return {
+      ok: false,
+      reason: `shader failure: ${glCalls.shaderFailureLogs.slice(failuresBefore).join(" | ")}`,
+    };
   }
   if (glCalls.drawCalls === drawsBefore) return { ok: false, reason: "issued no WebGL draw" };
-  const outputPixels = output.getContext("2d", { willReadFrequently: true })
+  const outputPixels = output
+    .getContext("2d", { willReadFrequently: true })
     ?.getImageData(0, 0, 32, 32).data;
   if (!inputPixels || !outputPixels || inputPixels.length !== outputPixels.length) {
     return { ok: false, reason: "pixel readback failed or changed size" };

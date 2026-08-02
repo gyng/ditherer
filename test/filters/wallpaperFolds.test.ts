@@ -15,7 +15,9 @@ const same = (a: [number, number], b: [number, number]) =>
   Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6;
 
 const rot = (x: number, y: number, deg: number): [number, number] => {
-  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+  const a = (deg * Math.PI) / 180,
+    c = Math.cos(a),
+    s = Math.sin(a);
   return [x * c - y * s, x * s + y * c];
 };
 
@@ -39,15 +41,15 @@ describe("wallpaper group folds", () => {
   });
 
   it("PMM has mirror lines on both axes", () => {
-    eq(foldPMM(30, 20, sz), foldPMM(-30, 20, sz));   // mirror about x=0
-    eq(foldPMM(30, 20, sz), foldPMM(30, -20, sz));   // mirror about y=0
+    eq(foldPMM(30, 20, sz), foldPMM(-30, 20, sz)); // mirror about x=0
+    eq(foldPMM(30, 20, sz), foldPMM(30, -20, sz)); // mirror about y=0
     eq(foldPMM(30, 20, sz), foldPMM(2 * sz - 30, 20, sz)); // mirror about x=sz
   });
 
   it("P4M has both axis mirrors and the diagonal mirror", () => {
     const base = foldP4M(30, 55, sz);
-    eq(base, foldP4M(-30, 55, sz));           // axis mirror
-    eq(base, foldP4M(55, 30, sz));            // diagonal swap x<->y
+    eq(base, foldP4M(-30, 55, sz)); // axis mirror
+    eq(base, foldP4M(55, 30, sz)); // diagonal swap x<->y
   });
 
   it("P6M is a hexagonal 6-fold + mirror kaleidoscope", () => {

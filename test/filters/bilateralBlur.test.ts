@@ -9,13 +9,16 @@ import { getFilterWasmStatuses } from "utils";
 const makeCanvas = (width: number, height: number, data: Uint8ClampedArray | number[]) => ({
   width,
   height,
-  getContext: (type: string) => type === "2d" ? {
-    getImageData: () => ({
-      data: new Uint8ClampedArray(data),
-      width,
-      height,
-    }),
-  } : null,
+  getContext: (type: string) =>
+    type === "2d"
+      ? {
+          getImageData: () => ({
+            data: new Uint8ClampedArray(data),
+            width,
+            height,
+          }),
+        }
+      : null,
 });
 
 const runAndCapture = (input, options): Uint8ClampedArray | null => {
@@ -73,11 +76,7 @@ describe("bilateralBlur", () => {
   it("preserves strong edges while smoothing nearby tones", () => {
     const width = 3;
     const height = 1;
-    const source = new Uint8ClampedArray([
-      10, 10, 10, 255,
-      12, 12, 12, 255,
-      240, 240, 240, 255,
-    ]);
+    const source = new Uint8ClampedArray([10, 10, 10, 255, 12, 12, 12, 255, 240, 240, 240, 255]);
 
     const out = runAndCapture(makeCanvas(width, height, source), {
       ...bilateralBlur.defaults,

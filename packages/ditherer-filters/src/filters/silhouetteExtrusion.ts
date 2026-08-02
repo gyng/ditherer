@@ -61,11 +61,35 @@ void main() {
 }`;
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.45, desc: "Luminance/alpha cutoff defining the extruded silhouette" },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.45,
+    desc: "Luminance/alpha cutoff defining the extruded silhouette",
+  },
   depth: { type: RANGE, range: [1, 64], step: 1, default: 24, desc: "Extrusion depth in pixels" },
-  angle: { type: RANGE, range: [0, 360], step: 1, default: 135, desc: "Direction of the traced side wall" },
-  bevel: { type: RANGE, range: [0, 2], step: 0.05, default: 0.8, desc: "Rounded lighting around silhouette edges" },
-  metallic: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "Sharpness and strength of metallic highlights" },
+  angle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 135,
+    desc: "Direction of the traced side wall",
+  },
+  bevel: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.8,
+    desc: "Rounded lighting around silhouette edges",
+  },
+  metallic: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.35,
+    desc: "Sharpness and strength of metallic highlights",
+  },
   sideColor: { type: COLOR, default: [54, 42, 78], desc: "Extrusion side-wall material color" },
   background: { type: COLOR, default: [10, 11, 18], desc: "Background behind the traced slab" },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
@@ -83,10 +107,23 @@ export const defaults = {
 };
 
 const silhouetteExtrusion = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "silhouetteExtrusion", fragmentShader: FS,
-    uniformNames: ["u_threshold", "u_depth", "u_angle", "u_bevel", "u_metallic", "u_sideColor", "u_background"],
+    source: input,
+    width: W,
+    height: H,
+    key: "silhouetteExtrusion",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_threshold",
+      "u_depth",
+      "u_angle",
+      "u_bevel",
+      "u_metallic",
+      "u_sideColor",
+      "u_background",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1f(u.u_threshold, options.threshold);
       gl.uniform1f(u.u_depth, options.depth);
@@ -94,13 +131,24 @@ const silhouetteExtrusion = (input: HTMLCanvasElement | OffscreenCanvas, options
       gl.uniform1f(u.u_bevel, options.bevel);
       gl.uniform1f(u.u_metallic, options.metallic);
       gl.uniform3f(u.u_sideColor, options.sideColor[0], options.sideColor[1], options.sideColor[2]);
-      gl.uniform3f(u.u_background, options.background[0], options.background[1], options.background[2]);
+      gl.uniform3f(
+        u.u_background,
+        options.background[0],
+        options.background[1],
+        options.background[2],
+      );
     },
   });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Silhouette Extrusion", "WebGL2", `depth=${options.depth}${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Silhouette Extrusion",
+    "WebGL2",
+    `depth=${options.depth}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
 
 export default defineFilter({

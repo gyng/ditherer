@@ -103,13 +103,55 @@ export const optionTypes = {
     default: LASER.RGB,
     desc: "Laser-primary configuration used to project the source",
   },
-  grain: { type: RANGE, range: [0.5, 16], step: 0.5, default: 4.5, desc: "Apparent coherent speckle grain diameter in pixels" },
-  coherence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.46, desc: "Single-pattern speckle contrast mixed into the projected irradiance" },
-  diversity: { type: RANGE, range: [1, 8], step: 1, default: 4, desc: "Independent equal-power patterns averaged so contrast falls approximately as 1/√M" },
-  scanPitch: { type: RANGE, range: [1, 24], step: 1, default: 7, desc: "Spacing of the projector scan and pulse-width modulation structure" },
-  scanStrength: { type: RANGE, range: [0, 1], step: 0.01, default: 0.18, desc: "Visibility of scan and pulse-width modulation bands" },
-  bloom: { type: RANGE, range: [0, 1], step: 0.01, default: 0.28, desc: "Optical flare around bright projected detail" },
-  motion: { type: RANGE, range: [0, 2], step: 0.02, default: 0.32, desc: "Rate at which changing diffuser phases animate the speckle" },
+  grain: {
+    type: RANGE,
+    range: [0.5, 16],
+    step: 0.5,
+    default: 4.5,
+    desc: "Apparent coherent speckle grain diameter in pixels",
+  },
+  coherence: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.46,
+    desc: "Single-pattern speckle contrast mixed into the projected irradiance",
+  },
+  diversity: {
+    type: RANGE,
+    range: [1, 8],
+    step: 1,
+    default: 4,
+    desc: "Independent equal-power patterns averaged so contrast falls approximately as 1/√M",
+  },
+  scanPitch: {
+    type: RANGE,
+    range: [1, 24],
+    step: 1,
+    default: 7,
+    desc: "Spacing of the projector scan and pulse-width modulation structure",
+  },
+  scanStrength: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.18,
+    desc: "Visibility of scan and pulse-width modulation bands",
+  },
+  bloom: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.28,
+    desc: "Optical flare around bright projected detail",
+  },
+  motion: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.02,
+    default: 0.32,
+    desc: "Rate at which changing diffuser phases animate the speckle",
+  },
 };
 
 export const defaults = {
@@ -125,14 +167,20 @@ export const defaults = {
 
 const laserId: Record<string, number> = { RGB: 0, RED: 1, GREEN: 2, BLUE: 3 };
 
-const boundedOption = (value: unknown, fallback: number, minimum: number, maximum: number): number => {
+const boundedOption = (
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number => {
   const numeric = Number(value);
   return Math.max(minimum, Math.min(maximum, Number.isFinite(numeric) ? numeric : fallback));
 };
 
 const laserSpeckleProjector = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const runtime = options as typeof defaults & { _frameIndex?: number };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const grain = boundedOption(options.grain, defaults.grain, 0.5, 16);
   const coherence = boundedOption(options.coherence, defaults.coherence, 0, 1);
   const diversity = Math.round(boundedOption(options.diversity, defaults.diversity, 1, 8));
@@ -142,8 +190,21 @@ const laserSpeckleProjector = (input: HTMLCanvasElement | OffscreenCanvas, optio
   const motion = boundedOption(options.motion, defaults.motion, 0, 2);
   const frameIndex = boundedOption(runtime._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER);
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "laserSpeckleProjector", fragmentShader: FS,
-    uniformNames: ["u_laser", "u_grain", "u_coherence", "u_diversity", "u_scanPitch", "u_scanStrength", "u_bloom", "u_time"],
+    source: input,
+    width: W,
+    height: H,
+    key: "laserSpeckleProjector",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_laser",
+      "u_grain",
+      "u_coherence",
+      "u_diversity",
+      "u_scanPitch",
+      "u_scanStrength",
+      "u_bloom",
+      "u_time",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1i(u.u_laser, laserId[String(options.laser)] ?? 0);
       gl.uniform1f(u.u_grain, grain);
@@ -166,7 +227,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Linear-light laser-projector irradiance with coherent speckle, independent-pattern diversity, scan structure, and optical bloom",
+  description:
+    "Linear-light laser-projector irradiance with coherent speckle, independent-pattern diversity, scan structure, and optical bloom",
   temporal: true,
   autoAnimate: true,
   autoAnimateFps: 30,

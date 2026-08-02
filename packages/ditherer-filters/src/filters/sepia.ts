@@ -7,17 +7,18 @@ import { renderSepiaGL } from "./sepiaGL";
 
 export const optionTypes = {
   intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Sepia tone intensity" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   intensity: optionTypes.intensity.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const sepiaFilter = (input: any, options: typeof defaults = defaults) => {
   const { intensity, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const rendered = renderSepiaGL(input, W, H, intensity);
   if (!rendered) return input;
@@ -33,4 +34,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  requiresGL: true });
+  requiresGL: true,
+});

@@ -62,10 +62,17 @@ export const getReliableVideoSupport = async (
   needsAudio: boolean,
 ): Promise<ReliableVideoSupport> => {
   if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") {
-    return { supported: false, reason: "WebCodecs video encoding is unavailable in this browser.", audio: false };
+    return {
+      supported: false,
+      reason: "WebCodecs video encoding is unavailable in this browser.",
+      audio: false,
+    };
   }
 
-  const hasAudioDecodeContext = typeof AudioContext !== "undefined" || typeof (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext !== "undefined";
+  const hasAudioDecodeContext =
+    typeof AudioContext !== "undefined" ||
+    typeof (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext !==
+      "undefined";
   if (!hasAudioDecodeContext || typeof OfflineAudioContext === "undefined") {
     return {
       supported: !needsAudio,
@@ -76,7 +83,11 @@ export const getReliableVideoSupport = async (
 
   const videoCodec = await probeVideoCodec(width, height, fps);
   if (!videoCodec) {
-    return { supported: false, reason: "No supported WebCodecs video encoder configuration was found.", audio: false };
+    return {
+      supported: false,
+      reason: "No supported WebCodecs video encoder configuration was found.",
+      audio: false,
+    };
   }
 
   if (!needsAudio) {
@@ -84,7 +95,11 @@ export const getReliableVideoSupport = async (
   }
 
   if (typeof AudioEncoder === "undefined" || typeof AudioData === "undefined") {
-    return { supported: false, reason: "Reliable export audio encoding is unavailable in this browser.", audio: false };
+    return {
+      supported: false,
+      reason: "Reliable export audio encoding is unavailable in this browser.",
+      audio: false,
+    };
   }
 
   try {
@@ -95,10 +110,18 @@ export const getReliableVideoSupport = async (
       bitrate: 128_000,
     });
     if (!support.supported) {
-      return { supported: false, reason: "This browser cannot encode Opus audio for reliable export.", audio: false };
+      return {
+        supported: false,
+        reason: "This browser cannot encode Opus audio for reliable export.",
+        audio: false,
+      };
     }
   } catch {
-    return { supported: false, reason: "Reliable export audio encoding could not be verified.", audio: false };
+    return {
+      supported: false,
+      reason: "Reliable export audio encoding could not be verified.",
+      audio: false,
+    };
   }
 
   return { supported: true, reason: null, audio: true };
@@ -126,13 +149,13 @@ export const createOfflineVideoEncoder = async ({
   const videoBitrate = Math.max(1_500_000, Math.round(width * height * fps * 0.18));
   const target = new ArrayBufferTarget();
   const audioPrepareStartedAt = performance.now();
-  const audioTrack = includeAudio && sourceVideo
-    ? await prepareOfflineAudioTrack(sourceVideo, durationUs)
-    : null;
+  const audioTrack =
+    includeAudio && sourceVideo ? await prepareOfflineAudioTrack(sourceVideo, durationUs) : null;
   const audioPrepareMs = performance.now() - audioPrepareStartedAt;
-  const audioUnavailableReason = includeAudio && sourceVideo && !audioTrack
-    ? "Reliable export could not decode an audio track from the source video, so the output was saved without audio."
-    : null;
+  const audioUnavailableReason =
+    includeAudio && sourceVideo && !audioTrack
+      ? "Reliable export could not decode an audio track from the source video, so the output was saved without audio."
+      : null;
 
   const muxer = new Muxer({
     target,
@@ -144,13 +167,15 @@ export const createOfflineVideoEncoder = async ({
       height,
       frameRate: fps,
     },
-    ...(audioTrack ? {
-      audio: {
-        codec: "A_OPUS",
-        numberOfChannels: audioTrack.numberOfChannels,
-        sampleRate: audioTrack.sampleRate,
-      },
-    } : {}),
+    ...(audioTrack
+      ? {
+          audio: {
+            codec: "A_OPUS",
+            numberOfChannels: audioTrack.numberOfChannels,
+            sampleRate: audioTrack.sampleRate,
+          },
+        }
+      : {}),
   });
 
   const videoEncoder = new VideoEncoder({
@@ -197,7 +222,7 @@ export const createOfflineVideoEncoder = async ({
       frameContext.putImageData(
         new ImageData(new Uint8ClampedArray(frame.pixels), frame.width, frame.height),
         0,
-        0
+        0,
       );
       const videoFrame = new VideoFrame(frameCanvas, {
         timestamp: frame.timestampUs,

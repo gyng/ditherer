@@ -13,13 +13,13 @@ const rgbToHex = (rgb: number[]): string =>
 const hexToRgb = (hex: string): number[] => [
   parseInt(hex.slice(1, 3), 16),
   parseInt(hex.slice(3, 5), 16),
-  parseInt(hex.slice(5, 7), 16)
+  parseInt(hex.slice(5, 7), 16),
 ];
 
 const ColorPicker = (props: ColorControlProps) => {
   const [open, setOpen] = useState(false);
   const inputId = useId();
-  const hex = Array.isArray(props.value) ? rgbToHex(props.value) : (props.value || "#000000");
+  const hex = Array.isArray(props.value) ? rgbToHex(props.value) : props.value || "#000000";
 
   return (
     <div className={s.controlField}>
@@ -30,9 +30,11 @@ const ColorPicker = (props: ColorControlProps) => {
         desc={props.types?.desc}
         currentValue={props.value}
         defaultValue={props.defaultValue}
-        onReset={props.defaultValue !== undefined
-          ? () => props.onSetFilterOption(props.name, props.defaultValue)
-          : undefined}
+        onReset={
+          props.defaultValue !== undefined
+            ? () => props.onSetFilterOption(props.name, props.defaultValue)
+            : undefined
+        }
       />
       <div className={s.colorPickerRow}>
         <button
@@ -52,7 +54,7 @@ const ColorPicker = (props: ColorControlProps) => {
         <div className={s.pickerContainer}>
           <HexColorPicker
             color={hex}
-            onChange={color => props.onSetFilterOption(props.name, hexToRgb(color))}
+            onChange={(color) => props.onSetFilterOption(props.name, hexToRgb(color))}
           />
         </div>
       )}

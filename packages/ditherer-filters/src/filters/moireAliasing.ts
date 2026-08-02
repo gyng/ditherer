@@ -2,8 +2,15 @@ import { ACTION, ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { logFilterBackend } from "../utils/index";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glUnavailableStub,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -20,13 +27,55 @@ export const optionTypes = {
     default: PATTERN.SENSOR,
     desc: "Interference geometry used to resample the image",
   },
-  cellSize: { type: RANGE, range: [1.5, 16], step: 0.25, default: 4, desc: "Camera or scanner sampling-lattice pitch in pixels" },
-  sourcePitch: { type: RANGE, range: [1, 16], step: 0.25, default: 3.5, desc: "Underlying display-emitter or print-screen pitch in pixels" },
-  angle: { type: RANGE, range: [-90, 90], step: 0.25, default: 7, desc: "Rotation of the sampling lattice relative to the source lattice" },
-  strength: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Blend between the original and physically resampled capture" },
-  chroma: { type: RANGE, range: [0, 1], step: 0.01, default: 0.65, desc: "Visibility of RGB emitter or CMYK screen separation" },
-  opticalBlur: { type: RANGE, range: [0, 1], step: 0.01, default: 0.2, desc: "Capture-aperture averaging before lattice sampling" },
-  drift: { type: RANGE, range: [0, 4], step: 0.05, default: 0.25, desc: "Animated subpixel motion of the sampling lattice" },
+  cellSize: {
+    type: RANGE,
+    range: [1.5, 16],
+    step: 0.25,
+    default: 4,
+    desc: "Camera or scanner sampling-lattice pitch in pixels",
+  },
+  sourcePitch: {
+    type: RANGE,
+    range: [1, 16],
+    step: 0.25,
+    default: 3.5,
+    desc: "Underlying display-emitter or print-screen pitch in pixels",
+  },
+  angle: {
+    type: RANGE,
+    range: [-90, 90],
+    step: 0.25,
+    default: 7,
+    desc: "Rotation of the sampling lattice relative to the source lattice",
+  },
+  strength: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.7,
+    desc: "Blend between the original and physically resampled capture",
+  },
+  chroma: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.65,
+    desc: "Visibility of RGB emitter or CMYK screen separation",
+  },
+  opticalBlur: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.2,
+    desc: "Capture-aperture averaging before lattice sampling",
+  },
+  drift: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.05,
+    default: 0.25,
+    desc: "Animated subpixel motion of the sampling lattice",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview frame rate" },
   animate: {
     type: ACTION,
@@ -164,8 +213,16 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_cellSize", "u_sourcePitch", "u_angle", "u_strength",
-    "u_chroma", "u_opticalBlur", "u_phase", "u_pattern",
+    "u_source",
+    "u_res",
+    "u_cellSize",
+    "u_sourcePitch",
+    "u_angle",
+    "u_strength",
+    "u_chroma",
+    "u_opticalBlur",
+    "u_phase",
+    "u_pattern",
   ] as const);
   return _prog;
 };
@@ -174,7 +231,8 @@ const patternId: Record<string, number> = { SENSOR: 0, SCREEN: 1, PRINT: 2 };
 
 const moireAliasing = (input: any, options: MoireOptions = defaults) => {
   const resolved = { ...defaults, ...options };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
   const { gl, canvas } = ctx;
@@ -183,20 +241,31 @@ const moireAliasing = (input: any, options: MoireOptions = defaults) => {
   resizeGLCanvas(canvas, W, H);
   const sourceTex = ensureTexture(gl, "moireAliasing:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_cellSize, Number(resolved.cellSize));
-    gl.uniform1f(prog.uniforms.u_sourcePitch, Number(resolved.sourcePitch));
-    gl.uniform1f(prog.uniforms.u_angle, Number(resolved.angle) * Math.PI / 180);
-    gl.uniform1f(prog.uniforms.u_strength, Number(resolved.strength));
-    gl.uniform1f(prog.uniforms.u_chroma, Number(resolved.chroma));
-    gl.uniform1f(prog.uniforms.u_opticalBlur, Number(resolved.opticalBlur));
-    gl.uniform1f(prog.uniforms.u_phase, Number(resolved._frameIndex ?? 0) * Number(resolved.drift));
-    gl.uniform1i(prog.uniforms.u_pattern, patternId[String(resolved.pattern)] ?? 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_cellSize, Number(resolved.cellSize));
+      gl.uniform1f(prog.uniforms.u_sourcePitch, Number(resolved.sourcePitch));
+      gl.uniform1f(prog.uniforms.u_angle, (Number(resolved.angle) * Math.PI) / 180);
+      gl.uniform1f(prog.uniforms.u_strength, Number(resolved.strength));
+      gl.uniform1f(prog.uniforms.u_chroma, Number(resolved.chroma));
+      gl.uniform1f(prog.uniforms.u_opticalBlur, Number(resolved.opticalBlur));
+      gl.uniform1f(
+        prog.uniforms.u_phase,
+        Number(resolved._frameIndex ?? 0) * Number(resolved.drift),
+      );
+      gl.uniform1i(prog.uniforms.u_pattern, patternId[String(resolved.pattern)] ?? 0);
+    },
+    vao,
+  );
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
   logFilterBackend("Moiré / Aliasing", "WebGL2", `${resolved.pattern} cell=${resolved.cellSize}`);
@@ -209,7 +278,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Lattice-derived capture aliasing from rotated scene sampling, RGB display emitters, or conventional CMYK print screens",
+  description:
+    "Lattice-derived capture aliasing from rotated scene sampling, RGB display emitters, or conventional CMYK print screens",
   temporal: true,
   requiresGL: true,
 });

@@ -1,24 +1,32 @@
 import { humanizeControlName } from "./labels";
 import s from "./styles.module.css";
 
-export const HelpHint = ({ label, text, id }: { label: string; text: string; id?: string | undefined }) => (
+export const HelpHint = ({
+  label,
+  text,
+  id,
+}: {
+  label: string;
+  text: string;
+  id?: string | undefined;
+}) => (
   <details className={s.helpHint}>
-    <summary
-      className={s.info}
-      aria-label={`Help for ${label}`}
-      title={text}
-    >
+    <summary className={s.info} aria-label={`Help for ${label}`} title={text}>
       ?
     </summary>
-    <div id={id} className={s.helpPopover} role="note">{text}</div>
+    <div id={id} className={s.helpPopover} role="note">
+      {text}
+    </div>
   </details>
 );
 
 const valuesMatch = (currentValue: unknown, defaultValue: unknown) => {
   if (Object.is(currentValue, defaultValue)) return true;
   if (Array.isArray(currentValue) && Array.isArray(defaultValue)) {
-    return currentValue.length === defaultValue.length
-      && currentValue.every((value, index) => Object.is(value, defaultValue[index]));
+    return (
+      currentValue.length === defaultValue.length &&
+      currentValue.every((value, index) => Object.is(value, defaultValue[index]))
+    );
   }
   return false;
 };
@@ -72,8 +80,12 @@ const ControlLabel = ({
   const visibleLabel = humanizeControlName(label || name);
   return (
     <div className={s.labelRow}>
-      <label className={s.label} htmlFor={htmlFor}>{visibleLabel}</label>
-      {desc ? <HelpHint label={visibleLabel} text={desc} id={htmlFor ? `${htmlFor}-help` : undefined} /> : null}
+      <label className={s.label} htmlFor={htmlFor}>
+        {visibleLabel}
+      </label>
+      {desc ? (
+        <HelpHint label={visibleLabel} text={desc} id={htmlFor ? `${htmlFor}-help` : undefined} />
+      ) : null}
       {defaultValue !== undefined && onReset ? (
         <ControlReset
           label={visibleLabel}

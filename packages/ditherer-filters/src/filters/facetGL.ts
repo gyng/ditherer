@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -137,12 +144,22 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     facet: linkProgram(gl, FACET_FS, [
-      "u_source", "u_res", "u_facetSize", "u_jitter",
-      "u_seamWidth", "u_lineColor", "u_seed", "u_sourceFlipped",
+      "u_source",
+      "u_res",
+      "u_facetSize",
+      "u_jitter",
+      "u_seamWidth",
+      "u_lineColor",
+      "u_seed",
+      "u_sourceFlipped",
       "u_sourcePremultiplied",
     ] as const),
     blur: linkProgram(gl, BLUR_FS, [
-      "u_input", "u_res", "u_dir", "u_radius", "u_inputPremultiplied",
+      "u_input",
+      "u_res",
+      "u_dir",
+      "u_radius",
+      "u_inputPremultiplied",
     ] as const),
   };
   return _cache;
@@ -152,8 +169,11 @@ export const facetGLAvailable = (): boolean => glAvailable();
 
 export const renderFacetGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  facetSize: number, jitter: number, seamWidth: number,
+  width: number,
+  height: number,
+  facetSize: number,
+  jitter: number,
+  seamWidth: number,
   lineColor: [number, number, number],
   averageMode: boolean,
   seed: number,
@@ -176,40 +196,64 @@ export const renderFacetGL = (
     const blurR = Math.max(1, Math.min(32, Math.round(facetSize / 2)));
     const tempH = ensureTexture(gl, "facet:blurH", width, height);
     const tempV = ensureTexture(gl, "facet:blurV", width, height);
-    drawPass(gl, tempH, width, height, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, width, height);
-      gl.uniform2f(cache.blur.uniforms.u_dir, 1 / width, 0);
-      gl.uniform1i(cache.blur.uniforms.u_radius, blurR);
-      gl.uniform1i(cache.blur.uniforms.u_inputPremultiplied, 0);
-    }, vao);
-    drawPass(gl, tempV, width, height, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, width, height);
-      gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / height);
-      gl.uniform1i(cache.blur.uniforms.u_radius, blurR);
-      gl.uniform1i(cache.blur.uniforms.u_inputPremultiplied, 1);
-    }, vao);
+    drawPass(
+      gl,
+      tempH,
+      width,
+      height,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, width, height);
+        gl.uniform2f(cache.blur.uniforms.u_dir, 1 / width, 0);
+        gl.uniform1i(cache.blur.uniforms.u_radius, blurR);
+        gl.uniform1i(cache.blur.uniforms.u_inputPremultiplied, 0);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      tempV,
+      width,
+      height,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, width, height);
+        gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / height);
+        gl.uniform1i(cache.blur.uniforms.u_radius, blurR);
+        gl.uniform1i(cache.blur.uniforms.u_inputPremultiplied, 1);
+      },
+      vao,
+    );
     sampleTex = tempV.tex;
   }
 
   const normalizedSeed = Number.isFinite(seed) ? Math.max(0, Math.round(seed)) >>> 0 : 1;
-  drawPass(gl, null, width, height, cache.facet, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sampleTex);
-    gl.uniform1i(cache.facet.uniforms.u_source, 0);
-    gl.uniform2f(cache.facet.uniforms.u_res, width, height);
-    gl.uniform1f(cache.facet.uniforms.u_facetSize, facetSize);
-    gl.uniform1f(cache.facet.uniforms.u_jitter, jitter);
-    gl.uniform1f(cache.facet.uniforms.u_seamWidth, seamWidth);
-    gl.uniform3f(cache.facet.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
-    gl.uniform1ui(cache.facet.uniforms.u_seed, normalizedSeed || 1);
-    gl.uniform1i(cache.facet.uniforms.u_sourceFlipped, averageMode ? 0 : 1);
-    gl.uniform1i(cache.facet.uniforms.u_sourcePremultiplied, averageMode ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.facet,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sampleTex);
+      gl.uniform1i(cache.facet.uniforms.u_source, 0);
+      gl.uniform2f(cache.facet.uniforms.u_res, width, height);
+      gl.uniform1f(cache.facet.uniforms.u_facetSize, facetSize);
+      gl.uniform1f(cache.facet.uniforms.u_jitter, jitter);
+      gl.uniform1f(cache.facet.uniforms.u_seamWidth, seamWidth);
+      gl.uniform3f(cache.facet.uniforms.u_lineColor, lineColor[0], lineColor[1], lineColor[2]);
+      gl.uniform1ui(cache.facet.uniforms.u_seed, normalizedSeed || 1);
+      gl.uniform1i(cache.facet.uniforms.u_sourceFlipped, averageMode ? 0 : 1);
+      gl.uniform1i(cache.facet.uniforms.u_sourcePremultiplied, averageMode ? 1 : 0);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

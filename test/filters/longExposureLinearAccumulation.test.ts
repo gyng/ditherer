@@ -33,7 +33,12 @@ describe("Long Exposure: linear-light accumulation", () => {
   });
 
   it("holds across the tonal range (linear >= gamma, strict in the midtones)", () => {
-    for (const [a, b] of [[255, 0], [200, 40], [128, 64], [96, 32]]) {
+    for (const [a, b] of [
+      [255, 0],
+      [200, 40],
+      [128, 64],
+      [96, 32],
+    ]) {
       expect(linearAvg(a, b)).toBeGreaterThan(gammaAvg(a, b));
     }
   });

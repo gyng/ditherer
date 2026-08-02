@@ -83,8 +83,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, CLAHE_FS, [
-      "u_source", "u_cdfs", "u_res", "u_tileSize", "u_tilesX", "u_tilesY",
-      "u_cdfTilesPerRow", "u_cdfRes",
+      "u_source",
+      "u_cdfs",
+      "u_res",
+      "u_tileSize",
+      "u_tilesX",
+      "u_tilesY",
+      "u_cdfTilesPerRow",
+      "u_cdfRes",
     ] as const),
   };
   return _cache;
@@ -96,7 +102,13 @@ export const claheCdfAtlasLayout = (
   tileCount: number,
   maxTextureSize: number,
 ): { width: number; height: number; tilesPerRow: number } | null => {
-  if (!Number.isFinite(tileCount) || !Number.isFinite(maxTextureSize) || tileCount < 1 || maxTextureSize < 256) return null;
+  if (
+    !Number.isFinite(tileCount) ||
+    !Number.isFinite(maxTextureSize) ||
+    tileCount < 1 ||
+    maxTextureSize < 256
+  )
+    return null;
   const count = Math.ceil(tileCount);
   const limit = Math.floor(maxTextureSize);
   const tilesPerRow = Math.max(1, Math.min(count, Math.floor(limit / 256)));
@@ -172,20 +184,28 @@ export const renderClaheGL = (
   const cdfTex = uploadCdfs(gl, cdfs, tilesX, tilesY);
   if (!cdfTex) return null;
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, cdfTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_cdfs, 1);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_tileSize, tileSize);
-    gl.uniform1i(cache.prog.uniforms.u_tilesX, tilesX);
-    gl.uniform1i(cache.prog.uniforms.u_tilesY, tilesY);
-    gl.uniform1i(cache.prog.uniforms.u_cdfTilesPerRow, cdfTex.tilesPerRow);
-    gl.uniform2f(cache.prog.uniforms.u_cdfRes, cdfTex.w, cdfTex.h);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, cdfTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_cdfs, 1);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_tileSize, tileSize);
+      gl.uniform1i(cache.prog.uniforms.u_tilesX, tilesX);
+      gl.uniform1i(cache.prog.uniforms.u_tilesY, tilesY);
+      gl.uniform1i(cache.prog.uniforms.u_cdfTilesPerRow, cdfTex.tilesPerRow);
+      gl.uniform2f(cache.prog.uniforms.u_cdfRes, cdfTex.w, cdfTex.h);
+    },
+    vao,
+  );
 
   const out = readoutToCanvas(canvas, width, height);
   gl.deleteTexture(cdfTex.tex);

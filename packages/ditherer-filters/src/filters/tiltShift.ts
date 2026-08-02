@@ -24,11 +24,35 @@ void srgbToLinear;
 void linearToSrgb;
 
 export const optionTypes = {
-  focusPosition: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical position of the in-focus band (0=top, 1=bottom)" },
-  focusWidth: { type: RANGE, range: [0.01, 0.5], step: 0.01, default: 0.15, desc: "Height of the sharp focus band as fraction of image" },
-  blurAmount: { type: RANGE, range: [1, 20], step: 1, default: 8, desc: "Gaussian blur sigma for out-of-focus areas" },
-  saturationBoost: { type: RANGE, range: [0, 0.5], step: 0.05, default: 0.2, desc: "Extra color saturation for a miniature/toy look" },
-  palette: { type: PALETTE, default: nearest }
+  focusPosition: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Vertical position of the in-focus band (0=top, 1=bottom)",
+  },
+  focusWidth: {
+    type: RANGE,
+    range: [0.01, 0.5],
+    step: 0.01,
+    default: 0.15,
+    desc: "Height of the sharp focus band as fraction of image",
+  },
+  blurAmount: {
+    type: RANGE,
+    range: [1, 20],
+    step: 1,
+    default: 8,
+    desc: "Gaussian blur sigma for out-of-focus areas",
+  },
+  saturationBoost: {
+    type: RANGE,
+    range: [0, 0.5],
+    step: 0.05,
+    default: 0.2,
+    desc: "Extra color saturation for a miniature/toy look",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -36,7 +60,7 @@ export const defaults = {
   focusWidth: optionTypes.focusWidth.default,
   blurAmount: optionTypes.blurAmount.default,
   saturationBoost: optionTypes.saturationBoost.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Shader radius cap — sigma=20 → ceil(3σ)=60, which fits comfortably within
@@ -135,10 +159,23 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    blur: linkProgram(gl, TS_BLUR_FS, ["u_input", "u_res", "u_axis", "u_radius", "u_weights", "u_srgbIn"] as const),
+    blur: linkProgram(gl, TS_BLUR_FS, [
+      "u_input",
+      "u_res",
+      "u_axis",
+      "u_radius",
+      "u_weights",
+      "u_srgbIn",
+    ] as const),
     comp: linkProgram(gl, TS_COMPOSITE_FS, [
-      "u_source", "u_blur", "u_res", "u_focusCenter",
-      "u_bandHalf", "u_transitionZone", "u_saturationBoost", "u_levels",
+      "u_source",
+      "u_blur",
+      "u_res",
+      "u_focusCenter",
+      "u_bandHalf",
+      "u_transitionZone",
+      "u_saturationBoost",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -146,7 +183,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const tiltShiftFilter = (input: any, options: typeof defaults = defaults) => {
   const { focusPosition, focusWidth, blurAmount, saturationBoost, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const paletteOpts = palette?.options as { levels?: number } | undefined;
 
   const ctx = getGLCtx();
@@ -175,46 +213,70 @@ const tiltShiftFilter = (input: any, options: typeof defaults = defaults) => {
   }
   for (let i = -radius; i <= radius; i++) weights[i + MAX_KERNEL_HALF] /= kSum;
 
-  drawPass(gl, tempTex, W, H, cache.blur, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.blur.uniforms.u_input, 0);
-    gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-    gl.uniform2f(cache.blur.uniforms.u_axis, 1, 0);
-    gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-    gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
-    gl.uniform1i(cache.blur.uniforms.u_srgbIn, 1); // sourceTex is sRGB — linearize on sample
-  }, vao);
+  drawPass(
+    gl,
+    tempTex,
+    W,
+    H,
+    cache.blur,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.blur.uniforms.u_input, 0);
+      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+      gl.uniform2f(cache.blur.uniforms.u_axis, 1, 0);
+      gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+      gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
+      gl.uniform1i(cache.blur.uniforms.u_srgbIn, 1); // sourceTex is sRGB — linearize on sample
+    },
+    vao,
+  );
 
-  drawPass(gl, blurTex, W, H, cache.blur, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tempTex.tex);
-    gl.uniform1i(cache.blur.uniforms.u_input, 0);
-    gl.uniform2f(cache.blur.uniforms.u_res, W, H);
-    gl.uniform2f(cache.blur.uniforms.u_axis, 0, 1);
-    gl.uniform1i(cache.blur.uniforms.u_radius, radius);
-    gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
-    gl.uniform1i(cache.blur.uniforms.u_srgbIn, 0); // tempTex is already linear
-  }, vao);
+  drawPass(
+    gl,
+    blurTex,
+    W,
+    H,
+    cache.blur,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tempTex.tex);
+      gl.uniform1i(cache.blur.uniforms.u_input, 0);
+      gl.uniform2f(cache.blur.uniforms.u_res, W, H);
+      gl.uniform2f(cache.blur.uniforms.u_axis, 0, 1);
+      gl.uniform1i(cache.blur.uniforms.u_radius, radius);
+      gl.uniform1fv(cache.blur.uniforms.u_weights, weights);
+      gl.uniform1i(cache.blur.uniforms.u_srgbIn, 0); // tempTex is already linear
+    },
+    vao,
+  );
 
   const focusCenter = H * focusPosition;
-  const bandHalf = H * focusWidth / 2;
+  const bandHalf = (H * focusWidth) / 2;
   const transitionZone = H * 0.3;
   const identity = paletteIsIdentity(palette);
-  drawPass(gl, null, W, H, cache.comp, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.comp.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, blurTex.tex);
-    gl.uniform1i(cache.comp.uniforms.u_blur, 1);
-    gl.uniform2f(cache.comp.uniforms.u_res, W, H);
-    gl.uniform1f(cache.comp.uniforms.u_focusCenter, focusCenter);
-    gl.uniform1f(cache.comp.uniforms.u_bandHalf, bandHalf);
-    gl.uniform1f(cache.comp.uniforms.u_transitionZone, transitionZone);
-    gl.uniform1f(cache.comp.uniforms.u_saturationBoost, saturationBoost);
-    gl.uniform1f(cache.comp.uniforms.u_levels, identity ? (paletteOpts?.levels ?? 256) : 256);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.comp,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.comp.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, blurTex.tex);
+      gl.uniform1i(cache.comp.uniforms.u_blur, 1);
+      gl.uniform2f(cache.comp.uniforms.u_res, W, H);
+      gl.uniform1f(cache.comp.uniforms.u_focusCenter, focusCenter);
+      gl.uniform1f(cache.comp.uniforms.u_bandHalf, bandHalf);
+      gl.uniform1f(cache.comp.uniforms.u_transitionZone, transitionZone);
+      gl.uniform1f(cache.comp.uniforms.u_saturationBoost, saturationBoost);
+      gl.uniform1f(cache.comp.uniforms.u_levels, identity ? (paletteOpts?.levels ?? 256) : 256);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;

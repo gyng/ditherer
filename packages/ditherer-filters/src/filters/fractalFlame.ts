@@ -96,13 +96,24 @@ void main() {
 `;
 
 const VAR = {
-  SINUSOIDAL: "SINUSOIDAL", SPHERICAL: "SPHERICAL", SWIRL: "SWIRL",
-  HORSESHOE: "HORSESHOE", POLAR: "POLAR", HEART: "HEART",
-  DISC: "DISC", HYPERBOLIC: "HYPERBOLIC",
+  SINUSOIDAL: "SINUSOIDAL",
+  SPHERICAL: "SPHERICAL",
+  SWIRL: "SWIRL",
+  HORSESHOE: "HORSESHOE",
+  POLAR: "POLAR",
+  HEART: "HEART",
+  DISC: "DISC",
+  HYPERBOLIC: "HYPERBOLIC",
 };
 const VAR_ID: Record<string, number> = {
-  SINUSOIDAL: 0, SPHERICAL: 1, SWIRL: 2, HORSESHOE: 3,
-  POLAR: 4, HEART: 5, DISC: 6, HYPERBOLIC: 7,
+  SINUSOIDAL: 0,
+  SPHERICAL: 1,
+  SWIRL: 2,
+  HORSESHOE: 3,
+  POLAR: 4,
+  HEART: 5,
+  DISC: 6,
+  HYPERBOLIC: 7,
 };
 
 export const optionTypes = {
@@ -119,12 +130,36 @@ export const optionTypes = {
       { name: "Hyperbolic", value: VAR.HYPERBOLIC },
     ],
     default: VAR.SWIRL,
-    desc: "IFS variation to apply — each produces a distinct fractal-flame warp"
+    desc: "IFS variation to apply — each produces a distinct fractal-flame warp",
   },
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.9, desc: "Variation strength (0 = passthrough)" },
-  zoom: { type: RANGE, range: [0.3, 4], step: 0.05, default: 1.2, desc: "Zoom into the variation field" },
-  rotate: { type: RANGE, range: [0, 6.2831], step: 0.01, default: 0, desc: "Rotate before / after the variation" },
-  taps: { type: RANGE, range: [1, 8], step: 1, default: 4, desc: "Rotated sample taps — more = smoother layered flame" },
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.9,
+    desc: "Variation strength (0 = passthrough)",
+  },
+  zoom: {
+    type: RANGE,
+    range: [0.3, 4],
+    step: 0.05,
+    default: 1.2,
+    desc: "Zoom into the variation field",
+  },
+  rotate: {
+    type: RANGE,
+    range: [0, 6.2831],
+    step: 0.01,
+    default: 0,
+    desc: "Rotate before / after the variation",
+  },
+  taps: {
+    type: RANGE,
+    range: [1, 8],
+    step: 1,
+    default: 4,
+    desc: "Rotated sample taps — more = smoother layered flame",
+  },
   tint: { type: COLOR, default: [255, 180, 80], desc: "Flame tint colour" },
   palette: { type: PALETTE, default: nearest },
 };
@@ -145,8 +180,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     flame: linkProgram(gl, FLAME_FS, [
-      "u_source", "u_res", "u_variation", "u_amount",
-      "u_zoom", "u_rotate", "u_taps", "u_tint", "u_levels",
+      "u_source",
+      "u_res",
+      "u_variation",
+      "u_amount",
+      "u_zoom",
+      "u_rotate",
+      "u_taps",
+      "u_tint",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -154,7 +196,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const fractalFlame = (input: any, options = defaults) => {
   const { variation, amount, zoom, rotate, taps, tint, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -166,29 +209,40 @@ const fractalFlame = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "fractalFlame:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.flame, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.flame.uniforms.u_source, 0);
-        gl.uniform2f(cache.flame.uniforms.u_res, W, H);
-        gl.uniform1i(cache.flame.uniforms.u_variation, VAR_ID[variation] ?? 2);
-        gl.uniform1f(cache.flame.uniforms.u_amount, amount);
-        gl.uniform1f(cache.flame.uniforms.u_zoom, zoom);
-        gl.uniform1f(cache.flame.uniforms.u_rotate, rotate);
-        gl.uniform1i(cache.flame.uniforms.u_taps, Math.max(1, Math.min(8, Math.round(taps))));
-        gl.uniform3f(cache.flame.uniforms.u_tint, tint[0], tint[1], tint[2]);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.flame.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.flame,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.flame.uniforms.u_source, 0);
+          gl.uniform2f(cache.flame.uniforms.u_res, W, H);
+          gl.uniform1i(cache.flame.uniforms.u_variation, VAR_ID[variation] ?? 2);
+          gl.uniform1f(cache.flame.uniforms.u_amount, amount);
+          gl.uniform1f(cache.flame.uniforms.u_zoom, zoom);
+          gl.uniform1f(cache.flame.uniforms.u_rotate, rotate);
+          gl.uniform1i(cache.flame.uniforms.u_taps, Math.max(1, Math.min(8, Math.round(taps))));
+          gl.uniform3f(cache.flame.uniforms.u_tint, tint[0], tint[1], tint[2]);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.flame.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Fractal Flame", "WebGL2",
-            `${variation} taps=${taps}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Fractal Flame",
+            "WebGL2",
+            `${variation} taps=${taps}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -204,6 +258,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Per-pixel fractal-flame-style IFS warp — swirl, spherical, horseshoe, heart and other classic variations with layered multi-tap accumulation for the signature flame aesthetic",
-  noWASM: "Variations evaluated per-pixel with multiple rotated taps — GPU-friendly, CPU-unfriendly.",
+  description:
+    "Per-pixel fractal-flame-style IFS warp — swirl, spherical, horseshoe, heart and other classic variations with layered multi-tap accumulation for the signature flame aesthetic",
+  noWASM:
+    "Variations evaluated per-pixel with multiple rotated taps — GPU-friendly, CPU-unfriendly.",
 });

@@ -135,9 +135,7 @@ describe("pickMetricsForMode", () => {
     const beatHoldIdx = picked.indexOf("beatHold");
     const bassEnvelopeIdx = picked.indexOf("bassEnvelope");
     // Fresh metrics from the pool should appear before the reused ones
-    const freshMetrics = pool.filter(
-      (m) => m !== "beatHold" && m !== "bassEnvelope",
-    );
+    const freshMetrics = pool.filter((m) => m !== "beatHold" && m !== "bassEnvelope");
     for (const m of freshMetrics) {
       const idx = picked.indexOf(m);
       if (idx !== -1) {
@@ -223,11 +221,33 @@ describe("buildAutoVizConnections", () => {
 describe("applyAudioModulationToOptions", () => {
   const makeMetrics = () => {
     const keys = [
-      "level", "bass", "mid", "treble", "pulse", "beat", "bpm", "beatHold",
-      "onset", "spectralCentroid", "spectralFlux", "bandRatio", "stereoWidth",
-      "stereoBalance", "zeroCrossing", "subKick", "bassEnvelope", "midEnvelope",
-      "trebleEnvelope", "peakDecay", "roughness", "harmonic", "percussive",
-      "tempoPhase", "barPhase", "barBeat", "beatConfidence",
+      "level",
+      "bass",
+      "mid",
+      "treble",
+      "pulse",
+      "beat",
+      "bpm",
+      "beatHold",
+      "onset",
+      "spectralCentroid",
+      "spectralFlux",
+      "bandRatio",
+      "stereoWidth",
+      "stereoBalance",
+      "zeroCrossing",
+      "subKick",
+      "bassEnvelope",
+      "midEnvelope",
+      "trebleEnvelope",
+      "peakDecay",
+      "roughness",
+      "harmonic",
+      "percussive",
+      "tempoPhase",
+      "barPhase",
+      "barBeat",
+      "beatConfidence",
     ] as const;
     const metrics: Record<string, number> = {};
     for (const k of keys) metrics[k] = 0;
@@ -341,10 +361,12 @@ describe("applyAudioModulationToOptions", () => {
     const result = applyAudioModulationToOptions(
       { amount: 0 },
       optionTypes,
-      { connections: [
-        { metric: "beat", target: "amount", weight: 0.2 },
-        { metric: "bass", target: "amount", weight: 0.3 },
-      ] },
+      {
+        connections: [
+          { metric: "beat", target: "amount", weight: 0.2 },
+          { metric: "bass", target: "amount", weight: 0.3 },
+        ],
+      },
       snapshot,
     );
     // 0 + (1*0.2 + 1*0.3) * 100 = 50

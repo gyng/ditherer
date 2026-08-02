@@ -33,11 +33,7 @@ import {
   runSpectrumAttributeContract,
   runTeletextRepeatConcealment,
 } from "./contracts/standards";
-import {
-  acquireGradientCanvas,
-  makeSmoothRamp,
-  runtimeOptions,
-} from "./fixtures";
+import { acquireGradientCanvas, makeSmoothRamp, runtimeOptions } from "./fixtures";
 import { glCalls, installGLCallTracking } from "./instrumentation";
 import { runEquivalent, runIdentity, runOne } from "./harness";
 import { runContractSuites } from "./contractRunner";
@@ -88,7 +84,6 @@ const warmTemporalState = (
   return { ok: true };
 };
 
-
 const main = async () => {
   const startedAt = performance.now();
   installGLCallTracking();
@@ -107,7 +102,12 @@ const main = async () => {
       programLinks: glCalls.programLinks,
       shaderFailures: glCalls.shaderFailureLogs.length,
       drawCalls: glCalls.drawCalls,
-      timings: { totalMs: performance.now() - startedAt, registryMs: 0, contractsMs: 0, suitesMs: {} },
+      timings: {
+        totalMs: performance.now() - startedAt,
+        registryMs: 0,
+        contractsMs: 0,
+        suitesMs: {},
+      },
       failures: [{ name: "<runtime>", mode: "init", reason: details.reason }],
     };
     return;
@@ -126,7 +126,10 @@ const main = async () => {
     result: { ok: true } | { ok: false; reason: string },
   ) => {
     if (result.ok) passed += 1;
-    else { failed += 1; failures.push({ name, mode, reason: result.reason }); }
+    else {
+      failed += 1;
+      failures.push({ name, mode, reason: result.reason });
+    }
   };
 
   // Stub plate contract: amber-on-dark, fully opaque, correct size. Only
@@ -154,8 +157,13 @@ const main = async () => {
       }
       let sawAmber = false;
       for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-        if (r > 180 && g > 100 && g < 220 && b < 120) { sawAmber = true; break; }
+        const r = pixels[i],
+          g = pixels[i + 1],
+          b = pixels[i + 2];
+        if (r > 180 && g > 100 && g < 220 && b < 120) {
+          sawAmber = true;
+          break;
+        }
       }
       if (!sawAmber) return { ok: false, reason: "stub amber text missing" };
       return { ok: true };
@@ -214,39 +222,42 @@ const main = async () => {
     if (!defaultResult.ok) continue;
 
     if (!f.requiresGL) {
-      record(name, "webgl-acceleration-disabled", runOne(
-        f,
-        {
-          ...defaults,
-          ...activated,
-          ...runtimeOptions(),
-          _webglAcceleration: false,
-        },
-        false,
-        false,
-        scale,
-      ));
+      record(
+        name,
+        "webgl-acceleration-disabled",
+        runOne(
+          f,
+          {
+            ...defaults,
+            ...activated,
+            ...runtimeOptions(),
+            _webglAcceleration: false,
+          },
+          false,
+          false,
+          scale,
+        ),
+      );
     }
 
-    record(name, "linearize", runOne(
-      f,
-      { ...defaults, ...activated, ...runtimeOptions(), _linearize: true },
-      requireDynamicRange,
-      true,
-      scale,
-    ));
+    record(
+      name,
+      "linearize",
+      runOne(
+        f,
+        { ...defaults, ...activated, ...runtimeOptions(), _linearize: true },
+        requireDynamicRange,
+        true,
+        scale,
+      ),
+    );
 
     if (name === "Teletext") {
-      record(name, "oversized-49px-cells", runOne(
-        f,
-        { ...defaults, ...runtimeOptions() },
-        true,
-        true,
-        1,
-        true,
-        1960,
-        24,
-      ));
+      record(
+        name,
+        "oversized-49px-cells",
+        runOne(f, { ...defaults, ...runtimeOptions() }, true, true, 1, true, 1960, 24),
+      );
       record(name, "repeat-row-concealment", runTeletextRepeatConcealment());
     }
     if (name === "PAL / SECAM") {
@@ -254,28 +265,36 @@ const main = async () => {
     }
     if (name === "Gameboy Camera") {
       record(name, "4x4-controller-threshold-matrix", runGameboyThresholdMatrix());
-      record(name, "malformed-state-falls-back", runEquivalent(
-        f,
-        { ...defaults, ...runtimeOptions() },
-        {
-          ...defaults,
-          ...runtimeOptions(),
-          invertSensor: "false",
-          edgeMode: "INVALID",
-        },
-        1,
-      ));
-      record(name, "extreme-wide-aspect", runOne(
-        f,
-        { ...defaults, ...runtimeOptions() },
-        true,
-        true,
-        1,
-        true,
-        2048,
-        2,
-        makeSmoothRamp,
-      ));
+      record(
+        name,
+        "malformed-state-falls-back",
+        runEquivalent(
+          f,
+          { ...defaults, ...runtimeOptions() },
+          {
+            ...defaults,
+            ...runtimeOptions(),
+            invertSensor: "false",
+            edgeMode: "INVALID",
+          },
+          1,
+        ),
+      );
+      record(
+        name,
+        "extreme-wide-aspect",
+        runOne(
+          f,
+          { ...defaults, ...runtimeOptions() },
+          true,
+          true,
+          1,
+          true,
+          2048,
+          2,
+          makeSmoothRamp,
+        ),
+      );
     }
     if (name === "CGA Composite") {
       record(name, "legal-rgbi-palette", runCgaRgbiPalette());
@@ -293,113 +312,138 @@ const main = async () => {
       record(name, "15hz-ccd-frame-hold", runPxlCaptureHold());
     }
     if (name === "Wavelet Codec") {
-      record(name, "53-profile-lossless-settings", runIdentity(f, {
-        ...defaults,
-        ...runtimeOptions(),
-        transform: "REVERSIBLE_53",
-        channels: "RGB",
-        quality: 100,
-        detailLoss: 0,
-        bitplaneDrop: 0,
-        codeblockLoss: 0,
-        ringing: 0,
-      }, 1));
+      record(
+        name,
+        "53-profile-lossless-settings",
+        runIdentity(
+          f,
+          {
+            ...defaults,
+            ...runtimeOptions(),
+            transform: "REVERSIBLE_53",
+            channels: "RGB",
+            quality: 100,
+            detailLoss: 0,
+            bitplaneDrop: 0,
+            codeblockLoss: 0,
+            ringing: 0,
+          },
+          1,
+        ),
+      );
     }
 
     for (const branch of enumBranches(f)) {
-      const options = { ...defaults, ...activated, ...runtimeOptions(), [branch.key]: branch.value };
-      record(name, `${branch.key}=${branch.label}`, runOne(
-        f,
-        options,
-        requireDynamicRange,
-        true,
-        scale,
-      ));
+      const options = {
+        ...defaults,
+        ...activated,
+        ...runtimeOptions(),
+        [branch.key]: branch.value,
+      };
+      record(
+        name,
+        `${branch.key}=${branch.label}`,
+        runOne(f, options, requireDynamicRange, true, scale),
+      );
     }
     for (const profile of scalarProfiles(f)) {
-      record(name, profile.label, runOne(
-        f,
-        { ...defaults, ...activated, ...runtimeOptions(), ...profile.values },
-        false,
-        false,
-        scale,
-        false,
-      ));
+      record(
+        name,
+        profile.label,
+        runOne(
+          f,
+          { ...defaults, ...activated, ...runtimeOptions(), ...profile.values },
+          false,
+          false,
+          scale,
+          false,
+        ),
+      );
     }
     const scalarKeys = scalarOptionKeys(f);
     if (scalarKeys.length > 0 && !migratedScalarDefaults.has(name)) {
       const legacyOptions = { ...defaults, ...activated, ...runtimeOptions() };
       for (const key of scalarKeys) delete legacyOptions[key];
       const strictState = STRICT_SPEC_FILTERS.has(name);
-      record(name, "legacy-state-without-scalars", runOne(
-        f,
-        legacyOptions,
-        strictState,
-        strictState,
-        scale,
-        strictState,
-      ));
+      record(
+        name,
+        "legacy-state-without-scalars",
+        runOne(f, legacyOptions, strictState, strictState, scale, strictState),
+      );
     }
     for (const key of enumOptionKeys(f)) {
       if (migratedEnumDefaults.has(`${name}:${key}`)) continue;
       const legacyOptions = { ...defaults, ...activated, ...runtimeOptions() };
       delete legacyOptions[key];
       const strictState = STRICT_SPEC_FILTERS.has(name);
-      record(name, `legacy-state-without-${key}`, runOne(
-        f,
-        legacyOptions,
-        strictState,
-        strictState,
-        scale,
-        strictState,
-      ));
+      record(
+        name,
+        `legacy-state-without-${key}`,
+        runOne(f, legacyOptions, strictState, strictState, scale, strictState),
+      );
     }
     if (hasPaletteControl(f) && name !== "Quantize") {
-      record(name, "non-identity-palette", runOne(
-        f,
-        {
-          ...defaults,
-          ...activated,
-          ...runtimeOptions(),
-          palette: { ...nearest, options: { levels: 2 } },
-        },
-        false,
-        true,
-        scale,
-        false,
-      ));
+      record(
+        name,
+        "non-identity-palette",
+        runOne(
+          f,
+          {
+            ...defaults,
+            ...activated,
+            ...runtimeOptions(),
+            palette: { ...nearest, options: { levels: 2 } },
+          },
+          false,
+          true,
+          scale,
+          false,
+        ),
+      );
     }
     if (hasPaletteControl(f)) {
       const customPalette = {
         ...user,
         options: {
           ...user.options,
-          colors: [[0, 0, 0, 255], [255, 255, 255, 255], [255, 64, 32, 255]],
+          colors: [
+            [0, 0, 0, 255],
+            [255, 255, 255, 255],
+            [255, 64, 32, 255],
+          ],
           colorDistanceAlgorithm: "RGB",
         },
       };
-      record(name, "custom-palette", runOne(
-        f,
-        { ...defaults, ...activated, ...runtimeOptions(), palette: customPalette },
-        false,
-        true,
-        scale,
-        false,
-      ));
-      record(name, "custom-palette-linearized", runOne(
-        f,
-        {
-          ...defaults,
-          ...activated,
-          ...runtimeOptions(),
-          palette: customPalette,
-          _linearize: true,
-        },
-        false,
-        true,
-        scale,
-        false,
-      ));
+      record(
+        name,
+        "custom-palette",
+        runOne(
+          f,
+          { ...defaults, ...activated, ...runtimeOptions(), palette: customPalette },
+          false,
+          true,
+          scale,
+          false,
+        ),
+      );
+      record(
+        name,
+        "custom-palette-linearized",
+        runOne(
+          f,
+          {
+            ...defaults,
+            ...activated,
+            ...runtimeOptions(),
+            palette: customPalette,
+            _linearize: true,
+          },
+          false,
+          true,
+          scale,
+          false,
+        ),
+      );
     }
     if (name === "VHS / NTSC") {
       for (const key of ["tapeSharpness", "ringingFrequency", "ringingPower"]) {
@@ -462,7 +506,12 @@ void main().catch((error) => {
     programLinks: glCalls.programLinks,
     shaderFailures: glCalls.shaderFailureLogs.length,
     drawCalls: glCalls.drawCalls,
-    timings: { totalMs: performance.now() - bootStartedAt, registryMs: 0, contractsMs: 0, suitesMs: {} },
+    timings: {
+      totalMs: performance.now() - bootStartedAt,
+      registryMs: 0,
+      contractsMs: 0,
+      suitesMs: {},
+    },
     failures: [{ name: "<runtime>", mode: "boot", reason }],
   };
   console.error("GL smoke failed:", error);

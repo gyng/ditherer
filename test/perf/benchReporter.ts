@@ -68,11 +68,11 @@ export default class BenchJsonReporter {
           }
 
           entries[task.name] = {
-            hz:      Math.round(b.hz),
-            mean:    +b.mean.toFixed(6),
-            p75:     +b.p75.toFixed(6),
-            p99:     +b.p99.toFixed(6),
-            rme:     +b.rme.toFixed(3),
+            hz: Math.round(b.hz),
+            mean: +b.mean.toFixed(6),
+            p75: +b.p75.toFixed(6),
+            p99: +b.p99.toFixed(6),
+            rme: +b.rme.toFixed(3),
             samples: Array.isArray(b.samples) ? b.samples.length : (b.sampleCount ?? 0),
           };
         }

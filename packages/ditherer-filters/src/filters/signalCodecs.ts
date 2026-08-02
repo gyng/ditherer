@@ -23,23 +23,25 @@ export interface FaxRunLine {
 // runs. These are the code lengths from tables 1/2; the visible channel model
 // only needs the transmitted length because damage is injected in bit space.
 const WHITE_TERM_LENGTH = [
-  8,6,4,4,4,4,4,4,5,5,5,5,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,7,8,8,8,
-  8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
+  8, 6, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
 ];
 const BLACK_TERM_LENGTH = [
-  10,3,2,2,3,4,4,5,6,6,7,7,7,8,8,9,10,10,10,11,11,11,11,11,11,11,12,12,12,12,12,12,
-  12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,
+  10, 3, 2, 2, 3, 4, 4, 5, 6, 6, 7, 7, 7, 8, 8, 9, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
 ];
 
 // T.4 tables 1/2 makeup words for 64..1728 pels. The additional makeup
 // words are shared by white and black runs for 1792..2560 pels.
 const WHITE_MAKEUP_LENGTH = [
-  5,5,6,7,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,6,9,
+  5, 5, 6, 7, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 6, 9,
 ];
 const BLACK_MAKEUP_LENGTH = [
-  10,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
+  10, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,
+  13, 13, 13,
 ];
-const ADDITIONAL_MAKEUP_LENGTH = [11,11,11,12,12,12,12,12,12,12,12,12,12];
+const ADDITIONAL_MAKEUP_LENGTH = [11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12];
 
 const mhRunBits = (length: number, black: boolean): number => {
   let remaining = Math.max(0, Math.floor(length));
@@ -116,18 +118,17 @@ export const transmitFaxRows = (
   const width = rows[0].length;
   const output: Uint8Array[] = [];
   const damagedRows: number[] = [];
-  const ber = Number.isFinite(bitErrorRate)
-    ? Math.max(0, Math.min(1, bitErrorRate))
-    : 0;
+  const ber = Number.isFinite(bitErrorRate) ? Math.max(0, Math.min(1, bitErrorRate)) : 0;
   const safeMrK = Number.isFinite(mrK) ? Math.max(1, Math.floor(mrK)) : 2;
   let referenceDamaged = false;
   for (let y = 0; y < rows.length; y++) {
     const encoded = encodeFaxRuns(rows[y]);
-    const isReference = coding === "MH" || (coding === "MR" && y % safeMrK === 0) || (coding === "MMR" && y === 0);
-    const payloadBits = isReference ? encoded.estimatedBits : Math.max(12, Math.round(encoded.estimatedBits * 0.58));
-    const lineErrorProbability = ber >= 1
-      ? 1
-      : -Math.expm1(payloadBits * Math.log1p(-ber));
+    const isReference =
+      coding === "MH" || (coding === "MR" && y % safeMrK === 0) || (coding === "MMR" && y === 0);
+    const payloadBits = isReference
+      ? encoded.estimatedBits
+      : Math.max(12, Math.round(encoded.estimatedBits * 0.58));
+    const lineErrorProbability = ber >= 1 ? 1 : -Math.expm1(payloadBits * Math.log1p(-ber));
     const channelError = seededUnit(seed, y, payloadBits) < lineErrorProbability;
     // MR/MMR rows depend on the previous decoded reference. A damaged reference
     // therefore causes the next dependent row to fail as specified by E.453.
@@ -160,11 +161,14 @@ export const encodeHamming84 = (nibble: number): number => {
   const p2 = 1 ^ d1 ^ d2 ^ d4;
   const p3 = 1 ^ d1 ^ d2 ^ d3;
   const p4 = 1 ^ p1 ^ d1 ^ p2 ^ d2 ^ p3 ^ d3 ^ d4;
-  return p1 | (d1 << 1) | (p2 << 2) | (d2 << 3)
-    | (p3 << 4) | (d3 << 5) | (p4 << 6) | (d4 << 7);
+  return p1 | (d1 << 1) | (p2 << 2) | (d2 << 3) | (p3 << 4) | (d3 << 5) | (p4 << 6) | (d4 << 7);
 };
 
-export interface Hamming84Result { value: number; corrected: boolean; uncorrectable: boolean }
+export interface Hamming84Result {
+  value: number;
+  corrected: boolean;
+  uncorrectable: boolean;
+}
 
 const HAMMING84_CODEWORDS = Array.from({ length: 16 }, (_, value) => encodeHamming84(value));
 
@@ -192,8 +196,11 @@ export const decodeHamming84 = (input: number): Hamming84Result => {
   if (bestDistance <= 1) {
     return { value: bestValue, corrected: bestDistance === 1, uncorrectable: false };
   }
-  const rawValue = ((word >>> 1) & 1) | (((word >>> 3) & 1) << 1)
-    | (((word >>> 5) & 1) << 2) | (((word >>> 7) & 1) << 3);
+  const rawValue =
+    ((word >>> 1) & 1) |
+    (((word >>> 3) & 1) << 1) |
+    (((word >>> 5) & 1) << 2) |
+    (((word >>> 7) & 1) << 3);
   return { value: rawValue, corrected: false, uncorrectable: true };
 };
 
@@ -258,9 +265,7 @@ export const quantizeCoefficient = (value: number, step: number, bitplanes: numb
   if (!Number.isFinite(value)) return 0;
   const safeStep = Number.isFinite(step) && step > Number.EPSILON ? step : Number.EPSILON;
   const q = Math.round(value / safeStep);
-  const drop = Number.isFinite(bitplanes)
-    ? Math.max(0, Math.min(20, Math.floor(bitplanes)))
-    : 0;
+  const drop = Number.isFinite(bitplanes) ? Math.max(0, Math.min(20, Math.floor(bitplanes))) : 0;
   const magnitude = Math.abs(q);
   const plane = 2 ** drop;
   const truncated = drop === 0 ? magnitude : Math.floor(magnitude / plane) * plane;

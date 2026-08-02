@@ -22,7 +22,13 @@ const CHROMA = {
 };
 
 export const optionTypes = {
-  gammaAssumption: { type: RANGE, range: [0.8, 2.6], step: 0.01, default: 1.35, desc: "Assumed transfer curve gamma during decode" },
+  gammaAssumption: {
+    type: RANGE,
+    range: [0.8, 2.6],
+    step: 0.01,
+    default: 1.35,
+    desc: "Assumed transfer curve gamma during decode",
+  },
   matrixAssumption: {
     type: ENUM,
     default: MATRIX.REC709,
@@ -31,7 +37,7 @@ export const optionTypes = {
       { name: "Rec.709", value: MATRIX.REC709 },
       { name: "Rec.2020", value: MATRIX.REC2020 },
     ],
-    desc: "Color matrix assumed by the decoder"
+    desc: "Color matrix assumed by the decoder",
   },
   rangeAssumption: {
     type: ENUM,
@@ -40,7 +46,7 @@ export const optionTypes = {
       { name: "Full range", value: RANGE_MODE.FULL },
       { name: "Limited range", value: RANGE_MODE.LIMITED },
     ],
-    desc: "Range interpretation used before RGB reconstruction"
+    desc: "Range interpretation used before RGB reconstruction",
   },
   chromaPlacement: {
     type: ENUM,
@@ -49,10 +55,16 @@ export const optionTypes = {
       { name: "Centered", value: CHROMA.CENTER },
       { name: "Left-shifted", value: CHROMA.LEFT },
     ],
-    desc: "Assumed chroma sample location"
+    desc: "Assumed chroma sample location",
   },
-  recoveryMix: { type: RANGE, range: [0, 1], step: 0.01, default: 0.25, desc: "Blend back toward original RGB after mismatch decode" },
-  palette: { type: PALETTE, default: nearest }
+  recoveryMix: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.25,
+    desc: "Blend back toward original RGB after mismatch decode",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -61,24 +73,42 @@ export const defaults = {
   rangeAssumption: optionTypes.rangeAssumption.default,
   chromaPlacement: optionTypes.chromaPlacement.default,
   recoveryMix: optionTypes.recoveryMix.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const metadataMismatchDecode = (input: any, options: typeof defaults = defaults) => {
-  const { gammaAssumption, matrixAssumption, rangeAssumption, chromaPlacement, recoveryMix, palette } = options;
-  const W = input.width, H = input.height;
-  const matrixInt = matrixAssumption === MATRIX.REC709 ? 1 : matrixAssumption === MATRIX.REC2020 ? 2 : 0;
+  const {
+    gammaAssumption,
+    matrixAssumption,
+    rangeAssumption,
+    chromaPlacement,
+    recoveryMix,
+    palette,
+  } = options;
+  const W = input.width,
+    H = input.height;
+  const matrixInt =
+    matrixAssumption === MATRIX.REC709 ? 1 : matrixAssumption === MATRIX.REC2020 ? 2 : 0;
   const rangeInt = rangeAssumption === RANGE_MODE.LIMITED ? 1 : 0;
   const chromaInt = chromaPlacement === CHROMA.LEFT ? 1 : 0;
   const rendered = renderMetadataMismatchDecodeGL(
-    input, W, H,
-    matrixInt, rangeInt, chromaInt,
-    gammaAssumption, recoveryMix,
+    input,
+    W,
+    H,
+    matrixInt,
+    rangeInt,
+    chromaInt,
+    gammaAssumption,
+    recoveryMix,
   );
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("Metadata Mismatch Decode", "WebGL2", `matrix=${matrixAssumption} range=${rangeAssumption}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Metadata Mismatch Decode",
+    "WebGL2",
+    `matrix=${matrixAssumption} range=${rangeAssumption}${identity ? "" : "+palettePass"}`,
+  );
   return out ?? input;
 };
 
@@ -88,6 +118,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures",
+  description:
+    "Apply wrong gamma, matrix, range, and chroma assumptions to mimic authentic decode metadata failures",
   requiresGL: true,
 });

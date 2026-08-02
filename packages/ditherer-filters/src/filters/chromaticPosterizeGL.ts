@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -44,8 +51,11 @@ export const chromaticPosterizeGLAvailable = (): boolean => glAvailable();
 
 export const renderChromaticPosterizeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  levelsR: number, levelsG: number, levelsB: number,
+  width: number,
+  height: number,
+  levelsR: number,
+  levelsG: number,
+  levelsB: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -55,11 +65,19 @@ export const renderChromaticPosterizeGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "chromaticPosterize:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform3f(cache.prog.uniforms.u_levels, levelsR, levelsG, levelsB);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform3f(cache.prog.uniforms.u_levels, levelsR, levelsG, levelsB);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

@@ -8,10 +8,10 @@ Also useful for lightweight VJing and live visuals too: swap sources, keep outpu
 
 [Live Site](https://gyng.github.io/ditherer/) · [Gallery](docs/gallery/GALLERY.md)
 
-| | |
-|---|---|
-| ![Video Feedback](docs/gallery/filters/animated/filter-video-feedback.gif) | ![Floyd-Steinberg](docs/gallery/filters/animated/filter-floyd-steinberg.gif) |
-| ![Cyberpunk Preset](docs/gallery/presets/animated/preset-cyberpunk.gif) | ![Traffic Trails Preset](docs/gallery/presets/animated/preset-traffic-trails.gif) |
+|                                                                            |                                                                                   |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| ![Video Feedback](docs/gallery/filters/animated/filter-video-feedback.gif) | ![Floyd-Steinberg](docs/gallery/filters/animated/filter-floyd-steinberg.gif)      |
+| ![Cyberpunk Preset](docs/gallery/presets/animated/preset-cyberpunk.gif)    | ![Traffic Trails Preset](docs/gallery/presets/animated/preset-traffic-trails.gif) |
 
 ## What it does
 

@@ -86,7 +86,12 @@ describe("every colour-distance algorithm has a WASM palette mode", () => {
   // wrong colours. Pinned literally: this is a wire format, not an enum.
   it("keeps the mode numbers the Rust kernel expects", () => {
     expect(WASM_PALETTE_MODE).toEqual({
-      LEVELS: 0, RGB: 1, RGB_APPROX: 2, HSV: 3, LAB: 4, OKLAB: 5,
+      LEVELS: 0,
+      RGB: 1,
+      RGB_APPROX: 2,
+      HSV: 3,
+      LAB: 4,
+      OKLAB: 5,
     });
   });
 });

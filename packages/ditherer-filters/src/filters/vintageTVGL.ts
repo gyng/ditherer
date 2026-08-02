@@ -150,12 +150,25 @@ const getCache = (gl: WebGL2RenderingContext): Cache => {
   if (cache) return cache;
   cache = {
     decode: linkProgram(gl, DECODE_FS, [
-      "u_source", "u_res", "u_colorFringe", "u_chromaRadius", "u_tuningRadians",
-      "u_rollOffset", "u_banding", "u_rfNoise", "u_frame", "u_fieldRate",
+      "u_source",
+      "u_res",
+      "u_colorFringe",
+      "u_chromaRadius",
+      "u_tuningRadians",
+      "u_rollOffset",
+      "u_banding",
+      "u_rfNoise",
+      "u_frame",
+      "u_fieldRate",
     ] as const),
     blurH: linkProgram(gl, BLUR_H_FS, ["u_decoded", "u_res"] as const),
     display: linkProgram(gl, DISPLAY_FS, [
-      "u_decoded", "u_blurH", "u_res", "u_glow", "u_fieldLines", "u_scanlineStrength",
+      "u_decoded",
+      "u_blurH",
+      "u_res",
+      "u_glow",
+      "u_fieldLines",
+      "u_scanlineStrength",
     ] as const),
   };
   return cache;
@@ -189,37 +202,61 @@ export const renderVintageTVGL = (
   const decodedTexture = ensureTexture(gl, "vintageTV:decoded", width, height);
   const blurTexture = ensureTexture(gl, "vintageTV:blurH", width, height);
   uploadSourceTexture(gl, sourceTexture, source);
-  drawPass(gl, decodedTexture, width, height, programs.decode, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(programs.decode.uniforms.u_source, 0);
-    gl.uniform2f(programs.decode.uniforms.u_res, width, height);
-    gl.uniform1f(programs.decode.uniforms.u_colorFringe, params.colorFringe);
-    gl.uniform1i(programs.decode.uniforms.u_chromaRadius, params.chromaBandwidth);
-    gl.uniform1f(programs.decode.uniforms.u_tuningRadians, params.tuningError * Math.PI / 180);
-    gl.uniform1f(programs.decode.uniforms.u_rollOffset, params.rollOffset);
-    gl.uniform1f(programs.decode.uniforms.u_banding, params.banding);
-    gl.uniform1f(programs.decode.uniforms.u_rfNoise, params.rfNoise);
-    gl.uniform1f(programs.decode.uniforms.u_frame, params.frameIndex);
-    gl.uniform1f(programs.decode.uniforms.u_fieldRate, params.fieldRate);
-  }, vao);
-  drawPass(gl, blurTexture, width, height, programs.blurH, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, decodedTexture.tex);
-    gl.uniform1i(programs.blurH.uniforms.u_decoded, 0);
-    gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
-  }, vao);
-  drawPass(gl, null, width, height, programs.display, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, decodedTexture.tex);
-    gl.uniform1i(programs.display.uniforms.u_decoded, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, blurTexture.tex);
-    gl.uniform1i(programs.display.uniforms.u_blurH, 1);
-    gl.uniform2f(programs.display.uniforms.u_res, width, height);
-    gl.uniform1f(programs.display.uniforms.u_glow, params.glow);
-    gl.uniform1f(programs.display.uniforms.u_fieldLines, params.fieldLines);
-    gl.uniform1f(programs.display.uniforms.u_scanlineStrength, params.scanlineStrength);
-  }, vao);
+  drawPass(
+    gl,
+    decodedTexture,
+    width,
+    height,
+    programs.decode,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(programs.decode.uniforms.u_source, 0);
+      gl.uniform2f(programs.decode.uniforms.u_res, width, height);
+      gl.uniform1f(programs.decode.uniforms.u_colorFringe, params.colorFringe);
+      gl.uniform1i(programs.decode.uniforms.u_chromaRadius, params.chromaBandwidth);
+      gl.uniform1f(programs.decode.uniforms.u_tuningRadians, (params.tuningError * Math.PI) / 180);
+      gl.uniform1f(programs.decode.uniforms.u_rollOffset, params.rollOffset);
+      gl.uniform1f(programs.decode.uniforms.u_banding, params.banding);
+      gl.uniform1f(programs.decode.uniforms.u_rfNoise, params.rfNoise);
+      gl.uniform1f(programs.decode.uniforms.u_frame, params.frameIndex);
+      gl.uniform1f(programs.decode.uniforms.u_fieldRate, params.fieldRate);
+    },
+    vao,
+  );
+  drawPass(
+    gl,
+    blurTexture,
+    width,
+    height,
+    programs.blurH,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, decodedTexture.tex);
+      gl.uniform1i(programs.blurH.uniforms.u_decoded, 0);
+      gl.uniform2f(programs.blurH.uniforms.u_res, width, height);
+    },
+    vao,
+  );
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    programs.display,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, decodedTexture.tex);
+      gl.uniform1i(programs.display.uniforms.u_decoded, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, blurTexture.tex);
+      gl.uniform1i(programs.display.uniforms.u_blurH, 1);
+      gl.uniform2f(programs.display.uniforms.u_res, width, height);
+      gl.uniform1f(programs.display.uniforms.u_glow, params.glow);
+      gl.uniform1f(programs.display.uniforms.u_fieldLines, params.fieldLines);
+      gl.uniform1f(programs.display.uniforms.u_scanlineStrength, params.scanlineStrength);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

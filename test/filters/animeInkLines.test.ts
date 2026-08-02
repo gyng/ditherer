@@ -7,13 +7,16 @@ const makeFakeInputCanvas = (w: number, h: number, pixels: number[]) => {
   return {
     width: w,
     height: h,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: cw,
-        height: ch,
-      }),
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, cw: number, ch: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: cw,
+              height: ch,
+            }),
+          }
+        : null,
   };
 };
 
@@ -40,11 +43,7 @@ const runAndCapture = (filterFn, input, options): Uint8ClampedArray | null => {
 
 describe("Anime Ink Lines filter", () => {
   it("preserves non-edge source pixels in overlay mode", () => {
-    const input = makeFakeInputCanvas(3, 1, [
-      20, 20, 20, 255,
-      250, 250, 250, 255,
-      20, 20, 20, 255,
-    ]);
+    const input = makeFakeInputCanvas(3, 1, [20, 20, 20, 255, 250, 250, 250, 255, 20, 20, 20, 255]);
     const data = runAndCapture(animeInkLines.func, input, {
       ...animeInkLines.defaults,
       palette: { ...animeInkLines.defaults.palette, options: { levels: 256 } },
@@ -56,11 +55,7 @@ describe("Anime Ink Lines filter", () => {
   });
 
   it("supports a solid line-art output mode", () => {
-    const input = makeFakeInputCanvas(3, 1, [
-      20, 20, 20, 255,
-      250, 250, 250, 255,
-      20, 20, 20, 255,
-    ]);
+    const input = makeFakeInputCanvas(3, 1, [20, 20, 20, 255, 250, 250, 250, 255, 20, 20, 20, 255]);
     const data = runAndCapture(animeInkLines.func, input, {
       ...animeInkLines.defaults,
       renderMode: "SOLID",

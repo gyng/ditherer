@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  atkinsonKernel, burkesKernel, falseFsKernel, fsKernel, horizontalStripeKernel,
-  jarvisKernel, sierra2kernel, sierra3kernel, sierraLiteKernel, stuckiKernel,
+  atkinsonKernel,
+  burkesKernel,
+  falseFsKernel,
+  fsKernel,
+  horizontalStripeKernel,
+  jarvisKernel,
+  sierra2kernel,
+  sierra3kernel,
+  sierraLiteKernel,
+  stuckiKernel,
   verticalStripeKernel,
 } from "filters/errorDiffusing";
 
@@ -20,8 +28,10 @@ import {
 const sum = (k: { kernel: (number | null)[][] }) =>
   k.kernel.flat().reduce((acc: number, v) => acc + (v ?? 0), 0);
 
-const shape = (k: { kernel: (number | null)[][] }) =>
-  [k.kernel.length, Math.max(...k.kernel.map((r) => r.length))];
+const shape = (k: { kernel: (number | null)[][] }) => [
+  k.kernel.length,
+  Math.max(...k.kernel.map((r) => r.length)),
+];
 
 describe("error-diffusion kernel normalisation", () => {
   // Every classic kernel conserves the error it distributes: the weights sum to
@@ -80,16 +90,22 @@ describe("error-diffusion kernel geometry", () => {
     // pixel that's already been quantised — silently lost, and a sign the offset
     // or matrix drifted. Row 0 may only carry weight strictly ahead of the pixel.
     for (const [name, k] of [
-      ["Floyd-Steinberg", fsKernel], ["Sierra", sierra3kernel],
-      ["Sierra 2-row", sierra2kernel], ["Sierra lite", sierraLiteKernel],
-      ["Atkinson", atkinsonKernel], ["Jarvis", jarvisKernel],
-      ["Stucki", stuckiKernel], ["Burkes", burkesKernel],
+      ["Floyd-Steinberg", fsKernel],
+      ["Sierra", sierra3kernel],
+      ["Sierra 2-row", sierra2kernel],
+      ["Sierra lite", sierraLiteKernel],
+      ["Atkinson", atkinsonKernel],
+      ["Jarvis", jarvisKernel],
+      ["Stucki", stuckiKernel],
+      ["Burkes", burkesKernel],
     ] as const) {
       const offsetX = k.offset[0] ?? 0;
       k.kernel[0]?.forEach((weight, w) => {
         if (weight == null) return;
-        expect(w + offsetX, `${name}: row-0 tap at dx=${w + offsetX} is not ahead of the cursor`)
-          .toBeGreaterThan(0);
+        expect(
+          w + offsetX,
+          `${name}: row-0 tap at dx=${w + offsetX} is not ahead of the cursor`,
+        ).toBeGreaterThan(0);
       });
     }
   });

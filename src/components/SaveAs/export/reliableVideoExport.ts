@@ -2,7 +2,11 @@ import { renderOfflineFrames } from "./offlineRender";
 import { buildDecodedTimeline, decodeTimelineFramesWithWebCodecs } from "./offlineWebCodecsDecode";
 import { createOfflineVideoEncoder, getReliableVideoSupport } from "./offlineVideoEncode";
 import { formatEta, type SourceVideoWithObjectUrl } from "../helpers";
-import { planReliableVideoRouting, type ReliableSourcePath, type ReliableVideoMode } from "./exportRouting";
+import {
+  planReliableVideoRouting,
+  type ReliableSourcePath,
+  type ReliableVideoMode,
+} from "./exportRouting";
 
 type RenderFrameForExport = (
   sourceCanvas: HTMLCanvasElement,
@@ -60,7 +64,10 @@ interface RunReliableVideoExportOptions {
   isAborted: () => boolean;
   renderFrameForExport: RenderFrameForExport;
   clearExportSession: (sessionId: string) => void;
-  logReliableRenderProfile: (label: string, stats: Record<string, number | string | boolean | null>) => void;
+  logReliableRenderProfile: (
+    label: string,
+    stats: Record<string, number | string | boolean | null>,
+  ) => void;
 }
 
 export const runReliableVideoExport = async ({
@@ -89,9 +96,16 @@ export const runReliableVideoExport = async ({
     throw new Error("Reliable export requires a rendered output canvas.");
   }
 
-  const support = await getReliableVideoSupport(scaled.width, scaled.height, reliableFps, includeAudio);
+  const support = await getReliableVideoSupport(
+    scaled.width,
+    scaled.height,
+    reliableFps,
+    includeAudio,
+  );
   if (!support.supported) {
-    throw new Error(support.reason || "Reliable offline video export is unavailable in this browser.");
+    throw new Error(
+      support.reason || "Reliable offline video export is unavailable in this browser.",
+    );
   }
 
   const estimatedFrameCount = Math.max(1, Math.ceil(exportDurationSec * Math.max(1, reliableFps)));
@@ -113,7 +127,8 @@ export const runReliableVideoExport = async ({
 
   try {
     let renderResult: ReliableRenderResult;
-    const sourceUrl = (video as SourceVideoWithObjectUrl).__objectUrl || video.currentSrc || video.src;
+    const sourceUrl =
+      (video as SourceVideoWithObjectUrl).__objectUrl || video.currentSrc || video.src;
     const routingPlan = planReliableVideoRouting({
       preferredMode,
       sourceUrl: sourceUrl || null,
@@ -123,7 +138,12 @@ export const runReliableVideoExport = async ({
     if (routingPlan.shouldAttemptWebCodecs) {
       const exportSessionId = crypto.randomUUID();
       try {
-        const timeline = buildDecodedTimeline(video.duration, reliableFps, rangeStartSec, rangeEndSec);
+        const timeline = buildDecodedTimeline(
+          video.duration,
+          reliableFps,
+          rangeStartSec,
+          rangeEndSec,
+        );
         const decodeStartedAt = performance.now();
         const decoded = await decodeTimelineFramesWithWebCodecs({
           source: sourceUrl,
@@ -194,11 +214,22 @@ export const runReliableVideoExport = async ({
           endTimeSec: rangeEndSec,
           getFrameCanvas: getScaledCanvas,
           waitForFrame: (currentVideo, time, frameMs) =>
-            waitForRenderedSeek(currentVideo, time, frameMs, reliableStrictValidation, reliableSettleFrames),
+            waitForRenderedSeek(
+              currentVideo,
+              time,
+              frameMs,
+              reliableStrictValidation,
+              reliableSettleFrames,
+            ),
           isAborted,
           onProgress: ({ phase, frameIndex, frameCount, targetTime, etaMs }) => {
             if (phase === "rewind") {
-              updateProgress(reliableScope === "range" ? `Seeking start (${rangeStartSec.toFixed(2)}s)...` : "Rewinding...", 0.08);
+              updateProgress(
+                reliableScope === "range"
+                  ? `Seeking start (${rangeStartSec.toFixed(2)}s)...`
+                  : "Rewinding...",
+                0.08,
+              );
               return;
             }
             const label = phase === "seek" ? "Seeking" : "Capturing";
@@ -226,11 +257,22 @@ export const runReliableVideoExport = async ({
         endTimeSec: rangeEndSec,
         getFrameCanvas: getScaledCanvas,
         waitForFrame: (currentVideo, time, frameMs) =>
-          waitForRenderedSeek(currentVideo, time, frameMs, reliableStrictValidation, reliableSettleFrames),
+          waitForRenderedSeek(
+            currentVideo,
+            time,
+            frameMs,
+            reliableStrictValidation,
+            reliableSettleFrames,
+          ),
         isAborted,
         onProgress: ({ phase, frameIndex, frameCount, targetTime, etaMs }) => {
           if (phase === "rewind") {
-            updateProgress(reliableScope === "range" ? `Seeking start (${rangeStartSec.toFixed(2)}s)...` : "Rewinding...", 0.08);
+            updateProgress(
+              reliableScope === "range"
+                ? `Seeking start (${rangeStartSec.toFixed(2)}s)...`
+                : "Rewinding...",
+              0.08,
+            );
             return;
           }
           const label = phase === "seek" ? "Seeking" : "Capturing";

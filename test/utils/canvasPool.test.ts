@@ -90,15 +90,14 @@ describe("canvas pool", () => {
     const first = takePooledCanvas(313, 79);
     const second = takePooledCanvas(313, 79);
     resetCanvasPoolStats();
-    expect(() => withPooledCanvasCleanup([first, first, second], () => {
-      throw new Error("injected failure");
-    })).toThrow("injected failure");
+    expect(() =>
+      withPooledCanvasCleanup([first, first, second], () => {
+        throw new Error("injected failure");
+      }),
+    ).toThrow("injected failure");
     expect(getCanvasPoolStats()).toMatchObject({ releases: 2 });
 
-    const checkedOut = new Set([
-      takePooledCanvas(313, 79),
-      takePooledCanvas(313, 79),
-    ]);
+    const checkedOut = new Set([takePooledCanvas(313, 79), takePooledCanvas(313, 79)]);
     expect(checkedOut).toEqual(new Set([first, second]));
   });
 });

@@ -5,21 +5,25 @@
 ## Families to consolidate
 
 1. **Temporal Exposure**
+
 - absorb `Frame Blend`
 - absorb `Shutter Drag`
 - keep long-exposure accumulation modes
 
 2. **Scene Separation**
+
 - absorb `Background Subtraction`
 - absorb `Background Reconstruction`
 - absorb `Cinemagraph`
 
 3. **Motion Analysis**
+
 - absorb `Motion Detect`
 - absorb `Frame Difference Highlight`
 - absorb `Motion Heatmap`
 
 4. **Scanline**
+
 - keep scanline as its own chainable family
 - absorb `Scanline RGB`
 
@@ -33,9 +37,11 @@
 ## Surviving filters
 
 ### 1. `Temporal Exposure`
+
 Likely based on `src/filters/longExposure.ts`
 
 Modes:
+
 - `Blend`
 - `Shutter Average`
 - `Long Exposure Max`
@@ -43,21 +49,26 @@ Modes:
 - `Running Average`
 
 ### 2. `Scene Separation`
+
 Likely based on `src/filters/backgroundSubtraction.ts`
 
 Modes:
+
 - `Foreground`
 - `Background`
 - `Freeze Still Areas`
 
 ### 3. `Motion Analysis`
+
 Likely based on `src/filters/motionDetect.ts`
 
 Detection sources:
+
 - `EMA`
 - `Previous Frame`
 
 Visual outputs:
+
 - `Mask`
 - `Heatmap`
 - `Source`
@@ -65,9 +76,11 @@ Visual outputs:
 - `Accumulated Heat`
 
 ### 4. `Scanline`
+
 Likely based on `src/filters/scanline.ts`
 
 Modes:
+
 - `Darken Lines`
 - `RGB Sub-lines`
 

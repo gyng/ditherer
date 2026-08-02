@@ -15,20 +15,21 @@ const nameOf = (name: string) => {
 
 const loadCycleSeconds = (version: 1 | 2, value: unknown, includeValue = true) => {
   const cycleField = includeValue ? { r: value } : {};
-  const data = version === 2
-    ? {
-        v: 2,
-        g: false,
-        l: true,
-        w: true,
-        chain: [{ n: "Invert" }],
-        ...cycleField,
-      }
-    : {
-        selected: { filter: { name: "Invert" } },
-        convertGrayscale: false,
-        ...cycleField,
-      };
+  const data =
+    version === 2
+      ? {
+          v: 2,
+          g: false,
+          l: true,
+          w: true,
+          chain: [{ n: "Invert" }],
+          ...cycleField,
+        }
+      : {
+          selected: { filter: { name: "Invert" } },
+          convertGrayscale: false,
+          ...cycleField,
+        };
   return reducer(initialState, { type: "LOAD_STATE", data } as never).randomCycleSeconds;
 };
 
@@ -178,9 +179,7 @@ describe("filters reducer — LOAD_STATE v2 (chain format)", () => {
         g: false,
         l: false,
         w: false,
-        chain: [
-          { n: "ThisFilterDoesNotExist" },
-        ],
+        chain: [{ n: "ThisFilterDoesNotExist" }],
       },
     });
     // v2 path returns the prior state when nothing usable came through
@@ -209,7 +208,10 @@ describe("filters reducer — LOAD_STATE v2 (chain format)", () => {
             m: {
               // `k` + `t` is the oldest single-key, multi-target shape
               k: "amp",
-              t: [{ o: "levels", w: 0.25 }, { o: "thresholdMap", w: 0.1 }],
+              t: [
+                { o: "levels", w: 0.25 },
+                { o: "thresholdMap", w: 0.1 },
+              ],
             },
           },
         ],
@@ -247,8 +249,11 @@ describe("filters reducer — LOAD_STATE v2 (chain format)", () => {
       },
     });
 
-    expect(state.chain.map(entry => entry.filter.options?.workingResolution)).toEqual([
-      "FULL", "QUARTER", "HALF", "QUARTER",
+    expect(state.chain.map((entry) => entry.filter.options?.workingResolution)).toEqual([
+      "FULL",
+      "QUARTER",
+      "HALF",
+      "QUARTER",
     ]);
     for (const entry of state.chain) {
       expect(entry.filter.options).not.toHaveProperty("useSeparableApproximation");
@@ -389,10 +394,7 @@ describe("filters reducer — palette guards", () => {
       value: 4,
     });
     expect(result).toBe(prior);
-    expect(warn).toHaveBeenCalledWith(
-      "Tried to set option on null palette",
-      prior,
-    );
+    expect(warn).toHaveBeenCalledWith("Tried to set option on null palette", prior);
     warn.mockRestore();
   });
 

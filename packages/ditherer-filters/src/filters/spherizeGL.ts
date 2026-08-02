@@ -80,7 +80,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, SPHERIZE_FS, [
-      "u_source", "u_res", "u_strength", "u_centerX", "u_centerY", "u_radius", "u_levels",
+      "u_source",
+      "u_res",
+      "u_strength",
+      "u_centerX",
+      "u_centerY",
+      "u_radius",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -112,17 +118,25 @@ export const renderSpherizeGL = (
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_strength, strength);
-    gl.uniform1f(cache.prog.uniforms.u_centerX, centerX);
-    gl.uniform1f(cache.prog.uniforms.u_centerY, centerY);
-    gl.uniform1f(cache.prog.uniforms.u_radius, radius);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_strength, strength);
+      gl.uniform1f(cache.prog.uniforms.u_centerX, centerX);
+      gl.uniform1f(cache.prog.uniforms.u_centerY, centerY);
+      gl.uniform1f(cache.prog.uniforms.u_radius, radius);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

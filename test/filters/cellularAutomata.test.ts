@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("utils", async importOriginal => {
+vi.mock("utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("utils")>();
   return {
     ...actual,
@@ -38,14 +38,17 @@ const makeCanvasFromAliveMap = (aliveMap: number[][]) => {
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: (_x: number, _y: number, w: number, h: number) => ({
-        data: new Uint8ClampedArray(data),
-        width: w,
-        height: h,
-      }),
-      putImageData: () => {},
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: (_x: number, _y: number, w: number, h: number) => ({
+              data: new Uint8ClampedArray(data),
+              width: w,
+              height: h,
+            }),
+            putImageData: () => {},
+          }
+        : null,
   };
 };
 
@@ -120,18 +123,13 @@ describe("Cellular automata", () => {
     const width = 3;
     const height = 3;
     const source = new Uint8ClampedArray([
-      0, 0, 0, 255,   255, 255, 255, 255,   0, 0, 0, 255,
-      0, 0, 0, 255,   0, 0, 0, 255,         0, 0, 0, 255,
-      0, 0, 0, 255,   0, 0, 0, 255,         0, 0, 0, 255,
+      0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0,
+      0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255,
     ]);
     const grid = new Uint8Array(width * height);
 
     __testing.injectSourceState(source, width, height, 128, grid);
 
-    expect(Array.from(grid)).toEqual([
-      0, 1, 0,
-      0, 0, 0,
-      0, 0, 0,
-    ]);
+    expect(Array.from(grid)).toEqual([0, 1, 0, 0, 0, 0, 0, 0, 0]);
   });
 });

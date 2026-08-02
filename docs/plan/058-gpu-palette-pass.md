@@ -21,23 +21,23 @@ through. That reaches every filter with zero call-site edits.
 Real GPU (`ANGLE / D3D12 / NVIDIA RTX 3080`, `MAX_FRAGMENT_UNIFORM_VECTORS` 1024),
 1920×1080, 16-colour CGA, median of 3, WASM **on** for the CPU side:
 
-| algo | CPU (wasm) | GPU | speedup | px differing | maxΔ |
-|---|---:|---:|---:|---:|---:|
-| RGB | 137.3 ms | 168.2 ms | **0.8×** | 0.00% | 0 |
-| RGB_APPROX | 212.4 ms | 181.5 ms | 1.2× | 0.00% | 0 |
-| HSV | 227.4 ms | 198.9 ms | 1.1× | 0.06% | 170 |
-| LAB | 638.1 ms | 160.7 ms | **4.0×** | 0.00% | 0 |
-| LEVELS(8) | 62.7 ms | 210.6 ms | **0.3×** | 0.00% | 0 |
+| algo       | CPU (wasm) |      GPU |  speedup | px differing | maxΔ |
+| ---------- | ---------: | -------: | -------: | -----------: | ---: |
+| RGB        |   137.3 ms | 168.2 ms | **0.8×** |        0.00% |    0 |
+| RGB_APPROX |   212.4 ms | 181.5 ms |     1.2× |        0.00% |    0 |
+| HSV        |   227.4 ms | 198.9 ms |     1.1× |        0.06% |  170 |
+| LAB        |   638.1 ms | 160.7 ms | **4.0×** |        0.00% |    0 |
+| LEVELS(8)  |    62.7 ms | 210.6 ms | **0.3×** |        0.00% |    0 |
 
 **GPU time is ~160–210ms regardless of algorithm.** RGB and LAB cost the same
 although LAB does far more work per fragment. The shader is not the cost; the
-round-trip is. Called from `applyPalettePassToCanvas` the pass sits *after* the
+round-trip is. Called from `applyPalettePassToCanvas` the pass sits _after_ the
 readback, so it doesn't remove a GPU→CPU copy — it adds one, then adds a second
 CPU→CPU copy to honour the in-place contract callers depend on. That fixed tax
 swamps the win everywhere except LAB, which was merely slow enough to hide behind it.
 
 LEVELS regresses 3×, which was predictable: `nearest` already resolves to a WASM
-channel LUT, and a LUT is close to free. GL has to beat it *and* pay the transfers.
+channel LUT, and a LUT is close to free. GL has to beat it _and_ pay the transfers.
 
 The convenience — no call-site edits — is exactly what makes it lose. Sitting at the
 chokepoint means sitting on the wrong side of the readback.
@@ -62,14 +62,14 @@ caught the five false positives in 057 applies here.)
 
 ## The path that would actually work
 
-Move the palette match *before* the readout, not after: filters keep their pixels on
+Move the palette match _before_ the readout, not after: filters keep their pixels on
 the GPU, apply the palette as a second pass (or inline `PALETTE_NEAREST_GLSL` into
 their existing shader), and read out once. Then the palette costs a shader and nothing
 else — the transfers were already being paid.
 
 That means changing `renderXGL` to take a palette and defer readout, across 91
 filters. Mechanical but broad. Unproven that it's worth it: the prize is bounded by
-what quantization costs *once transfers are free*, which this bench never isolated —
+what quantization costs _once transfers are free_, which this bench never isolated —
 every GPU number here is dominated by transfers.
 
 Also unresolved: `applyPalettePassToCanvas` has no `webglAcceleration` parameter, so
@@ -90,13 +90,13 @@ whole-buffer bench now covers every algorithm (`test/perf/colorDistanceBench.ben
 it only had RGB when this was written, which is why the claim went unchecked).
 76,800 pixels, 16-colour CGA, one WASM call:
 
-| algo | mean | vs LAB |
-|---|---:|---:|
-| RGB | 2.14 ms | 6.4× |
-| HSV | 3.69 ms | 3.7× |
-| RGB_APPROX | 3.86 ms | 3.5× |
-| **OKLAB** | **10.68 ms** | **1.27×** |
-| LAB | 13.60 ms | — |
+| algo       |         mean |    vs LAB |
+| ---------- | -----------: | --------: |
+| RGB        |      2.14 ms |      6.4× |
+| HSV        |      3.69 ms |      3.7× |
+| RGB_APPROX |      3.86 ms |      3.5× |
+| **OKLAB**  | **10.68 ms** | **1.27×** |
+| LAB        |     13.60 ms |         — |
 
 So OKLab is cheaper than Lab, but by 27% — not enough to stand in for a 4× GPU win.
 The reasoning above assumed OKLab made the GPU path redundant for LAB; it doesn't.

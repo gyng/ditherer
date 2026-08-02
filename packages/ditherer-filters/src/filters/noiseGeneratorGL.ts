@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -169,10 +176,19 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_type", "u_scale", "u_octaves",
-    "u_seed", "u_frame", "u_colorize", "u_mix",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_type",
+      "u_scale",
+      "u_octaves",
+      "u_seed",
+      "u_frame",
+      "u_colorize",
+      "u_mix",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -182,9 +198,15 @@ export type NoiseType = 0 | 1 | 2;
 
 export const renderNoiseGeneratorGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  type: NoiseType, scale: number, octaves: number,
-  seed: number, frame: number, colorize: boolean, mix: number,
+  width: number,
+  height: number,
+  type: NoiseType,
+  scale: number,
+  octaves: number,
+  seed: number,
+  frame: number,
+  colorize: boolean,
+  mix: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -194,18 +216,26 @@ export const renderNoiseGeneratorGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "noiseGenerator:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_type, type);
-    gl.uniform1f(cache.prog.uniforms.u_scale, scale);
-    gl.uniform1i(cache.prog.uniforms.u_octaves, Math.max(1, Math.min(8, Math.round(octaves))));
-    gl.uniform1i(cache.prog.uniforms.u_seed, seed | 0);
-    gl.uniform1i(cache.prog.uniforms.u_frame, frame | 0);
-    gl.uniform1i(cache.prog.uniforms.u_colorize, colorize ? 1 : 0);
-    gl.uniform1f(cache.prog.uniforms.u_mix, mix);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_type, type);
+      gl.uniform1f(cache.prog.uniforms.u_scale, scale);
+      gl.uniform1i(cache.prog.uniforms.u_octaves, Math.max(1, Math.min(8, Math.round(octaves))));
+      gl.uniform1i(cache.prog.uniforms.u_seed, seed | 0);
+      gl.uniform1i(cache.prog.uniforms.u_frame, frame | 0);
+      gl.uniform1i(cache.prog.uniforms.u_colorize, colorize ? 1 : 0);
+      gl.uniform1f(cache.prog.uniforms.u_mix, mix);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

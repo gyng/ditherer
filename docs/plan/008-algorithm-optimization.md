@@ -4,12 +4,12 @@
 
 **Baseline** (Chrome, 640×480, real-browser bench 2026-04-10):
 
-| Filter | sRGB | Linear | Bottleneck |
-|---|---|---|---|
-| Floyd-Steinberg | 52ms | 72ms | per-pixel allocations + error kernel |
-| Convolve Gaussian 3×3 | 34ms | 58ms | 2D kernel O(pixels × K²) |
-| Ordered Bayer | 29ms | — | already optimized |
-| 3-filter chain | 94ms | — | sum of individual filters |
+| Filter                | sRGB | Linear | Bottleneck                           |
+| --------------------- | ---- | ------ | ------------------------------------ |
+| Floyd-Steinberg       | 52ms | 72ms   | per-pixel allocations + error kernel |
+| Convolve Gaussian 3×3 | 34ms | 58ms   | 2D kernel O(pixels × K²)             |
+| Ordered Bayer         | 29ms | —      | already optimized                    |
+| 3-filter chain        | 94ms | —      | sum of individual filters            |
 
 ---
 
@@ -42,6 +42,7 @@ For user palettes, `getColor` does O(paletteSize) `colorDistance()` calls per pi
 **Files:** `src/palettes/nearest.ts:22`, `src/utils/index.ts:46-59,117-121`
 
 **Problem:** Three allocation sites in the hot loop:
+
 - `nearest.getColor` uses `color.map()` → new array per pixel
 - `delinearizeColorF` returns `[..., ..., ..., ...]` → new array per pixel
 - `linearizeColorF` returns `[..., ..., ..., ...]` → new array per pixel
@@ -49,6 +50,7 @@ For user palettes, `getColor` does O(paletteSize) `colorDistance()` calls per pi
 **Fix:**
 
 1. **`nearest.getColor`**: Replace `color.map()` with a reusable scratch buffer:
+
    ```ts
    const _out = [0, 0, 0, 0];
    const getColor = (color, options) => {
@@ -82,6 +84,7 @@ For user palettes, `getColor` does O(paletteSize) `colorDistance()` calls per pi
 3. Non-separable kernels keep the existing 2D path.
 
 **Separable kernels:**
+
 - Gaussian 3×3: `[1,2,1]` × `[1,2,1]` — 9 → 6 ops/pixel (1.5x)
 - Gaussian 5×5: `[1,4,6,4,1]` × `[1,4,6,4,1]` — 25 → 10 ops/pixel (2.5x)
 
@@ -100,12 +103,15 @@ The horizontal pass writes into a freshly allocated temp buffer (same size as in
 **File:** `src/filters/convolve.ts:210,236`
 
 **Problem:** Every kernel sample does boundary clamping via `Math.max`:
+
 ```ts
 const ki = (Math.max(0, x + kx - half) + W * Math.max(0, y + ky - half)) * 4;
 ```
+
 2× `Math.max` per kernel element per pixel. For a 3×3 kernel at 640×480: 5.5M calls.
 
 **Fix:** Split the pixel loop into interior and border regions:
+
 - **Interior** (`half <= x < W-half`, `half <= y < H-half`): no bounds check needed, direct index math. This is ~99% of pixels for 3×3, ~95% for 5×5.
 - **Border**: keep the existing clamped version.
 
@@ -124,6 +130,7 @@ This optimization applies to both the 2D path and the separable path (Phase 2). 
 **Problem:** For user palettes with N colors, `getColor` does O(N) JS `colorDistance()` calls per pixel. WASM `wasmNearestLabPrecomputed` exists but only covers `LAB_NEAREST`. The `RGB_NEAREST`, `RGB_APPROX`, and `HSV_NEAREST` algorithms are pure JS.
 
 **Current WASM coverage:**
+
 - `wasmQuantizeBuffer` (batch, all algorithms) — used in quantize + ordered dither
 - `wasmNearestLabPrecomputed` (per-pixel, Lab only) — used in user palette getColor
 - **Missing:** per-pixel WASM for RGB/RGB_APPROX/HSV in error diffusion
@@ -140,14 +147,14 @@ Use per-pixel WASM matching (not post-pass buffer quantize) — post-pass would 
 
 ## Success Criteria
 
-| Filter | Current | Target | Phase |
-|---|---|---|---|
-| Floyd-Steinberg sRGB (nearest) | 52ms | ~40ms | 1 |
-| Floyd-Steinberg linear (nearest) | 72ms | ~55ms | 1 |
-| Convolve Gaussian 3×3 sRGB | 34ms | ~20ms | 2 + 3 |
-| Convolve Gaussian 5×5 sRGB | (unmeasured) | 2.5x faster | 2 |
-| Floyd-Steinberg sRGB (user palette, 16 colors) | (unmeasured) | ~50ms | 4 |
-| 3-filter chain (nearest) | 94ms | ~70ms | all |
+| Filter                                         | Current      | Target      | Phase |
+| ---------------------------------------------- | ------------ | ----------- | ----- |
+| Floyd-Steinberg sRGB (nearest)                 | 52ms         | ~40ms       | 1     |
+| Floyd-Steinberg linear (nearest)               | 72ms         | ~55ms       | 1     |
+| Convolve Gaussian 3×3 sRGB                     | 34ms         | ~20ms       | 2 + 3 |
+| Convolve Gaussian 5×5 sRGB                     | (unmeasured) | 2.5x faster | 2     |
+| Floyd-Steinberg sRGB (user palette, 16 colors) | (unmeasured) | ~50ms       | 4     |
+| 3-filter chain (nearest)                       | 94ms         | ~70ms       | all   |
 
 Measure with `bench.html` (real browser) before and after each phase.
 
@@ -155,12 +162,12 @@ Measure with `bench.html` (real browser) before and after each phase.
 
 ## Implementation Order
 
-| Phase | Risk | Effort | Gain | Prerequisite |
-|---|---|---|---|---|
-| **1 — Palette allocation** | Low | ~20 lines | Medium | None |
-| **2 — Separable kernels** | Low | ~60 lines | High | None |
-| **3 — Boundary elimination** | Low | ~40 lines | Low-Medium | Best after 2 |
-| **4 — WASM palette (user)** | Medium | ~80 lines JS + Rust | High (user palettes only) | None, but lowest priority for default bench |
+| Phase                        | Risk   | Effort              | Gain                      | Prerequisite                                |
+| ---------------------------- | ------ | ------------------- | ------------------------- | ------------------------------------------- |
+| **1 — Palette allocation**   | Low    | ~20 lines           | Medium                    | None                                        |
+| **2 — Separable kernels**    | Low    | ~60 lines           | High                      | None                                        |
+| **3 — Boundary elimination** | Low    | ~40 lines           | Low-Medium                | Best after 2                                |
+| **4 — WASM palette (user)**  | Medium | ~80 lines JS + Rust | High (user palettes only) | None, but lowest priority for default bench |
 
 Phases 1 and 2 are independent and can be done in either order. Phase 1 is the quickest win. Phase 4 only matters for user palettes — measure with a user palette benchmark before committing to the Rust work.
 

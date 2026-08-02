@@ -38,8 +38,23 @@ import {
   resetScreensaverSwapMarkers,
 } from "utils/randomCycleBridge";
 import { AUTO_VIZ_DENSITY, buildAutoVizConnections } from "utils/autoViz";
-import type { AudioVizConnection, AudioVizMetric, EntryAudioModulation, GlobalAudioVizModulation } from "utils/audioVizBridge";
-import { getGlobalAudioVizModulation, getAudioVizMetricValueForMode, getAudioVizSnapshot as getChannelAudioVizSnapshot, resetAudioVizTempo, setActiveAudioVizChannel, setGlobalAudioVizModulation, subscribeAudioViz, tapDownbeat, updateAudioVizChannel } from "utils/audioVizBridge";
+import type {
+  AudioVizConnection,
+  AudioVizMetric,
+  EntryAudioModulation,
+  GlobalAudioVizModulation,
+} from "utils/audioVizBridge";
+import {
+  getGlobalAudioVizModulation,
+  getAudioVizMetricValueForMode,
+  getAudioVizSnapshot as getChannelAudioVizSnapshot,
+  resetAudioVizTempo,
+  setActiveAudioVizChannel,
+  setGlobalAudioVizModulation,
+  subscribeAudioViz,
+  tapDownbeat,
+  updateAudioVizChannel,
+} from "utils/audioVizBridge";
 import { getWebMCPAvailability, setupWebMCP, type WebMCPStatus } from "@src/webmcp";
 import {
   TEST_IMAGE_FILES,
@@ -59,12 +74,11 @@ const testAssetUrl = (kind: "image" | "video", file: string) =>
 const TEST_IMAGE_ASSETS = TEST_IMAGE_FILES.map((file) => testAssetUrl("image", file));
 const TEST_VIDEO_ASSETS = TEST_VIDEO_FILES.map((file) => testAssetUrl("video", file));
 
-const pickRandom = <T,>(items: T[]): T =>
-  items[Math.floor(Math.random() * items.length)];
+const pickRandom = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
 const pickRandomDifferent = <T,>(items: T[], previous?: T | null): T => {
   if (items.length <= 1 || previous == null) return pickRandom(items);
-  const choices = items.filter(item => item !== previous);
+  const choices = items.filter((item) => item !== previous);
   return pickRandom(choices.length > 0 ? choices : items);
 };
 
@@ -154,7 +168,9 @@ const isBundledTestVideoSource = (src: string | null | undefined) => {
   if (!src) return false;
   try {
     const normalizedSrc = new URL(src, window.location.href).href;
-    return TEST_VIDEO_ASSETS.some((assetSrc) => new URL(assetSrc, window.location.href).href === normalizedSrc);
+    return TEST_VIDEO_ASSETS.some(
+      (assetSrc) => new URL(assetSrc, window.location.href).href === normalizedSrc,
+    );
   } catch {
     return TEST_VIDEO_ASSETS.includes(src);
   }
@@ -166,8 +182,14 @@ const getAnchoredDialogPosition = (
 ) => {
   if (!anchorRect) return fallback;
   return {
-    x: Math.min(Math.max(16, anchorRect.left - 24), Math.max(16, window.innerWidth - estimatedSize.width - 16)),
-    y: Math.min(Math.max(16, anchorRect.bottom + 8), Math.max(16, window.innerHeight - estimatedSize.height - 16)),
+    x: Math.min(
+      Math.max(16, anchorRect.left - 24),
+      Math.max(16, window.innerWidth - estimatedSize.width - 16),
+    ),
+    y: Math.min(
+      Math.max(16, anchorRect.bottom + 8),
+      Math.max(16, window.innerHeight - estimatedSize.height - 16),
+    ),
   };
 };
 
@@ -179,12 +201,14 @@ type PreviousCanvasProps = {
 };
 const TEST_IMAGE_OPTIONS = TEST_IMAGE_ASSETS.map((src) => ({ value: src, label: basename(src) }));
 const TEST_VIDEO_OPTIONS = TEST_VIDEO_ASSETS.map((src) => ({ value: src, label: basename(src) }));
-const cloneImageToCanvas = (image: CanvasImageSource & {
-  width: number;
-  height: number;
-  naturalWidth?: number;
-  naturalHeight?: number;
-}) => {
+const cloneImageToCanvas = (
+  image: CanvasImageSource & {
+    width: number;
+    height: number;
+    naturalWidth?: number;
+    naturalHeight?: number;
+  },
+) => {
   const width = image.naturalWidth || image.width;
   const height = image.naturalHeight || image.height;
   const canvas = createReadbackCanvas(width, height);
@@ -226,12 +250,18 @@ const formatVideoTime = (seconds?: number | null) => {
 
 const InfoHint = ({ text }: { text: string }) => <HelpHint label="this setting" text={text} />;
 
-const INPUT_SCALE_HELP = "Scales the source image or video before filtering. Lower values reduce processing cost; higher values give the filter more pixels to work with.";
-const OUTPUT_SCALE_HELP = "Scales the rendered output view. This changes display size only and does not change how the filter itself processes the source.";
-const SCALING_ALGORITHM_HELP = "Controls how enlarged canvases are drawn on screen. Auto uses smooth browser scaling; Pixelated keeps hard nearest-neighbor edges.";
-const GRAYSCALE_HELP = "Converts the source to grayscale before the chain runs. Useful for monochrome dithers or filters that should ignore color.";
-const GAMMA_HELP = "Runs the pipeline in gamma-correct space for more perceptually accurate blending and brightness. It can look better, but may change results and cost a bit more work.";
-const FIX_INPUT_WIDTH_HELP = "Keeps the current input scale when loading a new image or video so the visible canvas width stays steadier during source swaps.";
+const INPUT_SCALE_HELP =
+  "Scales the source image or video before filtering. Lower values reduce processing cost; higher values give the filter more pixels to work with.";
+const OUTPUT_SCALE_HELP =
+  "Scales the rendered output view. This changes display size only and does not change how the filter itself processes the source.";
+const SCALING_ALGORITHM_HELP =
+  "Controls how enlarged canvases are drawn on screen. Auto uses smooth browser scaling; Pixelated keeps hard nearest-neighbor edges.";
+const GRAYSCALE_HELP =
+  "Converts the source to grayscale before the chain runs. Useful for monochrome dithers or filters that should ignore color.";
+const GAMMA_HELP =
+  "Runs the pipeline in gamma-correct space for more perceptually accurate blending and brightness. It can look better, but may change results and cost a bit more work.";
+const FIX_INPUT_WIDTH_HELP =
+  "Keeps the current input scale when loading a new image or video so the visible canvas width stays steadier during source swaps.";
 type AudioMetricSection = {
   key: string;
   label: string;
@@ -364,10 +394,12 @@ type AudioPatchTargetOption = {
   type?: string;
   visibleWhen?: ((options: Record<string, unknown>) => boolean) | undefined;
 };
-const buildAudioConnectionDraft = (modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined) =>
-  (modulation?.connections ?? []).map((connection) => ({ ...connection }));
-const buildNormalizedMetricsDraft = (modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined) =>
-  [...(modulation?.normalizedMetrics ?? [])];
+const buildAudioConnectionDraft = (
+  modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined,
+) => (modulation?.connections ?? []).map((connection) => ({ ...connection }));
+const buildNormalizedMetricsDraft = (
+  modulation: EntryAudioModulation | GlobalAudioVizModulation | null | undefined,
+) => [...(modulation?.normalizedMetrics ?? [])];
 
 const meterStyle = (value: number) => ({ width: `${Math.max(4, Math.round(value * 100))}%` });
 // Auto-viz logic lives in src/utils/autoViz.ts so it can be unit tested
@@ -401,9 +433,13 @@ export const ScreensaverDebugOverlay = ({
   const [snapshot, setSnapshot] = useState(() => getChannelAudioVizSnapshot("screensaver"));
   const [, setNow] = useState(() => performance.now());
 
-  useEffect(() => subscribeAudioViz((ch) => {
-    if (ch === "screensaver") setSnapshot(getChannelAudioVizSnapshot("screensaver"));
-  }), []);
+  useEffect(
+    () =>
+      subscribeAudioViz((ch) => {
+        if (ch === "screensaver") setSnapshot(getChannelAudioVizSnapshot("screensaver"));
+      }),
+    [],
+  );
 
   useEffect(() => {
     let rafId: number;
@@ -424,7 +460,9 @@ export const ScreensaverDebugOverlay = ({
     locked: "locked",
   };
   const levelPct = Math.round(Math.min(1, Math.max(0, snapshot.rawMetrics.level ?? 0)) * 100);
-  const beatConfidencePct = Math.round(Math.min(1, Math.max(0, snapshot.rawMetrics.beatConfidence ?? 0)) * 100);
+  const beatConfidencePct = Math.round(
+    Math.min(1, Math.max(0, snapshot.rawMetrics.beatConfidence ?? 0)) * 100,
+  );
 
   const now = performance.now();
   const formatCountdown = (interval: number | null, lastAt: number | null) => {
@@ -466,11 +504,15 @@ export const ScreensaverDebugOverlay = ({
 
       <div style={{ marginBottom: 4 }}>
         <div style={{ color: "#aaa" }}>audio</div>
-        <div>{snapshot.enabled ? snapshot.source : "off"} / {snapshot.status} / level {levelPct}%</div>
+        <div>
+          {snapshot.enabled ? snapshot.source : "off"} / {snapshot.status} / level {levelPct}%
+        </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <span>bpm</span>
           <AudioBpmReadout channel="screensaver" snapshot={snapshot} showUnit={false} compact />
-          <span>/ {tempoLabel[snapshot.tempoStatus] ?? snapshot.tempoStatus} / conf {beatConfidencePct}%</span>
+          <span>
+            / {tempoLabel[snapshot.tempoStatus] ?? snapshot.tempoStatus} / conf {beatConfidencePct}%
+          </span>
         </div>
         <div style={{ marginTop: 2 }}>
           <AudioBeatStrip channel="screensaver" boxes={8} height={8} />
@@ -495,36 +537,54 @@ export const ScreensaverDebugOverlay = ({
         <div style={{ color: "#aaa" }}>chain ({chain.length})</div>
         {chain.length === 0 ? (
           <div style={{ opacity: 0.6 }}>(empty)</div>
-        ) : chain.map((entry, idx) => (
-          <div
-            key={entry.id}
-            style={{
-              color: idx === activeIndex ? "#ffd166" : entry.enabled ? "#fff" : "rgba(255,255,255,0.45)",
-              fontWeight: idx === activeIndex ? "bold" : "normal",
-            }}
-          >
-            {idx === activeIndex ? "> " : "  "}{entry.displayName}{!entry.enabled ? " (off)" : ""}
-          </div>
-        ))}
+        ) : (
+          chain.map((entry, idx) => (
+            <div
+              key={entry.id}
+              style={{
+                color:
+                  idx === activeIndex
+                    ? "#ffd166"
+                    : entry.enabled
+                      ? "#fff"
+                      : "rgba(255,255,255,0.45)",
+                fontWeight: idx === activeIndex ? "bold" : "normal",
+              }}
+            >
+              {idx === activeIndex ? "> " : "  "}
+              {entry.displayName}
+              {!entry.enabled ? " (off)" : ""}
+            </div>
+          ))
+        )}
       </div>
 
       <div>
         <div style={{ color: "#aaa" }}>patches ({modulation?.connections.length ?? 0})</div>
-        {(!modulation || modulation.connections.length === 0) ? (
+        {!modulation || modulation.connections.length === 0 ? (
           <div style={{ opacity: 0.6 }}>(none)</div>
-        ) : modulation.connections.map((conn, idx) => {
-          const live = (snapshot.rawMetrics[conn.metric] ?? 0) * conn.weight;
-          return (
-            <div key={idx} style={{ display: "flex", gap: 4 }}>
-              <span style={{ flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {conn.metric} {"->"} {conn.target}
-              </span>
-              <span style={{ flex: "0 0 auto", color: "#6cf" }}>
-                {Math.round(conn.weight * 100)}% ({Math.round(live * 100)}%)
-              </span>
-            </div>
-          );
-        })}
+        ) : (
+          modulation.connections.map((conn, idx) => {
+            const live = (snapshot.rawMetrics[conn.metric] ?? 0) * conn.weight;
+            return (
+              <div key={idx} style={{ display: "flex", gap: 4 }}>
+                <span
+                  style={{
+                    flex: "1 1 auto",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {conn.metric} {"->"} {conn.target}
+                </span>
+                <span style={{ flex: "0 0 auto", color: "#6cf" }}>
+                  {Math.round(conn.weight * 100)}% ({Math.round(live * 100)}%)
+                </span>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -584,11 +644,15 @@ export const AudioPatchPanel = ({
     targets: Record<string, { x: number; y: number }>;
   }>({ metrics: {}, targets: {} });
 
-  useEffect(() => subscribeAudioViz((changedChannel) => {
-    if (changedChannel === channel) {
-      setSnapshot(getChannelAudioVizSnapshot(channel));
-    }
-  }), [channel]);
+  useEffect(
+    () =>
+      subscribeAudioViz((changedChannel) => {
+        if (changedChannel === channel) {
+          setSnapshot(getChannelAudioVizSnapshot(channel));
+        }
+      }),
+    [channel],
+  );
 
   useEffect(() => {
     connectionDragRef.current = connectionDrag;
@@ -603,10 +667,15 @@ export const AudioPatchPanel = ({
         const element = metricRefs.current[option.value];
         if (!element) return [];
         const rect = element.getBoundingClientRect();
-        return [[option.value, {
-          x: rect.left - panelRect.left + rect.width / 2 + panel.scrollLeft,
-          y: rect.top - panelRect.top + rect.height / 2 + panel.scrollTop,
-        }]];
+        return [
+          [
+            option.value,
+            {
+              x: rect.left - panelRect.left + rect.width / 2 + panel.scrollLeft,
+              y: rect.top - panelRect.top + rect.height / 2 + panel.scrollTop,
+            },
+          ],
+        ];
       }),
     ) as Partial<Record<AudioVizMetric, { x: number; y: number }>>;
     const targets = Object.fromEntries(
@@ -614,10 +683,15 @@ export const AudioPatchPanel = ({
         const element = targetRefs.current[optionName];
         if (!element) return [];
         const rect = element.getBoundingClientRect();
-        return [[optionName, {
-          x: rect.left - panelRect.left + rect.width / 2 + panel.scrollLeft,
-          y: rect.top - panelRect.top + rect.height / 2 + panel.scrollTop,
-        }]];
+        return [
+          [
+            optionName,
+            {
+              x: rect.left - panelRect.left + rect.width / 2 + panel.scrollLeft,
+              y: rect.top - panelRect.top + rect.height / 2 + panel.scrollTop,
+            },
+          ],
+        ];
       }),
     );
     setNodeRects({ metrics, targets });
@@ -670,58 +744,93 @@ export const AudioPatchPanel = ({
   const connectedMetrics = new Set(connections.map((connection) => connection.metric));
   const normalizedMetricSet = new Set(normalizedMetrics);
   const hoveredConnection = hoveredConnectionKey
-    ? connections.find((connection) => `${connection.metric}:${connection.target}` === hoveredConnectionKey) ?? null
+    ? (connections.find(
+        (connection) => `${connection.metric}:${connection.target}` === hoveredConnectionKey,
+      ) ?? null)
     : null;
   const modulationByTarget = new Map<string, number>();
   for (const connection of connections) {
     modulationByTarget.set(
       connection.target,
-      (modulationByTarget.get(connection.target) ?? 0)
-        + getAudioVizMetricValueForMode(snapshot, connection.metric, snapshot.normalize || normalizedMetricSet.has(connection.metric)) * connection.weight,
+      (modulationByTarget.get(connection.target) ?? 0) +
+        getAudioVizMetricValueForMode(
+          snapshot,
+          connection.metric,
+          snapshot.normalize || normalizedMetricSet.has(connection.metric),
+        ) *
+          connection.weight,
     );
   }
 
-  const setConnectionWeight = useCallback((connection: AudioVizConnection) => {
-    const currentPercent = Math.round(connection.weight * 100);
-    const response = window.prompt("Influence %", String(currentPercent));
-    if (response == null) return;
-    const nextPercent = Number.parseFloat(response);
-    if (!Number.isFinite(nextPercent)) {
-      window.alert("Please enter a number.");
-      return;
-    }
-    onConnectionsChange(
-      connections.map((item) =>
-        item.metric === connection.metric && item.target === connection.target
-          ? { ...item, weight: nextPercent / 100 }
-          : item),
-    );
-  }, [connections, onConnectionsChange]);
+  const setConnectionWeight = useCallback(
+    (connection: AudioVizConnection) => {
+      const currentPercent = Math.round(connection.weight * 100);
+      const response = window.prompt("Influence %", String(currentPercent));
+      if (response == null) return;
+      const nextPercent = Number.parseFloat(response);
+      if (!Number.isFinite(nextPercent)) {
+        window.alert("Please enter a number.");
+        return;
+      }
+      onConnectionsChange(
+        connections.map((item) =>
+          item.metric === connection.metric && item.target === connection.target
+            ? { ...item, weight: nextPercent / 100 }
+            : item,
+        ),
+      );
+    },
+    [connections, onConnectionsChange],
+  );
 
-  const removeConnection = useCallback((connection: AudioVizConnection) => {
-    onConnectionsChange(
-      connections.filter((item) => !(item.metric === connection.metric && item.target === connection.target)),
-    );
-  }, [connections, onConnectionsChange]);
+  const removeConnection = useCallback(
+    (connection: AudioVizConnection) => {
+      onConnectionsChange(
+        connections.filter(
+          (item) => !(item.metric === connection.metric && item.target === connection.target),
+        ),
+      );
+    },
+    [connections, onConnectionsChange],
+  );
 
-  const toggleConnection = useCallback((metric: AudioVizMetric, target: string) => {
-    const existing = connections.find((connection) => connection.metric === metric && connection.target === target);
-    if (existing) {
-      onConnectionsChange(connections.filter((connection) => !(connection.metric === metric && connection.target === target)));
-      return;
-    }
-    onConnectionsChange([...connections, { metric, target, weight: DEFAULT_AUDIO_METRIC_WEIGHT }]);
-  }, [connections, onConnectionsChange]);
+  const toggleConnection = useCallback(
+    (metric: AudioVizMetric, target: string) => {
+      const existing = connections.find(
+        (connection) => connection.metric === metric && connection.target === target,
+      );
+      if (existing) {
+        onConnectionsChange(
+          connections.filter(
+            (connection) => !(connection.metric === metric && connection.target === target),
+          ),
+        );
+        return;
+      }
+      onConnectionsChange([
+        ...connections,
+        { metric, target, weight: DEFAULT_AUDIO_METRIC_WEIGHT },
+      ]);
+    },
+    [connections, onConnectionsChange],
+  );
 
-  const updateConnectionWeight = useCallback((connection: AudioVizConnection, weight: number) => {
-    const nextWeight = Math.max(AUDIO_METRIC_WEIGHT_MIN, Math.min(AUDIO_METRIC_WEIGHT_MAX, weight));
-    onConnectionsChange(
-      connections.map((item) =>
-        item.metric === connection.metric && item.target === connection.target
-          ? { ...item, weight: nextWeight }
-          : item),
-    );
-  }, [connections, onConnectionsChange]);
+  const updateConnectionWeight = useCallback(
+    (connection: AudioVizConnection, weight: number) => {
+      const nextWeight = Math.max(
+        AUDIO_METRIC_WEIGHT_MIN,
+        Math.min(AUDIO_METRIC_WEIGHT_MAX, weight),
+      );
+      onConnectionsChange(
+        connections.map((item) =>
+          item.metric === connection.metric && item.target === connection.target
+            ? { ...item, weight: nextWeight }
+            : item,
+        ),
+      );
+    },
+    [connections, onConnectionsChange],
+  );
 
   useEffect(() => {
     if (!connectionDrag) return undefined;
@@ -762,21 +871,25 @@ export const AudioPatchPanel = ({
     };
   }, [connectionDrag, setConnectionWeight, updateConnectionWeight]);
 
-  const startConnectionWeightDrag = useCallback((event: React.MouseEvent<SVGElement>, connection: AudioVizConnection) => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setConnectionDrag({
-      connection,
-      startY: event.clientY,
-      startWeight: connection.weight,
-      moved: false,
-    });
-  }, []);
+  const startConnectionWeightDrag = useCallback(
+    (event: React.MouseEvent<SVGElement>, connection: AudioVizConnection) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setConnectionDrag({
+        connection,
+        startY: event.clientY,
+        startWeight: connection.weight,
+        moved: false,
+      });
+    },
+    [],
+  );
 
   const [density, setDensity] = useState(0);
   const [sectionsOpen, setSectionsOpen] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(AUDIO_METRIC_SECTIONS.map((section) => [section.key, section.defaultOpen])));
+    Object.fromEntries(AUDIO_METRIC_SECTIONS.map((section) => [section.key, section.defaultOpen])),
+  );
   const toggleSection = useCallback((key: string) => {
     setSectionsOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
@@ -790,12 +903,15 @@ export const AudioPatchPanel = ({
     id = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(id);
   }, []);
-  const applyAutoViz = useCallback((mode: AutoVizMode) => {
-    const effectiveDensity = density > 0 ? density : null;
-    const next = buildAutoVizConnections(mode, rangeOptions, connections, effectiveDensity);
-    onConnectionsChange(next.connections);
-    onNormalizedMetricsChange(next.normalizedMetrics);
-  }, [connections, density, onConnectionsChange, onNormalizedMetricsChange, rangeOptions]);
+  const applyAutoViz = useCallback(
+    (mode: AutoVizMode) => {
+      const effectiveDensity = density > 0 ? density : null;
+      const next = buildAutoVizConnections(mode, rangeOptions, connections, effectiveDensity);
+      onConnectionsChange(next.connections);
+      onNormalizedMetricsChange(next.normalizedMetrics);
+    },
+    [connections, density, onConnectionsChange, onNormalizedMetricsChange, rangeOptions],
+  );
   const resolvedAutoVizMode = autoVizMode ?? localAutoVizMode;
   const setResolvedAutoVizMode = onAutoVizModeChange ?? setLocalAutoVizMode;
   const [showAutoVizSettings, setShowAutoVizSettings] = useState(true);
@@ -842,7 +958,10 @@ export const AudioPatchPanel = ({
           Reroll
         </button>
         <button
-          className={[s.audioPatchToolbarButton, showAutoVizSettings ? s.audioPatchToolbarButtonActive : ""].join(" ")}
+          className={[
+            s.audioPatchToolbarButton,
+            showAutoVizSettings ? s.audioPatchToolbarButtonActive : "",
+          ].join(" ")}
           type="button"
           onClick={() => setShowAutoVizSettings((value) => !value)}
           title="Auto Viz settings"
@@ -870,7 +989,9 @@ export const AudioPatchPanel = ({
               onChange={(event) => setDensity(Number(event.target.value))}
             />
             <span className={s.audioPatchToolbarDensityValue}>
-              {density === 0 ? `auto (${Math.round(AUTO_VIZ_DENSITY[resolvedAutoVizMode] * 100)}%)` : `${Math.round(density * 100)}%`}
+              {density === 0
+                ? `auto (${Math.round(AUTO_VIZ_DENSITY[resolvedAutoVizMode] * 100)}%)`
+                : `${Math.round(density * 100)}%`}
             </span>
           </label>
           {typeof autoVizOnChainChange === "boolean" && onAutoVizOnChainChange && (
@@ -919,10 +1040,16 @@ export const AudioPatchPanel = ({
               const effectiveMagnitude = Math.min(1, Math.abs(effectiveWeight));
               const midX = (from.x + to.x) / 2;
               const path = `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
-              const metricLabel = AUDIO_METRIC_OPTIONS.find((option) => option.value === connection.metric)?.label ?? connection.metric;
-              const targetOption = rangeOptions.find(([optionName]) => optionName === connection.target)?.[1];
-              const targetLabel = targetOption?.targetLabel || targetOption?.label || connection.target;
-              const normalizedActive = snapshot.normalize || normalizedMetricSet.has(connection.metric);
+              const metricLabel =
+                AUDIO_METRIC_OPTIONS.find((option) => option.value === connection.metric)?.label ??
+                connection.metric;
+              const targetOption = rangeOptions.find(
+                ([optionName]) => optionName === connection.target,
+              )?.[1];
+              const targetLabel =
+                targetOption?.targetLabel || targetOption?.label || connection.target;
+              const normalizedActive =
+                snapshot.normalize || normalizedMetricSet.has(connection.metric);
               const tooltip = `${metricLabel} -> ${targetLabel}\nWeight: ${basePercent}% | Live: ${effectivePercent}%${normalizedActive ? " (normalized)" : ""}\nDrag to adjust, right-click to remove`;
               const isNegative = connection.weight < 0;
               const baseStroke = isNegative ? "#a0411e" : "#0f6da5";
@@ -934,7 +1061,11 @@ export const AudioPatchPanel = ({
                     d={path}
                     onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
                     onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
-                    onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                    onMouseLeave={() =>
+                      setHoveredConnectionKey((current) =>
+                        current === connectionKey ? null : current,
+                      )
+                    }
                     onContextMenu={(event) => {
                       event.preventDefault();
                       removeConnection(connection);
@@ -947,7 +1078,9 @@ export const AudioPatchPanel = ({
                     d={path}
                     style={{
                       stroke: hovered ? "#ff7b22" : baseStroke,
-                      strokeWidth: hovered ? 4 + effectiveMagnitude * 3 : 1.5 + effectiveMagnitude * 3,
+                      strokeWidth: hovered
+                        ? 4 + effectiveMagnitude * 3
+                        : 1.5 + effectiveMagnitude * 3,
                       opacity: hovered ? 1 : 0.4 + effectiveMagnitude * 0.6,
                     }}
                   >
@@ -977,7 +1110,11 @@ export const AudioPatchPanel = ({
                     ry="4"
                     onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
                     onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
-                    onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                    onMouseLeave={() =>
+                      setHoveredConnectionKey((current) =>
+                        current === connectionKey ? null : current,
+                      )
+                    }
                     onContextMenu={(event) => {
                       event.preventDefault();
                       removeConnection(connection);
@@ -986,13 +1123,19 @@ export const AudioPatchPanel = ({
                     <title>{tooltip}</title>
                   </rect>
                   <text
-                    className={[s.audioPatchLabel, hovered ? s.audioPatchLabelHovered : ""].join(" ")}
+                    className={[s.audioPatchLabel, hovered ? s.audioPatchLabelHovered : ""].join(
+                      " ",
+                    )}
                     x={midX}
                     y={(from.y + to.y) / 2 - 6}
                     textAnchor="middle"
                     onMouseDown={(event) => startConnectionWeightDrag(event, connection)}
                     onMouseEnter={() => setHoveredConnectionKey(connectionKey)}
-                    onMouseLeave={() => setHoveredConnectionKey((current) => current === connectionKey ? null : current)}
+                    onMouseLeave={() =>
+                      setHoveredConnectionKey((current) =>
+                        current === connectionKey ? null : current,
+                      )
+                    }
                     onContextMenu={(event) => {
                       event.preventDefault();
                       removeConnection(connection);
@@ -1012,253 +1155,300 @@ export const AudioPatchPanel = ({
             )}
           </svg>
           <div className={s.audioPatchColumns}>
-        <div className={s.audioPatchLeft}>
-          {AUDIO_METRIC_SECTIONS.map((section) => {
-            const open = sectionsOpen[section.key] ?? section.defaultOpen;
-            const activeInSection = section.metrics.filter((m) => connectedMetrics.has(m.value));
-            const visibleMetrics = open ? section.metrics : activeInSection;
-            return (
-              <div key={section.key} className={s.audioPatchSection}>
-                <button
-                  type="button"
-                  className={[s.audioPatchSectionHeader, open ? s.audioPatchSectionHeaderOpen : ""].join(" ")}
-                  onClick={() => toggleSection(section.key)}
-                  aria-expanded={open}
-                >
-                  <span className={s.audioPatchSectionCaret}>{open ? "▾" : "▸"}</span>
-                  <span className={[s.audioPatchSectionLabel, controls.subsectionHeader].join(" ")}>{section.label}</span>
-                  <span className={s.audioPatchSectionCount}>
-                    {activeInSection.length > 0 ? `${activeInSection.length} on` : `${section.metrics.length}`}
-                  </span>
-                </button>
-                {visibleMetrics.map((option) => {
-              const metricValue = getAudioVizMetricValueForMode(
-                snapshot,
-                option.value,
-                snapshot.normalize || normalizedMetricSet.has(option.value),
-              );
-              return (
-                <div
-                  key={option.value}
-                  className={[
-                    s.audioPatchNode,
-                    option.value === "bpm" ? s.audioPatchNodeBpm : "",
-                    connectedMetrics.has(option.value) ? s.audioPatchNodeActive : "",
-                    hoveredMetricJack === option.value ? s.audioPatchNodeHover : "",
-                  ].join(" ")}
-                >
-                  <div className={s.audioPatchNodeGrid}>
-                    <span className={s.audioPatchNodeLabel}>
-                      {option.label}
-                      <InfoHint text={AUDIO_METRIC_HELP[option.value]} />
-                      {option.value === "bpm" && (() => {
-                        let text: string | null = null;
-                        let severity: "warn" | "info" = "info";
-                        if (!snapshot.enabled) {
-                          text = "Audio input disabled — enable above to detect tempo.";
-                        } else if (snapshot.status === "connecting") {
-                          text = "Connecting to audio source...";
-                        } else if (snapshot.status === "error") {
-                          text = `Audio error: ${snapshot.error ?? "unknown"}`;
-                          severity = "warn";
-                        } else if (!bpmOverrideEnabled) {
-                          if (snapshot.tempoStatus === "warmup") {
-                            text = `Warming up (${Math.round(snapshot.tempoWarmupProgress * 100)}%) — needs ~5s of audio to lock tempo.`;
-                          } else if (snapshot.tempoStatus === "silent") {
-                            text = "Signal too quiet for tempo lock. Raise input level or pick a louder source.";
-                            severity = "warn";
-                          } else if (snapshot.tempoStatus === "searching") {
-                            text = "Searching for tempo — no strong periodic beat yet.";
-                          }
-                        }
-                        const visible = text != null;
-                        return (
-                          <span
-                            className={[
-                              severity === "warn" ? s.audioPatchBpmBadgeWarn : s.audioPatchBpmBadge,
-                              visible ? "" : s.audioPatchBpmBadgeHidden,
-                            ].join(" ")}
-                            title={text ?? ""}
-                            aria-label={text ?? ""}
-                            aria-hidden={visible ? undefined : true}
-                          >
-                            !
-                          </span>
-                        );
-                      })()}
-                    </span>
-                    <span className={s.audioPatchMetricValue}>
-                      {option.value === "bpm"
-                        ? <AudioBpmReadout channel={channel} snapshot={snapshot} />
-                        : formatAudioMetricReadout(snapshot, option.value, metricValue)}
-                    </span>
-                    <div className={s.audioPatchNodeMeta}>
-                      {connections.filter((connection) => connection.metric === option.value).length || 0} outs
-                    </div>
+            <div className={s.audioPatchLeft}>
+              {AUDIO_METRIC_SECTIONS.map((section) => {
+                const open = sectionsOpen[section.key] ?? section.defaultOpen;
+                const activeInSection = section.metrics.filter((m) =>
+                  connectedMetrics.has(m.value),
+                );
+                const visibleMetrics = open ? section.metrics : activeInSection;
+                return (
+                  <div key={section.key} className={s.audioPatchSection}>
                     <button
-                      ref={(element) => { metricRefs.current[option.value] = element; }}
+                      type="button"
+                      className={[
+                        s.audioPatchSectionHeader,
+                        open ? s.audioPatchSectionHeaderOpen : "",
+                      ].join(" ")}
+                      onClick={() => toggleSection(section.key)}
+                      aria-expanded={open}
+                    >
+                      <span className={s.audioPatchSectionCaret}>{open ? "▾" : "▸"}</span>
+                      <span
+                        className={[s.audioPatchSectionLabel, controls.subsectionHeader].join(" ")}
+                      >
+                        {section.label}
+                      </span>
+                      <span className={s.audioPatchSectionCount}>
+                        {activeInSection.length > 0
+                          ? `${activeInSection.length} on`
+                          : `${section.metrics.length}`}
+                      </span>
+                    </button>
+                    {visibleMetrics.map((option) => {
+                      const metricValue = getAudioVizMetricValueForMode(
+                        snapshot,
+                        option.value,
+                        snapshot.normalize || normalizedMetricSet.has(option.value),
+                      );
+                      return (
+                        <div
+                          key={option.value}
+                          className={[
+                            s.audioPatchNode,
+                            option.value === "bpm" ? s.audioPatchNodeBpm : "",
+                            connectedMetrics.has(option.value) ? s.audioPatchNodeActive : "",
+                            hoveredMetricJack === option.value ? s.audioPatchNodeHover : "",
+                          ].join(" ")}
+                        >
+                          <div className={s.audioPatchNodeGrid}>
+                            <span className={s.audioPatchNodeLabel}>
+                              {option.label}
+                              <InfoHint text={AUDIO_METRIC_HELP[option.value]} />
+                              {option.value === "bpm" &&
+                                (() => {
+                                  let text: string | null = null;
+                                  let severity: "warn" | "info" = "info";
+                                  if (!snapshot.enabled) {
+                                    text = "Audio input disabled — enable above to detect tempo.";
+                                  } else if (snapshot.status === "connecting") {
+                                    text = "Connecting to audio source...";
+                                  } else if (snapshot.status === "error") {
+                                    text = `Audio error: ${snapshot.error ?? "unknown"}`;
+                                    severity = "warn";
+                                  } else if (!bpmOverrideEnabled) {
+                                    if (snapshot.tempoStatus === "warmup") {
+                                      text = `Warming up (${Math.round(snapshot.tempoWarmupProgress * 100)}%) — needs ~5s of audio to lock tempo.`;
+                                    } else if (snapshot.tempoStatus === "silent") {
+                                      text =
+                                        "Signal too quiet for tempo lock. Raise input level or pick a louder source.";
+                                      severity = "warn";
+                                    } else if (snapshot.tempoStatus === "searching") {
+                                      text = "Searching for tempo — no strong periodic beat yet.";
+                                    }
+                                  }
+                                  const visible = text != null;
+                                  return (
+                                    <span
+                                      className={[
+                                        severity === "warn"
+                                          ? s.audioPatchBpmBadgeWarn
+                                          : s.audioPatchBpmBadge,
+                                        visible ? "" : s.audioPatchBpmBadgeHidden,
+                                      ].join(" ")}
+                                      title={text ?? ""}
+                                      aria-label={text ?? ""}
+                                      aria-hidden={visible ? undefined : true}
+                                    >
+                                      !
+                                    </span>
+                                  );
+                                })()}
+                            </span>
+                            <span className={s.audioPatchMetricValue}>
+                              {option.value === "bpm" ? (
+                                <AudioBpmReadout channel={channel} snapshot={snapshot} />
+                              ) : (
+                                formatAudioMetricReadout(snapshot, option.value, metricValue)
+                              )}
+                            </span>
+                            <div className={s.audioPatchNodeMeta}>
+                              {connections.filter(
+                                (connection) => connection.metric === option.value,
+                              ).length || 0}{" "}
+                              outs
+                            </div>
+                            <button
+                              ref={(element) => {
+                                metricRefs.current[option.value] = element;
+                              }}
+                              className={[
+                                s.audioPatchJack,
+                                hoveredMetricJack === option.value ? s.audioPatchJackHover : "",
+                              ].join(" ")}
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setDraggingMetric(option.value);
+                                const panel = panelRef.current;
+                                if (panel) {
+                                  const rect = panel.getBoundingClientRect();
+                                  setDragPointer({
+                                    x: event.clientX - rect.left + panel.scrollLeft,
+                                    y: event.clientY - rect.top + panel.scrollTop,
+                                  });
+                                }
+                              }}
+                              onMouseEnter={() => setHoveredMetricJack(option.value)}
+                              onMouseLeave={() =>
+                                setHoveredMetricJack((current) =>
+                                  current === option.value ? null : current,
+                                )
+                              }
+                              title={`Patch ${option.label}`}
+                            />
+                            {option.value === "bpm" ? (
+                              <div className={s.audioPatchBeatStripSlot}>
+                                <AudioBeatStrip channel={channel} boxes={4} height={8} />
+                              </div>
+                            ) : (
+                              <div className={s.audioPatchMeter}>
+                                <div
+                                  className={s.audioPatchMeterFill}
+                                  style={meterStyle(metricValue)}
+                                />
+                              </div>
+                            )}
+                            {option.value === "bpm" && (
+                              <div className={s.audioPatchBpmControls}>
+                                <div className={s.audioPatchBpmControlsTop}>
+                                  <label className={s.audioPatchBpmToggle}>
+                                    <input
+                                      type="checkbox"
+                                      checked={bpmOverrideEnabled}
+                                      onChange={(event) => {
+                                        const checked = event.target.checked;
+                                        void updateAudioVizChannel(channel, {
+                                          bpmOverride: checked ? bpmOverrideSliderValue : null,
+                                        });
+                                      }}
+                                    />
+                                    <span>Override</span>
+                                  </label>
+                                  <span className={s.audioPatchBpmSliderValue}>
+                                    {bpmOverrideEnabled ? `${bpmOverrideSliderValue} BPM` : "Auto"}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className={s.audioPatchBpmReset}
+                                    onClick={() => tapDownbeat(channel)}
+                                    title="Tap on felt beat 1 to realign the bar phase."
+                                  >
+                                    Tap
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={s.audioPatchBpmReset}
+                                    onClick={() => {
+                                      void resetAudioVizTempo(channel, { clearOverride: true });
+                                    }}
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                                {bpmOverrideEnabled && (
+                                  <input
+                                    className={s.audioPatchBpmSlider}
+                                    type="range"
+                                    aria-label="BPM override"
+                                    min={AUDIO_VIZ_BPM_OVERRIDE_MIN}
+                                    max={AUDIO_VIZ_BPM_OVERRIDE_MAX}
+                                    step="1"
+                                    value={bpmOverrideSliderValue}
+                                    onChange={(event) => {
+                                      void updateAudioVizChannel(channel, {
+                                        bpmOverride: Number(event.target.value),
+                                      });
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            )}
+                            <label className={s.audioPatchNormalize}>
+                              <input
+                                type="checkbox"
+                                checked={normalizedMetricSet.has(option.value)}
+                                onChange={(event) =>
+                                  onNormalizedMetricsChange(
+                                    event.target.checked
+                                      ? normalizedMetricSet.has(option.value)
+                                        ? normalizedMetrics
+                                        : [...normalizedMetrics, option.value]
+                                      : normalizedMetrics.filter((item) => item !== option.value),
+                                  )
+                                }
+                              />
+                              <span>Normalize</span>
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            <div className={s.audioPatchRight}>
+              {rangeOptions.length > 0 ? (
+                rangeOptions.map(([optionName, optionType]) => (
+                  <div
+                    key={optionName}
+                    className={[
+                      s.audioPatchTarget,
+                      connectedTargets.has(optionName) ? s.audioPatchTargetActive : "",
+                      draggingMetric ? s.audioPatchTargetDroppable : "",
+                      hoveredTargetName === optionName ? s.audioPatchTargetHover : "",
+                    ].join(" ")}
+                    onMouseUp={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (!draggingMetric) return;
+                      toggleConnection(draggingMetric, optionName);
+                      setDraggingMetric(null);
+                      setDragPointer(null);
+                      setHoveredTargetName(null);
+                    }}
+                    onMouseEnter={() => setHoveredTargetName(optionName)}
+                    onMouseLeave={() =>
+                      setHoveredTargetName((current) => (current === optionName ? null : current))
+                    }
+                  >
+                    <button
+                      ref={(element) => {
+                        targetRefs.current[optionName] = element;
+                      }}
                       className={[
                         s.audioPatchJack,
-                        hoveredMetricJack === option.value ? s.audioPatchJackHover : "",
+                        draggingMetric ? s.audioPatchJackDroppable : "",
+                        hoveredTargetName === optionName ? s.audioPatchJackHover : "",
                       ].join(" ")}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setDraggingMetric(option.value);
-                        const panel = panelRef.current;
-                        if (panel) {
-                          const rect = panel.getBoundingClientRect();
-                          setDragPointer({
-                            x: event.clientX - rect.left + panel.scrollLeft,
-                            y: event.clientY - rect.top + panel.scrollTop,
-                          });
-                        }
-                      }}
-                      onMouseEnter={() => setHoveredMetricJack(option.value)}
-                      onMouseLeave={() => setHoveredMetricJack((current) => current === option.value ? null : current)}
-                      title={`Patch ${option.label}`}
+                      title={`Patch to ${optionType.targetLabel || optionType.label || optionName}`}
                     />
-                    {option.value === "bpm" ? (
-                      <div className={s.audioPatchBeatStripSlot}>
-                        <AudioBeatStrip channel={channel} boxes={4} height={8} />
-                      </div>
-                    ) : (
-                      <div className={s.audioPatchMeter}>
-                        <div className={s.audioPatchMeterFill} style={meterStyle(metricValue)} />
-                      </div>
-                    )}
-                    {option.value === "bpm" && (
-                      <div className={s.audioPatchBpmControls}>
-                        <div className={s.audioPatchBpmControlsTop}>
-                          <label className={s.audioPatchBpmToggle}>
-                            <input
-                              type="checkbox"
-                              checked={bpmOverrideEnabled}
-                              onChange={(event) => {
-                                const checked = event.target.checked;
-                                void updateAudioVizChannel(channel, {
-                                  bpmOverride: checked
-                                    ? bpmOverrideSliderValue
-                                    : null,
-                                });
-                              }}
-                            />
-                            <span>Override</span>
-                          </label>
-                          <span className={s.audioPatchBpmSliderValue}>
-                            {bpmOverrideEnabled ? `${bpmOverrideSliderValue} BPM` : "Auto"}
-                          </span>
-                          <button
-                            type="button"
-                            className={s.audioPatchBpmReset}
-                            onClick={() => tapDownbeat(channel)}
-                            title="Tap on felt beat 1 to realign the bar phase."
-                          >
-                            Tap
-                          </button>
-                          <button
-                            type="button"
-                            className={s.audioPatchBpmReset}
-                            onClick={() => {
-                              void resetAudioVizTempo(channel, { clearOverride: true });
-                            }}
-                          >
-                            Reset
-                          </button>
-                        </div>
-                        {bpmOverrideEnabled && (
-                          <input
-                            className={s.audioPatchBpmSlider}
-                            type="range"
-                            aria-label="BPM override"
-                            min={AUDIO_VIZ_BPM_OVERRIDE_MIN}
-                            max={AUDIO_VIZ_BPM_OVERRIDE_MAX}
-                            step="1"
-                            value={bpmOverrideSliderValue}
-                            onChange={(event) => {
-                              void updateAudioVizChannel(channel, {
-                                bpmOverride: Number(event.target.value),
-                              });
-                            }}
-                          />
-                        )}
-                      </div>
-                    )}
-                    <label className={s.audioPatchNormalize}>
-                      <input
-                        type="checkbox"
-                        checked={normalizedMetricSet.has(option.value)}
-                        onChange={(event) => onNormalizedMetricsChange(
-                          event.target.checked
-                            ? (normalizedMetricSet.has(option.value) ? normalizedMetrics : [...normalizedMetrics, option.value])
-                            : normalizedMetrics.filter((item) => item !== option.value),
-                        )}
-                      />
-                      <span>Normalize</span>
-                    </label>
+                    <div className={s.audioPatchTargetBody}>
+                      <span className={s.audioPatchTargetLabel}>
+                        {optionType.targetLabel || optionType.label || optionName}
+                      </span>
+                      {Array.isArray((optionType as { range?: number[] }).range) &&
+                        (() => {
+                          const currentValue = Number(optionValues[optionName]);
+                          if (!Number.isFinite(currentValue)) return null;
+                          const [min, max] = (optionType as { range: number[] }).range;
+                          const step =
+                            "step" in optionType && typeof optionType.step === "number"
+                              ? optionType.step
+                              : 0;
+                          const span = max - min;
+                          const modulated =
+                            currentValue + (modulationByTarget.get(optionName) ?? 0) * span;
+                          const nextValue =
+                            step > 0 ? Math.round(modulated / step) * step : modulated;
+                          return (
+                            <span className={s.audioPatchTargetPreview}>
+                              {currentValue.toFixed(step >= 1 ? 0 : 2).replace(/\.?0+$/, "")}
+                              {" -> "}
+                              {nextValue.toFixed(step >= 1 ? 0 : 2).replace(/\.?0+$/, "")}
+                            </span>
+                          );
+                        })()}
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className={s.screensaverHint}>
+                  No numeric range parameters are available to modulate.
                 </div>
-              );
-            })}
-              </div>
-            );
-          })}
-        </div>
-        <div className={s.audioPatchRight}>
-          {rangeOptions.length > 0 ? rangeOptions.map(([optionName, optionType]) => (
-            <div
-              key={optionName}
-              className={[
-                s.audioPatchTarget,
-                connectedTargets.has(optionName) ? s.audioPatchTargetActive : "",
-                draggingMetric ? s.audioPatchTargetDroppable : "",
-                hoveredTargetName === optionName ? s.audioPatchTargetHover : "",
-              ].join(" ")}
-              onMouseUp={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!draggingMetric) return;
-                toggleConnection(draggingMetric, optionName);
-                setDraggingMetric(null);
-                setDragPointer(null);
-                setHoveredTargetName(null);
-              }}
-              onMouseEnter={() => setHoveredTargetName(optionName)}
-              onMouseLeave={() => setHoveredTargetName((current) => current === optionName ? null : current)}
-            >
-              <button
-                ref={(element) => { targetRefs.current[optionName] = element; }}
-                className={[
-                  s.audioPatchJack,
-                  draggingMetric ? s.audioPatchJackDroppable : "",
-                  hoveredTargetName === optionName ? s.audioPatchJackHover : "",
-                ].join(" ")}
-                title={`Patch to ${optionType.targetLabel || optionType.label || optionName}`}
-              />
-              <div className={s.audioPatchTargetBody}>
-                <span className={s.audioPatchTargetLabel}>{optionType.targetLabel || optionType.label || optionName}</span>
-                {Array.isArray((optionType as { range?: number[] }).range) && (() => {
-                  const currentValue = Number(optionValues[optionName]);
-                  if (!Number.isFinite(currentValue)) return null;
-                  const [min, max] = (optionType as { range: number[] }).range;
-                  const step = "step" in optionType && typeof optionType.step === "number" ? optionType.step : 0;
-                  const span = max - min;
-                  const modulated = currentValue + (modulationByTarget.get(optionName) ?? 0) * span;
-                  const nextValue = step > 0 ? Math.round(modulated / step) * step : modulated;
-                  return (
-                    <span className={s.audioPatchTargetPreview}>
-                      {currentValue.toFixed(step >= 1 ? 0 : 2).replace(/\.?0+$/, "")}
-                      {" -> "}
-                      {nextValue.toFixed(step >= 1 ? 0 : 2).replace(/\.?0+$/, "")}
-                    </span>
-                  );
-                })()}
-              </div>
+              )}
             </div>
-          )) : (
-            <div className={s.screensaverHint}>No numeric range parameters are available to modulate.</div>
-          )}
-        </div>
           </div>
         </>
       )}
@@ -1287,8 +1477,8 @@ const App = () => {
   const [showFullscreenMenu, setShowFullscreenMenu] = useState(false);
   const [inputWindowPosition, setInputWindowPosition] = useState(DEFAULT_INPUT_WINDOW_POSITION);
   const [outputWindowPosition, setOutputWindowPosition] = useState(DEFAULT_OUTPUT_WINDOW_POSITION);
-  const [appMode, setAppMode] = useState<AppMode>(() =>
-    (localStorage.getItem("ditherer-app-mode") as AppMode | null) || "media"
+  const [appMode, setAppMode] = useState<AppMode>(
+    () => (localStorage.getItem("ditherer-app-mode") as AppMode | null) || "media",
   );
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => {
     const stored = localStorage.getItem("ditherer-workspace-layout") as WorkspaceLayout | null;
@@ -1326,18 +1516,35 @@ const App = () => {
   const [screensaverSwapBpmDraft, setScreensaverSwapBpmDraft] = useState("120");
   const [screensaverRandomVideoDraft, setScreensaverRandomVideoDraft] = useState(false);
   const [screensaverVideoSwapSecondsDraft, setScreensaverVideoSwapSecondsDraft] = useState("8");
-  const [screensaverScalingAlgorithmDraft, setScreensaverScalingAlgorithmDraft] = useState(state.scalingAlgorithm);
-  const [screensaverVideoMaxWidthDraft, setScreensaverVideoMaxWidthDraft] = useState(String(DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH));
-  const [audioModConnectionsDraft, setAudioModConnectionsDraft] = useState<AudioVizConnection[]>([]);
-  const [audioModNormalizedMetricsDraft, setAudioModNormalizedMetricsDraft] = useState<AudioVizMetric[]>([]);
-  const [chainAudioGlobalConnectionsDraft, setChainAudioGlobalConnectionsDraft] = useState<AudioVizConnection[]>([]);
-  const [chainAudioGlobalNormalizedMetricsDraft, setChainAudioGlobalNormalizedMetricsDraft] = useState<AudioVizMetric[]>([]);
-  const [screensaverAudioGlobalConnectionsDraft, setScreensaverAudioGlobalConnectionsDraft] = useState<AudioVizConnection[]>([]);
-  const [screensaverAudioGlobalNormalizedMetricsDraft, setScreensaverAudioGlobalNormalizedMetricsDraft] = useState<AudioVizMetric[]>([]);
+  const [screensaverScalingAlgorithmDraft, setScreensaverScalingAlgorithmDraft] = useState(
+    state.scalingAlgorithm,
+  );
+  const [screensaverVideoMaxWidthDraft, setScreensaverVideoMaxWidthDraft] = useState(
+    String(DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH),
+  );
+  const [audioModConnectionsDraft, setAudioModConnectionsDraft] = useState<AudioVizConnection[]>(
+    [],
+  );
+  const [audioModNormalizedMetricsDraft, setAudioModNormalizedMetricsDraft] = useState<
+    AudioVizMetric[]
+  >([]);
+  const [chainAudioGlobalConnectionsDraft, setChainAudioGlobalConnectionsDraft] = useState<
+    AudioVizConnection[]
+  >([]);
+  const [chainAudioGlobalNormalizedMetricsDraft, setChainAudioGlobalNormalizedMetricsDraft] =
+    useState<AudioVizMetric[]>([]);
+  const [screensaverAudioGlobalConnectionsDraft, setScreensaverAudioGlobalConnectionsDraft] =
+    useState<AudioVizConnection[]>([]);
+  const [
+    screensaverAudioGlobalNormalizedMetricsDraft,
+    setScreensaverAudioGlobalNormalizedMetricsDraft,
+  ] = useState<AudioVizMetric[]>([]);
   const [chainAudioAutoVizMode, setChainAudioAutoVizMode] = useState<AutoVizMode>("balanced");
   const [chainAudioAutoVizOnChainChange, setChainAudioAutoVizOnChainChange] = useState(false);
-  const [screensaverAudioAutoVizMode, setScreensaverAudioAutoVizMode] = useState<AutoVizMode>("balanced");
-  const [screensaverAudioAutoVizOnChainChange, setScreensaverAudioAutoVizOnChainChange] = useState(true);
+  const [screensaverAudioAutoVizMode, setScreensaverAudioAutoVizMode] =
+    useState<AutoVizMode>("balanced");
+  const [screensaverAudioAutoVizOnChainChange, setScreensaverAudioAutoVizOnChainChange] =
+    useState(true);
   const [chainAudioBpmSwapEnabled, setChainAudioBpmSwapEnabled] = useState(false);
   const [chainAudioBpmSwapBeats, setChainAudioBpmSwapBeats] = useState("4");
   const chainAudioBpmSwapRestoreRef = useRef<number | null | undefined>(undefined);
@@ -1358,7 +1565,13 @@ const App = () => {
   const estimatedFrameStepRef = useRef(1 / 30);
   const screensaverRestoreRef = useRef<ScreensaverRestore | null>(null);
   const screensaverHasEnteredFullscreenRef = useRef(false);
-  const screensaverConfigRef = useRef<{ swapSeconds: number; randomVideo: boolean; videoSwapSeconds: number; scalingAlgorithm: string; videoMaxWidth: number }>({
+  const screensaverConfigRef = useRef<{
+    swapSeconds: number;
+    randomVideo: boolean;
+    videoSwapSeconds: number;
+    scalingAlgorithm: string;
+    videoMaxWidth: number;
+  }>({
     swapSeconds: 2,
     randomVideo: false,
     videoSwapSeconds: 8,
@@ -1407,12 +1620,11 @@ const App = () => {
   // flag set on the very first getContext call per canvas, so claim the
   // context here to guarantee filterOnMainThread's downstream getImageData
   // reads don't pay a GPU readback cost.
-  const bindReadbackCanvasRef = (
-    ref: { current: HTMLCanvasElement | null },
-  ) => (el: HTMLCanvasElement | null) => {
-    ref.current = el;
-    if (el) el.getContext("2d", { willReadFrequently: true });
-  };
+  const bindReadbackCanvasRef =
+    (ref: { current: HTMLCanvasElement | null }) => (el: HTMLCanvasElement | null) => {
+      ref.current = el;
+      if (el) el.getContext("2d", { willReadFrequently: true });
+    };
   const inputCanvasRefCb = bindReadbackCanvasRef(inputCanvasRef);
   const outputCanvasRefCb = bindReadbackCanvasRef(outputCanvasRef);
   const outputWindowRef = useRef<HTMLDivElement | null>(null);
@@ -1466,48 +1678,59 @@ const App = () => {
 
   const webmcpRefs = useRef({ state, actions, filterList });
   webmcpRefs.current = { state, actions, filterList };
-  const waitForWebMCPMediaReady = useCallback((previousState: Pick<typeof state, "inputImage" | "outputImage">) => (
-    new Promise<void>((resolve, reject) => {
-      const deadline = performance.now() + 10_000;
-      let filterRequested = false;
-      const check = () => {
-        const current = webmcpRefs.current.state;
-        const inputReady = Boolean(current.inputImage) && current.inputImage !== previousState.inputImage;
-        const inputCanvasReady = inputReady
-          && Boolean(inputCanvasRef.current)
-          && inputCanvasRef.current?.width === Math.floor((current.inputImage?.width || 0) * current.scale)
-          && inputCanvasRef.current?.height === Math.floor((current.inputImage?.height || 0) * current.scale);
-        const outputReady = Boolean(current.outputImage)
-          && current.outputImage !== previousState.outputImage
-          && current.outputFrameToken === current.inputFrameToken;
-        if (inputCanvasReady && outputReady) {
-          requestAnimationFrame(() => resolve());
-          return;
-        }
-        if (performance.now() >= deadline) {
-          const diagnostic = {
-            inputFrameToken: current.inputFrameToken,
-            outputFrameToken: current.outputFrameToken,
-            inputSize: current.inputImage
-              ? [current.inputImage.width, current.inputImage.height]
-              : null,
-            outputSize: current.outputImage
-              ? [current.outputImage.width, current.outputImage.height]
-              : null,
-          };
-          console.error("[webmcp] Media output readiness timed out", diagnostic);
-          reject(new Error(`Media loaded, but the filtered output did not become ready: ${JSON.stringify(diagnostic)}`));
-          return;
-        }
-        if (inputCanvasReady && !filterRequested) {
-          filterRequested = true;
-          webmcpRefs.current.actions.filterImageAsync(inputCanvasRef.current);
-        }
+  const waitForWebMCPMediaReady = useCallback(
+    (previousState: Pick<typeof state, "inputImage" | "outputImage">) =>
+      new Promise<void>((resolve, reject) => {
+        const deadline = performance.now() + 10_000;
+        let filterRequested = false;
+        const check = () => {
+          const current = webmcpRefs.current.state;
+          const inputReady =
+            Boolean(current.inputImage) && current.inputImage !== previousState.inputImage;
+          const inputCanvasReady =
+            inputReady &&
+            Boolean(inputCanvasRef.current) &&
+            inputCanvasRef.current?.width ===
+              Math.floor((current.inputImage?.width || 0) * current.scale) &&
+            inputCanvasRef.current?.height ===
+              Math.floor((current.inputImage?.height || 0) * current.scale);
+          const outputReady =
+            Boolean(current.outputImage) &&
+            current.outputImage !== previousState.outputImage &&
+            current.outputFrameToken === current.inputFrameToken;
+          if (inputCanvasReady && outputReady) {
+            requestAnimationFrame(() => resolve());
+            return;
+          }
+          if (performance.now() >= deadline) {
+            const diagnostic = {
+              inputFrameToken: current.inputFrameToken,
+              outputFrameToken: current.outputFrameToken,
+              inputSize: current.inputImage
+                ? [current.inputImage.width, current.inputImage.height]
+                : null,
+              outputSize: current.outputImage
+                ? [current.outputImage.width, current.outputImage.height]
+                : null,
+            };
+            console.error("[webmcp] Media output readiness timed out", diagnostic);
+            reject(
+              new Error(
+                `Media loaded, but the filtered output did not become ready: ${JSON.stringify(diagnostic)}`,
+              ),
+            );
+            return;
+          }
+          if (inputCanvasReady && !filterRequested) {
+            filterRequested = true;
+            webmcpRefs.current.actions.filterImageAsync(inputCanvasRef.current);
+          }
+          requestAnimationFrame(check);
+        };
         requestAnimationFrame(check);
-      };
-      requestAnimationFrame(check);
-    })
-  ), []);
+      }),
+    [],
+  );
 
   const inputDrag = useDraggable(inputDragRef, {
     defaultPosition: inputWindowPosition,
@@ -1521,20 +1744,21 @@ const App = () => {
       if (Math.abs(ratio - 1) < 0.005) dragScaleStart.current.input = state.scale;
       const newScale = Math.max(0.05, Math.min(16, dragScaleStart.current.input * ratio));
       actions.setScale(Math.round(newScale * 100) / 100);
-    }
+    },
   });
   const outputDrag = useDraggable(outputDragRef, {
     defaultPosition: outputWindowPosition,
     onPositionChange: setOutputWindowPosition,
     onScale: (delta) => {
-      const newScale = Math.round(Math.max(0.05, Math.min(16, state.outputScale + delta)) * 10) / 10;
+      const newScale =
+        Math.round(Math.max(0.05, Math.min(16, state.outputScale + delta)) * 10) / 10;
       actions.setOutputScale(newScale);
     },
     onScaleAbsolute: (ratio) => {
       if (Math.abs(ratio - 1) < 0.005) dragScaleStart.current.output = state.outputScale;
       const newScale = Math.max(0.05, Math.min(16, dragScaleStart.current.output * ratio));
       actions.setOutputScale(Math.round(newScale * 100) / 100);
-    }
+    },
   });
   const saveAsDrag = useDraggable(saveAsDragRef, { defaultPosition: { x: 160, y: 400 } });
   const screensaverDrag = useDraggable(screensaverDialogRef, {
@@ -1582,9 +1806,12 @@ const App = () => {
 
   useEffect(() => clearWarmedTestVideo, [clearWarmedTestVideo]);
 
-  useEffect(() => () => {
-    dispatchScreensaverCycleSeconds(null);
-  }, []);
+  useEffect(
+    () => () => {
+      dispatchScreensaverCycleSeconds(null);
+    },
+    [],
+  );
 
   useEffect(() => {
     setActiveAudioVizChannel(screensaverActive ? "screensaver" : "chain");
@@ -1621,7 +1848,13 @@ const App = () => {
     };
 
     resetIdleTimer();
-    const events: Array<keyof WindowEventMap> = ["mousemove", "mousedown", "touchstart", "keydown", "wheel"];
+    const events: Array<keyof WindowEventMap> = [
+      "mousemove",
+      "mousedown",
+      "touchstart",
+      "keydown",
+      "wheel",
+    ];
     for (const eventName of events) {
       window.addEventListener(eventName, resetIdleTimer, { passive: true });
     }
@@ -1681,11 +1914,9 @@ const App = () => {
 
   useEffect(() => {
     const snapshot = historyActionsRef.current.exportState(state);
-    const chainStructure = JSON.stringify(state.chain.map((entry) => [
-      entry.id,
-      entry.displayName,
-      entry.enabled,
-    ]));
+    const chainStructure = JSON.stringify(
+      state.chain.map((entry) => [entry.id, entry.displayName, entry.enabled]),
+    );
     const commitSnapshot = () => {
       if (historyApplyingRef.current === snapshot) {
         historyApplyingRef.current = null;
@@ -1710,7 +1941,17 @@ const App = () => {
 
     const timeout = window.setTimeout(commitSnapshot, 220);
     return () => window.clearTimeout(timeout);
-  }, [state.chain, state.convertGrayscale, state.linearize, state.outputScale, state.realtimeFiltering, state.scale, state.scalingAlgorithm, state.wasmAcceleration, state.webglAcceleration]);
+  }, [
+    state.chain,
+    state.convertGrayscale,
+    state.linearize,
+    state.outputScale,
+    state.realtimeFiltering,
+    state.scale,
+    state.scalingAlgorithm,
+    state.wasmAcceleration,
+    state.webglAcceleration,
+  ]);
 
   const restoreHistory = useCallback((offset: -1 | 1) => {
     const nextIndex = historyIndexRef.current + offset;
@@ -1728,10 +1969,11 @@ const App = () => {
   useEffect(() => {
     const handleWorkbenchShortcut = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const isTyping = target instanceof HTMLInputElement
-        || target instanceof HTMLTextAreaElement
-        || target instanceof HTMLSelectElement
-        || Boolean(target?.isContentEditable);
+      const isTyping =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        Boolean(target?.isContentEditable);
       const commandKey = event.ctrlKey || event.metaKey;
       if (commandKey && event.key.toLowerCase() === "z" && !isTyping) {
         event.preventDefault();
@@ -1777,25 +2019,25 @@ const App = () => {
         actions.loadImage(media.image);
       } else if (media?.kind === "video") {
         if (typeof media.source === "string") {
-          await actions.loadVideoFromUrlAsync(
-            media.source,
-            media.volume,
-            media.playbackRate,
-            { preserveScale: true },
-          );
+          await actions.loadVideoFromUrlAsync(media.source, media.volume, media.playbackRate, {
+            preserveScale: true,
+          });
         } else {
-          await actions.loadMediaAsync(
-            media.source,
-            media.volume,
-            media.playbackRate,
-            { preserveScale: true },
-          );
+          await actions.loadMediaAsync(media.source, media.volume, media.playbackRate, {
+            preserveScale: true,
+          });
         }
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        const restoredVideo = webmcpRefs.current.state.video as (HTMLVideoElement & { __manualPause?: boolean }) | null;
+        const restoredVideo = webmcpRefs.current.state.video as
+          | (HTMLVideoElement & { __manualPause?: boolean })
+          | null;
         if (restoredVideo) {
           if (Number.isFinite(media.time) && media.time > 0) {
-            try { restoredVideo.currentTime = media.time; } catch { /* media may not be seekable */ }
+            try {
+              restoredVideo.currentTime = media.time;
+            } catch {
+              /* media may not be seekable */
+            }
           }
           if (media.paused) {
             restoredVideo.__manualPause = true;
@@ -1821,7 +2063,13 @@ const App = () => {
       actions.setScale(restore.scale);
       actions.setScalingAlgorithm(restore.scalingAlgorithm);
     })();
-  }, [actions, clearWarmedTestVideo, outputFullscreen, screensaverActive, stopScreensaverVideoSwapLoop]);
+  }, [
+    actions,
+    clearWarmedTestVideo,
+    outputFullscreen,
+    screensaverActive,
+    stopScreensaverVideoSwapLoop,
+  ]);
 
   const buildScreensaverConfig = useCallback(() => {
     const swapSeconds = Number.parseFloat(screensaverSwapSecondsDraft.trim());
@@ -1843,7 +2091,8 @@ const App = () => {
       }
     } else {
       videoSwapSeconds = swapSeconds * 4;
-      videoMaxWidth = screensaverConfigRef.current.videoMaxWidth || DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH;
+      videoMaxWidth =
+        screensaverConfigRef.current.videoMaxWidth || DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH;
     }
 
     return {
@@ -1853,13 +2102,22 @@ const App = () => {
       scalingAlgorithm: screensaverScalingAlgorithmDraft,
       videoMaxWidth,
     };
-  }, [screensaverRandomVideoDraft, screensaverScalingAlgorithmDraft, screensaverSwapSecondsDraft, screensaverVideoMaxWidthDraft, screensaverVideoSwapSecondsDraft]);
+  }, [
+    screensaverRandomVideoDraft,
+    screensaverScalingAlgorithmDraft,
+    screensaverSwapSecondsDraft,
+    screensaverVideoMaxWidthDraft,
+    screensaverVideoSwapSecondsDraft,
+  ]);
 
   useEffect(() => {
     if (!screensaverActive || !screensaverConfigRef.current.randomVideo) return;
     if (!state.video || !state.inputImage || !currentInputIsRandomTestVideoRef.current) return;
 
-    const rounded = getScaleForMaxWidth(state.inputImage.width, screensaverConfigRef.current.videoMaxWidth);
+    const rounded = getScaleForMaxWidth(
+      state.inputImage.width,
+      screensaverConfigRef.current.videoMaxWidth,
+    );
     if (Math.abs(rounded - state.scale) > 0.001) {
       actions.setScale(rounded);
     }
@@ -1874,10 +2132,14 @@ const App = () => {
   }, [seekDraftTime, state.time]);
 
   useEffect(() => {
-    const video = state.video as (HTMLVideoElement & {
-      requestVideoFrameCallback?: (callback: (now: number, metadata: { mediaTime: number }) => void) => number;
-      cancelVideoFrameCallback?: (handle: number) => void;
-    }) | null;
+    const video = state.video as
+      | (HTMLVideoElement & {
+          requestVideoFrameCallback?: (
+            callback: (now: number, metadata: { mediaTime: number }) => void,
+          ) => number;
+          cancelVideoFrameCallback?: (handle: number) => void;
+        })
+      | null;
     if (!video || typeof video.requestVideoFrameCallback !== "function") return;
 
     let frameHandle: number | null = null;
@@ -1989,9 +2251,16 @@ const App = () => {
       comparison.height = output?.height || inputCanvasRef.current.height;
       const comparisonContext = comparison.getContext("2d");
       if (comparisonContext) {
-        comparisonContext.imageSmoothingEnabled = state.scalingAlgorithm !== SCALING_ALGORITHM.PIXELATED;
+        comparisonContext.imageSmoothingEnabled =
+          state.scalingAlgorithm !== SCALING_ALGORITHM.PIXELATED;
         comparisonContext.clearRect(0, 0, comparison.width, comparison.height);
-        comparisonContext.drawImage(inputCanvasRef.current, 0, 0, comparison.width, comparison.height);
+        comparisonContext.drawImage(
+          inputCanvasRef.current,
+          0,
+          0,
+          comparison.width,
+          comparison.height,
+        );
       }
     }
 
@@ -2001,7 +2270,15 @@ const App = () => {
       scale: state.scale,
       time: state.time,
     };
-  }, [comparisonEnabled, state.inputImage, state.outputImage, state.scale, state.outputScale, state.time, state.scalingAlgorithm]);
+  }, [
+    comparisonEnabled,
+    state.inputImage,
+    state.outputImage,
+    state.scale,
+    state.outputScale,
+    state.time,
+    state.scalingAlgorithm,
+  ]);
 
   // Auto-filter when settings change and realtimeFiltering is on
   useEffect(() => {
@@ -2010,9 +2287,17 @@ const App = () => {
       actions.filterImageAsync(inputCanvasRef.current);
     });
   }, [
-    state.chain, state.linearize, state.wasmAcceleration, state.webglAcceleration,
-    state.convertGrayscale, state.realtimeFiltering, state.inputImage,
-    state.scale, state.outputScale, state.scalingAlgorithm, state.time,
+    state.chain,
+    state.linearize,
+    state.wasmAcceleration,
+    state.webglAcceleration,
+    state.convertGrayscale,
+    state.realtimeFiltering,
+    state.inputImage,
+    state.scale,
+    state.outputScale,
+    state.scalingAlgorithm,
+    state.time,
   ]);
 
   const bringToTop = useCallback((e: React.MouseEvent<HTMLElement>) => {
@@ -2071,19 +2356,24 @@ const App = () => {
     });
   }, [audioEditorPosition, editingAudioEntryId, showChainAudioGlobalEditor]);
 
-  const withInputLoading = useCallback(async (label: string, loader: () => Promise<void> | void) => {
-    setInputLoadError(null);
-    setInputLoadingLabel(label);
-    try {
-      await loader();
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      console.error("Failed to load input asset:", error);
-      setInputLoadError(error instanceof Error ? error.message : "Failed to load the selected media.");
-    } finally {
-      setInputLoadingLabel(null);
-    }
-  }, []);
+  const withInputLoading = useCallback(
+    async (label: string, loader: () => Promise<void> | void) => {
+      setInputLoadError(null);
+      setInputLoadingLabel(label);
+      try {
+        await loader();
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        console.error("Failed to load input asset:", error);
+        setInputLoadError(
+          error instanceof Error ? error.message : "Failed to load the selected media.",
+        );
+      } finally {
+        setInputLoadingLabel(null);
+      }
+    },
+    [],
+  );
 
   const queueLoadedMediaFilter = useCallback(() => {
     requestAnimationFrame(() => {
@@ -2098,7 +2388,8 @@ const App = () => {
   // After a new media source is loaded, run one filter pass once the first
   // input frame has reached the canvas, even if auto-apply is off.
   useEffect(() => {
-    if (!pendingLoadedMediaFilterRef.current || !inputCanvasRef.current || !state.inputImage) return;
+    if (!pendingLoadedMediaFilterRef.current || !inputCanvasRef.current || !state.inputImage)
+      return;
     pendingLoadedMediaFilterRef.current = false;
     queueLoadedMediaFilter();
   }, [queueLoadedMediaFilter, state.inputImage, state.time]);
@@ -2121,24 +2412,36 @@ const App = () => {
     return promise;
   }, []);
 
-  const prefetchRandomImage = useCallback((excludeSrc?: string | null) => {
-    const src = pickRandomDifferent(TEST_IMAGE_ASSETS, excludeSrc ?? null);
-    void loadImageAsset(src).catch(() => {});
-  }, [loadImageAsset]);
+  const prefetchRandomImage = useCallback(
+    (excludeSrc?: string | null) => {
+      const src = pickRandomDifferent(TEST_IMAGE_ASSETS, excludeSrc ?? null);
+      void loadImageAsset(src).catch(() => {});
+    },
+    [loadImageAsset],
+  );
 
-  const loadUserFile = useCallback((file?: File | null) => {
-    if (!file) return;
-    syncSharedTestMediaUrl(null);
-    const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
-    pendingLoadedMediaFilterRef.current = true;
-    currentInputIsRandomTestVideoRef.current = false;
-    setInputFilename(file.name);
-    void withInputLoading(label, () =>
-      actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate, {
-        preserveScale: preserveInputWidthOnNewMedia,
-      })
-    );
-  }, [actions, preserveInputWidthOnNewMedia, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+  const loadUserFile = useCallback(
+    (file?: File | null) => {
+      if (!file) return;
+      syncSharedTestMediaUrl(null);
+      const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
+      pendingLoadedMediaFilterRef.current = true;
+      currentInputIsRandomTestVideoRef.current = false;
+      setInputFilename(file.name);
+      void withInputLoading(label, () =>
+        actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate, {
+          preserveScale: preserveInputWidthOnNewMedia,
+        }),
+      );
+    },
+    [
+      actions,
+      preserveInputWidthOnNewMedia,
+      state.videoPlaybackRate,
+      state.videoVolume,
+      withInputLoading,
+    ],
+  );
 
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
@@ -2150,12 +2453,12 @@ const App = () => {
       if (!imageItem) return;
 
       const target = event.target as HTMLElement | null;
-      const isEditableTarget = !!target && (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement ||
-        target.isContentEditable
-      );
+      const isEditableTarget =
+        !!target &&
+        (target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target instanceof HTMLSelectElement ||
+          target.isContentEditable);
 
       const pastedFile = imageItem.getAsFile();
       if (!pastedFile) return;
@@ -2167,7 +2470,7 @@ const App = () => {
             ? pastedFile
             : new File([pastedFile], `pasted-image.${pastedFile.type.split("/")[1] || "png"}`, {
                 type: pastedFile.type || "image/png",
-              })
+              }),
         );
       }
     };
@@ -2176,42 +2479,53 @@ const App = () => {
     return () => window.removeEventListener("paste", onPaste);
   }, [loadUserFile]);
 
-  const commitSeekVideo = useCallback((nextTime: number) => {
-    const video = state.video;
-    if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
-    const clampedTime = Math.max(0, Math.min(video.duration, nextTime));
-    setSeekDraftTime(clampedTime);
-    video.currentTime = clampedTime;
-  }, [state.video]);
+  const commitSeekVideo = useCallback(
+    (nextTime: number) => {
+      const video = state.video;
+      if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
+      const clampedTime = Math.max(0, Math.min(video.duration, nextTime));
+      setSeekDraftTime(clampedTime);
+      video.currentTime = clampedTime;
+    },
+    [state.video],
+  );
 
-  const seekVideo = useCallback((nextTime: number) => {
-    const video = state.video;
-    if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
-    const clampedTime = Math.max(0, Math.min(video.duration, nextTime));
-    setSeekDraftTime(clampedTime);
-    if (seekCommitTimerRef.current) {
-      window.clearTimeout(seekCommitTimerRef.current);
-    }
-    seekCommitTimerRef.current = window.setTimeout(() => {
-      seekCommitTimerRef.current = null;
-      commitSeekVideo(clampedTime);
-    }, 40);
-  }, [commitSeekVideo, state.video]);
+  const seekVideo = useCallback(
+    (nextTime: number) => {
+      const video = state.video;
+      if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
+      const clampedTime = Math.max(0, Math.min(video.duration, nextTime));
+      setSeekDraftTime(clampedTime);
+      if (seekCommitTimerRef.current) {
+        window.clearTimeout(seekCommitTimerRef.current);
+      }
+      seekCommitTimerRef.current = window.setTimeout(() => {
+        seekCommitTimerRef.current = null;
+        commitSeekVideo(clampedTime);
+      }, 40);
+    },
+    [commitSeekVideo, state.video],
+  );
 
-  const flushSeekVideo = useCallback((nextTime: number) => {
-    if (seekCommitTimerRef.current) {
-      window.clearTimeout(seekCommitTimerRef.current);
-      seekCommitTimerRef.current = null;
-    }
-    commitSeekVideo(nextTime);
-  }, [commitSeekVideo]);
+  const flushSeekVideo = useCallback(
+    (nextTime: number) => {
+      if (seekCommitTimerRef.current) {
+        window.clearTimeout(seekCommitTimerRef.current);
+        seekCommitTimerRef.current = null;
+      }
+      commitSeekVideo(nextTime);
+    },
+    [commitSeekVideo],
+  );
 
   const getEstimatedFrameStep = useCallback(() => {
-    const video = state.video as (HTMLVideoElement & {
-      webkitDecodedFrameCount?: number;
-      mozPresentedFrames?: number;
-      getVideoPlaybackQuality?: () => { totalVideoFrames?: number };
-    }) | null;
+    const video = state.video as
+      | (HTMLVideoElement & {
+          webkitDecodedFrameCount?: number;
+          mozPresentedFrames?: number;
+          getVideoPlaybackQuality?: () => { totalVideoFrames?: number };
+        })
+      | null;
     if (!video) return 1 / 30;
 
     const observed = estimatedFrameStepRef.current;
@@ -2230,38 +2544,44 @@ const App = () => {
     return 1 / 30;
   }, [state.video]);
 
-  const stepVideoFrame = useCallback((direction: -1 | 1) => {
-    const video = state.video;
-    if (!video) return;
-    (video as HTMLVideoElement & { __manualPause?: boolean }).__manualPause = true;
-    video.pause();
-    setVideoPaused(true);
-    flushSeekVideo((video.currentTime || 0) + getEstimatedFrameStep() * direction);
-  }, [flushSeekVideo, getEstimatedFrameStep, state.video]);
+  const stepVideoFrame = useCallback(
+    (direction: -1 | 1) => {
+      const video = state.video;
+      if (!video) return;
+      (video as HTMLVideoElement & { __manualPause?: boolean }).__manualPause = true;
+      video.pause();
+      setVideoPaused(true);
+      flushSeekVideo((video.currentTime || 0) + getEstimatedFrameStep() * direction);
+    },
+    [flushSeekVideo, getEstimatedFrameStep, state.video],
+  );
 
-  const loadTestImageFromSrc = useCallback((src: string) => {
-    hasLoadedTestImageRef.current = true;
-    lastTestImageAssetRef.current = src;
-    pendingLoadedMediaFilterRef.current = true;
-    currentInputIsRandomTestVideoRef.current = false;
-    syncSharedTestMediaUrl("image", src);
-    setInputFilename(basename(src));
-    void withInputLoading("LOADING IMAGE", async () => {
-      const perfStart = performance.now();
-      const hadCache = imageAssetPromiseCacheRef.current.has(src);
-      const logPerf = (stage: string, extra: Record<string, unknown> = {}) => {
-        const elapsedMs = Math.round(performance.now() - perfStart);
-        console.info(`[perf][random-image-load] ${stage} +${elapsedMs}ms`, { src, ...extra });
-      };
-      logPerf("click", { cache: hadCache ? "hit" : "miss" });
-      const img = await loadImageAsset(src);
-      logPerf("image-ready", { width: img.naturalWidth, height: img.naturalHeight });
-      actions.loadImage(cloneImageToCanvas(img));
-      logPerf("loadImage-dispatched");
-      queueLoadedMediaFilter();
-      prefetchRandomImage(src);
-    });
-  }, [actions, loadImageAsset, prefetchRandomImage, queueLoadedMediaFilter, withInputLoading]);
+  const loadTestImageFromSrc = useCallback(
+    (src: string) => {
+      hasLoadedTestImageRef.current = true;
+      lastTestImageAssetRef.current = src;
+      pendingLoadedMediaFilterRef.current = true;
+      currentInputIsRandomTestVideoRef.current = false;
+      syncSharedTestMediaUrl("image", src);
+      setInputFilename(basename(src));
+      void withInputLoading("LOADING IMAGE", async () => {
+        const perfStart = performance.now();
+        const hadCache = imageAssetPromiseCacheRef.current.has(src);
+        const logPerf = (stage: string, extra: Record<string, unknown> = {}) => {
+          const elapsedMs = Math.round(performance.now() - perfStart);
+          console.info(`[perf][random-image-load] ${stage} +${elapsedMs}ms`, { src, ...extra });
+        };
+        logPerf("click", { cache: hadCache ? "hit" : "miss" });
+        const img = await loadImageAsset(src);
+        logPerf("image-ready", { width: img.naturalWidth, height: img.naturalHeight });
+        actions.loadImage(cloneImageToCanvas(img));
+        logPerf("loadImage-dispatched");
+        queueLoadedMediaFilter();
+        prefetchRandomImage(src);
+      });
+    },
+    [actions, loadImageAsset, prefetchRandomImage, queueLoadedMediaFilter, withInputLoading],
+  );
 
   const loadRandomTestImage = useCallback(() => {
     const src = hasLoadedTestImageRef.current
@@ -2271,41 +2591,55 @@ const App = () => {
   }, [loadTestImageFromSrc]);
 
   useEffect(() => {
-    void loadImageAsset(DEFAULT_TEST_IMAGE_ASSET).then(() => {
-      prefetchRandomImage(DEFAULT_TEST_IMAGE_ASSET);
-    }).catch(() => {});
+    void loadImageAsset(DEFAULT_TEST_IMAGE_ASSET)
+      .then(() => {
+        prefetchRandomImage(DEFAULT_TEST_IMAGE_ASSET);
+      })
+      .catch(() => {});
   }, [loadImageAsset, prefetchRandomImage]);
 
-  const loadTestVideoFromSrc = useCallback((src: string, options?: { isRandomPick?: boolean; forceScreensaverScale?: boolean }) => {
-    hasLoadedTestVideoRef.current = true;
-    lastTestVideoAssetRef.current = src;
-    pendingLoadedMediaFilterRef.current = true;
-    currentInputIsRandomTestVideoRef.current = Boolean(options?.isRandomPick);
-    syncSharedTestMediaUrl("video", src);
-    setInputFilename(basename(src));
-    return withInputLoading("LOADING VIDEO", async () => {
-      const perfStart = performance.now();
-      const logPerf = (stage: string, extra: Record<string, unknown> = {}) => {
-        const elapsedMs = Math.round(performance.now() - perfStart);
-        console.info(`[perf][random-video-load] ${stage} +${elapsedMs}ms`, { src, ...extra });
-      };
-      logPerf("click");
-      await actions.loadVideoFromUrlAsync(
-        src,
-        state.videoVolume,
-        state.videoPlaybackRate,
-        { preserveScale: options?.forceScreensaverScale || preserveInputWidthOnNewMedia }
-      );
-      if (options?.forceScreensaverScale) {
-        const loadedVideo = webmcpRefs.current.state.video;
-        if (loadedVideo?.videoWidth) {
-          actions.setScale(getScaleForMaxWidth(loadedVideo.videoWidth, screensaverConfigRef.current.videoMaxWidth));
+  const loadTestVideoFromSrc = useCallback(
+    (src: string, options?: { isRandomPick?: boolean; forceScreensaverScale?: boolean }) => {
+      hasLoadedTestVideoRef.current = true;
+      lastTestVideoAssetRef.current = src;
+      pendingLoadedMediaFilterRef.current = true;
+      currentInputIsRandomTestVideoRef.current = Boolean(options?.isRandomPick);
+      syncSharedTestMediaUrl("video", src);
+      setInputFilename(basename(src));
+      return withInputLoading("LOADING VIDEO", async () => {
+        const perfStart = performance.now();
+        const logPerf = (stage: string, extra: Record<string, unknown> = {}) => {
+          const elapsedMs = Math.round(performance.now() - perfStart);
+          console.info(`[perf][random-video-load] ${stage} +${elapsedMs}ms`, { src, ...extra });
+        };
+        logPerf("click");
+        await actions.loadVideoFromUrlAsync(src, state.videoVolume, state.videoPlaybackRate, {
+          preserveScale: options?.forceScreensaverScale || preserveInputWidthOnNewMedia,
+        });
+        if (options?.forceScreensaverScale) {
+          const loadedVideo = webmcpRefs.current.state.video;
+          if (loadedVideo?.videoWidth) {
+            actions.setScale(
+              getScaleForMaxWidth(
+                loadedVideo.videoWidth,
+                screensaverConfigRef.current.videoMaxWidth,
+              ),
+            );
+          }
         }
-      }
-      logPerf("loadVideoFromUrlAsync-resolved");
-      queueLoadedMediaFilter();
-    });
-  }, [actions, preserveInputWidthOnNewMedia, queueLoadedMediaFilter, state.videoPlaybackRate, state.videoVolume, withInputLoading]);
+        logPerf("loadVideoFromUrlAsync-resolved");
+        queueLoadedMediaFilter();
+      });
+    },
+    [
+      actions,
+      preserveInputWidthOnNewMedia,
+      queueLoadedMediaFilter,
+      state.videoPlaybackRate,
+      state.videoVolume,
+      withInputLoading,
+    ],
+  );
 
   useEffect(() => {
     if (hasAutoLoadedDefaultMediaRef.current) return;
@@ -2317,9 +2651,10 @@ const App = () => {
       loadTestImageFromSrc(src);
       return;
     }
-    const src = sharedMedia?.kind === "video"
-      ? testAssetUrl("video", sharedMedia.file)
-      : DEFAULT_TEST_VIDEO_ASSET;
+    const src =
+      sharedMedia?.kind === "video"
+        ? testAssetUrl("video", sharedMedia.file)
+        : DEFAULT_TEST_VIDEO_ASSET;
     void loadTestVideoFromSrc(src);
   }, [loadTestImageFromSrc, loadTestVideoFromSrc, state.inputImage, state.video]);
 
@@ -2337,76 +2672,82 @@ const App = () => {
       : DEFAULT_TEST_VIDEO_ASSET;
   }, []);
 
-  const warmTestVideoSrc = useCallback((src: string) => {
-    if (warmedTestVideoSrcRef.current === src && warmedTestVideoPromiseRef.current) {
-      return warmedTestVideoPromiseRef.current;
-    }
-
-    clearWarmedTestVideo();
-
-    const warmedVideo = document.createElement("video");
-    warmedVideo.preload = "auto";
-    warmedVideo.muted = true;
-    warmedVideo.loop = true;
-    warmedVideo.playsInline = true;
-
-    const warmedPromise = new Promise<string | null>((resolve) => {
-      let settled = false;
-      const finalize = (value: string | null) => {
-        if (settled) return;
-        settled = true;
-        warmedVideo.onloadeddata = null;
-        warmedVideo.onerror = null;
-        resolve(value);
-      };
-
-      warmedVideo.onloadeddata = () => finalize(src);
-      warmedVideo.onerror = () => finalize(null);
-      warmedVideo.src = src;
-      const playPromise = warmedVideo.play();
-      if (playPromise) {
-        playPromise
-          .then(() => {
-            warmedVideo.pause();
-          })
-          .catch(() => {
-            // Some browsers won't autoplay the detached preloader even when muted.
-            // Keeping the src loaded is still useful for cache warmup.
-          });
+  const warmTestVideoSrc = useCallback(
+    (src: string) => {
+      if (warmedTestVideoSrcRef.current === src && warmedTestVideoPromiseRef.current) {
+        return warmedTestVideoPromiseRef.current;
       }
-    }).then((warmedSrc) => {
-      if (warmedSrc !== src) {
-        if (warmedTestVideoRef.current === warmedVideo) {
-          warmedTestVideoRef.current = null;
+
+      clearWarmedTestVideo();
+
+      const warmedVideo = document.createElement("video");
+      warmedVideo.preload = "auto";
+      warmedVideo.muted = true;
+      warmedVideo.loop = true;
+      warmedVideo.playsInline = true;
+
+      const warmedPromise = new Promise<string | null>((resolve) => {
+        let settled = false;
+        const finalize = (value: string | null) => {
+          if (settled) return;
+          settled = true;
+          warmedVideo.onloadeddata = null;
+          warmedVideo.onerror = null;
+          resolve(value);
+        };
+
+        warmedVideo.onloadeddata = () => finalize(src);
+        warmedVideo.onerror = () => finalize(null);
+        warmedVideo.src = src;
+        const playPromise = warmedVideo.play();
+        if (playPromise) {
+          playPromise
+            .then(() => {
+              warmedVideo.pause();
+            })
+            .catch(() => {
+              // Some browsers won't autoplay the detached preloader even when muted.
+              // Keeping the src loaded is still useful for cache warmup.
+            });
         }
-        if (warmedTestVideoSrcRef.current === src) {
-          warmedTestVideoSrcRef.current = null;
+      }).then((warmedSrc) => {
+        if (warmedSrc !== src) {
+          if (warmedTestVideoRef.current === warmedVideo) {
+            warmedTestVideoRef.current = null;
+          }
+          if (warmedTestVideoSrcRef.current === src) {
+            warmedTestVideoSrcRef.current = null;
+          }
+          if (warmedTestVideoPromiseRef.current === warmedPromise) {
+            warmedTestVideoPromiseRef.current = null;
+          }
+          warmedVideo.pause();
+          warmedVideo.removeAttribute("src");
+          warmedVideo.load();
+          return null;
         }
+
+        warmedTestVideoRef.current = warmedVideo;
+        warmedTestVideoSrcRef.current = src;
         if (warmedTestVideoPromiseRef.current === warmedPromise) {
           warmedTestVideoPromiseRef.current = null;
         }
-        warmedVideo.pause();
-        warmedVideo.removeAttribute("src");
-        warmedVideo.load();
-        return null;
-      }
+        return src;
+      });
 
-      warmedTestVideoRef.current = warmedVideo;
-      warmedTestVideoSrcRef.current = src;
-      if (warmedTestVideoPromiseRef.current === warmedPromise) {
-        warmedTestVideoPromiseRef.current = null;
-      }
-      return src;
-    });
+      warmedTestVideoPromiseRef.current = warmedPromise;
+      return warmedPromise;
+    },
+    [clearWarmedTestVideo],
+  );
 
-    warmedTestVideoPromiseRef.current = warmedPromise;
-    return warmedPromise;
-  }, [clearWarmedTestVideo]);
-
-  const warmNextRandomTestVideo = useCallback((excludeSrc?: string | null) => {
-    const nextSrc = getNextRandomTestVideoSrc(excludeSrc);
-    return warmTestVideoSrc(nextSrc);
-  }, [getNextRandomTestVideoSrc, warmTestVideoSrc]);
+  const warmNextRandomTestVideo = useCallback(
+    (excludeSrc?: string | null) => {
+      const nextSrc = getNextRandomTestVideoSrc(excludeSrc);
+      return warmTestVideoSrc(nextSrc);
+    },
+    [getNextRandomTestVideoSrc, warmTestVideoSrc],
+  );
 
   const captureScreensaverMedia = useCallback(async (): Promise<ScreensaverMediaRestore | null> => {
     const inputImage = state.inputImage;
@@ -2449,72 +2790,101 @@ const App = () => {
     };
   }, [inputFilename, state.inputImage, state.video, state.videoPlaybackRate, state.videoVolume]);
 
-  const startScreensaverVideoSwapLoop = useCallback((videoSwapSeconds: number) => {
-    stopScreensaverVideoSwapLoop();
-    const generation = screensaverVideoSwapGenerationRef.current;
-    screensaverVideoSwapSecondsRef.current = videoSwapSeconds;
-    void warmNextRandomTestVideo(lastTestVideoAssetRef.current);
-
-    const scheduleNextSwap = () => {
-      if (generation !== screensaverVideoSwapGenerationRef.current) return;
-      const interval = Math.max(0.05, screensaverVideoSwapSecondsRef.current);
-      screensaverVideoSwapTimerRef.current = window.setTimeout(async () => {
-        if (generation !== screensaverVideoSwapGenerationRef.current) return;
-        notifyScreensaverVideoSwap();
-        const warmedSrc = warmedTestVideoSrcRef.current;
-        const nextSrc = warmedSrc || getNextRandomTestVideoSrc(lastTestVideoAssetRef.current);
-        clearWarmedTestVideo();
-        const load = loadTestVideoFromSrc(nextSrc, { isRandomPick: true, forceScreensaverScale: true });
-        screensaverVideoSwapInFlightRef.current = load;
-        await load;
-        if (screensaverVideoSwapInFlightRef.current === load) {
-          screensaverVideoSwapInFlightRef.current = null;
-        }
-        if (generation !== screensaverVideoSwapGenerationRef.current) return;
-        void warmNextRandomTestVideo(nextSrc);
-        scheduleNextSwap();
-      }, interval * 1000);
-    };
-
-    scheduleNextSwap();
-  }, [clearWarmedTestVideo, getNextRandomTestVideoSrc, loadTestVideoFromSrc, stopScreensaverVideoSwapLoop, warmNextRandomTestVideo]);
-
-  const startScreensaver = useCallback(async (config: { swapSeconds: number; randomVideo: boolean; videoSwapSeconds: number; scalingAlgorithm: string; videoMaxWidth: number }) => {
-    const outputWindow = outputWindowRef.current;
-    if (!outputWindow) return;
-
-    const media = config.randomVideo
-      ? captureScreensaverMedia()
-      : Promise.resolve<ScreensaverMediaRestore | null>(null);
-    screensaverRestoreRef.current = {
-      fullscreenMode: outputFullscreenMode,
-      scale: state.scale,
-      scalingAlgorithm: state.scalingAlgorithm,
-      media,
-    };
-    screensaverHasEnteredFullscreenRef.current = false;
-    resetScreensaverSwapMarkers();
-    setScreensaverActive(true);
-    setOutputFullscreenMode("cover");
-    screensaverConfigRef.current = config;
-    dispatchScreensaverCycleSeconds(config.swapSeconds);
-    actions.setScalingAlgorithm(config.scalingAlgorithm);
-    if (!config.randomVideo) {
+  const startScreensaverVideoSwapLoop = useCallback(
+    (videoSwapSeconds: number) => {
       stopScreensaverVideoSwapLoop();
-      clearWarmedTestVideo();
-    }
+      const generation = screensaverVideoSwapGenerationRef.current;
+      screensaverVideoSwapSecondsRef.current = videoSwapSeconds;
+      void warmNextRandomTestVideo(lastTestVideoAssetRef.current);
 
-    if (document.fullscreenElement !== outputWindow) {
-      await outputWindow.requestFullscreen();
-    }
-    if (config.randomVideo) {
-      await media;
-      if (screensaverRestoreRef.current?.media === media) {
-        startScreensaverVideoSwapLoop(config.videoSwapSeconds);
+      const scheduleNextSwap = () => {
+        if (generation !== screensaverVideoSwapGenerationRef.current) return;
+        const interval = Math.max(0.05, screensaverVideoSwapSecondsRef.current);
+        screensaverVideoSwapTimerRef.current = window.setTimeout(async () => {
+          if (generation !== screensaverVideoSwapGenerationRef.current) return;
+          notifyScreensaverVideoSwap();
+          const warmedSrc = warmedTestVideoSrcRef.current;
+          const nextSrc = warmedSrc || getNextRandomTestVideoSrc(lastTestVideoAssetRef.current);
+          clearWarmedTestVideo();
+          const load = loadTestVideoFromSrc(nextSrc, {
+            isRandomPick: true,
+            forceScreensaverScale: true,
+          });
+          screensaverVideoSwapInFlightRef.current = load;
+          await load;
+          if (screensaverVideoSwapInFlightRef.current === load) {
+            screensaverVideoSwapInFlightRef.current = null;
+          }
+          if (generation !== screensaverVideoSwapGenerationRef.current) return;
+          void warmNextRandomTestVideo(nextSrc);
+          scheduleNextSwap();
+        }, interval * 1000);
+      };
+
+      scheduleNextSwap();
+    },
+    [
+      clearWarmedTestVideo,
+      getNextRandomTestVideoSrc,
+      loadTestVideoFromSrc,
+      stopScreensaverVideoSwapLoop,
+      warmNextRandomTestVideo,
+    ],
+  );
+
+  const startScreensaver = useCallback(
+    async (config: {
+      swapSeconds: number;
+      randomVideo: boolean;
+      videoSwapSeconds: number;
+      scalingAlgorithm: string;
+      videoMaxWidth: number;
+    }) => {
+      const outputWindow = outputWindowRef.current;
+      if (!outputWindow) return;
+
+      const media = config.randomVideo
+        ? captureScreensaverMedia()
+        : Promise.resolve<ScreensaverMediaRestore | null>(null);
+      screensaverRestoreRef.current = {
+        fullscreenMode: outputFullscreenMode,
+        scale: state.scale,
+        scalingAlgorithm: state.scalingAlgorithm,
+        media,
+      };
+      screensaverHasEnteredFullscreenRef.current = false;
+      resetScreensaverSwapMarkers();
+      setScreensaverActive(true);
+      setOutputFullscreenMode("cover");
+      screensaverConfigRef.current = config;
+      dispatchScreensaverCycleSeconds(config.swapSeconds);
+      actions.setScalingAlgorithm(config.scalingAlgorithm);
+      if (!config.randomVideo) {
+        stopScreensaverVideoSwapLoop();
+        clearWarmedTestVideo();
       }
-    }
-  }, [actions, captureScreensaverMedia, clearWarmedTestVideo, outputFullscreenMode, startScreensaverVideoSwapLoop, state.scale, state.scalingAlgorithm, stopScreensaverVideoSwapLoop]);
 
+      if (document.fullscreenElement !== outputWindow) {
+        await outputWindow.requestFullscreen();
+      }
+      if (config.randomVideo) {
+        await media;
+        if (screensaverRestoreRef.current?.media === media) {
+          startScreensaverVideoSwapLoop(config.videoSwapSeconds);
+        }
+      }
+    },
+    [
+      actions,
+      captureScreensaverMedia,
+      clearWarmedTestVideo,
+      outputFullscreenMode,
+      startScreensaverVideoSwapLoop,
+      state.scale,
+      state.scalingAlgorithm,
+      stopScreensaverVideoSwapLoop,
+    ],
+  );
 
   const requestAudioVizPermissions = useCallback((channel: "chain" | "screensaver") => {
     const snapshot = getChannelAudioVizSnapshot(channel);
@@ -2537,7 +2907,8 @@ const App = () => {
     }
 
     if (chainAudioBpmSwapRestoreRef.current === undefined) {
-      chainAudioBpmSwapRestoreRef.current = getCurrentRandomCycleSeconds() ?? getLastRandomCycleSeconds() ?? null;
+      chainAudioBpmSwapRestoreRef.current =
+        getCurrentRandomCycleSeconds() ?? getLastRandomCycleSeconds() ?? null;
     }
 
     const beatsPerSwap = Number.parseFloat(chainAudioBpmSwapBeats);
@@ -2547,7 +2918,12 @@ const App = () => {
 
     const syncBpmSwap = () => {
       const snapshot = getChannelAudioVizSnapshot("chain");
-      if (!snapshot.enabled || snapshot.status !== "live" || !snapshot.detectedBpm || snapshot.detectedBpm <= 0) {
+      if (
+        !snapshot.enabled ||
+        snapshot.status !== "live" ||
+        !snapshot.detectedBpm ||
+        snapshot.detectedBpm <= 0
+      ) {
         return;
       }
       const secondsPerSwap = (60 / snapshot.detectedBpm) * beatsPerSwap;
@@ -2568,7 +2944,13 @@ const App = () => {
 
     const syncVideoBpmSwap = () => {
       const snapshot = getChannelAudioVizSnapshot("screensaver");
-      if (!snapshot.enabled || snapshot.status !== "live" || !snapshot.detectedBpm || snapshot.detectedBpm <= 0) return;
+      if (
+        !snapshot.enabled ||
+        snapshot.status !== "live" ||
+        !snapshot.detectedBpm ||
+        snapshot.detectedBpm <= 0
+      )
+        return;
       const secondsPerSwap = (60 / snapshot.detectedBpm) * beatsPerSwap;
       if (secondsPerSwap > 0) {
         screensaverVideoSwapSecondsRef.current = secondsPerSwap;
@@ -2603,7 +2985,12 @@ const App = () => {
 
     const syncBpmSwap = () => {
       const snapshot = getChannelAudioVizSnapshot("screensaver");
-      if (!snapshot.enabled || snapshot.status !== "live" || !snapshot.detectedBpm || snapshot.detectedBpm <= 0) {
+      if (
+        !snapshot.enabled ||
+        snapshot.status !== "live" ||
+        !snapshot.detectedBpm ||
+        snapshot.detectedBpm <= 0
+      ) {
         return;
       }
       const secondsPerSwap = (60 / snapshot.detectedBpm) * beatsPerSwap;
@@ -2618,38 +3005,55 @@ const App = () => {
   }, [screensaverBpmSwapBeats, screensaverBpmSwapEnabled]);
 
   const seedScreensaverDrafts = useCallback(() => {
-    const currentSwapSeconds = getLastScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? 2;
+    const currentSwapSeconds =
+      getLastScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? 2;
     const currentVideoSrc = state.video?.currentSrc || state.video?.src || null;
     const randomVideoDefault =
       currentInputIsRandomTestVideoRef.current ||
       isBundledTestVideoSource(currentVideoSrc) ||
       screensaverConfigRef.current.randomVideo;
-    const videoSwapSeconds = screensaverConfigRef.current.videoSwapSeconds > 0
-      ? screensaverConfigRef.current.videoSwapSeconds
-      : currentSwapSeconds * 4;
+    const videoSwapSeconds =
+      screensaverConfigRef.current.videoSwapSeconds > 0
+        ? screensaverConfigRef.current.videoSwapSeconds
+        : currentSwapSeconds * 4;
     const screensaverAudioMod = getGlobalAudioVizModulation("screensaver");
     setScreensaverSwapSecondsDraft(currentSwapSeconds.toString());
-    setScreensaverSwapBpmDraft(secondsToBpm(currentSwapSeconds).toFixed(2).replace(/\.?0+$/, ""));
+    setScreensaverSwapBpmDraft(
+      secondsToBpm(currentSwapSeconds)
+        .toFixed(2)
+        .replace(/\.?0+$/, ""),
+    );
     setScreensaverRandomVideoDraft(randomVideoDefault);
     setScreensaverVideoSwapSecondsDraft(videoSwapSeconds.toString());
-    setScreensaverScalingAlgorithmDraft(screensaverConfigRef.current.scalingAlgorithm || state.scalingAlgorithm);
-    setScreensaverVideoMaxWidthDraft((screensaverConfigRef.current.videoMaxWidth || DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH).toString());
+    setScreensaverScalingAlgorithmDraft(
+      screensaverConfigRef.current.scalingAlgorithm || state.scalingAlgorithm,
+    );
+    setScreensaverVideoMaxWidthDraft(
+      (
+        screensaverConfigRef.current.videoMaxWidth || DEFAULT_SCREENSAVER_MAX_VIDEO_WIDTH
+      ).toString(),
+    );
     setScreensaverAudioGlobalConnectionsDraft(buildAudioConnectionDraft(screensaverAudioMod));
-    setScreensaverAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(screensaverAudioMod));
+    setScreensaverAudioGlobalNormalizedMetricsDraft(
+      buildNormalizedMetricsDraft(screensaverAudioMod),
+    );
     setScreensaverShowDebugDraft(screensaverShowDebug);
   }, [screensaverShowDebug, state.scalingAlgorithm, state.video]);
 
   const openScreensaverDialog = useCallback(() => {
     const buttonRect = screensaverButtonRef.current?.getBoundingClientRect();
-    setScreensaverDialogPosition(getAnchoredDialogPosition(
-      buttonRect,
-      screensaverDialogPosition,
-      { width: 820, height: 760 },
-    ));
+    setScreensaverDialogPosition(
+      getAnchoredDialogPosition(buttonRect, screensaverDialogPosition, { width: 820, height: 760 }),
+    );
     seedScreensaverDrafts();
     setShowScreensaverDialog(true);
     requestAudioVizPermissions("screensaver");
-  }, [requestAudioVizPermissions, screensaverDialogPosition.x, screensaverDialogPosition.y, seedScreensaverDrafts]);
+  }, [
+    requestAudioVizPermissions,
+    screensaverDialogPosition.x,
+    screensaverDialogPosition.y,
+    seedScreensaverDrafts,
+  ]);
 
   // Seed the inline Slideshow-mode controls once when that mode becomes active.
   const seededSlideshowRef = useRef(false);
@@ -2668,27 +3072,47 @@ const App = () => {
     setScreensaverSwapSecondsDraft(value);
     const seconds = Number.parseFloat(value);
     if (!Number.isFinite(seconds) || seconds <= 0) return;
-    setScreensaverSwapBpmDraft(secondsToBpm(seconds).toFixed(2).replace(/\.?0+$/, ""));
+    setScreensaverSwapBpmDraft(
+      secondsToBpm(seconds)
+        .toFixed(2)
+        .replace(/\.?0+$/, ""),
+    );
   }, []);
 
   const handleScreensaverSwapBpmChange = useCallback((value: string) => {
     setScreensaverSwapBpmDraft(value);
     const bpm = Number.parseFloat(value);
     if (!Number.isFinite(bpm) || bpm <= 0) return;
-    setScreensaverSwapSecondsDraft(bpmToSeconds(bpm).toFixed(3).replace(/\.?0+$/, ""));
+    setScreensaverSwapSecondsDraft(
+      bpmToSeconds(bpm)
+        .toFixed(3)
+        .replace(/\.?0+$/, ""),
+    );
   }, []);
 
-  const buildGlobalModulation = useCallback((connectionsDraft: AudioVizConnection[], normalizedMetricsDraft: AudioVizMetric[]): GlobalAudioVizModulation | null => {
-    const connections = connectionsDraft
-      .filter((connection) =>
-        typeof connection.target === "string"
-        && typeof connection.metric === "string"
-        && Number.isFinite(connection.weight)
-        && Math.abs(connection.weight) > 0.001)
-      .map((connection) => ({ ...connection }));
-    const normalizedMetrics = normalizedMetricsDraft.filter((metric, index, all) => typeof metric === "string" && all.indexOf(metric) === index);
-    return connections.length > 0 || normalizedMetrics.length > 0 ? { connections, normalizedMetrics } : null;
-  }, []);
+  const buildGlobalModulation = useCallback(
+    (
+      connectionsDraft: AudioVizConnection[],
+      normalizedMetricsDraft: AudioVizMetric[],
+    ): GlobalAudioVizModulation | null => {
+      const connections = connectionsDraft
+        .filter(
+          (connection) =>
+            typeof connection.target === "string" &&
+            typeof connection.metric === "string" &&
+            Number.isFinite(connection.weight) &&
+            Math.abs(connection.weight) > 0.001,
+        )
+        .map((connection) => ({ ...connection }));
+      const normalizedMetrics = normalizedMetricsDraft.filter(
+        (metric, index, all) => typeof metric === "string" && all.indexOf(metric) === index,
+      );
+      return connections.length > 0 || normalizedMetrics.length > 0
+        ? { connections, normalizedMetrics }
+        : null;
+    },
+    [],
+  );
 
   const confirmScreensaverDialog = useCallback(() => {
     const config = buildScreensaverConfig();
@@ -2696,7 +3120,13 @@ const App = () => {
     screensaverConfigRef.current = config;
     setRememberedScreensaverCycleSeconds(config.swapSeconds);
     setScreensaverShowDebug(screensaverShowDebugDraft);
-    setGlobalAudioVizModulation("screensaver", buildGlobalModulation(screensaverAudioGlobalConnectionsDraft, screensaverAudioGlobalNormalizedMetricsDraft));
+    setGlobalAudioVizModulation(
+      "screensaver",
+      buildGlobalModulation(
+        screensaverAudioGlobalConnectionsDraft,
+        screensaverAudioGlobalNormalizedMetricsDraft,
+      ),
+    );
     setShowScreensaverDialog(false);
     void startScreensaver(config);
   }, [
@@ -2708,16 +3138,21 @@ const App = () => {
     startScreensaver,
   ]);
 
-  const openAudioModEditor = useCallback((entryId: string, anchorRect?: DOMRect) => {
-    const entry = state.chain.find((item) => item.id === entryId);
-    if (!entry) return;
-    setShowChainAudioGlobalEditor(false);
-    setEditingAudioEntryId(entryId);
-    setAudioModConnectionsDraft(buildAudioConnectionDraft(entry.audioMod));
-    setAudioModNormalizedMetricsDraft(buildNormalizedMetricsDraft(entry.audioMod));
-    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 820, height: 760 }));
-    requestAudioVizPermissions("chain");
-  }, [requestAudioVizPermissions, state.chain]);
+  const openAudioModEditor = useCallback(
+    (entryId: string, anchorRect?: DOMRect) => {
+      const entry = state.chain.find((item) => item.id === entryId);
+      if (!entry) return;
+      setShowChainAudioGlobalEditor(false);
+      setEditingAudioEntryId(entryId);
+      setAudioModConnectionsDraft(buildAudioConnectionDraft(entry.audioMod));
+      setAudioModNormalizedMetricsDraft(buildNormalizedMetricsDraft(entry.audioMod));
+      setAudioEditorPosition((current) =>
+        getAnchoredDialogPosition(anchorRect, current, { width: 820, height: 760 }),
+      );
+      requestAudioVizPermissions("chain");
+    },
+    [requestAudioVizPermissions, state.chain],
+  );
 
   const closeAudioModEditor = useCallback(() => {
     setEditingAudioEntryId(null);
@@ -2729,27 +3164,50 @@ const App = () => {
       editingAudioEntryId,
       buildGlobalModulation(audioModConnectionsDraft, audioModNormalizedMetricsDraft),
     );
-  }, [actions, audioModConnectionsDraft, audioModNormalizedMetricsDraft, buildGlobalModulation, editingAudioEntryId]);
+  }, [
+    actions,
+    audioModConnectionsDraft,
+    audioModNormalizedMetricsDraft,
+    buildGlobalModulation,
+    editingAudioEntryId,
+  ]);
 
   const saveAudioModEditor = useCallback(() => {
     setEditingAudioEntryId(null);
   }, []);
 
-  const openChainAudioGlobalEditor = useCallback((anchorRect?: DOMRect) => {
-    const modulation = getGlobalAudioVizModulation("chain");
-    setEditingAudioEntryId(null);
-    setShowChainAudioGlobalEditor(true);
-    setChainAudioGlobalConnectionsDraft(buildAudioConnectionDraft(modulation));
-    setChainAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(modulation));
-    setAudioEditorPosition((current) => getAnchoredDialogPosition(anchorRect, current, { width: 820, height: 760 }));
-    requestAudioVizPermissions("chain");
-  }, [requestAudioVizPermissions]);
+  const openChainAudioGlobalEditor = useCallback(
+    (anchorRect?: DOMRect) => {
+      const modulation = getGlobalAudioVizModulation("chain");
+      setEditingAudioEntryId(null);
+      setShowChainAudioGlobalEditor(true);
+      setChainAudioGlobalConnectionsDraft(buildAudioConnectionDraft(modulation));
+      setChainAudioGlobalNormalizedMetricsDraft(buildNormalizedMetricsDraft(modulation));
+      setAudioEditorPosition((current) =>
+        getAnchoredDialogPosition(anchorRect, current, { width: 820, height: 760 }),
+      );
+      requestAudioVizPermissions("chain");
+    },
+    [requestAudioVizPermissions],
+  );
 
   useEffect(() => {
     // The chain patch panel is live both in the floating editor and inline in Visualisation mode.
     if (!showChainAudioGlobalEditor && appMode !== "viz") return;
-    setGlobalAudioVizModulation("chain", buildGlobalModulation(chainAudioGlobalConnectionsDraft, chainAudioGlobalNormalizedMetricsDraft));
-  }, [appMode, buildGlobalModulation, chainAudioGlobalConnectionsDraft, chainAudioGlobalNormalizedMetricsDraft, showChainAudioGlobalEditor]);
+    setGlobalAudioVizModulation(
+      "chain",
+      buildGlobalModulation(
+        chainAudioGlobalConnectionsDraft,
+        chainAudioGlobalNormalizedMetricsDraft,
+      ),
+    );
+  }, [
+    appMode,
+    buildGlobalModulation,
+    chainAudioGlobalConnectionsDraft,
+    chainAudioGlobalNormalizedMetricsDraft,
+    showChainAudioGlobalEditor,
+  ]);
 
   useEffect(() => {
     // Seed the inline Visualisation-mode patch panel from any stored chain modulation.
@@ -2792,16 +3250,13 @@ const App = () => {
 
     const availableWidth = Math.max(
       120,
-      window.innerWidth - sidebarRight - horizontalPadding - frameAllowance
+      window.innerWidth - sidebarRight - horizontalPadding - frameAllowance,
     );
-    const availableHeight = Math.max(
-      120,
-      window.innerHeight - verticalPadding - frameAllowance
-    );
+    const availableHeight = Math.max(120, window.innerHeight - verticalPadding - frameAllowance);
 
     const fitScale = Math.min(
       availableWidth / state.inputImage.width,
-      availableHeight / state.inputImage.height
+      availableHeight / state.inputImage.height,
     );
 
     const clampedScale = Math.max(0.05, Math.min(16, fitScale));
@@ -2809,7 +3264,7 @@ const App = () => {
   }, [actions, state.inputImage]);
 
   const editingAudioEntry = editingAudioEntryId
-    ? state.chain.find((entry) => entry.id === editingAudioEntryId) ?? null
+    ? (state.chain.find((entry) => entry.id === editingAudioEntryId) ?? null)
     : null;
   useEffect(() => {
     if ((!editingAudioEntry && !showChainAudioGlobalEditor) || !audioEditorRef.current) return;
@@ -2817,97 +3272,145 @@ const App = () => {
     audioEditorRef.current.style.zIndex = `${zIndexRef.current}`;
   }, [editingAudioEntry, showChainAudioGlobalEditor]);
   const chainAudioGlobalActive = Boolean(getGlobalAudioVizModulation("chain"));
-  const editingAudioRangeOptions = useMemo(() => (
-    editingAudioEntry
-      ? Object.entries(editingAudioEntry.filter.optionTypes || {}).filter(([optionName, optionType]) =>
-          !optionName.startsWith("_") &&
-          optionType.type === "RANGE" &&
-          (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(editingAudioEntry.filter.options || {}))
-        )
-      : []
-  ), [editingAudioEntry]);
-  const chainWideRangeOptions = useMemo(() => (
-    state.chain.flatMap((entry, index) =>
-      Object.entries(entry.filter.optionTypes || {})
-        .filter(([optionName, optionType]) =>
-          !optionName.startsWith("_") &&
-          optionType.type === "RANGE" &&
-          (typeof optionType.visibleWhen !== "function" || optionType.visibleWhen(entry.filter.options || {}))
-        )
-        .map(([optionName, optionType]) => [
-          `${entry.id}:${optionName}`,
-          {
-            ...optionType,
-            optionName,
-            targetLabel: `${index + 1}. ${entry.displayName} / ${optionType.label || optionName}`,
-          },
-        ] as const)
-    )
-  ), [state.chain]);
-  const chainWideOptionValues = useMemo(() => (
-    Object.fromEntries(
-      chainWideRangeOptions.map(([targetKey, optionType]) => {
-        const optionName = optionType.optionName || targetKey;
-        const separatorIndex = targetKey.indexOf(":");
-        const entryId = separatorIndex >= 0 ? targetKey.slice(0, separatorIndex) : targetKey;
-        const entry = state.chain.find((item) => item.id === entryId);
-        return [targetKey, entry?.filter.options?.[optionName]];
-      }),
-    )
-  ), [chainWideRangeOptions, state.chain]);
+  const editingAudioRangeOptions = useMemo(
+    () =>
+      editingAudioEntry
+        ? Object.entries(editingAudioEntry.filter.optionTypes || {}).filter(
+            ([optionName, optionType]) =>
+              !optionName.startsWith("_") &&
+              optionType.type === "RANGE" &&
+              (typeof optionType.visibleWhen !== "function" ||
+                optionType.visibleWhen(editingAudioEntry.filter.options || {})),
+          )
+        : [],
+    [editingAudioEntry],
+  );
+  const chainWideRangeOptions = useMemo(
+    () =>
+      state.chain.flatMap((entry, index) =>
+        Object.entries(entry.filter.optionTypes || {})
+          .filter(
+            ([optionName, optionType]) =>
+              !optionName.startsWith("_") &&
+              optionType.type === "RANGE" &&
+              (typeof optionType.visibleWhen !== "function" ||
+                optionType.visibleWhen(entry.filter.options || {})),
+          )
+          .map(
+            ([optionName, optionType]) =>
+              [
+                `${entry.id}:${optionName}`,
+                {
+                  ...optionType,
+                  optionName,
+                  targetLabel: `${index + 1}. ${entry.displayName} / ${optionType.label || optionName}`,
+                },
+              ] as const,
+          ),
+      ),
+    [state.chain],
+  );
+  const chainWideOptionValues = useMemo(
+    () =>
+      Object.fromEntries(
+        chainWideRangeOptions.map(([targetKey, optionType]) => {
+          const optionName = optionType.optionName || targetKey;
+          const separatorIndex = targetKey.indexOf(":");
+          const entryId = separatorIndex >= 0 ? targetKey.slice(0, separatorIndex) : targetKey;
+          const entry = state.chain.find((item) => item.id === entryId);
+          return [targetKey, entry?.filter.options?.[optionName]];
+        }),
+      ),
+    [chainWideRangeOptions, state.chain],
+  );
   const chainStructureSignature = useMemo(
-    () => state.chain.map((entry) => `${entry.id}:${entry.displayName}:${entry.enabled ? 1 : 0}`).join("|"),
+    () =>
+      state.chain
+        .map((entry) => `${entry.id}:${entry.displayName}:${entry.enabled ? 1 : 0}`)
+        .join("|"),
     [state.chain],
   );
 
   useEffect(() => {
     if (!chainAudioAutoVizOnChainChange || chainWideRangeOptions.length === 0) return;
-    const next = buildAutoVizConnections(chainAudioAutoVizMode, chainWideRangeOptions, chainAudioGlobalConnectionsDraft);
+    const next = buildAutoVizConnections(
+      chainAudioAutoVizMode,
+      chainWideRangeOptions,
+      chainAudioGlobalConnectionsDraft,
+    );
     setChainAudioGlobalConnectionsDraft(next.connections);
     setChainAudioGlobalNormalizedMetricsDraft(next.normalizedMetrics);
-    setGlobalAudioVizModulation("chain", buildGlobalModulation(next.connections, next.normalizedMetrics));
-  }, [buildGlobalModulation, chainAudioAutoVizMode, chainAudioAutoVizOnChainChange, chainStructureSignature, chainWideRangeOptions]);
+    setGlobalAudioVizModulation(
+      "chain",
+      buildGlobalModulation(next.connections, next.normalizedMetrics),
+    );
+  }, [
+    buildGlobalModulation,
+    chainAudioAutoVizMode,
+    chainAudioAutoVizOnChainChange,
+    chainStructureSignature,
+    chainWideRangeOptions,
+  ]);
 
   useEffect(() => {
     if (!screensaverAudioAutoVizOnChainChange || chainWideRangeOptions.length === 0) return;
-    const next = buildAutoVizConnections(screensaverAudioAutoVizMode, chainWideRangeOptions, screensaverAudioGlobalConnectionsDraft);
+    const next = buildAutoVizConnections(
+      screensaverAudioAutoVizMode,
+      chainWideRangeOptions,
+      screensaverAudioGlobalConnectionsDraft,
+    );
     setScreensaverAudioGlobalConnectionsDraft(next.connections);
     setScreensaverAudioGlobalNormalizedMetricsDraft(next.normalizedMetrics);
-    setGlobalAudioVizModulation("screensaver", buildGlobalModulation(next.connections, next.normalizedMetrics));
-  }, [buildGlobalModulation, chainStructureSignature, chainWideRangeOptions, screensaverAudioAutoVizMode, screensaverAudioAutoVizOnChainChange]);
+    setGlobalAudioVizModulation(
+      "screensaver",
+      buildGlobalModulation(next.connections, next.normalizedMetrics),
+    );
+  }, [
+    buildGlobalModulation,
+    chainStructureSignature,
+    chainWideRangeOptions,
+    screensaverAudioAutoVizMode,
+    screensaverAudioAutoVizOnChainChange,
+  ]);
 
-  const resolvePresetFilter = useCallback((entry: PresetFilterEntry) => {
-    const match = filterList.find((f) => f && f.displayName === entry.name);
-    if (!match) return null;
-    return {
-      displayName: entry.name,
-      filter: {
-        ...match.filter,
-        options: {
-          ...(match.filter.defaults || match.filter.options || {}),
-          ...(entry.options || {}),
+  const resolvePresetFilter = useCallback(
+    (entry: PresetFilterEntry) => {
+      const match = filterList.find((f) => f && f.displayName === entry.name);
+      if (!match) return null;
+      return {
+        displayName: entry.name,
+        filter: {
+          ...match.filter,
+          options: {
+            ...(match.filter.defaults || match.filter.options || {}),
+            ...(entry.options || {}),
+          },
         },
-      },
-    };
-  }, [filterList]);
+      };
+    },
+    [filterList],
+  );
 
-  const loadPresetFromFilters = useCallback((presetFilters: PresetFilterEntry[]) => {
-    if (!presetFilters.length) return;
-    const first = resolvePresetFilter(presetFilters[0]);
-    if (!first) return;
-    actions.selectFilter(first.displayName, first.filter);
-    for (let i = 1; i < presetFilters.length; i++) {
-      const resolved = resolvePresetFilter(presetFilters[i]);
-      if (resolved) actions.chainAdd(resolved.displayName, resolved.filter);
-    }
-  }, [actions, resolvePresetFilter]);
+  const loadPresetFromFilters = useCallback(
+    (presetFilters: PresetFilterEntry[]) => {
+      if (!presetFilters.length) return;
+      const first = resolvePresetFilter(presetFilters[0]);
+      if (!first) return;
+      actions.selectFilter(first.displayName, first.filter);
+      for (let i = 1; i < presetFilters.length; i++) {
+        const resolved = resolvePresetFilter(presetFilters[i]);
+        if (resolved) actions.chainAdd(resolved.displayName, resolved.filter);
+      }
+    },
+    [actions, resolvePresetFilter],
+  );
 
   const findPresetsForActiveFilter = useCallback(() => {
     const activeName = state.chain[state.activeIndex]?.displayName;
     if (!activeName) return;
 
     const matches = CHAIN_PRESETS.filter((preset) =>
-      preset.filters.some((entry) => entry.name === activeName)
+      preset.filters.some((entry) => entry.name === activeName),
     );
 
     if (matches.length === 0) {
@@ -2946,28 +3449,54 @@ const App = () => {
     { label: "Apply filter chain", hint: "Enter", run: applyChain },
     { label: "Undo", hint: "Ctrl/⌘ Z", disabled: !canUndo, run: () => restoreHistory(-1) },
     { label: "Redo", hint: "Ctrl/⌘ Shift Z", disabled: !canRedo, run: () => restoreHistory(1) },
-    { label: "Dock canvases", hint: "Layout", run: () => { setWorkspaceLayout("docked"); setWindowsLocked(true); } },
-    { label: "Float canvases", hint: "Layout", run: () => { setWorkspaceLayout("floating"); setWindowsLocked(false); } },
-    { label: "Toggle output-only view", hint: "Layout", run: () => setWorkspaceLayout((layout) => layout === "output" ? "docked" : "output") },
-    { label: "Toggle before/after comparison", hint: "Preview", run: () => setComparisonEnabled((value) => !value) },
+    {
+      label: "Dock canvases",
+      hint: "Layout",
+      run: () => {
+        setWorkspaceLayout("docked");
+        setWindowsLocked(true);
+      },
+    },
+    {
+      label: "Float canvases",
+      hint: "Layout",
+      run: () => {
+        setWorkspaceLayout("floating");
+        setWindowsLocked(false);
+      },
+    },
+    {
+      label: "Toggle output-only view",
+      hint: "Layout",
+      run: () => setWorkspaceLayout((layout) => (layout === "output" ? "docked" : "output")),
+    },
+    {
+      label: "Toggle before/after comparison",
+      hint: "Preview",
+      run: () => setComparisonEnabled((value) => !value),
+    },
     { label: "Save current chain", hint: "Project", run: saveCurrentChain },
     { label: "Copy share link", hint: "Project", run: exportCurrentChain },
     { label: "Export image or video", hint: "Export", run: openExport },
   ].filter((command) => command.label.toLowerCase().includes(commandQuery.trim().toLowerCase()));
   const activeCommand = workbenchCommands[commandActiveIndex];
-  const effectiveCommandActiveIndex = activeCommand && !activeCommand.disabled
-    ? commandActiveIndex
-    : workbenchCommands.findIndex((command) => !command.disabled);
+  const effectiveCommandActiveIndex =
+    activeCommand && !activeCommand.disabled
+      ? commandActiveIndex
+      : workbenchCommands.findIndex((command) => !command.disabled);
 
   const moveCommandSelection = (direction: -1 | 1) => {
     const enabledIndexes = workbenchCommands
-      .map((command, index) => command.disabled ? -1 : index)
+      .map((command, index) => (command.disabled ? -1 : index))
       .filter((index) => index >= 0);
     if (enabledIndexes.length === 0) return;
     const position = enabledIndexes.indexOf(effectiveCommandActiveIndex);
-    const nextPosition = position < 0
-      ? (direction > 0 ? 0 : enabledIndexes.length - 1)
-      : (position + direction + enabledIndexes.length) % enabledIndexes.length;
+    const nextPosition =
+      position < 0
+        ? direction > 0
+          ? 0
+          : enabledIndexes.length - 1
+        : (position + direction + enabledIndexes.length) % enabledIndexes.length;
     setCommandActiveIndex(enabledIndexes[nextPosition]);
   };
 
@@ -3068,7 +3597,9 @@ const App = () => {
               if (nextChecked) {
                 const swapSeconds = Number.parseFloat(screensaverSwapSecondsDraft);
                 if (Number.isFinite(swapSeconds) && swapSeconds > 0) {
-                  setScreensaverVideoSwapSecondsDraft((swapSeconds * 4).toFixed(3).replace(/\.?0+$/, ""));
+                  setScreensaverVideoSwapSecondsDraft(
+                    (swapSeconds * 4).toFixed(3).replace(/\.?0+$/, ""),
+                  );
                 }
               }
             }}
@@ -3077,7 +3608,9 @@ const App = () => {
         </label>
         {screensaverRandomVideoDraft && (
           <>
-            <div className={[s.screensaverSubgroupLabel, controls.subsectionHeader].join(" ")}>Video swap timing</div>
+            <div className={[s.screensaverSubgroupLabel, controls.subsectionHeader].join(" ")}>
+              Video swap timing
+            </div>
             <div className={s.screensaverRadioRow}>
               <label className={s.screensaverRadioOption}>
                 <input
@@ -3177,7 +3710,9 @@ const App = () => {
       <div className={s.chrome} ref={chromeRef}>
         <header className={s.appIdentity}>
           <div className={s.appIdentityTitleBar}>
-            <span className={s.appIdentityIcon} aria-hidden="true">D</span>
+            <span className={s.appIdentityIcon} aria-hidden="true">
+              D
+            </span>
             <h1>Ditherer</h1>
             <span className={s.appIdentityWindowButtons} aria-hidden="true">
               <i />
@@ -3215,16 +3750,27 @@ const App = () => {
               </button>
             </div>
             <span className={s.modeHint} aria-hidden="true">
-              {appMode === "viz" ? "AUDIO ▸ SIGNAL" : appMode === "slideshow" ? "AUTO ▸ CYCLE" : state.video ? "VIDEO" : "IMAGE"}
+              {appMode === "viz"
+                ? "AUDIO ▸ SIGNAL"
+                : appMode === "slideshow"
+                  ? "AUTO ▸ CYCLE"
+                  : state.video
+                    ? "VIDEO"
+                    : "IMAGE"}
             </span>
           </div>
         </header>
 
         <nav className={s.tabStrip} aria-label="Workflow steps">
           {WORKBENCH_TASKS.map((task, index) => {
-            const label = task.id === "source"
-              ? (appMode === "viz" ? "Signal" : appMode === "slideshow" ? "Slideshow" : task.label)
-              : task.label;
+            const label =
+              task.id === "source"
+                ? appMode === "viz"
+                  ? "Signal"
+                  : appMode === "slideshow"
+                    ? "Slideshow"
+                    : task.label
+                : task.label;
             return (
               <button
                 key={task.id}
@@ -3238,12 +3784,16 @@ const App = () => {
                   } else {
                     navigateToTask(task.id);
                     if (task.id === "preview") {
-                      requestAnimationFrame(() => outputWindowRef.current?.focus({ preventScroll: true }));
+                      requestAnimationFrame(() =>
+                        outputWindowRef.current?.focus({ preventScroll: true }),
+                      );
                     }
                   }
                 }}
               >
-                <span className={s.tabNumber} aria-hidden="true">{index + 1}</span>
+                <span className={s.tabNumber} aria-hidden="true">
+                  {index + 1}
+                </span>
                 <span>{label}</span>
               </button>
             );
@@ -3302,9 +3852,15 @@ const App = () => {
               </div>
             </div>
           )}
-          <h2>{appMode === "viz" || appMode === "slideshow" ? "Media input (optional)" : "Input"}</h2>
+          <h2>
+            {appMode === "viz" || appMode === "slideshow" ? "Media input (optional)" : "Input"}
+          </h2>
           <div
-            className={[controls.group, s.mediaSourceGroup, dropping ? controls.dropping : null].join(" ")}
+            className={[
+              controls.group,
+              s.mediaSourceGroup,
+              dropping ? controls.dropping : null,
+            ].join(" ")}
             onDragLeave={() => setDropping(false)}
             onDragOver={() => setDropping(true)}
             onDragEnter={() => setDropping(true)}
@@ -3317,7 +3873,7 @@ const App = () => {
               className={[controls.file, s.sourceFileInput].join(" ")}
               type="file"
               accept="image/*,video/*"
-              onChange={e => {
+              onChange={(e) => {
                 loadUserFile(e.target.files?.[0] || null);
                 e.target.value = "";
               }}
@@ -3345,7 +3901,9 @@ const App = () => {
             {inputLoadError && (
               <div className={s.inputError} role="alert">
                 <span>{inputLoadError}</span>
-                <button type="button" onClick={() => setInputLoadError(null)}>Dismiss</button>
+                <button type="button" onClick={() => setInputLoadError(null)}>
+                  Dismiss
+                </button>
               </div>
             )}
           </div>
@@ -3360,7 +3918,9 @@ const App = () => {
                 title="Load a test image"
                 aria-label="Choose an example image"
               >
-                <option value="" disabled>Image...</option>
+                <option value="" disabled>
+                  Image...
+                </option>
                 {TEST_IMAGE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -3383,7 +3943,9 @@ const App = () => {
                 title="Load a test video"
                 aria-label="Choose an example video"
               >
-                <option value="" disabled>Video...</option>
+                <option value="" disabled>
+                  Video...
+                </option>
                 {TEST_VIDEO_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -3425,7 +3987,7 @@ const App = () => {
                         name="preserveInputWidthOnNewMedia"
                         type="checkbox"
                         checked={preserveInputWidthOnNewMedia}
-                        onChange={e => setPreserveInputWidthOnNewMedia(e.target.checked)}
+                        onChange={(e) => setPreserveInputWidthOnNewMedia(e.target.checked)}
                       />
                       <span className={controls.label}>
                         Fix input width
@@ -3439,7 +4001,7 @@ const App = () => {
                       name="preserveInputWidthOnNewMedia"
                       type="checkbox"
                       checked={preserveInputWidthOnNewMedia}
-                      onChange={e => setPreserveInputWidthOnNewMedia(e.target.checked)}
+                      onChange={(e) => setPreserveInputWidthOnNewMedia(e.target.checked)}
                     />
                     <span className={controls.label}>
                       Fix input width on new media
@@ -3447,76 +4009,100 @@ const App = () => {
                     </span>
                   </label>
                 )}
-                {state.video && (<>
-                  <div className={controls.separator} />
-                  <div className={s.videoSeekRow}>
-                    <span className={controls.label}>Position</span>
-                    <button
-                      className={s.videoFrameStep}
-                      onClick={() => stepVideoFrame(-1)}
-                      title="Step backward by roughly one frame"
-                    >
-                      &lt;
-                    </button>
-                    <input
-                      className={s.videoSeek}
-                      type="range"
-                      min={0}
-                      max={Number.isFinite(state.video?.duration) && state.video && state.video.duration > 0 ? state.video.duration : 0}
-                      step={0.01}
-                      value={Math.min(
-                        seekDraftTime ?? state.time ?? 0,
-                        Number.isFinite(state.video?.duration) ? state.video?.duration || 0 : 0
-                      )}
-                      onInput={(e) => seekVideo(Number((e.target as HTMLInputElement).value))}
-                      onChange={(e) => flushSeekVideo(Number(e.target.value))}
-                      disabled={!state.video || !Number.isFinite(state.video.duration) || state.video.duration <= 0}
-                      title="Seek through the loaded video"
-                      aria-label="Video position"
-                    />
-                    <button
-                      className={s.videoFrameStep}
-                      onClick={() => stepVideoFrame(1)}
-                      title="Step forward by roughly one frame"
-                    >
-                      &gt;
-                    </button>
-                    <span className={s.videoSeekTime}>{formatVideoTime(state.time)} / {formatVideoTime(state.video?.duration)}</span>
-                  </div>
-                  <div className={s.videoControlRow}>
-                    <button onClick={() => { actions.toggleVideo(); flashPlayPause(videoPaused ? "play" : "pause"); }}>
-                      {videoPaused ? "\u25B6 Play" : "\u23F8 Pause"}
-                    </button>
-                    <label className={[controls.label, s.videoRateInline].join(" ")} htmlFor="playback-rate-inline">
-                      <span>Rate</span>
+                {state.video && (
+                  <>
+                    <div className={controls.separator} />
+                    <div className={s.videoSeekRow}>
+                      <span className={controls.label}>Position</span>
+                      <button
+                        className={s.videoFrameStep}
+                        onClick={() => stepVideoFrame(-1)}
+                        title="Step backward by roughly one frame"
+                      >
+                        &lt;
+                      </button>
                       <input
-                        id="playback-rate-inline"
-                        className={s.videoRateSlider}
+                        className={s.videoSeek}
                         type="range"
                         min={0}
-                        max={2}
-                        step={0.05}
-                        value={state.videoPlaybackRate}
-                        onChange={(e) => actions.setInputPlaybackRate(Number(e.target.value))}
-                        title="Adjust playback rate"
+                        max={
+                          Number.isFinite(state.video?.duration) &&
+                          state.video &&
+                          state.video.duration > 0
+                            ? state.video.duration
+                            : 0
+                        }
+                        step={0.01}
+                        value={Math.min(
+                          seekDraftTime ?? state.time ?? 0,
+                          Number.isFinite(state.video?.duration) ? state.video?.duration || 0 : 0,
+                        )}
+                        onInput={(e) => seekVideo(Number((e.target as HTMLInputElement).value))}
+                        onChange={(e) => flushSeekVideo(Number(e.target.value))}
+                        disabled={
+                          !state.video ||
+                          !Number.isFinite(state.video.duration) ||
+                          state.video.duration <= 0
+                        }
+                        title="Seek through the loaded video"
+                        aria-label="Video position"
                       />
-                      <span className={s.videoRateValue}>{state.videoPlaybackRate.toFixed(2)}x</span>
-                    </label>
-                    <label className={controls.label} htmlFor="mute">
-                      <input
-                        id="mute"
-                        type="checkbox"
-                        checked={state.videoVolume === 0}
-                        onChange={() => {
-                          const newVol = state.videoVolume > 0 ? 0 : 1;
-                          actions.setInputVolume(newVol);
-                          localStorage.setItem("ditherer-mute", newVol === 0 ? "1" : "0");
+                      <button
+                        className={s.videoFrameStep}
+                        onClick={() => stepVideoFrame(1)}
+                        title="Step forward by roughly one frame"
+                      >
+                        &gt;
+                      </button>
+                      <span className={s.videoSeekTime}>
+                        {formatVideoTime(state.time)} / {formatVideoTime(state.video?.duration)}
+                      </span>
+                    </div>
+                    <div className={s.videoControlRow}>
+                      <button
+                        onClick={() => {
+                          actions.toggleVideo();
+                          flashPlayPause(videoPaused ? "play" : "pause");
                         }}
-                      />
-                      Mute
-                    </label>
-                  </div>
-                </>)}
+                      >
+                        {videoPaused ? "\u25B6 Play" : "\u23F8 Pause"}
+                      </button>
+                      <label
+                        className={[controls.label, s.videoRateInline].join(" ")}
+                        htmlFor="playback-rate-inline"
+                      >
+                        <span>Rate</span>
+                        <input
+                          id="playback-rate-inline"
+                          className={s.videoRateSlider}
+                          type="range"
+                          min={0}
+                          max={2}
+                          step={0.05}
+                          value={state.videoPlaybackRate}
+                          onChange={(e) => actions.setInputPlaybackRate(Number(e.target.value))}
+                          title="Adjust playback rate"
+                        />
+                        <span className={s.videoRateValue}>
+                          {state.videoPlaybackRate.toFixed(2)}x
+                        </span>
+                      </label>
+                      <label className={controls.label} htmlFor="mute">
+                        <input
+                          id="mute"
+                          type="checkbox"
+                          checked={state.videoVolume === 0}
+                          onChange={() => {
+                            const newVol = state.videoVolume > 0 ? 0 : 1;
+                            actions.setInputVolume(newVol);
+                            localStorage.setItem("ditherer-mute", newVol === 0 ? "1" : "0");
+                          }}
+                        />
+                        Mute
+                      </label>
+                    </div>
+                  </>
+                )}
               </fieldset>
             </CollapsibleSection>
           )}
@@ -3524,122 +4110,128 @@ const App = () => {
 
         {/* Algorithm section */}
         <div id="compose-task" className={s.composeTask}>
-        <CollapsibleSection title="Stages & settings" defaultOpen>
-          <div className={["filterOptions", s.filterOptions].join(" ")}>
-            <div className={s.chainComposer} id="chain-composer">
-              <button
-                type="button"
-                className={[s.browseLooksButton, s.primaryButton].join(" ")}
-                onClick={() => {
-                  navigateToTask("compose");
-                  setOpenPresetLibraryRequest((request) => request + 1);
-                }}
-                title="Open the preset library to browse ready-made looks"
+          <CollapsibleSection title="Stages & settings" defaultOpen>
+            <div className={["filterOptions", s.filterOptions].join(" ")}>
+              <div className={s.chainComposer} id="chain-composer">
+                <button
+                  type="button"
+                  className={[s.browseLooksButton, s.primaryButton].join(" ")}
+                  onClick={() => {
+                    navigateToTask("compose");
+                    setOpenPresetLibraryRequest((request) => request + 1);
+                  }}
+                  title="Open the preset library to browse ready-made looks"
+                >
+                  Browse looks…
+                </button>
+                <ChainList
+                  onEditAudioMod={openAudioModEditor}
+                  onEditChainAudioMod={openChainAudioGlobalEditor}
+                  chainAudioActive={chainAudioGlobalActive}
+                  openPresetLibraryRequest={openPresetLibraryRequest}
+                />
+              </div>
+              <div
+                className={[controls.group, s.filterInspector].join(" ")}
+                id="active-filter-options"
+                role="region"
+                aria-label="Active filter parameters"
               >
-                Browse looks…
-              </button>
-              <ChainList
-                onEditAudioMod={openAudioModEditor}
-                onEditChainAudioMod={openChainAudioGlobalEditor}
-                chainAudioActive={chainAudioGlobalActive}
-                openPresetLibraryRequest={openPresetLibraryRequest}
-              />
-            </div>
-            <div
-              className={[controls.group, s.filterInspector].join(" ")}
-              id="active-filter-options"
-              role="region"
-              aria-label="Active filter parameters"
-            >
-              <div className={s.filterInspectorHeader}>
-                <span className={s.filterInspectorKicker}>
-                  Stage {state.activeIndex + 1} of {state.chain.length} · Parameters
-                </span>
-                <strong className={s.filterInspectorTitle}>
-                  {state.chain[state.activeIndex]?.displayName ?? "Options"}
-                </strong>
-                {(() => {
-                  const activeName = state.chain[state.activeIndex]?.displayName;
-                  const activeFilter = filterList.find((entry) => entry?.displayName === activeName);
-                  return activeFilter?.description ? (
-                    <span className={s.filterInspectorDescription}>{activeFilter.description}</span>
-                  ) : null;
-                })()}
-              </div>
-              <input
-                className={s.inspectorSearch}
-                type="search"
-                value={inspectorQuery}
-                onChange={(event) => setInspectorQuery(event.target.value)}
-                placeholder="Search this filter’s settings…"
-                aria-label="Search active filter settings"
-              />
-              <Controls inputCanvas={inputCanvasRef.current} query={inspectorQuery} />
-              <div className={s.inspectorActions} aria-label="Active filter actions">
-                {state.selected?.filter?.defaults && (
-                  <button
-                    onClick={() => {
-                      const name = state.selected.displayName || state.selected.name;
-                      const filter = filterList.find(f => f && f.displayName === name);
-                      if (filter) {
-                        const entry = state.chain[state.activeIndex];
-                        if (entry) actions.chainReplace(entry.id, name, filter.filter);
+                <div className={s.filterInspectorHeader}>
+                  <span className={s.filterInspectorKicker}>
+                    Stage {state.activeIndex + 1} of {state.chain.length} · Parameters
+                  </span>
+                  <strong className={s.filterInspectorTitle}>
+                    {state.chain[state.activeIndex]?.displayName ?? "Options"}
+                  </strong>
+                  {(() => {
+                    const activeName = state.chain[state.activeIndex]?.displayName;
+                    const activeFilter = filterList.find(
+                      (entry) => entry?.displayName === activeName,
+                    );
+                    return activeFilter?.description ? (
+                      <span className={s.filterInspectorDescription}>
+                        {activeFilter.description}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+                <input
+                  className={s.inspectorSearch}
+                  type="search"
+                  value={inspectorQuery}
+                  onChange={(event) => setInspectorQuery(event.target.value)}
+                  placeholder="Search this filter’s settings…"
+                  aria-label="Search active filter settings"
+                />
+                <Controls inputCanvas={inputCanvasRef.current} query={inspectorQuery} />
+                <div className={s.inspectorActions} aria-label="Active filter actions">
+                  {state.selected?.filter?.defaults && (
+                    <button
+                      onClick={() => {
+                        const name = state.selected.displayName || state.selected.name;
+                        const filter = filterList.find((f) => f && f.displayName === name);
+                        if (filter) {
+                          const entry = state.chain[state.activeIndex];
+                          if (entry) actions.chainReplace(entry.id, name, filter.filter);
+                        }
+                      }}
+                    >
+                      Reset all
+                    </button>
+                  )}
+                  {state.chain[state.activeIndex] && (
+                    <button
+                      onClick={findPresetsForActiveFilter}
+                      title="Find presets that include the active filter"
+                    >
+                      Find presets
+                    </button>
+                  )}
+                  {state.chain[state.activeIndex] && (
+                    <button
+                      onClick={(event) =>
+                        openAudioModEditor(
+                          state.chain[state.activeIndex].id,
+                          event.currentTarget.getBoundingClientRect(),
+                        )
                       }
-                    }}
-                  >
-                    Reset all
-                  </button>
-                )}
-                {state.chain[state.activeIndex] && (
-                  <button
-                    onClick={findPresetsForActiveFilter}
-                    title="Find presets that include the active filter"
-                  >
-                    Find presets
-                  </button>
-                )}
-                {state.chain[state.activeIndex] && (
-                  <button
-                    onClick={(event) => openAudioModEditor(
-                      state.chain[state.activeIndex].id,
-                      event.currentTarget.getBoundingClientRect(),
-                    )}
-                    title="Map audio visualizer to this filter's numeric parameters"
-                  >
-                    Audio mapping…
-                  </button>
-                )}
+                      title="Map audio visualizer to this filter's numeric parameters"
+                    >
+                      Audio mapping…
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className={s.pipelineOptions}>
+                <div className={controls.separator} />
+                <label className={controls.checkbox}>
+                  <input
+                    name="convertGrayscale"
+                    type="checkbox"
+                    checked={state.convertGrayscale}
+                    onChange={(e) => actions.setConvertGrayscale(e.target.checked)}
+                  />
+                  <span className={controls.label}>
+                    Pre-convert to grayscale
+                    <InfoHint text={GRAYSCALE_HELP} />
+                  </span>
+                </label>
+                <label className={controls.checkbox}>
+                  <input
+                    name="linearize"
+                    type="checkbox"
+                    checked={state.linearize}
+                    onChange={(e) => actions.setLinearize(e.target.checked)}
+                  />
+                  <span className={controls.label}>
+                    Gamma-correct input
+                    <InfoHint text={GAMMA_HELP} />
+                  </span>
+                </label>
               </div>
             </div>
-            <div className={s.pipelineOptions}>
-              <div className={controls.separator} />
-              <label className={controls.checkbox}>
-                <input
-                  name="convertGrayscale"
-                  type="checkbox"
-                  checked={state.convertGrayscale}
-                  onChange={e => actions.setConvertGrayscale(e.target.checked)}
-                />
-                <span className={controls.label}>
-                  Pre-convert to grayscale
-                  <InfoHint text={GRAYSCALE_HELP} />
-                </span>
-              </label>
-              <label className={controls.checkbox}>
-                <input
-                  name="linearize"
-                  type="checkbox"
-                  checked={state.linearize}
-                  onChange={e => actions.setLinearize(e.target.checked)}
-                />
-                <span className={controls.label}>
-                  Gamma-correct input
-                  <InfoHint text={GAMMA_HELP} />
-                </span>
-              </label>
-            </div>
-          </div>
-        </CollapsibleSection>
+          </CollapsibleSection>
         </div>
 
         {/* Filter button — always visible, sticky on mobile */}
@@ -3664,174 +4256,190 @@ const App = () => {
 
         {/* Output section */}
         <div className={s.outputSettingsTask} id="preview-output-settings">
-        <CollapsibleSection title="Output" defaultOpen>
-          <Range
-            name="Output Scale"
-            types={{ range: [0.05, 16], desc: OUTPUT_SCALE_HELP }}
-            step={0.05}
-            onSetFilterOption={(_, value) => actions.setOutputScale(Number(value))}
-            value={state.outputScale}
-            defaultValue={1}
-          />
-          <Enum
-            name="Scaling algorithm"
-            onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(String(algorithm))}
-            value={state.scalingAlgorithm}
-            defaultValue={SCALING_ALGORITHM.PIXELATED}
-            types={{ ...SCALING_ALGORITHM_OPTIONS, desc: SCALING_ALGORITHM_HELP }}
-          />
-          <button
-            className={s.copyButton}
-            onClick={async () => {
-              // For video sources: record the filtered output canvas for one full
-              // loop of the source video, then load it back as a new video input.
-              // This bakes the current filter chain into the video.
-              if (state.video && outputCanvasRef.current) {
-                const canvas = outputCanvasRef.current;
-                const stream = canvas.captureStream(30);
-                // Pick a supported mime type
-                const mimeCandidates = [
-                  "video/webm;codecs=vp9",
-                  "video/webm;codecs=vp8",
-                  "video/webm",
-                ];
-                const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || "video/webm";
-                const chunks: BlobPart[] = [];
-                const recorder = new MediaRecorder(stream, { mimeType });
-                recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-                recorder.onstop = () => {
-                  const blob = new Blob(chunks, { type: mimeType });
-                  const file = new File([blob], "filtered.webm", { type: mimeType });
-                  syncSharedTestMediaUrl(null);
-                  setInputFilename(file.name);
-                  void withInputLoading("LOADING VIDEO", () =>
-                    actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate)
-                  );
-                };
-
-                // Restart video from beginning so we capture a full loop
-                const v = state.video;
-                const wasPaused = v.paused;
-                try { v.currentTime = 0; } catch { /* ignore */ }
-                if (wasPaused) await v.play().catch(() => {});
-
-                const duration = isFinite(v.duration) && v.duration > 0 ? v.duration : 5;
-                recorder.start();
-                window.setTimeout(() => {
-                  if (recorder.state !== "inactive") recorder.stop();
-                  stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-                }, duration * 1000 + 100);
-                return;
-              }
-
-              // For static images: copy the current filtered frame
-              if (outputCanvasRef.current) {
-                void withInputLoading("LOADING IMAGE", () => new Promise<void>((resolve, reject) => {
-                  const image = new Image();
-                  image.onload = () => {
-                    syncSharedTestMediaUrl(null);
-                    actions.loadImage(image);
-                    actions.setScale(1);
-                    setInputFilename("filtered-output.png");
-                    resolve();
+          <CollapsibleSection title="Output" defaultOpen>
+            <Range
+              name="Output Scale"
+              types={{ range: [0.05, 16], desc: OUTPUT_SCALE_HELP }}
+              step={0.05}
+              onSetFilterOption={(_, value) => actions.setOutputScale(Number(value))}
+              value={state.outputScale}
+              defaultValue={1}
+            />
+            <Enum
+              name="Scaling algorithm"
+              onSetFilterOption={(_, algorithm) => actions.setScalingAlgorithm(String(algorithm))}
+              value={state.scalingAlgorithm}
+              defaultValue={SCALING_ALGORITHM.PIXELATED}
+              types={{ ...SCALING_ALGORITHM_OPTIONS, desc: SCALING_ALGORITHM_HELP }}
+            />
+            <button
+              className={s.copyButton}
+              onClick={async () => {
+                // For video sources: record the filtered output canvas for one full
+                // loop of the source video, then load it back as a new video input.
+                // This bakes the current filter chain into the video.
+                if (state.video && outputCanvasRef.current) {
+                  const canvas = outputCanvasRef.current;
+                  const stream = canvas.captureStream(30);
+                  // Pick a supported mime type
+                  const mimeCandidates = [
+                    "video/webm;codecs=vp9",
+                    "video/webm;codecs=vp8",
+                    "video/webm",
+                  ];
+                  const mimeType =
+                    mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || "video/webm";
+                  const chunks: BlobPart[] = [];
+                  const recorder = new MediaRecorder(stream, { mimeType });
+                  recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data);
                   };
-                  image.onerror = () => reject(new Error("Failed to copy output image to input"));
-                  image.src = outputCanvasRef.current?.toDataURL("image/png") ?? "";
-                }));
-              }
-            }}
-          >
-            {"<< Copy output to input"}
-          </button>
-        </CollapsibleSection>
+                  recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: mimeType });
+                    const file = new File([blob], "filtered.webm", { type: mimeType });
+                    syncSharedTestMediaUrl(null);
+                    setInputFilename(file.name);
+                    void withInputLoading("LOADING VIDEO", () =>
+                      actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate),
+                    );
+                  };
+
+                  // Restart video from beginning so we capture a full loop
+                  const v = state.video;
+                  const wasPaused = v.paused;
+                  try {
+                    v.currentTime = 0;
+                  } catch {
+                    /* ignore */
+                  }
+                  if (wasPaused) await v.play().catch(() => {});
+
+                  const duration = isFinite(v.duration) && v.duration > 0 ? v.duration : 5;
+                  recorder.start();
+                  window.setTimeout(
+                    () => {
+                      if (recorder.state !== "inactive") recorder.stop();
+                      stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                    },
+                    duration * 1000 + 100,
+                  );
+                  return;
+                }
+
+                // For static images: copy the current filtered frame
+                if (outputCanvasRef.current) {
+                  void withInputLoading(
+                    "LOADING IMAGE",
+                    () =>
+                      new Promise<void>((resolve, reject) => {
+                        const image = new Image();
+                        image.onload = () => {
+                          syncSharedTestMediaUrl(null);
+                          actions.loadImage(image);
+                          actions.setScale(1);
+                          setInputFilename("filtered-output.png");
+                          resolve();
+                        };
+                        image.onerror = () =>
+                          reject(new Error("Failed to copy output image to input"));
+                        image.src = outputCanvasRef.current?.toDataURL("image/png") ?? "";
+                      }),
+                  );
+                }
+              }}
+            >
+              {"<< Copy output to input"}
+            </button>
+          </CollapsibleSection>
         </div>
 
-        {activeTask !== "export" && (() => {
-          const taskIndex = WORKBENCH_TASKS.findIndex((task) => task.id === activeTask);
-          const previousTask = WORKBENCH_TASKS[taskIndex - 1];
-          const nextTask = WORKBENCH_TASKS[taskIndex + 1];
-          return (
-            <nav className={s.taskProgress} aria-label="Workflow progress">
-              {previousTask ? (
-                <button className={s.taskBack} onClick={() => navigateToTask(previousTask.id)}>
-                  ← {previousTask.label}
-                </button>
-              ) : <span />}
-              {nextTask && (
-                <button
-                  className={[s.taskNext, s.primaryButton].join(" ")}
-                  onClick={() => nextTask.id === "export" ? openExport() : navigateToTask(nextTask.id)}
-                >
-                  Next: {nextTask.label} →
-                </button>
-              )}
-            </nav>
-          );
-        })()}
+        {activeTask !== "export" &&
+          (() => {
+            const taskIndex = WORKBENCH_TASKS.findIndex((task) => task.id === activeTask);
+            const previousTask = WORKBENCH_TASKS[taskIndex - 1];
+            const nextTask = WORKBENCH_TASKS[taskIndex + 1];
+            return (
+              <nav className={s.taskProgress} aria-label="Workflow progress">
+                {previousTask ? (
+                  <button className={s.taskBack} onClick={() => navigateToTask(previousTask.id)}>
+                    ← {previousTask.label}
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {nextTask && (
+                  <button
+                    className={[s.taskNext, s.primaryButton].join(" ")}
+                    onClick={() =>
+                      nextTask.id === "export" ? openExport() : navigateToTask(nextTask.id)
+                    }
+                  >
+                    Next: {nextTask.label} →
+                  </button>
+                )}
+              </nav>
+            );
+          })()}
 
         {/* Settings section */}
         <div className={s.settingsTask}>
-        <CollapsibleSection title="Settings" collapsible>
-          <label className={controls.checkbox}>
-            <input
-              name="realtimeFiltering"
-              type="checkbox"
-              checked={state.realtimeFiltering}
-              onChange={e => actions.setRealtimeFiltering(e.target.checked)}
-            />
-            <span className={controls.label}>
-              Apply automatically
-            </span>
-          </label>
-          <label className={controls.checkbox}>
-            <input
-              name="wasmAcceleration"
-              type="checkbox"
-              checked={state.wasmAcceleration}
-              onChange={e => actions.setWasmAcceleration(e.target.checked)}
-            />
-            <span className={controls.label}>
-              WASM acceleration
-            </span>
-          </label>
-          <label className={controls.checkbox}>
-            <input
-              name="webglAcceleration"
-              type="checkbox"
-              checked={state.webglAcceleration}
-              onChange={e => actions.setWebglAcceleration(e.target.checked)}
-            />
-            <span className={controls.label}>
-              WebGL acceleration
-            </span>
-          </label>
-          <div className={controls.separator} />
-          <label className={[controls.label, s.themeField].join(" ")} htmlFor="theme-select">
-            <span>Theme</span>
-            <select
-              id="theme-select"
-              className={s.themeSelect}
-              value={theme}
-              onChange={e => {
-                const newTheme = e.target.value;
-                setTheme(newTheme);
-                localStorage.setItem("ditherer-theme", newTheme);
-                applyThemeAttribute(newTheme);
-              }}
-              title="Choose a UI theme"
-            >
-              {THEME_GROUPS.map(([group, options]) => (
-                <optgroup key={group} label={group}>
-                  {options.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
-          <div className={controls.separator} />
-          <Exporter />
-        </CollapsibleSection>
+          <CollapsibleSection title="Settings" collapsible>
+            <label className={controls.checkbox}>
+              <input
+                name="realtimeFiltering"
+                type="checkbox"
+                checked={state.realtimeFiltering}
+                onChange={(e) => actions.setRealtimeFiltering(e.target.checked)}
+              />
+              <span className={controls.label}>Apply automatically</span>
+            </label>
+            <label className={controls.checkbox}>
+              <input
+                name="wasmAcceleration"
+                type="checkbox"
+                checked={state.wasmAcceleration}
+                onChange={(e) => actions.setWasmAcceleration(e.target.checked)}
+              />
+              <span className={controls.label}>WASM acceleration</span>
+            </label>
+            <label className={controls.checkbox}>
+              <input
+                name="webglAcceleration"
+                type="checkbox"
+                checked={state.webglAcceleration}
+                onChange={(e) => actions.setWebglAcceleration(e.target.checked)}
+              />
+              <span className={controls.label}>WebGL acceleration</span>
+            </label>
+            <div className={controls.separator} />
+            <label className={[controls.label, s.themeField].join(" ")} htmlFor="theme-select">
+              <span>Theme</span>
+              <select
+                id="theme-select"
+                className={s.themeSelect}
+                value={theme}
+                onChange={(e) => {
+                  const newTheme = e.target.value;
+                  setTheme(newTheme);
+                  localStorage.setItem("ditherer-theme", newTheme);
+                  applyThemeAttribute(newTheme);
+                }}
+                title="Choose a UI theme"
+              >
+                {THEME_GROUPS.map(([group, options]) => (
+                  <optgroup key={group} label={group}>
+                    {options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <div className={controls.separator} />
+            <Exporter />
+          </CollapsibleSection>
         </div>
 
         {state.frameTime != null && (
@@ -3839,8 +4447,8 @@ const App = () => {
             <span className={s.perfReadout}>
               {state.stepTimes && state.stepTimes.length > 1
                 ? `${state.stepTimes.length} filters`
-                : state.stepTimes?.[0]?.name ?? "Filter"
-              } | {state.frameTime.toFixed(0)}ms | {(1000 / state.frameTime).toFixed(1)} fps
+                : (state.stepTimes?.[0]?.name ?? "Filter")}{" "}
+              | {state.frameTime.toFixed(0)}ms | {(1000 / state.frameTime).toFixed(1)} fps
             </span>
             {state.frameTime > 50 && (
               <span
@@ -3862,52 +4470,105 @@ const App = () => {
 
       {/* Task navigation and canvas workbench */}
       <main className={s.workspace}>
-        <nav ref={workspaceToolbarRef} className={s.workspaceToolbar} aria-label="Workbench layout and export">
+        <nav
+          ref={workspaceToolbarRef}
+          className={s.workspaceToolbar}
+          aria-label="Workbench layout and export"
+        >
           <div className={s.layoutTools}>
             <span className={s.toolbarLabel}>Layout</span>
-            <button onClick={() => restoreHistory(-1)} disabled={!canUndo} title="Undo (Ctrl/Command Z)" aria-label="Undo">↶</button>
-            <button onClick={() => restoreHistory(1)} disabled={!canRedo} title="Redo (Ctrl/Command Shift Z)" aria-label="Redo">↷</button>
+            <button
+              onClick={() => restoreHistory(-1)}
+              disabled={!canUndo}
+              title="Undo (Ctrl/Command Z)"
+              aria-label="Undo"
+            >
+              ↶
+            </button>
+            <button
+              onClick={() => restoreHistory(1)}
+              disabled={!canRedo}
+              title="Redo (Ctrl/Command Shift Z)"
+              aria-label="Redo"
+            >
+              ↷
+            </button>
             <button
               aria-pressed={workspaceLayout === "docked"}
-              onClick={() => { setWorkspaceLayout("docked"); setWindowsLocked(true); }}
+              onClick={() => {
+                setWorkspaceLayout("docked");
+                setWindowsLocked(true);
+              }}
               title="Dock input and output side by side"
-            >Dock</button>
+            >
+              Dock
+            </button>
             <button
               aria-pressed={workspaceLayout === "floating"}
-              onClick={() => { setWorkspaceLayout("floating"); setWindowsLocked(false); }}
+              onClick={() => {
+                setWorkspaceLayout("floating");
+                setWindowsLocked(false);
+              }}
               title="Float canvas windows"
-            >Float</button>
+            >
+              Float
+            </button>
             <button
               aria-pressed={workspaceLayout === "output"}
               onClick={() => setWorkspaceLayout(workspaceLayout === "output" ? "docked" : "output")}
               title="Show only the output canvas"
-            >Output only</button>
+            >
+              Output only
+            </button>
             <button
               aria-pressed={comparisonEnabled}
               onClick={() => setComparisonEnabled((value) => !value)}
               title="Compare source and output with a split view"
-            >Compare</button>
+            >
+              Compare
+            </button>
             <button
               aria-pressed={windowsLocked}
               disabled={workspaceLayout !== "floating"}
               onClick={() => setWindowsLocked((value) => !value)}
               title="Lock floating canvas positions"
-            >Lock</button>
-            <button onClick={() => {
-              const sidebarRight = chromeRef.current?.getBoundingClientRect().right || 350;
-              const toolbarBottom = workspaceToolbarRef.current?.getBoundingClientRect().bottom ?? 44;
-              const windowTop = Math.round(toolbarBottom + 10);
-              setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: windowTop });
-              setOutputWindowPosition({ x: Math.round(sidebarRight + 430), y: windowTop });
-            }} title="Reset floating canvas positions">Reset</button>
-            <button onClick={fitInputToWindow} title="Fit the input in the available workspace">Fit</button>
-            <button onClick={() => { setCommandQuery(""); setCommandActiveIndex(0); setShowCommandPalette(true); }} title="Open command palette (Ctrl/Command K or /)">Commands…</button>
+            >
+              Lock
+            </button>
+            <button
+              onClick={() => {
+                const sidebarRight = chromeRef.current?.getBoundingClientRect().right || 350;
+                const toolbarBottom =
+                  workspaceToolbarRef.current?.getBoundingClientRect().bottom ?? 44;
+                const windowTop = Math.round(toolbarBottom + 10);
+                setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: windowTop });
+                setOutputWindowPosition({ x: Math.round(sidebarRight + 430), y: windowTop });
+              }}
+              title="Reset floating canvas positions"
+            >
+              Reset
+            </button>
+            <button onClick={fitInputToWindow} title="Fit the input in the available workspace">
+              Fit
+            </button>
+            <button
+              onClick={() => {
+                setCommandQuery("");
+                setCommandActiveIndex(0);
+                setShowCommandPalette(true);
+              }}
+              title="Open command palette (Ctrl/Command K or /)"
+            >
+              Commands…
+            </button>
           </div>
           <div className={s.exportTools} role="group" aria-label="Save and export">
             <span className={s.toolbarLabel}>Project</span>
             <button onClick={saveCurrentChain}>Save chain</button>
             <button onClick={exportCurrentChain}>Share</button>
-            <button className={s.primaryButton} onClick={openExport}>Export…</button>
+            <button className={s.primaryButton} onClick={openExport}>
+              Export…
+            </button>
           </div>
         </nav>
         <div className={s.workspaceStatus} role="status" aria-live="polite">
@@ -3915,564 +4576,696 @@ const App = () => {
             <span className={s.statusLamp} aria-hidden="true" />
             {state.realtimeFiltering ? "AUTO" : "MANUAL"}
           </span>
-          <span className={s.statusMetric}>{state.chain.filter((entry) => entry.enabled).length}/{state.chain.length} stages active</span>
-          {state.inputCanvas ? <span className={s.statusMetric}>IN {state.inputCanvas.width}×{state.inputCanvas.height}</span> : <span className={s.statusMetric}>NO INPUT</span>}
-          {state.outputImage ? <span className={s.statusMetric}>OUT {state.outputImage.width}×{state.outputImage.height}</span> : <span className={s.statusMetric}>OUTPUT PENDING</span>}
-          {state.frameTime != null ? <span className={s.statusMetric}>{state.frameTime.toFixed(1)}ms · {(1000 / state.frameTime).toFixed(1)} fps</span> : null}
+          <span className={s.statusMetric}>
+            {state.chain.filter((entry) => entry.enabled).length}/{state.chain.length} stages active
+          </span>
+          {state.inputCanvas ? (
+            <span className={s.statusMetric}>
+              IN {state.inputCanvas.width}×{state.inputCanvas.height}
+            </span>
+          ) : (
+            <span className={s.statusMetric}>NO INPUT</span>
+          )}
+          {state.outputImage ? (
+            <span className={s.statusMetric}>
+              OUT {state.outputImage.width}×{state.outputImage.height}
+            </span>
+          ) : (
+            <span className={s.statusMetric}>OUTPUT PENDING</span>
+          )}
+          {state.frameTime != null ? (
+            <span className={s.statusMetric}>
+              {state.frameTime.toFixed(1)}ms · {(1000 / state.frameTime).toFixed(1)} fps
+            </span>
+          ) : null}
           <span className={s.statusHint}>/ commands · Ctrl/⌘ Z undo</span>
         </div>
-      <div className={[
-        s.canvases,
-        workspaceLayout === "floating" ? s.canvasesFloating : s.canvasesDocked,
-        workspaceLayout === "output" ? s.canvasesOutputOnly : "",
-      ].join(" ")}>
         <div
-          className={[s.canvasWindow, s.inputCanvasWindow].join(" ")}
-          ref={inputDragRef}
-          role="presentation"
-          onMouseDown={workspaceLayout === "floating" && !windowsLocked ? inputDrag.onMouseDown : undefined}
-          onMouseDownCapture={bringToTop}
-          onMouseMove={workspaceLayout === "floating" && !windowsLocked ? inputDrag.onMouseMove : undefined}
-          onDragOver={e => { e.preventDefault(); setCanvasDropping(true); }}
-          onDragLeave={() => setCanvasDropping(false)}
-          onDrop={e => {
-            e.preventDefault();
-            setCanvasDropping(false);
-            const file = e.dataTransfer.files[0];
-            loadUserFile(file);
-          }}
+          className={[
+            s.canvases,
+            workspaceLayout === "floating" ? s.canvasesFloating : s.canvasesDocked,
+            workspaceLayout === "output" ? s.canvasesOutputOnly : "",
+          ].join(" ")}
         >
           <div
-            className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(" ")}
-            style={!state.inputImage ? { minWidth: Math.round(200 * state.scale), minHeight: Math.round(200 * state.scale) } : undefined}
-          >
-            <div className={["handle", controls.titleBar].join(" ")}>
-              {inputFilename ? `Input - ${inputFilename}` : "Input"}
-            </div>
-            <div className={s.canvasArea}>
-              {(!state.inputImage || canvasDropping) && (
-                <div
-                  className={s.dropPlaceholder}
-                  onClick={() => !canvasDropping && !inputDrag.didDrag.current && document.getElementById("imageLoader")?.click()}
-                  style={{ cursor: canvasDropping ? undefined : "pointer" }}
-                >
-                  <span>{canvasDropping ? "Drop to load" : "Drop or click to load image/video"}</span>
-                </div>
-              )}
-              <canvas
-                className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
-                ref={inputCanvasRefCb}
-                onClick={() => {
-                  if (state.video && !inputDrag.didDrag.current) {
-                    actions.toggleVideo();
-                    const nowPaused = !videoPaused;
-                    setVideoPaused(nowPaused);
-                    flashPlayPause(nowPaused ? "pause" : "play");
-                  }
-                }}
-                style={state.video ? { cursor: "pointer" } : undefined}
-              />
-              {playPauseIndicator && (
-                <div className={s.playPauseOverlay}>
-                  {playPauseIndicator === "play" ? "▶ PLAY" : "❚❚ PAUSE"}
-                </div>
-              )}
-              {inputLoadingLabel && (
-                <div className={[s.playPauseOverlay, s.inputLoadingOverlay].join(" ")}>
-                  {inputLoadingLabel}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div
-          className={[s.canvasWindow, s.outputCanvasWindow].join(" ")}
-          ref={outputDragRef}
-          role="presentation"
-          onMouseDown={outputFullscreen || workspaceLayout !== "floating" || windowsLocked ? undefined : outputDrag.onMouseDown}
-          onMouseDownCapture={bringToTop}
-          onMouseMove={outputFullscreen || workspaceLayout !== "floating" || windowsLocked ? undefined : outputDrag.onMouseMove}
-        >
-          <div
-            className={[
-              controls.window,
-              s.outputWindow,
-              comparisonEnabled ? s.outputWindowComparing : "",
-              outputFullscreen ? s.outputWindowFullscreen : "",
-              outputFullscreen && fullscreenCursorHidden ? s.outputWindowFullscreenCursorHidden : "",
-            ].join(" ")}
-            ref={outputWindowRef}
-            tabIndex={-1}
-          >
-            <div className={["handle", controls.titleBar, s.windowChrome].join(" ")}>
-              {inputFilename ? `Output - ${inputFilename}` : "Output"}
-            </div>
-            <div className={[s.menuBar, s.windowChrome].join(" ")}>
-              <button
-                className={s.menuItem}
-                onMouseDown={e => e.stopPropagation()}
-                onClick={() => {
-                  openExport();
-                }}
-              >
-                Save As...
-              </button>
-              <label className={s.menuSelectWrap} onMouseDown={e => e.stopPropagation()}>
-                <select
-                  className={s.menuSelect}
-                  value={state.scalingAlgorithm}
-                  onChange={(e) => actions.setScalingAlgorithm(e.target.value)}
-                  title="Set output display scaling"
-                  aria-label="Output display scaling"
-                >
-                  {SCALING_ALGORITHM_OPTIONS.options.map((option) => (
-                    <option key={String(option.value)} value={String(option.value)}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div
-                ref={fullscreenMenuRef}
-                className={s.menuPopupWrap}
-                onMouseDown={e => e.stopPropagation()}
-              >
-                <button
-                  className={[s.menuItem, outputFullscreen || showFullscreenMenu ? s.menuItemActive : ""].join(" ")}
-                  onClick={() => setShowFullscreenMenu((value) => !value)}
-                  title="Choose fullscreen mode"
-                >
-                  Fullscreen
-                </button>
-                {showFullscreenMenu && (
-                  <div className={s.menuPopup}>
-                    <button
-                      className={[s.menuPopupItem, outputFullscreenMode === "contain" ? s.menuPopupItemActive : ""].join(" ")}
-                      onClick={() => {
-                        setShowFullscreenMenu(false);
-                        void toggleOutputFullscreen("contain");
-                      }}
-                    >
-                      Contain
-                    </button>
-                    <button
-                      className={[s.menuPopupItem, outputFullscreenMode === "cover" ? s.menuPopupItemActive : ""].join(" ")}
-                      onClick={() => {
-                        setShowFullscreenMenu(false);
-                        void toggleOutputFullscreen("cover");
-                      }}
-                    >
-                      Cover
-                    </button>
-                  </div>
-                )}
-              </div>
-              <button
-                ref={screensaverButtonRef}
-                className={[s.menuItem, screensaverActive || showScreensaverDialog ? s.menuItemActive : ""].join(" ")}
-                onMouseDown={e => e.stopPropagation()}
-                onClick={() => {
-                  openScreensaverDialog();
-                }}
-                title={screensaverActive
-                  ? "Screensaver active."
-                  : "Configure and start screensaver."}
-              >
-                Screensaver
-              </button>
-            </div>
-            <div className={s.outputCanvasStage}>
-              <canvas
-                className={[
-                  s.canvas,
-                  s[state.scalingAlgorithm],
-                  outputFullscreen ? s.outputCanvasFullscreen : "",
-                  outputFullscreenMode === "cover" ? s.outputCanvasCover : s.outputCanvasContain,
-                ].join(" ")}
-                ref={outputCanvasRefCb}
-              />
-              {comparisonEnabled && (
-                <>
-                  <canvas
-                    ref={comparisonCanvasRef}
-                    className={[
-                      s.canvas,
-                      s.comparisonCanvas,
-                      comparisonHold ? s.comparisonCanvasHold : "",
-                      s[state.scalingAlgorithm],
-                    ].join(" ")}
-                    style={{ "--compare-position": `${comparisonPosition}%` } as React.CSSProperties}
-                    aria-label="Source side of before and after comparison"
-                  />
-                  <div
-                    className={s.comparisonDivider}
-                    style={{ left: `${comparisonPosition}%` }}
-                    aria-hidden="true"
-                  />
-                  <div className={s.comparisonControl}>
-                    <label className={s.comparisonSlider}>
-                      <span>Split</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={comparisonPosition}
-                        onChange={(event) => setComparisonPosition(Number(event.target.value))}
-                        aria-label="Before / after"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      aria-pressed={comparisonHold}
-                      onPointerDown={() => setComparisonHold(true)}
-                      onPointerUp={() => setComparisonHold(false)}
-                      onPointerCancel={() => setComparisonHold(false)}
-                      onPointerLeave={() => setComparisonHold(false)}
-                      onKeyDown={(event) => {
-                        if (event.key === " " || event.key === "Enter") setComparisonHold(true);
-                      }}
-                      onKeyUp={(event) => {
-                        if (event.key === " " || event.key === "Enter") setComparisonHold(false);
-                      }}
-                      onBlur={() => setComparisonHold(false)}
-                    >
-                      Hold before
-                    </button>
-                  </div>
-                </>
-              )}
-              {screensaverActive && screensaverShowDebug && (
-                <ScreensaverDebugOverlay
-                  chain={state.chain.map((entry) => ({
-                    id: entry.id,
-                    displayName: entry.displayName,
-                    enabled: entry.enabled,
-                  }))}
-                  activeIndex={state.activeIndex}
-                  chainSwapSeconds={getCurrentScreensaverCycleSeconds() ?? screensaverConfigRef.current.swapSeconds ?? null}
-                  videoSwapEnabled={screensaverConfigRef.current.randomVideo}
-                  videoSwapSeconds={screensaverVideoSwapSecondsRef.current}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-
-        {showScreensaverDialog && (
-          <div className={s.screensaverOverlay} onMouseDown={() => setShowScreensaverDialog(false)}>
-            <div
-              ref={screensaverDialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Screensaver settings"
-              tabIndex={-1}
-              className={s.screensaverFloat}
-              style={{ transform: `translate(${screensaverDialogPosition.x}px, ${screensaverDialogPosition.y}px)` }}
-              onMouseDownCapture={bringToTop}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                const target = e.target as HTMLElement | null;
-                if (!target?.closest(".handle")) return;
-                screensaverDrag.onMouseDown(e);
-              }}
-              onMouseMove={screensaverDrag.onMouseMove}
-            >
-            <div className={s.screensaverDialog} onMouseDown={e => e.stopPropagation()}>
-              <div
-                className={["handle", s.screensaverTitleBar].join(" ")}
-                onMouseDown={(event) => {
-                  event.stopPropagation();
-                  screensaverDrag.onMouseDown(event);
-                }}
-              >
-                <span>Screensaver</span>
-                <button
-                  className={s.screensaverClose}
-                  aria-label="Close screensaver settings"
-                  onClick={() => setShowScreensaverDialog(false)}
-                >
-                  x
-                </button>
-              </div>
-              <div className={s.screensaverButtons}>
-                <button className={s.screensaverButton} onClick={confirmScreensaverDialog}>
-                  Start
-                </button>
-                <button className={s.screensaverButton} onClick={() => setShowScreensaverDialog(false)}>
-                  Cancel
-                </button>
-              </div>
-              <div className={s.screensaverBody}>
-                <div className={s.screensaverColumns}>
-                <div className={s.screensaverColumnLeft}>
-                {renderSlideshowTimingControls()}
-                <AudioVizControls
-                  channel="screensaver"
-                  title="Screensaver Audio"
-                />
-                <label className={s.screensaverCheck}>
-                  <input
-                    type="checkbox"
-                    checked={screensaverShowDebugDraft}
-                    onChange={(e) => setScreensaverShowDebugDraft(e.target.checked)}
-                  />
-                  <span>Show debug overlay on output</span>
-                </label>
-                </div>
-                <div className={s.screensaverColumnRight}>
-                <AudioPatchPanel
-                  channel="screensaver"
-                  rangeOptions={chainWideRangeOptions}
-                  optionValues={chainWideOptionValues}
-                  connections={screensaverAudioGlobalConnectionsDraft}
-                  normalizedMetrics={screensaverAudioGlobalNormalizedMetricsDraft}
-                  onNormalizedMetricsChange={setScreensaverAudioGlobalNormalizedMetricsDraft}
-                  onConnectionsChange={setScreensaverAudioGlobalConnectionsDraft}
-                  autoVizMode={screensaverAudioAutoVizMode}
-                  onAutoVizModeChange={setScreensaverAudioAutoVizMode}
-                  autoVizOnChainChange={screensaverAudioAutoVizOnChainChange}
-                  onAutoVizOnChainChange={setScreensaverAudioAutoVizOnChainChange}
-                  bodyTitle="Screensaver patch panel"
-                />
-                </div>
-                </div>
-              </div>
-            </div>
-            </div>
-          </div>
-        )}
-
-        {(editingAudioEntry || showChainAudioGlobalEditor) && (
-          <div
-            className={s.screensaverOverlay}
-            onMouseDown={() => {
-              closeAudioModEditor();
-              setShowChainAudioGlobalEditor(false);
+            className={[s.canvasWindow, s.inputCanvasWindow].join(" ")}
+            ref={inputDragRef}
+            role="presentation"
+            onMouseDown={
+              workspaceLayout === "floating" && !windowsLocked ? inputDrag.onMouseDown : undefined
+            }
+            onMouseDownCapture={bringToTop}
+            onMouseMove={
+              workspaceLayout === "floating" && !windowsLocked ? inputDrag.onMouseMove : undefined
+            }
+            onDragOver={(e) => {
+              e.preventDefault();
+              setCanvasDropping(true);
+            }}
+            onDragLeave={() => setCanvasDropping(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setCanvasDropping(false);
+              const file = e.dataTransfer.files[0];
+              loadUserFile(file);
             }}
           >
             <div
-              ref={audioEditorRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={editingAudioEntry ? `Audio visualizer settings for ${editingAudioEntry.displayName}` : "Chain audio visualizer settings"}
-              tabIndex={-1}
-              className={s.audioModFloat}
-              style={{ transform: `translate(${audioEditorPosition.x}px, ${audioEditorPosition.y}px)` }}
-              onMouseDownCapture={bringToTop}
-              onMouseMove={audioEditorDrag.onMouseMove}
+              className={[controls.window, s.inputWindow, canvasDropping ? s.dropping : ""].join(
+                " ",
+              )}
+              style={
+                !state.inputImage
+                  ? {
+                      minWidth: Math.round(200 * state.scale),
+                      minHeight: Math.round(200 * state.scale),
+                    }
+                  : undefined
+              }
             >
-              <div className={s.audioModDialog} onMouseDown={(event) => event.stopPropagation()}>
-                <div
-                  className={["handle", s.screensaverTitleBar].join(" ")}
-                  onMouseDown={(event) => {
-                    event.stopPropagation();
-                    audioEditorDrag.onMouseDown(event);
-                  }}
-                >
-                  <span>{editingAudioEntry ? `Audio Viz - ${editingAudioEntry.displayName}` : "Chain Audio Viz"}</span>
-                  <button
-                    className={s.screensaverClose}
-                    aria-label="Close audio visualizer settings"
-                    onClick={() => {
-                      closeAudioModEditor();
-                      setShowChainAudioGlobalEditor(false);
-                    }}
+              <div className={["handle", controls.titleBar].join(" ")}>
+                {inputFilename ? `Input - ${inputFilename}` : "Input"}
+              </div>
+              <div className={s.canvasArea}>
+                {(!state.inputImage || canvasDropping) && (
+                  <div
+                    className={s.dropPlaceholder}
+                    onClick={() =>
+                      !canvasDropping &&
+                      !inputDrag.didDrag.current &&
+                      document.getElementById("imageLoader")?.click()
+                    }
+                    style={{ cursor: canvasDropping ? undefined : "pointer" }}
                   >
-                    x
-                  </button>
-                </div>
-                <div className={s.audioModBody}>
-                  <div className={s.screensaverColumns}>
-                    <div className={s.screensaverColumnLeft}>
-                      {!editingAudioEntry ? (
-                        <AudioVizControls channel="chain" title="Input" />
-                      ) : (
-                        <div className={s.screensaverHint}>
-                          Audio input is shared with the chain channel. Configure source, mic and normalization from the chain-level editor.
-                        </div>
-                      )}
-                      {!editingAudioEntry && (
-                        <fieldset className={controls.optionGroup}>
-                          <legend className={controls.optionGroupLegend}>Chain swap timing (from BPM)</legend>
-                          <div className={s.screensaverRadioRow}>
-                            <label className={s.screensaverRadioOption}>
-                              <input
-                                type="radio"
-                                name="chainAudioSwapMode"
-                                checked={!chainAudioBpmSwapEnabled}
-                                onChange={() => setChainAudioBpmSwapEnabled(false)}
-                              />
-                              <span>Off</span>
-                            </label>
-                            <label className={s.screensaverRadioOption}>
-                              <input
-                                type="radio"
-                                name="chainAudioSwapMode"
-                                checked={chainAudioBpmSwapEnabled}
-                                onChange={() => setChainAudioBpmSwapEnabled(true)}
-                              />
-                              <span>Sync to detected BPM</span>
-                            </label>
-                          </div>
-                          {chainAudioBpmSwapEnabled && (
-                            <>
-                              <label className={s.screensaverField}>
-                                <span>Beats per swap</span>
-                                <input
-                                  className={s.screensaverInput}
-                                  type="number"
-                                  min="0.25"
-                                  step="0.25"
-                                  value={chainAudioBpmSwapBeats}
-                                  onChange={(event) => setChainAudioBpmSwapBeats(event.target.value)}
-                                />
-                              </label>
-                              <div className={s.screensaverHint}>
-                                {(() => {
-                                  const beatsPerSwap = Number.parseFloat(chainAudioBpmSwapBeats);
-                                  const bpm = getChannelAudioVizSnapshot("chain").detectedBpm;
-                                  if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
-                                    return "Waiting for stable BPM detection.";
-                                  }
-                                  const seconds = (60 / bpm) * beatsPerSwap;
-                                  return `Resolves to ~${seconds.toFixed(2).replace(/\.?0+$/, "")}s per random filter-chain swap at ${Math.round(bpm)} BPM. Updates live as tempo drifts.`;
-                                })()}
-                              </div>
-                            </>
-                          )}
-                        </fieldset>
-                      )}
-                    </div>
-                    <div className={s.screensaverColumnRight}>
-                      <AudioPatchPanel
-                        channel="chain"
-                        rangeOptions={editingAudioEntry ? editingAudioRangeOptions : chainWideRangeOptions}
-                        optionValues={editingAudioEntry ? (editingAudioEntry.filter.options || {}) : chainWideOptionValues}
-                        connections={editingAudioEntry ? audioModConnectionsDraft : chainAudioGlobalConnectionsDraft}
-                        normalizedMetrics={editingAudioEntry ? audioModNormalizedMetricsDraft : chainAudioGlobalNormalizedMetricsDraft}
-                        onNormalizedMetricsChange={editingAudioEntry ? setAudioModNormalizedMetricsDraft : setChainAudioGlobalNormalizedMetricsDraft}
-                        onConnectionsChange={editingAudioEntry ? setAudioModConnectionsDraft : setChainAudioGlobalConnectionsDraft}
-                        {...(editingAudioEntry ? {} : {
-                          autoVizMode: chainAudioAutoVizMode,
-                          onAutoVizModeChange: setChainAudioAutoVizMode,
-                          autoVizOnChainChange: chainAudioAutoVizOnChainChange,
-                          onAutoVizOnChainChange: setChainAudioAutoVizOnChainChange,
-                        })}
-                      />
-                    </div>
+                    <span>
+                      {canvasDropping ? "Drop to load" : "Drop or click to load image/video"}
+                    </span>
                   </div>
-                </div>
-                <div className={s.screensaverButtons}>
-                  <button
-                    className={s.screensaverButton}
-                    onClick={() => {
-                      if (editingAudioEntry) {
-                        actions.setChainAudioModulation(editingAudioEntry.id, null);
-                        closeAudioModEditor();
-                      } else {
-                        setGlobalAudioVizModulation("chain", null);
-                        setShowChainAudioGlobalEditor(false);
-                      }
-                    }}
-                  >
-                    Clear
-                  </button>
-                  <button
-                    className={s.screensaverButton}
-                    onClick={() => {
-                      if (editingAudioEntry) {
-                        saveAudioModEditor();
-                      } else {
-                        saveChainAudioGlobalEditor();
-                      }
-                    }}
-                  >
-                    Close
-                  </button>
-                </div>
+                )}
+                <canvas
+                  className={[s.canvas, s[state.scalingAlgorithm]].join(" ")}
+                  ref={inputCanvasRefCb}
+                  onClick={() => {
+                    if (state.video && !inputDrag.didDrag.current) {
+                      actions.toggleVideo();
+                      const nowPaused = !videoPaused;
+                      setVideoPaused(nowPaused);
+                      flashPlayPause(nowPaused ? "pause" : "play");
+                    }
+                  }}
+                  style={state.video ? { cursor: "pointer" } : undefined}
+                />
+                {playPauseIndicator && (
+                  <div className={s.playPauseOverlay}>
+                    {playPauseIndicator === "play" ? "▶ PLAY" : "❚❚ PAUSE"}
+                  </div>
+                )}
+                {inputLoadingLabel && (
+                  <div className={[s.playPauseOverlay, s.inputLoadingOverlay].join(" ")}>
+                    {inputLoadingLabel}
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        )}
 
-      </div>
-      <div
-        className={s.dialogHost}
-        ref={saveAsDragRef}
-        role="presentation"
-        onMouseDown={(e) => {
-          const target = e.target as HTMLElement | null;
-          if (!target?.closest(".handle")) return;
-          saveAsDrag.onMouseDown(e);
-        }}
-        onMouseMove={saveAsDrag.onMouseMove}
-        style={showSaveAs ? undefined : { display: "none" }}
-      >
-        {showSaveAs && (
-          <div className={s.dialogOverlay} onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeExport();
-          }}>
-          <SaveAs
-            outputCanvasRef={outputCanvasRef}
-            onClose={closeExport}
-          />
+          <div
+            className={[s.canvasWindow, s.outputCanvasWindow].join(" ")}
+            ref={outputDragRef}
+            role="presentation"
+            onMouseDown={
+              outputFullscreen || workspaceLayout !== "floating" || windowsLocked
+                ? undefined
+                : outputDrag.onMouseDown
+            }
+            onMouseDownCapture={bringToTop}
+            onMouseMove={
+              outputFullscreen || workspaceLayout !== "floating" || windowsLocked
+                ? undefined
+                : outputDrag.onMouseMove
+            }
+          >
+            <div
+              className={[
+                controls.window,
+                s.outputWindow,
+                comparisonEnabled ? s.outputWindowComparing : "",
+                outputFullscreen ? s.outputWindowFullscreen : "",
+                outputFullscreen && fullscreenCursorHidden
+                  ? s.outputWindowFullscreenCursorHidden
+                  : "",
+              ].join(" ")}
+              ref={outputWindowRef}
+              tabIndex={-1}
+            >
+              <div className={["handle", controls.titleBar, s.windowChrome].join(" ")}>
+                {inputFilename ? `Output - ${inputFilename}` : "Output"}
+              </div>
+              <div className={[s.menuBar, s.windowChrome].join(" ")}>
+                <button
+                  className={s.menuItem}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    openExport();
+                  }}
+                >
+                  Save As...
+                </button>
+                <label className={s.menuSelectWrap} onMouseDown={(e) => e.stopPropagation()}>
+                  <select
+                    className={s.menuSelect}
+                    value={state.scalingAlgorithm}
+                    onChange={(e) => actions.setScalingAlgorithm(e.target.value)}
+                    title="Set output display scaling"
+                    aria-label="Output display scaling"
+                  >
+                    {SCALING_ALGORITHM_OPTIONS.options.map((option) => (
+                      <option key={String(option.value)} value={String(option.value)}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div
+                  ref={fullscreenMenuRef}
+                  className={s.menuPopupWrap}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <button
+                    className={[
+                      s.menuItem,
+                      outputFullscreen || showFullscreenMenu ? s.menuItemActive : "",
+                    ].join(" ")}
+                    onClick={() => setShowFullscreenMenu((value) => !value)}
+                    title="Choose fullscreen mode"
+                  >
+                    Fullscreen
+                  </button>
+                  {showFullscreenMenu && (
+                    <div className={s.menuPopup}>
+                      <button
+                        className={[
+                          s.menuPopupItem,
+                          outputFullscreenMode === "contain" ? s.menuPopupItemActive : "",
+                        ].join(" ")}
+                        onClick={() => {
+                          setShowFullscreenMenu(false);
+                          void toggleOutputFullscreen("contain");
+                        }}
+                      >
+                        Contain
+                      </button>
+                      <button
+                        className={[
+                          s.menuPopupItem,
+                          outputFullscreenMode === "cover" ? s.menuPopupItemActive : "",
+                        ].join(" ")}
+                        onClick={() => {
+                          setShowFullscreenMenu(false);
+                          void toggleOutputFullscreen("cover");
+                        }}
+                      >
+                        Cover
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button
+                  ref={screensaverButtonRef}
+                  className={[
+                    s.menuItem,
+                    screensaverActive || showScreensaverDialog ? s.menuItemActive : "",
+                  ].join(" ")}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    openScreensaverDialog();
+                  }}
+                  title={
+                    screensaverActive ? "Screensaver active." : "Configure and start screensaver."
+                  }
+                >
+                  Screensaver
+                </button>
+              </div>
+              <div className={s.outputCanvasStage}>
+                <canvas
+                  className={[
+                    s.canvas,
+                    s[state.scalingAlgorithm],
+                    outputFullscreen ? s.outputCanvasFullscreen : "",
+                    outputFullscreenMode === "cover" ? s.outputCanvasCover : s.outputCanvasContain,
+                  ].join(" ")}
+                  ref={outputCanvasRefCb}
+                />
+                {comparisonEnabled && (
+                  <>
+                    <canvas
+                      ref={comparisonCanvasRef}
+                      className={[
+                        s.canvas,
+                        s.comparisonCanvas,
+                        comparisonHold ? s.comparisonCanvasHold : "",
+                        s[state.scalingAlgorithm],
+                      ].join(" ")}
+                      style={
+                        { "--compare-position": `${comparisonPosition}%` } as React.CSSProperties
+                      }
+                      aria-label="Source side of before and after comparison"
+                    />
+                    <div
+                      className={s.comparisonDivider}
+                      style={{ left: `${comparisonPosition}%` }}
+                      aria-hidden="true"
+                    />
+                    <div className={s.comparisonControl}>
+                      <label className={s.comparisonSlider}>
+                        <span>Split</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={comparisonPosition}
+                          onChange={(event) => setComparisonPosition(Number(event.target.value))}
+                          aria-label="Before / after"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        aria-pressed={comparisonHold}
+                        onPointerDown={() => setComparisonHold(true)}
+                        onPointerUp={() => setComparisonHold(false)}
+                        onPointerCancel={() => setComparisonHold(false)}
+                        onPointerLeave={() => setComparisonHold(false)}
+                        onKeyDown={(event) => {
+                          if (event.key === " " || event.key === "Enter") setComparisonHold(true);
+                        }}
+                        onKeyUp={(event) => {
+                          if (event.key === " " || event.key === "Enter") setComparisonHold(false);
+                        }}
+                        onBlur={() => setComparisonHold(false)}
+                      >
+                        Hold before
+                      </button>
+                    </div>
+                  </>
+                )}
+                {screensaverActive && screensaverShowDebug && (
+                  <ScreensaverDebugOverlay
+                    chain={state.chain.map((entry) => ({
+                      id: entry.id,
+                      displayName: entry.displayName,
+                      enabled: entry.enabled,
+                    }))}
+                    activeIndex={state.activeIndex}
+                    chainSwapSeconds={
+                      getCurrentScreensaverCycleSeconds() ??
+                      screensaverConfigRef.current.swapSeconds ??
+                      null
+                    }
+                    videoSwapEnabled={screensaverConfigRef.current.randomVideo}
+                    videoSwapSeconds={screensaverVideoSwapSecondsRef.current}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {showScreensaverDialog && (
+            <div
+              className={s.screensaverOverlay}
+              onMouseDown={() => setShowScreensaverDialog(false)}
+            >
+              <div
+                ref={screensaverDialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Screensaver settings"
+                tabIndex={-1}
+                className={s.screensaverFloat}
+                style={{
+                  transform: `translate(${screensaverDialogPosition.x}px, ${screensaverDialogPosition.y}px)`,
+                }}
+                onMouseDownCapture={bringToTop}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  const target = e.target as HTMLElement | null;
+                  if (!target?.closest(".handle")) return;
+                  screensaverDrag.onMouseDown(e);
+                }}
+                onMouseMove={screensaverDrag.onMouseMove}
+              >
+                <div className={s.screensaverDialog} onMouseDown={(e) => e.stopPropagation()}>
+                  <div
+                    className={["handle", s.screensaverTitleBar].join(" ")}
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                      screensaverDrag.onMouseDown(event);
+                    }}
+                  >
+                    <span>Screensaver</span>
+                    <button
+                      className={s.screensaverClose}
+                      aria-label="Close screensaver settings"
+                      onClick={() => setShowScreensaverDialog(false)}
+                    >
+                      x
+                    </button>
+                  </div>
+                  <div className={s.screensaverButtons}>
+                    <button className={s.screensaverButton} onClick={confirmScreensaverDialog}>
+                      Start
+                    </button>
+                    <button
+                      className={s.screensaverButton}
+                      onClick={() => setShowScreensaverDialog(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div className={s.screensaverBody}>
+                    <div className={s.screensaverColumns}>
+                      <div className={s.screensaverColumnLeft}>
+                        {renderSlideshowTimingControls()}
+                        <AudioVizControls channel="screensaver" title="Screensaver Audio" />
+                        <label className={s.screensaverCheck}>
+                          <input
+                            type="checkbox"
+                            checked={screensaverShowDebugDraft}
+                            onChange={(e) => setScreensaverShowDebugDraft(e.target.checked)}
+                          />
+                          <span>Show debug overlay on output</span>
+                        </label>
+                      </div>
+                      <div className={s.screensaverColumnRight}>
+                        <AudioPatchPanel
+                          channel="screensaver"
+                          rangeOptions={chainWideRangeOptions}
+                          optionValues={chainWideOptionValues}
+                          connections={screensaverAudioGlobalConnectionsDraft}
+                          normalizedMetrics={screensaverAudioGlobalNormalizedMetricsDraft}
+                          onNormalizedMetricsChange={
+                            setScreensaverAudioGlobalNormalizedMetricsDraft
+                          }
+                          onConnectionsChange={setScreensaverAudioGlobalConnectionsDraft}
+                          autoVizMode={screensaverAudioAutoVizMode}
+                          onAutoVizModeChange={setScreensaverAudioAutoVizMode}
+                          autoVizOnChainChange={screensaverAudioAutoVizOnChainChange}
+                          onAutoVizOnChainChange={setScreensaverAudioAutoVizOnChainChange}
+                          bodyTitle="Screensaver patch panel"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(editingAudioEntry || showChainAudioGlobalEditor) && (
+            <div
+              className={s.screensaverOverlay}
+              onMouseDown={() => {
+                closeAudioModEditor();
+                setShowChainAudioGlobalEditor(false);
+              }}
+            >
+              <div
+                ref={audioEditorRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label={
+                  editingAudioEntry
+                    ? `Audio visualizer settings for ${editingAudioEntry.displayName}`
+                    : "Chain audio visualizer settings"
+                }
+                tabIndex={-1}
+                className={s.audioModFloat}
+                style={{
+                  transform: `translate(${audioEditorPosition.x}px, ${audioEditorPosition.y}px)`,
+                }}
+                onMouseDownCapture={bringToTop}
+                onMouseMove={audioEditorDrag.onMouseMove}
+              >
+                <div className={s.audioModDialog} onMouseDown={(event) => event.stopPropagation()}>
+                  <div
+                    className={["handle", s.screensaverTitleBar].join(" ")}
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                      audioEditorDrag.onMouseDown(event);
+                    }}
+                  >
+                    <span>
+                      {editingAudioEntry
+                        ? `Audio Viz - ${editingAudioEntry.displayName}`
+                        : "Chain Audio Viz"}
+                    </span>
+                    <button
+                      className={s.screensaverClose}
+                      aria-label="Close audio visualizer settings"
+                      onClick={() => {
+                        closeAudioModEditor();
+                        setShowChainAudioGlobalEditor(false);
+                      }}
+                    >
+                      x
+                    </button>
+                  </div>
+                  <div className={s.audioModBody}>
+                    <div className={s.screensaverColumns}>
+                      <div className={s.screensaverColumnLeft}>
+                        {!editingAudioEntry ? (
+                          <AudioVizControls channel="chain" title="Input" />
+                        ) : (
+                          <div className={s.screensaverHint}>
+                            Audio input is shared with the chain channel. Configure source, mic and
+                            normalization from the chain-level editor.
+                          </div>
+                        )}
+                        {!editingAudioEntry && (
+                          <fieldset className={controls.optionGroup}>
+                            <legend className={controls.optionGroupLegend}>
+                              Chain swap timing (from BPM)
+                            </legend>
+                            <div className={s.screensaverRadioRow}>
+                              <label className={s.screensaverRadioOption}>
+                                <input
+                                  type="radio"
+                                  name="chainAudioSwapMode"
+                                  checked={!chainAudioBpmSwapEnabled}
+                                  onChange={() => setChainAudioBpmSwapEnabled(false)}
+                                />
+                                <span>Off</span>
+                              </label>
+                              <label className={s.screensaverRadioOption}>
+                                <input
+                                  type="radio"
+                                  name="chainAudioSwapMode"
+                                  checked={chainAudioBpmSwapEnabled}
+                                  onChange={() => setChainAudioBpmSwapEnabled(true)}
+                                />
+                                <span>Sync to detected BPM</span>
+                              </label>
+                            </div>
+                            {chainAudioBpmSwapEnabled && (
+                              <>
+                                <label className={s.screensaverField}>
+                                  <span>Beats per swap</span>
+                                  <input
+                                    className={s.screensaverInput}
+                                    type="number"
+                                    min="0.25"
+                                    step="0.25"
+                                    value={chainAudioBpmSwapBeats}
+                                    onChange={(event) =>
+                                      setChainAudioBpmSwapBeats(event.target.value)
+                                    }
+                                  />
+                                </label>
+                                <div className={s.screensaverHint}>
+                                  {(() => {
+                                    const beatsPerSwap = Number.parseFloat(chainAudioBpmSwapBeats);
+                                    const bpm = getChannelAudioVizSnapshot("chain").detectedBpm;
+                                    if (!Number.isFinite(beatsPerSwap) || !bpm || bpm <= 0) {
+                                      return "Waiting for stable BPM detection.";
+                                    }
+                                    const seconds = (60 / bpm) * beatsPerSwap;
+                                    return `Resolves to ~${seconds.toFixed(2).replace(/\.?0+$/, "")}s per random filter-chain swap at ${Math.round(bpm)} BPM. Updates live as tempo drifts.`;
+                                  })()}
+                                </div>
+                              </>
+                            )}
+                          </fieldset>
+                        )}
+                      </div>
+                      <div className={s.screensaverColumnRight}>
+                        <AudioPatchPanel
+                          channel="chain"
+                          rangeOptions={
+                            editingAudioEntry ? editingAudioRangeOptions : chainWideRangeOptions
+                          }
+                          optionValues={
+                            editingAudioEntry
+                              ? editingAudioEntry.filter.options || {}
+                              : chainWideOptionValues
+                          }
+                          connections={
+                            editingAudioEntry
+                              ? audioModConnectionsDraft
+                              : chainAudioGlobalConnectionsDraft
+                          }
+                          normalizedMetrics={
+                            editingAudioEntry
+                              ? audioModNormalizedMetricsDraft
+                              : chainAudioGlobalNormalizedMetricsDraft
+                          }
+                          onNormalizedMetricsChange={
+                            editingAudioEntry
+                              ? setAudioModNormalizedMetricsDraft
+                              : setChainAudioGlobalNormalizedMetricsDraft
+                          }
+                          onConnectionsChange={
+                            editingAudioEntry
+                              ? setAudioModConnectionsDraft
+                              : setChainAudioGlobalConnectionsDraft
+                          }
+                          {...(editingAudioEntry
+                            ? {}
+                            : {
+                                autoVizMode: chainAudioAutoVizMode,
+                                onAutoVizModeChange: setChainAudioAutoVizMode,
+                                autoVizOnChainChange: chainAudioAutoVizOnChainChange,
+                                onAutoVizOnChainChange: setChainAudioAutoVizOnChainChange,
+                              })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className={s.screensaverButtons}>
+                    <button
+                      className={s.screensaverButton}
+                      onClick={() => {
+                        if (editingAudioEntry) {
+                          actions.setChainAudioModulation(editingAudioEntry.id, null);
+                          closeAudioModEditor();
+                        } else {
+                          setGlobalAudioVizModulation("chain", null);
+                          setShowChainAudioGlobalEditor(false);
+                        }
+                      }}
+                    >
+                      Clear
+                    </button>
+                    <button
+                      className={s.screensaverButton}
+                      onClick={() => {
+                        if (editingAudioEntry) {
+                          saveAudioModEditor();
+                        } else {
+                          saveChainAudioGlobalEditor();
+                        }
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div
+          className={s.dialogHost}
+          ref={saveAsDragRef}
+          role="presentation"
+          onMouseDown={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (!target?.closest(".handle")) return;
+            saveAsDrag.onMouseDown(e);
+          }}
+          onMouseMove={saveAsDrag.onMouseMove}
+          style={showSaveAs ? undefined : { display: "none" }}
+        >
+          {showSaveAs && (
+            <div
+              className={s.dialogOverlay}
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) closeExport();
+              }}
+            >
+              <SaveAs outputCanvasRef={outputCanvasRef} onClose={closeExport} />
+            </div>
+          )}
+        </div>
+        {showCommandPalette && (
+          <div className={s.dialogOverlay}>
+            <WindowDialog
+              className={s.commandPalette}
+              title="Command palette"
+              onClose={() => setShowCommandPalette(false)}
+            >
+              <div className={s.commandTitleBar}>
+                <strong>Commands</strong>
+                <button
+                  onClick={() => setShowCommandPalette(false)}
+                  aria-label="Close command palette"
+                >
+                  ×
+                </button>
+              </div>
+              <input
+                data-dialog-initial-focus="true"
+                className={s.commandSearch}
+                value={commandQuery}
+                onChange={(event) => {
+                  setCommandQuery(event.target.value);
+                  setCommandActiveIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    moveCommandSelection(1);
+                  } else if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    moveCommandSelection(-1);
+                  } else if (event.key === "Enter") {
+                    event.preventDefault();
+                    runActiveCommand();
+                  }
+                }}
+                placeholder="Type a command…"
+                aria-label="Search commands"
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="command-list"
+                aria-activedescendant={
+                  workbenchCommands[effectiveCommandActiveIndex]
+                    ? `command-${effectiveCommandActiveIndex}`
+                    : undefined
+                }
+              />
+              <div id="command-list" className={s.commandList}>
+                {workbenchCommands.map((command, index) => (
+                  <button
+                    id={`command-${index}`}
+                    key={command.label}
+                    disabled={command.disabled}
+                    className={index === effectiveCommandActiveIndex ? s.commandActive : ""}
+                    aria-current={index === effectiveCommandActiveIndex ? "true" : undefined}
+                    onMouseEnter={() => setCommandActiveIndex(index)}
+                    onClick={() => {
+                      command.run();
+                      setShowCommandPalette(false);
+                    }}
+                  >
+                    <span>{command.label}</span>
+                    <kbd>{command.hint}</kbd>
+                  </button>
+                ))}
+                {workbenchCommands.length === 0 && <p>No matching commands.</p>}
+              </div>
+            </WindowDialog>
           </div>
         )}
-      </div>
-      {showCommandPalette && (
-        <div className={s.dialogOverlay}>
-          <WindowDialog className={s.commandPalette} title="Command palette" onClose={() => setShowCommandPalette(false)}>
-            <div className={s.commandTitleBar}>
-              <strong>Commands</strong>
-              <button onClick={() => setShowCommandPalette(false)} aria-label="Close command palette">×</button>
-            </div>
-            <input
-              data-dialog-initial-focus="true"
-              className={s.commandSearch}
-              value={commandQuery}
-              onChange={(event) => {
-                setCommandQuery(event.target.value);
-                setCommandActiveIndex(0);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  moveCommandSelection(1);
-                } else if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  moveCommandSelection(-1);
-                } else if (event.key === "Enter") {
-                  event.preventDefault();
-                  runActiveCommand();
-                }
-              }}
-              placeholder="Type a command…"
-              aria-label="Search commands"
-              role="combobox"
-              aria-expanded="true"
-              aria-controls="command-list"
-              aria-activedescendant={workbenchCommands[effectiveCommandActiveIndex] ? `command-${effectiveCommandActiveIndex}` : undefined}
-            />
-            <div id="command-list" className={s.commandList}>
-              {workbenchCommands.map((command, index) => (
-                <button
-                  id={`command-${index}`}
-                  key={command.label}
-                  disabled={command.disabled}
-                  className={index === effectiveCommandActiveIndex ? s.commandActive : ""}
-                  aria-current={index === effectiveCommandActiveIndex ? "true" : undefined}
-                  onMouseEnter={() => setCommandActiveIndex(index)}
-                  onClick={() => { command.run(); setShowCommandPalette(false); }}
-                >
-                  <span>{command.label}</span><kbd>{command.hint}</kbd>
-                </button>
-              ))}
-              {workbenchCommands.length === 0 && <p>No matching commands.</p>}
-            </div>
-          </WindowDialog>
-        </div>
-      )}
       </main>
     </div>
   );

@@ -25,17 +25,35 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  hueCenter: { type: RANGE, range: [0, 360], step: 5, default: 0, desc: "Target hue to isolate in degrees" },
-  hueRange: { type: RANGE, range: [5, 180], step: 5, default: 30, desc: "Width of hue band around center" },
-  saturationMin: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, desc: "Minimum saturation to keep as color" },
-  palette: { type: PALETTE, default: nearest }
+  hueCenter: {
+    type: RANGE,
+    range: [0, 360],
+    step: 5,
+    default: 0,
+    desc: "Target hue to isolate in degrees",
+  },
+  hueRange: {
+    type: RANGE,
+    range: [5, 180],
+    step: 5,
+    default: 30,
+    desc: "Width of hue band around center",
+  },
+  saturationMin: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.2,
+    desc: "Minimum saturation to keep as color",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   hueCenter: optionTypes.hueCenter.default,
   hueRange: optionTypes.hueRange.default,
   saturationMin: optionTypes.saturationMin.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // HSL to match the CPU path's math exactly.
@@ -92,7 +110,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     ct: linkProgram(gl, CT_FS, [
-      "u_source", "u_hueCenter", "u_hueRange", "u_saturationMin", "u_levels",
+      "u_source",
+      "u_hueCenter",
+      "u_hueRange",
+      "u_saturationMin",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -100,7 +122,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const colorThreshold = (input: any, options = defaults) => {
   const { hueCenter, hueRange, saturationMin, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -112,25 +135,36 @@ const colorThreshold = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "colorThreshold:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.ct, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.ct.uniforms.u_source, 0);
-        gl.uniform1f(cache.ct.uniforms.u_hueCenter, hueCenter);
-        gl.uniform1f(cache.ct.uniforms.u_hueRange, hueRange);
-        gl.uniform1f(cache.ct.uniforms.u_saturationMin, saturationMin);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.ct.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.ct,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.ct.uniforms.u_source, 0);
+          gl.uniform1f(cache.ct.uniforms.u_hueCenter, hueCenter);
+          gl.uniform1f(cache.ct.uniforms.u_hueRange, hueRange);
+          gl.uniform1f(cache.ct.uniforms.u_saturationMin, saturationMin);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.ct.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Color Threshold", "WebGL2",
-            `center=${hueCenter} range=${hueRange}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Color Threshold",
+            "WebGL2",
+            `center=${hueCenter} range=${hueRange}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -149,11 +183,15 @@ const colorThreshold = (input: any, options = defaults) => {
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const r = buf[i] / 255, g = buf[i + 1] / 255, b = buf[i + 2] / 255;
+      const r = buf[i] / 255,
+        g = buf[i + 1] / 255,
+        b = buf[i + 2] / 255;
 
-      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const max = Math.max(r, g, b),
+        min = Math.min(r, g, b);
       const l = (max + min) / 2;
-      let h = 0, s = 0;
+      let h = 0,
+        s = 0;
       if (max !== min) {
         const d = max - min;
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
@@ -169,10 +207,14 @@ const colorThreshold = (input: any, options = defaults) => {
 
       let or: number, og: number, ob: number;
       if (inRange) {
-        or = buf[i]; og = buf[i + 1]; ob = buf[i + 2];
+        or = buf[i];
+        og = buf[i + 1];
+        ob = buf[i + 2];
       } else {
         const gray = Math.round(0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]);
-        or = gray; og = gray; ob = gray;
+        or = gray;
+        og = gray;
+        ob = gray;
       }
 
       const color = paletteGetColor(palette, rgba(or, og, ob, buf[i + 3]), palette.options, false);
@@ -184,4 +226,10 @@ const colorThreshold = (input: any, options = defaults) => {
   return output;
 };
 
-export default defineFilter({ name: "Color Threshold", func: colorThreshold, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Color Threshold",
+  func: colorThreshold,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

@@ -90,15 +90,23 @@ export const renderMedianCutGL = (
     flat[i * 3 + 2] = palette[i][2];
   }
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_count, palette.length);
-    const loc = cache.prog.uniforms["u_palette[0]"];
-    if (loc) gl.uniform3fv(loc, flat);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_count, palette.length);
+      const loc = cache.prog.uniforms["u_palette[0]"];
+      if (loc) gl.uniform3fv(loc, flat);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

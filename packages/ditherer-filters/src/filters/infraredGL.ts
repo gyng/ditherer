@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -67,10 +74,18 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_intensity", "u_falseColor", "u_foliageResponse",
-    "u_skySuppression", "u_contrast", "u_grain",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_intensity",
+      "u_falseColor",
+      "u_foliageResponse",
+      "u_skySuppression",
+      "u_contrast",
+      "u_grain",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -78,7 +93,8 @@ export const infraredGLAvailable = (): boolean => glAvailable();
 
 export const renderInfraredGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   intensity: number,
   falseColor: number,
   foliageResponse: number,
@@ -94,17 +110,25 @@ export const renderInfraredGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "infrared:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_intensity, intensity);
-    gl.uniform1f(cache.prog.uniforms.u_falseColor, falseColor);
-    gl.uniform1f(cache.prog.uniforms.u_foliageResponse, foliageResponse);
-    gl.uniform1f(cache.prog.uniforms.u_skySuppression, skySuppression);
-    gl.uniform1f(cache.prog.uniforms.u_contrast, contrast);
-    gl.uniform1f(cache.prog.uniforms.u_grain, grain);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_intensity, intensity);
+      gl.uniform1f(cache.prog.uniforms.u_falseColor, falseColor);
+      gl.uniform1f(cache.prog.uniforms.u_foliageResponse, foliageResponse);
+      gl.uniform1f(cache.prog.uniforms.u_skySuppression, skySuppression);
+      gl.uniform1f(cache.prog.uniforms.u_contrast, contrast);
+      gl.uniform1f(cache.prog.uniforms.u_grain, grain);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

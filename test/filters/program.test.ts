@@ -30,19 +30,25 @@ const makeCanvas = (fill: (x: number, y: number) => [number, number, number, num
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4;
       const [r, g, b, a] = fill(x, y);
-      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = a;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = a;
     }
   }
   let written: Uint8ClampedArray | null = null;
   const canvas = {
     width: W,
     height: H,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
-      putImageData: (img: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(img.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
+            putImageData: (img: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(img.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return { canvas, written: () => written, source: data };
 };
@@ -134,7 +140,11 @@ describe("bad programs degrade safely", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const { canvas, source } = makeCanvas(grey);
-      const result = program.func(canvas, { ...defaults, program: "this is not ( valid js", palette: identityPalette } as any);
+      const result = program.func(canvas, {
+        ...defaults,
+        program: "this is not ( valid js",
+        palette: identityPalette,
+      } as any);
       expect(result).toBe(canvas);
       expect(Array.from(source)).toEqual(Array.from(source));
       expect(consoleError).toHaveBeenCalled();
@@ -160,7 +170,9 @@ describe("bad programs degrade safely", () => {
   it("an infinite-ish program is the user's problem, but a finite one terminates", () => {
     // Guard against the loop itself being unbounded: a program that does real
     // work per pixel still completes for every pixel.
-    const { out } = run("let s = 0; for (let k = 0; k < 50; k++) s += k; r = s % 256; g = 0; b = 0; a = 255;");
+    const { out } = run(
+      "let s = 0; for (let k = 0; k < 50; k++) s += k; r = s % 256; g = 0; b = 0; a = 255;",
+    );
     expect(px(out!, 0, 0)[0]).toBe(1225 % 256);
     expect(px(out!, 3, 3)[0]).toBe(1225 % 256);
   }, 5000);
@@ -182,7 +194,10 @@ describe("the palette still applies after the program", () => {
   it("quantizes the program's output", () => {
     // The program runs first, then the palette snaps its result — so a program
     // emitting arbitrary values still lands on palette colors.
-    const { out } = run("r = 200; g = 200; b = 200; a = 255;", grey, { ...nearest, options: { levels: 2 } });
+    const { out } = run("r = 200; g = 200; b = 200; a = 255;", grey, {
+      ...nearest,
+      options: { levels: 2 },
+    });
     expect(px(out!, 0, 0)).toEqual([255, 255, 255, 255]);
   });
 });
@@ -205,7 +220,14 @@ describe("a Program survives the share-URL round trip", () => {
     // shouldn't be discovered by accident. This test just pins the fact.
     const payload = "r = 42; /* could be anything, including fetch(...) */";
     const json = JSON.stringify({
-      chain: [{ id: "x", displayName: "Program", filter: { name: "Program", options: { ...defaults, program: payload } }, enabled: true }],
+      chain: [
+        {
+          id: "x",
+          displayName: "Program",
+          filter: { name: "Program", options: { ...defaults, program: payload } },
+          enabled: true,
+        },
+      ],
     });
     const restored = JSON.parse(decodeShareState(encodeShareState(json)));
     expect(restored.chain[0].filter.options.program).toBe(payload);

@@ -26,17 +26,23 @@ export const hslToRgb = (h: number, s: number, l: number): [number, number, numb
   let b1 = 0;
 
   if (hp >= 0 && hp < 1) {
-    r1 = c; g1 = x;
+    r1 = c;
+    g1 = x;
   } else if (hp >= 1 && hp < 2) {
-    r1 = x; g1 = c;
+    r1 = x;
+    g1 = c;
   } else if (hp >= 2 && hp < 3) {
-    g1 = c; b1 = x;
+    g1 = c;
+    b1 = x;
   } else if (hp >= 3 && hp < 4) {
-    g1 = x; b1 = c;
+    g1 = x;
+    b1 = c;
   } else if (hp >= 4 && hp < 5) {
-    r1 = x; b1 = c;
+    r1 = x;
+    b1 = c;
   } else {
-    r1 = c; b1 = x;
+    r1 = c;
+    b1 = x;
   }
 
   const m = lig - c / 2;
@@ -104,7 +110,7 @@ export const layoutRect = (
   const grid = layout === LAYOUT.GRID_3X3 ? 3 : 2;
   const tileW = W / grid;
   const tileH = H / grid;
-  const cellIndex = ((frameIndex + level) % (grid * grid) + (grid * grid)) % (grid * grid);
+  const cellIndex = (((frameIndex + level) % (grid * grid)) + grid * grid) % (grid * grid);
   const tx = cellIndex % grid;
   const ty = Math.floor(cellIndex / grid);
 
@@ -352,16 +358,7 @@ type InfiniteCallWindowsOptions = FilterOptionValues & {
 };
 
 const infiniteCallWindows = (input: any, options: InfiniteCallWindowsOptions = defaults) => {
-  const {
-    layout,
-    depth,
-    scalePerDepth,
-    drift,
-    mix,
-    uiChrome,
-    digitalDegrade,
-    accentHue,
-  } = options;
+  const { layout, depth, scalePerDepth, drift, mix, uiChrome, digitalDegrade, accentHue } = options;
 
   const prevOutput = options._prevOutput ?? null;
   const frameIndex = Number(options._frameIndex ?? 0);
@@ -447,8 +444,10 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Recursive meeting panes with digital UI chrome, blocky compression wear, and endless self-view nesting",
+  description:
+    "Recursive meeting panes with digital UI chrome, blocky compression wear, and endless self-view nesting",
   temporal: true,
   noGL: "hot path is Canvas2D drawImage + fillRect + strokeRect + fillText for window chrome and stacked pane composites; pane scaling is GL-friendly but the chrome rendering doesn't fit a fragment-shader gather-only model",
-  noWASM: "Canvas2D primitives (fillRect/strokeRect/fillText/drawImage) dominate; WASM can't replace those without re-implementing Canvas2D",
+  noWASM:
+    "Canvas2D primitives (fillRect/strokeRect/fillText/drawImage) dominate; WASM can't replace those without re-implementing Canvas2D",
 });

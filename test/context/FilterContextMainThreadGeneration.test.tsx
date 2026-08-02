@@ -3,7 +3,9 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@gyng/ditherer-filters/client", async () => {
-  const actual = await vi.importActual<typeof import("@gyng/ditherer-filters/client")>("@gyng/ditherer-filters/client");
+  const actual = await vi.importActual<typeof import("@gyng/ditherer-filters/client")>(
+    "@gyng/ditherer-filters/client",
+  );
   return { ...actual, USE_WORKER: false, disposeFilterWorker: vi.fn() };
 });
 
@@ -30,7 +32,13 @@ describe("FilterProvider main-thread generation", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
-    await act(async () => root.render(<FilterProvider><Probe /></FilterProvider>));
+    await act(async () =>
+      root.render(
+        <FilterProvider>
+          <Probe />
+        </FilterProvider>,
+      ),
+    );
     return root;
   };
 
@@ -51,7 +59,9 @@ describe("FilterProvider main-thread generation", () => {
           ema: options._ema,
         });
         if (temporalSnapshots.length === 1) {
-          return new Promise<HTMLCanvasElement>((resolve) => { resolveFilter = resolve; });
+          return new Promise<HTMLCanvasElement>((resolve) => {
+            resolveFilter = resolve;
+          });
         }
         const output = document.createElement("canvas");
         output.width = filterInput.width;
@@ -107,7 +117,10 @@ describe("FilterProvider main-thread generation", () => {
       const later = vi.fn((input: HTMLCanvasElement | OffscreenCanvas) => input);
       const early: FilterDefinition = {
         name: "Deferred mutation target",
-        func: () => new Promise<HTMLCanvasElement>((resolve) => { resolveFirst = resolve; }),
+        func: () =>
+          new Promise<HTMLCanvasElement>((resolve) => {
+            resolveFirst = resolve;
+          }),
         options: { amount: 1 },
         defaults: { amount: 1 },
         optionTypes: { amount: { type: "RANGE", range: [0, 2], default: 1 } },
@@ -132,16 +145,19 @@ describe("FilterProvider main-thread generation", () => {
 
       await act(async () => {
         if (mutation === "remove") latest.actions.chainRemove(earlyId);
-        if (mutation === "replace") latest.actions.chainReplace(earlyId, "Grayscale", latest.grayscale);
+        if (mutation === "replace")
+          latest.actions.chainReplace(earlyId, "Grayscale", latest.grayscale);
         if (mutation === "reorder") latest.actions.chainReorder(0, 1);
         if (mutation === "import") {
-          latest.actions.importState(JSON.stringify({
-            v: 2,
-            chain: [{ n: "Grayscale" }],
-            g: false,
-            l: true,
-            w: true,
-          }));
+          latest.actions.importState(
+            JSON.stringify({
+              v: 2,
+              chain: [{ n: "Grayscale" }],
+              g: false,
+              l: true,
+              w: true,
+            }),
+          );
         }
         if (mutation === "options") latest.actions.setFilterOption("amount", 2, 0);
         resolveFirst?.(document.createElement("canvas"));

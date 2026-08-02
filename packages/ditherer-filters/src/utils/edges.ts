@@ -12,7 +12,11 @@ export const computeLuminance = (buf: Uint8ClampedArray, W: number, H: number): 
 };
 
 /** Sobel edge detection — returns magnitude and direction per pixel */
-export const sobelEdges = (lum: Float32Array, W: number, H: number): {
+export const sobelEdges = (
+  lum: Float32Array,
+  W: number,
+  H: number,
+): {
   magnitude: Float32Array;
   direction: Float32Array;
 } => {

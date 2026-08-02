@@ -30,15 +30,16 @@ const frame = {
 
 type Options = Parameters<typeof runLoopExport>[0];
 
-const makeVideo = (currentTime = 0) => ({
-  duration: 2,
-  currentTime,
-  currentSrc: "blob:source-video",
-  src: "",
-  pause: vi.fn(),
-  addEventListener: vi.fn(),
-  removeEventListener: vi.fn(),
-}) as unknown as HTMLVideoElement;
+const makeVideo = (currentTime = 0) =>
+  ({
+    duration: 2,
+    currentTime,
+    currentSrc: "blob:source-video",
+    src: "",
+    pause: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }) as unknown as HTMLVideoElement;
 
 const makeOptions = (overrides: Partial<Options> = {}): Options => ({
   mode: "gif",
@@ -99,9 +100,13 @@ beforeEach(() => {
     },
   });
   mocks.capturePlayback.mockResolvedValue({ capturedFrames: [frame], aborted: false });
-  mocks.finalizeGif.mockImplementation(async (options: { onEncoded?: (value: { normalizedFrameCount: number; encodeMs: number }) => void }) => {
-    options.onEncoded?.({ normalizedFrameCount: 1, encodeMs: 7 });
-  });
+  mocks.finalizeGif.mockImplementation(
+    async (options: {
+      onEncoded?: (value: { normalizedFrameCount: number; encodeMs: number }) => void;
+    }) => {
+      options.onEncoded?.({ normalizedFrameCount: 1, encodeMs: 7 });
+    },
+  );
   mocks.finalizeSequence.mockResolvedValue(undefined);
   mocks.finalizeContact.mockResolvedValue(undefined);
 });
@@ -113,7 +118,10 @@ afterEach(() => {
 
 describe("runLoopExport", () => {
   it("captures realtime GIF frames, applies the filter palette, and logs the completed profile", async () => {
-    const palette = [[0, 0, 0], [255, 255, 255]];
+    const palette = [
+      [0, 0, 0],
+      [255, 255, 255],
+    ];
     const options = makeOptions({
       gifPaletteSource: "filter",
       gifFilterPalette: palette,
@@ -124,23 +132,30 @@ describe("runLoopExport", () => {
     expect(options.video.pause).toHaveBeenCalledOnce();
     expect(options.clearGifResult).toHaveBeenCalledOnce();
     expect(mocks.captureOffline).not.toHaveBeenCalled();
-    expect(mocks.capturePlayback).toHaveBeenCalledWith(expect.objectContaining({
-      usePlaybackCapture: true,
-      captureFps: 12,
-      rangeStartSec: 0,
-      exportDurationSec: 2,
-    }));
-    expect(mocks.finalizeGif).toHaveBeenCalledWith(expect.objectContaining({
-      frames: [frame],
-      colorTable: palette,
-      aborted: false,
-    }));
-    expect(options.logGifExportProfile).toHaveBeenCalledWith("completed", expect.objectContaining({
-      path: "realtime-playback",
-      fps: 12,
-      normalizedFrames: 1,
-      encodeMs: 7,
-    }));
+    expect(mocks.capturePlayback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usePlaybackCapture: true,
+        captureFps: 12,
+        rangeStartSec: 0,
+        exportDurationSec: 2,
+      }),
+    );
+    expect(mocks.finalizeGif).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frames: [frame],
+        colorTable: palette,
+        aborted: false,
+      }),
+    );
+    expect(options.logGifExportProfile).toHaveBeenCalledWith(
+      "completed",
+      expect.objectContaining({
+        path: "realtime-playback",
+        fps: 12,
+        normalizedFrames: 1,
+        encodeMs: 7,
+      }),
+    );
     expect(options.clearProgress).toHaveBeenCalledOnce();
   });
 
@@ -167,15 +182,21 @@ describe("runLoopExport", () => {
     await runLoopExport(options);
 
     expect(options.clearSequenceResult).toHaveBeenCalledOnce();
-    expect(mocks.captureOffline).toHaveBeenCalledWith(expect.objectContaining({
-      mode: "sequence",
-      useWebCodecsCapture: false,
-      captureFps: 12,
-    }));
-    expect(mocks.capturePlayback).toHaveBeenCalledWith(expect.objectContaining({
-      usePlaybackCapture: false,
-    }));
-    expect(mocks.finalizeSequence).toHaveBeenCalledWith(expect.objectContaining({ frames: [frame] }));
+    expect(mocks.captureOffline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "sequence",
+        useWebCodecsCapture: false,
+        captureFps: 12,
+      }),
+    );
+    expect(mocks.capturePlayback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usePlaybackCapture: false,
+      }),
+    );
+    expect(mocks.finalizeSequence).toHaveBeenCalledWith(
+      expect.objectContaining({ frames: [frame] }),
+    );
     expect(mocks.finalizeGif).not.toHaveBeenCalled();
   });
 
@@ -213,15 +234,19 @@ describe("runLoopExport", () => {
 
     expect(options.clearContactSheetResult).toHaveBeenCalledOnce();
     expect(options.updateProgress).toHaveBeenCalledWith("Seeking start (0.50s)...", 0.04);
-    expect(mocks.captureOffline).toHaveBeenCalledWith(expect.objectContaining({
-      rangeStartSec: 0.5,
-      rangeEndSec: 1.5,
-      captureFps: 8,
-    }));
-    expect(mocks.finalizeContact).toHaveBeenCalledWith(expect.objectContaining({
-      frames: [frame],
-      columns: 4,
-    }));
+    expect(mocks.captureOffline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rangeStartSec: 0.5,
+        rangeEndSec: 1.5,
+        captureFps: 8,
+      }),
+    );
+    expect(mocks.finalizeContact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frames: [frame],
+        columns: 4,
+      }),
+    );
   });
 
   it("clears progress without finalizing when capture yields no frames", async () => {

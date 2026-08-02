@@ -65,7 +65,9 @@
   border: 1px solid var(--input-border);
   border-radius: 11px;
   background: linear-gradient(#ffffff, #e3e9f0 48%, #cfd8e2 52%, #eef3f9);
-  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.22);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 1px 2px rgba(0, 0, 0, 0.22);
   color: var(--button-text);
 }
 

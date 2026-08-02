@@ -27,24 +27,101 @@ void main(){
   vec3 rgb=mix(src.rgb,scatter,u_translucency)+vec3(1.0,0.38,0.18)*glow*0.18;
   fragColor=vec4(clamp(rgb,0.0,1.0),src.a);
 }`;
-export const optionTypes={
-  thickness:{type:RANGE,range:[0.1,4],step:0.1,default:1.5,desc:"Optical thickness inferred from dark source regions"},
-  radius:{type:RANGE,range:[1,80],step:1,default:24,desc:"Subsurface scattering distance in pixels"},
-  translucency:{type:RANGE,range:[0,1],step:0.05,default:0.72,desc:"Blend between source color and transmitted wax light"},
-  lightAngle:{type:RANGE,range:[0,360],step:1,default:35,desc:"Direction from which light enters the material"},
-  backlight:{type:RANGE,range:[0,3],step:0.05,default:1.1,desc:"Warm transmitted glow through thin edges"},
-  waxColor:{type:COLOR,default:[255,176,142],desc:"Scattering tint for wax, skin, jade, or resin"},
-  palette:{type:PALETTE,default:nearest,desc:"Optional output palette quantization"},
+export const optionTypes = {
+  thickness: {
+    type: RANGE,
+    range: [0.1, 4],
+    step: 0.1,
+    default: 1.5,
+    desc: "Optical thickness inferred from dark source regions",
+  },
+  radius: {
+    type: RANGE,
+    range: [1, 80],
+    step: 1,
+    default: 24,
+    desc: "Subsurface scattering distance in pixels",
+  },
+  translucency: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.72,
+    desc: "Blend between source color and transmitted wax light",
+  },
+  lightAngle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 35,
+    desc: "Direction from which light enters the material",
+  },
+  backlight: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 1.1,
+    desc: "Warm transmitted glow through thin edges",
+  },
+  waxColor: {
+    type: COLOR,
+    default: [255, 176, 142],
+    desc: "Scattering tint for wax, skin, jade, or resin",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
-export const defaults={thickness:optionTypes.thickness.default,radius:optionTypes.radius.default,translucency:optionTypes.translucency.default,
-  lightAngle:optionTypes.lightAngle.default,backlight:optionTypes.backlight.default,waxColor:optionTypes.waxColor.default,
-  palette:{...optionTypes.palette.default,options:{levels:256}}};
-const subsurfaceWax=(input:HTMLCanvasElement|OffscreenCanvas,options=defaults)=>{const W=input.width,H=input.height;
-  const rendered=renderGLSinglePass({source:input,width:W,height:H,key:"subsurfaceWax",fragmentShader:FS,
-    uniformNames:["u_thickness","u_radius","u_translucency","u_lightAngle","u_backlight","u_waxColor"],setUniforms:(gl,u)=>{
-      gl.uniform1f(u.u_thickness,options.thickness);gl.uniform1f(u.u_radius,options.radius);gl.uniform1f(u.u_translucency,options.translucency);
-      gl.uniform1f(u.u_lightAngle,options.lightAngle);gl.uniform1f(u.u_backlight,options.backlight);gl.uniform3f(u.u_waxColor,options.waxColor[0],options.waxColor[1],options.waxColor[2]);}});
-  if(!rendered)return input;const identity=paletteIsIdentity(options.palette);logFilterBackend("Subsurface Wax","WebGL2",`radius=${options.radius}${identity?"":"+palettePass"}`);
-  return identity?rendered:(applyPalettePassToCanvas(rendered,W,H,options.palette)??rendered);};
-export default defineFilter({name:"Subsurface Wax",func:subsurfaceWax,optionTypes,options:defaults,defaults,
-  description:"Diffuse light beneath the source surface like wax, skin, jade, or stained resin",requiresGL:true});
+export const defaults = {
+  thickness: optionTypes.thickness.default,
+  radius: optionTypes.radius.default,
+  translucency: optionTypes.translucency.default,
+  lightAngle: optionTypes.lightAngle.default,
+  backlight: optionTypes.backlight.default,
+  waxColor: optionTypes.waxColor.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
+};
+const subsurfaceWax = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
+  const W = input.width,
+    H = input.height;
+  const rendered = renderGLSinglePass({
+    source: input,
+    width: W,
+    height: H,
+    key: "subsurfaceWax",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_thickness",
+      "u_radius",
+      "u_translucency",
+      "u_lightAngle",
+      "u_backlight",
+      "u_waxColor",
+    ],
+    setUniforms: (gl, u) => {
+      gl.uniform1f(u.u_thickness, options.thickness);
+      gl.uniform1f(u.u_radius, options.radius);
+      gl.uniform1f(u.u_translucency, options.translucency);
+      gl.uniform1f(u.u_lightAngle, options.lightAngle);
+      gl.uniform1f(u.u_backlight, options.backlight);
+      gl.uniform3f(u.u_waxColor, options.waxColor[0], options.waxColor[1], options.waxColor[2]);
+    },
+  });
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(options.palette);
+  logFilterBackend(
+    "Subsurface Wax",
+    "WebGL2",
+    `radius=${options.radius}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+};
+export default defineFilter({
+  name: "Subsurface Wax",
+  func: subsurfaceWax,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Diffuse light beneath the source surface like wax, skin, jade, or stained resin",
+  requiresGL: true,
+});

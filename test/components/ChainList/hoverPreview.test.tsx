@@ -44,12 +44,14 @@ describe("ChainList hover preview", () => {
 
     const contextValue = {
       state: {
-        chain: [{
-          id: "entry-1",
-          displayName: "Test Filter",
-          enabled: true,
-          filter: { optionTypes: {}, defaults: {}, options: {} },
-        }],
+        chain: [
+          {
+            id: "entry-1",
+            displayName: "Test Filter",
+            enabled: true,
+            filter: { optionTypes: {}, defaults: {}, options: {} },
+          },
+        ],
         activeIndex: 0,
         stepTimes: [],
         inputCanvas: null,
@@ -69,23 +71,25 @@ describe("ChainList hover preview", () => {
         getIntermediatePreview: vi.fn(() => previewCanvas),
         isAnimating: vi.fn(() => false),
       },
-      filterList: [{
-        displayName: "Test Filter",
-        description: "preview text",
-        filter: { optionTypes: {}, defaults: {}, options: {} },
-      }],
+      filterList: [
+        {
+          displayName: "Test Filter",
+          description: "preview text",
+          filter: { optionTypes: {}, defaults: {}, options: {} },
+        },
+      ],
     };
 
     act(() => {
       root.render(
         <FilterContext.Provider value={contextValue}>
           <ChainList />
-        </FilterContext.Provider>
+        </FilterContext.Provider>,
       );
     });
 
     const row = Array.from(container.querySelectorAll('[role="option"]')).find((node) =>
-      node.textContent?.includes("Test Filter")
+      node.textContent?.includes("Test Filter"),
     );
 
     expect(row).toBeTruthy();

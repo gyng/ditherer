@@ -4,14 +4,29 @@ import { getShareHash, getShareUrl } from "context/shareUrl";
 
 describe("shareUrl", () => {
   it("omits the share hash for the default view state", () => {
-    const defaultJson = JSON.stringify({ selected: { name: "Floyd-Steinberg" }, convertGrayscale: false, linearize: true, wasmAcceleration: true });
+    const defaultJson = JSON.stringify({
+      selected: { name: "Floyd-Steinberg" },
+      convertGrayscale: false,
+      linearize: true,
+      wasmAcceleration: true,
+    });
 
     expect(getShareHash(defaultJson, defaultJson)).toBe("");
   });
 
   it("encodes a share hash for non-default state", () => {
-    const defaultJson = JSON.stringify({ selected: { name: "Floyd-Steinberg" }, convertGrayscale: false, linearize: true, wasmAcceleration: true });
-    const changedJson = JSON.stringify({ selected: { name: "Ordered" }, convertGrayscale: false, linearize: true, wasmAcceleration: true });
+    const defaultJson = JSON.stringify({
+      selected: { name: "Floyd-Steinberg" },
+      convertGrayscale: false,
+      linearize: true,
+      wasmAcceleration: true,
+    });
+    const changedJson = JSON.stringify({
+      selected: { name: "Ordered" },
+      convertGrayscale: false,
+      linearize: true,
+      wasmAcceleration: true,
+    });
 
     const hash = getShareHash(changedJson, defaultJson);
 

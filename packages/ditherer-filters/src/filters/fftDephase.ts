@@ -50,13 +50,19 @@ void main() {
 `;
 
 export const optionTypes = {
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 1, desc: "How strongly to zero the phase (0 = passthrough, 1 = full dephase → autocorrelation)" },
-  palette: { type: PALETTE, default: nearest }
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 1,
+    desc: "How strongly to zero the phase (0 = passthrough, 1 = full dephase → autocorrelation)",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   amount: optionTypes.amount.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { dephase: Program };
@@ -75,9 +81,9 @@ const fftDephase = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -91,13 +97,21 @@ const fftDephase = (input: any, options = defaults) => {
       if (fwd) {
         const modified = ensureFloatTex(gl, "fftDephase:modified", fwd.paddedW, fwd.paddedH);
         if (modified) {
-          drawPass(gl, modified, fwd.paddedW, fwd.paddedH, cache.dephase, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.dephase.uniforms.u_input, 0);
-            gl.uniform2f(cache.dephase.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-            gl.uniform1f(cache.dephase.uniforms.u_amount, amount);
-          }, vao);
+          drawPass(
+            gl,
+            modified,
+            fwd.paddedW,
+            fwd.paddedH,
+            cache.dephase,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.dephase.uniforms.u_input, 0);
+              gl.uniform2f(cache.dephase.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+              gl.uniform1f(cache.dephase.uniforms.u_amount, amount);
+            },
+            vao,
+          );
           const inv = inverseFFT2D(gl, modified, fwd.paddedW, fwd.paddedH, fwd.logW, fwd.logH);
           if (inv) {
             finaliseIFFT(gl, inv, sourceTex, W, H, fwd.paddedW, fwd.paddedH, W, H);
@@ -106,8 +120,11 @@ const fftDephase = (input: any, options = defaults) => {
               const identity = paletteIsIdentity(palette);
               const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Dephase", "WebGL2",
-                  `amount=${amount}${identity ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Dephase",
+                  "WebGL2",
+                  `amount=${amount}${identity ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -126,6 +143,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Zero the 2D FFT's phase, keep magnitude — the inverse transform becomes the image's autocorrelation (symmetric halo of its features)",
+  description:
+    "Zero the 2D FFT's phase, keep magnitude — the inverse transform becomes the image's autocorrelation (symmetric halo of its features)",
   noWASM: "Needs GPU 2D FFT.",
 });

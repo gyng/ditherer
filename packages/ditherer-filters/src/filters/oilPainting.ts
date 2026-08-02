@@ -16,15 +16,27 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [1, 12], step: 1, default: 4, desc: "Circular brush-neighborhood radius" },
-  levels: { type: RANGE, range: [4, 30], step: 1, default: 20, desc: "Luminance histogram bins used to select the local paint color" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  radius: {
+    type: RANGE,
+    range: [1, 12],
+    step: 1,
+    default: 4,
+    desc: "Circular brush-neighborhood radius",
+  },
+  levels: {
+    type: RANGE,
+    range: [4, 30],
+    step: 1,
+    default: 20,
+    desc: "Luminance histogram bins used to select the local paint color",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
   radius: optionTypes.radius.default,
   levels: optionTypes.levels.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Per-pixel luminance histogram over the neighborhood — each bin
@@ -110,9 +122,7 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    oil: linkProgram(gl, OIL_FS, [
-      "u_source", "u_res", "u_radius", "u_levels",
-    ] as const),
+    oil: linkProgram(gl, OIL_FS, ["u_source", "u_res", "u_radius", "u_levels"] as const),
   };
   return _cache;
 };
@@ -138,21 +148,32 @@ const oilPainting = (input: any, options: Partial<typeof defaults> = defaults) =
   const sourceTex = ensureTexture(gl, "oilPainting:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
 
-  drawPass(gl, null, W, H, cache.oil, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.oil.uniforms.u_source, 0);
-    gl.uniform2f(cache.oil.uniforms.u_res, W, H);
-    gl.uniform1i(cache.oil.uniforms.u_radius, radius);
-    gl.uniform1i(cache.oil.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.oil,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.oil.uniforms.u_source, 0);
+      gl.uniform2f(cache.oil.uniforms.u_res, W, H);
+      gl.uniform1i(cache.oil.uniforms.u_radius, radius);
+      gl.uniform1i(cache.oil.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("Oil Painting", "WebGL2",
-    `r=${radius} lvl=${levels}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Oil Painting",
+    "WebGL2",
+    `r=${radius} lvl=${levels}${identity ? "" : "+palettePass"}`,
+  );
   return out ?? input;
 };
 

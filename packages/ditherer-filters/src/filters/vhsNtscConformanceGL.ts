@@ -365,19 +365,80 @@ type Cache = {
 };
 let cache: Cache | null = null;
 
-const initCache = (gl: WebGL2RenderingContext): Cache => cache ??= {
-  encode: linkProgram(gl, ENCODE_YIQ_FS, ["u_source", "u_res", "u_sourceRes", "u_parity"]),
-  modulate: linkProgram(gl, MODULATE_FS, ["u_yiq", "u_res", "u_frame", "u_parity"]),
-  compositeEffects: linkProgram(gl, COMPOSITE_EFFECTS_FS, ["u_composite", "u_noise", "u_rows", "u_res", "u_sourceRes", "u_parity", "u_compositeNoise", "u_snow", "u_snowAnisotropy", "u_headSwitching", "u_headSwitchingHeight", "u_trackingNoise", "u_trackingHeight"]),
-  demodulate: linkProgram(gl, DEMODULATE_FS, ["u_composite", "u_notch", "u_res", "u_frame", "u_parity", "u_demodulation"]),
-  preTape: linkProgram(gl, PRE_TAPE_FS, ["u_yiq", "u_noise", "u_rows", "u_res", "u_lumaNoise", "u_chromaNoise", "u_chromaPhaseNoise", "u_chromaPhaseError", "u_edgeWave"]),
-  fir: linkProgram(gl, FIR_ACCUMULATE_FS, ["u_source", "u_accumulator", "u_res", "u_luma[0]", "u_i[0]", "u_q[0]", "u_offset", "u_first", "u_iAdvance", "u_qAdvance", "u_chromaDelayH", "u_chromaDelayV", "u_lumaZeroLeft", "u_iZeroLeft", "u_qZeroLeft"]),
-  lumaFir: linkProgram(gl, LUMA_FIR_FS, ["u_source", "u_res", "u_kernel[0]", "u_advance", "u_zeroLeft"]),
-  chromaLoss: linkProgram(gl, CHROMA_LOSS_FS, ["u_source", "u_rows", "u_res"]),
-  verticalBlend: linkProgram(gl, VERTICAL_BLEND_FS, ["u_source", "u_res", "u_enabled"]),
-  output: linkProgram(gl, OUTPUT_FS, ["u_source", "u_res"]),
-  weave: linkProgram(gl, WEAVE_FS, ["u_upper", "u_lower", "u_res", "u_upperHeight", "u_lowerHeight", "u_mode"]),
-};
+const initCache = (gl: WebGL2RenderingContext): Cache =>
+  (cache ??= {
+    encode: linkProgram(gl, ENCODE_YIQ_FS, ["u_source", "u_res", "u_sourceRes", "u_parity"]),
+    modulate: linkProgram(gl, MODULATE_FS, ["u_yiq", "u_res", "u_frame", "u_parity"]),
+    compositeEffects: linkProgram(gl, COMPOSITE_EFFECTS_FS, [
+      "u_composite",
+      "u_noise",
+      "u_rows",
+      "u_res",
+      "u_sourceRes",
+      "u_parity",
+      "u_compositeNoise",
+      "u_snow",
+      "u_snowAnisotropy",
+      "u_headSwitching",
+      "u_headSwitchingHeight",
+      "u_trackingNoise",
+      "u_trackingHeight",
+    ]),
+    demodulate: linkProgram(gl, DEMODULATE_FS, [
+      "u_composite",
+      "u_notch",
+      "u_res",
+      "u_frame",
+      "u_parity",
+      "u_demodulation",
+    ]),
+    preTape: linkProgram(gl, PRE_TAPE_FS, [
+      "u_yiq",
+      "u_noise",
+      "u_rows",
+      "u_res",
+      "u_lumaNoise",
+      "u_chromaNoise",
+      "u_chromaPhaseNoise",
+      "u_chromaPhaseError",
+      "u_edgeWave",
+    ]),
+    fir: linkProgram(gl, FIR_ACCUMULATE_FS, [
+      "u_source",
+      "u_accumulator",
+      "u_res",
+      "u_luma[0]",
+      "u_i[0]",
+      "u_q[0]",
+      "u_offset",
+      "u_first",
+      "u_iAdvance",
+      "u_qAdvance",
+      "u_chromaDelayH",
+      "u_chromaDelayV",
+      "u_lumaZeroLeft",
+      "u_iZeroLeft",
+      "u_qZeroLeft",
+    ]),
+    lumaFir: linkProgram(gl, LUMA_FIR_FS, [
+      "u_source",
+      "u_res",
+      "u_kernel[0]",
+      "u_advance",
+      "u_zeroLeft",
+    ]),
+    chromaLoss: linkProgram(gl, CHROMA_LOSS_FS, ["u_source", "u_rows", "u_res"]),
+    verticalBlend: linkProgram(gl, VERTICAL_BLEND_FS, ["u_source", "u_res", "u_enabled"]),
+    output: linkProgram(gl, OUTPUT_FS, ["u_source", "u_res"]),
+    weave: linkProgram(gl, WEAVE_FS, [
+      "u_upper",
+      "u_lower",
+      "u_res",
+      "u_upperHeight",
+      "u_lowerHeight",
+      "u_mode",
+    ]),
+  });
 
 const bindTexture = (gl: WebGL2RenderingContext, texture: WebGLTexture, unit: number): void => {
   gl.activeTexture(gl.TEXTURE0 + unit);
@@ -408,10 +469,16 @@ export const renderVHSNTSCConformanceGL = (
   lastFloatPath = false;
   lastFloatStatus = "starting";
   const context = getGLCtx();
-  if (!context) { lastFloatStatus = "no-webgl2"; return null; }
+  if (!context) {
+    lastFloatStatus = "no-webgl2";
+    return null;
+  }
   const { gl, canvas } = context;
   const probe = ensureFloatTexture(gl, "vhsNtscConformance:probe", 1, 1);
-  if (!probe) { lastFloatStatus = "rgba16f-unavailable"; return null; }
+  if (!probe) {
+    lastFloatStatus = "rgba16f-unavailable";
+    return null;
+  }
   const programs = initCache(gl);
   const vao = getQuadVAO(gl);
   resizeGLCanvas(canvas, width, height);
@@ -424,12 +491,14 @@ export const renderVHSNTSCConformanceGL = (
   const tapeSharpness = Number.isFinite(params.tapeSharpness) ? params.tapeSharpness : 0.25;
   const lumaKernel = makeLowpassKernel(profile.lumaCutoff, filterType);
   const chromaKernel = makeLowpassKernel(profile.chromaCutoff, filterType);
-  const restoration = tapeSpeed === "NONE"
-    ? makeLowpassKernel(0, filterType, 17)
-    : makeRestorationKernel(profile.lumaCutoff);
-  const sharpen = tapeSpeed === "NONE"
-    ? makeLowpassKernel(0, filterType, 17)
-    : makeSharpenKernel(profile.lumaCutoff, filterType, tapeSharpness);
+  const restoration =
+    tapeSpeed === "NONE"
+      ? makeLowpassKernel(0, filterType, 17)
+      : makeRestorationKernel(profile.lumaCutoff);
+  const sharpen =
+    tapeSpeed === "NONE"
+      ? makeLowpassKernel(0, filterType, 17)
+      : makeSharpenKernel(profile.lumaCutoff, filterType, tapeSharpness);
   const outputIKernel = makeLowpassKernel(1_300_000, filterType);
   const outputQKernel = makeLowpassKernel(600_000, filterType);
   const identityKernel = makeLowpassKernel(0, filterType);
@@ -442,7 +511,12 @@ export const renderVHSNTSCConformanceGL = (
   const demodulationNotch = makeNotchKernel(0.5, 2, 1, 65);
   const compositePreemphasis = makeCompositePreemphasisKernel(params.compositeSharpness);
 
-  const renderField = (parity: number, fieldFrame: number, fieldHeight: number, key: string): TexEntry | null => {
+  const renderField = (
+    parity: number,
+    fieldFrame: number,
+    fieldHeight: number,
+    key: string,
+  ): TexEntry | null => {
     const prefix = "vhsNtscConformance:";
     const composite = ensureFloatTexture(gl, `${prefix}composite`, width, fieldHeight);
     const yiq = ensureFloatTexture(gl, `${prefix}yiq`, width, fieldHeight);
@@ -461,169 +535,316 @@ export const renderVHSNTSCConformanceGL = (
     uploadFloatTexture(gl, noise, width, fieldHeight, noisePlane.data);
     uploadFloatTexture(gl, rows, 1, fieldHeight, rowPlane.data);
 
-    drawPass(gl, yiq, width, fieldHeight, programs.encode, () => {
-      bindTexture(gl, sourceTexture.tex, 0); gl.uniform1i(programs.encode.uniforms.u_source, 0);
-      gl.uniform2f(programs.encode.uniforms.u_res, width, fieldHeight);
-      gl.uniform2f(programs.encode.uniforms.u_sourceRes, width, height);
-      gl.uniform1i(programs.encode.uniforms.u_parity, parity);
-    }, vao);
+    drawPass(
+      gl,
+      yiq,
+      width,
+      fieldHeight,
+      programs.encode,
+      () => {
+        bindTexture(gl, sourceTexture.tex, 0);
+        gl.uniform1i(programs.encode.uniforms.u_source, 0);
+        gl.uniform2f(programs.encode.uniforms.u_res, width, fieldHeight);
+        gl.uniform2f(programs.encode.uniforms.u_sourceRes, width, height);
+        gl.uniform1i(programs.encode.uniforms.u_parity, parity);
+      },
+      vao,
+    );
 
     // Broadcast input chroma bandwidth: distinct I/Q cutoffs and advances.
     let inputAccumulator = ping;
     for (let offset = 0, pass = 0; offset < 65; offset += 17, pass++) {
       const target = pass % 2 === 0 ? ping : pong;
       const previous = pass % 2 === 0 ? pong : ping;
-      drawPass(gl, target, width, fieldHeight, programs.fir, () => {
-        bindTexture(gl, yiq.tex, 0); gl.uniform1i(programs.fir.uniforms.u_source, 0);
-        bindTexture(gl, previous.tex, 1); gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
-        gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
-        gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(demodulationNotch, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(outputIKernel, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(outputQKernel, offset));
-        gl.uniform1i(programs.fir.uniforms.u_offset, offset);
-        gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
-        gl.uniform1f(programs.fir.uniforms.u_iAdvance, 2);
-        gl.uniform1f(programs.fir.uniforms.u_qAdvance, 4);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, 0);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, 0);
-        gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 0);
-        gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
-        gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
-      }, vao);
+      drawPass(
+        gl,
+        target,
+        width,
+        fieldHeight,
+        programs.fir,
+        () => {
+          bindTexture(gl, yiq.tex, 0);
+          gl.uniform1i(programs.fir.uniforms.u_source, 0);
+          bindTexture(gl, previous.tex, 1);
+          gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
+          gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
+          gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(demodulationNotch, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(outputIKernel, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(outputQKernel, offset));
+          gl.uniform1i(programs.fir.uniforms.u_offset, offset);
+          gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
+          gl.uniform1f(programs.fir.uniforms.u_iAdvance, 2);
+          gl.uniform1f(programs.fir.uniforms.u_qAdvance, 4);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, 0);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, 0);
+          gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 0);
+          gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
+          gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
+        },
+        vao,
+      );
       inputAccumulator = target;
     }
-    drawPass(gl, composite, width, fieldHeight, programs.modulate, () => {
-      bindTexture(gl, inputAccumulator.tex, 0); gl.uniform1i(programs.modulate.uniforms.u_yiq, 0);
-      gl.uniform2f(programs.modulate.uniforms.u_res, width, fieldHeight);
-      gl.uniform1f(programs.modulate.uniforms.u_frame, fieldFrame);
-      gl.uniform1i(programs.modulate.uniforms.u_parity, parity);
-    }, vao);
-    drawPass(gl, preTape, width, fieldHeight, programs.lumaFir, () => {
-      bindTexture(gl, composite.tex, 0); gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
-      gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
-      gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], compositePreemphasis);
-      gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
-      gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
-    }, vao);
-    drawPass(gl, yiq, width, fieldHeight, programs.compositeEffects, () => {
-      bindTexture(gl, preTape.tex, 0); gl.uniform1i(programs.compositeEffects.uniforms.u_composite, 0);
-      bindTexture(gl, noise.tex, 1); gl.uniform1i(programs.compositeEffects.uniforms.u_noise, 1);
-      bindTexture(gl, rows.tex, 2); gl.uniform1i(programs.compositeEffects.uniforms.u_rows, 2);
-      gl.uniform2f(programs.compositeEffects.uniforms.u_res, width, fieldHeight);
-      gl.uniform2f(programs.compositeEffects.uniforms.u_sourceRes, width, height);
-      gl.uniform1i(programs.compositeEffects.uniforms.u_parity, parity);
-      gl.uniform1f(programs.compositeEffects.uniforms.u_compositeNoise, params.compositeNoise);
-      gl.uniform1f(programs.compositeEffects.uniforms.u_snow, params.snow);
-      gl.uniform1f(programs.compositeEffects.uniforms.u_snowAnisotropy, params.snowAnisotropy);
-      gl.uniform1f(programs.compositeEffects.uniforms.u_headSwitching, params.headSwitching);
-      gl.uniform1f(programs.compositeEffects.uniforms.u_headSwitchingHeight, params.headSwitchingHeight);
-      gl.uniform1f(programs.compositeEffects.uniforms.u_trackingNoise, params.trackingNoise);
-      gl.uniform1f(programs.compositeEffects.uniforms.u_trackingHeight, params.trackingHeight);
-    }, vao);
+    drawPass(
+      gl,
+      composite,
+      width,
+      fieldHeight,
+      programs.modulate,
+      () => {
+        bindTexture(gl, inputAccumulator.tex, 0);
+        gl.uniform1i(programs.modulate.uniforms.u_yiq, 0);
+        gl.uniform2f(programs.modulate.uniforms.u_res, width, fieldHeight);
+        gl.uniform1f(programs.modulate.uniforms.u_frame, fieldFrame);
+        gl.uniform1i(programs.modulate.uniforms.u_parity, parity);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      preTape,
+      width,
+      fieldHeight,
+      programs.lumaFir,
+      () => {
+        bindTexture(gl, composite.tex, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
+        gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
+        gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], compositePreemphasis);
+        gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      yiq,
+      width,
+      fieldHeight,
+      programs.compositeEffects,
+      () => {
+        bindTexture(gl, preTape.tex, 0);
+        gl.uniform1i(programs.compositeEffects.uniforms.u_composite, 0);
+        bindTexture(gl, noise.tex, 1);
+        gl.uniform1i(programs.compositeEffects.uniforms.u_noise, 1);
+        bindTexture(gl, rows.tex, 2);
+        gl.uniform1i(programs.compositeEffects.uniforms.u_rows, 2);
+        gl.uniform2f(programs.compositeEffects.uniforms.u_res, width, fieldHeight);
+        gl.uniform2f(programs.compositeEffects.uniforms.u_sourceRes, width, height);
+        gl.uniform1i(programs.compositeEffects.uniforms.u_parity, parity);
+        gl.uniform1f(programs.compositeEffects.uniforms.u_compositeNoise, params.compositeNoise);
+        gl.uniform1f(programs.compositeEffects.uniforms.u_snow, params.snow);
+        gl.uniform1f(programs.compositeEffects.uniforms.u_snowAnisotropy, params.snowAnisotropy);
+        gl.uniform1f(programs.compositeEffects.uniforms.u_headSwitching, params.headSwitching);
+        gl.uniform1f(
+          programs.compositeEffects.uniforms.u_headSwitchingHeight,
+          params.headSwitchingHeight,
+        );
+        gl.uniform1f(programs.compositeEffects.uniforms.u_trackingNoise, params.trackingNoise);
+        gl.uniform1f(programs.compositeEffects.uniforms.u_trackingHeight, params.trackingHeight);
+      },
+      vao,
+    );
     let notchAccumulator = ping;
     for (let offset = 0, pass = 0; offset < 65; offset += 17, pass++) {
       const target = pass % 2 === 0 ? ping : pong;
       const previous = pass % 2 === 0 ? pong : ping;
-      drawPass(gl, target, width, fieldHeight, programs.fir, () => {
-        bindTexture(gl, yiq.tex, 0); gl.uniform1i(programs.fir.uniforms.u_source, 0);
-        bindTexture(gl, previous.tex, 1); gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
-        gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
-        gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(demodulationNotch, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(identityKernel, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(identityKernel, offset));
-        gl.uniform1i(programs.fir.uniforms.u_offset, offset);
-        gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
-        gl.uniform1f(programs.fir.uniforms.u_iAdvance, 0);
-        gl.uniform1f(programs.fir.uniforms.u_qAdvance, 0);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, 0);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, 0);
-        gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 1);
-        gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
-        gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
-      }, vao);
+      drawPass(
+        gl,
+        target,
+        width,
+        fieldHeight,
+        programs.fir,
+        () => {
+          bindTexture(gl, yiq.tex, 0);
+          gl.uniform1i(programs.fir.uniforms.u_source, 0);
+          bindTexture(gl, previous.tex, 1);
+          gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
+          gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
+          gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(demodulationNotch, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(identityKernel, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(identityKernel, offset));
+          gl.uniform1i(programs.fir.uniforms.u_offset, offset);
+          gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
+          gl.uniform1f(programs.fir.uniforms.u_iAdvance, 0);
+          gl.uniform1f(programs.fir.uniforms.u_qAdvance, 0);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, 0);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, 0);
+          gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 1);
+          gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
+          gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
+        },
+        vao,
+      );
       notchAccumulator = target;
     }
-    drawPass(gl, composite, width, fieldHeight, programs.demodulate, () => {
-      bindTexture(gl, yiq.tex, 0); gl.uniform1i(programs.demodulate.uniforms.u_composite, 0);
-      bindTexture(gl, notchAccumulator.tex, 1); gl.uniform1i(programs.demodulate.uniforms.u_notch, 1);
-      gl.uniform2f(programs.demodulate.uniforms.u_res, width, fieldHeight);
-      gl.uniform1f(programs.demodulate.uniforms.u_frame, fieldFrame);
-      gl.uniform1i(programs.demodulate.uniforms.u_parity, parity);
-      gl.uniform1i(programs.demodulate.uniforms.u_demodulation, params.demodulation);
-    }, vao);
-    drawPass(gl, yiq, width, fieldHeight, programs.lumaFir, () => {
-      bindTexture(gl, composite.tex, 0); gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
-      gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
-      gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], smearKernel);
-      gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
-      gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
-    }, vao);
-    drawPass(gl, composite, width, fieldHeight, programs.lumaFir, () => {
-      bindTexture(gl, yiq.tex, 0); gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
-      gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
-      gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], ringingKernel);
-      gl.uniform1f(programs.lumaFir.uniforms.u_advance, 1);
-      gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 0);
-    }, vao);
-    drawPass(gl, preTape, width, fieldHeight, programs.preTape, () => {
-      bindTexture(gl, composite.tex, 0); gl.uniform1i(programs.preTape.uniforms.u_yiq, 0);
-      bindTexture(gl, noise.tex, 1); gl.uniform1i(programs.preTape.uniforms.u_noise, 1);
-      bindTexture(gl, rows.tex, 2); gl.uniform1i(programs.preTape.uniforms.u_rows, 2);
-      gl.uniform2f(programs.preTape.uniforms.u_res, width, fieldHeight);
-      gl.uniform1f(programs.preTape.uniforms.u_lumaNoise, params.lumaNoise);
-      gl.uniform1f(programs.preTape.uniforms.u_chromaNoise, params.chromaNoise);
-      gl.uniform1f(programs.preTape.uniforms.u_chromaPhaseNoise, params.chromaPhaseNoise);
-      gl.uniform1f(programs.preTape.uniforms.u_chromaPhaseError, params.chromaPhaseError);
-      gl.uniform1f(programs.preTape.uniforms.u_edgeWave, params.edgeWave);
-    }, vao);
+    drawPass(
+      gl,
+      composite,
+      width,
+      fieldHeight,
+      programs.demodulate,
+      () => {
+        bindTexture(gl, yiq.tex, 0);
+        gl.uniform1i(programs.demodulate.uniforms.u_composite, 0);
+        bindTexture(gl, notchAccumulator.tex, 1);
+        gl.uniform1i(programs.demodulate.uniforms.u_notch, 1);
+        gl.uniform2f(programs.demodulate.uniforms.u_res, width, fieldHeight);
+        gl.uniform1f(programs.demodulate.uniforms.u_frame, fieldFrame);
+        gl.uniform1i(programs.demodulate.uniforms.u_parity, parity);
+        gl.uniform1i(programs.demodulate.uniforms.u_demodulation, params.demodulation);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      yiq,
+      width,
+      fieldHeight,
+      programs.lumaFir,
+      () => {
+        bindTexture(gl, composite.tex, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
+        gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
+        gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], smearKernel);
+        gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      composite,
+      width,
+      fieldHeight,
+      programs.lumaFir,
+      () => {
+        bindTexture(gl, yiq.tex, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
+        gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
+        gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], ringingKernel);
+        gl.uniform1f(programs.lumaFir.uniforms.u_advance, 1);
+        gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 0);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      preTape,
+      width,
+      fieldHeight,
+      programs.preTape,
+      () => {
+        bindTexture(gl, composite.tex, 0);
+        gl.uniform1i(programs.preTape.uniforms.u_yiq, 0);
+        bindTexture(gl, noise.tex, 1);
+        gl.uniform1i(programs.preTape.uniforms.u_noise, 1);
+        bindTexture(gl, rows.tex, 2);
+        gl.uniform1i(programs.preTape.uniforms.u_rows, 2);
+        gl.uniform2f(programs.preTape.uniforms.u_res, width, fieldHeight);
+        gl.uniform1f(programs.preTape.uniforms.u_lumaNoise, params.lumaNoise);
+        gl.uniform1f(programs.preTape.uniforms.u_chromaNoise, params.chromaNoise);
+        gl.uniform1f(programs.preTape.uniforms.u_chromaPhaseNoise, params.chromaPhaseNoise);
+        gl.uniform1f(programs.preTape.uniforms.u_chromaPhaseError, params.chromaPhaseError);
+        gl.uniform1f(programs.preTape.uniforms.u_edgeWave, params.edgeWave);
+      },
+      vao,
+    );
 
     let accumulator = ping;
     for (let offset = 0, pass = 0; offset < 65; offset += 17, pass++) {
       const target = pass % 2 === 0 ? ping : pong;
       const previous = pass % 2 === 0 ? pong : ping;
-      drawPass(gl, target, width, fieldHeight, programs.fir, () => {
-        bindTexture(gl, preTape.tex, 0); gl.uniform1i(programs.fir.uniforms.u_source, 0);
-        bindTexture(gl, previous.tex, 1); gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
-        gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
-        gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(lumaKernel, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(chromaKernel, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(chromaKernel, offset));
-        gl.uniform1i(programs.fir.uniforms.u_offset, offset);
-        gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
-        gl.uniform1f(programs.fir.uniforms.u_iAdvance, profile.chromaDelay);
-        gl.uniform1f(programs.fir.uniforms.u_qAdvance, profile.chromaDelay);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, params.chromaDelayH);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, params.chromaDelayV);
-        gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 1);
-        gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
-        gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
-      }, vao);
+      drawPass(
+        gl,
+        target,
+        width,
+        fieldHeight,
+        programs.fir,
+        () => {
+          bindTexture(gl, preTape.tex, 0);
+          gl.uniform1i(programs.fir.uniforms.u_source, 0);
+          bindTexture(gl, previous.tex, 1);
+          gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
+          gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
+          gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(lumaKernel, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(chromaKernel, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(chromaKernel, offset));
+          gl.uniform1i(programs.fir.uniforms.u_offset, offset);
+          gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
+          gl.uniform1f(programs.fir.uniforms.u_iAdvance, profile.chromaDelay);
+          gl.uniform1f(programs.fir.uniforms.u_qAdvance, profile.chromaDelay);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, params.chromaDelayH);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, params.chromaDelayV);
+          gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 1);
+          gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
+          gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
+        },
+        vao,
+      );
       accumulator = target;
     }
-    drawPass(gl, yiq, width, fieldHeight, programs.lumaFir, () => {
-      bindTexture(gl, accumulator.tex, 0); gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
-      gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
-      gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], restoration);
-      gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
-      gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
-    }, vao);
-    drawPass(gl, preTape, width, fieldHeight, programs.chromaLoss, () => {
-      bindTexture(gl, yiq.tex, 0); gl.uniform1i(programs.chromaLoss.uniforms.u_source, 0);
-      bindTexture(gl, rows.tex, 1); gl.uniform1i(programs.chromaLoss.uniforms.u_rows, 1);
-      gl.uniform2f(programs.chromaLoss.uniforms.u_res, width, fieldHeight);
-    }, vao);
-    drawPass(gl, yiq, width, fieldHeight, programs.lumaFir, () => {
-      bindTexture(gl, preTape.tex, 0); gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
-      gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
-      gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], sharpen);
-      gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
-      gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
-    }, vao);
-    drawPass(gl, preTape, width, fieldHeight, programs.verticalBlend, () => {
-      bindTexture(gl, yiq.tex, 0); gl.uniform1i(programs.verticalBlend.uniforms.u_source, 0);
-      gl.uniform2f(programs.verticalBlend.uniforms.u_res, width, fieldHeight);
-      gl.uniform1i(programs.verticalBlend.uniforms.u_enabled, params.chromaVertBlend ? 1 : 0);
-    }, vao);
+    drawPass(
+      gl,
+      yiq,
+      width,
+      fieldHeight,
+      programs.lumaFir,
+      () => {
+        bindTexture(gl, accumulator.tex, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
+        gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
+        gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], restoration);
+        gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      preTape,
+      width,
+      fieldHeight,
+      programs.chromaLoss,
+      () => {
+        bindTexture(gl, yiq.tex, 0);
+        gl.uniform1i(programs.chromaLoss.uniforms.u_source, 0);
+        bindTexture(gl, rows.tex, 1);
+        gl.uniform1i(programs.chromaLoss.uniforms.u_rows, 1);
+        gl.uniform2f(programs.chromaLoss.uniforms.u_res, width, fieldHeight);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      yiq,
+      width,
+      fieldHeight,
+      programs.lumaFir,
+      () => {
+        bindTexture(gl, preTape.tex, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_source, 0);
+        gl.uniform2f(programs.lumaFir.uniforms.u_res, width, fieldHeight);
+        gl.uniform1fv(programs.lumaFir.uniforms["u_kernel[0]"], sharpen);
+        gl.uniform1f(programs.lumaFir.uniforms.u_advance, 0);
+        gl.uniform1i(programs.lumaFir.uniforms.u_zeroLeft, 1);
+      },
+      vao,
+    );
+    drawPass(
+      gl,
+      preTape,
+      width,
+      fieldHeight,
+      programs.verticalBlend,
+      () => {
+        bindTexture(gl, yiq.tex, 0);
+        gl.uniform1i(programs.verticalBlend.uniforms.u_source, 0);
+        gl.uniform2f(programs.verticalBlend.uniforms.u_res, width, fieldHeight);
+        gl.uniform1i(programs.verticalBlend.uniforms.u_enabled, params.chromaVertBlend ? 1 : 0);
+      },
+      vao,
+    );
     // ntsc-rs applies the configured output chroma low-pass after vertical
     // blend. This four-chunk accumulation reproduces the distinct 1.3/0.6 MHz
     // I/Q filters and their two/four-sample advances.
@@ -631,43 +852,72 @@ export const renderVHSNTSCConformanceGL = (
     for (let offset = 0, pass = 0; offset < 65; offset += 17, pass++) {
       const target = pass % 2 === 0 ? ping : pong;
       const previous = pass % 2 === 0 ? pong : ping;
-      drawPass(gl, target, width, fieldHeight, programs.fir, () => {
-        bindTexture(gl, preTape.tex, 0); gl.uniform1i(programs.fir.uniforms.u_source, 0);
-        bindTexture(gl, previous.tex, 1); gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
-        gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
-        gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(identityKernel, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(outputIKernel, offset));
-        gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(outputQKernel, offset));
-        gl.uniform1i(programs.fir.uniforms.u_offset, offset);
-        gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
-        gl.uniform1f(programs.fir.uniforms.u_iAdvance, 2);
-        gl.uniform1f(programs.fir.uniforms.u_qAdvance, 4);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, 0);
-        gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, 0);
-        gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 1);
-        gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
-        gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
-      }, vao);
+      drawPass(
+        gl,
+        target,
+        width,
+        fieldHeight,
+        programs.fir,
+        () => {
+          bindTexture(gl, preTape.tex, 0);
+          gl.uniform1i(programs.fir.uniforms.u_source, 0);
+          bindTexture(gl, previous.tex, 1);
+          gl.uniform1i(programs.fir.uniforms.u_accumulator, 1);
+          gl.uniform2f(programs.fir.uniforms.u_res, width, fieldHeight);
+          gl.uniform1fv(programs.fir.uniforms["u_luma[0]"], paddedChunk(identityKernel, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_i[0]"], paddedChunk(outputIKernel, offset));
+          gl.uniform1fv(programs.fir.uniforms["u_q[0]"], paddedChunk(outputQKernel, offset));
+          gl.uniform1i(programs.fir.uniforms.u_offset, offset);
+          gl.uniform1i(programs.fir.uniforms.u_first, pass === 0 ? 1 : 0);
+          gl.uniform1f(programs.fir.uniforms.u_iAdvance, 2);
+          gl.uniform1f(programs.fir.uniforms.u_qAdvance, 4);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayH, 0);
+          gl.uniform1f(programs.fir.uniforms.u_chromaDelayV, 0);
+          gl.uniform1i(programs.fir.uniforms.u_lumaZeroLeft, 1);
+          gl.uniform1i(programs.fir.uniforms.u_iZeroLeft, 1);
+          gl.uniform1i(programs.fir.uniforms.u_qZeroLeft, 1);
+        },
+        vao,
+      );
       outputAccumulator = target;
     }
-    drawPass(gl, final, width, fieldHeight, programs.output, () => {
-      bindTexture(gl, outputAccumulator.tex, 0); gl.uniform1i(programs.output.uniforms.u_source, 0);
-      gl.uniform2f(programs.output.uniforms.u_res, width, fieldHeight);
-    }, vao);
+    drawPass(
+      gl,
+      final,
+      width,
+      fieldHeight,
+      programs.output,
+      () => {
+        bindTexture(gl, outputAccumulator.tex, 0);
+        gl.uniform1i(programs.output.uniforms.u_source, 0);
+        gl.uniform2f(programs.output.uniforms.u_res, width, fieldHeight);
+      },
+      vao,
+    );
     return final;
   };
 
   if (params.fieldMode === 1) {
     const progressive = renderField(-1, params.frame, height, "progressive");
     if (!progressive) return null;
-    drawPass(gl, null, width, height, programs.weave, () => {
-      bindTexture(gl, progressive.tex, 0); gl.uniform1i(programs.weave.uniforms.u_upper, 0);
-      bindTexture(gl, progressive.tex, 1); gl.uniform1i(programs.weave.uniforms.u_lower, 1);
-      gl.uniform2f(programs.weave.uniforms.u_res, width, height);
-      gl.uniform1f(programs.weave.uniforms.u_upperHeight, height);
-      gl.uniform1f(programs.weave.uniforms.u_lowerHeight, height);
-      gl.uniform1i(programs.weave.uniforms.u_mode, 4);
-    }, vao);
+    drawPass(
+      gl,
+      null,
+      width,
+      height,
+      programs.weave,
+      () => {
+        bindTexture(gl, progressive.tex, 0);
+        gl.uniform1i(programs.weave.uniforms.u_upper, 0);
+        bindTexture(gl, progressive.tex, 1);
+        gl.uniform1i(programs.weave.uniforms.u_lower, 1);
+        gl.uniform2f(programs.weave.uniforms.u_res, width, height);
+        gl.uniform1f(programs.weave.uniforms.u_upperHeight, height);
+        gl.uniform1f(programs.weave.uniforms.u_lowerHeight, height);
+        gl.uniform1i(programs.weave.uniforms.u_mode, 4);
+      },
+      vao,
+    );
   } else {
     const upperHeight = Math.ceil(height / 2);
     const lowerHeight = Math.max(1, Math.floor(height / 2));
@@ -676,14 +926,24 @@ export const renderVHSNTSCConformanceGL = (
     const upper = renderField(0, upperFrame, upperHeight, "upper");
     const lower = renderField(1, lowerFrame, lowerHeight, "lower");
     if (!upper || !lower) return null;
-    drawPass(gl, null, width, height, programs.weave, () => {
-      bindTexture(gl, upper.tex, 0); gl.uniform1i(programs.weave.uniforms.u_upper, 0);
-      bindTexture(gl, lower.tex, 1); gl.uniform1i(programs.weave.uniforms.u_lower, 1);
-      gl.uniform2f(programs.weave.uniforms.u_res, width, height);
-      gl.uniform1f(programs.weave.uniforms.u_upperHeight, upperHeight);
-      gl.uniform1f(programs.weave.uniforms.u_lowerHeight, lowerHeight);
-      gl.uniform1i(programs.weave.uniforms.u_mode, params.fieldMode);
-    }, vao);
+    drawPass(
+      gl,
+      null,
+      width,
+      height,
+      programs.weave,
+      () => {
+        bindTexture(gl, upper.tex, 0);
+        gl.uniform1i(programs.weave.uniforms.u_upper, 0);
+        bindTexture(gl, lower.tex, 1);
+        gl.uniform1i(programs.weave.uniforms.u_lower, 1);
+        gl.uniform2f(programs.weave.uniforms.u_res, width, height);
+        gl.uniform1f(programs.weave.uniforms.u_upperHeight, upperHeight);
+        gl.uniform1f(programs.weave.uniforms.u_lowerHeight, lowerHeight);
+        gl.uniform1i(programs.weave.uniforms.u_mode, params.fieldMode);
+      },
+      vao,
+    );
   }
   const output = readoutToCanvas(canvas, width, height);
   lastFloatPath = true;

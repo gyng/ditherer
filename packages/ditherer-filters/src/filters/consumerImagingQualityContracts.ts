@@ -1,8 +1,6 @@
-const finite = (value: number, fallback = 0): number =>
-  Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 
-const clamp01 = (value: number): number =>
-  Math.max(0, Math.min(1, finite(value)));
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, finite(value)));
 
 /** Map normalized luminance into the 16 optical states of a GC16 waveform. */
 export const einkReflectanceLevel = (
@@ -37,7 +35,7 @@ export const vintageTvRasterGain = (
   const lines = Math.max(1, finite(sourceLines, 240));
   const amount = clamp01(strength);
   const phase = ((finite(pixelY) + 0.5) / height) * lines;
-  const distance = Math.abs((phase - Math.floor(phase)) - 0.5);
+  const distance = Math.abs(phase - Math.floor(phase) - 0.5);
   const beam = Math.exp(-0.5 * (distance / 0.22) ** 2);
   return 1 - amount * (1 - beam);
 };

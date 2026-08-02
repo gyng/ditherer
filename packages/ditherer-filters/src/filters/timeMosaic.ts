@@ -2,7 +2,12 @@ import { RANGE, ENUM, ACTION } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { cloneCanvas, getBufferIndex } from "../utils/index";
 
-const PATTERN = { RANDOM: "RANDOM", CHECKERBOARD: "CHECKERBOARD", RADIAL: "RADIAL", GRADIENT: "GRADIENT" };
+const PATTERN = {
+  RANDOM: "RANDOM",
+  CHECKERBOARD: "CHECKERBOARD",
+  RADIAL: "RADIAL",
+  GRADIENT: "GRADIENT",
+};
 const BEHAVIOR = { DELAY_MAP: "DELAY_MAP", STABILIZER: "STABILIZER" };
 
 // Module-level ring buffer of full frames
@@ -19,7 +24,12 @@ let stabilizerTileSize = 0;
 let stabilizerBehavior = "";
 let lastFrameIndex = -1;
 
-const resetStabilizerState = (width: number, height: number, tileSize: number, behavior: string) => {
+const resetStabilizerState = (
+  width: number,
+  height: number,
+  tileSize: number,
+  behavior: string,
+) => {
   stabilizerFrame = null;
   stabilizerBlocksX = Math.ceil(width / tileSize);
   stabilizerBlocksY = Math.ceil(height / tileSize);
@@ -38,8 +48,20 @@ export const optionTypes = {
     default: BEHAVIOR.DELAY_MAP,
     desc: "Use a fixed per-tile delay map or hold tiles until motion forces them to refresh",
   },
-  tileSize: { type: RANGE, range: [8, 64], step: 4, default: 24, desc: "Tile dimensions in pixels" },
-  maxDelay: { type: RANGE, range: [2, 30], step: 1, default: 10, desc: "Maximum frame delay for any tile" },
+  tileSize: {
+    type: RANGE,
+    range: [8, 64],
+    step: 4,
+    default: 24,
+    desc: "Tile dimensions in pixels",
+  },
+  maxDelay: {
+    type: RANGE,
+    range: [2, 30],
+    step: 1,
+    default: 10,
+    desc: "Maximum frame delay for any tile",
+  },
   pattern: {
     type: ENUM,
     options: [
@@ -50,7 +72,8 @@ export const optionTypes = {
     ],
     default: PATTERN.RANDOM,
     desc: "How delays are distributed across tiles",
-    visibleWhen: (options: TimeMosaicOptions) => (options.behavior || BEHAVIOR.DELAY_MAP) === BEHAVIOR.DELAY_MAP,
+    visibleWhen: (options: TimeMosaicOptions) =>
+      (options.behavior || BEHAVIOR.DELAY_MAP) === BEHAVIOR.DELAY_MAP,
   },
   motionThreshold: {
     type: RANGE,
@@ -69,9 +92,17 @@ export const optionTypes = {
     visibleWhen: (options: TimeMosaicOptions) => options.behavior === BEHAVIOR.STABILIZER,
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -119,7 +150,8 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const restartedAnimation = frameIndex === 0 && lastFrameIndex > 0;
   lastFrameIndex = frameIndex;
@@ -141,7 +173,9 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
       ringH = H;
     }
 
-    const outBuf = stabilizerFrame ? new Uint8ClampedArray(stabilizerFrame) : new Uint8ClampedArray(buf);
+    const outBuf = stabilizerFrame
+      ? new Uint8ClampedArray(stabilizerFrame)
+      : new Uint8ClampedArray(buf);
     const blocksX = Math.ceil(W / tileSize);
     const blocksY = Math.ceil(H / tileSize);
 
@@ -159,18 +193,21 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
           for (let y = startY; y < endY; y++) {
             for (let x = startX; x < endX; x++) {
               const i = getBufferIndex(x, y, W);
-              motion += (
-                Math.abs(buf[i] - prevInput[i]) +
-                Math.abs(buf[i + 1] - prevInput[i + 1]) +
-                Math.abs(buf[i + 2] - prevInput[i + 2])
-              ) / 3;
+              motion +=
+                (Math.abs(buf[i] - prevInput[i]) +
+                  Math.abs(buf[i + 1] - prevInput[i + 1]) +
+                  Math.abs(buf[i + 2] - prevInput[i + 2])) /
+                3;
               samples++;
             }
           }
         }
 
         const avgMotion = samples > 0 ? motion / samples : 255;
-        const shouldRefresh = !stabilizerFrame || avgMotion > motionThreshold || stabilizerAges![blockIndex] >= holdFrames;
+        const shouldRefresh =
+          !stabilizerFrame ||
+          avgMotion > motionThreshold ||
+          stabilizerAges![blockIndex] >= holdFrames;
 
         if (shouldRefresh) {
           for (let y = startY; y < endY; y++) {
@@ -210,14 +247,15 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
   const outBuf = new Uint8ClampedArray(buf.length);
   const blocksX = Math.ceil(W / tileSize);
   const blocksY = Math.ceil(H / tileSize);
-  const cx = blocksX / 2, cy = blocksY / 2;
+  const cx = blocksX / 2,
+    cy = blocksY / 2;
   const maxDist = Math.sqrt(cx * cx + cy * cy);
 
   for (let by = 0; by < blocksY; by++) {
     for (let bx = 0; bx < blocksX; bx++) {
       let delay: number;
       if (pattern === PATTERN.CHECKERBOARD) {
-        delay = ((bx + by) % 2 === 0) ? 0 : maxDelay - 1;
+        delay = (bx + by) % 2 === 0 ? 0 : maxDelay - 1;
       } else if (pattern === PATTERN.RADIAL) {
         const dist = Math.sqrt((bx - cx) ** 2 + (by - cy) ** 2) / maxDist;
         delay = Math.floor(dist * (maxDelay - 1));
@@ -228,18 +266,21 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
       }
       delay = Math.min(delay, filled - 1);
 
-      const frameData = ringBuf[((ringHead - 1 - delay) % maxDelay + maxDelay) % maxDelay];
+      const frameData = ringBuf[(((ringHead - 1 - delay) % maxDelay) + maxDelay) % maxDelay];
       if (!frameData) continue;
 
-      const startX = bx * tileSize, startY = by * tileSize;
+      const startX = bx * tileSize,
+        startY = by * tileSize;
       const endX = Math.min(startX + tileSize, W);
       const endY = Math.min(startY + tileSize, H);
 
       for (let y = startY; y < endY; y++) {
         for (let x = startX; x < endX; x++) {
           const i = getBufferIndex(x, y, W);
-          outBuf[i] = frameData[i]; outBuf[i + 1] = frameData[i + 1];
-          outBuf[i + 2] = frameData[i + 2]; outBuf[i + 3] = frameData[i + 3];
+          outBuf[i] = frameData[i];
+          outBuf[i + 1] = frameData[i + 1];
+          outBuf[i + 2] = frameData[i + 2];
+          outBuf[i + 3] = frameData[i + 3];
         }
       }
     }
@@ -255,7 +296,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views",
+  description:
+    "Use either fixed per-tile delays or motion-triggered tile holds for staggered, patchwork temporal views",
   temporal: true,
   noGL: "DELAY_MAP behavior is GL-portable (per-tile delay → sampler2DArray) but STABILIZER needs per-tile motion accumulators + age counters that would require a second small render target keyed by tile. Move once the stabilizer is split out or the tile-state pass lands.",
 });

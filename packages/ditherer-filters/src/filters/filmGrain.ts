@@ -26,20 +26,45 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.16, desc: "RMS-like density fluctuation strength — strongest in middle tones" },
-  size: { type: RANGE, range: [1, 4], step: 0.5, default: 1, desc: "Diameter of smoothly correlated grain clusters in output pixels" },
-  monochrome: { type: BOOL, default: true, desc: "Use one silver-like density field; off adds partially correlated color-layer dye clouds" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Frame rate for moving motion-picture grain" },
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.16,
+    desc: "RMS-like density fluctuation strength — strongest in middle tones",
+  },
+  size: {
+    type: RANGE,
+    range: [1, 4],
+    step: 0.5,
+    default: 1,
+    desc: "Diameter of smoothly correlated grain clusters in output pixels",
+  },
+  monochrome: {
+    type: BOOL,
+    default: true,
+    desc: "Use one silver-like density field; off adds partially correlated color-layer dye clouds",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Frame rate for moving motion-picture grain",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
     desc: "Animate independent grain exposure for each motion-picture frame",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) { actions.stopAnimLoop(); }
-      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-    }
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -47,7 +72,7 @@ export const defaults = {
   size: optionTypes.size.default,
   monochrome: optionTypes.monochrome.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const FG_FS = `#version 300 es
@@ -128,8 +153,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     fg: linkProgram(gl, FG_FS, [
-      "u_source", "u_res", "u_amount", "u_size",
-      "u_monochrome", "u_seed", "u_levels",
+      "u_source",
+      "u_res",
+      "u_amount",
+      "u_size",
+      "u_monochrome",
+      "u_seed",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -161,27 +191,38 @@ const filmGrain = (input: any, options: FilmGrainOptions = defaults) => {
       const sourceTex = ensureTexture(gl, "filmGrain:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.fg, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.fg.uniforms.u_source, 0);
-        gl.uniform2f(cache.fg.uniforms.u_res, W, H);
-        gl.uniform1f(cache.fg.uniforms.u_amount, amount);
-        gl.uniform1f(cache.fg.uniforms.u_size, size);
-        gl.uniform1i(cache.fg.uniforms.u_monochrome, monochrome ? 1 : 0);
-        gl.uniform1f(cache.fg.uniforms.u_seed, ((frameIndex * 7919) % 1000000) * 0.001);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.fg.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.fg,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.fg.uniforms.u_source, 0);
+          gl.uniform2f(cache.fg.uniforms.u_res, W, H);
+          gl.uniform1f(cache.fg.uniforms.u_amount, amount);
+          gl.uniform1f(cache.fg.uniforms.u_size, size);
+          gl.uniform1i(cache.fg.uniforms.u_monochrome, monochrome ? 1 : 0);
+          gl.uniform1f(cache.fg.uniforms.u_seed, ((frameIndex * 7919) % 1000000) * 0.001);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.fg.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Film Grain", "WebGL2",
-            `amount=${amount} size=${size}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Film Grain",
+            "WebGL2",
+            `amount=${amount} size=${size}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -211,7 +252,9 @@ const filmGrain = (input: any, options: FilmGrainOptions = defaults) => {
       let nr: number, ng: number, nb: number;
       if (monochrome) {
         const n = shared * amplitude;
-        nr = n; ng = n; nb = n;
+        nr = n;
+        ng = n;
+        nb = n;
       } else {
         nr = (shared * 0.65 + filmDensityNoise(grainX, grainY, seed + 101) * 0.35) * amplitude;
         ng = (shared * 0.65 + filmDensityNoise(grainX, grainY, seed + 211) * 0.35) * amplitude;
@@ -237,6 +280,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Density-aware film granularity with smooth random dye-cloud clusters, correlated color layers, and optional per-frame motion",
+  description:
+    "Density-aware film granularity with smooth random dye-cloud clusters, correlated color layers, and optional per-frame motion",
   temporal: true,
 });

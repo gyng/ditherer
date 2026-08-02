@@ -13,15 +13,42 @@ import {
 const LAYOUT = { STRIPE: "STRIPE", PENTILE: "PENTILE", DIAMOND: "DIAMOND" };
 
 export const optionTypes = {
-  pixelSize: { type: RANGE, range: [4, 24], step: 1, default: 9, desc: "Logical pixel-cell size in output pixels" },
-  subpixelLayout: { type: ENUM, options: [
-    { name: "RGB Stripe", value: LAYOUT.STRIPE },
-    { name: "PenTile", value: LAYOUT.PENTILE },
-    { name: "Diamond", value: LAYOUT.DIAMOND }
-  ], default: LAYOUT.STRIPE, desc: "Emitter topology: equal RGB stripes, shared-chroma RGBG, or diamond-shaped RGBG" },
-  brightness: { type: RANGE, range: [0.5, 2], step: 0.05, default: 1, desc: "Emitting-subpixel brightness multiplier" },
-  gapDarkness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Black-matrix darkness between emitting subpixels" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional final palette mapping after subpixel rendering" }
+  pixelSize: {
+    type: RANGE,
+    range: [4, 24],
+    step: 1,
+    default: 9,
+    desc: "Logical pixel-cell size in output pixels",
+  },
+  subpixelLayout: {
+    type: ENUM,
+    options: [
+      { name: "RGB Stripe", value: LAYOUT.STRIPE },
+      { name: "PenTile", value: LAYOUT.PENTILE },
+      { name: "Diamond", value: LAYOUT.DIAMOND },
+    ],
+    default: LAYOUT.STRIPE,
+    desc: "Emitter topology: equal RGB stripes, shared-chroma RGBG, or diamond-shaped RGBG",
+  },
+  brightness: {
+    type: RANGE,
+    range: [0.5, 2],
+    step: 0.05,
+    default: 1,
+    desc: "Emitting-subpixel brightness multiplier",
+  },
+  gapDarkness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.65,
+    desc: "Black-matrix darkness between emitting subpixels",
+  },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional final palette mapping after subpixel rendering",
+  },
 };
 
 export const defaults = {
@@ -29,7 +56,7 @@ export const defaults = {
   subpixelLayout: optionTypes.subpixelLayout.default,
   brightness: optionTypes.brightness.default,
   gapDarkness: optionTypes.gapDarkness.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type LcdDisplayOptions = Partial<typeof defaults> & Record<string, unknown>;
@@ -49,14 +76,28 @@ const lcdDisplay = (input: any, options: LcdDisplayOptions = defaults) => {
     palette: normalizePaletteOption(supplied.palette, defaults.palette),
   };
   const { pixelSize, subpixelLayout, brightness, gapDarkness, palette } = resolved;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const paletteOpts = palette?.options as { levels?: number } | undefined;
   const isNearest = (palette as { name?: string })?.name === "nearest";
   const levels = isNearest ? (paletteOpts?.levels ?? 256) : 256;
-  const rendered = renderLcdDisplayGL(input, W, H, pixelSize, subpixelLayout, brightness, gapDarkness, levels);
+  const rendered = renderLcdDisplayGL(
+    input,
+    W,
+    H,
+    pixelSize,
+    subpixelLayout,
+    brightness,
+    gapDarkness,
+    levels,
+  );
   if (!rendered) return input;
   const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("LCD Display", "WebGL2", `layout=${subpixelLayout}${isNearest ? ` levels=${levels}` : "+palettePass"}`);
+  logFilterBackend(
+    "LCD Display",
+    "WebGL2",
+    `layout=${subpixelLayout}${isNearest ? ` levels=${levels}` : "+palettePass"}`,
+  );
   return out ?? input;
 };
 
@@ -66,6 +107,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Magnified display-emitter proxy with equal RGB stripe, shared-chroma PenTile RGBG, and diamond-shaped RGBG layouts",
+  description:
+    "Magnified display-emitter proxy with equal RGB stripe, shared-chroma PenTile RGBG, and diamond-shaped RGBG layouts",
   requiresGL: true,
 });

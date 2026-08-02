@@ -98,8 +98,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, LCD_FS, [
-      "u_source", "u_res", "u_pixelSize", "u_layout",
-      "u_brightness", "u_gapDarkness", "u_levels",
+      "u_source",
+      "u_res",
+      "u_pixelSize",
+      "u_layout",
+      "u_brightness",
+      "u_gapDarkness",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -135,17 +140,25 @@ export const renderLcdDisplayGL = (
   const sourceTex = ensureTexture(gl, "lcdDisplay:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_pixelSize, pixelSize);
-    gl.uniform1i(cache.prog.uniforms.u_layout, layoutId);
-    gl.uniform1f(cache.prog.uniforms.u_brightness, brightness);
-    gl.uniform1f(cache.prog.uniforms.u_gapDarkness, gapDarkness);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_pixelSize, pixelSize);
+      gl.uniform1i(cache.prog.uniforms.u_layout, layoutId);
+      gl.uniform1f(cache.prog.uniforms.u_brightness, brightness);
+      gl.uniform1f(cache.prog.uniforms.u_gapDarkness, gapDarkness);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

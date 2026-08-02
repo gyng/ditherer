@@ -32,7 +32,7 @@ const makeBuf = (n: number, alpha?: number) => {
     buf[i * 4] = h & 0xff;
     buf[i * 4 + 1] = (h >>> 8) & 0xff;
     buf[i * 4 + 2] = (h >>> 16) & 0xff;
-    buf[i * 4 + 3] = alpha ?? ((h >>> 24) & 0xff);
+    buf[i * 4 + 3] = alpha ?? (h >>> 24) & 0xff;
   }
   return buf;
 };
@@ -59,15 +59,17 @@ describe("whole-buffer RGB quantizer parity", () => {
 
   it("RGB: WASM and JS agree on every pixel", () => {
     const src = makeBuf(4096, 255);
-    expect(Array.from(apply(src, withAlgo(RGB_NEAREST), true)))
-      .toEqual(Array.from(apply(src, withAlgo(RGB_NEAREST), false)));
+    expect(Array.from(apply(src, withAlgo(RGB_NEAREST), true))).toEqual(
+      Array.from(apply(src, withAlgo(RGB_NEAREST), false)),
+    );
   });
 
   it("RGB: they agree with varying alpha too", () => {
     // The interchange rests on alpha being carried through and never scored.
     const src = makeBuf(4096);
-    expect(Array.from(apply(src, withAlgo(RGB_NEAREST), true)))
-      .toEqual(Array.from(apply(src, withAlgo(RGB_NEAREST), false)));
+    expect(Array.from(apply(src, withAlgo(RGB_NEAREST), true))).toEqual(
+      Array.from(apply(src, withAlgo(RGB_NEAREST), false)),
+    );
   });
 
   it("RGB: source alpha is preserved exactly", () => {
@@ -87,7 +89,10 @@ describe("whole-buffer RGB quantizer parity", () => {
   it("RGB: an exact palette colour maps to itself", () => {
     const src = new Uint8ClampedArray(PALETTE.length * 4);
     PALETTE.forEach((c, i) => {
-      src[i * 4] = c[0]; src[i * 4 + 1] = c[1]; src[i * 4 + 2] = c[2]; src[i * 4 + 3] = 255;
+      src[i * 4] = c[0];
+      src[i * 4 + 1] = c[1];
+      src[i * 4 + 2] = c[2];
+      src[i * 4 + 3] = 255;
     });
     const out = apply(src, withAlgo(RGB_NEAREST), true);
     expect(Array.from(out)).toEqual(Array.from(src));
@@ -109,14 +114,16 @@ describe("whole-buffer RGB quantizer parity", () => {
     // mirrors that exactly rather than using its own f64 powf, which drifts far
     // enough in the last bits to flip a near-tie.
     const src = makeBuf(8192, 255);
-    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true)))
-      .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
+    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true))).toEqual(
+      Array.from(apply(src, withAlgo(LAB_NEAREST), false)),
+    );
   });
 
   it("LAB: they agree with varying alpha too", () => {
     const src = makeBuf(8192);
-    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true)))
-      .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
+    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true))).toEqual(
+      Array.from(apply(src, withAlgo(LAB_NEAREST), false)),
+    );
   });
 
   it("LAB: agrees across a coarse RGB grid, not just random samples", () => {
@@ -128,22 +135,32 @@ describe("whole-buffer RGB quantizer parity", () => {
     for (let r = 0; r < 256; r += step)
       for (let g = 0; g < 256; g += step)
         for (let b = 0; b < 256; b += step) {
-          src[i] = r; src[i + 1] = g; src[i + 2] = b; src[i + 3] = 255; i += 4;
+          src[i] = r;
+          src[i + 1] = g;
+          src[i + 2] = b;
+          src[i + 3] = 255;
+          i += 4;
         }
-    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true)))
-      .toEqual(Array.from(apply(src, withAlgo(LAB_NEAREST), false)));
+    expect(Array.from(apply(src, withAlgo(LAB_NEAREST), true))).toEqual(
+      Array.from(apply(src, withAlgo(LAB_NEAREST), false)),
+    );
   });
 
-  it.each([RGB_APPROX, HSV_NEAREST, OKLAB_NEAREST])("%s: WASM and JS agree on every pixel", (algo) => {
-    const src = makeBuf(8192, 255);
-    expect(Array.from(apply(src, withAlgo(algo), true)))
-      .toEqual(Array.from(apply(src, withAlgo(algo), false)));
-  });
+  it.each([RGB_APPROX, HSV_NEAREST, OKLAB_NEAREST])(
+    "%s: WASM and JS agree on every pixel",
+    (algo) => {
+      const src = makeBuf(8192, 255);
+      expect(Array.from(apply(src, withAlgo(algo), true))).toEqual(
+        Array.from(apply(src, withAlgo(algo), false)),
+      );
+    },
+  );
 
   it.each([RGB_APPROX, HSV_NEAREST, OKLAB_NEAREST])("%s: agrees with varying alpha", (algo) => {
     const src = makeBuf(8192);
-    expect(Array.from(apply(src, withAlgo(algo), true)))
-      .toEqual(Array.from(apply(src, withAlgo(algo), false)));
+    expect(Array.from(apply(src, withAlgo(algo), true))).toEqual(
+      Array.from(apply(src, withAlgo(algo), false)),
+    );
   });
 
   it.each([RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST])(
@@ -159,10 +176,15 @@ describe("whole-buffer RGB quantizer parity", () => {
       for (let r = 0; r < 256; r += step)
         for (let g = 0; g < 256; g += step)
           for (let b = 0; b < 256; b += step) {
-            src[i] = r; src[i + 1] = g; src[i + 2] = b; src[i + 3] = 255; i += 4;
+            src[i] = r;
+            src[i + 1] = g;
+            src[i + 2] = b;
+            src[i + 3] = 255;
+            i += 4;
           }
-      expect(Array.from(apply(src, withAlgo(algo), true)))
-        .toEqual(Array.from(apply(src, withAlgo(algo), false)));
+      expect(Array.from(apply(src, withAlgo(algo), true))).toEqual(
+        Array.from(apply(src, withAlgo(algo), false)),
+      );
     },
   );
 
@@ -171,10 +193,14 @@ describe("whole-buffer RGB quantizer parity", () => {
     // about that branch, every neutral in the image shifts.
     const src = new Uint8ClampedArray(256 * 4);
     for (let v = 0; v < 256; v++) {
-      src[v * 4] = v; src[v * 4 + 1] = v; src[v * 4 + 2] = v; src[v * 4 + 3] = 255;
+      src[v * 4] = v;
+      src[v * 4 + 1] = v;
+      src[v * 4 + 2] = v;
+      src[v * 4 + 3] = 255;
     }
-    expect(Array.from(apply(src, withAlgo(HSV_NEAREST), true)))
-      .toEqual(Array.from(apply(src, withAlgo(HSV_NEAREST), false)));
+    expect(Array.from(apply(src, withAlgo(HSV_NEAREST), true))).toEqual(
+      Array.from(apply(src, withAlgo(HSV_NEAREST), false)),
+    );
   });
 
   it("wasmAcceleration=false still uses the JS path", () => {

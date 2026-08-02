@@ -27,7 +27,7 @@ The pass covers:
 
 ## Research basis
 
-- Arc System Works' *Guilty Gear Xrd* production talk stresses that cel shading
+- Arc System Works' _Guilty Gear Xrd_ production talk stresses that cel shading
   is intentionally split between lit and unlit regions, that small normal noise
   becomes conspicuous at hard thresholds, and that shadow colors must be
   authored rather than treated as a uniform ambient multiply.
@@ -102,7 +102,7 @@ Primary and first-party references:
   demonstrative edge glow to a restrained directional finishing light.
 - Retuned the anime preset family around explicit production roles, renamed the
   artist-attributed sky recipe to `Luminous Sky Base`, and added a `Blue Hour
-  Anime` finishing chain.
+Anime` finishing chain.
 - Verification passed: 1,907 unit/integration tests, lint, TypeScript checks,
   selective-entry generation checks, library and application production
   builds, preset reporting, focused browser visual comparisons, and the full

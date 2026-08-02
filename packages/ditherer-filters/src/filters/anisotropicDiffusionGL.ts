@@ -1,6 +1,14 @@
 import {
-  drawPass, ensureFloatTexture, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureFloatTexture,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -73,7 +81,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, DIFFUSE_FS, [
-      "u_input", "u_res", "u_kappa", "u_lambda", "u_conductance",
+      "u_input",
+      "u_res",
+      "u_kappa",
+      "u_lambda",
+      "u_conductance",
     ] as const),
     composite: linkProgram(gl, COMPOSITE_FS, ["u_diffused", "u_source"] as const),
   };
@@ -84,8 +96,11 @@ export const anisotropicDiffusionGLAvailable = (): boolean => glAvailable();
 
 export const renderAnisotropicDiffusionGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  iterations: number, kappa: number, lambda: number,
+  width: number,
+  height: number,
+  iterations: number,
+  kappa: number,
+  lambda: number,
   conductanceIsExp: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
@@ -107,15 +122,23 @@ export const renderAnisotropicDiffusionGL = (
   let other = pingB;
 
   const runIter = (target: ReturnType<typeof ensureTexture>) => {
-    drawPass(gl, target, width, height, cache.prog, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, readTex);
-      gl.uniform1i(cache.prog.uniforms.u_input, 0);
-      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-      gl.uniform1f(cache.prog.uniforms.u_kappa, kappa);
-      gl.uniform1f(cache.prog.uniforms.u_lambda, lambda);
-      gl.uniform1i(cache.prog.uniforms.u_conductance, conductanceIsExp ? 0 : 1);
-    }, vao);
+    drawPass(
+      gl,
+      target,
+      width,
+      height,
+      cache.prog,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, readTex);
+        gl.uniform1i(cache.prog.uniforms.u_input, 0);
+        gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+        gl.uniform1f(cache.prog.uniforms.u_kappa, kappa);
+        gl.uniform1f(cache.prog.uniforms.u_lambda, lambda);
+        gl.uniform1i(cache.prog.uniforms.u_conductance, conductanceIsExp ? 0 : 1);
+      },
+      vao,
+    );
   };
 
   const iters = Math.max(1, Math.min(50, Math.round(iterations)));
@@ -127,14 +150,22 @@ export const renderAnisotropicDiffusionGL = (
     other = swap;
   }
 
-  drawPass(gl, null, width, height, cache.composite, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, readTex);
-    gl.uniform1i(cache.composite.uniforms.u_diffused, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, src.tex);
-    gl.uniform1i(cache.composite.uniforms.u_source, 1);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.composite,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, readTex);
+      gl.uniform1i(cache.composite.uniforms.u_diffused, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, src.tex);
+      gl.uniform1i(cache.composite.uniforms.u_source, 1);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

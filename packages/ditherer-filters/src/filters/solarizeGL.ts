@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 import { SOLARIZE_GLSL } from "./toneTransferContracts";
@@ -40,8 +47,10 @@ export const solarizeGLAvailable = (): boolean => glAvailable();
 
 export const renderSolarizeGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  reversal: number, strength: number,
+  width: number,
+  height: number,
+  reversal: number,
+  strength: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -51,12 +60,20 @@ export const renderSolarizeGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "solarize:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform1f(cache.prog.uniforms.u_reversal, reversal);
-    gl.uniform1f(cache.prog.uniforms.u_strength, strength);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform1f(cache.prog.uniforms.u_reversal, reversal);
+      gl.uniform1f(cache.prog.uniforms.u_strength, strength);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

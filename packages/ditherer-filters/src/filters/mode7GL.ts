@@ -228,11 +228,26 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, MODE7_FS, [
-      "u_source", "u_res", "u_horizon", "u_fov",
-      "u_yaw", "u_pitch", "u_roll",
-      "u_cameraX", "u_cameraY", "u_cameraZ",
-      "u_tile", "u_fly", "u_sky", "u_skyStyle", "u_skyGlow", "u_skyBands", "u_skyTwist",
-      "u_levels", "u_yawDeg", "u_rollDeg",
+      "u_source",
+      "u_res",
+      "u_horizon",
+      "u_fov",
+      "u_yaw",
+      "u_pitch",
+      "u_roll",
+      "u_cameraX",
+      "u_cameraY",
+      "u_cameraZ",
+      "u_tile",
+      "u_fly",
+      "u_sky",
+      "u_skyStyle",
+      "u_skyGlow",
+      "u_skyBands",
+      "u_skyTwist",
+      "u_levels",
+      "u_yawDeg",
+      "u_rollDeg",
     ] as const),
   };
   return _cache;
@@ -279,30 +294,38 @@ export const renderMode7GL = (
   const sourceTex = ensureTexture(gl, "mode7:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_horizon, params.horizon);
-    gl.uniform1f(cache.prog.uniforms.u_fov, params.fov);
-    gl.uniform1f(cache.prog.uniforms.u_yaw, params.yawDeg * Math.PI / 180);
-    gl.uniform1f(cache.prog.uniforms.u_pitch, params.pitchDeg * Math.PI / 180);
-    gl.uniform1f(cache.prog.uniforms.u_roll, params.rollDeg * Math.PI / 180);
-    gl.uniform1f(cache.prog.uniforms.u_cameraX, params.cameraX);
-    gl.uniform1f(cache.prog.uniforms.u_cameraY, params.cameraY);
-    gl.uniform1f(cache.prog.uniforms.u_cameraZ, params.cameraZ);
-    gl.uniform1f(cache.prog.uniforms.u_tile, params.tile ? 1 : 0);
-    gl.uniform1f(cache.prog.uniforms.u_fly, params.fly ? 1 : 0);
-    gl.uniform1f(cache.prog.uniforms.u_sky, params.sky ? 1 : 0);
-    gl.uniform1i(cache.prog.uniforms.u_skyStyle, SKY_STYLE_ID[params.skyStyle] ?? 0);
-    gl.uniform1f(cache.prog.uniforms.u_skyGlow, params.skyGlow);
-    gl.uniform1f(cache.prog.uniforms.u_skyBands, params.skyBands);
-    gl.uniform1f(cache.prog.uniforms.u_skyTwist, params.skyTwist);
-    gl.uniform1f(cache.prog.uniforms.u_levels, params.levels);
-    gl.uniform1f(cache.prog.uniforms.u_yawDeg, params.yawDeg);
-    gl.uniform1f(cache.prog.uniforms.u_rollDeg, params.rollDeg);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_horizon, params.horizon);
+      gl.uniform1f(cache.prog.uniforms.u_fov, params.fov);
+      gl.uniform1f(cache.prog.uniforms.u_yaw, (params.yawDeg * Math.PI) / 180);
+      gl.uniform1f(cache.prog.uniforms.u_pitch, (params.pitchDeg * Math.PI) / 180);
+      gl.uniform1f(cache.prog.uniforms.u_roll, (params.rollDeg * Math.PI) / 180);
+      gl.uniform1f(cache.prog.uniforms.u_cameraX, params.cameraX);
+      gl.uniform1f(cache.prog.uniforms.u_cameraY, params.cameraY);
+      gl.uniform1f(cache.prog.uniforms.u_cameraZ, params.cameraZ);
+      gl.uniform1f(cache.prog.uniforms.u_tile, params.tile ? 1 : 0);
+      gl.uniform1f(cache.prog.uniforms.u_fly, params.fly ? 1 : 0);
+      gl.uniform1f(cache.prog.uniforms.u_sky, params.sky ? 1 : 0);
+      gl.uniform1i(cache.prog.uniforms.u_skyStyle, SKY_STYLE_ID[params.skyStyle] ?? 0);
+      gl.uniform1f(cache.prog.uniforms.u_skyGlow, params.skyGlow);
+      gl.uniform1f(cache.prog.uniforms.u_skyBands, params.skyBands);
+      gl.uniform1f(cache.prog.uniforms.u_skyTwist, params.skyTwist);
+      gl.uniform1f(cache.prog.uniforms.u_levels, params.levels);
+      gl.uniform1f(cache.prog.uniforms.u_yawDeg, params.yawDeg);
+      gl.uniform1f(cache.prog.uniforms.u_rollDeg, params.rollDeg);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

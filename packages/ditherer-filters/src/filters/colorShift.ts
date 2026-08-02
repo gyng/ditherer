@@ -17,16 +17,28 @@ import {
 
 export const optionTypes = {
   hue: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Hue rotation in degrees" },
-  saturation: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Saturation adjustment" },
-  value: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Brightness/value adjustment" },
-  palette: { type: PALETTE, default: nearest }
+  saturation: {
+    type: RANGE,
+    range: [-1, 1],
+    step: 0.01,
+    default: 0,
+    desc: "Saturation adjustment",
+  },
+  value: {
+    type: RANGE,
+    range: [-1, 1],
+    step: 0.01,
+    default: 0,
+    desc: "Brightness/value adjustment",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   hue: optionTypes.hue.default,
   saturation: optionTypes.saturation.default,
   value: optionTypes.value.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const CS_FS = `#version 300 es
@@ -95,7 +107,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     cs: linkProgram(gl, CS_FS, [
-      "u_source", "u_hue", "u_saturation", "u_value", "u_levels",
+      "u_source",
+      "u_hue",
+      "u_saturation",
+      "u_value",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -116,16 +132,24 @@ const colorShift = (input: any, options: typeof defaults = defaults) => {
   uploadSourceTexture(gl, sourceTex, input);
 
   const identity = paletteIsIdentity(palette);
-  drawPass(gl, null, W, H, cache.cs, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.cs.uniforms.u_source, 0);
-    gl.uniform1f(cache.cs.uniforms.u_hue, hue);
-    gl.uniform1f(cache.cs.uniforms.u_saturation, saturation);
-    gl.uniform1f(cache.cs.uniforms.u_value, value);
-    const pOpts = (palette as { options?: { levels?: number } }).options;
-    gl.uniform1f(cache.cs.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.cs,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.cs.uniforms.u_source, 0);
+      gl.uniform1f(cache.cs.uniforms.u_hue, hue);
+      gl.uniform1f(cache.cs.uniforms.u_saturation, saturation);
+      gl.uniform1f(cache.cs.uniforms.u_value, value);
+      const pOpts = (palette as { options?: { levels?: number } }).options;
+      gl.uniform1f(cache.cs.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;

@@ -205,16 +205,37 @@ void main() {
 `;
 
 type Cache = {
-    gaussProg: Program;
-    bokehProg: Program;
+  gaussProg: Program;
+  bokehProg: Program;
 };
 let _cache: Cache | null = null;
 
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    gaussProg: linkProgram(gl, GAUSS_FS, ["u_input", "u_res", "u_dir", "u_sigma", "u_radius"] as const),
-    bokehProg: linkProgram(gl, BOKEH_FS, ["u_input", "u_source", "u_res", "u_radius", "u_threshold", "u_intensity", "u_shape", "u_softness", "u_edgeFringe", "u_rotation", "u_catsEye", "u_edgeRing", "u_bubble", "u_localDetect"] as const),
+    gaussProg: linkProgram(gl, GAUSS_FS, [
+      "u_input",
+      "u_res",
+      "u_dir",
+      "u_sigma",
+      "u_radius",
+    ] as const),
+    bokehProg: linkProgram(gl, BOKEH_FS, [
+      "u_input",
+      "u_source",
+      "u_res",
+      "u_radius",
+      "u_threshold",
+      "u_intensity",
+      "u_shape",
+      "u_softness",
+      "u_edgeFringe",
+      "u_rotation",
+      "u_catsEye",
+      "u_edgeRing",
+      "u_bubble",
+      "u_localDetect",
+    ] as const),
   };
   return _cache;
 };
@@ -242,7 +263,7 @@ export const renderBokehGL = (
   const { gl, canvas } = ctx;
   const cache = initCache(gl);
   const vao = getQuadVAO(gl);
-  
+
   const sigma = radius / 2.0;
   const gRadius = Math.min(64, Math.ceil(sigma * 3));
 
@@ -253,50 +274,74 @@ export const renderBokehGL = (
 
   // 1. Gaussian blur base
   const temp1 = ensureTexture(gl, "bokeh:temp1", width, height);
-  drawPass(gl, temp1, width, height, cache.gaussProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.gaussProg.uniforms.u_input, 0);
-    gl.uniform2f(cache.gaussProg.uniforms.u_res, width, height);
-    gl.uniform2f(cache.gaussProg.uniforms.u_dir, 1 / width, 0);
-    gl.uniform1f(cache.gaussProg.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.gaussProg.uniforms.u_radius, gRadius);
-  }, vao);
+  drawPass(
+    gl,
+    temp1,
+    width,
+    height,
+    cache.gaussProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.gaussProg.uniforms.u_input, 0);
+      gl.uniform2f(cache.gaussProg.uniforms.u_res, width, height);
+      gl.uniform2f(cache.gaussProg.uniforms.u_dir, 1 / width, 0);
+      gl.uniform1f(cache.gaussProg.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.gaussProg.uniforms.u_radius, gRadius);
+    },
+    vao,
+  );
 
   const temp2 = ensureTexture(gl, "bokeh:temp2", width, height);
-  drawPass(gl, temp2, width, height, cache.gaussProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp1.tex);
-    gl.uniform1i(cache.gaussProg.uniforms.u_input, 0);
-    gl.uniform2f(cache.gaussProg.uniforms.u_res, width, height);
-    gl.uniform2f(cache.gaussProg.uniforms.u_dir, 0, 1 / height);
-    gl.uniform1f(cache.gaussProg.uniforms.u_sigma, sigma);
-    gl.uniform1i(cache.gaussProg.uniforms.u_radius, gRadius);
-  }, vao);
+  drawPass(
+    gl,
+    temp2,
+    width,
+    height,
+    cache.gaussProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp1.tex);
+      gl.uniform1i(cache.gaussProg.uniforms.u_input, 0);
+      gl.uniform2f(cache.gaussProg.uniforms.u_res, width, height);
+      gl.uniform2f(cache.gaussProg.uniforms.u_dir, 0, 1 / height);
+      gl.uniform1f(cache.gaussProg.uniforms.u_sigma, sigma);
+      gl.uniform1i(cache.gaussProg.uniforms.u_radius, gRadius);
+    },
+    vao,
+  );
 
   // 2. Bokeh highlights pass → gl canvas.
-  drawPass(gl, null, width, height, cache.bokehProg, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp2.tex);
-    gl.uniform1i(cache.bokehProg.uniforms.u_input, 0);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.bokehProg,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp2.tex);
+      gl.uniform1i(cache.bokehProg.uniforms.u_input, 0);
 
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.bokehProg.uniforms.u_source, 1);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.bokehProg.uniforms.u_source, 1);
 
-    gl.uniform2f(cache.bokehProg.uniforms.u_res, width, height);
-    gl.uniform1f(cache.bokehProg.uniforms.u_radius, radius);
-    gl.uniform1f(cache.bokehProg.uniforms.u_threshold, threshold);
-    gl.uniform1f(cache.bokehProg.uniforms.u_intensity, intensity);
-    gl.uniform1i(cache.bokehProg.uniforms.u_shape, shape);
-    gl.uniform1f(cache.bokehProg.uniforms.u_softness, softness);
-    gl.uniform1f(cache.bokehProg.uniforms.u_edgeFringe, edgeFringe);
-    gl.uniform1f(cache.bokehProg.uniforms.u_rotation, rotation);
-    gl.uniform1f(cache.bokehProg.uniforms.u_catsEye, catsEye);
-    gl.uniform1f(cache.bokehProg.uniforms.u_edgeRing, edgeRing);
-    gl.uniform1f(cache.bokehProg.uniforms.u_bubble, bubble);
-    gl.uniform1f(cache.bokehProg.uniforms.u_localDetect, localDetect);
-  }, vao);
+      gl.uniform2f(cache.bokehProg.uniforms.u_res, width, height);
+      gl.uniform1f(cache.bokehProg.uniforms.u_radius, radius);
+      gl.uniform1f(cache.bokehProg.uniforms.u_threshold, threshold);
+      gl.uniform1f(cache.bokehProg.uniforms.u_intensity, intensity);
+      gl.uniform1i(cache.bokehProg.uniforms.u_shape, shape);
+      gl.uniform1f(cache.bokehProg.uniforms.u_softness, softness);
+      gl.uniform1f(cache.bokehProg.uniforms.u_edgeFringe, edgeFringe);
+      gl.uniform1f(cache.bokehProg.uniforms.u_rotation, rotation);
+      gl.uniform1f(cache.bokehProg.uniforms.u_catsEye, catsEye);
+      gl.uniform1f(cache.bokehProg.uniforms.u_edgeRing, edgeRing);
+      gl.uniform1f(cache.bokehProg.uniforms.u_bubble, bubble);
+      gl.uniform1f(cache.bokehProg.uniforms.u_localDetect, localDetect);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

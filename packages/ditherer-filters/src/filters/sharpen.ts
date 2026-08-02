@@ -1,29 +1,42 @@
 import { RANGE, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  logFilterBackend,
-} from "../utils/index";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, logFilterBackend } from "../utils/index";
 import { normalizeRangeOption } from "../utils/filterOptions";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import { gaussianKernel1D } from "./opticalConvolutionContracts";
 import { sharpenGLAvailable, renderSharpenGL } from "./sharpenGL";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 5], step: 0.1, default: 1.5, desc: "Sharpening intensity applied via unsharp mask" },
-  radius: { type: RANGE, range: [1, 20], step: 1, default: 3, desc: "Blur radius for the unsharp mask kernel" },
-  threshold: { type: RANGE, range: [0, 50], step: 1, default: 0, desc: "Minimum difference required to sharpen a pixel" },
-  palette: { type: PALETTE, default: nearest }
+  strength: {
+    type: RANGE,
+    range: [0, 5],
+    step: 0.1,
+    default: 1.5,
+    desc: "Sharpening intensity applied via unsharp mask",
+  },
+  radius: {
+    type: RANGE,
+    range: [1, 20],
+    step: 1,
+    default: 3,
+    desc: "Blur radius for the unsharp mask kernel",
+  },
+  threshold: {
+    type: RANGE,
+    range: [0, 50],
+    step: 1,
+    default: 0,
+    desc: "Minimum difference required to sharpen a pixel",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   strength: optionTypes.strength.default,
   radius: optionTypes.radius.default,
   threshold: optionTypes.threshold.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults) => {
@@ -35,16 +48,22 @@ const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults)
   const H = input.height;
 
   if (
-    sharpenGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    sharpenGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderSharpenGL(input, W, H, strength, radius, threshold, levels);
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Sharpen", "WebGL2", `strength=${strength} radius=${radius}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Sharpen",
+          "WebGL2",
+          `strength=${strength} radius=${radius}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -63,7 +82,9 @@ const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults)
   const blurH = new Float32Array(W * H * 3);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let sr = 0, sg = 0, sb = 0;
+      let sr = 0,
+        sg = 0,
+        sb = 0;
       for (let kx = -radius; kx <= radius; kx++) {
         const w = kernel[kx + radius];
         const nx = Math.max(0, Math.min(W - 1, x + kx));
@@ -82,7 +103,9 @@ const sharpenFilter = (input: any, options: Partial<typeof defaults> = defaults)
   const blurred = new Float32Array(W * H * 3);
   for (let x = 0; x < W; x++) {
     for (let y = 0; y < H; y++) {
-      let sr = 0, sg = 0, sb = 0;
+      let sr = 0,
+        sg = 0,
+        sb = 0;
       for (let ky = -radius; ky <= radius; ky++) {
         const w = kernel[ky + radius];
         const ny = Math.max(0, Math.min(H - 1, y + ky));
@@ -133,5 +156,5 @@ export default defineFilter({
   func: sharpenFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

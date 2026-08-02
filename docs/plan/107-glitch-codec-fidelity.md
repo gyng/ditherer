@@ -46,7 +46,7 @@ accuracy fix and is deferred to a following tranche.)
 1. Rebuild **Datamosh** around real motion compensation: estimate each
    macro-block's motion vector between the current and previous input frame
    with `estimateMotionVector`, then predict the block from the previous
-   *output* frame sampled at the motion-compensated position (P-frame
+   _output_ frame sampled at the motion-compensated position (P-frame
    prediction without I-frame refresh), so held content is dragged along the
    motion field. Periodic keyframe refresh and a corrupt-vector path preserve
    the glitch character. Normalise options; preserve alpha and palette.
@@ -94,4 +94,3 @@ accuracy fix and is deferred to a following tranche.)
   catalog verification, and the production build.
 
 Status: Complete
-

@@ -41,16 +41,23 @@ test("VJ screensaver cycles live content and restores the prior workspace", asyn
 
   await expect(dialog).toBeHidden();
   const outputWindow = page.getByText(/^Output - /).locator("..");
-  await expect.poll(() => outputWindow.evaluate((element) => element === document.fullscreenElement)).toBe(true);
+  await expect
+    .poll(() => outputWindow.evaluate((element) => element === document.fullscreenElement))
+    .toBe(true);
   await expect(page.getByText("Screensaver debug", { exact: true })).toBeVisible();
   expect(await scaling.inputValue()).toBe("AUTO");
 
-  await expect.poll(async () => chain.getByRole("option").allTextContents(), { timeout: 10_000 })
+  await expect
+    .poll(async () => chain.getByRole("option").allTextContents(), { timeout: 10_000 })
     .not.toEqual(initialChain);
   await expect(page.getByText(/^Input - (?!pepper\.png$).+/)).toBeVisible({ timeout: 15_000 });
 
-  const inputCanvas = page.getByText(/^Input - /).locator("..").locator("canvas");
-  await expect.poll(() => inputCanvas.evaluate((canvas) => (canvas as HTMLCanvasElement).width))
+  const inputCanvas = page
+    .getByText(/^Input - /)
+    .locator("..")
+    .locator("canvas");
+  await expect
+    .poll(() => inputCanvas.evaluate((canvas) => (canvas as HTMLCanvasElement).width))
     .toBeLessThanOrEqual(160);
 
   // Headless Chrome does not route Escape through its fullscreen browser UI,

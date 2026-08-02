@@ -1,14 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { buildRecorderOptions, getLoopStopDelayMs } from "components/SaveAs/export/realtimeVideoRecording";
+import {
+  buildRecorderOptions,
+  getLoopStopDelayMs,
+} from "components/SaveAs/export/realtimeVideoRecording";
 
 describe("buildRecorderOptions", () => {
   it("uses the recording format mime type when present", () => {
-    expect(buildRecorderOptions({
-      label: "webm",
-      container: "webm",
-      mimeType: "video/webm; codecs=vp9",
-      ext: "webm",
-    }, true, 2.5)).toEqual({
+    expect(
+      buildRecorderOptions(
+        {
+          label: "webm",
+          container: "webm",
+          mimeType: "video/webm; codecs=vp9",
+          ext: "webm",
+        },
+        true,
+        2.5,
+      ),
+    ).toEqual({
       mimeType: "video/webm; codecs=vp9",
     });
   });

@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -37,8 +44,10 @@ export const flipGLAvailable = (): boolean => glAvailable();
 
 export const renderFlipGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  flipX: boolean, flipY: boolean,
+  width: number,
+  height: number,
+  flipX: boolean,
+  flipY: boolean,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -48,13 +57,21 @@ export const renderFlipGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "flip:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_flipX, flipX ? 1 : 0);
-    gl.uniform1i(cache.prog.uniforms.u_flipY, flipY ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_flipX, flipX ? 1 : 0);
+      gl.uniform1i(cache.prog.uniforms.u_flipY, flipY ? 1 : 0);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

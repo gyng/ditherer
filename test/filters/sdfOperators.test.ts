@@ -24,15 +24,24 @@ describe("signed-distance field operator family", () => {
     }
   });
 
-  it.each(sdfOperators)("only advertises animation when %s evolves by default", (name, _category, temporal) => {
-    expect(filterIndex[name].temporal === true).toBe(temporal);
-    expect(filterIndex[name].autoAnimate === true).toBe(temporal);
-  });
+  it.each(sdfOperators)(
+    "only advertises animation when %s evolves by default",
+    (name, _category, temporal) => {
+      expect(filterIndex[name].temporal === true).toBe(temporal);
+      expect(filterIndex[name].autoAnimate === true).toBe(temporal);
+    },
+  );
 
   it("exposes every constructive operation and analytic primitive", () => {
     const filter = filterIndex["SDF Boolean Sculpt"];
-    const operations = filter.optionTypes?.operation?.options?.flatMap((option) => "options" in option ? option.options : [option]) ?? [];
-    const shapes = filter.optionTypes?.shape?.options?.flatMap((option) => "options" in option ? option.options : [option]) ?? [];
+    const operations =
+      filter.optionTypes?.operation?.options?.flatMap((option) =>
+        "options" in option ? option.options : [option],
+      ) ?? [];
+    const shapes =
+      filter.optionTypes?.shape?.options?.flatMap((option) =>
+        "options" in option ? option.options : [option],
+      ) ?? [];
     expect(operations).toHaveLength(5);
     expect(shapes).toHaveLength(4);
   });

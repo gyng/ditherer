@@ -380,14 +380,25 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     dctRow: linkProgram(gl, DCT_ROW_FS, ["u_input", "u_res"] as const),
     dctCol: linkProgram(gl, DCT_COL_FS, ["u_input", "u_res"] as const),
     quant: linkProgram(gl, QUANTISE_FS, [
-      "u_input", "u_res", "u_qLumaScale", "u_qChromaScale",
-      "u_gridJitter", "u_corruptBurstChance", "u_frameSeed",
+      "u_input",
+      "u_res",
+      "u_qLumaScale",
+      "u_qChromaScale",
+      "u_gridJitter",
+      "u_corruptBurstChance",
+      "u_frameSeed",
     ] as const),
     idctCol: linkProgram(gl, IDCT_COL_FS, ["u_input", "u_res"] as const),
     idctRow: linkProgram(gl, IDCT_ROW_FS, ["u_input", "u_res"] as const),
     composite: linkProgram(gl, COMPOSITE_FS, [
-      "u_plane", "u_source", "u_res", "u_deblock", "u_ringing",
-      "u_mosquito", "u_mosquitoSeed", "u_preserveAlpha",
+      "u_plane",
+      "u_source",
+      "u_res",
+      "u_deblock",
+      "u_ringing",
+      "u_mosquito",
+      "u_mosquitoSeed",
+      "u_preserveAlpha",
     ] as const),
   };
   return _cache;
@@ -466,9 +477,7 @@ export const ensureJpegFloatTexture = (
   }
 };
 
-export const releaseJpegFloatTexturesForContext = (
-  gl: WebGL2RenderingContext,
-): number => {
+export const releaseJpegFloatTexturesForContext = (gl: WebGL2RenderingContext): number => {
   const store = gl as unknown as Record<string, unknown>;
   let released = 0;
   for (const key of Object.keys(store)) {
@@ -485,10 +494,10 @@ export const releaseJpegFloatTexturesForContext = (
   return released;
 };
 
-export const getJpegFloatTextureCountForContext = (
-  gl: WebGL2RenderingContext,
-): number => Object.keys(gl as unknown as Record<string, unknown>)
-  .filter((key) => key.startsWith(JPEG_FLOAT_CACHE_PREFIX)).length;
+export const getJpegFloatTextureCountForContext = (gl: WebGL2RenderingContext): number =>
+  Object.keys(gl as unknown as Record<string, unknown>).filter((key) =>
+    key.startsWith(JPEG_FLOAT_CACHE_PREFIX),
+  ).length;
 
 export const releaseJpegArtifactFloatTextures = (): number => {
   const ctx = getExistingGLCtx();
@@ -543,71 +552,134 @@ export const renderJpegArtifactGL = (
 
   // drawPass expects { tex, fbo } shape to match its TexEntry type; our float
   // entries are compatible.
-  const asEntry = (e: { tex: WebGLTexture; fbo: WebGLFramebuffer }) =>
-    ({ tex: e.tex, fbo: e.fbo, w: paddedWidth, h: paddedHeight });
+  const asEntry = (e: { tex: WebGLTexture; fbo: WebGLFramebuffer }) => ({
+    tex: e.tex,
+    fbo: e.fbo,
+    w: paddedWidth,
+    h: paddedHeight,
+  });
 
-  drawPass(gl, asEntry(ycbcr), paddedWidth, paddedHeight, cache.toYcbcr, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.toYcbcr.uniforms.u_source, 0);
-    gl.uniform2f(cache.toYcbcr.uniforms.u_sourceRes, width, height);
-    gl.uniform1i(cache.toYcbcr.uniforms.u_subsampling, subsampling === "444" ? 0 : subsampling === "422" ? 1 : 2);
-  }, vao);
+  drawPass(
+    gl,
+    asEntry(ycbcr),
+    paddedWidth,
+    paddedHeight,
+    cache.toYcbcr,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.toYcbcr.uniforms.u_source, 0);
+      gl.uniform2f(cache.toYcbcr.uniforms.u_sourceRes, width, height);
+      gl.uniform1i(
+        cache.toYcbcr.uniforms.u_subsampling,
+        subsampling === "444" ? 0 : subsampling === "422" ? 1 : 2,
+      );
+    },
+    vao,
+  );
 
-  drawPass(gl, asEntry(dct1), paddedWidth, paddedHeight, cache.dctRow, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, ycbcr.tex);
-    gl.uniform1i(cache.dctRow.uniforms.u_input, 0);
-    gl.uniform2f(cache.dctRow.uniforms.u_res, paddedWidth, paddedHeight);
-  }, vao);
+  drawPass(
+    gl,
+    asEntry(dct1),
+    paddedWidth,
+    paddedHeight,
+    cache.dctRow,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, ycbcr.tex);
+      gl.uniform1i(cache.dctRow.uniforms.u_input, 0);
+      gl.uniform2f(cache.dctRow.uniforms.u_res, paddedWidth, paddedHeight);
+    },
+    vao,
+  );
 
-  drawPass(gl, asEntry(dct2), paddedWidth, paddedHeight, cache.dctCol, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, dct1.tex);
-    gl.uniform1i(cache.dctCol.uniforms.u_input, 0);
-    gl.uniform2f(cache.dctCol.uniforms.u_res, paddedWidth, paddedHeight);
-  }, vao);
+  drawPass(
+    gl,
+    asEntry(dct2),
+    paddedWidth,
+    paddedHeight,
+    cache.dctCol,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, dct1.tex);
+      gl.uniform1i(cache.dctCol.uniforms.u_input, 0);
+      gl.uniform2f(cache.dctCol.uniforms.u_res, paddedWidth, paddedHeight);
+    },
+    vao,
+  );
 
-  drawPass(gl, asEntry(quant), paddedWidth, paddedHeight, cache.quant, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, dct2.tex);
-    gl.uniform1i(cache.quant.uniforms.u_input, 0);
-    gl.uniform2f(cache.quant.uniforms.u_res, paddedWidth, paddedHeight);
-    gl.uniform1f(cache.quant.uniforms.u_qLumaScale, qualityLumaScale);
-    gl.uniform1f(cache.quant.uniforms.u_qChromaScale, qualityChromaScale);
-    gl.uniform1f(cache.quant.uniforms.u_gridJitter, gridJitter);
-    gl.uniform1f(cache.quant.uniforms.u_corruptBurstChance, corruptBurstChance);
-    gl.uniform1f(cache.quant.uniforms.u_frameSeed, frameIndex);
-  }, vao);
+  drawPass(
+    gl,
+    asEntry(quant),
+    paddedWidth,
+    paddedHeight,
+    cache.quant,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, dct2.tex);
+      gl.uniform1i(cache.quant.uniforms.u_input, 0);
+      gl.uniform2f(cache.quant.uniforms.u_res, paddedWidth, paddedHeight);
+      gl.uniform1f(cache.quant.uniforms.u_qLumaScale, qualityLumaScale);
+      gl.uniform1f(cache.quant.uniforms.u_qChromaScale, qualityChromaScale);
+      gl.uniform1f(cache.quant.uniforms.u_gridJitter, gridJitter);
+      gl.uniform1f(cache.quant.uniforms.u_corruptBurstChance, corruptBurstChance);
+      gl.uniform1f(cache.quant.uniforms.u_frameSeed, frameIndex);
+    },
+    vao,
+  );
 
-  drawPass(gl, asEntry(idct1), paddedWidth, paddedHeight, cache.idctCol, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, quant.tex);
-    gl.uniform1i(cache.idctCol.uniforms.u_input, 0);
-    gl.uniform2f(cache.idctCol.uniforms.u_res, paddedWidth, paddedHeight);
-  }, vao);
+  drawPass(
+    gl,
+    asEntry(idct1),
+    paddedWidth,
+    paddedHeight,
+    cache.idctCol,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, quant.tex);
+      gl.uniform1i(cache.idctCol.uniforms.u_input, 0);
+      gl.uniform2f(cache.idctCol.uniforms.u_res, paddedWidth, paddedHeight);
+    },
+    vao,
+  );
 
-  drawPass(gl, asEntry(idct2), paddedWidth, paddedHeight, cache.idctRow, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, idct1.tex);
-    gl.uniform1i(cache.idctRow.uniforms.u_input, 0);
-    gl.uniform2f(cache.idctRow.uniforms.u_res, paddedWidth, paddedHeight);
-  }, vao);
+  drawPass(
+    gl,
+    asEntry(idct2),
+    paddedWidth,
+    paddedHeight,
+    cache.idctRow,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, idct1.tex);
+      gl.uniform1i(cache.idctRow.uniforms.u_input, 0);
+      gl.uniform2f(cache.idctRow.uniforms.u_res, paddedWidth, paddedHeight);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.composite, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, idct2.tex);
-    gl.uniform1i(cache.composite.uniforms.u_plane, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_source, 1);
-    gl.uniform2f(cache.composite.uniforms.u_res, width, height);
-    gl.uniform1f(cache.composite.uniforms.u_deblock, deblock);
-    gl.uniform1f(cache.composite.uniforms.u_ringing, ringing);
-    gl.uniform1f(cache.composite.uniforms.u_mosquito, mosquito);
-    gl.uniform1f(cache.composite.uniforms.u_mosquitoSeed, frameIndex + 1);
-    gl.uniform1i(cache.composite.uniforms.u_preserveAlpha, preserveAlpha ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.composite,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, idct2.tex);
+      gl.uniform1i(cache.composite.uniforms.u_plane, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_source, 1);
+      gl.uniform2f(cache.composite.uniforms.u_res, width, height);
+      gl.uniform1f(cache.composite.uniforms.u_deblock, deblock);
+      gl.uniform1f(cache.composite.uniforms.u_ringing, ringing);
+      gl.uniform1f(cache.composite.uniforms.u_mosquito, mosquito);
+      gl.uniform1f(cache.composite.uniforms.u_mosquitoSeed, frameIndex + 1);
+      gl.uniform1i(cache.composite.uniforms.u_preserveAlpha, preserveAlpha ? 1 : 0);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

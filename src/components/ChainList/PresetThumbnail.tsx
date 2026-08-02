@@ -13,7 +13,7 @@ type Props = {
 
 export const PresetThumbnail = ({ preset, filterByName, source }: Props) => {
   const chain = useMemo<ThumbChainStep[]>(
-    () => preset.filters.map(f => ({ name: f.name, options: f.options })),
+    () => preset.filters.map((f) => ({ name: f.name, options: f.options })),
     [preset],
   );
   return (

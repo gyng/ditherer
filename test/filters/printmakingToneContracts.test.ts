@@ -57,9 +57,9 @@ describe("printmaking tone: hatching", () => {
   it("anti-aliases mark edges and vanishes at zero width", () => {
     expect(lineCoverage(0, 1, 1)).toBe(1);
     expect(lineCoverage(0.5, 1, 1)).toBe(1);
-    expect(lineCoverage(1, 1, 1)).toBeCloseTo(0.5, 6);   // half at the edge
+    expect(lineCoverage(1, 1, 1)).toBeCloseTo(0.5, 6); // half at the edge
     expect(lineCoverage(1.5, 1, 1)).toBe(0);
-    expect(lineCoverage(5, 0)).toBe(0);                  // no mark, no ink
+    expect(lineCoverage(5, 0)).toBe(0); // no mark, no ink
     expect(lineCoverage(0, 0)).toBe(0);
   });
 
@@ -109,13 +109,17 @@ describe("printmaking tone: engraving shadow ladder", () => {
   });
 
   it("keeps every structure field monotone in darkness", () => {
-    let prevP = -1, prevS = -1, prevL = -1;
+    let prevP = -1,
+      prevS = -1,
+      prevL = -1;
     for (let d = 0; d <= 1.0001; d += 0.1) {
       const s = engravingShadowStructure(d);
       expect(s.primaryFill).toBeGreaterThanOrEqual(prevP - 1e-9);
       expect(s.secondaryFill).toBeGreaterThanOrEqual(prevS - 1e-9);
       expect(s.lozengeFill).toBeGreaterThanOrEqual(prevL - 1e-9);
-      prevP = s.primaryFill; prevS = s.secondaryFill; prevL = s.lozengeFill;
+      prevP = s.primaryFill;
+      prevS = s.secondaryFill;
+      prevL = s.lozengeFill;
     }
   });
 });

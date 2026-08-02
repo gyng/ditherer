@@ -113,17 +113,81 @@ export const optionTypes = {
     default: SHAPE.CIRCLE,
     desc: "Analytic signed-distance primitive to combine with the source",
   },
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Luminance threshold defining the source silhouette" },
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.58, desc: "Primitive horizontal center" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Primitive vertical center" },
-  size: { type: RANGE, range: [0.02, 0.75], step: 0.01, default: 0.28, desc: "Primitive radius relative to the shorter image side" },
-  aspect: { type: RANGE, range: [0.2, 3], step: 0.05, default: 1, desc: "Primitive horizontal stretch or capsule length" },
-  angle: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Primitive rotation in degrees" },
-  rounding: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "Corner radius or capsule thickness" },
-  smoothness: { type: RANGE, range: [0, 96], step: 1, default: 24, desc: "Blend radius for smooth union" },
-  edgeWidth: { type: RANGE, range: [0, 24], step: 0.5, default: 2, desc: "Outline width around the composed zero contour" },
-  sourceMix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.75, desc: "Amount of original image color inside the result" },
-  insideColor: { type: COLOR, default: [224, 92, 118], desc: "Solid color mixed into the composed interior" },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Luminance threshold defining the source silhouette",
+  },
+  centerX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.58,
+    desc: "Primitive horizontal center",
+  },
+  centerY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Primitive vertical center",
+  },
+  size: {
+    type: RANGE,
+    range: [0.02, 0.75],
+    step: 0.01,
+    default: 0.28,
+    desc: "Primitive radius relative to the shorter image side",
+  },
+  aspect: {
+    type: RANGE,
+    range: [0.2, 3],
+    step: 0.05,
+    default: 1,
+    desc: "Primitive horizontal stretch or capsule length",
+  },
+  angle: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 0,
+    desc: "Primitive rotation in degrees",
+  },
+  rounding: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.35,
+    desc: "Corner radius or capsule thickness",
+  },
+  smoothness: {
+    type: RANGE,
+    range: [0, 96],
+    step: 1,
+    default: 24,
+    desc: "Blend radius for smooth union",
+  },
+  edgeWidth: {
+    type: RANGE,
+    range: [0, 24],
+    step: 0.5,
+    default: 2,
+    desc: "Outline width around the composed zero contour",
+  },
+  sourceMix: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.75,
+    desc: "Amount of original image color inside the result",
+  },
+  insideColor: {
+    type: COLOR,
+    default: [224, 92, 118],
+    desc: "Solid color mixed into the composed interior",
+  },
   edgeColor: { type: COLOR, default: [255, 236, 190], desc: "Color of the composed zero contour" },
   outsideColor: { type: COLOR, default: [12, 14, 24], desc: "Color outside the composed field" },
 };
@@ -150,9 +214,19 @@ const sdfBooleanSculpt = (input: HTMLCanvasElement | OffscreenCanvas, options = 
     threshold: options.threshold,
     fragmentShader: FS,
     uniformNames: [
-      "u_operation", "u_shape", "u_center", "u_size", "u_aspect", "u_angle",
-      "u_rounding", "u_smoothness", "u_edgeWidth", "u_sourceMix",
-      "u_insideColor", "u_edgeColor", "u_outsideColor",
+      "u_operation",
+      "u_shape",
+      "u_center",
+      "u_size",
+      "u_aspect",
+      "u_angle",
+      "u_rounding",
+      "u_smoothness",
+      "u_edgeWidth",
+      "u_sourceMix",
+      "u_insideColor",
+      "u_edgeColor",
+      "u_outsideColor",
     ],
     setUniforms: (gl, uniforms) => {
       gl.uniform1i(uniforms.u_operation, OPERATION_ID[options.operation] ?? 0);
@@ -160,14 +234,29 @@ const sdfBooleanSculpt = (input: HTMLCanvasElement | OffscreenCanvas, options = 
       gl.uniform2f(uniforms.u_center, options.centerX, options.centerY);
       gl.uniform1f(uniforms.u_size, options.size);
       gl.uniform1f(uniforms.u_aspect, options.aspect);
-      gl.uniform1f(uniforms.u_angle, options.angle * Math.PI / 180);
+      gl.uniform1f(uniforms.u_angle, (options.angle * Math.PI) / 180);
       gl.uniform1f(uniforms.u_rounding, options.rounding);
       gl.uniform1f(uniforms.u_smoothness, options.smoothness);
       gl.uniform1f(uniforms.u_edgeWidth, options.edgeWidth);
       gl.uniform1f(uniforms.u_sourceMix, options.sourceMix);
-      gl.uniform3f(uniforms.u_insideColor, options.insideColor[0], options.insideColor[1], options.insideColor[2]);
-      gl.uniform3f(uniforms.u_edgeColor, options.edgeColor[0], options.edgeColor[1], options.edgeColor[2]);
-      gl.uniform3f(uniforms.u_outsideColor, options.outsideColor[0], options.outsideColor[1], options.outsideColor[2]);
+      gl.uniform3f(
+        uniforms.u_insideColor,
+        options.insideColor[0],
+        options.insideColor[1],
+        options.insideColor[2],
+      );
+      gl.uniform3f(
+        uniforms.u_edgeColor,
+        options.edgeColor[0],
+        options.edgeColor[1],
+        options.edgeColor[2],
+      );
+      gl.uniform3f(
+        uniforms.u_outsideColor,
+        options.outsideColor[0],
+        options.outsideColor[1],
+        options.outsideColor[2],
+      );
     },
   });
   if (!rendered) return input;
@@ -181,6 +270,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Sculpt a source silhouette with analytic SDF union, intersection, subtraction, and smooth blending",
+  description:
+    "Sculpt a source silhouette with analytic SDF union, intersection, subtraction, and smooth blending",
   requiresGL: true,
 });

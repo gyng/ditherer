@@ -75,15 +75,69 @@ void main() {
 }`;
 
 export const optionTypes = {
-  ringSpacing: { type: RANGE, range: [3, 48], step: 1, default: 18, desc: "Spacing between successive floating-ink rings" },
-  drops: { type: RANGE, range: [1, 5], step: 1, default: 3, desc: "Number of overlapping ink-drop centers" },
-  flowStrength: { type: RANGE, range: [0, 80], step: 1, default: 22, desc: "Advection along the source-luminance contour flow" },
-  combScale: { type: RANGE, range: [8, 120], step: 1, default: 46, desc: "Spacing of the combed wave deformation" },
-  combStrength: { type: RANGE, range: [0, 40], step: 1, default: 10, desc: "Distance the comb pulls the floating ink" },
-  inkDensity: { type: RANGE, range: [0, 2], step: 0.02, default: 1.02, desc: "Opacity and overlap of deposited ink rings" },
-  sourceMix: { type: RANGE, range: [0, 1], step: 0.01, default: 0.27, desc: "Amount of source color glazed through the marbling" },
-  paperGrain: { type: RANGE, range: [0, 1], step: 0.01, default: 0.38, desc: "Cross-grain variation in the absorbent paper" },
-  motion: { type: RANGE, range: [0, 2], step: 0.02, default: 0.18, desc: "Slow drift of floating rings before transfer" },
+  ringSpacing: {
+    type: RANGE,
+    range: [3, 48],
+    step: 1,
+    default: 18,
+    desc: "Spacing between successive floating-ink rings",
+  },
+  drops: {
+    type: RANGE,
+    range: [1, 5],
+    step: 1,
+    default: 3,
+    desc: "Number of overlapping ink-drop centers",
+  },
+  flowStrength: {
+    type: RANGE,
+    range: [0, 80],
+    step: 1,
+    default: 22,
+    desc: "Advection along the source-luminance contour flow",
+  },
+  combScale: {
+    type: RANGE,
+    range: [8, 120],
+    step: 1,
+    default: 46,
+    desc: "Spacing of the combed wave deformation",
+  },
+  combStrength: {
+    type: RANGE,
+    range: [0, 40],
+    step: 1,
+    default: 10,
+    desc: "Distance the comb pulls the floating ink",
+  },
+  inkDensity: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.02,
+    default: 1.02,
+    desc: "Opacity and overlap of deposited ink rings",
+  },
+  sourceMix: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.27,
+    desc: "Amount of source color glazed through the marbling",
+  },
+  paperGrain: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.38,
+    desc: "Cross-grain variation in the absorbent paper",
+  },
+  motion: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.02,
+    default: 0.18,
+    desc: "Slow drift of floating rings before transfer",
+  },
   inkA: { type: COLOR, default: [16, 30, 52], desc: "Primary floating ink color" },
   inkB: { type: COLOR, default: [166, 42, 54], desc: "Secondary floating ink color" },
   paper: { type: COLOR, default: [238, 226, 198], desc: "Absorbent paper color" },
@@ -106,10 +160,28 @@ export const defaults = {
 
 const suminagashiMarbling = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const runtime = options as typeof defaults & { _frameIndex?: number };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "suminagashiMarbling", fragmentShader: FS,
-    uniformNames: ["u_ringSpacing", "u_drops", "u_flowStrength", "u_combScale", "u_combStrength", "u_inkDensity", "u_sourceMix", "u_paperGrain", "u_time", "u_inkA", "u_inkB", "u_paper"],
+    source: input,
+    width: W,
+    height: H,
+    key: "suminagashiMarbling",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_ringSpacing",
+      "u_drops",
+      "u_flowStrength",
+      "u_combScale",
+      "u_combStrength",
+      "u_inkDensity",
+      "u_sourceMix",
+      "u_paperGrain",
+      "u_time",
+      "u_inkA",
+      "u_inkB",
+      "u_paper",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1f(u.u_ringSpacing, Number(options.ringSpacing));
       gl.uniform1f(u.u_drops, Number(options.drops));
@@ -126,7 +198,11 @@ const suminagashiMarbling = (input: HTMLCanvasElement | OffscreenCanvas, options
     },
   });
   if (!rendered) return input;
-  logFilterBackend("Suminagashi Marbling", "WebGL2", `${options.drops} drops spacing=${options.ringSpacing}`);
+  logFilterBackend(
+    "Suminagashi Marbling",
+    "WebGL2",
+    `${options.drops} drops spacing=${options.ringSpacing}`,
+  );
   return rendered;
 };
 
@@ -136,7 +212,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Floating ink rings combed through a source-derived contour flow and transferred onto fibrous paper",
+  description:
+    "Floating ink rings combed through a source-derived contour flow and transferred onto fibrous paper",
   temporal: true,
   autoAnimate: true,
   autoAnimateFps: 24,

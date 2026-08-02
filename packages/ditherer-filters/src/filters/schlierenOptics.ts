@@ -72,40 +72,105 @@ export const optionTypes = {
     default: MODE.KNIFE,
     desc: "Optical readout used to convert refractive deflection into visible contrast",
   },
-  knifeAngle: { type: RANGE, range: [-180, 180], step: 1, default: 0, desc: "Direction normal to the knife edge, in degrees" },
-  radius: { type: RANGE, range: [1, 12], step: 1, default: 3, desc: "Separation used to measure the source-luminance gradient" },
-  sensitivity: { type: RANGE, range: [0, 24], step: 0.25, default: 7.5, desc: "Brightness response to refractive deflection" },
-  cutoff: { type: RANGE, range: [0, 1], step: 0.01, default: 0.42, desc: "Fraction of the focused source intercepted by the knife edge" },
-  sourceMix: { type: RANGE, range: [0, 1], step: 0.01, default: 0.12, desc: "Amount of original image retained beneath the optical readout" },
-  positive: { type: COLOR, default: [255, 104, 36], desc: "Color assigned to positive ray deflection" },
-  negative: { type: COLOR, default: [34, 156, 255], desc: "Color assigned to negative ray deflection" },
+  knifeAngle: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 0,
+    desc: "Direction normal to the knife edge, in degrees",
+  },
+  radius: {
+    type: RANGE,
+    range: [1, 12],
+    step: 1,
+    default: 3,
+    desc: "Separation used to measure the source-luminance gradient",
+  },
+  sensitivity: {
+    type: RANGE,
+    range: [0, 24],
+    step: 0.25,
+    default: 7.5,
+    desc: "Brightness response to refractive deflection",
+  },
+  cutoff: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.42,
+    desc: "Fraction of the focused source intercepted by the knife edge",
+  },
+  sourceMix: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.12,
+    desc: "Amount of original image retained beneath the optical readout",
+  },
+  positive: {
+    type: COLOR,
+    default: [255, 104, 36],
+    desc: "Color assigned to positive ray deflection",
+  },
+  negative: {
+    type: COLOR,
+    default: [34, 156, 255],
+    desc: "Color assigned to negative ray deflection",
+  },
   background: { type: COLOR, default: [18, 20, 24], desc: "Un-deflected field color" },
 };
 
 export const defaults = Object.fromEntries(
   Object.entries(optionTypes).map(([key, option]) => [key, option.default]),
 ) as {
-  mode: string; knifeAngle: number; radius: number; sensitivity: number; cutoff: number;
-  sourceMix: number; positive: number[]; negative: number[]; background: number[];
+  mode: string;
+  knifeAngle: number;
+  radius: number;
+  sensitivity: number;
+  cutoff: number;
+  sourceMix: number;
+  positive: number[];
+  negative: number[];
+  background: number[];
 };
 
 const modeId: Record<string, number> = { KNIFE: 0, COLOR: 1, SHADOWGRAPH: 2 };
 
 const schlierenOptics = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const rendered = renderGLSinglePass({
-    source: input, width: W, height: H, key: "schlierenOptics", fragmentShader: FS,
-    uniformNames: ["u_mode", "u_angle", "u_radius", "u_sensitivity", "u_cutoff", "u_sourceMix", "u_positive", "u_negative", "u_background"],
+    source: input,
+    width: W,
+    height: H,
+    key: "schlierenOptics",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_mode",
+      "u_angle",
+      "u_radius",
+      "u_sensitivity",
+      "u_cutoff",
+      "u_sourceMix",
+      "u_positive",
+      "u_negative",
+      "u_background",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1i(u.u_mode, modeId[String(options.mode)] ?? 0);
-      gl.uniform1f(u.u_angle, Number(options.knifeAngle) * Math.PI / 180);
+      gl.uniform1f(u.u_angle, (Number(options.knifeAngle) * Math.PI) / 180);
       gl.uniform1f(u.u_radius, Number(options.radius));
       gl.uniform1f(u.u_sensitivity, Number(options.sensitivity));
       gl.uniform1f(u.u_cutoff, Number(options.cutoff));
       gl.uniform1f(u.u_sourceMix, Number(options.sourceMix));
       gl.uniform3f(u.u_positive, options.positive[0]!, options.positive[1]!, options.positive[2]!);
       gl.uniform3f(u.u_negative, options.negative[0]!, options.negative[1]!, options.negative[2]!);
-      gl.uniform3f(u.u_background, options.background[0]!, options.background[1]!, options.background[2]!);
+      gl.uniform3f(
+        u.u_background,
+        options.background[0]!,
+        options.background[1]!,
+        options.background[2]!,
+      );
     },
   });
   if (!rendered) return input;
@@ -119,6 +184,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Directional knife-edge and color schlieren views of source-derived refractive gradients",
+  description:
+    "Directional knife-edge and color schlieren views of source-derived refractive gradients",
   requiresGL: true,
 });

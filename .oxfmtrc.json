@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    ".vscode/",
+    "packages/ditherer-filters/src/generated/",
+    "packages/ditherer-filters/src/wasm/"
+  ]
+}

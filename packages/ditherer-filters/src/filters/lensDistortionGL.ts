@@ -82,7 +82,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, LENS_FS, [
-      "u_source", "u_res", "u_k1", "u_k2", "u_zoom", "u_levels",
+      "u_source",
+      "u_res",
+      "u_k1",
+      "u_k2",
+      "u_zoom",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -109,16 +114,24 @@ export const renderLensDistortionGL = (
   const sourceTex = ensureTexture(gl, "lensDistortion:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_k1, k1);
-    gl.uniform1f(cache.prog.uniforms.u_k2, k2);
-    gl.uniform1f(cache.prog.uniforms.u_zoom, zoom);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_k1, k1);
+      gl.uniform1f(cache.prog.uniforms.u_k2, k2);
+      gl.uniform1f(cache.prog.uniforms.u_zoom, zoom);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

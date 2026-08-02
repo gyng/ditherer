@@ -45,32 +45,130 @@ void main() {
   fragColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
 }`;
 export const optionTypes = {
-  centerX: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Horizontal gravity-well position" },
-  centerY: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Vertical gravity-well position" },
-  mass: { type: RANGE, range: [0.1, 3], step: 0.05, default: 1.1, desc: "Strength of gravitational ray bending" },
-  horizon: { type: RANGE, range: [0.02, 0.3], step: 0.01, default: 0.105, desc: "Event-horizon radius" },
-  discRadius: { type: RANGE, range: [0.08, 0.7], step: 0.01, default: 0.28, desc: "Accretion-disc radius" },
-  discWidth: { type: RANGE, range: [0.01, 0.2], step: 0.005, default: 0.055, desc: "Accretion-disc thickness" },
-  spin: { type: RANGE, range: [-3, 3], step: 0.05, default: 0.8, desc: "Disc rotation and Doppler asymmetry" },
-  exposure: { type: RANGE, range: [0.25, 3], step: 0.05, default: 1.2, desc: "Tone-mapped lens and disc exposure" },
+  centerX: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Horizontal gravity-well position",
+  },
+  centerY: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Vertical gravity-well position",
+  },
+  mass: {
+    type: RANGE,
+    range: [0.1, 3],
+    step: 0.05,
+    default: 1.1,
+    desc: "Strength of gravitational ray bending",
+  },
+  horizon: {
+    type: RANGE,
+    range: [0.02, 0.3],
+    step: 0.01,
+    default: 0.105,
+    desc: "Event-horizon radius",
+  },
+  discRadius: {
+    type: RANGE,
+    range: [0.08, 0.7],
+    step: 0.01,
+    default: 0.28,
+    desc: "Accretion-disc radius",
+  },
+  discWidth: {
+    type: RANGE,
+    range: [0.01, 0.2],
+    step: 0.005,
+    default: 0.055,
+    desc: "Accretion-disc thickness",
+  },
+  spin: {
+    type: RANGE,
+    range: [-3, 3],
+    step: 0.05,
+    default: 0.8,
+    desc: "Disc rotation and Doppler asymmetry",
+  },
+  exposure: {
+    type: RANGE,
+    range: [0.25, 3],
+    step: 0.05,
+    default: 1.2,
+    desc: "Tone-mapped lens and disc exposure",
+  },
   discTint: { type: COLOR, default: [255, 142, 72], desc: "Accretion and photon-ring color" },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
-export const defaults = { centerX: optionTypes.centerX.default, centerY: optionTypes.centerY.default, mass: optionTypes.mass.default,
-  horizon: optionTypes.horizon.default, discRadius: optionTypes.discRadius.default, discWidth: optionTypes.discWidth.default,
-  spin: optionTypes.spin.default, exposure: optionTypes.exposure.default, discTint: optionTypes.discTint.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } } };
-const blackHoleLens = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const runtime = options as typeof defaults & { _frameIndex?: number }; const W = input.width, H = input.height;
-  const rendered = renderGLSinglePass({ source: input, width: W, height: H, key: "blackHoleLens", fragmentShader: FS,
-    uniformNames: ["u_center", "u_mass", "u_horizon", "u_discRadius", "u_discWidth", "u_spin", "u_exposure", "u_time", "u_discTint"],
-    setUniforms: (gl, u) => { gl.uniform2f(u.u_center, options.centerX, 1 - options.centerY); gl.uniform1f(u.u_mass, options.mass);
-      gl.uniform1f(u.u_horizon, options.horizon); gl.uniform1f(u.u_discRadius, options.discRadius); gl.uniform1f(u.u_discWidth, options.discWidth);
-      gl.uniform1f(u.u_spin, options.spin); gl.uniform1f(u.u_exposure, options.exposure); gl.uniform1f(u.u_time, (runtime._frameIndex ?? 0) * 0.012);
-      gl.uniform3f(u.u_discTint, options.discTint[0], options.discTint[1], options.discTint[2]); } });
-  if (!rendered) return input; const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Black Hole Lens", "WebGL2", `mass=${options.mass}${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+export const defaults = {
+  centerX: optionTypes.centerX.default,
+  centerY: optionTypes.centerY.default,
+  mass: optionTypes.mass.default,
+  horizon: optionTypes.horizon.default,
+  discRadius: optionTypes.discRadius.default,
+  discWidth: optionTypes.discWidth.default,
+  spin: optionTypes.spin.default,
+  exposure: optionTypes.exposure.default,
+  discTint: optionTypes.discTint.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
-export default defineFilter({ name: "Black Hole Lens", func: blackHoleLens, optionTypes, options: defaults, defaults,
-  description: "Bend source-image rays around an event horizon and glowing accretion disc", temporal: true, autoAnimate: true, autoAnimateFps: 30, requiresGL: true });
+const blackHoleLens = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
+  const runtime = options as typeof defaults & { _frameIndex?: number };
+  const W = input.width,
+    H = input.height;
+  const rendered = renderGLSinglePass({
+    source: input,
+    width: W,
+    height: H,
+    key: "blackHoleLens",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_center",
+      "u_mass",
+      "u_horizon",
+      "u_discRadius",
+      "u_discWidth",
+      "u_spin",
+      "u_exposure",
+      "u_time",
+      "u_discTint",
+    ],
+    setUniforms: (gl, u) => {
+      gl.uniform2f(u.u_center, options.centerX, 1 - options.centerY);
+      gl.uniform1f(u.u_mass, options.mass);
+      gl.uniform1f(u.u_horizon, options.horizon);
+      gl.uniform1f(u.u_discRadius, options.discRadius);
+      gl.uniform1f(u.u_discWidth, options.discWidth);
+      gl.uniform1f(u.u_spin, options.spin);
+      gl.uniform1f(u.u_exposure, options.exposure);
+      gl.uniform1f(u.u_time, (runtime._frameIndex ?? 0) * 0.012);
+      gl.uniform3f(u.u_discTint, options.discTint[0], options.discTint[1], options.discTint[2]);
+    },
+  });
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(options.palette);
+  logFilterBackend(
+    "Black Hole Lens",
+    "WebGL2",
+    `mass=${options.mass}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+};
+export default defineFilter({
+  name: "Black Hole Lens",
+  func: blackHoleLens,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Bend source-image rays around an event horizon and glowing accretion disc",
+  temporal: true,
+  autoAnimate: true,
+  autoAnimateFps: 30,
+  requiresGL: true,
+});

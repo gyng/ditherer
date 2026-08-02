@@ -29,27 +29,116 @@ void main() {
   fragColor = vec4(clamp(rgb,0.0,1.0), src.a);
 }`;
 export const optionTypes = {
-  thickness: { type: RANGE, range: [80, 1200], step: 10, default: 420, desc: "Base optical film thickness in nanometers" },
-  variation: { type: RANGE, range: [0, 8], step: 0.1, default: 3.2, desc: "Luminance-driven thickness and normal variation" },
-  ior: { type: RANGE, range: [1.01, 2.5], step: 0.01, default: 1.42, desc: "Film index of refraction" },
-  lightAngle: { type: RANGE, range: [0, 360], step: 1, default: 135, desc: "Incident light direction" },
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Interference color strength" },
-  roughness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.12, desc: "Microscopic disorder that softens spectral bands" },
-  driftSpeed: { type: RANGE, range: [0, 2], step: 0.05, default: 0.12, desc: "Slow film-thickness drift speed" },
+  thickness: {
+    type: RANGE,
+    range: [80, 1200],
+    step: 10,
+    default: 420,
+    desc: "Base optical film thickness in nanometers",
+  },
+  variation: {
+    type: RANGE,
+    range: [0, 8],
+    step: 0.1,
+    default: 3.2,
+    desc: "Luminance-driven thickness and normal variation",
+  },
+  ior: {
+    type: RANGE,
+    range: [1.01, 2.5],
+    step: 0.01,
+    default: 1.42,
+    desc: "Film index of refraction",
+  },
+  lightAngle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 135,
+    desc: "Incident light direction",
+  },
+  intensity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.8,
+    desc: "Interference color strength",
+  },
+  roughness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.12,
+    desc: "Microscopic disorder that softens spectral bands",
+  },
+  driftSpeed: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.12,
+    desc: "Slow film-thickness drift speed",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
-export const defaults = { thickness: optionTypes.thickness.default, variation: optionTypes.variation.default, ior: optionTypes.ior.default,
-  lightAngle: optionTypes.lightAngle.default, intensity: optionTypes.intensity.default, roughness: optionTypes.roughness.default,
-  driftSpeed: optionTypes.driftSpeed.default, palette: { ...optionTypes.palette.default, options: { levels: 256 } } };
-const thinFilmIridescence = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
-  const runtime = options as typeof defaults & { _frameIndex?: number }; const W=input.width,H=input.height;
-  const rendered=renderGLSinglePass({source:input,width:W,height:H,key:"thinFilmIridescence",fragmentShader:FS,
-    uniformNames:["u_thickness","u_variation","u_ior","u_lightAngle","u_intensity","u_roughness","u_time"],
-    setUniforms:(gl,u)=>{gl.uniform1f(u.u_thickness,options.thickness);gl.uniform1f(u.u_variation,options.variation);gl.uniform1f(u.u_ior,options.ior);
-      gl.uniform1f(u.u_lightAngle,options.lightAngle);gl.uniform1f(u.u_intensity,options.intensity);gl.uniform1f(u.u_roughness,options.roughness);
-      gl.uniform1f(u.u_time,(runtime._frameIndex??0)*options.driftSpeed*0.02);} });
-  if(!rendered)return input;const identity=paletteIsIdentity(options.palette);logFilterBackend("Thin-Film Iridescence","WebGL2",`thickness=${options.thickness}nm${identity?"":"+palettePass"}`);
-  return identity?rendered:(applyPalettePassToCanvas(rendered,W,H,options.palette)??rendered);
+export const defaults = {
+  thickness: optionTypes.thickness.default,
+  variation: optionTypes.variation.default,
+  ior: optionTypes.ior.default,
+  lightAngle: optionTypes.lightAngle.default,
+  intensity: optionTypes.intensity.default,
+  roughness: optionTypes.roughness.default,
+  driftSpeed: optionTypes.driftSpeed.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
-export default defineFilter({name:"Thin-Film Iridescence",func:thinFilmIridescence,optionTypes,options:defaults,defaults,
-  description:"Simulate wavelength-dependent soap, oil, shell, and holographic-film interference",temporal:true,autoAnimate:true,autoAnimateFps:24,requiresGL:true});
+const thinFilmIridescence = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
+  const runtime = options as typeof defaults & { _frameIndex?: number };
+  const W = input.width,
+    H = input.height;
+  const rendered = renderGLSinglePass({
+    source: input,
+    width: W,
+    height: H,
+    key: "thinFilmIridescence",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_thickness",
+      "u_variation",
+      "u_ior",
+      "u_lightAngle",
+      "u_intensity",
+      "u_roughness",
+      "u_time",
+    ],
+    setUniforms: (gl, u) => {
+      gl.uniform1f(u.u_thickness, options.thickness);
+      gl.uniform1f(u.u_variation, options.variation);
+      gl.uniform1f(u.u_ior, options.ior);
+      gl.uniform1f(u.u_lightAngle, options.lightAngle);
+      gl.uniform1f(u.u_intensity, options.intensity);
+      gl.uniform1f(u.u_roughness, options.roughness);
+      gl.uniform1f(u.u_time, (runtime._frameIndex ?? 0) * options.driftSpeed * 0.02);
+    },
+  });
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(options.palette);
+  logFilterBackend(
+    "Thin-Film Iridescence",
+    "WebGL2",
+    `thickness=${options.thickness}nm${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+};
+export default defineFilter({
+  name: "Thin-Film Iridescence",
+  func: thinFilmIridescence,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Simulate wavelength-dependent soap, oil, shell, and holographic-film interference",
+  temporal: true,
+  autoAnimate: true,
+  autoAnimateFps: 24,
+  requiresGL: true,
+});

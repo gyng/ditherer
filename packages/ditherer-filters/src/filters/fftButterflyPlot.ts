@@ -15,12 +15,7 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
-import {
-  fft2dAvailable,
-  fft2dStageCount,
-  forwardFFT2DToStage,
-  nextPow2,
-} from "../gl/fft2d";
+import { fft2dAvailable, fft2dStageCount, forwardFFT2DToStage, nextPow2 } from "../gl/fft2d";
 
 // Visualise an intermediate FFT stage. Stage 0 is the padded spatial
 // luminance; the final stage is the fully-forward 2D FFT. In between each
@@ -105,7 +100,13 @@ void main() {
 `;
 
 export const optionTypes = {
-  stage: { type: RANGE, range: [0, 32], step: 1, default: 4, desc: "FFT pipeline stage to render (0 = spatial, max = fully-forward)" },
+  stage: {
+    type: RANGE,
+    range: [0, 32],
+    step: 1,
+    default: 4,
+    desc: "FFT pipeline stage to render (0 = spatial, max = fully-forward)",
+  },
   mode: {
     type: ENUM,
     options: [
@@ -114,11 +115,17 @@ export const optionTypes = {
       { name: "Imaginary part", value: MODE.IMAGINARY },
     ],
     default: MODE.MAGNITUDE,
-    desc: "Which component of the complex state to plot"
+    desc: "Which component of the complex state to plot",
   },
-  scale: { type: RANGE, range: [1, 10000], step: 10, default: 500, desc: "Brightness scale — higher compresses dynamic range harder" },
+  scale: {
+    type: RANGE,
+    range: [1, 10000],
+    step: 10,
+    default: 500,
+    desc: "Brightness scale — higher compresses dynamic range harder",
+  },
   centred: { type: BOOL, default: true, desc: "fftshift — place DC at image centre" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -126,7 +133,7 @@ export const defaults = {
   mode: optionTypes.mode.default,
   scale: optionTypes.scale.default,
   centred: optionTypes.centred.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const MODE_ID: Record<string, number> = { MAGNITUDE: 0, REAL: 1, IMAGINARY: 2 };
@@ -137,7 +144,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     plot: linkProgram(gl, PLOT_FS, [
-      "u_state", "u_padRes", "u_outRes", "u_mode", "u_scale", "u_shift", "u_levels",
+      "u_state",
+      "u_padRes",
+      "u_outRes",
+      "u_mode",
+      "u_scale",
+      "u_shift",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -149,9 +162,9 @@ const fftButterflyPlot = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -170,27 +183,38 @@ const fftButterflyPlot = (input: any, options = defaults) => {
 
       const result = forwardFFT2DToStage(gl, sourceTex, W, H, stopStage);
       if (result) {
-        drawPass(gl, null, W, H, cache.plot, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, result.tex);
-          gl.uniform1i(cache.plot.uniforms.u_state, 0);
-          gl.uniform2f(cache.plot.uniforms.u_padRes, result.paddedW, result.paddedH);
-          gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
-          gl.uniform1i(cache.plot.uniforms.u_mode, MODE_ID[mode] ?? 0);
-          gl.uniform1f(cache.plot.uniforms.u_scale, scale);
-          gl.uniform1i(cache.plot.uniforms.u_shift, centred ? 1 : 0);
-          const identity = paletteIsIdentity(palette);
-          const pOpts = (palette as { options?: { levels?: number } }).options;
-          const levels = identity ? (pOpts?.levels ?? 256) : 256;
-          gl.uniform1f(cache.plot.uniforms.u_levels, levels);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.plot,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, result.tex);
+            gl.uniform1i(cache.plot.uniforms.u_state, 0);
+            gl.uniform2f(cache.plot.uniforms.u_padRes, result.paddedW, result.paddedH);
+            gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
+            gl.uniform1i(cache.plot.uniforms.u_mode, MODE_ID[mode] ?? 0);
+            gl.uniform1f(cache.plot.uniforms.u_scale, scale);
+            gl.uniform1i(cache.plot.uniforms.u_shift, centred ? 1 : 0);
+            const identity = paletteIsIdentity(palette);
+            const pOpts = (palette as { options?: { levels?: number } }).options;
+            const levels = identity ? (pOpts?.levels ?? 256) : 256;
+            gl.uniform1f(cache.plot.uniforms.u_levels, levels);
+          },
+          vao,
+        );
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("FFT Butterfly Plot", "WebGL2",
-              `stage=${stopStage}/${maxStage} ${mode}${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "FFT Butterfly Plot",
+              "WebGL2",
+              `stage=${stopStage}/${maxStage} ${mode}${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -207,6 +231,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Render the FFT at any pipeline stage — watch the spatial image crystallise into its Fourier representation through the butterfly passes",
+  description:
+    "Render the FFT at any pipeline stage — watch the spatial image crystallise into its Fourier representation through the butterfly passes",
   noWASM: "Needs GPU 2D FFT.",
 });

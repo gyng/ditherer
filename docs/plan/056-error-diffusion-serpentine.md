@@ -30,7 +30,7 @@ Floyd-Steinberg, Atkinson, Jarvis, all three Sierras, Stucki, Burkes.
   mocked the kernel away and asserted argument positions. Neither looked at
   output.
 - The one serpentine assertion was `straight != snake`. The un-aimed kernel
-  *does* produce a different image, so it passed.
+  _does_ produce a different image, so it passed.
 - JS and WASM shared the same convention, so backend-parity checks agreed —
   both were wrong in the same way.
 
@@ -44,11 +44,11 @@ Local mean is the actual promise: error diffusion claims the result resembles
 the source when blurred. Mean `|blur(dithered) - blur(source)|` on a 64×64
 gradient, box radius 4:
 
-| | before | after |
-|---|---:|---:|
-| straight (serpentine off) | 2.87 | 2.87 |
-| **serpentine on** | **12.98** | **2.79** |
-| textbook reference | 2.79 | 2.79 |
+|                           |    before |    after |
+| ------------------------- | --------: | -------: |
+| straight (serpentine off) |      2.87 |     2.87 |
+| **serpentine on**         | **12.98** | **2.79** |
+| textbook reference        |      2.79 |     2.79 |
 
 Serpentine was **4.5× worse than straight scanning** — i.e. worse than not
 serpentining at all — and is now indistinguishable from it, as it should be.

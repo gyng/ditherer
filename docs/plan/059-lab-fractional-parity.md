@@ -20,7 +20,7 @@ not** — plus a floor that no amount of care removes:
 Result: 11 of 12 configurations are bit-identical at 1024×1024, up from divergence
 at 12×9. The twelfth is (5).
 
-Neither backend was ever *wrong* — both produce a valid dither. But
+Neither backend was ever _wrong_ — both produce a valid dither. But
 `wasmAcceleration` is a user-facing toggle, and the JS loop is the only oracle
 the kernel has.
 
@@ -35,14 +35,14 @@ the widths were matched, and the floor is libm".
 Stucki, 256×256 gradient, custom 16-colour palette, `_linearize: false`. Pixels
 whose output colour differs between the JS loop and the Rust kernel:
 
-| algorithm | Stucki 256×256, 16-colour |
-|---|---:|
-| RGB | 0 / 65536 |
-| RGB_APPROX | 0 / 65536 |
-| HSV | 0 / 65536 |
-| LEVELS | 0 / 65536 |
-| **OKLAB** | **10052 / 65536 (15%)** |
-| **LAB** | **34244 / 65536 (52%)** |
+| algorithm  | Stucki 256×256, 16-colour |
+| ---------- | ------------------------: |
+| RGB        |                 0 / 65536 |
+| RGB_APPROX |                 0 / 65536 |
+| HSV        |                 0 / 65536 |
+| LEVELS     |                 0 / 65536 |
+| **OKLAB**  |   **10052 / 65536 (15%)** |
+| **LAB**    |   **34244 / 65536 (52%)** |
 
 Only the two algorithms that go through the sRGB→linear LUT diverge. That is the
 whole finding — see the mechanism below.
@@ -51,13 +51,13 @@ whole finding — see the mechanism below.
 
 **Lab: a different conversion on each side.** JS `rgba2laba` reads the f32 LUT at
 `round(channel)`. Rust `rgba2lab_inline` — the one error diffusion and Riemersma
-call — linearises the *exact* float with `powf` and never touches the LUT. So the
+call — linearises the _exact_ float with `powf` and never touches the LUT. So the
 two compute genuinely different values for a fractional channel. Measured against
 an exact f64 reference: the LUT-and-round answer is off by up to **0.2554 L\***
 (worst around channel 23.5). Roughly a quarter of a just-noticeable difference,
 so every individual decision is a near-tie — but error diffusion cascades them.
 
-Note `quantize_buffer_lab` (whole-buffer) uses `rgba2lab_via_lut`, which *does*
+Note `quantize_buffer_lab` (whole-buffer) uses `rgba2lab_via_lut`, which _does_
 read the LUT. So Rust has both shapes, and which one you get depends on which
 kernel you land in. That path is fine: integral channels only, where LUT and exact
 `powf` agree to **1.65e-6 L\*** across all 256 greys.
@@ -69,8 +69,8 @@ out of the `Float32Array`, and the arithmetic runs as JS numbers) while the Rust
 kernel accumulates in **f32**. Those differ in the last bits.
 
 Last-bit differences are normally harmless. The LUT is what makes them matter: it
-quantizes the channel to an integer index, which is a *hard threshold at every .5
-boundary*. A last-bit difference straddling a boundary picks a different palette
+quantizes the channel to an integer index, which is a _hard threshold at every .5
+boundary_. A last-bit difference straddling a boundary picks a different palette
 entry, and error diffusion propagates it. RGB/RGB_APPROX/HSV compare distances
 against palette entries instead, where a last-bit difference cannot flip a winner
 short of an exact tie — which is why they sit at 0.
@@ -80,13 +80,13 @@ short of an exact tie — which is why they sit at 0.
 Divergence grows with image size, same fixture and palette throughout
 (Floyd-Steinberg, Lab, 6 colours):
 
-| size | pixels differing |
-|---|---:|
-| 12×9 | 7.41% |
-| 24×18 | 26.62% |
-| 48×36 | 37.79% |
-| 64×64 | 38.21% |
-| 128×128 | 41.43% |
+| size    | pixels differing |
+| ------- | ---------------: |
+| 12×9    |            7.41% |
+| 24×18   |           26.62% |
+| 48×36   |           37.79% |
+| 64×64   |           38.21% |
+| 128×128 |           41.43% |
 
 One flipped near-tie changes the error pushed to its neighbours, which flips
 more. A small fixture badly understates it — 12×9 reads as a 7% curiosity, and the
@@ -104,19 +104,19 @@ Direction given: parity is wanted, 100% is not required. In the event it cost
 nothing to get there for Lab.
 
 Neither option below was taken as written. Both asked "which shape is canonical,
-the LUT or the exact float?" — and the answer is *both, depending on the caller*,
+the LUT or the exact float?" — and the answer is _both, depending on the caller_,
 because Rust has one of each. `rgba2laba` now branches on integrality: an integral
 in-range channel reads the LUT (matching `rgba2lab_via_lut`, which is all
 `quantize_buffer_lab` ever sees), and anything fractional or out-of-range
 linearises exactly (matching `rgba2lab_inline`, which is all error diffusion and
 Riemersma ever see). Each caller lands on its own counterpart's shape.
 
-| case | before | after |
-|---|---:|---:|
-| FS 12×9, 6-colour | 7.41% | **0%** |
-| FS 48×36, 6-colour | 37.79% | **0%** |
-| FS 128×128, 6-colour | 41.43% | **0%** |
-| FS 64×64, 16-colour | 54.13% | **0%** |
+| case                      | before |  after |
+| ------------------------- | -----: | -----: |
+| FS 12×9, 6-colour         |  7.41% | **0%** |
+| FS 48×36, 6-colour        | 37.79% | **0%** |
+| FS 128×128, 6-colour      | 41.43% | **0%** |
+| FS 64×64, 16-colour       | 54.13% | **0%** |
 | Stucki 256×256, 16-colour | 52.25% | **0%** |
 
 Lab beat OKLab the moment it stopped touching the LUT, which is the mechanism
@@ -143,23 +143,23 @@ as sub-JND near-ties where "both outputs are valid dithers". That was wrong, and
 measuring it was what showed it.
 
 Both sides rounding into the same LUT does make them agree — but it also means
-the *error signal* gets quantized to 8 bits before every palette match. Error
+the _error signal_ gets quantized to 8 bits before every palette match. Error
 diffusion exists to carry sub-LSB error forward; discarding it at the match is
 not a near-tie, it is throwing away the mechanism.
 
 Same-algorithm A/B, JS path, 128×128, blurred RMS against the source (a dither is
-meant to be integrated by the eye, so quality is how close the *blurred* result
+meant to be integrated by the eye, so quality is how close the _blurred_ result
 lands). RGB and Lab were identical across both runs, which is the control — the
 change only touched OKLab:
 
-| case | LUT | exact | |
-|---|---:|---:|---:|
-| FS / CGA16 / skin tones | 18.541 | 6.289 | **−66%** |
-| Stucki / CGA16 / ramp | 21.919 | 12.838 | **−41%** |
-| FS / CGA16 / ramp | 18.763 | 11.379 | **−39%** |
-| Atkinson / CGA16 / ramp | 19.068 | 16.288 | −15% |
-| FS / 6-colour / ramp | 24.721 | 21.185 | −14% |
-| FS / black+white / grey ramp | 4.482 | 4.596 | +2.5% |
+| case                         |    LUT |  exact |          |
+| ---------------------------- | -----: | -----: | -------: |
+| FS / CGA16 / skin tones      | 18.541 |  6.289 | **−66%** |
+| Stucki / CGA16 / ramp        | 21.919 | 12.838 | **−41%** |
+| FS / CGA16 / ramp            | 18.763 | 11.379 | **−39%** |
+| Atkinson / CGA16 / ramp      | 19.068 | 16.288 |     −15% |
+| FS / 6-colour / ramp         | 24.721 | 21.185 |     −14% |
+| FS / black+white / grey ramp |  4.482 |  4.596 |    +2.5% |
 
 The one regression is a 2-colour palette on a grey ramp — no colour to choose, so
 there is nothing for a perceptual space to be right about. Everything else moves
@@ -176,11 +176,11 @@ load-bearing" — was right about `quantize_buffer_oklab` and wrong about the
 error-diffusion path. Mirroring is only a virtue when the thing being mirrored is
 correct for the caller.
 
-**Checked, and clean:** the same question for *ordered*, which inlines its own
+**Checked, and clean:** the same question for _ordered_, which inlines its own
 OKLab in GLSL and pre-converts its palette with a JS copy (`rgbToOklabJs`).
 Nothing to fix. Ordered biases a pixel by its threshold and then quantizes to the
 levels grid — `quant = jsRoundV(jsRoundV((src255 + bias) / step255) * step255)` —
-*before* the palette match. That rounding is the algorithm, not an artifact: a
+_before_ the palette match. That rounding is the algorithm, not an artifact: a
 threshold map is a fixed bias, not accumulated error, so there is no sub-LSB
 signal for the match to throw away. Both conversions already linearise with `pow`
 and read no LUT, so ordered was never on the wrong side of this.
@@ -191,19 +191,19 @@ Every intermediate that JS and the kernel computed at different widths has been
 matched. Stucki, 16-colour, JS vs WASM, **1024×1024** — larger than anything that
 had been measured:
 
-| algo | `_linearize: false` | `_linearize: true` |
-|---|---:|---:|
-| RGB | 0 | 0 |
-| RGB_APPROX | 0 | 0 |
-| HSV | 0 | 0 |
-| Lab | 0 | 0 |
-| LEVELS | 0 | 0 |
-| **OKLab** | 0 | **12.43%** |
+| algo       | `_linearize: false` | `_linearize: true` |
+| ---------- | ------------------: | -----------------: |
+| RGB        |                   0 |                  0 |
+| RGB_APPROX |                   0 |                  0 |
+| HSV        |                   0 |                  0 |
+| Lab        |                   0 |                  0 |
+| LEVELS     |                   0 |                  0 |
+| **OKLab**  |                   0 |         **12.43%** |
 
 Three faults, all of the same shape — one side rounding where the other did not:
 
 1. **The error arithmetic.** JS computed `er`, `scale`, `weight * scale` and
-   `er * weight` in f64; the kernel does each in f32. The *store* already
+   `er * weight` in f64; the kernel does each in f32. The _store_ already
    agreed (both write a `Float32Array`, and an f32+f32 sum computed in f64 and
    rounded once is bit-equal to an f32 add), so only the products were wide. JS
    now `Math.fround`s each. Nothing was lost: the next store discarded that
@@ -248,24 +248,24 @@ is the standing proof that they cannot.
 Historical; superseded by the section above, which closed all of these except
 OKLab. Kept for the mechanism, which is the useful part.
 
-Linearize mode is a *different* configuration, not a variation: both sides round
+Linearize mode is a _different_ configuration, not a variation: both sides round
 to an integral u8 before matching, so it exercises the LUT half of the
 integrality branch where the rest of this doc exercises the exact half. It went
 untested long enough to hide a 21% gap.
 
 Stucki 256×256, 16-colour, before any of the width fixes:
 
-| algo | linearize=false | linearize=true |
-|---|---:|---:|
-| RGB | 0 | 0 |
-| HSV | 0 | 0 |
-| LEVELS | 0 | 0 |
-| Lab | 0 | 13988 (21%) |
-| OKLab | 0 | 8941 (14%) |
-| RGB_APPROX | 0 | 5286 (8%) |
+| algo       | linearize=false | linearize=true |
+| ---------- | --------------: | -------------: |
+| RGB        |               0 |              0 |
+| HSV        |               0 |              0 |
+| LEVELS     |               0 |              0 |
+| Lab        |               0 |    13988 (21%) |
+| OKLab      |               0 |     8941 (14%) |
+| RGB_APPROX |               0 |      5286 (8%) |
 
 Why it hid is the useful part. A 1.8e-7 LUT difference only flips a pixel sitting
-that close to the *bisector* between two palette entries. Over a 76,800-pixel
+that close to the _bisector_ between two palette entries. Over a 76,800-pixel
 whole-buffer quantize that is ~0.008 expected flips — zero — which is exactly why
 `quantizeBufferParity` passed bit-for-bit the whole time. Error diffusion cascades
 one flip into thousands. The same fault is invisible in one kernel and 21% in the
@@ -278,7 +278,7 @@ be arbitrarily small.)
 
 One diagnosis recorded because it was wrong and nearly filed as a bug:
 RGB_APPROX's divergence was attributed to the Rust kernel computing the red-mean
-distance in f32 against JS's f64. That *was* the cause — but the disproof offered
+distance in f32 against JS's f64. That _was_ the cause — but the disproof offered
 at the time (modelling the f32 arithmetic with `Math.fround` and comparing argmin
 over 76,368 pixels, finding zero flips) was itself wrong, because it sampled a
 coarse grid rather than the error-diffused values the kernel actually sees. The
@@ -294,7 +294,7 @@ Rust internally consistent (`rgba2lab_via_lut` already does this). Changes the
 WASM Lab dither — the default path, what users actually see today.
 
 **B. JS `rgba2laba` linearises the exact float like Rust does.** Aligns Lab by
-moving the *fallback* to match the primary path, so current default output is
+moving the _fallback_ to match the primary path, so current default output is
 untouched. Costs 3 `powf` per pixel on a path that is already the slow one. But
 `rgba2laba` is shared with the whole-buffer JS fallback, where inputs are integral
 — that would swap a LUT read for a `powf` to change the answer by 1.65e-6, i.e.

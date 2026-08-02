@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -99,9 +106,16 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_scale", "u_stepDist", "u_steps", "u_seed",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_scale",
+      "u_stepDist",
+      "u_steps",
+      "u_seed",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -109,8 +123,12 @@ export const flowFieldGLAvailable = (): boolean => glAvailable();
 
 export const renderFlowFieldGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  scale: number, strength: number, steps: number, seed: number,
+  width: number,
+  height: number,
+  scale: number,
+  strength: number,
+  steps: number,
+  seed: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -121,15 +139,23 @@ export const renderFlowFieldGL = (
   const sourceTex = ensureTexture(gl, "flowField:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
   const stepDist = strength / Math.max(1, steps);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_scale, scale);
-    gl.uniform1f(cache.prog.uniforms.u_stepDist, stepDist);
-    gl.uniform1i(cache.prog.uniforms.u_steps, steps | 0);
-    gl.uniform1ui(cache.prog.uniforms.u_seed, (seed >>> 0));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_scale, scale);
+      gl.uniform1f(cache.prog.uniforms.u_stepDist, stepDist);
+      gl.uniform1i(cache.prog.uniforms.u_steps, steps | 0);
+      gl.uniform1ui(cache.prog.uniforms.u_seed, seed >>> 0);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

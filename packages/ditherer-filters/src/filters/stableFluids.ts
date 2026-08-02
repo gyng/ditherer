@@ -2,7 +2,11 @@ import { ACTION, RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
 import { defineFilter } from "./types";
 import { cloneCanvas, logFilterBackend, logFilterWasmStatus } from "../utils/index";
-import { normalizeEnumOption, normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
+import {
+  normalizeEnumOption,
+  normalizePaletteOption,
+  normalizeRangeOption,
+} from "../utils/filterOptions";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
   drawPass,
@@ -241,21 +245,58 @@ export const optionTypes = {
       { name: "Smoke only", value: MODE.SMOKE },
     ],
     default: MODE.OVERLAY,
-    desc: "What to render"
+    desc: "What to render",
   },
-  steps: { type: RANGE, range: [1, 20], step: 1, default: 3, desc: "Advection steps per frame — more = faster flow" },
-  dt: { type: RANGE, range: [0.1, 8], step: 0.1, default: 2.0, desc: "Time step — larger = more violent motion" },
-  viscosity: { type: RANGE, range: [0, 0.2], step: 0.005, default: 0.02, desc: "Damping applied to velocity per step" },
-  forcing: { type: RANGE, range: [0, 40], step: 0.5, default: 8.0, desc: "How strongly the image gradient re-injects flow each step" },
-  pressureIterations: { type: RANGE, range: [0, 40], step: 1, default: 20, desc: "Pressure-solve iterations — more enforces incompressibility (rolling vortices); 0 disables projection" },
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.7, desc: "Blend smoke over source (overlay mode)" },
+  steps: {
+    type: RANGE,
+    range: [1, 20],
+    step: 1,
+    default: 3,
+    desc: "Advection steps per frame — more = faster flow",
+  },
+  dt: {
+    type: RANGE,
+    range: [0.1, 8],
+    step: 0.1,
+    default: 2.0,
+    desc: "Time step — larger = more violent motion",
+  },
+  viscosity: {
+    type: RANGE,
+    range: [0, 0.2],
+    step: 0.005,
+    default: 0.02,
+    desc: "Damping applied to velocity per step",
+  },
+  forcing: {
+    type: RANGE,
+    range: [0, 40],
+    step: 0.5,
+    default: 8.0,
+    desc: "How strongly the image gradient re-injects flow each step",
+  },
+  pressureIterations: {
+    type: RANGE,
+    range: [0, 40],
+    step: 1,
+    default: 20,
+    desc: "Pressure-solve iterations — more enforces incompressibility (rolling vortices); 0 disables projection",
+  },
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.7,
+    desc: "Blend smoke over source (overlay mode)",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
-    type: ACTION, label: "Play / Stop",
+    type: ACTION,
+    label: "Play / Stop",
     action: (actions: any, inputCanvas: any, _f: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
-    }
+    },
   },
   palette: { type: PALETTE, default: nearest },
 };
@@ -273,8 +314,12 @@ export const defaults = {
 };
 
 type Cache = {
-  seed: Program; step: Program; render: Program;
-  div: Program; jacobi: Program; grad: Program;
+  seed: Program;
+  step: Program;
+  render: Program;
+  div: Program;
+  jacobi: Program;
+  grad: Program;
 };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
@@ -282,11 +327,23 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     seed: linkProgram(gl, SEED_FS, ["u_source", "u_res", "u_target"] as const),
     step: linkProgram(gl, STEP_FS, [
-      "u_field", "u_vel", "u_source", "u_res", "u_dt",
-      "u_viscosity", "u_forcing", "u_target",
+      "u_field",
+      "u_vel",
+      "u_source",
+      "u_res",
+      "u_dt",
+      "u_viscosity",
+      "u_forcing",
+      "u_target",
     ] as const),
     render: linkProgram(gl, RENDER_FS, [
-      "u_density", "u_vel", "u_source", "u_res", "u_mode", "u_amount", "u_levels",
+      "u_density",
+      "u_vel",
+      "u_source",
+      "u_res",
+      "u_mode",
+      "u_amount",
+      "u_levels",
     ] as const),
     div: linkProgram(gl, DIV_FS, ["u_vel", "u_res"] as const),
     jacobi: linkProgram(gl, JACOBI_FS, ["u_pressure", "u_div", "u_res"] as const),
@@ -295,24 +352,38 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   return _cache;
 };
 
-let _stateW = 0, _stateH = 0, _seeded = false;
-let _densSlot: "A" | "B" = "A", _velSlot: "A" | "B" = "A";
+let _stateW = 0,
+  _stateH = 0,
+  _seeded = false;
+let _densSlot: "A" | "B" = "A",
+  _velSlot: "A" | "B" = "A";
 
 const stableFluids = (input: any, options: Partial<typeof defaults> = defaults) => {
-  const mode = normalizeEnumOption(options.mode, [MODE.OVERLAY, MODE.FIELD, MODE.SMOKE], defaults.mode);
+  const mode = normalizeEnumOption(
+    options.mode,
+    [MODE.OVERLAY, MODE.FIELD, MODE.SMOKE],
+    defaults.mode,
+  );
   const steps = normalizeRangeOption(options.steps, defaults.steps, 1, 20, true);
   const dt = normalizeRangeOption(options.dt, defaults.dt, 0.1, 8);
   const viscosity = normalizeRangeOption(options.viscosity, defaults.viscosity, 0, 0.2);
   const forcing = normalizeRangeOption(options.forcing, defaults.forcing, 0, 40);
-  const pressureIterations = normalizeRangeOption(options.pressureIterations, defaults.pressureIterations, 0, 40, true);
+  const pressureIterations = normalizeRangeOption(
+    options.pressureIterations,
+    defaults.pressureIterations,
+    0,
+    40,
+    true,
+  );
   const amount = normalizeRangeOption(options.amount, defaults.amount, 0, 1);
   const palette = normalizePaletteOption(options.palette, defaults.palette);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -336,22 +407,41 @@ const stableFluids = (input: any, options: Partial<typeof defaults> = defaults) 
       }
 
       if (_stateW !== W || _stateH !== H || !_seeded) {
-        drawPass(gl, densA, W, H, cache.seed, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.seed.uniforms.u_source, 0);
-          gl.uniform2f(cache.seed.uniforms.u_res, W, H);
-          gl.uniform1i(cache.seed.uniforms.u_target, 0);
-        }, vao);
-        drawPass(gl, velA, W, H, cache.seed, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.seed.uniforms.u_source, 0);
-          gl.uniform2f(cache.seed.uniforms.u_res, W, H);
-          gl.uniform1i(cache.seed.uniforms.u_target, 1);
-        }, vao);
-        _stateW = W; _stateH = H; _seeded = true;
-        _densSlot = "A"; _velSlot = "A";
+        drawPass(
+          gl,
+          densA,
+          W,
+          H,
+          cache.seed,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.seed.uniforms.u_source, 0);
+            gl.uniform2f(cache.seed.uniforms.u_res, W, H);
+            gl.uniform1i(cache.seed.uniforms.u_target, 0);
+          },
+          vao,
+        );
+        drawPass(
+          gl,
+          velA,
+          W,
+          H,
+          cache.seed,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.seed.uniforms.u_source, 0);
+            gl.uniform2f(cache.seed.uniforms.u_res, W, H);
+            gl.uniform1i(cache.seed.uniforms.u_target, 1);
+          },
+          vao,
+        );
+        _stateW = W;
+        _stateH = H;
+        _seeded = true;
+        _densSlot = "A";
+        _velSlot = "A";
       }
 
       const iters = Math.max(1, Math.min(20, Math.round(steps)));
@@ -362,34 +452,50 @@ const stableFluids = (input: any, options: Partial<typeof defaults> = defaults) 
 
       for (let i = 0; i < iters; i++) {
         // Velocity update first so density reads the newest velocity.
-        drawPass(gl, vDst, W, H, cache.step, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
-          gl.uniform1i(cache.step.uniforms.u_field, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
-          gl.uniform1i(cache.step.uniforms.u_vel, 1);
-          gl.activeTexture(gl.TEXTURE2);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.step.uniforms.u_source, 2);
-          gl.uniform2f(cache.step.uniforms.u_res, W, H);
-          gl.uniform1f(cache.step.uniforms.u_dt, dt);
-          gl.uniform1f(cache.step.uniforms.u_viscosity, viscosity);
-          gl.uniform1f(cache.step.uniforms.u_forcing, forcing);
-          gl.uniform1i(cache.step.uniforms.u_target, 1);
-        }, vao);
+        drawPass(
+          gl,
+          vDst,
+          W,
+          H,
+          cache.step,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+            gl.uniform1i(cache.step.uniforms.u_field, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+            gl.uniform1i(cache.step.uniforms.u_vel, 1);
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.step.uniforms.u_source, 2);
+            gl.uniform2f(cache.step.uniforms.u_res, W, H);
+            gl.uniform1f(cache.step.uniforms.u_dt, dt);
+            gl.uniform1f(cache.step.uniforms.u_viscosity, viscosity);
+            gl.uniform1f(cache.step.uniforms.u_forcing, forcing);
+            gl.uniform1i(cache.step.uniforms.u_target, 1);
+          },
+          vao,
+        );
         [vSrc, vDst] = [vDst, vSrc];
 
         // Projection: make the advected velocity (vSrc) divergence-free before
         // it advects the density. divergence -> Jacobi pressure solve -> subtract
         // gradient. Skipped when pressureIterations is 0 (legacy divergent look).
         if (pressureIterations > 0) {
-          drawPass(gl, divTex, W, H, cache.div, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
-            gl.uniform1i(cache.div.uniforms.u_vel, 0);
-            gl.uniform2f(cache.div.uniforms.u_res, W, H);
-          }, vao);
+          drawPass(
+            gl,
+            divTex,
+            W,
+            H,
+            cache.div,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+              gl.uniform1i(cache.div.uniforms.u_vel, 0);
+              gl.uniform2f(cache.div.uniforms.u_res, W, H);
+            },
+            vao,
+          );
 
           // Solve from a zeroed pressure each step (deterministic, no NaN from
           // uninitialised floats). Only pressA needs clearing — pressB is always
@@ -399,80 +505,116 @@ const stableFluids = (input: any, options: Partial<typeof defaults> = defaults) 
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
 
-          let pSrc = pressA, pDst = pressB;
+          let pSrc = pressA,
+            pDst = pressB;
           for (let k = 0; k < pressureIterations; k++) {
             const src = pSrc;
-            drawPass(gl, pDst, W, H, cache.jacobi, () => {
-              gl.activeTexture(gl.TEXTURE0);
-              gl.bindTexture(gl.TEXTURE_2D, src.tex);
-              gl.uniform1i(cache.jacobi.uniforms.u_pressure, 0);
-              gl.activeTexture(gl.TEXTURE1);
-              gl.bindTexture(gl.TEXTURE_2D, divTex.tex);
-              gl.uniform1i(cache.jacobi.uniforms.u_div, 1);
-              gl.uniform2f(cache.jacobi.uniforms.u_res, W, H);
-            }, vao);
+            drawPass(
+              gl,
+              pDst,
+              W,
+              H,
+              cache.jacobi,
+              () => {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, src.tex);
+                gl.uniform1i(cache.jacobi.uniforms.u_pressure, 0);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, divTex.tex);
+                gl.uniform1i(cache.jacobi.uniforms.u_div, 1);
+                gl.uniform2f(cache.jacobi.uniforms.u_res, W, H);
+              },
+              vao,
+            );
             [pSrc, pDst] = [pDst, pSrc];
           }
 
           const finalP = pSrc;
-          drawPass(gl, vDst, W, H, cache.grad, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
-            gl.uniform1i(cache.grad.uniforms.u_vel, 0);
-            gl.activeTexture(gl.TEXTURE1);
-            gl.bindTexture(gl.TEXTURE_2D, finalP.tex);
-            gl.uniform1i(cache.grad.uniforms.u_pressure, 1);
-            gl.uniform2f(cache.grad.uniforms.u_res, W, H);
-          }, vao);
+          drawPass(
+            gl,
+            vDst,
+            W,
+            H,
+            cache.grad,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+              gl.uniform1i(cache.grad.uniforms.u_vel, 0);
+              gl.activeTexture(gl.TEXTURE1);
+              gl.bindTexture(gl.TEXTURE_2D, finalP.tex);
+              gl.uniform1i(cache.grad.uniforms.u_pressure, 1);
+              gl.uniform2f(cache.grad.uniforms.u_res, W, H);
+            },
+            vao,
+          );
           [vSrc, vDst] = [vDst, vSrc];
         }
 
-        drawPass(gl, dDst, W, H, cache.step, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, dSrc.tex);
-          gl.uniform1i(cache.step.uniforms.u_field, 0);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
-          gl.uniform1i(cache.step.uniforms.u_vel, 1);
-          gl.activeTexture(gl.TEXTURE2);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.step.uniforms.u_source, 2);
-          gl.uniform2f(cache.step.uniforms.u_res, W, H);
-          gl.uniform1f(cache.step.uniforms.u_dt, dt);
-          gl.uniform1f(cache.step.uniforms.u_viscosity, viscosity);
-          gl.uniform1f(cache.step.uniforms.u_forcing, forcing);
-          gl.uniform1i(cache.step.uniforms.u_target, 0);
-        }, vao);
+        drawPass(
+          gl,
+          dDst,
+          W,
+          H,
+          cache.step,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, dSrc.tex);
+            gl.uniform1i(cache.step.uniforms.u_field, 0);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+            gl.uniform1i(cache.step.uniforms.u_vel, 1);
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.step.uniforms.u_source, 2);
+            gl.uniform2f(cache.step.uniforms.u_res, W, H);
+            gl.uniform1f(cache.step.uniforms.u_dt, dt);
+            gl.uniform1f(cache.step.uniforms.u_viscosity, viscosity);
+            gl.uniform1f(cache.step.uniforms.u_forcing, forcing);
+            gl.uniform1i(cache.step.uniforms.u_target, 0);
+          },
+          vao,
+        );
         [dSrc, dDst] = [dDst, dSrc];
       }
       _densSlot = dSrc === densA ? "A" : "B";
       _velSlot = vSrc === velA ? "A" : "B";
 
-      drawPass(gl, null, W, H, cache.render, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, dSrc.tex);
-        gl.uniform1i(cache.render.uniforms.u_density, 0);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
-        gl.uniform1i(cache.render.uniforms.u_vel, 1);
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.render.uniforms.u_source, 2);
-        gl.uniform2f(cache.render.uniforms.u_res, W, H);
-        gl.uniform1i(cache.render.uniforms.u_mode, MODE_ID[mode] ?? 0);
-        gl.uniform1f(cache.render.uniforms.u_amount, amount);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.render.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.render,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, dSrc.tex);
+          gl.uniform1i(cache.render.uniforms.u_density, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, vSrc.tex);
+          gl.uniform1i(cache.render.uniforms.u_vel, 1);
+          gl.activeTexture(gl.TEXTURE2);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.render.uniforms.u_source, 2);
+          gl.uniform2f(cache.render.uniforms.u_res, W, H);
+          gl.uniform1i(cache.render.uniforms.u_mode, MODE_ID[mode] ?? 0);
+          gl.uniform1f(cache.render.uniforms.u_amount, amount);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.render.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Stable Fluids", "WebGL2",
-            `${mode} steps=${iters} dt=${dt}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Stable Fluids",
+            "WebGL2",
+            `${mode} steps=${iters} dt=${dt}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -488,7 +630,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Stam-style semi-Lagrangian fluid advection — smoke flows along the image's edges, picking up gradients as forcing terms each frame",
+  description:
+    "Stam-style semi-Lagrangian fluid advection — smoke flows along the image's edges, picking up gradients as forcing terms each frame",
   noWASM: "Semi-Lagrangian advection is textures all the way down.",
   temporal: true,
 });

@@ -210,7 +210,9 @@
 
 /* Recording indicator */
 @keyframes blink {
-  to { visibility: hidden; }
+  to {
+    visibility: hidden;
+  }
 }
 
 .rec {
@@ -242,14 +244,13 @@
 
 .progressBarFill {
   height: 100%;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 1px,
-      var(--beautiful-blue, #000080) 1px 14px,
-      #27359a 14px 15px,
-      transparent 15px 17px
-    );
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 1px,
+    var(--beautiful-blue, #000080) 1px 14px,
+    #27359a 14px 15px,
+    transparent 15px 17px
+  );
 }
 
 @media (max-width: 960px) {

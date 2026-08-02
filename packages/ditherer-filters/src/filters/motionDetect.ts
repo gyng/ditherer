@@ -16,8 +16,11 @@ import {
 
 const SOURCE = { EMA: "EMA", PREVIOUS_FRAME: "PREVIOUS_FRAME" };
 const RENDER = {
-  MASK: "MASK", HEATMAP: "HEATMAP", SOURCE: "SOURCE",
-  DIFFERENCE: "DIFFERENCE", ACCUMULATED_HEAT: "ACCUMULATED_HEAT",
+  MASK: "MASK",
+  HEATMAP: "HEATMAP",
+  SOURCE: "SOURCE",
+  DIFFERENCE: "DIFFERENCE",
+  ACCUMULATED_HEAT: "ACCUMULATED_HEAT",
 };
 const COLORMAP = { INFERNO: "INFERNO", VIRIDIS: "VIRIDIS", HOT: "HOT" };
 
@@ -43,14 +46,24 @@ export const optionTypes = {
     default: RENDER.MASK,
     desc: "How to visualize detected motion",
   },
-  threshold: { type: RANGE, range: [0, 50], step: 1, default: 10, desc: "Minimum pixel change to register as motion" },
+  threshold: {
+    type: RANGE,
+    range: [0, 50],
+    step: 1,
+    default: 10,
+    desc: "Minimum pixel change to register as motion",
+  },
   sensitivity: {
-    type: RANGE, range: [1, 10], step: 0.5, default: 3,
+    type: RANGE,
+    range: [1, 10],
+    step: 0.5,
+    default: 3,
     desc: "Amplify detected motion intensity",
     visibleWhen: (options: any) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
   },
   backgroundColor: {
-    type: COLOR, default: [0, 0, 0],
+    type: COLOR,
+    default: [0, 0, 0],
     desc: "Background color where no motion is detected",
     visibleWhen: (options: any) => options.renderMode !== RENDER.ACCUMULATED_HEAT,
   },
@@ -63,23 +76,40 @@ export const optionTypes = {
     ],
     default: COLORMAP.INFERNO,
     desc: "Color palette for heat visualization",
-    visibleWhen: (options: any) => options.renderMode === RENDER.HEATMAP || options.renderMode === RENDER.ACCUMULATED_HEAT,
+    visibleWhen: (options: any) =>
+      options.renderMode === RENDER.HEATMAP || options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
   accumRate: {
-    type: RANGE, range: [0.01, 0.2], step: 0.01, default: 0.05,
+    type: RANGE,
+    range: [0.01, 0.2],
+    step: 0.01,
+    default: 0.05,
     desc: "How quickly motion builds heat over time",
     visibleWhen: (options: any) => options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
   coolRate: {
-    type: RANGE, range: [0.001, 0.05], step: 0.001, default: 0.01,
+    type: RANGE,
+    range: [0.001, 0.05],
+    step: 0.001,
+    default: 0.01,
     desc: "How quickly idle areas cool in accumulated heat mode",
     visibleWhen: (options: any) => options.renderMode === RENDER.ACCUMULATED_HEAT,
   },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) actions.stopAnimLoop();
-    else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
-  } },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) actions.stopAnimLoop();
+      else actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+    },
+  },
 };
 
 export const defaults = {
@@ -196,30 +226,50 @@ let _emaScratch: Uint8ClampedArray | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_reference", "u_prevOutput", "u_bg",
-    "u_threshold", "u_sensitivity", "u_accumRate", "u_coolRate",
-    "u_haveRef", "u_havePrev", "u_renderMode", "u_colorMap",
+    "u_source",
+    "u_reference",
+    "u_prevOutput",
+    "u_bg",
+    "u_threshold",
+    "u_sensitivity",
+    "u_accumRate",
+    "u_coolRate",
+    "u_haveRef",
+    "u_havePrev",
+    "u_renderMode",
+    "u_colorMap",
   ] as const);
   return _prog;
 };
 
 const renderModeId = (m: string) =>
-  m === RENDER.HEATMAP ? 1 : m === RENDER.SOURCE ? 2 : m === RENDER.DIFFERENCE ? 3 : m === RENDER.ACCUMULATED_HEAT ? 4 : 0;
-const colorMapId = (m: string) => m === COLORMAP.VIRIDIS ? 1 : m === COLORMAP.HOT ? 2 : 0;
+  m === RENDER.HEATMAP
+    ? 1
+    : m === RENDER.SOURCE
+      ? 2
+      : m === RENDER.DIFFERENCE
+        ? 3
+        : m === RENDER.ACCUMULATED_HEAT
+          ? 4
+          : 0;
+const colorMapId = (m: string) => (m === COLORMAP.VIRIDIS ? 1 : m === COLORMAP.HOT ? 2 : 0);
 
 const motionAnalysis = (input: any, options: MotionDetectOptions = defaults) => {
   const sourceMode = String(options.source ?? defaults.source);
   const renderMode = String(options.renderMode ?? defaults.renderMode);
   const threshold = Number(options.threshold ?? defaults.threshold);
   const sensitivity = Number(options.sensitivity ?? defaults.sensitivity);
-  const bg = Array.isArray(options.backgroundColor) ? options.backgroundColor : defaults.backgroundColor;
+  const bg = Array.isArray(options.backgroundColor)
+    ? options.backgroundColor
+    : defaults.backgroundColor;
   const colorMap = String(options.colorMap ?? defaults.colorMap);
   const accumRate = Number(options.accumRate ?? defaults.accumRate);
   const coolRate = Number(options.coolRate ?? defaults.coolRate);
   const ema = options._ema ?? null;
   const prevInput = options._prevInput ?? null;
   const prevOutput = options._prevOutput ?? null;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -258,26 +308,34 @@ const motionAnalysis = (input: any, options: MotionDetectOptions = defaults) => 
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, prevOutput!);
   }
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
-    gl.uniform1i(prog.uniforms.u_reference, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, prevOutTex.tex);
-    gl.uniform1i(prog.uniforms.u_prevOutput, 2);
-    gl.uniform3f(prog.uniforms.u_bg, bg[0] / 255, bg[1] / 255, bg[2] / 255);
-    gl.uniform1f(prog.uniforms.u_threshold, threshold / 255);
-    gl.uniform1f(prog.uniforms.u_sensitivity, sensitivity);
-    gl.uniform1f(prog.uniforms.u_accumRate, accumRate);
-    gl.uniform1f(prog.uniforms.u_coolRate, coolRate);
-    gl.uniform1f(prog.uniforms.u_haveRef, haveRef ? 1 : 0);
-    gl.uniform1f(prog.uniforms.u_havePrev, havePrev ? 1 : 0);
-    gl.uniform1i(prog.uniforms.u_renderMode, renderModeId(renderMode));
-    gl.uniform1i(prog.uniforms.u_colorMap, colorMapId(colorMap));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, refTex.tex);
+      gl.uniform1i(prog.uniforms.u_reference, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, prevOutTex.tex);
+      gl.uniform1i(prog.uniforms.u_prevOutput, 2);
+      gl.uniform3f(prog.uniforms.u_bg, bg[0] / 255, bg[1] / 255, bg[2] / 255);
+      gl.uniform1f(prog.uniforms.u_threshold, threshold / 255);
+      gl.uniform1f(prog.uniforms.u_sensitivity, sensitivity);
+      gl.uniform1f(prog.uniforms.u_accumRate, accumRate);
+      gl.uniform1f(prog.uniforms.u_coolRate, coolRate);
+      gl.uniform1f(prog.uniforms.u_haveRef, haveRef ? 1 : 0);
+      gl.uniform1f(prog.uniforms.u_havePrev, havePrev ? 1 : 0);
+      gl.uniform1i(prog.uniforms.u_renderMode, renderModeId(renderMode));
+      gl.uniform1i(prog.uniforms.u_colorMap, colorMapId(colorMap));
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {
@@ -293,7 +351,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap",
+  description:
+    "Analyze motion against the background model or previous frame and render it as a mask, highlight, or persistent heatmap",
   temporal: true,
   requiresGL: true,
 });

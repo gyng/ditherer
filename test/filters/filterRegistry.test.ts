@@ -38,8 +38,11 @@ describe("filter registry", () => {
 
   it("marks every filter with an animate control as temporal", () => {
     const missing = filterList
-      .filter((entry) => Object.keys(entry.filter.optionTypes ?? {})
-        .some((key) => key.toLowerCase().startsWith("animate")))
+      .filter((entry) =>
+        Object.keys(entry.filter.optionTypes ?? {}).some((key) =>
+          key.toLowerCase().startsWith("animate"),
+        ),
+      )
       .filter((entry) => entry.filter.temporal !== true)
       .map((entry) => entry.displayName);
 

@@ -1,5 +1,9 @@
 import { renderOfflineFrames } from "./offlineRender";
-import { buildDecodedTimeline, decodeSourceFramesWithWebCodecs, decodeTimelineFramesWithWebCodecs } from "./offlineWebCodecsDecode";
+import {
+  buildDecodedTimeline,
+  decodeSourceFramesWithWebCodecs,
+  decodeTimelineFramesWithWebCodecs,
+} from "./offlineWebCodecsDecode";
 import { formatEta, quantizeGifDelay, type GifFrame } from "../helpers";
 import type { LoopSourcePath } from "./exportRouting";
 
@@ -54,7 +58,9 @@ export const filterDecodedFramesForRange = (
 ) => {
   const startUs = Math.round(startSec * 1_000_000);
   const endUs = Math.round(endSec * 1_000_000);
-  const filtered = decodedFrames.filter(({ timestampUs }) => timestampUs >= startUs && timestampUs < endUs);
+  const filtered = decodedFrames.filter(
+    ({ timestampUs }) => timestampUs >= startUs && timestampUs < endUs,
+  );
   return filtered.length > 0 ? filtered : decodedFrames;
 };
 
@@ -80,7 +86,7 @@ export const getDecodedGifFrameDurationUs = (
   return Math.max(rangeRemainderUs, fallbackDurationUs);
 };
 
-export const getRenderableDecodedGifFrames = <T,>(decodedFrames: T[]) =>
+export const getRenderableDecodedGifFrames = <T>(decodedFrames: T[]) =>
   decodedFrames.length > 1 ? decodedFrames.slice(0, -1) : decodedFrames;
 
 const median = (values: number[]) => {
@@ -206,7 +212,12 @@ export const captureLoopOfflineFrames = async ({
     if (useWebCodecsCapture && sourceUrl) {
       let decodedFramesToClose: { frame: VideoFrame }[] = [];
       try {
-        const timeline = buildDecodedTimeline(video.duration, captureFps, rangeStartSec, rangeEndSec);
+        const timeline = buildDecodedTimeline(
+          video.duration,
+          captureFps,
+          rangeStartSec,
+          rangeEndSec,
+        );
         const useDecodedSourceFrames = loopAutoFps && (mode === "gif" || mode === "sequence");
         const decoded = useDecodedSourceFrames
           ? await decodeSourceFramesWithWebCodecs({
@@ -251,9 +262,10 @@ export const captureLoopOfflineFrames = async ({
               timeline[0]?.durationUs ?? Math.round(1_000_000 / Math.max(1, captureFps)),
             )
           : decoded.frames;
-        const framesToRender = mode === "gif" && useDecodedSourceFrames
-          ? getRenderableDecodedGifFrames(decodedSourceFrames)
-          : decodedSourceFrames;
+        const framesToRender =
+          mode === "gif" && useDecodedSourceFrames
+            ? getRenderableDecodedGifFrames(decodedSourceFrames)
+            : decodedSourceFrames;
 
         for (let i = 0; i < framesToRender.length; i += 1) {
           if (isAborted()) {
@@ -263,7 +275,12 @@ export const captureLoopOfflineFrames = async ({
           const decodedFrame = framesToRender[i];
           const timelineFrame = timeline[Math.min(i, timeline.length - 1)];
           const frameDurationUs = useDecodedSourceFrames
-            ? getDecodedGifFrameDurationUs(decodedSourceFrames, i, timelineFrame.durationUs, rangeEndSec)
+            ? getDecodedGifFrameDurationUs(
+                decodedSourceFrames,
+                i,
+                timelineFrame.durationUs,
+                rangeEndSec,
+              )
             : timelineFrame.durationUs;
           const elapsedMs = performance.now() - renderStartedAt;
           const avgMs = i > 0 ? elapsedMs / i : 0;
@@ -287,7 +304,10 @@ export const captureLoopOfflineFrames = async ({
         renderedViaWebCodecs = true;
       } catch (error) {
         gifProfile.fallbackReason = error instanceof Error ? error.message : String(error);
-        console.warn(`WebCodecs demux ${mode.toUpperCase()} path failed, falling back to hidden export video:`, error);
+        console.warn(
+          `WebCodecs demux ${mode.toUpperCase()} path failed, falling back to hidden export video:`,
+          error,
+        );
       } finally {
         decodedFramesToClose.forEach(({ frame }) => frame.close());
       }

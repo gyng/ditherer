@@ -32,7 +32,10 @@ const packageEntry = (relativePath) => {
 const packedPackageAliases = [
   { find: "@gyng/ditherer-filters/worker", replacement: packageEntry("dist/worker.js") },
   { find: "@gyng/ditherer-filters/client", replacement: packageEntry("dist/client.js") },
-  { find: "@gyng/ditherer-filters/wasm-bindings", replacement: packageEntry("dist/wasm-bindings.js") },
+  {
+    find: "@gyng/ditherer-filters/wasm-bindings",
+    replacement: packageEntry("dist/wasm-bindings.js"),
+  },
   { find: "@gyng/ditherer-filters/catalog", replacement: packageEntry("dist/catalog.js") },
   { find: "@gyng/ditherer-filters/lazy", replacement: packageEntry("dist/lazy.js") },
   {
@@ -41,8 +44,9 @@ const packedPackageAliases = [
   },
   { find: /^@gyng\/ditherer-filters$/, replacement: packageEntry("dist/index.js") },
 ];
-const applicationAliases = (baseConfig.resolve?.alias ?? []).filter(({ find }) =>
-  typeof find !== "string" || !find.startsWith("@gyng/ditherer-filters"));
+const applicationAliases = (baseConfig.resolve?.alias ?? []).filter(
+  ({ find }) => typeof find !== "string" || !find.startsWith("@gyng/ditherer-filters"),
+);
 
 export default defineConfig({
   ...baseConfig,

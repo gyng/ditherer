@@ -20,9 +20,10 @@ plan-position display).
 ## Physics / references
 
 ### X-ray (Radiograph)
+
 - **Beer–Lambert law**: `I = I₀ · exp(−μ·t)` — transmitted intensity falls
   exponentially with the path integral of the linear attenuation coefficient.
-- **Display convention**: film records *transmitted* intensity, so dense material
+- **Display convention**: film records _transmitted_ intensity, so dense material
   (bone) exposes less film and reads WHITE on a lightbox; offer both the
   positive (bone-white) and film-negative conventions.
 - **Scatter / veiling glare**: Compton scatter adds a broad low-frequency
@@ -39,6 +40,7 @@ plan-position display).
   description must say so plainly (same convention as Refractive Glass).
 
 ### Scanning Electron Micrograph (SEM)
+
 - **Secant law**: secondary-electron yield `δ(θ) = δ₀ · sec θ = δ₀ / cos θ`,
   where θ is the angle between the surface normal and the incident beam. Steeply
   tilted surfaces emit more escaping secondaries — this is the origin of SEM's
@@ -52,6 +54,7 @@ plan-position display).
   treated as a heightfield; say so in the description.
 
 ### Radar PPI (Plan Position Indicator)
+
 - **Radar equation**: received power `Pr ∝ 1/r⁴` — return strength falls with the
   fourth power of range.
 - **Rotating sweep**: a bearing line sweeps at ω; a cell lights when the sweep
@@ -97,11 +100,11 @@ an explicit statement that image luminance is a declared stand-in.
 
 ### What hardening caught (two adversarial rounds per filter)
 
-- **X-Ray, round 1 — real physics bug.** `1/√N` is the *relative* noise; it was
-  being added as an *absolute* ΔT, missing a factor of `T`, so absolute noise
+- **X-Ray, round 1 — real physics bug.** `1/√N` is the _relative_ noise; it was
+  being added as an _absolute_ ΔT, missing a factor of `T`, so absolute noise
   scaled as `1/√T` instead of `√T` — a 13× overdrive at stock defaults that
   flipped ~30% of the densest region to pure white. Corrected to
-  `σ = √(T/dose)`. The unit test had *codified* the bug, so it passed throughout.
+  `σ = √(T/dose)`. The unit test had _codified_ the bug, so it passed throughout.
 - **X-Ray, round 2.** The corrected physics had not propagated to the `mottle`
   tooltip, the CHANGELOG, or **this plan doc, whose original wording seeded the
   bug** (it conflated relative and absolute in one sentence — now rewritten with
@@ -113,7 +116,7 @@ an explicit statement that image luminance is a declared stand-in.
 - **SEM, round 1 — the defining effect was inert at defaults.** The luminance
   gradient was never scaled to a magnitude where normals meaningfully tilt, so
   the secant law contributed a 2.2% mean brightening; `relief` is now the
-  heightScale directly (default 4→24). Also `baseYield` was *inverted* (raising
+  heightScale directly (default 4→24). Also `baseYield` was _inverted_ (raising
   δ₀ darkened the image), `gain` sat mid-chain rather than last, and `charging`
   and `scanJitter` were dead at their defaults. A claim that `hU`/`hD` were
   swapped was **refuted by measurement** and independently re-verified against

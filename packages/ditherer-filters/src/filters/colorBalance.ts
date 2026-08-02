@@ -26,23 +26,59 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  shadowR:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in shadows" },
-  shadowG:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Green shift in shadows" },
-  shadowB:    { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Blue shift in shadows" },
-  midtoneR:   { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in midtones" },
-  midtoneG:   { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Green shift in midtones" },
-  midtoneB:   { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Blue shift in midtones" },
-  highlightR: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in highlights" },
-  highlightG: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Green shift in highlights" },
-  highlightB: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Blue shift in highlights" },
-  palette:    { type: PALETTE, default: nearest }
+  shadowR: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in shadows" },
+  shadowG: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Green shift in shadows" },
+  shadowB: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Blue shift in shadows" },
+  midtoneR: { type: RANGE, range: [-100, 100], step: 1, default: 0, desc: "Red shift in midtones" },
+  midtoneG: {
+    type: RANGE,
+    range: [-100, 100],
+    step: 1,
+    default: 0,
+    desc: "Green shift in midtones",
+  },
+  midtoneB: {
+    type: RANGE,
+    range: [-100, 100],
+    step: 1,
+    default: 0,
+    desc: "Blue shift in midtones",
+  },
+  highlightR: {
+    type: RANGE,
+    range: [-100, 100],
+    step: 1,
+    default: 0,
+    desc: "Red shift in highlights",
+  },
+  highlightG: {
+    type: RANGE,
+    range: [-100, 100],
+    step: 1,
+    default: 0,
+    desc: "Green shift in highlights",
+  },
+  highlightB: {
+    type: RANGE,
+    range: [-100, 100],
+    step: 1,
+    default: 0,
+    desc: "Blue shift in highlights",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
-  shadowR: 0, shadowG: 0, shadowB: 0,
-  midtoneR: 0, midtoneG: 0, midtoneB: 0,
-  highlightR: 0, highlightG: 0, highlightB: 0,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  shadowR: 0,
+  shadowG: 0,
+  shadowB: 0,
+  midtoneR: 0,
+  midtoneG: 0,
+  midtoneB: 0,
+  highlightR: 0,
+  highlightG: 0,
+  highlightB: 0,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const CB_FS = `#version 300 es
@@ -79,24 +115,35 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     cb: linkProgram(gl, CB_FS, [
-      "u_source", "u_shadow", "u_midtone", "u_highlight", "u_levels",
+      "u_source",
+      "u_shadow",
+      "u_midtone",
+      "u_highlight",
+      "u_levels",
     ] as const),
   };
   return _cache;
 };
 
-const shadowMask    = (t: number) => Math.max(0, 1 - t * 4);
+const shadowMask = (t: number) => Math.max(0, 1 - t * 4);
 const highlightMask = (t: number) => Math.max(0, t * 4 - 3);
-const midtoneMask   = (t: number) => 1 - shadowMask(t) - highlightMask(t);
+const midtoneMask = (t: number) => 1 - shadowMask(t) - highlightMask(t);
 
 const colorBalance = (input: any, options = defaults) => {
   const {
-    shadowR, shadowG, shadowB,
-    midtoneR, midtoneG, midtoneB,
-    highlightR, highlightG, highlightB,
-    palette
+    shadowR,
+    shadowG,
+    shadowB,
+    midtoneR,
+    midtoneG,
+    midtoneB,
+    highlightR,
+    highlightG,
+    highlightB,
+    palette,
   } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -108,17 +155,25 @@ const colorBalance = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "colorBalance:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.cb, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.cb.uniforms.u_source, 0);
-        gl.uniform3f(cache.cb.uniforms.u_shadow, shadowR, shadowG, shadowB);
-        gl.uniform3f(cache.cb.uniforms.u_midtone, midtoneR, midtoneG, midtoneB);
-        gl.uniform3f(cache.cb.uniforms.u_highlight, highlightR, highlightG, highlightB);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.cb.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.cb,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.cb.uniforms.u_source, 0);
+          gl.uniform3f(cache.cb.uniforms.u_shadow, shadowR, shadowG, shadowB);
+          gl.uniform3f(cache.cb.uniforms.u_midtone, midtoneR, midtoneG, midtoneB);
+          gl.uniform3f(cache.cb.uniforms.u_highlight, highlightR, highlightG, highlightB);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.cb.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
@@ -153,7 +208,7 @@ const colorBalance = (input: any, options = defaults) => {
       const dg = sw * shadowG + mw * midtoneG + hw * highlightG;
       const db = sw * shadowB + mw * midtoneB + hw * highlightB;
 
-      const r = clamp(0, 255, Math.round(buf[i]     + dr * 2.55));
+      const r = clamp(0, 255, Math.round(buf[i] + dr * 2.55));
       const g = clamp(0, 255, Math.round(buf[i + 1] + dg * 2.55));
       const b = clamp(0, 255, Math.round(buf[i + 2] + db * 2.55));
 
@@ -171,5 +226,5 @@ export default defineFilter({
   func: colorBalance,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
 });

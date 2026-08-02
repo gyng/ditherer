@@ -233,10 +233,22 @@ void main() {
 `;
 
 const uniformNames = [
-  "u_source", "u_threshold", "u_res", "u_mapSize", "u_algo", "u_n",
-  "u_strength", "u_minT", "u_maxT", "u_constantT", "u_colorspace",
-  "u_lumaWeighted", "u_sweepTests", "u_paletteCount",
-  "u_palWork[0]", "u_palOut[0]",
+  "u_source",
+  "u_threshold",
+  "u_res",
+  "u_mapSize",
+  "u_algo",
+  "u_n",
+  "u_strength",
+  "u_minT",
+  "u_maxT",
+  "u_constantT",
+  "u_colorspace",
+  "u_lumaWeighted",
+  "u_sweepTests",
+  "u_paletteCount",
+  "u_palWork[0]",
+  "u_palOut[0]",
 ];
 
 // One program per palette cap. In normal use that's a single entry (MAX_PAL);
@@ -256,10 +268,7 @@ export const nCandidateGLAvailable = (): boolean => glAvailable();
 const srgbToLinear = (c: number): number =>
   c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
 
-export const toWorkingSpace = (
-  rgb: readonly number[],
-  space: number,
-): [number, number, number] => {
+export const toWorkingSpace = (rgb: readonly number[], space: number): [number, number, number] => {
   if (space === NC_SPACE.LINEAR) {
     return [srgbToLinear(rgb[0]), srgbToLinear(rgb[1]), srgbToLinear(rgb[2])];
   }
@@ -289,7 +298,10 @@ export const preparePalette = (palette: number[][], space: number, maxPal: numbe
   return entries;
 };
 
-const _thresholdTexCache = new Map<string, { tex: WebGLTexture; w: number; h: number; mapRef: number[][] }>();
+const _thresholdTexCache = new Map<
+  string,
+  { tex: WebGLTexture; w: number; h: number; mapRef: number[][] }
+>();
 
 // Uploads the threshold matrix pre-normalized to (raw + 0.5) / levels, which is
 // the form the article's code compares the cumulative weight against.
@@ -353,7 +365,10 @@ export const renderNCandidateGL = (
   const vao = getQuadVAO(gl);
 
   const threshTex = uploadThresholdMap(
-    gl, opts.thresholdMap, opts.thresholdLevels, opts.thresholdMapKey,
+    gl,
+    opts.thresholdMap,
+    opts.thresholdLevels,
+    opts.thresholdMapKey,
   );
   if (!threshTex) return null;
 
@@ -376,30 +391,38 @@ export const renderNCandidateGL = (
   const sourceTex = ensureTexture(gl, "nCandidate:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, threshTex.tex);
-    gl.uniform1i(prog.uniforms.u_threshold, 1);
-    gl.uniform2f(prog.uniforms.u_res, width, height);
-    gl.uniform2i(prog.uniforms.u_mapSize, threshTex.w, threshTex.h);
-    gl.uniform1i(prog.uniforms.u_algo, opts.algo);
-    gl.uniform1i(prog.uniforms.u_n, Math.min(MAX_N, Math.max(1, opts.candidates)));
-    gl.uniform1f(prog.uniforms.u_strength, opts.strength);
-    gl.uniform1f(prog.uniforms.u_minT, opts.minT);
-    gl.uniform1f(prog.uniforms.u_maxT, opts.maxT);
-    gl.uniform1f(prog.uniforms.u_constantT, opts.constantT);
-    gl.uniform1i(prog.uniforms.u_colorspace, opts.colorspace);
-    gl.uniform1i(prog.uniforms.u_lumaWeighted, opts.lumaWeighted ? 1 : 0);
-    gl.uniform1i(prog.uniforms.u_sweepTests, Math.min(MAX_SWEEP, Math.max(1, opts.sweepTests)));
-    gl.uniform1i(prog.uniforms.u_paletteCount, paletteCount);
-    const locWork = prog.uniforms["u_palWork[0]"];
-    if (locWork) gl.uniform3fv(locWork, flatWork);
-    const locOut = prog.uniforms["u_palOut[0]"];
-    if (locOut) gl.uniform3fv(locOut, flatOut);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, threshTex.tex);
+      gl.uniform1i(prog.uniforms.u_threshold, 1);
+      gl.uniform2f(prog.uniforms.u_res, width, height);
+      gl.uniform2i(prog.uniforms.u_mapSize, threshTex.w, threshTex.h);
+      gl.uniform1i(prog.uniforms.u_algo, opts.algo);
+      gl.uniform1i(prog.uniforms.u_n, Math.min(MAX_N, Math.max(1, opts.candidates)));
+      gl.uniform1f(prog.uniforms.u_strength, opts.strength);
+      gl.uniform1f(prog.uniforms.u_minT, opts.minT);
+      gl.uniform1f(prog.uniforms.u_maxT, opts.maxT);
+      gl.uniform1f(prog.uniforms.u_constantT, opts.constantT);
+      gl.uniform1i(prog.uniforms.u_colorspace, opts.colorspace);
+      gl.uniform1i(prog.uniforms.u_lumaWeighted, opts.lumaWeighted ? 1 : 0);
+      gl.uniform1i(prog.uniforms.u_sweepTests, Math.min(MAX_SWEEP, Math.max(1, opts.sweepTests)));
+      gl.uniform1i(prog.uniforms.u_paletteCount, paletteCount);
+      const locWork = prog.uniforms["u_palWork[0]"];
+      if (locWork) gl.uniform3fv(locWork, flatWork);
+      const locOut = prog.uniforms["u_palOut[0]"];
+      if (locOut) gl.uniform3fv(locOut, flatOut);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

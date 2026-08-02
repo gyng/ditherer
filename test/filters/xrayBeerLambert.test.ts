@@ -59,8 +59,7 @@ describe("quantum mottle", () => {
     expect(quantumMottleAmplitude(0.25, 100, 1)).toBeCloseTo(0.05, 12);
     for (const t of [0.05, 0.25, 0.6, 1]) {
       for (const dose of [4, 80, 400]) {
-        expect(quantumMottleAmplitude(t, dose, 0.35))
-          .toBeCloseTo(0.35 * Math.sqrt(t / dose), 12);
+        expect(quantumMottleAmplitude(t, dose, 0.35)).toBeCloseTo(0.35 * Math.sqrt(t / dose), 12);
       }
     }
     // Quadrupling the dose halves the noise.
@@ -70,7 +69,8 @@ describe("quantum mottle", () => {
   });
 
   it("shrinks in absolute terms as transmission falls", () => {
-    const dose = 80, gain = 0.35;
+    const dose = 80,
+      gain = 0.35;
     let previous = quantumMottleAmplitude(1, dose, gain);
     for (const t of [0.8, 0.5, 0.25, 0.1, 0.02, 0.005]) {
       const amplitude = quantumMottleAmplitude(t, dose, gain);
@@ -82,7 +82,8 @@ describe("quantum mottle", () => {
   it("has RELATIVE noise (sigma/T = 1/sqrt(N)) that rises as transmission falls", () => {
     // The physically meaningful statement: dense, photon-starved regions look
     // the mottliest because their SNR collapses, not because sigma is larger.
-    const dose = 80, gain = 0.35;
+    const dose = 80,
+      gain = 0.35;
     let previous = quantumMottleAmplitude(1, dose, gain) / 1;
     for (const t of [0.8, 0.5, 0.25, 0.1, 0.02, 0.005]) {
       const relative = quantumMottleAmplitude(t, dose, gain) / t;
@@ -139,7 +140,9 @@ describe("shader / kernel mottle parity", () => {
   it("clamps the noisy transmission only at zero, so excursions stay symmetric", () => {
     // Clamping to [0,1] would discard every upward excursion in the open beam
     // and leave one-sided specks; the single range clamp is the sRGB encode.
-    expect(XRAY_DEVELOP_FS).toContain("transmission = max(0.0, transmission + amplitude * gaussian);");
+    expect(XRAY_DEVELOP_FS).toContain(
+      "transmission = max(0.0, transmission + amplitude * gaussian);",
+    );
     expect(XRAY_DEVELOP_FS).not.toContain("clamp(transmission + amplitude * gaussian");
   });
 });
@@ -152,7 +155,10 @@ describe("veiling glare and display convention", () => {
   });
 
   it("lowers subject contrast without moving the mean", () => {
-    const bright = 0.9, dark = 0.1, pedestal = 0.5, s = 0.4;
+    const bright = 0.9,
+      dark = 0.1,
+      pedestal = 0.5,
+      s = 0.4;
     const a = veilingGlareMix(bright, pedestal, s);
     const b = veilingGlareMix(dark, pedestal, s);
     expect(a - b).toBeLessThan(bright - dark);
@@ -170,9 +176,11 @@ describe("veiling glare and display convention", () => {
   it("is brighter for denser material only in the positive view", () => {
     const dense = beerLambertTransmission(0.9, 2.6);
     const thin = beerLambertTransmission(0.1, 2.6);
-    expect(radiographDisplayIntensity(dense, true))
-      .toBeGreaterThan(radiographDisplayIntensity(thin, true));
-    expect(radiographDisplayIntensity(dense, false))
-      .toBeLessThan(radiographDisplayIntensity(thin, false));
+    expect(radiographDisplayIntensity(dense, true)).toBeGreaterThan(
+      radiographDisplayIntensity(thin, true),
+    );
+    expect(radiographDisplayIntensity(dense, false)).toBeLessThan(
+      radiographDisplayIntensity(thin, false),
+    );
   });
 });

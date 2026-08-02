@@ -34,7 +34,9 @@ export const recordFilterStepMs = (name: string, ms: number): void => {
     strikes.set(name, next);
     if (next >= 2) {
       slow.add(name);
-      console.warn(`[slow-filter] flagging ${name} after ${next} soft-breaches (last ${Math.round(ms)}ms)`);
+      console.warn(
+        `[slow-filter] flagging ${name} after ${next} soft-breaches (last ${Math.round(ms)}ms)`,
+      );
     } else {
       console.info(`[slow-filter] soft-breach ${name} ${Math.round(ms)}ms (strike ${next})`);
     }

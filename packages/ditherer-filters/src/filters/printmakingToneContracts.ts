@@ -6,11 +6,9 @@
 // *density of marks*, not by a hard luminance threshold: darker regions get
 // more stroke layers / denser dots, and the total inked area tracks darkness.
 
-const finite = (value: number, fallback = 0): number =>
-  Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 
-export const clamp01 = (value: number): number =>
-  Math.max(0, Math.min(1, finite(value)));
+export const clamp01 = (value: number): number => Math.max(0, Math.min(1, finite(value)));
 
 /** Rec. 709 luminance of an 8-bit RGB triple, normalised to 0..1. */
 export const luminance01 = (r: number, g: number, b: number): number =>
@@ -80,11 +78,7 @@ export const hatchUnionCoverage = (
  * (½ coverage exactly at the edge). A zero-width mark contributes no ink, so
  * a tone with no developed strokes stays bare paper.
  */
-export const lineCoverage = (
-  distToCenter: number,
-  halfWidth: number,
-  aa = 1,
-): number => {
+export const lineCoverage = (distToCenter: number, halfWidth: number, aa = 1): number => {
   const hw = Math.max(0, finite(halfWidth));
   if (hw <= 0) return 0;
   const edge = Math.max(1e-3, finite(aa, 1));
@@ -113,11 +107,7 @@ export const gradientTangent = (gx: number, gy: number): [number, number] => {
  * [[gxx, gxy], [gxy, gyy]] — the minor-eigenvector direction, along which
  * image structure is coherent. Used for form-following gouges/lines.
  */
-export const structureTensorTangentAngle = (
-  gxx: number,
-  gyy: number,
-  gxy: number,
-): number => {
+export const structureTensorTangentAngle = (gxx: number, gyy: number, gxy: number): number => {
   const a = finite(gxx);
   const b = finite(gyy);
   const c = finite(gxy);
@@ -127,11 +117,7 @@ export const structureTensorTangentAngle = (
 };
 
 /** Tensor coherence 0..1: 1 where structure is strongly oriented, 0 isotropic. */
-export const structureTensorCoherence = (
-  gxx: number,
-  gyy: number,
-  gxy: number,
-): number => {
+export const structureTensorCoherence = (gxx: number, gyy: number, gxy: number): number => {
   const a = finite(gxx);
   const b = finite(gyy);
   const c = finite(gxy);
@@ -179,14 +165,11 @@ export const stippleDotRadiusPx = (maxDotSize: number): number =>
  * blue-noise threshold (both 0..1). Because thresholds are ~uniform, the
  * fraction of inked cells equals darkness — density tracks tone.
  */
-export const stippleDotPresent = (
-  darkness: number,
-  blueNoiseThreshold: number,
-): boolean => clamp01(darkness) > clamp01(blueNoiseThreshold);
+export const stippleDotPresent = (darkness: number, blueNoiseThreshold: number): boolean =>
+  clamp01(darkness) > clamp01(blueNoiseThreshold);
 
 /** Expected inked-cell density for a flat patch of the given darkness. */
-export const stippleExpectedDensity = (darkness: number): number =>
-  clamp01(darkness);
+export const stippleExpectedDensity = (darkness: number): number => clamp01(darkness);
 
 /** Anti-aliased coverage of a round dot at squared distance `distSq` (px²). */
 export const dotCoverage = (distSq: number, radiusPx: number, aa = 0.75): number => {

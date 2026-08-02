@@ -39,10 +39,11 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } },
 };
 
-type RandomOptions = FilterOptionValues & typeof defaults & {
-  _linearize?: boolean;
-  _webglAcceleration?: boolean;
-};
+type RandomOptions = FilterOptionValues &
+  typeof defaults & {
+    _linearize?: boolean;
+    _webglAcceleration?: boolean;
+  };
 
 // When the palette is the default identity (levels≥256, no colours), the
 // shader does per-channel levels-quantize inline for performance. When the
@@ -113,17 +114,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     rand: linkProgram(gl, RANDOM_FS, [
-      "u_source", "u_res", "u_levels", "u_quantize", "u_grayscale",
-      "u_linearize", "u_seed",
+      "u_source",
+      "u_res",
+      "u_levels",
+      "u_quantize",
+      "u_grayscale",
+      "u_linearize",
+      "u_seed",
     ] as const),
   };
   return _cache;
 };
 
-const random = (
-  input: any,
-  options: RandomOptions = defaults
-) => {
+const random = (input: any, options: RandomOptions = defaults) => {
   const linearize = options._linearize === true;
   const palette = options.palette ?? defaults.palette;
   const paletteOpts = (palette as { options?: { levels?: number } }).options;
@@ -142,26 +145,37 @@ const random = (
       const sourceTex = ensureTexture(gl, "random:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.rand, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.rand.uniforms.u_source, 0);
-        gl.uniform2f(cache.rand.uniforms.u_res, W, H);
-        gl.uniform1f(cache.rand.uniforms.u_levels, Math.max(1, levels));
-        gl.uniform1i(cache.rand.uniforms.u_quantize, paletteIdentity ? 1 : 0);
-        gl.uniform1i(cache.rand.uniforms.u_grayscale, options.grayscale ? 1 : 0);
-        gl.uniform1i(cache.rand.uniforms.u_linearize, linearize ? 1 : 0);
-        gl.uniform1f(cache.rand.uniforms.u_seed, (Math.random() * 1000) % 1);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.rand,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.rand.uniforms.u_source, 0);
+          gl.uniform2f(cache.rand.uniforms.u_res, W, H);
+          gl.uniform1f(cache.rand.uniforms.u_levels, Math.max(1, levels));
+          gl.uniform1i(cache.rand.uniforms.u_quantize, paletteIdentity ? 1 : 0);
+          gl.uniform1i(cache.rand.uniforms.u_grayscale, options.grayscale ? 1 : 0);
+          gl.uniform1i(cache.rand.uniforms.u_linearize, linearize ? 1 : 0);
+          gl.uniform1f(cache.rand.uniforms.u_seed, (Math.random() * 1000) % 1);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const out = paletteIdentity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Random", "WebGL2",
+          logFilterBackend(
+            "Random",
+            "WebGL2",
             paletteIdentity
               ? `levels=${levels}${linearize ? " linearized" : ""}`
-              : `noise+palettePass${linearize ? " linearized" : ""}`);
+              : `noise+palettePass${linearize ? " linearized" : ""}`,
+          );
           return out;
         }
       }
@@ -180,7 +194,12 @@ const random = (
 
   const buf = inputCtx.getImageData(0, 0, input.width, input.height).data;
 
-  const pickColor = (r: number, g: number, b: number, a: number): [number, number, number, number] => {
+  const pickColor = (
+    r: number,
+    g: number,
+    b: number,
+    a: number,
+  ): [number, number, number, number] => {
     const c = paletteGetColor(palette, rgba(r, g, b, a), palette.options, false);
     return [c[0], c[1], c[2], c[3] ?? a];
   };
@@ -193,10 +212,7 @@ const random = (
 
         if (options.grayscale) {
           const intensity = (floatBuf[i] + floatBuf[i + 1] + floatBuf[i + 2]) / 3;
-          const gray255 = quantizeValue(
-            intensity * 255 + (Math.random() - 0.5) * 255,
-            levels
-          );
+          const gray255 = quantizeValue(intensity * 255 + (Math.random() - 0.5) * 255, levels);
           const grayF = gray255 / 255;
           fillBufferPixel(floatBuf, i, grayF, grayF, grayF, floatBuf[i + 3]);
         } else {
@@ -204,7 +220,14 @@ const random = (
           const g = floatBuf[i + 1] * 255 + (Math.random() - 0.5) * 255;
           const b = floatBuf[i + 2] * 255 + (Math.random() - 0.5) * 255;
           const color = pickColor(r, g, b, floatBuf[i + 3] * 255);
-          fillBufferPixel(floatBuf, i, color[0] / 255, color[1] / 255, color[2] / 255, floatBuf[i + 3]);
+          fillBufferPixel(
+            floatBuf,
+            i,
+            color[0] / 255,
+            color[1] / 255,
+            color[2] / 255,
+            floatBuf[i + 3],
+          );
         }
       }
     }
@@ -216,10 +239,7 @@ const random = (
 
         if (options.grayscale) {
           const intensity = (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
-          const gray = quantizeValue(
-            intensity + (Math.random() - 0.5) * 255,
-            levels
-          );
+          const gray = quantizeValue(intensity + (Math.random() - 0.5) * 255, levels);
           fillBufferPixel(buf, i, gray, gray, gray, buf[i + 3]);
         } else {
           const r = buf[i] + (Math.random() - 0.5) * 255;
@@ -241,5 +261,5 @@ export default defineFilter<RandomOptions>({
   func: random,
   options: defaults,
   optionTypes,
-  defaults
+  defaults,
 });

@@ -39,6 +39,7 @@ to work without a rewrite. Remove this shim once all consumers read from
 `chain` directly.
 
 **Invariants**:
+
 - `chain.length >= 1` — removing the last entry is prevented in the UI
 - `0 <= activeIndex < chain.length`
 - Duplicate filter types are allowed (e.g. two Floyd-Steinberg with different
@@ -59,7 +60,7 @@ Each filter receives the previous step's `HTMLCanvasElement` directly — no
 intermediate PNG encoding or `toDataURL` between steps.
 
 **Linearization** — pass `_linearize` to each filter individually. Every
-filter that supports it does its own `srgbBufToLinearFloat` →  process →
+filter that supports it does its own `srgbBufToLinearFloat` → process →
 `linearFloatToSrgbBuf` round-trip internally. Do NOT pre-linearize at
 chain boundaries: filters expect sRGB `Uint8ClampedArray` and would
 double-convert. This means repeated quantization at each sRGB↔linear
@@ -120,20 +121,20 @@ complexity.
 ### 5. Reducer Actions
 
 All mutations carry explicit target identifiers. No action relies on the
-current `activeIndex` for deciding *which entry to modify*.
+current `activeIndex` for deciding _which entry to modify_.
 
-| Action | Payload | Effect |
-|--------|---------|--------|
-| `CHAIN_ADD` | `{ displayName, filter }` | Append with new `id`; set `activeIndex` to new entry |
-| `CHAIN_REMOVE` | `{ id }` | Remove entry; clamp `activeIndex`; no-op if last entry |
-| `CHAIN_REORDER` | `{ fromIndex, toIndex }` | Splice; `activeIndex` follows the active entry |
-| `CHAIN_SET_ACTIVE` | `{ index }` | Update `activeIndex` |
-| `CHAIN_TOGGLE` | `{ id }` | Flip `enabled` flag |
-| `CHAIN_REPLACE` | `{ id, displayName, filter }` | Swap a filter in-place (e.g. from dropdown) |
-| `SET_FILTER_OPTION` | `{ chainIndex, optionName, value }` | Mutate `chain[chainIndex].filter.options` |
-| `SET_FILTER_PALETTE_OPTION` | `{ chainIndex, optionName, value }` | Mutate nested `.palette.options` |
-| `ADD_PALETTE_COLOR` | `{ chainIndex, color }` | Push to `.palette.options.colors` |
-| `SELECT_FILTER` | `{ name, filter }` | **Compat shim**: reset chain to single entry |
+| Action                      | Payload                             | Effect                                                 |
+| --------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| `CHAIN_ADD`                 | `{ displayName, filter }`           | Append with new `id`; set `activeIndex` to new entry   |
+| `CHAIN_REMOVE`              | `{ id }`                            | Remove entry; clamp `activeIndex`; no-op if last entry |
+| `CHAIN_REORDER`             | `{ fromIndex, toIndex }`            | Splice; `activeIndex` follows the active entry         |
+| `CHAIN_SET_ACTIVE`          | `{ index }`                         | Update `activeIndex`                                   |
+| `CHAIN_TOGGLE`              | `{ id }`                            | Flip `enabled` flag                                    |
+| `CHAIN_REPLACE`             | `{ id, displayName, filter }`       | Swap a filter in-place (e.g. from dropdown)            |
+| `SET_FILTER_OPTION`         | `{ chainIndex, optionName, value }` | Mutate `chain[chainIndex].filter.options`              |
+| `SET_FILTER_PALETTE_OPTION` | `{ chainIndex, optionName, value }` | Mutate nested `.palette.options`                       |
+| `ADD_PALETTE_COLOR`         | `{ chainIndex, color }`             | Push to `.palette.options.colors`                      |
+| `SELECT_FILTER`             | `{ name, filter }`                  | **Compat shim**: reset chain to single entry           |
 
 `SET_FILTER_OPTION` / `SET_FILTER_PALETTE_OPTION` / `ADD_PALETTE_COLOR` fall
 back to `activeIndex` when `chainIndex` is omitted, so existing Controls
@@ -166,6 +167,7 @@ compressed URL still exceeds 2000 characters, show a warning suggesting
 JSON export instead.
 
 **Legacy compat** (`LOAD_STATE`):
+
 - No `v` field: legacy v1 format with `selected` → wrap as single-entry chain
 - `v: 2`: deserialize chain array
 - Disabled entries are serialized with `"e": false`; omitted means enabled.
@@ -195,14 +197,14 @@ element, inviting users to add a second filter and enter chain mode.
 └──────────────────────────────────┘
 ```
 
-| Interaction | Gesture | Action |
-|-------------|---------|--------|
-| Add filter | Click [+] | Opens grouped `<select>` picker; dispatches `CHAIN_ADD` |
-| Remove | Click [×] | `CHAIN_REMOVE` (disabled when chain.length = 1) |
-| Reorder | Drag handle | `CHAIN_REORDER` via HTML Drag and Drop API |
-| Edit controls | Click entry | `CHAIN_SET_ACTIVE` → controls panel updates |
-| Toggle | Click checkbox | `CHAIN_TOGGLE` |
-| Swap filter | Double-click entry name | Inline dropdown to replace that entry's filter |
+| Interaction   | Gesture                 | Action                                                  |
+| ------------- | ----------------------- | ------------------------------------------------------- |
+| Add filter    | Click [+]               | Opens grouped `<select>` picker; dispatches `CHAIN_ADD` |
+| Remove        | Click [×]               | `CHAIN_REMOVE` (disabled when chain.length = 1)         |
+| Reorder       | Drag handle             | `CHAIN_REORDER` via HTML Drag and Drop API              |
+| Edit controls | Click entry             | `CHAIN_SET_ACTIVE` → controls panel updates             |
+| Toggle        | Click checkbox          | `CHAIN_TOGGLE`                                          |
+| Swap filter   | Double-click entry name | Inline dropdown to replace that entry's filter          |
 
 ### 8. Performance
 
@@ -212,11 +214,11 @@ Each filter allocates at least 2 canvases internally (`cloneCanvas` for
 input + output). At 1400×1400 (the desktop `MAX_PIXELS` cap), one RGBA
 canvas = ~7.5 MB. Per chain step:
 
-| Allocation | Size (1400×1400) | Lifetime |
-|------------|-----------------|----------|
-| Filter internal canvases (2) | ~15 MB | GC'd after step completes |
-| `cachedOutputs` entry (§3) | ~7.5 MB | Persists until invalidated |
-| `prevOutputMap` entry (§4) | ~7.5 MB | Persists until chain mutation |
+| Allocation                   | Size (1400×1400) | Lifetime                      |
+| ---------------------------- | ---------------- | ----------------------------- |
+| Filter internal canvases (2) | ~15 MB           | GC'd after step completes     |
+| `cachedOutputs` entry (§3)   | ~7.5 MB          | Persists until invalidated    |
+| `prevOutputMap` entry (§4)   | ~7.5 MB          | Persists until chain mutation |
 
 A 5-filter chain with caching and temporal state: ~75 MB resident
 (5 × 7.5 cached + 5 × 7.5 prevOutput). At 1400×1400 this is fine for
@@ -233,12 +235,12 @@ Every filter runs synchronously on the main thread. Currently this is one
 filter per `requestAnimationFrame`; chaining makes it N filters. Typical
 single-filter times at 1400×1400:
 
-| Filter type | Typical time |
-|-------------|-------------|
-| Simple pixel-map (Invert, Grayscale) | 2–5 ms |
-| Error diffusion (Floyd-Steinberg, Atkinson) | 15–40 ms |
-| Convolution (Kuwahara, Bloom) | 30–80 ms |
-| Iterative (Reaction-diffusion, K-means) | 100–500 ms |
+| Filter type                                 | Typical time |
+| ------------------------------------------- | ------------ |
+| Simple pixel-map (Invert, Grayscale)        | 2–5 ms       |
+| Error diffusion (Floyd-Steinberg, Atkinson) | 15–40 ms     |
+| Convolution (Kuwahara, Bloom)               | 30–80 ms     |
+| Iterative (Reaction-diffusion, K-means)     | 100–500 ms   |
 
 A 5-filter chain of mid-weight filters: ~100–200 ms total. Acceptable for
 a one-shot apply, but causes dropped frames during real-time filtering.
@@ -317,6 +319,7 @@ strikethrough on the name. Their controls are still accessible (click to
 activate and edit) but they are skipped during execution.
 
 **Keyboard navigation** (accessibility):
+
 - `↑` / `↓` when the chain list is focused: move `activeIndex`
 - `Delete` or `Backspace` on active entry: `CHAIN_REMOVE` (with confirmation
   if the entry has non-default options)
@@ -459,32 +462,32 @@ console logging).
 
 ## Files Summary
 
-| File | Change |
-|------|--------|
-| `src/reducers/filters.ts` | `chain`, `activeIndex`, all `CHAIN_*` actions, `LOAD_STATE` v2 |
-| `src/context/FilterContext.tsx` | Chain execution loop, `prevOutputMap`, `cachedOutputs`, URL sync v2, serialization |
-| `src/components/App/index.tsx` | Chain list integration, grayscale pre-processing restructure, auto-filter deps |
-| `src/components/controls/index.tsx` | Accept + forward `chainIndex` prop |
-| `src/components/ChainList/index.tsx` | **New** — chain list with drag-and-drop, toggle, select |
-| `src/components/ChainList/styles.module.css` | **New** — chain list styles |
+| File                                         | Change                                                                             |
+| -------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `src/reducers/filters.ts`                    | `chain`, `activeIndex`, all `CHAIN_*` actions, `LOAD_STATE` v2                     |
+| `src/context/FilterContext.tsx`              | Chain execution loop, `prevOutputMap`, `cachedOutputs`, URL sync v2, serialization |
+| `src/components/App/index.tsx`               | Chain list integration, grayscale pre-processing restructure, auto-filter deps     |
+| `src/components/controls/index.tsx`          | Accept + forward `chainIndex` prop                                                 |
+| `src/components/ChainList/index.tsx`         | **New** — chain list with drag-and-drop, toggle, select                            |
+| `src/components/ChainList/styles.module.css` | **New** — chain list styles                                                        |
 
 ---
 
 ## Key Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| Per-filter linearization (no chain-boundary conversion) | Filters expect sRGB input; pre-linearizing would cause double-conversion. Quantization error per step is acceptable. |
-| Per-entry `_prevOutput` via Map | Mid-chain temporal filters (datamosh, CRT phosphor, VHS ghost) need their own previous output, not the final chain output. |
-| Minimum chain length of 1 | Avoids "empty pipeline" edge case; simpler reducer logic and UI. |
-| Explicit `chainIndex` in action payloads | Prevents bugs from action/state race conditions; reducer is deterministic regardless of `activeIndex` timing. |
-| Versioned serialization with short keys + pako | URLs must stay under ~2000 chars for social media sharing; delta encoding + compression makes 5-filter chains viable. |
-| Incremental migration via `selected` compat shim | Existing code (Controls, App, Exporter) continues to work during phased rollout; shim is removed in Phase 4. |
-| Intermediate caching keyed by entry `id` | Re-running the entire chain on every slider drag is O(N); caching makes it O(chain.length − changedIndex). |
-| Single-filter UI identical to current app | Users who never chain filters see zero UI changes. The [+] button is the only new affordance. |
-| Hard cap at 16 chain entries | Memory scales linearly (~15 MB/entry at max resolution); 16 is generous for creative use without runaway resource consumption. |
-| Fail-forward on filter errors | A throwing filter is skipped (input passed through); red badge shown. One broken filter doesn't block the rest of the chain. |
-| 32ms debounce on auto-filter | Coalesces rapid slider changes into one chain execution. Longer than 16ms (one frame) to batch React state updates. |
+| Decision                                                | Rationale                                                                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Per-filter linearization (no chain-boundary conversion) | Filters expect sRGB input; pre-linearizing would cause double-conversion. Quantization error per step is acceptable.           |
+| Per-entry `_prevOutput` via Map                         | Mid-chain temporal filters (datamosh, CRT phosphor, VHS ghost) need their own previous output, not the final chain output.     |
+| Minimum chain length of 1                               | Avoids "empty pipeline" edge case; simpler reducer logic and UI.                                                               |
+| Explicit `chainIndex` in action payloads                | Prevents bugs from action/state race conditions; reducer is deterministic regardless of `activeIndex` timing.                  |
+| Versioned serialization with short keys + pako          | URLs must stay under ~2000 chars for social media sharing; delta encoding + compression makes 5-filter chains viable.          |
+| Incremental migration via `selected` compat shim        | Existing code (Controls, App, Exporter) continues to work during phased rollout; shim is removed in Phase 4.                   |
+| Intermediate caching keyed by entry `id`                | Re-running the entire chain on every slider drag is O(N); caching makes it O(chain.length − changedIndex).                     |
+| Single-filter UI identical to current app               | Users who never chain filters see zero UI changes. The [+] button is the only new affordance.                                  |
+| Hard cap at 16 chain entries                            | Memory scales linearly (~15 MB/entry at max resolution); 16 is generous for creative use without runaway resource consumption. |
+| Fail-forward on filter errors                           | A throwing filter is skipped (input passed through); red badge shown. One broken filter doesn't block the rest of the chain.   |
+| 32ms debounce on auto-filter                            | Coalesces rapid slider changes into one chain execution. Longer than 16ms (one frame) to batch React state updates.            |
 
 ## Future Work (out of scope)
 

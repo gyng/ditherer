@@ -91,11 +91,12 @@ export type CurveOptionDefinition<TOptions extends FilterOptionValues = FilterOp
 export type PaletteOptionDefinition<TOptions extends FilterOptionValues = FilterOptionValues> =
   BaseOptionDefinition<TOptions, Record<string, unknown>>;
 
-export type ThresholdMapPreviewOptionDefinition<TOptions extends FilterOptionValues = FilterOptionValues> =
-  BaseOptionDefinition<TOptions, never> & {
-    sourceOption?: string;
-    polarityOption?: string;
-  };
+export type ThresholdMapPreviewOptionDefinition<
+  TOptions extends FilterOptionValues = FilterOptionValues,
+> = BaseOptionDefinition<TOptions, never> & {
+  sourceOption?: string;
+  polarityOption?: string;
+};
 
 export interface EnumOptionDefinition<
   TOptions extends FilterOptionValues = FilterOptionValues,

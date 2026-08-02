@@ -161,10 +161,18 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, CRC_FS, [
-      "u_source", "u_prevOutput", "u_hasPrev", "u_res",
-      "u_pattern", "u_stripeHeight", "u_tileSize",
-      "u_rejectChance", "u_jitter", "u_conceal",
-      "u_frameSeed", "u_levels",
+      "u_source",
+      "u_prevOutput",
+      "u_hasPrev",
+      "u_res",
+      "u_pattern",
+      "u_stripeHeight",
+      "u_tileSize",
+      "u_rejectChance",
+      "u_jitter",
+      "u_conceal",
+      "u_frameSeed",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -189,15 +197,27 @@ const uploadPrev = (
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-    new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA8,
+    w,
+    h,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
+  );
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   return tex;
 };
 
 export const CRC_PATTERN_ID: Record<string, number> = { STRIPE: 0, TILE: 1 };
 export const CRC_CONCEAL_ID: Record<string, number> = {
-  BLACK: 0, HOLD: 1, PREV_ROW: 2, NEAREST_VALID: 3,
+  BLACK: 0,
+  HOLD: 1,
+  PREV_ROW: 2,
+  NEAREST_VALID: 3,
 };
 
 export const renderCrcStripeRejectGL = (
@@ -227,32 +247,39 @@ export const renderCrcStripeRejectGL = (
   const sourceTex = ensureTexture(gl, "crcStripeReject:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  const prevTex = conceal === "HOLD" && prevOutput
-    ? uploadPrev(gl, prevOutput, width, height)
-    : null;
+  const prevTex =
+    conceal === "HOLD" && prevOutput ? uploadPrev(gl, prevOutput, width, height) : null;
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    if (prevTex) {
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, prevTex);
-      gl.uniform1i(cache.prog.uniforms.u_prevOutput, 1);
-      gl.uniform1i(cache.prog.uniforms.u_hasPrev, 1);
-    } else {
-      gl.uniform1i(cache.prog.uniforms.u_hasPrev, 0);
-    }
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_pattern, patternId);
-    gl.uniform1i(cache.prog.uniforms.u_stripeHeight, Math.max(1, Math.round(stripeHeight)));
-    gl.uniform1i(cache.prog.uniforms.u_tileSize, Math.max(2, Math.round(tileSize)));
-    gl.uniform1f(cache.prog.uniforms.u_rejectChance, rejectChance);
-    gl.uniform1i(cache.prog.uniforms.u_jitter, Math.max(0, Math.round(jitter)));
-    gl.uniform1i(cache.prog.uniforms.u_conceal, concealId);
-    gl.uniform1f(cache.prog.uniforms.u_frameSeed, frameIndex * 2851 + 17);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      if (prevTex) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, prevTex);
+        gl.uniform1i(cache.prog.uniforms.u_prevOutput, 1);
+        gl.uniform1i(cache.prog.uniforms.u_hasPrev, 1);
+      } else {
+        gl.uniform1i(cache.prog.uniforms.u_hasPrev, 0);
+      }
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_pattern, patternId);
+      gl.uniform1i(cache.prog.uniforms.u_stripeHeight, Math.max(1, Math.round(stripeHeight)));
+      gl.uniform1i(cache.prog.uniforms.u_tileSize, Math.max(2, Math.round(tileSize)));
+      gl.uniform1f(cache.prog.uniforms.u_rejectChance, rejectChance);
+      gl.uniform1i(cache.prog.uniforms.u_jitter, Math.max(0, Math.round(jitter)));
+      gl.uniform1i(cache.prog.uniforms.u_conceal, concealId);
+      gl.uniform1f(cache.prog.uniforms.u_frameSeed, frameIndex * 2851 + 17);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   const out = readoutToCanvas(canvas, width, height);
   if (prevTex) gl.deleteTexture(prevTex);

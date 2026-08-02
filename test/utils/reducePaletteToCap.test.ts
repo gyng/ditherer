@@ -14,7 +14,10 @@ const greyRamp = (n: number) =>
 
 describe("reducePaletteToCap", () => {
   it("returns an under-cap palette untouched", () => {
-    const small = [[0, 0, 0, 255], [255, 255, 255, 255]];
+    const small = [
+      [0, 0, 0, 255],
+      [255, 255, 255, 255],
+    ];
     expect(reducePaletteToCap(small, 64)).toBe(small);
   });
 
@@ -39,7 +42,12 @@ describe("reducePaletteToCap", () => {
   it("only emits colors that were in the source palette", () => {
     // adaptMode MID picks a real bucket member — averaging would invent colors
     // the user never chose, which a palette-constrained filter must never do.
-    const src = Array.from({ length: 300 }, (_, i) => [i % 256, (i * 5) % 256, (i * 11) % 256, 255]);
+    const src = Array.from({ length: 300 }, (_, i) => [
+      i % 256,
+      (i * 5) % 256,
+      (i * 11) % 256,
+      255,
+    ]);
     const allowed = new Set(src.map((c) => `${c[0]},${c[1]},${c[2]}`));
     for (const c of reducePaletteToCap(src, 64)) {
       expect(allowed.has(`${c[0]},${c[1]},${c[2]}`)).toBe(true);

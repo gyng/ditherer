@@ -6,7 +6,7 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
 } from "../utils/index";
 import { normalizePaletteOption, normalizeRangeOption } from "../utils/filterOptions";
 import {
@@ -16,12 +16,48 @@ import {
 } from "../utils/motionVectors";
 
 export const optionTypes = {
-  blockSize: { type: RANGE, range: [4, 32], step: 1, default: 16, desc: "Macro-block size for motion compensation" },
-  motionThreshold: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Per-pixel error threshold for accepting a block's motion match" },
-  displacement: { type: RANGE, range: [0, 30], step: 1, default: 8, desc: "Motion-vector search radius in pixels" },
-  keyframeInterval: { type: RANGE, range: [0, 120], step: 1, default: 24, desc: "Frames between clean keyframe refreshes (0 = never refresh — smear forever)" },
-  corruptChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Probability a block's motion vector is corrupted (bloom/tearing)" },
-  channelShift: { type: RANGE, range: [0, 10], step: 1, default: 2, desc: "RGB channel misalignment in pixels on moshed blocks" },
+  blockSize: {
+    type: RANGE,
+    range: [4, 32],
+    step: 1,
+    default: 16,
+    desc: "Macro-block size for motion compensation",
+  },
+  motionThreshold: {
+    type: RANGE,
+    range: [0, 100],
+    step: 1,
+    default: 20,
+    desc: "Per-pixel error threshold for accepting a block's motion match",
+  },
+  displacement: {
+    type: RANGE,
+    range: [0, 30],
+    step: 1,
+    default: 8,
+    desc: "Motion-vector search radius in pixels",
+  },
+  keyframeInterval: {
+    type: RANGE,
+    range: [0, 120],
+    step: 1,
+    default: 24,
+    desc: "Frames between clean keyframe refreshes (0 = never refresh — smear forever)",
+  },
+  corruptChance: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Probability a block's motion vector is corrupted (bloom/tearing)",
+  },
+  channelShift: {
+    type: RANGE,
+    range: [0, 10],
+    step: 1,
+    default: 2,
+    desc: "RGB channel misalignment in pixels on moshed blocks",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -32,9 +68,9 @@ export const optionTypes = {
       } else {
         actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
       }
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -45,7 +81,7 @@ export const defaults = {
   corruptChance: optionTypes.corruptChance.default,
   channelShift: optionTypes.channelShift.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type DatamoshPalette = {
@@ -70,7 +106,7 @@ type DatamoshOptions = FilterOptionValues & {
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -85,16 +121,36 @@ const mulberry32 = (seed: number) => {
 // frame at the motion-compensated position — P-frame prediction without an
 // I-frame refresh. (The previous filter displaced blocks by a random offset and
 // never estimated a vector at all.)
-const datamosh = (
-  input: any,
-  options: DatamoshOptions = defaults
-) => {
+const datamosh = (input: any, options: DatamoshOptions = defaults) => {
   const blockSize = normalizeRangeOption(options.blockSize, defaults.blockSize, 4, 32, true);
-  const motionThreshold = normalizeRangeOption(options.motionThreshold, defaults.motionThreshold, 0, 100);
-  const displacement = normalizeRangeOption(options.displacement, defaults.displacement, 0, 30, true);
-  const keyframeInterval = normalizeRangeOption(options.keyframeInterval, defaults.keyframeInterval, 0, 120, true);
+  const motionThreshold = normalizeRangeOption(
+    options.motionThreshold,
+    defaults.motionThreshold,
+    0,
+    100,
+  );
+  const displacement = normalizeRangeOption(
+    options.displacement,
+    defaults.displacement,
+    0,
+    30,
+    true,
+  );
+  const keyframeInterval = normalizeRangeOption(
+    options.keyframeInterval,
+    defaults.keyframeInterval,
+    0,
+    120,
+    true,
+  );
   const corruptChance = normalizeRangeOption(options.corruptChance, defaults.corruptChance, 0, 1);
-  const channelShift = normalizeRangeOption(options.channelShift, defaults.channelShift, 0, 10, true);
+  const channelShift = normalizeRangeOption(
+    options.channelShift,
+    defaults.channelShift,
+    0,
+    10,
+    true,
+  );
   const palette = normalizePaletteOption(options.palette, defaults.palette);
 
   const prevInput = options._prevInput ?? null;
@@ -111,15 +167,22 @@ const datamosh = (
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
-  const haveRefs = !!prevInput && !!prevOutput
-    && prevInput.length === buf.length && prevOutput.length === buf.length;
-  const isKeyframe = !haveRefs
-    || (keyframeInterval > 0 && frameIndex % keyframeInterval === 0);
+  const haveRefs =
+    !!prevInput &&
+    !!prevOutput &&
+    prevInput.length === buf.length &&
+    prevOutput.length === buf.length;
+  const isKeyframe = !haveRefs || (keyframeInterval > 0 && frameIndex % keyframeInterval === 0);
 
   // On a keyframe (or with no reference frames) emit the clean current frame.
   if (isKeyframe) {
     for (let i = 0; i < buf.length; i += 4) {
-      const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
     outputCtx.putImageData(new ImageData(outBuf, W, H), 0, 0);
@@ -133,7 +196,13 @@ const datamosh = (
   // block sizes of ~15px and up still honour the full displacement.
   const searchRadius = Math.min(displacement, blockSize * 2);
   const threshold = (motionThreshold / 100) * 255;
-  const buffers = prepareMotionAnalysisBuffers(buf, prevInput as Uint8ClampedArray, W, H, MOTION_SOURCE.LUMA);
+  const buffers = prepareMotionAnalysisBuffers(
+    buf,
+    prevInput as Uint8ClampedArray,
+    W,
+    H,
+    MOTION_SOURCE.LUMA,
+  );
 
   const blocksX = Math.ceil(W / blockSize);
   const blocksY = Math.ceil(H / blockSize);
@@ -147,8 +216,17 @@ const datamosh = (
 
       // Real block-matching motion vector (current vs previous input frame).
       const vector = estimateMotionVector(
-        buf, prevInput as Uint8ClampedArray, W, H,
-        startX, startY, blockSize, searchRadius, threshold, MOTION_SOURCE.LUMA, buffers,
+        buf,
+        prevInput as Uint8ClampedArray,
+        W,
+        H,
+        startX,
+        startY,
+        blockSize,
+        searchRadius,
+        threshold,
+        MOTION_SOURCE.LUMA,
+        buffers,
       );
       let vx = vector.dx;
       let vy = vector.dy;
@@ -179,7 +257,12 @@ const datamosh = (
           const rx = Math.max(0, Math.min(W - 1, sx + chShiftX));
           const ri = getBufferIndex(rx, sy, W);
           const i = getBufferIndex(x, y, W);
-          const color = paletteGetColor(palette, rgba(ref[ri], ref[si + 1], ref[si + 2], ref[si + 3]), palette.options, false);
+          const color = paletteGetColor(
+            palette,
+            rgba(ref[ri], ref[si + 1], ref[si + 2], ref[si + 3]),
+            palette.options,
+            false,
+          );
           fillBufferPixel(outBuf, i, color[0], color[1], color[2], ref[si + 3]);
         }
       }
@@ -196,7 +279,8 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  noWASM: "Per-block full-search motion estimation plus a motion-compensated gather from the previous output frame; the heavy work is the SAD search, not vectorisable pixel math.",
+  noWASM:
+    "Per-block full-search motion estimation plus a motion-compensated gather from the previous output frame; the heavy work is the SAD search, not vectorisable pixel math.",
   noGL: "Per-block motion estimation is a reduction/search unfriendly to fragment shaders without compute.",
   temporal: true,
 });

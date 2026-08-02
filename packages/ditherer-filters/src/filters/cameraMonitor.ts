@@ -2,12 +2,25 @@ import { COLOR, ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter } from "./types";
 import { logFilterBackend } from "../utils/index";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glUnavailableStub,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
-const MODE = { FOCUS: "FOCUS", ZEBRAS: "ZEBRAS", FALSE_COLOR: "FALSE_COLOR", CLIPPING: "CLIPPING", COMBINED: "COMBINED" };
+const MODE = {
+  FOCUS: "FOCUS",
+  ZEBRAS: "ZEBRAS",
+  FALSE_COLOR: "FALSE_COLOR",
+  CLIPPING: "CLIPPING",
+  COMBINED: "COMBINED",
+};
 
 export const optionTypes = {
   mode: {
@@ -22,12 +35,48 @@ export const optionTypes = {
     default: MODE.COMBINED,
     desc: "Camera-assist overlay to render",
   },
-  focusThreshold: { type: RANGE, range: [0.02, 0.6], step: 0.01, default: 0.18, desc: "Minimum local contrast for focus peaking" },
-  zebraThreshold: { type: RANGE, range: [0.5, 1], step: 0.01, default: 0.78, desc: "Luminance where exposure zebras begin" },
-  shadowClip: { type: RANGE, range: [0, 0.2], step: 0.01, default: 0.03, desc: "Shadow clipping warning threshold" },
-  highlightClip: { type: RANGE, range: [0.8, 1], step: 0.01, default: 0.98, desc: "Highlight clipping warning threshold" },
-  overlayOpacity: { type: RANGE, range: [0, 1], step: 0.01, default: 0.8, desc: "Strength of monitoring overlays" },
-  stripeWidth: { type: RANGE, range: [2, 16], step: 1, default: 6, desc: "Exposure zebra stripe width" },
+  focusThreshold: {
+    type: RANGE,
+    range: [0.02, 0.6],
+    step: 0.01,
+    default: 0.18,
+    desc: "Minimum local contrast for focus peaking",
+  },
+  zebraThreshold: {
+    type: RANGE,
+    range: [0.5, 1],
+    step: 0.01,
+    default: 0.78,
+    desc: "Luminance where exposure zebras begin",
+  },
+  shadowClip: {
+    type: RANGE,
+    range: [0, 0.2],
+    step: 0.01,
+    default: 0.03,
+    desc: "Shadow clipping warning threshold",
+  },
+  highlightClip: {
+    type: RANGE,
+    range: [0.8, 1],
+    step: 0.01,
+    default: 0.98,
+    desc: "Highlight clipping warning threshold",
+  },
+  overlayOpacity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.8,
+    desc: "Strength of monitoring overlays",
+  },
+  stripeWidth: {
+    type: RANGE,
+    range: [2, 16],
+    step: 1,
+    default: 6,
+    desc: "Exposure zebra stripe width",
+  },
   focusColor: { type: COLOR, default: [32, 255, 64], desc: "Focus-peaking overlay color" },
 };
 
@@ -101,15 +150,30 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_focusThreshold", "u_zebraThreshold", "u_shadowClip",
-    "u_highlightClip", "u_opacity", "u_stripeWidth", "u_focusColor", "u_mode",
+    "u_source",
+    "u_res",
+    "u_focusThreshold",
+    "u_zebraThreshold",
+    "u_shadowClip",
+    "u_highlightClip",
+    "u_opacity",
+    "u_stripeWidth",
+    "u_focusColor",
+    "u_mode",
   ] as const);
   return _prog;
 };
-const modeId: Record<string, number> = { FOCUS: 0, ZEBRAS: 1, FALSE_COLOR: 2, CLIPPING: 3, COMBINED: 4 };
+const modeId: Record<string, number> = {
+  FOCUS: 0,
+  ZEBRAS: 1,
+  FALSE_COLOR: 2,
+  CLIPPING: 3,
+  COMBINED: 4,
+};
 
 const cameraMonitor = (input: any, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
   const { gl, canvas } = ctx;
@@ -119,20 +183,33 @@ const cameraMonitor = (input: any, options = defaults) => {
   const sourceTex = ensureTexture(gl, "cameraMonitor:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
   const focusColor = options.focusColor as number[];
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_focusThreshold, options.focusThreshold);
-    gl.uniform1f(prog.uniforms.u_zebraThreshold, options.zebraThreshold);
-    gl.uniform1f(prog.uniforms.u_shadowClip, options.shadowClip);
-    gl.uniform1f(prog.uniforms.u_highlightClip, options.highlightClip);
-    gl.uniform1f(prog.uniforms.u_opacity, options.overlayOpacity);
-    gl.uniform1f(prog.uniforms.u_stripeWidth, options.stripeWidth);
-    gl.uniform3f(prog.uniforms.u_focusColor, focusColor[0] / 255, focusColor[1] / 255, focusColor[2] / 255);
-    gl.uniform1i(prog.uniforms.u_mode, modeId[options.mode] ?? 4);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_focusThreshold, options.focusThreshold);
+      gl.uniform1f(prog.uniforms.u_zebraThreshold, options.zebraThreshold);
+      gl.uniform1f(prog.uniforms.u_shadowClip, options.shadowClip);
+      gl.uniform1f(prog.uniforms.u_highlightClip, options.highlightClip);
+      gl.uniform1f(prog.uniforms.u_opacity, options.overlayOpacity);
+      gl.uniform1f(prog.uniforms.u_stripeWidth, options.stripeWidth);
+      gl.uniform3f(
+        prog.uniforms.u_focusColor,
+        focusColor[0] / 255,
+        focusColor[1] / 255,
+        focusColor[2] / 255,
+      );
+      gl.uniform1i(prog.uniforms.u_mode, modeId[options.mode] ?? 4);
+    },
+    vao,
+  );
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
   logFilterBackend("Camera Monitor", "WebGL2", String(options.mode));
@@ -145,6 +222,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Production monitor overlays: focus peaking, zebras, false color, and clipping warnings",
+  description:
+    "Production monitor overlays: focus peaking, zebras, false color, and clipping warnings",
   requiresGL: true,
 });

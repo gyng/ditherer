@@ -106,8 +106,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, SCANLINE_SHIFT_FS, [
-      "u_source", "u_res", "u_blockHeight", "u_maxShift", "u_chance",
-      "u_colorShift", "u_wrap", "u_frameSeed", "u_levels",
+      "u_source",
+      "u_res",
+      "u_blockHeight",
+      "u_maxShift",
+      "u_chance",
+      "u_colorShift",
+      "u_wrap",
+      "u_frameSeed",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -137,19 +144,27 @@ export const renderScanLineShiftGL = (
   const sourceTex = ensureTexture(gl, "scanLineShift:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_blockHeight, Math.max(1, Math.round(blockHeight)));
-    gl.uniform1i(cache.prog.uniforms.u_maxShift, Math.max(0, Math.round(maxShift)));
-    gl.uniform1f(cache.prog.uniforms.u_chance, chance);
-    gl.uniform1i(cache.prog.uniforms.u_colorShift, colorShift ? 1 : 0);
-    gl.uniform1i(cache.prog.uniforms.u_wrap, wrap ? 1 : 0);
-    gl.uniform1f(cache.prog.uniforms.u_frameSeed, frameIndex * 7919 + 31337);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_blockHeight, Math.max(1, Math.round(blockHeight)));
+      gl.uniform1i(cache.prog.uniforms.u_maxShift, Math.max(0, Math.round(maxShift)));
+      gl.uniform1f(cache.prog.uniforms.u_chance, chance);
+      gl.uniform1i(cache.prog.uniforms.u_colorShift, colorShift ? 1 : 0);
+      gl.uniform1i(cache.prog.uniforms.u_wrap, wrap ? 1 : 0);
+      gl.uniform1f(cache.prog.uniforms.u_frameSeed, frameIndex * 7919 + 31337);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

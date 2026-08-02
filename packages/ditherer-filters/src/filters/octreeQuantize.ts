@@ -4,7 +4,7 @@ import { defineFilter } from "./types";
 
 const REDUCE = {
   POPULARITY: "POPULARITY",
-  MERGE: "MERGE"
+  MERGE: "MERGE",
 };
 
 type OctreeNode = {
@@ -31,16 +31,12 @@ const createNode = (level: number, leafLevel: number): OctreeNode => ({
   bSum: 0,
   level,
   nextReducible: null,
-  detached: false
+  detached: false,
 });
 
 const colorIndexForLevel = (r: number, g: number, b: number, level: number) => {
   const shift = 7 - level;
-  return (
-    (((r >> shift) & 1) << 2) |
-    (((g >> shift) & 1) << 1) |
-    ((b >> shift) & 1)
-  );
+  return (((r >> shift) & 1) << 2) | (((g >> shift) & 1) << 1) | ((b >> shift) & 1);
 };
 
 const collectLeaves = (node: OctreeNode, out: OctreeNode[]) => {
@@ -60,10 +56,7 @@ const nearestColor = (pixel: number[], palette: number[][]) => {
   let bestDist = Infinity;
   for (let i = 0; i < palette.length; i += 1) {
     const color = palette[i];
-    const d =
-      (pixel[0] - color[0]) ** 2 +
-      (pixel[1] - color[1]) ** 2 +
-      (pixel[2] - color[2]) ** 2;
+    const d = (pixel[0] - color[0]) ** 2 + (pixel[1] - color[1]) ** 2 + (pixel[2] - color[2]) ** 2;
     if (d < bestDist) {
       bestDist = d;
       best = color;
@@ -73,23 +66,35 @@ const nearestColor = (pixel: number[], palette: number[][]) => {
 };
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [2, 64], step: 1, default: 12, desc: "Maximum number of colors kept after octree reduction" },
-  sampleRate: { type: RANGE, range: [1, 16], step: 1, default: 2, desc: "Use every Nth source pixel while building the octree" },
+  levels: {
+    type: RANGE,
+    range: [2, 64],
+    step: 1,
+    default: 12,
+    desc: "Maximum number of colors kept after octree reduction",
+  },
+  sampleRate: {
+    type: RANGE,
+    range: [1, 16],
+    step: 1,
+    default: 2,
+    desc: "Use every Nth source pixel while building the octree",
+  },
   reduceMode: {
     type: ENUM,
     options: [
       { name: "Merge sparse leaves", value: REDUCE.MERGE },
-      { name: "Favor popular leaves", value: REDUCE.POPULARITY }
+      { name: "Favor popular leaves", value: REDUCE.POPULARITY },
     ],
     default: REDUCE.MERGE,
-    desc: "How the octree chooses which branches to collapse when shrinking the palette"
-  }
+    desc: "How the octree chooses which branches to collapse when shrinking the palette",
+  },
 };
 
 export const defaults = {
   levels: optionTypes.levels.default,
   sampleRate: optionTypes.sampleRate.default,
-  reduceMode: optionTypes.reduceMode.default
+  reduceMode: optionTypes.reduceMode.default,
 };
 
 const octreeQuantize = (input: any, options = defaults) => {
@@ -105,7 +110,10 @@ const octreeQuantize = (input: any, options = defaults) => {
   const outBuf = new Uint8ClampedArray(buf.length);
   const maxColors = Math.max(2, Math.round(levels));
   const leafLevel = 7;
-  const reducible: Array<OctreeNode | null> = Array.from({ length: leafLevel }, (): OctreeNode | null => null);
+  const reducible: Array<OctreeNode | null> = Array.from(
+    { length: leafLevel },
+    (): OctreeNode | null => null,
+  );
   const root = createNode(0, leafLevel);
   let leafCount = 0;
 
@@ -150,7 +158,9 @@ const octreeQuantize = (input: any, options = defaults) => {
         }
         const score = reduceMode === REDUCE.POPULARITY ? node.pixelCount : -node.pixelCount;
         const bestScore = best
-          ? (reduceMode === REDUCE.POPULARITY ? best.pixelCount : -best.pixelCount)
+          ? reduceMode === REDUCE.POPULARITY
+            ? best.pixelCount
+            : -best.pixelCount
           : -Infinity;
         if (!best || score > bestScore) {
           best = node;
@@ -218,26 +228,32 @@ const octreeQuantize = (input: any, options = defaults) => {
       const i = getBufferIndex(x, y, width);
       if (buf[i + 3] === 0) continue;
       insertColor(root, buf[i], buf[i + 1], buf[i + 2]);
-      while (leafCount > maxColors && reduceTree()) { /* keep merging */ }
+      while (leafCount > maxColors && reduceTree()) {
+        /* keep merging */
+      }
     }
   }
 
   const paletteLeaves: OctreeNode[] = [];
   collectLeaves(root, paletteLeaves);
   const palette = paletteLeaves
-    .filter(node => node.pixelCount > 0)
-    .map(node => [
+    .filter((node) => node.pixelCount > 0)
+    .map((node) => [
       Math.round(node.rSum / node.pixelCount),
       Math.round(node.gSum / node.pixelCount),
-      Math.round(node.bSum / node.pixelCount)
+      Math.round(node.bSum / node.pixelCount),
     ]);
 
   // The octree cannot merge below its top-level octants, so for small
   // maxColors it stops short of what was asked. Finish on the palette itself
   // rather than returning more colours than requested.
-  const capped = palette.length > maxColors
-    ? reducePaletteToCap(palette.map(c => [c[0], c[1], c[2], 255]), maxColors)
-    : palette;
+  const capped =
+    palette.length > maxColors
+      ? reducePaletteToCap(
+          palette.map((c) => [c[0], c[1], c[2], 255]),
+          maxColors,
+        )
+      : palette;
 
   const resolvedPalette = capped.length > 0 ? capped : [[0, 0, 0]];
 
@@ -259,7 +275,9 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Adaptive palette reduction using octree subdivision, with a different bias than median-cut",
-  noWASM: "Builds an octree by incrementally inserting every pixel and walking the reducible-node list — pointer-chasing across a shared tree is the inverse of what SIMD or threads accelerate.",
+  description:
+    "Adaptive palette reduction using octree subdivision, with a different bias than median-cut",
+  noWASM:
+    "Builds an octree by incrementally inserting every pixel and walking the reducible-node list — pointer-chasing across a shared tree is the inverse of what SIMD or threads accelerate.",
   noGL: "Octree construction is a serial insertion algorithm with a shared mutable tree; fragment shaders can't express it even with atomics.",
 });

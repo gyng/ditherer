@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -554,7 +561,8 @@ export const lutGLAvailable = (): boolean => glAvailable();
 
 export const renderLUTGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   preset: number,
   strength: number,
   exposure: number,
@@ -569,14 +577,22 @@ export const renderLUTGL = (
   const sourceTex = ensureTexture(gl, "lut:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.lut, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.lut.uniforms.u_source, 0);
-    gl.uniform1i(cache.lut.uniforms.u_preset, preset);
-    gl.uniform1f(cache.lut.uniforms.u_strength, strength);
-    gl.uniform1f(cache.lut.uniforms.u_exposure, exposure);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.lut,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.lut.uniforms.u_source, 0);
+      gl.uniform1i(cache.lut.uniforms.u_preset, preset);
+      gl.uniform1f(cache.lut.uniforms.u_strength, strength);
+      gl.uniform1f(cache.lut.uniforms.u_exposure, exposure);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

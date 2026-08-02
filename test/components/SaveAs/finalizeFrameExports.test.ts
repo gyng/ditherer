@@ -7,14 +7,16 @@ import {
 
 vi.mock("components/SaveAs/export/exportArtifacts", () => ({
   encodeGifBlob: vi.fn(async () => ({ blob: new Blob(["gif"], { type: "image/gif" }) })),
-  encodePngSequenceZip: vi.fn(async (_frames: unknown, onFrame?: (frameIndex: number, frameCount: number) => void) => {
-    onFrame?.(0, 2);
-    onFrame?.(1, 2);
-    return {
-      blob: new Blob(["zip"], { type: "application/zip" }),
-      fileCount: 2,
-    };
-  }),
+  encodePngSequenceZip: vi.fn(
+    async (_frames: unknown, onFrame?: (frameIndex: number, frameCount: number) => void) => {
+      onFrame?.(0, 2);
+      onFrame?.(1, 2);
+      return {
+        blob: new Blob(["zip"], { type: "application/zip" }),
+        fileCount: 2,
+      };
+    },
+  ),
 }));
 
 vi.mock("components/SaveAs/export/contactSheetExport", () => ({
@@ -32,9 +34,7 @@ describe("finalizeGifExport", () => {
     const onEncoded = vi.fn();
 
     await finalizeGifExport({
-      frames: [
-        { data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, delay: 40 },
-      ],
+      frames: [{ data: new Uint8ClampedArray([1, 2, 3, 255]), width: 1, height: 1, delay: 40 }],
       aborted: false,
       colorTable: null,
       capturedFrameCount: 1,

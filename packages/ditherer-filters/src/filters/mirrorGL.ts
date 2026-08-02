@@ -74,7 +74,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, MIRROR_FS, [
-      "u_source", "u_res", "u_mode", "u_segments", "u_cx", "u_cy", "u_levels",
+      "u_source",
+      "u_res",
+      "u_mode",
+      "u_segments",
+      "u_cx",
+      "u_cy",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -114,17 +120,25 @@ export const renderMirrorGL = (
   const sourceTex = ensureTexture(gl, "mirror:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_mode, modeId);
-    gl.uniform1i(cache.prog.uniforms.u_segments, segments);
-    gl.uniform1f(cache.prog.uniforms.u_cx, cx);
-    gl.uniform1f(cache.prog.uniforms.u_cy, cy);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_mode, modeId);
+      gl.uniform1i(cache.prog.uniforms.u_segments, segments);
+      gl.uniform1f(cache.prog.uniforms.u_cx, cx);
+      gl.uniform1f(cache.prog.uniforms.u_cy, cy);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

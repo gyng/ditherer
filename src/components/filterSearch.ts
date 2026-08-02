@@ -48,7 +48,8 @@ const bestTokenScore = <T extends FilterSearchSource>(
     else if (record.nameWords.some((word) => word.startsWith(variant))) best = Math.min(best, 3);
     else if (record.name.includes(variant)) best = Math.min(best, 7);
     else if (record.categoryWords.includes(variant)) best = Math.min(best, 11);
-    else if (record.categoryWords.some((word) => word.startsWith(variant))) best = Math.min(best, 14);
+    else if (record.categoryWords.some((word) => word.startsWith(variant)))
+      best = Math.min(best, 14);
     else if (record.category.includes(variant)) best = Math.min(best, 18);
     else if (record.keywords.includes(variant)) best = Math.min(best, 22);
     else if (record.description.includes(variant)) best = Math.min(best, 30);
@@ -98,10 +99,11 @@ export const searchFilterIndex = <T extends FilterSearchSource>(
     return [{ record, score }];
   });
 
-  scored.sort((a, b) =>
-    a.score - b.score ||
-    a.record.name.localeCompare(b.record.name) ||
-    a.record.order - b.record.order
+  scored.sort(
+    (a, b) =>
+      a.score - b.score ||
+      a.record.name.localeCompare(b.record.name) ||
+      a.record.order - b.record.order,
   );
 
   return {

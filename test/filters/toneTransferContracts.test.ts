@@ -66,7 +66,7 @@ describe("linear-light exposure (dodge/burn)", () => {
   it("brightens/darkens in linear light, not gamma space", () => {
     expect(linearExposure(0.5, 1)).toBeCloseTo(0.5, 6); // no change
     expect(linearExposure(0.5, 2)).toBeGreaterThan(0.5); // dodge brightens
-    expect(linearExposure(0.5, 0.5)).toBeLessThan(0.5);  // burn darkens
+    expect(linearExposure(0.5, 0.5)).toBeLessThan(0.5); // burn darkens
     // Doubling exposure doubles the LINEAR value, not the sRGB value.
     expect(srgbToLinear(linearExposure(0.5, 2))).toBeCloseTo(srgbToLinear(0.5) * 2, 6);
   });

@@ -55,17 +55,29 @@ void main() {
 `;
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.3, desc: "Ring centre as a fraction of Nyquist" },
+  radius: {
+    type: RANGE,
+    range: [0.01, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Ring centre as a fraction of Nyquist",
+  },
   width: { type: RANGE, range: [0.005, 0.5], step: 0.005, default: 0.06, desc: "Ring width" },
-  depth: { type: RANGE, range: [0, 1], step: 0.01, default: 0, desc: "Depth — 0 fully kills the ring, 1 passes it through" },
-  palette: { type: PALETTE, default: nearest }
+  depth: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0,
+    desc: "Depth — 0 fully kills the ring, 1 passes it through",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   radius: optionTypes.radius.default,
   width: optionTypes.width.default,
   depth: optionTypes.depth.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { notch: Program };
@@ -73,7 +85,13 @@ let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
-    notch: linkProgram(gl, NOTCH_FS, ["u_input", "u_padRes", "u_radius", "u_width", "u_depth"] as const),
+    notch: linkProgram(gl, NOTCH_FS, [
+      "u_input",
+      "u_padRes",
+      "u_radius",
+      "u_width",
+      "u_depth",
+    ] as const),
   };
   return _cache;
 };
@@ -84,9 +102,9 @@ const fftRadialNotch = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -100,15 +118,23 @@ const fftRadialNotch = (input: any, options = defaults) => {
       if (fwd) {
         const masked = ensureFloatTex(gl, "fftRadialNotch:masked", fwd.paddedW, fwd.paddedH);
         if (masked) {
-          drawPass(gl, masked, fwd.paddedW, fwd.paddedH, cache.notch, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.notch.uniforms.u_input, 0);
-            gl.uniform2f(cache.notch.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-            gl.uniform1f(cache.notch.uniforms.u_radius, radius);
-            gl.uniform1f(cache.notch.uniforms.u_width, width);
-            gl.uniform1f(cache.notch.uniforms.u_depth, depth);
-          }, vao);
+          drawPass(
+            gl,
+            masked,
+            fwd.paddedW,
+            fwd.paddedH,
+            cache.notch,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.notch.uniforms.u_input, 0);
+              gl.uniform2f(cache.notch.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+              gl.uniform1f(cache.notch.uniforms.u_radius, radius);
+              gl.uniform1f(cache.notch.uniforms.u_width, width);
+              gl.uniform1f(cache.notch.uniforms.u_depth, depth);
+            },
+            vao,
+          );
           const inv = inverseFFT2D(gl, masked, fwd.paddedW, fwd.paddedH, fwd.logW, fwd.logH);
           if (inv) {
             finaliseIFFT(gl, inv, sourceTex, W, H, fwd.paddedW, fwd.paddedH, W, H);
@@ -117,8 +143,11 @@ const fftRadialNotch = (input: any, options = defaults) => {
               const isNearest = (palette as { name?: string }).name === "nearest";
               const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Radial Notch", "WebGL2",
-                  `radius=${radius} width=${width}${isNearest ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Radial Notch",
+                  "WebGL2",
+                  `radius=${radius} width=${width}${isNearest ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -137,6 +166,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Zero out a circular ring in the 2D FFT — kills periodic artefacts like scan lines, dot screens, weaves",
+  description:
+    "Zero out a circular ring in the 2D FFT — kills periodic artefacts like scan lines, dot screens, weaves",
   noWASM: "Real 2D FFT is only practical via GPU butterfly passes.",
 });

@@ -77,10 +77,7 @@ export const captureLoopPlaybackFrames = async ({
   };
 
   const captureFrame = () => {
-    capturedFrames.push(captureCurrentCanvasFrame(
-      getScaledCanvas,
-      1000 / Math.max(1, gifFps),
-    ));
+    capturedFrames.push(captureCurrentCanvasFrame(getScaledCanvas, 1000 / Math.max(1, gifFps)));
   };
 
   if (!usePlaybackCapture) {
@@ -96,7 +93,7 @@ export const captureLoopPlaybackFrames = async ({
       aborted = true;
       break;
     }
-    const targetTime = Math.min(durationSec - 0.0005, rangeStartSec + (i / Math.max(1, captureFps)));
+    const targetTime = Math.min(durationSec - 0.0005, rangeStartSec + i / Math.max(1, captureFps));
     const elapsedMs = performance.now() - captureStartedAt;
     const avgMs = i > 0 ? elapsedMs / i : 0;
     const etaMs = i > 0 ? avgMs * (sampleCount - i) : 0;

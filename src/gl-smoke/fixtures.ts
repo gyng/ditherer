@@ -15,8 +15,7 @@ const buildGradientPixels = (width: number, height: number): Uint8ClampedArray<A
       pixels[index] = Math.round(Math.min(1, xBand) * 255);
       pixels[index + 1] = Math.round(Math.min(1, yBand) * 255);
       pixels[index + 2] = 255 - pixels[index];
-      if (x >= width / 4 && x < (width * 3) / 4
-        && y >= height / 4 && y < (height * 3) / 4) {
+      if (x >= width / 4 && x < (width * 3) / 4 && y >= height / 4 && y < (height * 3) / 4) {
         const high = (Math.floor(x / 2) + Math.floor(y / 2)) % 2 === 0;
         pixels[index] = high ? 245 : 10;
         pixels[index + 1] = high ? 245 : 24;
@@ -88,7 +87,11 @@ export const makeSmoothRamp = (width: number, height: number): HTMLCanvasElement
   return canvas;
 };
 
-export const makeSolidCanvas = (width: number, height: number, value: number): HTMLCanvasElement => {
+export const makeSolidCanvas = (
+  width: number,
+  height: number,
+  value: number,
+): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -100,14 +103,15 @@ export const makeSolidCanvas = (width: number, height: number, value: number): H
 };
 
 export const canvasPixels = (canvas: HTMLCanvasElement): Uint8ClampedArray | null =>
-  canvas.getContext("2d", { willReadFrequently: true })
-    ?.getImageData(0, 0, canvas.width, canvas.height).data.slice() ?? null;
+  canvas
+    .getContext("2d", { willReadFrequently: true })
+    ?.getImageData(0, 0, canvas.width, canvas.height)
+    .data.slice() ?? null;
 
 const readPixels = (canvas: HTMLCanvasElement | OffscreenCanvas): Uint8ClampedArray | null => {
-  const context = (canvas as HTMLCanvasElement).getContext(
-    "2d",
-    { willReadFrequently: true },
-  ) as CanvasRenderingContext2D | null;
+  const context = (canvas as HTMLCanvasElement).getContext("2d", {
+    willReadFrequently: true,
+  }) as CanvasRenderingContext2D | null;
   return context?.getImageData(0, 0, canvas.width, canvas.height).data ?? null;
 };
 
@@ -192,10 +196,10 @@ export const runtimeFixtureIntegrity = (): CheckResult => {
     const pixels = canvasPixels(canvas);
     return !pixels || checksum(pixels) !== checksum(gradientPixels.get(key) ?? []);
   });
-  return actual.input === runtimeChecksums.input
-    && actual.output === runtimeChecksums.output
-    && actual.ema === runtimeChecksums.ema
-    && !mutatedCanvas
+  return actual.input === runtimeChecksums.input &&
+    actual.output === runtimeChecksums.output &&
+    actual.ema === runtimeChecksums.ema &&
+    !mutatedCanvas
     ? { ok: true }
     : {
         ok: false,

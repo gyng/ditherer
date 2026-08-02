@@ -28,7 +28,8 @@ import { test } from "@playwright/test";
 //
 // Opt-in because it is slow and its result is a judgement call, not a pass/fail.
 
-const W = 640, H = 400;
+const W = 640,
+  H = 400;
 const CAPS = [16, 64, 128, 256];
 const PALETTE_SIZES = [8, 16, 64, 256];
 const CANDIDATES = 32;
@@ -42,8 +43,17 @@ const makePalette = (k: number) => {
     const h = (i / k) * 6;
     const s = 0.5 + 0.5 * ((i % 3) / 2);
     const v = 0.25 + 0.75 * ((i % 5) / 4);
-    const c = v * s, x = c * (1 - Math.abs((h % 2) - 1)), m = v - c;
-    const rgb = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(h) % 6];
+    const c = v * s,
+      x = c * (1 - Math.abs((h % 2) - 1)),
+      m = v - c;
+    const rgb = [
+      [c, x, 0],
+      [x, c, 0],
+      [0, c, x],
+      [0, x, c],
+      [x, 0, c],
+      [c, 0, x],
+    ][Math.floor(h) % 6];
     out.push([
       Math.round((rgb[0] + m) * 255),
       Math.round((rgb[1] + m) * 255),
@@ -74,21 +84,28 @@ test("palette cap cost across MAX_PAL x K", async ({ page }) => {
   console.log(`MAX_FRAGMENT_UNIFORM_VECTORS: ${renderer.maxFragUniformVectors}`);
   if (String(renderer.renderer).includes("SwiftShader")) {
     console.log(
-      "\n  ⚠ SwiftShader is a CPU rasterizer. These numbers cannot show GPU\n"
-      + "    register spilling — the whole reason the cap exists. Re-run on a\n"
-      + "    GPU-backed browser before drawing conclusions.\n",
+      "\n  ⚠ SwiftShader is a CPU rasterizer. These numbers cannot show GPU\n" +
+        "    register spilling — the whole reason the cap exists. Re-run on a\n" +
+        "    GPU-backed browser before drawing conclusions.\n",
     );
   }
 
   const rgba: number[] = [];
   for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) rgba.push((x / W) * 255, (y / H) * 255, ((x ^ y) & 255), 255);
+    for (let x = 0; x < W; x++) rgba.push((x / W) * 255, (y / H) * 255, (x ^ y) & 255, 255);
   }
 
-  type Cell = {
-    median: number; min: number; max: number;
-    samples: number; disjoint: number; distinct: number;
-  } | { error: string } | null;
+  type Cell =
+    | {
+        median: number;
+        min: number;
+        max: number;
+        samples: number;
+        disjoint: number;
+        distinct: number;
+      }
+    | { error: string }
+    | null;
 
   const detail: string[] = [];
   console.log(`\n${W}x${H}, N=${CANDIDATES}, EMA-Exact, GPU time, median of ${REPS}\n`);
@@ -97,11 +114,15 @@ test("palette cap cost across MAX_PAL x K", async ({ page }) => {
   for (const maxPal of CAPS) {
     const cells: string[] = [];
     for (const k of PALETTE_SIZES) {
-      if (k > maxPal) { cells.push("        --"); continue; }
+      if (k > maxPal) {
+        cells.push("        --");
+        continue;
+      }
       const r: Cell = await page.evaluate(
         ({ rgba, W, H, palette, maxPal, candidates, reps }) =>
-          (window as unknown as { __ncParity: { bench: (b: unknown) => Promise<Cell> } })
-            .__ncParity.bench({ width: W, height: H, rgba, palette, maxPal, candidates, reps }),
+          (
+            window as unknown as { __ncParity: { bench: (b: unknown) => Promise<Cell> } }
+          ).__ncParity.bench({ width: W, height: H, rgba, palette, maxPal, candidates, reps }),
         { rgba, W, H, palette: makePalette(k), maxPal, candidates: CANDIDATES, reps: REPS },
       );
       if (!r || "error" in r) {
@@ -112,10 +133,10 @@ test("palette cap cost across MAX_PAL x K", async ({ page }) => {
       cells.push(`${r.median.toFixed(2)}ms`.padStart(10));
       // Spread is the honesty check — if max/min is wide the median is noise.
       detail.push(
-        `cap=${String(maxPal).padEnd(4)} K=${String(k).padEnd(4)} `
-        + `median=${r.median.toFixed(2)} min=${r.min.toFixed(2)} max=${r.max.toFixed(2)} `
-        + `spread=${(r.max / Math.max(r.min, 1e-6)).toFixed(1)}x `
-        + `n=${r.samples} disjoint=${r.disjoint} colors=${r.distinct}`,
+        `cap=${String(maxPal).padEnd(4)} K=${String(k).padEnd(4)} ` +
+          `median=${r.median.toFixed(2)} min=${r.min.toFixed(2)} max=${r.max.toFixed(2)} ` +
+          `spread=${(r.max / Math.max(r.min, 1e-6)).toFixed(1)}x ` +
+          `n=${r.samples} disjoint=${r.disjoint} colors=${r.distinct}`,
       );
     }
     console.log(`${String(maxPal).padEnd(8)}${cells.join("")}`);
@@ -123,8 +144,8 @@ test("palette cap cost across MAX_PAL x K", async ({ page }) => {
 
   console.log(`\n${detail.join("\n")}`);
   console.log(
-    "\nRead it down a column: that isolates the cost of the compiled cap at a\n"
-    + "fixed real palette size. Check `spread` before believing any median —\n"
-    + "and sanity-check that cost rises with K, since it must.\n",
+    "\nRead it down a column: that isolates the cost of the compiled cap at a\n" +
+      "fixed real palette size. Check `spread` before believing any median —\n" +
+      "and sanity-check that cost rises with K, since it must.\n",
   );
 });

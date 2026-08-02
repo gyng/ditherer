@@ -1,4 +1,8 @@
-import { finalizeContactSheetExport, finalizeGifExport, finalizeSequenceExport } from "./finalizeFrameExports";
+import {
+  finalizeContactSheetExport,
+  finalizeGifExport,
+  finalizeSequenceExport,
+} from "./finalizeFrameExports";
 import { addFrameDelay, captureCurrentOutputFrames } from "./liveFrameExport";
 import { quantizeGifDelay } from "../helpers";
 
@@ -41,12 +45,13 @@ const captureCurrentFrames = async (
   getScaledCanvas: () => HTMLCanvasElement | null,
   updateProgress: (message: string, value?: number | null) => void,
   isAborted: () => boolean,
-) => captureCurrentOutputFrames({
-  frameCount,
-  getScaledCanvas,
-  isAborted,
-  onProgress: updateProgress,
-});
+) =>
+  captureCurrentOutputFrames({
+    frameCount,
+    getScaledCanvas,
+    isAborted,
+    onProgress: updateProgress,
+  });
 
 export const runCurrentFrameGifExport = async ({
   frameCount,
@@ -62,7 +67,12 @@ export const runCurrentFrameGifExport = async ({
 }: RunCurrentFrameGifExportOptions) => {
   clearGifResult();
   const delay = quantizeGifDelay(1000 / gifFps);
-  const { capturedFrames, aborted } = await captureCurrentFrames(frameCount, getScaledCanvas, updateProgress, isAborted);
+  const { capturedFrames, aborted } = await captureCurrentFrames(
+    frameCount,
+    getScaledCanvas,
+    updateProgress,
+    isAborted,
+  );
 
   if (capturedFrames.length === 0) {
     clearProgress();
@@ -91,7 +101,12 @@ export const runCurrentFrameSequenceExport = async ({
   setSequenceResult,
 }: RunCurrentFrameSequenceExportOptions) => {
   clearSequenceResult();
-  const { capturedFrames, aborted } = await captureCurrentFrames(frameCount, getScaledCanvas, updateProgress, isAborted);
+  const { capturedFrames, aborted } = await captureCurrentFrames(
+    frameCount,
+    getScaledCanvas,
+    updateProgress,
+    isAborted,
+  );
 
   if (aborted) {
     clearProgress();
@@ -119,7 +134,12 @@ export const runCurrentFrameContactSheetExport = async ({
   setContactSheetResult,
 }: RunCurrentFrameContactSheetExportOptions) => {
   clearContactSheetResult();
-  const { capturedFrames, aborted } = await captureCurrentFrames(frameCount, getScaledCanvas, updateProgress, isAborted);
+  const { capturedFrames, aborted } = await captureCurrentFrames(
+    frameCount,
+    getScaledCanvas,
+    updateProgress,
+    isAborted,
+  );
 
   if (aborted || capturedFrames.length === 0) {
     clearProgress();

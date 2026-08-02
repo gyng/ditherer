@@ -45,10 +45,13 @@ const makeCanvas = () => {
   const canvas = {
     width,
     height,
-    getContext: (kind: string) => kind === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(pixels), width, height }),
-      putImageData,
-    } : null,
+    getContext: (kind: string) =>
+      kind === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(pixels), width, height }),
+            putImageData,
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return { canvas, pixels, putImageData };
 };
@@ -61,7 +64,12 @@ const levelsPalette = {
 
 const colorPalette = {
   name: "Colors",
-  options: { colors: [[0, 0, 0], [255, 255, 255]] },
+  options: {
+    colors: [
+      [0, 0, 0],
+      [255, 255, 255],
+    ],
+  },
   getColor: (color: number[]) => color,
 };
 

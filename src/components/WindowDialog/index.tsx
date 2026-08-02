@@ -12,8 +12,9 @@ const FOCUSABLE_SELECTOR = [
 ].join(",");
 
 const focusableChildren = (root: HTMLElement) =>
-  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-    .filter((element) => element.getAttribute("aria-hidden") !== "true");
+  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => element.getAttribute("aria-hidden") !== "true",
+  );
 
 type WindowDialogProps = React.HTMLAttributes<HTMLDivElement> & {
   title: string;
@@ -42,16 +43,16 @@ const WindowDialog = ({
   const labelId = useId();
 
   useEffect(() => {
-    returnFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
+    returnFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const frame = requestAnimationFrame(() => {
       const root = rootRef.current;
       if (!root) return;
-      const preferred = initialFocusRef?.current
-        ?? root.querySelector<HTMLElement>("[data-dialog-initial-focus='true']")
-        ?? focusableChildren(root)[0]
-        ?? root;
+      const preferred =
+        initialFocusRef?.current ??
+        root.querySelector<HTMLElement>("[data-dialog-initial-focus='true']") ??
+        focusableChildren(root)[0] ??
+        root;
       preferred.focus({ preventScroll: true });
     });
 
@@ -116,7 +117,9 @@ const WindowDialog = ({
       tabIndex={-1}
       onKeyDown={handleKeyDown}
     >
-      <span id={labelId} className={s.srOnly}>{title}</span>
+      <span id={labelId} className={s.srOnly}>
+        {title}
+      </span>
       {children}
     </div>
   );

@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -236,13 +243,30 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     cell: linkProgram(gl, CELL_FS, [
-      "u_source", "u_srcRes", "u_cellRes", "u_cellW", "u_cellH", "u_threshold",
+      "u_source",
+      "u_srcRes",
+      "u_cellRes",
+      "u_cellW",
+      "u_cellH",
+      "u_threshold",
     ] as const),
     render: linkProgram(gl, RENDER_FS, [
-      "u_source", "u_cellMap", "u_srcRes", "u_cellMapRes",
-      "u_cellW", "u_cellH", "u_blockW", "u_blockH", "u_blockGap",
-      "u_threshold", "u_columns", "u_rows",
-      "u_bitErrorRate", "u_burstErrors", "u_concealment", "u_seed",
+      "u_source",
+      "u_cellMap",
+      "u_srcRes",
+      "u_cellMapRes",
+      "u_cellW",
+      "u_cellH",
+      "u_blockW",
+      "u_blockH",
+      "u_blockGap",
+      "u_threshold",
+      "u_columns",
+      "u_rows",
+      "u_bitErrorRate",
+      "u_burstErrors",
+      "u_concealment",
+      "u_seed",
     ] as const),
   };
   return _cache;
@@ -252,11 +276,20 @@ export const teletextGLAvailable = (): boolean => glAvailable();
 
 export const renderTeletextGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  columns: number, threshold: number, blockGap: number,
-  cellW: number, cellH: number, rows: number,
-  blockW: number, blockH: number,
-  bitErrorRate: number, burstErrors: number, concealment: number, seed: number,
+  width: number,
+  height: number,
+  columns: number,
+  threshold: number,
+  blockGap: number,
+  cellW: number,
+  cellH: number,
+  rows: number,
+  blockW: number,
+  blockH: number,
+  bitErrorRate: number,
+  burstErrors: number,
+  concealment: number,
+  seed: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -268,40 +301,56 @@ export const renderTeletextGL = (
   uploadSourceTexture(gl, sourceTex, source);
 
   const cellMap = ensureTexture(gl, "teletext:cellMap", columns * 2, rows);
-  drawPass(gl, cellMap, columns * 2, rows, cache.cell, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.cell.uniforms.u_source, 0);
-    gl.uniform2f(cache.cell.uniforms.u_srcRes, width, height);
-    gl.uniform2f(cache.cell.uniforms.u_cellRes, columns * 2, rows);
-    gl.uniform1f(cache.cell.uniforms.u_cellW, cellW);
-    gl.uniform1f(cache.cell.uniforms.u_cellH, cellH);
-    gl.uniform1f(cache.cell.uniforms.u_threshold, threshold);
-  }, vao);
+  drawPass(
+    gl,
+    cellMap,
+    columns * 2,
+    rows,
+    cache.cell,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.cell.uniforms.u_source, 0);
+      gl.uniform2f(cache.cell.uniforms.u_srcRes, width, height);
+      gl.uniform2f(cache.cell.uniforms.u_cellRes, columns * 2, rows);
+      gl.uniform1f(cache.cell.uniforms.u_cellW, cellW);
+      gl.uniform1f(cache.cell.uniforms.u_cellH, cellH);
+      gl.uniform1f(cache.cell.uniforms.u_threshold, threshold);
+    },
+    vao,
+  );
 
   resizeGLCanvas(canvas, width, height);
-  drawPass(gl, null, width, height, cache.render, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.render.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, cellMap.tex);
-    gl.uniform1i(cache.render.uniforms.u_cellMap, 1);
-    gl.uniform2f(cache.render.uniforms.u_srcRes, width, height);
-    gl.uniform2f(cache.render.uniforms.u_cellMapRes, columns * 2, rows);
-    gl.uniform1f(cache.render.uniforms.u_cellW, cellW);
-    gl.uniform1f(cache.render.uniforms.u_cellH, cellH);
-    gl.uniform1f(cache.render.uniforms.u_blockW, blockW);
-    gl.uniform1f(cache.render.uniforms.u_blockH, blockH);
-    gl.uniform1f(cache.render.uniforms.u_blockGap, blockGap);
-    gl.uniform1f(cache.render.uniforms.u_threshold, threshold);
-    gl.uniform1i(cache.render.uniforms.u_columns, columns);
-    gl.uniform1i(cache.render.uniforms.u_rows, rows);
-    gl.uniform1f(cache.render.uniforms.u_bitErrorRate, bitErrorRate);
-    gl.uniform1f(cache.render.uniforms.u_burstErrors, burstErrors);
-    gl.uniform1i(cache.render.uniforms.u_concealment, concealment);
-    gl.uniform1f(cache.render.uniforms.u_seed, seed);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.render,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.render.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, cellMap.tex);
+      gl.uniform1i(cache.render.uniforms.u_cellMap, 1);
+      gl.uniform2f(cache.render.uniforms.u_srcRes, width, height);
+      gl.uniform2f(cache.render.uniforms.u_cellMapRes, columns * 2, rows);
+      gl.uniform1f(cache.render.uniforms.u_cellW, cellW);
+      gl.uniform1f(cache.render.uniforms.u_cellH, cellH);
+      gl.uniform1f(cache.render.uniforms.u_blockW, blockW);
+      gl.uniform1f(cache.render.uniforms.u_blockH, blockH);
+      gl.uniform1f(cache.render.uniforms.u_blockGap, blockGap);
+      gl.uniform1f(cache.render.uniforms.u_threshold, threshold);
+      gl.uniform1i(cache.render.uniforms.u_columns, columns);
+      gl.uniform1i(cache.render.uniforms.u_rows, rows);
+      gl.uniform1f(cache.render.uniforms.u_bitErrorRate, bitErrorRate);
+      gl.uniform1f(cache.render.uniforms.u_burstErrors, burstErrors);
+      gl.uniform1i(cache.render.uniforms.u_concealment, concealment);
+      gl.uniform1f(cache.render.uniforms.u_seed, seed);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

@@ -3,14 +3,20 @@ import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-const filterPackageSource = path.resolve(__dirname, "packages/ditherer-filters/src");
+const repositoryRoot = import.meta.dirname;
+const filterPackageSource = path.resolve(repositoryRoot, "packages/ditherer-filters/src");
 // Match both the workspace source graph and the installed package graph used
 // by the packed-consumer release gate. Keeping the latter here ensures a real
 // consumer receives the same bounded filter chunks instead of collapsing the
 // already-built package back into one oversized application entry.
-const filterPackagePattern = "(?:packages[\\\\/]ditherer-filters[\\\\/]src|node_modules[\\\\/]@gyng[\\\\/]ditherer-filters[\\\\/]dist)";
-const filterCorePattern = new RegExp(`${filterPackagePattern}[\\\\/](?:constants|gl|palettes|utils|wasm)[\\\\/]`);
-const filterImplementationPattern = new RegExp(`${filterPackagePattern}[\\\\/]filters[\\\\/]([^\\\\/]+)\\.(?:ts|js)$`);
+const filterPackagePattern =
+  "(?:packages[\\\\/]ditherer-filters[\\\\/]src|node_modules[\\\\/]@gyng[\\\\/]ditherer-filters[\\\\/]dist)";
+const filterCorePattern = new RegExp(
+  `${filterPackagePattern}[\\\\/](?:constants|gl|palettes|utils|wasm)[\\\\/]`,
+);
+const filterImplementationPattern = new RegExp(
+  `${filterPackagePattern}[\\\\/]filters[\\\\/]([^\\\\/]+)\\.(?:ts|js)$`,
+);
 const filterImplementationChunkName = (moduleId) => {
   const match = moduleId.match(filterImplementationPattern);
   if (!match || match[1] === "index" || match[1] === "types") return null;
@@ -21,16 +27,20 @@ const filterImplementationChunkName = (moduleId) => {
   if (initial <= "s") return "filters-n-s";
   return "filters-t-z";
 };
-const filterChunkGroups = () => [{
-  name: "filter-core",
-  test: (moduleId) => filterCorePattern.test(moduleId)
-    || new RegExp(`${filterPackagePattern}[\\\\/]filters[\\\\/]types\\.(?:ts|js)$`).test(moduleId),
-  priority: 20,
-}, {
-  name: filterImplementationChunkName,
-  test: (moduleId) => filterImplementationChunkName(moduleId) !== null,
-  priority: 10,
-}];
+const filterChunkGroups = () => [
+  {
+    name: "filter-core",
+    test: (moduleId) =>
+      filterCorePattern.test(moduleId) ||
+      new RegExp(`${filterPackagePattern}[\\\\/]filters[\\\\/]types\\.(?:ts|js)$`).test(moduleId),
+    priority: 20,
+  },
+  {
+    name: filterImplementationChunkName,
+    test: (moduleId) => filterImplementationChunkName(moduleId) !== null,
+    priority: 10,
+  },
+];
 const applicationChunkGroups = () => [
   {
     name: "react-vendor",
@@ -73,19 +83,40 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: "@gyng/ditherer-filters/worker", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/worker.ts") },
-      { find: "@gyng/ditherer-filters/client", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/client.ts") },
-      { find: "@gyng/ditherer-filters/wasm-bindings", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/wasm-bindings.ts") },
-      { find: "@gyng/ditherer-filters/catalog", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/catalog.ts") },
-      { find: "@gyng/ditherer-filters/lazy", replacement: path.resolve(__dirname, "packages/ditherer-filters/src/lazy.ts") },
-      { find: /^@gyng\/ditherer-filters\/filters\/(.+)$/, replacement: path.resolve(__dirname, "packages/ditherer-filters/src/filters/$1.ts") },
-      { find: /^@gyng\/ditherer-filters$/, replacement: path.resolve(__dirname, "packages/ditherer-filters/src/index.ts") },
-      { find: "@src", replacement: path.resolve(__dirname, "src") },
-      { find: "components", replacement: path.resolve(__dirname, "src/components") },
-      { find: "context", replacement: path.resolve(__dirname, "src/context") },
-      { find: "reducers", replacement: path.resolve(__dirname, "src/reducers") },
-      { find: "styles", replacement: path.resolve(__dirname, "src/styles") },
-      { find: "utils", replacement: path.resolve(__dirname, "src/utils") },
+      {
+        find: "@gyng/ditherer-filters/worker",
+        replacement: path.resolve(repositoryRoot, "packages/ditherer-filters/src/worker.ts"),
+      },
+      {
+        find: "@gyng/ditherer-filters/client",
+        replacement: path.resolve(repositoryRoot, "packages/ditherer-filters/src/client.ts"),
+      },
+      {
+        find: "@gyng/ditherer-filters/wasm-bindings",
+        replacement: path.resolve(repositoryRoot, "packages/ditherer-filters/src/wasm-bindings.ts"),
+      },
+      {
+        find: "@gyng/ditherer-filters/catalog",
+        replacement: path.resolve(repositoryRoot, "packages/ditherer-filters/src/catalog.ts"),
+      },
+      {
+        find: "@gyng/ditherer-filters/lazy",
+        replacement: path.resolve(repositoryRoot, "packages/ditherer-filters/src/lazy.ts"),
+      },
+      {
+        find: /^@gyng\/ditherer-filters\/filters\/(.+)$/,
+        replacement: path.resolve(repositoryRoot, "packages/ditherer-filters/src/filters/$1.ts"),
+      },
+      {
+        find: /^@gyng\/ditherer-filters$/,
+        replacement: path.resolve(repositoryRoot, "packages/ditherer-filters/src/index.ts"),
+      },
+      { find: "@src", replacement: path.resolve(repositoryRoot, "src") },
+      { find: "components", replacement: path.resolve(repositoryRoot, "src/components") },
+      { find: "context", replacement: path.resolve(repositoryRoot, "src/context") },
+      { find: "reducers", replacement: path.resolve(repositoryRoot, "src/reducers") },
+      { find: "styles", replacement: path.resolve(repositoryRoot, "src/styles") },
+      { find: "utils", replacement: path.resolve(repositoryRoot, "src/utils") },
     ],
   },
   build: {

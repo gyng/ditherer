@@ -6,17 +6,12 @@ import { defineConfig, devices } from "@playwright/test";
 // Gallium d3d12 driver and reports "ANGLE (Microsoft Corporation, D3D12
 // (<adapter>), OpenGL 4.6)". There is no NVIDIA Vulkan ICD here, so
 // --use-angle=vulkan reaches llvmpipe or no context at all — never the GPU.
-const angleBackend =
-  process.env.PLAYWRIGHT_ANGLE === "1" ? "gl" : process.env.PLAYWRIGHT_ANGLE;
+const angleBackend = process.env.PLAYWRIGHT_ANGLE === "1" ? "gl" : process.env.PLAYWRIGHT_ANGLE;
 const wantsGpu = process.env.PLAYWRIGHT_GPU === "1";
 const launchArgs = [
   ...(angleBackend ? ["--use-gl=angle", `--use-angle=${angleBackend}`] : []),
   ...(wantsGpu
-    ? [
-        "--ignore-gpu-blocklist",
-        "--enable-features=Vulkan",
-        "--enable-gpu-rasterization",
-      ]
+    ? ["--ignore-gpu-blocklist", "--enable-features=Vulkan", "--enable-gpu-rasterization"]
     : []),
   ...(process.env.PLAYWRIGHT_WEBMCP === "1"
     ? ["--enable-features=WebMCPTesting,DevToolsWebMCPSupport"]
@@ -39,9 +34,7 @@ const launchArgs = [
 // RENDERER it actually got (see nc-bench.spec.ts) — note EXT_disjoint_timer_-
 // query_webgl2 is exposed on llvmpipe too, so its presence proves nothing.
 const inheritedEnvironment = Object.fromEntries(
-  Object.entries(process.env).filter(
-    (entry): entry is [string, string] => entry[1] !== undefined,
-  ),
+  Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
 );
 const launchEnv = wantsGpu
   ? {

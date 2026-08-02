@@ -17,16 +17,70 @@ import { cyanotypeGrainAmplitude } from "./physicalImagingQualityContracts";
 import { defineFilter } from "./types";
 
 export const optionTypes = {
-  highlightColor: { type: COLOR, default: [236, 242, 250], desc: "Color of washed, unexposed paper highlights" },
-  shadowColor: { type: COLOR, default: [21, 43, 96], desc: "Prussian-blue color at maximum image density" },
-  exposure: { type: RANGE, range: [-1, 1], step: 0.01, default: 0, desc: "Print exposure bias before blue-density formation" },
-  contrast: { type: RANGE, range: [0.5, 3], step: 0.05, default: 1.4, desc: "Separation between washed paper and dense blue image areas" },
-  grain: { type: RANGE, range: [0, 0.4], step: 0.005, default: 0.06, desc: "Bounded Prussian-blue granulation in normalized tone units" },
-  paperTint: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Warmth of the washed paper base" },
-  wash: { type: RANGE, range: [0, 1], step: 0.05, default: 0.8, desc: "Clearing of unexposed sensitizer from paper highlights" },
-  blueDensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.9, desc: "Maximum retained Prussian-blue image density" },
-  fiberTexture: { type: RANGE, range: [0, 1], step: 0.02, default: 0.18, desc: "Directional paper-fiber and coating variation" },
-  invert: { type: BOOL, default: false, desc: "Reverse positive-image mapping to emulate contact-negative exposure" },
+  highlightColor: {
+    type: COLOR,
+    default: [236, 242, 250],
+    desc: "Color of washed, unexposed paper highlights",
+  },
+  shadowColor: {
+    type: COLOR,
+    default: [21, 43, 96],
+    desc: "Prussian-blue color at maximum image density",
+  },
+  exposure: {
+    type: RANGE,
+    range: [-1, 1],
+    step: 0.01,
+    default: 0,
+    desc: "Print exposure bias before blue-density formation",
+  },
+  contrast: {
+    type: RANGE,
+    range: [0.5, 3],
+    step: 0.05,
+    default: 1.4,
+    desc: "Separation between washed paper and dense blue image areas",
+  },
+  grain: {
+    type: RANGE,
+    range: [0, 0.4],
+    step: 0.005,
+    default: 0.06,
+    desc: "Bounded Prussian-blue granulation in normalized tone units",
+  },
+  paperTint: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Warmth of the washed paper base",
+  },
+  wash: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.8,
+    desc: "Clearing of unexposed sensitizer from paper highlights",
+  },
+  blueDensity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.9,
+    desc: "Maximum retained Prussian-blue image density",
+  },
+  fiberTexture: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.02,
+    default: 0.18,
+    desc: "Directional paper-fiber and coating variation",
+  },
+  invert: {
+    type: BOOL,
+    default: false,
+    desc: "Reverse positive-image mapping to emulate contact-negative exposure",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -124,8 +178,18 @@ const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (!cache) {
     cache = {
       cyanotype: linkProgram(gl, CYANOTYPE_FS, [
-        "u_source", "u_res", "u_highlight", "u_shadow", "u_exposure", "u_contrast",
-        "u_grain", "u_paperTint", "u_wash", "u_blueDensity", "u_fiberTexture", "u_invert",
+        "u_source",
+        "u_res",
+        "u_highlight",
+        "u_shadow",
+        "u_exposure",
+        "u_contrast",
+        "u_grain",
+        "u_paperTint",
+        "u_wash",
+        "u_blueDensity",
+        "u_fiberTexture",
+        "u_invert",
       ] as const),
     };
   }
@@ -135,8 +199,17 @@ const getProgram = (gl: WebGL2RenderingContext): Program => {
 const cyanotype = (input: any, options: Partial<typeof defaults> = defaults) => {
   const resolved = { ...defaults, ...options };
   const {
-    highlightColor, shadowColor, exposure, contrast, grain, paperTint,
-    wash, blueDensity, fiberTexture, invert, palette,
+    highlightColor,
+    shadowColor,
+    exposure,
+    contrast,
+    grain,
+    paperTint,
+    wash,
+    blueDensity,
+    fiberTexture,
+    invert,
+    palette,
   } = resolved;
   const width = input.width;
   const height = input.height;
@@ -149,28 +222,50 @@ const cyanotype = (input: any, options: Partial<typeof defaults> = defaults) => 
   resizeGLCanvas(canvas, width, height);
   const sourceTexture = ensureTexture(gl, "cyanotype:source", width, height);
   uploadSourceTexture(gl, sourceTexture, input);
-  drawPass(gl, null, width, height, program, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(program.uniforms.u_source, 0);
-    gl.uniform2f(program.uniforms.u_res, width, height);
-    gl.uniform3f(program.uniforms.u_highlight, highlightColor[0] / 255, highlightColor[1] / 255, highlightColor[2] / 255);
-    gl.uniform3f(program.uniforms.u_shadow, shadowColor[0] / 255, shadowColor[1] / 255, shadowColor[2] / 255);
-    gl.uniform1f(program.uniforms.u_exposure, exposure);
-    gl.uniform1f(program.uniforms.u_contrast, contrast);
-    gl.uniform1f(program.uniforms.u_grain, cyanotypeGrainAmplitude(grain));
-    gl.uniform1f(program.uniforms.u_paperTint, paperTint);
-    gl.uniform1f(program.uniforms.u_wash, wash);
-    gl.uniform1f(program.uniforms.u_blueDensity, blueDensity);
-    gl.uniform1f(program.uniforms.u_fiberTexture, fiberTexture);
-    gl.uniform1i(program.uniforms.u_invert, invert ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    program,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(program.uniforms.u_source, 0);
+      gl.uniform2f(program.uniforms.u_res, width, height);
+      gl.uniform3f(
+        program.uniforms.u_highlight,
+        highlightColor[0] / 255,
+        highlightColor[1] / 255,
+        highlightColor[2] / 255,
+      );
+      gl.uniform3f(
+        program.uniforms.u_shadow,
+        shadowColor[0] / 255,
+        shadowColor[1] / 255,
+        shadowColor[2] / 255,
+      );
+      gl.uniform1f(program.uniforms.u_exposure, exposure);
+      gl.uniform1f(program.uniforms.u_contrast, contrast);
+      gl.uniform1f(program.uniforms.u_grain, cyanotypeGrainAmplitude(grain));
+      gl.uniform1f(program.uniforms.u_paperTint, paperTint);
+      gl.uniform1f(program.uniforms.u_wash, wash);
+      gl.uniform1f(program.uniforms.u_blueDensity, blueDensity);
+      gl.uniform1f(program.uniforms.u_fiberTexture, fiberTexture);
+      gl.uniform1i(program.uniforms.u_invert, invert ? 1 : 0);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, width, height);
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
-  logFilterBackend("Cyanotype", "WebGL2", `density=${blueDensity} wash=${wash}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Cyanotype",
+    "WebGL2",
+    `density=${blueDensity} wash=${wash}${identity ? "" : "+palettePass"}`,
+  );
   return output ?? input;
 };
 
@@ -180,6 +275,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Washed cyanotype paper with bounded Prussian-blue image density, granulation, and directional fibers",
+  description:
+    "Washed cyanotype paper with bounded Prussian-blue image density, granulation, and directional fibers",
   requiresGL: true,
 });

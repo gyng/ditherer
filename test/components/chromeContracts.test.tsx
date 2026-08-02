@@ -9,12 +9,12 @@ const backendMocks = vi.hoisted(() => ({
 
 const filterMocks = vi.hoisted(() => ({
   state: { chain: [] } as Record<string, unknown>,
-  exportState: vi.fn(() => "{\"chain\":[]}"),
+  exportState: vi.fn(() => '{"chain":[]}'),
   importState: vi.fn(),
 }));
 
 vi.mock("@gyng/ditherer-filters", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@gyng/ditherer-filters")>(),
+  ...(await importOriginal<typeof import("@gyng/ditherer-filters")>()),
   getFilterBackends: () => backendMocks.backends,
   subscribeFilterBackends: (subscriber: () => void) => {
     backendMocks.subscriber = subscriber;
@@ -59,13 +59,18 @@ const click = (element: Element) => {
 };
 
 const keyDown = (element: Element, key: string, shiftKey = false) => {
-  act(() => element.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true })));
+  act(() =>
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", { key, shiftKey, bubbles: true, cancelable: true }),
+    ),
+  );
 };
 
 const changeValue = (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
-  const prototype = element instanceof HTMLTextAreaElement
-    ? HTMLTextAreaElement.prototype
-    : HTMLInputElement.prototype;
+  const prototype =
+    element instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
   Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(element, value);
   act(() => element.dispatchEvent(new Event("input", { bubbles: true })));
 };
@@ -98,7 +103,7 @@ beforeEach(() => {
   backendMocks.subscriber = null;
   filterMocks.exportState.mockClear();
   filterMocks.importState.mockReset();
-  filterMocks.exportState.mockReturnValue("{\"chain\":[]}");
+  filterMocks.exportState.mockReturnValue('{"chain":[]}');
   vi.spyOn(window, "alert").mockImplementation(() => {});
 });
 
@@ -112,10 +117,16 @@ afterEach(() => {
 
 describe("CollapsibleSection", () => {
   it("keeps static desktop sections open and non-interactive", () => {
-    render(<CollapsibleSection title="Static"><span>body</span></CollapsibleSection>);
+    render(
+      <CollapsibleSection title="Static">
+        <span>body</span>
+      </CollapsibleSection>,
+    );
     const header = container.querySelector("h2")!.parentElement!;
     expect(header.getAttribute("role")).toBeNull();
-    expect(container.querySelector<HTMLElement>("[class*='content']")!.style.maxHeight).toBe("none");
+    expect(container.querySelector<HTMLElement>("[class*='content']")!.style.maxHeight).toBe(
+      "none",
+    );
     click(header);
     keyDown(header, "Enter");
     expect(container.textContent).toContain("[-]");
@@ -123,7 +134,11 @@ describe("CollapsibleSection", () => {
 
   it("supports click, keyboard, force-open, and responsive expansion", () => {
     mediaMatches = true;
-    render(<CollapsibleSection title="Compact"><span>body</span></CollapsibleSection>);
+    render(
+      <CollapsibleSection title="Compact">
+        <span>body</span>
+      </CollapsibleSection>,
+    );
     const header = container.querySelector("h2")!.parentElement!;
     expect(header.getAttribute("aria-expanded")).toBe("false");
     click(header);
@@ -133,7 +148,11 @@ describe("CollapsibleSection", () => {
     keyDown(header, "x");
     expect(header.getAttribute("aria-expanded")).toBe("false");
 
-    render(<CollapsibleSection title="Compact" forceOpen><span>body</span></CollapsibleSection>);
+    render(
+      <CollapsibleSection title="Compact" forceOpen>
+        <span>body</span>
+      </CollapsibleSection>,
+    );
     expect(header.getAttribute("aria-expanded")).toBe("true");
     act(() => mediaListener?.({ matches: false } as MediaQueryListEvent));
     expect(header.getAttribute("role")).toBeNull();
@@ -141,7 +160,11 @@ describe("CollapsibleSection", () => {
   });
 
   it("honors explicit collapsible defaults independently of viewport", () => {
-    render(<CollapsibleSection title="Manual" collapsible defaultOpen><span>body</span></CollapsibleSection>);
+    render(
+      <CollapsibleSection title="Manual" collapsible defaultOpen>
+        <span>body</span>
+      </CollapsibleSection>,
+    );
     const header = container.querySelector("h2")!.parentElement!;
     expect(header.getAttribute("aria-expanded")).toBe("true");
     act(() => mediaListener?.({ matches: false } as MediaQueryListEvent));
@@ -158,8 +181,14 @@ describe("WindowDialog", () => {
     const preferred = createRef<HTMLButtonElement>();
     const onClose = vi.fn();
     render(
-      <WindowDialog title="Focus test" onClose={onClose} initialFocusRef={preferred} className="custom">
-        <button>first</button><button ref={preferred}>last</button>
+      <WindowDialog
+        title="Focus test"
+        onClose={onClose}
+        initialFocusRef={preferred}
+        className="custom"
+      >
+        <button>first</button>
+        <button ref={preferred}>last</button>
       </WindowDialog>,
     );
     act(() => vi.runAllTimers());
@@ -187,11 +216,19 @@ describe("WindowDialog", () => {
 
   it("falls back to marked, first, and root focus targets and handles empty traps", () => {
     const onClose = vi.fn();
-    render(<WindowDialog title="Marked" onClose={onClose}><button data-dialog-initial-focus="true">marked</button></WindowDialog>);
+    render(
+      <WindowDialog title="Marked" onClose={onClose}>
+        <button data-dialog-initial-focus="true">marked</button>
+      </WindowDialog>,
+    );
     act(() => vi.runAllTimers());
     expect(document.activeElement?.textContent).toBe("marked");
 
-    render(<WindowDialog title="Empty" onClose={onClose} restoreFocus={false}><span>none</span></WindowDialog>);
+    render(
+      <WindowDialog title="Empty" onClose={onClose} restoreFocus={false}>
+        <span>none</span>
+      </WindowDialog>,
+    );
     act(() => vi.runAllTimers());
     const dialog = container.querySelector<HTMLElement>("[role='dialog']")!;
     keyDown(dialog, "Tab");
@@ -204,7 +241,15 @@ describe("WindowDialog", () => {
 
   it("respects a consumer key handler that prevents the dialog contract", () => {
     const onClose = vi.fn();
-    render(<WindowDialog title="Prevented" onClose={onClose} onKeyDown={(event) => event.preventDefault()}><button>only</button></WindowDialog>);
+    render(
+      <WindowDialog
+        title="Prevented"
+        onClose={onClose}
+        onKeyDown={(event) => event.preventDefault()}
+      >
+        <button>only</button>
+      </WindowDialog>,
+    );
     keyDown(container.querySelector("[role='dialog']")!, "Escape");
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -216,14 +261,20 @@ describe("ModalInput and Exporter", () => {
     const onCancel = vi.fn();
     const writeText = vi.fn();
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-    render(<ModalInput title="Name" defaultValue="before" onConfirm={onConfirm} onCancel={onCancel} />);
+    render(
+      <ModalInput title="Name" defaultValue="before" onConfirm={onConfirm} onCancel={onCancel} />,
+    );
     const input = container.querySelector("input")!;
     changeValue(input, "after");
     keyDown(input, "Enter");
     expect(onConfirm).toHaveBeenCalledWith("after");
-    click([...container.querySelectorAll("button")].find((button) => button.textContent === "Copy")!);
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Copy")!,
+    );
     expect(writeText).toHaveBeenCalledWith("after");
-    click([...container.querySelectorAll("button")].find((button) => button.textContent === "Cancel")!);
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Cancel")!,
+    );
     expect(onCancel).toHaveBeenCalled();
   });
 
@@ -235,10 +286,14 @@ describe("ModalInput and Exporter", () => {
     const textarea = container.querySelector("textarea")!;
     keyDown(textarea, "Enter");
     expect(onConfirm).not.toHaveBeenCalled();
-    click([...container.querySelectorAll("button")].find((button) => button.textContent === "Copy")!);
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Copy")!,
+    );
     act(() => textarea.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
     expect(onCancel).not.toHaveBeenCalled();
-    act(() => container.firstElementChild!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
+    act(() =>
+      container.firstElementChild!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })),
+    );
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
@@ -246,37 +301,57 @@ describe("ModalInput and Exporter", () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     render(<Exporter />);
-    click([...container.querySelectorAll("button")].find((button) => button.textContent?.includes("JSON"))!);
+    click(
+      [...container.querySelectorAll("button")].find((button) =>
+        button.textContent?.includes("JSON"),
+      )!,
+    );
     await act(async () => Promise.resolve());
     expect(filterMocks.exportState).toHaveBeenCalledWith(filterMocks.state, "json");
-    expect(container.querySelector("textarea")?.value).toBe("{\"chain\":[]}");
+    expect(container.querySelector("textarea")?.value).toBe('{"chain":[]}');
     click([...container.querySelectorAll("button")].find((button) => button.textContent === "OK")!);
 
-    click([...container.querySelectorAll("button")].find((button) => button.textContent === "Import")!);
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Import")!,
+    );
     click([...container.querySelectorAll("button")].find((button) => button.textContent === "OK")!);
     expect(filterMocks.importState).not.toHaveBeenCalled();
 
-    click([...container.querySelectorAll("button")].find((button) => button.textContent === "Import")!);
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Import")!,
+    );
     const textarea = container.querySelector("textarea")!;
     changeValue(textarea, "valid");
     click([...container.querySelectorAll("button")].find((button) => button.textContent === "OK")!);
     expect(filterMocks.importState).toHaveBeenCalledWith("valid");
 
-    filterMocks.importState.mockImplementation(() => { throw new Error("bad JSON"); });
-    click([...container.querySelectorAll("button")].find((button) => button.textContent === "Import")!);
+    filterMocks.importState.mockImplementation(() => {
+      throw new Error("bad JSON");
+    });
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Import")!,
+    );
     const invalid = container.querySelector("textarea")!;
     changeValue(invalid, "invalid");
     click([...container.querySelectorAll("button")].find((button) => button.textContent === "OK")!);
     expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("bad JSON"));
 
-    filterMocks.importState.mockImplementation(() => { throw "non-error"; });
+    filterMocks.importState.mockImplementation(() => {
+      throw "non-error";
+    });
     click([...container.querySelectorAll("button")].find((button) => button.textContent === "OK")!);
     expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Unknown parsing error"));
-    click([...container.querySelectorAll("button")].find((button) => button.textContent === "Cancel")!);
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Cancel")!,
+    );
 
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
-    click([...container.querySelectorAll("button")].find((button) => button.textContent?.includes("JSON"))!);
-    expect(container.querySelector("textarea")?.value).toBe("{\"chain\":[]}");
+    click(
+      [...container.querySelectorAll("button")].find((button) =>
+        button.textContent?.includes("JSON"),
+      )!,
+    );
+    expect(container.querySelector("textarea")?.value).toBe('{"chain":[]}');
   });
 });
 
@@ -287,13 +362,27 @@ describe("status chrome", () => {
       { phase: "registering" as const, api: "navigator", total: 12, registered: 0 },
       { phase: "ready" as const, api: "navigator", total: 12, registered: 12 },
       { phase: "partial" as const, api: "navigator", total: 12, registered: 7 },
-      { phase: "partial" as const, api: "navigator", total: 12, registered: 7, error: "partial detail" },
+      {
+        phase: "partial" as const,
+        api: "navigator",
+        total: 12,
+        registered: 7,
+        error: "partial detail",
+      },
       { phase: "failed" as const, api: "navigator", total: 12, registered: 0 },
-      { phase: "failed" as const, api: "navigator", total: 12, registered: 0, error: "x".repeat(220) },
+      {
+        phase: "failed" as const,
+        api: "navigator",
+        total: 12,
+        registered: 0,
+        error: "x".repeat(220),
+      },
     ];
     for (const status of statuses) {
       render(<WebMCPBadge status={status as never} />);
-      expect(container.querySelector("[data-testid='webmcp-badge']")?.getAttribute("data-phase")).toBe(status.phase);
+      expect(
+        container.querySelector("[data-testid='webmcp-badge']")?.getAttribute("data-phase"),
+      ).toBe(status.phase);
     }
     expect(container.textContent).toContain("could not register");
     expect(container.textContent).not.toContain("x".repeat(181));

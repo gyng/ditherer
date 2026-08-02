@@ -9,7 +9,8 @@ interface CaptureCurrentOutputFramesOptions {
   onProgress: (message: string, progress: number) => void;
 }
 
-const nextAnimationFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+const nextAnimationFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 export const captureCurrentOutputFrames = async ({
   frameCount,
@@ -57,4 +58,3 @@ export const addFrameDelay = (frame: CaptureFrame, delay: number): GifFrame => (
   ...frame,
   delay,
 });
-

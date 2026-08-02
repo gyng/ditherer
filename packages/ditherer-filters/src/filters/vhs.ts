@@ -1,35 +1,111 @@
 import { ACTION, BOOL, RANGE, PALETTE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { nearest } from "../palettes/index";
-import {
-  cloneCanvas,
-  fillBufferPixel,
-  getBufferIndex,
-  logFilterBackend,
-} from "../utils/index";
+import { cloneCanvas, fillBufferPixel, getBufferIndex, logFilterBackend } from "../utils/index";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import { vhsGLAvailable, renderVHSGL } from "./vhsGL";
 
-import convolve, {
-  GAUSSIAN_3X3_WEAK,
-  defaults as convolveDefaults
-} from "./convolve";
+import convolve, { GAUSSIAN_3X3_WEAK, defaults as convolveDefaults } from "./convolve";
 
 export const optionTypes = {
-  tracking: { type: RANGE, range: [0, 30], step: 1, default: 3, desc: "Random horizontal row shift per scanline" },
-  trackingSpread: { type: RANGE, range: [0, 2], step: 0.05, default: 0.5, desc: "How much row drift carries over to the next line" },
-  flagging: { type: RANGE, range: [0, 40], step: 1, default: 8, desc: "Horizontal bending at the top of the frame" },
-  flaggingHeight: { type: RANGE, range: [0, 60], step: 1, default: 15, desc: "Number of rows affected by top-edge flagging" },
-  verticalJitter: { type: RANGE, range: [0, 20], step: 1, default: 1, desc: "Whole-frame vertical bounce per frame" },
-  chromaDelay: { type: RANGE, range: [0, 10], step: 1, default: 3, desc: "Color channel horizontal offset from luma (pixels)" },
-  headSwitching: { type: RANGE, range: [0, 50], step: 1, default: 12, desc: "Distortion band intensity near the bottom edge" },
-  headSwitchingHeight: { type: RANGE, range: [0, 80], step: 1, default: 20, desc: "Height of the bottom-edge head switching band" },
-  dropout: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Probability of white signal-loss streaks per frame" },
-  tapeNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.15, desc: "Per-row brightness noise and static bar frequency" },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.01, default: 0.3, desc: "Short RF echo plus previous-frame bleed-through" },
-  brightness: { type: RANGE, range: [-100, 100], step: 1, default: -15, desc: "Overall brightness offset applied after VHS processing" },
-  saturation: { type: RANGE, range: [0, 2], step: 0.05, default: 1.1, desc: "Chroma saturation multiplier" },
-  chromaBandwidth: { type: RANGE, range: [0, 16], step: 1, default: 4, desc: "Horizontal chroma low-pass radius — VHS smeared colour relative to luma (0 = off; raise for stronger tape look)" },
+  tracking: {
+    type: RANGE,
+    range: [0, 30],
+    step: 1,
+    default: 3,
+    desc: "Random horizontal row shift per scanline",
+  },
+  trackingSpread: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.5,
+    desc: "How much row drift carries over to the next line",
+  },
+  flagging: {
+    type: RANGE,
+    range: [0, 40],
+    step: 1,
+    default: 8,
+    desc: "Horizontal bending at the top of the frame",
+  },
+  flaggingHeight: {
+    type: RANGE,
+    range: [0, 60],
+    step: 1,
+    default: 15,
+    desc: "Number of rows affected by top-edge flagging",
+  },
+  verticalJitter: {
+    type: RANGE,
+    range: [0, 20],
+    step: 1,
+    default: 1,
+    desc: "Whole-frame vertical bounce per frame",
+  },
+  chromaDelay: {
+    type: RANGE,
+    range: [0, 10],
+    step: 1,
+    default: 3,
+    desc: "Color channel horizontal offset from luma (pixels)",
+  },
+  headSwitching: {
+    type: RANGE,
+    range: [0, 50],
+    step: 1,
+    default: 12,
+    desc: "Distortion band intensity near the bottom edge",
+  },
+  headSwitchingHeight: {
+    type: RANGE,
+    range: [0, 80],
+    step: 1,
+    default: 20,
+    desc: "Height of the bottom-edge head switching band",
+  },
+  dropout: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.1,
+    desc: "Probability of white signal-loss streaks per frame",
+  },
+  tapeNoise: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Per-row brightness noise and static bar frequency",
+  },
+  ghosting: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.3,
+    desc: "Short RF echo plus previous-frame bleed-through",
+  },
+  brightness: {
+    type: RANGE,
+    range: [-100, 100],
+    step: 1,
+    default: -15,
+    desc: "Overall brightness offset applied after VHS processing",
+  },
+  saturation: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1.1,
+    desc: "Chroma saturation multiplier",
+  },
+  chromaBandwidth: {
+    type: RANGE,
+    range: [0, 16],
+    step: 1,
+    default: 4,
+    desc: "Horizontal chroma low-pass radius — VHS smeared colour relative to luma (0 = off; raise for stronger tape look)",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -40,10 +116,14 @@ export const optionTypes = {
       } else {
         actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
       }
-    }
+    },
   },
-  blur: { type: BOOL, default: true, desc: "Apply asymmetric luma smear and extra chroma softness" },
-  palette: { type: PALETTE, default: nearest }
+  blur: {
+    type: BOOL,
+    default: true,
+    desc: "Apply asymmetric luma smear and extra chroma softness",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -63,7 +143,7 @@ export const defaults = {
   chromaBandwidth: optionTypes.chromaBandwidth.default,
   animSpeed: optionTypes.animSpeed.default,
   blur: optionTypes.blur.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type VhsPalette = {
@@ -97,7 +177,7 @@ type VhsOptions = FilterOptionValues & {
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -135,10 +215,7 @@ export const buildTrackingRowShift = (
   return rowShift;
 };
 
-const vhs = (
-  input: any,
-  options: VhsOptions = defaults
-) => {
+const vhs = (input: any, options: VhsOptions = defaults) => {
   const {
     tracking = defaults.tracking,
     trackingSpread = defaults.trackingSpread,
@@ -175,9 +252,10 @@ const vhs = (
   const rng = mulberry32(frameIndex * 7919 + 31337);
 
   // Vertical jitter — whole frame shifts up/down per frame
-  const vJitter = verticalJitter > 0
-    ? Math.round(Math.sin(frameIndex * 3.7 + Math.cos(frameIndex * 1.3)) * verticalJitter)
-    : 0;
+  const vJitter =
+    verticalJitter > 0
+      ? Math.round(Math.sin(frameIndex * 3.7 + Math.cos(frameIndex * 1.3)) * verticalJitter)
+      : 0;
 
   // Pre-compute horizontal tracking jitter per row. Profiles crossfade over
   // eight frames so tracking crawls instead of popping to unrelated geometry.
@@ -188,8 +266,9 @@ const vhs = (
     const flagWobble = Math.sin(frameIndex * 0.9) * 0.5 + 0.5;
     for (let y = 0; y < Math.min(flaggingHeight, H); y++) {
       const t = 1 - y / flaggingHeight; // 1 at top, 0 at bottom of flag zone
-      rowShift[y] += Math.round(flagging * t * t * (1 + flagWobble * 0.5)
-        * Math.sin(frameIndex * 2.1 + t * 3));
+      rowShift[y] += Math.round(
+        flagging * t * t * (1 + flagWobble * 0.5) * Math.sin(frameIndex * 2.1 + t * 3),
+      );
     }
   }
 
@@ -197,7 +276,7 @@ const vhs = (
   const hsStart = H - headSwitchingHeight;
   const hsRng = mulberry32(frameIndex * 1013 + 7);
   for (let y = hsStart; y < H; y++) {
-    const intensity = ((y - hsStart) / headSwitchingHeight);
+    const intensity = (y - hsStart) / headSwitchingHeight;
     rowShift[y] += Math.round((hsRng() - 0.3) * headSwitching * intensity * intensity);
   }
 
@@ -210,7 +289,7 @@ const vhs = (
       dropouts.push({
         y: Math.floor(dropRng() * H),
         x: Math.floor(dropRng() * W),
-        w: 20 + Math.floor(dropRng() * W * 0.4)
+        w: 20 + Math.floor(dropRng() * W * 0.4),
       });
     }
   }
@@ -232,7 +311,7 @@ const vhs = (
     for (let b = 0; b < barCount; b++) {
       noiseBars.push({
         y: Math.floor(rng() * H),
-        h: 2 + Math.floor(rng() * 3)
+        h: 2 + Math.floor(rng() * 3),
       });
     }
   }
@@ -275,7 +354,11 @@ const vhs = (
       const identity = paletteIsIdentity(palette);
       const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("VHS emulation", "WebGL2", `chromaBW=${chromaBandwidth}${identity ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "VHS emulation",
+          "WebGL2",
+          `chromaBW=${chromaBandwidth}${identity ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -331,7 +414,10 @@ const vhs = (
       // Extract luma from shifted position
       const luma = buf[lumaI] * 0.2126 + buf[lumaI + 1] * 0.7152 + buf[lumaI + 2] * 0.0722;
 
-      let cR = 0, cG = 0, cB = 0, chromaCount = 0;
+      let cR = 0,
+        cG = 0,
+        cB = 0,
+        chromaCount = 0;
       for (let k = -chromaBandwidth; k <= chromaBandwidth; k++) {
         const cx = Math.max(0, Math.min(W - 1, x + shift + chromaOffX + k));
         const ci = getBufferIndex(cx, chromaY, W);
@@ -341,7 +427,9 @@ const vhs = (
         cB += buf[ci + 2] - chromaLum;
         chromaCount++;
       }
-      cR /= chromaCount; cG /= chromaCount; cB /= chromaCount;
+      cR /= chromaCount;
+      cG /= chromaCount;
+      cB /= chromaCount;
 
       // Recombine luma + chroma with reduced saturation and brightness adjust
       let r = (luma + cR * saturation + brightness) * noise;
@@ -361,7 +449,7 @@ const vhs = (
     const keep = ghosting;
     const fresh = 1 - keep;
     for (let j = 0; j < outBuf.length; j += 4) {
-      outBuf[j]     = Math.min(255, outBuf[j] * fresh + prevOutput[j] * keep);
+      outBuf[j] = Math.min(255, outBuf[j] * fresh + prevOutput[j] * keep);
       outBuf[j + 1] = Math.min(255, outBuf[j + 1] * fresh + prevOutput[j + 1] * keep);
       outBuf[j + 2] = Math.min(255, outBuf[j + 2] * fresh + prevOutput[j + 2] * keep);
     }
@@ -372,11 +460,14 @@ const vhs = (
   if (doBlur) {
     const maybeBlurred = convolve.func(output, {
       ...convolveDefaults,
-      kernel: GAUSSIAN_3X3_WEAK
+      kernel: GAUSSIAN_3X3_WEAK,
     });
     // Duck-type check — HTMLCanvasElement is undefined in Worker scope,
     // so `instanceof HTMLCanvasElement` would ReferenceError there.
-    if (maybeBlurred && typeof (maybeBlurred as { getContext?: unknown }).getContext === "function") {
+    if (
+      maybeBlurred &&
+      typeof (maybeBlurred as { getContext?: unknown }).getContext === "function"
+    ) {
       output = maybeBlurred as HTMLCanvasElement;
     }
   }

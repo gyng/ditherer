@@ -26,7 +26,11 @@ const rejectAll = (reason: Error): void => {
 
 const resetWorker = (reason: Error): void => {
   if (worker) {
-    try { worker.terminate(); } catch { /* ignore */ }
+    try {
+      worker.terminate();
+    } catch {
+      /* ignore */
+    }
     worker = null;
   }
   rejectAll(reason);
@@ -88,5 +92,9 @@ export const USE_WORKER = typeof OffscreenCanvas !== "undefined";
 
 // Pre-warm the worker so the first filter call doesn't pay startup cost
 if (USE_WORKER) {
-  try { getWorker(); } catch { /* ignore */ }
+  try {
+    getWorker();
+  } catch {
+    /* ignore */
+  }
 }

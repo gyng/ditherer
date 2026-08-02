@@ -25,17 +25,28 @@ const queue: Task[] = [];
 let processing = false;
 
 const scheduleNext = () => {
-  const rIC = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback;
+  const rIC = (
+    window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }
+  ).requestIdleCallback;
   if (rIC) rIC(processNext, { timeout: 200 });
   else window.setTimeout(processNext, 0);
 };
 
 const processNext = () => {
   const task = queue.shift();
-  if (!task) { processing = false; return; }
-  if (task.cancelled) { scheduleNext(); return; }
-  try { task.run(); }
-  catch (err) { console.warn("Thumbnail render task threw:", err); }
+  if (!task) {
+    processing = false;
+    return;
+  }
+  if (task.cancelled) {
+    scheduleNext();
+    return;
+  }
+  try {
+    task.run();
+  } catch (err) {
+    console.warn("Thumbnail render task threw:", err);
+  }
   if (queue.length > 0) scheduleNext();
   else processing = false;
 };
@@ -43,8 +54,13 @@ const processNext = () => {
 const enqueue = (run: () => void) => {
   const task: Task = { run, cancelled: false };
   queue.push(task);
-  if (!processing) { processing = true; scheduleNext(); }
-  return () => { task.cancelled = true; };
+  if (!processing) {
+    processing = true;
+    scheduleNext();
+  }
+  return () => {
+    task.cancelled = true;
+  };
 };
 
 const resolveFilterOptions = (
@@ -116,10 +132,16 @@ export const Thumbnail = ({ cacheKey, chain, filterByName, source }: Props) => {
   const [rendered, setRendered] = useState<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    if (!source) { setRendered(null); return; }
+    if (!source) {
+      setRendered(null);
+      return;
+    }
     const cache = thumbCache.get(source) || new Map<string, HTMLCanvasElement>();
     const cached = cache.get(cacheKey);
-    if (cached) { setRendered(cached); return; }
+    if (cached) {
+      setRendered(cached);
+      return;
+    }
 
     if (!wrapperRef.current) return;
     let cancelled = false;
@@ -135,11 +157,14 @@ export const Thumbnail = ({ cacheKey, chain, filterByName, source }: Props) => {
       if (!cancelled) setRendered(canvas);
     };
 
-    const obs = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      obs.disconnect();
-      dequeue = enqueue(doRender);
-    }, { rootMargin: "100px" });
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        obs.disconnect();
+        dequeue = enqueue(doRender);
+      },
+      { rootMargin: "100px" },
+    );
     obs.observe(wrapperRef.current);
 
     return () => {
@@ -159,13 +184,7 @@ export const Thumbnail = ({ cacheKey, chain, filterByName, source }: Props) => {
       style={{ width: THUMB_W, height: THUMB_H }}
     >
       {rendered ? (
-        <img
-          src={dataUrl}
-          width={THUMB_W}
-          height={THUMB_H}
-          alt=""
-          draggable={false}
-        />
+        <img src={dataUrl} width={THUMB_W} height={THUMB_H} alt="" draggable={false} />
       ) : null}
     </div>
   );

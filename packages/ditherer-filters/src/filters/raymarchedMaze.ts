@@ -19,18 +19,15 @@ export const traceMazeSolution = (grid: number, seed: number): MazeCell[] => {
   let cell = route[0];
 
   while (cell.x < size - 1 || cell.y < size - 1) {
-    const opensEast = cell.y >= size - 1
-      || (cell.x < size - 1 && mazeHash(cell, seed) < 0.5);
-    cell = opensEast
-      ? { x: cell.x + 1, y: cell.y }
-      : { x: cell.x, y: cell.y + 1 };
+    const opensEast = cell.y >= size - 1 || (cell.x < size - 1 && mazeHash(cell, seed) < 0.5);
+    cell = opensEast ? { x: cell.x + 1, y: cell.y } : { x: cell.x, y: cell.y + 1 };
     route.push(cell);
   }
 
   return route;
 };
 
-const FS=`#version 300 es
+const FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;out vec4 fragColor;uniform sampler2D u_source;uniform vec2 u_res;uniform float u_grid;uniform float u_seed;uniform float u_journey;
 uniform float u_speed;uniform float u_wallHeight;uniform float u_fog;uniform float u_steps;uniform float u_time;uniform vec3 u_torchColor;
@@ -48,18 +45,132 @@ void main(){float travelProgress=fract(u_journey+u_time*u_speed*0.003);vec2 head
   float e=0.004;vec3 n=normalize(vec3(wallDistance(p+vec3(e,0,0))-wallDistance(p-vec3(e,0,0)),wallDistance(p+vec3(0,e,0))-wallDistance(p-vec3(0,e,0)),wallDistance(p+vec3(0,0,e))-wallDistance(p-vec3(0,0,e))));
   vec3 lightDir=normalize(ro-p);float diffuse=0.16+0.9*max(dot(n,lightDir),0.0);float attenuation=1.0/(1.0+travel*travel*0.12);float fogMix=1.0-exp(-travel*u_fog);
   vec3 rgb=material*diffuse*attenuation+(u_torchColor/255.0)*(0.08+beacon);rgb=mix(rgb,vec3(0.015,0.02,0.035),fogMix);fragColor=vec4(clamp(rgb,0.0,1.0),1.0);}`;
-export const optionTypes={grid:{type:RANGE,range:[6,24],step:1,default:12,desc:"Maze width and height in cells"},seed:{type:RANGE,range:[0,999],step:1,default:37,desc:"Deterministic binary-tree maze layout seed"},
-  journey:{type:RANGE,range:[0,1],step:0.005,default:0,desc:"Manual position along the guaranteed route to the exit"},speed:{type:RANGE,range:[0,3],step:0.05,default:0.45,desc:"Automatic movement along the solution route"},
-  wallHeight:{type:RANGE,range:[0.5,2],step:0.05,default:1.05,desc:"Height of the source-textured maze walls"},fog:{type:RANGE,range:[0,0.4],step:0.01,default:0.08,desc:"Distance fog inside the maze"},
-  steps:{type:RANGE,range:[24,96],step:8,default:72,desc:"Maximum wall-intersection steps"},torchColor:{type:COLOR,default:[255,178,96],desc:"Explorer torch and exit-beacon color"},
-  palette:{type:PALETTE,default:nearest,desc:"Optional output palette quantization"},};
-export const defaults={grid:optionTypes.grid.default,seed:optionTypes.seed.default,journey:optionTypes.journey.default,speed:optionTypes.speed.default,wallHeight:optionTypes.wallHeight.default,
-  fog:optionTypes.fog.default,steps:optionTypes.steps.default,torchColor:optionTypes.torchColor.default,palette:{...optionTypes.palette.default,options:{levels:256}}};
-const raymarchedMaze=(input:HTMLCanvasElement|OffscreenCanvas,options=defaults)=>{const runtime=options as typeof defaults&{_frameIndex?:number};const W=input.width,H=input.height;
-  const rendered=renderGLSinglePass({source:input,width:W,height:H,key:"raymarchedMaze",fragmentShader:FS,uniformNames:["u_grid","u_seed","u_journey","u_speed","u_wallHeight","u_fog","u_steps","u_time","u_torchColor"],
-    setUniforms:(gl,u)=>{gl.uniform1f(u.u_grid,options.grid);gl.uniform1f(u.u_seed,options.seed);gl.uniform1f(u.u_journey,options.journey);gl.uniform1f(u.u_speed,options.speed);gl.uniform1f(u.u_wallHeight,options.wallHeight);
-      gl.uniform1f(u.u_fog,options.fog);gl.uniform1f(u.u_steps,options.steps);gl.uniform1f(u.u_time,runtime._frameIndex??0);gl.uniform3f(u.u_torchColor,options.torchColor[0],options.torchColor[1],options.torchColor[2]);}});
-  if(!rendered)return input;const identity=paletteIsIdentity(options.palette);logFilterBackend("Raymarched Maze","WebGL2",`${options.grid}x${options.grid}${identity?"":"+palettePass"}`);
-  return identity?rendered:(applyPalettePassToCanvas(rendered,W,H,options.palette)??rendered);};
-export default defineFilter({name:"Raymarched Maze",func:raymarchedMaze,optionTypes,options:defaults,defaults,
-  description:"Navigate a connected procedural maze with source-textured walls and an exit beacon",temporal:true,autoAnimate:true,autoAnimateFps:30,requiresGL:true});
+export const optionTypes = {
+  grid: {
+    type: RANGE,
+    range: [6, 24],
+    step: 1,
+    default: 12,
+    desc: "Maze width and height in cells",
+  },
+  seed: {
+    type: RANGE,
+    range: [0, 999],
+    step: 1,
+    default: 37,
+    desc: "Deterministic binary-tree maze layout seed",
+  },
+  journey: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.005,
+    default: 0,
+    desc: "Manual position along the guaranteed route to the exit",
+  },
+  speed: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.05,
+    default: 0.45,
+    desc: "Automatic movement along the solution route",
+  },
+  wallHeight: {
+    type: RANGE,
+    range: [0.5, 2],
+    step: 0.05,
+    default: 1.05,
+    desc: "Height of the source-textured maze walls",
+  },
+  fog: {
+    type: RANGE,
+    range: [0, 0.4],
+    step: 0.01,
+    default: 0.08,
+    desc: "Distance fog inside the maze",
+  },
+  steps: {
+    type: RANGE,
+    range: [24, 96],
+    step: 8,
+    default: 72,
+    desc: "Maximum wall-intersection steps",
+  },
+  torchColor: {
+    type: COLOR,
+    default: [255, 178, 96],
+    desc: "Explorer torch and exit-beacon color",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
+};
+export const defaults = {
+  grid: optionTypes.grid.default,
+  seed: optionTypes.seed.default,
+  journey: optionTypes.journey.default,
+  speed: optionTypes.speed.default,
+  wallHeight: optionTypes.wallHeight.default,
+  fog: optionTypes.fog.default,
+  steps: optionTypes.steps.default,
+  torchColor: optionTypes.torchColor.default,
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
+};
+const raymarchedMaze = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
+  const runtime = options as typeof defaults & { _frameIndex?: number };
+  const W = input.width,
+    H = input.height;
+  const rendered = renderGLSinglePass({
+    source: input,
+    width: W,
+    height: H,
+    key: "raymarchedMaze",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_grid",
+      "u_seed",
+      "u_journey",
+      "u_speed",
+      "u_wallHeight",
+      "u_fog",
+      "u_steps",
+      "u_time",
+      "u_torchColor",
+    ],
+    setUniforms: (gl, u) => {
+      gl.uniform1f(u.u_grid, options.grid);
+      gl.uniform1f(u.u_seed, options.seed);
+      gl.uniform1f(u.u_journey, options.journey);
+      gl.uniform1f(u.u_speed, options.speed);
+      gl.uniform1f(u.u_wallHeight, options.wallHeight);
+      gl.uniform1f(u.u_fog, options.fog);
+      gl.uniform1f(u.u_steps, options.steps);
+      gl.uniform1f(u.u_time, runtime._frameIndex ?? 0);
+      gl.uniform3f(
+        u.u_torchColor,
+        options.torchColor[0],
+        options.torchColor[1],
+        options.torchColor[2],
+      );
+    },
+  });
+  if (!rendered) return input;
+  const identity = paletteIsIdentity(options.palette);
+  logFilterBackend(
+    "Raymarched Maze",
+    "WebGL2",
+    `${options.grid}x${options.grid}${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+};
+export default defineFilter({
+  name: "Raymarched Maze",
+  func: raymarchedMaze,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Navigate a connected procedural maze with source-textured walls and an exit beacon",
+  temporal: true,
+  autoAnimate: true,
+  autoAnimateFps: 30,
+  requiresGL: true,
+});

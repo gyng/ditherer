@@ -1,14 +1,6 @@
 import { filterIndex } from "./filters/index";
-import type {
-  FilterCanvas,
-  FilterDefinition,
-  FilterOptionValues,
-} from "./filters/types";
-import {
-  releasePooledTextures,
-  glAvailable,
-  glUnavailableStub,
-} from "./gl/index";
+import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "./filters/types";
+import { releasePooledTextures, glAvailable, glUnavailableStub } from "./gl/index";
 import { releaseFloatTextures } from "./gl/fft2d";
 import {
   getFilterWasmStatuses,
@@ -89,10 +81,7 @@ export interface FilterSession {
   readonly state: TemporalFilterState;
   getChain(): readonly FilterChainEntry[];
   setChain(chain: readonly FilterChainEntry[]): void;
-  process(
-    input: FilterCanvas,
-    options?: ProcessFrameOptions,
-  ): Promise<FilterChainResult>;
+  process(input: FilterCanvas, options?: ProcessFrameOptions): Promise<FilterChainResult>;
   reset(): void;
   dispose(): void;
 }
@@ -137,13 +126,11 @@ const resolveEntryOptions = (
 ): FilterOptionValues => {
   const base = filter.options ?? filter.defaults ?? {};
   const options: FilterOptionValues = { ...base, ...entry.options };
-  if ("palette" in options)
-    options.palette = clonePaletteOption(options.palette);
+  if ("palette" in options) options.palette = clonePaletteOption(options.palette);
   return options;
 };
 
-const now = (): number =>
-  typeof performance !== "undefined" ? performance.now() : Date.now();
+const now = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 export const runFilterChain = async (
   input: FilterCanvas,
@@ -157,10 +144,8 @@ export const runFilterChain = async (
   const startIndex = Math.max(0, frame.startIndex ?? 0);
   const emaAlpha = Math.min(1, Math.max(0, runtime.emaAlpha ?? 0.1));
   const linearize = frame.linearize ?? runtime.linearize ?? true;
-  const wasmAcceleration =
-    frame.wasmAcceleration ?? runtime.wasmAcceleration ?? true;
-  const webglAcceleration =
-    frame.webglAcceleration ?? runtime.webglAcceleration ?? true;
+  const wasmAcceleration = frame.wasmAcceleration ?? runtime.wasmAcceleration ?? true;
+  const webglAcceleration = frame.webglAcceleration ?? runtime.webglAcceleration ?? true;
   const isAnimating = frame.isAnimating ?? false;
   const retainStepCanvases = frame.retainStepCanvases ?? true;
   let canvas = input;
@@ -193,13 +178,10 @@ export const runFilterChain = async (
 
       const inputContext = get2dContext(canvas);
       const inputSnapshot = inputContext
-        ? new Uint8ClampedArray(
-            inputContext.getImageData(0, 0, canvas.width, canvas.height).data,
-          )
+        ? new Uint8ClampedArray(inputContext.getImageData(0, 0, canvas.width, canvas.height).data)
         : null;
       const defaults = resolveEntryOptions(entry, filter);
-      const resolved =
-        frame.resolveOptions?.(entry, index, defaults) ?? defaults;
+      const resolved = frame.resolveOptions?.(entry, index, defaults) ?? defaults;
       const options: FilterOptionValues & {
         palette?: Record<string, unknown>;
       } = {
@@ -216,10 +198,7 @@ export const runFilterChain = async (
         _degaussFrame: frame.degaussFrame ?? -2147483648,
         _isAnimating: isAnimating,
       };
-      if (
-        options.palette?.options &&
-        typeof options.palette.options === "object"
-      ) {
+      if (options.palette?.options && typeof options.palette.options === "object") {
         options.palette = {
           ...options.palette,
           options: {
@@ -236,11 +215,7 @@ export const runFilterChain = async (
       try {
         if (filter.requiresGL && !glAvailable()) {
           output = glUnavailableStub(canvas.width, canvas.height);
-          logFilterBackend(
-            filter.name,
-            "GL-unavailable",
-            "WebGL2 required but unavailable",
-          );
+          logFilterBackend(filter.name, "GL-unavailable", "WebGL2 required but unavailable");
         } else {
           const candidate = await filter.func(canvas, options, frame.dispatch);
           if (isCanvas(candidate)) {
@@ -277,8 +252,7 @@ export const runFilterChain = async (
           const inverseAlpha = 1 - emaAlpha;
           for (let pixel = 0; pixel < previousEma.length; pixel += 1) {
             previousEma[pixel] =
-              previousEma[pixel] * inverseAlpha +
-              inputSnapshot[pixel] * emaAlpha;
+              previousEma[pixel] * inverseAlpha + inputSnapshot[pixel] * emaAlpha;
           }
         }
       }
@@ -287,9 +261,7 @@ export const runFilterChain = async (
       if (outputContext) {
         temporal.prevOutputs.set(
           entry.id,
-          new Uint8ClampedArray(
-            outputContext.getImageData(0, 0, output.width, output.height).data,
-          ),
+          new Uint8ClampedArray(outputContext.getImageData(0, 0, output.width, output.height).data),
         );
       }
       const previousCanvas = canvas;
@@ -307,11 +279,7 @@ export const runFilterChain = async (
         ...(errorMessage ? { error: errorMessage } : {}),
       };
       steps.push(step);
-      if (
-        !retainStepCanvases &&
-        previousCanvas !== input &&
-        previousCanvas !== canvas
-      ) {
+      if (!retainStepCanvases && previousCanvas !== input && previousCanvas !== canvas) {
         releasePooledCanvas(previousCanvas);
       }
       frame.onStep?.(step, index);
@@ -349,10 +317,8 @@ export const createFilterSession = (
       const activeIds = new Set(chain.map((entry) => entry.id));
       for (const id of state.prevOutputs.keys())
         if (!activeIds.has(id)) state.prevOutputs.delete(id);
-      for (const id of state.prevInputs.keys())
-        if (!activeIds.has(id)) state.prevInputs.delete(id);
-      for (const id of state.ema.keys())
-        if (!activeIds.has(id)) state.ema.delete(id);
+      for (const id of state.prevInputs.keys()) if (!activeIds.has(id)) state.prevInputs.delete(id);
+      for (const id of state.ema.keys()) if (!activeIds.has(id)) state.ema.delete(id);
     },
     process: async (input, options = {}) => {
       if (disposed) throw new Error("FilterSession has been disposed");

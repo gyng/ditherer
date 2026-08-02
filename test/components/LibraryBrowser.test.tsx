@@ -35,7 +35,10 @@ const fixture = vi.hoisted(() => {
             type: "ENUM",
             default: "ONE",
             desc: "Mode",
-            options: [{ name: "One", value: "ONE" }, { name: "Two", value: "TWO" }],
+            options: [
+              { name: "One", value: "ONE" },
+              { name: "Two", value: "TWO" },
+            ],
           },
           grouped: {
             type: "ENUM",
@@ -120,7 +123,8 @@ vi.mock("@gyng/ditherer-filters", () => ({
   STRING: "STRING",
   TEXT: "TEXT",
   filterList: fixture.filters,
-  hasTemporalBehavior: (entry: { filter?: { temporal?: boolean } }) => entry.filter?.temporal === true,
+  hasTemporalBehavior: (entry: { filter?: { temporal?: boolean } }) =>
+    entry.filter?.temporal === true,
   glAvailable: () => true,
 }));
 vi.mock("components/ChainList/presets", () => ({
@@ -128,13 +132,17 @@ vi.mock("components/ChainList/presets", () => ({
   PRESET_CATEGORIES: ["Looks", "Motion"],
 }));
 vi.mock("components/ChainList/FilterThumbnail", () => ({
-  default: ({ filter }: { filter: { displayName: string } }) => <span data-thumb={filter.displayName} />,
+  default: ({ filter }: { filter: { displayName: string } }) => (
+    <span data-thumb={filter.displayName} />
+  ),
 }));
 vi.mock("components/ChainList/PresetThumbnail", () => ({
   default: ({ preset }: { preset: { name: string } }) => <span data-preset-thumb={preset.name} />,
 }));
 vi.mock("components/ChainList/BackendTags", () => ({
-  default: ({ filterNames }: { filterNames: string[] }) => <span data-backends={filterNames.join(",")} />,
+  default: ({ filterNames }: { filterNames: string[] }) => (
+    <span data-backends={filterNames.join(",")} />
+  ),
 }));
 
 beforeAll(() => {
@@ -154,36 +162,42 @@ let onLoadPreset: ReturnType<typeof vi.fn>;
 let onDialogMouseDown: ReturnType<typeof vi.fn>;
 
 const render = (props: Record<string, unknown> = {}) => {
-  act(() => root.render(
-    <LibraryBrowser
-      open
-      onClose={onClose}
-      onAddFilter={onAddFilter}
-      onLoadPreset={onLoadPreset}
-      onDialogMouseDown={onDialogMouseDown}
-      previewSource={source}
-      {...props}
-    />,
-  ));
+  act(() =>
+    root.render(
+      <LibraryBrowser
+        open
+        onClose={onClose}
+        onAddFilter={onAddFilter}
+        onLoadPreset={onLoadPreset}
+        onDialogMouseDown={onDialogMouseDown}
+        previewSource={source}
+        {...props}
+      />,
+    ),
+  );
 };
 
-const button = (label: string) => Array.from(container.querySelectorAll("button"))
-  .find((element) => element.textContent?.trim() === label) ?? null;
+const button = (label: string) =>
+  Array.from(container.querySelectorAll("button")).find(
+    (element) => element.textContent?.trim() === label,
+  ) ?? null;
 
-const buttonContaining = (label: string) => Array.from(container.querySelectorAll("button"))
-  .find((element) => element.textContent?.includes(label)) ?? null;
+const buttonContaining = (label: string) =>
+  Array.from(container.querySelectorAll("button")).find((element) =>
+    element.textContent?.includes(label),
+  ) ?? null;
 
 const click = (element: Element | null, type = "click") => {
   expect(element).not.toBeNull();
   act(() => element!.dispatchEvent(new MouseEvent(type, { bubbles: true })));
 };
 
-const change = (element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, value: string) => {
+const change = (
+  element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+  value: string,
+) => {
   act(() => {
-    const descriptor = Object.getOwnPropertyDescriptor(
-      Object.getPrototypeOf(element),
-      "value",
-    );
+    const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value");
     descriptor?.set?.call(element, value);
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
@@ -191,8 +205,9 @@ const change = (element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElem
 };
 
 const optionRow = (name: string): HTMLElement => {
-  const label = Array.from(container.querySelectorAll("div"))
-    .find((node) => node.textContent === name);
+  const label = Array.from(container.querySelectorAll("div")).find(
+    (node) => node.textContent === name,
+  );
   expect(label).toBeTruthy();
   return label!.parentElement!;
 };
@@ -322,7 +337,9 @@ describe("LibraryBrowser integration", () => {
     expect(warn).toHaveBeenCalledWith("Filter preview failed:", expect.any(Error));
 
     click(button("Add to Chain"));
-    expect(onAddFilter).toHaveBeenCalledWith(expect.objectContaining({ displayName: "Broken Preview" }));
+    expect(onAddFilter).toHaveBeenCalledWith(
+      expect.objectContaining({ displayName: "Broken Preview" }),
+    );
     warn.mockRestore();
   });
 });

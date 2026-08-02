@@ -8,17 +8,64 @@ const WHEEL_RGB = "RGB";
 const WHEEL_RGBW = "RGBW";
 
 export const optionTypes = {
-  wheel: { type: ENUM, options: [
-    { name: "RGB wheel", value: WHEEL_RGB },
-    { name: "RGBW wheel", value: WHEEL_RGBW },
-  ], default: WHEEL_RGB, desc: "Sequential illumination segments; a white segment raises brightness but dilutes saturation" },
-  colorCycles: { type: RANGE, range: [1, 6], step: 1, default: 2, desc: "RGB sequences per video frame; more cycles reduce visible color breakup" },
-  motionX: { type: RANGE, range: [-40, 40], step: 0.5, default: 10, desc: "Horizontal eye, camera, or scene motion during one color sequence, in pixels" },
-  motionY: { type: RANGE, range: [-40, 40], step: 0.5, default: -3, desc: "Vertical eye, camera, or scene motion during one color sequence, in pixels" },
-  breakup: { type: RANGE, range: [0, 2], step: 0.05, default: 1, desc: "Visibility of sequential red/green/blue subfield separation" },
-  bitplaneSparkle: { type: RANGE, range: [0, 0.35], step: 0.01, default: 0.035, desc: "Micromirror bit-plane contouring and deterministic temporal sparkle" },
-  lensSoftness: { type: RANGE, range: [0, 2.5], step: 0.1, default: 0.45, desc: "Projection-lens blur applied across each color subfield" },
-  animSpeed: { type: RANGE, range: [24, 120], step: 1, default: 60, desc: "Preview frame rate used to advance color-wheel and bit-plane phase" },
+  wheel: {
+    type: ENUM,
+    options: [
+      { name: "RGB wheel", value: WHEEL_RGB },
+      { name: "RGBW wheel", value: WHEEL_RGBW },
+    ],
+    default: WHEEL_RGB,
+    desc: "Sequential illumination segments; a white segment raises brightness but dilutes saturation",
+  },
+  colorCycles: {
+    type: RANGE,
+    range: [1, 6],
+    step: 1,
+    default: 2,
+    desc: "RGB sequences per video frame; more cycles reduce visible color breakup",
+  },
+  motionX: {
+    type: RANGE,
+    range: [-40, 40],
+    step: 0.5,
+    default: 10,
+    desc: "Horizontal eye, camera, or scene motion during one color sequence, in pixels",
+  },
+  motionY: {
+    type: RANGE,
+    range: [-40, 40],
+    step: 0.5,
+    default: -3,
+    desc: "Vertical eye, camera, or scene motion during one color sequence, in pixels",
+  },
+  breakup: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 1,
+    desc: "Visibility of sequential red/green/blue subfield separation",
+  },
+  bitplaneSparkle: {
+    type: RANGE,
+    range: [0, 0.35],
+    step: 0.01,
+    default: 0.035,
+    desc: "Micromirror bit-plane contouring and deterministic temporal sparkle",
+  },
+  lensSoftness: {
+    type: RANGE,
+    range: [0, 2.5],
+    step: 0.1,
+    default: 0.45,
+    desc: "Projection-lens blur applied across each color subfield",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [24, 120],
+    step: 1,
+    default: 60,
+    desc: "Preview frame rate used to advance color-wheel and bit-plane phase",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -109,19 +156,34 @@ const dlpColorWheel = (input: FilterCanvas, options: DlpOptions = defaults): Fil
     height: input.height,
     key: "dlp-color-wheel:v1",
     fragmentShader: FS,
-    uniformNames: ["u_redOffset", "u_blueOffset", "u_breakup", "u_sparkle", "u_softness", "u_phase", "u_rgbw"],
+    uniformNames: [
+      "u_redOffset",
+      "u_blueOffset",
+      "u_breakup",
+      "u_sparkle",
+      "u_softness",
+      "u_phase",
+      "u_rgbw",
+    ],
     setUniforms: (gl, uniforms) => {
       gl.uniform2f(uniforms.u_redOffset, offsets.red.x, offsets.red.y);
       gl.uniform2f(uniforms.u_blueOffset, offsets.blue.x, offsets.blue.y);
       gl.uniform1f(uniforms.u_breakup, clamp(options.breakup, defaults.breakup, 0, 2));
-      gl.uniform1f(uniforms.u_sparkle, clamp(options.bitplaneSparkle, defaults.bitplaneSparkle, 0, 0.35));
+      gl.uniform1f(
+        uniforms.u_sparkle,
+        clamp(options.bitplaneSparkle, defaults.bitplaneSparkle, 0, 0.35),
+      );
       gl.uniform1f(uniforms.u_softness, clamp(options.lensSoftness, defaults.lensSoftness, 0, 2.5));
       gl.uniform1f(uniforms.u_phase, frame);
       gl.uniform1i(uniforms.u_rgbw, options.wheel === WHEEL_RGBW ? 1 : 0);
     },
   });
   if (!output) return input;
-  logFilterBackend("DLP Color Wheel", "WebGL2", `${cycles}x ${options.wheel === WHEEL_RGBW ? "RGBW" : "RGB"} sequential illumination`);
+  logFilterBackend(
+    "DLP Color Wheel",
+    "WebGL2",
+    `${cycles}x ${options.wheel === WHEEL_RGBW ? "RGBW" : "RGB"} sequential illumination`,
+  );
   return output;
 };
 
@@ -131,7 +193,8 @@ export default defineFilter({
   optionTypes,
   defaults,
   options: defaults,
-  description: "Single-chip DLP projection with sequential color fields, motion breakup, micromirror bit planes, and lens softness",
+  description:
+    "Single-chip DLP projection with sequential color fields, motion breakup, micromirror bit planes, and lens softness",
   requiresGL: true,
   temporal: true,
   autoAnimate: true,

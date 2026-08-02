@@ -117,11 +117,7 @@ export const rangeAttenuation = (r: number, minRange: number = RADAR_MIN_RANGE):
  * STC (sensitivity time control): receiver gain ramped as R^(4·stc) with range.
  * `stc` = 0 is raw video, `stc` = 1 exactly cancels the 1/R⁴ falloff.
  */
-export const stcGain = (
-  r: number,
-  stc: number,
-  minRange: number = RADAR_MIN_RANGE,
-): number => {
+export const stcGain = (r: number, stc: number, minRange: number = RADAR_MIN_RANGE): number => {
   const floorR = Math.max(1e-6, finite(minRange, RADAR_MIN_RANGE));
   const rr = Math.max(finite(r, 0), floorR);
   const s = Math.min(1, Math.max(0, finite(stc, 0)));
@@ -212,8 +208,13 @@ float rp_elapsed(float bearing, float sweep) {
 `;
 
 const CLUTTER = { NONE: "NONE", SEA: "SEA", RAIN: "RAIN", BOTH: "BOTH" } as const;
-type ClutterMode = typeof CLUTTER[keyof typeof CLUTTER];
-const CLUTTER_VALUES: readonly ClutterMode[] = [CLUTTER.NONE, CLUTTER.SEA, CLUTTER.RAIN, CLUTTER.BOTH];
+type ClutterMode = (typeof CLUTTER)[keyof typeof CLUTTER];
+const CLUTTER_VALUES: readonly ClutterMode[] = [
+  CLUTTER.NONE,
+  CLUTTER.SEA,
+  CLUTTER.RAIN,
+  CLUTTER.BOTH,
+];
 const clutterId: Record<string, number> = { NONE: 0, SEA: 1, RAIN: 2, BOTH: 3 };
 
 const FS = `#version 300 es
@@ -364,11 +365,41 @@ void main() {
 `;
 
 export const optionTypes = {
-  gain: { type: RANGE, range: [0, 6], step: 0.05, default: 1.6, desc: "Receiver gain applied to the range-corrected echo" },
-  stc: { type: RANGE, range: [0, 1], step: 0.01, default: 0.55, desc: "Sensitivity time control: fraction of the 1/r⁴ range falloff ramped back out" },
-  sweepSpeed: { type: RANGE, range: [0, 45], step: 0.5, default: 6, desc: "Antenna rotation rate, in degrees of bearing per frame" },
-  persistence: { type: RANGE, range: [2, 360], step: 1, default: 130, desc: "Phosphor persistence τ: sweep angle over which a painted echo falls to 1/e" },
-  beamWidth: { type: RANGE, range: [0.2, 30], step: 0.1, default: 2.5, desc: "Angular width of the illuminated sweep trace" },
+  gain: {
+    type: RANGE,
+    range: [0, 6],
+    step: 0.05,
+    default: 1.6,
+    desc: "Receiver gain applied to the range-corrected echo",
+  },
+  stc: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.55,
+    desc: "Sensitivity time control: fraction of the 1/r⁴ range falloff ramped back out",
+  },
+  sweepSpeed: {
+    type: RANGE,
+    range: [0, 45],
+    step: 0.5,
+    default: 6,
+    desc: "Antenna rotation rate, in degrees of bearing per frame",
+  },
+  persistence: {
+    type: RANGE,
+    range: [2, 360],
+    step: 1,
+    default: 130,
+    desc: "Phosphor persistence τ: sweep angle over which a painted echo falls to 1/e",
+  },
+  beamWidth: {
+    type: RANGE,
+    range: [0.2, 30],
+    step: 0.1,
+    default: 2.5,
+    desc: "Angular width of the illuminated sweep trace",
+  },
   clutterMode: {
     type: ENUM,
     options: [
@@ -380,15 +411,59 @@ export const optionTypes = {
     default: CLUTTER.SEA,
     desc: "Kind of unwanted backscatter filling the short-range cells",
   },
-  clutter: { type: RANGE, range: [0, 2], step: 0.01, default: 0.35, desc: "Amplitude of the clutter returns near the scope centre" },
-  clutterRange: { type: RANGE, range: [0.02, 1], step: 0.01, default: 0.26, desc: "Range over which clutter decays away from the centre" },
-  clutterBoil: { type: BOOL, default: true, desc: "Reseed the clutter speckle each frame so it boils between sweeps" },
-  rings: { type: RANGE, range: [0, 12], step: 1, default: 5, desc: "Number of range rings drawn on the scope face" },
-  spokes: { type: RANGE, range: [0, 36], step: 1, default: 12, desc: "Number of radial bearing-graticule spokes" },
-  graticule: { type: RANGE, range: [0, 1], step: 0.01, default: 0.22, desc: "Brightness of the range rings and bearing graticule" },
-  scopeScale: { type: RANGE, range: [0.2, 1.4], step: 0.01, default: 0.98, desc: "Display radius as a fraction of the shorter image side" },
+  clutter: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.01,
+    default: 0.35,
+    desc: "Amplitude of the clutter returns near the scope centre",
+  },
+  clutterRange: {
+    type: RANGE,
+    range: [0.02, 1],
+    step: 0.01,
+    default: 0.26,
+    desc: "Range over which clutter decays away from the centre",
+  },
+  clutterBoil: {
+    type: BOOL,
+    default: true,
+    desc: "Reseed the clutter speckle each frame so it boils between sweeps",
+  },
+  rings: {
+    type: RANGE,
+    range: [0, 12],
+    step: 1,
+    default: 5,
+    desc: "Number of range rings drawn on the scope face",
+  },
+  spokes: {
+    type: RANGE,
+    range: [0, 36],
+    step: 1,
+    default: 12,
+    desc: "Number of radial bearing-graticule spokes",
+  },
+  graticule: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.22,
+    desc: "Brightness of the range rings and bearing graticule",
+  },
+  scopeScale: {
+    type: RANGE,
+    range: [0.2, 1.4],
+    step: 0.01,
+    default: 0.98,
+    desc: "Display radius as a fraction of the shorter image side",
+  },
   phosphor: { type: COLOR, default: [86, 255, 138], desc: "Phosphor emission colour of the scope" },
-  background: { type: COLOR, default: [4, 14, 8], desc: "Unlit scope face colour, inside and outside the display circle" },
+  background: {
+    type: COLOR,
+    default: [4, 14, 8],
+    desc: "Unlit scope face colour, inside and outside the display circle",
+  },
 };
 
 export const defaults = {
@@ -416,15 +491,30 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_sweep", "u_tau", "u_beam", "u_gain", "u_stc",
-    "u_clutter", "u_clutterRange", "u_clutterMode", "u_clutterSeed",
-    "u_rings", "u_spokes", "u_graticule", "u_scope", "u_phosphor", "u_background",
+    "u_source",
+    "u_res",
+    "u_sweep",
+    "u_tau",
+    "u_beam",
+    "u_gain",
+    "u_stc",
+    "u_clutter",
+    "u_clutterRange",
+    "u_clutterMode",
+    "u_clutterSeed",
+    "u_rings",
+    "u_spokes",
+    "u_graticule",
+    "u_scope",
+    "u_phosphor",
+    "u_background",
   ] as const);
   return _prog;
 };
 
 const radarPpi = (input: any, options: RadarPpiOptions = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   if (!glAvailable()) return glUnavailableStub(W, H);
 
   const gain = normalizeRangeOption(options.gain, defaults.gain, 0, 6);
@@ -432,7 +522,11 @@ const radarPpi = (input: any, options: RadarPpiOptions = defaults) => {
   const sweepSpeed = normalizeRangeOption(options.sweepSpeed, defaults.sweepSpeed, 0, 45);
   const persistence = normalizeRangeOption(options.persistence, defaults.persistence, 2, 360);
   const beamWidth = normalizeRangeOption(options.beamWidth, defaults.beamWidth, 0.2, 30);
-  const clutterMode = normalizeEnumOption(options.clutterMode, CLUTTER_VALUES, defaults.clutterMode);
+  const clutterMode = normalizeEnumOption(
+    options.clutterMode,
+    CLUTTER_VALUES,
+    defaults.clutterMode,
+  );
   const clutter = normalizeRangeOption(options.clutter, defaults.clutter, 0, 2);
   const clutterRange = normalizeRangeOption(options.clutterRange, defaults.clutterRange, 0.02, 1);
   const clutterBoil = normalizeBooleanOption(options.clutterBoil, defaults.clutterBoil);
@@ -456,31 +550,43 @@ const radarPpi = (input: any, options: RadarPpiOptions = defaults) => {
   const sourceTex = ensureTexture(gl, "radarPpi:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_sweep, sweep);
-    gl.uniform1f(prog.uniforms.u_tau, persistence * DEG);
-    gl.uniform1f(prog.uniforms.u_beam, beamWidth * DEG);
-    gl.uniform1f(prog.uniforms.u_gain, gain);
-    gl.uniform1f(prog.uniforms.u_stc, stc);
-    gl.uniform1f(prog.uniforms.u_clutter, clutter);
-    gl.uniform1f(prog.uniforms.u_clutterRange, clutterRange);
-    gl.uniform1i(prog.uniforms.u_clutterMode, clutterId[clutterMode] ?? 1);
-    gl.uniform1f(prog.uniforms.u_clutterSeed, clutterBoil ? frameIndex % 512 : 0);
-    gl.uniform1f(prog.uniforms.u_rings, rings);
-    gl.uniform1f(prog.uniforms.u_spokes, spokes);
-    gl.uniform1f(prog.uniforms.u_graticule, graticule);
-    gl.uniform1f(prog.uniforms.u_scope, scopeScale);
-    gl.uniform3f(prog.uniforms.u_phosphor, phosphor[0]!, phosphor[1]!, phosphor[2]!);
-    gl.uniform3f(prog.uniforms.u_background, background[0]!, background[1]!, background[2]!);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_sweep, sweep);
+      gl.uniform1f(prog.uniforms.u_tau, persistence * DEG);
+      gl.uniform1f(prog.uniforms.u_beam, beamWidth * DEG);
+      gl.uniform1f(prog.uniforms.u_gain, gain);
+      gl.uniform1f(prog.uniforms.u_stc, stc);
+      gl.uniform1f(prog.uniforms.u_clutter, clutter);
+      gl.uniform1f(prog.uniforms.u_clutterRange, clutterRange);
+      gl.uniform1i(prog.uniforms.u_clutterMode, clutterId[clutterMode] ?? 1);
+      gl.uniform1f(prog.uniforms.u_clutterSeed, clutterBoil ? frameIndex % 512 : 0);
+      gl.uniform1f(prog.uniforms.u_rings, rings);
+      gl.uniform1f(prog.uniforms.u_spokes, spokes);
+      gl.uniform1f(prog.uniforms.u_graticule, graticule);
+      gl.uniform1f(prog.uniforms.u_scope, scopeScale);
+      gl.uniform3f(prog.uniforms.u_phosphor, phosphor[0]!, phosphor[1]!, phosphor[2]!);
+      gl.uniform3f(prog.uniforms.u_background, background[0]!, background[1]!, background[2]!);
+    },
+    vao,
+  );
 
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
-  logFilterBackend("Radar PPI", "WebGL2", `bearing=${(sweep / DEG).toFixed(1)}° tau=${persistence}°`);
+  logFilterBackend(
+    "Radar PPI",
+    "WebGL2",
+    `bearing=${(sweep / DEG).toFixed(1)}° tau=${persistence}°`,
+  );
   return output;
 };
 
@@ -490,7 +596,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Rotating plan-position-indicator scope — 1/r⁴ radar-equation falloff with STC, exponential phosphor persistence behind the sweep, short-range sea and rain clutter, range rings and bearing graticule. There is no radar data: image luminance stands in for target reflectivity",
+  description:
+    "Rotating plan-position-indicator scope — 1/r⁴ radar-equation falloff with STC, exponential phosphor persistence behind the sweep, short-range sea and rain clutter, range rings and bearing graticule. There is no radar data: image luminance stands in for target reflectivity",
   temporal: true,
   autoAnimate: true,
   autoAnimateFps: 30,

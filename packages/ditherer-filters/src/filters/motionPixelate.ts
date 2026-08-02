@@ -3,13 +3,33 @@ import { defineFilter, type FilterOptionValues } from "./types";
 import { cloneCanvas, getBufferIndex } from "../utils/index";
 
 export const optionTypes = {
-  blockSize: { type: RANGE, range: [4, 32], step: 2, default: 12, desc: "Pixelation block size for affected areas" },
+  blockSize: {
+    type: RANGE,
+    range: [4, 32],
+    step: 2,
+    default: 12,
+    desc: "Pixelation block size for affected areas",
+  },
   invert: { type: BOOL, default: false, desc: "Pixelate static areas instead of moving" },
-  threshold: { type: RANGE, range: [1, 50], step: 1, default: 5, desc: "Motion sensitivity — lower = more reactive" },
+  threshold: {
+    type: RANGE,
+    range: [1, 50],
+    step: 1,
+    default: 5,
+    desc: "Motion sensitivity — lower = more reactive",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -37,7 +57,8 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
 
@@ -53,7 +74,8 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
 
   for (let by = 0; by < blocksY; by++) {
     for (let bx = 0; bx < blocksX; bx++) {
-      const startX = bx * blockSize, startY = by * blockSize;
+      const startX = bx * blockSize,
+        startY = by * blockSize;
       const endX = Math.min(startX + blockSize, W);
       const endY = Math.min(startY + blockSize, H);
 
@@ -63,21 +85,33 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
       for (let y = startY; y < endY; y++) {
         for (let x = startX; x < endX; x++) {
           const i = getBufferIndex(x, y, W);
-          diffSum += (Math.abs(buf[i] - ema[i]) + Math.abs(buf[i + 1] - ema[i + 1]) + Math.abs(buf[i + 2] - ema[i + 2])) / 3;
+          diffSum +=
+            (Math.abs(buf[i] - ema[i]) +
+              Math.abs(buf[i + 1] - ema[i + 1]) +
+              Math.abs(buf[i + 2] - ema[i + 2])) /
+            3;
           pixelCount++;
         }
       }
       const blockMotion = diffSum / Math.max(1, pixelCount);
 
-      const shouldPixelate = invert ? (blockMotion < threshold) : (blockMotion > threshold);
+      const shouldPixelate = invert ? blockMotion < threshold : blockMotion > threshold;
 
       if (shouldPixelate && ema) {
         // Average block color
-        let rSum = 0, gSum = 0, bSum = 0, aSum = 0, count = 0;
+        let rSum = 0,
+          gSum = 0,
+          bSum = 0,
+          aSum = 0,
+          count = 0;
         for (let y = startY; y < endY; y++) {
           for (let x = startX; x < endX; x++) {
             const i = getBufferIndex(x, y, W);
-            rSum += buf[i]; gSum += buf[i + 1]; bSum += buf[i + 2]; aSum += buf[i + 3]; count++;
+            rSum += buf[i];
+            gSum += buf[i + 1];
+            bSum += buf[i + 2];
+            aSum += buf[i + 3];
+            count++;
           }
         }
         const avgR = Math.round(rSum / count);
@@ -87,7 +121,10 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
         for (let y = startY; y < endY; y++) {
           for (let x = startX; x < endX; x++) {
             const i = getBufferIndex(x, y, W);
-            outBuf[i] = avgR; outBuf[i + 1] = avgG; outBuf[i + 2] = avgB; outBuf[i + 3] = avgA;
+            outBuf[i] = avgR;
+            outBuf[i + 1] = avgG;
+            outBuf[i + 2] = avgB;
+            outBuf[i + 3] = avgA;
           }
         }
       } else {
@@ -95,7 +132,10 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
         for (let y = startY; y < endY; y++) {
           for (let x = startX; x < endX; x++) {
             const i = getBufferIndex(x, y, W);
-            outBuf[i] = buf[i]; outBuf[i + 1] = buf[i + 1]; outBuf[i + 2] = buf[i + 2]; outBuf[i + 3] = buf[i + 3];
+            outBuf[i] = buf[i];
+            outBuf[i + 1] = buf[i + 1];
+            outBuf[i + 2] = buf[i + 2];
+            outBuf[i + 3] = buf[i + 3];
           }
         }
       }
@@ -106,4 +146,12 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
   return output;
 };
 
-export default defineFilter({ name: "Motion Pixelate", func: motionPixelate, optionTypes, options: defaults, defaults, description: "Moving areas become pixelated — privacy/censorship or artistic motion effect" , temporal: true });
+export default defineFilter({
+  name: "Motion Pixelate",
+  func: motionPixelate,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Moving areas become pixelated — privacy/censorship or artistic motion effect",
+  temporal: true,
+});

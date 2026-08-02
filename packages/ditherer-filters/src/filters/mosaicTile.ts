@@ -1,14 +1,18 @@
 import { RANGE, COLOR, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import {
-  cloneCanvas, getBufferIndex,
-  logFilterBackend, logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, getBufferIndex, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -16,8 +20,15 @@ export const optionTypes = {
   tileSize: { type: RANGE, range: [4, 40], step: 1, default: 12, desc: "Tile size in pixels" },
   groutWidth: { type: RANGE, range: [1, 6], step: 1, default: 2, desc: "Gap between tiles" },
   groutColor: { type: COLOR, default: [60, 55, 50], desc: "Grout/mortar color" },
-  jitter: { type: RANGE, range: [0, 1], step: 0.05, default: 0.2, label: "Brightness variation", desc: "Per-tile brightness variation" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  jitter: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.2,
+    label: "Brightness variation",
+    desc: "Per-tile brightness variation",
+  },
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -25,7 +36,7 @@ export const defaults = {
   groutWidth: optionTypes.groutWidth.default,
   groutColor: optionTypes.groutColor.default,
   jitter: optionTypes.jitter.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Tile means are computed exactly once on the CPU and uploaded as a compact
@@ -78,8 +89,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     mt: linkProgram(gl, MT_FS, [
-      "u_source", "u_tiles", "u_res", "u_tileGridRes",
-      "u_tileSize", "u_cellSize", "u_groutColor",
+      "u_source",
+      "u_tiles",
+      "u_res",
+      "u_tileGridRes",
+      "u_tileSize",
+      "u_cellSize",
+      "u_groutColor",
     ] as const),
   };
   return _cache;
@@ -90,11 +106,12 @@ const finite = (value: unknown, fallback: number, min: number, max: number) => {
   return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
 };
 
-const validColor = (value: unknown, fallback: number[]): number[] => (
-  Array.isArray(value) && value.length >= 3 && value.slice(0, 3).every(channel => typeof channel === "number" && Number.isFinite(channel))
-    ? value.slice(0, 3).map(channel => Math.max(0, Math.min(255, channel as number)))
-    : fallback
-);
+const validColor = (value: unknown, fallback: number[]): number[] =>
+  Array.isArray(value) &&
+  value.length >= 3 &&
+  value.slice(0, 3).every((channel) => typeof channel === "number" && Number.isFinite(channel))
+    ? value.slice(0, 3).map((channel) => Math.max(0, Math.min(255, channel as number)))
+    : fallback;
 
 const cellHash = (cellX: number, cellY: number): number => {
   let hash = (Math.imul(cellX, 1664525) + Math.imul(cellY, 1013904223) + 42) >>> 0;
@@ -104,13 +121,17 @@ const cellHash = (cellX: number, cellY: number): number => {
   return (hash & 0x00ffffff) / 16777216;
 };
 
-const mosaicTile = (input: any, options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults) => {
+const mosaicTile = (
+  input: any,
+  options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults,
+) => {
   const tileSize = Math.round(finite(options.tileSize, defaults.tileSize, 4, 40));
   const groutWidth = Math.round(finite(options.groutWidth, defaults.groutWidth, 1, 6));
   const groutColor = validColor(options.groutColor, defaults.groutColor);
   const jitter = finite(options.jitter, defaults.jitter, 0, 1);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const cellSize = tileSize + groutWidth;
   const inputCtx = input.getContext("2d", { willReadFrequently: true });
   if (!inputCtx) return input;
@@ -129,21 +150,28 @@ const mosaicTile = (input: any, options: Partial<typeof defaults> & { _webglAcce
       const cy = cellY * cellSize;
       const maxX = Math.min(W, cx + tileSize);
       const maxY = Math.min(H, cy + tileSize);
-      let tr = 0, tg = 0, tb = 0, alphaWeight = 0;
+      let tr = 0,
+        tg = 0,
+        tb = 0,
+        alphaWeight = 0;
       for (let y = cy; y < maxY; y++) {
         for (let x = cx; x < maxX; x++) {
           const sourceIndex = getBufferIndex(x, y, W);
           const alpha = buf[sourceIndex + 3] / 255;
-          tr += buf[sourceIndex] / 255 * alpha;
-          tg += buf[sourceIndex + 1] / 255 * alpha;
-          tb += buf[sourceIndex + 2] / 255 * alpha;
+          tr += (buf[sourceIndex] / 255) * alpha;
+          tg += (buf[sourceIndex + 1] / 255) * alpha;
+          tb += (buf[sourceIndex + 2] / 255) * alpha;
           alphaWeight += alpha;
         }
       }
       if (alphaWeight > 1e-5) {
-        tr /= alphaWeight; tg /= alphaWeight; tb /= alphaWeight;
+        tr /= alphaWeight;
+        tg /= alphaWeight;
+        tb /= alphaWeight;
       } else {
-        tr = 0; tg = 0; tb = 0;
+        tr = 0;
+        tg = 0;
+        tb = 0;
       }
       if (jitter > 0) {
         const variation = (cellHash(cellX, cellY) - 0.5) * jitter * (40 / 255);
@@ -172,26 +200,43 @@ const mosaicTile = (input: any, options: Partial<typeof defaults> & { _webglAcce
       uploadSourceTexture(gl, sourceTex, input);
       uploadSourceTexture(gl, tilesTex, tileCanvas);
 
-      drawPass(gl, null, W, H, cache.mt, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.mt.uniforms.u_source, 0);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, tilesTex.tex);
-        gl.uniform1i(cache.mt.uniforms.u_tiles, 1);
-        gl.uniform2f(cache.mt.uniforms.u_res, W, H);
-        gl.uniform2f(cache.mt.uniforms.u_tileGridRes, gridW, gridH);
-        gl.uniform1f(cache.mt.uniforms.u_tileSize, tileSize);
-        gl.uniform1f(cache.mt.uniforms.u_cellSize, cellSize);
-        gl.uniform3f(cache.mt.uniforms.u_groutColor, groutColor[0] / 255, groutColor[1] / 255, groutColor[2] / 255);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.mt,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.mt.uniforms.u_source, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, tilesTex.tex);
+          gl.uniform1i(cache.mt.uniforms.u_tiles, 1);
+          gl.uniform2f(cache.mt.uniforms.u_res, W, H);
+          gl.uniform2f(cache.mt.uniforms.u_tileGridRes, gridW, gridH);
+          gl.uniform1f(cache.mt.uniforms.u_tileSize, tileSize);
+          gl.uniform1f(cache.mt.uniforms.u_cellSize, cellSize);
+          gl.uniform3f(
+            cache.mt.uniforms.u_groutColor,
+            groutColor[0] / 255,
+            groutColor[1] / 255,
+            groutColor[2] / 255,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Mosaic Tile", "WebGL2", `size=${tileSize}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Mosaic Tile",
+            "WebGL2",
+            `size=${tileSize}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -237,4 +282,10 @@ const mosaicTile = (input: any, options: Partial<typeof defaults> & { _webglAcce
   return applyPalettePassToCanvas(output, W, H, palette) ?? output;
 };
 
-export default defineFilter({ name: "Mosaic Tile", func: mosaicTile, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Mosaic Tile",
+  func: mosaicTile,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

@@ -4,15 +4,12 @@
 // linear light without each re-pasting the transfer functions (there is no
 // shared colour-space shader chunk elsewhere in the repo).
 
-const finite = (value: number, fallback = 0): number =>
-  Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 
-export const clamp01 = (value: number): number =>
-  Math.max(0, Math.min(1, finite(value)));
+export const clamp01 = (value: number): number => Math.max(0, Math.min(1, finite(value)));
 
 /** Gaussian sigma for a truncated kernel of the given pixel radius (r ≈ 3σ). */
-export const sigmaForRadius = (radius: number): number =>
-  Math.max(0.5, finite(radius, 1) / 3);
+export const sigmaForRadius = (radius: number): number => Math.max(0.5, finite(radius, 1) / 3);
 
 /** Single Gaussian weight exp(-k²/2σ²) (un-normalised). */
 export const gaussianWeight = (k: number, sigma: number): number => {
@@ -43,9 +40,7 @@ export const channelMedian = (values: number[]): number => {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = sorted.length >> 1;
-  return sorted.length % 2 === 1
-    ? sorted[mid]
-    : (sorted[mid - 1] + sorted[mid]) / 2;
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
 /**
@@ -53,11 +48,7 @@ export const channelMedian = (values: number[]): number => {
  * median only when it deviates from the median by more than `threshold`
  * (an impulse); otherwise keep it, so edges and detail survive.
  */
-export const thresholdedMedianPick = (
-  center: number,
-  median: number,
-  threshold: number,
-): number =>
+export const thresholdedMedianPick = (center: number, median: number, threshold: number): number =>
   Math.abs(finite(center) - finite(median)) > Math.max(0, finite(threshold))
     ? finite(median)
     : finite(center);

@@ -22,16 +22,72 @@ export const optionTypes = {
     default: SYSTEM.PAL,
     desc: "BT.1700 composite color system",
   },
-  chromaBandwidth: { type: RANGE, range: [0.1, 1.3], step: 0.05, default: 0.65, desc: "Decoded chroma bandwidth in MHz" },
-  lumaBandwidth: { type: RANGE, range: [2, 6], step: 0.1, default: 5, desc: "Decoded luminance bandwidth in MHz" },
-  phaseError: { type: RANGE, range: [-45, 45], step: 0.5, default: 8, desc: "PAL subcarrier phase error in degrees; alternating phase exposes delay-line cancellation" },
-  tuningError: { type: RANGE, range: [-1, 1], step: 0.01, default: 0.08, desc: "SECAM FM discriminator mistuning or PAL burst-reference error" },
-  delayLine: { type: BOOL, default: true, desc: "Use the one-line chroma delay required by PAL/SECAM decoders" },
-  crossColor: { type: RANGE, range: [0, 1], step: 0.01, default: 0.16, desc: "Luma energy misidentified as chroma near the color subcarrier" },
-  crossLuma: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Residual chroma subcarrier pattern visible in luminance" },
-  channelNoise: { type: RANGE, range: [0, 1], step: 0.01, default: 0.03, desc: "Composite channel noise before color decoding" },
-  interlace: { type: BOOL, default: true, desc: "Render the alternating 50-field 625-line scan structure" },
-  randomSeed: { type: RANGE, range: [0, 9999], step: 1, default: 625, desc: "Deterministic channel noise seed" },
+  chromaBandwidth: {
+    type: RANGE,
+    range: [0.1, 1.3],
+    step: 0.05,
+    default: 0.65,
+    desc: "Decoded chroma bandwidth in MHz",
+  },
+  lumaBandwidth: {
+    type: RANGE,
+    range: [2, 6],
+    step: 0.1,
+    default: 5,
+    desc: "Decoded luminance bandwidth in MHz",
+  },
+  phaseError: {
+    type: RANGE,
+    range: [-45, 45],
+    step: 0.5,
+    default: 8,
+    desc: "PAL subcarrier phase error in degrees; alternating phase exposes delay-line cancellation",
+  },
+  tuningError: {
+    type: RANGE,
+    range: [-1, 1],
+    step: 0.01,
+    default: 0.08,
+    desc: "SECAM FM discriminator mistuning or PAL burst-reference error",
+  },
+  delayLine: {
+    type: BOOL,
+    default: true,
+    desc: "Use the one-line chroma delay required by PAL/SECAM decoders",
+  },
+  crossColor: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.16,
+    desc: "Luma energy misidentified as chroma near the color subcarrier",
+  },
+  crossLuma: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.1,
+    desc: "Residual chroma subcarrier pattern visible in luminance",
+  },
+  channelNoise: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.03,
+    desc: "Composite channel noise before color decoding",
+  },
+  interlace: {
+    type: BOOL,
+    default: true,
+    desc: "Render the alternating 50-field 625-line scan structure",
+  },
+  randomSeed: {
+    type: RANGE,
+    range: [0, 9999],
+    step: 1,
+    default: 625,
+    desc: "Deterministic channel noise seed",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 25, desc: "Preview field rate" },
   animate: {
     type: ACTION,
@@ -176,7 +232,8 @@ const finiteClamp = (value: unknown, fallback: number, low: number, high: number
 };
 
 const palSecam = (input: HTMLCanvasElement | OffscreenCanvas, options: Options = defaults) => {
-  const width = input.width, height = input.height;
+  const width = input.width,
+    height = input.height;
   if (width < 1 || height < 1) return input;
   const system = String(options.system) === SYSTEM.SECAM ? 1 : 0;
   const chromaBandwidth = finiteClamp(options.chromaBandwidth, defaults.chromaBandwidth, 0.1, 1.3);
@@ -189,7 +246,10 @@ const palSecam = (input: HTMLCanvasElement | OffscreenCanvas, options: Options =
   const crossLuma = finiteClamp(options.crossLuma, defaults.crossLuma, 0, 1);
   const channelNoise = finiteClamp(options.channelNoise, defaults.channelNoise, 0, 1);
   const randomSeed = finiteClamp(options.randomSeed, defaults.randomSeed, 0, 9999);
-  const frame = Math.max(0, Math.floor(finiteClamp(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER)));
+  const frame = Math.max(
+    0,
+    Math.floor(finiteClamp(options._frameIndex, 0, 0, Number.MAX_SAFE_INTEGER)),
+  );
   const palette = options.palette ?? defaults.palette;
   const rendered = renderGLSinglePass({
     source: input,
@@ -197,12 +257,25 @@ const palSecam = (input: HTMLCanvasElement | OffscreenCanvas, options: Options =
     height,
     key: "pal-secam-bt1700",
     fragmentShader: FS,
-    uniformNames: ["u_system", "u_chromaRadius", "u_lumaRadius", "u_phaseError", "u_tuningError", "u_delayLine", "u_crossColor", "u_crossLuma", "u_noise", "u_seed", "u_frame", "u_interlace"],
+    uniformNames: [
+      "u_system",
+      "u_chromaRadius",
+      "u_lumaRadius",
+      "u_phaseError",
+      "u_tuningError",
+      "u_delayLine",
+      "u_crossColor",
+      "u_crossLuma",
+      "u_noise",
+      "u_seed",
+      "u_frame",
+      "u_interlace",
+    ],
     setUniforms: (gl, u) => {
       gl.uniform1i(u.u_system, system);
       gl.uniform1f(u.u_chromaRadius, chromaRadius);
       gl.uniform1f(u.u_lumaRadius, lumaRadius);
-      gl.uniform1f(u.u_phaseError, phaseError * Math.PI / 180);
+      gl.uniform1f(u.u_phaseError, (phaseError * Math.PI) / 180);
       gl.uniform1f(u.u_tuningError, tuningError);
       gl.uniform1f(u.u_delayLine, options.delayLine === false ? 0 : 1);
       gl.uniform1f(u.u_crossColor, crossColor);
@@ -216,7 +289,11 @@ const palSecam = (input: HTMLCanvasElement | OffscreenCanvas, options: Options =
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
-  logFilterBackend("PAL / SECAM", "WebGL2", `${system === 1 ? SYSTEM.SECAM : SYSTEM.PAL} 625/50${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "PAL / SECAM",
+    "WebGL2",
+    `${system === 1 ? SYSTEM.SECAM : SYSTEM.PAL} 625/50${identity ? "" : "+palettePass"}`,
+  );
   return output ?? input;
 };
 
@@ -226,7 +303,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "BT.1700 PAL/SECAM composite modulation, delay-line decoding, bandwidth and channel faults",
+  description:
+    "BT.1700 PAL/SECAM composite modulation, delay-line decoding, bandwidth and channel faults",
   temporal: true,
   requiresGL: true,
 });

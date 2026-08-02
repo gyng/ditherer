@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -163,8 +170,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, FS, [
-      "u_source", "u_res", "u_type", "u_blendMode",
-      "u_scale", "u_strength", "u_contrast",
+      "u_source",
+      "u_res",
+      "u_type",
+      "u_blendMode",
+      "u_scale",
+      "u_strength",
+      "u_contrast",
     ] as const),
   };
   return _cache;
@@ -174,7 +186,8 @@ export const paperTextureGLAvailable = (): boolean => glAvailable();
 
 export const renderPaperTextureGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   type: number,
   blendMode: number,
   scale: number,
@@ -190,17 +203,25 @@ export const renderPaperTextureGL = (
   const sourceTex = ensureTexture(gl, "paperTexture:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1i(cache.prog.uniforms.u_type, type);
-    gl.uniform1i(cache.prog.uniforms.u_blendMode, blendMode);
-    gl.uniform1f(cache.prog.uniforms.u_scale, scale);
-    gl.uniform1f(cache.prog.uniforms.u_strength, strength);
-    gl.uniform1f(cache.prog.uniforms.u_contrast, contrast);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1i(cache.prog.uniforms.u_type, type);
+      gl.uniform1i(cache.prog.uniforms.u_blendMode, blendMode);
+      gl.uniform1f(cache.prog.uniforms.u_scale, scale);
+      gl.uniform1f(cache.prog.uniforms.u_strength, strength);
+      gl.uniform1f(cache.prog.uniforms.u_contrast, contrast);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

@@ -2,8 +2,15 @@ import { ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter } from "./types";
 import { logFilterBackend } from "../utils/index";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glUnavailableStub,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -27,11 +34,41 @@ export const optionTypes = {
     default: METHOD.EDGE_AWARE,
     desc: "Nearest, true bilinear, or Malvar-He-Cutler gradient-corrected reconstruction",
   },
-  sensorNoise: { type: RANGE, range: [0, 0.2], step: 0.002, default: 0.025, desc: "Signal-dependent shot-noise coefficient at a full-scale photosite" },
-  readNoise: { type: RANGE, range: [0, 0.05], step: 0.001, default: 0.004, desc: "Signal-independent electronic read-noise floor" },
-  hotPixels: { type: RANGE, range: [0, 0.02], step: 0.0005, default: 0.001, desc: "Stable probability of saturated or dead photosites" },
-  colorBleed: { type: RANGE, range: [0, 0.5], step: 0.01, default: 0.08, desc: "Optical/electrical photosite crosstalk applied before demosaicing" },
-  opticalBlur: { type: RANGE, range: [0, 1], step: 0.01, default: 0.12, desc: "Sensor optical low-pass filtering before CFA sampling" },
+  sensorNoise: {
+    type: RANGE,
+    range: [0, 0.2],
+    step: 0.002,
+    default: 0.025,
+    desc: "Signal-dependent shot-noise coefficient at a full-scale photosite",
+  },
+  readNoise: {
+    type: RANGE,
+    range: [0, 0.05],
+    step: 0.001,
+    default: 0.004,
+    desc: "Signal-independent electronic read-noise floor",
+  },
+  hotPixels: {
+    type: RANGE,
+    range: [0, 0.02],
+    step: 0.0005,
+    default: 0.001,
+    desc: "Stable probability of saturated or dead photosites",
+  },
+  colorBleed: {
+    type: RANGE,
+    range: [0, 0.5],
+    step: 0.01,
+    default: 0.08,
+    desc: "Optical/electrical photosite crosstalk applied before demosaicing",
+  },
+  opticalBlur: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.12,
+    desc: "Sensor optical low-pass filtering before CFA sampling",
+  },
 };
 
 export const defaults = {
@@ -218,8 +255,16 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_cfa", "u_method", "u_noise", "u_readNoise",
-    "u_hotPixels", "u_colorBleed", "u_opticalBlur", "u_frameSeed",
+    "u_source",
+    "u_res",
+    "u_cfa",
+    "u_method",
+    "u_noise",
+    "u_readNoise",
+    "u_hotPixels",
+    "u_colorBleed",
+    "u_opticalBlur",
+    "u_frameSeed",
   ] as const);
   return _prog;
 };
@@ -231,7 +276,8 @@ type BayerSensorOptions = Partial<typeof defaults> & { _frameIndex?: number };
 
 const bayerSensor = (input: any, options: BayerSensorOptions = defaults) => {
   const resolved = { ...defaults, ...options };
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
   const { gl, canvas } = ctx;
@@ -240,20 +286,28 @@ const bayerSensor = (input: any, options: BayerSensorOptions = defaults) => {
   resizeGLCanvas(canvas, W, H);
   const sourceTex = ensureTexture(gl, "bayerSensor:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1i(prog.uniforms.u_cfa, cfaId[resolved.cfa] ?? 0);
-    gl.uniform1i(prog.uniforms.u_method, methodId[resolved.method] ?? 2);
-    gl.uniform1f(prog.uniforms.u_noise, resolved.sensorNoise);
-    gl.uniform1f(prog.uniforms.u_readNoise, resolved.readNoise);
-    gl.uniform1f(prog.uniforms.u_hotPixels, resolved.hotPixels);
-    gl.uniform1f(prog.uniforms.u_colorBleed, resolved.colorBleed);
-    gl.uniform1f(prog.uniforms.u_opticalBlur, resolved.opticalBlur);
-    gl.uniform1f(prog.uniforms.u_frameSeed, Number(resolved._frameIndex ?? 0));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1i(prog.uniforms.u_cfa, cfaId[resolved.cfa] ?? 0);
+      gl.uniform1i(prog.uniforms.u_method, methodId[resolved.method] ?? 2);
+      gl.uniform1f(prog.uniforms.u_noise, resolved.sensorNoise);
+      gl.uniform1f(prog.uniforms.u_readNoise, resolved.readNoise);
+      gl.uniform1f(prog.uniforms.u_hotPixels, resolved.hotPixels);
+      gl.uniform1f(prog.uniforms.u_colorBleed, resolved.colorBleed);
+      gl.uniform1f(prog.uniforms.u_opticalBlur, resolved.opticalBlur);
+      gl.uniform1f(prog.uniforms.u_frameSeed, Number(resolved._frameIndex ?? 0));
+    },
+    vao,
+  );
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
   logFilterBackend("Bayer Sensor", "WebGL2", `${resolved.cfa} ${resolved.method}`);
@@ -266,7 +320,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Bayer CFA capture with true nearest/bilinear or 5×5 gradient-corrected demosaicing, shot/read noise, crosstalk, optical low-pass filtering, and stable defects",
+  description:
+    "Bayer CFA capture with true nearest/bilinear or 5×5 gradient-corrected demosaicing, shot/read noise, crosstalk, optical low-pass filtering, and stable defects",
   temporal: true,
   requiresGL: true,
 });

@@ -9,20 +9,30 @@ import {
 
 describe("loopOfflineCapture WebCodecs GIF helpers", () => {
   it("prefers decoded duration metadata when available", () => {
-    const durationUs = getDecodedGifFrameDurationUs([
-      { timestampUs: 0, durationUs: 120000 },
-      { timestampUs: 120000, durationUs: 40000 },
-    ], 0, 40000, 0.2);
+    const durationUs = getDecodedGifFrameDurationUs(
+      [
+        { timestampUs: 0, durationUs: 120000 },
+        { timestampUs: 120000, durationUs: 40000 },
+      ],
+      0,
+      40000,
+      0.2,
+    );
 
     expect(durationUs).toBe(120000);
   });
 
   it("falls back to the next decoded timestamp when duration metadata is missing", () => {
-    const durationUs = getDecodedGifFrameDurationUs([
-      { timestampUs: 0, durationUs: 0 },
-      { timestampUs: 80000, durationUs: 0 },
-      { timestampUs: 160000, durationUs: 0 },
-    ], 1, 40000, 0.2);
+    const durationUs = getDecodedGifFrameDurationUs(
+      [
+        { timestampUs: 0, durationUs: 0 },
+        { timestampUs: 80000, durationUs: 0 },
+        { timestampUs: 160000, durationUs: 0 },
+      ],
+      1,
+      40000,
+      0.2,
+    );
 
     expect(durationUs).toBe(80000);
   });
@@ -34,30 +44,37 @@ describe("loopOfflineCapture WebCodecs GIF helpers", () => {
       frame: {} as VideoFrame,
     });
 
-    const filtered = filterDecodedFramesForRange([
-      makeFrame(0),
-      makeFrame(50000),
-      makeFrame(100000),
-      makeFrame(150000),
-    ], 0.05, 0.15);
+    const filtered = filterDecodedFramesForRange(
+      [makeFrame(0), makeFrame(50000), makeFrame(100000), makeFrame(150000)],
+      0.05,
+      0.15,
+    );
 
     expect(filtered.map((frame) => frame.timestampUs)).toEqual([50000, 100000]);
   });
 
   it("clamps the final decoded frame to the requested range end", () => {
-    const durationUs = getDecodedGifFrameDurationUs([
-      { timestampUs: 900000, durationUs: 420000 },
-    ], 0, 40000, 1.03);
+    const durationUs = getDecodedGifFrameDurationUs(
+      [{ timestampUs: 900000, durationUs: 420000 }],
+      0,
+      40000,
+      1.03,
+    );
 
     expect(durationUs).toBe(130000);
   });
 
   it("infers cadence from decoded frame duration metadata", () => {
-    expect(inferDecodedGifCadenceUs([
-      { timestampUs: 0, durationUs: 33367 },
-      { timestampUs: 16683, durationUs: 33367 },
-      { timestampUs: 33367, durationUs: 33367 },
-    ], 40000)).toBe(33367);
+    expect(
+      inferDecodedGifCadenceUs(
+        [
+          { timestampUs: 0, durationUs: 33367 },
+          { timestampUs: 16683, durationUs: 33367 },
+          { timestampUs: 33367, durationUs: 33367 },
+        ],
+        40000,
+      ),
+    ).toBe(33367);
   });
 
   it("collapses over-dense decoded frames back toward the inferred cadence", () => {
@@ -67,13 +84,10 @@ describe("loopOfflineCapture WebCodecs GIF helpers", () => {
       frame: {} as VideoFrame,
     });
 
-    const collapsed = collapseDecodedFramesToCadence([
-      makeFrame(0),
-      makeFrame(16683),
-      makeFrame(33367),
-      makeFrame(50050),
-      makeFrame(66734),
-    ], 40000);
+    const collapsed = collapseDecodedFramesToCadence(
+      [makeFrame(0), makeFrame(16683), makeFrame(33367), makeFrame(50050), makeFrame(66734)],
+      40000,
+    );
 
     expect(collapsed.map((frame) => frame.timestampUs)).toEqual([0, 33367, 66734]);
   });
@@ -91,13 +105,11 @@ describe("loopOfflineCapture WebCodecs GIF helpers", () => {
     });
 
     const collapsed = collapseDecodedFramesToCadence(
-      filterDecodedFramesForRange([
-        makeFrame(0),
-        makeFrame(16683),
-        makeFrame(33367),
-        makeFrame(50050),
-        makeFrame(66734),
-      ], 0, 0.08),
+      filterDecodedFramesForRange(
+        [makeFrame(0), makeFrame(16683), makeFrame(33367), makeFrame(50050), makeFrame(66734)],
+        0,
+        0.08,
+      ),
       40000,
     );
 

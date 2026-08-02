@@ -143,7 +143,14 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     detect: linkProgram(gl, EDGE_DETECT_FS, ["u_source", "u_res", "u_threshold"] as const),
     blurH: linkProgram(gl, BLUR_H_FS, ["u_input", "u_res", "u_radius", "u_sigma"] as const),
     final: linkProgram(gl, FINAL_FS, [
-      "u_edgeOrig", "u_edgeBlurH", "u_res", "u_radius", "u_sigma", "u_bg", "u_edge", "u_levels",
+      "u_edgeOrig",
+      "u_edgeBlurH",
+      "u_res",
+      "u_radius",
+      "u_sigma",
+      "u_bg",
+      "u_edge",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -177,39 +184,68 @@ export const renderEdgeGlowGL = (
   const edgeTex = ensureTexture(gl, "edgeGlow:edge", width, height);
   const edgeHTex = ensureTexture(gl, "edgeGlow:edgeH", width, height);
 
-  drawPass(gl, edgeTex, width, height, cache.detect, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.detect.uniforms.u_source, 0);
-    gl.uniform2f(cache.detect.uniforms.u_res, width, height);
-    gl.uniform1f(cache.detect.uniforms.u_threshold, threshold);
-  }, vao);
+  drawPass(
+    gl,
+    edgeTex,
+    width,
+    height,
+    cache.detect,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.detect.uniforms.u_source, 0);
+      gl.uniform2f(cache.detect.uniforms.u_res, width, height);
+      gl.uniform1f(cache.detect.uniforms.u_threshold, threshold);
+    },
+    vao,
+  );
 
   if (radius > 0) {
-    drawPass(gl, edgeHTex, width, height, cache.blurH, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, edgeTex.tex);
-      gl.uniform1i(cache.blurH.uniforms.u_input, 0);
-      gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
-      gl.uniform1i(cache.blurH.uniforms.u_radius, radius);
-      gl.uniform1f(cache.blurH.uniforms.u_sigma, sigma);
-    }, vao);
+    drawPass(
+      gl,
+      edgeHTex,
+      width,
+      height,
+      cache.blurH,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, edgeTex.tex);
+        gl.uniform1i(cache.blurH.uniforms.u_input, 0);
+        gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
+        gl.uniform1i(cache.blurH.uniforms.u_radius, radius);
+        gl.uniform1f(cache.blurH.uniforms.u_sigma, sigma);
+      },
+      vao,
+    );
   }
 
-  drawPass(gl, null, width, height, cache.final, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, edgeTex.tex);
-    gl.uniform1i(cache.final.uniforms.u_edgeOrig, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, (radius > 0 ? edgeHTex : edgeTex).tex);
-    gl.uniform1i(cache.final.uniforms.u_edgeBlurH, 1);
-    gl.uniform2f(cache.final.uniforms.u_res, width, height);
-    gl.uniform1i(cache.final.uniforms.u_radius, radius);
-    gl.uniform1f(cache.final.uniforms.u_sigma, sigma);
-    gl.uniform3f(cache.final.uniforms.u_bg, backgroundColor[0], backgroundColor[1], backgroundColor[2]);
-    gl.uniform3f(cache.final.uniforms.u_edge, edgeColor[0], edgeColor[1], edgeColor[2]);
-    gl.uniform1f(cache.final.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.final,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, edgeTex.tex);
+      gl.uniform1i(cache.final.uniforms.u_edgeOrig, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, (radius > 0 ? edgeHTex : edgeTex).tex);
+      gl.uniform1i(cache.final.uniforms.u_edgeBlurH, 1);
+      gl.uniform2f(cache.final.uniforms.u_res, width, height);
+      gl.uniform1i(cache.final.uniforms.u_radius, radius);
+      gl.uniform1f(cache.final.uniforms.u_sigma, sigma);
+      gl.uniform3f(
+        cache.final.uniforms.u_bg,
+        backgroundColor[0],
+        backgroundColor[1],
+        backgroundColor[2],
+      );
+      gl.uniform3f(cache.final.uniforms.u_edge, edgeColor[0], edgeColor[1], edgeColor[2]);
+      gl.uniform1f(cache.final.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

@@ -36,12 +36,20 @@ export const runPrintmakingToneMonotonic = (): Result => {
     const mid = renderSolid(filter, 120);
     const dark = renderSolid(filter, 40);
     if (!light || !mid || !dark) return { ok: false, reason: `${name} readback failed` };
-    const lLight = meanLuma(light), lMid = meanLuma(mid), lDark = meanLuma(dark);
+    const lLight = meanLuma(light),
+      lMid = meanLuma(mid),
+      lDark = meanLuma(dark);
     if (!(lLight > lMid + 2)) {
-      return { ok: false, reason: `${name} light(${lLight.toFixed(1)}) not brighter than mid(${lMid.toFixed(1)})` };
+      return {
+        ok: false,
+        reason: `${name} light(${lLight.toFixed(1)}) not brighter than mid(${lMid.toFixed(1)})`,
+      };
     }
     if (!(lMid > lDark + 2)) {
-      return { ok: false, reason: `${name} mid(${lMid.toFixed(1)}) not brighter than dark(${lDark.toFixed(1)})` };
+      return {
+        ok: false,
+        reason: `${name} mid(${lMid.toFixed(1)}) not brighter than dark(${lDark.toFixed(1)})`,
+      };
     }
   }
   return { ok: true };
@@ -58,7 +66,8 @@ export const runStippleDensityModulation = (): Result => {
   const inkedFraction = (value: number): number => {
     const pixels = renderSolid(filter, value);
     if (!pixels) return -1;
-    let inked = 0, total = 0;
+    let inked = 0,
+      total = 0;
     for (let i = 0; i < pixels.length; i += 4) {
       total += 1;
       const luma = 0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2];
@@ -71,12 +80,16 @@ export const runStippleDensityModulation = (): Result => {
   if (light < 0 || dark < 0) return { ok: false, reason: "Stipple readback failed" };
   return dark > light + 0.05
     ? { ok: true }
-    : { ok: false, reason: `Stipple density did not rise with darkness (light ${light.toFixed(3)} -> dark ${dark.toFixed(3)})` };
+    : {
+        ok: false,
+        reason: `Stipple density did not rise with darkness (light ${light.toFixed(3)} -> dark ${dark.toFixed(3)})`,
+      };
 };
 
 /** The GL printmaking shaders must pass source alpha straight through. */
 export const runPrintmakingAlphaPreservation = (): Result => {
-  const width = 64, height = 16;
+  const width = 64,
+    height = 16;
   const source = document.createElement("canvas");
   source.width = width;
   source.height = height;
@@ -104,17 +117,25 @@ export const runPrintmakingAlphaPreservation = (): Result => {
     fresh.getContext("2d")!.putImageData(new ImageData(expected.slice(), width, height), 0, 0);
     let pixels: Uint8ClampedArray | null;
     try {
-      pixels = canvasPixels(filter.func(fresh, {
-        ...(filter.defaults ?? {}),
-        ...runtimeOptions(),
-      }) as HTMLCanvasElement);
+      pixels = canvasPixels(
+        filter.func(fresh, {
+          ...(filter.defaults ?? {}),
+          ...runtimeOptions(),
+        }) as HTMLCanvasElement,
+      );
     } catch (error) {
-      return { ok: false, reason: `${name} threw: ${error instanceof Error ? error.message : String(error)}` };
+      return {
+        ok: false,
+        reason: `${name} threw: ${error instanceof Error ? error.message : String(error)}`,
+      };
     }
     if (!pixels) return { ok: false, reason: `${name} readback failed` };
     for (let i = 3; i < pixels.length; i += 4) {
       if (Math.abs(pixels[i] - expected[i]) > 2) {
-        return { ok: false, reason: `${name} altered alpha at ${i}: ${expected[i]} -> ${pixels[i]}` };
+        return {
+          ok: false,
+          reason: `${name} altered alpha at ${i}: ${expected[i]} -> ${pixels[i]}`,
+        };
       }
     }
   }

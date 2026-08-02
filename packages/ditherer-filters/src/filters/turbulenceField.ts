@@ -15,11 +15,16 @@ const smooth = (t: number): number => t * t * (3 - 2 * t);
 
 /** Smooth value noise in [0,1] over a unit lattice. */
 export const valueNoise = (x: number, y: number): number => {
-  const ix = Math.floor(x), iy = Math.floor(y);
-  const fx = x - ix, fy = y - iy;
-  const a = hash2(ix, iy), b = hash2(ix + 1, iy);
-  const c = hash2(ix, iy + 1), d = hash2(ix + 1, iy + 1);
-  const ux = smooth(fx), uy = smooth(fy);
+  const ix = Math.floor(x),
+    iy = Math.floor(y);
+  const fx = x - ix,
+    fy = y - iy;
+  const a = hash2(ix, iy),
+    b = hash2(ix + 1, iy);
+  const c = hash2(ix, iy + 1),
+    d = hash2(ix + 1, iy + 1);
+  const ux = smooth(fx),
+    uy = smooth(fy);
   return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
 };
 

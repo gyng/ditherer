@@ -26,7 +26,13 @@ export const optionTypes = {
     default: DIR.HORIZONTAL,
     desc: "Whether columns or rows represent time slices",
   },
-  depth: { type: RANGE, range: [2, 60], step: 1, default: 30, desc: "Frames of history to scan across" },
+  depth: {
+    type: RANGE,
+    range: [2, 60],
+    step: 1,
+    default: 30,
+    desc: "Frames of history to scan across",
+  },
   reverse: { type: BOOL, default: false, desc: "Flip the time direction" },
   scanLine: {
     type: ENUM,
@@ -39,9 +45,17 @@ export const optionTypes = {
     desc: "Which column/row captures the live slice",
   },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _f: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-  }},
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _f: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
+  },
 };
 
 export const defaults = {
@@ -100,8 +114,13 @@ let _ringFilled = 0;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_frames", "u_filled", "u_capacity", "u_head",
-    "u_horizontal", "u_reverse", "u_resolution",
+    "u_frames",
+    "u_filled",
+    "u_capacity",
+    "u_head",
+    "u_horizontal",
+    "u_reverse",
+    "u_resolution",
   ] as const);
   return _prog;
 };
@@ -126,7 +145,8 @@ const slitScan = (input: any, options: SlitScanOptions = defaults) => {
   const reverse = Boolean(options.reverse ?? defaults.reverse);
   let depth = Number(options.depth ?? defaults.depth);
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const bytesPerFrame = W * H * 4;
   const maxDepth = Math.max(2, Math.floor(MAX_BYTES / bytesPerFrame));
@@ -141,8 +161,11 @@ const slitScan = (input: any, options: SlitScanOptions = defaults) => {
   resizeGLCanvas(canvas, W, H);
 
   if (_ringW !== W || _ringH !== H || _ringDepth !== depth || frameIndex === 0) {
-    _ringW = W; _ringH = H; _ringDepth = depth;
-    _ringHead = 0; _ringFilled = 0;
+    _ringW = W;
+    _ringH = H;
+    _ringDepth = depth;
+    _ringHead = 0;
+    _ringFilled = 0;
   }
 
   const arrTex = ensureArrayTex(gl, W, H, depth);
@@ -151,22 +174,41 @@ const slitScan = (input: any, options: SlitScanOptions = defaults) => {
   const layer = _ringHead % depth;
   gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, layer, W, H, 1,
-    gl.RGBA, gl.UNSIGNED_BYTE, input as TexImageSource);
+  gl.texSubImage3D(
+    gl.TEXTURE_2D_ARRAY,
+    0,
+    0,
+    0,
+    layer,
+    W,
+    H,
+    1,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    input as TexImageSource,
+  );
   _ringHead++;
   _ringFilled = Math.min(_ringFilled + 1, depth);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
-    gl.uniform1i(prog.uniforms.u_frames, 0);
-    gl.uniform1i(prog.uniforms.u_filled, _ringFilled);
-    gl.uniform1i(prog.uniforms.u_capacity, depth);
-    gl.uniform1i(prog.uniforms.u_head, _ringHead);
-    gl.uniform1i(prog.uniforms.u_horizontal, direction === DIR.HORIZONTAL ? 1 : 0);
-    gl.uniform1i(prog.uniforms.u_reverse, reverse ? 1 : 0);
-    gl.uniform2f(prog.uniforms.u_resolution, W, H);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, arrTex);
+      gl.uniform1i(prog.uniforms.u_frames, 0);
+      gl.uniform1i(prog.uniforms.u_filled, _ringFilled);
+      gl.uniform1i(prog.uniforms.u_capacity, depth);
+      gl.uniform1i(prog.uniforms.u_head, _ringHead);
+      gl.uniform1i(prog.uniforms.u_horizontal, direction === DIR.HORIZONTAL ? 1 : 0);
+      gl.uniform1i(prog.uniforms.u_reverse, reverse ? 1 : 0);
+      gl.uniform2f(prog.uniforms.u_resolution, W, H);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (rendered) {

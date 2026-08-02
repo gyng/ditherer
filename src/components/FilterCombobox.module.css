@@ -51,7 +51,9 @@
   overflow: hidden;
   border: 2px outset var(--button-highlight, #fff);
   background: var(--light-gray, #c0c0c0);
-  box-shadow: 3px 3px 0 var(--button-dk-shadow, #000), 10px 12px 24px rgb(0 0 0 / 22%);
+  box-shadow:
+    3px 3px 0 var(--button-dk-shadow, #000),
+    10px 12px 24px rgb(0 0 0 / 22%);
   color: var(--window-text, #111);
   transform-origin: var(--radix-popover-content-transform-origin);
 }
@@ -61,8 +63,14 @@
 }
 
 @keyframes finder-in {
-  from { opacity: 0; transform: translateY(-3px) scale(0.995); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .command {
@@ -78,7 +86,11 @@
   align-items: baseline;
   gap: 2px 10px;
   padding: 8px 10px 9px;
-  background: linear-gradient(90deg, var(--beautiful-blue, #000080), var(--beautiful-blue-gradient, #1c85ce));
+  background: linear-gradient(
+    90deg,
+    var(--beautiful-blue, #000080),
+    var(--beautiful-blue-gradient, #1c85ce)
+  );
   color: #fff;
   text-shadow: 1px 1px 0 rgb(0 0 0 / 45%);
 }
@@ -478,10 +490,26 @@
   color: #17385f;
 }
 
-.badge_anim { border-color: #315f9a; background: #d9e8ff; color: #11305f; }
-.badge_temp { border-color: #7b4a2d; background: #ffe8d6; color: #5c2f15; }
-.badge_gl { border-color: #8a3d00; background: #ffd9b3; color: #5a2800; }
-.badge_cpu { border-color: #555; background: #e6e6e6; color: #222; }
+.badge_anim {
+  border-color: #315f9a;
+  background: #d9e8ff;
+  color: #11305f;
+}
+.badge_temp {
+  border-color: #7b4a2d;
+  background: #ffe8d6;
+  color: #5c2f15;
+}
+.badge_gl {
+  border-color: #8a3d00;
+  background: #ffd9b3;
+  color: #5a2800;
+}
+.badge_cpu {
+  border-color: #555;
+  background: #e6e6e6;
+  color: #222;
+}
 
 .item[data-selected="true"],
 .item:hover {
@@ -510,8 +538,7 @@
   width: 100%;
   aspect-ratio: 8 / 5;
   border: 1px solid var(--input-border, #808080);
-  background:
-    repeating-conic-gradient(#d8d8d8 0% 25%, #efefef 0% 50%) 0 / 14px 14px;
+  background: repeating-conic-gradient(#d8d8d8 0% 25%, #efefef 0% 50%) 0 / 14px 14px;
   overflow: hidden;
 }
 

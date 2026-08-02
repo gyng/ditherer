@@ -2,22 +2,28 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const filterEntries = vi.hoisted(() => Array.from({ length: 55 }, (_, index) => {
-  const displayName = index === 0 ? "Alpha Glow" : index === 1 ? "Beta Motion" : `Filter ${index}`;
-  return {
-    displayName,
-    category: index % 2 === 0 ? "Stylize" : "Motion",
-    description: index === 0 ? "Bright alpha bloom" : `Description ${index}`,
-    filter: {
-      optionTypes: index === 2 ? { animate: { type: "ACTION" }, amount: { type: "RANGE", label: "Power" } } : {},
-      requiresGL: index === 0,
-      temporal: index === 1,
-      autoAnimate: index === 3,
-      noGL: index === 4 ? "sequential" : undefined,
-      noWASM: index === 5 ? "canvas" : undefined,
-    },
-  };
-}));
+const filterEntries = vi.hoisted(() =>
+  Array.from({ length: 55 }, (_, index) => {
+    const displayName =
+      index === 0 ? "Alpha Glow" : index === 1 ? "Beta Motion" : `Filter ${index}`;
+    return {
+      displayName,
+      category: index % 2 === 0 ? "Stylize" : "Motion",
+      description: index === 0 ? "Bright alpha bloom" : `Description ${index}`,
+      filter: {
+        optionTypes:
+          index === 2
+            ? { animate: { type: "ACTION" }, amount: { type: "RANGE", label: "Power" } }
+            : {},
+        requiresGL: index === 0,
+        temporal: index === 1,
+        autoAnimate: index === 3,
+        noGL: index === 4 ? "sequential" : undefined,
+        noWASM: index === 5 ? "canvas" : undefined,
+      },
+    };
+  }),
+);
 
 vi.mock("@gyng/ditherer-filters", () => ({ filterList: filterEntries }));
 
@@ -39,11 +45,14 @@ let container: HTMLDivElement;
 
 beforeAll(() => {
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  vi.stubGlobal("ResizeObserver", class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  });
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal("PointerEvent", MouseEvent);
   Object.defineProperty(globalThis, "CSS", {
     configurable: true,
@@ -66,7 +75,9 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
-  document.querySelectorAll("[data-radix-popper-content-wrapper]").forEach((element) => element.remove());
+  document
+    .querySelectorAll("[data-radix-popper-content-wrapper]")
+    .forEach((element) => element.remove());
 });
 
 describe("FilterCombobox", () => {
@@ -74,9 +85,11 @@ describe("FilterCombobox", () => {
     localStorage.setItem("ditherer-filter-recents", "not-json");
     const onSelect = vi.fn();
     const onClose = vi.fn();
-    await act(async () => root.render(
-      <FilterCombobox onSelect={onSelect} onClose={onClose} autoFocus placeholder="Add stage" />,
-    ));
+    await act(async () =>
+      root.render(
+        <FilterCombobox onSelect={onSelect} onClose={onClose} autoFocus placeholder="Add stage" />,
+      ),
+    );
 
     const input = document.querySelector<HTMLInputElement>('input[aria-label="Search filters"]')!;
     expect(input).toBeTruthy();
@@ -84,7 +97,9 @@ describe("FilterCombobox", () => {
     expect(document.body.textContent).toContain("Stylize");
     expect(document.body.textContent).toContain("Motion");
 
-    const browseMotion = document.querySelector<HTMLButtonElement>('button[aria-label^="Browse Motion filters"]')!;
+    const browseMotion = document.querySelector<HTMLButtonElement>(
+      'button[aria-label^="Browse Motion filters"]',
+    )!;
     act(() => browseMotion.click());
     expect(document.body.textContent).toContain("Motion filters");
     expect(document.querySelectorAll('[data-testid="filter-typeahead-item"]')).toHaveLength(27);
@@ -98,8 +113,12 @@ describe("FilterCombobox", () => {
     await act(async () => Promise.resolve());
     expect(document.body.textContent).toContain("48 of 53 matches");
 
-    const clear = document.querySelector<HTMLButtonElement>('button[aria-label="Clear filter search"]')!;
-    act(() => clear.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
+    const clear = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Clear filter search"]',
+    )!;
+    act(() =>
+      clear.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })),
+    );
     act(() => clear.click());
     expect(input.value).toBe("");
 
@@ -124,18 +143,23 @@ describe("FilterCombobox", () => {
 
   it("deduplicates current/recent suggestions without mutating from closed arrow keys", async () => {
     const onSelect = vi.fn();
-    await act(async () => root.render(
-      <FilterCombobox
-        onSelect={onSelect}
-        currentValue="Alpha Glow"
-        inline
-        placeholder="Alpha Glow"
-      />,
-    ));
+    await act(async () =>
+      root.render(
+        <FilterCombobox
+          onSelect={onSelect}
+          currentValue="Alpha Glow"
+          inline
+          placeholder="Alpha Glow"
+        />,
+      ),
+    );
 
     // A different picker can update the shared recents after this instance
     // mounted. Keyboard-open must refresh exactly like pointer-open does.
-    localStorage.setItem("ditherer-filter-recents", JSON.stringify(["Alpha Glow", "Alpha Glow", 4, "missing", "Beta Motion"]));
+    localStorage.setItem(
+      "ditherer-filter-recents",
+      JSON.stringify(["Alpha Glow", "Alpha Glow", 4, "missing", "Beta Motion"]),
+    );
 
     const trigger = container.querySelector<HTMLButtonElement>('button[role="combobox"]')!;
     key(trigger, "ArrowDown");
@@ -144,13 +168,16 @@ describe("FilterCombobox", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     const popupId = trigger.getAttribute("aria-controls");
     expect(popupId).toBeTruthy();
-    expect(document.getElementById(popupId!)).toBe(document.querySelector('[data-testid="filter-typeahead"]'));
+    expect(document.getElementById(popupId!)).toBe(
+      document.querySelector('[data-testid="filter-typeahead"]'),
+    );
 
     // Replacing opens into the current filter's category; go back to the
     // overview to inspect the refreshed, deduped recents.
     expect(document.body.textContent).toContain("Stylize filters");
-    const backToCategories = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("Categories"))!;
+    const backToCategories = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent?.includes("Categories"))!;
     act(() => backToCategories.click());
     expect(document.body.textContent).toContain("Recently used");
     expect(document.querySelectorAll('[data-recent-value="Alpha Glow"]')).toHaveLength(1);
@@ -158,9 +185,11 @@ describe("FilterCombobox", () => {
 
   it("opens safely from navigation keys even with an unknown current value", async () => {
     const onSelect = vi.fn();
-    await act(async () => root.render(
-      <FilterCombobox onSelect={onSelect} currentValue="Unknown" placeholder="Unknown" />,
-    ));
+    await act(async () =>
+      root.render(
+        <FilterCombobox onSelect={onSelect} currentValue="Unknown" placeholder="Unknown" />,
+      ),
+    );
     const trigger = container.querySelector<HTMLButtonElement>('button[role="combobox"]')!;
 
     key(trigger, "ArrowUp");

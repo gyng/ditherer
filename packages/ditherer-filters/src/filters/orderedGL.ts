@@ -196,9 +196,21 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 
 const uniformNames = [
-  "u_source", "u_threshold", "u_res", "u_mapBaseSize", "u_mapScale",
-  "u_tempOffset", "u_levels", "u_paletteLevels", "u_invertThreshold", "u_linearize", "u_palMode", "u_paletteCount",
-  "u_paletteRgb[0]", "u_paletteAux[0]", "u_labRef",
+  "u_source",
+  "u_threshold",
+  "u_res",
+  "u_mapBaseSize",
+  "u_mapScale",
+  "u_tempOffset",
+  "u_levels",
+  "u_paletteLevels",
+  "u_invertThreshold",
+  "u_linearize",
+  "u_palMode",
+  "u_paletteCount",
+  "u_paletteRgb[0]",
+  "u_paletteAux[0]",
+  "u_labRef",
 ];
 
 const initCache = (gl: WebGL2RenderingContext): Cache => {
@@ -222,7 +234,10 @@ export const ORDERED_PAL_MODE = {
 // hash). The CPU-side thresholdMaps object holds fixed arrays per name so a
 // simple name-key is enough in practice, but hashing the first row keeps us
 // safe against future variants.
-const _thresholdTexCache = new Map<string, { tex: WebGLTexture; w: number; h: number; mapRef: number[][] }>();
+const _thresholdTexCache = new Map<
+  string,
+  { tex: WebGLTexture; w: number; h: number; mapRef: number[][] }
+>();
 
 const uploadThresholdMap = (
   gl: WebGL2RenderingContext,
@@ -256,8 +271,11 @@ const uploadThresholdMap = (
 
 // Precomputed CPU → GLSL helpers, matching lib.rs.
 const rgbToHsvJs = (r: number, g: number, b: number): [number, number, number] => {
-  const rn = r / 255, gn = g / 255, bn = b / 255;
-  const mx = Math.max(rn, gn, bn), mn = Math.min(rn, gn, bn);
+  const rn = r / 255,
+    gn = g / 255,
+    bn = b / 255;
+  const mx = Math.max(rn, gn, bn),
+    mn = Math.min(rn, gn, bn);
   const delta = mx - mn;
   const v = mx;
   if (delta === 0) return [0, 0, v];
@@ -269,8 +287,10 @@ const rgbToHsvJs = (r: number, g: number, b: number): [number, number, number] =
 };
 
 const rgbToOklabJs = (r: number, g: number, b: number): [number, number, number] => {
-  const srgb = (c: number) => c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
-  const lr = srgb(r / 255), lg = srgb(g / 255), lb = srgb(b / 255);
+  const srgb = (c: number) => (c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92);
+  const lr = srgb(r / 255),
+    lg = srgb(g / 255),
+    lb = srgb(b / 255);
   const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
   const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
   const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
@@ -281,15 +301,28 @@ const rgbToOklabJs = (r: number, g: number, b: number): [number, number, number]
   ];
 };
 
-const rgbToLabJs = (r: number, g: number, b: number, rx: number, ry: number, rz: number): [number, number, number] => {
-  const srgb = (c: number) => c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
-  const lr = srgb(r / 255) * 100, lg = srgb(g / 255) * 100, lb = srgb(b / 255) * 100;
+const rgbToLabJs = (
+  r: number,
+  g: number,
+  b: number,
+  rx: number,
+  ry: number,
+  rz: number,
+): [number, number, number] => {
+  const srgb = (c: number) => (c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92);
+  const lr = srgb(r / 255) * 100,
+    lg = srgb(g / 255) * 100,
+    lb = srgb(b / 255) * 100;
   let X = lr * 0.4124 + lg * 0.3576 + lb * 0.1805;
   let Y = lr * 0.2126 + lg * 0.7152 + lb * 0.0722;
   let Z = lr * 0.0193 + lg * 0.1192 + lb * 0.9505;
-  X /= rx; Y /= ry; Z /= rz;
-  const f = (t: number) => t > 0.008856 ? Math.cbrt(t) : t * 7.787 + 16 / 116;
-  const fx = f(X), fy = f(Y), fz = f(Z);
+  X /= rx;
+  Y /= ry;
+  Z /= rz;
+  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : t * 7.787 + 16 / 116);
+  const fx = f(X),
+    fy = f(Y),
+    fz = f(Z);
   return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
 };
 
@@ -309,7 +342,7 @@ export const renderOrderedGL = (
     invertThreshold: boolean;
     linearize: boolean;
     palMode: number;
-    paletteRgb: number[][] | null;   // 0..255 RGB list, or null for LEVELS mode
+    paletteRgb: number[][] | null; // 0..255 RGB list, or null for LEVELS mode
     labRef: [number, number, number]; // LAB whitepoint (D65 default)
   },
 ): HTMLCanvasElement | OffscreenCanvas | null => {
@@ -335,13 +368,19 @@ export const renderOrderedGL = (
       flatRgb[i * 3 + 2] = c[2];
       if (opts.palMode === ORDERED_PAL_MODE.LAB) {
         const lab = rgbToLabJs(c[0], c[1], c[2], opts.labRef[0], opts.labRef[1], opts.labRef[2]);
-        flatAux[i * 3] = lab[0]; flatAux[i * 3 + 1] = lab[1]; flatAux[i * 3 + 2] = lab[2];
+        flatAux[i * 3] = lab[0];
+        flatAux[i * 3 + 1] = lab[1];
+        flatAux[i * 3 + 2] = lab[2];
       } else if (opts.palMode === ORDERED_PAL_MODE.OKLAB) {
         const ok = rgbToOklabJs(c[0], c[1], c[2]);
-        flatAux[i * 3] = ok[0]; flatAux[i * 3 + 1] = ok[1]; flatAux[i * 3 + 2] = ok[2];
+        flatAux[i * 3] = ok[0];
+        flatAux[i * 3 + 1] = ok[1];
+        flatAux[i * 3 + 2] = ok[2];
       } else if (opts.palMode === ORDERED_PAL_MODE.HSV) {
         const hsv = rgbToHsvJs(c[0], c[1], c[2]);
-        flatAux[i * 3] = hsv[0]; flatAux[i * 3 + 1] = hsv[1]; flatAux[i * 3 + 2] = hsv[2];
+        flatAux[i * 3] = hsv[0];
+        flatAux[i * 3 + 1] = hsv[1];
+        flatAux[i * 3 + 2] = hsv[2];
       }
     }
   }
@@ -350,32 +389,40 @@ export const renderOrderedGL = (
   const sourceTex = ensureTexture(gl, "ordered:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, threshTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_threshold, 1);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform2i(cache.prog.uniforms.u_mapBaseSize, threshTex.w, threshTex.h);
-    gl.uniform2i(cache.prog.uniforms.u_mapScale, opts.mapScaleX, opts.mapScaleY);
-    gl.uniform2i(cache.prog.uniforms.u_tempOffset, opts.tempOffsetX, opts.tempOffsetY);
-    gl.uniform1f(
-      cache.prog.uniforms.u_levels,
-      opts.palMode === ORDERED_PAL_MODE.LEVELS ? opts.paletteLevels : opts.levels,
-    );
-    gl.uniform1i(cache.prog.uniforms.u_paletteLevels, opts.paletteLevels);
-    gl.uniform1i(cache.prog.uniforms.u_invertThreshold, opts.invertThreshold ? 1 : 0);
-    gl.uniform1i(cache.prog.uniforms.u_linearize, opts.linearize ? 1 : 0);
-    gl.uniform1i(cache.prog.uniforms.u_palMode, opts.palMode);
-    gl.uniform1i(cache.prog.uniforms.u_paletteCount, paletteCount);
-    const locRgb = cache.prog.uniforms["u_paletteRgb[0]"];
-    if (locRgb) gl.uniform3fv(locRgb, flatRgb);
-    const locAux = cache.prog.uniforms["u_paletteAux[0]"];
-    if (locAux) gl.uniform3fv(locAux, flatAux);
-    gl.uniform3f(cache.prog.uniforms.u_labRef, opts.labRef[0], opts.labRef[1], opts.labRef[2]);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, threshTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_threshold, 1);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform2i(cache.prog.uniforms.u_mapBaseSize, threshTex.w, threshTex.h);
+      gl.uniform2i(cache.prog.uniforms.u_mapScale, opts.mapScaleX, opts.mapScaleY);
+      gl.uniform2i(cache.prog.uniforms.u_tempOffset, opts.tempOffsetX, opts.tempOffsetY);
+      gl.uniform1f(
+        cache.prog.uniforms.u_levels,
+        opts.palMode === ORDERED_PAL_MODE.LEVELS ? opts.paletteLevels : opts.levels,
+      );
+      gl.uniform1i(cache.prog.uniforms.u_paletteLevels, opts.paletteLevels);
+      gl.uniform1i(cache.prog.uniforms.u_invertThreshold, opts.invertThreshold ? 1 : 0);
+      gl.uniform1i(cache.prog.uniforms.u_linearize, opts.linearize ? 1 : 0);
+      gl.uniform1i(cache.prog.uniforms.u_palMode, opts.palMode);
+      gl.uniform1i(cache.prog.uniforms.u_paletteCount, paletteCount);
+      const locRgb = cache.prog.uniforms["u_paletteRgb[0]"];
+      if (locRgb) gl.uniform3fv(locRgb, flatRgb);
+      const locAux = cache.prog.uniforms["u_paletteAux[0]"];
+      if (locAux) gl.uniform3fv(locAux, flatAux);
+      gl.uniform3f(cache.prog.uniforms.u_labRef, opts.labRef[0], opts.labRef[1], opts.labRef[2]);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

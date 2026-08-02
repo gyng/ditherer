@@ -26,34 +26,38 @@ export const VideoTab = ({
 }: VideoTabProps) => {
   return (
     <div className={s.videoTab}>
-    <div className={s.row}>
-      <span className={s.rowLabel}>
-        Format
-        <span
-          className={s.inlineInfo}
-          title="Choose the export output type. Recording captures video, GIF and sequence export sampled frames, and contact sheet exports a sampled grid."
-        >
-          (i)
+      <div className={s.row}>
+        <span className={s.rowLabel}>
+          Format
+          <span
+            className={s.inlineInfo}
+            title="Choose the export output type. Recording captures video, GIF and sequence export sampled frames, and contact sheet exports a sampled grid."
+          >
+            (i)
+          </span>
         </span>
-      </span>
-      <div className={s.radioGroup}>
-        {videoFormatOptions.map((option) => (
-          <label key={option.value}>
-            <input
-              type="radio"
-              name="videoFormat"
-              value={option.value}
-              checked={videoFormat === option.value}
-              onChange={() => onSetVideoFormat(option.value)}
-            />
-            {option.name || option.value}
-          </label>
-        ))}
+        <div className={s.radioGroup}>
+          {videoFormatOptions.map((option) => (
+            <label key={option.value}>
+              <input
+                type="radio"
+                name="videoFormat"
+                value={option.value}
+                checked={videoFormat === option.value}
+                onChange={() => onSetVideoFormat(option.value)}
+              />
+              {option.name || option.value}
+            </label>
+          ))}
+        </div>
       </div>
-    </div>
 
-    {videoFormat === "recording" && <RecordingPanel {...recordingPanel} videoVolume={videoVolume} />}
-    {(videoFormat === "gif" || videoFormat === "sequence" || videoFormat === "contact") && <FrameExportPanel {...frameExportPanel} videoFormat={videoFormat} />}
-  </div>
+      {videoFormat === "recording" && (
+        <RecordingPanel {...recordingPanel} videoVolume={videoVolume} />
+      )}
+      {(videoFormat === "gif" || videoFormat === "sequence" || videoFormat === "contact") && (
+        <FrameExportPanel {...frameExportPanel} videoFormat={videoFormat} />
+      )}
+    </div>
   );
 };

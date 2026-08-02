@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -111,9 +118,19 @@ const getCache = (gl: WebGL2RenderingContext): Cache => {
   cache = {
     blur: linkProgram(gl, BLUR_FS, ["u_input", "u_res", "u_axis", "u_radius"] as const),
     final: linkProgram(gl, FINAL_FS, [
-      "u_source", "u_structure", "u_shadowThreshold", "u_highlightThreshold",
-      "u_shadowSteps", "u_highlightSteps", "u_edgeSoftness", "u_bandBias",
-      "u_shadowTint", "u_highlightTint", "u_colorSeparation", "u_preserveSkin", "u_mix",
+      "u_source",
+      "u_structure",
+      "u_shadowThreshold",
+      "u_highlightThreshold",
+      "u_shadowSteps",
+      "u_highlightSteps",
+      "u_edgeSoftness",
+      "u_bandBias",
+      "u_shadowTint",
+      "u_highlightTint",
+      "u_colorSeparation",
+      "u_preserveSkin",
+      "u_mix",
     ] as const),
   };
   return cache;
@@ -150,37 +167,68 @@ export const renderAnimeToneBandsGL = (
   uploadSourceTexture(gl, sourceTexture, source);
   const radius = Math.max(1, Math.min(12, Math.round(structureScale)));
 
-  const drawBlur = (input: WebGLTexture, target: ReturnType<typeof ensureTexture>, x: number, y: number) => {
-    drawPass(gl, target, width, height, programs.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, input);
-      gl.uniform1i(programs.blur.uniforms.u_input, 0);
-      gl.uniform2f(programs.blur.uniforms.u_res, width, height);
-      gl.uniform2f(programs.blur.uniforms.u_axis, x, y);
-      gl.uniform1i(programs.blur.uniforms.u_radius, radius);
-    }, vao);
+  const drawBlur = (
+    input: WebGLTexture,
+    target: ReturnType<typeof ensureTexture>,
+    x: number,
+    y: number,
+  ) => {
+    drawPass(
+      gl,
+      target,
+      width,
+      height,
+      programs.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, input);
+        gl.uniform1i(programs.blur.uniforms.u_input, 0);
+        gl.uniform2f(programs.blur.uniforms.u_res, width, height);
+        gl.uniform2f(programs.blur.uniforms.u_axis, x, y);
+        gl.uniform1i(programs.blur.uniforms.u_radius, radius);
+      },
+      vao,
+    );
   };
   drawBlur(sourceTexture.tex, horizontal, 1, 0);
   drawBlur(horizontal.tex, structure, 0, 1);
 
-  drawPass(gl, null, width, height, programs.final, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(programs.final.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, structure.tex);
-    gl.uniform1i(programs.final.uniforms.u_structure, 1);
-    gl.uniform1f(programs.final.uniforms.u_shadowThreshold, shadowThreshold);
-    gl.uniform1f(programs.final.uniforms.u_highlightThreshold, highlightThreshold);
-    gl.uniform1f(programs.final.uniforms.u_shadowSteps, shadowSteps);
-    gl.uniform1f(programs.final.uniforms.u_highlightSteps, highlightSteps);
-    gl.uniform1f(programs.final.uniforms.u_edgeSoftness, edgeSoftness);
-    gl.uniform1f(programs.final.uniforms.u_bandBias, bandBias);
-    gl.uniform3f(programs.final.uniforms.u_shadowTint, shadowTint[0]! / 255, shadowTint[1]! / 255, shadowTint[2]! / 255);
-    gl.uniform3f(programs.final.uniforms.u_highlightTint, highlightTint[0]! / 255, highlightTint[1]! / 255, highlightTint[2]! / 255);
-    gl.uniform1f(programs.final.uniforms.u_colorSeparation, colorSeparation);
-    gl.uniform1i(programs.final.uniforms.u_preserveSkin, preserveSkin ? 1 : 0);
-    gl.uniform1f(programs.final.uniforms.u_mix, mixAmount);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    programs.final,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(programs.final.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, structure.tex);
+      gl.uniform1i(programs.final.uniforms.u_structure, 1);
+      gl.uniform1f(programs.final.uniforms.u_shadowThreshold, shadowThreshold);
+      gl.uniform1f(programs.final.uniforms.u_highlightThreshold, highlightThreshold);
+      gl.uniform1f(programs.final.uniforms.u_shadowSteps, shadowSteps);
+      gl.uniform1f(programs.final.uniforms.u_highlightSteps, highlightSteps);
+      gl.uniform1f(programs.final.uniforms.u_edgeSoftness, edgeSoftness);
+      gl.uniform1f(programs.final.uniforms.u_bandBias, bandBias);
+      gl.uniform3f(
+        programs.final.uniforms.u_shadowTint,
+        shadowTint[0]! / 255,
+        shadowTint[1]! / 255,
+        shadowTint[2]! / 255,
+      );
+      gl.uniform3f(
+        programs.final.uniforms.u_highlightTint,
+        highlightTint[0]! / 255,
+        highlightTint[1]! / 255,
+        highlightTint[2]! / 255,
+      );
+      gl.uniform1f(programs.final.uniforms.u_colorSeparation, colorSeparation);
+      gl.uniform1i(programs.final.uniforms.u_preserveSkin, preserveSkin ? 1 : 0);
+      gl.uniform1f(programs.final.uniforms.u_mix, mixAmount);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

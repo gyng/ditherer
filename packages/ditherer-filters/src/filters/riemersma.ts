@@ -44,17 +44,20 @@ export const defaults = {
   palette: { ...optionTypes.palette.default, options: { levels: 2 } },
 };
 
-type RiemersmaOptions = FilterOptionValues & typeof defaults & {
-  _linearize?: boolean;
-  _wasmAcceleration?: boolean;
-};
+type RiemersmaOptions = FilterOptionValues &
+  typeof defaults & {
+    _linearize?: boolean;
+    _wasmAcceleration?: boolean;
+  };
 
 const riemersma = (
   input: HTMLCanvasElement | OffscreenCanvas,
   options: RiemersmaOptions = defaults,
 ) => {
   const palette = options.palette ?? defaults.palette;
-  const paletteOptions = palette.options as { levels?: number; colors?: number[][]; colorDistanceAlgorithm?: string } | undefined;
+  const paletteOptions = palette.options as
+    | { levels?: number; colors?: number[][]; colorDistanceAlgorithm?: string }
+    | undefined;
   const paletteColors = paletteOptions?.colors;
   const paletteAlgorithm = resolvePaletteColorAlgorithm(palette) ?? undefined;
   const paletteMode = paletteColors
@@ -90,7 +93,11 @@ const riemersma = (
       paletteColors ?? null,
     );
     outputCtx.putImageData(new ImageData(out, width, height), 0, 0);
-    logFilterBackend("Riemersma", "WASM", `hilbert memory=${memoryLength} falloff=${falloffRatio}${linearize ? " linear" : ""}`);
+    logFilterBackend(
+      "Riemersma",
+      "WASM",
+      `hilbert memory=${memoryLength} falloff=${falloffRatio}${linearize ? " linear" : ""}`,
+    );
     return output;
   }
 

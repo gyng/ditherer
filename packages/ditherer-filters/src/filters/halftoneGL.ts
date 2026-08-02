@@ -147,8 +147,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, HALFTONE_FS, [
-      "u_source", "u_res", "u_size", "u_sizeMultiplier", "u_offset",
-      "u_levels", "u_squareDots", "u_background", "u_linearize",
+      "u_source",
+      "u_res",
+      "u_size",
+      "u_sizeMultiplier",
+      "u_offset",
+      "u_levels",
+      "u_squareDots",
+      "u_background",
+      "u_linearize",
     ] as const),
   };
   return _cache;
@@ -162,11 +169,15 @@ export const parseCssColorRgb = (color: string): [number, number, number] | null
   const h6 = s.match(/^#([0-9a-f]{6})$/);
   if (h6) {
     const h = h6[1];
-    return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
+    return [
+      parseInt(h.slice(0, 2), 16) / 255,
+      parseInt(h.slice(2, 4), 16) / 255,
+      parseInt(h.slice(4, 6), 16) / 255,
+    ];
   }
   const h3 = s.match(/^#([0-9a-f]{3})$/);
   if (h3) {
-    return h3[1].split("").map(c => parseInt(c+c,16)/255) as [number,number,number];
+    return h3[1].split("").map((c) => parseInt(c + c, 16) / 255) as [number, number, number];
   }
   return null;
 };
@@ -196,19 +207,27 @@ export const renderHalftoneGL = (
   const sourceTex = ensureTexture(gl, "halftone:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
 
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_size, size);
-    gl.uniform1f(cache.prog.uniforms.u_sizeMultiplier, sizeMultiplier);
-    gl.uniform1f(cache.prog.uniforms.u_offset, offset);
-    gl.uniform1f(cache.prog.uniforms.u_levels, levels);
-    gl.uniform1f(cache.prog.uniforms.u_squareDots, squareDots ? 1 : 0);
-    gl.uniform3f(cache.prog.uniforms.u_background, ...background);
-    gl.uniform1f(cache.prog.uniforms.u_linearize, linearize ? 1 : 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_size, size);
+      gl.uniform1f(cache.prog.uniforms.u_sizeMultiplier, sizeMultiplier);
+      gl.uniform1f(cache.prog.uniforms.u_offset, offset);
+      gl.uniform1f(cache.prog.uniforms.u_levels, levels);
+      gl.uniform1f(cache.prog.uniforms.u_squareDots, squareDots ? 1 : 0);
+      gl.uniform3f(cache.prog.uniforms.u_background, ...background);
+      gl.uniform1f(cache.prog.uniforms.u_linearize, linearize ? 1 : 0);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

@@ -6,10 +6,34 @@ import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend
 import { renderScanlineWarpGL } from "./scanlineWarpGL";
 
 export const optionTypes = {
-  amplitude: { type: RANGE, range: [0, 50], step: 1, default: 10, desc: "Horizontal wave displacement" },
-  frequency: { type: RANGE, range: [0.1, 10], step: 0.1, default: 2, desc: "Wave oscillation frequency" },
-  phase: { type: RANGE, range: [0, 360], step: 1, default: 0, desc: "Wave phase offset in degrees" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12, desc: "Preview animation frame rate" },
+  amplitude: {
+    type: RANGE,
+    range: [0, 50],
+    step: 1,
+    default: 10,
+    desc: "Horizontal wave displacement",
+  },
+  frequency: {
+    type: RANGE,
+    range: [0.1, 10],
+    step: 0.1,
+    default: 2,
+    desc: "Wave oscillation frequency",
+  },
+  phase: {
+    type: RANGE,
+    range: [0, 360],
+    step: 1,
+    default: 0,
+    desc: "Wave phase offset in degrees",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 12,
+    desc: "Preview animation frame rate",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -20,9 +44,9 @@ export const optionTypes = {
       } else {
         actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
       }
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -30,23 +54,35 @@ export const defaults = {
   frequency: optionTypes.frequency.default,
   phase: optionTypes.phase.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const scanlineWarp = (
   input: any,
-  options: typeof defaults & { _frameIndex?: number } = defaults
+  options: typeof defaults & { _frameIndex?: number } = defaults,
 ) => {
   const { amplitude, frequency, phase, palette } = options;
   const frameIndex = options._frameIndex || 0;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const phaseRad = (phase * Math.PI) / 180;
 
-  const rendered = renderScanlineWarpGL(input, W, H, amplitude, frequency, phaseRad + frameIndex * 0.2);
+  const rendered = renderScanlineWarpGL(
+    input,
+    W,
+    H,
+    amplitude,
+    frequency,
+    phaseRad + frameIndex * 0.2,
+  );
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("Scanline Warp", "WebGL2", `amp=${amplitude} freq=${frequency}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Scanline Warp",
+    "WebGL2",
+    `amp=${amplitude} freq=${frequency}${identity ? "" : "+palettePass"}`,
+  );
   return out ?? input;
 };
 

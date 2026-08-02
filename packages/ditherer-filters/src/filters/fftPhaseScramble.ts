@@ -57,8 +57,20 @@ void main() {
 `;
 
 export const optionTypes = {
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 1, desc: "Phase randomisation strength (0 = passthrough, 1 = full scramble)" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Preview animation frame rate" },
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 1,
+    desc: "Phase randomisation strength (0 = passthrough, 1 = full scramble)",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 10,
+    desc: "Preview animation frame rate",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -66,15 +78,15 @@ export const optionTypes = {
     action: (actions: any, inputCanvas: any, _f: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 10);
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
   amount: optionTypes.amount.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { scramble: Program };
@@ -94,9 +106,9 @@ const fftPhaseScramble = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -112,14 +124,22 @@ const fftPhaseScramble = (input: any, options = defaults) => {
       if (fwd) {
         const scrambled = ensureFloatTex(gl, "fftPhaseScramble:masked", fwd.paddedW, fwd.paddedH);
         if (scrambled) {
-          drawPass(gl, scrambled, fwd.paddedW, fwd.paddedH, cache.scramble, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.scramble.uniforms.u_input, 0);
-            gl.uniform2f(cache.scramble.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-            gl.uniform1f(cache.scramble.uniforms.u_amount, amount);
-            gl.uniform1f(cache.scramble.uniforms.u_seed, frameIndex * 7919 + 31337);
-          }, vao);
+          drawPass(
+            gl,
+            scrambled,
+            fwd.paddedW,
+            fwd.paddedH,
+            cache.scramble,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.scramble.uniforms.u_input, 0);
+              gl.uniform2f(cache.scramble.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+              gl.uniform1f(cache.scramble.uniforms.u_amount, amount);
+              gl.uniform1f(cache.scramble.uniforms.u_seed, frameIndex * 7919 + 31337);
+            },
+            vao,
+          );
 
           const inv = inverseFFT2D(gl, scrambled, fwd.paddedW, fwd.paddedH, fwd.logW, fwd.logH);
           if (inv) {
@@ -129,8 +149,11 @@ const fftPhaseScramble = (input: any, options = defaults) => {
               const isNearest = (palette as { name?: string }).name === "nearest";
               const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Phase Scramble", "WebGL2",
-                  `amount=${amount}${isNearest ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Phase Scramble",
+                  "WebGL2",
+                  `amount=${amount}${isNearest ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -150,7 +173,9 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Randomise the 2D FFT phase while keeping magnitude — same spectral energy, scrambled spatial structure",
+  description:
+    "Randomise the 2D FFT phase while keeping magnitude — same spectral energy, scrambled spatial structure",
   temporal: true,
-  noWASM: "Real 2D FFT is only practical via GPU butterfly passes; WebGL2 + EXT_color_buffer_float required.",
+  noWASM:
+    "Real 2D FFT is only practical via GPU butterfly passes; WebGL2 + EXT_color_buffer_float required.",
 });

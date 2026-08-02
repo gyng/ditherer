@@ -25,17 +25,35 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [0, 360], step: 15, default: 135, desc: "Light direction angle for the emboss relief effect" },
-  strength: { type: RANGE, range: [0, 3], step: 0.1, default: 1, desc: "Emboss depth — higher values exaggerate the relief" },
-  blend: { type: RANGE, range: [0, 1], step: 0.05, default: 0, desc: "Blend between embossed result (0) and original image (1)" },
-  palette: { type: PALETTE, default: nearest }
+  angle: {
+    type: RANGE,
+    range: [0, 360],
+    step: 15,
+    default: 135,
+    desc: "Light direction angle for the emboss relief effect",
+  },
+  strength: {
+    type: RANGE,
+    range: [0, 3],
+    step: 0.1,
+    default: 1,
+    desc: "Emboss depth — higher values exaggerate the relief",
+  },
+  blend: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0,
+    desc: "Blend between embossed result (0) and original image (1)",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   angle: optionTypes.angle.default,
   strength: optionTypes.strength.default,
   blend: optionTypes.blend.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const EMBOSS_FS = `#version 300 es
@@ -89,7 +107,11 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     em: linkProgram(gl, EMBOSS_FS, [
-      "u_source", "u_res", "u_kernel", "u_blend", "u_levels",
+      "u_source",
+      "u_res",
+      "u_kernel",
+      "u_blend",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -97,7 +119,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const embossFilter = (input: any, options = defaults) => {
   const { angle, strength, blend, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const rad = (angle * Math.PI) / 180;
   const dx = Math.cos(rad);
@@ -123,25 +146,32 @@ const embossFilter = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "emboss:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.em, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.em.uniforms.u_source, 0);
-        gl.uniform2f(cache.em.uniforms.u_res, W, H);
-        gl.uniform1fv(cache.em.uniforms.u_kernel, kernel);
-        gl.uniform1f(cache.em.uniforms.u_blend, blend);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.em.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.em,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.em.uniforms.u_source, 0);
+          gl.uniform2f(cache.em.uniforms.u_res, W, H);
+          gl.uniform1fv(cache.em.uniforms.u_kernel, kernel);
+          gl.uniform1f(cache.em.uniforms.u_blend, blend);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.em.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Emboss", "WebGL2",
-            `angle=${angle}${identity ? "" : "+palettePass"}`);
+          logFilterBackend("Emboss", "WebGL2", `angle=${angle}${identity ? "" : "+palettePass"}`);
           return out;
         }
       }
@@ -159,7 +189,9 @@ const embossFilter = (input: any, options = defaults) => {
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let er = 0, eg = 0, eb = 0;
+      let er = 0,
+        eg = 0,
+        eb = 0;
 
       for (let ky = -1; ky <= 1; ky++) {
         for (let kx = -1; kx <= 1; kx++) {
@@ -196,5 +228,5 @@ export default defineFilter({
   func: embossFilter,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

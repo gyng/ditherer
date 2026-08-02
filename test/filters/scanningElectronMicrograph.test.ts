@@ -26,7 +26,9 @@ const MAX_AXIS_GRADIENT = 0.5;
 
 // Per-texel central differences of LINEAR luminance, measured on ordinary
 // imagery: a smooth region, a typical detail edge, and a hard sRGB step.
-const GRAD_SMOOTH = 0.02, GRAD_DETAIL = 0.05, GRAD_HARD_STEP = 0.4;
+const GRAD_SMOOTH = 0.02,
+  GRAD_DETAIL = 0.05,
+  GRAD_HARD_STEP = 0.4;
 
 describe("SEM secant-law secondary-electron yield", () => {
   it("is exactly delta0 / cos(theta)", () => {
@@ -94,8 +96,7 @@ describe("SEM secant law over the REACHABLE cos theta range", () => {
     expect(cosThetaFor(MAX_AXIS_GRADIENT, 80)).toBeGreaterThan(SEM_COS_EPSILON);
     // ...but a black/white CORNER drives both axes at once and does reach it, so
     // the guard is live insurance rather than dead code.
-    expect(cosThetaFor2D(MAX_AXIS_GRADIENT, MAX_AXIS_GRADIENT, 80))
-      .toBeLessThan(SEM_COS_EPSILON);
+    expect(cosThetaFor2D(MAX_AXIS_GRADIENT, MAX_AXIS_GRADIENT, 80)).toBeLessThan(SEM_COS_EPSILON);
   });
 });
 
@@ -166,7 +167,9 @@ describe("SEM surface normal from the invented heightfield", () => {
     // Normal leans against the uphill direction.
     expect(gentle[0]).toBeLessThan(0);
     // Steeper relief => lower cos theta => brighter secant-law yield.
-    expect(secondaryElectronYield(steep[2], 1)).toBeGreaterThan(secondaryElectronYield(gentle[2], 1));
+    expect(secondaryElectronYield(steep[2], 1)).toBeGreaterThan(
+      secondaryElectronYield(gentle[2], 1),
+    );
   });
 
   it("survives degenerate inputs", () => {
@@ -183,9 +186,10 @@ describe("SEM surface normal from the invented heightfield", () => {
 
 describe("SEM Everhart-Thornley directionality", () => {
   it("favours faces turned toward the detector and floors the rest", () => {
-    const az = 0, el = Math.PI / 6;
+    const az = 0,
+      el = Math.PI / 6;
     const facingDetector = surfaceNormalFromHeightGradient(-0.6, 0, 4); // normal leans +x
-    const facingAway = surfaceNormalFromHeightGradient(0.6, 0, 4);      // normal leans -x
+    const facingAway = surfaceNormalFromHeightGradient(0.6, 0, 4); // normal leans -x
     expect(everhartThornleyResponse(facingDetector, az, el)).toBeGreaterThan(
       everhartThornleyResponse(facingAway, az, el),
     );
@@ -204,6 +208,8 @@ describe("SEM Everhart-Thornley directionality", () => {
       expect(r).toBeGreaterThanOrEqual(0);
       expect(r).toBeLessThanOrEqual(1);
     }
-    expect(Number.isFinite(everhartThornleyResponse([Number.NaN, 0, 1], Number.NaN, Number.NaN))).toBe(true);
+    expect(
+      Number.isFinite(everhartThornleyResponse([Number.NaN, 0, 1], Number.NaN, Number.NaN)),
+    ).toBe(true);
   });
 });

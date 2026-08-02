@@ -33,26 +33,46 @@ const emitterLinear = (srgb: RGB, threshold: number) => {
 
 // --- ray-march accumulation: scattered += emitter * illumination (grain=1) ---
 const accumulate = (emit: number, decay: number, steps = 64) => {
-  let illum = 1, scattered = 0;
-  for (let i = 0; i < steps; i++) { scattered += emit * illum; illum *= decay; }
+  let illum = 1,
+    scattered = 0;
+  for (let i = 0; i < steps; i++) {
+    scattered += emit * illum;
+    illum *= decay;
+  }
   return scattered;
 };
 
 // --- additive composite of the emitted shafts onto the source pixel ---
 // Legacy: add in gamma and clamp (shader :46).
-const compositeGamma = (src: RGB, tint: RGB, scattered: number, exposure: number, radial: number): RGB =>
-  [0, 1, 2].map((k) => Math.min(1, Math.max(0, src[k] + tint[k] * scattered * exposure * radial))) as unknown as RGB;
+const compositeGamma = (
+  src: RGB,
+  tint: RGB,
+  scattered: number,
+  exposure: number,
+  radial: number,
+): RGB =>
+  [0, 1, 2].map((k) =>
+    Math.min(1, Math.max(0, src[k] + tint[k] * scattered * exposure * radial)),
+  ) as unknown as RGB;
 // Hardened: linearize src + sRGB tint, add as radiant energy, re-encode.
-const compositeLinear = (src: RGB, tint: RGB, scattered: number, exposure: number, radial: number): RGB => {
+const compositeLinear = (
+  src: RGB,
+  tint: RGB,
+  scattered: number,
+  exposure: number,
+  radial: number,
+): RGB => {
   const srcLin = src.map(srgbToLinear);
   const tintLin = tint.map(srgbToLinear);
-  return [0, 1, 2].map((k) => linearToSrgb(srcLin[k] + tintLin[k] * scattered * exposure * radial)) as unknown as RGB;
+  return [0, 1, 2].map((k) =>
+    linearToSrgb(srcLin[k] + tintLin[k] * scattered * exposure * radial),
+  ) as unknown as RGB;
 };
 
 const WHITE: RGB = [1, 1, 1];
 const BLACK: RGB = [0, 0, 0];
 const THRESHOLD = 0.62; // filter default
-const DECAY = 0.965;    // filter default
+const DECAY = 0.965; // filter default
 
 describe("Volumetric Light: linear-light ray-march shafts", () => {
   it("brightens a dark field more than the gamma path for identical shaft energy", () => {
@@ -64,7 +84,8 @@ describe("Volumetric Light: linear-light ray-march shafts", () => {
     expect(emitL).toBeCloseTo(1, 6);
 
     const scattered = accumulate(1, DECAY); // same integral in both paths
-    const exposure = 0.01, radial = 1.0;    // keep the shaft unsaturated
+    const exposure = 0.01,
+      radial = 1.0; // keep the shaft unsaturated
     const outG = compositeGamma(BLACK, WHITE, scattered, exposure, radial);
     const outL = compositeLinear(BLACK, WHITE, scattered, exposure, radial);
 
@@ -82,9 +103,9 @@ describe("Volumetric Light: linear-light ray-march shafts", () => {
     // correct — dimmer, but re-encoded — colored shaft rather than the gamma
     // over-bright one. We only assert the tint is treated as sRGB, not raw.
     const tint: RGB = [255 / 255, 128 / 255, 32 / 255];
-    const tintLinG = tint;                          // legacy used tint/255 directly
+    const tintLinG = tint; // legacy used tint/255 directly
     const tintLinL = tint.map(srgbToLinear) as unknown as RGB;
-    expect(tintLinL[1]).toBeLessThan(tintLinG[1]);  // mid channel linearized down
+    expect(tintLinL[1]).toBeLessThan(tintLinG[1]); // mid channel linearized down
     expect(tintLinL[2]).toBeLessThan(tintLinG[2]);
   });
 

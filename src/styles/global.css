@@ -1,6 +1,6 @@
 /* Global styles — NOT a CSS module */
-@import './typography.css';
-@import './themes.css';
+@import "./typography.css";
+@import "./themes.css";
 
 :root {
   --bg-color: rgba(38, 38, 38);
@@ -190,12 +190,13 @@ body[style*="cursor: wait"] * {
 }
 
 @media (max-width: 960px) {
-  html, body {
+  html,
+  body {
     overscroll-behavior: none;
     overflow-x: hidden;
   }
   body {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
   }
 }

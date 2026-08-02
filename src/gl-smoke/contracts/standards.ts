@@ -80,15 +80,18 @@ export const runPalDelayLineCancellation = (): { ok: true } | { ok: false; reaso
         channelNoise: 0,
         interlace: false,
       }) as HTMLCanvasElement;
-      return output.getContext("2d", { willReadFrequently: true })
-        ?.getImageData(0, 0, width, height).data ?? null;
+      return (
+        output.getContext("2d", { willReadFrequently: true })?.getImageData(0, 0, width, height)
+          .data ?? null
+      );
     } catch {
       return null;
     }
   };
   const withoutDelay = render(false);
   const withDelay = render(true);
-  if (!withoutDelay || !withDelay) return { ok: false, reason: "PAL cancellation render/readback failed" };
+  if (!withoutDelay || !withDelay)
+    return { ok: false, reason: "PAL cancellation render/readback failed" };
 
   const adjacentLineError = (pixels: Uint8ClampedArray): number => {
     let total = 0;
@@ -109,7 +112,10 @@ export const runPalDelayLineCancellation = (): { ok: true } | { ok: false; reaso
   const corrected = adjacentLineError(withDelay);
   return uncorrected > 4 && corrected < uncorrected * 0.25
     ? { ok: true }
-    : { ok: false, reason: `PAL delay line did not cancel alternating phase error (${uncorrected.toFixed(2)} -> ${corrected.toFixed(2)})` };
+    : {
+        ok: false,
+        reason: `PAL delay line did not cancel alternating phase error (${uncorrected.toFixed(2)} -> ${corrected.toFixed(2)})`,
+      };
 };
 
 export const runSdfInteriorDistance = (): { ok: true } | { ok: false; reason: string } => {
@@ -128,7 +134,10 @@ export const runSdfInteriorDistance = (): { ok: true } | { ok: false; reason: st
     }) as HTMLCanvasElement;
     pixels = canvasPixels(output);
   } catch (error) {
-    return { ok: false, reason: `SDF interior render threw: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      ok: false,
+      reason: `SDF interior render threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
   if (!pixels) return { ok: false, reason: "SDF interior readback failed" };
   const luminanceAt = (x: number, y: number): number => {
@@ -139,7 +148,10 @@ export const runSdfInteriorDistance = (): { ok: true } | { ok: false; reason: st
   const center = luminanceAt(32, 32);
   return center > boundary + 60
     ? { ok: true }
-    : { ok: false, reason: `signed interior distance collapsed (boundary=${boundary.toFixed(1)}, center=${center.toFixed(1)})` };
+    : {
+        ok: false,
+        reason: `signed interior distance collapsed (boundary=${boundary.toFixed(1)}, center=${center.toFixed(1)})`,
+      };
 };
 
 export const runApolloFractionalHold = (): { ok: true } | { ok: false; reason: string } => {
@@ -172,7 +184,10 @@ export const runApolloFractionalHold = (): { ok: true } | { ok: false; reason: s
       frames.push(pixels);
       previous = pixels;
     } catch (error) {
-      return { ok: false, reason: `Apollo fractional hold threw: ${error instanceof Error ? error.message : String(error)}` };
+      return {
+        ok: false,
+        reason: `Apollo fractional hold threw: ${error instanceof Error ? error.message : String(error)}`,
+      };
     }
   }
   const maximumDelta = (left: Uint8ClampedArray, right: Uint8ClampedArray): number => {
@@ -184,7 +199,10 @@ export const runApolloFractionalHold = (): { ok: true } | { ok: false; reason: s
   const newPictureDelta = maximumDelta(frames[1], frames[2]);
   return heldDelta <= 1 && newPictureDelta > 50
     ? { ok: true }
-    : { ok: false, reason: `Apollo 15 fps hold sequence was wrong (held=${heldDelta}, new=${newPictureDelta})` };
+    : {
+        ok: false,
+        reason: `Apollo 15 fps hold sequence was wrong (held=${heldDelta}, new=${newPictureDelta})`,
+      };
 };
 
 export const runGameboyThresholdMatrix = (): { ok: true } | { ok: false; reason: string } => {
@@ -207,7 +225,10 @@ export const runGameboyThresholdMatrix = (): { ok: true } | { ok: false; reason:
     }) as HTMLCanvasElement;
     pixels = canvasPixels(output);
   } catch (error) {
-    return { ok: false, reason: `Game Boy matrix render threw: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      ok: false,
+      reason: `Game Boy matrix render threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
   if (!pixels) return { ok: false, reason: "Game Boy matrix readback failed" };
   const colorAt = (x: number, y: number): string => {
@@ -222,12 +243,16 @@ export const runGameboyThresholdMatrix = (): { ok: true } | { ok: false; reason:
       const color = colorAt(x, y);
       colors.add(color);
       if (color !== colorAt(x + 4, y) || color !== colorAt(x, y + 4)) hasFourPixelRepeat = false;
-      if (color !== colorAt((x + 2) % 4, y) || color !== colorAt(x, (y + 2) % 4)) differsAtTwo = true;
+      if (color !== colorAt((x + 2) % 4, y) || color !== colorAt(x, (y + 2) % 4))
+        differsAtTwo = true;
     }
   }
   return hasFourPixelRepeat && differsAtTwo && colors.size >= 2
     ? { ok: true }
-    : { ok: false, reason: `Game Boy threshold tile was not genuinely 4x4 (repeat=${hasFourPixelRepeat}, differsAt2=${differsAtTwo}, colors=${colors.size})` };
+    : {
+        ok: false,
+        reason: `Game Boy threshold tile was not genuinely 4x4 (repeat=${hasFourPixelRepeat}, differsAt2=${differsAtTwo}, colors=${colors.size})`,
+      };
 };
 
 export const runCgaRgbiPalette = (): { ok: true } | { ok: false; reason: string } => {
@@ -242,15 +267,30 @@ export const runCgaRgbiPalette = (): { ok: true } | { ok: false; reason: string 
     }) as HTMLCanvasElement;
     pixels = canvasPixels(output);
   } catch (error) {
-    return { ok: false, reason: `CGA RGBI render threw: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      ok: false,
+      reason: `CGA RGBI render threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
   if (!pixels) return { ok: false, reason: "CGA RGBI readback failed" };
 
   const legal = new Set([
-    "0,0,0", "0,0,170", "0,170,0", "0,170,170",
-    "170,0,0", "170,0,170", "170,85,0", "170,170,170",
-    "85,85,85", "0,0,255", "0,255,0", "0,255,255",
-    "255,0,0", "255,0,255", "255,255,0", "255,255,255",
+    "0,0,0",
+    "0,0,170",
+    "0,170,0",
+    "0,170,170",
+    "170,0,0",
+    "170,0,170",
+    "170,85,0",
+    "170,170,170",
+    "85,85,85",
+    "0,0,255",
+    "0,255,0",
+    "0,255,255",
+    "255,0,0",
+    "255,0,255",
+    "255,255,0",
+    "255,255,255",
   ]);
   for (let index = 0; index < pixels.length; index += 4) {
     const color = `${pixels[index]},${pixels[index + 1]},${pixels[index + 2]}`;
@@ -287,16 +327,21 @@ export const runAppleHgrDotContract = (): { ok: true } | { ok: false; reason: st
   const phase0 = render("PURPLE_GREEN");
   const phase1 = render("BLUE_ORANGE");
   if (!phase0 || !phase1) return { ok: false, reason: "Apple HGR render/readback failed" };
-  const color = (pixels: Uint8ClampedArray, x: number) => Array.from(pixels.slice(x * 4, x * 4 + 3)).join(",");
-  const contract = color(phase0, 0) === "0,0,0"
-    && color(phase0, 1) === "255,255,255"
-    && color(phase0, 2) === "255,255,255"
-    && color(phase0, 4) === "208,64,255"
-    && color(phase1, 4) === "64,128,255"
-    && color(phase1, 8) === "64,128,255";
+  const color = (pixels: Uint8ClampedArray, x: number) =>
+    Array.from(pixels.slice(x * 4, x * 4 + 3)).join(",");
+  const contract =
+    color(phase0, 0) === "0,0,0" &&
+    color(phase0, 1) === "255,255,255" &&
+    color(phase0, 2) === "255,255,255" &&
+    color(phase0, 4) === "208,64,255" &&
+    color(phase1, 4) === "64,128,255" &&
+    color(phase1, 8) === "64,128,255";
   return contract
     ? { ok: true }
-    : { ok: false, reason: `Apple HGR dot colors drifted (${color(phase0, 4)} / ${color(phase1, 4)})` };
+    : {
+        ok: false,
+        reason: `Apple HGR dot colors drifted (${color(phase0, 4)} / ${color(phase1, 4)})`,
+      };
 };
 
 export const runSpectrumAttributeContract = (): { ok: true } | { ok: false; reason: string } => {
@@ -318,12 +363,15 @@ export const runSpectrumAttributeContract = (): { ok: true } | { ok: false; reas
       const colors = new Set<string>();
       for (let y = 0; y < 8; y++) {
         for (let x = 0; x < 8; x++) {
-          const offset = (((cellY * 8 + y) * 256) + cellX * 8 + x) * 4;
+          const offset = ((cellY * 8 + y) * 256 + cellX * 8 + x) * 4;
           colors.add(`${pixels[offset]},${pixels[offset + 1]},${pixels[offset + 2]}`);
         }
       }
       if (colors.size > 2) {
-        return { ok: false, reason: `Spectrum cell ${cellX},${cellY} emitted ${colors.size} colors` };
+        return {
+          ok: false,
+          reason: `Spectrum cell ${cellX},${cellY} emitted ${colors.size} colors`,
+        };
       }
     }
   }
@@ -345,7 +393,11 @@ export const runPxlCaptureHold = (): { ok: true } | { ok: false; reason: string 
   };
   const outputs: Uint8ClampedArray[] = [];
   let previous: Uint8ClampedArray | null = null;
-  const sources = [makeGradientCanvas(120, 90), makeSolidCanvas(120, 90, 220), makeSolidCanvas(120, 90, 220)];
+  const sources = [
+    makeGradientCanvas(120, 90),
+    makeSolidCanvas(120, 90, 220),
+    makeSolidCanvas(120, 90, 220),
+  ];
   for (const [frame, source] of sources.entries()) {
     try {
       const output = filter.func(source, {
@@ -358,17 +410,24 @@ export const runPxlCaptureHold = (): { ok: true } | { ok: false; reason: string 
       outputs.push(pixels);
       previous = pixels;
     } catch (error) {
-      return { ok: false, reason: `PXL hold threw: ${error instanceof Error ? error.message : String(error)}` };
+      return {
+        ok: false,
+        reason: `PXL hold threw: ${error instanceof Error ? error.message : String(error)}`,
+      };
     }
   }
   const maximumDelta = (left: Uint8ClampedArray, right: Uint8ClampedArray): number => {
     let delta = 0;
-    for (let index = 0; index < left.length; index++) delta = Math.max(delta, Math.abs(left[index] - right[index]));
+    for (let index = 0; index < left.length; index++)
+      delta = Math.max(delta, Math.abs(left[index] - right[index]));
     return delta;
   };
   const held = maximumDelta(outputs[0]!, outputs[1]!);
   const captured = maximumDelta(outputs[1]!, outputs[2]!);
   return held <= 1 && captured > 100
     ? { ok: true }
-    : { ok: false, reason: `PXL 15 Hz hold sequence was wrong (held=${held}, captured=${captured})` };
+    : {
+        ok: false,
+        reason: `PXL 15 Hz hold sequence was wrong (held=${held}, captured=${captured})`,
+      };
 };

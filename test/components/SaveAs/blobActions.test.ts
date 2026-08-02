@@ -59,7 +59,9 @@ describe("copyBlobWithFeedback", () => {
     });
     // ClipboardItem may be missing in jsdom; provide a passthrough.
     const originalCI = (globalThis as { ClipboardItem?: unknown }).ClipboardItem;
-    (globalThis as { ClipboardItem?: unknown }).ClipboardItem = function ClipboardItem(data: unknown) {
+    (globalThis as { ClipboardItem?: unknown }).ClipboardItem = function ClipboardItem(
+      data: unknown,
+    ) {
       return { data };
     } as never;
 
@@ -81,7 +83,9 @@ describe("copyBlobWithFeedback", () => {
     const originalClipboard = nav.clipboard;
     Object.defineProperty(nav, "clipboard", { value: { write }, configurable: true });
     const originalCI = (globalThis as { ClipboardItem?: unknown }).ClipboardItem;
-    (globalThis as { ClipboardItem?: unknown }).ClipboardItem = function ClipboardItem(data: unknown) {
+    (globalThis as { ClipboardItem?: unknown }).ClipboardItem = function ClipboardItem(
+      data: unknown,
+    ) {
       return { data };
     } as never;
 

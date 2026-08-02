@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -40,9 +47,15 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_amplitude", "u_frequency", "u_phase",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_amplitude",
+      "u_frequency",
+      "u_phase",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -50,8 +63,11 @@ export const scanlineWarpGLAvailable = (): boolean => glAvailable();
 
 export const renderScanlineWarpGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  amplitude: number, frequency: number, phaseRad: number,
+  width: number,
+  height: number,
+  amplitude: number,
+  frequency: number,
+  phaseRad: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -61,14 +77,22 @@ export const renderScanlineWarpGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "scanlineWarp:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_amplitude, amplitude);
-    gl.uniform1f(cache.prog.uniforms.u_frequency, frequency);
-    gl.uniform1f(cache.prog.uniforms.u_phase, phaseRad);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_amplitude, amplitude);
+      gl.uniform1f(cache.prog.uniforms.u_frequency, frequency);
+      gl.uniform1f(cache.prog.uniforms.u_phase, phaseRad);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canvasToBlob, replaceObjectUrl, revokeObjectUrl } from "components/SaveAs/export/exportArtifacts";
+import {
+  canvasToBlob,
+  replaceObjectUrl,
+  revokeObjectUrl,
+} from "components/SaveAs/export/exportArtifacts";
 
 describe("replaceObjectUrl", () => {
   const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});

@@ -133,8 +133,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
     blurH: linkProgram(gl, BLUR_H_FS, ["u_input", "u_res", "u_radius"] as const),
     blurV: linkProgram(gl, BLUR_V_FS, ["u_input", "u_res", "u_radius"] as const),
     final: linkProgram(gl, FOLIAGE_FS, [
-      "u_source", "u_blurred", "u_res", "u_regionMerge", "u_edgePreserve",
-      "u_brushiness", "u_shadowRetention", "u_step", "u_levels",
+      "u_source",
+      "u_blurred",
+      "u_res",
+      "u_regionMerge",
+      "u_edgePreserve",
+      "u_brushiness",
+      "u_shadowRetention",
+      "u_step",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -168,37 +175,61 @@ export const renderFoliageSimplifierGL = (
   const temp1 = ensureTexture(gl, "foliage:blurH", width, height);
   const temp2 = ensureTexture(gl, "foliage:blurHV", width, height);
 
-  drawPass(gl, temp1, width, height, cache.blurH, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.blurH.uniforms.u_input, 0);
-    gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
-    gl.uniform1i(cache.blurH.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    temp1,
+    width,
+    height,
+    cache.blurH,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.blurH.uniforms.u_input, 0);
+      gl.uniform2f(cache.blurH.uniforms.u_res, width, height);
+      gl.uniform1i(cache.blurH.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  drawPass(gl, temp2, width, height, cache.blurV, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, temp1.tex);
-    gl.uniform1i(cache.blurV.uniforms.u_input, 0);
-    gl.uniform2f(cache.blurV.uniforms.u_res, width, height);
-    gl.uniform1i(cache.blurV.uniforms.u_radius, radius);
-  }, vao);
+  drawPass(
+    gl,
+    temp2,
+    width,
+    height,
+    cache.blurV,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, temp1.tex);
+      gl.uniform1i(cache.blurV.uniforms.u_input, 0);
+      gl.uniform2f(cache.blurV.uniforms.u_res, width, height);
+      gl.uniform1i(cache.blurV.uniforms.u_radius, radius);
+    },
+    vao,
+  );
 
-  drawPass(gl, null, width, height, cache.final, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.final.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, temp2.tex);
-    gl.uniform1i(cache.final.uniforms.u_blurred, 1);
-    gl.uniform2f(cache.final.uniforms.u_res, width, height);
-    gl.uniform1f(cache.final.uniforms.u_regionMerge, regionMerge);
-    gl.uniform1f(cache.final.uniforms.u_edgePreserve, edgePreserve);
-    gl.uniform1f(cache.final.uniforms.u_brushiness, brushiness);
-    gl.uniform1f(cache.final.uniforms.u_shadowRetention, shadowRetention);
-    gl.uniform1f(cache.final.uniforms.u_step, step);
-    gl.uniform1f(cache.final.uniforms.u_levels, levels);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.final,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.final.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, temp2.tex);
+      gl.uniform1i(cache.final.uniforms.u_blurred, 1);
+      gl.uniform2f(cache.final.uniforms.u_res, width, height);
+      gl.uniform1f(cache.final.uniforms.u_regionMerge, regionMerge);
+      gl.uniform1f(cache.final.uniforms.u_edgePreserve, edgePreserve);
+      gl.uniform1f(cache.final.uniforms.u_brushiness, brushiness);
+      gl.uniform1f(cache.final.uniforms.u_shadowRetention, shadowRetention);
+      gl.uniform1f(cache.final.uniforms.u_step, step);
+      gl.uniform1f(cache.final.uniforms.u_levels, levels);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

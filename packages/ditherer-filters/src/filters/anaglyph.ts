@@ -27,49 +27,66 @@ const MODE = {
   RED_CYAN: "RED_CYAN",
   RED_GREEN: "RED_GREEN",
   MAGENTA_GREEN: "MAGENTA_GREEN",
-  YELLOW_BLUE: "YELLOW_BLUE"
+  YELLOW_BLUE: "YELLOW_BLUE",
 };
 
 const DEPTH = {
   LUMINANCE: "LUMINANCE",
   EDGE: "EDGE",
-  CONSTANT: "CONSTANT"
+  CONSTANT: "CONSTANT",
 };
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 40], step: 0.5, default: 12, desc: "Maximum total horizontal disparity between the synthetic eye views" },
-  convergence: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Depth proxy placed at zero disparity; lower and higher values cross in opposite directions" },
+  strength: {
+    type: RANGE,
+    range: [0, 40],
+    step: 0.5,
+    default: 12,
+    desc: "Maximum total horizontal disparity between the synthetic eye views",
+  },
+  convergence: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Depth proxy placed at zero disparity; lower and higher values cross in opposite directions",
+  },
   mode: {
     type: ENUM,
     options: [
       { name: "Optimized red / cyan", value: MODE.RED_CYAN },
       { name: "Grayscale red / green", value: MODE.RED_GREEN },
       { name: "Grayscale magenta / green", value: MODE.MAGENTA_GREEN },
-      { name: "Grayscale yellow / blue", value: MODE.YELLOW_BLUE }
+      { name: "Grayscale yellow / blue", value: MODE.YELLOW_BLUE },
     ],
     default: MODE.RED_CYAN,
-    desc: "Glasses color pair; red/cyan uses the Dubois least-squares projection"
+    desc: "Glasses color pair; red/cyan uses the Dubois least-squares projection",
   },
   depthSource: {
     type: ENUM,
     options: [
       { name: "Luminance relief", value: DEPTH.LUMINANCE },
       { name: "Edge relief", value: DEPTH.EDGE },
-      { name: "Flat plane", value: DEPTH.CONSTANT }
+      { name: "Flat plane", value: DEPTH.CONSTANT },
     ],
     default: DEPTH.LUMINANCE,
-    desc: "Single-image proxy used to synthesize disparity; it is not true scene depth"
-  }
+    desc: "Single-image proxy used to synthesize disparity; it is not true scene depth",
+  },
 };
 
 export const defaults = {
   strength: optionTypes.strength.default,
   convergence: optionTypes.convergence.default,
   mode: optionTypes.mode.default,
-  depthSource: optionTypes.depthSource.default
+  depthSource: optionTypes.depthSource.default,
 };
 
-const MODE_ID: Record<string, number> = { RED_CYAN: 0, RED_GREEN: 1, MAGENTA_GREEN: 2, YELLOW_BLUE: 3 };
+const MODE_ID: Record<string, number> = {
+  RED_CYAN: 0,
+  RED_GREEN: 1,
+  MAGENTA_GREEN: 2,
+  YELLOW_BLUE: 3,
+};
 const DEPTH_ID: Record<string, number> = { LUMINANCE: 0, EDGE: 1, CONSTANT: 2 };
 
 const ANA_FS = `#version 300 es
@@ -173,7 +190,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     ana: linkProgram(gl, ANA_FS, [
-      "u_source", "u_res", "u_strength", "u_convergence", "u_mode", "u_depthSource",
+      "u_source",
+      "u_res",
+      "u_strength",
+      "u_convergence",
+      "u_mode",
+      "u_depthSource",
     ] as const),
   };
   return _cache;
@@ -197,16 +219,24 @@ const anaglyph = (input: any, options: AnaglyphOptions = defaults) => {
       const sourceTex = ensureTexture(gl, "anaglyph:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.ana, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.ana.uniforms.u_source, 0);
-        gl.uniform2f(cache.ana.uniforms.u_res, W, H);
-        gl.uniform1f(cache.ana.uniforms.u_strength, strength);
-        gl.uniform1f(cache.ana.uniforms.u_convergence, convergence);
-        gl.uniform1i(cache.ana.uniforms.u_mode, MODE_ID[mode] ?? 0);
-        gl.uniform1i(cache.ana.uniforms.u_depthSource, DEPTH_ID[depthSource] ?? 0);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.ana,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.ana.uniforms.u_source, 0);
+          gl.uniform2f(cache.ana.uniforms.u_res, W, H);
+          gl.uniform1f(cache.ana.uniforms.u_strength, strength);
+          gl.uniform1f(cache.ana.uniforms.u_convergence, convergence);
+          gl.uniform1i(cache.ana.uniforms.u_mode, MODE_ID[mode] ?? 0);
+          gl.uniform1i(cache.ana.uniforms.u_depthSource, DEPTH_ID[depthSource] ?? 0);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
@@ -224,41 +254,46 @@ const anaglyph = (input: any, options: AnaglyphOptions = defaults) => {
 
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const lum = depthSource === DEPTH.LUMINANCE || depthSource === DEPTH.EDGE ? computeLuminance(buf, W, H) : null;
+  const lum =
+    depthSource === DEPTH.LUMINANCE || depthSource === DEPTH.EDGE
+      ? computeLuminance(buf, W, H)
+      : null;
   const edge = depthSource === DEPTH.EDGE && lum ? sobelEdges(lum, W, H).magnitude : null;
   const left = [0, 0, 0, 0];
   const right = [0, 0, 0, 0];
   const srgbToLinear = (value: number) => {
     const normalized = clamp(0, 255, value) / 255;
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4;
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
   };
   const linearToSrgb = (value: number) => {
     const normalized = clamp(0, 1, value);
-    const encoded = normalized <= 0.0031308
-      ? normalized * 12.92
-      : 1.055 * normalized ** (1 / 2.4) - 0.055;
+    const encoded =
+      normalized <= 0.0031308 ? normalized * 12.92 : 1.055 * normalized ** (1 / 2.4) - 0.055;
     return Math.round(encoded * 255);
   };
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const depth = depthSource === DEPTH.CONSTANT
+      const depth =
+        depthSource === DEPTH.CONSTANT
           ? 1
           : depthSource === DEPTH.EDGE
             ? Math.min(1, (edge![y * W + x] || 0) / 255)
-          : (lum![y * W + x] || 0) / 255;
+            : (lum![y * W + x] || 0) / 255;
 
       const disparity = anaglyphDisparity(depth, strength, convergence);
       sampleBilinear(buf, W, H, x - disparity * 0.5, y, left);
       sampleBilinear(buf, W, H, x + disparity * 0.5, y, right);
       const L: [number, number, number] = [
-        srgbToLinear(left[0]), srgbToLinear(left[1]), srgbToLinear(left[2]),
+        srgbToLinear(left[0]),
+        srgbToLinear(left[1]),
+        srgbToLinear(left[2]),
       ];
       const R: [number, number, number] = [
-        srgbToLinear(right[0]), srgbToLinear(right[1]), srgbToLinear(right[2]),
+        srgbToLinear(right[0]),
+        srgbToLinear(right[1]),
+        srgbToLinear(right[2]),
       ];
 
       let linearRgb: [number, number, number];
@@ -296,5 +331,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Single-image synthetic stereo anaglyph with convergence-centered disparity and a linear-light Dubois red/cyan projection",
+  description:
+    "Single-image synthetic stereo anaglyph with convergence-centered disparity and a linear-light Dubois red/cyan projection",
 });

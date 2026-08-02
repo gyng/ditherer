@@ -47,13 +47,37 @@ export const optionTypes = {
       { name: "Band-pass", value: MODE.BAND },
     ],
     default: MODE.HIGH,
-    desc: "Which frequency band to keep — real 2D FFT mask (not a blur proxy)"
+    desc: "Which frequency band to keep — real 2D FFT mask (not a blur proxy)",
   },
-  cutoff: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.15, desc: "Inner/primary radius as a fraction of Nyquist" },
-  bandWidth: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.15, desc: "Band width (band-pass only) as a fraction of Nyquist" },
-  softness: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Gaussian rolloff around the mask edge" },
-  gain: { type: RANGE, range: [0, 4], step: 0.05, default: 1.0, desc: "Gain applied to the kept band before IFFT" },
-  palette: { type: PALETTE, default: nearest }
+  cutoff: {
+    type: RANGE,
+    range: [0.01, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Inner/primary radius as a fraction of Nyquist",
+  },
+  bandWidth: {
+    type: RANGE,
+    range: [0.01, 1],
+    step: 0.01,
+    default: 0.15,
+    desc: "Band width (band-pass only) as a fraction of Nyquist",
+  },
+  softness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.1,
+    desc: "Gaussian rolloff around the mask edge",
+  },
+  gain: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.05,
+    default: 1.0,
+    desc: "Gain applied to the kept band before IFFT",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -62,7 +86,7 @@ export const defaults = {
   bandWidth: optionTypes.bandWidth.default,
   softness: optionTypes.softness.default,
   gain: optionTypes.gain.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Mask shader: reads a freq-domain RGBA32F texture (RG = complex), applies
@@ -124,7 +148,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     mask: linkProgram(gl, MASK_FS, [
-      "u_input", "u_padRes", "u_mode", "u_cutoff", "u_bandWidth", "u_softness", "u_gain",
+      "u_input",
+      "u_padRes",
+      "u_mode",
+      "u_cutoff",
+      "u_bandWidth",
+      "u_softness",
+      "u_gain",
     ] as const),
   };
   return _cache;
@@ -138,9 +168,9 @@ const fftBandpass = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -157,17 +187,25 @@ const fftBandpass = (input: any, options = defaults) => {
         // Run the frequency-domain mask into a dedicated float texture.
         const masked = ensureFloatTex(gl, "fftBandpass:masked", fwd.paddedW, fwd.paddedH);
         if (masked) {
-          drawPass(gl, masked, fwd.paddedW, fwd.paddedH, cache.mask, () => {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-            gl.uniform1i(cache.mask.uniforms.u_input, 0);
-            gl.uniform2f(cache.mask.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-            gl.uniform1i(cache.mask.uniforms.u_mode, MODE_ID[mode] ?? 1);
-            gl.uniform1f(cache.mask.uniforms.u_cutoff, cutoff);
-            gl.uniform1f(cache.mask.uniforms.u_bandWidth, bandWidth);
-            gl.uniform1f(cache.mask.uniforms.u_softness, softness);
-            gl.uniform1f(cache.mask.uniforms.u_gain, gain);
-          }, vao);
+          drawPass(
+            gl,
+            masked,
+            fwd.paddedW,
+            fwd.paddedH,
+            cache.mask,
+            () => {
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+              gl.uniform1i(cache.mask.uniforms.u_input, 0);
+              gl.uniform2f(cache.mask.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+              gl.uniform1i(cache.mask.uniforms.u_mode, MODE_ID[mode] ?? 1);
+              gl.uniform1f(cache.mask.uniforms.u_cutoff, cutoff);
+              gl.uniform1f(cache.mask.uniforms.u_bandWidth, bandWidth);
+              gl.uniform1f(cache.mask.uniforms.u_softness, softness);
+              gl.uniform1f(cache.mask.uniforms.u_gain, gain);
+            },
+            vao,
+          );
 
           const inv = inverseFFT2D(gl, masked, fwd.paddedW, fwd.paddedH, fwd.logW, fwd.logH);
           if (inv) {
@@ -177,8 +215,11 @@ const fftBandpass = (input: any, options = defaults) => {
               const isNearest = (palette as { name?: string }).name === "nearest";
               const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
               if (out) {
-                logFilterBackend("FFT Bandpass", "WebGL2",
-                  `${mode} cutoff=${cutoff} gain=${gain}${isNearest ? "" : "+palettePass"}`);
+                logFilterBackend(
+                  "FFT Bandpass",
+                  "WebGL2",
+                  `${mode} cutoff=${cutoff} gain=${gain}${isNearest ? "" : "+palettePass"}`,
+                );
                 return out;
               }
             }
@@ -201,7 +242,12 @@ const fftBandpass = (input: any, options = defaults) => {
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = getBufferIndex(x, y, W);
-      const color = paletteGetColor(palette, rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, i, color[0], color[1], color[2], buf[i + 3]);
     }
   }
@@ -215,6 +261,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Radial frequency mask on a real 2D FFT — low/high/band-pass via Fourier domain rather than blur proxies",
-  noWASM: "2D FFT on CPU is too slow to be useful; WebGL2 + EXT_color_buffer_float is the only practical path.",
+  description:
+    "Radial frequency mask on a real 2D FFT — low/high/band-pass via Fourier domain rather than blur proxies",
+  noWASM:
+    "2D FFT on CPU is too slow to be useful; WebGL2 + EXT_color_buffer_float is the only practical path.",
 });

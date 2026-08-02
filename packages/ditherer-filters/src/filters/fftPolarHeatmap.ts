@@ -97,14 +97,18 @@ void main() {
 
 export const optionTypes = {
   scale: { type: RANGE, range: [1, 10000], step: 10, default: 1000, desc: "Brightness scale" },
-  logRadius: { type: BOOL, default: false, desc: "Log-scale radius — rim of the disc gets more resolution at high spatial frequencies" },
-  palette: { type: PALETTE, default: nearest }
+  logRadius: {
+    type: BOOL,
+    default: false,
+    desc: "Log-scale radius — rim of the disc gets more resolution at high spatial frequencies",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   scale: optionTypes.scale.default,
   logRadius: optionTypes.logRadius.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = { plot: Program };
@@ -113,7 +117,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     plot: linkProgram(gl, PLOT_FS, [
-      "u_fft", "u_padRes", "u_outRes", "u_scale", "u_logRadius", "u_levels",
+      "u_fft",
+      "u_padRes",
+      "u_outRes",
+      "u_scale",
+      "u_logRadius",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -125,9 +134,9 @@ const fftPolarHeatmap = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -139,26 +148,37 @@ const fftPolarHeatmap = (input: any, options = defaults) => {
       uploadSourceTexture(gl, sourceTex, input);
       const fwd = forwardFFT2D(gl, sourceTex, W, H);
       if (fwd) {
-        drawPass(gl, null, W, H, cache.plot, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-          gl.uniform1i(cache.plot.uniforms.u_fft, 0);
-          gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
-          gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
-          gl.uniform1f(cache.plot.uniforms.u_scale, scale);
-          gl.uniform1i(cache.plot.uniforms.u_logRadius, logRadius ? 1 : 0);
-          const identity = paletteIsIdentity(palette);
-          const pOpts = (palette as { options?: { levels?: number } }).options;
-          const levels = identity ? (pOpts?.levels ?? 256) : 256;
-          gl.uniform1f(cache.plot.uniforms.u_levels, levels);
-        }, vao);
+        drawPass(
+          gl,
+          null,
+          W,
+          H,
+          cache.plot,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+            gl.uniform1i(cache.plot.uniforms.u_fft, 0);
+            gl.uniform2f(cache.plot.uniforms.u_padRes, fwd.paddedW, fwd.paddedH);
+            gl.uniform2f(cache.plot.uniforms.u_outRes, W, H);
+            gl.uniform1f(cache.plot.uniforms.u_scale, scale);
+            gl.uniform1i(cache.plot.uniforms.u_logRadius, logRadius ? 1 : 0);
+            const identity = paletteIsIdentity(palette);
+            const pOpts = (palette as { options?: { levels?: number } }).options;
+            const levels = identity ? (pOpts?.levels ?? 256) : 256;
+            gl.uniform1f(cache.plot.uniforms.u_levels, levels);
+          },
+          vao,
+        );
         const rendered = readoutToCanvas(canvas, W, H);
         if (rendered) {
           const identity = paletteIsIdentity(palette);
           const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
           if (out) {
-            logFilterBackend("FFT Polar Heatmap", "WebGL2",
-              `scale=${scale} log=${logRadius}${identity ? "" : "+palettePass"}`);
+            logFilterBackend(
+              "FFT Polar Heatmap",
+              "WebGL2",
+              `scale=${scale} log=${logRadius}${identity ? "" : "+palettePass"}`,
+            );
             return out;
           }
         }
@@ -175,6 +195,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "FFT magnitude rendered on a polar disc — directional streaks in the source become radial spokes, periodic patterns become rings",
+  description:
+    "FFT magnitude rendered on a polar disc — directional streaks in the source become radial spokes, periodic patterns become rings",
   noWASM: "Needs GPU 2D FFT.",
 });

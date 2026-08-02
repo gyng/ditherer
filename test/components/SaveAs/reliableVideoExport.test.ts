@@ -50,7 +50,10 @@ const makeEncoder = () => ({
 const makeOptions = (overrides: Record<string, unknown> = {}) => {
   const video = document.createElement("video");
   Object.defineProperty(video, "duration", { configurable: true, value: 2 });
-  Object.defineProperty(video, "currentSrc", { configurable: true, value: "https://example.test/source.mp4" });
+  Object.defineProperty(video, "currentSrc", {
+    configurable: true,
+    value: "https://example.test/source.mp4",
+  });
   return {
     video,
     preferredMode: "auto" as const,
@@ -92,14 +95,20 @@ describe("runReliableVideoExport", () => {
   });
 
   it("rejects missing output and unsupported browser configurations before encoding", async () => {
-    await expect(runReliableVideoExport(makeOptions({ getScaledCanvas: () => null })))
-      .rejects.toThrow("requires a rendered output canvas");
+    await expect(
+      runReliableVideoExport(makeOptions({ getScaledCanvas: () => null })),
+    ).rejects.toThrow("requires a rendered output canvas");
 
-    mocks.getReliableVideoSupport.mockResolvedValueOnce({ supported: false, reason: "codec blocked" });
+    mocks.getReliableVideoSupport.mockResolvedValueOnce({
+      supported: false,
+      reason: "codec blocked",
+    });
     await expect(runReliableVideoExport(makeOptions())).rejects.toThrow("codec blocked");
 
     mocks.getReliableVideoSupport.mockResolvedValueOnce({ supported: false, reason: "" });
-    await expect(runReliableVideoExport(makeOptions())).rejects.toThrow("unavailable in this browser");
+    await expect(runReliableVideoExport(makeOptions())).rejects.toThrow(
+      "unavailable in this browser",
+    );
     expect(mocks.createOfflineVideoEncoder).not.toHaveBeenCalled();
   });
 
@@ -111,13 +120,22 @@ describe("runReliableVideoExport", () => {
     const result = await runReliableVideoExport(options);
 
     expect(result).toMatchObject({ aborted: false, audioIncluded: true });
-    expect(result.renderResult).toMatchObject({ sourcePath: "browser-seek", fallbackReason: "decoder unavailable" });
-    expect(options.updateProgress).toHaveBeenCalledWith(expect.stringContaining("0.25s-0.75s"), 0.04);
-    expect(options.updateProgress).toHaveBeenCalledWith("Encoding video + audio...", 0.92);
-    expect(options.logReliableRenderProfile).toHaveBeenCalledWith("completed", expect.objectContaining({
+    expect(result.renderResult).toMatchObject({
       sourcePath: "browser-seek",
-      audioIncluded: true,
-    }));
+      fallbackReason: "decoder unavailable",
+    });
+    expect(options.updateProgress).toHaveBeenCalledWith(
+      expect.stringContaining("0.25s-0.75s"),
+      0.04,
+    );
+    expect(options.updateProgress).toHaveBeenCalledWith("Encoding video + audio...", 0.92);
+    expect(options.logReliableRenderProfile).toHaveBeenCalledWith(
+      "completed",
+      expect.objectContaining({
+        sourcePath: "browser-seek",
+        audioIncluded: true,
+      }),
+    );
 
     const encoderOptions = mocks.createOfflineVideoEncoder.mock.calls[0][0];
     encoderOptions.onProgress("Muxing audio");
@@ -125,9 +143,27 @@ describe("runReliableVideoExport", () => {
 
     const renderOptions = mocks.renderOfflineFrames.mock.calls[0][0];
     await renderOptions.waitForFrame(options.video, 0.5, 16);
-    renderOptions.onProgress({ phase: "rewind", frameIndex: 0, frameCount: 2, targetTime: 0.25, etaMs: 0 });
-    renderOptions.onProgress({ phase: "seek", frameIndex: 0, frameCount: 2, targetTime: 0.25, etaMs: 1000 });
-    renderOptions.onProgress({ phase: "capture", frameIndex: 0, frameCount: 0, targetTime: 0.25, etaMs: 0 });
+    renderOptions.onProgress({
+      phase: "rewind",
+      frameIndex: 0,
+      frameCount: 2,
+      targetTime: 0.25,
+      etaMs: 0,
+    });
+    renderOptions.onProgress({
+      phase: "seek",
+      frameIndex: 0,
+      frameCount: 2,
+      targetTime: 0.25,
+      etaMs: 1000,
+    });
+    renderOptions.onProgress({
+      phase: "capture",
+      frameIndex: 0,
+      frameCount: 0,
+      targetTime: 0.25,
+      etaMs: 0,
+    });
     await renderOptions.onFrame({ pixels: new Uint8ClampedArray(4), width: 1, height: 1 });
     expect(options.waitForRenderedSeek).toHaveBeenCalledWith(options.video, 0.5, 16, true, 2);
     expect(encoder.addFrame).toHaveBeenCalledOnce();
@@ -157,7 +193,9 @@ describe("runReliableVideoExport", () => {
 
   it("falls back to browser seeking when WebCodecs decode or rendering fails", async () => {
     mocks.planReliableVideoRouting.mockReturnValue({ shouldAttemptWebCodecs: true });
-    mocks.buildDecodedTimeline.mockReturnValue([{ timeSec: 0, timestampUs: 0, durationUs: 1_000_000 }]);
+    mocks.buildDecodedTimeline.mockReturnValue([
+      { timeSec: 0, timestampUs: 0, durationUs: 1_000_000 },
+    ]);
     mocks.decodeTimelineFramesWithWebCodecs.mockRejectedValue(new Error("demux failed"));
     const options = makeOptions();
 
@@ -171,8 +209,20 @@ describe("runReliableVideoExport", () => {
     expect(options.clearExportSession).toHaveBeenCalledOnce();
 
     const renderOptions = mocks.renderOfflineFrames.mock.calls[0][0];
-    renderOptions.onProgress({ phase: "rewind", frameIndex: 0, frameCount: 1, targetTime: 0, etaMs: 0 });
-    renderOptions.onProgress({ phase: "capture", frameIndex: 0, frameCount: 1, targetTime: 0, etaMs: 500 });
+    renderOptions.onProgress({
+      phase: "rewind",
+      frameIndex: 0,
+      frameCount: 1,
+      targetTime: 0,
+      etaMs: 0,
+    });
+    renderOptions.onProgress({
+      phase: "capture",
+      frameIndex: 0,
+      frameCount: 1,
+      targetTime: 0,
+      etaMs: 500,
+    });
     expect(options.updateProgress).toHaveBeenCalledWith("Rewinding...", 0.08);
   });
 

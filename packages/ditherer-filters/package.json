@@ -2,22 +2,16 @@
   "name": "@gyng/ditherer-filters",
   "version": "0.6.0",
   "description": "Ditherer's browser-native Canvas2D, WebGL2, and WASM image filter engine",
-  "type": "module",
+  "homepage": "https://github.com/gyng/ditherer/tree/master/packages/ditherer-filters#readme",
+  "bugs": {
+    "url": "https://github.com/gyng/ditherer/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gyng/ditherer.git",
     "directory": "packages/ditherer-filters"
   },
-  "homepage": "https://github.com/gyng/ditherer/tree/master/packages/ditherer-filters#readme",
-  "bugs": {
-    "url": "https://github.com/gyng/ditherer/issues"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "public"
-  },
-  "sideEffects": true,
   "files": [
     "dist",
     "types",
@@ -26,6 +20,11 @@
     "RELEASING.md",
     "LICENSE"
   ],
+  "type": "module",
+  "sideEffects": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./types/index.d.ts",
   "exports": {
     ".": {
       "types": "./types/index.d.ts",
@@ -56,9 +55,10 @@
       "import": "./dist/wasm-bindings.js"
     }
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./types/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "generate": "node scripts/generate-selective-entries.mjs",
     "generate:check": "node scripts/generate-selective-entries.mjs --check",

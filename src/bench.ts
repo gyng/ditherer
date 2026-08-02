@@ -73,7 +73,11 @@ const runBench = (name: string, fn: () => void, minTime = 2000): BenchResult => 
   };
 };
 
-const pngDecodeBench = (name: string, filterFn: () => HTMLCanvasElement, minTime = 2000): Promise<BenchResult> => {
+const pngDecodeBench = (
+  name: string,
+  filterFn: () => HTMLCanvasElement,
+  minTime = 2000,
+): Promise<BenchResult> => {
   // Warmup
   for (let i = 0; i < 3; i++) filterFn();
 
@@ -128,8 +132,13 @@ const runSuite = async () => {
   // check `wasmIsLoaded()` fall back to JS and produce misleadingly slow numbers.
   if (!wasmIsLoaded()) {
     log("Waiting for WASM module...");
-    await new Promise<void>(resolve => {
-      const t = setInterval(() => { if (wasmIsLoaded()) { clearInterval(t); resolve(); } }, 50);
+    await new Promise<void>((resolve) => {
+      const t = setInterval(() => {
+        if (wasmIsLoaded()) {
+          clearInterval(t);
+          resolve();
+        }
+      }, 50);
     });
     log("WASM ready.");
   }
@@ -138,34 +147,66 @@ const runSuite = async () => {
     {
       title: "Filter only (640×480)",
       benches: [
-        () => runBench("Floyd-Steinberg sRGB", () => { floydSteinberg.func(canvas640, { palette, _linearize: false }); }),
-        () => runBench("Floyd-Steinberg linear", () => { floydSteinberg.func(canvas640, { palette, _linearize: true }); }),
-        () => runBench("Ordered Bayer sRGB", () => { ordered.func(canvas640, ordered.defaults as any); }),
-        () => runBench("Convolve Gaussian sRGB", () => { convolve.func(canvas640, { ...convolve.defaults, _linearize: false } as any); }),
+        () =>
+          runBench("Floyd-Steinberg sRGB", () => {
+            floydSteinberg.func(canvas640, { palette, _linearize: false });
+          }),
+        () =>
+          runBench("Floyd-Steinberg linear", () => {
+            floydSteinberg.func(canvas640, { palette, _linearize: true });
+          }),
+        () =>
+          runBench("Ordered Bayer sRGB", () => {
+            ordered.func(canvas640, ordered.defaults as any);
+          }),
+        () =>
+          runBench("Convolve Gaussian sRGB", () => {
+            convolve.func(canvas640, { ...convolve.defaults, _linearize: false } as any);
+          }),
       ],
     },
     {
       title: "Pipeline: filter → direct canvas (current path)",
       benches: [
-        () => runBench("Floyd-Steinberg → canvas", () => { floydSteinberg.func(canvas640, { palette, _linearize: false }); }),
-        () => runBench("Ordered Bayer → canvas", () => { ordered.func(canvas640, ordered.defaults as any); }),
-        () => runBench("3-chain: Ordered → Conv → Conv", () => {
-          let c: any = ordered.func(canvas640, ordered.defaults as any);
-          c = convolve.func(c, { ...convolve.defaults, _linearize: false } as any);
-          convolve.func(c, { ...convolve.defaults, _linearize: false } as any);
-        }),
+        () =>
+          runBench("Floyd-Steinberg → canvas", () => {
+            floydSteinberg.func(canvas640, { palette, _linearize: false });
+          }),
+        () =>
+          runBench("Ordered Bayer → canvas", () => {
+            ordered.func(canvas640, ordered.defaults as any);
+          }),
+        () =>
+          runBench("3-chain: Ordered → Conv → Conv", () => {
+            let c: any = ordered.func(canvas640, ordered.defaults as any);
+            c = convolve.func(c, { ...convolve.defaults, _linearize: false } as any);
+            convolve.func(c, { ...convolve.defaults, _linearize: false } as any);
+          }),
       ],
     },
     {
       title: "Pipeline: filter → PNG encode + decode (old path)",
       benches: [
-        () => pngDecodeBench("Floyd-Steinberg → toDataURL → Image", () => floydSteinberg.func(canvas640, { palette, _linearize: false }) as HTMLCanvasElement),
-        () => pngDecodeBench("Ordered Bayer → toDataURL → Image", () => ordered.func(canvas640, ordered.defaults as any) as HTMLCanvasElement),
-        () => pngDecodeBench("3-chain → toDataURL → Image", () => {
-          let c: any = ordered.func(canvas640, ordered.defaults as any);
-          c = convolve.func(c, { ...convolve.defaults, _linearize: false } as any);
-          return convolve.func(c, { ...convolve.defaults, _linearize: false } as any) as HTMLCanvasElement;
-        }),
+        () =>
+          pngDecodeBench(
+            "Floyd-Steinberg → toDataURL → Image",
+            () =>
+              floydSteinberg.func(canvas640, { palette, _linearize: false }) as HTMLCanvasElement,
+          ),
+        () =>
+          pngDecodeBench(
+            "Ordered Bayer → toDataURL → Image",
+            () => ordered.func(canvas640, ordered.defaults as any) as HTMLCanvasElement,
+          ),
+        () =>
+          pngDecodeBench("3-chain → toDataURL → Image", () => {
+            let c: any = ordered.func(canvas640, ordered.defaults as any);
+            c = convolve.func(c, { ...convolve.defaults, _linearize: false } as any);
+            return convolve.func(c, {
+              ...convolve.defaults,
+              _linearize: false,
+            } as any) as HTMLCanvasElement;
+          }),
       ],
     },
     {
@@ -173,7 +214,10 @@ const runSuite = async () => {
       benches: [
         () => {
           // Pre-render a canvas, then measure just the encode+decode
-          const output = floydSteinberg.func(canvas640, { palette, _linearize: false }) as HTMLCanvasElement;
+          const output = floydSteinberg.func(canvas640, {
+            palette,
+            _linearize: false,
+          }) as HTMLCanvasElement;
           return pngDecodeBench("640×480 toDataURL → Image decode", () => output);
         },
       ],
@@ -182,7 +226,10 @@ const runSuite = async () => {
       title: "Isolated overhead: getImageData only",
       benches: [
         () => {
-          const output = floydSteinberg.func(canvas640, { palette, _linearize: false }) as HTMLCanvasElement;
+          const output = floydSteinberg.func(canvas640, {
+            palette,
+            _linearize: false,
+          }) as HTMLCanvasElement;
           const ctx = output.getContext("2d")!;
           return runBench("640×480 getImageData", () => {
             ctx.getImageData(0, 0, output.width, output.height);
@@ -196,30 +243,47 @@ const runSuite = async () => {
       // hardware with a discrete GPU the GL path will be considerably faster.
       title: "GL vs WASM vs JS (640×480) [GL may be swiftshader in CI]",
       benches: [
-        () => runBench("gaussianBlur  JS  (_wasmAcceleration=off)", () => {
-          gaussianBlur.func(canvas640, { ...gaussianBlur.defaults, _wasmAcceleration: false } as any);
-        }),
-        () => runBench("gaussianBlur  WASM (GL off)", () => {
-          gaussianBlur.func(canvas640, { ...gaussianBlur.defaults, _webglAcceleration: false } as any);
-        }),
-        () => runBench("gaussianBlur  GL   (default path)", () => {
-          gaussianBlur.func(canvas640, gaussianBlur.defaults as any);
-        }),
-        () => runBench("oilPainting   JS  (_wasmAcceleration=off)", () => {
-          oilPainting.func(canvas640, { ...oilPainting.defaults, _wasmAcceleration: false } as any);
-        }),
-        () => runBench("oilPainting   WASM (default path)", () => {
-          oilPainting.func(canvas640, oilPainting.defaults as any);
-        }),
-        () => runBench("bokeh         JS (no WASM port yet)", () => {
-          bokeh.func(canvas640, bokeh.defaults as any);
-        }),
-        () => runBench("halftone      JS  (_webglAcceleration=off)", () => {
-          halftone.func(canvas640, { ...halftone.defaults, _webglAcceleration: false } as any);
-        }),
-        () => runBench("halftone      GL   (default path)", () => {
-          halftone.func(canvas640, halftone.defaults as any);
-        }),
+        () =>
+          runBench("gaussianBlur  JS  (_wasmAcceleration=off)", () => {
+            gaussianBlur.func(canvas640, {
+              ...gaussianBlur.defaults,
+              _wasmAcceleration: false,
+            } as any);
+          }),
+        () =>
+          runBench("gaussianBlur  WASM (GL off)", () => {
+            gaussianBlur.func(canvas640, {
+              ...gaussianBlur.defaults,
+              _webglAcceleration: false,
+            } as any);
+          }),
+        () =>
+          runBench("gaussianBlur  GL   (default path)", () => {
+            gaussianBlur.func(canvas640, gaussianBlur.defaults as any);
+          }),
+        () =>
+          runBench("oilPainting   JS  (_wasmAcceleration=off)", () => {
+            oilPainting.func(canvas640, {
+              ...oilPainting.defaults,
+              _wasmAcceleration: false,
+            } as any);
+          }),
+        () =>
+          runBench("oilPainting   WASM (default path)", () => {
+            oilPainting.func(canvas640, oilPainting.defaults as any);
+          }),
+        () =>
+          runBench("bokeh         JS (no WASM port yet)", () => {
+            bokeh.func(canvas640, bokeh.defaults as any);
+          }),
+        () =>
+          runBench("halftone      JS  (_webglAcceleration=off)", () => {
+            halftone.func(canvas640, { ...halftone.defaults, _webglAcceleration: false } as any);
+          }),
+        () =>
+          runBench("halftone      GL   (default path)", () => {
+            halftone.func(canvas640, halftone.defaults as any);
+          }),
       ],
     },
   ];

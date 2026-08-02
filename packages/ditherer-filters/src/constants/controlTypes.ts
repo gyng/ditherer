@@ -1,10 +1,4 @@
-import {
-  RGB_NEAREST,
-  RGB_APPROX,
-  LAB_NEAREST,
-  OKLAB_NEAREST,
-  HSV_NEAREST,
-} from "./color";
+import { RGB_NEAREST, RGB_APPROX, LAB_NEAREST, OKLAB_NEAREST, HSV_NEAREST } from "./color";
 
 import { SCALING_ALGORITHM } from "./optionTypes";
 
@@ -29,14 +23,14 @@ export const COLOR_DISTANCE_ALGORITHM = {
     { name: "Lab", value: LAB_NEAREST },
     { name: "OKLab", value: OKLAB_NEAREST },
   ],
-  default: RGB_APPROX
+  default: RGB_APPROX,
 };
 
 export const SCALING_ALGORITHM_OPTIONS = {
   type: ENUM,
   options: [
     { name: "Auto", value: SCALING_ALGORITHM.AUTO },
-    { name: "Pixelated", value: SCALING_ALGORITHM.PIXELATED }
+    { name: "Pixelated", value: SCALING_ALGORITHM.PIXELATED },
   ],
-  default: SCALING_ALGORITHM.AUTO
+  default: SCALING_ALGORITHM.AUTO,
 };

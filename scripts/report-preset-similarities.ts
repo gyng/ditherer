@@ -18,7 +18,8 @@ const limitArg = args.find((arg) => arg.startsWith("--limit="));
 const threshold = thresholdArg ? Number(thresholdArg.split("=")[1]) : 0.45;
 const limit = limitArg ? Number(limitArg.split("=")[1]) : 20;
 
-const filterNames = (preset: typeof CHAIN_PRESETS[number]) => preset.filters.map((entry) => entry.name);
+const filterNames = (preset: (typeof CHAIN_PRESETS)[number]) =>
+  preset.filters.map((entry) => entry.name);
 
 const unique = (values: string[]) => [...new Set(values)];
 
@@ -51,19 +52,18 @@ const orderedSimilarity = (a: string[], b: string[]) => {
   return matches / maxLen;
 };
 
-const similarity = (a: typeof CHAIN_PRESETS[number], b: typeof CHAIN_PRESETS[number]): PairReport => {
+const similarity = (
+  a: (typeof CHAIN_PRESETS)[number],
+  b: (typeof CHAIN_PRESETS)[number],
+): PairReport => {
   const namesA = filterNames(a);
   const namesB = filterNames(b);
   const setSimilarity = jaccard(namesA, namesB);
   const orderSimilarity = orderedSimilarity(namesA, namesB);
   const sameLead = namesA[0] === namesB[0];
   const sameCategory = a.category === b.category;
-  const score = (
-    setSimilarity * 0.5 +
-    orderSimilarity * 0.25 +
-    (sameLead ? 0.15 : 0) +
-    (sameCategory ? 0.1 : 0)
-  );
+  const score =
+    setSimilarity * 0.5 + orderSimilarity * 0.25 + (sameLead ? 0.15 : 0) + (sameCategory ? 0.1 : 0);
 
   return {
     a: a.name,
@@ -90,7 +90,10 @@ for (let i = 0; i < CHAIN_PRESETS.length; i += 1) {
   }
 }
 
-pairReports.sort((left, right) => right.score - left.score || left.a.localeCompare(right.a) || left.b.localeCompare(right.b));
+pairReports.sort(
+  (left, right) =>
+    right.score - left.score || left.a.localeCompare(right.a) || left.b.localeCompare(right.b),
+);
 
 console.log(`Preset similarity report`);
 console.log(`Threshold: ${threshold.toFixed(2)}  Limit: ${limit}`);
@@ -118,8 +121,8 @@ if (shown.length === 0) {
     const shared = report.sharedFilters.length > 0 ? report.sharedFilters.join(", ") : "none";
     console.log(
       `- ${report.a} [${report.categoryA}] <> ${report.b} [${report.categoryB}] ` +
-      `score=${report.score.toFixed(2)} shared=${shared} ` +
-      `set=${report.setSimilarity.toFixed(2)} order=${report.orderedSimilarity.toFixed(2)} lead=${report.sameLead ? "yes" : "no"}`
+        `score=${report.score.toFixed(2)} shared=${shared} ` +
+        `set=${report.setSimilarity.toFixed(2)} order=${report.orderedSimilarity.toFixed(2)} lead=${report.sameLead ? "yes" : "no"}`,
     );
   }
 }

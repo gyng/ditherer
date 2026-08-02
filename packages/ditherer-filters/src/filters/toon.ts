@@ -26,11 +26,33 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  levels: { type: RANGE, range: [2, 12], step: 1, default: 4, desc: "Number of flat color bands used for cel shading" },
-  edgeThreshold: { type: RANGE, range: [0, 100], step: 1, default: 28, desc: "Edge sensitivity for the ink outline" },
-  lineColor: { type: COLOR, default: [24, 18, 18], desc: "Outline color used for the cartoon ink pass" },
-  lineWidth: { type: RANGE, range: [0.1, 4], step: 0.1, default: 1, desc: "Thickness of the outline" },
-  palette: { type: PALETTE, default: nearest }
+  levels: {
+    type: RANGE,
+    range: [2, 12],
+    step: 1,
+    default: 4,
+    desc: "Number of flat color bands used for cel shading",
+  },
+  edgeThreshold: {
+    type: RANGE,
+    range: [0, 100],
+    step: 1,
+    default: 28,
+    desc: "Edge sensitivity for the ink outline",
+  },
+  lineColor: {
+    type: COLOR,
+    default: [24, 18, 18],
+    desc: "Outline color used for the cartoon ink pass",
+  },
+  lineWidth: {
+    type: RANGE,
+    range: [0.1, 4],
+    step: 0.1,
+    default: 1,
+    desc: "Thickness of the outline",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -38,7 +60,7 @@ export const defaults = {
   edgeThreshold: optionTypes.edgeThreshold.default,
   lineColor: optionTypes.lineColor.default,
   lineWidth: optionTypes.lineWidth.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Single-pass: inline Sobel on luminance, max-dilate for lineWidth > 1,
@@ -125,8 +147,15 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     toon: linkProgram(gl, TOON_FS, [
-      "u_source", "u_res", "u_levels", "u_edgeThreshold",
-      "u_lineColor", "u_lineWidth", "u_ceilR", "u_reach", "u_edgeAlpha",
+      "u_source",
+      "u_res",
+      "u_levels",
+      "u_edgeThreshold",
+      "u_lineColor",
+      "u_lineWidth",
+      "u_ceilR",
+      "u_reach",
+      "u_edgeAlpha",
     ] as const),
   };
   return _cache;
@@ -134,7 +163,8 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
 
 const toon = (input: any, options = defaults) => {
   const { levels, edgeThreshold, lineColor, lineWidth, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const radius = Math.max(0, lineWidth - 1);
   const ceilR = Math.ceil(radius);
   const reach = radius + 0.35;
@@ -150,27 +180,43 @@ const toon = (input: any, options = defaults) => {
       const sourceTex = ensureTexture(gl, "toon:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.toon, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.toon.uniforms.u_source, 0);
-        gl.uniform2f(cache.toon.uniforms.u_res, W, H);
-        gl.uniform1f(cache.toon.uniforms.u_levels, levels);
-        gl.uniform1f(cache.toon.uniforms.u_edgeThreshold, edgeThreshold);
-        gl.uniform3f(cache.toon.uniforms.u_lineColor, lineColor[0] / 255, lineColor[1] / 255, lineColor[2] / 255);
-        gl.uniform1f(cache.toon.uniforms.u_lineWidth, lineWidth);
-        gl.uniform1i(cache.toon.uniforms.u_ceilR, Math.min(4, ceilR));
-        gl.uniform1f(cache.toon.uniforms.u_reach, reach);
-        gl.uniform1f(cache.toon.uniforms.u_edgeAlpha, edgeAlpha);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.toon,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.toon.uniforms.u_source, 0);
+          gl.uniform2f(cache.toon.uniforms.u_res, W, H);
+          gl.uniform1f(cache.toon.uniforms.u_levels, levels);
+          gl.uniform1f(cache.toon.uniforms.u_edgeThreshold, edgeThreshold);
+          gl.uniform3f(
+            cache.toon.uniforms.u_lineColor,
+            lineColor[0] / 255,
+            lineColor[1] / 255,
+            lineColor[2] / 255,
+          );
+          gl.uniform1f(cache.toon.uniforms.u_lineWidth, lineWidth);
+          gl.uniform1i(cache.toon.uniforms.u_ceilR, Math.min(4, ceilR));
+          gl.uniform1f(cache.toon.uniforms.u_reach, reach);
+          gl.uniform1f(cache.toon.uniforms.u_edgeAlpha, edgeAlpha);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Toon", "WebGL2",
-            `levels=${levels} edge=${edgeThreshold}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Toon",
+            "WebGL2",
+            `levels=${levels} edge=${edgeThreshold}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -213,7 +259,11 @@ const toon = (input: any, options = defaults) => {
       const i = getBufferIndex(x, y, W);
 
       if (edgeMap[y * W + x] > edgeThreshold) {
-        const edgeColor = srgbPaletteGetColor(palette, rgba(lineColor[0], lineColor[1], lineColor[2], 255), palette.options);
+        const edgeColor = srgbPaletteGetColor(
+          palette,
+          rgba(lineColor[0], lineColor[1], lineColor[2], 255),
+          palette.options,
+        );
         if (lineWidth < 1) {
           const baseR = Math.round(Math.round(buf[i] / step) * step);
           const baseG = Math.round(Math.round(buf[i + 1] / step) * step);
@@ -224,9 +274,9 @@ const toon = (input: any, options = defaults) => {
               Math.round(baseR + (edgeColor[0] - baseR) * edgeAlpha),
               Math.round(baseG + (edgeColor[1] - baseG) * edgeAlpha),
               Math.round(baseB + (edgeColor[2] - baseB) * edgeAlpha),
-              255
+              255,
             ),
-            palette.options
+            palette.options,
           );
           fillBufferPixel(outBuf, i, color[0], color[1], color[2], 255);
         } else {
@@ -252,5 +302,5 @@ export default defineFilter({
   func: toon,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

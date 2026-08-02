@@ -20,7 +20,7 @@ describe("optical convolution: Gaussian kernel", () => {
       expect(k[i]).toBeCloseTo(k[k.length - 1 - i], 12); // symmetric
     }
     const mid = k.length >> 1;
-    expect(k[mid]).toBeGreaterThan(k[0]);          // peaked at centre
+    expect(k[mid]).toBeGreaterThan(k[0]); // peaked at centre
     expect(k[mid]).toBeGreaterThan(k[mid - 1]);
     // A box kernel would be uniform; a Gaussian must not be.
     expect(k[mid]).toBeGreaterThan((1 / k.length) * 1.5);

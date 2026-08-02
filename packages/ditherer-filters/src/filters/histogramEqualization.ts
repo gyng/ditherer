@@ -17,12 +17,12 @@ import {
 
 export const optionTypes = {
   perChannel: { type: BOOL, default: false, desc: "Equalize each RGB channel independently" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   perChannel: optionTypes.perChannel.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const buildCdf = (hist: Uint32Array, total: number): Uint8Array => {
@@ -147,7 +147,7 @@ const histogramEqualization = (input: any, options: typeof defaults = defaults) 
 
   const lutRGBA = new Uint8Array(256 * 4);
   for (let i = 0; i < 256; i += 1) {
-    lutRGBA[i * 4]     = mapR[i];
+    lutRGBA[i * 4] = mapR[i];
     lutRGBA[i * 4 + 1] = mapG[i];
     lutRGBA[i * 4 + 2] = mapB[i];
     lutRGBA[i * 4 + 3] = 255;
@@ -173,23 +173,34 @@ const histogramEqualization = (input: any, options: typeof defaults = defaults) 
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
   const identity = paletteIsIdentity(palette);
-  drawPass(gl, null, W, H, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, lutTex);
-    gl.uniform1i(cache.prog.uniforms.u_lut, 1);
-    gl.uniform1i(cache.prog.uniforms.u_perChannel, perChannel ? 1 : 0);
-    const pOpts = (palette as { options?: { levels?: number } }).options;
-    gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, lutTex);
+      gl.uniform1i(cache.prog.uniforms.u_lut, 1);
+      gl.uniform1i(cache.prog.uniforms.u_perChannel, perChannel ? 1 : 0);
+      const pOpts = (palette as { options?: { levels?: number } }).options;
+      gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return input;
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
-  logFilterBackend("Histogram equalization", "WebGL2",
-    `${perChannel ? "perChannel" : "luma"}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Histogram equalization",
+    "WebGL2",
+    `${perChannel ? "perChannel" : "luma"}${identity ? "" : "+palettePass"}`,
+  );
   return out ?? input;
 };
 

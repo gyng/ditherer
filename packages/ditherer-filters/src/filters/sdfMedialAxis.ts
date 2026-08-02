@@ -59,14 +59,54 @@ void main() {
 `;
 
 export const optionTypes = {
-  threshold: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Luminance threshold defining the silhouette" },
-  minRadius: { type: RANGE, range: [0, 80], step: 1, default: 5, desc: "Prune skeleton branches thinner than this local radius" },
-  probeRadius: { type: RANGE, range: [1, 8], step: 1, default: 2, desc: "Neighborhood radius used to find competing boundary sites" },
-  sensitivity: { type: RANGE, range: [0.2, 1.4], step: 0.05, default: 0.68, desc: "Required divergence between nearest-boundary sites" },
-  glow: { type: RANGE, range: [0, 4], step: 0.1, default: 1.4, desc: "Light emitted around medial-axis filaments" },
-  sourceMix: { type: RANGE, range: [0, 1], step: 0.05, default: 0.18, desc: "Amount of original image retained behind the skeleton" },
+  threshold: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Luminance threshold defining the silhouette",
+  },
+  minRadius: {
+    type: RANGE,
+    range: [0, 80],
+    step: 1,
+    default: 5,
+    desc: "Prune skeleton branches thinner than this local radius",
+  },
+  probeRadius: {
+    type: RANGE,
+    range: [1, 8],
+    step: 1,
+    default: 2,
+    desc: "Neighborhood radius used to find competing boundary sites",
+  },
+  sensitivity: {
+    type: RANGE,
+    range: [0.2, 1.4],
+    step: 0.05,
+    default: 0.68,
+    desc: "Required divergence between nearest-boundary sites",
+  },
+  glow: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.1,
+    default: 1.4,
+    desc: "Light emitted around medial-axis filaments",
+  },
+  sourceMix: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.18,
+    desc: "Amount of original image retained behind the skeleton",
+  },
   axisColor: { type: COLOR, default: [100, 232, 255], desc: "Medial-axis filament color" },
-  backgroundColor: { type: COLOR, default: [8, 12, 22], desc: "Background color behind the field skeleton" },
+  backgroundColor: {
+    type: COLOR,
+    default: [8, 12, 22],
+    desc: "Background color behind the field skeleton",
+  },
 };
 
 export const defaults = Object.fromEntries(
@@ -82,8 +122,13 @@ const sdfMedialAxis = (input: HTMLCanvasElement | OffscreenCanvas, options = def
     threshold: options.threshold,
     fragmentShader: FS,
     uniformNames: [
-      "u_minRadius", "u_probeRadius", "u_sensitivity", "u_glow", "u_sourceMix",
-      "u_axisColor", "u_backgroundColor",
+      "u_minRadius",
+      "u_probeRadius",
+      "u_sensitivity",
+      "u_glow",
+      "u_sourceMix",
+      "u_axisColor",
+      "u_backgroundColor",
     ],
     setUniforms: (gl, uniforms) => {
       gl.uniform1f(uniforms.u_minRadius, options.minRadius);
@@ -91,8 +136,18 @@ const sdfMedialAxis = (input: HTMLCanvasElement | OffscreenCanvas, options = def
       gl.uniform1f(uniforms.u_sensitivity, options.sensitivity);
       gl.uniform1f(uniforms.u_glow, options.glow);
       gl.uniform1f(uniforms.u_sourceMix, options.sourceMix);
-      gl.uniform3f(uniforms.u_axisColor, options.axisColor[0], options.axisColor[1], options.axisColor[2]);
-      gl.uniform3f(uniforms.u_backgroundColor, options.backgroundColor[0], options.backgroundColor[1], options.backgroundColor[2]);
+      gl.uniform3f(
+        uniforms.u_axisColor,
+        options.axisColor[0],
+        options.axisColor[1],
+        options.axisColor[2],
+      );
+      gl.uniform3f(
+        uniforms.u_backgroundColor,
+        options.backgroundColor[0],
+        options.backgroundColor[1],
+        options.backgroundColor[2],
+      );
     },
   });
   if (!rendered) return input;

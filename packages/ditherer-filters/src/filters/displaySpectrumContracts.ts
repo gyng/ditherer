@@ -1,8 +1,6 @@
-const finite = (value: number, fallback = 0): number =>
-  Number.isFinite(value) ? value : fallback;
+const finite = (value: number, fallback = 0): number => (Number.isFinite(value) ? value : fallback);
 
-const clamp01 = (value: number): number =>
-  Math.max(0, Math.min(1, finite(value)));
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, finite(value)));
 
 const fract = (value: number): number => value - Math.floor(value);
 
@@ -14,7 +12,7 @@ export const lenticularViewPosition = (
   const count = Math.max(2, Math.min(12, Math.round(finite(viewCount, 2))));
   const phase = fract(finite(stripPhase) + Math.max(-1, Math.min(1, finite(viewAngle))) * 0.5);
   const slot = Math.min(count - 1, Math.floor(phase * count));
-  return slot / (count - 1) * 2 - 1;
+  return (slot / (count - 1)) * 2 - 1;
 };
 
 export const lenticularParallaxOffset = (
@@ -75,13 +73,10 @@ export const hannWindow = (sample: number, length: number): number => {
   // the only useful finite-signal convention there: a rectangular window.
   if (count <= 2) return 1;
   const index = Math.max(0, Math.min(count - 1, finite(sample)));
-  return 0.5 - 0.5 * Math.cos(2 * Math.PI * index / (count - 1));
+  return 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / (count - 1));
 };
 
-export const spectrogramNyquistBinCount = (
-  signalLength: number,
-  requestedBins: number,
-): number => {
+export const spectrogramNyquistBinCount = (signalLength: number, requestedBins: number): number => {
   const length = Math.max(1, Math.round(finite(signalLength, 1)));
   const requested = Math.max(1, Math.round(finite(requestedBins, 1)));
   return Math.min(requested, Math.floor(length / 2) + 1);
@@ -97,17 +92,14 @@ export const spectrogramMagnitudeLevel = (
 ): number => {
   const sum = Math.max(1e-6, Math.abs(finite(windowSum, 1)));
   const oneSidedScale = spectrogramOneSidedScale(bin, signalLength);
-  const magnitude = Math.hypot(finite(real), finite(imaginary)) / sum * oneSidedScale;
+  const magnitude = (Math.hypot(finite(real), finite(imaginary)) / sum) * oneSidedScale;
   const range = Math.max(20, Math.min(100, finite(dynamicRangeDb, 60)));
   const floorMagnitude = 10 ** (-range / 20);
   const db = 20 * Math.log10(Math.max(floorMagnitude, magnitude));
   return clamp01((db + range) / range);
 };
 
-export const spectrogramOneSidedScale = (
-  bin: number,
-  signalLength: number,
-): 1 | 2 => {
+export const spectrogramOneSidedScale = (bin: number, signalLength: number): 1 | 2 => {
   const frequencyBin = Math.max(0, Math.round(finite(bin)));
   const length = Math.max(1, Math.round(finite(signalLength, 1)));
   const isEvenNyquist = length % 2 === 0 && frequencyBin === length / 2;
@@ -123,8 +115,6 @@ export const spectrogramBinForRow = (
   const rows = Math.max(2, Math.round(finite(height, 2)));
   const bins = Math.max(1, Math.round(finite(binCount, 1)));
   const axis = 1 - Math.max(0, Math.min(rows - 1, finite(row))) / (rows - 1);
-  const mapped = logarithmic
-    ? Math.exp(Math.log(bins) * axis) - 1
-    : axis * (bins - 1);
+  const mapped = logarithmic ? Math.exp(Math.log(bins) * axis) - 1 : axis * (bins - 1);
   return Math.max(0, Math.min(bins - 1, Math.round(mapped)));
 };

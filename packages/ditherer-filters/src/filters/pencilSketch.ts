@@ -1,11 +1,6 @@
 import { RANGE, COLOR, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import {
-  cloneCanvas,
-  getBufferIndex,
-  logFilterBackend,
-  logFilterWasmStatus,
-} from "../utils/index";
+import { cloneCanvas, getBufferIndex, logFilterBackend, logFilterWasmStatus } from "../utils/index";
 import { defineFilter } from "./types";
 import { applyPalettePassToCanvas, paletteIsIdentity } from "../palettes/backend";
 import {
@@ -22,11 +17,23 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  strokeDensity: { type: RANGE, range: [1, 10], step: 1, default: 4, desc: "Hatching line density — higher values draw more closely spaced strokes" },
-  contrast: { type: RANGE, range: [0.5, 3], step: 0.1, default: 1.5, desc: "Contrast boost for pencil strokes" },
+  strokeDensity: {
+    type: RANGE,
+    range: [1, 10],
+    step: 1,
+    default: 4,
+    desc: "Hatching line density — higher values draw more closely spaced strokes",
+  },
+  contrast: {
+    type: RANGE,
+    range: [0.5, 3],
+    step: 0.1,
+    default: 1.5,
+    desc: "Contrast boost for pencil strokes",
+  },
   pencilColor: { type: COLOR, default: [30, 25, 20], desc: "Pencil graphite color" },
   paperColor: { type: COLOR, default: [250, 245, 235], desc: "Background paper color" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -34,7 +41,7 @@ export const defaults = {
   contrast: optionTypes.contrast.default,
   pencilColor: optionTypes.pencilColor.default,
   paperColor: optionTypes.paperColor.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 // Shader computes luminance + Sobel (magnitude + direction) inline, then
@@ -112,8 +119,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     ps: linkProgram(gl, PS_FS, [
-      "u_source", "u_res", "u_strokeSpacing", "u_contrast",
-      "u_pencilColor", "u_paperColor",
+      "u_source",
+      "u_res",
+      "u_strokeSpacing",
+      "u_contrast",
+      "u_pencilColor",
+      "u_paperColor",
     ] as const),
   };
   return _cache;
@@ -124,13 +135,17 @@ const finite = (value: unknown, fallback: number, min: number, max: number) => {
   return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));
 };
 
-const validColor = (value: unknown, fallback: number[]): number[] => (
-  Array.isArray(value) && value.length >= 3 && value.slice(0, 3).every(channel => typeof channel === "number" && Number.isFinite(channel))
-    ? value.slice(0, 3).map(channel => Math.max(0, Math.min(255, channel as number)))
-    : fallback
-);
+const validColor = (value: unknown, fallback: number[]): number[] =>
+  Array.isArray(value) &&
+  value.length >= 3 &&
+  value.slice(0, 3).every((channel) => typeof channel === "number" && Number.isFinite(channel))
+    ? value.slice(0, 3).map((channel) => Math.max(0, Math.min(255, channel as number)))
+    : fallback;
 
-const pencilSketch = (input: any, options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults) => {
+const pencilSketch = (
+  input: any,
+  options: Partial<typeof defaults> & { _webglAcceleration?: boolean } = defaults,
+) => {
   const strokeDensity = finite(options.strokeDensity, defaults.strokeDensity, 1, 10);
   // This maps the complete saved-state range to 1/8..1/2 cycles per pixel,
   // preserving the old default spacing while staying at or below Nyquist.
@@ -139,7 +154,8 @@ const pencilSketch = (input: any, options: Partial<typeof defaults> & { _webglAc
   const pencilColor = validColor(options.pencilColor, defaults.pencilColor);
   const paperColor = validColor(options.paperColor, defaults.paperColor);
   const palette = options.palette ?? defaults.palette;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -151,24 +167,45 @@ const pencilSketch = (input: any, options: Partial<typeof defaults> & { _webglAc
       const sourceTex = ensureTexture(gl, "pencilSketch:source", W, H);
       uploadSourceTexture(gl, sourceTex, input);
 
-      drawPass(gl, null, W, H, cache.ps, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.ps.uniforms.u_source, 0);
-        gl.uniform2f(cache.ps.uniforms.u_res, W, H);
-        gl.uniform1f(cache.ps.uniforms.u_strokeSpacing, strokeSpacing);
-        gl.uniform1f(cache.ps.uniforms.u_contrast, contrast);
-        gl.uniform3f(cache.ps.uniforms.u_pencilColor, pencilColor[0] / 255, pencilColor[1] / 255, pencilColor[2] / 255);
-        gl.uniform3f(cache.ps.uniforms.u_paperColor, paperColor[0] / 255, paperColor[1] / 255, paperColor[2] / 255);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.ps,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.ps.uniforms.u_source, 0);
+          gl.uniform2f(cache.ps.uniforms.u_res, W, H);
+          gl.uniform1f(cache.ps.uniforms.u_strokeSpacing, strokeSpacing);
+          gl.uniform1f(cache.ps.uniforms.u_contrast, contrast);
+          gl.uniform3f(
+            cache.ps.uniforms.u_pencilColor,
+            pencilColor[0] / 255,
+            pencilColor[1] / 255,
+            pencilColor[2] / 255,
+          );
+          gl.uniform3f(
+            cache.ps.uniforms.u_paperColor,
+            paperColor[0] / 255,
+            paperColor[1] / 255,
+            paperColor[2] / 255,
+          );
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Pencil Sketch", "WebGL2",
-            `density=${strokeDensity}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Pencil Sketch",
+            "WebGL2",
+            `density=${strokeDensity}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -197,9 +234,8 @@ const pencilSketch = (input: any, options: Partial<typeof defaults> & { _webglAc
     }
   }
 
-  const sampleSignal = (x: number, y: number) => signal[
-    Math.max(0, Math.min(H - 1, y)) * W + Math.max(0, Math.min(W - 1, x))
-  ];
+  const sampleSignal = (x: number, y: number) =>
+    signal[Math.max(0, Math.min(H - 1, y)) * W + Math.max(0, Math.min(W - 1, x))];
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -224,7 +260,7 @@ const pencilSketch = (input: any, options: Partial<typeof defaults> & { _webglAc
 
       const proj = x * Math.cos(dir) + y * Math.sin(dir);
       const linePos = ((proj % strokeSpacing) + strokeSpacing) % strokeSpacing;
-      const lineCoverage = 0.5 + 0.5 * Math.cos(2 * Math.PI * linePos / strokeSpacing);
+      const lineCoverage = 0.5 + 0.5 * Math.cos((2 * Math.PI * linePos) / strokeSpacing);
 
       const edgeFactor = Math.min(1, edge / 100);
       const strokeIntensity = darkness * (0.15 + (0.15 + edgeFactor * 0.7) * lineCoverage);
@@ -245,4 +281,10 @@ const pencilSketch = (input: any, options: Partial<typeof defaults> & { _webglAc
   return applyPalettePassToCanvas(output, W, H, palette) ?? output;
 };
 
-export default defineFilter({ name: "Pencil Sketch", func: pencilSketch, optionTypes, options: defaults, defaults });
+export default defineFilter({
+  name: "Pencil Sketch",
+  func: pencilSketch,
+  optionTypes,
+  options: defaults,
+  defaults,
+});

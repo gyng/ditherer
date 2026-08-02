@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -55,10 +62,17 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_bayer[0]", "u_matrixN",
-    "u_levelsR", "u_levelsG", "u_levelsB",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_bayer[0]",
+      "u_matrixN",
+      "u_levelsR",
+      "u_levelsG",
+      "u_levelsB",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -66,9 +80,13 @@ export const posterizeDitherGLAvailable = (): boolean => glAvailable();
 
 export const renderPosterizeDitherGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  matrix: number[][], matrixN: number,
-  levelsR: number, levelsG: number, levelsB: number,
+  width: number,
+  height: number,
+  matrix: number[][],
+  matrixN: number,
+  levelsR: number,
+  levelsG: number,
+  levelsB: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -88,16 +106,24 @@ export const renderPosterizeDitherGL = (
 
   const sourceTex = ensureTexture(gl, "posterizeDither:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1fv(cache.prog.uniforms["u_bayer[0]"], flat);
-    gl.uniform1i(cache.prog.uniforms.u_matrixN, matrixN);
-    gl.uniform1f(cache.prog.uniforms.u_levelsR, levelsR);
-    gl.uniform1f(cache.prog.uniforms.u_levelsG, levelsG);
-    gl.uniform1f(cache.prog.uniforms.u_levelsB, levelsB);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1fv(cache.prog.uniforms["u_bayer[0]"], flat);
+      gl.uniform1i(cache.prog.uniforms.u_matrixN, matrixN);
+      gl.uniform1f(cache.prog.uniforms.u_levelsR, levelsR);
+      gl.uniform1f(cache.prog.uniforms.u_levelsG, levelsG);
+      gl.uniform1f(cache.prog.uniforms.u_levelsB, levelsB);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

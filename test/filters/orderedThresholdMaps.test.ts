@@ -1,11 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ALTERNATE_3X3, BAYER_16X16, BAYER_16X16_T, BAYER_2X2, BAYER_2X2_T, BAYER_3X3,
-  BAYER_4X4, BAYER_4X4_T, BAYER_8X8, BAYER_8X8_T,
-  BLOCK_HORIZONTAL_4X4, BLOCK_VERTICAL_4X4, BLUE_NOISE_16X16, BLUE_NOISE_64X64,
-  CORNER_4X4, DISPERSED_DOT_3X3, HATCH_2X2, HATCH_3X3, HATCH_4X4, PATTERN_5X5,
-  SQUARE_5X5, THRESHOLD_POLARITY, WHITE_NOISE_64X64,
+  ALTERNATE_3X3,
+  BAYER_16X16,
+  BAYER_16X16_T,
+  BAYER_2X2,
+  BAYER_2X2_T,
+  BAYER_3X3,
+  BAYER_4X4,
+  BAYER_4X4_T,
+  BAYER_8X8,
+  BAYER_8X8_T,
+  BLOCK_HORIZONTAL_4X4,
+  BLOCK_VERTICAL_4X4,
+  BLUE_NOISE_16X16,
+  BLUE_NOISE_64X64,
+  CORNER_4X4,
+  DISPERSED_DOT_3X3,
+  HATCH_2X2,
+  HATCH_3X3,
+  HATCH_4X4,
+  PATTERN_5X5,
+  SQUARE_5X5,
+  THRESHOLD_POLARITY,
+  WHITE_NOISE_64X64,
   getOrderedThresholdMapPreview,
 } from "filters/ordered";
 
@@ -105,10 +123,15 @@ describe("transposed Bayer variants", () => {
   });
 
   it.each([
-    [BAYER_2X2_T, 2], [BAYER_4X4_T, 4], [BAYER_8X8_T, 8], [BAYER_16X16_T, 16],
+    [BAYER_2X2_T, 2],
+    [BAYER_4X4_T, 4],
+    [BAYER_8X8_T, 8],
+    [BAYER_16X16_T, 16],
   ])("%s is still a valid Bayer matrix", (key, n) => {
     // A transpose permutes cells, so every level must survive exactly once.
-    const values = asIntegers(preview(key).thresholdMap, n * n).flat().sort((a, b) => a - b);
+    const values = asIntegers(preview(key).thresholdMap, n * n)
+      .flat()
+      .sort((a, b) => a - b);
     expect(values).toEqual(Array.from({ length: n * n }, (_, i) => i));
   });
 
@@ -117,29 +140,48 @@ describe("transposed Bayer variants", () => {
     // other lean is now reachable. So for every size, one of the pair matches
     // the canonical recurrence and the other matches its transpose.
     for (const [base, variant, n] of [
-      [BAYER_2X2, BAYER_2X2_T, 2], [BAYER_4X4, BAYER_4X4_T, 4],
-      [BAYER_8X8, BAYER_8X8_T, 8], [BAYER_16X16, BAYER_16X16_T, 16],
+      [BAYER_2X2, BAYER_2X2_T, 2],
+      [BAYER_4X4, BAYER_4X4_T, 4],
+      [BAYER_8X8, BAYER_8X8_T, 8],
+      [BAYER_16X16, BAYER_16X16_T, 16],
     ] as const) {
       const canonical = bayer(n);
       const maps = [
         asIntegers(preview(base).thresholdMap, n * n),
         asIntegers(preview(variant).thresholdMap, n * n),
       ];
-      expect(maps, `size ${n}: neither orientation is the recurrence`)
-        .toContainEqual(canonical);
-      expect(maps, `size ${n}: neither orientation is the transposed recurrence`)
-        .toContainEqual(transpose(canonical));
+      expect(maps, `size ${n}: neither orientation is the recurrence`).toContainEqual(canonical);
+      expect(maps, `size ${n}: neither orientation is the transposed recurrence`).toContainEqual(
+        transpose(canonical),
+      );
     }
   });
 });
 
 describe("every threshold map is well formed", () => {
   const ALL = [
-    BAYER_2X2, BAYER_3X3, BAYER_4X4, BAYER_8X8, BAYER_16X16, SQUARE_5X5,
-    CORNER_4X4, BLOCK_VERTICAL_4X4, BLOCK_HORIZONTAL_4X4, HATCH_2X2, HATCH_3X3,
-    HATCH_4X4, ALTERNATE_3X3, DISPERSED_DOT_3X3, PATTERN_5X5, BLUE_NOISE_16X16,
-    BLUE_NOISE_64X64, WHITE_NOISE_64X64,
-    BAYER_2X2_T, BAYER_4X4_T, BAYER_8X8_T, BAYER_16X16_T,
+    BAYER_2X2,
+    BAYER_3X3,
+    BAYER_4X4,
+    BAYER_8X8,
+    BAYER_16X16,
+    SQUARE_5X5,
+    CORNER_4X4,
+    BLOCK_VERTICAL_4X4,
+    BLOCK_HORIZONTAL_4X4,
+    HATCH_2X2,
+    HATCH_3X3,
+    HATCH_4X4,
+    ALTERNATE_3X3,
+    DISPERSED_DOT_3X3,
+    PATTERN_5X5,
+    BLUE_NOISE_16X16,
+    BLUE_NOISE_64X64,
+    WHITE_NOISE_64X64,
+    BAYER_2X2_T,
+    BAYER_4X4_T,
+    BAYER_8X8_T,
+    BAYER_16X16_T,
   ];
 
   it.each(ALL)("%s stays within [0,1) and is rectangular", (key) => {
@@ -168,21 +210,33 @@ describe("every threshold map is well formed", () => {
   });
 
   it.each([
-    [BAYER_2X2, 4], [BAYER_3X3, 9], [BAYER_4X4, 16], [BAYER_8X8, 64],
-    [BAYER_16X16, 256], [CORNER_4X4, 16], [DISPERSED_DOT_3X3, 9],
+    [BAYER_2X2, 4],
+    [BAYER_3X3, 9],
+    [BAYER_4X4, 16],
+    [BAYER_8X8, 64],
+    [BAYER_16X16, 256],
+    [CORNER_4X4, 16],
+    [DISPERSED_DOT_3X3, 9],
   ])("%s is a permutation of 0..%i-1 — no duplicate or missing level", (key, levels) => {
     // Dispersed-dot maps must use each level exactly once; a duplicate means two
     // cells fire together and the pattern loses a gradient step.
     const { thresholdMap } = preview(key);
-    const values = asIntegers(thresholdMap, levels).flat().sort((a, b) => a - b);
+    const values = asIntegers(thresholdMap, levels)
+      .flat()
+      .sort((a, b) => a - b);
     expect(values).toEqual(Array.from({ length: levels }, (_, i) => i));
   });
 });
 
 describe("map metadata matches the data", () => {
   it.each([
-    [BAYER_2X2, 2, 2], [BAYER_4X4, 4, 4], [BAYER_8X8, 8, 8], [BAYER_16X16, 16, 16],
-    [BLUE_NOISE_64X64, 64, 64], [WHITE_NOISE_64X64, 64, 64], [SQUARE_5X5, 5, 5],
+    [BAYER_2X2, 2, 2],
+    [BAYER_4X4, 4, 4],
+    [BAYER_8X8, 8, 8],
+    [BAYER_16X16, 16, 16],
+    [BLUE_NOISE_64X64, 64, 64],
+    [WHITE_NOISE_64X64, 64, 64],
+    [SQUARE_5X5, 5, 5],
   ])("%s reports %ix%i", (key, w, h) => {
     // The shader tiles using the reported dimensions; if they disagree with the
     // table it samples the wrong cell.

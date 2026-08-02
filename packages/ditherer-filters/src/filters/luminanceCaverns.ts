@@ -68,37 +68,114 @@ void main() {
 }`;
 
 export const optionTypes = {
-  radius: { type: RANGE, range: [0.35, 1.4], step: 0.05, default: 0.78, desc: "Base radius of the fly-through tunnel" },
-  relief: { type: RANGE, range: [0, 1], step: 0.05, default: 0.42, desc: "How strongly source luminance carves the cavern wall" },
-  twist: { type: RANGE, range: [-4, 4], step: 0.1, default: 0.8, desc: "Spiral twist applied along the tunnel" },
-  glow: { type: RANGE, range: [0, 4], step: 0.1, default: 1.3, desc: "Emission from bright mineral regions" },
-  steps: { type: RANGE, range: [24, 96], step: 8, default: 72, desc: "Maximum wall-intersection steps" },
+  radius: {
+    type: RANGE,
+    range: [0.35, 1.4],
+    step: 0.05,
+    default: 0.78,
+    desc: "Base radius of the fly-through tunnel",
+  },
+  relief: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.42,
+    desc: "How strongly source luminance carves the cavern wall",
+  },
+  twist: {
+    type: RANGE,
+    range: [-4, 4],
+    step: 0.1,
+    default: 0.8,
+    desc: "Spiral twist applied along the tunnel",
+  },
+  glow: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.1,
+    default: 1.3,
+    desc: "Emission from bright mineral regions",
+  },
+  steps: {
+    type: RANGE,
+    range: [24, 96],
+    step: 8,
+    default: 72,
+    desc: "Maximum wall-intersection steps",
+  },
   speed: { type: RANGE, range: [0, 3], step: 0.05, default: 0.65, desc: "Forward flight speed" },
-  lightColor: { type: COLOR, default: [120, 196, 255], desc: "Explorer lamp and mineral glow color" },
+  lightColor: {
+    type: COLOR,
+    default: [120, 196, 255],
+    desc: "Explorer lamp and mineral glow color",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 export const defaults = {
-  radius: optionTypes.radius.default, relief: optionTypes.relief.default, twist: optionTypes.twist.default,
-  glow: optionTypes.glow.default, steps: optionTypes.steps.default, speed: optionTypes.speed.default,
+  radius: optionTypes.radius.default,
+  relief: optionTypes.relief.default,
+  twist: optionTypes.twist.default,
+  glow: optionTypes.glow.default,
+  steps: optionTypes.steps.default,
+  speed: optionTypes.speed.default,
   lightColor: optionTypes.lightColor.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const luminanceCaverns = (input: HTMLCanvasElement | OffscreenCanvas, options = defaults) => {
   const runtime = options as typeof defaults & { _frameIndex?: number };
-  const W = input.width, H = input.height;
-  const rendered = renderGLSinglePass({ source: input, width: W, height: H, key: "luminanceCaverns", fragmentShader: FS,
-    uniformNames: ["u_radius", "u_relief", "u_twist", "u_glow", "u_steps", "u_time", "u_lightColor"],
+  const W = input.width,
+    H = input.height;
+  const rendered = renderGLSinglePass({
+    source: input,
+    width: W,
+    height: H,
+    key: "luminanceCaverns",
+    fragmentShader: FS,
+    uniformNames: [
+      "u_radius",
+      "u_relief",
+      "u_twist",
+      "u_glow",
+      "u_steps",
+      "u_time",
+      "u_lightColor",
+    ],
     setUniforms: (gl, u) => {
-      gl.uniform1f(u.u_radius, options.radius); gl.uniform1f(u.u_relief, options.relief);
-      gl.uniform1f(u.u_twist, options.twist); gl.uniform1f(u.u_glow, options.glow);
-      gl.uniform1f(u.u_steps, options.steps); gl.uniform1f(u.u_time, (runtime._frameIndex ?? 0) * options.speed * 0.035);
-      gl.uniform3f(u.u_lightColor, options.lightColor[0], options.lightColor[1], options.lightColor[2]);
-    } });
+      gl.uniform1f(u.u_radius, options.radius);
+      gl.uniform1f(u.u_relief, options.relief);
+      gl.uniform1f(u.u_twist, options.twist);
+      gl.uniform1f(u.u_glow, options.glow);
+      gl.uniform1f(u.u_steps, options.steps);
+      gl.uniform1f(u.u_time, (runtime._frameIndex ?? 0) * options.speed * 0.035);
+      gl.uniform3f(
+        u.u_lightColor,
+        options.lightColor[0],
+        options.lightColor[1],
+        options.lightColor[2],
+      );
+    },
+  });
   if (!rendered) return input;
   const identity = paletteIsIdentity(options.palette);
-  logFilterBackend("Luminance Caverns", "WebGL2", `${options.steps} steps${identity ? "" : "+palettePass"}`);
-  return identity ? rendered : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
+  logFilterBackend(
+    "Luminance Caverns",
+    "WebGL2",
+    `${options.steps} steps${identity ? "" : "+palettePass"}`,
+  );
+  return identity
+    ? rendered
+    : (applyPalettePassToCanvas(rendered, W, H, options.palette) ?? rendered);
 };
-export default defineFilter({ name: "Luminance Caverns", func: luminanceCaverns, optionTypes, options: defaults, defaults,
-  description: "Fly through glowing cavern walls carved and colored by the source image", temporal: true, autoAnimate: true, autoAnimateFps: 30, requiresGL: true });
+export default defineFilter({
+  name: "Luminance Caverns",
+  func: luminanceCaverns,
+  optionTypes,
+  options: defaults,
+  defaults,
+  description: "Fly through glowing cavern walls carved and colored by the source image",
+  temporal: true,
+  autoAnimate: true,
+  autoAnimateFps: 30,
+  requiresGL: true,
+});

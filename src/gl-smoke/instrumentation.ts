@@ -20,7 +20,9 @@ export const installGLCallTracking = (): void => {
     glCalls.shaderCompiles += 1;
     compileShader.call(this, shader);
     if (!this.getShaderParameter(shader, this.COMPILE_STATUS)) {
-      glCalls.shaderFailureLogs.push(`compile: ${this.getShaderInfoLog(shader) || "no driver log"}`);
+      glCalls.shaderFailureLogs.push(
+        `compile: ${this.getShaderInfoLog(shader) || "no driver log"}`,
+      );
     }
   };
   prototype.linkProgram = function trackedLinkProgram(program: WebGLProgram): void {
@@ -30,7 +32,11 @@ export const installGLCallTracking = (): void => {
       glCalls.shaderFailureLogs.push(`link: ${this.getProgramInfoLog(program) || "no driver log"}`);
     }
   };
-  prototype.drawArrays = function trackedDrawArrays(mode: number, first: number, count: number): void {
+  prototype.drawArrays = function trackedDrawArrays(
+    mode: number,
+    first: number,
+    count: number,
+  ): void {
     glCalls.drawCalls += 1;
     drawArrays.call(this, mode, first, count);
   };

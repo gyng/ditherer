@@ -30,18 +30,14 @@ const vector = (dx: number, dy: number, confidence = 0.5): MotionVector => ({
 describe("motion-vector helper boundaries", () => {
   it("projects every scalar source mode and hue dominant-channel segment", () => {
     const current = new Uint8ClampedArray([
-      255, 0, 128, 255,
-      0, 255, 64, 255,
-      64, 0, 255, 255,
-      0, 0, 0, 255,
+      255, 0, 128, 255, 0, 255, 64, 255, 64, 0, 255, 255, 0, 0, 0, 255,
     ]);
     const previous = new Uint8ClampedArray([
-      255, 128, 0, 255,
-      64, 255, 0, 255,
-      0, 64, 255, 255,
-      255, 255, 255, 255,
+      255, 128, 0, 255, 64, 255, 0, 255, 0, 64, 255, 255, 255, 255, 255, 255,
     ]);
-    expect(prepareMotionAnalysisBuffers(current, previous, 4, 1, MOTION_SOURCE.RGB).currentScalar).toBeNull();
+    expect(
+      prepareMotionAnalysisBuffers(current, previous, 4, 1, MOTION_SOURCE.RGB).currentScalar,
+    ).toBeNull();
     for (const mode of Object.values(MOTION_SOURCE).filter((mode) => mode !== MOTION_SOURCE.RGB)) {
       const result = prepareMotionAnalysisBuffers(current, previous, 4, 1, mode);
       expect(result.currentScalar).toHaveLength(4);
@@ -70,26 +66,54 @@ describe("motion-vector helper boundaries", () => {
   it("handles scalar/RGB error boundaries and early rejection", () => {
     const current = new Uint8ClampedArray([255, 10, 20, 255, 0, 200, 30, 255]);
     const previous = new Uint8ClampedArray([0, 10, 200, 255, 255, 20, 30, 255]);
-    expect(averageBlockError(current, previous, 0, 0, 0, 0, 1, 0, 0, MOTION_SOURCE.RGB)).toBe(Infinity);
-    expect(averageBlockError(current, previous, 2, 1, 0, 0, 2, 0, 0, MOTION_SOURCE.RGB, null, null, 0, 0)).toBeGreaterThan(0);
-    for (const mode of [MOTION_SOURCE.RED, MOTION_SOURCE.GREEN, MOTION_SOURCE.BLUE, MOTION_SOURCE.LUMA]) {
-      expect(averageBlockError(current, previous, 2, 1, 0, 0, 2, 0, 0, mode)).toBeGreaterThanOrEqual(0);
+    expect(averageBlockError(current, previous, 0, 0, 0, 0, 1, 0, 0, MOTION_SOURCE.RGB)).toBe(
+      Infinity,
+    );
+    expect(
+      averageBlockError(
+        current,
+        previous,
+        2,
+        1,
+        0,
+        0,
+        2,
+        0,
+        0,
+        MOTION_SOURCE.RGB,
+        null,
+        null,
+        0,
+        0,
+      ),
+    ).toBeGreaterThan(0);
+    for (const mode of [
+      MOTION_SOURCE.RED,
+      MOTION_SOURCE.GREEN,
+      MOTION_SOURCE.BLUE,
+      MOTION_SOURCE.LUMA,
+    ]) {
+      expect(
+        averageBlockError(current, previous, 2, 1, 0, 0, 2, 0, 0, mode),
+      ).toBeGreaterThanOrEqual(0);
     }
-    expect(averageBlockError(
-      current,
-      previous,
-      2,
-      1,
-      0,
-      0,
-      2,
-      0,
-      0,
-      MOTION_SOURCE.HUE,
-      new Float32Array([359, 1]),
-      new Float32Array([1, 359]),
-      360,
-    )).toBe(2);
+    expect(
+      averageBlockError(
+        current,
+        previous,
+        2,
+        1,
+        0,
+        0,
+        2,
+        0,
+        0,
+        MOTION_SOURCE.HUE,
+        new Float32Array([359, 1]),
+        new Float32Array([1, 359]),
+        360,
+      ),
+    ).toBe(2);
   });
 
   it("smooths, blends, serializes, and restores vector fields defensively", () => {
@@ -98,7 +122,13 @@ describe("motion-vector helper boundaries", () => {
     expect(blurVectorGrid(current.slice(0, 2), 2, 2, 1, 2)).toHaveLength(4);
     expect(blendVectorFields(current, undefined, 0.5)).toEqual(current);
     expect(blendVectorFields(current, current.slice(0, 1), 0.5)).toEqual(current);
-    expect(blendVectorFields(current, current.map((entry) => vector(-entry.dx, -entry.dy)), 0.5)).toHaveLength(4);
+    expect(
+      blendVectorFields(
+        current,
+        current.map((entry) => vector(-entry.dx, -entry.dy)),
+        0.5,
+      ),
+    ).toHaveLength(4);
 
     expect(encodeVectorState(current)).toHaveLength(16);
     expect(encodeVectorStateGroups([current.slice(0, 2), current.slice(2)])).toHaveLength(16);

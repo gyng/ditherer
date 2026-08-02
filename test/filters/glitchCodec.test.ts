@@ -17,15 +17,30 @@ const makeCanvas = (width: number, height: number, source: Uint8ClampedArray) =>
   const canvas = {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
-      putImageData: (image: { data: Uint8ClampedArray }) => { written = new Uint8ClampedArray(image.data); },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(source), width, height }),
+            putImageData: (image: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(image.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
-  return { canvas, output: () => { if (!written) throw new Error("no output"); return written; } };
+  return {
+    canvas,
+    output: () => {
+      if (!written) throw new Error("no output");
+      return written;
+    },
+  };
 };
 
-const solid = (width: number, height: number, rgba: [number, number, number, number]): Uint8ClampedArray => {
+const solid = (
+  width: number,
+  height: number,
+  rgba: [number, number, number, number],
+): Uint8ClampedArray => {
   const b = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < b.length; i += 4) b.set(rgba, i);
   return b;
@@ -38,14 +53,21 @@ describe("Data Bend byte-stream echo", () => {
     // First half black (0), second half white (255). A white byte reads a
     // delayed black byte (0 - 128 < 0), so it must DARKEN — impossible for the
     // old additive-only echo.
-    const w = 16, h = 1;
+    const w = 16,
+      h = 1;
     const src = new Uint8ClampedArray(w * h * 4);
     for (let x = 0; x < w; x++) {
       const v = x < w / 2 ? 0 : 255;
       src.set([v, v, v, 255], x * 4);
     }
     const fx = makeCanvas(w, h, src);
-    dataBend.func(fx.canvas, { ...dataBendDefaults, effect: "ECHO", intensity: 0.6, offset: 20, palette: identityPalette });
+    dataBend.func(fx.canvas, {
+      ...dataBendDefaults,
+      effect: "ECHO",
+      intensity: 0.6,
+      offset: 20,
+      palette: identityPalette,
+    });
     const out = fx.output();
     const px8 = 8 * 4; // a white pixel whose echo source is in the black half
     expect(out[px8]).toBeLessThan(255);
@@ -53,20 +75,30 @@ describe("Data Bend byte-stream echo", () => {
 
   it("preserves alpha and tolerates malformed options", () => {
     const fx = makeCanvas(8, 2, solid(8, 2, [120, 60, 200, 128]));
-    expect(() => dataBend.func(fx.canvas, { effect: "WRONG", intensity: Number.NaN, offset: null, palette: identityPalette } as never)).not.toThrow();
+    expect(() =>
+      dataBend.func(fx.canvas, {
+        effect: "WRONG",
+        intensity: Number.NaN,
+        offset: null,
+        palette: identityPalette,
+      } as never),
+    ).not.toThrow();
     const out = fx.output();
     for (let i = 3; i < out.length; i += 4) expect(out[i]).toBe(128);
   });
 });
 
 describe("Datamosh motion-compensated prediction", () => {
-  const w = 32, h = 32;
+  const w = 32,
+    h = 32;
 
   it("emits the clean current frame on a keyframe", () => {
     const cur = solid(w, h, [200, 30, 30, 255]);
     const fx = makeCanvas(w, h, cur);
     datamosh.func(fx.canvas, {
-      ...datamoshDefaults, keyframeInterval: 24, palette: identityPalette,
+      ...datamoshDefaults,
+      keyframeInterval: 24,
+      palette: identityPalette,
       _frameIndex: 0, // 0 % 24 === 0 → keyframe
       _prevInput: solid(w, h, [0, 0, 255, 255]),
       _prevOutput: solid(w, h, [0, 0, 255, 255]),
@@ -82,7 +114,10 @@ describe("Datamosh motion-compensated prediction", () => {
     const cur = solid(w, h, [200, 30, 30, 255]);
     const fx = makeCanvas(w, h, cur);
     datamosh.func(fx.canvas, {
-      ...datamoshDefaults, keyframeInterval: 24, corruptChance: 0, channelShift: 0,
+      ...datamoshDefaults,
+      keyframeInterval: 24,
+      corruptChance: 0,
+      channelShift: 0,
       palette: identityPalette,
       _frameIndex: 1, // 1 % 24 !== 0 → mosh
       _prevInput: solid(w, h, [200, 30, 30, 255]),
@@ -95,7 +130,11 @@ describe("Datamosh motion-compensated prediction", () => {
   it("falls back to a clean frame with no reference frames and preserves alpha", () => {
     const cur = solid(w, h, [111, 122, 133, 96]);
     const fx = makeCanvas(w, h, cur);
-    datamosh.func(fx.canvas, { ...datamoshDefaults, palette: identityPalette, _frameIndex: 3 } as never);
+    datamosh.func(fx.canvas, {
+      ...datamoshDefaults,
+      palette: identityPalette,
+      _frameIndex: 3,
+    } as never);
     const out = fx.output();
     expect([out[0], out[1], out[2]]).toEqual([111, 122, 133]);
     for (let i = 3; i < out.length; i += 4) expect(out[i]).toBe(96);
@@ -110,8 +149,14 @@ describe("Analog Static persistence stays on-palette (CPU)", () => {
     const levels2 = { ...nearest, options: { levels: 2 } };
     const fx = makeCanvas(8, 8, solid(8, 8, [100, 100, 100, 255]));
     analogStatic.func(fx.canvas, {
-      ...analogStaticDefaults, noiseAmount: 0, barIntensity: 0, ghosting: 0, verticalHold: 0,
-      persistence: 0.5, palette: levels2, _webglAcceleration: false,
+      ...analogStaticDefaults,
+      noiseAmount: 0,
+      barIntensity: 0,
+      ghosting: 0,
+      verticalHold: 0,
+      persistence: 0.5,
+      palette: levels2,
+      _webglAcceleration: false,
       _prevOutput: solid(8, 8, [200, 200, 200, 255]),
     } as never);
     const out = fx.output();

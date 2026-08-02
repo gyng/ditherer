@@ -60,7 +60,7 @@ entries.
 - The first generic `maxSize` split was rejected during browser verification:
   it separated shared helpers from filter modules across a circular chunk
   boundary, and the production app stopped at boot with `scaleMatrix is not a
-  function`. No version of that topology was kept.
+function`. No version of that topology was kept.
 - The final topology gives the shared engine a one-way dependency boundary and
   emits four deterministic implementation chunks (`a–f`, `g–m`, `n–s`, and
   `t–z`) for both the application and worker graphs.

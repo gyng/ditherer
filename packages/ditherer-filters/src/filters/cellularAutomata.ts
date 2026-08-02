@@ -1,6 +1,12 @@
 import { ACTION, RANGE, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor } from "../utils/index";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+} from "../utils/index";
 import { defineFilter } from "./types";
 
 const RULE = { CONWAY: "CONWAY", HIGHLIFE: "HIGHLIFE", SEEDS: "SEEDS" };
@@ -14,19 +20,44 @@ let stateFreshInjectionEvery = -1;
 let lastFrameIndex = -Infinity;
 
 export const optionTypes = {
-  rule: { type: ENUM, options: [
-    { name: "Conway (B3/S23)", value: RULE.CONWAY },
-    { name: "Highlife (B36/S23)", value: RULE.HIGHLIFE },
-    { name: "Seeds (B2/S)", value: RULE.SEEDS }
-  ], default: RULE.CONWAY, desc: "Cellular automaton ruleset" },
+  rule: {
+    type: ENUM,
+    options: [
+      { name: "Conway (B3/S23)", value: RULE.CONWAY },
+      { name: "Highlife (B36/S23)", value: RULE.HIGHLIFE },
+      { name: "Seeds (B2/S)", value: RULE.SEEDS },
+    ],
+    default: RULE.CONWAY,
+    desc: "Cellular automaton ruleset",
+  },
   steps: { type: RANGE, range: [1, 50], step: 1, default: 5, desc: "Simulation steps per frame" },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance cutoff for initial alive/dead state" },
-  freshInjectionEvery: { type: RANGE, range: [0, 120], step: 1, default: 0, desc: "Inject fresh live cells from the source image every N frames; 0 disables periodic injection" },
+  threshold: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 128,
+    desc: "Luminance cutoff for initial alive/dead state",
+  },
+  freshInjectionEvery: {
+    type: RANGE,
+    range: [0, 120],
+    step: 1,
+    default: 0,
+    desc: "Inject fresh live cells from the source image every N frames; 0 disables periodic injection",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 8 },
-  animate: { type: ACTION, label: "Play / Stop", action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-    if (actions.isAnimating()) { actions.stopAnimLoop(); } else { actions.startAnimLoop(inputCanvas, options.animSpeed || 8); }
-  }},
-  palette: { type: PALETTE, default: nearest }
+  animate: {
+    type: ACTION,
+    label: "Play / Stop",
+    action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 8);
+      }
+    },
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -35,7 +66,7 @@ export const defaults = {
   threshold: optionTypes.threshold.default,
   freshInjectionEvery: optionTypes.freshInjectionEvery.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 2 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 2 } },
 };
 
 const shouldResetState = (
@@ -44,18 +75,23 @@ const shouldResetState = (
   rule: string,
   threshold: number,
   freshInjectionEvery: number,
-  frameIndex: number
+  frameIndex: number,
 ) =>
-  !stateGrid
-  || !scratchGrid
-  || width !== stateWidth
-  || height !== stateHeight
-  || rule !== stateRule
-  || threshold !== stateThreshold
-  || freshInjectionEvery !== stateFreshInjectionEvery
-  || frameIndex <= lastFrameIndex;
+  !stateGrid ||
+  !scratchGrid ||
+  width !== stateWidth ||
+  height !== stateHeight ||
+  rule !== stateRule ||
+  threshold !== stateThreshold ||
+  freshInjectionEvery !== stateFreshInjectionEvery ||
+  frameIndex <= lastFrameIndex;
 
-const initializeState = (buf: Uint8ClampedArray, width: number, height: number, threshold: number) => {
+const initializeState = (
+  buf: Uint8ClampedArray,
+  width: number,
+  height: number,
+  threshold: number,
+) => {
   stateGrid = new Uint8Array(width * height);
   scratchGrid = new Uint8Array(width * height);
   stateWidth = width;
@@ -71,7 +107,13 @@ const initializeState = (buf: Uint8ClampedArray, width: number, height: number, 
   }
 };
 
-const injectSourceState = (buf: Uint8ClampedArray, width: number, height: number, threshold: number, grid: Uint8Array) => {
+const injectSourceState = (
+  buf: Uint8ClampedArray,
+  width: number,
+  height: number,
+  threshold: number,
+  grid: Uint8Array,
+) => {
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const i = getBufferIndex(x, y, width);
@@ -91,7 +133,8 @@ const cellularAutomata = (input: any, options = defaults) => {
   const outputCtx = output.getContext("2d");
   if (!inputCtx || !outputCtx) return input;
 
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   if (shouldResetState(W, H, rule, threshold, freshInjectionEvery, frameIndex)) {
     initializeState(buf, W, H, threshold);
@@ -104,9 +147,12 @@ const cellularAutomata = (input: any, options = defaults) => {
   // Birth/survival rules
   const getBirthSurvive = () => {
     switch (rule) {
-      case RULE.HIGHLIFE: return { birth: [3, 6], survive: [2, 3] };
-      case RULE.SEEDS: return { birth: [2], survive: [] as number[] };
-      default: return { birth: [3], survive: [2, 3] };
+      case RULE.HIGHLIFE:
+        return { birth: [3, 6], survive: [2, 3] };
+      case RULE.SEEDS:
+        return { birth: [2], survive: [] as number[] };
+      default:
+        return { birth: [3], survive: [2, 3] };
     }
   };
   const { birth, survive } = getBirthSurvive();
@@ -163,4 +209,11 @@ export const __testing = {
   injectSourceState,
 };
 
-export default defineFilter({ name: "Cellular Automata", func: cellularAutomata, optionTypes, options: defaults, defaults , temporal: true });
+export default defineFilter({
+  name: "Cellular Automata",
+  func: cellularAutomata,
+  optionTypes,
+  options: defaults,
+  defaults,
+  temporal: true,
+});

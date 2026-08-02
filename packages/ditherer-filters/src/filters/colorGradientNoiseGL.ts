@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -70,7 +77,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     prog: linkProgram(gl, FS, [
-      "u_source", "u_perm", "u_res", "u_scale", "u_color1", "u_color2", "u_mix",
+      "u_source",
+      "u_perm",
+      "u_res",
+      "u_scale",
+      "u_color1",
+      "u_color2",
+      "u_mix",
     ] as const),
     permTex: null,
     permSeed: NaN,
@@ -86,7 +99,9 @@ const buildPerm = (seed: number): Uint8Array => {
   for (let i = 255; i > 0; i--) {
     s = (s * 16807 + 0) % 2147483647;
     const j = s % (i + 1);
-    const tmp = p[i]; p[i] = p[j]; p[j] = tmp;
+    const tmp = p[i];
+    p[i] = p[j];
+    p[j] = tmp;
   }
   for (let i = 0; i < 256; i++) p[i + 256] = p[i];
   return p;
@@ -96,10 +111,13 @@ export const colorGradientNoiseGLAvailable = (): boolean => glAvailable();
 
 export const renderColorGradientNoiseGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
+  width: number,
+  height: number,
   scale: number,
-  color1: [number, number, number], color2: [number, number, number],
-  mix: number, seed: number,
+  color1: [number, number, number],
+  color2: [number, number, number],
+  mix: number,
+  seed: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -128,19 +146,27 @@ export const renderColorGradientNoiseGL = (
 
   const sourceTex = ensureTexture(gl, "colorGradientNoise:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, cache.permTex as WebGLTexture);
-    gl.uniform1i(cache.prog.uniforms.u_perm, 1);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_scale, scale);
-    gl.uniform3f(cache.prog.uniforms.u_color1, color1[0], color1[1], color1[2]);
-    gl.uniform3f(cache.prog.uniforms.u_color2, color2[0], color2[1], color2[2]);
-    gl.uniform1f(cache.prog.uniforms.u_mix, mix);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, cache.permTex as WebGLTexture);
+      gl.uniform1i(cache.prog.uniforms.u_perm, 1);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_scale, scale);
+      gl.uniform3f(cache.prog.uniforms.u_color1, color1[0], color1[1], color1[2]);
+      gl.uniform3f(cache.prog.uniforms.u_color2, color2[0], color2[1], color2[2]);
+      gl.uniform1f(cache.prog.uniforms.u_mix, mix);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };
 

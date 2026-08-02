@@ -28,26 +28,25 @@ test("discovers and drives Ditherer through the current WebMCP API", async ({ pa
       if (!tool) throw new Error(`Missing WebMCP tool: ${name}`);
       return tool;
     };
-    const parseResult = <T,>(value: unknown): T => (
-      typeof value === "string" ? JSON.parse(value) as T : value as T
-    );
+    const parseResult = <T>(value: unknown): T =>
+      typeof value === "string" ? (JSON.parse(value) as T) : (value as T);
 
-    const filters = parseResult<{ filters: Array<{ name: string }> }>(await modelContext.executeTool(
-      byName("ditherer.listFilters"),
-      JSON.stringify({ query: "Floyd-Steinberg" }),
-    ));
-    const chainBefore = parseResult<{ chain: Array<{ options: Record<string, unknown> }> }>(await modelContext.executeTool(
-      byName("ditherer.getCurrentChain"),
-      "{}",
-    ));
+    const filters = parseResult<{ filters: Array<{ name: string }> }>(
+      await modelContext.executeTool(
+        byName("ditherer.listFilters"),
+        JSON.stringify({ query: "Floyd-Steinberg" }),
+      ),
+    );
+    const chainBefore = parseResult<{ chain: Array<{ options: Record<string, unknown> }> }>(
+      await modelContext.executeTool(byName("ditherer.getCurrentChain"), "{}"),
+    );
     await modelContext.executeTool(
       byName("ditherer.setFilterOption"),
       JSON.stringify({ index: 0, optionName: "serpentine", value: false }),
     );
-    const chainAfter = parseResult<{ chain: Array<{ options: Record<string, unknown> }> }>(await modelContext.executeTool(
-      byName("ditherer.getCurrentChain"),
-      "{}",
-    ));
+    const chainAfter = parseResult<{ chain: Array<{ options: Record<string, unknown> }> }>(
+      await modelContext.executeTool(byName("ditherer.getCurrentChain"), "{}"),
+    );
 
     return {
       names: tools.map((tool) => tool.name),
@@ -64,7 +63,8 @@ test("discovers and drives Ditherer through the current WebMCP API", async ({ pa
   expect(result.serpentineAfter).toBe(false);
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  const serpentineControl = page.locator("#active-filter-options label")
+  const serpentineControl = page
+    .locator("#active-filter-options label")
     .filter({ hasText: "Serpentine" })
     .locator('input[type="checkbox"]');
   await expect(serpentineControl).not.toBeChecked();
@@ -73,7 +73,9 @@ test("discovers and drives Ditherer through the current WebMCP API", async ({ pa
   await expect(page.getByRole("tooltip")).toContainText("discover filters and presets");
 });
 
-test("completes discovery, media, preset, and export workflows through every WebMCP tool", async ({ page }) => {
+test("completes discovery, media, preset, and export workflows through every WebMCP tool", async ({
+  page,
+}) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
@@ -93,7 +95,7 @@ test("completes discovery, media, preset, and export workflows through every Web
       if (!tool) throw new Error(`Missing WebMCP tool: ${name}`);
       return tool;
     };
-    const execute = async <T,>(name: string, args: Record<string, unknown> = {}): Promise<T> => {
+    const execute = async <T>(name: string, args: Record<string, unknown> = {}): Promise<T> => {
       try {
         const value = await modelContext.executeTool(byName(name), JSON.stringify(args));
         return (typeof value === "string" ? JSON.parse(value) : value) as T;
@@ -108,14 +110,22 @@ test("completes discovery, media, preset, and export workflows through every Web
     }>("ditherer.listPresets");
     const preset = presets.presets[0];
     if (!preset) throw new Error("Expected at least one discoverable preset");
-    const applied = await execute<{ filtersApplied: number }>("ditherer.applyPreset", { name: preset.name });
-    const presetChain = await execute<{ chain: Array<{ displayName: string }> }>("ditherer.getCurrentChain");
+    const applied = await execute<{ filtersApplied: number }>("ditherer.applyPreset", {
+      name: preset.name,
+    });
+    const presetChain = await execute<{ chain: Array<{ displayName: string }> }>(
+      "ditherer.getCurrentChain",
+    );
 
     // Round 2: replace the source with a real image payload and verify the app can export it.
-    const loaded = await execute<{ filename: string; mimeType: string; sizeBytes: number }>("ditherer.loadMedia", {
-      dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL4WQAAAABJRU5ErkJggg==",
-      filename: "webmcp-pixel.png",
-    });
+    const loaded = await execute<{ filename: string; mimeType: string; sizeBytes: number }>(
+      "ditherer.loadMedia",
+      {
+        dataUrl:
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL4WQAAAABJRU5ErkJggg==",
+        filename: "webmcp-pixel.png",
+      },
+    );
     const image = await execute<{
       mimeType: string;
       width: number;

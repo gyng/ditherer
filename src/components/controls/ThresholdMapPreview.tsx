@@ -14,10 +14,7 @@ type ThresholdMapPreviewProps = {
   polarityOption?: string | undefined;
 };
 
-const drawPreview = (
-  canvas: HTMLCanvasElement,
-  data: number[][],
-) => {
+const drawPreview = (canvas: HTMLCanvasElement, data: number[][]) => {
   const height = data.length;
   const width = data[0]?.length ?? 0;
   if (!width || !height) return;

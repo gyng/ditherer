@@ -1,7 +1,14 @@
 import { ACTION, ENUM, PALETTE, RANGE } from "../constants/controlTypes";
 import { defineFilter, type FilterOptionValues } from "./types";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, paletteGetColor, rgba, logFilterBackend } from "../utils/index";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  paletteGetColor,
+  rgba,
+  logFilterBackend,
+} from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
 import { crcStripeRejectGLAvailable, renderCrcStripeRejectGL } from "./crcStripeRejectGL";
 
@@ -35,11 +42,29 @@ export const optionTypes = {
       { name: "Horizontal stripes", value: PATTERN.STRIPE },
       { name: "Tiles", value: PATTERN.TILE },
     ],
-    desc: "Corruption region geometry"
+    desc: "Corruption region geometry",
   },
-  rejectChance: { type: RANGE, range: [0, 1], step: 0.01, default: 0.16, desc: "Chance each stripe/tile fails CRC and gets rejected" },
-  stripeHeight: { type: RANGE, range: [1, 96], step: 1, default: 8, desc: "Stripe height in pixels when pattern is stripes" },
-  tileSize: { type: RANGE, range: [4, 160], step: 2, default: 24, desc: "Tile width/height in pixels when pattern is tiles" },
+  rejectChance: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.16,
+    desc: "Chance each stripe/tile fails CRC and gets rejected",
+  },
+  stripeHeight: {
+    type: RANGE,
+    range: [1, 96],
+    step: 1,
+    default: 8,
+    desc: "Stripe height in pixels when pattern is stripes",
+  },
+  tileSize: {
+    type: RANGE,
+    range: [4, 160],
+    step: 2,
+    default: 24,
+    desc: "Tile width/height in pixels when pattern is tiles",
+  },
   conceal: {
     type: ENUM,
     default: CONCEAL.HOLD,
@@ -49,9 +74,15 @@ export const optionTypes = {
       { name: "Copy previous row", value: CONCEAL.PREV_ROW },
       { name: "Nearest valid", value: CONCEAL.NEAREST_VALID },
     ],
-    desc: "Error concealment used for rejected regions"
+    desc: "Error concealment used for rejected regions",
   },
-  jitter: { type: RANGE, range: [0, 32], step: 1, default: 3, desc: "Random region offset to mimic unstable packet boundaries" },
+  jitter: {
+    type: RANGE,
+    range: [0, 32],
+    step: 1,
+    default: 3,
+    desc: "Random region offset to mimic unstable packet boundaries",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -59,9 +90,9 @@ export const optionTypes = {
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -72,7 +103,7 @@ export const defaults = {
   conceal: optionTypes.conceal.default,
   jitter: optionTypes.jitter.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type CrcStripeRejectOptions = FilterOptionValues & {
@@ -106,20 +137,35 @@ const crcStripeReject = (input: any, options: CrcStripeRejectOptions = defaults)
   const h = input.height;
 
   if (
-    crcStripeRejectGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    crcStripeRejectGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderCrcStripeRejectGL(
-      input, w, h, pattern, rejectChance, stripeHeight, tileSize,
-      conceal, jitter, frameIndex, prevOutput, levels,
+      input,
+      w,
+      h,
+      pattern,
+      rejectChance,
+      stripeHeight,
+      tileSize,
+      conceal,
+      jitter,
+      frameIndex,
+      prevOutput,
+      levels,
     );
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, w, h, palette);
       if (out) {
-        logFilterBackend("CRC Stripe Reject", "WebGL2",
-          `${pattern} reject=${rejectChance} conceal=${conceal}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "CRC Stripe Reject",
+          "WebGL2",
+          `${pattern} reject=${rejectChance} conceal=${conceal}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -151,7 +197,13 @@ const crcStripeReject = (input: any, options: CrcStripeRejectOptions = defaults)
         }
 
         if (conceal === CONCEAL.HOLD && prevOutput && prevOutput.length === outBuf.length) {
-          writePixel(di, prevOutput[di], prevOutput[di + 1], prevOutput[di + 2], prevOutput[di + 3]);
+          writePixel(
+            di,
+            prevOutput[di],
+            prevOutput[di + 1],
+            prevOutput[di + 2],
+            prevOutput[di + 3],
+          );
           continue;
         }
 
@@ -218,6 +270,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Reject stripes or tiles like failed CRC packets, then conceal with hold, row-copy, or nearest-valid fill",
+  description:
+    "Reject stripes or tiles like failed CRC packets, then conceal with hold, row-copy, or nearest-valid fill",
   temporal: true,
 });

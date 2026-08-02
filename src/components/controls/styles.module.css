@@ -193,7 +193,7 @@
   margin-top: 4px;
 }
 
-.range .rangeGroup > input[type=range] {
+.range .rangeGroup > input[type="range"] {
   flex: 1;
   min-width: 0;
   margin: 0;
@@ -222,7 +222,7 @@
 .numberInput:focus-visible,
 .textInput:focus-visible,
 .textArea:focus-visible,
-.rangeGroup > input[type=range]:focus-visible {
+.rangeGroup > input[type="range"]:focus-visible {
   outline: 2px solid var(--beautiful-blue);
   outline-offset: 1px;
 }
@@ -238,7 +238,6 @@
   border: 1px inset var(--input-border);
   color: var(--window-text);
 }
-
 
 .dropping {
   outline: 2px solid var(--beautiful-blue);
@@ -383,8 +382,8 @@
   font-size: 16px;
 }
 
-input[type=text],
-input[type=select],
+input[type="text"],
+input[type="select"],
 textarea,
 .input {
   border: 2px inset var(--input-border);
@@ -500,7 +499,9 @@ button,
   outline: none;
   user-select: none;
   cursor: pointer;
-  transition: background-color 80ms linear, color 80ms linear;
+  transition:
+    background-color 80ms linear,
+    color 80ms linear;
 }
 
 button:hover:not(:disabled),
@@ -630,7 +631,9 @@ button:disabled,
   background: none;
 }
 
-.pickerContainer :global(.react-colorful__saturation-pointer) :global(.react-colorful__pointer-fill) {
+.pickerContainer
+  :global(.react-colorful__saturation-pointer)
+  :global(.react-colorful__pointer-fill) {
   display: none;
 }
 
@@ -666,7 +669,7 @@ button:disabled,
     min-height: 44px;
   }
 
-  .range .rangeGroup > input[type=range] {
+  .range .rangeGroup > input[type="range"] {
     min-height: 44px;
   }
 
@@ -758,7 +761,7 @@ button:disabled,
     height: 18px;
   }
 
-  .range .rangeGroup > input[type=range] {
+  .range .rangeGroup > input[type="range"] {
     min-height: 44px;
     height: 44px;
   }
@@ -776,7 +779,8 @@ button:disabled,
     margin: 6px 0;
   }
 
-  button, .button {
+  button,
+  .button {
     min-height: 44px;
     padding: 4px 8px;
     font-size: 13px;
@@ -813,7 +817,7 @@ button:disabled,
     font-size: 14px;
   }
 
-  input[type=text] {
+  input[type="text"] {
     font-size: 14px;
     padding: 6px;
     width: 100%;

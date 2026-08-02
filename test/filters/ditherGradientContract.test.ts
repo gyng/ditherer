@@ -27,19 +27,25 @@ const makeCanvas = (fill: (x: number, y: number) => [number, number, number]) =>
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4;
       const [r, g, b] = fill(x, y);
-      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
     }
   }
   let written: Uint8ClampedArray | null = null;
   const canvas = {
     width: W,
     height: H,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
-      putImageData: (img: { data: Uint8ClampedArray }) => {
-        written = new Uint8ClampedArray(img.data);
-      },
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(data), width: W, height: H }),
+            putImageData: (img: { data: Uint8ClampedArray }) => {
+              written = new Uint8ClampedArray(img.data);
+            },
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
   return { canvas, written: () => written };
 };
@@ -133,7 +139,9 @@ describe("Dither Gradient — dithering and palette", () => {
     const out = run({}, (x, y) => [x * 16, y * 16, 128]);
     const values = new Set<number>();
     for (let i = 0; i < out.length; i += 4) {
-      values.add(out[i]); values.add(out[i + 1]); values.add(out[i + 2]);
+      values.add(out[i]);
+      values.add(out[i + 1]);
+      values.add(out[i + 2]);
     }
     expect([...values].every((v) => v === 0 || v === 255)).toBe(true);
   });

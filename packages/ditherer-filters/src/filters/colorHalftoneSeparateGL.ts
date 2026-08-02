@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -68,9 +75,16 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_res", "u_dotSize", "u_offsetR", "u_offsetG", "u_offsetB",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, [
+      "u_source",
+      "u_res",
+      "u_dotSize",
+      "u_offsetR",
+      "u_offsetG",
+      "u_offsetB",
+    ] as const),
+  };
   return _cache;
 };
 
@@ -78,8 +92,12 @@ export const colorHalftoneSeparateGLAvailable = (): boolean => glAvailable();
 
 export const renderColorHalftoneSeparateGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  dotSize: number, offsetR: number, offsetG: number, offsetB: number,
+  width: number,
+  height: number,
+  dotSize: number,
+  offsetR: number,
+  offsetG: number,
+  offsetB: number,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -89,15 +107,23 @@ export const renderColorHalftoneSeparateGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "colorHalftoneSeparate:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform2f(cache.prog.uniforms.u_res, width, height);
-    gl.uniform1f(cache.prog.uniforms.u_dotSize, dotSize);
-    gl.uniform1f(cache.prog.uniforms.u_offsetR, offsetR);
-    gl.uniform1f(cache.prog.uniforms.u_offsetG, offsetG);
-    gl.uniform1f(cache.prog.uniforms.u_offsetB, offsetB);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform2f(cache.prog.uniforms.u_res, width, height);
+      gl.uniform1f(cache.prog.uniforms.u_dotSize, dotSize);
+      gl.uniform1f(cache.prog.uniforms.u_offsetR, offsetR);
+      gl.uniform1f(cache.prog.uniforms.u_offsetG, offsetG);
+      gl.uniform1f(cache.prog.uniforms.u_offsetB, offsetB);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

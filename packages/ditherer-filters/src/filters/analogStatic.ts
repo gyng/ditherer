@@ -30,24 +30,69 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  noiseAmount: { type: RANGE, range: [0, 1], step: 0.01, default: 0.5, desc: "Intensity of per-pixel random static noise" },
-  barHeight: { type: RANGE, range: [1, 100], step: 1, default: 20, desc: "Height of horizontal noise bars in pixels" },
-  barIntensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.6, desc: "Extra snow energy inside horizontal noise bands" },
-  verticalHold: { type: RANGE, range: [0, 50], step: 1, default: 0, desc: "Vertical rolling/shifting of the image per frame" },
-  ghosting: { type: RANGE, range: [0, 1], step: 0.05, default: 0.3, desc: "Strength of delayed multipath ghost echoes" },
-  ghostDelay: { type: RANGE, range: [1, 60], step: 1, default: 10, desc: "Horizontal delay (px) of the first ghost echo" },
+  noiseAmount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.5,
+    desc: "Intensity of per-pixel random static noise",
+  },
+  barHeight: {
+    type: RANGE,
+    range: [1, 100],
+    step: 1,
+    default: 20,
+    desc: "Height of horizontal noise bars in pixels",
+  },
+  barIntensity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.6,
+    desc: "Extra snow energy inside horizontal noise bands",
+  },
+  verticalHold: {
+    type: RANGE,
+    range: [0, 50],
+    step: 1,
+    default: 0,
+    desc: "Vertical rolling/shifting of the image per frame",
+  },
+  ghosting: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.3,
+    desc: "Strength of delayed multipath ghost echoes",
+  },
+  ghostDelay: {
+    type: RANGE,
+    range: [1, 60],
+    step: 1,
+    default: 10,
+    desc: "Horizontal delay (px) of the first ghost echo",
+  },
   color: { type: BOOL, default: false, desc: "Use color noise instead of monochrome" },
-  persistence: { type: RANGE, range: [0, 0.5], step: 0.05, default: 0, desc: "Blend previous frame's noise — bright dots linger like real CRT static" },
+  persistence: {
+    type: RANGE,
+    range: [0, 0.5],
+    step: 0.05,
+    default: 0,
+    desc: "Blend previous frame's noise — bright dots linger like real CRT static",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15 },
   animate: {
     type: ACTION,
     label: "Play / Stop",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) { actions.stopAnimLoop(); }
-      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 15); }
-    }
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 15);
+      }
+    },
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -60,13 +105,13 @@ export const defaults = {
   color: optionTypes.color.default,
   persistence: optionTypes.persistence.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -192,15 +237,32 @@ void main() {
 }
 `;
 
-type Cache = { prog: Program; prevTex: WebGLTexture | null; prevBuf: Uint8ClampedArray | null; w: number; h: number };
+type Cache = {
+  prog: Program;
+  prevTex: WebGLTexture | null;
+  prevBuf: Uint8ClampedArray | null;
+  w: number;
+  h: number;
+};
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   const prog = linkProgram(gl, AS_FS, [
-    "u_source", "u_prev", "u_res", "u_hasPrev",
-    "u_noiseAmount", "u_barHeight", "u_barIntensity",
-    "u_vShift", "u_ghosting", "u_ghostDelay", "u_color", "u_persistence",
-    "u_seed", "u_frameIndex", "u_levels",
+    "u_source",
+    "u_prev",
+    "u_res",
+    "u_hasPrev",
+    "u_noiseAmount",
+    "u_barHeight",
+    "u_barIntensity",
+    "u_vShift",
+    "u_ghosting",
+    "u_ghostDelay",
+    "u_color",
+    "u_persistence",
+    "u_seed",
+    "u_frameIndex",
+    "u_levels",
   ] as const);
   _cache = { prog, prevTex: null, prevBuf: null, w: 0, h: 0 };
   return _cache;
@@ -263,37 +325,48 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, cache.prevBuf);
       }
 
-      drawPass(gl, null, W, H, cache.prog, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.prog.uniforms.u_source, 0);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, prevTex);
-        gl.uniform1i(cache.prog.uniforms.u_prev, 1);
-        gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-        gl.uniform1i(cache.prog.uniforms.u_hasPrev, hasPrev ? 1 : 0);
-        gl.uniform1f(cache.prog.uniforms.u_noiseAmount, noiseAmount);
-        gl.uniform1f(cache.prog.uniforms.u_barHeight, Math.max(1, barHeight));
-        gl.uniform1f(cache.prog.uniforms.u_barIntensity, barIntensity);
-        gl.uniform1i(cache.prog.uniforms.u_vShift, vShift);
-        gl.uniform1f(cache.prog.uniforms.u_ghosting, ghosting);
-        gl.uniform1f(cache.prog.uniforms.u_ghostDelay, Math.max(1, ghostDelay));
-        gl.uniform1i(cache.prog.uniforms.u_color, colorNoise ? 1 : 0);
-        gl.uniform1f(cache.prog.uniforms.u_persistence, persistence);
-        gl.uniform1f(cache.prog.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
-        gl.uniform1f(cache.prog.uniforms.u_frameIndex, frameIndex);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.prog,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.prog.uniforms.u_source, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, prevTex);
+          gl.uniform1i(cache.prog.uniforms.u_prev, 1);
+          gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+          gl.uniform1i(cache.prog.uniforms.u_hasPrev, hasPrev ? 1 : 0);
+          gl.uniform1f(cache.prog.uniforms.u_noiseAmount, noiseAmount);
+          gl.uniform1f(cache.prog.uniforms.u_barHeight, Math.max(1, barHeight));
+          gl.uniform1f(cache.prog.uniforms.u_barIntensity, barIntensity);
+          gl.uniform1i(cache.prog.uniforms.u_vShift, vShift);
+          gl.uniform1f(cache.prog.uniforms.u_ghosting, ghosting);
+          gl.uniform1f(cache.prog.uniforms.u_ghostDelay, Math.max(1, ghostDelay));
+          gl.uniform1i(cache.prog.uniforms.u_color, colorNoise ? 1 : 0);
+          gl.uniform1f(cache.prog.uniforms.u_persistence, persistence);
+          gl.uniform1f(cache.prog.uniforms.u_seed, ((frameIndex * 7919 + 31337) % 1000000) * 0.001);
+          gl.uniform1f(cache.prog.uniforms.u_frameIndex, frameIndex);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Analog Static", "WebGL2",
-            `noise=${noiseAmount}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Analog Static",
+            "WebGL2",
+            `noise=${noiseAmount}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -333,7 +406,7 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
   const fresh = 1 - persistence;
 
   for (let y = 0; y < H; y++) {
-    const srcY = ((y - vShift) % H + H) % H;
+    const srcY = (((y - vShift) % H) + H) % H;
     const amp = noiseAmount + barBoost[y];
 
     for (let x = 0; x < W; x++) {

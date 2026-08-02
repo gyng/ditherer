@@ -15,9 +15,11 @@ const Textly = (props: TextControlProps) => {
         desc={props.types?.desc}
         currentValue={props.value}
         defaultValue={props.defaultValue}
-        onReset={props.defaultValue !== undefined
-          ? () => props.onSetFilterOption(props.name, props.defaultValue)
-          : undefined}
+        onReset={
+          props.defaultValue !== undefined
+            ? () => props.onSetFilterOption(props.name, props.defaultValue)
+            : undefined
+        }
       />
       <textarea
         id={inputId}
@@ -26,7 +28,7 @@ const Textly = (props: TextControlProps) => {
         value={props.value}
         wrap="off"
         spellCheck={false}
-        onChange={e => props.onSetFilterOption(props.name, e.target.value)}
+        onChange={(e) => props.onSetFilterOption(props.name, e.target.value)}
       />
     </div>
   );

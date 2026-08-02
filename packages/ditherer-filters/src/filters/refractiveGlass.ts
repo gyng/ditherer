@@ -2,8 +2,15 @@ import { ENUM, RANGE } from "../constants/controlTypes";
 import { defineFilter } from "./types";
 import { logFilterBackend } from "../utils/index";
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glUnavailableStub,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glUnavailableStub,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -20,11 +27,41 @@ export const optionTypes = {
     default: SURFACE.LUMINANCE,
     desc: "Source used to derive the refracting surface normal",
   },
-  refraction: { type: RANGE, range: [0, 48], step: 0.5, default: 12, desc: "Pixel displacement caused by the glass surface" },
-  relief: { type: RANGE, range: [0.1, 8], step: 0.1, default: 2.5, desc: "Strength of image-derived surface slopes" },
-  roughness: { type: RANGE, range: [0, 1], step: 0.01, default: 0.18, desc: "Fine irregularity in the glass" },
-  dispersion: { type: RANGE, range: [0, 1], step: 0.01, default: 0.28, desc: "Prismatic separation between red and blue rays" },
-  highlight: { type: RANGE, range: [0, 1], step: 0.01, default: 0.22, desc: "Specular highlight on steep glass facets" },
+  refraction: {
+    type: RANGE,
+    range: [0, 48],
+    step: 0.5,
+    default: 12,
+    desc: "Pixel displacement caused by the glass surface",
+  },
+  relief: {
+    type: RANGE,
+    range: [0.1, 8],
+    step: 0.1,
+    default: 2.5,
+    desc: "Strength of image-derived surface slopes",
+  },
+  roughness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.18,
+    desc: "Fine irregularity in the glass",
+  },
+  dispersion: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.28,
+    desc: "Prismatic separation between red and blue rays",
+  },
+  highlight: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.22,
+    desc: "Specular highlight on steep glass facets",
+  },
 };
 
 export const defaults = {
@@ -85,15 +122,22 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_res", "u_refraction", "u_relief", "u_roughness",
-    "u_dispersion", "u_highlight", "u_surface",
+    "u_source",
+    "u_res",
+    "u_refraction",
+    "u_relief",
+    "u_roughness",
+    "u_dispersion",
+    "u_highlight",
+    "u_surface",
   ] as const);
   return _prog;
 };
 const surfaceId: Record<string, number> = { LUMINANCE: 0, EDGES: 1, FROSTED: 2 };
 
 const refractiveGlass = (input: any, options = defaults) => {
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
   const { gl, canvas } = ctx;
@@ -102,18 +146,26 @@ const refractiveGlass = (input: any, options = defaults) => {
   resizeGLCanvas(canvas, W, H);
   const sourceTex = ensureTexture(gl, "refractiveGlass:source", W, H);
   uploadSourceTexture(gl, sourceTex, input);
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_res, W, H);
-    gl.uniform1f(prog.uniforms.u_refraction, options.refraction);
-    gl.uniform1f(prog.uniforms.u_relief, options.relief);
-    gl.uniform1f(prog.uniforms.u_roughness, options.roughness);
-    gl.uniform1f(prog.uniforms.u_dispersion, options.dispersion);
-    gl.uniform1f(prog.uniforms.u_highlight, options.highlight);
-    gl.uniform1i(prog.uniforms.u_surface, surfaceId[options.surface] ?? 0);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_res, W, H);
+      gl.uniform1f(prog.uniforms.u_refraction, options.refraction);
+      gl.uniform1f(prog.uniforms.u_relief, options.relief);
+      gl.uniform1f(prog.uniforms.u_roughness, options.roughness);
+      gl.uniform1f(prog.uniforms.u_dispersion, options.dispersion);
+      gl.uniform1f(prog.uniforms.u_highlight, options.highlight);
+      gl.uniform1i(prog.uniforms.u_surface, surfaceId[options.surface] ?? 0);
+    },
+    vao,
+  );
   const output = readoutToCanvas(canvas, W, H);
   if (!output) return glUnavailableStub(W, H);
   logFilterBackend("Refractive Glass", "WebGL2", `${options.surface} offset=${options.refraction}`);
@@ -126,6 +178,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Turn image luminance, edges, or procedural frost into a prismatic refracting glass surface",
+  description:
+    "Turn image luminance, edges, or procedural frost into a prismatic refracting glass surface",
   requiresGL: true,
 });

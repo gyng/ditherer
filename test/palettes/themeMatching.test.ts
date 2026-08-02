@@ -11,7 +11,12 @@ describe("theme matching", () => {
   });
 
   it("returns null for custom palettes with no exact theme match", () => {
-    expect(findMatchingThemeKey([[1, 2, 3, 255], [4, 5, 6, 255]])).toBe(null);
+    expect(
+      findMatchingThemeKey([
+        [1, 2, 3, 255],
+        [4, 5, 6, 255],
+      ]),
+    ).toBe(null);
   });
 
   it("can look up the matching theme description", () => {

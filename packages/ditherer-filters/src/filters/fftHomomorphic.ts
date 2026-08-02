@@ -110,12 +110,42 @@ void main() {
 `;
 
 export const optionTypes = {
-  lowGain: { type: RANGE, range: [0, 2], step: 0.05, default: 0.3, desc: "Gain for low-frequency illumination component — lower attenuates uneven lighting" },
-  highGain: { type: RANGE, range: [0, 4], step: 0.05, default: 1.8, desc: "Gain for high-frequency reflectance component — higher boosts texture / detail" },
-  cutoff: { type: RANGE, range: [0.01, 1], step: 0.01, default: 0.1, desc: "Frequency cutoff between illumination and reflectance" },
-  softness: { type: RANGE, range: [0, 1], step: 0.01, default: 0.1, desc: "Smoothness of the cutoff transition" },
-  amount: { type: RANGE, range: [0, 1], step: 0.01, default: 1, desc: "Blend between original (0) and filtered (1) image" },
-  palette: { type: PALETTE, default: nearest }
+  lowGain: {
+    type: RANGE,
+    range: [0, 2],
+    step: 0.05,
+    default: 0.3,
+    desc: "Gain for low-frequency illumination component — lower attenuates uneven lighting",
+  },
+  highGain: {
+    type: RANGE,
+    range: [0, 4],
+    step: 0.05,
+    default: 1.8,
+    desc: "Gain for high-frequency reflectance component — higher boosts texture / detail",
+  },
+  cutoff: {
+    type: RANGE,
+    range: [0.01, 1],
+    step: 0.01,
+    default: 0.1,
+    desc: "Frequency cutoff between illumination and reflectance",
+  },
+  softness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 0.1,
+    desc: "Smoothness of the cutoff transition",
+  },
+  amount: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.01,
+    default: 1,
+    desc: "Blend between original (0) and filtered (1) image",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -124,7 +154,7 @@ export const defaults = {
   cutoff: optionTypes.cutoff.default,
   softness: optionTypes.softness.default,
   amount: optionTypes.amount.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type Cache = {
@@ -137,8 +167,22 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     extract: linkProgram(gl, LOG_EXTRACT_FS, ["u_source", "u_srcRes", "u_padRes"] as const),
-    filter: linkProgram(gl, FILTER_FS, ["u_input", "u_padRes", "u_lowGain", "u_highGain", "u_cutoff", "u_softness"] as const),
-    finalise: linkProgram(gl, EXP_FINALISE_FS, ["u_fft", "u_source", "u_srcRes", "u_padRes", "u_invN", "u_amount"] as const),
+    filter: linkProgram(gl, FILTER_FS, [
+      "u_input",
+      "u_padRes",
+      "u_lowGain",
+      "u_highGain",
+      "u_cutoff",
+      "u_softness",
+    ] as const),
+    finalise: linkProgram(gl, EXP_FINALISE_FS, [
+      "u_fft",
+      "u_source",
+      "u_srcRes",
+      "u_padRes",
+      "u_invN",
+      "u_amount",
+    ] as const),
   };
   return _cache;
 };
@@ -149,9 +193,9 @@ const fftHomomorphic = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    glAvailable()
-    && fft2dAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    glAvailable() &&
+    fft2dAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const ctx = getGLCtx();
     if (ctx) {
@@ -170,13 +214,21 @@ const fftHomomorphic = (input: any, options = defaults) => {
       // 1. Log-extract into padded float texture.
       const extracted = ensureFloatTex(gl, "fftHomomorphic:extract", paddedW, paddedH);
       if (extracted) {
-        drawPass(gl, extracted, paddedW, paddedH, cache.extract, () => {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-          gl.uniform1i(cache.extract.uniforms.u_source, 0);
-          gl.uniform2f(cache.extract.uniforms.u_srcRes, W, H);
-          gl.uniform2f(cache.extract.uniforms.u_padRes, paddedW, paddedH);
-        }, vao);
+        drawPass(
+          gl,
+          extracted,
+          paddedW,
+          paddedH,
+          cache.extract,
+          () => {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+            gl.uniform1i(cache.extract.uniforms.u_source, 0);
+            gl.uniform2f(cache.extract.uniforms.u_srcRes, W, H);
+            gl.uniform2f(cache.extract.uniforms.u_padRes, paddedW, paddedH);
+          },
+          vao,
+        );
         // `vao` is consumed internally by drawPass; silence the linter.
         void vao;
 
@@ -186,42 +238,61 @@ const fftHomomorphic = (input: any, options = defaults) => {
           // 3. Homomorphic mask (low gain below cutoff, high gain above).
           const masked = ensureFloatTex(gl, "fftHomomorphic:masked", paddedW, paddedH);
           if (masked) {
-            drawPass(gl, masked, paddedW, paddedH, cache.filter, () => {
-              gl.activeTexture(gl.TEXTURE0);
-              gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
-              gl.uniform1i(cache.filter.uniforms.u_input, 0);
-              gl.uniform2f(cache.filter.uniforms.u_padRes, paddedW, paddedH);
-              gl.uniform1f(cache.filter.uniforms.u_lowGain, lowGain);
-              gl.uniform1f(cache.filter.uniforms.u_highGain, highGain);
-              gl.uniform1f(cache.filter.uniforms.u_cutoff, cutoff);
-              gl.uniform1f(cache.filter.uniforms.u_softness, softness);
-            }, vao);
+            drawPass(
+              gl,
+              masked,
+              paddedW,
+              paddedH,
+              cache.filter,
+              () => {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, fwd.tex);
+                gl.uniform1i(cache.filter.uniforms.u_input, 0);
+                gl.uniform2f(cache.filter.uniforms.u_padRes, paddedW, paddedH);
+                gl.uniform1f(cache.filter.uniforms.u_lowGain, lowGain);
+                gl.uniform1f(cache.filter.uniforms.u_highGain, highGain);
+                gl.uniform1f(cache.filter.uniforms.u_cutoff, cutoff);
+                gl.uniform1f(cache.filter.uniforms.u_softness, softness);
+              },
+              vao,
+            );
 
             // 4. Inverse FFT.
             const inv = inverseFFT2D(gl, masked, paddedW, paddedH, logW, logH);
             if (inv) {
               // 5. exp(ifft / N), scale RGB by luminance ratio.
               const invN = 1 / (paddedW * paddedH);
-              drawPass(gl, null, W, H, cache.finalise, () => {
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, inv.tex);
-                gl.uniform1i(cache.finalise.uniforms.u_fft, 0);
-                gl.activeTexture(gl.TEXTURE1);
-                gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-                gl.uniform1i(cache.finalise.uniforms.u_source, 1);
-                gl.uniform2f(cache.finalise.uniforms.u_srcRes, W, H);
-                gl.uniform2f(cache.finalise.uniforms.u_padRes, paddedW, paddedH);
-                gl.uniform1f(cache.finalise.uniforms.u_invN, invN);
-                gl.uniform1f(cache.finalise.uniforms.u_amount, amount);
-              }, vao);
+              drawPass(
+                gl,
+                null,
+                W,
+                H,
+                cache.finalise,
+                () => {
+                  gl.activeTexture(gl.TEXTURE0);
+                  gl.bindTexture(gl.TEXTURE_2D, inv.tex);
+                  gl.uniform1i(cache.finalise.uniforms.u_fft, 0);
+                  gl.activeTexture(gl.TEXTURE1);
+                  gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+                  gl.uniform1i(cache.finalise.uniforms.u_source, 1);
+                  gl.uniform2f(cache.finalise.uniforms.u_srcRes, W, H);
+                  gl.uniform2f(cache.finalise.uniforms.u_padRes, paddedW, paddedH);
+                  gl.uniform1f(cache.finalise.uniforms.u_invN, invN);
+                  gl.uniform1f(cache.finalise.uniforms.u_amount, amount);
+                },
+                vao,
+              );
 
               const rendered = readoutToCanvas(canvas, W, H);
               if (rendered) {
                 const identity = paletteIsIdentity(palette);
                 const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
                 if (out) {
-                  logFilterBackend("FFT Homomorphic", "WebGL2",
-                    `lowG=${lowGain} highG=${highGain} cut=${cutoff}${identity ? "" : "+palettePass"}`);
+                  logFilterBackend(
+                    "FFT Homomorphic",
+                    "WebGL2",
+                    `lowG=${lowGain} highG=${highGain} cut=${cutoff}${identity ? "" : "+palettePass"}`,
+                  );
                   return out;
                 }
               }
@@ -241,6 +312,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Homomorphic filter: flatten uneven illumination while boosting local contrast. log(image) → FFT → high-freq emphasis → IFFT → exp",
+  description:
+    "Homomorphic filter: flatten uneven illumination while boosting local contrast. log(image) → FFT → high-freq emphasis → IFFT → exp",
   noWASM: "Needs GPU 2D FFT.",
 });

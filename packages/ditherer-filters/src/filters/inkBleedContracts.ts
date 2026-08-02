@@ -1,6 +1,5 @@
-const unit = (value: number): number => Number.isFinite(value)
-  ? Math.min(1, Math.max(0, value))
-  : 0;
+const unit = (value: number): number =>
+  Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 
 /** Ink coverage at paper position after capillary transfer from a neighbor. */
 export const inkBleedCoverage = (

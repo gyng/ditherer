@@ -55,7 +55,8 @@ export const makeFilename = (ext: string) => {
   return `ditherer-${stamp}.${ext}`;
 };
 
-export const canWriteClipboard = () => typeof navigator !== "undefined" && navigator.clipboard != null;
+export const canWriteClipboard = () =>
+  typeof navigator !== "undefined" && navigator.clipboard != null;
 
 export const rgbToCss = (color: number[]) => `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 
@@ -101,7 +102,10 @@ export const detectRecordingFormats = (): RecordingFormat[] => {
   }
 
   for (const fallback of fallbacks) {
-    if (!containersWithCodec.has(fallback.container) && MediaRecorder.isTypeSupported(fallback.mime)) {
+    if (
+      !containersWithCodec.has(fallback.container) &&
+      MediaRecorder.isTypeSupported(fallback.mime)
+    ) {
       formats.push({
         label: fallback.container,
         container: fallback.container,
@@ -122,13 +126,13 @@ export const getGifPaletteColorTable = (paletteCandidates: unknown[]): RgbColor[
     const deduped = rawColors
       .map(normalizeColor)
       .filter((color): color is RgbColor => color != null)
-      .filter((color, index, all) => (
-        all.findIndex((candidate) => (
-          candidate[0] === color[0] &&
-          candidate[1] === color[1] &&
-          candidate[2] === color[2]
-        )) === index
-      ))
+      .filter(
+        (color, index, all) =>
+          all.findIndex(
+            (candidate) =>
+              candidate[0] === color[0] && candidate[1] === color[1] && candidate[2] === color[2],
+          ) === index,
+      )
       .slice(0, 256);
 
     if (deduped.length >= 2) {
@@ -175,9 +179,7 @@ export const downloadBlob = (blob: Blob, filename: string) => {
 };
 
 export const copyBlobToClipboard = async (blob: Blob) => {
-  await navigator.clipboard.write([
-    new ClipboardItem({ [blob.type]: blob }),
-  ]);
+  await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
 };
 
 export const formatTime = (secs: number) => {

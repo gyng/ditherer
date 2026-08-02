@@ -13,17 +13,35 @@ import { applyPalettePassToCanvas } from "../palettes/backend";
 import { liquifyGLAvailable, renderLiquifyGL } from "./liquifyGL";
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 100], step: 1, default: 20, desc: "Maximum warp displacement" },
-  smoothness: { type: RANGE, range: [1, 20], step: 1, default: 5, desc: "Blur radius controlling warp smoothness" },
-  direction: { type: RANGE, range: [0, 360], step: 5, default: 90, desc: "Push direction in degrees" },
-  palette: { type: PALETTE, default: nearest }
+  strength: {
+    type: RANGE,
+    range: [0, 100],
+    step: 1,
+    default: 20,
+    desc: "Maximum warp displacement",
+  },
+  smoothness: {
+    type: RANGE,
+    range: [1, 20],
+    step: 1,
+    default: 5,
+    desc: "Blur radius controlling warp smoothness",
+  },
+  direction: {
+    type: RANGE,
+    range: [0, 360],
+    step: 5,
+    default: 90,
+    desc: "Push direction in degrees",
+  },
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
   strength: optionTypes.strength.default,
   smoothness: optionTypes.smoothness.default,
   direction: optionTypes.direction.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const liquify = (input: any, options = defaults) => {
@@ -32,16 +50,22 @@ const liquify = (input: any, options = defaults) => {
   const H = input.height;
 
   if (
-    liquifyGLAvailable()
-    && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
+    liquifyGLAvailable() &&
+    (options as { _webglAcceleration?: boolean })._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
     const rendered = renderLiquifyGL(input, W, H, strength, smoothness, direction, levels);
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Liquify", "WebGL2", `strength=${strength} smoothness=${smoothness}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Liquify",
+          "WebGL2",
+          `strength=${strength} smoothness=${smoothness}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -71,10 +95,12 @@ const liquify = (input: any, options = defaults) => {
   const tempH = new Float32Array(W * H);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let sum = 0, cnt = 0;
+      let sum = 0,
+        cnt = 0;
       for (let k = -blurR; k <= blurR; k++) {
         const nx = Math.max(0, Math.min(W - 1, x + k));
-        sum += lum[y * W + nx]; cnt++;
+        sum += lum[y * W + nx];
+        cnt++;
       }
       tempH[y * W + x] = sum / cnt;
     }
@@ -82,10 +108,12 @@ const liquify = (input: any, options = defaults) => {
   // Vertical
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let sum = 0, cnt = 0;
+      let sum = 0,
+        cnt = 0;
       for (let k = -blurR; k <= blurR; k++) {
         const ny = Math.max(0, Math.min(H - 1, y + k));
-        sum += tempH[ny * W + x]; cnt++;
+        sum += tempH[ny * W + x];
+        cnt++;
       }
       blurred[y * W + x] = sum / cnt;
     }
@@ -125,10 +153,12 @@ const liquify = (input: any, options = defaults) => {
           const cpy = Math.max(0, Math.min(H - 1, py));
           return buf[getBufferIndex(cpx, cpy, W) + ch];
         };
-        return get(sx0, sy0) * (1 - fx) * (1 - fy) +
-               get(sx0 + 1, sy0) * fx * (1 - fy) +
-               get(sx0, sy0 + 1) * (1 - fx) * fy +
-               get(sx0 + 1, sy0 + 1) * fx * fy;
+        return (
+          get(sx0, sy0) * (1 - fx) * (1 - fy) +
+          get(sx0 + 1, sy0) * fx * (1 - fy) +
+          get(sx0, sy0 + 1) * (1 - fx) * fy +
+          get(sx0 + 1, sy0 + 1) * fx * fy
+        );
       };
 
       const di = getBufferIndex(x, y, W);
@@ -151,5 +181,5 @@ export default defineFilter({
   func: liquify,
   optionTypes,
   options: defaults,
-  defaults
+  defaults,
 });

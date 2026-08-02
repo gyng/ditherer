@@ -18,7 +18,9 @@ describe("filters reducer boundary decisions", () => {
   it("rejects a seventeenth chain stage and tracks the active entry across crossing reorders", () => {
     const chain = Array.from({ length: MAX_CHAIN_LENGTH }, (_, index) => entry(String(index)));
     const full = { ...initialState, chain, activeIndex: 8, selected: initialState.selected };
-    expect(reducer(full, { type: "CHAIN_ADD", displayName: "extra", filter: filterIndex.Invert })).toBe(full);
+    expect(
+      reducer(full, { type: "CHAIN_ADD", displayName: "extra", filter: filterIndex.Invert }),
+    ).toBe(full);
     expect(reducer(full, { type: "CHAIN_DUPLICATE", id: "0" })).toBe(full);
 
     const movedBeforeActive = reducer(full, { type: "CHAIN_REORDER", fromIndex: 2, toIndex: 10 });
@@ -54,7 +56,12 @@ describe("filters reducer boundary decisions", () => {
   });
 
   it("rejects non-object state and skips malformed v2 entries without corrupting boolean flags", () => {
-    const prior = { ...initialState, convertGrayscale: true, linearize: false, wasmAcceleration: false };
+    const prior = {
+      ...initialState,
+      convertGrayscale: true,
+      linearize: false,
+      wasmAcceleration: false,
+    };
     expect(reducer(prior, { type: "LOAD_STATE", data: null } as never)).toBe(prior);
     expect(reducer(prior, { type: "LOAD_STATE", data: 2 } as never)).toBe(prior);
 
@@ -78,7 +85,12 @@ describe("filters reducer boundary decisions", () => {
   });
 
   it("keeps current boolean flags when a v1 payload omits or malforms them", () => {
-    const prior = { ...initialState, convertGrayscale: true, linearize: false, wasmAcceleration: false };
+    const prior = {
+      ...initialState,
+      convertGrayscale: true,
+      linearize: false,
+      wasmAcceleration: false,
+    };
     const loaded = reducer(prior, {
       type: "LOAD_STATE",
       data: {
@@ -120,7 +132,12 @@ describe("filters reducer boundary decisions", () => {
         connections: [{ metric: "beat", target: "amount", weight: 0.5 }],
       },
     });
-    const state = { ...initialState, chain: [source], activeIndex: 0, selected: initialState.selected };
+    const state = {
+      ...initialState,
+      chain: [source],
+      activeIndex: 0,
+      selected: initialState.selected,
+    };
     const duplicated = reducer(state, { type: "CHAIN_DUPLICATE", id: "audio" });
     expect(duplicated.chain[1].filter.options).toEqual({});
     expect(duplicated.chain[1].audioMod?.connections).toEqual(source.audioMod?.connections);
@@ -131,9 +148,12 @@ describe("filters reducer boundary decisions", () => {
 
   it("updates a non-active stage and initializes absent palette color arrays", () => {
     const palette = { name: "custom", options: {} };
-    const chain = [entry("a"), entry("b", {
-      filter: { ...filterIndex.Ordered, options: { palette } },
-    })];
+    const chain = [
+      entry("a"),
+      entry("b", {
+        filter: { ...filterIndex.Ordered, options: { palette } },
+      }),
+    ];
     const state = { ...initialState, chain, activeIndex: 0, selected: initialState.selected };
 
     const option = reducer(state, {
@@ -173,7 +193,12 @@ describe("filters reducer boundary decisions", () => {
   });
 
   it("uses state fallbacks for omitted v2 flags and unresolved palette references", () => {
-    const prior = { ...initialState, convertGrayscale: true, linearize: false, wasmAcceleration: false };
+    const prior = {
+      ...initialState,
+      convertGrayscale: true,
+      linearize: false,
+      wasmAcceleration: false,
+    };
     const loaded = reducer(prior, {
       type: "LOAD_STATE",
       data: {
@@ -181,7 +206,11 @@ describe("filters reducer boundary decisions", () => {
         chain: [{ n: "Ordered", o: { palette: { name: "not-installed" } } }],
       },
     } as never);
-    expect(loaded).toMatchObject({ convertGrayscale: true, linearize: false, wasmAcceleration: false });
+    expect(loaded).toMatchObject({
+      convertGrayscale: true,
+      linearize: false,
+      wasmAcceleration: false,
+    });
     expect((loaded.chain[0].filter.options?.palette as { name: string }).name).toBe("nearest");
   });
 
@@ -189,10 +218,16 @@ describe("filters reducer boundary decisions", () => {
     const drawImage = vi.fn();
     const context = { imageSmoothingEnabled: false, drawImage };
     const canvas = { getContext: vi.fn(() => context) } as unknown as HTMLCanvasElement;
-    const image = { width: 20, height: 10 } as CanvasImageSource & { width: number; height: number };
+    const image = { width: 20, height: 10 } as CanvasImageSource & {
+      width: number;
+      height: number;
+    };
     const state = { ...initialState, inputCanvas: canvas, inputImage: image, scale: 0 };
 
-    const auto = reducer(state, { type: "SET_SCALING_ALGORITHM", algorithm: SCALING_ALGORITHM.AUTO });
+    const auto = reducer(state, {
+      type: "SET_SCALING_ALGORITHM",
+      algorithm: SCALING_ALGORITHM.AUTO,
+    });
     expect(context.imageSmoothingEnabled).toBe(true);
     expect(drawImage).toHaveBeenCalledWith(image, 0, 0, 20, 10);
     expect(auto.scalingAlgorithm).toBe(SCALING_ALGORITHM.AUTO);
@@ -200,10 +235,15 @@ describe("filters reducer boundary decisions", () => {
     context.imageSmoothingEnabled = true;
     reducer(state, { type: "SET_SCALING_ALGORITHM", algorithm: SCALING_ALGORITHM.PIXELATED });
     expect(context.imageSmoothingEnabled).toBe(false);
-    expect(reducer({ ...state, inputCanvas: null }, {
-      type: "SET_SCALING_ALGORITHM",
-      algorithm: SCALING_ALGORITHM.AUTO,
-    }).scalingAlgorithm).toBe(SCALING_ALGORITHM.AUTO);
+    expect(
+      reducer(
+        { ...state, inputCanvas: null },
+        {
+          type: "SET_SCALING_ALGORITHM",
+          algorithm: SCALING_ALGORITHM.AUTO,
+        },
+      ).scalingAlgorithm,
+    ).toBe(SCALING_ALGORITHM.AUTO);
   });
 
   it("updates live video controls and fully disposes a replaced object-URL video", () => {
@@ -251,13 +291,28 @@ describe("filters reducer boundary decisions", () => {
 
   it("preserves optional render telemetry and persists both acceleration states", () => {
     const output = document.createElement("canvas");
-    const state = { ...initialState, outputFrameToken: 4, outputTime: 2, frameTime: 9, stepTimes: [] };
+    const state = {
+      ...initialState,
+      outputFrameToken: 4,
+      outputTime: 2,
+      frameTime: 9,
+      stepTimes: [],
+    };
     const filtered = reducer(state, { type: "FILTER_IMAGE", image: output });
-    expect(filtered).toMatchObject({ outputFrameToken: 4, outputTime: 2, frameTime: 9, stepTimes: [] });
+    expect(filtered).toMatchObject({
+      outputFrameToken: 4,
+      outputTime: 2,
+      frameTime: 9,
+      stepTimes: [],
+    });
 
-    expect(reducer(state, { type: "SET_WEBGL_ACCELERATION", value: false }).webglAcceleration).toBe(false);
+    expect(reducer(state, { type: "SET_WEBGL_ACCELERATION", value: false }).webglAcceleration).toBe(
+      false,
+    );
     expect(localStorage.getItem("ditherer-webgl-accel")).toBe("0");
-    expect(reducer(state, { type: "SET_WEBGL_ACCELERATION", value: true }).webglAcceleration).toBe(true);
+    expect(reducer(state, { type: "SET_WEBGL_ACCELERATION", value: true }).webglAcceleration).toBe(
+      true,
+    );
     expect(localStorage.getItem("ditherer-webgl-accel")).toBe("1");
   });
 });

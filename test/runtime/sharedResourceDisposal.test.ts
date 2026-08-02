@@ -5,7 +5,8 @@ const resourceMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("filters/jpegArtifactGL", async () => {
-  const actual = await vi.importActual<typeof import("filters/jpegArtifactGL")>("filters/jpegArtifactGL");
+  const actual =
+    await vi.importActual<typeof import("filters/jpegArtifactGL")>("filters/jpegArtifactGL");
   return {
     ...actual,
     releaseJpegArtifactFloatTextures: resourceMocks.releaseJpegArtifactFloatTextures,

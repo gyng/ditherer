@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  defaults as facetDefaults,
-  optionTypes as facetOptionTypes,
-} from "filters/facet";
+import { defaults as facetDefaults, optionTypes as facetOptionTypes } from "filters/facet";
 import {
   defaults as lensFlareDefaults,
   lensFlareGhostPosition,
@@ -21,8 +18,8 @@ describe("Pop Art spot geometry", () => {
     const half = popArtSpotGeometry(0.5, pitch);
     expect(quarter.mode).toBe("DOT");
     expect(half.mode).toBe("DOT");
-    expect(Math.PI * quarter.radius ** 2 / pitch ** 2).toBeCloseTo(0.25, 10);
-    expect(Math.PI * half.radius ** 2 / pitch ** 2).toBeCloseTo(0.5, 10);
+    expect((Math.PI * quarter.radius ** 2) / pitch ** 2).toBeCloseTo(0.25, 10);
+    expect((Math.PI * half.radius ** 2) / pitch ** 2).toBeCloseTo(0.5, 10);
     expect(half.radius / quarter.radius).toBeCloseTo(Math.sqrt(2), 10);
   });
 
@@ -33,7 +30,7 @@ describe("Pop Art spot geometry", () => {
     const black = popArtSpotGeometry(1, pitch);
     expect(contact).toMatchObject({ mode: "DOT", radius: 50 });
     expect(shadow.mode).toBe("HOLE");
-    expect(Math.PI * shadow.radius ** 2 / pitch ** 2).toBeCloseTo(0.1, 10);
+    expect((Math.PI * shadow.radius ** 2) / pitch ** 2).toBeCloseTo(0.1, 10);
     expect(black).toEqual({ mode: "HOLE", radius: 0 });
   });
 
@@ -52,7 +49,8 @@ describe("Pop Art spot geometry", () => {
 describe("Lens Flare optical-axis layout", () => {
   it("places a multi-ghost sequence on both sides of image center", () => {
     const positions = Array.from({ length: 5 }, (_, index) =>
-      lensFlareGhostPosition([20, 30], [100, 80], index, 5, 1));
+      lensFlareGhostPosition([20, 30], [100, 80], index, 5, 1),
+    );
     expect(positions[0][0]).toBeLessThan(100);
     expect(positions.at(-1)?.[0]).toBeGreaterThan(100);
     for (const [x, y] of positions) {
@@ -69,7 +67,8 @@ describe("Lens Flare optical-axis layout", () => {
       Number.NaN,
       0,
       Number.NaN,
-    )) expect(Number.isFinite(value)).toBe(true);
+    ))
+      expect(Number.isFinite(value)).toBe(true);
   });
 });
 

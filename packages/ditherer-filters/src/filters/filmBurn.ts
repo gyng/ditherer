@@ -16,13 +16,55 @@ import { logFilterBackend } from "../utils/index";
 import { defineFilter } from "./types";
 
 export const optionTypes = {
-  intensity: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "Heat exposure and outward growth of the destroyed emulsion core" },
-  warmth: { type: RANGE, range: [0, 1], step: 0.05, default: 0.65, desc: "Amber dye shift in the heat-affected emulsion and exposed projector light" },
-  hotspots: { type: RANGE, range: [0, 5], step: 1, default: 2, desc: "Number of independent projector-gate burn origins" },
-  seed: { type: RANGE, range: [0, 999], step: 1, default: 42, desc: "Deterministic placement and shape seed for the damage" },
-  distortion: { type: RANGE, range: [0, 1], step: 0.05, default: 0.35, desc: "Local image warping from film-base shrinkage and buckling" },
-  blistering: { type: RANGE, range: [0, 1], step: 0.05, default: 0.7, desc: "Strength of the hardened dark crust and bright blister boundary" },
-  roughness: { type: RANGE, range: [0, 1], step: 0.05, default: 0.55, desc: "Multi-scale irregularity of the growing burn front" },
+  intensity: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.55,
+    desc: "Heat exposure and outward growth of the destroyed emulsion core",
+  },
+  warmth: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.65,
+    desc: "Amber dye shift in the heat-affected emulsion and exposed projector light",
+  },
+  hotspots: {
+    type: RANGE,
+    range: [0, 5],
+    step: 1,
+    default: 2,
+    desc: "Number of independent projector-gate burn origins",
+  },
+  seed: {
+    type: RANGE,
+    range: [0, 999],
+    step: 1,
+    default: 42,
+    desc: "Deterministic placement and shape seed for the damage",
+  },
+  distortion: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.35,
+    desc: "Local image warping from film-base shrinkage and buckling",
+  },
+  blistering: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.7,
+    desc: "Strength of the hardened dark crust and bright blister boundary",
+  },
+  roughness: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.55,
+    desc: "Multi-scale irregularity of the growing burn front",
+  },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette quantization" },
 };
 
@@ -160,8 +202,16 @@ const getProgram = (gl: WebGL2RenderingContext): Program => {
   if (!cache) {
     cache = {
       burn: linkProgram(gl, FILM_BURN_FS, [
-        "u_source", "u_res", "u_spotCount", "u_spots[0]", "u_intensity", "u_warmth",
-        "u_distortion", "u_blistering", "u_roughness", "u_seed",
+        "u_source",
+        "u_res",
+        "u_spotCount",
+        "u_spots[0]",
+        "u_intensity",
+        "u_warmth",
+        "u_distortion",
+        "u_blistering",
+        "u_roughness",
+        "u_seed",
       ] as const),
     };
   }
@@ -171,7 +221,7 @@ const getProgram = (gl: WebGL2RenderingContext): Program => {
 const mulberry32 = (seed: number) => {
   let state = seed | 0;
   return () => {
-    state = (state + 0x6D2B79F5) | 0;
+    state = (state + 0x6d2b79f5) | 0;
     let value = Math.imul(state ^ (state >>> 15), 1 | state);
     value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
     return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
@@ -202,20 +252,28 @@ const renderFilmBurn = (
   resizeGLCanvas(canvas, width, height);
   const sourceTexture = ensureTexture(gl, "filmBurn:source", width, height);
   uploadSourceTexture(gl, sourceTexture, source);
-  drawPass(gl, null, width, height, program, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
-    gl.uniform1i(program.uniforms.u_source, 0);
-    gl.uniform2f(program.uniforms.u_res, width, height);
-    gl.uniform1i(program.uniforms.u_spotCount, count);
-    gl.uniform3fv(program.uniforms["u_spots[0]"], spots);
-    gl.uniform1f(program.uniforms.u_intensity, options.intensity);
-    gl.uniform1f(program.uniforms.u_warmth, options.warmth);
-    gl.uniform1f(program.uniforms.u_distortion, options.distortion);
-    gl.uniform1f(program.uniforms.u_blistering, options.blistering);
-    gl.uniform1f(program.uniforms.u_roughness, options.roughness);
-    gl.uniform1f(program.uniforms.u_seed, options.seed * 0.017);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    program,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTexture.tex);
+      gl.uniform1i(program.uniforms.u_source, 0);
+      gl.uniform2f(program.uniforms.u_res, width, height);
+      gl.uniform1i(program.uniforms.u_spotCount, count);
+      gl.uniform3fv(program.uniforms["u_spots[0]"], spots);
+      gl.uniform1f(program.uniforms.u_intensity, options.intensity);
+      gl.uniform1f(program.uniforms.u_warmth, options.warmth);
+      gl.uniform1f(program.uniforms.u_distortion, options.distortion);
+      gl.uniform1f(program.uniforms.u_blistering, options.blistering);
+      gl.uniform1f(program.uniforms.u_roughness, options.roughness);
+      gl.uniform1f(program.uniforms.u_seed, options.seed * 0.017);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };
 
@@ -228,7 +286,11 @@ const filmBurn = (input: any, options: Partial<typeof defaults> = defaults) => {
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const output = identity ? rendered : applyPalettePassToCanvas(rendered, width, height, palette);
-  logFilterBackend("Film Burn", "WebGL2", `spots=${damage.hotspots} intensity=${damage.intensity}${identity ? "" : "+palettePass"}`);
+  logFilterBackend(
+    "Film Burn",
+    "WebGL2",
+    `spots=${damage.hotspots} intensity=${damage.intensity}${identity ? "" : "+palettePass"}`,
+  );
   return output ?? input;
 };
 
@@ -238,6 +300,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Projection-gate heat damage with warped dyes, blistered crust, cracked emulsion, and exposed-lamp cores",
+  description:
+    "Projection-gate heat damage with warped dyes, blistered crust, cracked emulsion, and exposed-lamp cores",
   requiresGL: true,
 });

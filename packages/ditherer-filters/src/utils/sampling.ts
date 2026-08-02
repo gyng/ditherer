@@ -1,5 +1,4 @@
-const clampValue = (min: number, max: number, value: number) =>
-  Math.max(min, Math.min(max, value));
+const clampValue = (min: number, max: number, value: number) => Math.max(min, Math.min(max, value));
 const getIndex = (x: number, y: number, width: number) => (y * width + x) * 4;
 
 export const sampleNearest = (
@@ -8,7 +7,7 @@ export const sampleNearest = (
   height: number,
   x: number,
   y: number,
-  out: number[] = [0, 0, 0, 0]
+  out: number[] = [0, 0, 0, 0],
 ) => {
   const sx = Math.round(clampValue(0, width - 1, x));
   const sy = Math.round(clampValue(0, height - 1, y));
@@ -26,7 +25,7 @@ export const sampleBilinear = (
   height: number,
   x: number,
   y: number,
-  out: number[] = [0, 0, 0, 0]
+  out: number[] = [0, 0, 0, 0],
 ) => {
   const sx = clampValue(0, width - 1, x);
   const sy = clampValue(0, height - 1, y);
@@ -49,9 +48,26 @@ export const sampleBilinear = (
   const w01 = (1 - tx) * ty;
   const w11 = tx * ty;
 
-  out[0] = Math.round((buf[i00] ?? 0) * w00 + (buf[i10] ?? 0) * w10 + (buf[i01] ?? 0) * w01 + (buf[i11] ?? 0) * w11);
-  out[1] = Math.round((buf[i00 + 1] ?? 0) * w00 + (buf[i10 + 1] ?? 0) * w10 + (buf[i01 + 1] ?? 0) * w01 + (buf[i11 + 1] ?? 0) * w11);
-  out[2] = Math.round((buf[i00 + 2] ?? 0) * w00 + (buf[i10 + 2] ?? 0) * w10 + (buf[i01 + 2] ?? 0) * w01 + (buf[i11 + 2] ?? 0) * w11);
-  out[3] = Math.round((buf[i00 + 3] ?? 0) * w00 + (buf[i10 + 3] ?? 0) * w10 + (buf[i01 + 3] ?? 0) * w01 + (buf[i11 + 3] ?? 0) * w11);
+  out[0] = Math.round(
+    (buf[i00] ?? 0) * w00 + (buf[i10] ?? 0) * w10 + (buf[i01] ?? 0) * w01 + (buf[i11] ?? 0) * w11,
+  );
+  out[1] = Math.round(
+    (buf[i00 + 1] ?? 0) * w00 +
+      (buf[i10 + 1] ?? 0) * w10 +
+      (buf[i01 + 1] ?? 0) * w01 +
+      (buf[i11 + 1] ?? 0) * w11,
+  );
+  out[2] = Math.round(
+    (buf[i00 + 2] ?? 0) * w00 +
+      (buf[i10 + 2] ?? 0) * w10 +
+      (buf[i01 + 2] ?? 0) * w01 +
+      (buf[i11 + 2] ?? 0) * w11,
+  );
+  out[3] = Math.round(
+    (buf[i00 + 3] ?? 0) * w00 +
+      (buf[i10 + 3] ?? 0) * w10 +
+      (buf[i01 + 3] ?? 0) * w01 +
+      (buf[i11 + 3] ?? 0) * w11,
+  );
   return out;
 };

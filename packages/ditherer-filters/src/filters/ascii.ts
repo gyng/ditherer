@@ -11,12 +11,18 @@ const ASCII_CHARS = " .:-=+*#%@";
 const BLOCK_CHARS = " ░▒▓█";
 
 // Map luminance 0-255 to a braille density character
-const BRAILLE_PATTERNS = [0x2800, 0x2801, 0x2803, 0x2807, 0x280F, 0x281F, 0x283F, 0x287F, 0x28FF];
+const BRAILLE_PATTERNS = [0x2800, 0x2801, 0x2803, 0x2807, 0x280f, 0x281f, 0x283f, 0x287f, 0x28ff];
 const toBraille = (lum: number) =>
-  String.fromCodePoint(BRAILLE_PATTERNS[Math.round(lum / 255 * 8)]);
+  String.fromCodePoint(BRAILLE_PATTERNS[Math.round((lum / 255) * 8)]);
 
 export const optionTypes = {
-  cellSize: { type: RANGE, range: [4, 32], step: 1, default: 8, desc: "Size of each character cell in pixels" },
+  cellSize: {
+    type: RANGE,
+    range: [4, 32],
+    step: 1,
+    default: 8,
+    desc: "Size of each character cell in pixels",
+  },
   charset: {
     type: ENUM,
     options: [
@@ -31,16 +37,48 @@ export const optionTypes = {
       ...SHARED_CHARSET_GROUPS,
     ],
     default: CHARSET_ASCII,
-    desc: "Character set used to represent luminance; includes shared Matrix rain charsets for stylized text rendering"
+    desc: "Character set used to represent luminance; includes shared Matrix rain charsets for stylized text rendering",
   },
-  sourceInfluence: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "How much source brightness drives character selection; lower values create denser, fuller text fields" },
-  textDensity: { type: RANGE, range: [0.5, 2], step: 0.05, default: 1, desc: "Bias character selection toward lighter or fuller glyphs without changing the source image itself" },
-  characterSizeVariation: { type: RANGE, range: [0, 0.75], step: 0.05, default: 0, desc: "Vary character size from cell to cell for a rougher, more unstable text field" },
-  characterFlip: { type: RANGE, range: [0, 1], step: 0.05, default: 0, desc: "Introduce deterministic flips and rotations for glitched, scrambled character shapes" },
+  sourceInfluence: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 1,
+    desc: "How much source brightness drives character selection; lower values create denser, fuller text fields",
+  },
+  textDensity: {
+    type: RANGE,
+    range: [0.5, 2],
+    step: 0.05,
+    default: 1,
+    desc: "Bias character selection toward lighter or fuller glyphs without changing the source image itself",
+  },
+  characterSizeVariation: {
+    type: RANGE,
+    range: [0, 0.75],
+    step: 0.05,
+    default: 0,
+    desc: "Vary character size from cell to cell for a rougher, more unstable text field",
+  },
+  characterFlip: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0,
+    desc: "Introduce deterministic flips and rotations for glitched, scrambled character shapes",
+  },
   color: { type: BOOL, default: true, desc: "Use source colors instead of grayscale" },
-  classicGreen: { type: BOOL, default: false, desc: "Use an authentic Matrix green monitor look instead of source colors" },
-  greenPhosphorGlow: { type: BOOL, default: false, desc: "Add a subtle phosphor bloom around characters when classic green mode is enabled" },
-  background: { type: STRING, default: "black", desc: "Background fill color" }
+  classicGreen: {
+    type: BOOL,
+    default: false,
+    desc: "Use an authentic Matrix green monitor look instead of source colors",
+  },
+  greenPhosphorGlow: {
+    type: BOOL,
+    default: false,
+    desc: "Add a subtle phosphor bloom around characters when classic green mode is enabled",
+  },
+  background: { type: STRING, default: "black", desc: "Background fill color" },
 };
 
 export const defaults = {
@@ -53,7 +91,7 @@ export const defaults = {
   color: optionTypes.color.default,
   classicGreen: optionTypes.classicGreen.default,
   greenPhosphorGlow: optionTypes.greenPhosphorGlow.default,
-  background: optionTypes.background.default
+  background: optionTypes.background.default,
 };
 
 const hashCell = (x: number, y: number) => {
@@ -85,7 +123,7 @@ const ascii = (input: any, options = defaults) => {
     color,
     classicGreen,
     greenPhosphorGlow,
-    background
+    background,
   } = options;
   const output = cloneCanvas(input, false);
   const inputCtx = input.getContext("2d");
@@ -101,14 +139,18 @@ const ascii = (input: any, options = defaults) => {
   outputCtx.fillRect(0, 0, W, H);
   outputCtx.textBaseline = "top";
   outputCtx.shadowBlur = classicGreen && greenPhosphorGlow ? Math.max(2, size * 0.45) : 0;
-  outputCtx.shadowColor = classicGreen && greenPhosphorGlow ? "rgba(110, 255, 140, 0.45)" : "transparent";
+  outputCtx.shadowColor =
+    classicGreen && greenPhosphorGlow ? "rgba(110, 255, 140, 0.45)" : "transparent";
 
   for (let y = 0; y < H; y += size) {
     for (let x = 0; x < W; x += size) {
       const blockW = Math.min(size, W - x);
       const blockH = Math.min(size, H - y);
       const pixels = blockW * blockH;
-      let r = 0, g = 0, b = 0, a = 0;
+      let r = 0,
+        g = 0,
+        b = 0,
+        a = 0;
 
       for (let by = 0; by < blockH; by += 1) {
         for (let bx = 0; bx < blockW; bx += 1) {
@@ -135,9 +177,10 @@ const ascii = (input: any, options = defaults) => {
       } else if (charset === CHARSET_BLOCK) {
         ch = BLOCK_CHARS[Math.round(glyphLum * (BLOCK_CHARS.length - 1))];
       } else {
-        const glyphs = charset === CHARSET_ASCII
-          ? Array.from(ASCII_CHARS)
-          : Array.from(getCharsetString(charset, CHARSET.ASCII_ART));
+        const glyphs =
+          charset === CHARSET_ASCII
+            ? Array.from(ASCII_CHARS)
+            : Array.from(getCharsetString(charset, CHARSET.ASCII_ART));
         ch = glyphs[Math.round(glyphLum * (glyphs.length - 1))] || glyphs[glyphs.length - 1] || " ";
       }
 
@@ -194,6 +237,7 @@ export default defineFilter({
   options: defaults,
   optionTypes,
   defaults,
-  noWASM: "Uses 2D canvas fillText for glyph rasterization — no WASM equivalent, browser text rendering is already native-accelerated.",
+  noWASM:
+    "Uses 2D canvas fillText for glyph rasterization — no WASM equivalent, browser text rendering is already native-accelerated.",
   noGL: "Arbitrary-charset text rasterization per cell needs a glyph atlas per charset and CPU-driven layout; not a fragment-shader problem.",
 });

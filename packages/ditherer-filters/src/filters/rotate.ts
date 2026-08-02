@@ -25,11 +25,29 @@ import {
 } from "../gl/index";
 
 export const optionTypes = {
-  angle: { type: RANGE, range: [-180, 180], step: 1, default: 15, desc: "Rotation angle in degrees" },
-  spinPerFrame: { type: RANGE, range: [-45, 45], step: 0.5, default: 2, desc: "Additional degrees of rotation applied every animation frame" },
+  angle: {
+    type: RANGE,
+    range: [-180, 180],
+    step: 1,
+    default: 15,
+    desc: "Rotation angle in degrees",
+  },
+  spinPerFrame: {
+    type: RANGE,
+    range: [-45, 45],
+    step: 0.5,
+    default: 2,
+    desc: "Additional degrees of rotation applied every animation frame",
+  },
   bgColor: { type: COLOR, default: [0, 0, 0], desc: "Fill color for exposed corners" },
   palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 15, desc: "Playback speed when using the built-in animation toggle" },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 15,
+    desc: "Playback speed when using the built-in animation toggle",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
@@ -106,7 +124,12 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     rot: linkProgram(gl, ROT_FS, [
-      "u_source", "u_res", "u_cos", "u_sin", "u_bg", "u_levels",
+      "u_source",
+      "u_res",
+      "u_cos",
+      "u_sin",
+      "u_bg",
+      "u_levels",
     ] as const),
   };
   return _cache;
@@ -118,10 +141,12 @@ const rotateFilter = (input: any, options: RotateOptions = defaults) => {
   const bgColor = Array.isArray(options.bgColor) ? options.bgColor : defaults.bgColor;
   const palette = options.palette ?? defaults.palette;
   const frameIndex = Number(options._frameIndex ?? 0);
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
   const animatedAngle = angle + spinPerFrame * frameIndex;
   const rad = (-animatedAngle * Math.PI) / 180;
-  const cosA = Math.cos(rad), sinA = Math.sin(rad);
+  const cosA = Math.cos(rad),
+    sinA = Math.sin(rad);
 
   if (glAvailable() && options._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -137,18 +162,31 @@ const rotateFilter = (input: any, options: RotateOptions = defaults) => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-      drawPass(gl, null, W, H, cache.rot, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.rot.uniforms.u_source, 0);
-        gl.uniform2f(cache.rot.uniforms.u_res, W, H);
-        gl.uniform1f(cache.rot.uniforms.u_cos, cosA);
-        gl.uniform1f(cache.rot.uniforms.u_sin, sinA);
-        gl.uniform3f(cache.rot.uniforms.u_bg, bgColor[0] / 255, bgColor[1] / 255, bgColor[2] / 255);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.rot.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.rot,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.rot.uniforms.u_source, 0);
+          gl.uniform2f(cache.rot.uniforms.u_res, W, H);
+          gl.uniform1f(cache.rot.uniforms.u_cos, cosA);
+          gl.uniform1f(cache.rot.uniforms.u_sin, sinA);
+          gl.uniform3f(
+            cache.rot.uniforms.u_bg,
+            bgColor[0] / 255,
+            bgColor[1] / 255,
+            bgColor[2] / 255,
+          );
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.rot.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
 
       const rendered = readoutToCanvas(canvas, W, H);
       gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
@@ -158,8 +196,11 @@ const rotateFilter = (input: any, options: RotateOptions = defaults) => {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Rotate", "WebGL2",
-            `angle=${animatedAngle.toFixed(1)}${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Rotate",
+            "WebGL2",
+            `angle=${animatedAngle.toFixed(1)}${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -174,11 +215,13 @@ const rotateFilter = (input: any, options: RotateOptions = defaults) => {
 
   const buf = inputCtx.getImageData(0, 0, W, H).data;
   const outBuf = new Uint8ClampedArray(buf.length);
-  const cx = W / 2, cy = H / 2;
+  const cx = W / 2,
+    cy = H / 2;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      const dx = x - cx, dy = y - cy;
+      const dx = x - cx,
+        dy = y - cy;
       const sx = cx + dx * cosA - dy * sinA;
       const sy = cy + dx * sinA + dy * cosA;
       const di = getBufferIndex(x, y, W);
@@ -188,14 +231,31 @@ const rotateFilter = (input: any, options: RotateOptions = defaults) => {
         continue;
       }
 
-      const sx0 = Math.floor(sx), sy0 = Math.floor(sy);
-      const fx = sx - sx0, fy = sy - sy0;
+      const sx0 = Math.floor(sx),
+        sy0 = Math.floor(sy);
+      const fx = sx - sx0,
+        fy = sy - sy0;
       const sample = (ch: number) => {
         const g = (px: number, py: number) => buf[getBufferIndex(px, py, W) + ch];
-        return g(sx0,sy0)*(1-fx)*(1-fy) + g(sx0+1,sy0)*fx*(1-fy) + g(sx0,sy0+1)*(1-fx)*fy + g(sx0+1,sy0+1)*fx*fy;
+        return (
+          g(sx0, sy0) * (1 - fx) * (1 - fy) +
+          g(sx0 + 1, sy0) * fx * (1 - fy) +
+          g(sx0, sy0 + 1) * (1 - fx) * fy +
+          g(sx0 + 1, sy0 + 1) * fx * fy
+        );
       };
 
-      const color = paletteGetColor(palette, rgba(Math.round(sample(0)), Math.round(sample(1)), Math.round(sample(2)), Math.round(sample(3))), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(
+          Math.round(sample(0)),
+          Math.round(sample(1)),
+          Math.round(sample(2)),
+          Math.round(sample(3)),
+        ),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, di, color[0], color[1], color[2], Math.round(sample(3)));
     }
   }

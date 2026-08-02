@@ -9,7 +9,7 @@ type CurvePoint = [number, number];
 
 const DEFAULT_POINTS: CurvePoint[] = [
   [0, 0],
-  [255, 255]
+  [255, 255],
 ];
 
 const clamp255 = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
@@ -26,7 +26,7 @@ const parsePoints = (value: string): CurvePoint[] => {
         const normalized = rawX <= 1 && rawY <= 1;
         return [
           clamp255(normalized ? rawX * 255 : rawX),
-          clamp255(normalized ? rawY * 255 : rawY)
+          clamp255(normalized ? rawY * 255 : rawY),
         ] as CurvePoint;
       })
       .sort((a, b) => a[0] - b[0]);
@@ -47,7 +47,9 @@ const Curve = (props: ControlProps) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const editorId = useId();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [draft, setDraft] = useState(typeof props.value === "string" ? props.value : serializePoints(DEFAULT_POINTS));
+  const [draft, setDraft] = useState(
+    typeof props.value === "string" ? props.value : serializePoints(DEFAULT_POINTS),
+  );
   const points = useMemo(() => parsePoints(draft), [draft]);
 
   useEffect(() => {
@@ -87,7 +89,7 @@ const Curve = (props: ControlProps) => {
           dragIndex === 0 || dragIndex === points.length - 1
             ? entry[0]
             : Math.max(minX, Math.min(maxX, point[0])),
-          point[1]
+          point[1],
         ] as CurvePoint;
       });
       commit(next);
@@ -109,12 +111,10 @@ const Curve = (props: ControlProps) => {
 
   return (
     <div className={s.curveControl}>
-      <ControlLabel
-        name={props.name}
-        label={props.types?.label}
-        desc={props.types?.desc}
-      />
-      <div className={s.curveMeta}>Click to add points, drag to shape, double-click a point to remove it.</div>
+      <ControlLabel name={props.name} label={props.types?.label} desc={props.types?.desc} />
+      <div className={s.curveMeta}>
+        Click to add points, drag to shape, double-click a point to remove it.
+      </div>
       <svg
         ref={svgRef}
         id={editorId}
@@ -161,10 +161,7 @@ const Curve = (props: ControlProps) => {
         ))}
       </svg>
       <div className={s.curveToolbar}>
-        <button
-          type="button"
-          onClick={() => commit(DEFAULT_POINTS)}
-        >
+        <button type="button" onClick={() => commit(DEFAULT_POINTS)}>
           Reset
         </button>
         <button

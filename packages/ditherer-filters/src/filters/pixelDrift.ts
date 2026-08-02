@@ -6,36 +6,57 @@ import {
   fillBufferPixel,
   getBufferIndex,
   rgba,
-  paletteGetColor
+  paletteGetColor,
 } from "../utils/index";
 
 const DRIFT_DIR = { DOWN: "DOWN", UP: "UP", LEFT: "LEFT", RIGHT: "RIGHT" };
 
 export const optionTypes = {
-  strength: { type: RANGE, range: [0, 50], step: 1, default: 15, desc: "Maximum drift displacement in pixels" },
+  strength: {
+    type: RANGE,
+    range: [0, 50],
+    step: 1,
+    default: 15,
+    desc: "Maximum drift displacement in pixels",
+  },
   direction: {
     type: ENUM,
     options: [
       { name: "Down (gravity)", value: DRIFT_DIR.DOWN },
       { name: "Up (rise)", value: DRIFT_DIR.UP },
       { name: "Left", value: DRIFT_DIR.LEFT },
-      { name: "Right", value: DRIFT_DIR.RIGHT }
+      { name: "Right", value: DRIFT_DIR.RIGHT },
     ],
     default: DRIFT_DIR.DOWN,
-    desc: "Direction pixels drift toward"
+    desc: "Direction pixels drift toward",
   },
-  threshold: { type: RANGE, range: [0, 255], step: 1, default: 128, desc: "Luminance threshold — darker pixels drift more" },
-  animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 10, desc: "Preview animation frame rate" },
+  threshold: {
+    type: RANGE,
+    range: [0, 255],
+    step: 1,
+    default: 128,
+    desc: "Luminance threshold — darker pixels drift more",
+  },
+  animSpeed: {
+    type: RANGE,
+    range: [1, 30],
+    step: 1,
+    default: 10,
+    desc: "Preview animation frame rate",
+  },
   animate: {
     type: ACTION,
     label: "Play / Stop",
     desc: "Start or stop frame-varying pixel drift",
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
-      if (actions.isAnimating()) { actions.stopAnimLoop(); }
-      else { actions.startAnimLoop(inputCanvas, options.animSpeed || 10); }
-    }
+      if (actions.isAnimating()) {
+        actions.stopAnimLoop();
+      } else {
+        actions.startAnimLoop(inputCanvas, options.animSpeed || 10);
+      }
+    },
   },
-  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" }
+  palette: { type: PALETTE, default: nearest, desc: "Optional output palette and quantization" },
 };
 
 export const defaults = {
@@ -43,13 +64,13 @@ export const defaults = {
   direction: optionTypes.direction.default,
   threshold: optionTypes.threshold.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const mulberry32 = (seed: number) => {
   let s = seed | 0;
   return () => {
-    s = (s + 0x6D2B79F5) | 0;
+    s = (s + 0x6d2b79f5) | 0;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -103,14 +124,20 @@ const pixelDrift = (input: any, options = defaults) => {
       if (driftPx === 0) continue;
 
       // Move this pixel along the drift direction
-      let destX = x, destY = y;
+      let destX = x,
+        destY = y;
       if (isVertical) destY = isPositive ? Math.min(H - 1, y + driftPx) : Math.max(0, y - driftPx);
       else destX = isPositive ? Math.min(W - 1, x + driftPx) : Math.max(0, x - driftPx);
 
       const si = getBufferIndex(x, y, W);
       const di = getBufferIndex(destX, destY, W);
 
-      const color = paletteGetColor(palette, rgba(buf[si], buf[si + 1], buf[si + 2], buf[si + 3]), palette.options, false);
+      const color = paletteGetColor(
+        palette,
+        rgba(buf[si], buf[si + 1], buf[si + 2], buf[si + 3]),
+        palette.options,
+        false,
+      );
       fillBufferPixel(outBuf, di, color[0], color[1], color[2], buf[si + 3]);
     }
   }

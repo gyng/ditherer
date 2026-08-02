@@ -60,13 +60,55 @@ let stateKey = "";
 let lastFrameIndex = -Infinity;
 
 export const optionTypes = {
-  amountX: { type: RANGE, range: [0, 30], step: 1, default: 2, desc: "Maximum lateral camera drift in pixels" },
-  amountY: { type: RANGE, range: [0, 24], step: 1, default: 1, desc: "Maximum vertical camera bob in pixels" },
-  rotation: { type: RANGE, range: [0, 8], step: 0.1, default: 0.3, desc: "Maximum rotational shake in degrees" },
-  zoomJitter: { type: RANGE, range: [0, 0.12], step: 0.01, default: 0.01, desc: "Tiny lens breathing mixed into the shake" },
-  frequency: { type: RANGE, range: [0.1, 4], step: 0.1, default: 0.8, desc: "How quickly the underlying motion targets drift" },
-  inertia: { type: RANGE, range: [0.2, 0.95], step: 0.05, default: 0.85, desc: "How much the camera lags and settles instead of snapping instantly" },
-  tremor: { type: RANGE, range: [0, 1], step: 0.05, default: 0.18, desc: "Blend in a finer handheld tremor on top of the main shake" },
+  amountX: {
+    type: RANGE,
+    range: [0, 30],
+    step: 1,
+    default: 2,
+    desc: "Maximum lateral camera drift in pixels",
+  },
+  amountY: {
+    type: RANGE,
+    range: [0, 24],
+    step: 1,
+    default: 1,
+    desc: "Maximum vertical camera bob in pixels",
+  },
+  rotation: {
+    type: RANGE,
+    range: [0, 8],
+    step: 0.1,
+    default: 0.3,
+    desc: "Maximum rotational shake in degrees",
+  },
+  zoomJitter: {
+    type: RANGE,
+    range: [0, 0.12],
+    step: 0.01,
+    default: 0.01,
+    desc: "Tiny lens breathing mixed into the shake",
+  },
+  frequency: {
+    type: RANGE,
+    range: [0.1, 4],
+    step: 0.1,
+    default: 0.8,
+    desc: "How quickly the underlying motion targets drift",
+  },
+  inertia: {
+    type: RANGE,
+    range: [0.2, 0.95],
+    step: 0.05,
+    default: 0.85,
+    desc: "How much the camera lags and settles instead of snapping instantly",
+  },
+  tremor: {
+    type: RANGE,
+    range: [0, 1],
+    step: 0.05,
+    default: 0.18,
+    desc: "Blend in a finer handheld tremor on top of the main shake",
+  },
   animSpeed: { type: RANGE, range: [1, 30], step: 1, default: 12 },
   animate: {
     type: ACTION,
@@ -74,9 +116,9 @@ export const optionTypes = {
     action: (actions: any, inputCanvas: any, _filterFunc: any, options: any) => {
       if (actions.isAnimating()) actions.stopAnimLoop();
       else actions.startAnimLoop(inputCanvas, options.animSpeed || 12);
-    }
+    },
   },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -88,7 +130,7 @@ export const defaults = {
   inertia: optionTypes.inertia.default,
   tremor: optionTypes.tremor.default,
   animSpeed: optionTypes.animSpeed.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const hashNoise = (t: number, seed: number) => {
@@ -128,7 +170,7 @@ const updateAxis = (
   velocity: number,
   target: number,
   response: number,
-  damping: number
+  damping: number,
 ) => {
   const nextVelocity = (velocity + (target - position) * response) * damping;
   return {
@@ -151,17 +193,28 @@ const stepRig = (frameIndex: number, options: CameraShakeOptions) => {
   const response = 0.08 + (1 - inertia) * 0.22;
   const damping = 0.72 + inertia * 0.22;
 
-  const targetX = layeredNoise(t, 1) * amountX * 0.8 + layeredNoise(t * 5.2, 41) * amountX * tremor * 0.25;
-  const targetY = layeredNoise(t + 9, 2) * amountY * 0.8 + layeredNoise(t * 4.4, 57) * amountY * tremor * 0.22;
-  const targetRotation = (
-    layeredNoise(t * 0.9, 3) * rotation * 0.9 +
-    layeredNoise(t * 6.1, 73) * rotation * tremor * 0.18
-  ) * (Math.PI / 180);
-  const targetZoom = 1 + layeredNoise(t * 0.7, 5) * zoomJitter * 0.45 + layeredNoise(t * 3.9, 91) * zoomJitter * tremor * 0.1;
+  const targetX =
+    layeredNoise(t, 1) * amountX * 0.8 + layeredNoise(t * 5.2, 41) * amountX * tremor * 0.25;
+  const targetY =
+    layeredNoise(t + 9, 2) * amountY * 0.8 + layeredNoise(t * 4.4, 57) * amountY * tremor * 0.22;
+  const targetRotation =
+    (layeredNoise(t * 0.9, 3) * rotation * 0.9 +
+      layeredNoise(t * 6.1, 73) * rotation * tremor * 0.18) *
+    (Math.PI / 180);
+  const targetZoom =
+    1 +
+    layeredNoise(t * 0.7, 5) * zoomJitter * 0.45 +
+    layeredNoise(t * 3.9, 91) * zoomJitter * tremor * 0.1;
 
   const nextX = updateAxis(rigState.x, rigState.vx, targetX, response, damping);
   const nextY = updateAxis(rigState.y, rigState.vy, targetY, response, damping);
-  const nextRotation = updateAxis(rigState.rotation, rigState.vRotation, targetRotation, response * 0.9, damping);
+  const nextRotation = updateAxis(
+    rigState.rotation,
+    rigState.vRotation,
+    targetRotation,
+    response * 0.9,
+    damping,
+  );
   const nextZoom = updateAxis(rigState.zoom, rigState.vZoom, targetZoom, response * 0.5, damping);
 
   rigState.x = nextX.position;
@@ -174,17 +227,18 @@ const stepRig = (frameIndex: number, options: CameraShakeOptions) => {
   rigState.vZoom = nextZoom.velocity;
 };
 
-const getStateKey = (width: number, height: number, options: CameraShakeOptions) => [
-  width,
-  height,
-  options.amountX,
-  options.amountY,
-  options.rotation,
-  options.zoomJitter,
-  options.frequency,
-  options.inertia,
-  options.tremor,
-].join("|");
+const getStateKey = (width: number, height: number, options: CameraShakeOptions) =>
+  [
+    width,
+    height,
+    options.amountX,
+    options.amountY,
+    options.rotation,
+    options.zoomJitter,
+    options.frequency,
+    options.inertia,
+    options.tremor,
+  ].join("|");
 
 // Reverse-map sample with NEAREST snapping + edge clamp, then optionally
 // quantize via the shared `nearest` palette GLSL (no-op when levels >= 256).
@@ -224,15 +278,22 @@ let _prog: Program | null = null;
 const getProg = (gl: WebGL2RenderingContext): Program => {
   if (_prog) return _prog;
   _prog = linkProgram(gl, FS, [
-    "u_source", "u_resolution", "u_centerPx", "u_offsetPx",
-    "u_cosA", "u_sinA", "u_invZoom", "u_paletteLevels",
+    "u_source",
+    "u_resolution",
+    "u_centerPx",
+    "u_offsetPx",
+    "u_cosA",
+    "u_sinA",
+    "u_invZoom",
+    "u_paletteLevels",
   ] as const);
   return _prog;
 };
 
 const cameraShake = (input: any, options: CameraShakeOptions = defaults) => {
   const frameIndex = typeof options._frameIndex === "number" ? options._frameIndex : 0;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const ctx = getGLCtx();
   if (!ctx) return glUnavailableStub(W, H);
@@ -250,8 +311,8 @@ const cameraShake = (input: any, options: CameraShakeOptions = defaults) => {
   const pOpts = (palette as { options?: { levels?: number } }).options;
   // Default `nearest` palette with levels=256 is identity → skip quantization.
   // Custom levels go in-shader; color-distance palettes get a post-pass.
-  const isNearestPalette = palette === defaults.palette ||
-    (palette as { name?: string }).name === "nearest";
+  const isNearestPalette =
+    palette === defaults.palette || (palette as { name?: string }).name === "nearest";
   const shaderLevels = isNearestPalette ? (pOpts?.levels ?? 256) : 256;
 
   const prog = getProg(gl);
@@ -265,18 +326,29 @@ const cameraShake = (input: any, options: CameraShakeOptions = defaults) => {
   const sinA = Math.sin(rigState.rotation);
   const zoom = Math.max(0.75, rigState.zoom);
 
-  drawPass(gl, null, W, H, prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(prog.uniforms.u_source, 0);
-    gl.uniform2f(prog.uniforms.u_resolution, W, H);
-    gl.uniform2f(prog.uniforms.u_centerPx, (W - 1) * 0.5, (H - 1) * 0.5);
-    gl.uniform2f(prog.uniforms.u_offsetPx, rigState.x, rigState.y);
-    gl.uniform1f(prog.uniforms.u_cosA, cosA);
-    gl.uniform1f(prog.uniforms.u_sinA, sinA);
-    gl.uniform1f(prog.uniforms.u_invZoom, 1 / zoom);
-    gl.uniform1i(prog.uniforms.u_paletteLevels, Math.max(1, Math.min(256, Math.round(shaderLevels))));
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    W,
+    H,
+    prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(prog.uniforms.u_source, 0);
+      gl.uniform2f(prog.uniforms.u_resolution, W, H);
+      gl.uniform2f(prog.uniforms.u_centerPx, (W - 1) * 0.5, (H - 1) * 0.5);
+      gl.uniform2f(prog.uniforms.u_offsetPx, rigState.x, rigState.y);
+      gl.uniform1f(prog.uniforms.u_cosA, cosA);
+      gl.uniform1f(prog.uniforms.u_sinA, sinA);
+      gl.uniform1f(prog.uniforms.u_invZoom, 1 / zoom);
+      gl.uniform1i(
+        prog.uniforms.u_paletteLevels,
+        Math.max(1, Math.min(256, Math.round(shaderLevels))),
+      );
+    },
+    vao,
+  );
 
   const rendered = readoutToCanvas(canvas, W, H);
   if (!rendered) return glUnavailableStub(W, H);
@@ -286,8 +358,13 @@ const cameraShake = (input: any, options: CameraShakeOptions = defaults) => {
   const skipPostPass = isNearestPalette || paletteIsIdentity(palette);
   const out = skipPostPass
     ? rendered
-    : (applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) || rendered);
-  logFilterBackend("Camera Shake", "WebGL2", `rot=${rigState.rotation.toFixed(3)} zoom=${zoom.toFixed(3)}${skipPostPass ? "" : "+palettePass"}`);
+    : applyPalettePassToCanvas(rendered, W, H, palette, options._wasmAcceleration !== false) ||
+      rendered;
+  logFilterBackend(
+    "Camera Shake",
+    "WebGL2",
+    `rot=${rigState.rotation.toFixed(3)} zoom=${zoom.toFixed(3)}${skipPostPass ? "" : "+palettePass"}`,
+  );
   return out;
 };
 
@@ -301,7 +378,8 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "More realistic handheld shake with drift targets, inertia, settling, and fine tremor",
+  description:
+    "More realistic handheld shake with drift targets, inertia, settling, and fine tremor",
   temporal: true,
   requiresGL: true,
 });

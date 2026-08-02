@@ -1,6 +1,13 @@
 import { RANGE, BOOL, ENUM, PALETTE } from "../constants/controlTypes";
 import { nearest } from "../palettes/index";
-import { cloneCanvas, fillBufferPixel, getBufferIndex, rgba, paletteGetColor, logFilterBackend } from "../utils/index";
+import {
+  cloneCanvas,
+  fillBufferPixel,
+  getBufferIndex,
+  rgba,
+  paletteGetColor,
+  logFilterBackend,
+} from "../utils/index";
 import { applyPalettePassToCanvas } from "../palettes/backend";
 import { defineFilter } from "./types";
 import {
@@ -25,10 +32,32 @@ const COLORMAP = { VIRIDIS: "VIRIDIS", MAGMA: "MAGMA", INFERNO: "INFERNO", GRAYS
 
 // Colormap gradient stops (normalized 0-1 position)
 const COLORMAPS: Record<string, number[][]> = {
-  [COLORMAP.VIRIDIS]: [[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]],
-  [COLORMAP.MAGMA]: [[0,0,4],[81,18,124],[183,55,121],[252,137,97],[252,253,191]],
-  [COLORMAP.INFERNO]: [[0,0,4],[87,16,110],[188,55,84],[249,142,9],[252,255,164]],
-  [COLORMAP.GRAYSCALE]: [[0,0,0],[128,128,128],[255,255,255]]
+  [COLORMAP.VIRIDIS]: [
+    [68, 1, 84],
+    [59, 82, 139],
+    [33, 145, 140],
+    [94, 201, 98],
+    [253, 231, 37],
+  ],
+  [COLORMAP.MAGMA]: [
+    [0, 0, 4],
+    [81, 18, 124],
+    [183, 55, 121],
+    [252, 137, 97],
+    [252, 253, 191],
+  ],
+  [COLORMAP.INFERNO]: [
+    [0, 0, 4],
+    [87, 16, 110],
+    [188, 55, 84],
+    [249, 142, 9],
+    [252, 255, 164],
+  ],
+  [COLORMAP.GRAYSCALE]: [
+    [0, 0, 0],
+    [128, 128, 128],
+    [255, 255, 255],
+  ],
 };
 
 const sampleColormap = (stops: number[][], t: number): [number, number, number] => {
@@ -36,26 +65,53 @@ const sampleColormap = (stops: number[][], t: number): [number, number, number] 
   const pos = ct * (stops.length - 1);
   const idx = Math.floor(pos);
   const frac = pos - idx;
-  if (idx >= stops.length - 1) return [stops[stops.length-1][0], stops[stops.length-1][1], stops[stops.length-1][2]];
-  const a = stops[idx], b = stops[idx + 1];
+  if (idx >= stops.length - 1)
+    return [stops[stops.length - 1][0], stops[stops.length - 1][1], stops[stops.length - 1][2]];
+  const a = stops[idx],
+    b = stops[idx + 1];
   return [
     Math.round(a[0] + (b[0] - a[0]) * frac),
     Math.round(a[1] + (b[1] - a[1]) * frac),
-    Math.round(a[2] + (b[2] - a[2]) * frac)
+    Math.round(a[2] + (b[2] - a[2]) * frac),
   ];
 };
 
 export const optionTypes = {
-  colormap: { type: ENUM, options: [
-    { name: "Viridis", value: COLORMAP.VIRIDIS },
-    { name: "Magma", value: COLORMAP.MAGMA },
-    { name: "Inferno", value: COLORMAP.INFERNO },
-    { name: "Grayscale", value: COLORMAP.GRAYSCALE }
-  ], default: COLORMAP.VIRIDIS, desc: "Color mapping for frequency intensity" },
-  logScale: { type: BOOL, default: true, desc: "Space the displayed frequency axis logarithmically" },
-  freqBins: { type: RANGE, range: [16, 128], step: 8, default: 64, desc: "Requested one-sided frequency bins, capped at Nyquist" },
-  dynamicRange: { type: RANGE, range: [20, 100], step: 1, default: 60, desc: "Shared decibel range from the strongest representable magnitude" },
-  palette: { type: PALETTE, default: nearest, desc: "Optional final palette mapping after the scientific colormap" }
+  colormap: {
+    type: ENUM,
+    options: [
+      { name: "Viridis", value: COLORMAP.VIRIDIS },
+      { name: "Magma", value: COLORMAP.MAGMA },
+      { name: "Inferno", value: COLORMAP.INFERNO },
+      { name: "Grayscale", value: COLORMAP.GRAYSCALE },
+    ],
+    default: COLORMAP.VIRIDIS,
+    desc: "Color mapping for frequency intensity",
+  },
+  logScale: {
+    type: BOOL,
+    default: true,
+    desc: "Space the displayed frequency axis logarithmically",
+  },
+  freqBins: {
+    type: RANGE,
+    range: [16, 128],
+    step: 8,
+    default: 64,
+    desc: "Requested one-sided frequency bins, capped at Nyquist",
+  },
+  dynamicRange: {
+    type: RANGE,
+    range: [20, 100],
+    step: 1,
+    default: 60,
+    desc: "Shared decibel range from the strongest representable magnitude",
+  },
+  palette: {
+    type: PALETTE,
+    default: nearest,
+    desc: "Optional final palette mapping after the scientific colormap",
+  },
 };
 
 export const defaults = {
@@ -63,7 +119,7 @@ export const defaults = {
   logScale: optionTypes.logScale.default,
   freqBins: optionTypes.freqBins.default,
   dynamicRange: optionTypes.dynamicRange.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 type SpectrogramOptions = Partial<typeof defaults> & { _webglAcceleration?: boolean };
@@ -83,24 +139,39 @@ const spectrogram = (input: any, options: SpectrogramOptions = defaults) => {
     palette: normalizePaletteOption(supplied.palette, defaults.palette),
   };
   const { colormap, logScale, freqBins, dynamicRange, palette } = resolved;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   const stops = COLORMAPS[colormap] || COLORMAPS[COLORMAP.VIRIDIS];
   const numBins = spectrogramNyquistBinCount(H, freqBins);
 
   if (
-    spectrogramGLAvailable()
-    && H <= SPECTROGRAM_GL_MAX_SIGNAL_LENGTH
-    && resolved._webglAcceleration !== false
+    spectrogramGLAvailable() &&
+    H <= SPECTROGRAM_GL_MAX_SIGNAL_LENGTH &&
+    resolved._webglAcceleration !== false
   ) {
     const isNearest = (palette as { name?: string }).name === "nearest";
-    const levels = isNearest ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256) : 256;
-    const rendered = renderSpectrogramGL(input, W, H, numBins, logScale, dynamicRange, stops, levels);
+    const levels = isNearest
+      ? ((palette as { options?: { levels?: number } }).options?.levels ?? 256)
+      : 256;
+    const rendered = renderSpectrogramGL(
+      input,
+      W,
+      H,
+      numBins,
+      logScale,
+      dynamicRange,
+      stops,
+      levels,
+    );
     if (rendered) {
       const out = isNearest ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
       if (out) {
-        logFilterBackend("Spectrogram", "WebGL2",
-          `${colormap} bins=${numBins} log=${logScale}${isNearest ? "" : "+palettePass"}`);
+        logFilterBackend(
+          "Spectrogram",
+          "WebGL2",
+          `${colormap} bins=${numBins} log=${logScale}${isNearest ? "" : "+palettePass"}`,
+        );
         return out;
       }
     }
@@ -127,14 +198,15 @@ const spectrogram = (input: any, options: SpectrogramOptions = defaults) => {
     const col = new Float32Array(H);
     for (let y = 0; y < H; y++) {
       const i = getBufferIndex(x, y, W);
-      col[y] = ((0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255)
-        * (buf[i + 3] / 255);
+      col[y] =
+        ((0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2]) / 255) * (buf[i + 3] / 255);
     }
 
     // DFT for first numBins frequencies
     const magnitudes = new Float32Array(numBins);
     for (let k = 0; k < numBins; k++) {
-      let re = 0, im = 0;
+      let re = 0,
+        im = 0;
       for (let n = 0; n < H; n++) {
         const angle = (2 * Math.PI * k * n) / H;
         const sample = col[n] * window[n];
@@ -167,5 +239,6 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Spatial-frequency spectrogram treating each image column as a Hann-windowed signal with fixed-reference dB magnitude and linear or log frequency spacing",
+  description:
+    "Spatial-frequency spectrogram treating each image column as a Hann-windowed signal with fixed-reference dB magnitude and linear or log frequency spacing",
 });

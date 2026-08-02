@@ -12,7 +12,7 @@ import { FilterProvider } from "context/FilterContext";
 import { PALETTE, THEMES } from "@gyng/ditherer-filters";
 
 // Load localStorage palettes
-Object.values(localStorage).forEach(json => {
+Object.values(localStorage).forEach((json) => {
   try {
     if (typeof json !== "string") return;
     const option = JSON.parse(json);
@@ -30,6 +30,6 @@ if (root) {
   createRoot(root).render(
     <FilterProvider>
       <App />
-    </FilterProvider>
+    </FilterProvider>,
   );
 }

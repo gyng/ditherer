@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  WorkerFilterRequest,
-  WorkerFilterResult,
-  WorkerResponseMessage,
-} from "workers/types";
+import type { WorkerFilterRequest, WorkerFilterResult, WorkerResponseMessage } from "workers/types";
 
 class FakeWorker {
   static instances: FakeWorker[] = [];

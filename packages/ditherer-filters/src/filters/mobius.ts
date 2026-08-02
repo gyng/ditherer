@@ -67,21 +67,49 @@ void main() {
 
 export const optionTypes = {
   aRe: { type: RANGE, range: [-2, 2], step: 0.01, default: 1, desc: "Parameter a (real part)" },
-  aIm: { type: RANGE, range: [-2, 2], step: 0.01, default: 0, desc: "Parameter a (imaginary part)" },
+  aIm: {
+    type: RANGE,
+    range: [-2, 2],
+    step: 0.01,
+    default: 0,
+    desc: "Parameter a (imaginary part)",
+  },
   bRe: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3, desc: "Parameter b (real part)" },
-  bIm: { type: RANGE, range: [-2, 2], step: 0.01, default: 0, desc: "Parameter b (imaginary part)" },
+  bIm: {
+    type: RANGE,
+    range: [-2, 2],
+    step: 0.01,
+    default: 0,
+    desc: "Parameter b (imaginary part)",
+  },
   cRe: { type: RANGE, range: [-2, 2], step: 0.01, default: 0.3, desc: "Parameter c (real part)" },
-  cIm: { type: RANGE, range: [-2, 2], step: 0.01, default: 0, desc: "Parameter c (imaginary part)" },
+  cIm: {
+    type: RANGE,
+    range: [-2, 2],
+    step: 0.01,
+    default: 0,
+    desc: "Parameter c (imaginary part)",
+  },
   dRe: { type: RANGE, range: [-2, 2], step: 0.01, default: 1, desc: "Parameter d (real part)" },
-  dIm: { type: RANGE, range: [-2, 2], step: 0.01, default: 0, desc: "Parameter d (imaginary part)" },
+  dIm: {
+    type: RANGE,
+    range: [-2, 2],
+    step: 0.01,
+    default: 0,
+    desc: "Parameter d (imaginary part)",
+  },
   palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
-  aRe: optionTypes.aRe.default, aIm: optionTypes.aIm.default,
-  bRe: optionTypes.bRe.default, bIm: optionTypes.bIm.default,
-  cRe: optionTypes.cRe.default, cIm: optionTypes.cIm.default,
-  dRe: optionTypes.dRe.default, dIm: optionTypes.dIm.default,
+  aRe: optionTypes.aRe.default,
+  aIm: optionTypes.aIm.default,
+  bRe: optionTypes.bRe.default,
+  bIm: optionTypes.bIm.default,
+  cRe: optionTypes.cRe.default,
+  cIm: optionTypes.cIm.default,
+  dRe: optionTypes.dRe.default,
+  dIm: optionTypes.dIm.default,
   palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
@@ -89,13 +117,24 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, MOBIUS_FS, ["u_source", "u_res", "u_a", "u_b", "u_c", "u_d", "u_levels"] as const) };
+  _cache = {
+    prog: linkProgram(gl, MOBIUS_FS, [
+      "u_source",
+      "u_res",
+      "u_a",
+      "u_b",
+      "u_c",
+      "u_d",
+      "u_levels",
+    ] as const),
+  };
   return _cache;
 };
 
 const mobius = (input: any, options = defaults) => {
   const { aRe, aIm, bRe, bIm, cRe, cIm, dRe, dIm, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
   if (glAvailable() && (options as { _webglAcceleration?: boolean })._webglAcceleration !== false) {
     const ctx = getGLCtx();
@@ -109,26 +148,37 @@ const mobius = (input: any, options = defaults) => {
       gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      drawPass(gl, null, W, H, cache.prog, () => {
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-        gl.uniform1i(cache.prog.uniforms.u_source, 0);
-        gl.uniform2f(cache.prog.uniforms.u_res, W, H);
-        gl.uniform2f(cache.prog.uniforms.u_a, aRe, aIm);
-        gl.uniform2f(cache.prog.uniforms.u_b, bRe, bIm);
-        gl.uniform2f(cache.prog.uniforms.u_c, cRe, cIm);
-        gl.uniform2f(cache.prog.uniforms.u_d, dRe, dIm);
-        const identity = paletteIsIdentity(palette);
-        const pOpts = (palette as { options?: { levels?: number } }).options;
-        gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
-      }, vao);
+      drawPass(
+        gl,
+        null,
+        W,
+        H,
+        cache.prog,
+        () => {
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+          gl.uniform1i(cache.prog.uniforms.u_source, 0);
+          gl.uniform2f(cache.prog.uniforms.u_res, W, H);
+          gl.uniform2f(cache.prog.uniforms.u_a, aRe, aIm);
+          gl.uniform2f(cache.prog.uniforms.u_b, bRe, bIm);
+          gl.uniform2f(cache.prog.uniforms.u_c, cRe, cIm);
+          gl.uniform2f(cache.prog.uniforms.u_d, dRe, dIm);
+          const identity = paletteIsIdentity(palette);
+          const pOpts = (palette as { options?: { levels?: number } }).options;
+          gl.uniform1f(cache.prog.uniforms.u_levels, identity ? (pOpts?.levels ?? 256) : 256);
+        },
+        vao,
+      );
       const rendered = readoutToCanvas(canvas, W, H);
       if (rendered) {
         const identity = paletteIsIdentity(palette);
         const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
         if (out) {
-          logFilterBackend("Möbius", "WebGL2",
-            `a=(${aRe},${aIm}) b=(${bRe},${bIm}) c=(${cRe},${cIm}) d=(${dRe},${dIm})${identity ? "" : "+palettePass"}`);
+          logFilterBackend(
+            "Möbius",
+            "WebGL2",
+            `a=(${aRe},${aIm}) b=(${bRe},${bIm}) c=(${cRe},${cIm}) d=(${dRe},${dIm})${identity ? "" : "+palettePass"}`,
+          );
           return out;
         }
       }
@@ -144,6 +194,7 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  description: "Möbius transformation z → (az+b)/(cz+d) on the unit disc — conformal swirls and loops",
+  description:
+    "Möbius transformation z → (az+b)/(cz+d) on the unit disc — conformal swirls and loops",
   noWASM: "Pure per-pixel coordinate transform; GL is the natural fit.",
 });

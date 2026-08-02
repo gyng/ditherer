@@ -10,7 +10,10 @@ import {
   uploadSourceTexture,
   type Program,
 } from "../gl/index";
-import { resolveStainedGlassCellColors, type StainedGlassColorMode } from "../utils/stainedGlassColor";
+import {
+  resolveStainedGlassCellColors,
+  type StainedGlassColorMode,
+} from "../utils/stainedGlassColor";
 
 // Stained-glass Voronoi in three stages:
 //
@@ -124,11 +127,19 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
   _cache = {
     voronoi: linkProgram(gl, VORONOI_FS, [
-      "u_seeds", "u_res", "u_gridCols", "u_gridRows", "u_cellSize",
+      "u_seeds",
+      "u_res",
+      "u_gridCols",
+      "u_gridRows",
+      "u_cellSize",
     ] as const),
     composite: linkProgram(gl, COMPOSITE_FS, [
-      "u_voronoi", "u_cellColors", "u_cellCount",
-      "u_source", "u_leadingWidth", "u_leadingColor",
+      "u_voronoi",
+      "u_cellColors",
+      "u_cellCount",
+      "u_source",
+      "u_leadingWidth",
+      "u_leadingColor",
     ] as const),
   };
   return _cache;
@@ -210,15 +221,23 @@ export const renderStainedGlassGL = (
 
   const voronoiTex = ensureTexture(gl, "stainedGlass:voronoi", width, height);
 
-  drawPass(gl, voronoiTex, width, height, cache.voronoi, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, seedTex);
-    gl.uniform1i(cache.voronoi.uniforms.u_seeds, 0);
-    gl.uniform2f(cache.voronoi.uniforms.u_res, width, height);
-    gl.uniform1i(cache.voronoi.uniforms.u_gridCols, gridCols);
-    gl.uniform1i(cache.voronoi.uniforms.u_gridRows, gridRows);
-    gl.uniform1i(cache.voronoi.uniforms.u_cellSize, cellSize);
-  }, vao);
+  drawPass(
+    gl,
+    voronoiTex,
+    width,
+    height,
+    cache.voronoi,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, seedTex);
+      gl.uniform1i(cache.voronoi.uniforms.u_seeds, 0);
+      gl.uniform2f(cache.voronoi.uniforms.u_res, width, height);
+      gl.uniform1i(cache.voronoi.uniforms.u_gridCols, gridCols);
+      gl.uniform1i(cache.voronoi.uniforms.u_gridRows, gridRows);
+      gl.uniform1i(cache.voronoi.uniforms.u_cellSize, cellSize);
+    },
+    vao,
+  );
 
   // Readback Pass A → resolve the requested per-cell statistic on CPU.
   // The readback is aligned to Pass A's FBO, which writes in GL-y orientation.
@@ -254,21 +273,33 @@ export const renderStainedGlassGL = (
     return null;
   }
 
-  drawPass(gl, null, width, height, cache.composite, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, voronoiTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_voronoi, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, cellTex);
-    gl.uniform1i(cache.composite.uniforms.u_cellColors, 1);
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.composite.uniforms.u_source, 2);
-    gl.uniform1i(cache.composite.uniforms.u_cellCount, cellCount);
-    gl.uniform1f(cache.composite.uniforms.u_leadingWidth, leadingWidth);
-    gl.uniform3f(cache.composite.uniforms.u_leadingColor,
-      leadingColor[0], leadingColor[1], leadingColor[2]);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.composite,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, voronoiTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_voronoi, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, cellTex);
+      gl.uniform1i(cache.composite.uniforms.u_cellColors, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.composite.uniforms.u_source, 2);
+      gl.uniform1i(cache.composite.uniforms.u_cellCount, cellCount);
+      gl.uniform1f(cache.composite.uniforms.u_leadingWidth, leadingWidth);
+      gl.uniform3f(
+        cache.composite.uniforms.u_leadingColor,
+        leadingColor[0],
+        leadingColor[1],
+        leadingColor[2],
+      );
+    },
+    vao,
+  );
 
   const out = readoutToCanvas(canvas, width, height);
   gl.deleteTexture(seedTex);

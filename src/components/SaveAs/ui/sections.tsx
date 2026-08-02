@@ -69,8 +69,6 @@ export const GifPalettePreview = ({ preview, overflow }: GifPalettePreviewProps)
         title={rgbToCss(color)}
       />
     ))}
-    {overflow > 0 && (
-      <span className={s.paletteMore}>+{overflow} more</span>
-    )}
+    {overflow > 0 && <span className={s.paletteMore}>+{overflow} more</span>}
   </div>
 );

@@ -30,7 +30,11 @@ vi.mock("utils/randomCycleBridge", () => ({
   notifyScreensaverChainSwap: bridge.notifyScreensaverSwap,
 }));
 vi.mock("components/FilterCombobox", () => ({
-  default: ({ placeholder, onSelect, onClose }: {
+  default: ({
+    placeholder,
+    onSelect,
+    onClose,
+  }: {
     placeholder?: string;
     onSelect?: (entry: { displayName: string; filter: Record<string, unknown> }) => void;
     onClose?: () => void;
@@ -51,19 +55,35 @@ vi.mock("components/FilterCombobox", () => ({
   ),
 }));
 vi.mock("components/ChainList/LibraryBrowser", () => ({
-  default: ({ onClose, onAddFilter, initialTab, initialQuery }: {
+  default: ({
+    onClose,
+    onAddFilter,
+    initialTab,
+    initialQuery,
+  }: {
     onClose: () => void;
     onAddFilter: (entry: { displayName: string; filter: Record<string, unknown> }) => void;
     initialTab?: string;
     initialQuery?: string;
   }) => (
     <div data-testid="library-browser">
-      <span>{initialTab}:{initialQuery}</span>
-      <button type="button" onClick={() => onAddFilter({
-        displayName: "Invert",
-        filter: { name: "Invert", func: () => document.createElement("canvas"), defaults: {} },
-      })}>Add mocked filter</button>
-      <button type="button" onClick={onClose}>Close mocked library</button>
+      <span>
+        {initialTab}:{initialQuery}
+      </span>
+      <button
+        type="button"
+        onClick={() =>
+          onAddFilter({
+            displayName: "Invert",
+            filter: { name: "Invert", func: () => document.createElement("canvas"), defaults: {} },
+          })
+        }
+      >
+        Add mocked filter
+      </button>
+      <button type="button" onClick={onClose}>
+        Close mocked library
+      </button>
     </div>
   ),
 }));
@@ -125,11 +145,15 @@ const makeContext = (overrides: Record<string, unknown> = {}) => ({
 
 const render = (context = makeContext(), props: Record<string, unknown> = {}) => {
   filterContext.current = context;
-  act(() => root.render(<ChainList
-    onEditAudioMod={callbacks.onEditAudioMod}
-    onEditChainAudioMod={callbacks.onEditChainAudioMod}
-    {...props}
-  />));
+  act(() =>
+    root.render(
+      <ChainList
+        onEditAudioMod={callbacks.onEditAudioMod}
+        onEditChainAudioMod={callbacks.onEditChainAudioMod}
+        {...props}
+      />,
+    ),
+  );
 };
 
 const click = (element: Element | null) => {
@@ -164,7 +188,11 @@ describe("ChainList integration", () => {
     expect(actions.chainToggle).toHaveBeenCalledWith("first");
 
     click(container.querySelector('[title="Reset to defaults"]'));
-    expect(actions.chainReplace).toHaveBeenCalledWith("first", "Invert", expect.objectContaining({ name: "Invert" }));
+    expect(actions.chainReplace).toHaveBeenCalledWith(
+      "first",
+      "Invert",
+      expect.objectContaining({ name: "Invert" }),
+    );
 
     click(container.querySelector('[title="Duplicate"]'));
     expect(actions.chainDuplicate).toHaveBeenCalledWith("first");
@@ -173,15 +201,19 @@ describe("ChainList integration", () => {
     expect(actions.chainRemove).toHaveBeenCalledWith("first");
 
     click(container.querySelector('[data-testid="combobox-Add filter..."]'));
-    expect(actions.chainAdd).toHaveBeenCalledWith("Invert", expect.objectContaining({ name: "Invert" }));
+    expect(actions.chainAdd).toHaveBeenCalledWith(
+      "Invert",
+      expect.objectContaining({ name: "Invert" }),
+    );
   });
 
   it("supports keyboard selection, reordering, toggling, and deletion contracts", () => {
     render();
     const list = container.querySelector('[role="listbox"]')!;
-    const key = (value: string, altKey = false) => act(() => {
-      list.dispatchEvent(new KeyboardEvent("keydown", { key: value, altKey, bubbles: true }));
-    });
+    const key = (value: string, altKey = false) =>
+      act(() => {
+        list.dispatchEvent(new KeyboardEvent("keydown", { key: value, altKey, bubbles: true }));
+      });
 
     key("ArrowDown");
     expect(actions.chainSetActive).toHaveBeenCalledWith(1);
@@ -192,12 +224,17 @@ describe("ChainList integration", () => {
     key("Delete");
     expect(actions.chainRemove).toHaveBeenCalledWith("first");
 
-    render(makeContext({
-      chain: [{ id: "only", displayName: "Invert", filter, enabled: true }],
-      activeIndex: 0,
-    }));
+    render(
+      makeContext({
+        chain: [{ id: "only", displayName: "Invert", filter, enabled: true }],
+        activeIndex: 0,
+      }),
+    );
     key("Backspace");
-    expect(actions.selectFilter).toHaveBeenCalledWith("None", expect.objectContaining({ name: "None" }));
+    expect(actions.selectFilter).toHaveBeenCalledWith(
+      "None",
+      expect.objectContaining({ name: "None" }),
+    );
   });
 
   it("opens and confirms clear, library, and random-cycle dialogs", () => {
@@ -205,32 +242,58 @@ describe("ChainList integration", () => {
 
     click(container.querySelector('[title="Clear filter chain"]'));
     expect(container.textContent).toContain("Clear the filter chain?");
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Cancel") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Cancel",
+      ) ?? null,
+    );
     expect(container.textContent).not.toContain("Clear the filter chain?");
 
     click(container.querySelector('[title="Clear filter chain"]'));
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "OK") ?? null);
-    expect(actions.selectFilter).toHaveBeenCalledWith("None", expect.objectContaining({ name: "None" }));
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "OK",
+      ) ?? null,
+    );
+    expect(actions.selectFilter).toHaveBeenCalledWith(
+      "None",
+      expect.objectContaining({ name: "None" }),
+    );
 
     click(container.querySelector('[title="Open full filter/preset browser"]'));
     expect(container.querySelector('[data-testid="library-browser"]')).not.toBeNull();
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Add mocked filter") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Add mocked filter",
+      ) ?? null,
+    );
     expect(actions.chainAdd).toHaveBeenCalledWith("Invert", expect.any(Object));
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Close mocked library") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Close mocked library",
+      ) ?? null,
+    );
 
     click(container.querySelector('[aria-label="Set random cycle interval"]'));
     expect(container.textContent).toContain("Random Chain Swap");
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "OK") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "OK",
+      ) ?? null,
+    );
     expect(bridge.dispatch).toHaveBeenCalledWith(2);
   });
 
   it("loads and deletes saved chains through the persisted-state contract", () => {
-    localStorage.setItem("_chain_My setup", JSON.stringify({
-      name: "My setup",
-      desc: "Saved description",
-      filters: ["Invert"],
-      stateJson: "{\"chain\":[]}",
-    }));
+    localStorage.setItem(
+      "_chain_My setup",
+      JSON.stringify({
+        name: "My setup",
+        desc: "Saved description",
+        filters: ["Invert"],
+        stateJson: '{"chain":[]}',
+      }),
+    );
     render();
 
     const select = container.querySelector<HTMLSelectElement>('[title="Load a saved chain"]')!;
@@ -238,12 +301,14 @@ describe("ChainList integration", () => {
       select.value = "My setup";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(actions.importState).toHaveBeenCalledWith("{\"chain\":[]}");
+    expect(actions.importState).toHaveBeenCalledWith('{"chain":[]}');
     expect(container.textContent).toContain("Saved description");
 
-    click(Array.from(container.querySelectorAll("button")).find(
-      (button) => button.title === 'Delete "My setup"',
-    ) ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.title === 'Delete "My setup"',
+      ) ?? null,
+    );
     expect(localStorage.getItem("_chain_My setup")).toBeNull();
   });
 
@@ -252,20 +317,35 @@ describe("ChainList integration", () => {
     render();
 
     click(container.querySelector('[title="Open chain audio visualizer mapping"]'));
-    expect(callbacks.onEditChainAudioMod).toHaveBeenCalledWith(expect.objectContaining({ left: 0, top: 0 }));
+    expect(callbacks.onEditChainAudioMod).toHaveBeenCalledWith(
+      expect.objectContaining({ left: 0, top: 0 }),
+    );
 
     const first = container.querySelectorAll<HTMLElement>('[role="option"]')[0];
     click(first.querySelector('[aria-label^="More actions for"]'));
-    expect(first.querySelector('[aria-label^="More actions for"]')?.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      first.querySelector('[aria-label^="More actions for"]')?.getAttribute("aria-expanded"),
+    ).toBe("true");
     click(first.querySelector('[aria-label^="Map audio visualizer to"]'));
-    expect(callbacks.onEditAudioMod).toHaveBeenCalledWith("first", expect.objectContaining({ left: 0, top: 0 }));
+    expect(callbacks.onEditAudioMod).toHaveBeenCalledWith(
+      "first",
+      expect.objectContaining({ left: 0, top: 0 }),
+    );
 
     click(first.querySelector('[title="Re-roll options"]'));
-    expect(actions.chainReplace).toHaveBeenCalledWith("first", "Invert", expect.objectContaining({ options: expect.any(Object) }));
+    expect(actions.chainReplace).toHaveBeenCalledWith(
+      "first",
+      "Invert",
+      expect.objectContaining({ options: expect.any(Object) }),
+    );
 
     click(first.querySelector('[title^="Open preset browser"]'));
     expect(container.textContent).toContain("presets:Invert");
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Close mocked library") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Close mocked library",
+      ) ?? null,
+    );
 
     click(first.querySelector('[title="Pin preview"]'));
     expect(container.textContent).toContain("Preview 1");
@@ -276,10 +356,22 @@ describe("ChainList integration", () => {
     expect(actions.chainReplace).toHaveBeenCalledWith("first", "Invert", expect.any(Object));
 
     const dataTransfer = { effectAllowed: "", dropEffect: "", setData: vi.fn() };
-    act(() => first.dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer })));
+    act(() =>
+      first.dispatchEvent(
+        Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer }),
+      ),
+    );
     const second = container.querySelectorAll<HTMLElement>('[role="option"]')[1];
-    act(() => second.dispatchEvent(Object.assign(new Event("dragover", { bubbles: true, cancelable: true }), { dataTransfer })));
-    act(() => second.dispatchEvent(Object.assign(new Event("drop", { bubbles: true, cancelable: true }), { dataTransfer })));
+    act(() =>
+      second.dispatchEvent(
+        Object.assign(new Event("dragover", { bubbles: true, cancelable: true }), { dataTransfer }),
+      ),
+    );
+    act(() =>
+      second.dispatchEvent(
+        Object.assign(new Event("drop", { bubbles: true, cancelable: true }), { dataTransfer }),
+      ),
+    );
     expect(actions.chainReorder).toHaveBeenCalledWith(0, 1);
 
     click(container.querySelector('[aria-label="Add a random filter"]'));
@@ -295,15 +387,27 @@ describe("ChainList integration", () => {
       ...filter,
       optionTypes: { animate: { type: "ACTION", action: animate } },
     };
-    render(makeContext({
-      chain: [{ id: "animated", displayName: "Invert", filter: animatedFilter, enabled: true }],
-      activeIndex: 0,
-    }), { openPresetLibraryRequest: 1, chainAudioActive: true });
+    render(
+      makeContext({
+        chain: [{ id: "animated", displayName: "Invert", filter: animatedFilter, enabled: true }],
+        activeIndex: 0,
+      }),
+      { openPresetLibraryRequest: 1, chainAudioActive: true },
+    );
     expect(container.textContent).toContain("presets:");
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Close mocked library") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Close mocked library",
+      ) ?? null,
+    );
 
     click(container.querySelector('[title="Play animation"]'));
-    expect(animate).toHaveBeenCalledWith(actions, expect.any(HTMLCanvasElement), animatedFilter.func, animatedFilter.options);
+    expect(animate).toHaveBeenCalledWith(
+      actions,
+      expect.any(HTMLCanvasElement),
+      animatedFilter.func,
+      animatedFilter.options,
+    );
 
     click(container.querySelector('[aria-label="Set random cycle interval"]'));
     const fields = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
@@ -315,13 +419,21 @@ describe("ChainList integration", () => {
     act(() => {
       setInputValue(fields[0], "invalid");
     });
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "OK") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "OK",
+      ) ?? null,
+    );
     expect(alert).toHaveBeenCalled();
 
     act(() => {
       setInputValue(fields[0], "0");
     });
-    click(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "OK") ?? null);
+    click(
+      Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "OK",
+      ) ?? null,
+    );
     expect(bridge.dispatch).toHaveBeenCalledWith(null);
   });
 });

@@ -28,10 +28,13 @@ const makeFixture = (width = 7, height = 6) => {
   return {
     width,
     height,
-    getContext: (type: string) => type === "2d" ? {
-      getImageData: () => ({ data: new Uint8ClampedArray(data), width, height }),
-      putImageData: () => undefined,
-    } : null,
+    getContext: (type: string) =>
+      type === "2d"
+        ? {
+            getImageData: () => ({ data: new Uint8ClampedArray(data), width, height }),
+            putImageData: () => undefined,
+          }
+        : null,
   } as unknown as HTMLCanvasElement;
 };
 
@@ -95,8 +98,12 @@ describe("error diffusion scan conformance", () => {
 
     expect(optionTypes.serpentine.visibleWhen({ scanOrder: ORDER.HORIZONTAL })).toBe(true);
     expect(optionTypes.serpentine.visibleWhen({ scanOrder: ORDER.HILBERT })).toBe(false);
-    expect(optionTypes.rowAlternation.visibleWhen({ scanOrder: ORDER.VERTICAL, serpentine: true })).toBe(true);
-    expect(optionTypes.rowAlternation.visibleWhen({ scanOrder: ORDER.VERTICAL, serpentine: false })).toBe(false);
+    expect(
+      optionTypes.rowAlternation.visibleWhen({ scanOrder: ORDER.VERTICAL, serpentine: true }),
+    ).toBe(true);
+    expect(
+      optionTypes.rowAlternation.visibleWhen({ scanOrder: ORDER.VERTICAL, serpentine: false }),
+    ).toBe(false);
     expect(optionTypes.errorStrategy.visibleWhen({ scanOrder: ORDER.SPIRAL })).toBe(true);
     expect(optionTypes.errorStrategy.visibleWhen({ scanOrder: ORDER.HORIZONTAL })).toBe(false);
     expect(optionTypes.temporalBleed.visibleWhen({ temporalMode: TEMPORAL_MODE.BLEED })).toBe(true);
@@ -117,7 +124,11 @@ describe("error diffusion scan conformance", () => {
     expect(stop.stopAnimLoop).toHaveBeenCalledOnce();
     expect(stop.startAnimLoop).not.toHaveBeenCalled();
 
-    const defaultSpeed = { isAnimating: () => false, startAnimLoop: vi.fn(), stopAnimLoop: vi.fn() };
+    const defaultSpeed = {
+      isAnimating: () => false,
+      startAnimLoop: vi.fn(),
+      stopAnimLoop: vi.fn(),
+    };
     optionTypes.animate.action(defaultSpeed, canvas, null, {});
     expect(defaultSpeed.startAnimLoop).toHaveBeenCalledWith(canvas, 15);
   });
@@ -162,11 +173,13 @@ describe("error diffusion scan conformance", () => {
 
   it("checks composite row numbers in prime alternation mode", () => {
     const input = makeFixture(3, 12);
-    expect(() => floydSteinberg.func(input, {
-      ...floydSteinberg.defaults,
-      rowAlternation: ROW_ALT.PRIME,
-      _wasmAcceleration: false,
-      temporalMode: TEMPORAL_MODE.OFF,
-    })).not.toThrow();
+    expect(() =>
+      floydSteinberg.func(input, {
+        ...floydSteinberg.defaults,
+        rowAlternation: ROW_ALT.PRIME,
+        _wasmAcceleration: false,
+        temporalMode: TEMPORAL_MODE.OFF,
+      }),
+    ).not.toThrow();
   });
 });

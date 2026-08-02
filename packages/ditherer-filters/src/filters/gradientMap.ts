@@ -10,7 +10,7 @@ export const optionTypes = {
   color2: { type: COLOR, default: [200, 50, 50], desc: "Midtone color" },
   color3: { type: COLOR, default: [255, 220, 100], desc: "Highlight color (brightest tones)" },
   mix: { type: RANGE, range: [0, 1], step: 0.05, default: 1, desc: "Blend with original image" },
-  palette: { type: PALETTE, default: nearest }
+  palette: { type: PALETTE, default: nearest },
 };
 
 export const defaults = {
@@ -18,18 +18,23 @@ export const defaults = {
   color2: optionTypes.color2.default,
   color3: optionTypes.color3.default,
   mix: optionTypes.mix.default,
-  palette: { ...optionTypes.palette.default, options: { levels: 256 } }
+  palette: { ...optionTypes.palette.default, options: { levels: 256 } },
 };
 
 const gradientMap = (input: any, options: typeof defaults = defaults) => {
   const { color1, color2, color3, mix, palette } = options;
-  const W = input.width, H = input.height;
+  const W = input.width,
+    H = input.height;
 
-  const rendered = renderGradientMapGL(input, W, H,
-      [color1[0], color1[1], color1[2]],
-      [color2[0], color2[1], color2[2]],
-      [color3[0], color3[1], color3[2]],
-      mix,);
+  const rendered = renderGradientMapGL(
+    input,
+    W,
+    H,
+    [color1[0], color1[1], color1[2]],
+    [color2[0], color2[1], color2[2]],
+    [color3[0], color3[1], color3[2]],
+    mix,
+  );
   if (!rendered) return input;
   const identity = paletteIsIdentity(palette);
   const out = identity ? rendered : applyPalettePassToCanvas(rendered, W, H, palette);
@@ -43,4 +48,5 @@ export default defineFilter({
   optionTypes,
   options: defaults,
   defaults,
-  requiresGL: true });
+  requiresGL: true,
+});

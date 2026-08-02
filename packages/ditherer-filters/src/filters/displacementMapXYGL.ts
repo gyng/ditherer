@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -87,7 +94,13 @@ const initCache = (gl: WebGL2RenderingContext): Cache => {
   _cache = {
     blur: linkProgram(gl, BLUR_FS, ["u_input", "u_res", "u_dir", "u_radius"] as const),
     disp: linkProgram(gl, DISP_FS, [
-      "u_source", "u_map", "u_res", "u_strength", "u_channelX", "u_channelY", "u_mapOrientation",
+      "u_source",
+      "u_map",
+      "u_res",
+      "u_strength",
+      "u_channelX",
+      "u_channelY",
+      "u_mapOrientation",
     ] as const),
   };
   return _cache;
@@ -97,9 +110,12 @@ export const displacementMapXYGLAvailable = (): boolean => glAvailable();
 
 export const renderDisplacementMapXYGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  strength: number, blurRadius: number,
-  channelX: 0 | 1 | 2, channelY: 0 | 1 | 2,
+  width: number,
+  height: number,
+  strength: number,
+  blurRadius: number,
+  channelX: 0 | 1 | 2,
+  channelY: 0 | 1 | 2,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -119,23 +135,39 @@ export const renderDisplacementMapXYGL = (
     const tempH = ensureTexture(gl, "displacementMapXY:tempH", width, height);
     const tempV = ensureTexture(gl, "displacementMapXY:tempV", width, height);
 
-    drawPass(gl, tempH, width, height, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, width, height);
-      gl.uniform2f(cache.blur.uniforms.u_dir, 1 / width, 0);
-      gl.uniform1i(cache.blur.uniforms.u_radius, clampedR);
-    }, vao);
+    drawPass(
+      gl,
+      tempH,
+      width,
+      height,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, width, height);
+        gl.uniform2f(cache.blur.uniforms.u_dir, 1 / width, 0);
+        gl.uniform1i(cache.blur.uniforms.u_radius, clampedR);
+      },
+      vao,
+    );
 
-    drawPass(gl, tempV, width, height, cache.blur, () => {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
-      gl.uniform1i(cache.blur.uniforms.u_input, 0);
-      gl.uniform2f(cache.blur.uniforms.u_res, width, height);
-      gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / height);
-      gl.uniform1i(cache.blur.uniforms.u_radius, clampedR);
-    }, vao);
+    drawPass(
+      gl,
+      tempV,
+      width,
+      height,
+      cache.blur,
+      () => {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tempH.tex);
+        gl.uniform1i(cache.blur.uniforms.u_input, 0);
+        gl.uniform2f(cache.blur.uniforms.u_res, width, height);
+        gl.uniform2f(cache.blur.uniforms.u_dir, 0, 1 / height);
+        gl.uniform1i(cache.blur.uniforms.u_radius, clampedR);
+      },
+      vao,
+    );
 
     mapTexId = tempV.tex;
     mapOrientation = 1;
@@ -144,19 +176,27 @@ export const renderDisplacementMapXYGL = (
     mapOrientation = 0;
   }
 
-  drawPass(gl, null, width, height, cache.disp, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.disp.uniforms.u_source, 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, mapTexId);
-    gl.uniform1i(cache.disp.uniforms.u_map, 1);
-    gl.uniform2f(cache.disp.uniforms.u_res, width, height);
-    gl.uniform1f(cache.disp.uniforms.u_strength, strength);
-    gl.uniform1i(cache.disp.uniforms.u_channelX, channelX);
-    gl.uniform1i(cache.disp.uniforms.u_channelY, channelY);
-    gl.uniform1i(cache.disp.uniforms.u_mapOrientation, mapOrientation);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.disp,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.disp.uniforms.u_source, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, mapTexId);
+      gl.uniform1i(cache.disp.uniforms.u_map, 1);
+      gl.uniform2f(cache.disp.uniforms.u_res, width, height);
+      gl.uniform1f(cache.disp.uniforms.u_strength, strength);
+      gl.uniform1i(cache.disp.uniforms.u_channelX, channelX);
+      gl.uniform1i(cache.disp.uniforms.u_channelY, channelY);
+      gl.uniform1i(cache.disp.uniforms.u_mapOrientation, mapOrientation);
+    },
+    vao,
+  );
 
   return readoutToCanvas(canvas, width, height);
 };

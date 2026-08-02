@@ -68,4 +68,3 @@ stationary axis-aligned sinusoid, not turbulence trailing downstream of motion).
   typecheck, catalog, and build.
 
 Status: Complete
-

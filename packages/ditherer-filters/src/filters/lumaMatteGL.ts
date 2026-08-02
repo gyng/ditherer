@@ -1,6 +1,13 @@
 import {
-  drawPass, ensureTexture, getGLCtx, getQuadVAO, glAvailable,
-  linkProgram, readoutToCanvas, resizeGLCanvas, uploadSourceTexture,
+  drawPass,
+  ensureTexture,
+  getGLCtx,
+  getQuadVAO,
+  glAvailable,
+  linkProgram,
+  readoutToCanvas,
+  resizeGLCanvas,
+  uploadSourceTexture,
   type Program,
 } from "../gl/index";
 
@@ -45,9 +52,9 @@ type Cache = { prog: Program };
 let _cache: Cache | null = null;
 const initCache = (gl: WebGL2RenderingContext): Cache => {
   if (_cache) return _cache;
-  _cache = { prog: linkProgram(gl, FS, [
-    "u_source", "u_low", "u_high", "u_invert", "u_bgMode",
-  ] as const) };
+  _cache = {
+    prog: linkProgram(gl, FS, ["u_source", "u_low", "u_high", "u_invert", "u_bgMode"] as const),
+  };
   return _cache;
 };
 
@@ -55,8 +62,12 @@ export const lumaMatteGLAvailable = (): boolean => glAvailable();
 
 export const renderLumaMatteGL = (
   source: HTMLCanvasElement | OffscreenCanvas,
-  width: number, height: number,
-  low: number, high: number, invert: boolean, bgMode: 0 | 1 | 2,
+  width: number,
+  height: number,
+  low: number,
+  high: number,
+  invert: boolean,
+  bgMode: 0 | 1 | 2,
 ): HTMLCanvasElement | OffscreenCanvas | null => {
   const ctx = getGLCtx();
   if (!ctx) return null;
@@ -66,14 +77,22 @@ export const renderLumaMatteGL = (
   resizeGLCanvas(canvas, width, height);
   const sourceTex = ensureTexture(gl, "lumaMatte:source", width, height);
   uploadSourceTexture(gl, sourceTex, source);
-  drawPass(gl, null, width, height, cache.prog, () => {
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
-    gl.uniform1i(cache.prog.uniforms.u_source, 0);
-    gl.uniform1f(cache.prog.uniforms.u_low, low);
-    gl.uniform1f(cache.prog.uniforms.u_high, high);
-    gl.uniform1i(cache.prog.uniforms.u_invert, invert ? 1 : 0);
-    gl.uniform1i(cache.prog.uniforms.u_bgMode, bgMode);
-  }, vao);
+  drawPass(
+    gl,
+    null,
+    width,
+    height,
+    cache.prog,
+    () => {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sourceTex.tex);
+      gl.uniform1i(cache.prog.uniforms.u_source, 0);
+      gl.uniform1f(cache.prog.uniforms.u_low, low);
+      gl.uniform1f(cache.prog.uniforms.u_high, high);
+      gl.uniform1i(cache.prog.uniforms.u_invert, invert ? 1 : 0);
+      gl.uniform1i(cache.prog.uniforms.u_bgMode, bgMode);
+    },
+    vao,
+  );
   return readoutToCanvas(canvas, width, height);
 };

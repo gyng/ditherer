@@ -18,13 +18,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import wasmInit, * as wasmMod from "../../packages/ditherer-filters/src/wasm/rgba2laba/wasm/rgba2laba";
 import { colorDistance, rgba2laba } from "@gyng/ditherer-filters";
-import {
-  RGB_NEAREST,
-  RGB_APPROX,
-  HSV_NEAREST,
-  LAB_NEAREST,
-  OKLAB_NEAREST,
-} from "constants/color";
+import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST } from "constants/color";
 
 // ---------------------------------------------------------------------------
 // Fixed inputs — representative, deterministic
@@ -35,21 +29,21 @@ const PIXEL = [128, 64, 192, 255];
 
 // CGA 16-color palette (inline so the bench is self-contained)
 const CGA_16: number[][] = [
-  [0,   0,   0,   255],
-  [0,   0,   170, 255],
-  [0,   170, 0,   255],
-  [0,   170, 170, 255],
-  [170, 0,   0,   255],
-  [170, 0,   170, 255],
-  [170, 170, 0,   255],
+  [0, 0, 0, 255],
+  [0, 0, 170, 255],
+  [0, 170, 0, 255],
+  [0, 170, 170, 255],
+  [170, 0, 0, 255],
+  [170, 0, 170, 255],
+  [170, 170, 0, 255],
   [170, 170, 170, 255],
-  [85,  85,  85,  255],
-  [85,  85,  255, 255],
-  [85,  255, 85,  255],
-  [85,  255, 255, 255],
-  [255, 85,  85,  255],
-  [255, 85,  255, 255],
-  [255, 255, 85,  255],
+  [85, 85, 85, 255],
+  [85, 85, 255, 255],
+  [85, 255, 85, 255],
+  [85, 255, 255, 255],
+  [255, 85, 85, 255],
+  [255, 85, 255, 255],
+  [255, 255, 85, 255],
   [255, 255, 255, 255],
 ];
 
@@ -66,9 +60,17 @@ const REF_Z = 108.883;
 
 // Raw WASM export: rgba_laba_distance(r1,g1,b1,a1, r2,g2,b2,a2, rx,ry,rz) → f64
 type WasmDistFn = (
-  r1: number, g1: number, b1: number, a1: number,
-  r2: number, g2: number, b2: number, a2: number,
-  rx: number, ry: number, rz: number,
+  r1: number,
+  g1: number,
+  b1: number,
+  a1: number,
+  r2: number,
+  g2: number,
+  b2: number,
+  a2: number,
+  rx: number,
+  ry: number,
+  rz: number,
 ) => number;
 
 let wasmDist: WasmDistFn | null = null;
@@ -79,8 +81,8 @@ type WasmBatchFn = (pixel: number[], palette: Float64Array) => number;
 let wasmBatch: WasmBatchFn | null = null;
 
 // Pre-built flat palettes for WASM benches
-let CGA_16_FLAT: Float64Array | null = null;  // RGBA f64
-let CGA_16_LAB: Float64Array | null = null;   // Lab f64 (pre-converted)
+let CGA_16_FLAT: Float64Array | null = null; // RGBA f64
+let CGA_16_LAB: Float64Array | null = null; // Lab f64 (pre-converted)
 
 // Full image buffer for buffer-quantize bench (320×240)
 const BENCH_W = 320;
@@ -103,7 +105,7 @@ beforeAll(async () => {
   // Build flat palette RGBA
   CGA_16_FLAT = new Float64Array(CGA_16.length * 4);
   for (let i = 0; i < CGA_16.length; i++) {
-    CGA_16_FLAT[i * 4]     = CGA_16[i][0];
+    CGA_16_FLAT[i * 4] = CGA_16[i][0];
     CGA_16_FLAT[i * 4 + 1] = CGA_16[i][1];
     CGA_16_FLAT[i * 4 + 2] = CGA_16[i][2];
     CGA_16_FLAT[i * 4 + 3] = CGA_16[i][3];
@@ -113,7 +115,7 @@ beforeAll(async () => {
   CGA_16_LAB = new Float64Array(CGA_16.length * 3);
   for (let i = 0; i < CGA_16.length; i++) {
     const lab = rgba2laba(CGA_16[i]);
-    CGA_16_LAB[i * 3]     = lab[0];
+    CGA_16_LAB[i * 3] = lab[0];
     CGA_16_LAB[i * 3 + 1] = lab[1];
     CGA_16_LAB[i * 3 + 2] = lab[2];
   }
@@ -148,8 +150,14 @@ beforeAll(async () => {
   wasmDist = wasmMod.rgba_laba_distance as unknown as WasmDistFn;
   wasmBatch = (pixel: number[], palette: Float64Array): number =>
     wasmMod.rgba_nearest_lab_index(
-      pixel[0], pixel[1], pixel[2], pixel[3],
-      palette, REF_X, REF_Y, REF_Z,
+      pixel[0],
+      pixel[1],
+      pixel[2],
+      pixel[3],
+      palette,
+      REF_X,
+      REF_Y,
+      REF_Z,
     );
   // Takes NO alpha, unlike its sibling rgba_nearest_lab_index right above —
   // which is how `pixel[3]` slid into the `palette_lab` slot here. wasm-bindgen
@@ -222,7 +230,10 @@ const nearestColorJs = (pixel: number[], palette: number[][], algo: string): num
   let bestDist = 0;
   for (const pc of palette) {
     const d = colorDistance(pc, pixel, algo);
-    if (best === null || d < bestDist) { best = pc; bestDist = d; }
+    if (best === null || d < bestDist) {
+      best = pc;
+      bestDist = d;
+    }
   }
   return best!;
 };
@@ -233,11 +244,22 @@ const nearestColorWasm = (pixel: number[], palette: number[][]): number[] => {
   let bestDist = Infinity;
   for (const pc of palette) {
     const d = wasmDist!(
-      pc[0], pc[1], pc[2], pc[3],
-      pixel[0], pixel[1], pixel[2], pixel[3],
-      REF_X, REF_Y, REF_Z,
+      pc[0],
+      pc[1],
+      pc[2],
+      pc[3],
+      pixel[0],
+      pixel[1],
+      pixel[2],
+      pixel[3],
+      REF_X,
+      REF_Y,
+      REF_Z,
     );
-    if (d < bestDist) { best = pc; bestDist = d; }
+    if (d < bestDist) {
+      best = pc;
+      bestDist = d;
+    }
   }
   return best!;
 };
@@ -251,11 +273,12 @@ const nearestColorJsLabManual = (pixel: number[], palette: number[][]): number[]
   for (const pc of palette) {
     const aLab = rgba2laba(pc);
     const d = Math.sqrt(
-      (bLab[0] - aLab[0]) ** 2 +
-      (bLab[1] - aLab[1]) ** 2 +
-      (bLab[2] - aLab[2]) ** 2,
+      (bLab[0] - aLab[0]) ** 2 + (bLab[1] - aLab[1]) ** 2 + (bLab[2] - aLab[2]) ** 2,
     );
-    if (d < bestDist) { best = pc; bestDist = d; }
+    if (d < bestDist) {
+      best = pc;
+      bestDist = d;
+    }
   }
   return best!;
 };
@@ -291,9 +314,17 @@ describe("colorDistance — single pair", () => {
   bench("LAB_NEAREST (WASM raw)", () => {
     if (!wasmDist) return;
     wasmDist(
-      PAL_COLOR[0], PAL_COLOR[1], PAL_COLOR[2], PAL_COLOR[3],
-      PIXEL[0], PIXEL[1], PIXEL[2], PIXEL[3],
-      REF_X, REF_Y, REF_Z,
+      PAL_COLOR[0],
+      PAL_COLOR[1],
+      PAL_COLOR[2],
+      PAL_COLOR[3],
+      PIXEL[0],
+      PIXEL[1],
+      PIXEL[2],
+      PIXEL[3],
+      REF_X,
+      REF_Y,
+      REF_Z,
     );
   });
 });
