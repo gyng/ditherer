@@ -80,7 +80,7 @@ const makeOptions = (overrides: Record<string, unknown> = {}) => {
 
 describe("runReliableVideoExport", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     mocks.getReliableVideoSupport.mockResolvedValue({ supported: true });
     mocks.createOfflineVideoEncoder.mockResolvedValue(makeEncoder());
     mocks.planReliableVideoRouting.mockReturnValue({
@@ -225,6 +225,44 @@ describe("runReliableVideoExport", () => {
       etaMs: 500,
     });
     expect(options.updateProgress).toHaveBeenCalledWith("Rewinding...", 0.08);
+  });
+
+  it("restarts fallback with a fresh encoder after partially rendering decoded frames", async () => {
+    const first = makeEncoder();
+    const retry = makeEncoder();
+    mocks.createOfflineVideoEncoder.mockResolvedValueOnce(first).mockResolvedValueOnce(retry);
+    mocks.planReliableVideoRouting.mockReturnValue({ shouldAttemptWebCodecs: true });
+    const timeline = [0, 0.5, 1].map((timeSec) => ({
+      timeSec,
+      timestampUs: timeSec * 1_000_000,
+      durationUs: 500_000,
+    }));
+    mocks.buildDecodedTimeline.mockReturnValue(timeline);
+    mocks.decodeTimelineFramesWithWebCodecs.mockResolvedValue({
+      width: 4,
+      height: 3,
+      frames: timeline.map(() => ({ frame: Object.assign(makeCanvas(), { close: vi.fn() }) })),
+    });
+    const options = makeOptions();
+    options.renderFrameForExport
+      .mockResolvedValueOnce(makeCanvas())
+      .mockResolvedValueOnce(makeCanvas())
+      .mockRejectedValueOnce(new Error("render failed"));
+    mocks.renderOfflineFrames.mockImplementationOnce(async ({ onFrame }) => {
+      for (const frame of timeline) await onFrame(frame);
+      return { aborted: false, frameCount: 3, metrics: { seekMs: 0, captureMs: 0, encodeMs: 0 } };
+    });
+
+    const result = await runReliableVideoExport(options);
+
+    expect(result.renderResult?.sourcePath).toBe("browser-seek");
+    expect(first.dispose).toHaveBeenCalledOnce();
+    expect(first.finalize).not.toHaveBeenCalled();
+    expect(first.addFrame.mock.calls.map(([frame]) => frame.timestampUs)).toEqual([0, 500_000]);
+    expect(retry.addFrame.mock.calls.map(([frame]) => frame.timestampUs)).toEqual([
+      0, 500_000, 1_000_000,
+    ]);
+    expect(retry.finalize).toHaveBeenCalledOnce();
   });
 
   it("disposes an empty aborted export without finalizing", async () => {

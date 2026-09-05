@@ -114,17 +114,20 @@ export const runReliableVideoExport = async ({
     0.04,
   );
 
-  const encoder = await createOfflineVideoEncoder({
-    width: scaled.width,
-    height: scaled.height,
-    fps: reliableFps,
-    durationUs: Math.round(exportDurationSec * 1_000_000),
-    sourceVideo: video,
-    startTimeSec: rangeStartSec,
-    includeAudio,
-    isAborted,
-    onProgress: (message: string) => updateProgress(message, 0.92),
-  });
+  const createEncoder = () =>
+    createOfflineVideoEncoder({
+      width: scaled.width,
+      height: scaled.height,
+      fps: reliableFps,
+      durationUs: Math.round(exportDurationSec * 1_000_000),
+      sourceVideo: video,
+      startTimeSec: rangeStartSec,
+      includeAudio,
+      isAborted,
+      onProgress: (message: string) => updateProgress(message, 0.92),
+    });
+
+  let encoder = await createEncoder();
 
   try {
     let renderResult: ReliableRenderResult;
@@ -208,6 +211,9 @@ export const runReliableVideoExport = async ({
       } catch (error) {
         console.warn("Reliable WebCodecs source path failed, falling back to browser seek:", error);
         const fallbackReason = error instanceof Error ? error.message : String(error);
+        // Restart the mux timeline too: the failed path may already have encoded frames.
+        encoder.dispose();
+        encoder = await createEncoder();
         const fallbackRenderResult = await renderOfflineFrames({
           video,
           fps: reliableFps,
