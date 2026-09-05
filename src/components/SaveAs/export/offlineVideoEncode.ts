@@ -70,18 +70,6 @@ export const getReliableVideoSupport = async (
     };
   }
 
-  const hasAudioDecodeContext =
-    typeof AudioContext !== "undefined" ||
-    typeof (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext !==
-      "undefined";
-  if (!hasAudioDecodeContext || typeof OfflineAudioContext === "undefined") {
-    return {
-      supported: !needsAudio,
-      reason: needsAudio ? "Reliable export audio requires browser audio decoding support." : null,
-      audio: false,
-    };
-  }
-
   const videoCodec = await probeVideoCodec(width, height, fps);
   if (!videoCodec) {
     return {
@@ -93,6 +81,18 @@ export const getReliableVideoSupport = async (
 
   if (!needsAudio) {
     return { supported: true, reason: null, audio: false };
+  }
+
+  const hasAudioDecodeContext =
+    typeof AudioContext !== "undefined" ||
+    typeof (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext !==
+      "undefined";
+  if (!hasAudioDecodeContext || typeof OfflineAudioContext === "undefined") {
+    return {
+      supported: false,
+      reason: "Reliable export audio requires browser audio decoding support.",
+      audio: false,
+    };
   }
 
   if (typeof AudioEncoder === "undefined" || typeof AudioData === "undefined") {
