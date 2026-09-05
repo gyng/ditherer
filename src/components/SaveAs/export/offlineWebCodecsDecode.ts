@@ -272,7 +272,9 @@ export const decodeTimelineFramesWithWebCodecs = async ({
 
       const windowStartSec = Math.max(0, timelineFrame.timeSec - TIMELINE_PREROLL_SEC);
       const windowEndSec = timelineFrame.timeSec + TIMELINE_POSTROLL_SEC;
-      const targetUs = Math.round(timelineFrame.timestampUs);
+      // Decoder timestamps refer to the source; timeline timestamps start at zero
+      // for the exported range.
+      const targetUs = Math.round(timelineFrame.timeSec * 1_000_000);
       let bestFrame: DecodedFrame | null = null;
       let decodeError: Error | null = null;
       const decoder = new VideoDecoder({

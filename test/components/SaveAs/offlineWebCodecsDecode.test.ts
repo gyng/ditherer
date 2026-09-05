@@ -193,6 +193,21 @@ describe("offline WebCodecs decoding", () => {
     expect(result.metrics.decodedChunks).toBe(2);
   });
 
+  it("selects absolute source times for a trimmed range while keeping output timestamps relative", async () => {
+    installDecoder();
+    const timeline = buildDecodedTimeline(20, 2, 10, 11);
+    demuxState.chunksByRead = [
+      [{ timestamp: 8_500_000, frames: [{ timestamp: 8_500_000 }, { timestamp: 10_000_000 }] }],
+      [{ timestamp: 9_000_000, frames: [{ timestamp: 9_000_000 }, { timestamp: 10_500_000 }] }],
+    ];
+
+    const result = await decodeTimelineFramesWithWebCodecs({ source: "/clip.webm", timeline });
+
+    expect(result.frames.map((frame) => frame.timestampUs)).toEqual([10_000_000, 10_500_000]);
+    expect(timeline.map((frame) => frame.timestampUs)).toEqual([0, 500_000]);
+    result.frames.forEach(({ frame }) => frame.close());
+  });
+
   it("rejects an empty decode window and closes a best frame on decoder failure", async () => {
     installDecoder();
     demuxState.chunksByRead = [[]];
