@@ -1,4 +1,4 @@
-import { filterIndex, serializePalette } from "@gyng/ditherer-filters";
+import { filterIndex, getFilterHistory, serializePalette } from "@gyng/ditherer-filters";
 import { workerRPC } from "@gyng/ditherer-filters/client";
 import { makeGradientCanvas, makeSmoothRamp } from "../fixtures";
 import { shaderValidationOverrides } from "../profiles";
@@ -111,15 +111,22 @@ export const runWorkerSpecFilters = async (): Promise<
           reason: `${name} worker size drifted to ${first.width}x${first.height}`,
         };
       }
+      const history = getFilterHistory(filter);
+      const pixelBytes = width * height * 4;
+      // Output snapshots also carry step previews. Input/EMA snapshots exist
+      // only for filters that consume them; requiring all three wastes memory.
       if (
         first.stepTimes.length !== 1 ||
-        !first.prevOutputs[id] ||
-        !first.prevInputs[id] ||
-        !first.emaMaps[id]
+        first.prevOutputs[id]?.imageData.byteLength !== pixelBytes ||
+        Boolean(first.prevInputs[id]) !== Boolean(history.prevInput) ||
+        (history.prevInput && first.prevInputs[id]?.byteLength !== pixelBytes) ||
+        Boolean(first.emaMaps[id]) !== Boolean(history.ema) ||
+        (history.ema &&
+          first.emaMaps[id]?.byteLength !== pixelBytes * Float32Array.BYTES_PER_ELEMENT)
       ) {
         return {
           ok: false,
-          reason: `${name} did not complete a worker step with temporal snapshots`,
+          reason: `${name} did not complete a worker step with its declared temporal snapshots`,
         };
       }
       const output = new Uint8ClampedArray(first.imageData);
