@@ -105,6 +105,10 @@ npm run typecheck
 npm run test
 ```
 
+If tooling fails to parse a source or configuration file, run
+`node scripts/check-source-integrity.mjs` to detect NUL-byte corruption without
+relying on npm.
+
 Extra repo utilities:
 
 - `npm run bench` to run performance benches
