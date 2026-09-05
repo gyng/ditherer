@@ -346,6 +346,7 @@ const motionAnalysis = (input: any, options: MotionDetectOptions = defaults) => 
 };
 
 export default defineFilter({
+  history: { prevInput: true, prevOutput: true, ema: true },
   name: "Motion Analysis",
   func: motionAnalysis,
   optionTypes,

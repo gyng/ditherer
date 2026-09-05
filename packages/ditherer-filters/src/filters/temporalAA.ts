@@ -155,6 +155,7 @@ const temporalAA = (input: any, options: TemporalAAOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Temporal AA",
   func: temporalAA,
   optionTypes,

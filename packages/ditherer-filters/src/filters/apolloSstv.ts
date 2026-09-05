@@ -346,6 +346,7 @@ const apolloSstv = (
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Apollo Slow-Scan TV",
   func: apolloSstv,
   optionTypes,

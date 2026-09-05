@@ -324,6 +324,7 @@ const chronophotography = (input: any, options: ChronoOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { ema: true },
   name: "Chronophotography",
   func: chronophotography,
   optionTypes,

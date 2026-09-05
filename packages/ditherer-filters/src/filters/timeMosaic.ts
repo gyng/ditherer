@@ -291,6 +291,7 @@ const timeMosaic = (input: any, options: TimeMosaicOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevInput: true },
   name: "Time Mosaic",
   func: timeMosaic,
   optionTypes,

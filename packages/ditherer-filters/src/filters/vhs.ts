@@ -477,6 +477,7 @@ const vhs = (input: any, options: VhsOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "VHS emulation",
   func: vhs,
   options: defaults,

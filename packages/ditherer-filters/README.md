@@ -85,3 +85,16 @@ checks. `wasmReady` resolves after the optional acceleration module initializes.
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes and [RELEASING.md](./RELEASING.md)
 for the verified GitHub Packages release procedure.
+
+### Temporal history allocation
+
+Built-in filters declare the previous-frame buffers they consume through
+`history: { prevInput: true, prevOutput: true, ema: true }`, selecting only the
+needed fields. Built-ins without a declaration need no injected history; their
+animation clock and internal simulation state continue to work normally.
+Worker step previews are retained separately from temporal history.
+
+Custom filter definitions without `history` retain all three buffers for
+compatibility. Set `history: {}` for a stateless custom filter, or enable only the
+buffers it reads. This avoids unnecessary pixel readbacks, allocations, and EMA
+updates. `getFilterHistory(filter)` resolves the effective requirements.

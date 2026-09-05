@@ -1107,6 +1107,7 @@ export const errorDiffusingFilter = (
   };
 
   return {
+    history: { prevInput: true, prevOutput: true },
     name,
     func: filter,
     optionTypes,

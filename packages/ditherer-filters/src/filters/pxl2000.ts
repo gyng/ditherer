@@ -280,6 +280,7 @@ const pxl2000 = (input: FilterCanvas, options: PxlOptions = defaults): FilterCan
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "PXL-2000",
   func: pxl2000,
   optionTypes,

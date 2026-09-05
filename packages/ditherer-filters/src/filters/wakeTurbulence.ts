@@ -253,6 +253,7 @@ const wakeTurbulence = (input: any, options: WakeTurbulenceOptions = defaults) =
 };
 
 export default defineFilter({
+  history: { ema: true },
   name: "Wake Turbulence",
   func: wakeTurbulence,
   optionTypes,

@@ -1,6 +1,11 @@
 import * as palettes from "../palettes/index";
 import { THEMES } from "../palettes/user";
-import { hasTemporalBehavior, type FilterDefinition, type FilterListEntry } from "./types";
+import {
+  hasTemporalBehavior,
+  type FilterDefinition,
+  type FilterHistory,
+  type FilterListEntry,
+} from "./types";
 
 import noop from "./noop";
 import binarize from "./binarize";
@@ -2872,6 +2877,21 @@ export const filterIndex = filterList.reduce(
   },
   {} as Record<string, FilterDefinition>,
 );
+
+// Match by implementation identity so catalog presets and direct imports share
+// requirements, without treating an unrelated custom filter with the same name
+// as a built-in. Built-ins declare any history they consume; otherwise none is needed.
+const noHistory: Readonly<FilterHistory> = Object.freeze({});
+const builtinHistory = new Map(
+  filterList.map(({ filter }) => [filter.func, filter.history ?? noHistory]),
+);
+const allHistory: Readonly<FilterHistory> = Object.freeze({
+  prevInput: true,
+  prevOutput: true,
+  ema: true,
+});
+export const getFilterHistory = (filter: FilterDefinition): Readonly<FilterHistory> =>
+  filter.history ?? builtinHistory.get(filter.func) ?? allHistory;
 
 export { hasTemporalBehavior };
 

@@ -201,6 +201,7 @@ const temporalEdge = (input: any, options: TemporalEdgeOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevInput: true, prevOutput: true },
   name: "Temporal Edge",
   func: temporalEdge,
   optionTypes,

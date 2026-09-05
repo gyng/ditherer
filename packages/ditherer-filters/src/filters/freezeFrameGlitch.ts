@@ -179,6 +179,7 @@ const freezeFrameGlitch = (input: any, options: FreezeFrameGlitchOptions = defau
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Freeze Frame Glitch",
   func: freezeFrameGlitch,
   optionTypes,

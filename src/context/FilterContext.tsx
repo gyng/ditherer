@@ -17,6 +17,7 @@ import {
   releaseJpegArtifactFloatTextures,
   releasePooledCanvas,
   runFilterChain,
+  getFilterHistory,
   serializePalette,
   takePooledCanvas,
   THEMES,
@@ -1118,7 +1119,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         const serializedPrevOutputs: Record<string, ArrayBuffer> = {};
         for (const entry of entriesToRun) {
           const prev = prevOutputMapRef.current.get(entry.id);
-          if (prev) {
+          if (prev && getFilterHistory(entry.filter).prevOutput) {
             const copy = new Uint8ClampedArray(prev);
             serializedPrevOutputs[entry.id] = copy.buffer as ArrayBuffer;
           }
@@ -1126,7 +1127,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         const serializedPrevInputs: Record<string, ArrayBuffer> = {};
         for (const entry of entriesToRun) {
           const prev = prevInputMapRef.current.get(entry.id);
-          if (prev) {
+          if (prev && getFilterHistory(entry.filter).prevInput) {
             const copy = new Uint8ClampedArray(prev);
             serializedPrevInputs[entry.id] = copy.buffer as ArrayBuffer;
           }
@@ -1134,7 +1135,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         const serializedEmaMaps: Record<string, ArrayBuffer> = {};
         for (const entry of entriesToRun) {
           const ema = emaMapRef.current.get(entry.id);
-          if (ema) {
+          if (ema && getFilterHistory(entry.filter).ema) {
             const copy = new Float32Array(ema);
             serializedEmaMaps[entry.id] = copy.buffer as ArrayBuffer;
           }
@@ -1186,6 +1187,14 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
           const stagedWorkerOutputs = new Map<string, HTMLCanvasElement>();
           const ownedWorkerCanvases = new Set<HTMLCanvasElement>();
           const stagedWorkerTemporalState = cloneLiveTemporalState();
+          const historyById = new Map(
+            entriesToRun.map((entry) => [entry.id, getFilterHistory(entry.filter)]),
+          );
+          for (const [id, history] of historyById) {
+            if (!history.prevOutput) stagedWorkerTemporalState.prevOutputMap.delete(id);
+            if (!history.prevInput) stagedWorkerTemporalState.prevInputMap.delete(id);
+            if (!history.ema) stagedWorkerTemporalState.emaMap.delete(id);
+          }
           let outCanvas: HTMLCanvasElement;
           let transactionCommitted = false;
           try {
@@ -1209,7 +1218,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
                 result.width,
                 result.height,
               );
-              stagedWorkerTemporalState.prevOutputMap.set(entryId, pixels);
+              if (historyById.get(entryId)?.prevOutput)
+                stagedWorkerTemporalState.prevOutputMap.set(entryId, pixels);
 
               // A preview remains invisible until the complete worker response
               // validates. Never mutate a live cached canvas in place: fallback
@@ -1226,10 +1236,12 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
             // Merge into a private temporal snapshot. A malformed buffer or a
             // bookkeeping exception must not affect fallback's starting state.
             for (const [entryId, buffer] of Object.entries(result.prevInputs ?? {})) {
-              stagedWorkerTemporalState.prevInputMap.set(entryId, new Uint8ClampedArray(buffer));
+              if (historyById.get(entryId)?.prevInput)
+                stagedWorkerTemporalState.prevInputMap.set(entryId, new Uint8ClampedArray(buffer));
             }
             for (const [entryId, buffer] of Object.entries(result.emaMaps ?? {})) {
-              stagedWorkerTemporalState.emaMap.set(entryId, new Float32Array(buffer));
+              if (historyById.get(entryId)?.ema)
+                stagedWorkerTemporalState.emaMap.set(entryId, new Float32Array(buffer));
             }
 
             const workerStepTimes = [...stepTimes, ...result.stepTimes];

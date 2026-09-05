@@ -439,6 +439,7 @@ const infiniteCallWindows = (input: any, options: InfiniteCallWindowsOptions = d
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Infinite Call Windows",
   func: infiniteCallWindows,
   optionTypes,

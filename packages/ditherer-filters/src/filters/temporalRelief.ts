@@ -278,6 +278,7 @@ const temporalRelief = (input: any, options: TemporalReliefOptions = defaults) =
 };
 
 export default defineFilter({
+  history: { prevInput: true, ema: true },
   name: "Motion Relief",
   func: temporalRelief,
   optionTypes,

@@ -559,6 +559,7 @@ const rgbStripe = (input: any, options: RgbStripeOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "rgbStripe",
   func: rgbStripe,
   optionTypes,

@@ -74,11 +74,47 @@ describe("runWorkerFilterRequest", () => {
     expect(result.imageData.byteLength).toBe(4 * 4 * 4);
     expect(result.stepTimes).toHaveLength(1);
     expect(result.stepTimes[0].name).toBe("Grayscale");
-    // Worker must remember the prev frame for this step so stateful filters
-    // downstream (after-image etc.) get a previous input to diff against.
+    expect(result.prevInputs).toEqual({});
+    expect(result.emaMaps).toEqual({});
+    // The app still needs this step output for its preview/cache.
     expect(result.prevOutputs.grayscale).toBeDefined();
     expect(result.prevOutputs.grayscale.width).toBe(4);
     expect(result.prevOutputs.grayscale.height).toBe(4);
+  });
+
+  it("round-trips only declared EMA history while retaining worker previews", async () => {
+    const seen: unknown[] = [];
+    filterIndex["Selective worker history"] = {
+      name: "Selective worker history",
+      history: { ema: true },
+      func: (input, options = {}) => {
+        seen.push(options._ema);
+        expect(options._prevInput).toBeNull();
+        expect(options._prevOutput).toBeNull();
+        return input;
+      },
+    };
+    try {
+      const request = {
+        ...baseRequest(),
+        imageData: seedImageData(2, 2),
+        width: 2,
+        height: 2,
+        chain: [{ id: "history", filterName: "Selective worker history", displayName: "History" }],
+      };
+      const first = await runWorkerFilterRequest(request, makeCanvas);
+      const second = await runWorkerFilterRequest(
+        { ...request, frameIndex: 1, emaMaps: first.emaMaps },
+        makeCanvas,
+      );
+      expect(seen[0]).toBeNull();
+      expect(seen[1]).toBeInstanceOf(Float32Array);
+      expect(second.prevInputs).toEqual({});
+      expect(second.emaMaps.history.byteLength).toBe(2 * 2 * 4 * 4);
+      expect(second.prevOutputs.history.width).toBe(2);
+    } finally {
+      delete filterIndex["Selective worker history"];
+    }
   });
 
   it("draws the GL-unavailable stub for requiresGL filters in jsdom", async () => {

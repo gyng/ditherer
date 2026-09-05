@@ -217,6 +217,7 @@ const videoFeedback = (input: any, options: VideoFeedbackOptions = defaults) => 
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Video Feedback",
   func: videoFeedback,
   optionTypes,

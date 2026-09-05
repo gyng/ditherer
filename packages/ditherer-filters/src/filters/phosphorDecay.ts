@@ -259,6 +259,7 @@ const phosphorDecay = (input: any, options: PhosphorDecayOptions = defaults) => 
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Phosphor Decay",
   func: phosphorDecay,
   optionTypes,

@@ -1,4 +1,4 @@
-import { filterIndex } from "../filters/index";
+import { filterIndex, getFilterHistory } from "../filters/index";
 import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "../filters/types";
 import { deserializePalette } from "../palettes/index";
 import type { SerializedPalette } from "../palettes/index";
@@ -107,17 +107,22 @@ export const runWorkerFilterRequest = async (
       const filter: FilterDefinition | undefined = filterIndex[entry.filterName];
       if (!filter || typeof filter.func !== "function") continue;
 
+      const history = getFilterHistory(filter);
       const opts = deserializeOptions(entry.options);
       opts._frameIndex = frameIndex;
       opts._isAnimating = isAnimating;
       opts._linearize = linearize;
       opts._wasmAcceleration = wasmAcceleration;
       opts._webglAcceleration = webglAcceleration;
-      opts._prevOutput = prevOutputs?.[entry.id]
-        ? new Uint8ClampedArray(prevOutputs[entry.id])
-        : null;
-      opts._prevInput = prevInputs?.[entry.id] ? new Uint8ClampedArray(prevInputs[entry.id]) : null;
-      opts._ema = emaMaps?.[entry.id] ? new Float32Array(emaMaps[entry.id]) : null;
+      opts._prevOutput =
+        history.prevOutput && prevOutputs?.[entry.id]
+          ? new Uint8ClampedArray(prevOutputs[entry.id])
+          : null;
+      opts._prevInput =
+        history.prevInput && prevInputs?.[entry.id]
+          ? new Uint8ClampedArray(prevInputs[entry.id])
+          : null;
+      opts._ema = history.ema && emaMaps?.[entry.id] ? new Float32Array(emaMaps[entry.id]) : null;
       opts._degaussFrame = degaussFrame;
 
       // Capture input BEFORE the filter runs — same semantics as the main-
@@ -128,10 +133,8 @@ export const runWorkerFilterRequest = async (
         | OffscreenCanvasRenderingContext2D
         | CanvasRenderingContext2D
         | null;
-      if (inCtx) {
-        inputSnapshot = new Uint8ClampedArray(
-          inCtx.getImageData(0, 0, canvas.width, canvas.height).data,
-        );
+      if (inCtx && (history.prevInput || history.ema)) {
+        inputSnapshot = inCtx.getImageData(0, 0, canvas.width, canvas.height).data;
       }
 
       if (opts.palette?.options) {
@@ -198,8 +201,10 @@ export const runWorkerFilterRequest = async (
       // frame's captured input becomes next frame's _prevInput, and feeds
       // the EMA blend. Mirrors FilterContext.filterOnMainThread so both
       // dispatch paths write to state the same way.
-      if (inputSnapshot) {
+      if (inputSnapshot && history.prevInput) {
         newPrevInputs[entry.id] = inputSnapshot.buffer as ArrayBuffer;
+      }
+      if (inputSnapshot && history.ema) {
         const prevEmaBuf = emaMaps?.[entry.id];
         let ema: Float32Array;
         if (prevEmaBuf && prevEmaBuf.byteLength === inputSnapshot.length * 4) {

@@ -265,6 +265,7 @@ const crcStripeReject = (input: any, options: CrcStripeRejectOptions = defaults)
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "CRC Stripe Reject",
   func: crcStripeReject,
   optionTypes,

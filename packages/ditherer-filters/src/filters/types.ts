@@ -134,8 +134,16 @@ export type FilterOptionDefinition<TOptions extends FilterOptionValues = FilterO
 export type FilterOptionDefinitions<TOptions extends FilterOptionValues = FilterOptionValues> =
   Record<string, FilterOptionDefinition<TOptions>>;
 
+export interface FilterHistory {
+  prevInput?: boolean;
+  prevOutput?: boolean;
+  ema?: boolean;
+}
+
 export interface FilterDefinition<TOptions extends FilterOptionValues = FilterOptionValues> {
   name: string;
+  /** Required previous-frame buffers. Omitted custom definitions retain all history. */
+  history?: Readonly<FilterHistory>;
   func: FilterFunction<TOptions>;
   optionTypes?: FilterOptionDefinitions<TOptions>;
   options?: TOptions;

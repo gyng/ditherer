@@ -416,6 +416,7 @@ const oscilloscope = (input: any, options: OscilloscopeOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Oscilloscope",
   func: oscilloscope,
   options: defaults,

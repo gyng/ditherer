@@ -1,4 +1,4 @@
-import { filterIndex } from "./filters/index";
+import { filterIndex, getFilterHistory } from "./filters/index";
 import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "./filters/types";
 import { releasePooledTextures, glAvailable, glUnavailableStub } from "./gl/index";
 import { releaseFloatTextures } from "./gl/fft2d";
@@ -176,9 +176,13 @@ export const runFilterChain = async (
         continue;
       }
 
-      const inputContext = get2dContext(canvas);
+      const history = getFilterHistory(filter);
+      if (!history.prevInput) temporal.prevInputs.delete(entry.id);
+      if (!history.prevOutput) temporal.prevOutputs.delete(entry.id);
+      if (!history.ema) temporal.ema.delete(entry.id);
+      const inputContext = history.prevInput || history.ema ? get2dContext(canvas) : null;
       const inputSnapshot = inputContext
-        ? new Uint8ClampedArray(inputContext.getImageData(0, 0, canvas.width, canvas.height).data)
+        ? inputContext.getImageData(0, 0, canvas.width, canvas.height).data
         : null;
       const defaults = resolveEntryOptions(entry, filter);
       const resolved = frame.resolveOptions?.(entry, index, defaults) ?? defaults;
@@ -243,8 +247,8 @@ export const runFilterChain = async (
       const elapsed = now() - started;
       totalTime += elapsed;
 
-      if (inputSnapshot) {
-        temporal.prevInputs.set(entry.id, inputSnapshot);
+      if (inputSnapshot && history.prevInput) temporal.prevInputs.set(entry.id, inputSnapshot);
+      if (inputSnapshot && history.ema) {
         const previousEma = temporal.ema.get(entry.id);
         if (!previousEma || previousEma.length !== inputSnapshot.length) {
           temporal.ema.set(entry.id, new Float32Array(inputSnapshot));
@@ -257,11 +261,11 @@ export const runFilterChain = async (
         }
       }
 
-      const outputContext = get2dContext(output);
+      const outputContext = history.prevOutput ? get2dContext(output) : null;
       if (outputContext) {
         temporal.prevOutputs.set(
           entry.id,
-          new Uint8ClampedArray(outputContext.getImageData(0, 0, output.width, output.height).data),
+          outputContext.getImageData(0, 0, output.width, output.height).data,
         );
       }
       const previousCanvas = canvas;

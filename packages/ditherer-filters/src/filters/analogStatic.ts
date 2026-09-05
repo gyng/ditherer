@@ -459,6 +459,7 @@ const analogStatic = (input: any, options: AnalogStaticOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Analog Static",
   func: analogStatic,
   optionTypes,

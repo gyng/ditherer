@@ -98,6 +98,66 @@ describe("browser filter library runtime", () => {
     expect(session.state.frameIndex).toBe(2);
   });
 
+  it("does not retain temporal buffers for a stateless catalog filter", async () => {
+    const session = createFilterSession([{ id: "gray", filter: "Grayscale" }]);
+    await session.process(canvas());
+    await session.process(canvas());
+    expect(session.state.prevInputs.size).toBe(0);
+    expect(session.state.prevOutputs.size).toBe(0);
+    expect(session.state.ema.size).toBe(0);
+    expect(session.state.frameIndex).toBe(2);
+  });
+
+  it("skips pixel readbacks when a custom filter explicitly needs no history", async () => {
+    const input = canvas();
+    const readPixels = vi.spyOn(input.getContext("2d")!, "getImageData");
+    const session = createFilterSession([
+      {
+        id: "pass",
+        filter: {
+          name: "Pass without history",
+          history: {},
+          func: (source) => source,
+        },
+      },
+    ]);
+    await session.process(input);
+    expect(readPixels).not.toHaveBeenCalled();
+  });
+
+  it.each(["prevInput", "prevOutput", "ema"] as const)(
+    "retains and injects only declared %s history",
+    async (kind) => {
+      const observed: FilterOptionValues[] = [];
+      const session = createFilterSession([
+        {
+          id: "selective",
+          filter: {
+            name: "Selective history",
+            history: { [kind]: true },
+            func: (source, options = {}) => {
+              observed.push(options);
+              return source;
+            },
+          },
+        },
+      ]);
+      await session.process(canvas());
+      await session.process(canvas());
+      expect(session.state.prevInputs.size).toBe(kind === "prevInput" ? 1 : 0);
+      expect(session.state.prevOutputs.size).toBe(kind === "prevOutput" ? 1 : 0);
+      expect(session.state.ema.size).toBe(kind === "ema" ? 1 : 0);
+      for (const key of ["prevInput", "prevOutput", "ema"]) {
+        expect(observed[0][`_${key}`]).toBeNull();
+        if (key === kind)
+          expect(observed[1][`_${key}`]).toBeInstanceOf(
+            kind === "ema" ? Float32Array : Uint8ClampedArray,
+          );
+        else expect(observed[1][`_${key}`]).toBeNull();
+      }
+    },
+  );
+
   it("reports unknown filters without corrupting the rest of a chain", async () => {
     const onError = vi.fn();
     const result = await runFilterChain(

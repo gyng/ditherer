@@ -674,6 +674,7 @@ const motionVectors = (input: any, options: MotionVectorsOptions = defaults) => 
 };
 
 export default defineFilter({
+  history: { prevInput: true, prevOutput: true },
   name: "Motion Vectors",
   func: motionVectors,
   optionTypes,

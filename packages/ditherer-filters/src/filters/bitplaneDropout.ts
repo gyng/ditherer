@@ -180,6 +180,7 @@ const bitplaneDropout = (input: any, options: BitplaneDropoutOptions = defaults)
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Bitplane Dropout",
   func: bitplaneDropout,
   optionTypes,

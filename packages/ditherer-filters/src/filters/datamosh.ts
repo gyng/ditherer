@@ -274,6 +274,7 @@ const datamosh = (input: any, options: DatamoshOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevInput: true, prevOutput: true },
   name: "Datamosh",
   func: datamosh,
   options: defaults,

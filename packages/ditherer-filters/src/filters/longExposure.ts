@@ -356,6 +356,7 @@ const longExposure = (input: any, options: LongExposureOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Long Exposure",
   func: longExposure,
   optionTypes,

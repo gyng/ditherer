@@ -303,6 +303,7 @@ const jpegArtifact = (input: any, options: JpegArtifactOptions = defaults) =>
   applyJpegArtifactToCanvas(input, options);
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "JPEG Artifact",
   func: jpegArtifact,
   optionTypes,

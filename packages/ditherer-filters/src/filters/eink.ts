@@ -540,6 +540,7 @@ const eink = (input: HTMLCanvasElement, options: EinkOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "E-ink",
   func: eink,
   options: defaults,

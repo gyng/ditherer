@@ -1058,6 +1058,8 @@ const mavicaFd7 = (input: any, options: MavicaFd7Options = defaults) => {
 };
 
 export default defineFilter({
+  // The JPEG helper receives a fresh preset, never this filter's injected history.
+  history: {},
   name: "Mavica FD7",
   func: mavicaFd7,
   options: defaults,

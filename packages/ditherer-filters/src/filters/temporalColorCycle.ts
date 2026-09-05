@@ -314,6 +314,7 @@ const temporalColorCycle = (input: any, options: TemporalColorCycleOptions = def
 };
 
 export default defineFilter({
+  history: { ema: true },
   name: "Color Cycle",
   func: temporalColorCycle,
   optionTypes,

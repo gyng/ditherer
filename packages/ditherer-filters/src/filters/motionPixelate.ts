@@ -147,6 +147,7 @@ const motionPixelate = (input: any, options: MotionPixelateOptions = defaults) =
 };
 
 export default defineFilter({
+  history: { ema: true },
   name: "Motion Pixelate",
   func: motionPixelate,
   optionTypes,

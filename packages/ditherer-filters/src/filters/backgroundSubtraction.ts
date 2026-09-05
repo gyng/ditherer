@@ -294,6 +294,7 @@ const sceneSeparation = (input: any, options: BackgroundSubtractionOptions = def
 };
 
 export default defineFilter({
+  history: { ema: true },
   name: "Scene Separation",
   func: sceneSeparation,
   optionTypes,

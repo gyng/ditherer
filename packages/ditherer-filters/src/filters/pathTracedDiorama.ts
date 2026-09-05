@@ -302,6 +302,7 @@ const pathTracedDiorama = (
 };
 
 export default defineFilter({
+  history: { prevOutput: true },
   name: "Path-Traced Diorama",
   func: pathTracedDiorama,
   optionTypes,

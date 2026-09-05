@@ -499,6 +499,7 @@ const crtDegauss = (input: any, options: CrtDegaussOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { prevInput: true, ema: true },
   name: "CRT Degauss",
   func: crtDegauss,
   options: defaults,

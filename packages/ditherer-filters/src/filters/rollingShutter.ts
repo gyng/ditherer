@@ -217,6 +217,7 @@ const rollingShutter = (input: any, options: RollingShutterOptions = defaults) =
 };
 
 export default defineFilter({
+  history: { prevInput: true },
   name: "Rolling Shutter",
   func: rollingShutter,
   optionTypes,

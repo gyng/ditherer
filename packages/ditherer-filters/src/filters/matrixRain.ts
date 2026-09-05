@@ -701,6 +701,7 @@ const matrixRain = (input: any, options: MatrixRainOptions = defaults) => {
 };
 
 export default defineFilter<MatrixRainOptions>({
+  history: { ema: true },
   name: "Matrix Rain",
   func: matrixRain,
   optionTypes,

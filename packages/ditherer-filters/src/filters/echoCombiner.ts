@@ -152,6 +152,7 @@ const echoCombiner = (input: any, options: EchoCombinerOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { ema: true },
   name: "Echo Combiner",
   func: echoCombiner,
   optionTypes,

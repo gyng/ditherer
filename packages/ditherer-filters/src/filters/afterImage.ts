@@ -228,6 +228,7 @@ const afterImage = (input: any, options: AfterImageOptions = defaults) => {
 };
 
 export default defineFilter({
+  history: { ema: true },
   name: "After-Image",
   func: afterImage,
   optionTypes,
