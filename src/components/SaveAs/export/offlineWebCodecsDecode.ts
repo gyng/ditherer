@@ -47,18 +47,23 @@ const flushDecoderWithTimeout = async (
   framesDecoded: number,
   chunksDecoded: number,
 ) => {
-  await Promise.race([
-    decoder.flush(),
-    new Promise<never>((_, reject) => {
-      window.setTimeout(() => {
-        reject(
-          new Error(
-            `VideoDecoder.flush() timed out after ${FLUSH_TIMEOUT_MS}ms with ${framesDecoded} frame${framesDecoded === 1 ? "" : "s"} decoded from ${chunksDecoded} chunk${chunksDecoded === 1 ? "" : "s"}.`,
-          ),
-        );
-      }, FLUSH_TIMEOUT_MS);
-    }),
-  ]);
+  let timer: ReturnType<typeof window.setTimeout> | undefined;
+  try {
+    await Promise.race([
+      decoder.flush(),
+      new Promise<never>((_, reject) => {
+        timer = window.setTimeout(() => {
+          reject(
+            new Error(
+              `VideoDecoder.flush() timed out after ${FLUSH_TIMEOUT_MS}ms with ${framesDecoded} frame${framesDecoded === 1 ? "" : "s"} decoded from ${chunksDecoded} chunk${chunksDecoded === 1 ? "" : "s"}.`,
+            ),
+          );
+        }, FLUSH_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) window.clearTimeout(timer);
+  }
 };
 
 export const decodeSourceFramesWithWebCodecs = async ({
@@ -85,6 +90,9 @@ export const decodeSourceFramesWithWebCodecs = async ({
 
   const wasmFilePath = new URL(webDemuxerWasmUrl, window.location.href).href;
   const demuxer = new WebDemuxer({ wasmFilePath });
+  const frames: DecodedFrame[] = [];
+  let decoder: VideoDecoder | null = null;
+  let returnedFrames = false;
   try {
     onProgress?.({ message: "Loading source for WebCodecs decode...", fraction: 0 });
     const loadStartedAt = performance.now();
@@ -108,9 +116,8 @@ export const decodeSourceFramesWithWebCodecs = async ({
       throw new Error(`Browser rejected WebCodecs config for ${decoderConfig.codec}.`);
     }
 
-    const frames: DecodedFrame[] = [];
     let decodeError: Error | null = null;
-    const decoder = new VideoDecoder({
+    decoder = new VideoDecoder({
       output: (frame) => {
         frames.push({
           timestampUs: frame.timestamp,
@@ -178,27 +185,12 @@ export const decodeSourceFramesWithWebCodecs = async ({
       message: `Flushing decoded source frames (${frames.length} frame${frames.length === 1 ? "" : "s"} ready)...`,
       fraction: Math.max(lastReportedFraction, 0.31),
     });
-    await Promise.race([
-      decoder.flush(),
-      new Promise<never>((_, reject) => {
-        window.setTimeout(() => {
-          reject(
-            new Error(
-              `VideoDecoder.flush() timed out after ${FLUSH_TIMEOUT_MS}ms with ${frames.length} frame${frames.length === 1 ? "" : "s"} decoded from ${metrics.decodedChunks} chunk${metrics.decodedChunks === 1 ? "" : "s"}.`,
-            ),
-          );
-        }, FLUSH_TIMEOUT_MS);
-      }),
-    ]);
+    await flushDecoderWithTimeout(decoder, frames.length, metrics.decodedChunks);
     metrics.decodeMs = performance.now() - decodeStartedAt;
-    decoder.close();
-
-    if (decodeError) {
-      frames.forEach(({ frame }) => frame.close());
-      throw decodeError;
-    }
+    if (decodeError) throw decodeError;
 
     frames.sort((a, b) => a.timestampUs - b.timestampUs);
+    returnedFrames = true;
     return {
       frames,
       width: streamInfo.width || supportConfig.codedWidth || 0,
@@ -207,7 +199,12 @@ export const decodeSourceFramesWithWebCodecs = async ({
       metrics,
     };
   } finally {
-    demuxer.destroy();
+    try {
+      if (decoder && decoder.state !== "closed") decoder.close();
+    } finally {
+      if (!returnedFrames) frames.forEach(({ frame }) => frame.close());
+      demuxer.destroy();
+    }
   }
 };
 
@@ -231,6 +228,8 @@ export const decodeTimelineFramesWithWebCodecs = async ({
 
   const wasmFilePath = new URL(webDemuxerWasmUrl, window.location.href).href;
   const demuxer = new WebDemuxer({ wasmFilePath });
+  const frames: DecodedFrame[] = [];
+  let returnedFrames = false;
   try {
     onProgress?.({ message: "Loading source for WebCodecs decode...", fraction: 0 });
     const loadStartedAt = performance.now();
@@ -254,7 +253,6 @@ export const decodeTimelineFramesWithWebCodecs = async ({
       throw new Error(`Browser rejected WebCodecs config for ${decoderConfig.codec}.`);
     }
 
-    const frames: DecodedFrame[] = [];
     const seekStartedAt = performance.now();
     const decodeStartedAt = performance.now();
 
@@ -332,24 +330,24 @@ export const decodeTimelineFramesWithWebCodecs = async ({
           reader.releaseLock();
         }
         await flushDecoderWithTimeout(decoder, bestFrame ? 1 : 0, localChunks);
-      } finally {
-        decoder.close();
-      }
-
-      const currentBestFrame = bestFrame as DecodedFrame | null;
-      if (decodeError) {
-        if (currentBestFrame != null) {
-          currentBestFrame.frame.close();
+        if (decodeError) throw decodeError;
+        const resolved = bestFrame as DecodedFrame | null;
+        if (!resolved) {
+          throw new Error(
+            `No decoded frame was produced for ${timelineFrame.timeSec.toFixed(3)}s.`,
+          );
         }
-        throw decodeError;
+        frames.push(resolved);
+        bestFrame = null; // Ownership moves to the result array.
+      } finally {
+        try {
+          if (decoder.state !== "closed") decoder.close();
+        } finally {
+          (bestFrame as DecodedFrame | null)?.frame.close();
+        }
       }
 
-      if (!currentBestFrame) {
-        throw new Error(`No decoded frame was produced for ${timelineFrame.timeSec.toFixed(3)}s.`);
-      }
-
-      const resolvedBestFrame: DecodedFrame = currentBestFrame;
-      frames.push(resolvedBestFrame);
+      const resolvedBestFrame = frames[frames.length - 1];
       const completedFraction = 0.08 + ((i + 1) / Math.max(1, timeline.length)) * 0.22;
       onProgress?.({
         message: `Decoded source frame ${i + 1}/${timeline.length} (${(resolvedBestFrame.timestampUs / 1_000_000).toFixed(2)}s)...`,
@@ -360,6 +358,7 @@ export const decodeTimelineFramesWithWebCodecs = async ({
     metrics.demuxMs = performance.now() - seekStartedAt;
     metrics.decodeMs = performance.now() - decodeStartedAt;
 
+    returnedFrames = true;
     return {
       frames,
       width: streamInfo.width || supportConfig.codedWidth || 0,
@@ -368,6 +367,7 @@ export const decodeTimelineFramesWithWebCodecs = async ({
       metrics,
     };
   } finally {
+    if (!returnedFrames) frames.forEach(({ frame }) => frame.close());
     demuxer.destroy();
   }
 };

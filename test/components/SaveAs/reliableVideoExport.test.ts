@@ -238,11 +238,8 @@ describe("runReliableVideoExport", () => {
       durationUs: 500_000,
     }));
     mocks.buildDecodedTimeline.mockReturnValue(timeline);
-    mocks.decodeTimelineFramesWithWebCodecs.mockResolvedValue({
-      width: 4,
-      height: 3,
-      frames: timeline.map(() => ({ frame: Object.assign(makeCanvas(), { close: vi.fn() }) })),
-    });
+    const frames = timeline.map(() => ({ frame: Object.assign(makeCanvas(), { close: vi.fn() }) }));
+    mocks.decodeTimelineFramesWithWebCodecs.mockResolvedValue({ width: 4, height: 3, frames });
     const options = makeOptions();
     options.renderFrameForExport
       .mockResolvedValueOnce(makeCanvas())
@@ -263,6 +260,7 @@ describe("runReliableVideoExport", () => {
       0, 500_000, 1_000_000,
     ]);
     expect(retry.finalize).toHaveBeenCalledOnce();
+    expect(frames.every(({ frame }) => frame.close.mock.calls.length === 1)).toBe(true);
   });
 
   it("disposes an empty aborted export without finalizing", async () => {

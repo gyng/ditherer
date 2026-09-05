@@ -155,59 +155,62 @@ export const runReliableVideoExport = async ({
           isAborted,
           onProgress: ({ message, fraction }) => updateProgress(message, fraction ?? 0.08),
         });
-        const seekMs = performance.now() - decodeStartedAt;
-        const sourceCanvas = document.createElement("canvas");
-        sourceCanvas.width = decoded.width;
-        sourceCanvas.height = decoded.height;
-        const sourceCtx = sourceCanvas.getContext("2d");
-        const scaledCanvas = document.createElement("canvas");
-        scaledCanvas.width = scaled.width;
-        scaledCanvas.height = scaled.height;
-        const scaledCtx = scaledCanvas.getContext("2d");
-        if (!sourceCtx || !scaledCtx) {
-          throw new Error("Failed to initialize reliable WebCodecs source canvases.");
-        }
-
-        const captureStartedAt = performance.now();
-        for (let i = 0; i < decoded.frames.length; i += 1) {
-          if (isAborted()) break;
-          const timelineFrame = timeline[i];
-          const decodedFrame = decoded.frames[i];
-          updateProgress(
-            `Rendering frame ${i + 1}/${decoded.frames.length} (${timelineFrame.timeSec.toFixed(2)}s / ${rangeEndSec.toFixed(2)}s)`,
-            0.1 + ((i + 1) / Math.max(1, decoded.frames.length)) * 0.76,
-          );
-          sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
-          sourceCtx.drawImage(decodedFrame.frame, 0, 0, sourceCanvas.width, sourceCanvas.height);
-          const rendered = await renderFrameForExport(sourceCanvas, {
-            sessionId: exportSessionId,
-            time: timelineFrame.timeSec,
-            video: null,
-          });
-          if (!rendered) {
-            throw new Error("Failed to render reliable WebCodecs frame.");
+        try {
+          const seekMs = performance.now() - decodeStartedAt;
+          const sourceCanvas = document.createElement("canvas");
+          sourceCanvas.width = decoded.width;
+          sourceCanvas.height = decoded.height;
+          const sourceCtx = sourceCanvas.getContext("2d");
+          const scaledCanvas = document.createElement("canvas");
+          scaledCanvas.width = scaled.width;
+          scaledCanvas.height = scaled.height;
+          const scaledCtx = scaledCanvas.getContext("2d");
+          if (!sourceCtx || !scaledCtx) {
+            throw new Error("Failed to initialize reliable WebCodecs source canvases.");
           }
-          scaledCtx.imageSmoothingEnabled = false;
-          scaledCtx.clearRect(0, 0, scaledCanvas.width, scaledCanvas.height);
-          scaledCtx.drawImage(rendered, 0, 0, scaledCanvas.width, scaledCanvas.height);
-          const imageData = scaledCtx.getImageData(0, 0, scaledCanvas.width, scaledCanvas.height);
-          await encoder.addFrame({
-            pixels: imageData.data,
-            width: scaledCanvas.width,
-            height: scaledCanvas.height,
-            timestampUs: timelineFrame.timestampUs,
-            durationUs: timelineFrame.durationUs,
-            timeSec: timelineFrame.timeSec,
-          });
+
+          const captureStartedAt = performance.now();
+          for (let i = 0; i < decoded.frames.length; i += 1) {
+            if (isAborted()) break;
+            const timelineFrame = timeline[i];
+            const decodedFrame = decoded.frames[i];
+            updateProgress(
+              `Rendering frame ${i + 1}/${decoded.frames.length} (${timelineFrame.timeSec.toFixed(2)}s / ${rangeEndSec.toFixed(2)}s)`,
+              0.1 + ((i + 1) / Math.max(1, decoded.frames.length)) * 0.76,
+            );
+            sourceCtx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
+            sourceCtx.drawImage(decodedFrame.frame, 0, 0, sourceCanvas.width, sourceCanvas.height);
+            const rendered = await renderFrameForExport(sourceCanvas, {
+              sessionId: exportSessionId,
+              time: timelineFrame.timeSec,
+              video: null,
+            });
+            if (!rendered) {
+              throw new Error("Failed to render reliable WebCodecs frame.");
+            }
+            scaledCtx.imageSmoothingEnabled = false;
+            scaledCtx.clearRect(0, 0, scaledCanvas.width, scaledCanvas.height);
+            scaledCtx.drawImage(rendered, 0, 0, scaledCanvas.width, scaledCanvas.height);
+            const imageData = scaledCtx.getImageData(0, 0, scaledCanvas.width, scaledCanvas.height);
+            await encoder.addFrame({
+              pixels: imageData.data,
+              width: scaledCanvas.width,
+              height: scaledCanvas.height,
+              timestampUs: timelineFrame.timestampUs,
+              durationUs: timelineFrame.durationUs,
+              timeSec: timelineFrame.timeSec,
+            });
+          }
+          const captureMs = performance.now() - captureStartedAt;
+          renderResult = {
+            aborted: isAborted(),
+            frameCount: decoded.frames.length,
+            metrics: { seekMs: Math.round(seekMs), captureMs: Math.round(captureMs), encodeMs: 0 },
+            sourcePath: "webcodecs",
+          };
+        } finally {
+          decoded.frames.forEach(({ frame }) => frame.close());
         }
-        const captureMs = performance.now() - captureStartedAt;
-        decoded.frames.forEach(({ frame }) => frame.close());
-        renderResult = {
-          aborted: isAborted(),
-          frameCount: decoded.frames.length,
-          metrics: { seekMs: Math.round(seekMs), captureMs: Math.round(captureMs), encodeMs: 0 },
-          sourcePath: "webcodecs",
-        };
       } catch (error) {
         console.warn("Reliable WebCodecs source path failed, falling back to browser seek:", error);
         const fallbackReason = error instanceof Error ? error.message : String(error);

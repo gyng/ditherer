@@ -57,7 +57,12 @@ import {
 
 const originalVideoDecoder = Object.getOwnPropertyDescriptor(globalThis, "VideoDecoder");
 
-const installDecoder = (supported = true, supportConfig = demuxState.config) => {
+const installDecoder = (
+  supported = true,
+  supportConfig = demuxState.config,
+  flushError?: Error,
+) => {
+  const decoders: FakeVideoDecoder[] = [];
   const closedFrames: number[] = [];
   class FakeVideoDecoder {
     static isConfigSupported = vi.fn().mockResolvedValue({
@@ -67,9 +72,12 @@ const installDecoder = (supported = true, supportConfig = demuxState.config) => 
     private init: { output: (frame: VideoFrame) => void; error: (error: unknown) => void };
     configure = vi.fn();
     close = vi.fn();
-    flush = vi.fn().mockResolvedValue(undefined);
+    flush = vi.fn(async () => {
+      if (flushError) throw flushError;
+    });
     constructor(init: { output: (frame: VideoFrame) => void; error: (error: unknown) => void }) {
       this.init = init;
+      decoders.push(this);
     }
     decode(chunk: ChunkFixture) {
       if (chunk.error !== undefined) this.init.error(chunk.error);
@@ -86,7 +94,7 @@ const installDecoder = (supported = true, supportConfig = demuxState.config) => 
     configurable: true,
     value: FakeVideoDecoder,
   });
-  return { FakeVideoDecoder, closedFrames };
+  return { FakeVideoDecoder, closedFrames, decoders };
 };
 
 beforeEach(() => {
@@ -228,6 +236,51 @@ describe("offline WebCodecs decoding", () => {
 });
 
 describe("decoded timeline selection", () => {
+  it.each(["source", "timeline"])(
+    "closes decoded frames and the decoder when %s flushing rejects",
+    async (mode) => {
+      const { closedFrames, decoders } = installDecoder(
+        true,
+        demuxState.config,
+        new Error("flush failed"),
+      );
+      demuxState.chunksByRead = [[{ timestamp: 0, frames: [{ timestamp: 0 }] }]];
+      const result =
+        mode === "source"
+          ? decodeSourceFramesWithWebCodecs({
+              source: "/clip.webm",
+              startTimeSec: 0,
+              endTimeSec: 1,
+            })
+          : decodeTimelineFramesWithWebCodecs({
+              source: "/clip.webm",
+              timeline: buildDecodedTimeline(1, 1),
+            });
+
+      await expect(result).rejects.toThrow("flush failed");
+      expect(closedFrames).toEqual([0]);
+      expect(decoders[0].close).toHaveBeenCalledOnce();
+      expect(demuxState.destroyed).toBe(1);
+    },
+  );
+
+  it("releases frames retained by earlier windows when decoding is cancelled", async () => {
+    const { closedFrames } = installDecoder();
+    demuxState.chunksByRead = [[{ timestamp: 0, frames: [{ timestamp: 0 }] }]];
+    let aborted = false;
+    await expect(
+      decodeTimelineFramesWithWebCodecs({
+        source: "/clip.webm",
+        timeline: buildDecodedTimeline(1, 2),
+        isAborted: () => aborted,
+        onProgress: ({ message }) => {
+          if (message.startsWith("Decoded source frame")) aborted = true;
+        },
+      }),
+    ).rejects.toThrow("Decode aborted");
+    expect(closedFrames).toEqual([0]);
+  });
+
   it("maps each output timestamp to the latest decoded frame not after it", () => {
     const frame = (timestampUs: number) => ({
       timestampUs,
