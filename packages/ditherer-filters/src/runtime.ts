@@ -3,6 +3,7 @@ import type { FilterCanvas, FilterDefinition, FilterOptionValues } from "./filte
 import { releasePooledTextures, glAvailable, glUnavailableStub } from "./gl/index";
 import { releaseFloatTextures } from "./gl/fft2d";
 import {
+  clearCanvasPool,
   getFilterWasmStatuses,
   logFilterBackend,
   logFilterDispatched,
@@ -349,6 +350,7 @@ export const createFilterSession = (
 };
 
 export const disposeSharedFilterResources = (): void => {
+  clearCanvasPool();
   clearMotionVectorsState();
   releasePooledTextures();
   releaseFloatTextures();

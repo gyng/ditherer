@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearCanvasPool,
+  disposeSharedFilterResources,
   getCanvasPoolStats,
   releasePooledCanvas,
   resetCanvasPoolStats,
@@ -84,6 +86,54 @@ describe("canvas pool", () => {
     expect(reusedContext?.globalAlpha).toBe(1);
     expect(reusedContext?.globalCompositeOperation).toBe("source-over");
     expect(reusedContext?.getImageData(0, 0, 1, 1).data[3]).toBe(0);
+  });
+
+  it("bounds retained RGBA bytes across many different resolutions", () => {
+    clearCanvasPool();
+    // Minimal canvases expose bitmap sizes without allocating hundreds of MB in tests.
+    const canvases = Array.from(
+      { length: 100 },
+      (_, i) =>
+        ({
+          width: 1024 + i,
+          height: 1024,
+          getContext: () => null,
+        }) as unknown as HTMLCanvasElement,
+    );
+    for (const canvas of canvases) releasePooledCanvas(canvas);
+    expect(getCanvasPoolStats().pooledBytes).toBeLessThanOrEqual(64 * 1024 * 1024);
+    expect(canvases[0].width).toBe(0);
+    const recent = canvases[canvases.length - 1];
+    expect(takePooledCanvas(recent.width, recent.height)).toBe(recent);
+    clearCanvasPool();
+  });
+
+  it("bounds zero-sized entries and removes empty buckets after checkout", () => {
+    clearCanvasPool();
+    for (let i = 0; i < 200; i += 1)
+      releasePooledCanvas({ width: i, height: 0 } as HTMLCanvasElement);
+    expect(getCanvasPoolStats().pooled).toBeLessThanOrEqual(64);
+    clearCanvasPool();
+    const canvas = takePooledCanvas(12, 13);
+    releasePooledCanvas(canvas);
+    expect(getCanvasPoolStats().buckets).toBe(1);
+    expect(takePooledCanvas(12, 13)).toBe(canvas);
+    expect(getCanvasPoolStats()).toMatchObject({ pooled: 0, pooledBytes: 0, buckets: 0 });
+  });
+
+  it("discards oversized idle bitmaps and clears only idle canvases on shared disposal", () => {
+    clearCanvasPool();
+    const huge = { width: 8192, height: 8192 } as HTMLCanvasElement;
+    releasePooledCanvas(huge);
+    expect(huge.width).toBe(0);
+    expect(getCanvasPoolStats().pooled).toBe(0);
+    const idle = takePooledCanvas(12, 13);
+    const active = takePooledCanvas(14, 15);
+    releasePooledCanvas(idle);
+    disposeSharedFilterResources();
+    expect(getCanvasPoolStats()).toMatchObject({ pooled: 0, pooledBytes: 0 });
+    expect(idle.width).toBe(0);
+    expect(active.width).toBe(14);
   });
 
   it("releases each unique owned canvas exactly once when an operation throws", () => {

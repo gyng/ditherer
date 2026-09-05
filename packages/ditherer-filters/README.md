@@ -98,3 +98,8 @@ Custom filter definitions without `history` retain all three buffers for
 compatibility. Set `history: {}` for a stateless custom filter, or enable only the
 buffers it reads. This avoids unnecessary pixel readbacks, allocations, and EMA
 updates. `getFilterHistory(filter)` resolves the effective requirements.
+
+Idle canvases are cached up to 64 MiB of estimated RGBA storage and 64 canvases
+across all dimensions. `clearCanvasPool()` releases only idle backing stores;
+`disposeSharedFilterResources()` also clears this cache. Checked-out canvases
+remain owned by their callers.

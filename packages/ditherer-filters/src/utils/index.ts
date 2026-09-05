@@ -1409,9 +1409,13 @@ export const addBufferPixel = (
 // each step to return the superseded canvas to the pool.
 //
 // Entries are keyed by "WxH" — mixed-resolution chains still pool correctly
-// per size. We cap each size bucket to avoid accidentally holding huge
-// amounts of memory when a chain briefly runs at a bigger resolution.
+// per size. Bound both per-size reuse and total idle retention so switching
+// resolutions cannot accumulate unbounded backing stores.
 const CANVAS_POOL_MAX_PER_SIZE = 6;
+const CANVAS_POOL_MAX_BYTES = 64 * 1024 * 1024;
+const CANVAS_POOL_MAX_COUNT = 64;
+let pooledCanvasBytes = 0;
+let pooledCanvasCount = 0;
 const _canvasPool = new Map<string, (HTMLCanvasElement | OffscreenCanvas)[]>();
 const _pooledCanvases = new WeakSet<object>();
 
@@ -1420,13 +1424,18 @@ export type CanvasPoolStats = {
   reuses: number;
   releases: number;
   pooled: number;
+  /** Estimated RGBA backing-store bytes held by idle canvases. */
+  pooledBytes: number;
+  buckets: number;
 };
 
 const _canvasPoolStats = { allocations: 0, reuses: 0, releases: 0 };
 
 export const getCanvasPoolStats = (): Readonly<CanvasPoolStats> => ({
   ..._canvasPoolStats,
-  pooled: Array.from(_canvasPool.values()).reduce((total, bucket) => total + bucket.length, 0),
+  pooled: pooledCanvasCount,
+  pooledBytes: pooledCanvasBytes,
+  buckets: _canvasPool.size,
 });
 
 export const resetCanvasPoolStats = (): void => {
@@ -1436,6 +1445,28 @@ export const resetCanvasPoolStats = (): void => {
 };
 
 const poolKey = (w: number, h: number): string => `${w}x${h}`;
+
+const discardCanvasBitmap = (canvas: HTMLCanvasElement | OffscreenCanvas): void => {
+  canvas.width = 0;
+  canvas.height = 0;
+};
+
+const evictOldestPooledCanvas = (): void => {
+  const oldest = _canvasPool.entries().next().value;
+  if (!oldest) return;
+  const [key, bucket] = oldest;
+  const canvas = bucket.shift()!;
+  pooledCanvasCount -= 1;
+  pooledCanvasBytes -= canvas.width * canvas.height * 4;
+  _pooledCanvases.delete(canvas);
+  if (!bucket.length) _canvasPool.delete(key);
+  discardCanvasBitmap(canvas);
+};
+
+/** Release idle backing stores without touching canvases still owned by callers. */
+export const clearCanvasPool = (): void => {
+  while (_canvasPool.size) evictOldestPooledCanvas();
+};
 
 const createRawCanvas = (w: number, h: number): HTMLCanvasElement | OffscreenCanvas => {
   if (typeof document !== "undefined") {
@@ -1481,6 +1512,10 @@ export const takePooledCanvas = (w: number, h: number): HTMLCanvasElement | Offs
   if (bucket && bucket.length > 0) {
     const canvas = bucket.pop() as HTMLCanvasElement | OffscreenCanvas;
     _pooledCanvases.delete(canvas);
+    pooledCanvasCount -= 1;
+    pooledCanvasBytes -= canvas.width * canvas.height * 4;
+    _canvasPool.delete(key);
+    if (bucket.length) _canvasPool.set(key, bucket);
     _canvasPoolStats.reuses++;
     // Reassigning either bitmap dimension clears pixels and resets the entire
     // drawing state (transform, compositing, alpha, filter, clipping, etc.).
@@ -1499,15 +1534,29 @@ export const releasePooledCanvas = (
   canvas: HTMLCanvasElement | OffscreenCanvas | null | undefined,
 ): void => {
   if (!canvas || _pooledCanvases.has(canvas)) return;
+  const bytes = canvas.width * canvas.height * 4;
   const key = poolKey(canvas.width, canvas.height);
-  let bucket = _canvasPool.get(key);
-  if (!bucket) {
-    bucket = [];
-    _canvasPool.set(key, bucket);
+  if (
+    bytes > CANVAS_POOL_MAX_BYTES ||
+    (_canvasPool.get(key)?.length ?? 0) >= CANVAS_POOL_MAX_PER_SIZE
+  ) {
+    discardCanvasBitmap(canvas);
+    return;
   }
-  if (bucket.length >= CANVAS_POOL_MAX_PER_SIZE) return;
+  while (
+    pooledCanvasBytes + bytes > CANVAS_POOL_MAX_BYTES ||
+    pooledCanvasCount >= CANVAS_POOL_MAX_COUNT
+  ) {
+    evictOldestPooledCanvas();
+  }
+  const bucket = _canvasPool.get(key) ?? [];
+  // Recently released/reused sizes are the last to be evicted.
+  _canvasPool.delete(key);
+  _canvasPool.set(key, bucket);
   bucket.push(canvas);
   _pooledCanvases.add(canvas);
+  pooledCanvasBytes += bytes;
+  pooledCanvasCount += 1;
   _canvasPoolStats.releases++;
 };
 
