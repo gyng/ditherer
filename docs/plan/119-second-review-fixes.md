@@ -21,3 +21,21 @@ Use focused unit tests for each change, followed by the complete unit suite,
 project typechecking, lint, source integrity, and library declaration generation.
 Production bundling already crashes in native code on the pre-change snapshot;
 record that limitation separately from application regressions.
+
+## Validation
+
+All five fixes are implemented with regression coverage. The final unit run
+passed 2,405 tests across 175 files, with 183 tests skipped by the existing suite.
+Typechecking, lint, source integrity, generated registry checks, library
+TypeScript declarations, and formatting of changed files passed.
+
+The video encoder retains at most four pending native encode requests, wakes
+blocked producers on dequeue or disposal, and checks callback-based cancellation
+while waiting. Codec and muxer output failures reject the caller's next operation;
+setup and finalization failures close the encoder and release its staging bitmap.
+
+The existing Chromium video-download check could not reach its local server:
+Playwright's localhost probes stalled on both ports 4173 and 4187, and a direct
+three-second curl probe also timed out. Those checks were stopped without running
+the browser assertions. Production bundling remains unverified because the native
+bundler crashes on the pre-change snapshot as well (see the first review).

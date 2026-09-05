@@ -182,32 +182,78 @@ export const createOfflineVideoEncoder = async ({
       : {}),
   });
 
-  const videoEncoder = new VideoEncoder({
-    output: (chunk, meta) => {
-      muxer.addVideoChunk(chunk, meta);
-    },
-    error: (error) => {
-      throw error;
-    },
-  });
-
-  videoEncoder.configure({
-    codec: selectedCodec.webCodec,
-    width,
-    height,
-    framerate: fps,
-    bitrate: videoBitrate,
-    latencyMode: "quality",
-  });
-
-  let encodedFrames = 0;
-  let finalized = false;
   const frameCanvas = document.createElement("canvas");
   frameCanvas.width = width;
   frameCanvas.height = height;
   const frameContext = frameCanvas.getContext("2d");
   if (!frameContext) {
     throw new Error("Reliable export could not create a frame staging canvas.");
+  }
+
+  let encodedFrames = 0;
+  let disposed = false;
+  let finalizing = false;
+  let closed = false;
+  let failure: Error | null = null;
+  const queueWaiters = new Set<() => void>();
+  let rejectFailure!: (error: Error) => void;
+  const failureSignal = new Promise<never>((_resolve, reject) => {
+    rejectFailure = reject;
+  });
+  // A codec may fail between calls; retain the error until the caller next awaits us.
+  void failureSignal.catch(() => {});
+  const recordFailure = (error: unknown) => {
+    failure ??= error instanceof Error ? error : new Error(String(error));
+    rejectFailure(failure);
+    queueWaiters.forEach((wake) => wake());
+  };
+  const videoEncoder = new VideoEncoder({
+    output: (chunk, meta) => {
+      if (disposed || failure) return;
+      try {
+        muxer.addVideoChunk(chunk, meta);
+      } catch (error) {
+        recordFailure(error);
+      }
+    },
+    error: recordFailure,
+  });
+  const closeEncoder = () => {
+    if (closed) return;
+    closed = true;
+    try {
+      videoEncoder.close();
+    } catch {
+      /* Already closed by the codec. */
+    }
+  };
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    closeEncoder();
+    frameCanvas.width = 0;
+    frameCanvas.height = 0;
+    rejectFailure(new Error("Offline video encoder has been disposed."));
+    queueWaiters.forEach((wake) => wake());
+  };
+  const assertActive = () => {
+    if (failure) throw failure;
+    if (disposed) throw new Error("Offline video encoder has been disposed.");
+    if (finalizing) throw new Error("Offline video encoder is already finalizing.");
+  };
+
+  try {
+    videoEncoder.configure({
+      codec: selectedCodec.webCodec,
+      width,
+      height,
+      framerate: fps,
+      bitrate: videoBitrate,
+      latencyMode: "quality",
+    });
+  } catch (error) {
+    dispose();
+    throw error;
   }
 
   return {
@@ -218,60 +264,79 @@ export const createOfflineVideoEncoder = async ({
       finalizeMs: 0,
     } satisfies OfflineVideoEncodeMetrics,
     addFrame: async (frame: OfflineFrameSample) => {
-      if (isAborted?.()) return false;
-      if (frameCanvas.width !== frame.width || frameCanvas.height !== frame.height) {
-        frameCanvas.width = frame.width;
-        frameCanvas.height = frame.height;
-      }
-      frameContext.putImageData(
-        new ImageData(new Uint8ClampedArray(frame.pixels), frame.width, frame.height),
-        0,
-        0,
-      );
-      const videoFrame = new VideoFrame(frameCanvas, {
-        timestamp: frame.timestampUs,
-        duration: frame.durationUs,
-      });
-
       try {
-        videoEncoder.encode(videoFrame, {
-          keyFrame: encodedFrames % Math.max(1, fps) === 0,
+        assertActive();
+        // Bound retained input frames even when filtering outruns the native codec.
+        while (videoEncoder.encodeQueueSize >= 4) {
+          if (isAborted?.()) return false;
+          await new Promise<void>((resolve) => {
+            const wake = () => {
+              clearTimeout(timer);
+              videoEncoder.removeEventListener("dequeue", wake);
+              queueWaiters.delete(wake);
+              resolve();
+            };
+            // Cancellation is a callback, so periodically check it while the codec is busy.
+            const timer = setTimeout(wake, 25);
+            queueWaiters.add(wake);
+            videoEncoder.addEventListener("dequeue", wake, { once: true });
+          });
+          assertActive();
+        }
+        if (isAborted?.()) return false;
+        if (frameCanvas.width !== frame.width || frameCanvas.height !== frame.height) {
+          frameCanvas.width = frame.width;
+          frameCanvas.height = frame.height;
+        }
+        frameContext.putImageData(
+          new ImageData(new Uint8ClampedArray(frame.pixels), frame.width, frame.height),
+          0,
+          0,
+        );
+        const videoFrame = new VideoFrame(frameCanvas, {
+          timestamp: frame.timestampUs,
+          duration: frame.durationUs,
         });
-        encodedFrames += 1;
-        return true;
-      } finally {
-        videoFrame.close();
+        try {
+          videoEncoder.encode(videoFrame, {
+            keyFrame: encodedFrames % Math.max(1, fps) === 0,
+          });
+          assertActive();
+          encodedFrames += 1;
+          return true;
+        } finally {
+          videoFrame.close();
+        }
+      } catch (error) {
+        dispose();
+        throw error;
       }
     },
     finalize: async () => {
       const finalizeStartedAt = performance.now();
-      onProgress?.("Encoding video");
-      await videoEncoder.flush();
-      videoEncoder.close();
+      try {
+        assertActive();
+        finalizing = true;
+        onProgress?.("Encoding video");
+        await Promise.race([videoEncoder.flush(), failureSignal]);
+        if (failure) throw failure;
+        closeEncoder();
 
-      if (audioTrack && !isAborted?.()) {
-        await audioTrack.encodeInto(muxer, onProgress, isAborted);
-      }
-
-      muxer.finalize();
-      finalized = true;
-      const finalizeMs = performance.now() - finalizeStartedAt;
-      return {
-        blob: new Blob([target.buffer], { type: "video/webm" }),
-        metrics: {
-          audioPrepareMs,
-          finalizeMs,
-        } satisfies OfflineVideoEncodeMetrics,
-      };
-    },
-    dispose: () => {
-      if (!finalized) {
-        try {
-          videoEncoder.close();
-        } catch {
-          // ignore cleanup errors
+        if (audioTrack && !isAborted?.()) {
+          await audioTrack.encodeInto(muxer, onProgress, isAborted);
         }
+        if (failure) throw failure;
+        if (disposed) throw new Error("Offline video encoder has been disposed.");
+        muxer.finalize();
+        const finalizeMs = performance.now() - finalizeStartedAt;
+        return {
+          blob: new Blob([target.buffer], { type: "video/webm" }),
+          metrics: { audioPrepareMs, finalizeMs } satisfies OfflineVideoEncodeMetrics,
+        };
+      } finally {
+        dispose();
       }
     },
+    dispose,
   };
 };
