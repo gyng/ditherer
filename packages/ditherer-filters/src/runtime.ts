@@ -312,12 +312,15 @@ export const createFilterSession = (
   const state = createTemporalState();
   let chain = [...initialChain];
   let disposed = false;
+  let processing = false;
+  let generation = 0;
 
   return {
     state,
     getChain: () => chain,
     setChain: (next) => {
       if (disposed) throw new Error("FilterSession has been disposed");
+      generation += 1;
       chain = [...next];
       const activeIds = new Set(chain.map((entry) => entry.id));
       for (const id of state.prevOutputs.keys())
@@ -327,12 +330,32 @@ export const createFilterSession = (
     },
     process: async (input, options = {}) => {
       if (disposed) throw new Error("FilterSession has been disposed");
-      return runFilterChain(input, chain, runtime, {
-        ...options,
-        temporalState: state,
-      });
+      if (processing) throw new Error("FilterSession is already processing a frame");
+      const frameGeneration = generation;
+      processing = true;
+      try {
+        // Keep writes private until the frame still belongs to this lifecycle.
+        // Snapshots are replaced, so only the mutable EMA arrays need copying.
+        const frameState: TemporalFilterState = {
+          prevOutputs: new Map(state.prevOutputs),
+          prevInputs: new Map(state.prevInputs),
+          ema: new Map(Array.from(state.ema, ([id, values]) => [id, new Float32Array(values)])),
+          frameIndex: state.frameIndex,
+        };
+        const result = await runFilterChain(input, chain, runtime, {
+          ...options,
+          temporalState: frameState,
+          shouldAbort: () =>
+            disposed || generation !== frameGeneration || !!options.shouldAbort?.(),
+        });
+        if (!disposed && generation === frameGeneration) Object.assign(state, frameState);
+        return result;
+      } finally {
+        processing = false;
+      }
     },
     reset: () => {
+      generation += 1;
       state.prevOutputs.clear();
       state.prevInputs.clear();
       state.ema.clear();
@@ -340,6 +363,7 @@ export const createFilterSession = (
       clearMotionVectorsState();
     },
     dispose: () => {
+      generation += 1;
       state.prevOutputs.clear();
       state.prevInputs.clear();
       state.ema.clear();

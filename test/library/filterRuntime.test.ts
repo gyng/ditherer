@@ -194,6 +194,84 @@ describe("browser filter library runtime", () => {
     await expect(session.process(canvas() as FilterCanvas)).rejects.toThrow(/disposed/);
   });
 
+  it.each(["reset", "dispose", "setChain"] as const)(
+    "invalidates an awaited frame when %s changes the session",
+    async (action) => {
+      let finish!: (value: FilterCanvas) => void;
+      const output = takePooledCanvas(41, 29);
+      const session = createFilterSession([
+        {
+          id: "pending",
+          filter: {
+            name: "Deferred lifecycle",
+            func: () =>
+              new Promise<FilterCanvas>((resolve) => {
+                finish = resolve;
+              }),
+          },
+        },
+      ]);
+      const input = canvas(41, 29);
+      const pending = session.process(input);
+      if (action === "setChain") session.setChain([]);
+      else session[action]();
+      finish(output);
+      const result = await pending;
+      expect(result.steps).toEqual([]);
+      expect(result.canvas).toBe(input);
+      expect(session.state.prevOutputs.size).toBe(0);
+      expect(session.state.prevInputs.size).toBe(0);
+      expect(session.state.ema.size).toBe(0);
+      expect(session.state.frameIndex).toBe(0);
+      expect(takePooledCanvas(41, 29)).toBe(output);
+    },
+  );
+
+  it("does not commit a frame when an onStep callback resets the session", async () => {
+    const session = createFilterSession([
+      {
+        id: "one",
+        filter: {
+          name: "Callback reset",
+          func: (input) => input,
+        },
+      },
+    ]);
+    await session.process(canvas(), { onStep: () => session.reset() });
+    expect(session.state.frameIndex).toBe(0);
+    expect(session.state.prevInputs.size).toBe(0);
+  });
+
+  it("rejects overlapping frames and accepts the next frame after processing completes", async () => {
+    let finish!: (value: FilterCanvas) => void;
+    const frames: unknown[] = [];
+    const session = createFilterSession([
+      {
+        id: "ordered",
+        filter: {
+          name: "Ordered frames",
+          func: (source, options = {}) => {
+            frames.push(options._frameIndex);
+            if (frames.length === 1)
+              return new Promise<FilterCanvas>((resolve) => {
+                finish = resolve;
+              });
+            return source;
+          },
+        },
+      },
+    ]);
+    const input = canvas();
+    const first = session.process(input);
+    const overlap = session.process(input);
+    finish(input);
+    await expect(overlap).rejects.toThrow("already processing");
+    await first;
+    await session.process(input);
+    expect(frames).toEqual([0, 1]);
+    expect(session.state.frameIndex).toBe(2);
+  });
+
   it("aborts after an awaited step, releases its output, and skips state and later stages", async () => {
     let resolveFirst: ((value: HTMLCanvasElement | OffscreenCanvas) => void) | undefined;
     let aborted = false;

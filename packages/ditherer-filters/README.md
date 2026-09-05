@@ -38,6 +38,12 @@ Use a session for video or temporal filters: it owns the previous-frame and
 moving-average state associated with each chain-entry ID. For a one-off chain,
 `runFilterChain(input, chain)` is also available.
 
+Await each `session.process()` before submitting another frame; overlapping calls
+reject instead of racing the session's history. `reset()`, `dispose()`, and
+`setChain()` invalidate pending processing at its next cancellation checkpoint,
+so stale work cannot write history into the changed session. As with
+`shouldAbort`, the pending call returns the steps completed before cancellation.
+
 For a small application that only needs one filter, import its stable subpath
 without loading the complete registry:
 
