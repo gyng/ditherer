@@ -120,6 +120,7 @@ export const runReliableVideoExport = async ({
     fps: reliableFps,
     durationUs: Math.round(exportDurationSec * 1_000_000),
     sourceVideo: video,
+    startTimeSec: rangeStartSec,
     includeAudio,
     isAborted,
     onProgress: (message: string) => updateProgress(message, 0.92),

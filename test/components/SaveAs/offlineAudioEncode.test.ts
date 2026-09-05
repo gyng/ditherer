@@ -163,6 +163,21 @@ describe("offline audio preparation", () => {
     expect(encoder.close).toHaveBeenCalledOnce();
   });
 
+  it("trims source samples at the range start while keeping encoded audio timestamps relative", async () => {
+    stubDecodeContext(async () => makeBuffer());
+    const track = await prepareOfflineAudioTrack(makeVideo(), 30_000, 0.02);
+    await track!.encodeInto({ addAudioChunk: vi.fn() } as never);
+
+    const chunks = AudioDataStub.instances.map((data) => data.init);
+    expect(chunks.map((chunk) => chunk.timestamp)).toEqual([0, 20_000]);
+    const first = chunks[0].data as Float32Array;
+    expect(first[0]).toBeCloseTo(0.096);
+    expect(first[960]).toBeCloseTo(1.096);
+    // Only 10 ms of source remains after the trim; pad the rest with silence.
+    expect(first[480]).toBe(0);
+    expect(Array.from(chunks[1].data as Float32Array).every((sample) => sample === 0)).toBe(true);
+  });
+
   it("resamples mono input and honors aborts without requiring a progress callback", async () => {
     const decoded = makeBuffer({ sampleRate: 44_100, numberOfChannels: 1 });
     const resampled = makeBuffer({

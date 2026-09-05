@@ -86,6 +86,7 @@ const extractPlanarChunk = (
 export const prepareOfflineAudioTrack = async (
   video: HTMLVideoElement,
   durationUs: number,
+  startTimeSec = 0,
 ): Promise<PreparedOfflineAudioTrack | null> => {
   const bytes = await fetchVideoBytes(video);
   const decodeContext = createDecodeContext();
@@ -106,7 +107,8 @@ export const prepareOfflineAudioTrack = async (
   const resampled = await resampleAudioBuffer(decoded, TARGET_AUDIO_SAMPLE_RATE);
   const numberOfChannels = Math.max(1, Math.min(2, resampled.numberOfChannels));
   const targetFrames = Math.max(1, Math.round((durationUs / 1_000_000) * TARGET_AUDIO_SAMPLE_RATE));
-  const totalFrames = reconcileAudioFrameCount(resampled.length, targetFrames);
+  const sourceStartFrame = Math.max(0, Math.round(startTimeSec * TARGET_AUDIO_SAMPLE_RATE));
+  const totalFrames = reconcileAudioFrameCount(resampled.length - sourceStartFrame, targetFrames);
 
   const support = await AudioEncoder.isConfigSupported({
     codec: "opus",
@@ -153,7 +155,12 @@ export const prepareOfflineAudioTrack = async (
             `Encoding audio ${Math.floor(startFrame / AUDIO_CHUNK_FRAMES) + 1}/${Math.ceil(totalFrames / AUDIO_CHUNK_FRAMES)}`,
           );
 
-          const planar = extractPlanarChunk(resampled, startFrame, chunkFrames, numberOfChannels);
+          const planar = extractPlanarChunk(
+            resampled,
+            sourceStartFrame + startFrame,
+            chunkFrames,
+            numberOfChannels,
+          );
           const audioData = new AudioData({
             format: "f32-planar",
             sampleRate: TARGET_AUDIO_SAMPLE_RATE,

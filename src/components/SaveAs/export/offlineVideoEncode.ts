@@ -18,6 +18,7 @@ type CreateOfflineVideoEncoderArgs = {
   height: number;
   fps: number;
   durationUs: number;
+  startTimeSec?: number;
   sourceVideo: HTMLVideoElement | null;
   includeAudio: boolean;
   isAborted?: () => boolean;
@@ -132,6 +133,7 @@ export const createOfflineVideoEncoder = async ({
   height,
   fps,
   durationUs,
+  startTimeSec = 0,
   sourceVideo,
   includeAudio,
   isAborted,
@@ -150,7 +152,9 @@ export const createOfflineVideoEncoder = async ({
   const target = new ArrayBufferTarget();
   const audioPrepareStartedAt = performance.now();
   const audioTrack =
-    includeAudio && sourceVideo ? await prepareOfflineAudioTrack(sourceVideo, durationUs) : null;
+    includeAudio && sourceVideo
+      ? await prepareOfflineAudioTrack(sourceVideo, durationUs, startTimeSec)
+      : null;
   const audioPrepareMs = performance.now() - audioPrepareStartedAt;
   const audioUnavailableReason =
     includeAudio && sourceVideo && !audioTrack

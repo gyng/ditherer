@@ -138,6 +138,7 @@ describe("runReliableVideoExport", () => {
     );
 
     const encoderOptions = mocks.createOfflineVideoEncoder.mock.calls[0][0];
+    expect(encoderOptions.startTimeSec).toBe(0.25);
     encoderOptions.onProgress("Muxing audio");
     expect(options.updateProgress).toHaveBeenCalledWith("Muxing audio", 0.92);
 
