@@ -94,6 +94,50 @@ describe("runReliableVideoExport", () => {
     });
   });
 
+  it.each([0, 1])("counts only encoded frames when cancelled after %i frames", async (count) => {
+    let aborted = false;
+    const encoder = makeEncoder();
+    mocks.createOfflineVideoEncoder.mockResolvedValue(encoder);
+    mocks.planReliableVideoRouting.mockReturnValue({ shouldAttemptWebCodecs: true });
+    mocks.buildDecodedTimeline.mockReturnValue(
+      [0, 1].map((index) => ({
+        index,
+        timeSec: index / 2,
+        timestampUs: index * 500000,
+        durationUs: 500000,
+      })),
+    );
+    const frames = [0, 1].map(() => ({ frame: Object.assign(makeCanvas(), { close: vi.fn() }) }));
+    mocks.decodeTimelineFramesWithWebCodecs.mockResolvedValue({ width: 4, height: 3, frames });
+    let rendered = 0;
+    const result = await runReliableVideoExport(
+      makeOptions({
+        isAborted: () => aborted,
+        renderFrameForExport: async () => {
+          if (rendered++ === count) aborted = true;
+          return makeCanvas();
+        },
+      }),
+    );
+    expect(result.renderResult).toMatchObject({ frameCount: count, aborted: true });
+    expect(encoder.addFrame).toHaveBeenCalledTimes(count);
+    expect(encoder.finalize).toHaveBeenCalledTimes(count ? 1 : 0);
+    frames.forEach(({ frame }) => expect(frame.close).toHaveBeenCalledOnce());
+  });
+
+  it("does not restart encoding when decoding is cancelled", async () => {
+    let aborted = false;
+    mocks.planReliableVideoRouting.mockReturnValue({ shouldAttemptWebCodecs: true });
+    mocks.decodeTimelineFramesWithWebCodecs.mockImplementation(async () => {
+      aborted = true;
+      throw new Error("Export aborted");
+    });
+    const result = await runReliableVideoExport(makeOptions({ isAborted: () => aborted }));
+    expect(result).toMatchObject({ blob: null, aborted: true });
+    expect(mocks.createOfflineVideoEncoder).toHaveBeenCalledOnce();
+    expect(mocks.renderOfflineFrames).not.toHaveBeenCalled();
+  });
+
   it("rejects missing output and unsupported browser configurations before encoding", async () => {
     await expect(
       runReliableVideoExport(makeOptions({ getScaledCanvas: () => null })),

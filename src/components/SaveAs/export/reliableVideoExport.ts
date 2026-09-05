@@ -141,6 +141,7 @@ export const runReliableVideoExport = async ({
 
     if (routingPlan.shouldAttemptWebCodecs) {
       const exportSessionId = crypto.randomUUID();
+      let encodedFrameCount = 0;
       try {
         const timeline = buildDecodedTimeline(
           video.duration,
@@ -185,6 +186,7 @@ export const runReliableVideoExport = async ({
               time: timelineFrame.timeSec,
               video: null,
             });
+            if (isAborted()) break;
             if (!rendered) {
               throw new Error("Failed to render reliable WebCodecs frame.");
             }
@@ -192,7 +194,7 @@ export const runReliableVideoExport = async ({
             scaledCtx.clearRect(0, 0, scaledCanvas.width, scaledCanvas.height);
             scaledCtx.drawImage(rendered, 0, 0, scaledCanvas.width, scaledCanvas.height);
             const imageData = scaledCtx.getImageData(0, 0, scaledCanvas.width, scaledCanvas.height);
-            await encoder.addFrame({
+            const accepted = await encoder.addFrame({
               pixels: imageData.data,
               width: scaledCanvas.width,
               height: scaledCanvas.height,
@@ -200,11 +202,12 @@ export const runReliableVideoExport = async ({
               durationUs: timelineFrame.durationUs,
               timeSec: timelineFrame.timeSec,
             });
+            if (accepted !== false) encodedFrameCount += 1;
           }
           const captureMs = performance.now() - captureStartedAt;
           renderResult = {
             aborted: isAborted(),
-            frameCount: decoded.frames.length,
+            frameCount: encodedFrameCount,
             metrics: { seekMs: Math.round(seekMs), captureMs: Math.round(captureMs), encodeMs: 0 },
             sourcePath: "webcodecs",
           };
@@ -212,50 +215,62 @@ export const runReliableVideoExport = async ({
           decoded.frames.forEach(({ frame }) => frame.close());
         }
       } catch (error) {
-        console.warn("Reliable WebCodecs source path failed, falling back to browser seek:", error);
-        const fallbackReason = error instanceof Error ? error.message : String(error);
-        // Restart the mux timeline too: the failed path may already have encoded frames.
-        encoder.dispose();
-        encoder = await createEncoder();
-        const fallbackRenderResult = await renderOfflineFrames({
-          video,
-          fps: reliableFps,
-          startTimeSec: rangeStartSec,
-          endTimeSec: rangeEndSec,
-          getFrameCanvas: getScaledCanvas,
-          waitForFrame: (currentVideo, time, frameMs) =>
-            waitForRenderedSeek(
-              currentVideo,
-              time,
-              frameMs,
-              reliableStrictValidation,
-              reliableSettleFrames,
-            ),
-          isAborted,
-          onProgress: ({ phase, frameIndex, frameCount, targetTime, etaMs }) => {
-            if (phase === "rewind") {
+        if (isAborted()) {
+          renderResult = {
+            aborted: true,
+            frameCount: encodedFrameCount,
+            metrics: { seekMs: 0, captureMs: 0, encodeMs: 0 },
+            sourcePath: "webcodecs",
+          };
+        } else {
+          console.warn(
+            "Reliable WebCodecs source path failed, falling back to browser seek:",
+            error,
+          );
+          const fallbackReason = error instanceof Error ? error.message : String(error);
+          // Restart the mux timeline too: the failed path may already have encoded frames.
+          encoder.dispose();
+          encoder = await createEncoder();
+          const fallbackRenderResult = await renderOfflineFrames({
+            video,
+            fps: reliableFps,
+            startTimeSec: rangeStartSec,
+            endTimeSec: rangeEndSec,
+            getFrameCanvas: getScaledCanvas,
+            waitForFrame: (currentVideo, time, frameMs) =>
+              waitForRenderedSeek(
+                currentVideo,
+                time,
+                frameMs,
+                reliableStrictValidation,
+                reliableSettleFrames,
+              ),
+            isAborted,
+            onProgress: ({ phase, frameIndex, frameCount, targetTime, etaMs }) => {
+              if (phase === "rewind") {
+                updateProgress(
+                  reliableScope === "range"
+                    ? `Seeking start (${rangeStartSec.toFixed(2)}s)...`
+                    : "Rewinding...",
+                  0.08,
+                );
+                return;
+              }
+              const label = phase === "seek" ? "Seeking" : "Capturing";
+              const frameProgress = frameCount > 0 ? (frameIndex + 1) / frameCount : 0;
               updateProgress(
-                reliableScope === "range"
-                  ? `Seeking start (${rangeStartSec.toFixed(2)}s)...`
-                  : "Rewinding...",
-                0.08,
+                `${label} frame ${frameIndex + 1}/${frameCount} (${targetTime.toFixed(2)}s / ${rangeEndSec.toFixed(2)}s)${etaMs ? ` · ETA ${formatEta(etaMs)}` : ""}`,
+                0.1 + frameProgress * 0.76,
               );
-              return;
-            }
-            const label = phase === "seek" ? "Seeking" : "Capturing";
-            const frameProgress = frameCount > 0 ? (frameIndex + 1) / frameCount : 0;
-            updateProgress(
-              `${label} frame ${frameIndex + 1}/${frameCount} (${targetTime.toFixed(2)}s / ${rangeEndSec.toFixed(2)}s)${etaMs ? ` · ETA ${formatEta(etaMs)}` : ""}`,
-              0.1 + frameProgress * 0.76,
-            );
-          },
-          onFrame: (frame) => encoder.addFrame(frame),
-        });
-        renderResult = {
-          ...fallbackRenderResult,
-          sourcePath: "browser-seek",
-          fallbackReason,
-        };
+            },
+            onFrame: (frame) => encoder.addFrame(frame),
+          });
+          renderResult = {
+            ...fallbackRenderResult,
+            sourcePath: "browser-seek",
+            fallbackReason,
+          };
+        }
       } finally {
         clearExportSession(exportSessionId);
       }

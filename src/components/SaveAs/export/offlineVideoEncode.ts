@@ -218,7 +218,7 @@ export const createOfflineVideoEncoder = async ({
       finalizeMs: 0,
     } satisfies OfflineVideoEncodeMetrics,
     addFrame: async (frame: OfflineFrameSample) => {
-      if (isAborted?.()) return;
+      if (isAborted?.()) return false;
       if (frameCanvas.width !== frame.width || frameCanvas.height !== frame.height) {
         frameCanvas.width = frame.width;
         frameCanvas.height = frame.height;
@@ -238,6 +238,7 @@ export const createOfflineVideoEncoder = async ({
           keyFrame: encodedFrames % Math.max(1, fps) === 0,
         });
         encodedFrames += 1;
+        return true;
       } finally {
         videoFrame.close();
       }

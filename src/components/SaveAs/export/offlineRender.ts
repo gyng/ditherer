@@ -44,7 +44,7 @@ type RenderOfflineFramesArgs = {
     targetTime: number,
     expectedFrameMs: number,
   ) => Promise<void>;
-  onFrame: (frame: OfflineFrameSample) => Promise<void> | void;
+  onFrame: (frame: OfflineFrameSample) => Promise<void | boolean> | void | boolean;
   onProgress?: (progress: OfflineRenderProgress) => void;
   isAborted?: () => boolean;
 };
@@ -139,22 +139,12 @@ export const renderOfflineFrames = async ({
   });
 
   video.pause();
-  if (Math.abs((video.currentTime || 0) - startTimeSec) > 0.0005) {
-    await new Promise<void>((resolve) => {
-      const onSeeked = () => {
-        video.removeEventListener("seeked", onSeeked);
-        resolve();
-      };
-      video.addEventListener("seeked", onSeeked);
-      video.currentTime = startTimeSec;
-    });
-  }
-
   const expectedFrameMs = 1000 / Math.max(1, Math.round(fps || 0));
 
+  let frameCount = 0;
   for (const frame of timeline) {
     if (isAborted?.()) {
-      return { frameCount: frame.index, durationSec, aborted: true, metrics };
+      return { frameCount, durationSec, aborted: true, metrics };
     }
 
     const elapsedMs = performance.now() - captureStartedAt;
@@ -174,7 +164,7 @@ export const renderOfflineFrames = async ({
     metrics.seekMs += performance.now() - seekStartedAt;
 
     if (isAborted?.()) {
-      return { frameCount: frame.index, durationSec, aborted: true, metrics };
+      return { frameCount, durationSec, aborted: true, metrics };
     }
 
     onProgress?.({
@@ -186,6 +176,9 @@ export const renderOfflineFrames = async ({
     });
 
     const canvas = await getFrameCanvas(frame);
+    if (isAborted?.()) {
+      return { frameCount, durationSec, aborted: true, metrics };
+    }
     if (!canvas) {
       throw new Error("Failed to capture export frame canvas.");
     }
@@ -198,7 +191,7 @@ export const renderOfflineFrames = async ({
     metrics.captureMs += performance.now() - captureStageStartedAt;
 
     const encodeStartedAt = performance.now();
-    await onFrame({
+    const accepted = await onFrame({
       index: frame.index,
       timeSec: frame.timeSec,
       timestampUs: frame.timestampUs,
@@ -207,8 +200,9 @@ export const renderOfflineFrames = async ({
       height: canvas.height,
       pixels: imageData.data,
     });
+    if (accepted !== false) frameCount += 1;
     metrics.encodeMs += performance.now() - encodeStartedAt;
   }
 
-  return { frameCount: timeline.length, durationSec, aborted: false, metrics };
+  return { frameCount, durationSec, aborted: !!isAborted?.(), metrics };
 };

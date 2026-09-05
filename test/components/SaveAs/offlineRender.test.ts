@@ -77,7 +77,6 @@ describe("renderOfflineFrames", () => {
     });
 
     expect(video.pause).toHaveBeenCalledOnce();
-    expect(video.addEventListener).toHaveBeenCalledWith("seeked", expect.any(Function));
     expect(waitForFrame).toHaveBeenNthCalledWith(1, video, 0, 500);
     expect(waitForFrame).toHaveBeenNthCalledWith(2, video, 0.5, 500);
     expect(onFrame).toHaveBeenNthCalledWith(
@@ -114,8 +113,9 @@ describe("renderOfflineFrames", () => {
     const waitForFrame = vi.fn();
     const onFrame = vi.fn();
 
+    const video = makeVideo(1, 0.5);
     const result = await renderOfflineFrames({
-      video: makeVideo(),
+      video,
       fps: 4,
       getFrameCanvas: vi.fn(),
       waitForFrame,
@@ -124,6 +124,7 @@ describe("renderOfflineFrames", () => {
     });
 
     expect(result).toEqual(expect.objectContaining({ frameCount: 0, aborted: true }));
+    expect(video.currentTime).toBe(0.5);
     expect(waitForFrame).not.toHaveBeenCalled();
     expect(onFrame).not.toHaveBeenCalled();
   });
@@ -144,6 +145,24 @@ describe("renderOfflineFrames", () => {
     });
 
     expect(result).toEqual(expect.objectContaining({ frameCount: 0, aborted: true }));
+    expect(onFrame).not.toHaveBeenCalled();
+  });
+
+  it("does not encode a capture completed after cancellation", async () => {
+    let aborted = false;
+    const onFrame = vi.fn();
+    const result = await renderOfflineFrames({
+      video: makeVideo(),
+      fps: 1,
+      waitForFrame: async () => {},
+      onFrame,
+      getFrameCanvas: async () => {
+        aborted = true;
+        return makeCanvas();
+      },
+      isAborted: () => aborted,
+    });
+    expect(result).toMatchObject({ frameCount: 0, aborted: true });
     expect(onFrame).not.toHaveBeenCalled();
   });
 
