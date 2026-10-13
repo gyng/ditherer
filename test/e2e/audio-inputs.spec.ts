@@ -96,3 +96,27 @@ test("chain, filter, and screensaver audio inputs expose usable Auto Viz mapping
   expect(pageErrors).toEqual([]);
   await writeBrowserCoverage(page, "audio-inputs");
 });
+
+for (const width of [1440, 390]) {
+  test(`patch sockets and metric content remain contained at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/?testMedia=image%3Apepper.png");
+    await page.getByRole("button", { name: "Compose", exact: true }).click();
+    await page.getByTitle("Open chain audio visualizer mapping").click();
+    const jack = page.getByTitle("Patch BPM", { exact: true });
+    const box = await jack.boundingBox();
+    expect(box).not.toBeNull();
+    expect(Math.abs(box!.width - box!.height)).toBeLessThan(1);
+    const card = jack.locator("../..");
+    expect(
+      await card.evaluate((node) => {
+        const cardRect = node.getBoundingClientRect();
+        return Array.from(node.querySelectorAll("button, label, input, span")).every((child) => {
+          if (!(child instanceof HTMLElement) || !child.offsetWidth) return true;
+          const rect = child.getBoundingClientRect();
+          return rect.left >= cardRect.left && rect.right <= cardRect.right;
+        });
+      }),
+    ).toBe(true);
+  });
+}

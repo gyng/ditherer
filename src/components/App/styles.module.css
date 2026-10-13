@@ -1827,7 +1827,7 @@
 .audioPatchNodeGrid {
   display: grid;
   align-items: center;
-  grid-template-columns: minmax(0, 1fr) 38px auto 16px;
+  grid-template-columns: minmax(0, 1fr) auto 24px;
   grid-template-rows: auto auto auto;
   column-gap: 6px;
   row-gap: 3px;
@@ -1844,13 +1844,13 @@
 }
 
 .audioPatchNodeLabel {
-  grid-column: 1;
+  grid-column: 1 / span 2;
   grid-row: 1;
 }
 
 .audioPatchMeter {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 1 / span 2;
+  grid-row: 3;
   height: 8px;
   border: 1px inset var(--input-border);
   background: linear-gradient(180deg, #10161f, #1e2e40);
@@ -1858,8 +1858,8 @@
 }
 
 .audioPatchBeatStripSlot {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 1 / span 2;
+  grid-row: 3;
   min-width: 0;
 }
 
@@ -1871,8 +1871,8 @@
 }
 
 .audioPatchNodeMeta {
-  grid-column: 3;
-  grid-row: 1;
+  grid-column: 2;
+  grid-row: 2;
   min-width: 0;
   white-space: nowrap;
   font-size: 10px;
@@ -1881,8 +1881,8 @@
 }
 
 .audioPatchMetricValue {
-  grid-column: 2;
-  grid-row: 1;
+  grid-column: 1;
+  grid-row: 2;
   min-width: 0;
   font-family: "Courier New", monospace;
   font-size: 10px;
@@ -1891,13 +1891,17 @@
 }
 
 .audioPatchJack {
-  grid-column: 4;
+  grid-column: 3;
   grid-row: 1 / span 2;
   align-self: center;
   justify-self: center;
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  box-sizing: border-box;
+  margin: 0;
+  flex: 0 0 24px;
   border-radius: 999px;
   border: 2px solid #0f1116;
   background: radial-gradient(circle at 35% 35%, #87d6ff, #0b5b8a 62%, #06273b 100%);
@@ -1929,8 +1933,9 @@
 }
 
 .audioPatchNormalize {
-  grid-column: 2 / span 2;
-  grid-row: 2;
+  min-height: 28px;
+  grid-column: 1 / span 2;
+  grid-row: 4;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1942,7 +1947,7 @@
 
 .audioPatchBpmControls {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 5;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -2008,6 +2013,7 @@
 }
 
 .audioPatchBpmToggle {
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2684,5 +2690,58 @@
   }
   .audioPatchBpmControlsTop > button {
     min-height: 44px;
+  }
+}
+
+/* Compact patch cards keep cable endpoints aligned without squeezing readouts. */
+@media (max-width: 960px) {
+  .audioPatchColumns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 24px;
+    padding: 8px;
+  }
+  .audioPatchNodeGrid {
+    grid-template-columns: minmax(0, 1fr) 24px;
+    grid-template-rows: repeat(5, auto);
+    row-gap: 6px;
+  }
+  .audioPatchNodeLabel {
+    grid-column: 1;
+    grid-row: 1;
+    overflow-wrap: anywhere;
+  }
+  .audioPatchNodeGrid .audioPatchJack {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .audioPatchMetricValue {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: left;
+  }
+  .audioPatchNodeMeta {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    text-align: left;
+  }
+  .audioPatchNormalize {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    white-space: normal;
+  }
+  .audioPatchMeter,
+  .audioPatchBeatStripSlot {
+    grid-column: 1 / -1;
+    grid-row: 5;
+  }
+  .audioPatchBpmControls {
+    grid-row: 6;
+  }
+  .audioPatchTarget {
+    gap: 6px;
+    padding: 6px;
+  }
+  .audioPatchTargetLabel {
+    overflow-wrap: anywhere;
   }
 }
