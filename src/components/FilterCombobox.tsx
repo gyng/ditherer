@@ -370,18 +370,35 @@ const FilterCombobox = ({
             </header>
             <div className={s.searchShell}>
               <span className={s.searchGlyph} aria-hidden="true" />
-              <Command.Input
-                ref={inputRef}
-                className={s.input}
-                value={query}
-                onValueChange={(nextQuery) => {
-                  setQuery(nextQuery);
-                  setActiveCategory(null);
-                }}
-                placeholder="Try ‘grainy’, ‘CRT’, ‘edge’, ‘dither’…"
-                aria-label="Search filters"
-                autoFocus
-              />
+              {showingResults ? (
+                <Command.Input
+                  ref={inputRef}
+                  className={s.input}
+                  value={query}
+                  onValueChange={(nextQuery) => {
+                    setQuery(nextQuery);
+                    setActiveCategory(null);
+                  }}
+                  placeholder="Try ‘grainy’, ‘CRT’, ‘edge’, ‘dither’…"
+                  aria-label="Search filters"
+                  autoFocus
+                />
+              ) : (
+                <input
+                  ref={inputRef}
+                  className={s.input}
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setActiveCategory(null);
+                  }}
+                  placeholder="Try ‘grainy’, ‘CRT’, ‘edge’, ‘dither’…"
+                  role="combobox"
+                  aria-expanded={false}
+                  aria-label="Search filters"
+                  autoFocus
+                />
+              )}
               {query ? (
                 <button
                   type="button"
@@ -448,7 +465,9 @@ const FilterCombobox = ({
                 ) : null}
                 <section className={s.browser} aria-labelledby={`${titleId}-browse`}>
                   <div className={s.sectionHeading}>
-                    <strong id={`${titleId}-browse`}>Browse by type</strong>
+                    <strong id={`${titleId}-browse`} className={s.sectionTitle}>
+                      Browse by type
+                    </strong>
                     <span>Recognition beats recall</span>
                   </div>
                   <div className={s.categoryGrid}>
@@ -461,7 +480,7 @@ const FilterCombobox = ({
                         onClick={() => browseCategory(category.name)}
                       >
                         <span className={s.categoryHeader}>
-                          <strong>{category.name}</strong>
+                          <strong className={s.categoryTitle}>{category.name}</strong>
                           <span>{category.entries.length}</span>
                         </span>
                         <span className={s.categoryExamples}>{category.examples.join(" · ")}</span>

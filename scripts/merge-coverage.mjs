@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import libCoverage from "istanbul-lib-coverage";
 import libReport from "istanbul-lib-report";
@@ -22,6 +22,7 @@ const browserCoveragePaths = [
   ".browser-coverage/project-state.json",
   ".browser-coverage/resilience-no-gl.json",
   ".browser-coverage/resilience-recovery.json",
+  ".browser-coverage/resilience-source-replacement.json",
   ".browser-coverage/source-ingestion.json",
   ".browser-coverage/test-media-share.json",
   ".browser-coverage/ux-onboarding.json",
@@ -32,6 +33,15 @@ const browserCoveragePaths = [
   ".browser-coverage/wasm-smoke.json",
   ".browser-coverage/workspace-layout.json",
 ];
+
+// The accessibility suite writes one coverage artifact per task/viewport.
+const accessibilityArtifacts = (await readdir(path.join(root, ".browser-coverage"))).filter(
+  (file) => file.startsWith("accessibility-") && file.endsWith(".json"),
+);
+if (accessibilityArtifacts.length < 10) {
+  throw new Error("Missing accessibility browser coverage artifacts");
+}
+browserCoveragePaths.push(...accessibilityArtifacts.map((file) => `.browser-coverage/${file}`));
 
 const readCoverage = async (filePath) =>
   JSON.parse(await readFile(path.join(root, filePath), "utf8"));

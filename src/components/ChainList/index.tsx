@@ -540,17 +540,9 @@ const ChainList = ({
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Don't intercept keys when the user is typing in an input/textarea/contenteditable
-    // (e.g. the filter typeahead) — let the field handle Backspace, arrows, space, etc.
-    const target = e.target as HTMLElement;
-    if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement ||
-      target.isContentEditable
-    ) {
-      return;
-    }
+    // Chain shortcuts apply only to the focused chain; nested buttons and
+    // fields keep their native keyboard interaction.
+    if (e.target !== e.currentTarget) return;
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
@@ -729,7 +721,7 @@ const ChainList = ({
 
       <div
         className={s.chainList}
-        role="listbox"
+        role="list"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         aria-label="Filter chain"
@@ -756,8 +748,8 @@ const ChainList = ({
               data-stage-enabled={entry.enabled ? "true" : "false"}
               data-preview-hover-anchor="true"
               draggable
-              role="option"
-              aria-selected={isActive}
+              role="listitem"
+              aria-current={isActive ? "true" : undefined}
               onClick={() => actions.chainSetActive(index)}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
@@ -780,7 +772,7 @@ const ChainList = ({
                   onClick={(e) => e.stopPropagation()}
                 />
               </label>
-              <span className={s.entryNumber} aria-label={`Stage ${index + 1}`}>
+              <span className={s.entryNumber} role="img" aria-label={`Stage ${index + 1}`}>
                 {String(index + 1).padStart(2, "0")}
               </span>
               {editingEntryId === entry.id ? (
@@ -951,44 +943,44 @@ const ChainList = ({
             </div>
           );
         })}
-        {/* At the cap the reducer ignores CHAIN_ADD, so an enabled picker here
+      </div>
+      {/* At the cap the reducer ignores CHAIN_ADD, so an enabled picker here
             would just swallow clicks. Say why instead of doing nothing. */}
-        <div className={`${s.entry} ${s.addEntry}`} aria-label="Add filter row">
-          <span className={s.addEntrySpacer} aria-hidden="true">
-            +
-          </span>
-          <div className={s.addEntryPicker}>
-            {chainIsFull ? (
-              <span className={s.addEntryFull}>
-                {`Chain full — ${MAX_CHAIN_LENGTH} filters max. Remove one to add another.`}
-              </span>
-            ) : (
-              <FilterCombobox
-                inline
-                placeholder="Add filter..."
-                onSelect={(f) => actions.chainAdd(f.displayName, f.filter)}
-              />
-            )}
-          </div>
-          <button
-            className={`${s.removeBtn} ${s.addEntryButton}`}
-            disabled={chainIsFull}
-            onClick={(e) => {
-              e.stopPropagation();
-              const { displayName, filter } = getRandomFilter();
-              actions.chainAdd(displayName, {
-                ...filter,
-                options: filter.options || filter.defaults,
-              });
-            }}
-            title={
-              chainIsFull ? `Chain full — ${MAX_CHAIN_LENGTH} filters max` : "Add a random filter"
-            }
-            aria-label="Add a random filter"
-          >
-            ⚄
-          </button>
+      <div className={`${s.entry} ${s.addEntry}`} role="group" aria-label="Add filter row">
+        <span className={s.addEntrySpacer} aria-hidden="true">
+          +
+        </span>
+        <div className={s.addEntryPicker}>
+          {chainIsFull ? (
+            <span className={s.addEntryFull}>
+              {`Chain full — ${MAX_CHAIN_LENGTH} filters max. Remove one to add another.`}
+            </span>
+          ) : (
+            <FilterCombobox
+              inline
+              placeholder="Add filter..."
+              onSelect={(f) => actions.chainAdd(f.displayName, f.filter)}
+            />
+          )}
         </div>
+        <button
+          className={`${s.removeBtn} ${s.addEntryButton}`}
+          disabled={chainIsFull}
+          onClick={(e) => {
+            e.stopPropagation();
+            const { displayName, filter } = getRandomFilter();
+            actions.chainAdd(displayName, {
+              ...filter,
+              options: filter.options || filter.defaults,
+            });
+          }}
+          title={
+            chainIsFull ? `Chain full — ${MAX_CHAIN_LENGTH} filters max` : "Add a random filter"
+          }
+          aria-label="Add a random filter"
+        >
+          ⚄
+        </button>
       </div>
 
       {/* Pinned previews */}
@@ -1085,7 +1077,6 @@ const ChainList = ({
             <div className={s.confirmButtons}>
               <button
                 className={s.confirmBtn}
-                autoFocus
                 onClick={() => {
                   setShowClearConfirm(false);
                   // Reset to a single noop entry so the user has a clean
@@ -1095,7 +1086,11 @@ const ChainList = ({
               >
                 OK
               </button>
-              <button className={s.confirmBtn} onClick={() => setShowClearConfirm(false)}>
+              <button
+                className={s.confirmBtn}
+                data-dialog-initial-focus="true"
+                onClick={() => setShowClearConfirm(false)}
+              >
                 Cancel
               </button>
             </div>
@@ -1161,7 +1156,7 @@ const ChainList = ({
                     if (e.key === "Enter") confirmRandomCycleModal();
                     if (e.key === "Escape") setShowRandomCycleModal(false);
                   }}
-                  autoFocus
+                  data-dialog-initial-focus="true"
                 />
               </label>
               <label className={s.randomCycleField}>

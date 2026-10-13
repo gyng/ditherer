@@ -30,6 +30,7 @@ const WebMCPBadge = ({ status }: { status: WebMCPStatus }) => {
     <span className={s.webMCPBadgeWrap}>
       <span
         className={s.webMCPBadge}
+        role="status"
         data-phase={status.phase}
         data-testid="webmcp-badge"
         tabIndex={0}

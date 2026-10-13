@@ -116,6 +116,18 @@ afterEach(() => {
 });
 
 describe("CollapsibleSection", () => {
+  it("hides collapsed controls from keyboard and assistive navigation", () => {
+    render(
+      <CollapsibleSection title="Settings" collapsible>
+        <button>hidden action</button>
+      </CollapsibleSection>,
+    );
+    const content = container.querySelector<HTMLElement>("[class*='content']")!;
+    expect(content.hidden).toBe(true);
+    click(container.querySelector("h2")!.parentElement!);
+    expect(content.hidden).toBe(false);
+  });
+
   it("keeps static desktop sections open and non-interactive", () => {
     render(
       <CollapsibleSection title="Static">
@@ -174,6 +186,25 @@ describe("CollapsibleSection", () => {
 });
 
 describe("WindowDialog", () => {
+  it("dismisses only the topmost dialog with Escape", () => {
+    const closeParent = vi.fn();
+    const closeChild = vi.fn();
+    render(
+      <>
+        <WindowDialog title="Parent" onClose={closeParent}>
+          <button>parent action</button>
+        </WindowDialog>
+        <WindowDialog title="Child" onClose={closeChild}>
+          <button>child action</button>
+        </WindowDialog>
+      </>,
+    );
+    act(() => vi.runAllTimers());
+    keyDown(document.body, "Escape");
+    expect(closeChild).toHaveBeenCalledOnce();
+    expect(closeParent).not.toHaveBeenCalled();
+  });
+
   it("focuses the preferred control, traps tab navigation, and restores focus", () => {
     const opener = document.createElement("button");
     document.body.appendChild(opener);
@@ -235,17 +266,17 @@ describe("WindowDialog", () => {
     expect(document.activeElement).toBe(dialog);
     keyDown(dialog, "ArrowDown");
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("respects a consumer key handler that prevents the dialog contract", () => {
+  it("respects a consumer Escape handler that prevents dismissal", () => {
     const onClose = vi.fn();
     render(
       <WindowDialog
         title="Prevented"
         onClose={onClose}
-        onKeyDown={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
       >
         <button>only</button>
       </WindowDialog>,
@@ -256,6 +287,42 @@ describe("WindowDialog", () => {
 });
 
 describe("ModalInput and Exporter", () => {
+  it("reports clipboard denial and preserves a manual-copy fallback", async () => {
+    const writeText = vi.fn(() => Promise.reject(new Error("denied")));
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    render(
+      <ModalInput
+        title="Export JSON"
+        defaultValue="example"
+        multiline
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    click(
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Copy")!,
+    );
+    await act(async () => Promise.resolve());
+    expect(container.textContent).toContain("Select the text and copy it manually");
+    expect(container.textContent).not.toContain("Copied to clipboard");
+  });
+
+  it("does not claim JSON clipboard success when copying is rejected", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn(() => Promise.reject(new Error("denied"))) },
+    });
+    render(<Exporter />);
+    click(
+      [...container.querySelectorAll("button")].find((button) =>
+        button.textContent?.includes("JSON"),
+      )!,
+    );
+    await act(async () => Promise.resolve());
+    expect(container.querySelector("textarea")?.value).toBe('{"chain":[]}');
+    expect(container.textContent).not.toContain("copied to clipboard");
+  });
+
   it("confirms single-line input with Enter and supports copy/cancel controls", () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();

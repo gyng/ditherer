@@ -68,14 +68,14 @@ test("core application workflows remain operable together", async ({ page }) => 
   await page.getByRole("combobox", { name: "Scaling algorithm" }).selectOption({ index: 1 });
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  const chain = page.getByRole("listbox", { name: "Filter chain" });
+  const chain = page.getByRole("list", { name: "Filter chain" });
   await chain.press(" ");
   await chain.press(" ");
   await page.getByTitle("Random curated preset").click();
-  await expect(chain.getByRole("option")).not.toHaveCount(0);
+  await expect(chain.getByRole("listitem")).not.toHaveCount(0);
   await page.getByTitle("Add a random filter").click();
 
-  const firstEntry = chain.getByRole("option").first();
+  const firstEntry = chain.getByRole("listitem").first();
   await firstEntry.click();
   const firstName = ((await firstEntry.textContent()) ?? "").trim();
   await firstEntry.getByRole("checkbox").click();

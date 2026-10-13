@@ -22,7 +22,7 @@
     "format:check": "oxfmt --check",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:coverage:browser": "node scripts/clean-browser-coverage.mjs && env -u NO_COLOR -u FORCE_COLOR COLLECT_BROWSER_COVERAGE=1 playwright test test/e2e/gl.smoke.spec.ts test/e2e/nc-parity.spec.ts test/e2e/wasm.smoke.spec.ts test/e2e/testMediaShare.spec.ts test/e2e/app.workflow.spec.ts test/e2e/app.advanced.spec.ts test/e2e/app.boundaries.spec.ts test/e2e/source-ingestion.spec.ts test/e2e/project-state.spec.ts test/e2e/export-artifacts.spec.ts test/e2e/ux-workbench.spec.ts test/e2e/vj-mode.spec.ts test/e2e/control-inputs.spec.ts test/e2e/library-discovery.spec.ts test/e2e/resilience.spec.ts test/e2e/workspace-layout.spec.ts test/e2e/audio-inputs.spec.ts --project=chromium",
+    "test:coverage:browser": "node scripts/clean-browser-coverage.mjs && env -u NO_COLOR -u FORCE_COLOR COLLECT_BROWSER_COVERAGE=1 playwright test test/e2e/gl.smoke.spec.ts test/e2e/nc-parity.spec.ts test/e2e/wasm.smoke.spec.ts test/e2e/testMediaShare.spec.ts test/e2e/app.workflow.spec.ts test/e2e/app.advanced.spec.ts test/e2e/app.boundaries.spec.ts test/e2e/source-ingestion.spec.ts test/e2e/project-state.spec.ts test/e2e/export-artifacts.spec.ts test/e2e/ux-workbench.spec.ts test/e2e/ui-accessibility.spec.ts test/e2e/vj-mode.spec.ts test/e2e/control-inputs.spec.ts test/e2e/library-discovery.spec.ts test/e2e/resilience.spec.ts test/e2e/workspace-layout.spec.ts test/e2e/audio-inputs.spec.ts --project=chromium",
     "coverage:merge": "node scripts/merge-coverage.mjs",
     "test:coverage:gate": "npm run test:coverage && npm run test:coverage:browser && npm run coverage:merge",
     "test:e2e:wasm": "env -u NO_COLOR -u FORCE_COLOR playwright test test/e2e/wasm.smoke.spec.ts",
@@ -40,8 +40,11 @@
     "test:rust": "cargo test --manifest-path packages/ditherer-filters/src/wasm/rgba2laba/Cargo.toml -- --test-threads=1"
   },
   "dependencies": {
+    "98.css": "0.1.21",
     "@gyng/ditherer-filters": "0.6.0",
+    "@radix-ui/react-dialog": "1.3.1",
     "@radix-ui/react-popover": "^1.1.23",
+    "@radix-ui/react-tabs": "1.2.1",
     "cmdk": "^1.1.1",
     "fflate": "^0.8.3",
     "modern-gif": "^2.1.0",
@@ -53,6 +56,7 @@
     "webm-muxer": "^5.1.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^25.9.5",
     "@types/react": "^19.2.18",
@@ -61,8 +65,9 @@
     "@vitest/coverage-v8": "^4.1.10",
     "ast-v8-to-istanbul": "^1.0.5",
     "canvas": "^3.2.3",
+    "esbuild": "0.28.2",
     "jsdom": "^29.1.1",
-    "oxfmt": "^0.61.0",
+    "oxfmt": "^0.73.0",
     "oxlint": "^1.76.0",
     "oxlint-tsgolint": "^7.0.2001",
     "typescript": "^7.0.2",

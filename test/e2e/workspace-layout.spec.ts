@@ -103,3 +103,28 @@ test("floating windows, comparison, fullscreen modes, and theme persistence work
   expect(pageErrors).toEqual([]);
   await writeBrowserCoverage(page, "workspace-layout");
 });
+
+test("first-use workspace keeps both images visible and rejects stale layout preferences", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("ditherer-workspace-layout", "obsolete-layout");
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/?testMedia=image%3Apepper.png");
+  await expect(page.getByRole("button", { name: "Dock", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const input = page.getByText("Input - pepper.png", { exact: true }).locator("../..");
+  const output = page.getByText("Output - pepper.png", { exact: true }).locator("../..");
+  const a = await input.boundingBox();
+  const b = await output.boundingBox();
+  expect(a).not.toBeNull();
+  expect(b).not.toBeNull();
+  expect(a!.x + a!.width <= b!.x || a!.y + a!.height <= b!.y).toBe(true);
+  await expect(page.getByRole("button", { name: "Lock", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});

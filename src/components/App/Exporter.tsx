@@ -6,6 +6,7 @@ const Exporter = () => {
   const { state, actions } = useFilter();
   const [modal, setModal] = useState<null | "import" | "json">(null);
   const [jsonValue, setJsonValue] = useState("");
+  const [jsonCopied, setJsonCopied] = useState(false);
 
   return (
     <div>
@@ -13,13 +14,13 @@ const Exporter = () => {
         onClick={() => {
           const json = actions.exportState(state, "json");
           setJsonValue(json);
+          setJsonCopied(false);
+          setModal("json");
           if (navigator.clipboard) {
             navigator.clipboard.writeText(json).then(
-              () => setModal("json"),
-              () => setModal("json"),
+              () => setJsonCopied(true),
+              () => setJsonCopied(false),
             );
-          } else {
-            setModal("json");
           }
         }}
       >
@@ -50,7 +51,7 @@ const Exporter = () => {
 
       {modal === "json" && (
         <ModalInput
-          title="Export JSON (copied to clipboard)"
+          title={jsonCopied ? "Export JSON (copied to clipboard)" : "Export JSON"}
           defaultValue={jsonValue}
           multiline
           onConfirm={() => setModal(null)}

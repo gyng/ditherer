@@ -9,23 +9,15 @@
 }
 
 .dialog {
+  composes: windowFrame from "../controls/styles.module.css";
   min-width: 280px;
   max-width: 90vw;
   background: var(--light-gray);
-  border-left: 2px outset white;
-  border-top: 2px outset white;
-  border-bottom: 1px outset var(--gray);
-  border-right: 1px outset var(--gray);
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
 }
 
 .titleBar {
-  background: linear-gradient(90deg, var(--beautiful-blue), #1c85ce);
-  padding: 4px 6px;
-  color: white;
-  font-weight: bold;
-  user-select: none;
-  font-size: 12px;
+  composes: titleBar windowTitle from "../controls/styles.module.css";
+  display: block;
 }
 
 .body {
@@ -89,4 +81,10 @@
     min-height: 44px;
     font-size: 14px;
   }
+}
+
+.copyFeedback {
+  margin: 8px 0 0;
+  color: var(--button-text);
+  font-size: 12px;
 }

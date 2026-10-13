@@ -19,6 +19,8 @@ test("media failures and invalid project/settings input stay recoverable", async
   );
   await page.goto("/?testMedia=image%3Apepper.png");
 
+  await expect(page.getByText("No media selected", { exact: true })).toBeVisible();
+  await expect(page.getByText("NO INPUT", { exact: true })).toBeVisible();
   const mediaError = page.getByRole("alert");
   await expect(mediaError).toContainText("Failed to load image asset");
   await mediaError.getByRole("button", { name: "Dismiss" }).click();
@@ -88,4 +90,37 @@ test("WebGL-required filters explain unsupported hardware instead of failing sil
   await expect(result).toHaveAttribute("title", /WebGL2 is required/);
   await expect(page.getByTestId("filter-library-list")).toContainText("GL req");
   await writeBrowserCoverage(page, "resilience-no-gl");
+});
+
+test("a failed source replacement keeps the last loaded filename and pixels", async ({ page }) => {
+  await startBrowserCoverage(page);
+  await page.goto("/?testMedia=image%3Apepper.png");
+  await expect(page.getByText("Input - pepper.png", { exact: true })).toBeVisible();
+  const canvas = page
+    .getByText("Input - pepper.png", { exact: true })
+    .locator("..")
+    .locator("canvas")
+    .first();
+  await expect
+    .poll(() =>
+      canvas.evaluate((node: HTMLCanvasElement) =>
+        Array.from(node.getContext("2d")!.getImageData(0, 0, node.width, node.height).data).some(
+          (value, index) => index % 4 !== 3 && value > 0,
+        ),
+      ),
+    )
+    .toBe(true);
+  const pixels = await canvas.evaluate((node: HTMLCanvasElement) => node.toDataURL());
+  await page.route("**/test-assets/image/lenna.png", (route) =>
+    route.fulfill({ status: 404, body: "missing" }),
+  );
+  await page
+    .getByRole("combobox", { name: "Choose an example image" })
+    .selectOption({ label: "lenna.png" });
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByText("Current: pepper.png", { exact: true })).toBeVisible();
+  expect(await canvas.evaluate((node: HTMLCanvasElement) => node.toDataURL())).toBe(pixels);
+  expect(new URL(page.url()).searchParams.get("testMedia")).toBe("image:pepper.png");
+  await expect(page.getByText("Input - pepper.png", { exact: true })).toBeVisible();
+  await writeBrowserCoverage(page, "resilience-source-replacement");
 });

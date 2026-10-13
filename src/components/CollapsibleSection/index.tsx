@@ -63,10 +63,15 @@ const CollapsibleSection = ({
           }
         }}
       >
-        <h2>{title}</h2>
+        <h2 className={s.heading}>{title}</h2>
         <span className={s.toggle}>{collapsed ? "[+]" : "[-]"}</span>
       </div>
-      <div ref={contentRef} className={s.content} style={{ maxHeight: collapsed ? 0 : "none" }}>
+      <div
+        ref={contentRef}
+        className={s.content}
+        hidden={collapsed}
+        style={{ maxHeight: collapsed ? 0 : "none" }}
+      >
         {children}
       </div>
     </div>

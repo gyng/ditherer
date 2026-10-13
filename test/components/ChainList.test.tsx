@@ -178,10 +178,10 @@ describe("ChainList integration", () => {
   it("routes entry selection, toggling, reset, duplicate, removal, and add actions", () => {
     render();
 
-    expect(container.querySelector('[role="listbox"]')).not.toBeNull();
+    expect(container.querySelector('[role="list"]')).not.toBeNull();
     expect(container.textContent).toContain("4ms");
 
-    click(container.querySelector('[role="option"]'));
+    click(container.querySelector('[role="listitem"]'));
     expect(actions.chainSetActive).toHaveBeenCalledWith(0);
 
     click(container.querySelector('input[type="checkbox"]'));
@@ -209,7 +209,7 @@ describe("ChainList integration", () => {
 
   it("supports keyboard selection, reordering, toggling, and deletion contracts", () => {
     render();
-    const list = container.querySelector('[role="listbox"]')!;
+    const list = container.querySelector('[role="list"]')!;
     const key = (value: string, altKey = false) =>
       act(() => {
         list.dispatchEvent(new KeyboardEvent("keydown", { key: value, altKey, bubbles: true }));
@@ -321,7 +321,7 @@ describe("ChainList integration", () => {
       expect.objectContaining({ left: 0, top: 0 }),
     );
 
-    const first = container.querySelectorAll<HTMLElement>('[role="option"]')[0];
+    const first = container.querySelectorAll<HTMLElement>('[role="listitem"]')[0];
     click(first.querySelector('[aria-label^="More actions for"]'));
     expect(
       first.querySelector('[aria-label^="More actions for"]')?.getAttribute("aria-expanded"),
@@ -361,7 +361,7 @@ describe("ChainList integration", () => {
         Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer }),
       ),
     );
-    const second = container.querySelectorAll<HTMLElement>('[role="option"]')[1];
+    const second = container.querySelectorAll<HTMLElement>('[role="listitem"]')[1];
     act(() =>
       second.dispatchEvent(
         Object.assign(new Event("dragover", { bubbles: true, cancelable: true }), { dataTransfer }),

@@ -297,7 +297,9 @@ describe("LibraryBrowser integration", () => {
     const dialog = container.firstElementChild!;
     click(dialog, "mousedown");
     expect(onDialogMouseDown).toHaveBeenCalledTimes(1);
-    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    act(() =>
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
     expect(onClose).toHaveBeenCalledTimes(2);
 
     click(buttonContaining("Alpha Lab"), "dblclick");

@@ -102,7 +102,7 @@ Primary and first-party references:
   demonstrative edge glow to a restrained directional finishing light.
 - Retuned the anime preset family around explicit production roles, renamed the
   artist-attributed sky recipe to `Luminous Sky Base`, and added a `Blue Hour
-Anime` finishing chain.
+  Anime` finishing chain.
 - Verification passed: 1,907 unit/integration tests, lint, TypeScript checks,
   selective-entry generation checks, library and application production
   builds, preset reporting, focused browser visual comparisons, and the full

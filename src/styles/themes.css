@@ -97,6 +97,7 @@
 
 /* ===================== Modern ===================== */
 :root[data-theme="modern-dark"] {
+  --selection-text: #000;
   --bg-color: #14161a;
   --light-gray: #2a2e35;
   --gray: #2a2e35;
@@ -193,6 +194,7 @@
 
 /* ===================== Arcade Cabinet (wild / skeuomorphic) ===================== */
 :root[data-theme="arcade"] {
+  --selection-text: #000;
   --bg-color: #170a2b;
   --light-gray: #3a1d63;
   --gray: #3a1d63;

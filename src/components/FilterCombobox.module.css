@@ -89,7 +89,7 @@
   background: linear-gradient(
     90deg,
     var(--beautiful-blue, #000080),
-    var(--beautiful-blue-gradient, #1c85ce)
+    var(--beautiful-blue-gradient)
   );
   color: #fff;
   text-shadow: 1px 1px 0 rgb(0 0 0 / 45%);
@@ -194,7 +194,7 @@
   padding: 2px 5px;
   border: 1px outset var(--button-highlight, #fff);
   background: var(--light-gray, #ddd);
-  color: #555;
+  color: var(--muted-text);
   font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;
   font-size: 9px;
   font-weight: normal;
@@ -743,4 +743,12 @@
   .content[data-state="open"] {
     animation: none;
   }
+}
+
+.categoryTitle {
+  composes: subsectionHeader from "./controls/styles.module.css";
+}
+
+.sectionTitle {
+  composes: subsectionHeader from "./controls/styles.module.css";
 }

@@ -25,8 +25,8 @@ test("VJ screensaver cycles live content and restores the prior workspace", asyn
   await scaling.selectOption({ label: "Pixelated" });
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  const chain = page.getByRole("listbox", { name: "Filter chain" });
-  const initialChain = await chain.getByRole("option").allTextContents();
+  const chain = page.getByRole("list", { name: "Filter chain" });
+  const initialChain = await chain.getByRole("listitem").allTextContents();
 
   await page.getByRole("button", { name: "Screensaver", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Screensaver settings" });
@@ -48,7 +48,7 @@ test("VJ screensaver cycles live content and restores the prior workspace", asyn
   expect(await scaling.inputValue()).toBe("AUTO");
 
   await expect
-    .poll(async () => chain.getByRole("option").allTextContents(), { timeout: 10_000 })
+    .poll(async () => chain.getByRole("listitem").allTextContents(), { timeout: 10_000 })
     .not.toEqual(initialChain);
   await expect(page.getByText(/^Input - (?!pepper\.png$).+/)).toBeVisible({ timeout: 15_000 });
 

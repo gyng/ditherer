@@ -52,10 +52,10 @@ test("library filters, capabilities, favorites, live options, and presets stay c
   expect(previewHasPixels).toBe(true);
   await details.getByRole("checkbox", { name: "invertR" }).uncheck();
   await details.getByRole("button", { name: "Add to Chain" }).click();
-  await expect(page.getByRole("listbox", { name: "Filter chain" }).getByRole("option")).toHaveCount(
+  await details.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("list", { name: "Filter chain" }).getByRole("listitem")).toHaveCount(
     2,
   );
-  await details.getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Compose", exact: true }).click();
   await expect(
     page.getByLabel("Active filter parameters").getByRole("checkbox", { name: "invert R" }),
@@ -78,9 +78,7 @@ test("library filters, capabilities, favorites, live options, and presets stay c
   await presetList.getByRole("button", { name: /Gameboy Screen/ }).click();
   await presetDetails.getByRole("button", { name: "Load Preset" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("listbox", { name: "Filter chain" })).toContainText(
-    "Ordered (Gameboy)",
-  );
+  await expect(page.getByRole("list", { name: "Filter chain" })).toContainText("Ordered (Gameboy)");
 
   await page.reload();
   await page.getByRole("button", { name: "Compose", exact: true }).click();

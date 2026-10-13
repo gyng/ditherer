@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from "react";
 import useDraggable from "./useDraggable";
+import { formatFrameRate } from "utils/frameTiming";
 
 import Controls from "components/controls";
 import ChainList from "components/ChainList";
@@ -1482,14 +1483,11 @@ const App = () => {
   );
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => {
     const stored = localStorage.getItem("ditherer-workspace-layout") as WorkspaceLayout | null;
-    if (stored) return stored;
-    // Desktop defaults to floating canvas windows; narrow screens stay docked.
-    return typeof window !== "undefined" && window.innerWidth > 960 ? "floating" : "docked";
+    return stored === "floating" || stored === "output" ? stored : "docked";
   });
   const [windowsLocked, setWindowsLocked] = useState(() => {
     const stored = localStorage.getItem("ditherer-workspace-layout") as WorkspaceLayout | null;
-    if (stored) return stored !== "floating";
-    return !(typeof window !== "undefined" && window.innerWidth > 960);
+    return stored !== "floating";
   });
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
   const [comparisonPosition, setComparisonPosition] = useState(50);
@@ -2309,7 +2307,6 @@ const App = () => {
     if (!showScreensaverDialog || !screensaverDialogRef.current) return;
     zIndexRef.current += 1;
     screensaverDialogRef.current.style.zIndex = `${zIndexRef.current}`;
-    screensaverDialogRef.current.focus({ preventScroll: true });
   }, [showScreensaverDialog]);
 
   useLayoutEffect(() => {
@@ -2325,22 +2322,6 @@ const App = () => {
       return next.x === current.x && next.y === current.y ? current : next;
     });
   }, [screensaverDialogPosition, showScreensaverDialog]);
-
-  useEffect(() => {
-    if (!showScreensaverDialog) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      event.preventDefault();
-      setShowScreensaverDialog(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [showScreensaverDialog]);
-
-  useEffect(() => {
-    if ((!editingAudioEntryId && !showChainAudioGlobalEditor) || !audioEditorRef.current) return;
-    audioEditorRef.current.focus({ preventScroll: true });
-  }, [editingAudioEntryId, showChainAudioGlobalEditor]);
 
   useLayoutEffect(() => {
     if ((!editingAudioEntryId && !showChainAudioGlobalEditor) || !audioEditorRef.current) return;
@@ -2423,16 +2404,16 @@ const App = () => {
   const loadUserFile = useCallback(
     (file?: File | null) => {
       if (!file) return;
-      syncSharedTestMediaUrl(null);
       const label = file.type.startsWith("video/") ? "LOADING VIDEO" : "LOADING IMAGE";
       pendingLoadedMediaFilterRef.current = true;
       currentInputIsRandomTestVideoRef.current = false;
-      setInputFilename(file.name);
-      void withInputLoading(label, () =>
-        actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate, {
+      void withInputLoading(label, async () => {
+        await actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate, {
           preserveScale: preserveInputWidthOnNewMedia,
-        }),
-      );
+        });
+        setInputFilename(file.name);
+        syncSharedTestMediaUrl(null);
+      });
     },
     [
       actions,
@@ -2562,8 +2543,6 @@ const App = () => {
       lastTestImageAssetRef.current = src;
       pendingLoadedMediaFilterRef.current = true;
       currentInputIsRandomTestVideoRef.current = false;
-      syncSharedTestMediaUrl("image", src);
-      setInputFilename(basename(src));
       void withInputLoading("LOADING IMAGE", async () => {
         const perfStart = performance.now();
         const hadCache = imageAssetPromiseCacheRef.current.has(src);
@@ -2575,6 +2554,8 @@ const App = () => {
         const img = await loadImageAsset(src);
         logPerf("image-ready", { width: img.naturalWidth, height: img.naturalHeight });
         actions.loadImage(cloneImageToCanvas(img));
+        setInputFilename(basename(src));
+        syncSharedTestMediaUrl("image", src);
         logPerf("loadImage-dispatched");
         queueLoadedMediaFilter();
         prefetchRandomImage(src);
@@ -2604,8 +2585,6 @@ const App = () => {
       lastTestVideoAssetRef.current = src;
       pendingLoadedMediaFilterRef.current = true;
       currentInputIsRandomTestVideoRef.current = Boolean(options?.isRandomPick);
-      syncSharedTestMediaUrl("video", src);
-      setInputFilename(basename(src));
       return withInputLoading("LOADING VIDEO", async () => {
         const perfStart = performance.now();
         const logPerf = (stage: string, extra: Record<string, unknown> = {}) => {
@@ -2616,6 +2595,8 @@ const App = () => {
         await actions.loadVideoFromUrlAsync(src, state.videoVolume, state.videoPlaybackRate, {
           preserveScale: options?.forceScreensaverScale || preserveInputWidthOnNewMedia,
         });
+        setInputFilename(basename(src));
+        syncSharedTestMediaUrl("video", src);
         if (options?.forceScreensaverScale) {
           const loadedVideo = webmcpRefs.current.state.video;
           if (loadedVideo?.videoWidth) {
@@ -3714,10 +3695,6 @@ const App = () => {
               D
             </span>
             <h1>Ditherer</h1>
-            <span className={s.appIdentityWindowButtons} aria-hidden="true">
-              <i />
-              <i />
-            </span>
           </div>
           <div className={s.appIdentityMeta}>
             <div className={s.modeSwitcher} role="group" aria-label="Workbench mode">
@@ -4165,7 +4142,7 @@ const App = () => {
                   aria-label="Search active filter settings"
                 />
                 <Controls inputCanvas={inputCanvasRef.current} query={inspectorQuery} />
-                <div className={s.inspectorActions} aria-label="Active filter actions">
+                <div className={s.inspectorActions} role="group" aria-label="Active filter actions">
                   {state.selected?.filter?.defaults && (
                     <button
                       onClick={() => {
@@ -4297,11 +4274,15 @@ const App = () => {
                   recorder.onstop = () => {
                     const blob = new Blob(chunks, { type: mimeType });
                     const file = new File([blob], "filtered.webm", { type: mimeType });
-                    syncSharedTestMediaUrl(null);
-                    setInputFilename(file.name);
-                    void withInputLoading("LOADING VIDEO", () =>
-                      actions.loadMediaAsync(file, state.videoVolume, state.videoPlaybackRate),
-                    );
+                    void withInputLoading("LOADING VIDEO", async () => {
+                      await actions.loadMediaAsync(
+                        file,
+                        state.videoVolume,
+                        state.videoPlaybackRate,
+                      );
+                      setInputFilename(file.name);
+                      syncSharedTestMediaUrl(null);
+                    });
                   };
 
                   // Restart video from beginning so we capture a full loop
@@ -4448,7 +4429,7 @@ const App = () => {
               {state.stepTimes && state.stepTimes.length > 1
                 ? `${state.stepTimes.length} filters`
                 : (state.stepTimes?.[0]?.name ?? "Filter")}{" "}
-              | {state.frameTime.toFixed(0)}ms | {(1000 / state.frameTime).toFixed(1)} fps
+              | {state.frameTime.toFixed(0)}ms | {formatFrameRate(state.frameTime)}
             </span>
             {state.frameTime > 50 && (
               <span
@@ -4571,15 +4552,20 @@ const App = () => {
             </button>
           </div>
         </nav>
-        <div className={s.workspaceStatus} role="status" aria-live="polite">
-          <span className={s.statusMode} data-active={state.realtimeFiltering ? "true" : "false"}>
+        <div className={s.workspaceStatus} role="group" aria-label="Preview status" tabIndex={0}>
+          <span
+            className={s.statusMode}
+            role="status"
+            aria-live="polite"
+            data-active={state.realtimeFiltering ? "true" : "false"}
+          >
             <span className={s.statusLamp} aria-hidden="true" />
             {state.realtimeFiltering ? "AUTO" : "MANUAL"}
           </span>
-          <span className={s.statusMetric}>
+          <span className={s.statusMetric} role="status" aria-live="polite">
             {state.chain.filter((entry) => entry.enabled).length}/{state.chain.length} stages active
           </span>
-          {state.inputCanvas ? (
+          {state.inputCanvas && (state.inputImage || state.video) ? (
             <span className={s.statusMetric}>
               IN {state.inputCanvas.width}×{state.inputCanvas.height}
             </span>
@@ -4595,7 +4581,7 @@ const App = () => {
           )}
           {state.frameTime != null ? (
             <span className={s.statusMetric}>
-              {state.frameTime.toFixed(1)}ms · {(1000 / state.frameTime).toFixed(1)} fps
+              {state.frameTime.toFixed(1)}ms · {formatFrameRate(state.frameTime)}
             </span>
           ) : null}
           <span className={s.statusHint}>/ commands · Ctrl/⌘ Z undo</span>
@@ -4643,7 +4629,10 @@ const App = () => {
                   : undefined
               }
             >
-              <div className={["handle", controls.titleBar].join(" ")}>
+              <div
+                className={["handle", s.canvasWindowTitle].join(" ")}
+                title={inputFilename ? `Input - ${inputFilename}` : "Input"}
+              >
                 {inputFilename ? `Input - ${inputFilename}` : "Input"}
               </div>
               <div className={s.canvasArea}>
@@ -4718,7 +4707,10 @@ const App = () => {
               ref={outputWindowRef}
               tabIndex={-1}
             >
-              <div className={["handle", controls.titleBar, s.windowChrome].join(" ")}>
+              <div
+                className={["handle", s.canvasWindowTitle, s.windowChrome].join(" ")}
+                title={inputFilename ? `Output - ${inputFilename}` : "Output"}
+              >
                 {inputFilename ? `Output - ${inputFilename}` : "Output"}
               </div>
               <div className={[s.menuBar, s.windowChrome].join(" ")}>
@@ -4895,12 +4887,10 @@ const App = () => {
               className={s.screensaverOverlay}
               onMouseDown={() => setShowScreensaverDialog(false)}
             >
-              <div
+              <WindowDialog
                 ref={screensaverDialogRef}
-                role="dialog"
-                aria-modal="true"
-                aria-label="Screensaver settings"
-                tabIndex={-1}
+                title="Screensaver settings"
+                onClose={() => setShowScreensaverDialog(false)}
                 className={s.screensaverFloat}
                 style={{
                   transform: `translate(${screensaverDialogPosition.x}px, ${screensaverDialogPosition.y}px)`,
@@ -4922,7 +4912,7 @@ const App = () => {
                       screensaverDrag.onMouseDown(event);
                     }}
                   >
-                    <span>Screensaver</span>
+                    <span className={s.dialogTitleText}>Screensaver</span>
                     <button
                       className={s.screensaverClose}
                       aria-label="Close screensaver settings"
@@ -4977,7 +4967,7 @@ const App = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </WindowDialog>
             </div>
           )}
 
@@ -4989,16 +4979,17 @@ const App = () => {
                 setShowChainAudioGlobalEditor(false);
               }}
             >
-              <div
+              <WindowDialog
                 ref={audioEditorRef}
-                role="dialog"
-                aria-modal="true"
-                aria-label={
+                onClose={() => {
+                  closeAudioModEditor();
+                  setShowChainAudioGlobalEditor(false);
+                }}
+                title={
                   editingAudioEntry
                     ? `Audio visualizer settings for ${editingAudioEntry.displayName}`
                     : "Chain audio visualizer settings"
                 }
-                tabIndex={-1}
                 className={s.audioModFloat}
                 style={{
                   transform: `translate(${audioEditorPosition.x}px, ${audioEditorPosition.y}px)`,
@@ -5014,7 +5005,7 @@ const App = () => {
                       audioEditorDrag.onMouseDown(event);
                     }}
                   >
-                    <span>
+                    <span className={s.dialogTitleText}>
                       {editingAudioEntry
                         ? `Audio Viz - ${editingAudioEntry.displayName}`
                         : "Chain Audio Viz"}
@@ -5169,7 +5160,7 @@ const App = () => {
                     </button>
                   </div>
                 </div>
-              </div>
+              </WindowDialog>
             </div>
           )}
         </div>

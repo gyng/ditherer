@@ -1,4 +1,5 @@
 .dialog {
+  composes: windowFrame from "../controls/styles.module.css";
   min-width: 320px;
   width: min(460px, calc(100vw - 24px));
   max-width: 90vw;
@@ -9,7 +10,6 @@
   overflow: hidden;
   background: var(--light-gray, #c0c0c0);
   color: var(--button-text, #000);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.68);
 }
 
 .titleBar {
@@ -116,7 +116,7 @@
   align-self: center;
 }
 
-.row select {
+.row > :not(.rowLabel) {
   flex: 1;
   min-width: 0;
 }
@@ -152,7 +152,7 @@
 /* Dimensions preview */
 .dims {
   font-size: 11px;
-  color: #555;
+  color: #444;
   font-family: monospace;
   margin-bottom: 8px;
 }
@@ -416,7 +416,7 @@
 
 .seekbarFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--beautiful-blue, #000080), #1c85ce);
+  background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
   transition: width 100ms linear;
 }
 
@@ -469,4 +469,12 @@
     background: var(--light-gray);
     border-top: 1px solid #808080;
   }
+}
+
+.exportTabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }

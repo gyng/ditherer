@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { startBrowserCoverage, writeBrowserCoverage } from "./browserCoverage";
 
+// Instrumented browser tasks include source-map conversion and software rendering.
+if (process.env.COLLECT_BROWSER_COVERAGE === "1") test.setTimeout(60_000);
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("ditherer-onboarding-complete", "1");
@@ -40,7 +43,7 @@ test("ranks and bounds filter typeahead results with keyboard selection and rece
   await expect(page.locator('[data-stage-active="true"]')).toContainText("Floyd-Steinberg");
 
   const trigger = page.getByRole("combobox", { name: "Add filter...", exact: true });
-  const chainOptions = page.getByRole("listbox", { name: "Filter chain" }).getByRole("option");
+  const chainOptions = page.getByRole("list", { name: "Filter chain" }).getByRole("listitem");
   const stageCountBeforeNavigation = await chainOptions.count();
   await trigger.focus();
   await trigger.press("ArrowDown");
@@ -449,6 +452,12 @@ test("uses touch-sized source, section, and preview controls on phones", async (
   expect(saveBox!.y).toBeGreaterThanOrEqual(0);
   expect(saveBox!.x + saveBox!.width).toBeLessThanOrEqual(390);
   expect(saveBox!.y + saveBox!.height).toBeLessThanOrEqual(844);
+  await expect(saveDialog.getByRole("tab", { name: "Image", exact: true })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(saveDialog.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+  await saveDialog.getByRole("tab", { name: "Video", exact: true }).click();
   await expect(saveDialog.getByRole("button", { name: /Record/ }).first()).toBeVisible();
   await expect(saveDialog.getByRole("button", { name: /Record/ }).first()).toBeEnabled();
   await writeBrowserCoverage(page, "ux-touch-targets");

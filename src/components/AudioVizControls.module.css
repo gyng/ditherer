@@ -3,13 +3,12 @@
   flex-direction: column;
   gap: 6px;
   border: 2px inset var(--input-border);
-  background: var(--window-bg);
+  background-color: var(--window-bg);
   padding: 6px;
 }
 
 .title {
-  font-weight: bold;
-  font-size: 12px;
+  composes: subsectionHeader from "./controls/styles.module.css";
 }
 
 .row {
@@ -39,8 +38,10 @@
 }
 
 .input {
+  min-height: 32px;
+  box-sizing: border-box;
   border: 2px inset var(--input-border);
-  background: var(--window-bg);
+  background-color: var(--window-bg);
   color: var(--window-text);
   padding: 4px 6px;
   font: inherit;
@@ -137,7 +138,7 @@
   font-size: 11px;
   padding: 2px 8px;
   border: 2px outset var(--input-border, #bbb);
-  background: var(--window-bg);
+  background-color: var(--window-bg);
   color: var(--window-text);
   cursor: pointer;
 }

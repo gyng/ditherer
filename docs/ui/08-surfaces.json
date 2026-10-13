@@ -1,0 +1,52 @@
+[
+  {
+    "viewport": "desktop",
+    "surface": "audio",
+    "violations": []
+  },
+  {
+    "viewport": "desktop",
+    "surface": "screensaver",
+    "violations": []
+  },
+  {
+    "viewport": "desktop",
+    "surface": "commands",
+    "violations": []
+  },
+  {
+    "viewport": "desktop",
+    "surface": "typeahead",
+    "violations": []
+  },
+  {
+    "viewport": "desktop",
+    "surface": "confirm",
+    "violations": []
+  },
+  {
+    "viewport": "phone",
+    "surface": "audio",
+    "violations": []
+  },
+  {
+    "viewport": "phone",
+    "surface": "screensaver",
+    "violations": []
+  },
+  {
+    "viewport": "phone",
+    "surface": "commands",
+    "violations": []
+  },
+  {
+    "viewport": "phone",
+    "surface": "typeahead",
+    "violations": []
+  },
+  {
+    "viewport": "phone",
+    "surface": "confirm",
+    "violations": []
+  }
+]

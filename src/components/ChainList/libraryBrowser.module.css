@@ -1,4 +1,5 @@
 .dialog {
+  composes: windowFrame from "../controls/styles.module.css";
   width: 980px;
   max-width: calc(100vw - 24px);
   height: 72vh;
@@ -8,14 +9,6 @@
   display: flex;
   flex-direction: column;
   background: var(--light-gray, #c0c0c0);
-  border-left: 2px solid #ffffff;
-  border-top: 2px solid #ffffff;
-  border-right: 2px solid #404040;
-  border-bottom: 2px solid #404040;
-  box-shadow:
-    1px 1px 0 #000,
-    2px 2px 0 #000,
-    inset 1px 1px 0 #dfdfdf;
   resize: both;
   overflow: auto;
   box-sizing: border-box;
@@ -25,17 +18,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(90deg, #000080, #1084d0);
+  background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
   margin: 2px 2px 0;
   padding: 2px 3px;
   cursor: move;
 }
 
 .titleText {
-  color: #fff;
-  font-size: 12px;
-  font-weight: bold;
-  letter-spacing: 0.1px;
+  composes: windowTitle from "../controls/styles.module.css";
 }
 
 .closeBtn {
@@ -142,7 +132,7 @@
 
 .categoryActive {
   background: var(--beautiful-blue, #0a246a);
-  color: #fff;
+  color: var(--selection-text);
   border-width: 2px 1px 1px 2px;
   border-style: inset;
   border-color: #808080 #fff #fff #808080;
@@ -229,7 +219,7 @@
 
 .listItemActive {
   background: var(--beautiful-blue, #0a246a);
-  color: #fff;
+  color: var(--selection-text);
   border-color: #001a5e;
 }
 
@@ -402,11 +392,7 @@
 }
 
 .optionsTitle {
-  font-size: 11px;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.2px;
-  color: #222;
+  composes: subsectionHeader from "../controls/styles.module.css";
 }
 
 .optionRow {
@@ -444,9 +430,7 @@
 }
 
 .presetOptionTitle {
-  font-size: 11px;
-  font-weight: bold;
-  color: #000;
+  composes: subsectionHeader from "../controls/styles.module.css";
 }
 
 .detailActions {
@@ -559,7 +543,7 @@
 
 .detailActions button:first-child {
   background: var(--beautiful-blue, #000080);
-  color: #fff;
+  color: var(--selection-text);
   font-weight: bold;
   border-color: #8ca7e8 #00144f #00144f #8ca7e8;
 }
@@ -616,4 +600,15 @@
   .detailActions button {
     min-height: 44px;
   }
+}
+
+.listItemActive:hover:not(:disabled) {
+  background: var(--beautiful-blue, #000080);
+  color: var(--selection-text);
+}
+
+.categoryActive:hover:not(:disabled),
+.capabilityActive:hover:not(:disabled) {
+  background: var(--beautiful-blue);
+  color: var(--selection-text);
 }

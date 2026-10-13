@@ -91,8 +91,9 @@ describe("FilterCombobox", () => {
       ),
     );
 
-    const input = document.querySelector<HTMLInputElement>('input[aria-label="Search filters"]')!;
-    expect(input).toBeTruthy();
+    const input = () =>
+      document.querySelector<HTMLInputElement>('input[aria-label="Search filters"]')!;
+    expect(input()).toBeTruthy();
     expect(document.body.textContent).toContain("Browse by type");
     expect(document.body.textContent).toContain("Stylize");
     expect(document.body.textContent).toContain("Motion");
@@ -104,12 +105,12 @@ describe("FilterCombobox", () => {
     expect(document.body.textContent).toContain("Motion filters");
     expect(document.querySelectorAll('[data-testid="filter-typeahead-item"]')).toHaveLength(27);
 
-    setInput(input, "artistic");
+    setInput(input(), "artistic");
     await act(async () => Promise.resolve());
     expect(document.body.textContent).toContain("28 matches");
     expect(document.querySelector<HTMLElement>('[data-value="Alpha Glow"]')).toBeTruthy();
 
-    setInput(input, "filter");
+    setInput(input(), "filter");
     await act(async () => Promise.resolve());
     expect(document.body.textContent).toContain("48 of 53 matches");
 
@@ -120,14 +121,14 @@ describe("FilterCombobox", () => {
       clear.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })),
     );
     act(() => clear.click());
-    expect(input.value).toBe("");
+    expect(input().value).toBe("");
 
-    setInput(input, "does-not-exist");
+    setInput(input(), "does-not-exist");
     await act(async () => Promise.resolve());
     expect(document.body.textContent).toContain("No matching filters");
     expect(document.body.textContent).toContain("No matches");
 
-    setInput(input, "alpha");
+    setInput(input(), "alpha");
     await act(async () => Promise.resolve());
     const item = document.querySelector<HTMLElement>('[data-value="Alpha Glow"]')!;
     expect(item.textContent).toContain("Alpha Glow");

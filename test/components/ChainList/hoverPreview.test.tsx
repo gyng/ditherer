@@ -88,7 +88,7 @@ describe("ChainList hover preview", () => {
       );
     });
 
-    const row = Array.from(container.querySelectorAll('[role="option"]')).find((node) =>
+    const row = Array.from(container.querySelectorAll('[role="listitem"]')).find((node) =>
       node.textContent?.includes("Test Filter"),
     );
 

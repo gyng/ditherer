@@ -1,29 +1,42 @@
 /* Global styles — NOT a CSS module */
+@import "98.css/dist/98.css" layer(win98);
 @import "./typography.css";
 @import "./themes.css";
 
 :root {
   --bg-color: rgba(38, 38, 38);
-  --light-gray: #bfbfbf;
-  --gray: #bfbfbf;
+  --light-gray: #c0c0c0;
+  --gray: #c0c0c0;
   --beautiful-blue: #000080;
-  --beautiful-blue-gradient: #1c85ce;
+  --beautiful-blue-gradient: #107abd;
   --button-highlight: white;
   --button-shadow: #808080;
+  --button-light: #dfdfdf;
+  --chrome-raised:
+    inset -1px -1px var(--button-dk-shadow), inset 1px 1px var(--button-highlight),
+    inset -2px -2px var(--button-shadow), inset 2px 2px var(--button-light);
+  --chrome-pressed:
+    inset -1px -1px var(--button-highlight), inset 1px 1px var(--button-dk-shadow),
+    inset -2px -2px var(--button-light), inset 2px 2px var(--button-shadow);
+  --chrome-sunken:
+    inset -1px -1px var(--button-highlight), inset 1px 1px var(--button-shadow),
+    inset -2px -2px var(--button-light), inset 2px 2px var(--button-dk-shadow);
   --button-dk-shadow: black;
   --button-text: black;
+  --selection-text: #fff;
+  --muted-text: color-mix(in srgb, var(--button-text) 75%, var(--light-gray));
   --window-bg: white;
   --window-text: black;
   --input-border: #ccc;
   --separator-top: #808080;
   --separator-bottom: white;
-  --desktop-color: #397f80;
-  --desktop-grid: rgba(255, 255, 255, 0.075);
-  --panel-soft: #e8eef5;
+  --desktop-color: #008080;
+  --desktop-grid: transparent;
+  --panel-soft: #c0c0c0;
   --panel-soft-border: #9aabba;
   --focus-ring: #001a9e;
-  --primary-face: #dce8ff;
-  --primary-text: #00145e;
+  --primary-face: #c0c0c0;
+  --primary-text: #000;
   --primary-shadow: #17367e;
 }
 
@@ -198,5 +211,67 @@ body[style*="cursor: wait"] * {
   body {
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
       env(safe-area-inset-left);
+  }
+}
+
+/* The app contains wrapped checkbox labels as well as adjacent labels.
+   Keep native inputs visible until each surface adopts the system markup. */
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: auto;
+  position: static;
+  opacity: 1;
+  margin: 0 4px 0 0;
+}
+
+/* Adapt 98.css checkbox geometry for both wrapped and adjacent labels. */
+input[type="checkbox"] {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0;
+  background-color: var(--window-bg);
+  box-shadow:
+    inset -1px -1px var(--button-highlight),
+    inset 1px 1px var(--button-shadow),
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px var(--button-dk-shadow);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+input[type="checkbox"]:checked {
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7'%3E%3Cpath d='M0 2h1v1h1v1h1V3h1V2h1V1h1V0h1v3H6v1H5v1H4v1H3v1H2V6H1V5H0Z' fill='black'/%3E%3C/svg%3E");
+}
+input[type="checkbox"]:disabled {
+  background-color: var(--light-gray);
+  opacity: 0.6;
+}
+input[type="checkbox"]:focus-visible {
+  outline: 1px dotted var(--focus-ring);
+  outline-offset: 2px;
+}
+input[type="checkbox"] + label,
+input[type="radio"] + label {
+  margin-left: 0;
+}
+input[type="checkbox"] + label::before,
+input[type="checkbox"] + label::after,
+input[type="radio"] + label::before,
+input[type="radio"] + label::after {
+  content: none;
+}
+
+@media (max-width: 960px) {
+  body,
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  legend {
+    font-family: Tahoma, Arial, sans-serif;
   }
 }

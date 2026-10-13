@@ -1,3 +1,4 @@
+import * as Tabs from "@radix-ui/react-tabs";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useFilter } from "context/useFilter";
 import { filterList, hasTemporalBehavior } from "@gyng/ditherer-filters";
@@ -33,11 +34,11 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
   );
 
   // Tab
-  const hasAnimatedFilter = (state.chain || []).some(
+  const hasTemporalFilter = (state.chain || []).some(
     (entry) => entry.enabled !== false && temporalFilterNamesRef.current.has(entry.filter?.name),
   );
-  const isAnimated = !!state.video || hasAnimatedFilter;
-  const showVideoTab = isAnimated || state.realtimeFiltering;
+  const isAnimated = !!state.video || actions.isAnimating();
+  const showVideoTab = isAnimated || hasTemporalFilter || state.realtimeFiltering;
   // Default to Video tab only when input is actually video/animated, not just because realtime is on
   const [activeTab, setActiveTab] = useState<"image" | "video">(isAnimated ? "video" : "image");
 
@@ -538,82 +539,84 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
           onMouseDown={(e) => e.stopPropagation()}
           onClick={!capturing && !exporting ? onClose : undefined}
           title="Close"
+          aria-label="Close Save As"
         >
           &#10005;
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className={s.tabs} role="tablist" aria-label="Export type">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "image"}
-          data-dialog-initial-focus={activeTab === "image" ? "true" : undefined}
-          className={[s.tab, activeTab === "image" ? s.tabActive : ""].join(" ")}
-          onClick={() => setActiveTab("image")}
-        >
-          Image
-        </button>
-        {showVideoTab && (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "video"}
-            data-dialog-initial-focus={activeTab === "video" ? "true" : undefined}
-            className={[s.tab, activeTab === "video" ? s.tabActive : ""].join(" ")}
-            onClick={() => setActiveTab("video")}
+      <Tabs.Root
+        className={s.exportTabs}
+        value={activeTab}
+        onValueChange={(value) => {
+          if (value === "image" || value === "video") setActiveTab(value);
+        }}
+      >
+        <Tabs.List className={s.tabs} aria-label="Export type">
+          <Tabs.Trigger
+            value="image"
+            data-dialog-initial-focus={activeTab === "image" ? "true" : undefined}
+            className={[s.tab, activeTab === "image" ? s.tabActive : ""].join(" ")}
           >
-            Video
-          </button>
-        )}
-      </div>
+            Image
+          </Tabs.Trigger>
+          {showVideoTab && (
+            <Tabs.Trigger
+              value="video"
+              data-dialog-initial-focus={activeTab === "video" ? "true" : undefined}
+              className={[s.tab, activeTab === "video" ? s.tabActive : ""].join(" ")}
+            >
+              Video
+            </Tabs.Trigger>
+          )}
+        </Tabs.List>
 
-      <div className={s.tabContent}>
-        {/* ---- Image Tab ---- */}
-        {activeTab === "image" && (
-          <ImageTab
-            format={format}
-            quality={quality}
-            resolution={resolution}
-            customMultiplier={customMultiplier}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-            exportWidth={exportW}
-            exportHeight={exportH}
-            largeExport={largeExport}
-            canvasReady={!!canvasReady}
-            copySuccess={copySuccess}
-            setFormat={setFormat}
-            setQuality={setQuality}
-            setResolution={setResolution}
-            setCustomMultiplier={setCustomMultiplier}
-            onSave={handleSave}
-            onCopy={handleCopy}
-          />
-        )}
-
-        {/* ---- Video Tab ---- */}
-        {activeTab === "video" && (
-          <VideoTab
-            videoVolume={state.videoVolume}
-            videoFormat={videoFormat}
-            videoFormatOptions={videoFormatOptions.options}
-            onSetVideoFormat={(value) => {
-              setVideoFormat(value);
-              if (value === "contact" && loopCaptureMode === "offline") {
-                setLoopCaptureMode("webcodecs");
-              }
-              if (value === "contact") {
-                setFrames(30);
-                setContactColumns(5);
-              }
-            }}
-            recordingPanel={recordingPanelProps}
-            frameExportPanel={frameExportPanelProps}
-          />
-        )}
-      </div>
+        <Tabs.Content value="image" className={s.tabContent}>
+          {/* ---- Image Tab ---- */}
+          {activeTab === "image" && (
+            <ImageTab
+              format={format}
+              quality={quality}
+              resolution={resolution}
+              customMultiplier={customMultiplier}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              exportWidth={exportW}
+              exportHeight={exportH}
+              largeExport={largeExport}
+              canvasReady={!!canvasReady}
+              copySuccess={copySuccess}
+              setFormat={setFormat}
+              setQuality={setQuality}
+              setResolution={setResolution}
+              setCustomMultiplier={setCustomMultiplier}
+              onSave={handleSave}
+              onCopy={handleCopy}
+            />
+          )}
+        </Tabs.Content>
+        <Tabs.Content value="video" className={s.tabContent}>
+          {activeTab === "video" && (
+            <VideoTab
+              videoVolume={state.videoVolume}
+              videoFormat={videoFormat}
+              videoFormatOptions={videoFormatOptions.options}
+              onSetVideoFormat={(value) => {
+                setVideoFormat(value);
+                if (value === "contact" && loopCaptureMode === "offline") {
+                  setLoopCaptureMode("webcodecs");
+                }
+                if (value === "contact") {
+                  setFrames(30);
+                  setContactColumns(5);
+                }
+              }}
+              recordingPanel={recordingPanelProps}
+              frameExportPanel={frameExportPanelProps}
+            />
+          )}
+        </Tabs.Content>
+      </Tabs.Root>
     </WindowDialog>
   );
 };

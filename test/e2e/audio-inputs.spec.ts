@@ -71,10 +71,7 @@ test("chain, filter, and screensaver audio inputs expose usable Auto Viz mapping
   await chainAudio.getByRole("button", { name: "Clear", exact: true }).click();
   await expect(chainAudio).toBeHidden();
 
-  const firstEntry = page
-    .getByRole("listbox", { name: "Filter chain" })
-    .getByRole("option")
-    .first();
+  const firstEntry = page.getByRole("list", { name: "Filter chain" }).getByRole("listitem").first();
   await firstEntry.getByRole("button", { name: /More actions for/ }).click();
   await firstEntry.getByRole("button", { name: /Map audio visualizer to/ }).click();
   const filterAudio = page.getByRole("dialog", { name: /Audio visualizer settings for/ });

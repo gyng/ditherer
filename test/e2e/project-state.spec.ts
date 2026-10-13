@@ -21,43 +21,43 @@ test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round
   await page
     .getByRole("combobox", { name: "Load a preset" })
     .selectOption({ label: "Amber Terminal" });
-  const chain = page.getByRole("listbox", { name: "Filter chain" });
-  await expect(chain.getByRole("option")).toHaveCount(3);
-  const originalOrder = await chain.getByRole("option").allTextContents();
+  const chain = page.getByRole("list", { name: "Filter chain" });
+  await expect(chain.getByRole("listitem")).toHaveCount(3);
+  const originalOrder = await chain.getByRole("listitem").allTextContents();
 
   await chain.getByLabel("Stage 1").click();
-  await expect(chain.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+  await expect(chain.getByRole("listitem").first()).toHaveAttribute("aria-current", "true");
   await chain.focus();
   await expect(chain).toBeFocused();
   await page.keyboard.down("Alt");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.up("Alt");
-  const reordered = await chain.getByRole("option").allTextContents();
+  const reordered = await chain.getByRole("listitem").allTextContents();
   expect(reordered).not.toEqual(originalOrder);
   await chain.press(" ");
-  await expect(chain.getByRole("option").nth(1).getByRole("checkbox")).not.toBeChecked();
+  await expect(chain.getByRole("listitem").nth(1).getByRole("checkbox")).not.toBeChecked();
   await chain.press("Delete");
-  await expect(chain.getByRole("option")).toHaveCount(2);
+  await expect(chain.getByRole("listitem")).toHaveCount(2);
   const undo = page.getByRole("button", { name: "Undo" });
   await expect(undo).toBeEnabled();
   await undo.click();
-  await expect(chain.getByRole("option")).toHaveCount(3);
+  await expect(chain.getByRole("listitem")).toHaveCount(3);
 
   await page.getByRole("button", { name: "Clear filter chain" }).click();
   const clearDialog = page.getByRole("dialog", { name: "Clear filter chain" });
   await expect(clearDialog).toBeVisible();
   await clearDialog.getByRole("button", { name: "Cancel" }).click();
-  await expect(chain.getByRole("option")).toHaveCount(3);
+  await expect(chain.getByRole("listitem")).toHaveCount(3);
   await page.getByRole("button", { name: "Clear filter chain" }).click();
   await page
     .getByRole("dialog", { name: "Clear filter chain" })
     .getByRole("button", { name: "OK" })
     .click();
-  await expect(chain.getByRole("option")).toHaveCount(1);
-  await expect(chain.getByRole("option").first()).toContainText("None");
+  await expect(chain.getByRole("listitem")).toHaveCount(1);
+  await expect(chain.getByRole("listitem").first()).toContainText("None");
   await expect(undo).toBeEnabled();
   await undo.click();
-  await expect(chain.getByRole("option")).toHaveCount(3);
+  await expect(chain.getByRole("listitem")).toHaveCount(3);
 
   page.once("dialog", async (dialog) => {
     expect(dialog.type()).toBe("prompt");
@@ -71,12 +71,12 @@ test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round
     .getByRole("combobox", { name: "Load a preset" })
     .selectOption({ label: "Gameboy Screen" });
   await savedChains.selectOption("Dogfood Amber");
-  await expect(chain.getByRole("option")).toHaveCount(3);
+  await expect(chain.getByRole("listitem")).toHaveCount(3);
   await expect(page.getByTitle('Delete "Dogfood Amber"')).toBeVisible();
 
   await page.getByRole("button", { name: /Settings/ }).click();
   await page.getByRole("button", { name: "⇧ JSON", exact: true }).click();
-  const exportDialog = page.getByRole("dialog", { name: "Export JSON (copied to clipboard)" });
+  const exportDialog = page.getByRole("dialog", { name: /^Export JSON/ });
   const exportedJson = await exportDialog.getByRole("textbox").inputValue();
   expect(JSON.parse(exportedJson)).toBeTruthy();
   await exportDialog.getByRole("button", { name: "OK" }).click();
@@ -103,7 +103,7 @@ test("chain keyboard editing, recovery, saved chains, JSON, and share URLs round
   await page.goto(shareUrl!);
   await expect(page.getByText("Input - pepper.png", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  await expect(chain.getByRole("option")).toHaveCount(3);
+  await expect(chain.getByRole("listitem")).toHaveCount(3);
 
   await savedChains.selectOption("Dogfood Amber");
   await page.getByTitle('Delete "Dogfood Amber"').click();

@@ -37,6 +37,7 @@ const filterChunkGroups = () => [
   },
   {
     name: filterImplementationChunkName,
+    debugName: "filter-implementations",
     test: (moduleId) => filterImplementationChunkName(moduleId) !== null,
     priority: 10,
   },
@@ -120,6 +121,9 @@ export default defineConfig({
     ],
   },
   build: {
+    // Lightning CSS crashes on even a single rule under the current Node runtime.
+    // Keep CSS minified through Vite's supported esbuild backend.
+    cssMinify: "esbuild",
     outDir: "build",
     chunkSizeWarningLimit: 1000,
     rolldownOptions: {

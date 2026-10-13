@@ -1,0 +1,30 @@
+[
+  {
+    "task": "keyboard load/compose/reorder/toggle/delete/undo/compare/export",
+    "tabStepsToSave": 4,
+    "filename": "ditherer-2026-10-14-022049.png",
+    "errors": []
+  },
+  {
+    "task": "long local filename",
+    "errors": []
+  },
+  {
+    "task": "error",
+    "width": 1440,
+    "height": 1000,
+    "overflow": false
+  },
+  {
+    "task": "phone-error",
+    "width": 390,
+    "height": 844,
+    "overflow": false
+  },
+  {
+    "task": "processing",
+    "width": 1440,
+    "height": 1000,
+    "overflow": false
+  }
+]

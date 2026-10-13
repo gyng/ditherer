@@ -1,0 +1,842 @@
+[
+  {
+    "viewport": "desktop",
+    "task": "Source",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._mediaPickerCopy_1i869_939 > strong"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._mediaPickerCopy_1i869_939 > span"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["#test-image-select"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Load a random test image\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["#test-video-select"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Load a random test video\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._inputWindow_1i869_2149 > .handle._titleBar_zhh4c_541"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [".handle._titleBar_zhh4c_541._windowChrome_1i869_1358"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "task": "Compose",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Open filter and preset library\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._presetSelect_8h528_361"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Set random cycle interval\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._dragHandle_8h528_103"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._entryName_8h528_98"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._mobileMore_8h528_210"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._trigger_alnf2_1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._addEntryButton_8h528_449"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["#_r_9_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["#_r_a_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["#_r_b_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["#_r_e_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._paletteFavoriteButton_zhh4c_382"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._themeSelectLabel_zhh4c_361 > ._label_zhh4c_268"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["select[aria-label=\"Palette theme\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._themeDesc_zhh4c_155"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["label[for=\"_r_g_\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["#_r_g_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": [
+              "._pipelineOptions_1i869_458 > ._checkbox_zhh4c_232:nth-child(2) > ._label_zhh4c_268"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": [
+              "._pipelineOptions_1i869_458 > ._checkbox_zhh4c_232:nth-child(3) > ._label_zhh4c_268"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._applyStatus_1i869_706"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._header_1axsi_5[role=\"button\"] > h2"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._perfReadout_1i869_566"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["a"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._inputWindow_1i869_2149 > .handle._titleBar_zhh4c_541"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [".handle._titleBar_zhh4c_541._windowChrome_1i869_1358"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "task": "Preview",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["#_r_i_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._inputWindow_1i869_2149 > .handle._titleBar_zhh4c_541"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [".handle._titleBar_zhh4c_541._windowChrome_1i869_1358"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "task": "Export",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "aria-hidden-focus",
+        "nodes": [
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(1)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["header"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._tabStrip_1i869_262"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["#preview-output-settings"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["div[data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(7)"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._github_1i869_588"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._workspaceToolbar_1i869_208"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._canvases_1i869_213"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(4)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          }
+        ]
+      },
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["#_r_i_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._inputWindow_1i869_2149 > .handle._titleBar_zhh4c_541"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._windowChrome_1i869_1358.handle._titleBar_zhh4c_541"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._titleBar_1sv01_15 > span"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._closeBtn_1sv01_23"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["#_r_r_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "task": "Library",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "aria-hidden-focus",
+        "nodes": [
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(1)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["header"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._tabStrip_1i869_262"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._browseLooksButton_1i869_778"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._addRow_8h528_293"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._chainList_8h528_36"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._addEntry_8h528_394"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["#active-filter-options"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._pipelineOptions_1i869_458"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._filterButton_1i869_536"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._taskProgress_1i869_422"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["div[data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(8)"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._github_1i869_588"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._workspaceToolbar_1i869_208"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._canvases_1i869_213"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(4)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          }
+        ]
+      },
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Open filter and preset library\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._presetSelect_8h528_361"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Set random cycle interval\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._dragHandle_8h528_103"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._entryName_8h528_98"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._mobileMore_8h528_210"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._trigger_alnf2_1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._addEntryButton_8h528_449"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._titleText_187z2_34"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["#_r_9_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["#_r_a_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["#_r_b_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["#_r_e_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._paletteFavoriteButton_zhh4c_382"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._themeSelectLabel_zhh4c_361 > ._label_zhh4c_268"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["select[aria-label=\"Palette theme\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._themeDesc_zhh4c_155"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["label[for=\"_r_g_\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["#_r_g_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": [
+              "._pipelineOptions_1i869_458 > ._checkbox_zhh4c_232:nth-child(2) > ._label_zhh4c_268"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": [
+              "._pipelineOptions_1i869_458 > ._checkbox_zhh4c_232:nth-child(3) > ._label_zhh4c_268"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._applyStatus_1i869_706"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._header_1axsi_5[role=\"button\"] > h2"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._perfReadout_1i869_566"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["a"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          },
+          {
+            "target": ["._inputWindow_1i869_2149 > .handle._titleBar_zhh4c_541"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [".handle._titleBar_zhh4c_541._windowChrome_1i869_1358"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "phone",
+    "task": "Source",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._mediaPickerCopy_1i869_939 > strong"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._mediaPickerCopy_1i869_939 > span"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["#test-image-select"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Load a random test image\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["#test-video-select"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Load a random test video\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "phone",
+    "task": "Compose",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Open filter and preset library\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._presetSelect_8h528_361"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Set random cycle interval\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._dragHandle_8h528_103"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._entryName_8h528_98"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._mobileMore_8h528_210"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._trigger_alnf2_1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._addEntryButton_8h528_449"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["#_r_9_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "phone",
+    "task": "Preview",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": [".handle._titleBar_zhh4c_541._windowChrome_1i869_1358"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "phone",
+    "task": "Export",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "aria-hidden-focus",
+        "nodes": [
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(1)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._tabStrip_1i869_262"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(4)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          }
+        ]
+      },
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["._titleBar_1sv01_15 > span"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["._closeBtn_1sv01_23"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["#_r_r_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "viewport": "phone",
+    "task": "Library",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "aria-hidden-focus",
+        "nodes": [
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(1)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["header"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._tabStrip_1i869_262"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._header_1axsi_5[role=\"button\"][data-aria-hidden=\"true\"]"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._browseLooksButton_1i869_778"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._addRow_8h528_293"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._chainList_8h528_36"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._addEntry_8h528_394"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["#active-filter-options"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._pipelineOptions_1i869_458"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._filterButton_1i869_536"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._taskProgress_1i869_422"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["div[data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(8)"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": ["._github_1i869_588"],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          },
+          {
+            "target": [
+              "span[data-radix-focus-guard=\"\"][data-aria-hidden=\"true\"][aria-hidden=\"true\"]:nth-child(4)"
+            ],
+            "failureSummary": "Fix all of the following:\n  Check that focusable elements are not tabbable in the current state"
+          }
+        ]
+      },
+      {
+        "id": "color-contrast",
+        "nodes": [
+          {
+            "target": ["h1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Open filter and preset library\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._presetSelect_8h528_361"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random curated preset\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"]"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          },
+          {
+            "target": ["button[title=\"Random filter chain\"] > span[aria-hidden=\"true\"]"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": [
+              "button[aria-label=\"Set random cycle interval\"] > span[aria-hidden=\"true\"]"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._dragHandle_8h528_103"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._entryName_8h528_98"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._mobileMore_8h528_210"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["._trigger_alnf2_1"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "target": ["._addEntryButton_8h528_449"],
+            "failureSummary": "Fix any of the following:\n  Element content contains only non-text characters"
+          },
+          {
+            "target": ["#_r_9_"],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          }
+        ]
+      }
+    ]
+  }
+]

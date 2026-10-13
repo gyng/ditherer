@@ -152,6 +152,7 @@ beforeEach(() => {
     setContactSheetResult: vi.fn(),
   };
   actions = {
+    isAnimating: vi.fn(() => false),
     renderFrameForExport: vi.fn(),
     clearExportSession: vi.fn(),
   };
@@ -172,6 +173,23 @@ afterEach(() => {
 });
 
 describe("SaveAs coordinator", () => {
+  it("starts on Video for an actively animating image chain", () => {
+    actions.isAnimating.mockReturnValue(true);
+    render();
+    expect(container.querySelector('[data-testid="video-tab"]')).not.toBeNull();
+  });
+
+  it("starts on Image for a still source even when a filter can use frame history", () => {
+    render({
+      realtimeFiltering: true,
+      chain: [{ enabled: true, filter: { name: "Temporal Test", temporal: true } }],
+    });
+    expect(container.querySelector('[data-testid="image-tab"]')).not.toBeNull();
+    expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+      "Image",
+    );
+  });
+
   it("drives still-image settings, progress normalization, and close behavior", () => {
     render();
     expect(container.querySelector('[data-testid="image-tab"]')).not.toBeNull();
@@ -352,11 +370,11 @@ describe("SaveAs coordinator", () => {
     expect(container.querySelector('[data-testid="video-tab"]')).not.toBeNull();
     const imageTab = elementWithDirectText("Image")!;
     expect(imageTab).toBeTruthy();
-    act(() => imageTab.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    act(() => imageTab.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 })));
     expect(container.querySelector('[data-testid="image-tab"]')).not.toBeNull();
     const videoTab = elementWithDirectText("Video")!;
     expect(videoTab).toBeTruthy();
-    act(() => videoTab.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    act(() => videoTab.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 })));
     expect(container.querySelector('[data-testid="video-tab"]')).not.toBeNull();
 
     act(() => (bridge.videoProps!.onSetVideoFormat as (value: string) => void)("contact"));

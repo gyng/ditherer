@@ -9,25 +9,20 @@
 }
 
 .chainKicker {
+  composes: subsectionHeader from "../controls/styles.module.css";
   display: block;
-  color: #444;
-  font-size: 10px;
-  font-weight: bold;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  text-transform: uppercase;
 }
 
 .chainCount {
   display: block;
   margin-top: 1px;
-  color: #111;
+  color: var(--button-text);
   font-size: 15px;
   line-height: 1.1;
 }
 
 .chainDirection {
-  color: #555;
+  color: var(--muted-text);
   font-size: 10px;
   line-height: 1.2;
   white-space: nowrap;
@@ -35,7 +30,7 @@
 
 .chainList {
   display: grid;
-  grid-template-columns: 18px 20px 30px minmax(0, 1fr) 6ch 30px;
+  grid-template-columns: 18px 24px 30px minmax(0, 1fr) 6ch 30px;
   grid-auto-rows: minmax(0, auto);
   border: 2px inset var(--input-border, #808080);
   background: var(--window-bg, white);
@@ -92,10 +87,11 @@
 }
 
 .disabled {
-  opacity: 0.5;
+  color: var(--muted-text);
 }
 
 .disabled .entryName {
+  min-height: 26px;
   text-decoration: line-through;
 }
 
@@ -120,6 +116,8 @@
 }
 
 .entryToggle {
+  min-width: 24px;
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -389,9 +387,11 @@
 }
 
 .addEntry {
-  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: subgrid;
+  grid-template-columns: 18px 24px 30px minmax(0, 1fr) 6ch 30px;
+  margin-top: -4px;
+  border: 2px inset var(--input-border, #808080);
+  border-top: 0;
   align-items: center;
   cursor: default;
   min-height: 36px;
@@ -428,7 +428,7 @@
 .addEntryPicker :global(button) {
   min-height: 28px;
   border-style: dashed;
-  color: #333;
+  color: var(--button-text);
   font-weight: bold;
 }
 
@@ -547,14 +547,8 @@
 }
 
 .confirmDialog {
+  composes: windowFrame from "../controls/styles.module.css";
   background: var(--light-gray, #c0c0c0);
-  border-left: 2px solid #ffffff;
-  border-top: 2px solid #ffffff;
-  border-right: 2px solid #404040;
-  border-bottom: 2px solid #404040;
-  box-shadow:
-    1px 1px 0 #000,
-    inset 1px 1px 0 #dfdfdf;
   min-width: 280px;
   font-family: inherit;
 }
@@ -563,15 +557,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(90deg, #000080, #1084d0);
+  background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
   padding: 2px 3px;
   margin: 2px;
 }
 
 .confirmTitleText {
-  color: white;
-  font-weight: bold;
-  font-size: 12px;
+  composes: windowTitle from "../controls/styles.module.css";
   padding-left: 2px;
 }
 
@@ -796,4 +788,13 @@
   .entryActionsExpanded > .removeBtn:not(.mobileMore) {
     display: inline-flex;
   }
+}
+
+.active .entryName,
+.active .entryName:hover:not(:disabled) {
+  color: #111;
+  background-color: #dcecff;
+}
+.active .entryTime {
+  color: #333;
 }
