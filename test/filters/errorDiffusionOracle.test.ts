@@ -9,7 +9,7 @@ vi.mock("utils", async (importOriginal) => {
   return { ...actual, cloneCanvas: (input: HTMLCanvasElement) => input };
 });
 
-import { initWasmFromBinary, wasmIsLoaded } from "@gyng/ditherer-filters";
+import { initWasmFromBinary, wasmIsLoaded } from "../../packages/ditherer-filters/src/utils/index";
 import {
   atkinson,
   burkes,

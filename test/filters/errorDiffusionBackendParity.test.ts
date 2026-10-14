@@ -9,7 +9,7 @@ vi.mock("utils", async (importOriginal) => {
   return { ...actual, cloneCanvas: (input: HTMLCanvasElement) => input };
 });
 
-import { initWasmFromBinary } from "@gyng/ditherer-filters";
+import { initWasmFromBinary } from "../../packages/ditherer-filters/src/utils/index";
 import { floydSteinberg, stucki } from "filters/errorDiffusing";
 import { ORDER, TEMPORAL_MODE } from "filters/errorDiffusingFilterFactory";
 import user from "palettes/user";

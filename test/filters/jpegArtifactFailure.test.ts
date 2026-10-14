@@ -11,7 +11,11 @@ vi.mock("filters/jpegArtifactGL", async () => {
 });
 
 import { applyJpegArtifactToCanvas, tryApplyJpegArtifactToCanvas } from "filters/jpegArtifact";
-import { getCanvasPoolStats, resetCanvasPoolStats, takePooledCanvas } from "@gyng/ditherer-filters";
+import {
+  getCanvasPoolStats,
+  resetCanvasPoolStats,
+  takePooledCanvas,
+} from "../../packages/ditherer-filters/src/utils/index";
 
 describe("JPEG Artifact GL failure", () => {
   beforeEach(() => {

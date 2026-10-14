@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import * as utils from "@gyng/ditherer-filters";
+import * as utils from "../../packages/ditherer-filters/src/utils/index";
 
 describe("utils", () => {
   it("quantize a value", () => {

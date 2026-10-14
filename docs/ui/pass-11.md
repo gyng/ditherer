@@ -105,3 +105,14 @@ button wrapped at 1024px. Menu bar items now use 4px side padding.
 `library-package.spec.ts` targets the example library server, so the main
 Playwright config ignores it; `npm run test:lib` still runs it. The full
 Chromium suite passes with 47 tests.
+
+- Filter imports: Vitest's import breakdown showed `filters/index.ts` (the
+  448-module registry) loading in nearly every slow file. Thirteen test
+  files imported the package root only for helpers: motion vectors, canvas
+  pool, WASM init, palettes, linearisation, workers and GL stubs. They now
+  import the defining module directly, a closure of 1–10 modules. Run alone,
+  those files dropped from about 11s wall and 40–49s CPU to about 3s wall and
+  12–18s CPU. Tests that need `filterIndex` or `filterList` still load the
+  registry, and app code keeps using the package's public entry. An
+  experimental Vitest fs module cache was tried and reverted: it was no
+  faster and produced timeouts under load.

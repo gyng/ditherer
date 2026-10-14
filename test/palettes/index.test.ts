@@ -6,7 +6,7 @@ import {
   deserializePalette,
   nearest,
   user,
-} from "@gyng/ditherer-filters";
+} from "../../packages/ditherer-filters/src/palettes/index";
 
 // Covers the small (de)serialization shim that ships palettes across the
 // worker boundary and the postMessage wire format. Without these, palettes

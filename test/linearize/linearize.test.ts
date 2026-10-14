@@ -6,7 +6,7 @@ import {
   linearizeColorF,
   delinearizeColorF,
   paletteGetColor,
-} from "@gyng/ditherer-filters";
+} from "../../packages/ditherer-filters/src/utils/index";
 
 describe("float linear conversion", () => {
   describe("srgbBufToLinearFloat", () => {

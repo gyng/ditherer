@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, beforeAll } from "vitest";
-import { wasmReady } from "@gyng/ditherer-filters";
+import { wasmReady } from "../../packages/ditherer-filters/src/utils/index";
 import nearest from "palettes/nearest";
 import user from "palettes/user";
 import { applyPaletteToBuffer, buildNearestLUT, paletteIsIdentity } from "palettes/backend";

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { getWorkerPrevOutputFrame } from "@gyng/ditherer-filters";
+import { getWorkerPrevOutputFrame } from "../../packages/ditherer-filters/src/utils/workerFrames";
 
 describe("getWorkerPrevOutputFrame", () => {
   it("uses the intermediate frame dimensions from the worker payload", () => {

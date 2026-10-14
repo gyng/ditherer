@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { initWasmFromBinary, wasmIsLoaded } from "@gyng/ditherer-filters";
+import { initWasmFromBinary, wasmIsLoaded } from "../../packages/ditherer-filters/src/utils/index";
 import { applyPaletteToBuffer } from "palettes/backend";
 import user, { THEMES } from "palettes/user";
 import { RGB_NEAREST, RGB_APPROX, HSV_NEAREST, LAB_NEAREST, OKLAB_NEAREST } from "constants/color";

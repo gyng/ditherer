@@ -6,7 +6,7 @@ import {
   clearMotionVectorStateCache,
   estimateMotionVector,
   prepareMotionAnalysisBuffers,
-} from "@gyng/ditherer-filters";
+} from "../../packages/ditherer-filters/src/utils/motionVectors";
 
 const makeBuffer = (width: number, height: number, fill = [0, 0, 0, 255]) => {
   const buf = new Uint8ClampedArray(width * height * 4);
