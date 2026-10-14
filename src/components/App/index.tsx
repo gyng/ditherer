@@ -4597,7 +4597,8 @@ const App = () => {
             {state.realtimeFiltering ? "AUTO" : "MANUAL"}
           </span>
           <span className={s.statusMetric} role="status" aria-live="polite">
-            {state.chain.filter((entry) => entry.enabled).length}/{state.chain.length} stages active
+            {state.chain.filter((entry) => entry.enabled).length}/{state.chain.length}
+            <span className={s.statusLong}> stages</span> active
           </span>
           {state.inputCanvas && (state.inputImage || state.video) ? (
             <span className={s.statusMetric}>
@@ -4615,7 +4616,8 @@ const App = () => {
           )}
           {state.frameTime != null ? (
             <span className={s.statusMetric}>
-              {state.frameTime.toFixed(1)}ms · {formatFrameRate(state.frameTime)}
+              <span className={s.statusLong}>{state.frameTime.toFixed(1)}ms · </span>
+              {formatFrameRate(state.frameTime)}
             </span>
           ) : null}
         </div>

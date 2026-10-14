@@ -21,6 +21,16 @@ The toolbar now has four groups, separated by etched dividers:
 Groups wrap whole onto a second row when space runs out. Previously the
 layout group scrolled and clipped its buttons at laptop widths.
 
+## Phone follow-ups from pass 07
+
+- The status strip needed 428px at 390px wide. On phones it now shows
+  "1/1 active" and the frame rate without the ms figure, with tighter gaps.
+  It fits at 360px for typical images and still scrolls for very large
+  dimensions. Desktop keeps the full wording.
+- Audio patch group headers and the screensaver's seconds/BPM fields are
+  44px tall on phones, like the other phone controls. Screensaver field
+  labels are left-aligned over their inputs.
+
 ## Perf warning
 
 The sidebar's slow-frame styling and ⚠ icon followed each raw frame time, so

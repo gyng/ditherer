@@ -1456,6 +1456,7 @@
   gap: 4px;
   font-size: 12px;
   color: #000;
+  text-align: left;
 }
 
 .screensaverInput {
@@ -2341,8 +2342,13 @@
     min-height: 22px;
     flex-wrap: nowrap;
     overflow-x: auto;
-    gap: 10px;
+    gap: 6px;
     padding-inline: 7px;
+  }
+
+  /* Phone status keeps the counts and frame rate; the wording and ms go. */
+  .statusLong {
+    display: none;
   }
 
   .workspaceStatus > span {
@@ -2507,6 +2513,16 @@
   .modeButton {
     min-height: 44px;
     font-size: 12px;
+  }
+
+  .audioPatchSectionHeader {
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  .screensaverInput {
+    min-height: 44px;
+    font-size: 14px;
   }
 
   .menuItem {
