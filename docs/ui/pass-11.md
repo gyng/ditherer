@@ -75,3 +75,26 @@ reports no other outliers at 1440 or 390px.
   `generate:check` has confirmed the generated sources are current.
   `build:packed-app` itself is unchanged for publishing.
 - The packed-library consumer install skips npm audit and fund requests.
+
+## E2E timeouts
+
+Three `ux-workbench` tests timed out locally at 30s. They opened plain `/`,
+which loads and plays the default video with realtime filtering. That kept
+the main thread busy, at about 20 long tasks per 2s and roughly 10 fps, so
+clicks stalled. The typeahead test also added Black Hole Lens, a temporal GL
+filter that animates every frame.
+
+Every test in the file now loads the still `pepper.png` image, and the
+recents check uses Posterize. The two monolithic tests are split into
+focused ones: desktop docking/compare, desktop modal focus and shortcuts,
+mobile task and typeahead, and mobile library. Each test now takes 2.5–4.6s,
+down from 22–31s. Two removed steps are covered elsewhere: grayscale undo in
+`app.advanced`, and the "Hold before" press in `workspace-layout`. A step
+that repeated earlier in-view checks was also dropped. The coverage merge
+list includes the two new coverage files.
+
+The spacing snap widened the output window's menu items, so the Screensaver
+button wrapped at 1024px. Menu bar items now use 4px side padding.
+`library-package.spec.ts` targets the example library server, so the main
+Playwright config ignores it; `npm run test:lib` still runs it. The full
+Chromium suite passes with 47 tests.

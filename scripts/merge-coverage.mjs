@@ -29,6 +29,8 @@ const browserCoveragePaths = [
   ".browser-coverage/ux-filter-typeahead.json",
   ".browser-coverage/ux-workbench-desktop.json",
   ".browser-coverage/ux-workbench-mobile.json",
+  ".browser-coverage/ux-workbench-desktop-modals.json",
+  ".browser-coverage/ux-workbench-mobile-library.json",
   ".browser-coverage/vj-mode.json",
   ".browser-coverage/wasm-smoke.json",
   ".browser-coverage/workspace-layout.json",

@@ -47,6 +47,8 @@ const serverUrl = `http://127.0.0.1:${serverPort}`;
 
 export default defineConfig({
   testDir: "./test/e2e",
+  // Runs against the example library app via `npm run test:lib`, not this server.
+  testIgnore: ["**/library-package.spec.ts"],
   // V8 coverage conversion and the GL registry smoke test are both memory and
   // CPU intensive. Keeping the release gate at two browser workers prevents
   // instrumented pages from starving the shared dev server/software renderer.

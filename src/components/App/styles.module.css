@@ -991,7 +991,8 @@
   background: none;
   border: 1px solid transparent;
   min-height: var(--control-height);
-  padding: 0 var(--space-2);
+  /* Tight like a menu bar: the output window's row must fit at 1024px. */
+  padding: 0 var(--space-1);
   font-family: inherit;
   cursor: pointer;
   color: var(--button-text, black);
