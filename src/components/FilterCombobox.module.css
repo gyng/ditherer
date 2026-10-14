@@ -1,9 +1,9 @@
 .trigger {
   flex: 1;
   min-width: 0;
-  min-height: 28px;
+  min-height: var(--control-height);
   box-sizing: border-box;
-  padding: 3px 20px 3px 7px;
+  padding: 0 20px 0 6px;
   overflow: hidden;
   border: 2px inset var(--input-border, #ccc);
   background-color: var(--window-bg, white);
@@ -12,8 +12,8 @@
   background-position: right 6px center;
   color: var(--window-text, #333);
   cursor: pointer;
-  font: inherit;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: var(--control-font-size);
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -34,9 +34,9 @@
 .inlineTrigger:active {
   flex: 1;
   min-width: 0;
-  min-height: 28px;
+  min-height: var(--control-height);
   margin: 0;
-  padding: 3px 20px 3px 6px;
+  padding: 0 20px 0 6px;
   border: 2px inset var(--input-border, #ccc);
   appearance: none;
   background-color: var(--window-bg, white);
@@ -387,6 +387,9 @@
   display: grid;
   min-height: 0;
   grid-template-columns: minmax(0, 3fr) minmax(215px, 2fr);
+  /* A fixed row keeps the popover still while the detail pane's content
+     changes with the hovered filter. */
+  grid-template-rows: min(365px, calc(var(--radix-popover-content-available-height) - 165px));
   background: var(--light-gray, #c0c0c0);
 }
 
@@ -526,6 +529,8 @@
 .detailPane {
   display: flex;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   flex-direction: column;
   gap: 8px;
   padding: 13px 12px 12px;
@@ -535,6 +540,7 @@
 }
 
 .detailPreview {
+  flex-shrink: 0;
   width: 100%;
   aspect-ratio: 8 / 5;
   border: 1px solid var(--input-border, #808080);

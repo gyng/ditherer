@@ -32,7 +32,6 @@
 .actionControl {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 30px;
   margin: 0;
   font-weight: bold;
 }
@@ -68,15 +67,19 @@
   padding: 0 3px;
   position: relative;
   top: -9px;
+  /* Same typography as .groupHeader / .optionGroupLegend. */
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: none;
 }
 
 .groupDisclosure {
   display: block;
-  min-height: 28px;
   border: 0;
   box-shadow: none;
   color: inherit;
-  font: inherit;
+  font-family: inherit;
+  font-weight: inherit;
   text-align: left;
   cursor: pointer;
 }
@@ -137,10 +140,6 @@
 
 .enum {
   width: 100%;
-  box-sizing: border-box;
-  min-height: 32px;
-  padding: 5px 24px 5px 5px;
-  background-position: center right 2px;
   background-color: var(--window-bg);
   color: var(--window-text);
   text-align: left;
@@ -204,12 +203,9 @@
 .numberInput {
   width: 68px;
   min-width: 68px;
-  box-sizing: border-box;
-  padding: 5px 4px;
-  border: 2px inset var(--input-border);
   background-color: var(--window-bg);
   color: var(--window-text);
-  font: inherit;
+  font-family: inherit;
   font-variant-numeric: tabular-nums;
   font-weight: bold;
   text-align: right;
@@ -246,7 +242,7 @@
 }
 
 .checkbox {
-  min-height: 28px;
+  min-height: var(--control-height);
   margin: 0;
   display: flex;
   align-items: center;
@@ -256,11 +252,11 @@
 
 .checkboxToggle {
   display: inline-flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
-  min-height: 24px;
+  min-height: var(--control-height);
   cursor: pointer;
   user-select: none;
 }
@@ -312,7 +308,7 @@
 
 .resetControl {
   flex: 0 0 auto;
-  min-height: 22px;
+  min-height: var(--control-height);
   margin: 0 0 0 auto;
   padding: 1px 5px;
   box-shadow: none;
@@ -364,37 +360,34 @@
 
 .paletteSearchRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px;
-  gap: 4px;
-  margin-bottom: 5px;
+  grid-template-columns: minmax(0, 1fr) var(--control-height);
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
 }
 
 .paletteSearch {
-  min-height: 28px;
   min-width: 0;
-  border: 2px inset var(--input-border);
-  padding: 5px;
   background-color: var(--window-bg);
   color: var(--window-text);
-  font: inherit;
+  font-family: inherit;
 }
 
 .paletteFavoriteButton {
-  min-height: 28px;
-  min-width: 34px;
+  min-width: var(--control-height);
   margin: 0;
-  padding: 2px;
-  font-size: 16px;
+  padding: 0;
+  font-size: 14px;
 }
 
 input[type="text"],
-input[type="select"],
 textarea,
 .input {
-  border: 2px inset var(--input-border);
-  padding: 5px;
   background-color: var(--window-bg);
   color: var(--window-text);
+}
+
+textarea {
+  padding: var(--space-1);
 }
 
 .textInput,

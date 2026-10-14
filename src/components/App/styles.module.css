@@ -135,9 +135,9 @@
 }
 
 .modeButton {
-  min-height: 0;
+  min-height: var(--control-height);
   margin: 0;
-  padding: 3px 9px;
+  padding: 0 var(--space-2);
   font:
     bold 9px/1 "Courier New",
     monospace;
@@ -244,7 +244,7 @@
 
 .layoutTools button,
 .exportTools button {
-  min-height: 28px;
+  min-height: var(--control-height);
   margin: 0;
   padding: 3px 8px;
   white-space: nowrap;
@@ -435,7 +435,7 @@
 }
 
 .taskProgress button {
-  min-height: 32px;
+  min-height: var(--control-height-lg);
   margin: 0;
 }
 
@@ -532,7 +532,8 @@
 }
 
 .chrome .filterButton {
-  padding: 20px;
+  min-height: var(--control-height-lg);
+  padding: 0 var(--space-3);
   width: 100%;
 }
 
@@ -715,13 +716,10 @@
 
 .inspectorSearch {
   width: 100%;
-  box-sizing: border-box;
-  margin: 0 0 7px;
-  padding: 7px 8px;
-  border: 2px inset var(--input-border);
+  margin: 0 0 var(--space-2);
   background-color: var(--window-bg);
   color: var(--window-text);
-  font: inherit;
+  font-family: inherit;
 }
 
 .filterInspectorHeader {
@@ -769,7 +767,7 @@
 
 .inspectorActions button {
   flex: 1 1 auto;
-  min-height: 28px;
+  min-height: var(--control-height);
   font-size: 11px;
 }
 
@@ -919,7 +917,7 @@
 }
 
 .mediaPickerButton {
-  min-height: 38px;
+  min-height: var(--control-height-lg);
   margin: 0;
 }
 
@@ -955,21 +953,17 @@
 .testMediaTrigger {
   flex: 1 1 0;
   font-weight: bold;
-  min-height: unset;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
   text-align: center;
   background-color: var(--light-gray);
-  border-left: 2px outset var(--button-highlight);
-  border-top: 2px outset var(--button-highlight);
-  border-bottom: 1px outset var(--button-shadow);
-  border-right: 1px outset var(--button-shadow);
-  box-shadow: 1px 1px 0 var(--button-dk-shadow);
+  border: none;
+  box-shadow: var(--chrome-raised);
   color: var(--button-text);
-  padding: 3px 8px;
+  padding: 0 24px 0 var(--space-2);
   margin: 1px;
-  font: inherit;
+  font-family: inherit;
   width: auto;
   min-width: 0;
   overflow: hidden;
@@ -978,13 +972,10 @@
 
 .testMediaButton {
   flex: 0 0 auto;
+  width: var(--control-height);
   margin: 1px;
+  padding: 0;
   white-space: nowrap;
-  font-weight: bold;
-  min-height: unset;
-  padding: 3px 8px;
-  font: inherit;
-  width: 30px;
   font:
     bold 16px/1 "Courier New",
     monospace;
@@ -1008,7 +999,7 @@
 .menuItem {
   background: none;
   border: 1px solid transparent;
-  min-height: 28px;
+  min-height: var(--control-height);
   padding: 3px 6px;
   font-size: 11px;
   font-family: inherit;
@@ -1054,7 +1045,7 @@
 }
 
 .menuSelect {
-  min-height: 28px;
+  min-height: var(--control-height);
   font: inherit;
   color: inherit;
   background-color: var(--light-gray, #c0c0c0);
@@ -1063,7 +1054,7 @@
   border-right: 1px solid #404040;
   border-bottom: 1px solid #404040;
   padding: 1px 22px 1px 4px;
-  height: 28px;
+  height: var(--control-height);
   box-sizing: border-box;
 }
 
@@ -1299,7 +1290,7 @@
 
 .comparisonControl button {
   flex: 0 0 auto;
-  min-height: 26px;
+  min-height: var(--control-height);
   margin: 0;
   padding: 2px 8px;
 }
@@ -1457,6 +1448,8 @@
   font-size: 12px;
   color: #000;
   text-align: left;
+  /* 98.css centers label contents. */
+  align-items: stretch;
 }
 
 .screensaverInput {
@@ -1587,14 +1580,14 @@
 
 .audioPatchToolbarSelect {
   min-width: 96px;
-  min-height: 24px;
+  min-height: var(--control-height);
   font-size: 11px;
   border: 2px inset var(--input-border);
   background-color: #fff;
 }
 
 .audioPatchToolbarButton {
-  min-height: 24px;
+  min-height: var(--control-height);
   padding: 2px 8px;
   white-space: nowrap;
 }
@@ -1926,7 +1919,7 @@
 }
 
 .audioPatchNormalize {
-  min-height: 28px;
+  min-height: var(--control-height);
   grid-column: 1 / span 2;
   grid-row: 4;
   display: flex;
@@ -2006,7 +1999,7 @@
 }
 
 .audioPatchBpmToggle {
-  min-height: 28px;
+  min-height: var(--control-height);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2031,7 +2024,7 @@
 }
 
 .audioPatchBpmReset {
-  min-height: 22px;
+  min-height: var(--control-height);
   padding: 2px 8px;
   font-size: 10px;
   white-space: nowrap;
@@ -2183,7 +2176,7 @@
 
 .inputError button {
   flex: 0 0 auto;
-  min-height: 24px;
+  min-height: var(--control-height);
   padding: 2px 6px;
 }
 
@@ -2510,11 +2503,6 @@
     font-size: 14px;
   }
 
-  .modeButton {
-    min-height: 44px;
-    font-size: 12px;
-  }
-
   .audioPatchSectionHeader {
     min-height: 44px;
     font-size: 13px;
@@ -2630,6 +2618,9 @@
   letter-spacing: 0;
   text-transform: none;
 }
+.modeButton {
+  font-size: var(--control-font-size);
+}
 .tabStrip,
 .tabStrip .tab,
 .tabStrip .tab:hover {
@@ -2650,8 +2641,6 @@
 /* Dropdowns retain the upstream arrow when faces are recolored. */
 .testMediaTrigger {
   background-position: center right 2px;
-  min-height: 26px;
-  padding-right: 24px;
 }
 
 @media (max-width: 960px) {

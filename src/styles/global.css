@@ -37,6 +37,24 @@
   --primary-face: #c0c0c0;
   --primary-text: #000;
   --primary-shadow: #17367e;
+
+  /* Control sizing scale. Every field, select and ordinary button uses
+     --control-height; primary step actions use --control-height-lg. Use the
+     --space-* steps for gaps and padding instead of one-off values. */
+  --control-height: 24px;
+  --control-height-lg: 30px;
+  --control-font-size: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+}
+
+@media (max-width: 960px) {
+  :root {
+    --control-height: 44px;
+    --control-height-lg: 44px;
+    --control-font-size: 14px;
+  }
 }
 
 /* Windows 98 Rainy Day theme */
@@ -266,6 +284,43 @@ input[type="radio"] + label::after {
 /* 98.css pins the dropdown arrow to the top, which drifts on taller selects. */
 select {
   background-position: right 2px center;
+}
+
+/* Shared control geometry. Zero-specificity so a component can still opt out,
+   but by default fields, selects and buttons share one height and type size.
+   98.css hard-codes 21px fields and leaves fields at the browser's 13.3px. */
+:where(
+  button,
+  select,
+  textarea,
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])
+) {
+  font-size: var(--control-font-size);
+}
+
+:where(
+  select,
+  input[type="text"],
+  input[type="search"],
+  input[type="number"],
+  input[type="email"],
+  input[type="url"],
+  input[type="password"],
+  input[type="tel"]
+) {
+  box-sizing: border-box;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  padding: 2px 6px;
+  line-height: normal;
+}
+
+:where(select) {
+  padding-right: 24px;
+}
+
+:where(button) {
+  min-height: var(--control-height);
 }
 
 /* Use the system UI face everywhere. 98.css's pixel outline font with

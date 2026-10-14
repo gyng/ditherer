@@ -90,7 +90,7 @@
 }
 
 .disabled .entryName {
-  min-height: 26px;
+  min-height: var(--control-height);
   text-decoration: line-through;
 }
 
@@ -124,8 +124,10 @@
 }
 
 .entryNumber {
-  min-width: 26px;
-  padding: 2px 3px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
   border: 1px solid #aaa;
   background: #e5e5e5;
   color: #444;
@@ -211,7 +213,7 @@
   border: none;
   box-shadow: none;
   min-width: 26px;
-  min-height: 26px;
+  min-height: var(--control-height);
   padding: 2px 5px;
   font-size: 12px;
   cursor: pointer;
@@ -344,8 +346,14 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: start;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
+}
+
+/* Wrapped rows fill the width instead of leaving ragged gaps. */
+.toolbarGroup > * {
+  flex: 1 1 auto;
+  margin: 0;
 }
 
 .toolbarGroupRight {
@@ -354,10 +362,9 @@
 
 .addBtn {
   font-weight: bold;
-  min-height: 28px;
+  min-height: var(--control-height);
   box-sizing: border-box;
-  padding: 3px 7px;
-  font-size: 11px;
+  padding: 0 var(--space-2);
   line-height: 1.1;
 }
 
@@ -398,28 +405,22 @@
 }
 
 .presetSelect {
-  flex: 0 0 auto !important;
   font-weight: bold;
-  min-height: 28px;
+  min-height: var(--control-height);
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
   text-align: center;
   /* Match global button styling */
   background-color: var(--light-gray);
-  border-left: 2px outset var(--button-highlight);
-  border-top: 2px outset var(--button-highlight);
-  border-bottom: 1px outset var(--button-shadow);
-  border-right: 1px outset var(--button-shadow);
-  box-shadow: 1px 1px 0 var(--button-dk-shadow);
+  border: none;
+  box-shadow: var(--chrome-raised);
   color: var(--button-text);
-  padding: 3px 8px;
-  margin: 1px;
-  font: inherit;
+  padding: 0 24px 0 var(--space-2);
+  font-family: inherit;
   line-height: 1.1;
   box-sizing: border-box;
   width: auto;
-  max-width: 120px;
 }
 
 .dragging {
@@ -470,7 +471,7 @@
 }
 
 .addEntryPicker :global(button) {
-  min-height: 28px;
+  min-height: var(--control-height);
   border-style: dashed;
   color: var(--button-text);
   font-weight: bold;
