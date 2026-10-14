@@ -6,7 +6,7 @@ Ditherer is a browser-based image/video processing tool. Users load an image, se
 
 **Stack:** React 19, Vite, TypeScript, Rust/WASM (color space conversions), cmdk + Radix UI for the filter picker.
 
-**Quick reference:** `npm run dev` (dev server) · `npm run build` (production build to `build/`) · `npm run test` (Vitest) · `npm run lint` (eslint).
+**Quick reference:** `npm run dev` (dev server) · `npm run build` (production build to `build/`) · `npm run test` (Vitest) · `npm run lint` (oxlint, plus Biome CSS correctness checks).
 
 ---
 

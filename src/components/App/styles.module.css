@@ -14,22 +14,22 @@
   33.333% {
     content: "\1F553";
   }
-  33.333% {
+  41.666% {
     content: "\1F554";
   }
-  41.666% {
+  50% {
     content: "\1F555";
   }
-  50% {
+  58.333% {
     content: "\1F556";
   }
-  58.333% {
+  66.666% {
     content: "\1F557";
   }
-  66.666% {
+  75% {
     content: "\1F558";
   }
-  75% {
+  83.333% {
     content: "\1F559";
   }
   91.666% {
@@ -183,7 +183,7 @@
   min-height: 100vh;
   background-color: var(--desktop-color);
   background-image:
-    linear-gradient(var(--desktop-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--desktop-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--desktop-grid) 1px, transparent 1px);
   background-size: 16px 16px;
 }
@@ -1218,7 +1218,6 @@
 
 .PIXELATED {
   image-rendering: pixelated;
-  image-rendering: crisp-edges;
 }
 
 .AUTO {
