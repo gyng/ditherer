@@ -446,12 +446,6 @@
   display: block;
 }
 
-.inputTweaks {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .inputTweakRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -464,7 +458,6 @@
 }
 
 .inputTweakCheck {
-  margin: 0;
   min-width: 0;
 }
 
@@ -709,10 +702,6 @@
   font: inherit;
 }
 
-.filterInspector {
-  padding: 4px 5px 6px;
-}
-
 .filterInspectorHeader {
   display: grid;
   gap: 2px;
@@ -816,23 +805,18 @@
 }
 
 .commandPalette {
-  composes: windowFrame from "../controls/styles.module.css";
   width: min(520px, calc(100vw - 24px));
   max-height: min(640px, calc(100dvh - 32px));
   display: flex;
   flex-direction: column;
-  padding: 3px;
-  background: var(--light-gray);
 }
 
 .commandTitleBar {
-  composes: windowTitle from "../controls/styles.module.css";
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 3px 4px;
   background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
-  color: #fff;
 }
 
 .commandTitleBar button {
@@ -942,11 +926,6 @@
   color: #53606c;
   font-size: 10px;
   line-height: 1.3;
-}
-
-.testMediaPicker {
-  margin-top: 8px;
-  padding-bottom: 3px;
 }
 
 .testMediaToolbar {
@@ -1384,13 +1363,11 @@
 }
 
 .screensaverDialog {
-  composes: windowFrame from "../controls/styles.module.css";
   min-width: 320px;
   max-width: min(96vw, 820px);
   max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
-  background: var(--light-gray, #c0c0c0);
   overflow: hidden;
 }
 
@@ -1545,12 +1522,10 @@
 }
 
 .audioModDialog {
-  composes: windowFrame from "../controls/styles.module.css";
   width: min(96vw, 820px);
   max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
-  background: var(--light-gray, #c0c0c0);
   z-index: 10002;
   overflow: hidden;
 }
@@ -2462,7 +2437,6 @@
     min-width: 0;
     max-width: none;
     max-height: none;
-    box-sizing: border-box;
   }
 
   .comparisonControl {
@@ -2533,11 +2507,6 @@
     opacity: 0.7;
   }
 
-  .testMediaPicker {
-    margin-top: 6px;
-    padding-bottom: 1px;
-  }
-
   .mediaPickerButton {
     min-height: 44px;
   }
@@ -2577,10 +2546,6 @@
     display: inline-flex;
     align-items: center;
     padding-inline: 4px;
-  }
-
-  .inputTweaks {
-    gap: 0;
   }
 
   .taskProgress button {
@@ -2668,14 +2633,9 @@
 }
 
 .canvasWindowTitle {
-  composes: titleBar windowTitle from "../controls/styles.module.css";
   display: block;
   box-sizing: border-box;
   flex: 0 0 auto;
-}
-
-.dialogTitleText {
-  composes: windowTitle from "../controls/styles.module.css";
 }
 
 @media (max-width: 960px) {

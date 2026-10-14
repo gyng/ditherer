@@ -7,10 +7,6 @@
   padding: 6px;
 }
 
-.title {
-  composes: subsectionHeader from "./controls/styles.module.css";
-}
-
 .row {
   display: flex;
   align-items: center;

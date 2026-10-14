@@ -1,5 +1,4 @@
 .dialog {
-  composes: windowFrame from "../controls/styles.module.css";
   width: 980px;
   max-width: calc(100vw - 24px);
   height: 72vh;
@@ -8,10 +7,8 @@
   min-height: 420px;
   display: flex;
   flex-direction: column;
-  background: var(--light-gray, #c0c0c0);
   resize: both;
   overflow: auto;
-  box-sizing: border-box;
 }
 
 .titleBar {
@@ -22,10 +19,6 @@
   margin: 2px 2px 0;
   padding: 2px 3px;
   cursor: move;
-}
-
-.titleText {
-  composes: windowTitle from "../controls/styles.module.css";
 }
 
 .closeBtn {
@@ -391,10 +384,6 @@
   gap: 5px;
 }
 
-.optionsTitle {
-  composes: subsectionHeader from "../controls/styles.module.css";
-}
-
 .optionRow {
   border: 1px solid #d2d2d2;
   background: #fff;
@@ -427,10 +416,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.presetOptionTitle {
-  composes: subsectionHeader from "../controls/styles.module.css";
 }
 
 .detailActions {

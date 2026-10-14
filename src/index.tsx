@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 
 import "98.css/dist/98.css";
 import "styles/global.css";
+// Shared window chrome must precede the component modules that override it.
+import "components/controls/styles.module.css";
 
 // Eagerly load the library and pre-warm its worker during the boot screen.
 import "@gyng/ditherer-filters";

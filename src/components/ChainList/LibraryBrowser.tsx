@@ -28,6 +28,7 @@ import FilterThumbnail from "./FilterThumbnail";
 import BackendTags from "./BackendTags";
 import WindowDialog from "components/WindowDialog";
 import useMediaQuery from "../../hooks/useMediaQuery";
+import controls from "components/controls/styles.module.css";
 import s from "./libraryBrowser.module.css";
 
 type FilterEntry = (typeof filterList)[number];
@@ -664,14 +665,14 @@ const LibraryBrowser = ({
 
   return (
     <WindowDialog
-      className={s.dialog}
+      className={[controls.windowFrame, s.dialog].join(" ")}
       title="Filter Library"
       data-testid="filter-library-dialog"
       onClose={onClose}
       onMouseDown={onDialogMouseDown}
     >
       <div className={s.titleBar}>
-        <span className={s.titleText}>ditherer.exe - Filter Library</span>
+        <span className={controls.windowTitle}>ditherer.exe - Filter Library</span>
         <button className={s.closeBtn} onClick={onClose} title="Close">
           &#10005;
         </button>
@@ -854,7 +855,7 @@ const LibraryBrowser = ({
                 </div>
                 {presetsUsingSelectedFilter.length > 0 ? (
                   <div className={s.presetFilters}>
-                    <div className={s.optionsTitle}>Used In Presets</div>
+                    <div className={controls.subsectionHeader}>Used In Presets</div>
                     {presetsUsingSelectedFilter.map((preset, index) => (
                       <span key={`preset-link:${preset.name}`}>
                         <button
@@ -877,7 +878,7 @@ const LibraryBrowser = ({
                   </div>
                 ) : null}
                 <div className={s.optionsList}>
-                  <div className={s.optionsTitle}>Options</div>
+                  <div className={controls.subsectionHeader}>Options</div>
                   {selectedFilterOptions.length > 0 ? (
                     selectedFilterOptions.map((option) => (
                       <div key={option.name} className={s.optionRow}>
@@ -1127,7 +1128,7 @@ const LibraryBrowser = ({
                   ))}
                 </div>
                 <div className={s.optionsList}>
-                  <div className={s.optionsTitle}>Preset Options</div>
+                  <div className={controls.subsectionHeader}>Preset Options</div>
                   {selectedPreset.filters.map((presetEntry) => {
                     const match = ALL_FILTERS.find(
                       (entry) => entry.displayName === presetEntry.name,
@@ -1143,7 +1144,7 @@ const LibraryBrowser = ({
                     const rows = getFilterOptionRows(match, presetEntry.options);
                     return (
                       <div key={presetEntry.name} className={s.presetOptionGroup}>
-                        <div className={s.presetOptionTitle}>{presetEntry.name}</div>
+                        <div className={controls.subsectionHeader}>{presetEntry.name}</div>
                         {rows.length > 0 ? (
                           rows.map((option) => (
                             <div key={`${presetEntry.name}:${option.name}`} className={s.optionRow}>

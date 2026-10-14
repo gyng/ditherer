@@ -1,14 +1,11 @@
 .dialog {
-  composes: windowFrame from "../controls/styles.module.css";
   min-width: 320px;
   width: min(460px, calc(100vw - 24px));
   max-width: 90vw;
   max-height: calc(100dvh - 32px);
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--light-gray, #c0c0c0);
   color: var(--button-text, #000);
 }
 

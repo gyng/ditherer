@@ -3847,7 +3847,7 @@ const App = () => {
             <input
               id="imageLoader"
               ref={sourceFileInputRef}
-              className={[controls.file, s.sourceFileInput].join(" ")}
+              className={s.sourceFileInput}
               type="file"
               accept="image/*,video/*"
               onChange={(e) => {
@@ -3884,7 +3884,7 @@ const App = () => {
               </div>
             )}
           </div>
-          <div className={[controls.group, s.testMediaPicker].join(" ")}>
+          <div className={controls.group}>
             <span className={controls.name}>Examples</span>
             <div className={s.testMediaToolbar}>
               <select
@@ -3941,7 +3941,7 @@ const App = () => {
           </div>
           {(state.inputImage || state.video) && (
             <CollapsibleSection title="Input Tweaks">
-              <fieldset className={[controls.optionGroup, s.inputTweaks].join(" ")}>
+              <fieldset className={controls.optionGroup}>
                 <legend className={controls.optionGroupLegend}>Input Tweaks</legend>
                 <Range
                   name="Input Scale"
@@ -4109,7 +4109,7 @@ const App = () => {
                 />
               </div>
               <div
-                className={[controls.group, s.filterInspector].join(" ")}
+                className={controls.group}
                 id="active-filter-options"
                 role="region"
                 aria-label="Active filter parameters"
@@ -4630,7 +4630,12 @@ const App = () => {
               }
             >
               <div
-                className={["handle", s.canvasWindowTitle].join(" ")}
+                className={[
+                  "handle",
+                  controls.titleBar,
+                  controls.windowTitle,
+                  s.canvasWindowTitle,
+                ].join(" ")}
                 title={inputFilename ? `Input - ${inputFilename}` : "Input"}
               >
                 {inputFilename ? `Input - ${inputFilename}` : "Input"}
@@ -4708,7 +4713,13 @@ const App = () => {
               tabIndex={-1}
             >
               <div
-                className={["handle", s.canvasWindowTitle, s.windowChrome].join(" ")}
+                className={[
+                  "handle",
+                  controls.titleBar,
+                  controls.windowTitle,
+                  s.canvasWindowTitle,
+                  s.windowChrome,
+                ].join(" ")}
                 title={inputFilename ? `Output - ${inputFilename}` : "Output"}
               >
                 {inputFilename ? `Output - ${inputFilename}` : "Output"}
@@ -4904,7 +4915,10 @@ const App = () => {
                 }}
                 onMouseMove={screensaverDrag.onMouseMove}
               >
-                <div className={s.screensaverDialog} onMouseDown={(e) => e.stopPropagation()}>
+                <div
+                  className={[controls.windowFrame, s.screensaverDialog].join(" ")}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   <div
                     className={["handle", s.screensaverTitleBar].join(" ")}
                     onMouseDown={(event) => {
@@ -4912,7 +4926,7 @@ const App = () => {
                       screensaverDrag.onMouseDown(event);
                     }}
                   >
-                    <span className={s.dialogTitleText}>Screensaver</span>
+                    <span className={controls.windowTitle}>Screensaver</span>
                     <button
                       className={s.screensaverClose}
                       aria-label="Close screensaver settings"
@@ -4997,7 +5011,10 @@ const App = () => {
                 onMouseDownCapture={bringToTop}
                 onMouseMove={audioEditorDrag.onMouseMove}
               >
-                <div className={s.audioModDialog} onMouseDown={(event) => event.stopPropagation()}>
+                <div
+                  className={[controls.windowFrame, s.audioModDialog].join(" ")}
+                  onMouseDown={(event) => event.stopPropagation()}
+                >
                   <div
                     className={["handle", s.screensaverTitleBar].join(" ")}
                     onMouseDown={(event) => {
@@ -5005,7 +5022,7 @@ const App = () => {
                       audioEditorDrag.onMouseDown(event);
                     }}
                   >
-                    <span className={s.dialogTitleText}>
+                    <span className={controls.windowTitle}>
                       {editingAudioEntry
                         ? `Audio Viz - ${editingAudioEntry.displayName}`
                         : "Chain Audio Viz"}
@@ -5190,11 +5207,11 @@ const App = () => {
         {showCommandPalette && (
           <div className={s.dialogOverlay}>
             <WindowDialog
-              className={s.commandPalette}
+              className={[controls.windowFrame, s.commandPalette].join(" ")}
               title="Command palette"
               onClose={() => setShowCommandPalette(false)}
             >
-              <div className={s.commandTitleBar}>
+              <div className={[controls.windowTitle, s.commandTitleBar].join(" ")}>
                 <strong>Commands</strong>
                 <button
                   onClick={() => setShowCommandPalette(false)}

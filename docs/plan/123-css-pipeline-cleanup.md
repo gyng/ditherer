@@ -30,3 +30,26 @@ duplication.
 layout, workflow, audio and library Chromium tests pass. Computed styles of all
 835-875 elements match the previous build on desktop, phone and the command
 palette, except one live frame-timing label.
+
+## Cross-file composes removal
+
+Components now apply the shared `windowFrame`, `windowTitle`, `titleBar` and
+`subsectionHeader` classes from `controls/styles.module.css` directly. The entry
+imports that stylesheet first, so component rules come after it. Index CSS is
+now 134.87 kB (24.64 kB gzip).
+
+Previously the last inlined copy of the controls stylesheet came at the end of
+the bundle and won every equal-specificity tie. Each conflict now resolves by
+the design system:
+visual tokens follow the shared primitive, and component rules control their own
+layout. The overrides of group, fieldset, inspector and checkbox spacing, and
+the restated frame backgrounds, box-sizing and title color, are removed. The
+visually hidden source file input no longer carries the visible `.file` styling.
+Canvas titles now use the block layout the audit intended for single-line
+ellipsis; the old cascade had kept them flex.
+
+Computed styles match the previous build on 14 surfaces at desktop and phone,
+except those intended changes and nondeterministic screensaver rows.
+`npm run check` passes. 31 of 34 Chromium UI tests pass. The three failures
+timed out while other projects' browser suites loaded the machine. One also
+fails on the unchanged HEAD, and another passes on rerun.

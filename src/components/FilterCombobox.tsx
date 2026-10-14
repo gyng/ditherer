@@ -8,6 +8,7 @@ import {
   searchFilterIndex,
 } from "./filterSearch";
 import FilterThumbnail from "./ChainList/FilterThumbnail";
+import controls from "components/controls/styles.module.css";
 import s from "./FilterCombobox.module.css";
 
 const PREVIEW_SOURCE_SRC = `${import.meta.env.BASE_URL}test-assets/image/pepper.png`;
@@ -465,7 +466,7 @@ const FilterCombobox = ({
                 ) : null}
                 <section className={s.browser} aria-labelledby={`${titleId}-browse`}>
                   <div className={s.sectionHeading}>
-                    <strong id={`${titleId}-browse`} className={s.sectionTitle}>
+                    <strong id={`${titleId}-browse`} className={controls.subsectionHeader}>
                       Browse by type
                     </strong>
                     <span>Recognition beats recall</span>
@@ -480,7 +481,7 @@ const FilterCombobox = ({
                         onClick={() => browseCategory(category.name)}
                       >
                         <span className={s.categoryHeader}>
-                          <strong className={s.categoryTitle}>{category.name}</strong>
+                          <strong className={controls.subsectionHeader}>{category.name}</strong>
                           <span>{category.entries.length}</span>
                         </span>
                         <span className={s.categoryExamples}>{category.examples.join(" · ")}</span>

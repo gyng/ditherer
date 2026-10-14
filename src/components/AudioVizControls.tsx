@@ -12,6 +12,7 @@ import {
 import AudioBeatStrip from "./AudioBeatStrip";
 import AudioBpmReadout from "./AudioBpmReadout";
 
+import controls from "components/controls/styles.module.css";
 import s from "./AudioVizControls.module.css";
 
 const SOURCE_OPTIONS: Array<{ value: AudioVizSource; label: string }> = [
@@ -118,7 +119,7 @@ const AudioVizControls = ({ channel, title }: { channel: AudioVizChannel; title?
 
   return (
     <div className={s.panel}>
-      {title ? <div className={s.title}>{title}</div> : null}
+      {title ? <div className={controls.subsectionHeader}>{title}</div> : null}
       <label className={s.row}>
         <input
           type="checkbox"

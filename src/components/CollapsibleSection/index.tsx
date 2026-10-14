@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
 const isCompact = () =>
@@ -63,7 +64,7 @@ const CollapsibleSection = ({
           }
         }}
       >
-        <h2 className={s.heading}>{title}</h2>
+        <h2 className={controls.subsectionHeader}>{title}</h2>
         <span className={s.toggle}>{collapsed ? "[+]" : "[-]"}</span>
       </div>
       <div

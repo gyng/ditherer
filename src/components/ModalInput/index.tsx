@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import WindowDialog from "components/WindowDialog";
+import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
 const ModalInput = ({
@@ -40,13 +41,15 @@ const ModalInput = ({
   return (
     <div className={s.overlay} onMouseDown={onCancel}>
       <WindowDialog
-        className={s.dialog}
+        className={[controls.windowFrame, s.dialog].join(" ")}
         title={title}
         onClose={onCancel}
         initialFocusRef={inputRef}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className={s.titleBar}>{title}</div>
+        <div className={[controls.titleBar, controls.windowTitle, s.titleBar].join(" ")}>
+          {title}
+        </div>
         <div className={s.body}>
           {multiline ? (
             <textarea

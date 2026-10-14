@@ -9,7 +9,6 @@
 }
 
 .chainKicker {
-  composes: subsectionHeader from "../controls/styles.module.css";
   display: block;
 }
 
@@ -547,8 +546,6 @@
 }
 
 .confirmDialog {
-  composes: windowFrame from "../controls/styles.module.css";
-  background: var(--light-gray, #c0c0c0);
   min-width: 280px;
   font-family: inherit;
 }
@@ -563,7 +560,6 @@
 }
 
 .confirmTitleText {
-  composes: windowTitle from "../controls/styles.module.css";
   padding-left: 2px;
 }
 

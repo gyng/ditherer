@@ -9,14 +9,11 @@
 }
 
 .dialog {
-  composes: windowFrame from "../controls/styles.module.css";
   min-width: 280px;
   max-width: 90vw;
-  background: var(--light-gray);
 }
 
 .titleBar {
-  composes: titleBar windowTitle from "../controls/styles.module.css";
   display: block;
 }
 

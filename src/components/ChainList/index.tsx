@@ -28,6 +28,7 @@ import {
 import { isSlowFilter } from "utils/slowFilterRegistry";
 
 const noop = filterIndex.None;
+import controls from "components/controls/styles.module.css";
 import s from "./styles.module.css";
 
 const HOVER_PREVIEW_OPEN_DELAY_MS = 150;
@@ -581,7 +582,7 @@ const ChainList = ({
     <div>
       <div className={s.chainHeader}>
         <div>
-          <span className={s.chainKicker}>Filter chain</span>
+          <span className={[controls.subsectionHeader, s.chainKicker].join(" ")}>Filter chain</span>
           <strong className={s.chainCount}>
             {chain.length} {chain.length === 1 ? "stage" : "stages"}
           </strong>
@@ -1051,13 +1052,15 @@ const ChainList = ({
       {showClearConfirm && (
         <div className={s.confirmOverlay} onClick={() => setShowClearConfirm(false)}>
           <WindowDialog
-            className={s.confirmDialog}
+            className={[controls.windowFrame, s.confirmDialog].join(" ")}
             title="Clear filter chain"
             onClose={() => setShowClearConfirm(false)}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={s.confirmTitleBar}>
-              <span className={s.confirmTitleText}>ditherer.exe</span>
+              <span className={[controls.windowTitle, s.confirmTitleText].join(" ")}>
+                ditherer.exe
+              </span>
               <button
                 className={s.confirmTitleClose}
                 aria-label="Close clear confirmation"
@@ -1127,13 +1130,15 @@ const ChainList = ({
       {showRandomCycleModal && (
         <div className={s.confirmOverlay} onMouseDown={() => setShowRandomCycleModal(false)}>
           <WindowDialog
-            className={[s.confirmDialog, s.randomCycleDialog].join(" ")}
+            className={[controls.windowFrame, s.confirmDialog, s.randomCycleDialog].join(" ")}
             title="Random chain swap"
             onClose={() => setShowRandomCycleModal(false)}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className={s.confirmTitleBar}>
-              <span className={s.confirmTitleText}>Random Chain Swap</span>
+              <span className={[controls.windowTitle, s.confirmTitleText].join(" ")}>
+                Random Chain Swap
+              </span>
               <button
                 className={s.confirmTitleClose}
                 aria-label="Close random cycle settings"
