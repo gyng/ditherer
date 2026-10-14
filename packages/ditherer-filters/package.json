@@ -62,7 +62,8 @@
   "scripts": {
     "generate": "node scripts/generate-selective-entries.mjs",
     "generate:check": "node scripts/generate-selective-entries.mjs --check",
-    "build": "npm run generate && vite build --config vite.config.ts && npm run build:types",
+    "build": "npm run generate && npm run build:dist",
+    "build:dist": "vite build --config vite.config.ts && npm run build:types",
     "build:types": "node scripts/clean-types.mjs && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "validate:release": "node scripts/validate-release.mjs"
