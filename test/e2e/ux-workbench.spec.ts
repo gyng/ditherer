@@ -62,15 +62,24 @@ test("ranks and bounds filter typeahead results with keyboard selection and rece
   const search = page.getByRole("combobox", { name: "Search filters" });
   const items = typeahead.getByTestId("filter-typeahead-item");
 
+  const tab = (name: RegExp) => typeahead.getByRole("tab", { name });
   await expect(search).toBeFocused();
-  await expect(typeahead).toContainText(/\d+ total/);
-  expect(await items.count()).toBeLessThanOrEqual(12);
+  // Categories are tabs; a fresh profile opens on All.
+  await expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
+  await expect(typeahead).toContainText(/\d+ filters/);
 
   await search.fill("raymarching");
   await expect(typeahead).toContainText("Best matches");
   await expect(items.first()).toContainText("Heightfield Raymarch");
   await expect(items.first()).toContainText("Advanced");
   expect(await items.count()).toBeLessThanOrEqual(48);
+
+  // A tab narrows the ranked matches to its category.
+  await search.fill("crt");
+  await tab(/^Simulate/).click();
+  await expect(typeahead).toContainText(/\d+ matches? in Simulate/);
+  await expect(typeahead).toContainText("Best matches in Simulate");
+  await tab(/^All/).click();
 
   await search.fill("no-filter-can-match-this");
   await expect(typeahead).toContainText("No matches");
@@ -88,13 +97,14 @@ test("ranks and bounds filter typeahead results with keyboard selection and rece
   await search.press("Enter");
   await expect(page.locator("#chain-composer")).toContainText("Posterize");
 
+  // With a recent filter, the finder opens on the Recent tab.
   await trigger.click();
+  await expect(tab(/^Recent/)).toHaveAttribute("aria-selected", "true");
   await expect(typeahead).toContainText("Recently used");
-  await expect(typeahead.locator('[data-recent-value="Posterize"]')).toBeVisible();
-  await expect(typeahead).toContainText("Browse by type");
-  await typeahead.getByRole("button", { name: /Browse Simulate filters/ }).click();
+  await expect(items.first()).toContainText("Posterize");
+  await tab(/^Simulate/).click();
   await expect(typeahead).toContainText("Simulate filters");
-  await expect(typeahead).toContainText("A–Z category browse");
+  await expect(typeahead).toContainText("A–Z");
   await expect(items.first()).toBeVisible();
   await expect(typeahead.locator("kbd")).toHaveText(["↑↓", "Enter", "Esc"]);
   await writeBrowserCoverage(page, "ux-filter-typeahead");

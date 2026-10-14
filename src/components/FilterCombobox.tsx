@@ -8,7 +8,6 @@ import {
   searchFilterIndex,
 } from "./filterSearch";
 import FilterThumbnail from "./ChainList/FilterThumbnail";
-import controls from "components/controls/styles.module.css";
 import s from "./FilterCombobox.module.css";
 
 const PREVIEW_SOURCE_SRC = `${import.meta.env.BASE_URL}test-assets/image/pepper.png`;
@@ -103,6 +102,7 @@ const ALL_CATEGORY = {
   entries: allBrowseEntries,
   examples: ["Every filter, A–Z"],
 };
+const RECENT_TAB = "Recent";
 const browseCategories = [ALL_CATEGORY, ...categoryEntries];
 const categoryByName = new Map(
   browseCategories.map((category) => [category.name, category] as const),
@@ -198,21 +198,32 @@ const FilterCombobox = ({
   const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
   const [value, setValue] = useState(currentValue ?? "");
-  const [activeCategory, setActiveCategory] = useState<string | null>(() =>
-    autoFocus ? categoryForFilter(currentValue) : null,
-  );
   const [recentNames, setRecentNames] = useState(readRecentNames);
+  // Tabs: Recent (when any), All, then each category. Replacing a filter opens
+  // on its category so its siblings are right there.
+  const defaultTab = useCallback(
+    (names: string[]) =>
+      categoryForFilter(currentValue) ?? (names.length > 0 ? RECENT_TAB : ALL_CATEGORY.name),
+    [currentValue],
+  );
+  const [activeTab, setActiveTab] = useState<string>(() => defaultTab(readRecentNames()));
   const [previewSource, setPreviewSource] = useState<HTMLImageElement | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const tabListRef = useRef<HTMLDivElement>(null);
   const listId = useId();
+  const panelId = useId();
   const popupId = useId();
   const titleId = useId();
   const descriptionId = useId();
   const normalizedQuery = normalizeFilterSearchText(query);
 
-  const searchResult = useMemo(() => searchFilterIndex(searchIndex, query, MAX_RESULTS), [query]);
+  // Rank across every filter, then scope to the active tab.
+  const searchResult = useMemo(
+    () => searchFilterIndex(searchIndex, query, allFilters.length),
+    [query],
+  );
   const recentEntries = useMemo(
     () =>
       recentNames
@@ -220,12 +231,40 @@ const FilterCombobox = ({
         .filter((entry): entry is SearchableFilter => Boolean(entry)),
     [recentNames],
   );
-  const selectedCategory = activeCategory ? categoryByName.get(activeCategory) : undefined;
-  const resultEntries = normalizedQuery ? searchResult.items : (selectedCategory?.entries ?? []);
-  const resultTotal = normalizedQuery
-    ? searchResult.total
-    : (selectedCategory?.entries.length ?? 0);
-  const showingResults = normalizedQuery.length > 0 || Boolean(selectedCategory);
+  const recentSet = useMemo(
+    () => new Set(recentEntries.map((entry) => entry.displayName)),
+    [recentEntries],
+  );
+  const inTab = useCallback(
+    (entry: SearchableFilter, tab: string) =>
+      tab === ALL_CATEGORY.name
+        ? entry.displayName !== "None"
+        : tab === RECENT_TAB
+          ? recentSet.has(entry.displayName)
+          : entry.category === tab,
+    [recentSet],
+  );
+  const tabs = useMemo(() => {
+    const names = [
+      ...(recentEntries.length > 0 ? [RECENT_TAB] : []),
+      ...browseCategories.map((category) => category.name),
+    ];
+    return names.map((name) => ({
+      name,
+      count: normalizedQuery
+        ? searchResult.items.filter((entry) => inTab(entry, name)).length
+        : name === RECENT_TAB
+          ? recentEntries.length
+          : (categoryByName.get(name)?.entries.length ?? 0),
+    }));
+  }, [inTab, normalizedQuery, recentEntries, searchResult.items]);
+  const tabMatches = normalizedQuery
+    ? searchResult.items.filter((entry) => inTab(entry, activeTab))
+    : activeTab === RECENT_TAB
+      ? recentEntries
+      : (categoryByName.get(activeTab)?.entries ?? []);
+  const resultEntries = normalizedQuery ? tabMatches.slice(0, MAX_RESULTS) : tabMatches;
+  const resultTotal = tabMatches.length;
   const selectedEntry =
     resultEntries.find((entry) => entry.displayName === value) ?? resultEntries[0];
 
@@ -241,14 +280,14 @@ const FilterCombobox = ({
   }, [currentValue, open, resultEntries, value]);
 
   useEffect(() => {
-    if (!open || !listRef.current || !value || !showingResults) return;
+    if (!open || !listRef.current || !value) return;
     requestAnimationFrame(() => {
       const element = listRef.current?.querySelector(`[data-value="${CSS.escape(value)}"]`);
       if (element && "scrollIntoView" in element) {
         (element as HTMLElement).scrollIntoView({ block: "nearest", behavior: "auto" });
       }
     });
-  }, [open, showingResults, value]);
+  }, [open, value]);
 
   useEffect(() => {
     if (!open || previewSource) return;
@@ -260,19 +299,17 @@ const FilterCombobox = ({
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
-    setActiveCategory(null);
     onClose?.();
   }, [onClose]);
 
   const openFinder = useCallback(() => {
-    setRecentNames(readRecentNames());
+    const names = readRecentNames();
+    setRecentNames(names);
     setQuery("");
-    // When replacing an existing filter, open straight into its category so the
-    // sibling filters (and the current one, highlighted) are right there.
-    setActiveCategory(categoryForFilter(currentValue));
+    setActiveTab(defaultTab(names));
     setValue(currentValue ?? "");
     setOpen(true);
-  }, [currentValue]);
+  }, [currentValue, defaultTab]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -301,23 +338,48 @@ const FilterCombobox = ({
     [open, openFinder],
   );
 
-  const browseCategory = (category: string) => {
-    const first = categoryByName.get(category)?.entries[0];
-    setActiveCategory(category);
-    setQuery("");
-    if (first) setValue(first.displayName);
-    requestAnimationFrame(() => inputRef.current?.focus());
+  const changeQuery = (nextQuery: string) => {
+    // Starting a search ranks across everything; tabs then narrow the matches.
+    if (!normalizedQuery && normalizeFilterSearchText(nextQuery)) setActiveTab(ALL_CATEGORY.name);
+    setQuery(nextQuery);
   };
 
+  const selectTab = (tab: string, focusTab = false) => {
+    setActiveTab(tab);
+    if (focusTab) {
+      requestAnimationFrame(() =>
+        tabListRef.current?.querySelector<HTMLElement>(`[data-tab="${CSS.escape(tab)}"]`)?.focus(),
+      );
+    }
+  };
+
+  const onTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const last = tabs.length - 1;
+    const next =
+      event.key === "ArrowRight"
+        ? index === last
+          ? 0
+          : index + 1
+        : event.key === "ArrowLeft"
+          ? index === 0
+            ? last
+            : index - 1
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    selectTab(tabs[next].name, true);
+  };
+
+  const tabLabel = activeTab === RECENT_TAB ? "recently used" : activeTab;
   const resultStatus = normalizedQuery
-    ? searchResult.total === 0
-      ? "No matches"
-      : searchResult.total > resultEntries.length
-        ? `${resultEntries.length} of ${searchResult.total} matches`
-        : `${searchResult.total} ${searchResult.total === 1 ? "match" : "matches"}`
-    : selectedCategory
-      ? `${resultEntries.length}${resultTotal > resultEntries.length ? ` of ${resultTotal}` : ""} ${selectedCategory.name} filters`
-      : `${categoryEntries.length} categories · ${allBrowseEntries.length} total`;
+    ? resultTotal === 0
+      ? `No matches${activeTab === ALL_CATEGORY.name ? "" : ` in ${activeTab}`}`
+      : `${resultTotal > resultEntries.length ? `${resultEntries.length} of ` : ""}${resultTotal} ${resultTotal === 1 ? "match" : "matches"}${activeTab === ALL_CATEGORY.name ? "" : ` in ${activeTab} · ${searchResult.total} in all`}`
+    : `${resultTotal} ${activeTab === ALL_CATEGORY.name ? "filters" : `${tabLabel} filters`}`;
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
@@ -371,35 +433,15 @@ const FilterCombobox = ({
             </header>
             <div className={s.searchShell}>
               <span className={s.searchGlyph} aria-hidden="true" />
-              {showingResults ? (
-                <Command.Input
-                  ref={inputRef}
-                  className={s.input}
-                  value={query}
-                  onValueChange={(nextQuery) => {
-                    setQuery(nextQuery);
-                    setActiveCategory(null);
-                  }}
-                  placeholder="Try ‘grainy’, ‘CRT’, ‘edge’, ‘dither’…"
-                  aria-label="Search filters"
-                  autoFocus
-                />
-              ) : (
-                <input
-                  ref={inputRef}
-                  className={s.input}
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setActiveCategory(null);
-                  }}
-                  placeholder="Try ‘grainy’, ‘CRT’, ‘edge’, ‘dither’…"
-                  role="combobox"
-                  aria-expanded={false}
-                  aria-label="Search filters"
-                  autoFocus
-                />
-              )}
+              <Command.Input
+                ref={inputRef}
+                className={s.input}
+                value={query}
+                onValueChange={changeQuery}
+                placeholder="Try ‘grainy’, ‘CRT’, ‘edge’, ‘dither’…"
+                aria-label="Search filters"
+                autoFocus
+              />
               {query ? (
                 <button
                   type="button"
@@ -408,7 +450,6 @@ const FilterCombobox = ({
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setQuery("");
-                    setActiveCategory(null);
                     inputRef.current?.focus();
                   }}
                 >
@@ -420,176 +461,153 @@ const FilterCombobox = ({
                 </span>
               )}
             </div>
-            <div className={s.statusBar} aria-live="polite">
-              {selectedCategory ? (
+            <div ref={tabListRef} className={s.tabs} role="tablist" aria-label="Filter categories">
+              {tabs.map((tab, index) => (
                 <button
                   type="button"
-                  className={s.backButton}
-                  onClick={() => setActiveCategory(null)}
+                  key={tab.name}
+                  role="tab"
+                  data-tab={tab.name}
+                  aria-selected={tab.name === activeTab}
+                  aria-controls={panelId}
+                  tabIndex={tab.name === activeTab ? 0 : -1}
+                  className={s.tab}
+                  data-empty={normalizedQuery && tab.count === 0 ? "true" : undefined}
+                  onClick={() => selectTab(tab.name)}
+                  onKeyDown={(event) => onTabKeyDown(event, index)}
                 >
-                  ← Categories
+                  {tab.name}
+                  <span className={s.tabCount}>{tab.count}</span>
                 </button>
-              ) : (
-                <span className={s.statusLamp} aria-hidden="true" />
-              )}
+              ))}
+            </div>
+            <div className={s.statusBar} aria-live="polite">
+              <span className={s.statusLamp} aria-hidden="true" />
               <span>{resultStatus}</span>
-              {showingResults ? (
-                <span className={s.registryCount}>
-                  {normalizedQuery ? "Global ranked search" : "A–Z category browse"}
-                </span>
-              ) : null}
+              <span className={s.registryCount}>
+                {normalizedQuery
+                  ? "Ranked search"
+                  : activeTab === RECENT_TAB
+                    ? "Newest first"
+                    : "A–Z"}
+              </span>
             </div>
 
-            {!showingResults ? (
-              <div className={s.landing} data-testid="filter-typeahead-overview">
-                {recentEntries.length > 0 ? (
-                  <section className={s.recents} aria-labelledby={`${titleId}-recent`}>
-                    <div className={s.sectionHeading}>
-                      <strong id={`${titleId}-recent`}>Recently used</strong>
-                      <span>Fast return</span>
-                    </div>
-                    <div className={s.recentGrid}>
-                      {recentEntries.map((entry) => (
-                        <button
-                          type="button"
-                          key={entry.displayName}
-                          className={s.recentButton}
-                          data-recent-value={entry.displayName}
-                          onClick={() => handleSelect(entry.displayName)}
+            <div
+              id={panelId}
+              className={s.resultsLayout}
+              role="tabpanel"
+              aria-label={`${activeTab} filters`}
+            >
+              <Command.List id={listId} ref={listRef} className={s.list}>
+                {resultEntries.length === 0 ? (
+                  <div className={s.empty}>
+                    <strong>No matching filters</strong>
+                    <span>
+                      {normalizedQuery && activeTab !== ALL_CATEGORY.name
+                        ? `Nothing in ${activeTab} matches. Try All, or a broader intent such as “glitch” or “film”.`
+                        : "Try a broader intent such as “glitch”, “film”, “soft”, or “motion”."}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (normalizedQuery && activeTab !== ALL_CATEGORY.name) {
+                          setActiveTab(ALL_CATEGORY.name);
+                        } else {
+                          setQuery("");
+                        }
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      {normalizedQuery && activeTab !== ALL_CATEGORY.name
+                        ? "Search all categories"
+                        : "Clear search"}
+                    </button>
+                  </div>
+                ) : (
+                  <Command.Group
+                    heading={
+                      normalizedQuery
+                        ? activeTab === ALL_CATEGORY.name
+                          ? "Best matches"
+                          : `Best matches in ${activeTab}`
+                        : activeTab === RECENT_TAB
+                          ? "Recently used"
+                          : `${activeTab} filters`
+                    }
+                    className={s.group}
+                  >
+                    {resultEntries.map((item) => {
+                      const capabilities = getCapabilities(item);
+                      return (
+                        <Command.Item
+                          key={item.displayName}
+                          value={item.displayName}
+                          onSelect={handleSelect}
+                          onPointerMove={() => setValue(item.displayName)}
+                          className={s.item}
+                          data-value={item.displayName}
+                          data-testid="filter-typeahead-item"
                         >
-                          <strong>{entry.displayName}</strong>
-                          <span>{entry.category}</span>
-                        </button>
+                          <span className={s.itemText}>
+                            <strong className={s.itemName}>
+                              {highlightMatch(item.displayName, query)}
+                            </strong>
+                            <span className={s.itemCategory}>{item.category}</span>
+                          </span>
+                          {currentValue === item.displayName ? (
+                            <span className={s.currentBadge}>Current</span>
+                          ) : null}
+                          {capabilities.slice(0, 2).map((capability) => (
+                            <span
+                              key={capability.label}
+                              className={`${s.badge} ${s[`badge_${capability.tone}`]}`}
+                            >
+                              {capability.label}
+                            </span>
+                          ))}
+                        </Command.Item>
+                      );
+                    })}
+                  </Command.Group>
+                )}
+              </Command.List>
+              <aside className={s.detailPane} aria-live="polite">
+                {selectedEntry ? (
+                  <>
+                    <div className={s.detailPreview} aria-hidden="true">
+                      <FilterThumbnail
+                        filter={selectedEntry}
+                        filterByName={thumbFilterByName}
+                        source={previewSource}
+                      />
+                    </div>
+                    <span className={s.detailCategory}>{selectedEntry.category}</span>
+                    <strong className={s.detailTitle}>{selectedEntry.displayName}</strong>
+                    <p className={s.detailDescription}>
+                      {selectedEntry.description || "No description available."}
+                    </p>
+                    <div className={s.detailFacts}>
+                      <span>
+                        {Object.keys(selectedEntry.filter.optionTypes || {}).length} controls
+                      </span>
+                      {getCapabilities(selectedEntry).map((capability) => (
+                        <span key={capability.detail}>{capability.detail}</span>
                       ))}
                     </div>
-                  </section>
-                ) : null}
-                <section className={s.browser} aria-labelledby={`${titleId}-browse`}>
-                  <div className={s.sectionHeading}>
-                    <strong id={`${titleId}-browse`} className={controls.subsectionHeader}>
-                      Browse by type
-                    </strong>
-                    <span>Recognition beats recall</span>
-                  </div>
-                  <div className={s.categoryGrid}>
-                    {browseCategories.map((category) => (
-                      <button
-                        type="button"
-                        key={category.name}
-                        className={`${s.categoryButton} ${category.name === "All" ? s.categoryButtonAll : ""}`}
-                        aria-label={`Browse ${category.name} filters (${category.entries.length})`}
-                        onClick={() => browseCategory(category.name)}
-                      >
-                        <span className={s.categoryHeader}>
-                          <strong className={controls.subsectionHeader}>{category.name}</strong>
-                          <span>{category.entries.length}</span>
-                        </span>
-                        <span className={s.categoryExamples}>{category.examples.join(" · ")}</span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              </div>
-            ) : (
-              <div className={s.resultsLayout}>
-                <Command.List id={listId} ref={listRef} className={s.list}>
-                  {resultEntries.length === 0 ? (
-                    <div className={s.empty}>
-                      <strong>No matching filters</strong>
-                      <span>
-                        Try a broader intent such as “glitch”, “film”, “soft”, or “motion”.
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQuery("");
-                          setActiveCategory(null);
-                        }}
-                      >
-                        Browse categories
-                      </button>
-                    </div>
-                  ) : (
-                    <Command.Group
-                      heading={
-                        normalizedQuery ? "Best matches" : `${selectedCategory?.name} filters`
-                      }
-                      className={s.group}
+                    <button
+                      type="button"
+                      className={s.chooseButton}
+                      onClick={() => handleSelect(selectedEntry.displayName)}
                     >
-                      {resultEntries.map((item) => {
-                        const capabilities = getCapabilities(item);
-                        return (
-                          <Command.Item
-                            key={item.displayName}
-                            value={item.displayName}
-                            onSelect={handleSelect}
-                            onPointerMove={() => setValue(item.displayName)}
-                            className={s.item}
-                            data-value={item.displayName}
-                            data-testid="filter-typeahead-item"
-                          >
-                            <span className={s.itemText}>
-                              <strong className={s.itemName}>
-                                {highlightMatch(item.displayName, query)}
-                              </strong>
-                              <span className={s.itemCategory}>{item.category}</span>
-                            </span>
-                            {currentValue === item.displayName ? (
-                              <span className={s.currentBadge}>Current</span>
-                            ) : null}
-                            {capabilities.slice(0, 2).map((capability) => (
-                              <span
-                                key={capability.label}
-                                className={`${s.badge} ${s[`badge_${capability.tone}`]}`}
-                              >
-                                {capability.label}
-                              </span>
-                            ))}
-                          </Command.Item>
-                        );
-                      })}
-                    </Command.Group>
-                  )}
-                </Command.List>
-                <aside className={s.detailPane} aria-live="polite">
-                  {selectedEntry ? (
-                    <>
-                      <div className={s.detailPreview} aria-hidden="true">
-                        <FilterThumbnail
-                          filter={selectedEntry}
-                          filterByName={thumbFilterByName}
-                          source={previewSource}
-                        />
-                      </div>
-                      <span className={s.detailCategory}>{selectedEntry.category}</span>
-                      <strong className={s.detailTitle}>{selectedEntry.displayName}</strong>
-                      <p className={s.detailDescription}>
-                        {selectedEntry.description || "No description available."}
-                      </p>
-                      <div className={s.detailFacts}>
-                        <span>
-                          {Object.keys(selectedEntry.filter.optionTypes || {}).length} controls
-                        </span>
-                        {getCapabilities(selectedEntry).map((capability) => (
-                          <span key={capability.detail}>{capability.detail}</span>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        className={s.chooseButton}
-                        onClick={() => handleSelect(selectedEntry.displayName)}
-                      >
-                        {currentValue ? "Use this replacement" : "Add this filter"}
-                      </button>
-                    </>
-                  ) : (
-                    <div className={s.detailPlaceholder}>
-                      Broaden the search or browse a category.
-                    </div>
-                  )}
-                </aside>
-              </div>
-            )}
+                      {currentValue ? "Use this replacement" : "Add this filter"}
+                    </button>
+                  </>
+                ) : (
+                  <div className={s.detailPlaceholder}>Broaden the search or pick another tab.</div>
+                )}
+              </aside>
+            </div>
             <footer className={s.footer}>
               <span className={s.safetyNote}>
                 {currentValue ? `Esc keeps ${currentValue}` : "Nothing changes until you choose"}

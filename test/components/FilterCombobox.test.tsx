@@ -94,25 +94,46 @@ describe("FilterCombobox", () => {
     const input = () =>
       document.querySelector<HTMLInputElement>('input[aria-label="Search filters"]')!;
     expect(input()).toBeTruthy();
-    expect(document.body.textContent).toContain("Browse by type");
-    expect(document.body.textContent).toContain("Stylize");
-    expect(document.body.textContent).toContain("Motion");
+    const tab = (name: string) =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find(
+        (element) => element.dataset.tab === name,
+      )!;
+    // Without recents the finder opens on All; categories are tabs.
+    expect(document.querySelector('[role="tablist"]')).toBeTruthy();
+    expect(tab("All").getAttribute("aria-selected")).toBe("true");
+    expect(tab("Recent")).toBeUndefined();
+    expect(tab("Stylize").textContent).toContain("28");
+    expect(tab("Motion").textContent).toContain("27");
 
-    const browseMotion = document.querySelector<HTMLButtonElement>(
-      'button[aria-label^="Browse Motion filters"]',
-    )!;
-    act(() => browseMotion.click());
+    act(() => tab("Motion").click());
+    expect(tab("Motion").getAttribute("aria-selected")).toBe("true");
     expect(document.body.textContent).toContain("Motion filters");
     expect(document.querySelectorAll('[data-testid="filter-typeahead-item"]')).toHaveLength(27);
 
+    // Arrow keys move between tabs and wrap.
+    key(tab("Motion"), "ArrowRight");
+    expect(tab("Stylize").getAttribute("aria-selected")).toBe("true");
+    key(tab("Stylize"), "ArrowRight");
+    expect(tab("All").getAttribute("aria-selected")).toBe("true");
+    key(tab("All"), "End");
+    expect(tab("Stylize").getAttribute("aria-selected")).toBe("true");
+
+    // Starting a search ranks across everything, from the All tab.
     setInput(input(), "artistic");
     await act(async () => Promise.resolve());
+    expect(tab("All").getAttribute("aria-selected")).toBe("true");
     expect(document.body.textContent).toContain("28 matches");
     expect(document.querySelector<HTMLElement>('[data-value="Alpha Glow"]')).toBeTruthy();
 
     setInput(input(), "filter");
     await act(async () => Promise.resolve());
     expect(document.body.textContent).toContain("48 of 53 matches");
+
+    // A tab narrows the current matches to its category.
+    act(() => tab("Motion").click());
+    expect(document.body.textContent).toContain("26 matches in Motion");
+    expect(document.body.textContent).toContain("Best matches in Motion");
+    act(() => tab("All").click());
 
     const clear = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Clear filter search"]',
@@ -173,15 +194,15 @@ describe("FilterCombobox", () => {
       document.querySelector('[data-testid="filter-typeahead"]'),
     );
 
-    // Replacing opens into the current filter's category; go back to the
-    // overview to inspect the refreshed, deduped recents.
+    // Replacing opens on the current filter's category; the Recent tab holds
+    // the refreshed, deduped recents.
     expect(document.body.textContent).toContain("Stylize filters");
-    const backToCategories = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((button) => button.textContent?.includes("Categories"))!;
-    act(() => backToCategories.click());
+    const recentTab = document.querySelector<HTMLButtonElement>('[role="tab"][data-tab="Recent"]')!;
+    expect(recentTab.textContent).toContain("2");
+    act(() => recentTab.click());
     expect(document.body.textContent).toContain("Recently used");
-    expect(document.querySelectorAll('[data-recent-value="Alpha Glow"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-value="Alpha Glow"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-value="Beta Motion"]')).toHaveLength(1);
   });
 
   it("opens safely from navigation keys even with an unknown current value", async () => {

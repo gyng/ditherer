@@ -199,6 +199,62 @@
   font-weight: normal;
 }
 
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-0);
+  padding: var(--space-1) var(--space-2) 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--button-dk-shadow, #000);
+  background: var(--light-gray, #c0c0c0);
+}
+
+/* Windows 98 tabs: raised faces, the selected one taller and joined to the
+   results below. */
+.tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
+  margin: 0 0 -1px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: 3px 3px 0 0;
+  background: var(--light-gray, #c0c0c0);
+  box-shadow:
+    inset 1px 1px var(--button-highlight, #fff),
+    inset -1px 0 var(--button-dk-shadow, #000),
+    inset -2px 0 var(--button-shadow, #808080);
+  color: var(--button-text, #000);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  position: relative;
+  min-height: calc(var(--control-height) + 3px);
+  background: var(--window-bg, #fff);
+  font-weight: bold;
+}
+
+.tab[data-empty="true"] {
+  color: var(--muted-text, #666);
+}
+
+.tab:focus-visible {
+  outline: 1px dotted var(--focus-ring, #000);
+  outline-offset: -4px;
+}
+
+.tabCount {
+  color: var(--muted-text, #555);
+  font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;
+  font-size: 10px;
+  font-weight: normal;
+}
+
 .statusBar {
   display: flex;
   align-items: center;
@@ -225,161 +281,8 @@
 
 .registryCount {
   margin-left: auto;
-  color: color-mix(in srgb, var(--window-text, #111) 55%, transparent);
+  color: color-mix(in srgb, var(--window-text, #111) 78%, transparent);
   white-space: nowrap;
-}
-
-.backButton {
-  min-height: 20px;
-  margin: 0;
-  padding: 1px var(--space-2);
-  font: inherit;
-}
-
-.landing {
-  min-height: 0;
-  max-height: min(420px, calc(var(--radix-popover-content-available-height) - 164px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--space-2);
-  background: color-mix(in srgb, var(--window-bg, #fff) 92%, var(--light-gray, #c0c0c0));
-}
-
-.recents,
-.browser {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.browser + .recents,
-.recents + .browser {
-  margin-top: var(--space-3);
-}
-
-.sectionHeading {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  min-height: 18px;
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid color-mix(in srgb, var(--window-text, #111) 28%, transparent);
-}
-
-.sectionHeading strong {
-  color: var(--window-text, #111);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.sectionHeading span {
-  margin-left: auto;
-  color: color-mix(in srgb, var(--window-text, #111) 58%, transparent);
-  font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;
-  font-size: 9px;
-}
-
-.recentGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-1);
-}
-
-.recentButton,
-.categoryButton {
-  min-width: 0;
-  margin: 0;
-  color: var(--window-text, #111);
-  text-align: left;
-}
-
-.recentButton {
-  display: grid;
-  gap: var(--space-0);
-  min-height: 44px;
-  padding: var(--space-2) var(--space-2);
-  border: 1px solid #8a8a8a;
-  border-left: 4px solid var(--beautiful-blue, #000080);
-  background: var(--window-bg, #fff);
-}
-
-.recentButton strong {
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.recentButton span {
-  color: color-mix(in srgb, var(--window-text, #111) 62%, transparent);
-  font-size: 9px;
-}
-
-.categoryGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.categoryButton {
-  display: grid;
-  align-content: start;
-  gap: var(--space-1);
-  min-height: 70px;
-  padding: var(--space-2) var(--space-2);
-  border: 1px solid #8a8a8a;
-  border-top: 3px solid color-mix(in srgb, var(--beautiful-blue, #000080) 70%, #fff);
-  background: var(--window-bg, #fff);
-}
-
-/* "All" leads the browse grid as a full-width option. */
-.categoryButtonAll {
-  grid-column: 1 / -1;
-  min-height: 0;
-  background: color-mix(in srgb, var(--window-bg, #fff) 88%, var(--beautiful-blue, #000080));
-}
-
-.recentButton:hover,
-.categoryButton:hover,
-.recentButton:focus-visible,
-.categoryButton:focus-visible {
-  border-color: var(--beautiful-blue, #000080);
-  outline: 1px dotted var(--beautiful-blue, #000080);
-  outline-offset: -4px;
-  background: color-mix(in srgb, var(--window-bg, #fff) 90%, var(--beautiful-blue, #000080));
-}
-
-.categoryHeader {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
-.categoryHeader strong {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.categoryHeader span {
-  margin-left: auto;
-  padding: 0 var(--space-1);
-  border: 1px solid color-mix(in srgb, var(--window-text, #111) 35%, transparent);
-  color: color-mix(in srgb, var(--window-text, #111) 70%, transparent);
-  font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;
-  font-size: 9px;
-}
-
-.categoryExamples {
-  display: -webkit-box;
-  overflow: hidden;
-  color: color-mix(in srgb, var(--window-text, #111) 58%, transparent);
-  font-size: 9px;
-  line-height: 1.35;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .resultsLayout {
@@ -682,11 +585,6 @@
     min-height: 40px;
   }
 
-  .recentButton,
-  .categoryButton {
-    min-height: 52px;
-  }
-
   .item {
     min-height: 61px;
   }
@@ -704,15 +602,6 @@
 
   .finderDescription {
     font-size: 9px;
-  }
-
-  .landing {
-    max-height: min(49dvh, calc(var(--radix-popover-content-available-height) - 178px));
-  }
-
-  .recentGrid,
-  .categoryGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .resultsLayout {
