@@ -246,7 +246,7 @@
 .exportTools button {
   min-height: var(--control-height);
   margin: 0;
-  padding: 3px 8px;
+  padding: 0 8px;
   white-space: nowrap;
 }
 
@@ -768,7 +768,6 @@
 .inspectorActions button {
   flex: 1 1 auto;
   min-height: var(--control-height);
-  font-size: 11px;
 }
 
 .browseLooksButton {
@@ -840,10 +839,8 @@
 }
 
 .commandSearch {
-  margin: 8px;
-  padding: 7px;
-  border: 2px inset #808080;
-  font: inherit;
+  margin: var(--space-2);
+  font-family: inherit;
 }
 
 .commandList {
@@ -1000,8 +997,7 @@
   background: none;
   border: 1px solid transparent;
   min-height: var(--control-height);
-  padding: 3px 6px;
-  font-size: 11px;
+  padding: 0 6px;
   font-family: inherit;
   cursor: pointer;
   color: var(--button-text, black);
@@ -1580,9 +1576,6 @@
 
 .audioPatchToolbarSelect {
   min-width: 96px;
-  min-height: var(--control-height);
-  font-size: 11px;
-  border: 2px inset var(--input-border);
   background-color: #fff;
 }
 
@@ -1983,10 +1976,8 @@
 
 .audioPatchBpmControlsTop > button {
   flex: 0 0 auto;
-  padding: 2px 6px;
-  font-size: 10px;
+  padding: 0 var(--space-2);
   min-width: 0;
-  min-height: 0;
 }
 
 .audioPatchBpmSliderValue {
@@ -2025,8 +2016,7 @@
 
 .audioPatchBpmReset {
   min-height: var(--control-height);
-  padding: 2px 8px;
-  font-size: 10px;
+  padding: 0 var(--space-2);
   white-space: nowrap;
 }
 
@@ -2504,8 +2494,8 @@
   }
 
   .audioPatchSectionHeader {
-    min-height: 44px;
-    font-size: 13px;
+    min-height: var(--control-height);
+    font-size: var(--control-font-size);
   }
 
   .screensaverInput {

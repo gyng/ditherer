@@ -35,13 +35,9 @@
 }
 
 .input {
-  min-height: 32px;
-  box-sizing: border-box;
-  border: 2px inset var(--input-border);
   background-color: var(--window-bg);
   color: var(--window-text);
-  padding: 4px 6px;
-  font: inherit;
+  font-family: inherit;
   min-width: 0;
 }
 
@@ -131,13 +127,8 @@
 
 .permissionButton {
   align-self: flex-start;
-  font: inherit;
-  font-size: 11px;
-  padding: 2px 8px;
-  border: 2px outset var(--input-border, #bbb);
-  background-color: var(--window-bg);
-  color: var(--window-text);
-  cursor: pointer;
+  font-family: inherit;
+  padding: 0 var(--space-2);
 }
 
 .permissionButton:disabled {

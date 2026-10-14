@@ -26,8 +26,8 @@
 }
 
 .tab {
-  padding: 4px 12px;
-  font-size: 12px;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
   cursor: pointer;
   background: var(--light-gray);
   border-left: 2px solid #ffffff;
@@ -144,22 +144,9 @@
 
 .btn {
   min-width: 70px;
-  padding: 4px 12px;
-  background-color: var(--light-gray);
-  border-left: 2px outset white;
-  border-top: 2px outset white;
-  border-bottom: 1px outset var(--gray);
-  border-right: 1px outset var(--gray);
-  box-shadow: 1px 1px 0 black;
+  padding: 0 var(--space-3);
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
-}
-
-.btn:active {
-  border: 2px inset var(--gray);
-  border-bottom: 1px outset var(--gray);
-  border-right: 1px outset var(--gray);
 }
 
 .btn:disabled {
@@ -167,8 +154,9 @@
   cursor: default;
 }
 
+/* Matches the app's .primaryButton: default action gets the dark frame. */
 .buttons .btn:first-child:not(:disabled) {
-  border-color: #fff var(--primary-shadow, #17367e) var(--primary-shadow, #17367e) #fff;
+  border: 1px solid var(--button-dk-shadow);
   background: var(--primary-face, #dce8ff);
   color: var(--primary-text, #00145e);
   font-weight: bold;

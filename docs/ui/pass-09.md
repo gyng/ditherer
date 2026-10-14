@@ -52,3 +52,38 @@ height, and its preview no longer shrinks.
 After the change, sidebar controls measure 24px, primary actions 30px and
 step tabs 28px. The tour at 1440 and 390px shows no overflow, clipping,
 off-screen controls or undersized phone targets.
+
+## Follow-up audit
+
+A second audit covered all ten surfaces at 1440 and 390px. It checked control
+height and font outliers, truncated labels, mixed heights within a row, layout
+shifts on hover, keyboard focus rings and six theme families. It found and
+fixed:
+
+- **Sizes:** Dock/Float/Output only were 26px because of vertical padding.
+  The audio patch "Tap" and "Reset" BPM buttons were 15px tall with 10px
+  text, because a more specific rule reset their minimum height.
+- **Fields that missed the system:** the screensaver's microphone selects
+  were 32px. The command palette search has no `type` attribute, so the field
+  rule now covers `input:not([type])`.
+- **Leftover 11px text:** canvas menu items, inspector actions, Library chips,
+  the mic permission button and the Auto Viz select now use the control size.
+- **Save As:** buttons were 25px with a hand-drawn bevel, and pressing one
+  added a border, so it shifted. They now use the shared button face, and the
+  default action uses the app's primary frame.
+- **Phone text:** phone buttons were 13px from a shared phone rule. They now
+  use the 14px control size. Phone fields and selects use `--field-font-size`
+  (16px) so iOS does not zoom in on focus.
+- **Theme colors:** in dark themes, the chain list's hard-coded light colors
+  made the active stage name unreadable in Arcade, hid the `⋯` button and left
+  a white Add filter strip. Row, hover, active, badge, timing and matched-preset
+  colors now come from theme tokens.
+- **Focus:** 98.css removes the outline on fields and some selects. Fields and
+  selects now share a 2px `--focus-ring` outline on keyboard focus. Tabbing
+  through Compose in Win98 and Modern Dark reaches 66 controls, and all of
+  them show a focus ring.
+
+Intentional exceptions remain: title-bar close buttons, the filter finder's
+large search field and category cards, Library list rows, command palette
+rows, step tabs and the patch jacks. A jack's hover `scale()` does not move
+the layout.

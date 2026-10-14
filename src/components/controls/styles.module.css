@@ -786,9 +786,9 @@ button:disabled,
 
   button,
   .button {
-    min-height: 44px;
+    min-height: var(--control-height);
     padding: 4px 8px;
-    font-size: 13px;
+    font-size: var(--control-font-size);
   }
 
   .file {

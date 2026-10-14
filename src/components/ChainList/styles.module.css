@@ -63,7 +63,7 @@
   cursor: pointer;
   user-select: none;
   font-size: 12px;
-  border-bottom: 1px solid #d0d0d0;
+  border-bottom: 1px solid color-mix(in srgb, var(--window-text) 15%, var(--window-bg));
   box-shadow: inset 4px 0 transparent;
 }
 
@@ -72,17 +72,15 @@
 }
 
 .entry:hover {
-  background: #eee;
+  background: color-mix(in srgb, var(--window-text) 6%, var(--window-bg));
 }
 
-.active {
-  background: #dcecff;
-  color: #111;
-  box-shadow: inset 4px 0 var(--beautiful-blue);
-}
-
+.active,
 .active:hover {
-  background: #dcecff;
+  /* Theme-derived so dark themes keep a dark, readable selected row. */
+  background: color-mix(in srgb, var(--beautiful-blue) 16%, var(--window-bg));
+  color: var(--window-text);
+  box-shadow: inset 4px 0 var(--beautiful-blue);
 }
 
 .disabled {
@@ -98,12 +96,12 @@
   justify-self: center;
   cursor: grab;
   padding: 0 2px;
-  color: #999;
+  color: color-mix(in srgb, var(--window-text) 45%, var(--window-bg));
   font-size: 11px;
 }
 
 .active .dragHandle {
-  color: #54667d;
+  color: color-mix(in srgb, var(--window-text) 65%, var(--window-bg));
 }
 
 .dragHandle:active {
@@ -128,9 +126,9 @@
   width: 100%;
   min-width: 0;
   padding: 2px 0;
-  border: 1px solid #aaa;
-  background: #e5e5e5;
-  color: #444;
+  border: 1px solid color-mix(in srgb, var(--window-text) 30%, var(--window-bg));
+  background: color-mix(in srgb, var(--window-text) 8%, var(--window-bg));
+  color: color-mix(in srgb, var(--window-text) 75%, var(--window-bg));
   font-family: monospace;
   font-size: 10px;
   font-weight: bold;
@@ -188,7 +186,7 @@
 .entryTime {
   font-family: monospace;
   font-size: 10px;
-  color: #555;
+  color: color-mix(in srgb, var(--window-text) 65%, var(--window-bg));
   min-width: 5ch;
   text-align: right;
 }
@@ -219,10 +217,6 @@
   cursor: pointer;
   color: #888;
   line-height: 1;
-}
-
-.active .removeBtn {
-  color: #34475f;
 }
 
 .mobileMore[aria-expanded="true"] {
@@ -440,7 +434,7 @@
   align-items: center;
   cursor: default;
   min-height: 36px;
-  background: #f2f2f2;
+  background: color-mix(in srgb, var(--window-text) 4%, var(--window-bg));
 }
 
 .addEntrySpacer {
@@ -448,7 +442,7 @@
   align-self: stretch;
   display: grid;
   place-items: center;
-  color: #52657c;
+  color: color-mix(in srgb, var(--window-text) 60%, var(--window-bg));
   font-size: 18px;
   font-weight: bold;
 }
@@ -465,7 +459,7 @@
   align-items: center;
   width: 100%;
   min-width: 0;
-  color: #52657c;
+  color: color-mix(in srgb, var(--window-text) 60%, var(--window-bg));
   font-size: 11px;
   font-style: italic;
 }
@@ -502,16 +496,16 @@
   display: grid;
   gap: 2px;
   font-size: 11px;
-  color: #333;
+  color: var(--button-text);
   margin-top: 5px;
   padding: 6px 7px;
-  border-left: 3px solid #6b7f98;
-  background: #e9e9e9;
+  border-left: 3px solid var(--beautiful-blue);
+  background: var(--panel-soft);
   line-height: 1.35;
 }
 
 .descriptionLabel {
-  color: #555;
+  color: var(--muted-text);
   font-size: 9px;
   font-weight: bold;
   letter-spacing: 0.08em;
@@ -794,9 +788,9 @@
 
 .active .entryName,
 .active .entryName:hover:not(:disabled) {
-  color: #111;
-  background-color: #dcecff;
+  color: var(--window-text);
+  background-color: color-mix(in srgb, var(--beautiful-blue) 10%, var(--window-bg));
 }
 .active .entryTime {
-  color: #333;
+  color: color-mix(in srgb, var(--window-text) 80%, var(--window-bg));
 }

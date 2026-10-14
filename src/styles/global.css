@@ -44,6 +44,8 @@
   --control-height: 24px;
   --control-height-lg: 30px;
   --control-font-size: 12px;
+  /* Fields and selects; phones need 16px or iOS zooms in on focus. */
+  --field-font-size: 12px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -54,6 +56,7 @@
     --control-height: 44px;
     --control-height-lg: 44px;
     --control-font-size: 14px;
+    --field-font-size: 16px;
   }
 }
 
@@ -289,17 +292,21 @@ select {
 /* Shared control geometry. Zero-specificity so a component can still opt out,
    but by default fields, selects and buttons share one height and type size.
    98.css hard-codes 21px fields and leaves fields at the browser's 13.3px. */
-:where(
-  button,
-  select,
-  textarea,
-  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])
-) {
+:where(button) {
   font-size: var(--control-font-size);
 }
 
 :where(
   select,
+  textarea,
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])
+) {
+  font-size: var(--field-font-size);
+}
+
+:where(
+  select,
+  input:not([type]),
   input[type="text"],
   input[type="search"],
   input[type="number"],
@@ -321,6 +328,16 @@ select {
 
 :where(button) {
   min-height: var(--control-height);
+}
+
+/* 98.css removes the outline from fields; keep one visible focus ring. */
+:where(
+  select,
+  textarea,
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])
+):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 /* Use the system UI face everywhere. 98.css's pixel outline font with

@@ -66,10 +66,8 @@
 }
 
 .capabilityBtn {
-  min-height: 26px;
   margin: 0;
-  padding: 3px 8px;
-  font-size: 11px;
+  padding: 0 var(--space-2);
 }
 
 .capabilityActive {
@@ -99,10 +97,8 @@
 
 .categoryBtn {
   text-align: left;
-  min-height: unset;
-  padding: 3px 6px;
+  padding: 0 6px;
   white-space: nowrap;
-  font-size: 12px;
   margin: 0;
   box-sizing: border-box;
   border-width: 2px 1px 1px 2px;
