@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { decodeShareState, encodeShareState } from "utils/shareState";
 

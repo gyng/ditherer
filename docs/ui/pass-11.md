@@ -75,6 +75,13 @@ reports no other outliers at 1440 or 390px.
   `generate:check` has confirmed the generated sources are current.
   `build:packed-app` itself is unchanged for publishing.
 - The packed-library consumer install skips npm audit and fund requests.
+- Unit tests (`test:coverage`, about 75% of `check`): the 45s option
+  conformance sweep is split into six round-robin shard files, so it no longer
+  sets the wall time. 74 DOM-free files run in the `node` environment and skip
+  jsdom setup. Vitest uses the threads pool. At similar load the run went from
+  45s wall and about 520s CPU to 28–31s wall and about 410s CPU, with every
+  test passing and coverage within 0.02 points. Sharing modules
+  (`isolate: false`) saved only about 10% CPU on pure files, so isolation stays on.
 
 ## E2E timeouts
 

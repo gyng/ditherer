@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { filterList } from "@gyng/ditherer-filters";
 import {

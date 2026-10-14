@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { HSV_NEAREST, LAB_NEAREST, RGB_APPROX, RGB_NEAREST } from "constants/color";
 import * as utils from "@gyng/ditherer-filters";

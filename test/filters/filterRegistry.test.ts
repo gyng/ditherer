@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 
 import { filterIndex, filterList, hasTemporalBehavior } from "@gyng/ditherer-filters";

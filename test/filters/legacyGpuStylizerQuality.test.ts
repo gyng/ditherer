@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { defaults as facetDefaults, optionTypes as facetOptionTypes } from "filters/facet";
 import {

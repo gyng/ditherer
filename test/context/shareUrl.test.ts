@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { decodeShareState } from "utils/shareState";
 import { getShareHash, getShareUrl } from "context/shareUrl";

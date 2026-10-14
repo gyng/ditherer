@@ -185,9 +185,7 @@ test("docks both canvases in view across the desktop workflow tasks", async ({ p
   await writeBrowserCoverage(page, "ux-workbench-desktop");
 });
 
-test("restores modal focus and opens desktop shortcuts from the preview task", async ({
-  page,
-}) => {
+test("restores modal focus and opens desktop shortcuts from the preview task", async ({ page }) => {
   await startBrowserCoverage(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(STILL_IMAGE_URL);

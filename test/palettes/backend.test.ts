@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, beforeAll } from "vitest";
 import { wasmReady } from "@gyng/ditherer-filters";
 import nearest from "palettes/nearest";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 
 import { THEMES, THEME_CATEGORIES } from "palettes/user";

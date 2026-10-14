@@ -160,7 +160,10 @@ export default defineConfig({
   test: {
     alias: legacyEngineTestAliases,
     globals: false,
+    // DOM-free test files opt into `// @vitest-environment node`, which skips
+    // jsdom setup; threads avoid a process per worker.
     environment: "jsdom",
+    pool: "threads",
     setupFiles: ["vitest-canvas-mock", "./test/setup.ts"],
     disableConsoleIntercept: true,
     exclude: [...configDefaults.exclude, "test/e2e/**"],

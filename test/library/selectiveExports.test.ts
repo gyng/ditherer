@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { filterCatalog } from "../../packages/ditherer-filters/src/catalog";
 import { filterIndex, filterList } from "../../packages/ditherer-filters/src/filters/index";

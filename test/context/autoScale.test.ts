@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_INPUT_WINDOW_HEIGHT,

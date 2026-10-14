@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import {
   dispatchRandomCycleSeconds,
