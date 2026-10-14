@@ -4431,7 +4431,8 @@ const App = () => {
                 : (state.stepTimes?.[0]?.name ?? "Filter")}{" "}
               | {state.frameTime.toFixed(0)}ms | {formatFrameRate(state.frameTime)}
             </span>
-            {state.frameTime > 50 && (
+            {/* Always reserve the icon's box so the row does not shift when it appears. */}
+            {state.frameTime > 50 ? (
               <span
                 className={s.perfWarnIcon}
                 role="img"
@@ -4440,6 +4441,8 @@ const App = () => {
               >
                 ⚠
               </span>
+            ) : (
+              <span className={[s.perfWarnIcon, s.perfWarnIconIdle].join(" ")} aria-hidden="true" />
             )}
           </div>
         )}

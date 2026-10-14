@@ -547,6 +547,10 @@
   min-width: 0;
 }
 
+.perfWarnIconIdle {
+  visibility: hidden;
+}
+
 .chrome .perfStatsSlow .perfReadout {
   color: #7a1f00;
 }
@@ -2578,7 +2582,7 @@
   color: var(--button-text);
   border-bottom: 1px solid var(--button-shadow);
   box-shadow: inset 0 1px var(--button-highlight);
-  font-family: "Pixelated MS Sans Serif", Tahoma, sans-serif;
+  font-family: Tahoma, Arial, sans-serif;
   letter-spacing: 0;
 }
 .statusMode,
@@ -2600,7 +2604,7 @@
 .appIdentityMeta,
 .modeButton,
 .toolbarLabel {
-  font-family: "Pixelated MS Sans Serif", Tahoma, sans-serif;
+  font-family: Tahoma, Arial, sans-serif;
   letter-spacing: 0;
   text-transform: none;
 }

@@ -263,14 +263,21 @@ input[type="radio"] + label::after {
   content: none;
 }
 
-@media (max-width: 960px) {
-  body,
-  button,
-  input,
-  select,
-  textarea,
-  label,
-  legend {
-    font-family: Tahoma, Arial, sans-serif;
-  }
+/* Use the system UI face everywhere. 98.css's pixel outline font with
+   smoothing disabled looks fake once the browser antialiases it. */
+body,
+button,
+input,
+select,
+textarea,
+label,
+legend,
+option,
+table,
+li[role="tab"],
+ul.tree-view,
+.title-bar,
+.window {
+  font-family: Tahoma, Arial, sans-serif;
+  -webkit-font-smoothing: auto;
 }
