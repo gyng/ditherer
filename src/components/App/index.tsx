@@ -4566,7 +4566,7 @@ const App = () => {
                 setCommandActiveIndex(0);
                 setShowCommandPalette(true);
               }}
-              title="Open command palette (/ or Ctrl/Command K)"
+              title="Open command palette (Ctrl/Command K or /)"
               aria-keyshortcuts="/ Control+K Meta+K"
             >
               Commands…{" "}
